@@ -2,12 +2,12 @@
 // import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import App from '@/shell/UI/App.tsx'
+import App from '@/shell/UI/App'
 import posthog from 'posthog-js'
 
 // Initialize PostHog
-const posthogKey = import.meta.env.VITE_POSTHOG_API_KEY
-const posthogHost = import.meta.env.VITE_POSTHOG_HOST
+const posthogKey: string | undefined = import.meta.env.VITE_POSTHOG_API_KEY
+const posthogHost: string | undefined = import.meta.env.VITE_POSTHOG_HOST
 
 if (posthogKey) {
   posthog.init(posthogKey, {

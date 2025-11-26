@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { app } from 'electron';
-import { getBuildConfig } from './build-config.ts';
+import { getBuildConfig } from './build-config';
 
 /**
  * Get the onboarding directory path in Application Support
@@ -20,7 +20,7 @@ export function getOnboardingDirectory(): string {
  * See package.json extraResources: {"from": "public/onboarding_tree", "to": "onboarding_tree"}
  */
 function getOnboardingSource(): string {
-  const appPath = app.getAppPath();
+  const appPath: string = app.getAppPath();
 
   // In production (packaged): use resources path
   // In development: use public folder relative to app path
@@ -36,11 +36,11 @@ function getOnboardingSource(): string {
  */
 async function copyDir(src: string, dest: string): Promise<void> {
   await fs.mkdir(dest, { recursive: true });
-  const entries = await fs.readdir(src, { withFileTypes: true });
+  const entries: import("fs").Dirent<string>[] = await fs.readdir(src, { withFileTypes: true });
 
   for (const entry of entries) {
-    const srcPath = path.join(src, entry.name);
-    const destPath = path.join(dest, entry.name);
+    const srcPath: string = path.join(src, entry.name);
+    const destPath: string = path.join(dest, entry.name);
 
     if (entry.isDirectory()) {
       await copyDir(srcPath, destPath);
@@ -60,7 +60,7 @@ async function copyDir(src: string, dest: string): Promise<void> {
  * Uses centralized build-config for path resolution
  */
 export async function setupOnboardingDirectory(): Promise<void> {
-  const config = getBuildConfig();
+  const config: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/electron/build-config").BuildConfig = getBuildConfig();
 
   // Skip entirely in test mode
   if (!config.shouldCopyTools) {
@@ -69,24 +69,24 @@ export async function setupOnboardingDirectory(): Promise<void> {
   }
 
   // Add timeout wrapper (10 seconds max)
-  const timeoutPromise = new Promise<void>((_, reject) => {
+  const timeoutPromise: Promise<void> = new Promise<void>((_, reject) => {
     setTimeout(() => {
       reject(new Error('[Setup] Timeout: onboarding setup took > 10 seconds'));
     }, 10000);
   });
 
-  const setupPromise = setupOnboardingDirectoryInternal();
+  const setupPromise: Promise<void> = setupOnboardingDirectoryInternal();
 
   return Promise.race([setupPromise, timeoutPromise]);
 }
 
 async function setupOnboardingDirectoryInternal(): Promise<void> {
   try {
-    const onboardingSource = getOnboardingSource();
-    const onboardingDest = getOnboardingDirectory();
+    const onboardingSource: string = getOnboardingSource();
+    const onboardingDest: string = getOnboardingDirectory();
 
     // Check if destination directory already exists
-    let destExists = false;
+    let destExists: boolean = false;
     try {
       await fs.access(onboardingDest);
       destExists = true;
@@ -95,7 +95,7 @@ async function setupOnboardingDirectoryInternal(): Promise<void> {
     }
 
     if (destExists) {
-      const entries = await fs.readdir(onboardingDest);
+      const entries: string[] = await fs.readdir(onboardingDest);
       if (entries.length > 1) {
         console.log('[Setup] Onboarding directory already exists with user content, preserving modifications');
         return;
@@ -108,7 +108,7 @@ async function setupOnboardingDirectoryInternal(): Promise<void> {
     console.log('[Setup] Destination path:', onboardingDest);
 
     // Verify source directory exists
-    let onboardingExist = false;
+    let onboardingExist: boolean = false;
 
     try {
       await fs.access(onboardingSource);

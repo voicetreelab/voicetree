@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { getSubgraphByDistance } from '@/pure/graph/graph-operations /traversal/getSubgraphByDistance.ts'
+import { getSubgraphByDistance } from '@/pure/graph/graph-operations /traversal/getSubgraphByDistance'
 import type { Graph, GraphNode } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
 
 describe('getSubgraphByDistance', () => {
-  const createTestNode = (id: string, edges: readonly string[] = []): GraphNode => ({
+  const createTestNode: (id: string, edges?: readonly string[]) => GraphNode = (id: string, edges: readonly string[] = []): GraphNode => ({
     relativeFilePathIsID: id,
     outgoingEdges: edges.map(targetId => ({ targetId, label: '' })),
     contentWithoutYamlOrLinks: `content of ${id}`,
@@ -17,7 +17,7 @@ describe('getSubgraphByDistance', () => {
     }
   })
 
-  const toEdges = (ids: readonly string[]) => ids.map(targetId => ({ targetId, label: '' }))
+  const toEdges: (ids: readonly string[]) => { targetId: string; label: string; }[] = (ids: readonly string[]) => ids.map(targetId => ({ targetId, label: '' }))
 
   describe('basic functionality', () => {
     it('should return only the start node when no neighbors within distance', () => {
@@ -27,7 +27,7 @@ describe('getSubgraphByDistance', () => {
         }
       }
 
-      const result = getSubgraphByDistance(graph, 'A', 7)
+      const result: Graph = getSubgraphByDistance(graph, 'A', 7)
 
       expect(Object.keys(result.nodes)).toEqual(['A'])
       expect(result.nodes['A'].outgoingEdges).toEqual(toEdges([]))
@@ -42,7 +42,7 @@ describe('getSubgraphByDistance', () => {
         }
       }
 
-      const result = getSubgraphByDistance(graph, 'A', 7)
+      const result: Graph = getSubgraphByDistance(graph, 'A', 7)
 
       expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B'])
       expect(result.nodes['A'].outgoingEdges).toEqual(toEdges(['B']))
@@ -58,7 +58,7 @@ describe('getSubgraphByDistance', () => {
         }
       }
 
-      const result = getSubgraphByDistance(graph, 'A', 7)
+      const result: Graph = getSubgraphByDistance(graph, 'A', 7)
 
       expect(Object.keys(result.nodes).sort()).toEqual(['A', 'Parent'])
       expect(result.nodes['Parent'].outgoingEdges).toEqual(toEdges(['A']))
@@ -79,7 +79,7 @@ describe('getSubgraphByDistance', () => {
         }
       }
 
-      const result = getSubgraphByDistance(graph, 'A', 7)
+      const result: Graph = getSubgraphByDistance(graph, 'A', 7)
 
       // Should include A, B (1.5), C (3.0), D (4.5), E (6.0) - all under 7
       expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B', 'C', 'D', 'E'])
@@ -98,7 +98,7 @@ describe('getSubgraphByDistance', () => {
         }
       }
 
-      const result = getSubgraphByDistance(graph, 'A', 7)
+      const result: Graph = getSubgraphByDistance(graph, 'A', 7)
 
       // Should include A, B (1.5), C (3.0), D (4.5), E (6.0)
       // Should NOT include F (7.5 >= 7)
@@ -117,7 +117,7 @@ describe('getSubgraphByDistance', () => {
         }
       }
 
-      const result = getSubgraphByDistance(graph, 'A', 5)
+      const result: Graph = getSubgraphByDistance(graph, 'A', 5)
 
       // Should include A, B (1.0), C (2.0), D (3.0), E (4.0) - all under 5
       expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B', 'C', 'D', 'E'])
@@ -137,7 +137,7 @@ describe('getSubgraphByDistance', () => {
         }
       }
 
-      const result = getSubgraphByDistance(graph, 'A', 5)
+      const result: Graph = getSubgraphByDistance(graph, 'A', 5)
 
       // Should include A, P1 (1.0), P2 (2.0), P3 (3.0), P4 (4.0)
       // Should NOT include P5 (5.0 >= 5), P6 (6.0 >= 5)
@@ -155,7 +155,7 @@ describe('getSubgraphByDistance', () => {
         }
       }
 
-      const result = getSubgraphByDistance(graph, 'A', 2)
+      const result: Graph = getSubgraphByDistance(graph, 'A', 2)
 
       // Should include A (0), Parent (1.0), Child (1.5)
       expect(Object.keys(result.nodes).sort()).toEqual(['A', 'Child', 'Parent'])
@@ -175,7 +175,7 @@ describe('getSubgraphByDistance', () => {
         }
       }
 
-      const result = getSubgraphByDistance(graph, 'Center', 7)
+      const result: Graph = getSubgraphByDistance(graph, 'Center', 7)
 
       // Should include all nodes: Center, parents (1.0 each), children (1.5 each)
       expect(Object.keys(result.nodes).sort()).toEqual(['C1', 'C2', 'Center', 'P1', 'P2'])
@@ -193,7 +193,7 @@ describe('getSubgraphByDistance', () => {
         }
       }
 
-      const result = getSubgraphByDistance(graph, 'A', 7)
+      const result: Graph = getSubgraphByDistance(graph, 'A', 7)
 
       // All nodes should be included
       expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B', 'C', 'D'])
@@ -211,7 +211,7 @@ describe('getSubgraphByDistance', () => {
         }
       }
 
-      const result = getSubgraphByDistance(graph, 'A', 7)
+      const result: Graph = getSubgraphByDistance(graph, 'A', 7)
 
       expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B'])
       expect(result.nodes['A'].outgoingEdges).toEqual(toEdges(['B']))
@@ -228,7 +228,7 @@ describe('getSubgraphByDistance', () => {
         }
       }
 
-      const result = getSubgraphByDistance(graph, 'A', 7)
+      const result: Graph = getSubgraphByDistance(graph, 'A', 7)
 
       // Should visit all nodes in cycle exactly once
       expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B', 'C'])
@@ -247,7 +247,7 @@ describe('getSubgraphByDistance', () => {
         }
       }
 
-      const result = getSubgraphByDistance(graph, 'A', 2)
+      const result: Graph = getSubgraphByDistance(graph, 'A', 2)
 
       // Only A and B should be included (C at distance 3.0 >= 2)
       expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B'])
@@ -265,7 +265,7 @@ describe('getSubgraphByDistance', () => {
         }
       }
 
-      const result = getSubgraphByDistance(graph, 'A', 7)
+      const result: Graph = getSubgraphByDistance(graph, 'A', 7)
 
       // All nodes included, all edges preserved
       expect(result.nodes['A'].outgoingEdges).toEqual(toEdges(['B']))
@@ -279,7 +279,7 @@ describe('getSubgraphByDistance', () => {
         nodes: {}
       }
 
-      const result = getSubgraphByDistance(graph, 'A', 7)
+      const result: Graph = getSubgraphByDistance(graph, 'A', 7)
 
       expect(result.nodes).toEqual({})
     })
@@ -291,7 +291,7 @@ describe('getSubgraphByDistance', () => {
         }
       }
 
-      const result = getSubgraphByDistance(graph, 'NonExistent', 7)
+      const result: Graph = getSubgraphByDistance(graph, 'NonExistent', 7)
 
       expect(result.nodes).toEqual({})
     })
@@ -304,7 +304,7 @@ describe('getSubgraphByDistance', () => {
         }
       }
 
-      const result = getSubgraphByDistance(graph, 'A', 0)
+      const result: Graph = getSubgraphByDistance(graph, 'A', 0)
 
       // Only start node at distance 0
       expect(Object.keys(result.nodes)).toEqual(['A'])
@@ -318,8 +318,8 @@ describe('getSubgraphByDistance', () => {
         }
       }
 
-      const originalAEdges = [...graph.nodes['A'].outgoingEdges]
-      const originalBEdges = [...graph.nodes['B'].outgoingEdges]
+      const originalAEdges: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = [...graph.nodes['A'].outgoingEdges]
+      const originalBEdges: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = [...graph.nodes['B'].outgoingEdges]
 
       getSubgraphByDistance(graph, 'A', 7)
 
@@ -335,7 +335,7 @@ describe('getSubgraphByDistance', () => {
         }
       }
 
-      const result = getSubgraphByDistance(graph, 'A', 7)
+      const result: Graph = getSubgraphByDistance(graph, 'A', 7)
 
       expect(result.nodes['A'].relativeFilePathIsID).toBe('A')
       expect(result.nodes['A'].contentWithoutYamlOrLinks).toBe('content of A')

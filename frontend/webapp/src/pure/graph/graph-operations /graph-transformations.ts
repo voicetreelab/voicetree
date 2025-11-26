@@ -4,7 +4,7 @@
  */
 
 import type { Graph, GraphNode, NodeIdAndFilePath } from '@/pure/graph'
-import { setOutgoingEdges } from './graph-edge-operations.ts'
+import { setOutgoingEdges } from './graph-edge-operations'
 
 /**
  * Reverses all edges in a graph.
@@ -24,13 +24,13 @@ export function reverseGraphEdges(graph: Graph): Graph {
     // Build map of incoming edges with their labels preserved
     // Map: targetId -> Array<{ sourceId, label }>
     type IncomingEdge = { readonly sourceId: NodeIdAndFilePath; readonly label: string }
-    const initialIncomingEdgesMap = Object.keys(graph.nodes).reduce<Record<NodeIdAndFilePath, readonly IncomingEdge[]>>(
+    const initialIncomingEdgesMap: Record<string, readonly { readonly sourceId: NodeIdAndFilePath; readonly label: string; }[]> = Object.keys(graph.nodes).reduce<Record<NodeIdAndFilePath, readonly IncomingEdge[]>>(
         (acc, nodeId) => ({ ...acc, [nodeId]: [] }),
         {}
     )
 
     // Compute incoming edges for all nodes by scanning all outgoing edges
-    const incomingEdgesMap = Object.entries(graph.nodes).reduce<Record<NodeIdAndFilePath, readonly IncomingEdge[]>>(
+    const incomingEdgesMap: Record<string, readonly { readonly sourceId: NodeIdAndFilePath; readonly label: string; }[]> = Object.entries(graph.nodes).reduce<Record<NodeIdAndFilePath, readonly IncomingEdge[]>>(
         (acc, [sourceId, node]) => {
             // For each outgoing edge sourceId -> targetId with label,
             // add {sourceId, label} to targetId's incoming edges
@@ -46,24 +46,24 @@ export function reverseGraphEdges(graph: Graph): Graph {
     )
 
     // Create new graph where outgoing edges are the previous incoming edges (with labels preserved)
-    const newNodes = Object.entries(graph.nodes).reduce<Record<NodeIdAndFilePath, GraphNode>>(
+    const newNodes: Record<string, GraphNode> = Object.entries(graph.nodes).reduce<Record<NodeIdAndFilePath, GraphNode>>(
         (acc, [nodeId, node]) => {
-            const incomingEdges = incomingEdgesMap[nodeId] || []
+            const incomingEdges: readonly { readonly sourceId: NodeIdAndFilePath; readonly label: string; }[] = incomingEdgesMap[nodeId] || []
 
             // Get reversed edges (from incoming)
-            const reversedEdges = incomingEdges.map(({ sourceId, label }) => ({
+            const reversedEdges: { targetId: string; label: string; }[] = incomingEdges.map(({ sourceId, label }) => ({
                 targetId: sourceId,
                 label  // Preserve the label from the original edge
             }))
 
             // Preserve original edges that point to non-existent nodes
             // (these can't be reversed because the target node doesn't exist)
-            const edgesToNonExistentNodes = node.outgoingEdges.filter(
+            const edgesToNonExistentNodes: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = node.outgoingEdges.filter(
                 edge => !graph.nodes[edge.targetId]
             )
 
             // Combine reversed edges with edges to non-existent nodes
-            const newOutgoingEdges = [...reversedEdges, ...edgesToNonExistentNodes]
+            const newOutgoingEdges: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = [...reversedEdges, ...edgesToNonExistentNodes]
 
             return {
                 ...acc,

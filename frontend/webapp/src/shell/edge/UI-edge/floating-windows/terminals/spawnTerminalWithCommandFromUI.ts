@@ -5,19 +5,19 @@ import {
     anchorToNode,
     createWindowChrome,
     getOrCreateOverlay
-} from "@/shell/UI/floating-windows/cytoscape-floating-windows.ts";
-import {TerminalVanilla} from "@/shell/UI/floating-windows/terminals/TerminalVanilla.ts";
+} from "@/shell/UI/floating-windows/cytoscape-floating-windows";
+import {TerminalVanilla} from "@/shell/UI/floating-windows/terminals/TerminalVanilla";
 import posthog from "posthog-js";
-import type {FloatingWindowUIHTMLData, TerminalData} from "@/shell/edge/UI-edge/floating-windows/types.ts";
-import {getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types.ts";
+import type {FloatingWindowUIHTMLData, TerminalData} from "@/shell/edge/UI-edge/floating-windows/types";
+import {getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 import {
     addTerminalToMapState,
     getNextTerminalCount,
     getTerminals,
     removeTerminalFromMapState,
     vanillaFloatingWindowInstances
-} from "@/shell/edge/UI-edge/state/UIAppState.ts";
-import {getFilePathForNode, getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI.ts";
+} from "@/shell/edge/UI-edge/state/UIAppState";
+import {getFilePathForNode, getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
 import type {VTSettings} from "@/pure/settings";
 
 
@@ -35,17 +35,17 @@ export async function spawnTerminalWithNewContextNode(
     parentNodeId: NodeIdAndFilePath,
     cy: Core,
 ): Promise<void> {
-    const terminals = getTerminals();
+    const terminals: Map<string, TerminalData> = getTerminals();
 
     // Load settings to get the agentCommand
     const settings : VTSettings = await window.electronAPI.main.loadSettings();
     if (!settings) {
         throw Error(`Failed to load settings for ${parentNodeId}`);
     }
-    const agentCommand = settings.agentCommand;
+    const agentCommand: string = settings.agentCommand;
 
     // Check if the parent node is already a context node - if so, reuse it
-    const parentNode = await getNodeFromMainToUI(parentNodeId);
+    const parentNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = await getNodeFromMainToUI(parentNodeId);
     if (!parentNode) {
         throw Error(`Node ${parentNodeId} not found in graph`);
     }
@@ -56,7 +56,7 @@ export async function spawnTerminalWithNewContextNode(
         contextNodeId = parentNodeId;
     } else {
         // Create context node for the parent
-        const createdContextNodeId = await window.electronAPI?.main.createContextNode(parentNodeId);
+        const createdContextNodeId: string = await window.electronAPI?.main.createContextNode(parentNodeId);
         if (!createdContextNodeId) {
             throw Error(`Failed to create contextNodeId ${createdContextNodeId}`);
         }
@@ -64,32 +64,32 @@ export async function spawnTerminalWithNewContextNode(
     }
 
     // Get the context node to read its content
-    const contextNode = parentNode.nodeUIMetadata.isContextNode
+    const contextNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = parentNode.nodeUIMetadata.isContextNode
         ? parentNode
         : await getNodeFromMainToUI(contextNodeId);
-    const contextContent = contextNode.contentWithoutYamlOrLinks;
+    const contextContent: string = contextNode.contentWithoutYamlOrLinks;
 
     // Get next terminal count for the context node
-    const terminalCount = getNextTerminalCount(terminals, contextNodeId);
+    const terminalCount: number = getNextTerminalCount(terminals, contextNodeId);
 
     // Get context node title for the terminal window
-    const title = contextNode.nodeUIMetadata.title;
+    const title: string = contextNode.nodeUIMetadata.title;
 
     // Compute initial_spawn_directory from watch directory + relative path setting
     let initial_spawn_directory: string | undefined;
-    const watchStatus = await window.electronAPI?.main.getWatchStatus();
+    const watchStatus: { readonly isWatching: boolean; readonly directory: string | undefined; } = await window.electronAPI?.main.getWatchStatus();
     if (watchStatus?.directory && settings.terminalSpawnPathRelativeToWatchedDirectory) {
         // Simple path join: remove trailing slash from directory, remove leading ./ from relative path
-        const baseDir = watchStatus.directory.replace(/\/$/, '');
-        const relativePath = settings.terminalSpawnPathRelativeToWatchedDirectory.replace(/^\.\//, '');
+        const baseDir: string = watchStatus.directory.replace(/\/$/, '');
+        const relativePath: string = settings.terminalSpawnPathRelativeToWatchedDirectory.replace(/^\.\//, '');
         initial_spawn_directory = `${baseDir}/${relativePath}`;
     }
 
     // Get app support path for VOICETREE_APP_SUPPORT env var
-    const appSupportPath = await window.electronAPI?.main.getAppSupportPath();
+    const appSupportPath: string = await window.electronAPI?.main.getAppSupportPath();
 
     // Create TerminalData object with initial_content env var
-    const terminalId = `${contextNodeId}-terminal-${terminalCount}`;
+    const terminalId: string = `${contextNodeId}-terminal-${terminalCount}`;
     const terminalData: TerminalData = {
         attachedToNodeId: contextNodeId,
         terminalCount: terminalCount,
@@ -114,9 +114,9 @@ export async function spawnTerminalWithNewContextNode(
     // Position the terminal near the context node
     setTimeout(() => {
         void (async () => {
-            const targetNode = cy.getElementById(contextNodeId);
+            const targetNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").CollectionReturnValue = cy.getElementById(contextNodeId);
 
-            const nodePos = targetNode.position();
+            const nodePos: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").Position = targetNode.position();
             console.log("spawn terminal: " + terminalId);
             await createFloatingTerminal(cy, contextNodeId, terminalData, nodePos);
             console.log("spawned terminal: " + terminalId);
@@ -139,24 +139,24 @@ export async function createFloatingTerminal(
     terminalData: TerminalData,
     nodePos: Position
 ): Promise<void> {
-    const terminalId = getTerminalId(terminalData);
+    const terminalId: string = getTerminalId(terminalData);
     console.log('[FloatingWindowManager] Creating floating terminal:', terminalId);
 
     // Check if already exists
-    const existing = cy.nodes(`#${terminalId}`);
+    const existing: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").NodeCollection = cy.nodes(`#${terminalId}`);
     if (existing && existing.length > 0) {
         console.log('[FloatingWindowManager] Terminal already exists');
         return;
     }
 
     // Check if parent node exists
-    const parentNode = cy.getElementById(nodeId);
-    const parentNodeExists = parentNode.length > 0;
+    const parentNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").CollectionReturnValue = cy.getElementById(nodeId);
+    const parentNodeExists: boolean = parentNode.length > 0;
 
     try {
         // Get parent node's title
-        const node = await getNodeFromMainToUI(nodeId);
-        const title = node ? `${node.nodeUIMetadata.title}` : `${nodeId}`;
+        const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = await getNodeFromMainToUI(nodeId);
+        const title: string = node ? `${node.nodeUIMetadata.title}` : `${nodeId}`;
 
         // Populate floatingWindow field in terminalData
         terminalData.floatingWindow = {
@@ -169,7 +169,7 @@ export async function createFloatingTerminal(
         };
 
         // Create floating terminal window
-        const floatingWindow = await createFloatingTerminalWindow(cy, terminalData);
+        const floatingWindow: FloatingWindowUIHTMLData = await createFloatingTerminalWindow(cy, terminalData);
 
         if (parentNodeExists) {
             // Anchor to parent node
@@ -205,7 +205,7 @@ export function createFloatingTerminalWindow(
     const {id, title, resizable = true, onClose} = terminalData.floatingWindow;
 
     // Get overlay
-    const overlay = getOrCreateOverlay(cy);
+    const overlay: HTMLElement = getOrCreateOverlay(cy);
 
     // Create window chrome (don't pass onClose, we'll handle it in the cleanup wrapper)
     const {windowElement, contentContainer, titleBar} = createWindowChrome(cy, {
@@ -217,7 +217,7 @@ export function createFloatingTerminalWindow(
     });
 
     // Create Terminal instance
-    const terminal = new TerminalVanilla({
+    const terminal: TerminalVanilla = new TerminalVanilla({
         container: contentContainer,
         terminalData: terminalData
     }); // todo, move this up one level.
@@ -241,7 +241,7 @@ export function createFloatingTerminalWindow(
             // Remove from state
             removeTerminalFromMapState(terminalData);
 
-            const vanillaInstance = vanillaFloatingWindowInstances.get(id);
+            const vanillaInstance: { dispose: () => void; } | undefined = vanillaFloatingWindowInstances.get(id);
             if (vanillaInstance) {
                 vanillaInstance.dispose();
                 vanillaFloatingWindowInstances.delete(id);
@@ -254,10 +254,10 @@ export function createFloatingTerminalWindow(
     };
 
     // Update close button to call floatingWindow.cleanup (so anchorToNode can wrap it)
-    const closeButton = titleBar.querySelector('.cy-floating-window-close') as HTMLElement;
+    const closeButton: HTMLElement = titleBar.querySelector('.cy-floating-window-close') as HTMLElement;
     if (closeButton) {
         // Remove old handler and add new one
-        const newCloseButton = closeButton.cloneNode(true) as HTMLElement;
+        const newCloseButton: HTMLElement = closeButton.cloneNode(true) as HTMLElement;
         closeButton.parentNode?.replaceChild(newCloseButton, closeButton);
         newCloseButton.addEventListener('click', () => floatingWindow.cleanup());
     }

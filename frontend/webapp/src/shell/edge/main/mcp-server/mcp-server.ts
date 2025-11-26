@@ -18,17 +18,17 @@ import express from 'express'
 import * as O from 'fp-ts/lib/Option.js'
 
 import type {FSUpdate} from '@/pure/graph'
-import {addNodeToGraph} from '@/pure/graph/graphDelta/addNodeToGraph.ts'
-import {getGraph, getVaultPath, setVaultPath} from '@/shell/edge/main/state/graph-store.ts'
-import {applyGraphDeltaToDBThroughMem} from '@/shell/edge/main/graph/writePath/applyGraphDeltaToDBThroughMem.ts'
+import {addNodeToGraph} from '@/pure/graph/graphDelta/addNodeToGraph'
+import {getGraph, getVaultPath, setVaultPath} from '@/shell/edge/main/state/graph-store'
+import {applyGraphDeltaToDBThroughMem} from '@/shell/edge/main/graph/writePath/applyGraphDeltaToDBThroughMem'
 
-const MCP_PORT = 3001
+const MCP_PORT: 3001 = 3001
 
 /**
  * Creates and configures the MCP server with VoiceTree tools.
  */
 export function createMcpServer(): McpServer {
-    const server = new McpServer({
+    const server: McpServer = new McpServer({
         name: 'voicetree-mcp',
         version: '1.0.0'
     })
@@ -65,7 +65,7 @@ export function createMcpServer(): McpServer {
         },
         async ({nodeId, content, parentNodeId}) => {
             // Get vault path
-            const vaultPathOpt = getVaultPath()
+            const vaultPathOpt: O.Option<string> = getVaultPath()
             if (O.isNone(vaultPathOpt)) {
                 return {
                     content: [{
@@ -79,16 +79,16 @@ export function createMcpServer(): McpServer {
                     isError: true
                 }
             }
-            const vaultPath = vaultPathOpt.value
+            const vaultPath: string = vaultPathOpt.value
 
             // Build markdown content with optional parent link
-            let markdownContent = content
+            let markdownContent: string = content
             if (parentNodeId) {
                 markdownContent = `${content}\n\n-----------------\n_Links:_\nParent:\n- child_of [[${parentNodeId}]]\n`
             }
 
             // Create FSUpdate event
-            const absolutePath = `${vaultPath}/${nodeId}.md`
+            const absolutePath: string = `${vaultPath}/${nodeId}.md`
             const fsEvent: FSUpdate = {
                 absolutePath,
                 content: markdownContent,
@@ -96,8 +96,8 @@ export function createMcpServer(): McpServer {
             }
 
             // Apply to graph using pure function
-            const currentGraph = getGraph()
-            const delta = addNodeToGraph(fsEvent, vaultPath, currentGraph)
+            const currentGraph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = getGraph()
+            const delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = addNodeToGraph(fsEvent, vaultPath, currentGraph)
 
             // Persist to filesystem
             await applyGraphDeltaToDBThroughMem(delta)
@@ -124,7 +124,7 @@ export function createMcpServer(): McpServer {
             inputSchema: {}
         },
         async () => {
-            const graph = getGraph()
+            const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = getGraph()
             const nodes: Record<string, {
                 id: string
                 title: string
@@ -165,8 +165,8 @@ export function createMcpServer(): McpServer {
             inputSchema: {}
         },
         async () => {
-            const graph = getGraph()
-            const nodes = Object.values(graph.nodes).map(node => ({
+            const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = getGraph()
+            const nodes: { id: string; title: string; }[] = Object.values(graph.nodes).map(node => ({
                 id: node.relativeFilePathIsID,
                 title: node.nodeUIMetadata.title
             }))
@@ -188,13 +188,13 @@ export function createMcpServer(): McpServer {
  * This allows the server to run in-process with Electron and share state.
  */
 export async function startMcpServer(): Promise<void> {
-    const mcpServer = createMcpServer()
+    const mcpServer: McpServer = createMcpServer()
 
-    const app = express()
+    const app: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@types/express-serve-static-core/index").Express = express()
     app.use(express.json())
 
     app.post('/mcp', async (req, res) => {
-        const transport = new StreamableHTTPServerTransport({
+        const transport: StreamableHTTPServerTransport = new StreamableHTTPServerTransport({
             sessionIdGenerator: undefined,
             enableJsonResponse: true
         })

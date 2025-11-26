@@ -6,23 +6,23 @@
  */
 
 import type cytoscape from 'cytoscape';
-import type {FloatingWindowData, FloatingWindowUIHTMLData} from '@/shell/edge/UI-edge/floating-windows/types.ts';
+import type {FloatingWindowData, FloatingWindowUIHTMLData} from '@/shell/edge/UI-edge/floating-windows/types';
 import type {NodeIdAndFilePath} from "@/pure/graph";
-import {vanillaFloatingWindowInstances} from "@/shell/edge/UI-edge/state/UIAppState.ts";
+import {vanillaFloatingWindowInstances} from "@/shell/edge/UI-edge/state/UIAppState";
 
 /**
  * Get or create the shared overlay container for all floating windows
  */
 export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
-    const container = cy.container() as HTMLElement;
-    const parent = container.parentElement;
+    const container: HTMLElement = cy.container() as HTMLElement;
+    const parent: HTMLElement | null = container.parentElement;
 
     if (!parent) {
         throw new Error('Cytoscape container has no parent element');
     }
 
     // Check if overlay already exists
-    let overlay = parent.querySelector('.cy-floating-overlay') as HTMLElement;
+    let overlay: HTMLElement = parent.querySelector('.cy-floating-overlay') as HTMLElement;
 
     if (!overlay) {
         // Create new overlay as sibling to cy container
@@ -40,9 +40,9 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
         parent.appendChild(overlay);
 
         // Sync overlay transform with graph pan/zoom
-        const syncTransform = () => {
-            const pan = cy.pan();
-            const zoom = cy.zoom();
+        const syncTransform: () => void = () => {
+            const pan: cytoscape.Position = cy.pan();
+            const zoom: number = cy.zoom();
             overlay.style.transform = `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`;
         };
 
@@ -60,7 +60,7 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
  * Update window DOM element position based on node position
  */
 function updateWindowPosition(node: cytoscape.NodeSingular, domElement: HTMLElement) {
-    const pos = node.position();
+    const pos: cytoscape.Position = node.position();
     domElement.style.left = `${pos.x}px`;
     domElement.style.top = `${pos.y}px`;
     domElement.style.transform = 'translate(-50%, -50%)'; // this is not the culprit fro highlight mismatch
@@ -72,8 +72,8 @@ function updateWindowPosition(node: cytoscape.NodeSingular, domElement: HTMLElem
  */
 function updateShadowNodeDimensions(shadowNode: cytoscape.NodeSingular, domElement: HTMLElement) {
     // Use offsetWidth/Height to get full rendered size including borders
-    const width = domElement.offsetWidth;
-    const height = domElement.offsetHeight;
+    const width: number = domElement.offsetWidth;
+    const height: number = domElement.offsetHeight;
 
     // Update shadow node dimensions for layout algorithm
     shadowNode.style({
@@ -94,10 +94,10 @@ export function createWindowChrome(
     const {id, title, resizable = false, component} = config;
 
     // Get initial dimensions for this component type
-    const dimensions = config.shadowNodeDimensions ?? getDefaultDimensions(component);
+    const dimensions: { width: number; height: number; } = config.shadowNodeDimensions ?? getDefaultDimensions(component);
 
     // Create main window container
-    const windowElement = document.createElement('div');
+    const windowElement: HTMLDivElement = document.createElement('div');
     windowElement.id = `window-${id}`;
     windowElement.className = 'cy-floating-window';
     windowElement.setAttribute('data-shadow-node-relativeFilePathIsID', id);
@@ -119,30 +119,30 @@ export function createWindowChrome(
     }, {passive: false});
 
     // Create title bar
-    const titleBar = document.createElement('div');
+    const titleBar: HTMLDivElement = document.createElement('div');
     titleBar.className = 'cy-floating-window-title';
 
     // Create title text
-    const titleText = document.createElement('span');
+    const titleText: HTMLSpanElement = document.createElement('span');
     titleText.className = 'cy-floating-window-title-text';
     titleText.textContent = title || `Window: ${id}`;
 
     // Create fullscreen button for all components
-    const fullscreenButton = document.createElement('button');
+    const fullscreenButton: HTMLButtonElement = document.createElement('button');
     fullscreenButton.className = 'cy-floating-window-fullscreen';
     fullscreenButton.textContent = '⛶';
     fullscreenButton.title = 'Toggle Fullscreen';
 
     // Attach fullscreen handler
     fullscreenButton.addEventListener('click', () => {
-        const vanillaInstance = vanillaFloatingWindowInstances.get(id);
+        const vanillaInstance: { dispose: () => void; } | undefined = vanillaFloatingWindowInstances.get(id);
         if (vanillaInstance && 'toggleFullscreen' in vanillaInstance) {
             void (vanillaInstance as { toggleFullscreen: () => Promise<void> }).toggleFullscreen();
         }
     });
 
     // Create close button
-    const closeButton = document.createElement('button');
+    const closeButton: HTMLButtonElement = document.createElement('button');
     closeButton.className = 'cy-floating-window-close';
     closeButton.textContent = '×';
 
@@ -153,12 +153,12 @@ export function createWindowChrome(
             config.onClose();
         }
         // Find and remove shadow node
-        const shadowNode = cy.$(`#${id}`);
+        const shadowNode: cytoscape.CollectionReturnValue = cy.$(`#${id}`);
         if (shadowNode.length > 0) {
             shadowNode.remove();
         }
         // Dispose vanilla JS instances
-        const vanillaInstance = vanillaFloatingWindowInstances.get(id);
+        const vanillaInstance: { dispose: () => void; } | undefined = vanillaFloatingWindowInstances.get(id);
         if (vanillaInstance) {
             vanillaInstance.dispose();
             vanillaFloatingWindowInstances.delete(id);
@@ -172,7 +172,7 @@ export function createWindowChrome(
     titleBar.appendChild(closeButton);
 
     // Create content container
-    const contentContainer = document.createElement('div');
+    const contentContainer: HTMLDivElement = document.createElement('div');
     contentContainer.className = 'cy-floating-window-content';
 
     // Assemble window
@@ -190,26 +190,26 @@ function attachDragHandlers(
     titleBar: HTMLElement,
     windowElement: HTMLElement
 ) {
-    let isDragging = false;
-    let dragOffset = {x: 0, y: 0};
+    let isDragging: boolean = false;
+    let dragOffset: { x: number; y: number; } = {x: 0, y: 0};
 
-    const handleMouseDown = (e: MouseEvent) => {
+    const handleMouseDown: (e: MouseEvent) => void = (e: MouseEvent) => {
         // Don't start drag if clicking on buttons
         if ((e.target as HTMLElement).tagName === 'BUTTON') return;
 
         isDragging = true;
         titleBar.classList.add('dragging');
 
-        const pan = cy.pan();
-        const zoom = cy.zoom();
+        const pan: cytoscape.Position = cy.pan();
+        const zoom: number = cy.zoom();
 
         // Get current position in graph coordinates from style
-        const currentLeft = parseFloat(windowElement.style.left) || 0;
-        const currentTop = parseFloat(windowElement.style.top) || 0;
+        const currentLeft: number = parseFloat(windowElement.style.left) || 0;
+        const currentTop: number = parseFloat(windowElement.style.top) || 0;
 
         // Convert current graph position to viewport coordinates
-        const viewportX = (currentLeft * zoom) + pan.x;
-        const viewportY = (currentTop * zoom) + pan.y;
+        const viewportX: number = (currentLeft * zoom) + pan.x;
+        const viewportY: number = (currentTop * zoom) + pan.y;
 
         // Store offset in viewport coordinates
         dragOffset = {
@@ -220,34 +220,34 @@ function attachDragHandlers(
         e.preventDefault();
     };
 
-    const handleMouseMove = (e: MouseEvent) => {
+    const handleMouseMove: (e: MouseEvent) => void = (e: MouseEvent) => {
         if (!isDragging) return;
 
-        const pan = cy.pan();
-        const zoom = cy.zoom();
+        const pan: cytoscape.Position = cy.pan();
+        const zoom: number = cy.zoom();
 
         // Calculate new viewport position
-        const viewportX = e.clientX - dragOffset.x;
-        const viewportY = e.clientY - dragOffset.y;
+        const viewportX: number = e.clientX - dragOffset.x;
+        const viewportY: number = e.clientY - dragOffset.y;
 
         // Convert viewport coordinates to graph coordinates
-        const graphX = (viewportX - pan.x) / zoom;
-        const graphY = (viewportY - pan.y) / zoom;
+        const graphX: number = (viewportX - pan.x) / zoom;
+        const graphY: number = (viewportY - pan.y) / zoom;
 
         windowElement.style.left = `${graphX}px`;
         windowElement.style.top = `${graphY}px`;
 
         // Update shadow node position so edge follows
-        const shadowNodeId = windowElement.getAttribute('data-shadow-node-relativeFilePathIsID');
+        const shadowNodeId: string | null = windowElement.getAttribute('data-shadow-node-relativeFilePathIsID');
         if (shadowNodeId) {
-            const shadowNode = cy.$(`#${shadowNodeId}`);
+            const shadowNode: cytoscape.CollectionReturnValue = cy.$(`#${shadowNodeId}`);
             if (shadowNode.length > 0) {
                 shadowNode.position({x: graphX, y: graphY});
             }
         }
     };
 
-    const handleMouseUp = () => {
+    const handleMouseUp: () => void = () => {
         if (isDragging) {
             isDragging = false;
             titleBar.classList.remove('dragging');
@@ -303,7 +303,7 @@ export function anchorToNode(
 
     console.log('[anchorToNode] Called with parentNodeId:', parentNodeId, 'type:', typeof parentNodeId);
 
-    const parentNode = cy.getElementById(parentNodeId);
+    const parentNode: cytoscape.CollectionReturnValue = cy.getElementById(parentNodeId);
     console.log('[anchorToNode] Parent node found:', parentNode.length > 0, 'length:', parentNode.length);
 
     // Validate parent node exists
@@ -313,12 +313,12 @@ export function anchorToNode(
     }
 
     // 1. Create child shadow node ID based on parent node
-    const childShadowId = `shadow-child-${parentNodeId}-${floatingWindow.id}`;
+    const childShadowId: string = `shadow-child-${parentNodeId}-${floatingWindow.id}`;
 
     // 2. Position child shadow node offset from parent (+50, +50)
-    const parentPos = parentNode.position();
+    const parentPos: cytoscape.Position = parentNode.position();
     console.log('[anchorToNode] Parent position:', parentPos);
-    const childPosition = {
+    const childPosition: { x: number; y: number; } = {
         x: parentPos.x + 50,
         y: parentPos.y + 50
     };
@@ -331,7 +331,7 @@ export function anchorToNode(
         ...shadowNodeData
     };
 
-    const shadowNode = cy.add({
+    const shadowNode: cytoscape.CollectionReturnValue = cy.add({
         group: 'nodes',
         data: nodeData,
         position: childPosition
@@ -341,7 +341,7 @@ export function anchorToNode(
     windowElement.setAttribute('data-shadow-node-relativeFilePathIsID', childShadowId);
 
     // 2. Get initial dimensions from rendered window
-    const dimensions = {
+    const dimensions: { width: number; height: number; } = {
         width: windowElement.offsetWidth,
         height: windowElement.offsetHeight
     };
@@ -366,7 +366,7 @@ export function anchorToNode(
 
     // 5. Set up ResizeObserver (window resize → shadow dimensions)
     if (typeof ResizeObserver !== 'undefined') {
-        const resizeObserver = new ResizeObserver(() => {
+        const resizeObserver: ResizeObserver = new ResizeObserver(() => {
             updateShadowNodeDimensions(shadowNode, windowElement);
             cy.trigger('floatingwindow:resize', [{nodeId: shadowNode.id()}]);
         });
@@ -374,7 +374,7 @@ export function anchorToNode(
     }
 
     // 6. Set up position sync (shadow position → window position)
-    const syncPosition = () => {
+    const syncPosition: () => void = () => {
         updateWindowPosition(shadowNode, windowElement);
     };
     shadowNode.on('position', syncPosition);
@@ -389,7 +389,7 @@ export function anchorToNode(
     });
 
     // 9. Update cleanup to also remove shadow node
-    const originalCleanup = floatingWindow.cleanup;
+    const originalCleanup: () => void = floatingWindow.cleanup;
     floatingWindow.cleanup = () => {
         if (shadowNode.inside()) {
             shadowNode.remove();

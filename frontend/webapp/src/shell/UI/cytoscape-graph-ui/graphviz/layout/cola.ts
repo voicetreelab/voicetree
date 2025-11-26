@@ -1,20 +1,20 @@
-import assign from './assign.ts';
-import defaults from './defaults.ts';
+import assign from './assign';
+import defaults from './defaults';
 import * as cola from 'webcola';
-import raf from './raf.ts';
+import raf from './raf';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const isString = function(o: any): o is string { return typeof o === typeof ''; };
+const isString: (o: any) => o is string = function(o: any): o is string { return typeof o === typeof ''; };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const isNumber = function(o: any): o is number { return typeof o === typeof 0; };
+const isNumber: (o: any) => o is number = function(o: any): o is number { return typeof o === typeof 0; };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const isObject = function(o: any): o is object { return o != null && typeof o === typeof {}; };
+const isObject: (o: any) => o is object = function(o: any): o is object { return o != null && typeof o === typeof {}; };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const isFunction = function(o: any): boolean { return o != null && typeof o === typeof function(){}; };
-const nop = function(){};
+const isFunction: (o: any) => boolean = function(o: any): boolean { return o != null && typeof o === typeof function(){}; };
+const nop: () => void = function(){};
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const getOptVal = function( val: any, ele: any ){
+const getOptVal: (val: any, ele: any) => any = function( val: any, ele: any ){
     if( isFunction(val) ){
         const fn = val;
         return fn.apply( ele, [ ele ] );
@@ -44,7 +44,7 @@ ColaLayout.prototype.on = function(event: any, callback: any){
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ColaLayout.prototype.one = function(event: any, callback: any){
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const wrapper = (...args: any[]) => {
+    const wrapper: (...args: any[]) => void = (...args: any[]) => {
         callback(...args);
         this.off(event, wrapper);
     };
@@ -83,10 +83,10 @@ ColaLayout.prototype.run = function(){
     const eles = options.eles;
     const nodes = eles.nodes();
     const edges = eles.edges();
-    let ready = false;
+    let ready: boolean = false;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const isParent = (ele: any) => ele.isParent();
+    const isParent: (ele: any) => any = (ele: any) => ele.isParent();
 
     const parentNodes = nodes.filter(isParent);
 
@@ -103,20 +103,20 @@ ColaLayout.prototype.run = function(){
     // if( bb.y2 === undefined ){ bb.y2 = bb.y1 + bb.h; }
     // if( bb.h === undefined ){ bb.h = bb.y2 - bb.y1; }
 
-    const bb = { x1: 0, y1: 0, w: cy.width(), h: cy.height(), x2: cy.width(), y2: cy.height() };
+    const bb: { x1: number; y1: number; w: any; h: any; x2: any; y2: any; } = { x1: 0, y1: 0, w: cy.width(), h: cy.height(), x2: cy.width(), y2: cy.height() };
 
     // console.log('[Cola Debug] Bounding box:', bb);
 
-    let updatePositionCallCount = 0;
-    const updateNodePositions = function(){
+    let updatePositionCallCount: number = 0;
+    const updateNodePositions: () => void = function(){
         updatePositionCallCount++;
-        const isFirstThreeCalls = updatePositionCallCount <= 3;
+        const isFirstThreeCalls: boolean = updatePositionCallCount <= 3;
 
         // if (isFirstThreeCalls) {
         //     console.log(`[Cola Debug] updateNodePositions call #${updatePositionCallCount}`);
         // }
 
-        for( let i = 0; i < nodes.length; i++ ){
+        for( let i: number = 0; i < nodes.length; i++ ){
             const node = nodes[i];
             const dimensions = node.layoutDimensions( options );
             const scratch = node.scratch('cola');
@@ -165,7 +165,7 @@ ColaLayout.prototype.run = function(){
         }
     };
 
-    const onDone = function(){
+    const onDone: () => void = function(){
         if( options.ungrabifyWhileSimulating ){
             grabbableNodes.grabify();
         }
@@ -183,7 +183,7 @@ ColaLayout.prototype.run = function(){
         layout.trigger({ type: 'layoutstop', layout: layout });
     };
 
-    const onReady = function(){
+    const onReady: () => void = function(){
         // trigger layoutready when each node has had its position set at least once
         layout.one('layoutready', options.ready);
         layout.trigger({ type: 'layoutready', layout: layout });
@@ -197,11 +197,11 @@ ColaLayout.prototype.run = function(){
         ticksPerFrame = Math.max( 1, ticksPerFrame ); // at least 1
     }
 
-    const adaptor = layout.adaptor = cola.adaptor({
+    const adaptor: cola.LayoutAdaptor = layout.adaptor = cola.adaptor({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         trigger: function( e: any ){ // on sim event
-            const TICK = cola.EventType ? cola.EventType.tick : null;
-            const END = cola.EventType ? cola.EventType.end : null;
+            const TICK: cola.EventType.tick | null = cola.EventType ? cola.EventType.tick : null;
+            const END: cola.EventType.end | null = cola.EventType ? cola.EventType.end : null;
 
             switch( e.type ){
                 case 'tick':
@@ -223,10 +223,10 @@ ColaLayout.prototype.run = function(){
         kick: function(){ // kick off the simulation
             //let skip = 0;
 
-            let firstTick = true;
-            let tickCount = 0;
+            let firstTick: boolean = true;
+            let tickCount: number = 0;
 
-            const inftick = function(){
+            const inftick: () => any = function(){
                 if( layout.manuallyStopped ){
                     onDone();
 
@@ -234,7 +234,7 @@ ColaLayout.prototype.run = function(){
                 }
 
                 tickCount++;
-                const isFirstThreeTicks = tickCount <= 3;
+                const isFirstThreeTicks: boolean = tickCount <= 3;
 
                 if (isFirstThreeTicks) {
                     // console.log(`[Cola Debug] ====== Tick #${tickCount} START ======`);
@@ -265,10 +265,10 @@ ColaLayout.prototype.run = function(){
                 return ret; // allow regular finish b/c of new kick
             };
 
-            const multitick = function(){ // multiple ticks in a row
+            const multitick: () => any = function(){ // multiple ticks in a row
                 let ret;
 
-                for( let i = 0; i < ticksPerFrame && !ret; i++ ){
+                for( let i: number = 0; i < ticksPerFrame && !ret; i++ ){
                     ret = ret || inftick(); // pick up true ret vals => sim done
                 }
 
@@ -276,7 +276,7 @@ ColaLayout.prototype.run = function(){
             };
 
             if( options.animate ){
-                const frame = function(){
+                const frame: () => void = function(){
                     if( multitick() ){ return; }
 
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -319,7 +319,7 @@ ColaLayout.prototype.run = function(){
         const node: any = this;
         const scrCola = node.scratch().cola;
         const pos = node.position();
-        const nodeIsTarget = e.cyTarget === node || e.target === node;
+        const nodeIsTarget: boolean = e.cyTarget === node || e.target === node;
 
         if( !nodeIsTarget ){ return; }
 
@@ -365,7 +365,7 @@ ColaLayout.prototype.run = function(){
         const pos = node.position();
         const dimensions = node.layoutDimensions( options );
 
-        const struct = node.scratch().cola = {
+        const struct: { x: number; y: number; width: any; height: any; index: any; fixed: any; } = node.scratch().cola = {
             x: (options.randomize && !node.locked()) || pos.x === undefined ? Math.round( Math.random() * bb.w ) : pos.x - bb.x1,
             y: (options.randomize && !node.locked()) || pos.y === undefined ? Math.round( Math.random() * bb.h ) : pos.y - bb.y1,
             width: dimensions.w + 2*padding,
@@ -466,7 +466,7 @@ ColaLayout.prototype.run = function(){
     adaptor.groups( parentNodes.map(function( node: any, i: any ){ // add basic group incl leaf nodes
         const optPadding = getOptVal( options.nodeSpacing, node );
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const getPadding = function(d: any){
+        const getPadding: (d: any) => number = function(d: any){
             return parseFloat( node.style('padding-'+d) );
         };
 
@@ -523,7 +523,7 @@ ColaLayout.prototype.run = function(){
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const lengthGetter = function( link: any ){
+    const lengthGetter: (link: any) => any = function( link: any ){
         return link.calcLength;
     };
 
@@ -556,8 +556,8 @@ ColaLayout.prototype.run = function(){
     // set the flow of cola
     if( options.flow ){
         let flow;
-        const defAxis = 'y';
-        const defMinSep = 50;
+        const defAxis: "y" = 'y';
+        const defMinSep: 50 = 50;
 
         if( isString(options.flow) ){
             flow = {

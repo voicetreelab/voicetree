@@ -5,15 +5,15 @@ import electronUpdater from 'electron-updater';
 import log from 'electron-log';
 
 const { autoUpdater } = electronUpdater;
-import { StubTextToTreeServerManager } from './server/StubTextToTreeServerManager.ts';
-import { RealTextToTreeServerManager } from './server/RealTextToTreeServerManager.ts';
-import TerminalManager from './terminal-manager.ts';
-import { setupToolsDirectory, getToolsDirectory } from './tools-setup.ts';
-import { setupOnboardingDirectory } from './onboarding-setup.ts';
-import {setBackendPort, setMainWindow} from '@/shell/edge/main/state/app-electron-state.ts';
-import { registerTerminalIpcHandlers } from '@/shell/edge/main/ipc-terminal-handlers.ts';
-import { setupRPCHandlers } from '@/shell/edge/main/edge-auto-rpc/rpc-handler.ts';
-import { startMcpServer } from '@/shell/edge/main/mcp-server/mcp-server.ts';
+import { StubTextToTreeServerManager } from './server/StubTextToTreeServerManager';
+import { RealTextToTreeServerManager } from './server/RealTextToTreeServerManager';
+import TerminalManager from './terminal-manager';
+import { setupToolsDirectory, getToolsDirectory } from './tools-setup';
+import { setupOnboardingDirectory } from './onboarding-setup';
+import {setBackendPort, setMainWindow} from '@/shell/edge/main/state/app-electron-state';
+import { registerTerminalIpcHandlers } from '@/shell/edge/main/ipc-terminal-handlers';
+import { setupRPCHandlers } from '@/shell/edge/main/edge-auto-rpc/rpc-handler';
+import { startMcpServer } from '@/shell/edge/main/mcp-server/mcp-server';
 
 
 // Fix PATH for macOS/Linux GUI apps
@@ -36,7 +36,7 @@ if (autoUpdater.logger && 'transports' in autoUpdater.logger) {
 // Send update status messages to renderer process
 function sendUpdateStatusToWindow(text: string) {
   log.info(text);
-  const mainWindow = BrowserWindow.getAllWindows()[0];
+  const mainWindow: Electron.BrowserWindow = BrowserWindow.getAllWindows()[0];
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('update-message', text);
   }
@@ -60,7 +60,7 @@ autoUpdater.on('error', (err) => {
 });
 
 autoUpdater.on('download-progress', (progressObj) => {
-  const message = `Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent}% (${progressObj.transferred}/${progressObj.total})`;
+  const message: string = `Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent}% (${progressObj.transferred}/${progressObj.total})`;
   sendUpdateStatusToWindow(message);
 });
 
@@ -68,7 +68,7 @@ autoUpdater.on('update-downloaded', (info) => {
   sendUpdateStatusToWindow('Update downloaded. Will install on quit.');
 
   // Show native dialog asking user if they want to install now
-  const mainWindow = BrowserWindow.getAllWindows()[0];
+  const mainWindow: Electron.BrowserWindow = BrowserWindow.getAllWindows()[0];
   if (mainWindow && !mainWindow.isDestroyed()) {
     void dialog.showMessageBox(mainWindow, {
       type: 'info',
@@ -104,10 +104,10 @@ if (process.env.MINIMIZE_TEST === '1') {
 // Global manager instances
 // TextToTreeServer: Converts text input (voice/typed) to markdown tree structure
 // Select implementation based on environment (no fallbacks)
-const textToTreeServerManager = (process.env.NODE_ENV === 'test' || process.env.HEADLESS_TEST === '1')
+const textToTreeServerManager: StubTextToTreeServerManager | RealTextToTreeServerManager = (process.env.NODE_ENV === 'test' || process.env.HEADLESS_TEST === '1')
   ? new StubTextToTreeServerManager()
   : new RealTextToTreeServerManager();
-const terminalManager = new TerminalManager();
+const terminalManager: TerminalManager = new TerminalManager();
 
 // Store the TextToTreeServer port (set during app startup)
 let textToTreeServerPort: number | null = null;
@@ -119,11 +119,11 @@ let textToTreeServerPort: number | null = null;
 function createWindow() {
   // Note: BrowserWindow icon property only works on Windows/Linux
   // macOS uses app.dock.setIcon() instead
-  const iconPath = process.platform === 'darwin'
+  const iconPath: string = process.platform === 'darwin'
     ? path.join(__dirname, '../../build/icon.png')
     : path.join(__dirname, '../../build/icon.png');
 
-  const mainWindow = new BrowserWindow({
+  const mainWindow: BrowserWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     show: false,
@@ -141,7 +141,7 @@ function createWindow() {
   });
 
   // Capture window ID before it gets destroyed
-  const windowId = mainWindow.webContents.id;
+  const windowId: number = mainWindow.webContents.id;
 
   // Set global main window reference (used by handlers)
   setMainWindow(mainWindow);
@@ -151,8 +151,8 @@ function createWindow() {
     // Filter out Electron security warnings in dev mode
     if (message.includes('Electron Security Warning')) return;
 
-    const levels = ['LOG', 'WARNING', 'ERROR'];
-    const levelName = levels[level] || 'LOG';
+    const levels: string[] = ['LOG', 'WARNING', 'ERROR'];
+    const levelName: string = levels[level] || 'LOG';
 
     try {
       console.log(`[Renderer ${levelName}] ${message} (${sourceId}:${line})`);
@@ -174,7 +174,7 @@ function createWindow() {
     void mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
     mainWindow.webContents.openDevTools();
   } else if (process.env.NODE_ENV === 'development') {
-    const devPort = process.env.DEV_SERVER_PORT ?? '3000';
+    const devPort: string = process.env.DEV_SERVER_PORT ?? '3000';
     void mainWindow.loadURL(`http://localhost:${devPort}`);
     mainWindow.webContents.openDevTools();
   } else {
@@ -215,8 +215,8 @@ void app.whenReady().then(async () => {
 
   // Set dock icon for macOS (BrowserWindow icon property doesn't work on macOS)
   if (process.platform === 'darwin' && app.dock) {
-    const dockIconPath = path.join(__dirname, '../../build/icon.png');
-    const dockIcon = nativeImage.createFromPath(dockIconPath);
+    const dockIconPath: string = path.join(__dirname, '../../build/icon.png');
+    const dockIcon: Electron.NativeImage = nativeImage.createFromPath(dockIconPath);
     app.dock.setIcon(dockIcon);
   }
 

@@ -4,10 +4,10 @@ import {
     createNewNodeNoParent,
     fromContentChangeToGraphDelta,
     fromCreateChildToUpsertNode
-} from "@/pure/graph/graphDelta/uiInteractionsToGraphDeltas.ts";
+} from "@/pure/graph/graphDelta/uiInteractionsToGraphDeltas";
 import type {Core} from 'cytoscape';
-import {applyGraphDeltaToUI} from "./applyGraphDeltaToUI.ts";
-import {getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI.ts";
+import {applyGraphDeltaToUI} from "./applyGraphDeltaToUI";
+import {getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
 
 
 export async function createNewChildNodeFromUI(
@@ -16,7 +16,7 @@ export async function createNewChildNodeFromUI(
 ): Promise<NodeIdAndFilePath> {
 
     // Get current graph state
-    const currentGraph = await window.electronAPI?.main.getGraph() // todo, in memory renderer cache?
+    const currentGraph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = await window.electronAPI?.main.getGraph() // todo, in memory renderer cache?
     if (!currentGraph) {
         console.error("NO GRAPH IN STATE")
         return "-1"; //todo cleaner
@@ -55,8 +55,8 @@ export async function modifyNodeContentFromUI(
 ): Promise<void> {
 
     // Get current graph state
-    const currentNode = await getNodeFromMainToUI(nodeId);
-    const currentGraph = await window.electronAPI?.main.getGraph();
+    const currentNode: GraphNode = await getNodeFromMainToUI(nodeId);
+    const currentGraph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = await window.electronAPI?.main.getGraph();
     if (!currentGraph) {
         console.error("NO GRAPH IN STATE");
         return;

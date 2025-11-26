@@ -15,12 +15,12 @@
  * - SearchService: Command palette integration
  */
 
-import {Disposable} from './Disposable.ts';
-import {EventEmitter} from './EventEmitter.ts';
+import {Disposable} from './Disposable';
+import {EventEmitter} from './EventEmitter';
 import type {
     IVoiceTreeGraphView,
     VoiceTreeGraphViewOptions
-} from './IVoiceTreeGraphView.ts';
+} from './IVoiceTreeGraphView';
 import cytoscape, {type Core, type CytoscapeOptions} from 'cytoscape';
 // @ts-expect-error - cytoscape-navigator doesn't have proper TypeScript definitions
 import navigator from 'cytoscape-navigator';
@@ -31,27 +31,27 @@ import '@/shell/UI/cytoscape-graph-ui'; // Import to trigger extension registrat
 
 // Register cytoscape-navigator extension
 cytoscape.use(navigator);
-import {StyleService} from '@/shell/UI/cytoscape-graph-ui/services/StyleService.ts';
-import {BreathingAnimationService} from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService.ts';
-import {HorizontalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService.ts';
-import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService.ts';
-import {FloatingEditorManager} from '@/shell/UI/floating-windows/editors/FloatingEditorManager.ts';
-import {HotkeyManager} from './HotkeyManager.ts';
-import {SearchService} from './SearchService.ts';
-import {GraphNavigationService} from './GraphNavigationService.ts';
-import {createNewNodeAction, runTerminalAction} from '@/shell/UI/cytoscape-graph-ui/actions/graphActions.ts';
-import {getResponsivePadding} from '@/utils/responsivePadding.ts';
-import {SpeedDialSideGraphFloatingMenuView} from './SpeedDialSideGraphFloatingMenuView.ts';
+import {StyleService} from '@/shell/UI/cytoscape-graph-ui/services/StyleService';
+import {BreathingAnimationService} from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService';
+import {HorizontalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService';
+import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService';
+import {FloatingEditorManager} from '@/shell/UI/floating-windows/editors/FloatingEditorManager';
+import {HotkeyManager} from './HotkeyManager';
+import {SearchService} from './SearchService';
+import {GraphNavigationService} from './GraphNavigationService';
+import {createNewNodeAction, runTerminalAction} from '@/shell/UI/cytoscape-graph-ui/actions/graphActions';
+import {getResponsivePadding} from '@/utils/responsivePadding';
+import {SpeedDialSideGraphFloatingMenuView} from './SpeedDialSideGraphFloatingMenuView';
 import type {Graph, GraphDelta} from '@/pure/graph';
-import {MIN_ZOOM, MAX_ZOOM} from '@/shell/UI/cytoscape-graph-ui/constants.ts';
+import {MIN_ZOOM, MAX_ZOOM} from '@/shell/UI/cytoscape-graph-ui/constants';
 import {setupBasicCytoscapeEventListeners, setupCytoscape} from './VoiceTreeGraphViewHelpers';
-import {applyGraphDeltaToUI} from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI.ts';
-import {clearCytoscapeState} from '@/shell/edge/UI-edge/graph/clearCytoscapeState.ts';
-import {createSettingsEditor} from "@/shell/edge/UI-edge/settings/createSettingsEditor.ts";
+import {applyGraphDeltaToUI} from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI';
+import {clearCytoscapeState} from '@/shell/edge/UI-edge/graph/clearCytoscapeState';
+import {createSettingsEditor} from "@/shell/edge/UI-edge/settings/createSettingsEditor";
 
 import {
     spawnBackupTerminal
-} from "@/shell/edge/UI-edge/floating-windows/terminals/spawnBackupTerminal.ts";
+} from "@/shell/edge/UI-edge/floating-windows/terminals/spawnBackupTerminal";
 
 /**
  * Main VoiceTreeGraphView implementation
@@ -149,14 +149,14 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
      */
     private subscribeToGraphUpdates(): void {
         // Access electronAPI with type assertion since global Window type may not be recognized
-        const electronAPI = window.electronAPI;
+        const electronAPI: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/electron").ElectronAPI = window.electronAPI;
 
         if (!electronAPI?.graph?.onGraphUpdate) {
             console.error('[VoiceTreeGraphView] electronAPI not available, skipping graph subscription');
             return;
         }
 
-        const handleGraphDelta = (delta: GraphDelta): void => {
+        const handleGraphDelta: (delta: GraphDelta) => void = (delta: GraphDelta): void => {
             console.log('[VoiceTreeGraphView] Received graph delta, length:', delta.length);
             console.trace('[VoiceTreeGraphView] Graph delta stack trace'); // DEBUG: Check if called repeatedly
             if (this.emptyStateOverlay) {
@@ -165,7 +165,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             applyGraphDeltaToUI(this.cy, delta);
 
             // Track last created node for "fit to last node" hotkey (Space)
-            const lastUpsertedNode = delta.filter(d => d.type === 'UpsertNode').pop();
+            const lastUpsertedNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").UpsertNodeAction | undefined = delta.filter(d => d.type === 'UpsertNode').pop();
             if (lastUpsertedNode && lastUpsertedNode.type === 'UpsertNode') {
                 this.navigationService.setLastCreatedNodeId(lastUpsertedNode.nodeToUpsert.relativeFilePathIsID);
             }
@@ -184,7 +184,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
         };
 
-        const handleGraphClear = (): void => {
+        const handleGraphClear: () => void = (): void => {
             console.log('[VoiceTreeGraphView] Received graph:clear event');
             clearCytoscapeState(this.cy);
 
@@ -197,8 +197,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         };
 
         // Subscribe to graph updates via electronAPI (returns cleanup function)
-        const cleanupUpdate = electronAPI.graph.onGraphUpdate(handleGraphDelta);
-        const cleanupClear = electronAPI.graph.onGraphClear?.(handleGraphClear);
+        const cleanupUpdate: () => void = electronAPI.graph.onGraphUpdate(handleGraphDelta);
+        const cleanupClear: () => void = electronAPI.graph.onGraphClear?.(handleGraphClear);
 
         // Store combined cleanup function
         this.cleanupGraphSubscription = () => {
@@ -213,7 +213,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
      * Auto-load the last watched folder (if one exists)
      */
     private autoLoadPreviousFolder(): void {
-        const electronAPI = window.electronAPI;
+        const electronAPI: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/electron").ElectronAPI = window.electronAPI;
 
         if (!electronAPI?.main?.loadPreviousFolder) {
             console.warn('[VoiceTreeGraphView] loadPreviousFolder not available');
@@ -240,7 +240,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
     private setupDarkMode(): void {
         // Check localStorage first, then options
-        const savedDarkMode = localStorage.getItem('darkMode');
+        const savedDarkMode: string | null = localStorage.getItem('darkMode');
         if (savedDarkMode !== null) {
             this._isDarkMode = savedDarkMode === 'true';
         } else if (this.options.initialDarkMode !== undefined) {
@@ -398,7 +398,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     }
 
     private setupCytoscape(): void {
-        const menuServices = setupCytoscape({
+        const menuServices: { horizontalMenuService: HorizontalMenuService; verticalMenuService: VerticalMenuService; } = setupCytoscape({
             cy: this.cy,
             savePositionsTimeout: {current: this.savePositionsTimeout},
             onLayoutComplete: () => this.layoutCompleteEmitter.emit(),
@@ -425,7 +425,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         window.addEventListener('resize', this.handleResize);
 
         // Save positions before window closes
-        const handleBeforeUnload = () => {
+        const handleBeforeUnload: () => void = () => {
             console.log('[VoiceTreeGraphView] Window closing, saving positions...');
             // Use synchronous IPC if available, otherwise just log
             // todo this.saveNodePositions();
@@ -451,7 +451,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         });
 
         // Prevent page scroll when zooming
-        const handleWheel = (e: WheelEvent) => e.preventDefault();
+        const handleWheel: (e: WheelEvent) => void = (e: WheelEvent) => e.preventDefault();
         this.container.addEventListener('wheel', handleWheel, {passive: false});
     }
 
@@ -503,8 +503,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             return;
         }
 
-        const nodeCount = this.cy.nodes().length;
-        const navigatorElement = document.querySelector('.cytoscape-navigator') as HTMLElement;
+        const nodeCount: number = this.cy.nodes().length;
+        const navigatorElement: HTMLElement = document.querySelector('.cytoscape-navigator') as HTMLElement;
 
         if (navigatorElement) {
             if (nodeCount <= 1) {
@@ -520,8 +520,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // ============================================================================
 
     focusNode(nodeId: string): void {
-        const cy = this.cy;
-        const node = cy.getElementById(nodeId);
+        const cy: cytoscape.Core = this.cy;
+        const node: cytoscape.CollectionReturnValue = cy.getElementById(nodeId);
         if (node.length > 0) {
             cy.animate({
                 fit: {
@@ -534,7 +534,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     }
 
     getSelectedNodes(): string[] {
-        const cy = this.cy;
+        const cy: cytoscape.Core = this.cy;
         return cy.$(':selected')
             .nodes()
             .filter((n: cytoscape.NodeSingular) => !n.data('isFloatingWindow'))
@@ -542,14 +542,14 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     }
 
     fit(paddingPercentage = 3): void {
-        const cy = this.cy;
+        const cy: cytoscape.Core = this.cy;
         // Use responsive padding instead of fixed pixels (default was 50px on 1440p)
         cy.fit(undefined, getResponsivePadding(cy, paddingPercentage));
     }
 
     refreshLayout(): void {
         // Re-run the Cola layout algorithm
-        const cy = this.cy;
+        const cy: cytoscape.Core = this.cy;
 
         // Skip if no nodes
         if (cy.nodes().length === 0) {
@@ -588,8 +588,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         localStorage.setItem('darkMode', String(this._isDarkMode));
 
         // Update graph styles
-        const styleService = new StyleService();
-        const newStyles = styleService.getCombinedStylesheet();
+        const styleService: StyleService = new StyleService();
+        const newStyles: { selector: string; style: Record<string, unknown>; }[] = styleService.getCombinedStylesheet();
         this.cy.style(newStyles);
 
         // Update search service theme
@@ -606,7 +606,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     }
 
     getStats(): { nodeCount: number; edgeCount: number } {
-        const cy = this.cy;
+        const cy: cytoscape.Core = this.cy;
         return {
             nodeCount: cy.nodes().length,
             edgeCount: cy.edges().length

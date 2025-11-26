@@ -5,8 +5,8 @@ import {
     calculateParentAngle,
     polarToCartesian,
     SPAWN_RADIUS
-} from "@/pure/graph/positioning/angularPositionSeeding.ts";
-import {findFirstParentNode} from "@/pure/graph/graph-operations /findFirstParentNode.ts";
+} from "@/pure/graph/positioning/angularPositionSeeding";
+import {findFirstParentNode} from "@/pure/graph/graph-operations /findFirstParentNode";
 
 /**
  * Calculate initial position for a new child node (pure function)
@@ -28,17 +28,17 @@ export function calculateInitialPositionForChild(
     // Get parent's position
     return O.chain((parentPos: Position) => {
         // Find grandparent to determine parent's angle constraint
-        const grandparentNode = findFirstParentNode(parentNode, graph);
-        const parentAngle = calculateParentAngle(parentNode, grandparentNode);
+        const grandparentNode: GraphNode | undefined = findFirstParentNode(parentNode, graph);
+        const parentAngle: number | undefined = calculateParentAngle(parentNode, grandparentNode);
 
         // Use provided child index, or count existing children for new child
-        const indexToUse = childIndex !== undefined ? childIndex : parentNode.outgoingEdges.length;
+        const indexToUse: number = childIndex !== undefined ? childIndex : parentNode.outgoingEdges.length;
 
         // Calculate angle for this child (will be the Nth child, 0-indexed)
-        const angle = calculateChildAngle(indexToUse, parentAngle);
+        const angle: number = calculateChildAngle(indexToUse, parentAngle);
 
         // Convert to cartesian offset
-        const offset = polarToCartesian(angle, spawnRadius);
+        const offset: { readonly x: number; readonly y: number; } = polarToCartesian(angle, spawnRadius);
 
         return O.some({
             x: parentPos.x + offset.x,

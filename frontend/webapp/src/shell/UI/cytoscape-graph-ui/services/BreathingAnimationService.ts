@@ -1,6 +1,6 @@
 import type { Core, NodeSingular } from 'cytoscape';
 
-export const AnimationType = {
+export const AnimationType: { readonly PINNED: "pinned"; readonly NEW_NODE: "new_node"; readonly APPENDED_CONTENT: "appended_content"; } = {
   PINNED: 'pinned',
   NEW_NODE: 'new_node',
   APPENDED_CONTENT: 'appended_content',
@@ -92,7 +92,7 @@ export class BreathingAnimationService {
    * Used internally by event listeners and externally for pinned nodes.
    */
   startBreathingAnimation(node: NodeSingular, type: AnimationType): void {
-    const config = this.configs.get(type)!;
+    const config: AnimationConfig = this.configs.get(type)!;
 
     // Stop any existing animation first
     this.stopAnimationForNode(node);
@@ -106,7 +106,7 @@ export class BreathingAnimationService {
 
     // Set timeout if configured
     if (config.timeout > 0) {
-      const timeout = setTimeout(() => {
+      const timeout: NodeJS.Timeout = setTimeout(() => {
         this.stopAnimationForNode(node);
       }, config.timeout);
 
@@ -120,9 +120,9 @@ export class BreathingAnimationService {
       return;
     }
 
-    let isExpanded = false;
+    let isExpanded: boolean = false;
 
-    const toggle = () => {
+    const toggle: () => void = () => {
       if (!node.data('breathingActive')) {
         return;
       }
@@ -143,7 +143,7 @@ export class BreathingAnimationService {
     toggle();
 
     // Set up interval to toggle states
-    const interval = setInterval(toggle, config.duration);
+    const interval: NodeJS.Timeout = setInterval(toggle, config.duration);
 
     // Store interval on the node itself
     node.data('_breathingInterval', interval);
@@ -154,7 +154,7 @@ export class BreathingAnimationService {
     node.data('breathingActive', false);
 
     // Get animation type to know which classes to remove
-    const animationType = node.data('animationType') as AnimationType | undefined;
+    const animationType: AnimationType | undefined = node.data('animationType') as AnimationType | undefined;
 
     // Clear timeout if exists
     const timeout = node.data('_breathingTimeout');
@@ -172,7 +172,7 @@ export class BreathingAnimationService {
 
     // Remove all breathing animation classes
     if (animationType) {
-      const config = this.configs.get(animationType);
+      const config: AnimationConfig | undefined = this.configs.get(animationType);
       if (config) {
         node.removeClass([config.expandClass, config.contractClass]);
       }
@@ -206,7 +206,7 @@ export class BreathingAnimationService {
 
     // Set new timeout
     if (timeout > 0) {
-      const newTimeout = setTimeout(() => {
+      const newTimeout: NodeJS.Timeout = setTimeout(() => {
         this.stopAnimationForNode(node);
       }, timeout);
       node.data('_breathingTimeout', newTimeout);
@@ -238,7 +238,7 @@ export class BreathingAnimationService {
    * These wrap the new event-driven approach.
    */
   addBreathingAnimation(nodes: NodeSingular | import('cytoscape').NodeCollection, type: AnimationType = AnimationType.NEW_NODE): void {
-    const nodeArray = 'forEach' in nodes ? Array.from(nodes) : [nodes];
+    const nodeArray: NodeSingular[] = 'forEach' in nodes ? Array.from(nodes) : [nodes];
 
     nodeArray.forEach((node) => {
       this.startBreathingAnimation(node, type);
@@ -253,7 +253,7 @@ export class BreathingAnimationService {
 
   // Not used anymore, but kept for backward compatibility
   stopAnimation(nodeId: string): void {
-    const node = this.cy.getElementById(nodeId);
+    const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").CollectionReturnValue = this.cy.getElementById(nodeId);
     if (node.length > 0) {
       this.stopAnimationForNode(node);
     }

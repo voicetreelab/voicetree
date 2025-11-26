@@ -5,9 +5,9 @@ import * as os from 'os'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 import type { Graph, FSUpdate } from '@/pure/graph'
-import { applyGraphDeltaToGraph } from '@/pure/graph/graphDelta/applyGraphDeltaToGraph.ts'
-import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk.ts'
-import { mapFSEventsToGraphDelta } from '@/pure/graph/mapFSEventsToGraphDelta.ts'
+import { applyGraphDeltaToGraph } from '@/pure/graph/graphDelta/applyGraphDeltaToGraph'
+import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk'
+import { mapFSEventsToGraphDelta } from '@/pure/graph/mapFSEventsToGraphDelta'
 
 /**
  * TDD Tests for Progressive Edge Validation
@@ -23,10 +23,10 @@ import { mapFSEventsToGraphDelta } from '@/pure/graph/mapFSEventsToGraphDelta.ts
  */
 
 describe('Progressive Edge Validation - Unified Behavior', () => {
-  const testVaultState = { path: '' }
+  const testVaultState: { path: string; } = { path: '' }
 
   beforeAll(async () => {
-    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'edge-validation-test-'))
+    const tmpDir: string = await fs.mkdtemp(path.join(os.tmpdir(), 'edge-validation-test-'))
     testVaultState.path = tmpDir
     await fs.mkdir(testVaultState.path, { recursive: true })
   })
@@ -38,7 +38,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
   describe('Bulk Load: Edge Resolution Order Independence', () => {
     it('should produce identical graphs when loading files in forward order (target exists before source)', async () => {
       // Setup: Create temporary vault for forward order test
-      const forwardVaultPath = path.join(testVaultState.path, 'forward-order')
+      const forwardVaultPath: string = path.join(testVaultState.path, 'forward-order')
       await fs.mkdir(forwardVaultPath, { recursive: true })
 
       // Files in order: target first, then source
@@ -51,10 +51,10 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         '# Source Node\n\n- links to [[target]]'
       )
 
-      const result = await loadGraphFromDisk(O.some(forwardVaultPath))
+      const result: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(forwardVaultPath))
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(result)) throw new Error('Expected Right')
-      const graph = result.right
+      const graph: Graph = result.right
 
       // Verify: source node has edge to target using target's node ID
       expect(graph.nodes['source.md']).toBeDefined()
@@ -68,7 +68,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
 
     it('should produce identical graphs when loading files in reverse order (source exists before target)', async () => {
       // Setup: Create temporary vault for reverse order test
-      const reverseVaultPath = path.join(testVaultState.path, 'reverse-order')
+      const reverseVaultPath: string = path.join(testVaultState.path, 'reverse-order')
       await fs.mkdir(reverseVaultPath, { recursive: true })
 
       // Files in reverse order: source first (target doesn't exist yet)
@@ -81,10 +81,10 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         '# Target Node'
       )
 
-      const result2 = await loadGraphFromDisk(O.some(reverseVaultPath))
+      const result2: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(reverseVaultPath))
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(result2)) throw new Error('Expected Right')
-      const graph = result2.right
+      const graph: Graph = result2.right
 
       // Verify: SAME RESULT as forward order
       expect(graph.nodes['source.md']).toBeDefined()
@@ -98,7 +98,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
 
     it('should resolve subfolder links regardless of order (felix/2 -> [[1]] -> felix/1)', async () => {
       // Setup: Test subfolder link resolution bug
-      const subfolderVaultPath = path.join(testVaultState.path, 'subfolder-test')
+      const subfolderVaultPath: string = path.join(testVaultState.path, 'subfolder-test')
       await fs.mkdir(path.join(subfolderVaultPath, 'felix'), { recursive: true })
 
       // Add in reverse order: file with link first
@@ -111,10 +111,10 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         '# Node 1'
       )
 
-      const result3 = await loadGraphFromDisk(O.some(subfolderVaultPath))
+      const result3: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(subfolderVaultPath))
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(result3)) throw new Error('Expected Right')
-      const graph = result3.right
+      const graph: Graph = result3.right
 
       // Verify: Link resolves to felix/1 (not just "1")
       expect(graph.nodes['felix/2.md']).toBeDefined()
@@ -128,7 +128,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
 
     it('should handle chain of dependencies regardless of order', async () => {
       // Setup: a->b->c loaded as c,b,a
-      const chainVaultPath = path.join(testVaultState.path, 'chain-test')
+      const chainVaultPath: string = path.join(testVaultState.path, 'chain-test')
       await fs.mkdir(chainVaultPath, { recursive: true })
 
       // Reverse order
@@ -145,10 +145,10 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         '# A\n\n- extends [[b]]'
       )
 
-      const result4 = await loadGraphFromDisk(O.some(chainVaultPath))
+      const result4: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(chainVaultPath))
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(result4)) throw new Error('Expected Right')
-      const graph = result4.right
+      const graph: Graph = result4.right
 
       // Verify: All edges resolved
       expect(graph.nodes['a.md'].outgoingEdges[0].targetId).toBe('b.md')
@@ -186,13 +186,13 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         eventType: 'Added'
       }
 
-      const delta = mapFSEventsToGraphDelta(fsEvent, testVaultState.path, currentGraph)
+      const delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = mapFSEventsToGraphDelta(fsEvent, testVaultState.path, currentGraph)
 
       // Verify: Edge resolves to existing target node
       expect(delta).toHaveLength(1)
       expect(delta[0].type).toBe('UpsertNode')
       if (delta[0].type === 'UpsertNode') {
-        const node = delta[0].nodeToUpsert
+        const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = delta[0].nodeToUpsert
         expect(node.relativeFilePathIsID).toBe('source.md')
         expect(node.outgoingEdges).toHaveLength(1)
         expect(node.outgoingEdges[0].targetId).toBe('target.md')
@@ -210,13 +210,13 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         eventType: 'Added'
       }
 
-      const delta = mapFSEventsToGraphDelta(fsEvent, testVaultState.path, currentGraph)
+      const delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = mapFSEventsToGraphDelta(fsEvent, testVaultState.path, currentGraph)
 
       // Verify: Edge has raw link text (not resolved)
       expect(delta).toHaveLength(1)
       expect(delta[0].type).toBe('UpsertNode')
       if (delta[0].type === 'UpsertNode') {
-        const node = delta[0].nodeToUpsert
+        const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = delta[0].nodeToUpsert
         expect(node.outgoingEdges).toHaveLength(1)
         expect(node.outgoingEdges[0].targetId).toBe('non-existent')
       }
@@ -248,12 +248,12 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         eventType: 'Added'
       }
 
-      const delta = mapFSEventsToGraphDelta(fsEvent, testVaultState.path, currentGraph)
+      const delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = mapFSEventsToGraphDelta(fsEvent, testVaultState.path, currentGraph)
 
       // Verify: Link resolves to felix/1
       expect(delta[0].type).toBe('UpsertNode')
       if (delta[0].type === 'UpsertNode') {
-        const node = delta[0].nodeToUpsert
+        const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = delta[0].nodeToUpsert
         expect(node.outgoingEdges[0].targetId).toBe('felix/1.md')
       }
     })
@@ -273,7 +273,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
 
       // Add child node
       const fsEvent: FSUpdate = { absolutePath: path.join(testVaultState.path, 'child.md'), content: '# Child', eventType: 'Added' }
-      const delta = mapFSEventsToGraphDelta(fsEvent, testVaultState.path, currentGraph)
+      const delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = mapFSEventsToGraphDelta(fsEvent, testVaultState.path, currentGraph)
 
       // Parent must be in delta so UI gets second chance to create edge (fixes race condition)
       expect(delta).toHaveLength(2)
@@ -284,36 +284,36 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
   describe('Unified Behavior: Bulk and Incremental Produce Same Result', () => {
     it('should produce identical graphs: bulk load vs sequential incremental', async () => {
       // BULK LOAD
-      const bulkVaultPath = path.join(testVaultState.path, 'bulk-unified')
+      const bulkVaultPath: string = path.join(testVaultState.path, 'bulk-unified')
       await fs.mkdir(bulkVaultPath, { recursive: true })
 
       await fs.writeFile(path.join(bulkVaultPath, 'a.md'), '# A\n\n- links [[b]]')
       await fs.writeFile(path.join(bulkVaultPath, 'b.md'), '# B\n\n- links [[c]]')
       await fs.writeFile(path.join(bulkVaultPath, 'c.md'), '# C')
 
-      const bulkResult = await loadGraphFromDisk(O.some(bulkVaultPath))
+      const bulkResult: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(bulkVaultPath))
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(bulkResult)) throw new Error('Expected Right')
-      const bulkGraph = bulkResult.right
+      const bulkGraph: Graph = bulkResult.right
 
       // INCREMENTAL (simulate sequential file additions)
-      const incrementalVaultPath = path.join(testVaultState.path, 'incremental-unified')
+      const incrementalVaultPath: string = path.join(testVaultState.path, 'incremental-unified')
       await fs.mkdir(incrementalVaultPath, { recursive: true })
 
       // Add files one by one using mapFSEventsToGraphDelta
-      const files = [
+      const files: { name: string; content: string; }[] = [
         { name: 'a.md', content: '# A\n\n- links [[b]]' },
         { name: 'b.md', content: '# B\n\n- links [[c]]' },
         { name: 'c.md', content: '# C' }
       ]
 
-      const incrementalGraph = files.reduce((graph, file) => {
+      const incrementalGraph: Graph = files.reduce((graph, file) => {
         const fsEvent: FSUpdate = {
           absolutePath: path.join(incrementalVaultPath, file.name),
           content: file.content,
           eventType: 'Added'
         }
-        const delta = mapFSEventsToGraphDelta(fsEvent, incrementalVaultPath, graph)
+        const delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = mapFSEventsToGraphDelta(fsEvent, incrementalVaultPath, graph)
         return applyGraphDeltaToGraph(graph, delta)
       }, { nodes: {} } as Graph)
 
@@ -338,34 +338,34 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
 
     it('should produce identical graphs: bulk load vs incremental in REVERSE order', async () => {
       // BULK LOAD (forward order)
-      const bulkVaultPath = path.join(testVaultState.path, 'bulk-reverse')
+      const bulkVaultPath: string = path.join(testVaultState.path, 'bulk-reverse')
       await fs.mkdir(bulkVaultPath, { recursive: true })
 
       await fs.writeFile(path.join(bulkVaultPath, 'a.md'), '# A\n\n- links [[b]]')
       await fs.writeFile(path.join(bulkVaultPath, 'b.md'), '# B')
 
-      const bulkResult2 = await loadGraphFromDisk(O.some(bulkVaultPath))
+      const bulkResult2: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(bulkVaultPath))
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(bulkResult2)) throw new Error('Expected Right')
-      const bulkGraph = bulkResult2.right
+      const bulkGraph: Graph = bulkResult2.right
 
       // INCREMENTAL (reverse order - b before a)
-      const incrementalVaultPath = path.join(testVaultState.path, 'incremental-reverse')
+      const incrementalVaultPath: string = path.join(testVaultState.path, 'incremental-reverse')
       await fs.mkdir(incrementalVaultPath, { recursive: true })
 
       // Add b first, then a
-      const files = [
+      const files: { name: string; content: string; }[] = [
         { name: 'b.md', content: '# B' },
         { name: 'a.md', content: '# A\n\n- links [[b]]' }
       ]
 
-      const incrementalGraph = files.reduce((graph, file) => {
+      const incrementalGraph: Graph = files.reduce((graph, file) => {
         const fsEvent: FSUpdate = {
           absolutePath: path.join(incrementalVaultPath, file.name),
           content: file.content,
           eventType: 'Added'
         }
-        const delta = mapFSEventsToGraphDelta(fsEvent, incrementalVaultPath, graph)
+        const delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = mapFSEventsToGraphDelta(fsEvent, incrementalVaultPath, graph)
         return applyGraphDeltaToGraph(graph, delta)
       }, { nodes: {} } as Graph)
 
@@ -381,7 +381,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
 
   describe('Edge Cases: Non-existent Nodes', () => {
     it('bulk load should preserve raw link text when target never exists', async () => {
-      const vaultPath = path.join(testVaultState.path, 'non-existent-bulk')
+      const vaultPath: string = path.join(testVaultState.path, 'non-existent-bulk')
       await fs.mkdir(vaultPath, { recursive: true })
 
       await fs.writeFile(
@@ -389,10 +389,10 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         '# Source\n\n- broken link [[does-not-exist]]'
       )
 
-      const result5 = await loadGraphFromDisk(O.some(vaultPath))
+      const result5: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(vaultPath))
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(result5)) throw new Error('Expected Right')
-      const graph = result5.right
+      const graph: Graph = result5.right
 
       // Verify: Edge preserved with raw link text
       expect(graph.nodes['source.md'].outgoingEdges).toHaveLength(1)
@@ -410,7 +410,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         eventType: 'Added'
       }
 
-      const delta = mapFSEventsToGraphDelta(fsEvent, testVaultState.path, currentGraph)
+      const delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = mapFSEventsToGraphDelta(fsEvent, testVaultState.path, currentGraph)
 
       // Verify: Edge preserved with raw link text
       expect(delta[0].type).toBe('UpsertNode')
@@ -420,7 +420,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
     })
 
     it('should handle multiple unresolved links', async () => {
-      const vaultPath = path.join(testVaultState.path, 'multiple-unresolved')
+      const vaultPath: string = path.join(testVaultState.path, 'multiple-unresolved')
       await fs.mkdir(vaultPath, { recursive: true })
 
       await fs.writeFile(
@@ -428,10 +428,10 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         '# Source\n\n- link1 [[a]]\n- link2 [[b]]\n- link3 [[c]]'
       )
 
-      const result6 = await loadGraphFromDisk(O.some(vaultPath))
+      const result6: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(vaultPath))
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(result6)) throw new Error('Expected Right')
-      const graph = result6.right
+      const graph: Graph = result6.right
 
       // Verify: All edges preserved as raw text
       expect(graph.nodes['source.md'].outgoingEdges).toHaveLength(3)

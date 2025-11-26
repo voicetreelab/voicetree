@@ -27,7 +27,7 @@ export default function useVoiceTreeClient({
   onStarted,
   onFinished,
 }: UseVoiceTreeClientOptions) {
-  const sonioxClient = useRef<SonioxClient | null>(null);
+  const sonioxClient: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@types/react/index").RefObject<SonioxClient | null> = useRef<SonioxClient | null>(null);
 
   sonioxClient.current ??= new SonioxClient({
     apiKey,
@@ -38,7 +38,7 @@ export default function useVoiceTreeClient({
   const [nonFinalTokens, setNonFinalTokens] = useState<Token[]>([]);
   const [error, setError] = useState<TranscriptionError | null>(null);
 
-  const startTranscription = useCallback(async () => {
+  const startTranscription: () => Promise<void> = useCallback(async () => {
     setFinalTokens([]);
     setNonFinalTokens([]);
     setError(null);
@@ -102,7 +102,7 @@ export default function useVoiceTreeClient({
     });
   }, [onFinished, onStarted, translationConfig]);
 
-  const stopTranscription = useCallback(() => {
+  const stopTranscription: () => void = useCallback(() => {
     sonioxClient.current?.stop();
   }, []);
 

@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
-import type TerminalManager from '@/shell/edge/main/electron/terminal-manager.ts'
-import { getWatchedDirectory } from '@/shell/edge/main/graph/watchFolder.ts'
+import type TerminalManager from '@/shell/edge/main/electron/terminal-manager'
+import { getWatchedDirectory } from '@/shell/edge/main/graph/watchFolder'
 
 // Import dependencies directly - functional programming style
 // terminalManager and getToolsDirectory will be passed as parameters since terminal handlers need event.sender
@@ -14,7 +14,7 @@ export function registerTerminalIpcHandlers(
 
   ipcMain.handle('terminal:spawn', async (event, terminalData) => {
     console.log('[MAIN] terminal:spawn IPC called, event.sender.id:', event.sender.id)
-    const result = await terminalManager.spawn(
+    const result: TerminalSpawnResult = await terminalManager.spawn(
       event.sender,
       terminalData,
       () => getWatchedDirectory(),

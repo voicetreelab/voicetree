@@ -5,14 +5,14 @@ import * as O from 'fp-ts/lib/Option.js';
  * Pretty print a graph for debugging
  */
 export function prettyPrintGraph(graph: Graph): string {
-  const header = [
+  const header: string[] = [
     '='.repeat(60),
     `GRAPH STATE (${Object.keys(graph.nodes).length} nodes)`,
     '='.repeat(60)
   ];
 
-  const nodeLines = Object.entries(graph.nodes).flatMap(([nodeId, node]) => {
-    const posStr = O.isSome(node.nodeUIMetadata.position)
+  const nodeLines: string[] = Object.entries(graph.nodes).flatMap(([nodeId, node]) => {
+    const posStr: string = O.isSome(node.nodeUIMetadata.position)
       ? `(${node.nodeUIMetadata.position.value.x}, ${node.nodeUIMetadata.position.value.y})`
       : 'none';
 
@@ -24,7 +24,7 @@ export function prettyPrintGraph(graph: Graph): string {
     ];
   });
 
-  const footer = ['\n' + '='.repeat(60)];
+  const footer: string[] = ['\n' + '='.repeat(60)];
 
   return [...header, ...nodeLines, ...footer].join('\n');
 }
@@ -33,7 +33,7 @@ export function prettyPrintGraph(graph: Graph): string {
  * Pretty print a single node for debugging
  */
 export function prettyPrintNode(node: GraphNode): string {
-  const posStr = O.isSome(node.nodeUIMetadata.position)
+  const posStr: string = O.isSome(node.nodeUIMetadata.position)
     ? `(${node.nodeUIMetadata.position.value.x}, ${node.nodeUIMetadata.position.value.y})`
     : 'none';
 
@@ -51,13 +51,13 @@ export function prettyPrintGraphDelta(delta: GraphDelta): string {
     return 'GraphDelta: []';
   }
 
-  const header = [`GraphDelta (${delta.length} operations):`];
+  const header: string[] = [`GraphDelta (${delta.length} operations):`];
 
-  const operationLines = delta.flatMap((nodeDelta, index) => {
+  const operationLines: string[] = delta.flatMap((nodeDelta, index) => {
     if (nodeDelta.type === 'UpsertNode') {
-      const node = nodeDelta.nodeToUpsert;
-      const content = node.contentWithoutYamlOrLinks || '';
-      const contentPreview = content.substring(0, 50).replace(/\n/g, ' ');
+      const node: GraphNode = nodeDelta.nodeToUpsert;
+      const content: string = node.contentWithoutYamlOrLinks || '';
+      const contentPreview: string = content.substring(0, 50).replace(/\n/g, ' ');
       return [
         `  ${index + 1}. UpsertNode: ${node.relativeFilePathIsID}`,
         `     Content: "${contentPreview}${content.length > 50 ? '...' : ''}"`,

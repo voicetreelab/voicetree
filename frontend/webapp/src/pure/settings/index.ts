@@ -1,2 +1,2 @@
-export type { VTSettings } from './types.ts';
-export { DEFAULT_SETTINGS } from './types.ts';
+export type { VTSettings } from './types';
+export { DEFAULT_SETTINGS } from './types';

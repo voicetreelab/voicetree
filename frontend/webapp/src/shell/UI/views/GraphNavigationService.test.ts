@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { GraphNavigationService } from '@/shell/UI/views/GraphNavigationService.ts';
+import { GraphNavigationService } from '@/shell/UI/views/GraphNavigationService';
 import cytoscape, { type Core, type Collection } from 'cytoscape';
 import '@/shell/UI/cytoscape-graph-ui'; // Import to trigger extension registration
 
@@ -37,21 +37,21 @@ describe('GraphNavigationService', () => {
 
   describe('fitToLastNode', () => {
     it('should fit viewport to last created node when one is set', () => {
-      const fitSpy = vi.spyOn(cy, 'fit');
+      const fitSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
 
       service.setLastCreatedNodeId('node2');
       service.fitToLastNode();
 
       // Should have called fit with the node
       expect(fitSpy).toHaveBeenCalled();
-      const callArgs = fitSpy.mock.calls[0];
+      const callArgs: [eles?: string | cytoscape.CollectionArgument | undefined, padding?: number | undefined] = fitSpy.mock.calls[0];
       expect(((callArgs?.[0] as Collection).first()?.id() ?? "")).toBe('node2');
       // Should have padding argument (number, even if 0 in headless mode)
       expect(typeof callArgs[1]).toBe('number');
     });
 
     it('should do nothing when no last node is set', () => {
-      const fitSpy = vi.spyOn(cy, 'fit');
+      const fitSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
 
       service.fitToLastNode();
 
@@ -59,7 +59,7 @@ describe('GraphNavigationService', () => {
     });
 
     it('should handle non-existent node gracefully', () => {
-      const fitSpy = vi.spyOn(cy, 'fit');
+      const fitSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
 
       service.setLastCreatedNodeId('nonexistent-node');
       service.fitToLastNode();
@@ -69,7 +69,7 @@ describe('GraphNavigationService', () => {
     });
 
     it('should update to new node when setLastCreatedNodeId is called multiple times', () => {
-      const fitSpy = vi.spyOn(cy, 'fit');
+      const fitSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
 
       service.setLastCreatedNodeId('node1');
       service.fitToLastNode();
@@ -120,19 +120,19 @@ describe('GraphNavigationService', () => {
 
     it('should cycle to next terminal in forward direction', () => {
       // Use cy directly
-      const fitSpy = vi.spyOn(cy, 'fit');
+      const fitSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
 
       service.cycleTerminal(1);
 
       // Increments from 0 to 1, fits to terminal at index 1
       expect(fitSpy).toHaveBeenCalled();
-      const fittedNode = fitSpy.mock.calls[0]?.[0] as Collection;
+      const fittedNode: cytoscape.Collection<cytoscape.SingularElementReturnValue, cytoscape.SingularElementArgument> = fitSpy.mock.calls[0]?.[0] as Collection;
       expect(fittedNode.first()?.id()).toBe('terminal-node2');
     });
 
     it('should cycle through all terminals in forward direction', () => {
       // Use cy directly
-      const fitSpy = vi.spyOn(cy, 'fit');
+      const fitSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
 
       service.cycleTerminal(1);
       expect(((fitSpy.mock.calls[0]?.[0] as Collection).first()?.id() ?? "")).toBe('terminal-node2'); // index 0->1
@@ -146,7 +146,7 @@ describe('GraphNavigationService', () => {
 
     it('should wrap around to first terminal after last one in forward direction', () => {
       // Use cy directly
-      const fitSpy = vi.spyOn(cy, 'fit');
+      const fitSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
 
       // Cycle through all terminals
       service.cycleTerminal(1); // 0->1: terminal-node2
@@ -161,19 +161,19 @@ describe('GraphNavigationService', () => {
 
     it('should cycle to previous terminal in backward direction', () => {
       // Use cy directly
-      const fitSpy = vi.spyOn(cy, 'fit');
+      const fitSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
 
       // Backward from initial position (0) wraps to last terminal
       service.cycleTerminal(-1);
 
       expect(fitSpy).toHaveBeenCalled();
-      const fittedNode = (fitSpy.mock.calls[0]?.[0] as Collection);
+      const fittedNode: cytoscape.Collection<cytoscape.SingularElementReturnValue, cytoscape.SingularElementArgument> = (fitSpy.mock.calls[0]?.[0] as Collection);
       expect(fittedNode.first()?.id()).toBe('terminal-node3');
     });
 
     it('should cycle through all terminals in backward direction', () => {
       // Use cy directly
-      const fitSpy = vi.spyOn(cy, 'fit');
+      const fitSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
 
       service.cycleTerminal(-1);
       expect(((fitSpy.mock.calls[0]?.[0] as Collection).first()?.id() ?? "")).toBe('terminal-node3');
@@ -187,7 +187,7 @@ describe('GraphNavigationService', () => {
 
     it('should wrap around to last terminal after first one in backward direction', () => {
       // Use cy directly
-      const fitSpy = vi.spyOn(cy, 'fit');
+      const fitSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
 
       // Cycle backward to wrap to last
       service.cycleTerminal(-1);
@@ -208,7 +208,7 @@ describe('GraphNavigationService', () => {
       // Remove all terminal nodes
       cy.remove('node[windowType = "terminal"]');
 
-      const fitSpy = vi.spyOn(cy, 'fit');
+      const fitSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
 
       service.cycleTerminal(1);
 
@@ -238,7 +238,7 @@ describe('GraphNavigationService', () => {
         position: { x: 500, y: 200 }
       });
 
-      const fitSpy = vi.spyOn(cy, 'fit');
+      const fitSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
 
       // Cycle through - should only hit the 3 real terminals
       // Starting from index 0, cycling forward hits indices 1, 2, 0
@@ -246,7 +246,7 @@ describe('GraphNavigationService', () => {
       service.cycleTerminal(1); // 1->2: terminal-node3
       service.cycleTerminal(1); // 2->0: terminal-node1
 
-      const fittedIds = fitSpy.mock.calls.map((call => (call?.[0] as Collection).first()?.id() ?? ""));
+      const fittedIds: string[] = fitSpy.mock.calls.map((call => (call?.[0] as Collection).first()?.id() ?? ""));
       expect(fittedIds).toEqual(['terminal-node2', 'terminal-node3', 'terminal-node1']);
     });
 
@@ -255,7 +255,7 @@ describe('GraphNavigationService', () => {
       // Remove all terminals except one
       cy.remove('#terminal-node2, #terminal-node3');
 
-      const fitSpy = vi.spyOn(cy, 'fit');
+      const fitSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
 
       service.cycleTerminal(1);
       expect(((fitSpy.mock.calls[0]?.[0] as Collection).first()?.id() ?? "")).toBe('terminal-node1');
@@ -271,7 +271,7 @@ describe('GraphNavigationService', () => {
   describe('handleSearchSelect', () => {
     it('should fit viewport to selected node', () => {
       // Use cy directly
-      const fitSpy = vi.spyOn(cy, 'fit');
+      const fitSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
 
       service.handleSearchSelect('node2');
 
@@ -281,8 +281,8 @@ describe('GraphNavigationService', () => {
 
     it('should highlight selected node by adding highlighted class', () => {
       // Use cy directly
-      const node = cy.getElementById('node2');
-      const addClassSpy = vi.spyOn(node, 'addClass');
+      const node: cytoscape.CollectionReturnValue = cy.getElementById('node2');
+      const addClassSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<(classes: cytoscape.ClassNames) => cytoscape.CollectionReturnValue> = vi.spyOn(node, 'addClass');
 
       service.handleSearchSelect('node2');
 
@@ -293,8 +293,8 @@ describe('GraphNavigationService', () => {
       vi.useFakeTimers();
 
       // Use cy directly
-      const node = cy.getElementById('node2');
-      const removeClassSpy = vi.spyOn(node, 'removeClass');
+      const node: cytoscape.CollectionReturnValue = cy.getElementById('node2');
+      const removeClassSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<(classes: cytoscape.ClassNames) => cytoscape.CollectionReturnValue> = vi.spyOn(node, 'removeClass');
 
       service.handleSearchSelect('node2');
 
@@ -310,7 +310,7 @@ describe('GraphNavigationService', () => {
 
     it('should handle non-existent node gracefully without throwing', () => {
       // Use cy directly
-      const fitSpy = vi.spyOn(cy, 'fit');
+      const fitSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
 
       expect(() => {
         service.handleSearchSelect('nonexistent-node');
@@ -322,7 +322,7 @@ describe('GraphNavigationService', () => {
 
     it('should use appropriate padding for search results', () => {
       // Use cy directly
-      const fitSpy = vi.spyOn(cy, 'fit');
+      const fitSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
 
       service.handleSearchSelect('node1');
 
@@ -340,7 +340,7 @@ describe('GraphNavigationService', () => {
         { data: { id: 'terminal-b', windowType: 'terminal', isShadowNode: true }, position: { x: 400, y: 200 } }
       ]);
 
-      const fitSpy = vi.spyOn(cy, 'fit');
+      const fitSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
 
       // Set last node and fit to it
       service.setLastCreatedNodeId('node1');

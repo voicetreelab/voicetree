@@ -17,16 +17,16 @@ import {
     anchorToNode,
     createWindowChrome, getDefaultDimensions,
     getOrCreateOverlay
-} from '@/shell/UI/floating-windows/cytoscape-floating-windows.ts';
-import type {Position} from '@/shell/UI/views/IVoiceTreeGraphView.ts';
-import type {HotkeyManager} from '@/shell/UI/views/HotkeyManager.ts';
+} from '@/shell/UI/floating-windows/cytoscape-floating-windows';
+import type {Position} from '@/shell/UI/views/IVoiceTreeGraphView';
+import type {HotkeyManager} from '@/shell/UI/views/HotkeyManager';
 import type {Graph, GraphDelta, NodeIdAndFilePath} from '@/pure/graph';
-import {CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView.ts';
-import {createNewEmptyOrphanNodeFromUI, modifyNodeContentFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions.ts";
-import type {FloatingWindowUIHTMLData} from "@/shell/edge/UI-edge/floating-windows/types.ts";
-import {getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI.ts";
-import {getVanillaInstance, vanillaFloatingWindowInstances} from "@/shell/edge/UI-edge/state/UIAppState.ts";
-import {fromNodeToMarkdownContent} from "@/pure/graph/markdown-writing/node_to_markdown.ts";
+import {CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
+import {createNewEmptyOrphanNodeFromUI, modifyNodeContentFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions";
+import type {FloatingWindowUIHTMLData} from "@/shell/edge/UI-edge/floating-windows/types";
+import {getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
+import {getVanillaInstance, vanillaFloatingWindowInstances} from "@/shell/edge/UI-edge/state/UIAppState";
+import {fromNodeToMarkdownContent} from "@/pure/graph/markdown-writing/node_to_markdown";
 
 /**
  * Function type for getting current graph state
@@ -50,7 +50,7 @@ export async function createFloatingEditor(
     awaitingUISavedContent: Map<NodeIdAndFilePath, string>
 ): Promise<FloatingWindowUIHTMLData | undefined> {
     // Derive editor ID from node ID
-    const id = `${nodeId}-editor`;
+    const id: string = `${nodeId}-editor`;
 
     // Check if already exists in registry (prevents duplicate editors)
     if (editorRegistry.has(nodeId)) {
@@ -62,19 +62,19 @@ export async function createFloatingEditor(
     editorRegistry.set(nodeId, id);
 
     // Always resizable
-    const resizable = true;
+    const resizable: true = true;
 
     // Derive title and content from nodeId
-    const node = await getNodeFromMainToUI(nodeId);
-    let content = "loading..."
-    let title = `${nodeId}`; // fallback to nodeId if node not found
+    const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = await getNodeFromMainToUI(nodeId);
+    let content: string = "loading..."
+    let title: string = `${nodeId}`; // fallback to nodeId if node not found
     if (node) {
         content = fromNodeToMarkdownContent(node);
         title = `${node.nodeUIMetadata.title}`;
     }
 
     // Get overlay
-    const overlay = getOrCreateOverlay(cy);
+    const overlay: HTMLElement = getOrCreateOverlay(cy);
 
     // Create window chrome (don't pass onClose, we'll handle it in the cleanup wrapper)
     const {windowElement, contentContainer, titleBar} = createWindowChrome(cy, {
@@ -86,7 +86,7 @@ export async function createFloatingEditor(
     });
 
     // Create CodeMirror editor instance
-    const editor = new CodeMirrorEditorView(
+    const editor: CodeMirrorEditorView = new CodeMirrorEditorView(
         contentContainer,
         content,
         {
@@ -115,7 +115,7 @@ export async function createFloatingEditor(
         contentContainer,
         titleBar,
         cleanup: () => {
-            const vanillaInstance = vanillaFloatingWindowInstances.get(id);
+            const vanillaInstance: { dispose: () => void; } | undefined = vanillaFloatingWindowInstances.get(id);
             if (vanillaInstance) {
                 vanillaInstance.dispose();
                 vanillaFloatingWindowInstances.delete(id);
@@ -131,10 +131,10 @@ export async function createFloatingEditor(
     };
 
     // Update close button to call floatingWindow.cleanup (so anchorToNode can wrap it)
-    const closeButton = titleBar.querySelector('.cy-floating-window-close') as HTMLElement;
+    const closeButton: HTMLElement = titleBar.querySelector('.cy-floating-window-close') as HTMLElement;
     if (closeButton) {
         // Remove old handler and add new one
-        const newCloseButton = closeButton.cloneNode(true) as HTMLElement;
+        const newCloseButton: HTMLElement = closeButton.cloneNode(true) as HTMLElement;
         closeButton.parentNode?.replaceChild(newCloseButton, closeButton);
         newCloseButton.addEventListener('click', () => floatingWindow.cleanup());
     }
@@ -186,7 +186,7 @@ export class FloatingEditorManager {
 
                 // Only open hover editor for markdown nodes (nodes with file extensions)
                 // Terminal nodes, shadow nodes, etc. don't have file extensions
-                const hasFileExtension = /\.\w+$/.test(nodeId);
+                const hasFileExtension: boolean = /\.\w+$/.test(nodeId);
                 if (!hasFileExtension) {
                     console.log('[HoverEditor] Skipping non-markdown node:', nodeId);
                     return;
@@ -208,7 +208,7 @@ export class FloatingEditorManager {
         try {
             // Create floating editor window with parent node and editor registry
             // This will automatically create shadow node, anchor, and handle cleanup
-            const floatingWindow = await createFloatingEditor(
+            const floatingWindow: FloatingWindowUIHTMLData | undefined = await createFloatingEditor(
                 this.cy,
                 nodeId,
                 this.nodeIdToEditorId,
@@ -249,13 +249,13 @@ export class FloatingEditorManager {
     updateFloatingEditors(delta: GraphDelta): void {
         for (const nodeDelta of delta) {
             if (nodeDelta.type === 'UpsertNode') {
-                const nodeId = nodeDelta.nodeToUpsert.relativeFilePathIsID;
-                const newContent = fromNodeToMarkdownContent(nodeDelta.nodeToUpsert);
-                const editorId = this.nodeIdToEditorId.get(nodeId);
+                const nodeId: string = nodeDelta.nodeToUpsert.relativeFilePathIsID;
+                const newContent: string = fromNodeToMarkdownContent(nodeDelta.nodeToUpsert);
+                const editorId: string | undefined = this.nodeIdToEditorId.get(nodeId);
 
                 if (editorId) {
                     // Check if this is our own save coming back from the filesystem
-                    const awaiting = this.awaitingUISavedContent.get(nodeId);
+                    const awaiting: string | undefined = this.awaitingUISavedContent.get(nodeId);
                     if (awaiting === newContent) {
                         console.log('[FloatingWindowManager] Ignoring our own save for node:', nodeId);
                         this.awaitingUISavedContent.delete(nodeId);
@@ -272,10 +272,10 @@ export class FloatingEditorManager {
                     }
 
                     // Get the editor instance from vanillaFloatingWindowInstances
-                    const editorInstance = getVanillaInstance(editorId);
+                    const editorInstance: { dispose: () => void; } | undefined = getVanillaInstance(editorId);
 
                     if (editorInstance && 'setValue' in editorInstance && 'getValue' in editorInstance) {
-                        const editor = editorInstance as CodeMirrorEditorView;
+                        const editor: CodeMirrorEditorView = editorInstance as CodeMirrorEditorView;
 
                         // Only update if content has changed to avoid cursor jumps
                         if (editor.getValue() !== newContent) {
@@ -288,13 +288,13 @@ export class FloatingEditorManager {
                 }
             } else if (nodeDelta.type === 'DeleteNode') {
                 // Handle node deletion - close the editor if open
-                const nodeId = nodeDelta.nodeId;
-                const editorId = this.nodeIdToEditorId.get(nodeId);
+                const nodeId: string = nodeDelta.nodeId;
+                const editorId: string | undefined = this.nodeIdToEditorId.get(nodeId);
 
                 if (editorId) {
                     console.log('[FloatingWindowManager] Closing editor for deleted node:', nodeId);
                     // Close the editor by removing its shadow node
-                    const shadowNode = this.cy.$(`#${editorId}`);
+                    const shadowNode: cytoscape.CollectionReturnValue = this.cy.$(`#${editorId}`);
                     if (shadowNode.length > 0) {
                         shadowNode.remove();
                     }
@@ -334,7 +334,7 @@ export class FloatingEditorManager {
 
         try {
             // Create floating editor (same ID whether hover or anchored - mutually exclusive)
-            const floatingWindow = await createFloatingEditor(
+            const floatingWindow: FloatingWindowUIHTMLData | undefined = await createFloatingEditor(
                 this.cy,
                 nodeId,
                 this.nodeIdToEditorId,
@@ -351,7 +351,7 @@ export class FloatingEditorManager {
             floatingWindow.windowElement.style.top = `${nodePos.y + 10}px`;
 
             // Close on click outside
-            const handleClickOutside = (e: MouseEvent) => {
+            const handleClickOutside: (e: MouseEvent) => void = (e: MouseEvent) => {
                 if (!floatingWindow.windowElement.contains(e.target as Node)) {
                     console.log('[CommandHover] Click outside detected, closing editor');
                     this.closeHoverEditor();
@@ -386,7 +386,7 @@ export class FloatingEditorManager {
     async handleAddNodeAtPosition(position: Position): Promise<void> {
         try {
             // Pass position directly to Electron - it will save it immediately
-            const nodeId = await createNewEmptyOrphanNodeFromUI(position, this.cy);
+            const nodeId: string = await createNewEmptyOrphanNodeFromUI(position, this.cy);
             await this.createAnchoredFloatingEditor(nodeId);
             console.log('[FloatingWindowManager] Creating node:', nodeId);
         } catch (error) {

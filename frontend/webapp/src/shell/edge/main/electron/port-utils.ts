@@ -7,7 +7,7 @@ import net from 'net';
  */
 export async function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
-    const server = net.createServer();
+    const server: net.Server = net.createServer();
 
     server.once('error', (err: NodeJS.ErrnoException) => {
       if (err.code === 'EADDRINUSE') {
@@ -35,11 +35,11 @@ export async function isPortAvailable(port: number): Promise<boolean> {
  * @throws Error if no available ports found within maxAttempts
  */
 export async function findAvailablePort(startPort: number): Promise<number> {
-  let port = startPort;
-  const maxAttempts = 100; // Try up to 100 ports
+  let port: number = startPort;
+  const maxAttempts: 100 = 100; // Try up to 100 ports
 
-  for (let i = 0; i < maxAttempts; i++) {
-    const isAvailable = await isPortAvailable(port);
+  for (let i: number = 0; i < maxAttempts; i++) {
+    const isAvailable: boolean = await isPortAvailable(port);
     if (isAvailable) {
       return port;
     }

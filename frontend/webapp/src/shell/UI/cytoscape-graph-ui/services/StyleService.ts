@@ -1,7 +1,7 @@
 import cytoscape from 'cytoscape';
 import {
   DEFAULT_TEXT_WIDTH,
-} from '@/shell/UI/cytoscape-graph-ui/constants.ts';
+} from '@/shell/UI/cytoscape-graph-ui/constants';
 
 export class StyleService {
   private fillColor = '#3f3f3f';
@@ -27,7 +27,7 @@ export class StyleService {
     console.log('isDarkMode():', this.isDarkMode());
 
     if (typeof window !== 'undefined' && window.matchMedia) {
-      const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const darkModeQuery: MediaQueryList = window.matchMedia('(prefers-color-scheme: dark)');
       console.log('prefers-color-scheme: dark matches:', darkModeQuery.matches);
     } else {
       console.log('window.matchMedia not available');
@@ -44,16 +44,16 @@ export class StyleService {
   }
 
   private initializeColors(): void {
-    const style = getComputedStyle(document.body);
+    const style: CSSStyleDeclaration = getComputedStyle(document.body);
 
     // Try to get font
-    const fontValue = style.getPropertyValue('--text');
+    const fontValue: string = style.getPropertyValue('--text');
     if (fontValue && fontValue.length > 0) {
       this.font = fontValue.replace('BlinkMacSystemFont,', '');
     }
 
     // Try to get graph colors if they exist
-    const graphColors = this.getGraphColors();
+    const graphColors: { fillColor: string; fillHighlightColor: string; accentBorderColor: string; lineColor: string; lineHighlightColor: string; textColor: string; danglingColor: string; } = this.getGraphColors();
     if (graphColors) {
       Object.assign(this, graphColors);
     }
@@ -66,8 +66,8 @@ export class StyleService {
     // This respects the app's explicit theme setting and ignores OS preference
     // The app's theme toggle controls the 'dark' class, which should be the single source of truth
     if (typeof document !== 'undefined') {
-      const html = document.documentElement;
-      const body = document.body;
+      const html: HTMLElement = document.documentElement;
+      const body: HTMLElement = document.body;
       if (html?.classList.contains('dark') || body?.classList.contains('dark')) {
         return true;
       }
@@ -78,7 +78,7 @@ export class StyleService {
   }
 
   private getGraphColors() {
-    const isDark = this.isDarkMode();
+    const isDark: boolean = this.isDarkMode();
 
     console.log('[StyleService] getGraphColors - isDark:', isDark, 'textColor:', isDark ? '#dcddde' : '#2a2a2a');
 
@@ -369,7 +369,7 @@ export class StyleService {
   }
 
   getCombinedStylesheet(): Array<{ selector: string; style: Record<string, unknown> }> {
-    const stylesheet = [
+    const stylesheet: { selector: string; style: Record<string, unknown>; }[] = [
       ...this.getDefaultStylesheet(),
       ...this.getFrontmatterStylesheet(),
     ];
@@ -386,14 +386,14 @@ export class StyleService {
   updateNodeSizes(cy: cytoscape.Core, nodes?: cytoscape.NodeCollection): void {
     if (!cy) return;
 
-    const nodesToUpdate = nodes ?? cy.nodes();
+    const nodesToUpdate: cytoscape.NodeCollection = nodes ?? cy.nodes();
 
     // Helper to validate that a value is a healthy non-negative number
-    const isValidNumber = (val: number): boolean =>
+    const isValidNumber: (val: number) => boolean = (val: number): boolean =>
       typeof val === 'number' && !isNaN(val) && isFinite(val) && val >= 0;
 
     nodesToUpdate.forEach(node => {
-      let degree = node.degree();
+      let degree: number = node.degree();
 
       // Defensive check: ensure degree is a valid number, default to 0 if not
       if (!isValidNumber(degree)) {
@@ -404,16 +404,16 @@ export class StyleService {
       // Logarithmic + linear scaling
       // This creates strong emphasis on low-to-mid degree differences
       // while still rewarding high-degree nodes
-      const size = 5 + 15 * Math.log(degree + 3) + degree;
+      const size: number = 5 + 15 * Math.log(degree + 3) + degree;
 
       // Scale other properties proportionally to size
       // Use size as base and scale others relative to it
-      const width = size*0.7; // nodes themselves don't care visual information, so scale smaller.
-      const height = size*0.7;
-      const fontSize = 10 + size / 7; // Font scales with size (increased from 8 + size/8)
-      const textWidth = size * 3 + 40; // Text width scales with size
-      const borderWidth = 1 + size / 15; // Border scales with size
-      const textOpacity = Math.min(1, 0.7 + degree / 100); // Slight opacity increase with degree
+      const width: number = size*0.7; // nodes themselves don't care visual information, so scale smaller.
+      const height: number = size*0.7;
+      const fontSize: number = 10 + size / 7; // Font scales with size (increased from 8 + size/8)
+      const textWidth: number = size * 3 + 40; // Text width scales with size
+      const borderWidth: number = 1 + size / 15; // Border scales with size
+      const textOpacity: number = Math.min(1, 0.7 + degree / 100); // Slight opacity increase with degree
 
       // Validate all calculated values before applying
       if (!isValidNumber(width) || !isValidNumber(height) || !isValidNumber(fontSize) ||

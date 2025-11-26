@@ -1,7 +1,7 @@
 import type {NodeIdAndFilePath} from "@/pure/graph";
-import {getTerminalId, type TerminalData, type TerminalId} from "@/shell/edge/UI-edge/floating-windows/types.ts";
+import {getTerminalId, type TerminalData, type TerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 
-export const vanillaFloatingWindowInstances = new Map<string, { dispose: () => void }>();
+export const vanillaFloatingWindowInstances: Map<string, { dispose: () => void; }> = new Map<string, { dispose: () => void }>();
 // todo, we can remove this once we have terminals map, and editors map.
 
 /**
@@ -12,7 +12,7 @@ export function getVanillaInstance(windowId: string): { dispose: () => void } | 
     return vanillaFloatingWindowInstances.get(windowId);
 }
 
-const terminals = new Map<TerminalId, TerminalData>();
+const terminals: Map<string, TerminalData> = new Map<TerminalId, TerminalData>();
 
 export function getTerminals(): Map<TerminalId, TerminalData> {
     return terminals;
@@ -34,7 +34,7 @@ export function getNextTerminalCount(
     terminals: Map<TerminalId, TerminalData>,
     nodeId: NodeIdAndFilePath
 ): number {
-    let maxCount = -1;
+    let maxCount: number = -1;
     for (const [_, data] of terminals) {
         if (data.attachedToNodeId === nodeId && data.terminalCount > maxCount) {
             maxCount = data.terminalCount;

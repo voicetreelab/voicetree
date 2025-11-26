@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { FloatingWindowFullscreen } from '@/shell/UI/floating-windows/FloatingWindowFullscreen.ts';
+import { FloatingWindowFullscreen } from '@/shell/UI/floating-windows/FloatingWindowFullscreen';
 
 describe('FloatingWindowFullscreen', () => {
   let container: HTMLElement;
@@ -26,8 +26,8 @@ describe('FloatingWindowFullscreen', () => {
   });
 
   it('should toggle between fullscreen and non-fullscreen states', async () => {
-    const requestFullscreenMock = vi.fn().mockResolvedValue(undefined);
-    const exitFullscreenMock = vi.fn().mockResolvedValue(undefined);
+    const requestFullscreenMock: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any> = vi.fn().mockResolvedValue(undefined);
+    const exitFullscreenMock: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any> = vi.fn().mockResolvedValue(undefined);
     container.requestFullscreen = requestFullscreenMock;
     Object.defineProperty(document, 'exitFullscreen', {
       value: exitFullscreenMock,
@@ -54,22 +54,22 @@ describe('FloatingWindowFullscreen', () => {
   });
 
   it('should invoke callback on fullscreen change events', async () => {
-    const callback = vi.fn();
+    const callback: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any> = vi.fn();
     fullscreen = new FloatingWindowFullscreen(container, callback);
 
-    const event = new Event('fullscreenchange');
+    const event: Event = new Event('fullscreenchange');
     document.dispatchEvent(event);
 
     expect(callback).toHaveBeenCalledTimes(1);
   });
 
   it('should remove event listeners and not invoke callback after dispose', async () => {
-    const callback = vi.fn();
+    const callback: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any> = vi.fn();
     fullscreen = new FloatingWindowFullscreen(container, callback);
 
     fullscreen.dispose();
 
-    const event = new Event('fullscreenchange');
+    const event: Event = new Event('fullscreenchange');
     document.dispatchEvent(event);
 
     expect(callback).toHaveBeenCalledTimes(0);

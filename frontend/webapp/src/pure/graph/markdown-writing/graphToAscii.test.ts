@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest'
-import { graphToAscii } from '@/pure/graph/markdown-writing/graphToAscii.ts'
+import { graphToAscii } from '@/pure/graph/markdown-writing/graphToAscii'
 import type { Graph, GraphNode } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
-import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk.ts'
+import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk'
 
-import { EXAMPLE_SMALL_PATH, EXAMPLE_LARGE_PATH } from '@/utils/test-utils/fixture-paths.ts'
+import { EXAMPLE_SMALL_PATH, EXAMPLE_LARGE_PATH } from '@/utils/test-utils/fixture-paths'
 
 describe('graphToAscii', () => {
-  const createTestNode = (id: string, edges: readonly string[] = []): GraphNode => ({
+  const createTestNode: (id: string, edges?: readonly string[]) => GraphNode = (id: string, edges: readonly string[] = []): GraphNode => ({
     relativeFilePathIsID: id,
     outgoingEdges: edges.map(targetId => ({ targetId, label: '' })),
     contentWithoutYamlOrLinks: `content of ${id}`,
@@ -28,7 +28,7 @@ describe('graphToAscii', () => {
       }
     }
 
-    const result = graphToAscii(graph)
+    const result: string = graphToAscii(graph)
 
     expect(result).toBe('Root')
   })
@@ -42,9 +42,9 @@ describe('graphToAscii', () => {
       }
     }
 
-    const result = graphToAscii(graph)
+    const result: string = graphToAscii(graph)
 
-    const expected = `A
+    const expected: "A\n└── B\n    └── C" = `A
 └── B
     └── C`
 
@@ -65,9 +65,9 @@ describe('graphToAscii', () => {
       }
     }
 
-    const result = graphToAscii(graph)
+    const result: string = graphToAscii(graph)
 
-    const expected = `Root
+    const expected: "Root\n├── Child1\n│   ├── Grandchild1\n│   └── Grandchild2\n├── Child2\n└── Child3\n    └── Grandchild3" = `Root
 ├── Child1
 │   ├── Grandchild1
 │   └── Grandchild2
@@ -83,7 +83,7 @@ describe('graphToAscii', () => {
       nodes: {}
     }
 
-    const result = graphToAscii(graph)
+    const result: string = graphToAscii(graph)
 
     expect(result).toBe('')
   })
@@ -96,7 +96,7 @@ describe('graphToAscii', () => {
       }
     }
 
-    const result = graphToAscii(graph)
+    const result: string = graphToAscii(graph)
 
     // In a pure cycle where both nodes point to each other, both have incoming edges
     // So neither is identified as a root, resulting in empty output
@@ -115,10 +115,10 @@ describe('graphToAscii', () => {
       }
     }
 
-    const result = graphToAscii(graph)
+    const result: string = graphToAscii(graph)
 
     // D should only appear once (first time visited)
-    const expected = `A
+    const expected: "A\n├── B\n│   └── D\n└── C" = `A
 ├── B
 │   └── D
 └── C`
@@ -137,7 +137,7 @@ describe('graphToAscii', () => {
       }
     }
 
-    const result = graphToAscii(graph)
+    const result: string = graphToAscii(graph)
 
     // All nodes from both disconnected components should appear
     expect(result).toContain('Root1')
@@ -148,13 +148,13 @@ describe('graphToAscii', () => {
 
   it('should render example_large fixture - visual output inspection', async () => {
     // Load the real example_large graph from disk
-    const loadResult = await loadGraphFromDisk(O.some(EXAMPLE_LARGE_PATH))
+    const loadResult: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(EXAMPLE_LARGE_PATH))
     // eslint-disable-next-line functional/no-throw-statements
     if (E.isLeft(loadResult)) throw new Error('Expected Right')
-    const graph = loadResult.right
+    const graph: Graph = loadResult.right
 
     // Generate ASCII visualization
-    const result = graphToAscii(graph)
+    const result: string = graphToAscii(graph)
 
     // Print the output for visual inspection
     console.log('\n' + '='.repeat(80))
@@ -173,13 +173,13 @@ describe('graphToAscii', () => {
 
   it('should render example_small fixture - visual output inspection', async () => {
     // Load the real example_small graph from disk
-    const loadResult2 = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH))
+    const loadResult2: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH))
     // eslint-disable-next-line functional/no-throw-statements
     if (E.isLeft(loadResult2)) throw new Error('Expected Right')
-    const graph = loadResult2.right
+    const graph: Graph = loadResult2.right
 
     // Debug: Check if edges are loaded
-    const edgeCount = Object.values(graph.nodes).reduce((sum, node: GraphNode) => sum + node.outgoingEdges.length, 0)
+    const edgeCount: number = Object.values(graph.nodes).reduce((sum, node: GraphNode) => sum + node.outgoingEdges.length, 0)
     console.log('\n' + '='.repeat(80))
     console.log('GRAPH STRUCTURE DEBUG')
     console.log('='.repeat(80))
@@ -187,19 +187,19 @@ describe('graphToAscii', () => {
     console.log(`Total edges: ${edgeCount}`)
 
     // Show a few nodes with their edges
-    const nodeEntries = Object.entries(graph.nodes).slice(0, 3)
+    const nodeEntries: [string, GraphNode][] = Object.entries(graph.nodes).slice(0, 3)
     nodeEntries.forEach(([_id, node]: [string, GraphNode]) => {
       console.log(`\nNode: ${node.nodeUIMetadata.title}`)
       console.log(`  Edges: ${node.outgoingEdges.length}`)
       node.outgoingEdges.forEach((edge: { targetId: string }) => {
-        const targetNode = graph.nodes[edge.targetId]
+        const targetNode: GraphNode = graph.nodes[edge.targetId]
         console.log(`    -> ${targetNode?.nodeUIMetadata.title ?? edge.targetId}`)
       })
     })
     console.log('='.repeat(80))
 
     // Generate ASCII visualization
-    const result = graphToAscii(graph)
+    const result: string = graphToAscii(graph)
 
     // Print the output for visual inspection
     console.log('\n' + '='.repeat(80))

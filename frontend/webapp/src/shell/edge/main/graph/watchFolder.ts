@@ -1,6 +1,6 @@
-import {loadGraphFromDisk} from "@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk.ts";
+import {loadGraphFromDisk} from "@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk";
 import type {FilePath, Graph, GraphDelta, FSDelete} from "@/pure/graph";
-import {setGraph, setVaultPath} from "@/shell/edge/main/state/graph-store.ts";
+import {setGraph, setVaultPath} from "@/shell/edge/main/state/graph-store";
 import {app, dialog} from "electron";
 import path from "path";
 import * as O from "fp-ts/lib/Option.js";
@@ -9,12 +9,12 @@ import {promises as fs} from "fs";
 import fsSync from "fs";
 import chokidar, {type FSWatcher} from "chokidar";
 import type {FSUpdate} from "@/pure/graph";
-import {handleFSEventWithStateAndUISides} from "@/shell/edge/main/graph/readAndDBEventsPath/handleFSEventWithStateAndUISides.ts";
+import {handleFSEventWithStateAndUISides} from "@/shell/edge/main/graph/readAndDBEventsPath/handleFSEventWithStateAndUISides";
 import {mapNewGraphToDelta} from "@/pure/graph";
-import {applyGraphDeltaToMemStateAndUI} from "@/shell/edge/main/graph/readAndDBEventsPath/applyGraphDeltaToMemStateAndUI.ts";
-import {getMainWindow} from "@/shell/edge/main/state/app-electron-state.ts";
-import {notifyTextToTreeServerOfDirectory} from "@/shell/edge/main/graph/readAndDBEventsPath/notifyTextToTreeServerOfDirectory.ts";
-import {getOnboardingDirectory} from "@/shell/edge/main/electron/onboarding-setup.ts";
+import {applyGraphDeltaToMemStateAndUI} from "@/shell/edge/main/graph/readAndDBEventsPath/applyGraphDeltaToMemStateAndUI";
+import {getMainWindow} from "@/shell/edge/main/state/app-electron-state";
+import {notifyTextToTreeServerOfDirectory} from "@/shell/edge/main/graph/readAndDBEventsPath/notifyTextToTreeServerOfDirectory";
+import {getOnboardingDirectory} from "@/shell/edge/main/electron/onboarding-setup";
 
 // THIS FUNCTION takes absolutePath
 // returns graph
@@ -29,24 +29,24 @@ let watchedDirectory: FilePath | null = null;
 //todo move this state to src/functional/shell/state/app-electron-state.ts
 
 export async function initialLoad(): Promise<void>  {
-    const lastDirectory = await getLastDirectory();
+    const lastDirectory: O.Option<string> = await getLastDirectory();
     if (O.isSome(lastDirectory)) {
         await loadFolder(lastDirectory.value)
     } else {
         // First run: load onboarding directory
-        const onboardingPath = getOnboardingDirectory();
+        const onboardingPath: string = getOnboardingDirectory();
         await loadFolder(onboardingPath);
     }
 }
 
 function getConfigPath(): string {
-    const userDataPath = app.getPath('userData');
+    const userDataPath: string = app.getPath('userData');
     return path.join(userDataPath, 'voicetree-config.json');
 }
 
 // Load last watched directory from config
 async function getLastDirectory(): Promise<O.Option<FilePath>> {
-    const configPath = getConfigPath();
+    const configPath: string = getConfigPath();
     return fs.readFile(configPath, 'utf8')
         .then(data => {
             const config = JSON.parse(data);
@@ -61,8 +61,8 @@ async function getLastDirectory(): Promise<O.Option<FilePath>> {
 
 // Save last watched directory to config
 async function saveLastDirectory(directoryPath: string): Promise<void> {
-    const configPath = getConfigPath();
-    const config = { lastDirectory: directoryPath };
+    const configPath: string = getConfigPath();
+    const config: { lastDirectory: string; } = { lastDirectory: directoryPath };
     return fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf8')
         .catch((error) => {
             console.error('Failed to save last directory:', error);
@@ -72,7 +72,7 @@ async function saveLastDirectory(directoryPath: string): Promise<void> {
 export async function loadFolder(vaultPath: FilePath): Promise<void>  {
     console.log('[loadFolder] Starting for path:', vaultPath);
 
-    const mainWindow = getMainWindow();
+    const mainWindow: Electron.CrossProcessExports.BrowserWindow | null = getMainWindow();
     if (!mainWindow) {
         console.error('No main window available');
         return;
@@ -85,7 +85,7 @@ export async function loadFolder(vaultPath: FilePath): Promise<void>  {
     }
 
     // Load graph from disk (IO operation)
-    const loadResult = await loadGraphFromDisk(O.some(vaultPath));
+    const loadResult: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(vaultPath));
 
     // Exit early if file limit exceeded
     if (E.isLeft(loadResult)) {
@@ -128,7 +128,7 @@ export async function loadFolder(vaultPath: FilePath): Promise<void>  {
  * @returns Promise that resolves to file content
  */
 async function readFileWithRetry(filePath: string, maxRetries = 3, delay = 100): Promise<string> {
-    const attemptRead = (attempt: number): Promise<string> => {
+    const attemptRead: (attempt: number) => Promise<string> = (attempt: number): Promise<string> => {
         return fs.readFile(filePath, 'utf8')
             .catch((error: unknown) => {
                 if (attempt === maxRetries) {
@@ -187,7 +187,7 @@ async function setupWatcher(vaultPath: FilePath): Promise<void> {
     setupWatcherListeners(vaultPath);
 
     // Notify UI that watching has started
-    const mainWindow = getMainWindow()!;
+    const mainWindow: Electron.CrossProcessExports.BrowserWindow = getMainWindow()!;
     mainWindow.webContents.send('watching-started', {
         directory: vaultPath,
         timestamp: new Date().toISOString()
@@ -197,7 +197,7 @@ async function setupWatcher(vaultPath: FilePath): Promise<void> {
 function setupWatcherListeners(vaultPath: FilePath): void {
     if (!watcher) return;
 
-    const mainWindow = getMainWindow();
+    const mainWindow: Electron.CrossProcessExports.BrowserWindow | null = getMainWindow();
     if (!mainWindow) return;
 
     // File added
@@ -267,7 +267,7 @@ export async function startFileWatching(directoryPath?: string): Promise<{ reado
     console.log('[watchFolder] startFileWatching called, directoryPath:', directoryPath);
 
     // Get selected directory (either from param or via dialog)
-    const getDirectory = async (): Promise<string | null> => {
+    const getDirectory: () => Promise<string | null> = async (): Promise<string | null> => {
         if (directoryPath) {
             console.log('[watchFolder] Using provided directory path:', directoryPath);
             return directoryPath;
@@ -275,7 +275,7 @@ export async function startFileWatching(directoryPath?: string): Promise<{ reado
 
         console.log('[watchFolder] No directory provided, showing dialog...');
 
-        const result = await dialog.showOpenDialog({
+        const result: Electron.OpenDialogReturnValue = await dialog.showOpenDialog({
             properties: ['openDirectory', 'createDirectory'],
             title: 'Select Directory to Watch for Markdown Files',
             buttonLabel: 'Watch Directory',
@@ -289,7 +289,7 @@ export async function startFileWatching(directoryPath?: string): Promise<{ reado
         return result.filePaths[0];
     };
 
-    const selectedDirectory = await getDirectory();
+    const selectedDirectory: string | null = await getDirectory();
     console.log('[watchFolder] Selected directory:', selectedDirectory);
 
     if (!selectedDirectory) {
@@ -300,14 +300,14 @@ export async function startFileWatching(directoryPath?: string): Promise<{ reado
     // FAIL FAST: Validate directory exists before proceeding
     console.log('[watchFolder] Validating directory exists...');
     if (!fsSync.existsSync(selectedDirectory)) {
-        const error = `Directory does not exist: ${selectedDirectory}`;
+        const error: string = `Directory does not exist: ${selectedDirectory}`;
         console.error('[watchFolder] startFileWatching failed:', error);
         return { success: false, error };
     }
 
     console.log('[watchFolder] Validating path is a directory...');
     if (!fsSync.statSync(selectedDirectory).isDirectory()) {
-        const error = `Path is not a directory: ${selectedDirectory}`;
+        const error: string = `Path is not a directory: ${selectedDirectory}`;
         console.error('[watchFolder] startFileWatching failed:', error);
         return { success: false, error };
     }
@@ -328,7 +328,7 @@ export async function stopFileWatching(): Promise<{ readonly success: boolean; r
 }
 
 export function getWatchStatus(): { readonly isWatching: boolean; readonly directory: string | undefined } {
-    const status = {
+    const status: { isWatching: boolean; directory: string | undefined; } = {
         isWatching: isWatching(),
         directory: getWatchedDirectory() ?? undefined
     };
@@ -339,7 +339,7 @@ export function getWatchStatus(): { readonly isWatching: boolean; readonly direc
 export async function loadPreviousFolder(): Promise<{ readonly success: boolean; readonly directory?: string; readonly error?: string }> {
     console.log('[watchFolder] loadPreviousFolder called');
     await initialLoad();
-    const watchedDir = getWatchedDirectory();
+    const watchedDir: string | null = getWatchedDirectory();
     if (watchedDir) {
         console.log('[watchFolder] Successfully loaded previous folder:', watchedDir);
         return { success: true, directory: watchedDir };

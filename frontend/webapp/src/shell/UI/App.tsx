@@ -1,8 +1,8 @@
-import VoiceTreeTranscribe from "@/shell/UI/views/renderers/voicetree-transcribe.tsx";
-import {useFolderWatcher} from "@/shell/UI/views/hooks/useFolderWatcher.tsx";
-import {Button} from "@/shell/UI/views/components/ui/button.tsx";
-import {Alert, AlertDescription} from "@/shell/UI/views/components/ui/alert.tsx";
-import {VoiceTreeGraphView} from "@/shell/UI/views/VoiceTreeGraphView.ts";
+import VoiceTreeTranscribe from "@/shell/UI/views/renderers/voicetree-transcribe";
+import {useFolderWatcher} from "@/shell/UI/views/hooks/useFolderWatcher";
+import {Button} from "@/shell/UI/views/components/ui/button";
+import {Alert, AlertDescription} from "@/shell/UI/views/components/ui/alert";
+import {VoiceTreeGraphView} from "@/shell/UI/views/VoiceTreeGraphView";
 import {useEffect, useRef} from "react";
 
 function App() {
@@ -18,10 +18,10 @@ function App() {
     } = useFolderWatcher();
 
     // Ref for graph container
-    const graphContainerRef = useRef<HTMLDivElement>(null);
+    const graphContainerRef: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@types/react/index").RefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);
 
     // File Watching Control Panel Component
-    const FileWatchingPanel = () => (
+    const FileWatchingPanel: () => import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@types/react/jsx-runtime").JSX.Element = () => (
         <div className="border rounded-lg p-2 mt-2 bg-white shadow-sm">
 
             {/* Status Display */}
@@ -106,7 +106,7 @@ function App() {
         console.log('[App] Initializing VoiceTreeGraphView');
         console.trace('[App] VoiceTreeGraphView initialization stack trace'); // DEBUG: Track if called multiple times
 
-        const graphView = new VoiceTreeGraphView(graphContainerRef.current, {
+        const graphView: VoiceTreeGraphView = new VoiceTreeGraphView(graphContainerRef.current, {
             initialDarkMode: false
         });
 

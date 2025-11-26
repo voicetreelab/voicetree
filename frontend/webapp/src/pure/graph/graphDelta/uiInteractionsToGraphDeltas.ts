@@ -1,8 +1,8 @@
 import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath, Position} from '@/pure/graph'
-import {calculateInitialPositionForChild} from "@/pure/graph/positioning/calculateInitialPosition.ts";
-import {addOutgoingEdge} from "@/pure/graph/graph-operations /graph-edge-operations.ts";
+import {calculateInitialPositionForChild} from "@/pure/graph/positioning/calculateInitialPosition";
+import {addOutgoingEdge} from "@/pure/graph/graph-operations /graph-edge-operations";
 import * as O from "fp-ts/lib/Option.js";
-import {parseMarkdownToGraphNode} from "@/pure/graph/markdown-parsing/parse-markdown-to-node.ts";
+import {parseMarkdownToGraphNode} from "@/pure/graph/markdown-parsing/parse-markdown-to-node";
 
 /**
  * Pure action creator functions.
@@ -22,7 +22,7 @@ export function fromCreateChildToUpsertNode(
     newFilePathIsID: NodeIdAndFilePath = parentNode.relativeFilePathIsID + '_' + parentNode.outgoingEdges.length + ".md", //todo doesn't guarantee uniqueness, but tis good enough
 ): GraphDelta {
     // Parse the content to extract metadata (including isContextNode from frontmatter)
-    const parsedNode = parseMarkdownToGraphNode(newNodeContent, newFilePathIsID, graph)
+    const parsedNode: GraphNode = parseMarkdownToGraphNode(newNodeContent, newFilePathIsID, graph)
 
     // Create the new node, merging parsed metadata with calculated position
     const newNode: GraphNode = {
@@ -62,7 +62,7 @@ export function fromContentChangeToGraphDelta(
 ): GraphDelta {
     // Extract wikilinks from new content and update outgoingEdges
     // This ensures markdown is the source of truth for edges
-    const nodeUpdated = parseMarkdownToGraphNode(content, node.relativeFilePathIsID, graph)
+    const nodeUpdated: GraphNode = parseMarkdownToGraphNode(content, node.relativeFilePathIsID, graph)
     // todo review if this new logic works
     return [{
         type: 'UpsertNode',
@@ -87,7 +87,7 @@ export function createDeleteNodeAction(nodeId: string): GraphDelta {
 
 
 function randomChars(number: number): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+    const chars: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
     return Array.from({length: number}, () =>
         chars.charAt(Math.floor(Math.random() * chars.length))
     ).join('');

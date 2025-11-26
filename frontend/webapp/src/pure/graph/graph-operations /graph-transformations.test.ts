@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { reverseGraphEdges } from '@/pure/graph/graph-operations /graph-transformations.ts'
+import { reverseGraphEdges } from '@/pure/graph/graph-operations /graph-transformations'
 import type { Graph, GraphNode } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
 
 describe('graph-transformations', () => {
-  const createTestNode = (id: string, edges: readonly string[] = []): GraphNode => ({
+  const createTestNode: (id: string, edges?: readonly string[]) => GraphNode = (id: string, edges: readonly string[] = []): GraphNode => ({
     relativeFilePathIsID: id,
     outgoingEdges: edges.map(targetId => ({ targetId, label: '' })),
     contentWithoutYamlOrLinks: `content of ${id}`,
@@ -18,7 +18,7 @@ describe('graph-transformations', () => {
   })
 
   // Helper to convert string arrays to Edge arrays for assertions
-  const toEdges = (ids: readonly string[]) => ids.map(targetId => ({ targetId, label: '' }))
+  const toEdges: (ids: readonly string[]) => { targetId: string; label: string; }[] = (ids: readonly string[]) => ids.map(targetId => ({ targetId, label: '' }))
 
   describe('reverseGraphEdges', () => {
     it('should reverse edges in a simple chain A -> B -> C', () => {
@@ -30,7 +30,7 @@ describe('graph-transformations', () => {
         }
       }
 
-      const result = reverseGraphEdges(graph)
+      const result: Graph = reverseGraphEdges(graph)
 
       expect(result.nodes['A'].outgoingEdges).toEqual(toEdges([]))
       expect(result.nodes['B'].outgoingEdges).toEqual(toEdges(['A']))
@@ -46,7 +46,7 @@ describe('graph-transformations', () => {
         }
       }
 
-      const result = reverseGraphEdges(graph)
+      const result: Graph = reverseGraphEdges(graph)
 
       expect(result.nodes['A'].outgoingEdges).toEqual(toEdges([]))
       expect(result.nodes['B'].outgoingEdges).toEqual(toEdges([]))
@@ -62,7 +62,7 @@ describe('graph-transformations', () => {
         }
       }
 
-      const result = reverseGraphEdges(graph)
+      const result: Graph = reverseGraphEdges(graph)
 
       expect(result.nodes['A'].outgoingEdges).toEqual(toEdges([]))
       expect(result.nodes['B'].outgoingEdges).toEqual(toEdges(['A']))
@@ -74,7 +74,7 @@ describe('graph-transformations', () => {
         nodes: {}
       }
 
-      const result = reverseGraphEdges(graph)
+      const result: Graph = reverseGraphEdges(graph)
 
       expect(result.nodes).toEqual({})
     })
@@ -86,7 +86,7 @@ describe('graph-transformations', () => {
         }
       }
 
-      const result = reverseGraphEdges(graph)
+      const result: Graph = reverseGraphEdges(graph)
 
       expect(result.nodes['A'].outgoingEdges).toEqual(toEdges([]))
     })
@@ -99,7 +99,7 @@ describe('graph-transformations', () => {
         }
       }
 
-      const result = reverseGraphEdges(graph)
+      const result: Graph = reverseGraphEdges(graph)
 
       // Edges should still form a cycle but reversed
       expect(result.nodes['A'].outgoingEdges).toEqual(toEdges(['B']))
@@ -114,8 +114,8 @@ describe('graph-transformations', () => {
         }
       }
 
-      const originalAEdges = [...graph.nodes['A'].outgoingEdges]
-      const originalBEdges = [...graph.nodes['B'].outgoingEdges]
+      const originalAEdges: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = [...graph.nodes['A'].outgoingEdges]
+      const originalBEdges: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = [...graph.nodes['B'].outgoingEdges]
 
       reverseGraphEdges(graph)
 
@@ -131,7 +131,7 @@ describe('graph-transformations', () => {
         }
       }
 
-      const result = reverseGraphEdges(graph)
+      const result: Graph = reverseGraphEdges(graph)
 
       expect(result.nodes['A'].relativeFilePathIsID).toBe('A')
       expect(result.nodes['A'].contentWithoutYamlOrLinks).toBe('content of A')
@@ -154,7 +154,7 @@ describe('graph-transformations', () => {
         }
       }
 
-      const result = reverseGraphEdges(graph)
+      const result: Graph = reverseGraphEdges(graph)
 
       // Should become:
       // D -> B -> A
@@ -174,11 +174,11 @@ describe('graph-transformations', () => {
       }
 
       // First reversal: edges to non-existent nodes are preserved
-      const reversed1 = reverseGraphEdges(graph)
+      const reversed1: Graph = reverseGraphEdges(graph)
       expect(reversed1.nodes['source'].outgoingEdges).toEqual(toEdges(['does-not-exist']))
 
       // Second reversal: still preserved (idempotent for non-existent edges)
-      const reversed2 = reverseGraphEdges(reversed1)
+      const reversed2: Graph = reverseGraphEdges(reversed1)
       expect(reversed2.nodes['source'].outgoingEdges).toEqual(toEdges(['does-not-exist']))
     })
   })

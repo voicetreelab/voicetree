@@ -2,7 +2,7 @@ import type { Graph, NodeIdAndFilePath } from '@/pure/graph'
 import { getSubgraphByDistance, graphToAscii, getNodeIdsInTraversalOrder } from '@/pure/graph'
 
 /** Folder where context nodes are stored */
-export const CONTEXT_NODES_FOLDER = 'ctx-nodes'
+export const CONTEXT_NODES_FOLDER: "ctx-nodes" = 'ctx-nodes'
 
 import { getGraph } from '@/shell/edge/main/state/graph-store'
 import { applyGraphDeltaToDBThroughMem } from '@/shell/edge/main/graph/writePath/applyGraphDeltaToDBThroughMem'
@@ -24,7 +24,7 @@ export async function createContextNode(
   parentNodeId: NodeIdAndFilePath
 ): Promise<NodeIdAndFilePath> {
   // 1. EDGE: Read current graph from state
-  const currentGraph = getGraph()
+  const currentGraph: Graph = getGraph()
 
   // Validate parent node exists
   if (!currentGraph.nodes[parentNodeId]) {
@@ -32,26 +32,26 @@ export async function createContextNode(
   }
 
   // 2. PURE: Extract subgraph within distance 7
-  const maxDistance = 5
-  const subgraph = getSubgraphByDistance(
+  const maxDistance: 5 = 5
+  const subgraph: Graph = getSubgraphByDistance(
     currentGraph,
     parentNodeId,
     maxDistance
   )
 
   // 3. PURE: Convert subgraph to ASCII visualization
-  const asciiTree = graphToAscii(subgraph)
+  const asciiTree: string = graphToAscii(subgraph)
 
   // 4. EDGE: Generate unique context node ID
-  const timestamp = Date.now()
-  const contextNodeId = `${CONTEXT_NODES_FOLDER}/${parentNodeId}_context_${timestamp}.md`
+  const timestamp: number = Date.now()
+  const contextNodeId: string = `${CONTEXT_NODES_FOLDER}/${parentNodeId}_context_${timestamp}.md`
 
   // 5. EDGE: Get parent node info for context
-  const parentNode = currentGraph.nodes[parentNodeId]
-  const parentTitle = parentNode.nodeUIMetadata.title
+  const parentNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = currentGraph.nodes[parentNodeId]
+  const parentTitle: string = parentNode.nodeUIMetadata.title
 
   // 6. EDGE: Build markdown content with frontmatter
-  const content = buildContextNodeContent(
+  const content: string = buildContextNodeContent(
     parentNodeId,
     parentTitle,
     maxDistance,
@@ -60,7 +60,7 @@ export async function createContextNode(
   )
 
   // 7. PURE: Create context node delta using fromCreateChildToUpsertNode
-  const contextNodeDelta = fromCreateChildToUpsertNode(
+  const contextNodeDelta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = fromCreateChildToUpsertNode(
     currentGraph,
     parentNode,
     content,
@@ -88,7 +88,7 @@ function buildContextNodeContent(
   subgraph: Graph
 ): string {
     // todo this should be done by creatingGraphNode, and then calling to markdown function on it.
-  const nodeDetailsList = generateNodeDetailsList(subgraph, parentNodeId)
+  const nodeDetailsList: string = generateNodeDetailsList(subgraph, parentNodeId)
 
   return `---
 title: CONTEXT for ${parentTitle}
@@ -116,22 +116,22 @@ function generateNodeDetailsList(
   const lines: string[] = []
 
   // Get nodes in traversal order (same as ASCII tree)
-  const orderedNodeIds = getNodeIdsInTraversalOrder(subgraph)
+  const orderedNodeIds: string[] = getNodeIdsInTraversalOrder(subgraph)
 
   for (const nodeId of orderedNodeIds) {
-    const node = subgraph.nodes[nodeId]
+    const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = subgraph.nodes[nodeId]
     // Skip context nodes to prevent self-referencing in generated context
     if (node.nodeUIMetadata.isContextNode) {
       continue
     }
     // Strip [link]* markers to prevent them being converted back to [[link]] wikilinks when written to disk.
     // Without this, fromNodeToMarkdownContent would create real edges from context node to all embedded nodes.
-    const contentWithoutLinkStars = node.contentWithoutYamlOrLinks.replace(/\[([^\]]+)\]\*/g, '[$1]')
+    const contentWithoutLinkStars: string = node.contentWithoutYamlOrLinks.replace(/\[([^\]]+)\]\*/g, '[$1]')
     lines.push(`<${node.relativeFilePathIsID}> \n ${contentWithoutLinkStars} \n </${node.relativeFilePathIsID}>`)
   }
 
     // Strip [link]* markers from the start node content too
-    const startNodeContent = subgraph.nodes[_startNodeId].contentWithoutYamlOrLinks.replace(/\[([^\]]+)\]\*/g, '[$1]')
+    const startNodeContent: string = subgraph.nodes[_startNodeId].contentWithoutYamlOrLinks.replace(/\[([^\]]+)\]\*/g, '[$1]')
 
     lines.push(`<TASK> IMPORTANT. YOUR specific task, and the most relevant context is the source note you were spawned from, which is:
         ${_startNodeId}: ${startNodeContent} </TASK>`)

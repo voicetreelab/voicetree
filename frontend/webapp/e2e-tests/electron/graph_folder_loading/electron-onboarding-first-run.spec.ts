@@ -20,14 +20,15 @@ import { test as base, expect, _electron as electron } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import { promises as fs } from 'fs';
+import type { Dirent } from 'fs';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
 import type { ElectronAPI } from '@/shell/electron';
 
 // Use absolute paths
-const PROJECT_ROOT = path.resolve(process.cwd());
+const PROJECT_ROOT: string = path.resolve(process.cwd());
 // Source onboarding files (in dev mode this is in public/)
-const ONBOARDING_SOURCE = path.join(PROJECT_ROOT, 'public', 'onboarding_tree');
+const ONBOARDING_SOURCE: string = path.join(PROJECT_ROOT, 'public', 'onboarding_tree');
 
 // Type definitions (already uses ElectronAPI from types)
 interface ExtendedWindow {
@@ -35,16 +36,42 @@ interface ExtendedWindow {
   electronAPI?: ElectronAPI;
 }
 
+interface TestFixtures {
+  electronApp: ElectronApplication;
+  appWindow: Page;
+  tempUserDataPath: string;
+}
+
+interface LoadResult {
+  success: boolean;
+  directory?: string;
+  error?: string;
+}
+
+interface WatchStatus {
+  isWatching: boolean;
+  directory?: string;
+}
+
+interface GraphState {
+  nodes: Record<string, unknown>;
+}
+
+interface CytoscapeState {
+  nodeCount: number;
+  nodeLabels: string[];
+}
+
 /**
  * Recursive async copy function for directories
- */ // todo wtf? don't have this in the test, this is src code, either use the src code or ???
+ */
 async function copyDir(src: string, dest: string): Promise<void> {
   await fs.mkdir(dest, { recursive: true });
-  const entries = await fs.readdir(src, { withFileTypes: true });
+  const entries: Dirent[] = await fs.readdir(src, { withFileTypes: true });
 
   for (const entry of entries) {
-    const srcPath = path.join(src, entry.name);
-    const destPath = path.join(dest, entry.name);
+    const srcPath: string = path.join(src, entry.name);
+    const destPath: string = path.join(dest, entry.name);
 
     if (entry.isDirectory()) {
       await copyDir(srcPath, destPath);
@@ -55,18 +82,14 @@ async function copyDir(src: string, dest: string): Promise<void> {
 }
 
 // Extend test with Electron app
-const test = base.extend<{
-  electronApp: ElectronApplication;
-  appWindow: Page;
-  tempUserDataPath: string;
-}>({
+const test: ReturnType<typeof base.extend<TestFixtures>> = base.extend<TestFixtures>({
   tempUserDataPath: async ({}, use) => {
     // Create a temporary userData directory for this test (isolated from other tests)
-    const tempPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-onboarding-test-'));
+    const tempPath: string = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-onboarding-test-'));
 
     // Copy onboarding_tree into the temp userData directory
     // This simulates the first-run setup without running the actual setup code
-    const onboardingDest = path.join(tempPath, 'onboarding_tree');
+    const onboardingDest: string = path.join(tempPath, 'onboarding_tree');
     await copyDir(ONBOARDING_SOURCE, onboardingDest);
     console.log('[Onboarding Test] Copied onboarding_tree to temp userData:', onboardingDest);
 
@@ -81,7 +104,7 @@ const test = base.extend<{
 
   electronApp: async ({ tempUserDataPath }, use) => {
     // Launch in test mode with isolated userData directory
-    const electronApp = await electron.launch({
+    const electronApp: ElectronApplication = await electron.launch({
       args: [
         path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
         `--user-data-dir=${tempUserDataPath}` // Use temp userData to isolate test
@@ -99,9 +122,9 @@ const test = base.extend<{
 
     // Graceful shutdown
     try {
-      const window = await electronApp.firstWindow();
+      const window: Page = await electronApp.firstWindow();
       await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
+        const api: ElectronAPI | undefined = (window as unknown as ExtendedWindow).electronAPI;
         if (api) {
           await api.main.stopFileWatching();
         }
@@ -116,7 +139,7 @@ const test = base.extend<{
   },
 
   appWindow: async ({ electronApp }, use) => {
-    const window = await electronApp.firstWindow();
+    const window: Page = await electronApp.firstWindow();
 
     window.on('console', msg => {
       console.log(`BROWSER [${msg.type()}]:`, msg.text());
@@ -139,7 +162,7 @@ test.describe('Onboarding First Run', () => {
     console.log('=== ONBOARDING FIRST-RUN TEST: Verify onboarding directory loads automatically ===');
 
     // Step 1: Verify app loaded
-    const appReady = await appWindow.evaluate(() => {
+    const appReady: boolean = await appWindow.evaluate(() => {
       return !!(window as ExtendedWindow).cytoscapeInstance &&
              !!(window as ExtendedWindow).electronAPI;
     });
@@ -147,13 +170,13 @@ test.describe('Onboarding First Run', () => {
     console.log('✓ App loaded successfully');
 
     // Step 2: Get the expected onboarding directory path
-    const onboardingPath = path.join(tempUserDataPath, 'onboarding_tree');
+    const onboardingPath: string = path.join(tempUserDataPath, 'onboarding_tree');
     console.log('✓ Expected onboarding directory path:', onboardingPath);
 
     // Step 3: Trigger initialLoad to load the onboarding directory automatically
     // Since there's no config file, this should load onboarding
-    const loadResult = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
+    const loadResult: LoadResult = await appWindow.evaluate(async () => {
+      const api: ElectronAPI | undefined = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       return await api.main.loadPreviousFolder();
     });
@@ -165,8 +188,8 @@ test.describe('Onboarding First Run', () => {
     await appWindow.waitForTimeout(2000);
 
     // Step 5: Verify the watched directory is the onboarding directory
-    const watchStatus = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
+    const watchStatus: WatchStatus = await appWindow.evaluate(async () => {
+      const api: ElectronAPI | undefined = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       return await api.main.getWatchStatus();
     });
@@ -177,14 +200,14 @@ test.describe('Onboarding First Run', () => {
     console.log('✓ Onboarding directory is being watched:', watchStatus.directory);
 
     // Step 6: Verify graph state contains exactly 5 nodes
-    const graphState = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
+    const graphState: GraphState = await appWindow.evaluate(async () => {
+      const api: ElectronAPI | undefined = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       return await api.main.getGraph();
     });
 
     expect(graphState).toBeDefined();
-    const nodeCount = Object.keys(graphState.nodes).length;
+    const nodeCount: number = Object.keys(graphState.nodes).length;
     console.log(`✓ Graph loaded with ${nodeCount} nodes`);
 
     // Verify the expected number of onboarding nodes (may be 5-6 depending on fixture)
@@ -192,8 +215,8 @@ test.describe('Onboarding First Run', () => {
     expect(nodeCount).toBeLessThanOrEqual(6);
 
     // Step 7: Verify Cytoscape UI has rendered the nodes
-    const cytoscapeState = await appWindow.evaluate(() => {
-      const cy = (window as ExtendedWindow).cytoscapeInstance;
+    const cytoscapeState: CytoscapeState = await appWindow.evaluate(() => {
+      const cy: CytoscapeCore | undefined = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
       return {
         nodeCount: cy.nodes().length,
@@ -210,7 +233,7 @@ test.describe('Onboarding First Run', () => {
 
     // Step 8: Verify node labels match expected onboarding files
     // Note: Labels are extracted from frontmatter or filename and may be title-cased
-    const expectedLabels = [
+    const expectedLabels: string[] = [
       'Command Palette',
       'Just Start Talking',
       'Open Your Project Folder',

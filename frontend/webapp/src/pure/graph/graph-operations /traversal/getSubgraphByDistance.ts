@@ -4,8 +4,8 @@
  */
 
 import type { Graph, NodeIdAndFilePath } from '@/pure/graph'
-import { getIncomingNodes } from '@/pure/graph/graph-operations /getIncomingNodes.ts'
-import { setOutgoingEdges } from '@/pure/graph/graph-operations /graph-edge-operations.ts'
+import { getIncomingNodes } from '@/pure/graph/graph-operations /getIncomingNodes'
+import { setOutgoingEdges } from '@/pure/graph/graph-operations /graph-edge-operations'
 
 /**
  * Performs weighted DFS to find all nodes within maxDistance from startNodeId.
@@ -32,7 +32,7 @@ export function getSubgraphByDistance(
   maxDistance: number
 ): Graph {
   // Recursive DFS implementation
-  const dfsVisit = (
+  const dfsVisit: (nodeId: NodeIdAndFilePath, distance: number, visited: ReadonlySet<NodeIdAndFilePath>) => ReadonlySet<NodeIdAndFilePath> = (
     nodeId: NodeIdAndFilePath,
     distance: number,
     visited: ReadonlySet<NodeIdAndFilePath>
@@ -42,13 +42,13 @@ export function getSubgraphByDistance(
       return visited
     }
 
-    const node = graph.nodes[nodeId]
+    const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = graph.nodes[nodeId]
 
     // Add current node to visited set
-    const newVisited = new Set([...visited, nodeId])
+    const newVisited: Set<string> = new Set([...visited, nodeId])
 
     // Explore outgoing edges (children, cost 1.5) - only if within distance threshold
-    const afterChildren = node.outgoingEdges
+    const afterChildren: ReadonlySet<string> = node.outgoingEdges
       .filter(_edge => distance + 1.5 < maxDistance)
       .reduce<ReadonlySet<NodeIdAndFilePath>>(
         (acc, edge) => dfsVisit(edge.targetId, distance + 1.5, acc),
@@ -56,8 +56,8 @@ export function getSubgraphByDistance(
       )
 
     // Explore incoming edges (parents, cost 1.0) - only if within distance threshold
-    const incomingNodes = getIncomingNodes(node, graph)
-    const afterParents = incomingNodes
+    const incomingNodes: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode[] = getIncomingNodes(node, graph)
+    const afterParents: ReadonlySet<string> = incomingNodes
       .filter(() => distance + 1.0 < maxDistance)
       .reduce<ReadonlySet<NodeIdAndFilePath>>(
         (acc, parentNode) => dfsVisit(parentNode.relativeFilePathIsID, distance + 1.0, acc),
@@ -67,16 +67,16 @@ export function getSubgraphByDistance(
     return afterParents
   }
 
-  const visited = dfsVisit(startNodeId, 0, new Set())
+  const visited: ReadonlySet<string> = dfsVisit(startNodeId, 0, new Set())
 
   // Filter graph to only visited nodes, and filter edges to only include
   // edges where both source and target are in the visited set
-  const filteredNodes = Object.fromEntries(
+  const filteredNodes: { [k: string]: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode; } = Object.fromEntries(
     Array.from(visited)
       .filter(id => graph.nodes[id])
       .map(id => {
-        const node = graph.nodes[id]
-        const filteredEdges = node.outgoingEdges.filter(edge => visited.has(edge.targetId))
+        const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = graph.nodes[id]
+        const filteredEdges: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = node.outgoingEdges.filter(edge => visited.has(edge.targetId))
         return [id, setOutgoingEdges(node, filteredEdges)]
       })
   )

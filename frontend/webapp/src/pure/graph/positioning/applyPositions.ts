@@ -13,8 +13,8 @@
 
 import type { Graph, GraphNode, NodeIdAndFilePath, Position } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
-import { findFirstParentNode } from '@/pure/graph/graph-operations /findFirstParentNode.ts'
-import { calculateInitialPositionForChild } from './calculateInitialPosition.ts'
+import { findFirstParentNode } from '@/pure/graph/graph-operations /findFirstParentNode'
+import { calculateInitialPositionForChild } from './calculateInitialPosition'
 
 const GHOST_ROOT_ID: NodeIdAndFilePath = '__GHOST_ROOT__'
 const GHOST_ROOT_POSITION: Position = { x: 0, y: 0 }
@@ -33,7 +33,7 @@ const GHOST_ROOT_POSITION: Position = { x: 0, y: 0 }
  * @returns A new graph with all nodes positioned
  */
 export function applyPositions(graph: Graph): Graph {
-    const rootNodes = findRootNodes(graph)
+    const rootNodes: readonly string[] = findRootNodes(graph)
 
     // Create ghost root node with outgoing edges to all root nodes
     const ghostRootNode: GraphNode = {
@@ -58,7 +58,7 @@ export function applyPositions(graph: Graph): Graph {
     }
 
     // Traverse from ghost root - this will position all nodes
-    const graphWithAllPositions = traverseAndPosition(
+    const graphWithAllPositions: Graph = traverseAndPosition(
         graphWithGhostRoot,
         GHOST_ROOT_ID,
         new Set<NodeIdAndFilePath>(),
@@ -104,20 +104,20 @@ function traverseAndPosition(
     const updatedSeen: ReadonlySet<NodeIdAndFilePath> = new Set(seen).add(nodeId)
 
     // Get current node
-    const node = tree.nodes[nodeId]
+    const node: GraphNode = tree.nodes[nodeId]
     if (!node) {
         return { graph: tree, seen: updatedSeen }
     }
 
     // PREORDER: Process current node - ensure it has a position
-    const graphAfterPositioningCurrentNode = nodeId === GHOST_ROOT_ID
+    const graphAfterPositioningCurrentNode: Graph = nodeId === GHOST_ROOT_ID
         ? tree  // Don't position ghost root
         : positionNodeIfNeeded(node, nodeId, tree, childIndexInParent)
 
     // RECURSIVE CASE: Process all children using reduce with index
     return node.outgoingEdges.reduce(
         (acc, edge, childIndex) => {
-            const childResult = traverseAndPosition(acc.graph, edge.targetId, acc.seen, childIndex)
+            const childResult: { readonly graph: Graph; readonly seen: ReadonlySet<NodeIdAndFilePath>; } = traverseAndPosition(acc.graph, edge.targetId, acc.seen, childIndex)
             return {
                 graph: childResult.graph,
                 seen: childResult.seen
@@ -136,13 +136,13 @@ function positionNodeIfNeeded(
     tree: Graph,
     childIndexInParent: number | undefined
 ): Graph {
-    const parentNode = findFirstParentNode(node, tree)
+    const parentNode: GraphNode | undefined = findFirstParentNode(node, tree)
 
     if (!parentNode || childIndexInParent === undefined) {
         return tree
     }
 
-    const newPosition = calculateInitialPositionForChild(
+    const newPosition: O.Option<Position> = calculateInitialPositionForChild(
         parentNode,
         tree,
         childIndexInParent

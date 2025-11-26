@@ -1,4 +1,4 @@
-export const SPEAKER_COLORS = [
+export const SPEAKER_COLORS: string[] = [
   "#007ecc", // Blue
   "#5aa155", // Green
   "#e0585b", // Red
@@ -28,7 +28,7 @@ export const SPEAKER_COLORS = [
 
 // Get a color for a speaker number
 export function getSpeakerColor(speakerNumber: string | number): string {
-  const numericSpeaker =
+  const numericSpeaker: number =
     typeof speakerNumber === "string"
       ? parseInt(speakerNumber, 10)
       : speakerNumber;

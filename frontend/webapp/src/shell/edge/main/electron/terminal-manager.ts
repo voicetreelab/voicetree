@@ -2,8 +2,8 @@ import path from 'path';
 import { promises as fs } from 'fs';
 import pty, { type IPty } from 'node-pty';
 import type { WebContents } from 'electron';
-import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/types.ts";
-import {getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types.ts";
+import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/types";
+import {getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 
 interface TerminalSpawnResult {
   success: boolean;
@@ -48,10 +48,10 @@ export default class TerminalManager {
     getToolsDirectory: () => string
   ): Promise<TerminalSpawnResult> {
     try {
-      const terminalId = getTerminalId(terminalData);
+      const terminalId: string = getTerminalId(terminalData);
 
       // Determine shell based on platform
-      const shell = process.platform === 'win32'
+      const shell: string = process.platform === 'win32'
         ? 'powershell.exe'
         : process.env.SHELL ?? '/bin/bash';
 
@@ -61,7 +61,7 @@ export default class TerminalManager {
       const shellArgs: string[] = [];
 
       // Use initial_spawn_directory from terminalData if provided, otherwise fall back to tools directory
-      let cwd = terminalData.initial_spawn_directory ?? getToolsDirectory();
+      let cwd: string = terminalData.initial_spawn_directory ?? getToolsDirectory();
       try {
         await fs.access(cwd);
       } catch {
@@ -70,7 +70,7 @@ export default class TerminalManager {
       }
 
       // Build custom environment with terminal data
-      const customEnv = this.buildEnvironment(terminalData, getWatchedDirectory);
+      const customEnv: NodeJS.ProcessEnv = this.buildEnvironment(terminalData, getWatchedDirectory);
 
       console.log(`Spawning PTY with shell: ${shell} in directory: ${cwd}`);
       console.log(`[TerminalManager] OBSIDIAN_VAULT_PATH in customEnv: ${customEnv.OBSIDIAN_VAULT_PATH}`);
@@ -82,7 +82,7 @@ export default class TerminalManager {
       // Use standard terminal dimensions (80×24) - close to actual frontend size
       // Frontend will resize to actual dimensions after FitAddon calculates them
       // CRITICAL: Don't use massive dimensions (800×1600) as resize triggers clear screen
-      const ptyProcess = pty.spawn(shell, shellArgs, {
+      const ptyProcess: pty.IPty = pty.spawn(shell, shellArgs, {
         name: 'xterm-256color',
         cols: 80,
         rows: 160,
@@ -99,7 +99,7 @@ export default class TerminalManager {
       // Write initial command if provided (without newline, so it's not executed)
       if (terminalData.initialCommand) {
         console.log(`[TerminalManager] Writing initial command: ${terminalData.initialCommand}`);
-        const command = terminalData.executeCommand
+        const command: string = terminalData.executeCommand
           ? terminalData.initialCommand + '\r'
           : terminalData.initialCommand;
         // Wait a bit for shell prompt to appear before writing
@@ -138,10 +138,10 @@ export default class TerminalManager {
       console.error('Failed to spawn terminal:', error);
 
       // Send error message to display in terminal
-      const errorMessage = `\r\n\x1b[31mError: Failed to spawn terminal\x1b[0m\r\n${error instanceof Error ? error.message : String(error)}\r\n\r\nMake sure node-pty is properly installed and rebuilt for Electron:\r\nnpx electron-rebuild\r\n`;
+      const errorMessage: string = `\r\n\x1b[31mError: Failed to spawn terminal\x1b[0m\r\n${error instanceof Error ? error.message : String(error)}\r\n\r\nMake sure node-pty is properly installed and rebuilt for Electron:\r\nnpx electron-rebuild\r\n`;
 
       // Create a fake terminal ID for error display
-      const terminalId = `error-${Date.now()}`;
+      const terminalId: string = `error-${Date.now()}`;
       setTimeout(() => {
         try {
           if (!sender.isDestroyed()) {
@@ -161,7 +161,7 @@ export default class TerminalManager {
    */
   write(terminalId: string, data: string): TerminalOperationResult {
     try {
-      const ptyProcess = this.terminals.get(terminalId);
+      const ptyProcess: pty.IPty | undefined = this.terminals.get(terminalId);
       if (!ptyProcess) {
         // Check if it's an error terminal
         if (terminalId.startsWith('error-')) {
@@ -184,7 +184,7 @@ export default class TerminalManager {
    */
   resize(terminalId: string, cols: number, rows: number): TerminalOperationResult {
     try {
-      const ptyProcess = this.terminals.get(terminalId);
+      const ptyProcess: pty.IPty | undefined = this.terminals.get(terminalId);
       if (!ptyProcess) {
         // Ignore resize for error terminals
         if (terminalId.startsWith('error-')) {
@@ -208,7 +208,7 @@ export default class TerminalManager {
    */
   kill(terminalId: string): TerminalOperationResult {
     try {
-      const ptyProcess = this.terminals.get(terminalId);
+      const ptyProcess: pty.IPty | undefined = this.terminals.get(terminalId);
       if (!ptyProcess) {
         // Clean up error terminals too
         if (terminalId.startsWith('error-')) {
@@ -239,7 +239,7 @@ export default class TerminalManager {
     for (const [terminalId, webContentsId] of this.terminalToWindow.entries()) {
       if (webContentsId === windowId) {
         console.log(`Cleaning up terminal ${terminalId} for window ${windowId}`);
-        const ptyProcess = this.terminals.get(terminalId);
+        const ptyProcess: pty.IPty | undefined = this.terminals.get(terminalId);
         if (ptyProcess && ptyProcess.kill) {
           try {
             ptyProcess.kill();
@@ -280,7 +280,7 @@ export default class TerminalManager {
     getWatchedDirectory: () => string | null
   ): NodeJS.ProcessEnv {
     console.log(`[TerminalManager] process.env.OBSIDIAN_VAULT_PATH BEFORE copy: ${process.env.OBSIDIAN_VAULT_PATH}`);
-    const customEnv = { ...process.env };
+    const customEnv: { [key: string]: string | undefined; TZ?: string; } = { ...process.env };
 
     // Extra env vars (e.g., agent info)
     if (terminalData.initialEnvVars) {
@@ -292,17 +292,17 @@ export default class TerminalManager {
     }
 
     // Always set vault absolutePath from watched directory
-    const watchedDir = getWatchedDirectory();
-    const vaultPath = watchedDir ?? process.cwd();
+    const watchedDir: string | null = getWatchedDirectory();
+    const vaultPath: string = watchedDir ?? process.cwd();
     console.log(`[TerminalManager] getWatchedDirectory() returned: ${watchedDir}`);
     console.log(`[TerminalManager] Using vault path: ${vaultPath}`);
     customEnv.OBSIDIAN_VAULT_PATH = vaultPath;
 
     // Set node-based environment variables from attachedToNodeId
-    const filePath = terminalData.attachedToNodeId;
+    const filePath: string = terminalData.attachedToNodeId;
     if (filePath) {
       // Convert absolute absolutePath to relative absolutePath from vault root if needed
-      let relativePath = filePath;
+      let relativePath: string = filePath;
       if (path.isAbsolute(filePath)) {
         // If filePath is absolute, make it relative to vault absolutePath
         relativePath = path.relative(vaultPath, filePath);
@@ -318,7 +318,7 @@ export default class TerminalManager {
       customEnv.OBSIDIAN_SOURCE_NAME = path.basename(relativePath);
 
       // OBSIDIAN_SOURCE_BASENAME is filename without extension (e.g., "23_Commitment")
-      const ext = path.extname(relativePath);
+      const ext: string = path.extname(relativePath);
       customEnv.OBSIDIAN_SOURCE_BASENAME = path.basename(relativePath, ext);
     }
 

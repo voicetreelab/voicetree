@@ -11,9 +11,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type {Core} from 'cytoscape';
 import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
-import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI.ts'
+import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
 import type { GraphDelta, GraphNode } from '@/pure/graph'
-import { BreathingAnimationService, AnimationType } from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService.ts'
+import { BreathingAnimationService, AnimationType } from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService'
 
 describe('applyGraphDeltaToUI - Integration', () => {
     let cy: Core
@@ -97,13 +97,13 @@ describe('applyGraphDeltaToUI - Integration', () => {
             expect(cy.getElementById('child').length).toBe(1)
 
             // AND: Edge from parent to child should exist
-            const edge = cy.getElementById('parent->child')
+            const edge: cytoscape.CollectionReturnValue = cy.getElementById('parent->child')
             expect(edge.length).toBe(1)
             expect(edge.data('source')).toBe('parent')
             expect(edge.data('target')).toBe('child')
 
             // AND: Child node should have correct position
-            const childPos = cy.getElementById('child').position()
+            const childPos: cytoscape.Position = cy.getElementById('child').position()
             expect(childPos.x).toBe(200)
             expect(childPos.y).toBe(200)
         })
@@ -211,7 +211,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             applyGraphDeltaToUI(cy, addDelta)
 
-            const originalPos = cy.getElementById('node-to-update').position()
+            const originalPos: cytoscape.Position = cy.getElementById('node-to-update').position()
             expect(originalPos.x).toBe(100)
             expect(originalPos.y).toBe(100)
 
@@ -239,7 +239,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             applyGraphDeltaToUI(cy, updateDelta)
 
             // THEN: Content should remain unchanged (not updated for existing nodes)
-            const node = cy.getElementById('node-to-update')
+            const node: cytoscape.CollectionReturnValue = cy.getElementById('node-to-update')
             expect(node.data('content')).toBe('# Original Content')
 
             // AND: Title (label) should be updated
@@ -249,7 +249,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             expect(node.data('color')).toBe('#ff0000')
 
             // BUT: Position should remain unchanged (preserved from original)
-            const newPos = node.position()
+            const newPos: cytoscape.Position = node.position()
             expect(newPos.x).toBe(100) // Original position preserved
             expect(newPos.y).toBe(100) // Original position preserved
         })
@@ -449,7 +449,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             applyGraphDeltaToUI(cy, delta1)
 
             // THEN: Should only have one edge
-            const edges = cy.edges(`[id = "parent->child"]`)
+            const edges: cytoscape.EdgeCollection = cy.edges(`[id = "parent->child"]`)
             expect(edges.length).toBe(1)
         })
 
@@ -497,7 +497,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             expect(() => applyGraphDeltaToUI(cy, deltaWithDuplicateNode)).not.toThrow()
 
             // AND: Should only have one edge
-            const edges = cy.edges(`[id = "parent->child"]`)
+            const edges: cytoscape.EdgeCollection = cy.edges(`[id = "parent->child"]`)
             expect(edges.length).toBe(1)
         })
 
@@ -547,7 +547,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             expect(() => applyGraphDeltaToUI(cy, delta2)).not.toThrow()
 
             // AND: Should only have one edge
-            const edges = cy.edges(`[id = "parent->child"]`)
+            const edges: cytoscape.EdgeCollection = cy.edges(`[id = "parent->child"]`)
             expect(edges.length).toBe(1)
         })
 
@@ -588,7 +588,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             applyGraphDeltaToUI(cy, delta)
 
             // THEN: Edge should have the label
-            const edge = cy.getElementById('parent->child')
+            const edge: cytoscape.CollectionReturnValue = cy.getElementById('parent->child')
             expect(edge.length).toBe(1)
             expect(edge.data('label')).toBe('is parent of')
         })
@@ -630,7 +630,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             applyGraphDeltaToUI(cy, delta)
 
             // THEN: Edge should not have label set (undefined)
-            const edge = cy.getElementById('parent->child')
+            const edge: cytoscape.CollectionReturnValue = cy.getElementById('parent->child')
             expect(edge.length).toBe(1)
             expect(edge.data('label')).toBeUndefined()
         })
@@ -672,7 +672,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             applyGraphDeltaToUI(cy, delta)
 
             // THEN: Edge label should have underscores replaced with spaces
-            const edge = cy.getElementById('parent->child')
+            const edge: cytoscape.CollectionReturnValue = cy.getElementById('parent->child')
             expect(edge.length).toBe(1)
             expect(edge.data('label')).toBe('is a prerequisite for')
         })
@@ -714,7 +714,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             applyGraphDeltaToUI(cy, delta)
 
             // THEN: All underscores should be replaced with spaces
-            const edge = cy.getElementById('parent->child')
+            const edge: cytoscape.CollectionReturnValue = cy.getElementById('parent->child')
             expect(edge.length).toBe(1)
             expect(edge.data('label')).toBe('this is a complex relationship label')
         })
@@ -756,14 +756,14 @@ describe('applyGraphDeltaToUI - Integration', () => {
             applyGraphDeltaToUI(cy, delta)
 
             // THEN: Label should remain unchanged
-            const edge = cy.getElementById('parent->child')
+            const edge: cytoscape.CollectionReturnValue = cy.getElementById('parent->child')
             expect(edge.length).toBe(1)
             expect(edge.data('label')).toBe('simple label')
         })
 
         it('should handle edge lifecycle: creation after target exists, persistence on update, removal on link delete', () => {
             // Helper to create node with minimal boilerplate
-            const makeNode = (id: string, edges: Array<{targetId: string, label: string}> = []): GraphNode => ({
+            const makeNode: (id: string, edges?: Array<{ targetId: string; label: string; }>) => GraphNode = (id: string, edges: Array<{targetId: string, label: string}> = []): GraphNode => ({
                 relativeFilePathIsID: id,
                 contentWithoutYamlOrLinks: `# ${id}`,
                 outgoingEdges: edges,
@@ -801,7 +801,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             expect(cy.nodes()).toHaveLength(0)
 
             // WHEN: Adding nodes with valid CSS colors
-            const validColors = ['#ff0000', 'rgb(0, 255, 0)', 'blue', 'cyan', 'hsl(120, 100%, 50%)']
+            const validColors: string[] = ['#ff0000', 'rgb(0, 255, 0)', 'blue', 'cyan', 'hsl(120, 100%, 50%)']
 
             const nodes: GraphNode[] = validColors.map((color, i) => ({
                 relativeFilePathIsID: `node-${i}`,
@@ -825,7 +825,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             // THEN: All nodes should have their colors applied
             validColors.forEach((color, i) => {
-                const node = cy.getElementById(`node-${i}`)
+                const node: cytoscape.CollectionReturnValue = cy.getElementById(`node-${i}`)
                 expect(node.data('color')).toBe(color)
             })
         })
@@ -835,7 +835,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             expect(cy.nodes()).toHaveLength(0)
 
             // WHEN: Adding nodes with invalid CSS colors
-            const invalidColors = ['cyancyan', 'notacolor', '###', 'rgb(999,999,999)', '']
+            const invalidColors: string[] = ['cyancyan', 'notacolor', '###', 'rgb(999,999,999)', '']
 
             const nodes: GraphNode[] = invalidColors.map((color, i) => ({
                 relativeFilePathIsID: `invalid-${i}`,
@@ -859,7 +859,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             // THEN: All nodes should have undefined color (invalid colors filtered out)
             invalidColors.forEach((_, i) => {
-                const node = cy.getElementById(`invalid-${i}`)
+                const node: cytoscape.CollectionReturnValue = cy.getElementById(`invalid-${i}`)
                 expect(node.data('color')).toBeUndefined()
             })
         })
@@ -916,7 +916,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             vi.useFakeTimers()
 
             // Create breathing animation service to listen for events
-            const breathingService = new BreathingAnimationService(cy)
+            const breathingService: BreathingAnimationService = new BreathingAnimationService(cy)
 
             // GIVEN: Graph with an existing node
             const originalNode: GraphNode = {
@@ -938,7 +938,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             applyGraphDeltaToUI(cy, createDelta)
 
-            const node = cy.getElementById('test-node')
+            const node: cytoscape.CollectionReturnValue = cy.getElementById('test-node')
             expect(node.length).toBe(1)
 
             // New node should have green breathing animation

@@ -8,8 +8,8 @@
 
 import type { Core, NodeSingular } from 'cytoscape';
 
-export const SPAWN_RADIUS = 200; // pixels from parent
-export const CHILD_ANGLE_CONE = 90; // degrees (± 45° from parent)
+export const SPAWN_RADIUS: 200 = 200; // pixels from parent
+export const CHILD_ANGLE_CONE: 90 = 90; // degrees (± 45° from parent)
 
 /**
  * Build an array of normalized positions [0, 1] using recursive subdivision
@@ -26,15 +26,15 @@ function buildSubdividedPositions(count: number): number[] {
   levels.push([0, 0.25, 0.5, 0.75]);
 
   // Keep adding levels until we have enough positions
-  let totalPositions = 4;
+  let totalPositions: number = 4;
   while (totalPositions < count) {
-    const prevLevel = levels[levels.length - 1];
+    const prevLevel: number[] = levels[levels.length - 1];
     const newLevel: number[] = [];
 
     // Add midpoints between adjacent positions in previous level
-    for (let i = 0; i < prevLevel.length; i++) {
-      const current = prevLevel[i];
-      const next = prevLevel[(i + 1) % prevLevel.length];
+    for (let i: number = 0; i < prevLevel.length; i++) {
+      const current: number = prevLevel[i];
+      const next: number = prevLevel[(i + 1) % prevLevel.length];
 
       // Calculate midpoint (handle wrapping around 1.0)
       let midpoint: number;
@@ -97,11 +97,11 @@ export function calculateChildAngle(
   }
 
   // Get normalized position [0, 1] for this child index
-  const positions = buildSubdividedPositions(childIndex + 1);
-  const normalizedPos = positions[childIndex];
+  const positions: number[] = buildSubdividedPositions(childIndex + 1);
+  const normalizedPos: number = positions[childIndex];
 
   // Map to angle range and normalize to [0, 360)
-  let angle = rangeMin + (normalizedPos * rangeSize);
+  let angle: number = rangeMin + (normalizedPos * rangeSize);
 
   // Normalize to [0, 360)
   angle = angle % 360;
@@ -123,7 +123,7 @@ export function polarToCartesian(
   angle: number,
   radius: number
 ): { x: number; y: number } {
-  const radians = (angle * Math.PI) / 180;
+  const radians: number = (angle * Math.PI) / 180;
   return {
     x: radius * Math.cos(radians),
     y: radius * Math.sin(radians)
@@ -142,21 +142,21 @@ export function calculateParentAngle(
     return undefined; // No angle constraint
   }
 
-  const grandparent = cy.getElementById(grandparentId);
+  const grandparent: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").CollectionReturnValue = cy.getElementById(grandparentId);
   if (grandparent.length === 0) {
     return undefined;
   }
 
   // Calculate vector from grandparent to parent
-  const grandparentPos = grandparent.position();
-  const parentPos = parentNode.position();
+  const grandparentPos: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").Position = grandparent.position();
+  const parentPos: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").Position = parentNode.position();
 
-  const dx = parentPos.x - grandparentPos.x;
-  const dy = parentPos.y - grandparentPos.y;
+  const dx: number = parentPos.x - grandparentPos.x;
+  const dy: number = parentPos.y - grandparentPos.y;
 
   // Convert to angle in degrees (atan2 returns radians)
-  const radians = Math.atan2(dy, dx);
-  const degrees = (radians * 180) / Math.PI;
+  const radians: number = Math.atan2(dy, dx);
+  const degrees: number = (radians * 180) / Math.PI;
 
   // Normalize to [0, 360)
   return degrees < 0 ? degrees + 360 : degrees;

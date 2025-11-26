@@ -9,7 +9,7 @@
  * - Extends Disposable for proper cleanup
  */
 
-import { Disposable } from './Disposable.ts';
+import { Disposable } from './Disposable';
 import '@/shell/UI/views/styles/speed-dial-side-graph-floating-menu.css';
 
 export interface SpeedDialMenuViewOptions {
@@ -82,11 +82,11 @@ export class SpeedDialSideGraphFloatingMenuView extends Disposable {
    * Create the main menu container with all buttons
    */
   private createMenuContainer(): HTMLElement {
-    const container = document.createElement('div');
+    const container: HTMLDivElement = document.createElement('div');
     container.className = 'speed-dial-container';
 
     this.menuItems.forEach((item, index) => {
-      const button = this.createMenuItem(item, index);
+      const button: HTMLButtonElement = this.createMenuItem(item, index);
       this.buttonElements.push(button);
       container.appendChild(button);
     });
@@ -98,7 +98,7 @@ export class SpeedDialSideGraphFloatingMenuView extends Disposable {
    * Create a single menu item button
    */
   private createMenuItem(item: MenuItem, index: number): HTMLButtonElement {
-    const button = document.createElement('button');
+    const button: HTMLButtonElement = document.createElement('button');
     button.className = `speed-dial-item speed-dial-item-${index}`;
     if (item.isDanger) {
       button.className += ' speed-dial-danger';
@@ -107,11 +107,11 @@ export class SpeedDialSideGraphFloatingMenuView extends Disposable {
     button.setAttribute('data-item-relativeFilePathIsID', item.id);
 
     // Create icon
-    const icon = this.createIcon(item.iconName);
+    const icon: SVGElement = this.createIcon(item.iconName);
     button.appendChild(icon);
 
     // Create label
-    const label = document.createElement('span');
+    const label: HTMLSpanElement = document.createElement('span');
     label.className = 'speed-dial-label';
     label.textContent = item.label;
     button.appendChild(label);
@@ -129,7 +129,7 @@ export class SpeedDialSideGraphFloatingMenuView extends Disposable {
    * Create an SVG icon element
    */
   private createIcon(name: 'sun' | 'moon' | 'settings' | 'download' | 'info'): SVGElement {
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    const svg: SVGSVGElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('class', 'speed-dial-icon');
     svg.setAttribute('width', '20');
     svg.setAttribute('height', '20');
@@ -160,7 +160,7 @@ export class SpeedDialSideGraphFloatingMenuView extends Disposable {
     };
 
     paths[name].forEach((d) => {
-      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      const path: SVGPathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       path.setAttribute('d', d);
       svg.appendChild(path);
     });
@@ -186,17 +186,17 @@ export class SpeedDialSideGraphFloatingMenuView extends Disposable {
    * Handle mouse movement for proximity scaling
    */
   private handleMouseMove(e: MouseEvent): void {
-    const containerRect = this.menuContainer.getBoundingClientRect();
-    const mouseY = e.clientY - containerRect.top;
+    const containerRect: DOMRect = this.menuContainer.getBoundingClientRect();
+    const mouseY: number = e.clientY - containerRect.top;
 
     // Find which item is closest to mouse
-    let closestIndex = -1;
-    let closestDistance = Infinity;
+    let closestIndex: number = -1;
+    let closestDistance: number = Infinity;
 
     this.buttonElements.forEach((button, index) => {
-      const rect = button.getBoundingClientRect();
-      const buttonY = rect.top - containerRect.top + rect.height / 2;
-      const distance = Math.abs(mouseY - buttonY);
+      const rect: DOMRect = button.getBoundingClientRect();
+      const buttonY: number = rect.top - containerRect.top + rect.height / 2;
+      const distance: number = Math.abs(mouseY - buttonY);
 
       if (distance < closestDistance) {
         closestDistance = distance;
@@ -229,7 +229,7 @@ export class SpeedDialSideGraphFloatingMenuView extends Disposable {
         button.style.setProperty('--scale', '1');
       } else {
         // Calculate scale based on distance from hovered item
-        const distance = Math.abs(index - this.hoveredIndex);
+        const distance: number = Math.abs(index - this.hoveredIndex);
 
         if (distance === 0) {
           // Hovered item - scale 1.2x
@@ -254,27 +254,27 @@ export class SpeedDialSideGraphFloatingMenuView extends Disposable {
     this.options.isDarkMode = isDarkMode;
 
     // Find the dark mode button
-    const darkModeItem = this.menuItems.find((item) => item.id === 'dark-mode');
+    const darkModeItem: MenuItem | undefined = this.menuItems.find((item) => item.id === 'dark-mode');
     if (!darkModeItem) return;
 
-    const darkModeIndex = this.menuItems.indexOf(darkModeItem);
-    const button = this.buttonElements[darkModeIndex];
+    const darkModeIndex: number = this.menuItems.indexOf(darkModeItem);
+    const button: HTMLButtonElement = this.buttonElements[darkModeIndex];
     if (!button) return;
 
     // Update icon and label
-    const newIconName = isDarkMode ? 'sun' : 'moon';
-    const newLabel = isDarkMode ? 'Light Mode' : 'Dark Mode';
+    const newIconName: "sun" | "moon" = isDarkMode ? 'sun' : 'moon';
+    const newLabel: "Light Mode" | "Dark Mode" = isDarkMode ? 'Light Mode' : 'Dark Mode';
 
     // Update menu item data
     darkModeItem.iconName = newIconName;
     darkModeItem.label = newLabel;
 
     // Update DOM
-    const icon = button.querySelector('.speed-dial-icon');
-    const label = button.querySelector('.speed-dial-label');
+    const icon: Element | null = button.querySelector('.speed-dial-icon');
+    const label: Element | null = button.querySelector('.speed-dial-label');
 
     if (icon) {
-      const newIcon = this.createIcon(newIconName);
+      const newIcon: SVGElement = this.createIcon(newIconName);
       icon.replaceWith(newIcon);
     }
 

@@ -4,7 +4,7 @@
  */
 
 import type { Graph, NodeIdAndFilePath } from '@/pure/graph'
-import { reverseGraphEdges } from '../graph-operations /graph-transformations.ts'
+import { reverseGraphEdges } from '../graph-operations /graph-transformations'
 
 /**
  * Converts a Graph into an ASCII tree visualization.
@@ -32,13 +32,13 @@ import { reverseGraphEdges } from '../graph-operations /graph-transformations.ts
 
 export function graphToAscii(graph: Graph): string {
   const lines: string[] = []
-  const visited = new Set<NodeIdAndFilePath>()
+  const visited: Set<string> = new Set<NodeIdAndFilePath>()
 
   // Find root nodes (nodes with no incoming edges)
   // We reverse the graph to identify which nodes have no incoming edges
-  const reversedGraph = reverseGraphEdges(graph)
-  const roots = Object.keys(graph.nodes).filter(nodeId => {
-    const reversedNode = reversedGraph.nodes[nodeId]
+  const reversedGraph: Graph = reverseGraphEdges(graph)
+  const roots: string[] = Object.keys(graph.nodes).filter(nodeId => {
+    const reversedNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = reversedGraph.nodes[nodeId]
     return !reversedNode || reversedNode.outgoingEdges.length === 0
   })
 
@@ -54,25 +54,25 @@ export function graphToAscii(graph: Graph): string {
     if (visited.has(nodeId)) return
     visited.add(nodeId)
 
-    const node = graph.nodes[nodeId]
+    const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = graph.nodes[nodeId]
     if (!node) return // Safety check for missing nodes
 
-    const title = node.nodeUIMetadata.title
+    const title: string = node.nodeUIMetadata.title
 
     // Print current node with connectors
     if (isRoot) {
       lines.push(title)
     } else {
-      const connector = isLast ? '└── ' : '├── '
+      const connector: "└── " | "├── " = isLast ? '└── ' : '├── '
       lines.push(prefix + connector + title)
     }
 
     // Print children
-    const children = node.outgoingEdges.map(e => e.targetId)
+    const children: string[] = node.outgoingEdges.map(e => e.targetId)
     children.forEach((childId, index) => {
-      const isLastChild = index === children.length - 1
-      const extension = isLast ? '    ' : '│   '
-      const childPrefix = isRoot ? '' : prefix + extension
+      const isLastChild: boolean = index === children.length - 1
+      const extension: "    " | "│   " = isLast ? '    ' : '│   '
+      const childPrefix: string = isRoot ? '' : prefix + extension
       printTree(childId, childPrefix, isLastChild, false)
     })
   }

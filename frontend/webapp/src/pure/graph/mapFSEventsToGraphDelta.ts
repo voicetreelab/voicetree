@@ -1,7 +1,7 @@
-import type {FSEvent, GraphDelta, DeleteNode, NodeIdAndFilePath, FSUpdate, Graph} from '@/pure/graph/index.ts'
+import type {FSEvent, GraphDelta, DeleteNode, NodeIdAndFilePath, FSUpdate, Graph} from '@/pure/graph/index'
 import path from 'path'
-import { filenameToNodeId } from '@/pure/graph/markdown-parsing/filename-utils.ts'
-import { addNodeToGraph } from '@/pure/graph/graphDelta/addNodeToGraph.ts'
+import { filenameToNodeId } from '@/pure/graph/markdown-parsing/filename-utils'
+import { addNodeToGraph } from '@/pure/graph/graphDelta/addNodeToGraph'
 
 /**
  * Maps filesystem events to graph deltas.
@@ -30,7 +30,7 @@ export function mapFSEventsToGraphDelta(fsEvent: FSEvent, vaultPath: string, cur
   // Discriminate based on type field for FSDelete, or content field for FSUpdate
   if ('type' in fsEvent && fsEvent.type === 'Delete') {
     // This is FSDelete
-    const nodeId = extractNodeIdFromPath(fsEvent.absolutePath, vaultPath)
+    const nodeId: string = extractNodeIdFromPath(fsEvent.absolutePath, vaultPath)
     const deleteAction: DeleteNode = {
       type: 'DeleteNode',
       nodeId
@@ -38,7 +38,7 @@ export function mapFSEventsToGraphDelta(fsEvent: FSEvent, vaultPath: string, cur
     return [deleteAction]
   } else {
     // This is FSUpdate (Added or Changed)
-    const fsUpdate = fsEvent as FSUpdate
+    const fsUpdate: FSUpdate = fsEvent as FSUpdate
     return handleUpsert(fsUpdate, vaultPath, currentGraph)
   }
 }
@@ -63,10 +63,10 @@ function handleUpsert(fsUpdate: FSUpdate, vaultPath: string, currentGraph: Graph
  */
 function extractNodeIdFromPath(filePath: string, vaultPath: string): NodeIdAndFilePath {
   // Normalize paths to handle trailing slashes
-  const normalizedVault = vaultPath.endsWith('/') ? vaultPath : vaultPath + '/'
+  const normalizedVault: string = vaultPath.endsWith('/') ? vaultPath : vaultPath + '/'
 
   // Get relative absolutePath from vault
-  const relativePath = filePath.startsWith(normalizedVault)
+  const relativePath: string = filePath.startsWith(normalizedVault)
     ? filePath.substring(normalizedVault.length)
     : path.basename(filePath) // Fallback to basename if not under vault
 

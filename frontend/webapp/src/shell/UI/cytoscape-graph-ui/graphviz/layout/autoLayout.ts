@@ -6,7 +6,7 @@
  */
 
 import type { Core, EdgeSingular } from 'cytoscape';
-import ColaLayout from './cola.ts';
+import ColaLayout from './cola';
 
 export interface AutoLayoutOptions {
   animate?: boolean;
@@ -49,12 +49,12 @@ const DEFAULT_OPTIONS: AutoLayoutOptions = {
  * @returns Cleanup function to disable auto-layout
  */
 export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () => void {
-  const colaOptions = { ...DEFAULT_OPTIONS, ...options };
+  const colaOptions: { animate?: boolean; maxSimulationTime?: number; avoidOverlap?: boolean; nodeSpacing?: number; handleDisconnected?: boolean; convergenceThreshold?: number; unconstrIter?: number; userConstIter?: number; allConstIter?: number; edgeLength?: number | ((edge: EdgeSingular) => number); edgeSymDiffLength?: number | ((edge: EdgeSingular) => number); edgeJaccardLength?: number | ((edge: EdgeSingular) => number); } = { ...DEFAULT_OPTIONS, ...options };
 
-  let layoutRunning = false;
-  let layoutQueued = false;
+  let layoutRunning: boolean = false;
+  let layoutQueued: boolean = false;
 
-  const runLayout = () => {
+  const runLayout: () => void = () => {
     // If layout already running, queue another run for after it completes
     if (layoutRunning) {
       layoutQueued = true;
@@ -109,7 +109,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
   // Debounce helper to avoid rapid-fire layouts
   // Set to 300ms to prevent flickering during markdown editing (editor autosave is 100ms)
   let debounceTimeout: ReturnType<typeof setTimeout> | null = null;
-  const debouncedRunLayout = () => {
+  const debouncedRunLayout: () => void = () => {
     if (debounceTimeout) {
       clearTimeout(debounceTimeout);
     }

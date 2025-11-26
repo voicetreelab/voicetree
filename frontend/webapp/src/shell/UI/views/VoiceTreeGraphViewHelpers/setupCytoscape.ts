@@ -3,10 +3,10 @@
  */
 import type {Core, NodeSingular} from 'cytoscape';
 import type {Graph, NodeIdAndFilePath} from '@/pure/graph';
-import type {FloatingEditorManager} from '@/shell/UI/floating-windows/editors/FloatingEditorManager.ts';
-import {HorizontalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService.ts';
-import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService.ts';
-import {enableAutoLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout.ts';
+import type {FloatingEditorManager} from '@/shell/UI/floating-windows/editors/FloatingEditorManager';
+import {HorizontalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService';
+import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService';
+import {enableAutoLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout';
 
 export interface SetupCytoscapeParams {
     cy: Core;
@@ -56,14 +56,14 @@ export function setupCytoscape(params: SetupCytoscapeParams): {
     });
 
     // Setup horizontal menu (node hover)
-    const horizontalMenuService = new HorizontalMenuService();
+    const horizontalMenuService: HorizontalMenuService = new HorizontalMenuService();
     horizontalMenuService.initialize(cy, {
         createAnchoredFloatingEditor: (nodeId: NodeIdAndFilePath) =>
             floatingWindowManager.createAnchoredFloatingEditor(nodeId),
     });
 
     // Setup vertical menu (right-click on canvas)
-    const verticalMenuService = new VerticalMenuService();
+    const verticalMenuService: VerticalMenuService = new VerticalMenuService();
     verticalMenuService.initialize(cy, {
         handleAddNodeAtPosition: (position) =>
             floatingWindowManager.handleAddNodeAtPosition(position)

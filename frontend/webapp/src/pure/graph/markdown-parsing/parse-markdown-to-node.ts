@@ -3,9 +3,9 @@ import * as E from 'fp-ts/lib/Either.js'
 import matter from 'gray-matter'
 import type {Graph, GraphNode} from '@/pure/graph'
 import {NODE_UI_METADATA_YAML_KEYS} from '@/pure/graph'
-import {filenameToNodeId} from '@/pure/graph/markdown-parsing/filename-utils.ts'
-import {markdownToTitle} from '@/pure/graph/markdown-parsing/markdown-to-title.ts'
-import {extractEdges} from "@/pure/graph/markdown-parsing/extract-edges.ts";
+import {filenameToNodeId} from '@/pure/graph/markdown-parsing/filename-utils'
+import {markdownToTitle} from '@/pure/graph/markdown-parsing/markdown-to-title'
+import {extractEdges} from "@/pure/graph/markdown-parsing/extract-edges";
 
 /**
  * Parses markdown content into a GraphNode.
@@ -67,7 +67,7 @@ function parsePosition(position: unknown): { readonly x: number; readonly y: num
         return undefined
     }
 
-    const pos = position as Record<string, unknown>
+    const pos: Record<string, unknown> = position as Record<string, unknown>
 
     // Check if x and y exist and are numbers
     if (typeof pos.x === 'number' && typeof pos.y === 'number') {
@@ -100,7 +100,7 @@ function extractAdditionalYAMLProps(
     rawYAMLData: Record<string, unknown>,
     keysWithExplicitFields: ReadonlySet<string>
 ): ReadonlyMap<string, string> {
-    const additionalProps = Object.entries(rawYAMLData).reduce((acc, [key, value]) => {
+    const additionalProps: Map<string, string> = Object.entries(rawYAMLData).reduce((acc, [key, value]) => {
         if (!keysWithExplicitFields.has(key) && value !== undefined && value !== null) {
             acc.set(key, valueToString(value))
         }
@@ -113,35 +113,35 @@ function extractAdditionalYAMLProps(
 // filename can be relative or absolute, prefer relative to watched vault.
 export function parseMarkdownToGraphNode(content: string, filename: string, graph : Graph): GraphNode {
     // Parse markdown and extract YAML frontmatter (with error handling for invalid YAML)
-    const parseResult = E.tryCatch(
+    const parseResult: E.Either<unknown, matter.GrayMatterFile<string>> = E.tryCatch(
         () => matter(content),
         (error) => {
             console.warn(`[parseMarkdownToGraphNode] Invalid YAML in ${filename}, using fallback:`, error)
             return error
         }
     )
-    const parsed = E.getOrElse(() => ({ content, data: {} as Record<string, unknown> }))(parseResult)
-    const contentWithoutFrontmatter = parsed.content
+    const parsed: { content: string; data: Record<string, unknown>; } = E.getOrElse(() => ({ content, data: {} as Record<string, unknown> }))(parseResult)
+    const contentWithoutFrontmatter: string = parsed.content
 
     // Extract frontmatter fields directly from raw YAML data
-    const titleFromFrontmatter = normalizeToString(parsed.data.title)
-    const color = normalizeToString(parsed.data.color)
-    const position = parsePosition(parsed.data.position)
+    const titleFromFrontmatter: string | undefined = normalizeToString(parsed.data.title)
+    const color: string | undefined = normalizeToString(parsed.data.color)
+    const position: { readonly x: number; readonly y: number; } | undefined = parsePosition(parsed.data.position)
 
     // Extract edges from original content (before stripping wikilinks)
-    const edges = extractEdges(content, graph.nodes)
+    const edges: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, graph.nodes)
 
     // Replace [[link]] with [link]* (strip wikilink syntax)
-    const contentWithoutYamlOrLinks = contentWithoutFrontmatter.replace(/\[\[([^\]]+)\]\]/g, '[$1]*')
+    const contentWithoutYamlOrLinks: string = contentWithoutFrontmatter.replace(/\[\[([^\]]+)\]\]/g, '[$1]*')
 
     // Compute title using markdownToTitle
-    const title = markdownToTitle(titleFromFrontmatter, contentWithoutYamlOrLinks, filename)
+    const title: string = markdownToTitle(titleFromFrontmatter, contentWithoutYamlOrLinks, filename)
 
     // Read isContextNode from frontmatter (explicit, not derived)
-    const isContextNode = parsed.data.isContextNode === true
+    const isContextNode: boolean = parsed.data.isContextNode === true
 
     // Extract additional YAML properties, excluding keys that have explicit fields in NodeUIMetadata
-    const additionalYAMLProps = extractAdditionalYAMLProps(parsed.data, NODE_UI_METADATA_YAML_KEYS)
+    const additionalYAMLProps: ReadonlyMap<string, string> = extractAdditionalYAMLProps(parsed.data, NODE_UI_METADATA_YAML_KEYS)
 
     // Return node with computed title
     return {

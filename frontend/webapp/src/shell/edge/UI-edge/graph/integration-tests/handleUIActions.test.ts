@@ -13,7 +13,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type {Core} from 'cytoscape';
 import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
-import { createNewChildNodeFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions.ts'
+import { createNewChildNodeFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions'
 import type { Graph } from '@/pure/graph'
 
 describe('createNewChildNodeFromUI - Integration', () => {
@@ -108,14 +108,14 @@ describe('createNewChildNodeFromUI - Integration', () => {
         expect(cy.edges()).toHaveLength(2)
 
         // AND: The new node should exist with correct label from nodeUIMetadata.title
-        const newNodeId = 'parent.md_1.md' // Based on naming convention in fromUICreateChildToUpsertNode
-        const newNode = cy.getElementById(newNodeId)
+        const newNodeId: "parent.md_1.md" = 'parent.md_1.md' // Based on naming convention in fromUICreateChildToUpsertNode
+        const newNode: cytoscape.CollectionReturnValue = cy.getElementById(newNodeId)
         expect(newNode.length).toBe(1)
         // Label comes from parsing "# new" content via markdownToTitle, extracting title "new"
         expect(newNode.data('label')).toBe('new')
 
         // AND: There should be an edge from parent to the new node
-        const newEdge = cy.getElementById(`parent.md->${newNodeId}`)
+        const newEdge: cytoscape.CollectionReturnValue = cy.getElementById(`parent.md->${newNodeId}`)
         expect(newEdge.length).toBe(1)
         expect(newEdge.data('source')).toBe('parent.md')
         expect(newEdge.data('target')).toBe(newNodeId)
@@ -146,18 +146,18 @@ describe('createNewChildNodeFromUI - Integration', () => {
         await createNewChildNodeFromUI('parent.md', cy)
 
         // THEN: New node should be positioned relative to parent
-        const newNodeId = 'parent.md_1.md'
-        const newNode = cy.getElementById(newNodeId)
-        const newPos = newNode.position()
-        const parentPos = cy.getElementById('parent.md').position()
+        const newNodeId: "parent.md_1.md" = 'parent.md_1.md'
+        const newNode: cytoscape.CollectionReturnValue = cy.getElementById(newNodeId)
+        const newPos: cytoscape.Position = newNode.position()
+        const parentPos: cytoscape.Position = cy.getElementById('parent.md').position()
 
         // Position should be different from parent (angular seeding places it at a distance)
         expect(newPos.x !== parentPos.x || newPos.y !== parentPos.y).toBe(true)
 
         // Position should be a reasonable distance from parent (> 0 and < 1000 pixels)
-        const dx = newPos.x - parentPos.x
-        const dy = newPos.y - parentPos.y
-        const distance = Math.sqrt(dx * dx + dy * dy)
+        const dx: number = newPos.x - parentPos.x
+        const dy: number = newPos.y - parentPos.y
+        const distance: number = Math.sqrt(dx * dx + dy * dy)
 
         expect(distance).toBeGreaterThan(0)
         expect(distance).toBeLessThan(1000)
@@ -165,12 +165,12 @@ describe('createNewChildNodeFromUI - Integration', () => {
 
     it('should extract labels correctly via markdownToTitle for different content types', async () => {
         // Test heading extraction
-        const headingNode = cy.getElementById('parent.md')
+        const headingNode: cytoscape.CollectionReturnValue = cy.getElementById('parent.md')
         expect(headingNode.data('label')).toBe('Parent GraphNode')
         expect(headingNode.data('content')).toBe('# Parent GraphNode')
 
         // Test another heading
-        const childNode = cy.getElementById('child1.md')
+        const childNode: cytoscape.CollectionReturnValue = cy.getElementById('child1.md')
         expect(childNode.data('label')).toBe('Child 1')
         expect(childNode.data('content')).toBe('# Child 1')
     })

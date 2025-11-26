@@ -3,9 +3,9 @@
  * These handle visual feedback and basic interactions.
  */
 import type { Core } from 'cytoscape';
-import type { BreathingAnimationService } from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService.ts';
-import type { StyleService } from '@/shell/UI/cytoscape-graph-ui/services/StyleService.ts';
-import { CLASS_HOVER, CLASS_UNHOVER, CLASS_CONNECTED_HOVER } from '@/shell/UI/cytoscape-graph-ui/constants.ts';
+import type { BreathingAnimationService } from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService';
+import type { StyleService } from '@/shell/UI/cytoscape-graph-ui/services/StyleService';
+import { CLASS_HOVER, CLASS_UNHOVER, CLASS_CONNECTED_HOVER } from '@/shell/UI/cytoscape-graph-ui/constants';
 
 export function setupBasicCytoscapeEventListeners(
   cy: Core,
@@ -54,7 +54,7 @@ export function setupBasicCytoscapeEventListeners(
 
   // Box selection end event - log selected nodes
   cy.on('boxend', () => {
-    const selected = cy.$('node:selected');
+    const selected: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").CollectionReturnValue = cy.$('node:selected');
     console.log(`[VoiceTreeGraphView] Box selection: ${selected.length} nodes selected`, selected.map(n => n.id()));
   });
 

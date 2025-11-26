@@ -14,10 +14,10 @@ import tagParser from 'codemirror-rich-markdoc/src/tagParser';
 import highlightStyle from 'codemirror-rich-markdoc/src/highlightStyle';
 import RichEditPlugin from 'codemirror-rich-markdoc/src/richEdit';
 import renderBlock from 'codemirror-rich-markdoc/src/renderBlock';
-import { Disposable } from '@/shell/UI/views/Disposable.ts';
-import { EventEmitter } from '@/utils/EventEmitter.ts';
-import { mermaidRender } from '@/shell/UI/floating-windows/extensions/mermaidRender.ts';
-import { FloatingWindowFullscreen } from '@/shell/UI/floating-windows/FloatingWindowFullscreen.ts';
+import { Disposable } from '@/shell/UI/views/Disposable';
+import { EventEmitter } from '@/utils/EventEmitter';
+import { mermaidRender } from '@/shell/UI/floating-windows/extensions/mermaidRender';
+import { FloatingWindowFullscreen } from '@/shell/UI/floating-windows/FloatingWindowFullscreen';
 
 /**
  * Configuration options for CodeMirrorEditorView
@@ -74,7 +74,7 @@ export class CodeMirrorEditorView extends Disposable {
     this.fullscreen = new FloatingWindowFullscreen(container);
 
     // Create editor state with extensions
-    const state = EditorState.create({
+    const state: EditorState = EditorState.create({
       doc: initialContent,
       extensions: this.createExtensions()
     });
@@ -102,7 +102,7 @@ export class CodeMirrorEditorView extends Disposable {
 
     // 1. Create markdown config with tagParser extension (for Markdoc {% %} tags)
     // and codeLanguages for syntax highlighting in code blocks
-    const markdownConfig = {
+    const markdownConfig: { extensions: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@lezer/markdown/dist/index").MarkdownConfig[]; codeLanguages: LanguageDescription[]; } = {
       extensions: [tagParser],
       codeLanguages: [
         LanguageDescription.of({ name: 'javascript', alias: ['js'], support: javascript() }),
@@ -114,13 +114,13 @@ export class CodeMirrorEditorView extends Disposable {
     };
 
     // 2. Wrap markdown with yamlFrontmatter support
-    const markdownWithFrontmatter = yamlFrontmatter({
+    const markdownWithFrontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@codemirror/language/dist/index").LanguageSupport = yamlFrontmatter({
       content: markdown(markdownConfig)
     });
 
     // 3. Build the rich-markdoc plugin manually
     // IMPORTANT: The markdown language must be provided BY the plugin, not as a separate extension
-    const richMarkdocPlugin = ViewPlugin.fromClass(RichEditPlugin, {
+    const richMarkdocPlugin: ViewPlugin<RichEditPlugin, undefined> = ViewPlugin.fromClass(RichEditPlugin, {
       decorations: v => v.decorations,
       provide: () => [
         markdownWithFrontmatter, // Provide markdown with frontmatter support
@@ -136,8 +136,8 @@ export class CodeMirrorEditorView extends Disposable {
     });
 
     // Add custom fold service for YAML frontmatter
-    const frontmatterFoldService = foldService.of((state, from, to) => {
-      const tree = syntaxTree(state);
+    const frontmatterFoldService: Extension = foldService.of((state, from, to) => {
+      const tree: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@lezer/common/dist/index").Tree = syntaxTree(state);
       let foldRange: { from: number; to: number } | null = null;
 
       // Check if we're at the start of a Frontmatter node
@@ -148,7 +148,7 @@ export class CodeMirrorEditorView extends Disposable {
           if (node.name === 'Frontmatter' && node.from === from) {
             // Fold from the opening --- to the closing ---
             // We want to keep the first line visible (opening ---) and fold the rest
-            const firstLine = state.doc.lineAt(node.from);
+            const firstLine: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@codemirror/state/dist/index").Line = state.doc.lineAt(node.from);
             foldRange = { from: firstLine.to, to: node.to-1 };
             return false; // Stop iterating
           }
@@ -184,8 +184,8 @@ export class CodeMirrorEditorView extends Disposable {
   private setupUpdateListener(): Extension {
     return EditorView.updateListener.of((viewUpdate: ViewUpdate) => {
       if (viewUpdate.docChanged) {
-        const content = viewUpdate.state.doc.toString();
-        const delay = this.options.autosaveDelay ?? 300;
+        const content: string = viewUpdate.state.doc.toString();
+        const delay: number = this.options.autosaveDelay ?? 300;
 
         // Clear existing timeout
         if (this.debounceTimeout) {
@@ -205,8 +205,8 @@ export class CodeMirrorEditorView extends Disposable {
    * Setup dark mode observer to sync with system theme changes
    */
   private setupDarkModeObserver(): void {
-    const observer = new MutationObserver(() => {
-      const isDark = document.documentElement.classList.contains('dark');
+    const observer: MutationObserver = new MutationObserver(() => {
+      const isDark: boolean = document.documentElement.classList.contains('dark');
       this.container.setAttribute('data-color-mode', isDark ? 'dark' : 'light');
     });
 
@@ -227,7 +227,7 @@ export class CodeMirrorEditorView extends Disposable {
     requestAnimationFrame(() => {
       // Query the foldService at position 0 to see if there's a foldable range
       // Our custom foldService will return the frontmatter fold range if present
-      const foldRange = foldable(this.view.state, 0, this.view.state.doc.length);
+      const foldRange: { from: number; to: number; } | null = foldable(this.view.state, 0, this.view.state.doc.length);
 
       if (foldRange) {
         // Dispatch the fold effect to collapse the frontmatter
@@ -244,9 +244,9 @@ export class CodeMirrorEditorView extends Disposable {
    * @returns true if content has frontmatter (starts with --- and has closing ---)
    */
   private hasFrontmatter(content: string): boolean {
-    const lines = content.split('\n');
-    let yamlTagCount = 0;
-    for (let i = 0; i < Math.min(lines.length, 1000); i++) {
+    const lines: string[] = content.split('\n');
+    let yamlTagCount: number = 0;
+    for (let i: number = 0; i < Math.min(lines.length, 1000); i++) {
       if (lines[i].trim() === '---') {
         yamlTagCount +=1;
       }
@@ -260,7 +260,7 @@ export class CodeMirrorEditorView extends Disposable {
    */
   private registerDisposable(fn: () => void): void {
     // Store disposables internally for cleanup
-    const disposables = (this as unknown as { _disposables?: (() => void)[] })._disposables;
+    const disposables: (() => void)[] | undefined = (this as unknown as { _disposables?: (() => void)[] })._disposables;
     if (!disposables) {
       (this as unknown as { _disposables: (() => void)[] })._disposables = [];
     }
@@ -281,11 +281,11 @@ export class CodeMirrorEditorView extends Disposable {
    */
   setValue(content: string): void {
     // Check if current content has frontmatter
-    const oldContent = this.view.state.doc.toString();
-    const oldHasFrontmatter = this.hasFrontmatter(oldContent);
-    const newHasFrontmatter = this.hasFrontmatter(content);
+    const oldContent: string = this.view.state.doc.toString();
+    const oldHasFrontmatter: boolean = this.hasFrontmatter(oldContent);
+    const newHasFrontmatter: boolean = this.hasFrontmatter(content);
 
-    const doc = this.view.state.doc;
+    const doc: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@codemirror/state/dist/index").Text = this.view.state.doc;
     this.view.dispatch({
       changes: {
         from: 0,
@@ -364,7 +364,7 @@ export class CodeMirrorEditorView extends Disposable {
     this.changeEmitter.clear();
 
     // Call internal disposables cleanup
-    const disposables = (this as unknown as { _disposables?: (() => void)[] })._disposables;
+    const disposables: (() => void)[] | undefined = (this as unknown as { _disposables?: (() => void)[] })._disposables;
     if (disposables) {
       disposables.forEach(fn => fn());
       disposables.length = 0;

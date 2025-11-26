@@ -5,16 +5,16 @@ import type {BrowserWindow} from "electron";
 let mainWindow: BrowserWindow | null = null;
 
 // Getter/setter for controlled access to main window
-export const getMainWindow = (): BrowserWindow | null => {
+export const getMainWindow: () => BrowserWindow | null = (): BrowserWindow | null => {
     return mainWindow;
 };
 
-export const setMainWindow = (window: BrowserWindow): void => {
+export const setMainWindow: (window: BrowserWindow) => void = (window: BrowserWindow): void => {
     mainWindow = window;
 };
 // eslint-disable-next-line functional/no-let
 export let backendPort: number | null = null;
-export const setBackendPort = (port: number | null): void => {
+export const setBackendPort: (port: number | null) => void = (port: number | null): void => {
     backendPort = port
 }
-export const getBackendPort =  (): number | null => backendPort;
+export const getBackendPort: () => number | null =  (): number | null => backendPort;

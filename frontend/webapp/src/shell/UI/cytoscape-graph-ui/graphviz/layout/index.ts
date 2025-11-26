@@ -8,4 +8,4 @@ export type {
   PositioningResult,
   PositioningStrategy,
   StrategyConfig
-} from './types.ts';
+} from './types';

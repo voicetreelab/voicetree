@@ -6,14 +6,14 @@
 
 // Module-level variable to store the backend port
 
-import {getBackendPort} from "@/shell/edge/main/state/app-electron-state.ts";
+import {getBackendPort} from "@/shell/edge/main/state/app-electron-state";
 
 /**
  * Get the backend base URL using the dynamically discovered port
  * Automatically initializes the backend connection if not already initialized
  */
 async function getBackendBaseUrl(): Promise<string> {
-    const conectionURL = `http://localhost:${getBackendPort()}`;
+    const conectionURL: string = `http://localhost:${getBackendPort()}`;
     console.log("connecting to", conectionURL);
     return conectionURL;
 }
@@ -48,8 +48,8 @@ export async function tellSTTServerToLoadDirectory(directoryPath: string): Promi
   }
 
   try {
-    const baseUrl = await getBackendBaseUrl();
-    const response = await fetch(`${baseUrl}/load-directory`, {
+    const baseUrl: string = await getBackendBaseUrl();
+    const response: Response = await fetch(`${baseUrl}/load-directory`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -60,11 +60,11 @@ export async function tellSTTServerToLoadDirectory(directoryPath: string): Promi
     });
 
     if (!response.ok) {
-      const errorData = await response.json() as BackendApiError;
+      const errorData: BackendApiError = await response.json() as BackendApiError;
       throw new Error(`Backend error: ${errorData.detail || response.statusText}`);
     }
 
-    const data = await response.json() as LoadDirectoryResponse;
+    const data: LoadDirectoryResponse = await response.json() as LoadDirectoryResponse;
     console.log(`[Backend API] Load directory success:`, data);
     return data;
   } catch (error) {
@@ -82,8 +82,8 @@ export async function tellSTTServerToLoadDirectory(directoryPath: string): Promi
  */
 export async function checkBackendHealth(): Promise<boolean> {
   try {
-    const baseUrl = await getBackendBaseUrl();
-    const response = await fetch(`${baseUrl}/health`, {
+    const baseUrl: string = await getBackendBaseUrl();
+    const response: Response = await fetch(`${baseUrl}/health`, {
       method: 'GET',
     });
     return response.ok;

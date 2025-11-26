@@ -1,13 +1,13 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { getBuildConfig } from './build-config.ts';
+import { getBuildConfig } from './build-config';
 
 /**
  * Get the tools directory absolutePath in Application Support
  * Returns the user-writable location where agent tools are stored
  */
 export function getToolsDirectory(): string {
-  const config = getBuildConfig();
+  const config: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/electron/build-config").BuildConfig = getBuildConfig();
   return config.toolsDest;
 }
 
@@ -16,7 +16,7 @@ export function getToolsDirectory(): string {
  * Returns the user-writable location where backend modules are stored
  */
 export function getBackendDirectory(): string {
-  const config = getBuildConfig();
+  const config: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/electron/build-config").BuildConfig = getBuildConfig();
   return config.backendDest;
 }
 
@@ -25,11 +25,11 @@ export function getBackendDirectory(): string {
  */
 async function copyDir(src: string, dest: string): Promise<void> {
   await fs.mkdir(dest, { recursive: true });
-  const entries = await fs.readdir(src, { withFileTypes: true });
+  const entries: import("fs").Dirent<string>[] = await fs.readdir(src, { withFileTypes: true });
 
   for (const entry of entries) {
-    const srcPath = path.join(src, entry.name);
-    const destPath = path.join(dest, entry.name);
+    const srcPath: string = path.join(src, entry.name);
+    const destPath: string = path.join(dest, entry.name);
 
     if (entry.isDirectory()) {
       await copyDir(srcPath, destPath);
@@ -48,7 +48,7 @@ async function copyDir(src: string, dest: string): Promise<void> {
  * Uses centralized build-config for all absolutePath resolution
  */
 export async function setupToolsDirectory(): Promise<void> {
-  const config = getBuildConfig();
+  const config: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/electron/build-config").BuildConfig = getBuildConfig();
 
   // Skip entirely in test mode
   if (!config.shouldCopyTools) {
@@ -57,13 +57,13 @@ export async function setupToolsDirectory(): Promise<void> {
   }
 
   // Add timeout wrapper (10 seconds max)
-  const timeoutPromise = new Promise<void>((_, reject) => {
+  const timeoutPromise: Promise<void> = new Promise<void>((_, reject) => {
     setTimeout(() => {
       reject(new Error('[Setup] Timeout: tools setup took > 10 seconds'));
     }, 10000);
   });
 
-  const setupPromise = setupToolsDirectoryInternal(config);
+  const setupPromise: Promise<void> = setupToolsDirectoryInternal(config);
 
   return Promise.race([setupPromise, timeoutPromise]);
 }
@@ -93,8 +93,8 @@ async function setupToolsDirectoryInternal(config: ReturnType<typeof getBuildCon
     console.log('[Setup]   Backend:', backendSource);
 
     // Verify source directories exist
-    let toolsExist = false;
-    let backendExist = false;
+    let toolsExist: boolean = false;
+    let backendExist: boolean = false;
 
     try {
       await fs.access(toolsSource);

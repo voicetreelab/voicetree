@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { fromNodeToMarkdownContent } from '@/pure/graph/markdown-writing/node_to_markdown.ts'
-import { parseMarkdownToGraphNode } from '@/pure/graph/markdown-parsing/parse-markdown-to-node.ts'
+import { fromNodeToMarkdownContent } from '@/pure/graph/markdown-writing/node_to_markdown'
+import { parseMarkdownToGraphNode } from '@/pure/graph/markdown-parsing/parse-markdown-to-node'
 import type { Graph, GraphNode } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
 
@@ -23,7 +23,7 @@ describe('fromNodeToMarkdownContent', () => {
         }
       }
 
-      const result = fromNodeToMarkdownContent(node)
+      const result: string = fromNodeToMarkdownContent(node)
 
       // Should generate frontmatter with nodeUIMetadata color
       expect(result).toContain('color: #00FF00')
@@ -44,7 +44,7 @@ describe('fromNodeToMarkdownContent', () => {
         }
       }
 
-      const result = fromNodeToMarkdownContent(node)
+      const result: string = fromNodeToMarkdownContent(node)
 
       // Should only have color in frontmatter
       expect(result).toContain('color: #00FF00')
@@ -66,7 +66,7 @@ describe('fromNodeToMarkdownContent', () => {
         }
       }
 
-      const result = fromNodeToMarkdownContent(node)
+      const result: string = fromNodeToMarkdownContent(node)
 
       // Should generate frontmatter with nodeUIMetadata position
       expect(result).toContain('position:')
@@ -89,7 +89,7 @@ describe('fromNodeToMarkdownContent', () => {
         }
       }
 
-      const result = fromNodeToMarkdownContent(node)
+      const result: string = fromNodeToMarkdownContent(node)
 
       // Should have both nodeUIMetadata fields in frontmatter
       expect(result).toContain('color: #FFAA00')
@@ -113,7 +113,7 @@ describe('fromNodeToMarkdownContent', () => {
         }
       }
 
-      const result = fromNodeToMarkdownContent(node)
+      const result: string = fromNodeToMarkdownContent(node)
 
       expect(result).toContain('---\n')
       expect(result).toContain('color: #0000FF')
@@ -137,7 +137,7 @@ describe('fromNodeToMarkdownContent', () => {
         }
       }
 
-      const result = fromNodeToMarkdownContent(node)
+      const result: string = fromNodeToMarkdownContent(node)
 
       // Should only have nodeUIMetadata color
       expect(result).toContain('color: #AABBCC')
@@ -158,7 +158,7 @@ describe('fromNodeToMarkdownContent', () => {
         }
       }
 
-      const result = fromNodeToMarkdownContent(node)
+      const result: string = fromNodeToMarkdownContent(node)
 
       expect(result).toContain('color: #DDEEFF')
       expect(result).toContain('position:')
@@ -181,7 +181,7 @@ describe('fromNodeToMarkdownContent', () => {
         }
       }
 
-      const result = fromNodeToMarkdownContent(node)
+      const result: string = fromNodeToMarkdownContent(node)
 
       // [link]* should be restored to [[link]]
       expect(result).toContain('[[other-note]]')
@@ -206,7 +206,7 @@ describe('fromNodeToMarkdownContent', () => {
         }
       }
 
-      const result = fromNodeToMarkdownContent(node)
+      const result: string = fromNodeToMarkdownContent(node)
 
       expect(result).toContain('# Test Content')
       expect(result).toContain('[[child1.md]]')
@@ -229,7 +229,7 @@ describe('fromNodeToMarkdownContent', () => {
         }
       }
 
-      const result = fromNodeToMarkdownContent(node)
+      const result: string = fromNodeToMarkdownContent(node)
 
       expect(result).toContain('# Test Content')
       expect(result).not.toContain('[[')
@@ -249,7 +249,7 @@ describe('fromNodeToMarkdownContent', () => {
         }
       }
 
-      const result = fromNodeToMarkdownContent(node)
+      const result: string = fromNodeToMarkdownContent(node)
 
       // child1.md is already in content, so it will be restored to [[child1.md]]
       // and shouldn't be appended again
@@ -257,7 +257,7 @@ describe('fromNodeToMarkdownContent', () => {
       // child2.md is not in content, so it should be appended
       expect(result).toContain('[[child2.md]]')
       // Count occurrences - child1.md should only appear once
-      const child1Count = (result.match(/\[\[child1\.md\]\]/g) ?? []).length
+      const child1Count: number = (result.match(/\[\[child1\.md\]\]/g) ?? []).length
       expect(child1Count).toBe(1)
     })
   })
@@ -280,7 +280,7 @@ describe('fromNodeToMarkdownContent', () => {
         }
       }
 
-      const result = fromNodeToMarkdownContent(node)
+      const result: string = fromNodeToMarkdownContent(node)
 
       expect(result).toContain('author: John Doe')
       expect(result).toContain('custom_field: some value')
@@ -303,7 +303,7 @@ describe('fromNodeToMarkdownContent', () => {
         }
       }
 
-      const result = fromNodeToMarkdownContent(node)
+      const result: string = fromNodeToMarkdownContent(node)
 
       expect(result).toContain('priority: 5')
       expect(result).toContain('version: 2.1')
@@ -326,7 +326,7 @@ describe('fromNodeToMarkdownContent', () => {
         }
       }
 
-      const result = fromNodeToMarkdownContent(node)
+      const result: string = fromNodeToMarkdownContent(node)
 
       expect(result).toContain('published: true')
       expect(result).toContain('archived: false')
@@ -348,7 +348,7 @@ describe('fromNodeToMarkdownContent', () => {
         }
       }
 
-      const result = fromNodeToMarkdownContent(node)
+      const result: string = fromNodeToMarkdownContent(node)
 
       // Should restore as proper YAML array
       expect(result).toContain('tags:')
@@ -372,7 +372,7 @@ describe('fromNodeToMarkdownContent', () => {
         }
       }
 
-      const result = fromNodeToMarkdownContent(node)
+      const result: string = fromNodeToMarkdownContent(node)
 
       // Should restore as proper YAML object
       expect(result).toContain('metadata:')
@@ -397,7 +397,7 @@ describe('fromNodeToMarkdownContent', () => {
         }
       }
 
-      const result = fromNodeToMarkdownContent(node)
+      const result: string = fromNodeToMarkdownContent(node)
 
       // All properties should be in frontmatter
       expect(result).toContain('color: #FF0000')
@@ -422,7 +422,7 @@ describe('fromNodeToMarkdownContent', () => {
         }
       }
 
-      const result = fromNodeToMarkdownContent(node)
+      const result: string = fromNodeToMarkdownContent(node)
 
       // Should only have color in frontmatter
       expect(result).toContain('color: #FF0000')
@@ -432,7 +432,7 @@ describe('fromNodeToMarkdownContent', () => {
 
   describe('round-trip: parse -> write -> parse', () => {
     it('should preserve additionalYAMLProps through round-trip with strings', () => {
-      const originalMarkdown = `---
+      const originalMarkdown: "---\ncolor: \"#FF0000\"\nauthor: \"John Doe\"\nstatus: \"draft\"\n---\n# Test Content\n\nSome content here" = `---
 color: "#FF0000"
 author: "John Doe"
 status: "draft"
@@ -442,13 +442,13 @@ status: "draft"
 Some content here`
 
       // Parse markdown to node
-      const node = parseMarkdownToGraphNode(originalMarkdown, 'test.md', emptyGraph)
+      const node: GraphNode = parseMarkdownToGraphNode(originalMarkdown, 'test.md', emptyGraph)
 
       // Write node back to markdown
-      const writtenMarkdown = fromNodeToMarkdownContent(node)
+      const writtenMarkdown: string = fromNodeToMarkdownContent(node)
 
       // Parse again
-      const reparsedNode = parseMarkdownToGraphNode(writtenMarkdown, 'test.md', emptyGraph)
+      const reparsedNode: GraphNode = parseMarkdownToGraphNode(writtenMarkdown, 'test.md', emptyGraph)
 
       // Check that additionalYAMLProps are preserved
       expect(reparsedNode.nodeUIMetadata.additionalYAMLProps.get('author')).toBe('John Doe')
@@ -457,7 +457,7 @@ Some content here`
     })
 
     it('should preserve additionalYAMLProps through round-trip with various types', () => {
-      const originalMarkdown = `---
+      const originalMarkdown: "---\ncolor: \"#00FF00\"\npriority: 5\npublished: true\ntags:\n  - important\n  - review\nmetadata:\n  created: \"2024-01-15\"\n  version: 2\n---\n# Complex Test\n\nContent with complex frontmatter" = `---
 color: "#00FF00"
 priority: 5
 published: true
@@ -473,29 +473,29 @@ metadata:
 Content with complex frontmatter`
 
       // Parse markdown to node
-      const node = parseMarkdownToGraphNode(originalMarkdown, 'test.md', emptyGraph)
+      const node: GraphNode = parseMarkdownToGraphNode(originalMarkdown, 'test.md', emptyGraph)
 
       // Verify initial parsing
       expect(node.nodeUIMetadata.additionalYAMLProps.get('priority')).toBe('5')
       expect(node.nodeUIMetadata.additionalYAMLProps.get('published')).toBe('true')
 
       // Write node back to markdown
-      const writtenMarkdown = fromNodeToMarkdownContent(node)
+      const writtenMarkdown: string = fromNodeToMarkdownContent(node)
 
       // Parse again
-      const reparsedNode = parseMarkdownToGraphNode(writtenMarkdown, 'test.md', emptyGraph)
+      const reparsedNode: GraphNode = parseMarkdownToGraphNode(writtenMarkdown, 'test.md', emptyGraph)
 
       // Check that all properties are preserved
       expect(reparsedNode.nodeUIMetadata.additionalYAMLProps.get('priority')).toBe('5')
       expect(reparsedNode.nodeUIMetadata.additionalYAMLProps.get('published')).toBe('true')
 
       // Arrays and objects are stored as JSON strings and should be preserved
-      const tags = reparsedNode.nodeUIMetadata.additionalYAMLProps.get('tags')
+      const tags: string | undefined = reparsedNode.nodeUIMetadata.additionalYAMLProps.get('tags')
       expect(tags).toBeDefined()
       // After round-trip, arrays are parsed back from YAML so they may be JSON-stringified again
       expect(tags).toBeTruthy()
 
-      const metadata = reparsedNode.nodeUIMetadata.additionalYAMLProps.get('metadata')
+      const metadata: string | undefined = reparsedNode.nodeUIMetadata.additionalYAMLProps.get('metadata')
       expect(metadata).toBeDefined()
       expect(metadata).toBeTruthy()
     })
@@ -519,7 +519,7 @@ Content with complex frontmatter`
       }
 
       // Write to markdown
-      const markdown = fromNodeToMarkdownContent(node1)
+      const markdown: string = fromNodeToMarkdownContent(node1)
 
       // Verify markdown contains all properties
       expect(markdown).toContain('color: #ABCDEF')
@@ -530,7 +530,7 @@ Content with complex frontmatter`
       expect(markdown).toContain('category: research')
 
       // Parse back
-      const node2 = parseMarkdownToGraphNode(markdown, 'test.md', emptyGraph)
+      const node2: GraphNode = parseMarkdownToGraphNode(markdown, 'test.md', emptyGraph)
 
       // Verify additionalYAMLProps are preserved (main goal of this feature)
       expect(node2.nodeUIMetadata.additionalYAMLProps.get('author')).toBe('Jane Smith')
@@ -541,13 +541,13 @@ Content with complex frontmatter`
     })
 
     it('should handle round-trip with no frontmatter', () => {
-      const originalMarkdown = `# Simple Note
+      const originalMarkdown: "# Simple Note\n\nJust content, no frontmatter" = `# Simple Note
 
 Just content, no frontmatter`
 
-      const node1 = parseMarkdownToGraphNode(originalMarkdown, 'test.md', emptyGraph)
-      const markdown2 = fromNodeToMarkdownContent(node1)
-      const node2 = parseMarkdownToGraphNode(markdown2, 'test.md', emptyGraph)
+      const node1: GraphNode = parseMarkdownToGraphNode(originalMarkdown, 'test.md', emptyGraph)
+      const markdown2: string = fromNodeToMarkdownContent(node1)
+      const node2: GraphNode = parseMarkdownToGraphNode(markdown2, 'test.md', emptyGraph)
 
       // Should have empty additionalYAMLProps
       expect(node2.nodeUIMetadata.additionalYAMLProps.size).toBe(0)

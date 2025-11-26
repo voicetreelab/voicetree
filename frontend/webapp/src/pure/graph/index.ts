@@ -1,15 +1,15 @@
 import * as O from 'fp-ts/lib/Option.js'
 import * as RTE from 'fp-ts/lib/ReaderTaskEither.js'
-import { applyGraphDeltaToGraph } from './graphDelta/applyGraphDeltaToGraph.ts'
-import { mapNewGraphToDelta } from './graphDelta/mapNewGraphtoDelta.ts'
-import { stripDeltaForReplay } from './graphDelta/stripDeltaForReplay.ts'
-import { setOutgoingEdges } from './graph-operations /graph-edge-operations.ts'
-import { reverseGraphEdges } from './graph-operations /graph-transformations.ts'
-import { prettyPrintGraphDelta } from './graph-operations /prettyPrint.ts'
-import { graphToAscii } from './markdown-writing/graphToAscii.ts'
-import { getSubgraphByDistance } from './graph-operations /traversal/getSubgraphByDistance.ts'
-import { getNodeIdsInTraversalOrder } from './graph-operations /traversal/getNodeIdsInTraversalOrder.ts'
-import { mapFSEventsToGraphDelta } from './mapFSEventsToGraphDelta.ts'
+import { applyGraphDeltaToGraph } from './graphDelta/applyGraphDeltaToGraph'
+import { mapNewGraphToDelta } from './graphDelta/mapNewGraphtoDelta'
+import { stripDeltaForReplay } from './graphDelta/stripDeltaForReplay'
+import { setOutgoingEdges } from './graph-operations /graph-edge-operations'
+import { reverseGraphEdges } from './graph-operations /graph-transformations'
+import { prettyPrintGraphDelta } from './graph-operations /prettyPrint'
+import { graphToAscii } from './markdown-writing/graphToAscii'
+import { getSubgraphByDistance } from './graph-operations /traversal/getSubgraphByDistance'
+import { getNodeIdsInTraversalOrder } from './graph-operations /traversal/getNodeIdsInTraversalOrder'
+import { mapFSEventsToGraphDelta } from './mapFSEventsToGraphDelta'
 
 
 // CONTAINS TYPES AND FUNCTION TYPES
@@ -72,7 +72,7 @@ const _exampleNodeUIMetadata: NodeUIMetadata = {
 }
 
 // Keys that have explicit fields in NodeUIMetadata (excludes additionalYAMLProps which holds the rest)
-export const NODE_UI_METADATA_YAML_KEYS = new Set(
+export const NODE_UI_METADATA_YAML_KEYS: Set<string> = new Set(
     Object.keys(_exampleNodeUIMetadata).filter(k => k !== 'additionalYAMLProps')
 )
 
@@ -163,32 +163,32 @@ export type PrettyPrintGraphDelta = (delta: GraphDelta) => string
 
 // === CORE GRAPH DELTA OPERATIONS ===
 
-export { applyGraphDeltaToGraph } from './graphDelta/applyGraphDeltaToGraph.ts'
+export { applyGraphDeltaToGraph } from './graphDelta/applyGraphDeltaToGraph'
 void (applyGraphDeltaToGraph satisfies ApplyGraphDeltaToGraph)
 
-export { mapNewGraphToDelta } from './graphDelta/mapNewGraphtoDelta.ts'
+export { mapNewGraphToDelta } from './graphDelta/mapNewGraphtoDelta'
 void (mapNewGraphToDelta satisfies MapNewGraphToDelta)
 
-export { stripDeltaForReplay } from './graphDelta/stripDeltaForReplay.ts'
+export { stripDeltaForReplay } from './graphDelta/stripDeltaForReplay'
 void (stripDeltaForReplay satisfies StripDeltaForReplay)
 
-export { mapFSEventsToGraphDelta } from './mapFSEventsToGraphDelta.ts'
+export { mapFSEventsToGraphDelta } from './mapFSEventsToGraphDelta'
 void (mapFSEventsToGraphDelta satisfies MapFSEventsToGraphDelta)
 
-export { setOutgoingEdges } from './graph-operations /graph-edge-operations.ts'
+export { setOutgoingEdges } from './graph-operations /graph-edge-operations'
 void (setOutgoingEdges satisfies SetOutgoingEdges)
 
-export { reverseGraphEdges } from './graph-operations /graph-transformations.ts'
+export { reverseGraphEdges } from './graph-operations /graph-transformations'
 void (reverseGraphEdges satisfies ReverseGraphEdges)
 
-export { getSubgraphByDistance } from './graph-operations /traversal/getSubgraphByDistance.ts'
+export { getSubgraphByDistance } from './graph-operations /traversal/getSubgraphByDistance'
 void (getSubgraphByDistance satisfies GetSubgraphByDistance)
 
-export { graphToAscii } from './markdown-writing/graphToAscii.ts'
+export { graphToAscii } from './markdown-writing/graphToAscii'
 void (graphToAscii satisfies GraphToAscii)
 
-export { getNodeIdsInTraversalOrder } from './graph-operations /traversal/getNodeIdsInTraversalOrder.ts'
+export { getNodeIdsInTraversalOrder } from './graph-operations /traversal/getNodeIdsInTraversalOrder'
 void (getNodeIdsInTraversalOrder satisfies GetNodeIdsInTraversalOrder)
 
-export { prettyPrintGraphDelta } from './graph-operations /prettyPrint.ts'
+export { prettyPrintGraphDelta } from './graph-operations /prettyPrint'
 void (prettyPrintGraphDelta satisfies PrettyPrintGraphDelta)
