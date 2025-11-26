@@ -80,12 +80,12 @@ export class SearchService {
 
     const searchData: NinjaAction[] = nodes.map((node) => {
       const nodeId: string = node.id();
-      const label = node.data('label') ?? nodeId;
-      const content = node.data('content') ?? ''; //todo are we setting content in node?
+      const label: string = node.data('label') as string ?? nodeId;
+      const content: string = node.data('content') as string ?? ''; //todo are we setting content in node?
 
       // Extract first line of content for description (max 300 chars)
-      const firstLine = content.split('\n')[0].trim();
-      const description = firstLine.length > 300
+      const firstLine: string = content.split('\n')[0].trim();
+      const description: string = firstLine.length > 300
         ? firstLine.substring(0, 300) + '...'
         : firstLine;
 

@@ -53,7 +53,7 @@ export class SpeedDialSideGraphFloatingMenuView extends Disposable {
         id: 'settings',
         label: 'Settings',
         iconName: 'settings',
-        onClick: options.onSettings || (() => console.log('[SpeedDial] Settings clicked')),
+        onClick: options.onSettings ?? (() => console.log('[SpeedDial] Settings clicked')),
       },
       {
         id: 'backup',
@@ -66,7 +66,7 @@ export class SpeedDialSideGraphFloatingMenuView extends Disposable {
         id: 'about',
         label: 'About',
         iconName: 'info',
-        onClick: options.onAbout || (() => console.log('[SpeedDial] About clicked')),
+        onClick: options.onAbout ?? (() => console.log('[SpeedDial] About clicked')),
       },
     ];
 

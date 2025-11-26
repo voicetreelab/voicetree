@@ -5,7 +5,7 @@ interface SpeakerLabelProps {
   className?: string;
 }
 
-export default function SpeakerLabel({ speakerNumber }: SpeakerLabelProps) {
+export default function SpeakerLabel({ speakerNumber }: SpeakerLabelProps): JSX.Element {
   const speakerColor: string = getSpeakerColor(speakerNumber);
 
   return (

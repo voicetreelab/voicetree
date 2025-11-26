@@ -196,7 +196,7 @@ describe('hasFrontmatter method', () => {
     const tempEditor: CodeMirrorEditorView = new CodeMirrorEditorView(container, content);
     // Access the private method by using object index access
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = (tempEditor as Record<string, any>).hasFrontmatter(content);
+    const result: boolean = (tempEditor as Record<string, any>).hasFrontmatter(content) as boolean;
     tempEditor.dispose();
     return result;
   };

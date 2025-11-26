@@ -5,7 +5,7 @@ interface StatusDisplayProps {
   port?: number;
 }
 
-export default function StatusDisplay({ state, port }: StatusDisplayProps) {
+export default function StatusDisplay({ state, port }: StatusDisplayProps): JSX.Element {
   return (
     <div className="flex items-center gap-2">
       <div

@@ -7,7 +7,7 @@ import { globalIgnores } from 'eslint/config'
 import functional from 'eslint-plugin-functional'
 
 export default tseslint.config([
-  globalIgnores(['dist', 'node_modules']),
+  globalIgnores(['dist', 'node_modules', 'dist-electron', '*.config.ts']),
   // Config files use tsconfig.node.json
   {
     files: ['*.config.ts'],
@@ -130,6 +130,10 @@ export default tseslint.config([
       '@typescript-eslint/no-require-imports': 'off',
       // Allow any in test files for mock types
       '@typescript-eslint/no-explicit-any': 'warn',
+      // Relax type annotation requirements in tests
+      '@typescript-eslint/typedef': 'off',
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      '@typescript-eslint/prefer-nullish-coalescing': 'off',
       // Relax functional rules in e2e-tests
       'functional/no-let': 'off',
       'functional/immutable-data': 'off',

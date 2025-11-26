@@ -8,7 +8,14 @@ interface TranscriptionToken {
   timestamp?: number;
 }
 
-export default function useWebSpeechTranscription() {
+export default function useWebSpeechTranscription(): {
+  state: TranscriptionState;
+  finalTokens: TranscriptionToken[];
+  nonFinalTokens: TranscriptionToken[];
+  error: Error | null;
+  startTranscription: () => void;
+  stopTranscription: () => void;
+} {
   const [state, setState] = useState<TranscriptionState>('Idle');
   const [finalTokens, setFinalTokens] = useState<TranscriptionToken[]>([]);
   const [nonFinalTokens, setNonFinalTokens] = useState<TranscriptionToken[]>([]);

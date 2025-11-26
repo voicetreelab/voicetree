@@ -1,7 +1,7 @@
 import type { Token } from "@soniox/speech-to-text-web";
 import { useEffect, useRef } from "react";
 
-export default function useAutoScroll(tokens: Token[]) {
+export default function useAutoScroll(tokens: Token[]): import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@types/react/index").RefObject<HTMLDivElement | null> {
   const ref: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@types/react/index").RefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);
   const prevTokenCountRef: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@types/react/index").RefObject<number> = useRef(0);
 
