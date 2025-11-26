@@ -3,11 +3,11 @@ import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
-import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk.ts'
-import { mapNewGraphToDelta } from '@/pure/graph/graphDelta/mapNewGraphtoDelta.ts'
+import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk'
+import { mapNewGraphToDelta } from '@/pure/graph/graphDelta/mapNewGraphtoDelta'
 import cytoscape from 'cytoscape'
 import type { Core } from 'cytoscape'
-import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI.ts'
+import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
 
 /**
  * Integration test for edge labels through the full pipeline:
@@ -41,7 +41,7 @@ describe('Edge Labels - Full Pipeline Integration Test', () => {
     console.log('\n=== FULL PIPELINE TEST: Edge Labels ===\n')
 
     // STEP 1: Create markdown files on disk with relationship labels
-    const node5Content = `---
+    const node5Content: "---\nnode_id: 5\ntitle: Understand Google Cloud Lambda Creation (5)\n---\n### Understand the process of creating a Google Cloud Lambda function.\n\nA bit of background on how I can actually create the lambda itself.\n\n-----------------\n_Links:_\nParent:\n- is_a_prerequisite_for [[3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation.md]]" = `---
 node_id: 5
 title: Understand Google Cloud Lambda Creation (5)
 ---
@@ -54,7 +54,7 @@ _Links:_
 Parent:
 - is_a_prerequisite_for [[3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation.md]]`
 
-    const node3Content = `---
+    const node3Content: "---\nnode_id: 3\ntitle: Setup G Cloud CLI and Understand Lambda Creation (3)\n---\nSetup instructions." = `---
 node_id: 3
 title: Setup G Cloud CLI and Understand Lambda Creation (3)
 ---
@@ -66,16 +66,16 @@ Setup instructions.`
     console.log('✓ Step 1: Created markdown files on disk')
 
     // STEP 2: Load graph from disk
-    const loadResult = await loadGraphFromDisk(O.some(tempDir))
+    const loadResult: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(tempDir))
     if (E.isLeft(loadResult)) throw new Error('Expected Right')
-    const graph = loadResult.right
+    const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = loadResult.right
 
     console.log('✓ Step 2: Loaded graph from disk')
     console.log('  Graph nodes:', Object.keys(graph.nodes))
     console.log('  All node IDs in graph:', JSON.stringify(Object.keys(graph.nodes), null, 2))
 
     // VERIFY: Graph should have edges with labels
-    const node5 = graph.nodes['5_Understand_G_Cloud_Lambda.md']
+    const node5: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = graph.nodes['5_Understand_G_Cloud_Lambda.md']
     expect(node5).toBeDefined()
     expect(node5.outgoingEdges).toHaveLength(1)
 
@@ -89,13 +89,13 @@ Setup instructions.`
     console.log('✓ Step 3: Verified edge has label in Graph')
 
     // STEP 3: Convert graph to GraphDelta
-    const delta = mapNewGraphToDelta(graph)
+    const delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = mapNewGraphToDelta(graph)
 
     console.log('✓ Step 4: Converted graph to GraphDelta')
     console.log('  Delta length:', delta.length)
 
     // Find node 5 in delta
-    const node5Delta = delta.find(d => d.type === 'UpsertNode' && d.nodeToUpsert.relativeFilePathIsID === '5_Understand_G_Cloud_Lambda.md')
+    const node5Delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").NodeDelta | undefined = delta.find(d => d.type === 'UpsertNode' && d.nodeToUpsert.relativeFilePathIsID === '5_Understand_G_Cloud_Lambda.md')
     expect(node5Delta).toBeDefined()
 
     if (node5Delta?.type === 'UpsertNode') {
@@ -118,7 +118,7 @@ Setup instructions.`
     console.log('  Cytoscape edges:', cy.edges().length)
 
     // VERIFY: Cytoscape should have edge with label
-    const cytoscapeEdge = cy.edges('[source="5_Understand_G_Cloud_Lambda.md"][target="3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation.md"]')
+    const cytoscapeEdge: cytoscape.EdgeCollection = cy.edges('[source="5_Understand_G_Cloud_Lambda.md"][target="3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation.md"]')
 
     expect(cytoscapeEdge.length).toBe(1)
 
@@ -133,7 +133,7 @@ Setup instructions.`
   })
 
   it('should handle multiple edges with different labels', async () => {
-    const nodeWithMultipleEdges = `---
+    const nodeWithMultipleEdges: "---\ntitle: Main Node\n---\nContent here.\n\n_Links:_\n- references [[node-a]]\n- extends [[node-b]]\n- implements [[node-c]]" = `---
 title: Main Node
 ---
 Content here.
@@ -148,13 +148,13 @@ _Links:_
     await fs.writeFile(path.join(tempDir, 'node-b.md'), '# Node B', 'utf-8')
     await fs.writeFile(path.join(tempDir, 'node-c.md'), '# Node C', 'utf-8')
 
-    const loadResult2 = await loadGraphFromDisk(O.some(tempDir))
+    const loadResult2: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(tempDir))
     if (E.isLeft(loadResult2)) throw new Error('Expected Right')
-    const graph = loadResult2.right
-    const delta = mapNewGraphToDelta(graph)
+    const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = loadResult2.right
+    const delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = mapNewGraphToDelta(graph)
     applyGraphDeltaToUI(cy, delta)
 
-    const mainNode = graph.nodes['main.md']
+    const mainNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = graph.nodes['main.md']
     expect(mainNode.outgoingEdges).toHaveLength(3)
     expect(mainNode.outgoingEdges).toEqual([
       { targetId: 'node-a.md', label: 'references' },
@@ -163,9 +163,9 @@ _Links:_
     ])
 
     // Verify in Cytoscape
-    const edgeA = cy.edges('[source="main.md"][target="node-a.md"]')
-    const edgeB = cy.edges('[source="main.md"][target="node-b.md"]')
-    const edgeC = cy.edges('[source="main.md"][target="node-c.md"]')
+    const edgeA: cytoscape.EdgeCollection = cy.edges('[source="main.md"][target="node-a.md"]')
+    const edgeB: cytoscape.EdgeCollection = cy.edges('[source="main.md"][target="node-b.md"]')
+    const edgeC: cytoscape.EdgeCollection = cy.edges('[source="main.md"][target="node-c.md"]')
 
     expect(edgeA.data('label')).toBe('references')
     expect(edgeB.data('label')).toBe('extends')

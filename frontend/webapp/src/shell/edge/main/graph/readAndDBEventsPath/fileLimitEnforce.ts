@@ -1,7 +1,7 @@
 import {dialog} from 'electron';
 import * as E from 'fp-ts/lib/Either.js';
 
-const MAX_FILES = 300;
+const MAX_FILES: 300 = 300;
 
 /**
  * Error type for file limit exceeded

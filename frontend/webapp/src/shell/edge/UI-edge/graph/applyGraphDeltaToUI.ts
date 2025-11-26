@@ -28,15 +28,15 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
         // PASS 1: Create/update all nodes and handle deletions
         delta.forEach((nodeDelta) => {
             if (nodeDelta.type === 'UpsertNode') {
-                const node = nodeDelta.nodeToUpsert;
-                const nodeId = node.relativeFilePathIsID;
-                const existingNode = cy.getElementById(nodeId);
-                const isNewNode = existingNode.length === 0;
+                const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = nodeDelta.nodeToUpsert;
+                const nodeId: string = node.relativeFilePathIsID;
+                const existingNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").CollectionReturnValue = cy.getElementById(nodeId);
+                const isNewNode: boolean = existingNode.length === 0;
 
                 if (isNewNode) {
                     // Add new node with position (or default to origin if none)
-                    const pos = O.getOrElse(() => ({x: 0, y: 0}))(node.nodeUIMetadata.position);
-                    const colorValue = O.isSome(node.nodeUIMetadata.color) && isValidCSSColor(node.nodeUIMetadata.color.value)
+                    const pos: { x: number; y: number; } = O.getOrElse(() => ({x: 0, y: 0}))(node.nodeUIMetadata.position);
+                    const colorValue: string | undefined = O.isSome(node.nodeUIMetadata.color) && isValidCSSColor(node.nodeUIMetadata.color.value)
                         ? node.nodeUIMetadata.color.value
                         : undefined;
 
@@ -61,7 +61,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                     existingNode.data('label', node.nodeUIMetadata.title);
                     // DO NOT sET existingNode.data('content', node.content); it's too much storage duplicated unnec in frontend.
                     existingNode.data('summary', '');
-                    const color = O.isSome(node.nodeUIMetadata.color) && isValidCSSColor(node.nodeUIMetadata.color.value)
+                    const color: string | undefined = O.isSome(node.nodeUIMetadata.color) && isValidCSSColor(node.nodeUIMetadata.color.value)
                         ? node.nodeUIMetadata.color.value
                         : undefined;
                     if (color === undefined) {
@@ -72,8 +72,8 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                     existingNode.emit('content-changed'); //todo, this event system, should we use this or hook into FS at breathing animation? same for markdown editor updates...
                 }
             } else if (nodeDelta.type === 'DeleteNode') {
-                const nodeId = nodeDelta.nodeId;
-                const nodeToRemove = cy.getElementById(nodeId);
+                const nodeId: string = nodeDelta.nodeId;
+                const nodeToRemove: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").CollectionReturnValue = cy.getElementById(nodeId);
                 if (nodeToRemove.length > 0) {
                     nodeToRemove.remove();
                 }
@@ -83,13 +83,13 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
         // PASS 2: Sync edges for each node (add missing, remove stale)
         delta.forEach((nodeDelta) => {
             if (nodeDelta.type === 'UpsertNode') {
-                const node = nodeDelta.nodeToUpsert;
-                const nodeId = node.relativeFilePathIsID;
+                const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = nodeDelta.nodeToUpsert;
+                const nodeId: string = node.relativeFilePathIsID;
 
                 // Get current edges from this node in Cytoscape
-                const currentEdges = cy.edges(`[source = "${nodeId}"]`);
-                const currentTargets = new Set(currentEdges.map(edge => edge.data('target')));
-                const desiredTargets = new Set(node.outgoingEdges.map(edge => edge.targetId));
+                const currentEdges: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").EdgeCollection = cy.edges(`[source = "${nodeId}"]`);
+                const currentTargets: Set<any> = new Set(currentEdges.map(edge => edge.data('target')));
+                const desiredTargets: Set<string> = new Set(node.outgoingEdges.map(edge => edge.targetId));
 
                 // Remove edges that are no longer in outgoingEdges
                 currentEdges.forEach((edge) => {
@@ -103,13 +103,13 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                 // Add edges for all outgoing connections (if they don't exist)
                 node.outgoingEdges.forEach((edge) => {
                     if (!currentTargets.has(edge.targetId)) {
-                        const edgeId = `${nodeId}->${edge.targetId}`;
+                        const edgeId: string = `${nodeId}->${edge.targetId}`;
                         // Only create edge if target node exists AND edge doesn't already exist
                         // (belt-and-suspenders check - currentTargets should catch most cases,
                         // but direct getElementById catches edge cases like same node appearing
                         // multiple times in delta or race conditions between deltas)
-                        const targetNode = cy.getElementById(edge.targetId);
-                        const existingEdge = cy.getElementById(edgeId);
+                        const targetNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").CollectionReturnValue = cy.getElementById(edge.targetId);
+                        const existingEdge: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").CollectionReturnValue = cy.getElementById(edgeId);
                         if (existingEdge.length > 0) {
                             // Edge already exists (race condition or duplicate in delta)
                             console.log(`[applyGraphDeltaToUI] Edge ${edgeId} already exists, skipping`);
@@ -137,9 +137,9 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
         // setTimeout(() =>  cy.fit(), 800) // cy.fit  after layout would have finished. UNNECESSARY IF WE HAVE POSITIONS DERIVED FROM ANGULAR
     }
     //analytics
-    const anonGraphDelta = stripDeltaForReplay(delta);
+    const anonGraphDelta: GraphDelta = stripDeltaForReplay(delta);
     posthog.capture('graphDelta', {delta: anonGraphDelta});
-    const userId = posthog.get_distinct_id()
+    const userId: string = posthog.get_distinct_id()
     console.log("UUID", userId);
     console.log('[applyGraphDeltaToUI] Complete. Total nodes:', cy.nodes().length, 'Total edges:', cy.edges().length);
 }

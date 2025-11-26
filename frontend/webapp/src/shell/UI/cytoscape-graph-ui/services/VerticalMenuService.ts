@@ -1,6 +1,6 @@
 import type {Core} from 'cytoscape';
 import ctxmenu from '@/shell/UI/lib/ctxmenu.js';
-import {deleteNodeFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions.ts";
+import {deleteNodeFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions";
 
 export interface Position {
     x: number;
@@ -24,13 +24,13 @@ export function showCtxMenu(
     event: MouseEvent,
     direction: 'vertical' | 'horizontal' = 'vertical'
 ): void {
-    const config = direction === 'horizontal'
+    const config: { attributes: { class: string; }; onShow: (menu: HTMLElement) => void; } | { attributes?: undefined; onShow?: undefined; } = direction === 'horizontal'
         ? {
             attributes: { class: 'ctxmenu horizontal' },
             // Center horizontal menu after rendering (can't use CSS transform - breaks submenu positioning)
             onShow: (menu: HTMLElement) => {
-                const menuWidth = menu.offsetWidth;
-                const currentLeft = parseFloat(menu.style.left) || 0;
+                const menuWidth: number = menu.offsetWidth;
+                const currentLeft: number = parseFloat(menu.style.left) || 0;
                 menu.style.left = `${currentLeft - menuWidth / 2}px`;
             },
         }
@@ -64,18 +64,18 @@ export class VerticalMenuService {
         // Handle right-click on background - show vertical menu
         this.cy.on('cxttap', (event) => {
             if (event.target === this.cy) {
-                const position = event.position ?? { x: 0, y: 0 };
-                const renderedPosition = event.renderedPosition ?? position;
+                const position: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").Position = event.position ?? { x: 0, y: 0 };
+                const renderedPosition: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").Position = event.renderedPosition ?? position;
 
-                const container = this.cy!.container();
+                const container: HTMLElement | null = this.cy!.container();
                 if (!container) return;
 
-                const containerRect = container.getBoundingClientRect();
-                const x = containerRect.left + (renderedPosition.x ?? 0);
-                const y = containerRect.top + (renderedPosition.y ?? 0);
+                const containerRect: DOMRect = container.getBoundingClientRect();
+                const x: number = containerRect.left + (renderedPosition.x ?? 0);
+                const y: number = containerRect.top + (renderedPosition.y ?? 0);
 
-                const menuItems = this.getCanvasVerticalMenuItems(position);
-                const syntheticEvent = new MouseEvent('contextmenu', {
+                const menuItems: MenuItem[] = this.getCanvasVerticalMenuItems(position);
+                const syntheticEvent: MouseEvent = new MouseEvent('contextmenu', {
                     clientX: x,
                     clientY: y,
                     bubbles: true,
@@ -100,12 +100,12 @@ export class VerticalMenuService {
         }
 
         // Delete selected nodes (only show if nodes are selected)
-        const selectedCount = this.cy!.$(':selected').nodes().size();
+        const selectedCount: number = this.cy!.$(':selected').nodes().size();
         if (selectedCount > 0) {
             menuItems.push({
                 text: `Delete Selected (${selectedCount})`,
                 action: async () => {
-                    const selectedNodeIds = this.cy!.$(':selected').nodes().map(n => n.id());
+                    const selectedNodeIds: string[] = this.cy!.$(':selected').nodes().map(n => n.id());
                     for (const id of selectedNodeIds) {
                         await deleteNodeFromUI(id, this.cy!);
                     }

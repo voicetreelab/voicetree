@@ -18,19 +18,19 @@ import * as E from 'fp-ts/lib/Either.js'
  */
 export function fromNodeToMarkdownContent(node: GraphNode): string {
     // 1. Build frontmatter from nodeUIMetadata (content no longer has frontmatter)
-    const frontmatter = buildFrontmatterFromMetadata(node.nodeUIMetadata);
+    const frontmatter: string = buildFrontmatterFromMetadata(node.nodeUIMetadata);
 
     // 2. Convert [link]* placeholders back to [[link]] wikilinks
-    const contentWithWikilinks = node.contentWithoutYamlOrLinks.replace(/\[([^\]]+)\]\*/g, '[[$1]]');
+    const contentWithWikilinks: string = node.contentWithoutYamlOrLinks.replace(/\[([^\]]+)\]\*/g, '[[$1]]');
 
     // 3. Append outgoing edges as wikilinks (only if not already in content)
     // After restoring wikilinks, check if the edge is already present
-    const wikilinks = node.outgoingEdges
+    const wikilinks: string = node.outgoingEdges
         .filter(edge => !contentWithWikilinks.includes(`[[${edge.targetId}]]`))
         .map(edge => (`[[${edge.targetId}]]`))
         .join('\n');
 
-    const wikilinksSuffix = wikilinks.length > 0 ? '\n' + wikilinks : '';
+    const wikilinksSuffix: string = wikilinks.length > 0 ? '\n' + wikilinks : '';
 
     return `${frontmatter}${contentWithWikilinks}${wikilinksSuffix}`;
 }
@@ -43,7 +43,7 @@ function tryParseJSON(value: string): unknown {
     // Try to detect if this is likely JSON (starts with [ or {)
     if ((value.startsWith('[') && value.endsWith(']')) ||
         (value.startsWith('{') && value.endsWith('}'))) {
-        const parseResult = E.tryCatch(
+        const parseResult: E.Either<string, any> = E.tryCatch(
             () => JSON.parse(value),
             () => value // On error, return original string
         )
@@ -108,16 +108,16 @@ function valueToYAML(value: unknown, indent: string = ''): string {
     if (Array.isArray(value)) {
         // Convert array to YAML list format
         return value.reduce((acc, item) => {
-            const itemValue = typeof item === 'string' ? item : String(item)
+            const itemValue: string = typeof item === 'string' ? item : String(item)
             return `${acc}\n${indent}- ${itemValue}`
         }, '')
     }
 
     if (typeof value === 'object') {
         // Convert object to nested YAML
-        const entries = Object.entries(value)
+        const entries: [string, any][] = Object.entries(value)
         return entries.reduce((acc, [k, v]) => {
-            const nestedValue = typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean'
+            const nestedValue: string = typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean'
                 ? String(v)
                 : valueToYAML(v, indent + '  ')
             return `${acc}\n${indent}${k}: ${nestedValue}`
@@ -128,29 +128,29 @@ function valueToYAML(value: unknown, indent: string = ''): string {
 }
 
 function buildFrontmatterFromData(data: Record<string, unknown>): string {
-    const entries = Object.entries(data).filter(([, value]) => value !== undefined);
+    const entries: [string, unknown][] = Object.entries(data).filter(([, value]) => value !== undefined);
 
     if (entries.length === 0) {
         return '---\n---\n';
     }
 
-    const frontmatterContent = entries.reduce((acc, [key, value]) => {
+    const frontmatterContent: string = entries.reduce((acc, [key, value]) => {
         if (key === 'position' && typeof value === 'object' && value !== null && !Array.isArray(value)) {
-            const pos = value as { readonly x: number; readonly y: number };
+            const pos: { readonly x: number; readonly y: number; } = value as { readonly x: number; readonly y: number };
             return `${acc}position:\n  x: ${pos.x}\n  y: ${pos.y}\n`;
         } else if (typeof value === 'string') {
             // Colors (hex codes starting with #) don't need quotes in YAML
             // Quote strings that contain special YAML chars
-            const isHexColor = key === 'color' && /^#[0-9A-Fa-f]{6}$/.test(value);
-            const needsQuotes = !isHexColor && /[:{}[\],&*#?|<>=!%@`]/.test(value);
+            const isHexColor: boolean = key === 'color' && /^#[0-9A-Fa-f]{6}$/.test(value);
+            const needsQuotes: boolean = !isHexColor && /[:{}[\],&*#?|<>=!%@`]/.test(value);
             return `${acc}${key}: ${needsQuotes ? `"${value}"` : value}\n`;
         } else if (typeof value === 'number' || typeof value === 'boolean') {
             return `${acc}${key}: ${value}\n`;
         } else if (Array.isArray(value)) {
-            const yamlArray = valueToYAML(value, '  ')
+            const yamlArray: string = valueToYAML(value, '  ')
             return `${acc}${key}:${yamlArray}\n`;
         } else if (typeof value === 'object' && value !== null) {
-            const yamlObject = valueToYAML(value, '  ')
+            const yamlObject: string = valueToYAML(value, '  ')
             return `${acc}${key}:${yamlObject}\n`;
         } else {
             return `${acc}${key}: ${value}\n`;

@@ -25,8 +25,8 @@ class MermaidBlockWidget extends WidgetType {
         this.source = source;
 
         // Extract just the diagram source (remove ```mermaid and ```)
-        const lines = source.split('\n');
-        const diagramSource = lines.slice(1, -1).join('\n');
+        const lines: string[] = source.split('\n');
+        const diagramSource: string = lines.slice(1, -1).join('\n');
 
         // Start async rendering
         this.renderPromise = this.renderMermaid(diagramSource);
@@ -34,8 +34,8 @@ class MermaidBlockWidget extends WidgetType {
 
     private async renderMermaid(diagramSource: string): Promise<void> {
         try {
-            const id = 'mermaid-' + Math.random().toString(36).substring(2, 11);
-            const result = await mermaid.render(id, diagramSource);
+            const id: string = 'mermaid-' + Math.random().toString(36).substring(2, 11);
+            const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/mermaid/dist/types").RenderResult = await mermaid.render(id, diagramSource);
             this.rendered = result.svg;
         } catch (error) {
             console.error('Mermaid rendering error:', error);
@@ -51,7 +51,7 @@ class MermaidBlockWidget extends WidgetType {
     }
 
     toDOM(): HTMLElement {
-        const container = document.createElement('div');
+        const container: HTMLDivElement = document.createElement('div');
         container.setAttribute('contenteditable', 'false');
         container.className = 'cm-mermaid-render';
 
@@ -96,7 +96,7 @@ function replaceMermaidBlocks(state: EditorState, from?: number, to?: number): R
             }
 
             // Get the full text of the code block
-            const text = state.doc.sliceString(node.from, node.to);
+            const text: string = state.doc.sliceString(node.from, node.to);
 
             // Check if it's a mermaid code block
             if (!text.match(/^```mermaid/i)) {
@@ -110,7 +110,7 @@ function replaceMermaidBlocks(state: EditorState, from?: number, to?: number): R
             }
 
             // Create decoration to replace the code block with rendered widget
-            const decoration = Decoration.replace({
+            const decoration: Decoration = Decoration.replace({
                 widget: new MermaidBlockWidget(text),
                 block: true,
             });

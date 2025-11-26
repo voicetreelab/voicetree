@@ -6,7 +6,7 @@ export default async function getAPIKey(): Promise<string> {
   }
 
   // Fallback to prompt user for API key
-  const apiKey = prompt("Please enter your Soniox API key:");
+  const apiKey: string | null = prompt("Please enter your Soniox API key:");
   if (!apiKey) {
     throw new Error("API key is required for speech recognition");
   }

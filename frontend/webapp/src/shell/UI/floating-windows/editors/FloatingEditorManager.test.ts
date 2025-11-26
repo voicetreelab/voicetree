@@ -11,7 +11,7 @@ beforeAll(() => {
   }
 });
 
-import { FloatingEditorManager } from '@/shell/UI/floating-windows/editors/FloatingEditorManager.ts';
+import { FloatingEditorManager } from '@/shell/UI/floating-windows/editors/FloatingEditorManager';
 import cytoscape, { type Core } from 'cytoscape';
 import '@/shell/UI/cytoscape-graph-ui'; // Import to trigger extension registration
 
@@ -71,7 +71,7 @@ describe('FloatingWindowManager - Terminal Node Filtering', () => {
         }
 
         // Clean up any floating windows
-        const windows = document.querySelectorAll('.cy-floating-window');
+        const windows: NodeListOf<Element> = document.querySelectorAll('.cy-floating-window');
         windows.forEach(win => win.remove());
 
         // Reset mocks
@@ -92,7 +92,7 @@ describe('FloatingWindowManager - Terminal Node Filtering', () => {
                 position: { x: 100, y: 100 }
             });
 
-            const terminalNode = cy.getElementById('terminal-123');
+            const terminalNode: cytoscape.CollectionReturnValue = cy.getElementById('terminal-123');
 
             // Simulate mouseover event
             terminalNode.emit('mouseover');
@@ -101,13 +101,13 @@ describe('FloatingWindowManager - Terminal Node Filtering', () => {
             await new Promise(resolve => setTimeout(resolve, 150));
 
             // Hover editor should NOT be created for terminal node
-            const hoverEditorWindows = document.querySelectorAll('.cy-floating-window');
+            const hoverEditorWindows: NodeListOf<Element> = document.querySelectorAll('.cy-floating-window');
             expect(hoverEditorWindows.length).toBe(0);
         });
 
         it('should allow hover editor attempt for markdown nodes (nodes with .md extension)', async () => {
             // Spy on the private openHoverEditor method to verify it's called
-            const openHoverEditorSpy = vi.spyOn(manager as never, 'openHoverEditor' as never);
+            const openHoverEditorSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<(this: unknown, ...args: unknown[]) => unknown> = vi.spyOn(manager as never, 'openHoverEditor' as never);
 
             // Add a markdown node (with .md extension)
             cy.add({
@@ -116,7 +116,7 @@ describe('FloatingWindowManager - Terminal Node Filtering', () => {
                 position: { x: 200, y: 200 }
             });
 
-            const markdownNode = cy.getElementById('test-node.md');
+            const markdownNode: cytoscape.CollectionReturnValue = cy.getElementById('test-node.md');
 
             // Simulate mouseover event
             markdownNode.emit('mouseover');

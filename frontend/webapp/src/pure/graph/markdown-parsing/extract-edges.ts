@@ -10,20 +10,20 @@ import type { NodeIdAndFilePath, GraphNode, Edge } from '@/pure/graph'
  *      // and then append without extension  => ["Users/user/vault/folder/file", "user/vault/folder/file", "vault/folder/file", "folder/file", "file"]
  */
 export function extractPathSegments(path: string): readonly string[] {
-  const parts = path.split('/').filter(p => p.length > 0)
+  const parts: string[] = path.split('/').filter(p => p.length > 0)
 
   if (parts.length === 0) return []
 
   // Build segments from longest to shortest (most specific to least specific)
-  const segmentsWithExt = Array.from(
+  const segmentsWithExt: string[] = Array.from(
     { length: parts.length },
     (_, i) => parts.slice(i).join('/')
   )
 
   // Remove extension from the last part to create "without extension" variants
-  const removeExtension = (s: string): string => s.replace(/\.[^.]+$/, '')
+  const removeExtension: (s: string) => string = (s: string): string => s.replace(/\.[^.]+$/, '')
 
-  const segmentsWithoutExt = segmentsWithExt
+  const segmentsWithoutExt: string[] = segmentsWithExt
     .map(removeExtension)
     .filter(s => !segmentsWithExt.includes(s)) // Only add if different from with-ext version
 
@@ -43,8 +43,8 @@ function matchSegment(
 ): NodeIdAndFilePath | undefined {
   // Find ALL nodes where segment matches any of their path segments
   // (includes exact matches where nodeId === segment)
-  const matches = Object.keys(nodes).filter((nodeId) => {
-    const nodeSegments = extractPathSegments(nodeId)
+  const matches: string[] = Object.keys(nodes).filter((nodeId) => {
+    const nodeSegments: readonly string[] = extractPathSegments(nodeId)
     return nodeSegments.includes(segment)
   })
 
@@ -69,7 +69,7 @@ export function findBestMatchingNode(
   nodes: Record<NodeIdAndFilePath, GraphNode>
 ): NodeIdAndFilePath | undefined {
   // Extract all possible path segments from the link text
-  const linkSegments = extractPathSegments(linkText)
+  const linkSegments: readonly string[] = extractPathSegments(linkText)
 
   if (linkSegments.length === 0) return undefined
 
@@ -109,35 +109,35 @@ export function extractEdges(
   content: string,
   nodes: Record<NodeIdAndFilePath, GraphNode>
 ): readonly Edge[] {
-  const wikilinkRegex = /\[\[([^\]]+)\]\]/g
-  const matches = [...content.matchAll(wikilinkRegex)]
+  const wikilinkRegex: RegExp = /\[\[([^\]]+)\]\]/g
+  const matches: RegExpExecArray[] = [...content.matchAll(wikilinkRegex)]
 
-  const edges = matches
+  const edges: { targetId: string; label: string; }[] = matches
     .map((match) => {
-      const rawLinkText = match[1].trim()
-      const matchIndex = match.index!
+      const rawLinkText: string = match[1].trim()
+      const matchIndex: number = match.index!
 
       // Find start of line containing this wikilink
-      const lineStart = content.lastIndexOf('\n', matchIndex) + 1
+      const lineStart: number = content.lastIndexOf('\n', matchIndex) + 1
 
       // Extract text from line start to [[
-      const labelText = content.substring(lineStart, matchIndex).trim()
+      const labelText: string = content.substring(lineStart, matchIndex).trim()
 
       // Remove list markers (-, *, +) from start
-      const label = labelText.replace(/^[-*+]\s+/, '')
+      const label: string = labelText.replace(/^[-*+]\s+/, '')
 
       // Strip relative path prefixes (./ or ../) for matching TODO SUS, DONT DO THIS
       // const linkText = rawLinkText.replace(/^\.\.?\//g, '')
 
       // Find best matching node, preferring longer path matches
       // If no match found, use raw link text to preserve for future node creation
-      const targetId = nodes ? findBestMatchingNode(rawLinkText, nodes) ?? rawLinkText : rawLinkText
+      const targetId: string = nodes ? findBestMatchingNode(rawLinkText, nodes) ?? rawLinkText : rawLinkText
 
       return { targetId, label }
     })
 
   // Remove duplicates while preserving order (by targetId)
-  const seenTargets = new Set<NodeIdAndFilePath>()
+  const seenTargets: Set<string> = new Set<NodeIdAndFilePath>()
   return edges.filter(edge => {
     if (seenTargets.has(edge.targetId)) {
       return false

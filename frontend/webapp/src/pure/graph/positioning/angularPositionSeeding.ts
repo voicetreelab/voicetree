@@ -11,8 +11,8 @@
 import type { GraphNode } from '@/pure/graph';
 import * as O from 'fp-ts/lib/Option.js';
 
-export const SPAWN_RADIUS = 500; // pixels from parent
-export const CHILD_ANGLE_CONE = 180; // degrees (± 45° from parent)
+export const SPAWN_RADIUS: 500 = 500; // pixels from parent
+export const CHILD_ANGLE_CONE: 180 = 180; // degrees (± 45° from parent)
 
 /**
  * Calculate midpoint between two positions on a circular scale [0, 1)
@@ -22,7 +22,7 @@ function calculateMidpoint(current: number, next: number): number {
     return (current + next) / 2;
   } else {
     // Wrapping case: 0.75 -> 0 becomes 0.75 -> 1.0 -> 0
-    const midpoint = (current + next + 1) / 2;
+    const midpoint: number = (current + next + 1) / 2;
     return midpoint >= 1 ? midpoint - 1 : midpoint;
   }
 }
@@ -32,7 +32,7 @@ function calculateMidpoint(current: number, next: number): number {
  */
 function generateMidpointsLevel(prevLevel: readonly number[]): readonly number[] {
   return prevLevel.map((current, i) => {
-    const next = prevLevel[(i + 1) % prevLevel.length];
+    const next: number = prevLevel[(i + 1) % prevLevel.length];
     return calculateMidpoint(current, next);
   });
 }
@@ -49,8 +49,8 @@ function buildLevelsUntilCount(
     return levels;
   }
 
-  const prevLevel = levels[levels.length - 1];
-  const newLevel = generateMidpointsLevel(prevLevel);
+  const prevLevel: readonly number[] = levels[levels.length - 1];
+  const newLevel: readonly number[] = generateMidpointsLevel(prevLevel);
 
   return buildLevelsUntilCount(
     [...levels, newLevel],
@@ -78,10 +78,10 @@ function buildSubdividedPositions(count: number): readonly number[] {
 
   // Level 0: quarters
   const initialLevels: readonly (readonly number[])[] = [[0, 0.25, 0.5, 0.75]];
-  const initialCount = 4;
+  const initialCount: 4 = 4;
 
   // Build levels recursively until we have enough positions
-  const allLevels = buildLevelsUntilCount(initialLevels, initialCount, count);
+  const allLevels: readonly (readonly number[])[] = buildLevelsUntilCount(initialLevels, initialCount, count);
 
   // Flatten levels into result array, taking only what we need
   return flattenLevels(allLevels, count);
@@ -91,7 +91,7 @@ function buildSubdividedPositions(count: number): readonly number[] {
  * Normalize an angle to [0, 360) range
  */
 function normalizeAngle(angle: number): number {
-  const normalized = angle % 360;
+  const normalized: number = angle % 360;
   return normalized < 0 ? normalized + 360 : normalized;
 }
 
@@ -110,15 +110,15 @@ export function calculateChildAngle(
   parentAngle?: number
 ): number {
   // Determine angle range
-  const rangeMin = parentAngle !== undefined ? parentAngle - 45 : 0;
-  const rangeSize = parentAngle !== undefined ? CHILD_ANGLE_CONE : 360;
+  const rangeMin: number = parentAngle !== undefined ? parentAngle - 45 : 0;
+  const rangeSize: 180 | 360 = parentAngle !== undefined ? CHILD_ANGLE_CONE : 360;
 
   // Get normalized position [0, 1] for this child index
-  const positions = buildSubdividedPositions(childIndex + 1);
-  const normalizedPos = positions[childIndex];
+  const positions: readonly number[] = buildSubdividedPositions(childIndex + 1);
+  const normalizedPos: number = positions[childIndex];
 
   // Map to angle range and normalize to [0, 360)
-  const angle = rangeMin + (normalizedPos * rangeSize);
+  const angle: number = rangeMin + (normalizedPos * rangeSize);
 
   return normalizeAngle(angle);
 }
@@ -134,7 +134,7 @@ export function polarToCartesian(
   angle: number,
   radius: number
 ): { readonly x: number; readonly y: number } {
-  const radians = (angle * Math.PI) / 180;
+  const radians: number = (angle * Math.PI) / 180;
   return {
     x: radius * Math.cos(radians),
     y: radius * Math.sin(radians)
@@ -161,24 +161,24 @@ export function calculateParentAngle(
   }
 
   // Get positions from nodeUIMetadata - return undefined if either position is None
-  const grandparentPosOption = grandparentNode.nodeUIMetadata.position;
-  const parentPosOption = parentNode.nodeUIMetadata.position;
+  const grandparentPosOption: O.Option<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Position> = grandparentNode.nodeUIMetadata.position;
+  const parentPosOption: O.Option<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Position> = parentNode.nodeUIMetadata.position;
 
   if (!O.isSome(grandparentPosOption) || !O.isSome(parentPosOption)) {
     return undefined;
   }
 
   // Extract values from Some<Position>
-  const grandparentPos = grandparentPosOption.value;
-  const parentPos = parentPosOption.value;
+  const grandparentPos: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Position = grandparentPosOption.value;
+  const parentPos: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Position = parentPosOption.value;
 
   // Calculate vector from grandparent to parent
-  const dx = parentPos.x - grandparentPos.x;
-  const dy = parentPos.y - grandparentPos.y;
+  const dx: number = parentPos.x - grandparentPos.x;
+  const dy: number = parentPos.y - grandparentPos.y;
 
   // Convert to angle in degrees (atan2 returns radians)
-  const radians = Math.atan2(dy, dx);
-  const degrees = (radians * 180) / Math.PI;
+  const radians: number = Math.atan2(dy, dx);
+  const degrees: number = (radians * 180) / Math.PI;
 
   // Normalize to [0, 360)
   return degrees < 0 ? degrees + 360 : degrees;

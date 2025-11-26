@@ -52,7 +52,7 @@ export type BuildConfig = {
  * Reads from app/process to determine dev vs prod configuration
  */
 export function getBuildConfig(): BuildConfig {
-  const commonEnv = getCommonEnv();
+  const commonEnv: CommonEnv = getCommonEnv();
   return commonEnv.nodeEnv === 'development'
     ? getBuildConfigDev(commonEnv)
     : getBuildConfigProd(commonEnv);
@@ -62,10 +62,10 @@ export function getBuildConfig(): BuildConfig {
  * Get common environment values used by both dev and prod configs
  */
 function getCommonEnv(): CommonEnv {
-  const nodeEnv = (process.env.NODE_ENV || 'production') as NodeEnv;
-  const isTest = process.env.HEADLESS_TEST === '1' || nodeEnv === 'test';
-  const isPackaged = app.isPackaged;
-  const userDataPath = app.getPath('userData');
+  const nodeEnv: NodeEnv = (process.env.NODE_ENV || 'production') as NodeEnv;
+  const isTest: boolean = process.env.HEADLESS_TEST === '1' || nodeEnv === 'test';
+  const isPackaged: boolean = app.isPackaged;
+  const userDataPath: string = app.getPath('userData');
 
   return {
     nodeEnv,
@@ -80,8 +80,8 @@ function getCommonEnv(): CommonEnv {
  */
 function getBuildConfigDev(commonEnv: CommonEnv): BuildConfig {
   // In dev: appPath = /path/to/VoiceTree/frontend/webapp
-  const appPath = app.getAppPath();
-  const rootDir = path.resolve(appPath, '../..');
+  const appPath: string = app.getAppPath();
+  const rootDir: string = path.resolve(appPath, '../..');
 
   return {
     // Python: Run directly from source
@@ -107,22 +107,22 @@ function getBuildConfigProd(commonEnv: CommonEnv): BuildConfig {
   // Compute repo root from app path
   // In packaged: appPath = /path/to/VoiceTree.app/Contents/Resources/app.asar
   // In unpackaged prod: appPath = /path/to/VoiceTree/frontend/webapp
-  const appPath = app.getAppPath();
-  const rootDir = commonEnv.isPackaged
+  const appPath: string = app.getAppPath();
+  const rootDir: string = commonEnv.isPackaged
     ? path.dirname(process.resourcesPath)
     : path.resolve(appPath, '../..');
 
   // Binary location depends on packaging state
-  const serverBinaryPath = commonEnv.isPackaged
+  const serverBinaryPath: string = commonEnv.isPackaged
     ? path.join(process.resourcesPath, 'server', 'voicetree-server')
     : path.join(rootDir, 'dist', 'resources', 'server', 'voicetree-server');
 
   // Tools source depends on packaging state
-  const toolsSource = commonEnv.isPackaged
+  const toolsSource: string = commonEnv.isPackaged
     ? path.join(process.resourcesPath, 'tools')
     : path.join(rootDir, 'tools');
 
-  const backendSource = commonEnv.isPackaged
+  const backendSource: string = commonEnv.isPackaged
     ? path.join(process.resourcesPath, 'backend')
     : path.join(rootDir, 'backend');
 
@@ -152,7 +152,7 @@ function getBuildConfigProd(commonEnv: CommonEnv): BuildConfig {
  * Usage from bash: node -e "require('./electron/build-config').printConfig()"
  */
 export function printConfig(): void {
-  const config = getBuildConfig();
+  const config: BuildConfig = getBuildConfig();
   console.log(JSON.stringify(config, null, 2));
 }
 

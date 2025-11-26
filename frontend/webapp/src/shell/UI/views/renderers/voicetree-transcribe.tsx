@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { cn } from "@/utils/lib/utils.ts";
-import AnimatedMicIcon from "@/shell/UI/views/components/animated-mic-icon.tsx";
-import StatusDisplay from "@/shell/UI/views/components/status-display.tsx";
-import useVoiceTreeClient from "@/shell/UI/views/hooks/useVoiceTreeClient.tsx";
-import { useTranscriptionSender } from "@/shell/UI/views/hooks/useTranscriptionSender.ts";
-import getAPIKey from "@/utils/get-api-key.ts";
-import Renderer from "./renderer.tsx";
-import useAutoScroll from "@/shell/UI/views/hooks/useAutoScroll.tsx";
+import { cn } from "@/utils/lib/utils";
+import AnimatedMicIcon from "@/shell/UI/views/components/animated-mic-icon";
+import StatusDisplay from "@/shell/UI/views/components/status-display";
+import useVoiceTreeClient from "@/shell/UI/views/hooks/useVoiceTreeClient";
+import { useTranscriptionSender } from "@/shell/UI/views/hooks/useTranscriptionSender";
+import getAPIKey from "@/utils/get-api-key";
+import Renderer from "./renderer";
+import useAutoScroll from "@/shell/UI/views/hooks/useAutoScroll";
 import { type Token } from "@soniox/speech-to-text-web";
 import type {} from "@/shell/electron";
 
@@ -48,15 +48,15 @@ export default function VoiceTreeTranscribe() {
   });
 
   // Track how many voice tokens we've seen to append new ones only
-  const voiceTokenCountRef = useRef(0);
+  const voiceTokenCountRef: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@types/react/index").RefObject<number> = useRef(0);
   // Track if we're currently sending to prevent duplicate sends
-  const isSendingRef = useRef(false);
-  const lastSentCountRef = useRef(0);
+  const isSendingRef: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@types/react/index").RefObject<boolean> = useRef(false);
+  const lastSentCountRef: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@types/react/index").RefObject<number> = useRef(0);
 
   // Append new voice final tokens to our combined list
   useEffect(() => {
     if (finalTokens.length > voiceTokenCountRef.current) {
-      const newTokens = finalTokens.slice(voiceTokenCountRef.current);
+      const newTokens: Token[] = finalTokens.slice(voiceTokenCountRef.current);
       setAllFinalTokens(prev => [...prev, ...newTokens]);
       voiceTokenCountRef.current = finalTokens.length;
     } else if (finalTokens.length === 0) {
@@ -69,14 +69,14 @@ export default function VoiceTreeTranscribe() {
   }, [finalTokens, resetSender]);
 
   // Combine all tokens for display
-  const allTokens = [...allFinalTokens, ...nonFinalTokens];
-  const autoScrollRef = useAutoScroll(allTokens);
+  const allTokens: Token[] = [...allFinalTokens, ...nonFinalTokens];
+  const autoScrollRef: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@types/react/index").RefObject<HTMLDivElement | null> = useAutoScroll(allTokens);
 
   // Show error popup when Soniox fails
   useEffect(() => {
     if (error) {
       // Show a more user-friendly error message
-      const errorMessage = error.message.includes('apiKey')
+      const errorMessage: string = error.message.includes('apiKey')
         ? 'Invalid or missing Soniox API key. Please check your configuration.'
         : error.message.includes('network')
         ? 'Cannot connect to Soniox service. Please check your internet connection.'
@@ -99,7 +99,7 @@ export default function VoiceTreeTranscribe() {
       isSendingRef.current = true;
 
       // Use async function to handle  send
-      const doSend = async () => {
+      const doSend: () => Promise<void> = async () => {
         try {
           await sendIncrementalTokens(finalTokens);
           lastSentCountRef.current = finalTokens.length;
@@ -113,7 +113,7 @@ export default function VoiceTreeTranscribe() {
   }, [finalTokens, sendIncrementalTokens]);
 
   // Handle manual text submission
-  const handleTextSubmit = async () => {
+  const handleTextSubmit: () => Promise<void> = async () => {
     if (textInput.trim()) {
       // Send the manual text
       await sendManualText(textInput);
@@ -178,7 +178,7 @@ export default function VoiceTreeTranscribe() {
   }, []);
 
   // Handle Enter key press
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyPress: (e: React.KeyboardEvent<HTMLInputElement>) => void = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       void handleTextSubmit();

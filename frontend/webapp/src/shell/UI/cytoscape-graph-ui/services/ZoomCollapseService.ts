@@ -30,20 +30,20 @@ export class ZoomCollapseService {
 
         // Check each edge
         this.cy.edges().forEach(edge => {
-            const source = edge.source();
-            const target = edge.target();
+            const source: NodeSingular = edge.source();
+            const target: NodeSingular = edge.target();
 
             // Calculate pixel distance
-            const sourcePos = source.renderedPosition();
-            const targetPos = target.renderedPosition();
-            const dx = targetPos.x - sourcePos.x;
-            const dy = targetPos.y - sourcePos.y;
-            const pixelLength = Math.sqrt(dx * dx + dy * dy);
+            const sourcePos: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").Position = source.renderedPosition();
+            const targetPos: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").Position = target.renderedPosition();
+            const dx: number = targetPos.x - sourcePos.x;
+            const dy: number = targetPos.y - sourcePos.y;
+            const pixelLength: number = Math.sqrt(dx * dx + dy * dy);
 
             // Edges go FROM child TO parent (source = child, target = parent)
             // If edge is too short, hide the child (source) and mark parent (target)
-            const childId = source.id()
-            const parentId = target.id()
+            const childId: string = source.id()
+            const parentId: string = target.id()
             const child: NodeSingular = this.cy.getElementById(childId);
             const parent: NodeSingular = this.cy.getElementById(parentId);
 
@@ -94,12 +94,12 @@ export class ZoomCollapseService {
     }
 
     private eatChild(node: NodeSingular, child: NodeSingular): void {
-        const prevHeight = node.height();
-        const prevWidth = node.width();
-        const childWidth = child.width();
-        const childHeight = child.height();
-        const prevSize = parseFloat(node.style('font-size'));
-        const childSize = parseFloat(node.style('font-size'));
+        const prevHeight: number = node.height();
+        const prevWidth: number = node.width();
+        const childWidth: number = child.width();
+        const childHeight: number = child.height();
+        const prevSize: number = parseFloat(node.style('font-size'));
+        const childSize: number = parseFloat(node.style('font-size'));
         console.log(prevSize)
         // const nodeDegree = node.degree()
         // node.style('height', prevHeight + Math.max(3, 3*(1/this.cy.zoom())*Math.log(nodeDegree +3)));
@@ -113,13 +113,13 @@ export class ZoomCollapseService {
     }
 
     private unEatChild(node: NodeSingular, child: NodeSingular): void {
-        const prevHeight = node.height();
-        const prevWidth = node.width();
-        const childWidth = child.width();
-        const childHeight = child.height();
+        const prevHeight: number = node.height();
+        const prevWidth: number = node.width();
+        const childWidth: number = child.width();
+        const childHeight: number = child.height();
         // const nodeDegree = node.degree()
-        const prevSize = parseFloat(node.style('font-size'));
-        const childSize = parseFloat(node.style('font-size'));
+        const prevSize: number = parseFloat(node.style('font-size'));
+        const childSize: number = parseFloat(node.style('font-size'));
 
         // node.style('height', prevHeight - Math.max(3, 3*(1/this.cy.zoom())*Math.log(nodeDegree +3)));
         // node.style('width', prevWidth - Math.max(3, 3*(1/this.cy.zoom())*Math.log(nodeDegree +3)));

@@ -21,18 +21,18 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type {Core} from 'cytoscape';
 import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
-import { createNewChildNodeFromUI, deleteNodeFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions.ts'
+import { createNewChildNodeFromUI, deleteNodeFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions'
 import type { Graph } from '@/pure/graph'
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import { setVaultPath, setGraph } from '@/shell/edge/main/state/graph-store.ts'
+import { setVaultPath, setGraph } from '@/shell/edge/main/state/graph-store'
 
 // State managed by mocked globals - using module-level state that the mock functions will access
 let currentGraph: Graph | null = null
 let tempVault: string = ''
 
 // Mock Electron's ipcMain
-const ipcMain = {
+const ipcMain: { _handlers: Map<string, Function>; handle(channel: string, handler: Function): void; removeHandler(channel: string): void; } = {
     _handlers: new Map<string, Function>(),
     handle(channel: string, handler: Function) {
         this._handlers.set(channel, handler)
@@ -56,7 +56,7 @@ vi.mock('electron', () => ({
 }))
 
 // Mock graph store - properly intercept vault path
-vi.mock('@/functional/shell/state/graph-store.ts', () => {
+vi.mock('@/functional/shell/state/graph-store', () => {
     return {
         getGraph: () => {
             if (!currentGraph) {
@@ -80,10 +80,10 @@ vi.mock('@/functional/shell/state/graph-store.ts', () => {
 })
 
 // Import IPC handlers once at module level
-let handlersImported = false
+let handlersImported: boolean = false
 async function ensureHandlersImported(): Promise<void> {
     if (!handlersImported) {
-        const { registerTerminalIpcHandlers } = await import('@/shell/edge/main/ipc-terminal-handlers.ts')
+        const { registerTerminalIpcHandlers } = await import('@/shell/edge/main/ipc-terminal-handlers')
         registerTerminalIpcHandlers(
             {} as any, // terminalManager
             () => '' // getToolsDirectory
@@ -186,7 +186,7 @@ Child content`
         })
 
         // Setup window.electronAPI to call through main API directly (new RPC pattern)
-        const { mainAPI } = await import('@/shell/edge/main/api.ts')
+        const { mainAPI } = await import('@/shell/edge/main/api')
         global.window = {
             electronAPI: {
                 main: {
@@ -220,46 +220,46 @@ Child content`
         expect(cy.edges()).toHaveLength(2)
 
         // AND: The new node should exist in cytoscape (parent has 1 outgoing edge, so new child is _1)
-        const newNodeId = 'parent.md_1.md'
-        const newNode = cy.getElementById(newNodeId)
+        const newNodeId: "parent.md_1.md" = 'parent.md_1.md'
+        const newNode: cytoscape.CollectionReturnValue = cy.getElementById(newNodeId)
         expect(newNode.length).toBe(1)
 
         // AND: File should be created on disk
-        const newFilePath = path.join(tempVault, `${newNodeId}`)
-        const fileExists = await fs.access(newFilePath).then(() => true).catch(() => false)
+        const newFilePath: string = path.join(tempVault, `${newNodeId}`)
+        const fileExists: boolean = await fs.access(newFilePath).then(() => true).catch(() => false)
         expect(fileExists).toBe(true)
 
         // AND: File should have correct content
-        const fileContent = await fs.readFile(newFilePath, 'utf-8')
+        const fileContent: string = await fs.readFile(newFilePath, 'utf-8')
         expect(fileContent).toContain('# new')
     })
 
     it('should create file with correct position metadata eventually', async () => {
         // GIVEN: Graph with 2 nodes
-        const initialFileCount = (await fs.readdir(tempVault)).length
+        const initialFileCount: number = (await fs.readdir(tempVault)).length
 
         // WHEN: Creating a new child node
         await createNewChildNodeFromUI('parent.md', cy)
 
         // THEN: Should have one more file
-        const files = await fs.readdir(tempVault)
+        const files: string[] = await fs.readdir(tempVault)
         expect(files).toHaveLength(initialFileCount + 1)
 
         // AND: New file should exist with expected name (parent has 1 outgoing edge, so new child is _1)
-        const newNodeId = 'parent.md_1.md'
+        const newNodeId: "parent.md_1.md" = 'parent.md_1.md'
         expect(files).toContain(`${newNodeId}`)
 
         // AND: File should be readable and parseable
-        const newFilePath = path.join(tempVault, `${newNodeId}`)
-        const stat = await fs.stat(newFilePath)
+        const newFilePath: string = path.join(tempVault, `${newNodeId}`)
+        const stat: import("fs").Stats = await fs.stat(newFilePath)
         expect(stat.isFile()).toBe(true)
         expect(stat.size).toBeGreaterThan(0)
     })
 
     it('should update parent file with edge to new child', async () => {
         // GIVEN: Parent node with one existing child
-        const parentFilePath = path.join(tempVault, 'parent.md')
-        const initialParentContent = await fs.readFile(parentFilePath, 'utf-8')
+        const parentFilePath: string = path.join(tempVault, 'parent.md')
+        const initialParentContent: string = await fs.readFile(parentFilePath, 'utf-8')
 
         // Verify parent initially has only child1
         expect(initialParentContent).toContain('[[child1.md]]')
@@ -269,7 +269,7 @@ Child content`
         await createNewChildNodeFromUI('parent.md', cy)
 
         // THEN: Parent file should be updated with edge to new child
-        const updatedParentContent = await fs.readFile(parentFilePath, 'utf-8')
+        const updatedParentContent: string = await fs.readFile(parentFilePath, 'utf-8')
 
         // Parent should now have both edges (wikilinks include node IDs with .md extension)
         expect(updatedParentContent).toContain('[[child1.md]]')
@@ -371,7 +371,7 @@ Child content`
         })
 
         // Setup window.electronAPI to call through main API directly (new RPC pattern)
-        const { mainAPI } = await import('@/shell/edge/main/api.ts')
+        const { mainAPI } = await import('@/shell/edge/main/api')
         global.window = {
             electronAPI: {
                 main: {
@@ -407,15 +407,15 @@ Child content`
 
     it('should delete node file from disk', async () => {
         // GIVEN: Both files exist on disk
-        const child1Path = path.join(tempVault, 'child1.md')
-        const initialExists = await fs.access(child1Path).then(() => true).catch(() => false)
+        const child1Path: string = path.join(tempVault, 'child1.md')
+        const initialExists: boolean = await fs.access(child1Path).then(() => true).catch(() => false)
         expect(initialExists).toBe(true)
 
         // WHEN: Deleting child1 node
         await deleteNodeFromUI('child1.md', cy)
 
         // THEN: File should be deleted from disk
-        const fileExists = await fs.access(child1Path).then(() => true).catch(() => false)
+        const fileExists: boolean = await fs.access(child1Path).then(() => true).catch(() => false)
         expect(fileExists).toBe(false)
     })
 

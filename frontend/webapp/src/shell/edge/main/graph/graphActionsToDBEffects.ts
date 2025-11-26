@@ -10,13 +10,13 @@ import * as RTE from 'fp-ts/lib/ReaderTaskEither.js'
 import { pipe } from 'fp-ts/lib/function.js'
 import { promises as fs } from 'fs'
 import path from 'path'
-import { fromNodeToMarkdownContent } from '@/pure/graph/markdown-writing/node_to_markdown.ts'
-import { nodeIdToFilePathWithExtension } from '@/pure/graph/markdown-parsing/filename-utils.ts'
+import { fromNodeToMarkdownContent } from '@/pure/graph/markdown-writing/node_to_markdown'
+import { nodeIdToFilePathWithExtension } from '@/pure/graph/markdown-parsing/filename-utils'
 
 /**
  * Helper to convert unknown errors to Error type
  */
-const toError = (reason: unknown): Error =>
+const toError: (reason: unknown) => Error = (reason: unknown): Error =>
   reason instanceof Error ? reason : new Error(String(reason))
 
 /**
@@ -59,9 +59,9 @@ export function apply_graph_deltas_to_db(
 function writeNodeToFile(node: GraphNode): FSWriteEffect<void> {
     return (env: Env) => TE.tryCatch(
         async () => {
-            const markdown = fromNodeToMarkdownContent(node)
-            const filename = nodeIdToFilePathWithExtension(node.relativeFilePathIsID)
-            const fullPath = path.join(env.vaultPath, filename)
+            const markdown: string = fromNodeToMarkdownContent(node)
+            const filename: string = nodeIdToFilePathWithExtension(node.relativeFilePathIsID)
+            const fullPath: string = path.join(env.vaultPath, filename)
 
             // Ensure parent directory exists
             await fs.mkdir(path.dirname(fullPath), { recursive: true })
@@ -77,8 +77,8 @@ function writeNodeToFile(node: GraphNode): FSWriteEffect<void> {
 function deleteNodeFile(nodeId: NodeIdAndFilePath): FSWriteEffect<void> {
     return (env: Env) => TE.tryCatch(
         async () => {
-            const filename = nodeIdToFilePathWithExtension(nodeId)
-            const fullPath = path.join(env.vaultPath, filename)
+            const filename: string = nodeIdToFilePathWithExtension(nodeId)
+            const fullPath: string = path.join(env.vaultPath, filename)
             await fs.unlink(fullPath)
         },
         toError

@@ -19,11 +19,11 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { createContextNode } from '@/shell/edge/main/graph/createContextNode.ts'
-import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk.ts'
+import { createContextNode } from '@/shell/edge/main/graph/createContextNode'
+import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk'
 
-import { setGraph, setVaultPath, getVaultPath } from '@/shell/edge/main/state/graph-store.ts'
-import { EXAMPLE_SMALL_PATH, EXAMPLE_LARGE_PATH } from '@/utils/test-utils/fixture-paths.ts'
+import { setGraph, setVaultPath, getVaultPath } from '@/shell/edge/main/state/graph-store'
+import { EXAMPLE_SMALL_PATH, EXAMPLE_LARGE_PATH } from '@/utils/test-utils/fixture-paths'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 import { promises as fs } from 'fs'
@@ -39,9 +39,9 @@ describe('createContextNode - Integration Tests', () => {
     setVaultPath(EXAMPLE_SMALL_PATH)
 
     // Load the graph from disk
-    const loadResult = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH))
+    const loadResult: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH))
     if (E.isLeft(loadResult)) throw new Error('Expected Right')
-    const graph = loadResult.right
+    const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = loadResult.right
     setGraph(graph)
 
     // Clear parent node backups
@@ -49,11 +49,11 @@ describe('createContextNode - Integration Tests', () => {
   })
 
   afterEach(async () => {
-    const vaultPath = getVaultPath()
+    const vaultPath: O.Option<string> = getVaultPath()
 
     // Clean up created context node file if it exists
     if (createdContextNodeId && O.isSome(vaultPath)) {
-      const contextFilePath = path.join(vaultPath.value, createdContextNodeId)
+      const contextFilePath: string = path.join(vaultPath.value, createdContextNodeId)
       await fs.unlink(contextFilePath).catch(() => {
         // File might not exist, that's ok
       })
@@ -63,7 +63,7 @@ describe('createContextNode - Integration Tests', () => {
     // Restore parent node files to their original state
     if (O.isSome(vaultPath)) {
       for (const [parentNodeId, originalContent] of parentNodeBackups.entries()) {
-        const parentFilePath = path.join(vaultPath.value, parentNodeId)
+        const parentFilePath: string = path.join(vaultPath.value, parentNodeId)
         await fs.writeFile(parentFilePath, originalContent, 'utf-8').catch(() => {
           // File might not exist, that's ok
         })
@@ -76,12 +76,12 @@ describe('createContextNode - Integration Tests', () => {
    * Helper function to create a context node while backing up the parent node
    */
   async function createContextNodeWithBackup(parentNodeId: NodeIdAndFilePath): Promise<NodeIdAndFilePath> {
-    const vaultPath = getVaultPath()
+    const vaultPath: O.Option<string> = getVaultPath()
 
     // Backup parent node before creating context node
     if (O.isSome(vaultPath)) {
-      const parentFilePath = path.join(vaultPath.value, parentNodeId)
-      const originalContent = await fs.readFile(parentFilePath, 'utf-8')
+      const parentFilePath: string = path.join(vaultPath.value, parentNodeId)
+      const originalContent: string = await fs.readFile(parentFilePath, 'utf-8')
       parentNodeBackups.set(parentNodeId, originalContent)
     }
 
@@ -95,7 +95,7 @@ describe('createContextNode - Integration Tests', () => {
       const parentNodeId: NodeIdAndFilePath = '1_VoiceTree_Website_Development_and_Node_Display_Bug.md'
 
       // WHEN: Create context node for this parent
-      const contextNodeId = await createContextNodeWithBackup(parentNodeId)
+      const contextNodeId: string = await createContextNodeWithBackup(parentNodeId)
       createdContextNodeId = contextNodeId
 
       // THEN: Context node ID should be in ctx-nodes directory
@@ -104,19 +104,19 @@ describe('createContextNode - Integration Tests', () => {
       expect(contextNodeId).toMatch(/_context_\d+\.md$/)
 
       // AND: File should exist on disk
-      const vaultPath = getVaultPath()
+      const vaultPath: O.Option<string> = getVaultPath()
       expect(O.isSome(vaultPath)).toBe(true)
 
       if (O.isSome(vaultPath)) {
-        const contextFilePath = path.join(vaultPath.value, contextNodeId)
-        const fileExists = await fs.access(contextFilePath)
+        const contextFilePath: string = path.join(vaultPath.value, contextNodeId)
+        const fileExists: boolean = await fs.access(contextFilePath)
           .then(() => true)
           .catch(() => false)
 
         expect(fileExists).toBe(true)
 
         // AND: File should have proper structure
-        const fileContent = await fs.readFile(contextFilePath, 'utf-8')
+        const fileContent: string = await fs.readFile(contextFilePath, 'utf-8')
         // todo these tests arre way too specific, just make it expect a 'context' not anything else.
         // Should have frontmatter with title
         expect(fileContent).toContain('---')
@@ -138,14 +138,14 @@ describe('createContextNode - Integration Tests', () => {
       const parentNodeId: NodeIdAndFilePath = '1_VoiceTree_Website_Development_and_Node_Display_Bug.md'
 
       // WHEN: Create context node
-      const contextNodeId = await createContextNodeWithBackup(parentNodeId)
+      const contextNodeId: string = await createContextNodeWithBackup(parentNodeId)
       createdContextNodeId = contextNodeId
 
       // THEN: Read the created file
-      const vaultPath = getVaultPath()
+      const vaultPath: O.Option<string> = getVaultPath()
       if (O.isSome(vaultPath)) {
-        const contextFilePath = path.join(vaultPath.value, contextNodeId)
-        const fileContent = await fs.readFile(contextFilePath, 'utf-8')
+        const contextFilePath: string = path.join(vaultPath.value, contextNodeId)
+        const fileContent: string = await fs.readFile(contextFilePath, 'utf-8')
 
         // Should contain information about the parent node
         expect(fileContent).toContain('VoiceTree')
@@ -161,19 +161,19 @@ describe('createContextNode - Integration Tests', () => {
       const parentNodeId: NodeIdAndFilePath = '2_VoiceTree_Node_ID_Duplication_Bug.md'
 
       // WHEN: Create context node
-      const contextNodeId = await createContextNodeWithBackup(parentNodeId)
+      const contextNodeId: string = await createContextNodeWithBackup(parentNodeId)
       createdContextNodeId = contextNodeId
 
       // AND: Reload graph from disk
-      const reloadResult = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH))
+      const reloadResult: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH))
       if (E.isLeft(reloadResult)) throw new Error('Expected Right')
-      const reloadedGraph = reloadResult.right
+      const reloadedGraph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = reloadResult.right
 
       // THEN: The context node should be present in reloaded graph
       expect(reloadedGraph.nodes[contextNodeId]).toBeDefined()
 
       // AND: Context node should have the parent node as a connection
-      const contextNode = reloadedGraph.nodes[contextNodeId]
+      const contextNode: GraphNode = reloadedGraph.nodes[contextNodeId]
       expect(contextNode).toBeDefined()
       expect(contextNode.contentWithoutYamlOrLinks).toContain('CONTEXT for')
     })
@@ -197,21 +197,21 @@ describe('createContextNode - Integration Tests', () => {
       const parentNodeId: NodeIdAndFilePath = '1_VoiceTree_Website_Development_and_Node_Display_Bug.md'
 
       // WHEN: Create context node
-      const contextNodeId = await createContextNodeWithBackup(parentNodeId)
+      const contextNodeId: string = await createContextNodeWithBackup(parentNodeId)
       createdContextNodeId = contextNodeId
 
       // THEN: Read the context file
-      const vaultPath = getVaultPath()
+      const vaultPath: O.Option<string> = getVaultPath()
       if (O.isSome(vaultPath)) {
-        const contextFilePath = path.join(vaultPath.value, contextNodeId)
-        const fileContent = await fs.readFile(contextFilePath, 'utf-8')
+        const contextFilePath: string = path.join(vaultPath.value, contextNodeId)
+        const fileContent: string = await fs.readFile(contextFilePath, 'utf-8')
 
         // Should contain ASCII visualization (which implies subgraph was extracted)
-        const codeBlockMatch = fileContent.match(/```\n([\s\S]+?)\n```/)
+        const codeBlockMatch: RegExpMatchArray | null = fileContent.match(/```\n([\s\S]+?)\n```/)
         expect(codeBlockMatch).toBeTruthy()
 
         if (codeBlockMatch) {
-          const asciiTree = codeBlockMatch[1]
+          const asciiTree: string = codeBlockMatch[1]
           // ASCII tree should have some structure (nodes and connections)
           expect(asciiTree.length).toBeGreaterThan(0)
         }
@@ -225,27 +225,27 @@ describe('createContextNode - Integration Tests', () => {
       const parentNodeId: NodeIdAndFilePath = '1_VoiceTree_Website_Development_and_Node_Display_Bug.md'
 
       // WHEN: Create context node for this parent
-      const contextNodeId = await createContextNodeWithBackup(parentNodeId)
+      const contextNodeId: string = await createContextNodeWithBackup(parentNodeId)
       createdContextNodeId = contextNodeId
 
       // THEN: Read the context file
-      const vaultPath = getVaultPath()
+      const vaultPath: O.Option<string> = getVaultPath()
       expect(O.isSome(vaultPath)).toBe(true)
 
       if (O.isSome(vaultPath)) {
-        const contextFilePath = path.join(vaultPath.value, contextNodeId)
-        const fileContent = await fs.readFile(contextFilePath, 'utf-8')
+        const contextFilePath: string = path.join(vaultPath.value, contextNodeId)
+        const fileContent: string = await fs.readFile(contextFilePath, 'utf-8')
 
         // Extract Node Details section (after ## Node Details)
-        const nodeDetailsMatch = fileContent.match(/## Node Details\n([\s\S]+)$/)
+        const nodeDetailsMatch: RegExpMatchArray | null = fileContent.match(/## Node Details\n([\s\S]+)$/)
         expect(nodeDetailsMatch).toBeTruthy()
 
         if (nodeDetailsMatch) {
-          const nodeDetailsSection = nodeDetailsMatch[1]
+          const nodeDetailsSection: string = nodeDetailsMatch[1]
 
           // Extract node IDs from Node Details section
           // Node details has format: <node_id.md> \n content \n </node_id.md>
-          const nodeDetailIds = Array.from(
+          const nodeDetailIds: string[] = Array.from(
             nodeDetailsSection.matchAll(/<([^/>][^>]*\.md)>\s*\n/g)
           ).map(match => match[1].trim())
 
@@ -268,42 +268,42 @@ describe('createContextNode - Integration Tests', () => {
     it('should create context node with only one edge to parent, not one edge per subgraph node', async () => {
       // GIVEN: example_real_large fixture with at least 5 nodes
       setVaultPath(EXAMPLE_LARGE_PATH)
-      const largeLoadResult = await loadGraphFromDisk(O.some(EXAMPLE_LARGE_PATH))
+      const largeLoadResult: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(EXAMPLE_LARGE_PATH))
       if (E.isLeft(largeLoadResult)) throw new Error('Expected Right')
-      const largeGraph = largeLoadResult.right
+      const largeGraph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = largeLoadResult.right
       setGraph(largeGraph)
 
       // VERIFY: Graph has at least 5 nodes
-      const nodeCount = Object.keys(largeGraph.nodes).length
+      const nodeCount: number = Object.keys(largeGraph.nodes).length
       expect(nodeCount).toBeGreaterThanOrEqual(5)
 
       // Find a parent node that's part of a sufficiently large subgraph (at least 5 nodes)
       // We'll use the first node as it should have connections
-      const parentNodeId = Object.keys(largeGraph.nodes)[0] as NodeIdAndFilePath
+      const parentNodeId: string = Object.keys(largeGraph.nodes)[0] as NodeIdAndFilePath
 
       // Count nodes in parent's subgraph before creating context node
-      const parentNode = largeGraph.nodes[parentNodeId]
-      const subgraphNodeCount = parentNode.outgoingEdges.length + 1 // parent + its children
+      const parentNode: GraphNode = largeGraph.nodes[parentNodeId]
+      const subgraphNodeCount: number = parentNode.outgoingEdges.length + 1 // parent + its children
 
       // WHEN: Create context node for this parent
-      const contextNodeId = await createContextNodeWithBackup(parentNodeId)
+      const contextNodeId: string = await createContextNodeWithBackup(parentNodeId)
       createdContextNodeId = contextNodeId
 
       // Read the context node file content to verify structure
-      const vaultPath = getVaultPath()
+      const vaultPath: O.Option<string> = getVaultPath()
       expect(O.isSome(vaultPath)).toBe(true)
 
       if (O.isSome(vaultPath)) {
-        const contextFilePath = path.join(vaultPath.value, contextNodeId)
-        const contextFileContent = await fs.readFile(contextFilePath, 'utf-8')
+        const contextFilePath: string = path.join(vaultPath.value, contextNodeId)
+        const contextFileContent: string = await fs.readFile(contextFilePath, 'utf-8')
 
         // Count wikilinks in the context node content
-        const wikilinkMatches = contextFileContent.match(/\[\[([^\]]+)\]\]/g)
-        const wikilinkCount = wikilinkMatches ? wikilinkMatches.length : 0
+        const wikilinkMatches: RegExpMatchArray | null = contextFileContent.match(/\[\[([^\]]+)\]\]/g)
+        const wikilinkCount: number = wikilinkMatches ? wikilinkMatches.length : 0
 
         // Also check for [link]* format (should have these instead of [[link]])
-        const strippedLinkMatches = contextFileContent.match(/\[([^\]]+)\]\*/g)
-        const strippedLinkCount = strippedLinkMatches ? strippedLinkMatches.length : 0
+        const strippedLinkMatches: RegExpMatchArray | null = contextFileContent.match(/\[([^\]]+)\]\*/g)
+        const strippedLinkCount: number = strippedLinkMatches ? strippedLinkMatches.length : 0
 
         console.log('\n' + '='.repeat(80))
         console.log('CONTEXT NODE FILE CONTENT ANALYSIS')
@@ -321,7 +321,7 @@ describe('createContextNode - Integration Tests', () => {
           strippedLinkMatches.forEach((link, i) => console.log(`  ${i + 1}. ${link}`))
         }
         console.log('\nFirst 500 chars of Node Details section:')
-        const nodeDetailsMatch = contextFileContent.match(/## Node Details\n([\s\S]{0,500})/)
+        const nodeDetailsMatch: RegExpMatchArray | null = contextFileContent.match(/## Node Details\n([\s\S]{0,500})/)
         if (nodeDetailsMatch) {
           console.log(nodeDetailsMatch[1])
         }
@@ -336,18 +336,18 @@ describe('createContextNode - Integration Tests', () => {
       }
 
       // THEN: Reload graph to get the context node
-      const largeReloadResult = await loadGraphFromDisk(O.some(EXAMPLE_LARGE_PATH))
+      const largeReloadResult: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(EXAMPLE_LARGE_PATH))
       if (E.isLeft(largeReloadResult)) throw new Error('Expected Right')
-      const reloadedGraph = largeReloadResult.right
+      const reloadedGraph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = largeReloadResult.right
 
       // VERIFY: Context node exists in reloaded graph
       expect(reloadedGraph.nodes[contextNodeId]).toBeDefined()
 
       // VERIFY: Parent node should have exactly ONE outgoing edge to the context node
-      const reloadedParentNode = reloadedGraph.nodes[parentNodeId]
+      const reloadedParentNode: GraphNode = reloadedGraph.nodes[parentNodeId]
       expect(reloadedParentNode).toBeDefined()
 
-      const edgesToContextNode = reloadedParentNode.outgoingEdges.filter(
+      const edgesToContextNode: Edge[] = reloadedParentNode.outgoingEdges.filter(
         (edge: Edge) => edge.targetId === contextNodeId
       )
 
@@ -368,7 +368,7 @@ describe('createContextNode - Integration Tests', () => {
       expect(edgesToContextNode.length).toBe(1)
 
       // ALSO VERIFY: Context node should have exactly ONE incoming edge (from parent)
-      const incomingEdgesCount = (Object.values(reloadedGraph.nodes) as GraphNode[]).filter((node: GraphNode) =>
+      const incomingEdgesCount: number = (Object.values(reloadedGraph.nodes) as GraphNode[]).filter((node: GraphNode) =>
         node.outgoingEdges.some((edge: Edge) => edge.targetId === contextNodeId)
       ).length
 
@@ -377,7 +377,7 @@ describe('createContextNode - Integration Tests', () => {
 
       // ALSO VERIFY: Context node itself should have ZERO outgoing edges
       // It should not link back to any of the nodes in its subgraph
-      const contextNodeInReloaded = reloadedGraph.nodes[contextNodeId]
+      const contextNodeInReloaded: GraphNode = reloadedGraph.nodes[contextNodeId]
       expect(contextNodeInReloaded.outgoingEdges.length).toBe(0)
     })
   })

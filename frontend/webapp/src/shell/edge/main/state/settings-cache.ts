@@ -6,14 +6,14 @@ import type {VTSettings} from "@/pure/settings";
 let cachedSettings: VTSettings | null = null;
 
 // Getter/setter for controlled access to settings cache
-export const getCachedSettings = (): VTSettings | null => {
+export const getCachedSettings: () => VTSettings | null = (): VTSettings | null => {
     return cachedSettings;
 };
 
-export const setCachedSettings = (settings: VTSettings): void => {
+export const setCachedSettings: (settings: VTSettings) => void = (settings: VTSettings): void => {
     cachedSettings = settings;
 };
 
-export const clearCachedSettings = (): void => {
+export const clearCachedSettings: () => void = (): void => {
     cachedSettings = null;
 };

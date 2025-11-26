@@ -1,6 +1,6 @@
 import { type Token } from "@soniox/speech-to-text-web";
-import { getLanguage } from "@/utils/config/languages.ts";
-import SpeakerLabel from "@/shell/UI/views/components/speaker-label.tsx";
+import { getLanguage } from "@/utils/config/languages";
+import SpeakerLabel from "@/shell/UI/views/components/speaker-label";
 import React from "react";
 
 interface RendererProps {
@@ -38,8 +38,8 @@ export default function Renderer({ tokens, placeholder, onPlaceholderClick }: Re
               );
             }
             // Track speaker changes to show speaker labels only when speaker changes
-            const isNewSpeaker = token.speaker && token.speaker !== lastSpeaker;
-            const isNewLanguage =
+            const isNewSpeaker: boolean | "" | undefined = token.speaker && token.speaker !== lastSpeaker;
+            const isNewLanguage: boolean | "" | undefined =
               token.language && token.language !== lastLanguage;
 
             lastSpeaker = token.speaker;

@@ -1,17 +1,17 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { useFolderWatcher } from './useFolderWatcher.tsx';
+import { useFolderWatcher } from './useFolderWatcher';
 
 // Mock Electron API - only the IPC methods useFolderWatcher actually uses
 const eventListeners: Record<string, ((data?: unknown) => void)[]> = {};
 
-const mockMainAPI = {
+const mockMainAPI: { startFileWatching: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any>; stopFileWatching: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any>; getWatchStatus: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any>; } = {
   startFileWatching: vi.fn(),
   stopFileWatching: vi.fn(),
   getWatchStatus: vi.fn(),
 };
 
-const mockElectronAPI = {
+const mockElectronAPI: { main: { startFileWatching: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any>; stopFileWatching: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any>; getWatchStatus: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any>; }; onWatchingStarted: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(callback: any) => void>; onFileWatchingStopped: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(callback: any) => void>; removeAllListeners: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(eventName: string) => void>; } = {
   main: mockMainAPI,
   onWatchingStarted: vi.fn((callback) => {
     if (!eventListeners['watching-started']) {
@@ -31,8 +31,8 @@ const mockElectronAPI = {
 };
 
 // Helper to trigger events
-const triggerEvent = (eventName: string, data?: unknown) => {
-  const listeners = eventListeners[eventName] || [];
+const triggerEvent: (eventName: string, data?: unknown) => void = (eventName: string, data?: unknown) => {
+  const listeners: ((data?: unknown) => void)[] = eventListeners[eventName] || [];
   listeners.forEach(callback => callback(data));
 };
 

@@ -21,16 +21,16 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { applyGraphDeltaToDBThroughMem } from '@/shell/edge/main/graph/writePath/applyGraphDeltaToDBThroughMem.ts'
-import { setGraph, setVaultPath, clearVaultPath } from '@/shell/edge/main/state/graph-store.ts'
+import { applyGraphDeltaToDBThroughMem } from '@/shell/edge/main/graph/writePath/applyGraphDeltaToDBThroughMem'
+import { setGraph, setVaultPath, clearVaultPath } from '@/shell/edge/main/state/graph-store'
 import type { GraphDelta, UpsertNodeAction, DeleteNode, GraphNode } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'
 import { promises as fs } from 'fs'
-import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths.ts'
+import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths'
 
-const TEST_NODE_ID = 'test-integration-node'
-const TEST_FILE_PATH = path.join(EXAMPLE_SMALL_PATH, `${TEST_NODE_ID}.md`)
+const TEST_NODE_ID: "test-integration-node" = 'test-integration-node'
+const TEST_FILE_PATH: string = path.join(EXAMPLE_SMALL_PATH, `${TEST_NODE_ID}.md`)
 
 describe('applyGraphDeltaToDB - Integration Tests', () => {
   beforeEach(() => {
@@ -73,14 +73,14 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       await applyGraphDeltaToDBThroughMem(delta)
 
       // THEN: File should exist on disk
-      const fileExists = await fs.access(TEST_FILE_PATH)
+      const fileExists: boolean = await fs.access(TEST_FILE_PATH)
         .then(() => true)
         .catch(() => false)
 
       expect(fileExists).toBe(true)
 
       // AND: File should have correct content
-      const fileContent = await fs.readFile(TEST_FILE_PATH, 'utf-8')
+      const fileContent: string = await fs.readFile(TEST_FILE_PATH, 'utf-8')
       expect(fileContent).toContain('# Test Integration GraphNode')
       expect(fileContent).toContain('This is test content for integration testing.')
     })
@@ -112,7 +112,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       await applyGraphDeltaToDBThroughMem(delta)
 
       // THEN: File should exist with markdown links
-      const fileContent = await fs.readFile(TEST_FILE_PATH, 'utf-8')
+      const fileContent: string = await fs.readFile(TEST_FILE_PATH, 'utf-8')
       expect(fileContent).toContain('[[1_VoiceTree_Website_Development_and_Node_Display_Bug]]')
       expect(fileContent).toContain('[[2_VoiceTree_Node_ID_Duplication_Bug]]')
 
@@ -149,7 +149,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       await applyGraphDeltaToDBThroughMem(createDelta)
 
       // Verify file exists
-      const fileExistsBeforeDelete = await fs.access(TEST_FILE_PATH)
+      const fileExistsBeforeDelete: boolean = await fs.access(TEST_FILE_PATH)
         .then(() => true)
         .catch(() => false)
       expect(fileExistsBeforeDelete).toBe(true)
@@ -164,7 +164,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       await applyGraphDeltaToDBThroughMem(deleteDelta)
 
       // THEN: File should no longer exist
-      const fileExistsAfterDelete = await fs.access(TEST_FILE_PATH)
+      const fileExistsAfterDelete: boolean = await fs.access(TEST_FILE_PATH)
         .then(() => true)
         .catch(() => false)
 
@@ -193,7 +193,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
         nodeToUpsert: createNode
       }])
 
-      let fileContent = await fs.readFile(TEST_FILE_PATH, 'utf-8')
+      let fileContent: string = await fs.readFile(TEST_FILE_PATH, 'utf-8')
       expect(fileContent).toContain('# Original Content')
 
       // STEP 2: Update node
@@ -224,7 +224,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
         nodeId: TEST_NODE_ID
       }])
 
-      const fileExists = await fs.access(TEST_FILE_PATH)
+      const fileExists: boolean = await fs.access(TEST_FILE_PATH)
         .then(() => true)
         .catch(() => false)
       expect(fileExists).toBe(false)

@@ -2,12 +2,12 @@ import type {Core, NodeSingular} from 'cytoscape';
 // @ts-expect-error - cytoscape-cxtmenu doesn't have proper TypeScript definitions
 import cxtmenu from 'cytoscape-cxtmenu';
 import cytoscape from 'cytoscape';
-import {createNewChildNodeFromUI, deleteNodeFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions.ts";
+import {createNewChildNodeFromUI, deleteNodeFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions";
 import type {NodeIdAndFilePath} from "@/pure/graph";
 import {
     spawnTerminalWithNewContextNode
-} from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI.ts";
-import {getFilePathForNode} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI.ts";
+} from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
+import {getFilePathForNode} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
 
 // Register the extension with cytoscape
 cytoscape.use(cxtmenu);
@@ -50,17 +50,17 @@ export class RadialMenuService {
         }
 
         // Get theme colors from CSS variables or use defaults
-        const style = getComputedStyle(document.body);
-        const isDarkMode = document.documentElement.classList.contains('dark');
+        const style: CSSStyleDeclaration = getComputedStyle(document.body);
+        const isDarkMode: boolean = document.documentElement.classList.contains('dark');
 
-        const selectColor = style.getPropertyValue('--text-selection').trim() ||
+        const selectColor: string = style.getPropertyValue('--text-selection').trim() ||
             (isDarkMode ? '#3b82f6' : '#2563eb');
-        const backgroundColor = style.getPropertyValue('--background-secondary').trim() ||
+        const backgroundColor: string = style.getPropertyValue('--background-secondary').trim() ||
             (isDarkMode ? '#1f2937' : '#f3f4f6');
-        const textColor = style.getPropertyValue('--text-normal').trim() ||
+        const textColor: string = style.getPropertyValue('--text-normal').trim() ||
             (isDarkMode ? '#ffffff' : '#111827');
 
-        const menuOptions = {
+        const menuOptions: { menuRadius: number; selector: string; commands: (node: NodeSingular) => RadialMenuCommand[]; fillColor: string; activeFillColor: string; activePadding: number; indicatorSize: number; separatorWidth: number; spotlightPadding: number; adaptativeNodeSpotlightRadius: boolean; openMenuEvents: string; itemColor: string; itemTextShadowColor: string; zIndex: number; atMouse: boolean; outsideMenuCancel: number; } = {
             menuRadius: 75,
             selector: 'node',
             commands: (node: NodeSingular) => this.getRadialMenuCommands(node),
@@ -89,7 +89,7 @@ export class RadialMenuService {
         // Close radial menu when mouse moves to background (not over any node)
         this.cy.on('mouseover', (event) => {
             if (event.target === this.cy) {
-                const menuCanvas = document.querySelector('.cxtmenu-canvas') as HTMLElement | null;
+                const menuCanvas: HTMLElement | null = document.querySelector('.cxtmenu-canvas') as HTMLElement | null;
                 if (menuCanvas) {
                     menuCanvas.style.display = 'none';
                 }
@@ -101,7 +101,7 @@ export class RadialMenuService {
         if (!this.cy || !this.deps) return [];
 
         const commands: RadialMenuCommand[] = [];
-        const nodeId = node.id();
+        const nodeId: string = node.id();
 
         // Open in Editor
         commands.push({
@@ -127,8 +127,8 @@ export class RadialMenuService {
         });
 
         // Delete node(s) - shows count when multiple nodes are selected
-        const selectedCount = this.cy.$(':selected').nodes().size();
-        const deleteLabel = selectedCount > 1 ? `Delete (${selectedCount})` : 'Delete';
+        const selectedCount: number = this.cy.$(':selected').nodes().size();
+        const deleteLabel: string = selectedCount > 1 ? `Delete (${selectedCount})` : 'Delete';
         commands.push({
             content: this.createSvgIcon('trash', deleteLabel),
             select: this.deleteNode(nodeId),
@@ -139,7 +139,7 @@ export class RadialMenuService {
         commands.push({
             content: this.createSvgIcon('copy', 'Copy'),
             select: async () => {
-                const absolutePath = await getFilePathForNode(nodeId);
+                const absolutePath: string | undefined = await getFilePathForNode(nodeId);
                 void navigator.clipboard.writeText(absolutePath ?? nodeId);
             },
             enabled: true,
@@ -169,11 +169,11 @@ export class RadialMenuService {
         return async () =>  {
             try {
                 // Get all selected nodes
-                const selectedNodeIds = this.cy!.$(':selected').nodes().map((n) => n.id());
+                const selectedNodeIds: string[] = this.cy!.$(':selected').nodes().map((n) => n.id());
 
                 // If clicked node is in selection, delete all selected nodes
                 // Otherwise just delete the clicked node
-                const nodesToDelete = selectedNodeIds.includes(nodeId) && selectedNodeIds.length > 1
+                const nodesToDelete: string[] = selectedNodeIds.includes(nodeId) && selectedNodeIds.length > 1
                     ? selectedNodeIds
                     : [nodeId];
 
@@ -195,7 +195,7 @@ export class RadialMenuService {
             return {textContent: type} as HTMLElement;
         }
 
-        const div = document.createElement('div');
+        const div: HTMLDivElement = document.createElement('div');
         div.style.width = '24px';
         div.style.height = '24px';
         div.style.display = 'flex';
@@ -203,7 +203,7 @@ export class RadialMenuService {
         div.style.justifyContent = 'center';
         div.title = tooltip;
 
-        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        const svg: SVGSVGElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         svg.setAttribute('width', '20');
         svg.setAttribute('height', '20');
         svg.setAttribute('viewBox', '0 0 24 24');
@@ -226,7 +226,7 @@ export class RadialMenuService {
             trash: 'M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14'
         };
 
-        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const path: SVGPathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('d', paths[type] || paths.edit);
         svg.appendChild(path);
         div.appendChild(svg);

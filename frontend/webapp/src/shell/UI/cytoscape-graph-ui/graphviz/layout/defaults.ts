@@ -1,5 +1,5 @@
 // default layout options
-const defaults = {
+const defaults: { animate: boolean; refresh: number; maxSimulationTime: number; ungrabifyWhileSimulating: boolean; fit: boolean; padding: number; boundingBox: undefined; nodeDimensionsIncludeLabels: boolean; ready: () => void; stop: () => void; randomize: boolean; avoidOverlap: boolean; handleDisconnected: boolean; convergenceThreshold: number; nodeSpacing: (_node: unknown) => number; flow: undefined; alignment: undefined; gapInequalities: undefined; centerGraph: boolean; edgeLength: undefined; edgeSymDiffLength: undefined; edgeJaccardLength: undefined; unconstrIter: undefined; userConstIter: undefined; allConstIter: undefined; infinite: boolean; } = {
   animate: true, // whether to show the layout as it's running
   refresh: 1, // number of ticks per frame; higher is faster but more jerky
   maxSimulationTime: 4000, // max length in ms to run the layout

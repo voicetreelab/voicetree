@@ -45,7 +45,7 @@ export class HotkeyManager {
    * Register a hotkey with optional modifiers
    */
   registerHotkey(config: HotkeyConfig): void {
-    const key = this.getHotkeyKey(config.key, config.modifiers);
+    const key: string = this.getHotkeyKey(config.key, config.modifiers);
 
     if (this.hotkeys.has(key)) {
       console.warn(`[HotkeyManager] Hotkey already registered: ${key}`);
@@ -64,8 +64,8 @@ export class HotkeyManager {
    * Unregister a hotkey
    */
   unregisterHotkey(key: string, modifiers?: Modifier[]): void {
-    const hotkeyKey = this.getHotkeyKey(key, modifiers);
-    const hotkey = this.hotkeys.get(hotkeyKey);
+    const hotkeyKey: string = this.getHotkeyKey(key, modifiers);
+    const hotkey: RegisteredHotkey | undefined = this.hotkeys.get(hotkeyKey);
 
     if (hotkey) {
       this.stopRepeating(hotkey);
@@ -216,14 +216,14 @@ export class HotkeyManager {
       this.handleModifierKeyDown(e);
 
       // Check for matching hotkey
-      const hotkeyKey = this.getHotkeyKeyFromEvent(e);
-      const hotkey = this.hotkeys.get(hotkeyKey);
+      const hotkeyKey: string = this.getHotkeyKeyFromEvent(e);
+      const hotkey: RegisteredHotkey | undefined = this.hotkeys.get(hotkeyKey);
 
       // Ignore hotkeys when typing in input elements
       // BUT allow hotkeys with modifiers (Command+[, etc.) to work everywhere
       if (this.isInputElement(e.target as HTMLElement)) {
         // Allow hotkeys that have modifiers (Meta, Control, Alt)
-        const hasModifier = e.metaKey || e.ctrlKey || e.altKey;
+        const hasModifier: boolean = e.metaKey || e.ctrlKey || e.altKey;
         if (!hasModifier) {
           return; // Block plain keys like Space when in input elements
         }
@@ -233,7 +233,7 @@ export class HotkeyManager {
         // Allow firing if either:
         // 1. Hotkey is not currently pressed, OR
         // 2. This is a fresh keypress (not a repeat) - handles case where OS doesn't send keyup events
-        const shouldFire = !hotkey.isPressed || !e.repeat;
+        const shouldFire: boolean = !hotkey.isPressed || !e.repeat;
 
         if (shouldFire) {
           // Fire onPress
@@ -265,17 +265,17 @@ export class HotkeyManager {
 
       // FIX: Reset ALL hotkeys that use this key OR modifier, regardless of current modifier state
       // This handles the case where either the main key OR a modifier is released before the other
-      const releasedKey = e.key;
-      const releasedModifier = this.getModifierFromEvent(e);
+      const releasedKey: string = e.key;
+      const releasedModifier: Modifier | null = this.getModifierFromEvent(e);
 
       for (const [_hotkeyKey, hotkey] of this.hotkeys.entries()) {
         if (!hotkey.isPressed) continue;
 
         // Check if this hotkey uses the released key as its main key
-        const usesReleasedKey = hotkey.config.key === releasedKey;
+        const usesReleasedKey: boolean = hotkey.config.key === releasedKey;
 
         // Check if this hotkey uses the released modifier
-        const usesReleasedModifier = releasedModifier &&
+        const usesReleasedModifier: boolean | null | undefined = releasedModifier &&
           hotkey.config.modifiers?.includes(releasedModifier);
 
         if (usesReleasedKey || usesReleasedModifier) {
@@ -350,9 +350,9 @@ export class HotkeyManager {
   }
 
   private handleModifierKeyDown(e: KeyboardEvent): void {
-    const modifier = this.getModifierFromEvent(e);
+    const modifier: Modifier | null = this.getModifierFromEvent(e);
     if (modifier) {
-      const callbacks = this.modifierCallbacks.get(modifier);
+      const callbacks: ((held: boolean) => void)[] | undefined = this.modifierCallbacks.get(modifier);
       if (callbacks) {
         callbacks.forEach(cb => cb(true));
       }
@@ -360,9 +360,9 @@ export class HotkeyManager {
   }
 
   private handleModifierKeyUp(e: KeyboardEvent): void {
-    const modifier = this.getModifierFromEvent(e);
+    const modifier: Modifier | null = this.getModifierFromEvent(e);
     if (modifier) {
-      const callbacks = this.modifierCallbacks.get(modifier);
+      const callbacks: ((held: boolean) => void)[] | undefined = this.modifierCallbacks.get(modifier);
       if (callbacks) {
         callbacks.forEach(cb => cb(false));
       }
@@ -378,7 +378,7 @@ export class HotkeyManager {
   }
 
   private startRepeating(hotkey: RegisteredHotkey): void {
-    const delay = hotkey.config.repeatDelay ?? 150;
+    const delay: number = hotkey.config.repeatDelay ?? 150;
 
     hotkey.repeatInterval = window.setInterval(() => {
       if (hotkey.isPressed) {
@@ -399,7 +399,7 @@ export class HotkeyManager {
 
     if (modifiers && modifiers.length > 0) {
       // Sort modifiers for consistent keys
-      const sorted = [...modifiers].sort();
+      const sorted: Modifier[] = [...modifiers].sort();
       parts.push(...sorted);
     }
 

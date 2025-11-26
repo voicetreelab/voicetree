@@ -1,10 +1,10 @@
 // Electron API type definitions
 import type { Core as CytoscapeCore } from 'cytoscape';
 import type { GraphDelta } from '@/pure/graph';
-import type { mainAPI } from '@/shell/edge/main/api.ts';
+import type { mainAPI } from '@/shell/edge/main/api';
 
 // Re-export NodeMetadata for use in terminal API
-export type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/types.ts';
+export type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/types';
 
 // Utility type to transform all functions in an object to return Promises
 // Uses Awaited<R> to handle both sync and async functions correctly:

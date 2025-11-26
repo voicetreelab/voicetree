@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { markdownToTitle } from './markdown-to-title.ts'
-import { extractFrontmatter } from './extract-frontmatter.ts'
+import { markdownToTitle } from './markdown-to-title'
+import { extractFrontmatter } from './extract-frontmatter'
 import * as O from 'fp-ts/lib/Option.js'
 import type { GraphNode } from '@/pure/graph'
 
@@ -26,8 +26,8 @@ Content here`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Bug: Auto-open Markdown Editor (3)')
         })
 
@@ -48,8 +48,8 @@ Content`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Simple Title')
         })
 
@@ -70,8 +70,8 @@ Content`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Title With Double Quotes')
         })
 
@@ -92,8 +92,8 @@ Content`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe("It's a Title with Apostrophe's")
         })
 
@@ -114,8 +114,8 @@ Content`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Special: Characters! & Symbols?')
         })
 
@@ -138,8 +138,8 @@ Content`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Frontmatter Title')
         })
 
@@ -163,8 +163,8 @@ Content`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Bug: Auto-open Markdown Editor (3)')
         })
     })
@@ -186,8 +186,8 @@ Content here`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('My Heading')
         })
 
@@ -210,8 +210,8 @@ Content`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Heading Title')
         })
     })
@@ -231,8 +231,8 @@ Content`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Just content, no heading') // Now uses first line, not filename
         })
 
@@ -250,8 +250,8 @@ Content`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Content') // Now uses first line, not filename
         })
 
@@ -269,8 +269,8 @@ Content`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('test file name')
         })
     })
@@ -296,8 +296,8 @@ Users can manually create nodes in the task tree, often preferred over speaking.
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Manually Creating Task Tree Nodes (12)')
         })
 
@@ -322,8 +322,8 @@ position:
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Ethical Concern: Objectifying Colleagues (9)')
         })
     })
@@ -345,8 +345,8 @@ And this is more content`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('This is the first line of content')
         })
 
@@ -373,8 +373,8 @@ More content here`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('This is the first line after frontmatter')
         })
 
@@ -396,8 +396,8 @@ More content`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('First line with leading whitespace')
         })
 
@@ -418,13 +418,13 @@ More content`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Heading Title')
         })
 
         it('should truncate first line when too long', () => {
-            const longLine = 'a'.repeat(250)
+            const longLine: string = 'a'.repeat(250)
             const node: GraphNode = {
                 relativeFilePathIsID: 'test-file.md',
                 contentWithoutYamlOrLinks: longLine,
@@ -438,8 +438,8 @@ More content`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('a'.repeat(200) + '...') // Should truncate with ...
         })
     })
@@ -459,13 +459,13 @@ More content`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('empty')
         })
 
         it('should truncate very long heading with ellipsis', () => {
-            const longHeading = 'a'.repeat(250)
+            const longHeading: string = 'a'.repeat(250)
             const node: GraphNode = {
                 relativeFilePathIsID: 'test-file.md',
                 contentWithoutYamlOrLinks: `# ${longHeading}
@@ -480,13 +480,13 @@ Short first line after heading`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('a'.repeat(200) + '...')
         })
 
         it('should handle heading between 100-200 chars (updated limit)', () => {
-            const heading150 = 'a'.repeat(150)
+            const heading150: string = 'a'.repeat(150)
             const node: GraphNode = {
                 relativeFilePathIsID: 'test-file.md',
                 contentWithoutYamlOrLinks: `# ${heading150}`,
@@ -500,8 +500,8 @@ Short first line after heading`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe(heading150) // Should now work with 200 char limit
         })
 
@@ -535,8 +535,8 @@ there's a bug where in some condition somewhere, the title becomes "---"`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
 
             // The bug: title becomes "---" because the regex doesn't strip empty frontmatter
             // Expected: should use first real line of content or filename
@@ -564,8 +564,8 @@ there's a bug where in some condition somewhere, the title becomes "---"`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
 
             // Should correctly strip frontmatter and use first content line
             expect(title).not.toBe('---')

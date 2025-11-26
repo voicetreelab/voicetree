@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { getNodeIdsInTraversalOrder } from './getNodeIdsInTraversalOrder.ts'
+import { getNodeIdsInTraversalOrder } from './getNodeIdsInTraversalOrder'
 import type { Graph, GraphNode } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
 
 describe('getNodeIdsInTraversalOrder', () => {
-  const createTestNode = (id: string, edges: readonly string[] = []): GraphNode => ({
+  const createTestNode: (id: string, edges?: readonly string[]) => GraphNode = (id: string, edges: readonly string[] = []): GraphNode => ({
     relativeFilePathIsID: id,
     outgoingEdges: edges.map(targetId => ({ targetId, label: '' })),
     contentWithoutYamlOrLinks: `content of ${id}`,
@@ -24,7 +24,7 @@ describe('getNodeIdsInTraversalOrder', () => {
       }
     }
 
-    const result = getNodeIdsInTraversalOrder(graph)
+    const result: string[] = getNodeIdsInTraversalOrder(graph)
 
     expect(result).toEqual(['A'])
   })
@@ -40,7 +40,7 @@ describe('getNodeIdsInTraversalOrder', () => {
       }
     }
 
-    const result = getNodeIdsInTraversalOrder(graph)
+    const result: string[] = getNodeIdsInTraversalOrder(graph)
 
     // Depth-first: Root -> Child1 -> Grandchild1 -> Grandchild2 -> Child2
     expect(result).toEqual(['Root', 'Child1', 'Grandchild1', 'Grandchild2', 'Child2'])
@@ -51,7 +51,7 @@ describe('getNodeIdsInTraversalOrder', () => {
       nodes: {}
     }
 
-    const result = getNodeIdsInTraversalOrder(graph)
+    const result: string[] = getNodeIdsInTraversalOrder(graph)
 
     expect(result).toEqual([])
   })
@@ -67,7 +67,7 @@ describe('getNodeIdsInTraversalOrder', () => {
       }
     }
 
-    const result = getNodeIdsInTraversalOrder(graph)
+    const result: string[] = getNodeIdsInTraversalOrder(graph)
 
     // D should only appear once (first time visited via B)
     expect(result).toEqual(['A', 'B', 'D', 'C'])
@@ -83,7 +83,7 @@ describe('getNodeIdsInTraversalOrder', () => {
       }
     }
 
-    const result = getNodeIdsInTraversalOrder(graph)
+    const result: string[] = getNodeIdsInTraversalOrder(graph)
 
     // Should include all nodes, roots processed in object key order
     expect(result.length).toBe(4)
@@ -106,7 +106,7 @@ describe('getNodeIdsInTraversalOrder', () => {
       }
     }
 
-    const result = getNodeIdsInTraversalOrder(graph)
+    const result: string[] = getNodeIdsInTraversalOrder(graph)
 
     // In a pure cycle, neither node is a root, so result is empty
     expect(result).toEqual([])
@@ -125,7 +125,7 @@ describe('getNodeIdsInTraversalOrder', () => {
       }
     }
 
-    const result = getNodeIdsInTraversalOrder(graph)
+    const result: string[] = getNodeIdsInTraversalOrder(graph)
 
     // Depth-first traversal order
     expect(result).toEqual([

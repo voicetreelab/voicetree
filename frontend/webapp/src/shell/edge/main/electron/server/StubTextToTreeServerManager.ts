@@ -1,6 +1,6 @@
 import http from 'http';
-import { findAvailablePort } from '@/shell/edge/main/electron/port-utils.ts';
-import type { ITextToTreeServerManager } from './ITextToTreeServerManager.ts';
+import { findAvailablePort } from '@/shell/edge/main/electron/port-utils';
+import type { ITextToTreeServerManager } from './ITextToTreeServerManager';
 
 /**
  * Lightweight stub TextToTreeServer for testing.
@@ -12,14 +12,14 @@ export class StubTextToTreeServerManager implements ITextToTreeServerManager {
   private actualPort: number | null = null;
 
   async start(): Promise<number> {
-    const port = await findAvailablePort(8001);
+    const port: number = await findAvailablePort(8001);
     this.actualPort = port;
 
     console.log(`[StubTextToTreeServer] Starting on port ${port}...`);
 
-    const server = http.createServer((req, res) => {
-      const method = req.method ?? 'GET';
-      const url = req.url ?? '/';
+    const server: http.Server<typeof http.IncomingMessage, typeof http.ServerResponse> = http.createServer((req, res) => {
+      const method: string = req.method ?? 'GET';
+      const url: string = req.url ?? '/';
 
       if (method === 'GET' && url.startsWith('/health')) {
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -28,13 +28,13 @@ export class StubTextToTreeServerManager implements ITextToTreeServerManager {
       }
 
       if (method === 'POST' && url.startsWith('/load-directory')) {
-        let body = '';
+        let body: string = '';
         req.on('data', chunk => {
           body += chunk.toString();
         });
 
         req.on('end', () => {
-          let directoryPath = 'unknown';
+          let directoryPath: string = 'unknown';
           try {
             const parsed = JSON.parse(body);
             directoryPath = parsed.directory_path ?? directoryPath;
@@ -59,7 +59,7 @@ export class StubTextToTreeServerManager implements ITextToTreeServerManager {
 
     // Start server with timeout
     await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => {
+      const timeout: NodeJS.Timeout = setTimeout(() => {
         reject(new Error('[StubTextToTreeServer] Timeout: server.listen() took > 5 seconds'));
       }, 5000);
 

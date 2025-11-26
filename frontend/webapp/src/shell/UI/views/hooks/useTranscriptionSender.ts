@@ -27,11 +27,11 @@ export function useTranscriptionSender({
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
   // Track what's been sent (doesn't trigger re-render)
-  const sentTokensCount = useRef(0);
-  const lastProcessedText = useRef("");
+  const sentTokensCount: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@types/react/index").RefObject<number> = useRef(0);
+  const lastProcessedText: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@types/react/index").RefObject<string> = useRef("");
 
   // Extract text from tokens (only final tokens)
-  const getTranscriptText = (tokens: Token[]): string => {
+  const getTranscriptText: (tokens: Token[]) => string = (tokens: Token[]): string => {
     return tokens
       .filter(token => token.text !== "<end>" && token.is_final === true)
       .map(token => token.text)
@@ -39,7 +39,7 @@ export function useTranscriptionSender({
   };
 
   // Core sending function
-  const sendToBackend = useCallback(async (text: string, skipDuplicateCheck: boolean = false): Promise<void> => {
+  const sendToBackend: (text: string, skipDuplicateCheck?: boolean) => Promise<void> = useCallback(async (text: string, skipDuplicateCheck: boolean = false): Promise<void> => {
     if (!text.trim()) return;
 
     // Avoid sending the same text twice (only for manual text)
@@ -51,7 +51,7 @@ export function useTranscriptionSender({
 
     try {
 
-      const response = await fetch(endpoint, {
+      const response: Response = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -69,13 +69,13 @@ export function useTranscriptionSender({
           lastProcessedText.current = text;
         }
       } else {
-        const errorMsg = `Server error: ${response.status} ${response.statusText}`;
+        const errorMsg: string = `Server error: ${response.status} ${response.statusText}`;
         setConnectionError(errorMsg);
         throw new Error(errorMsg);
       }
     } catch (err) {
       console.error("Error sending to VoiceTree:", err);
-      const errorMsg = err instanceof Error ? err.message : "Cannot connect to VoiceTree server";
+      const errorMsg: string = err instanceof Error ? err.message : "Cannot connect to VoiceTree server";
       setConnectionError(errorMsg);
       throw err; // Re-throw to allow caller to handle
     } finally {
@@ -84,19 +84,19 @@ export function useTranscriptionSender({
   }, [endpoint]);
 
   // Send only NEW FINAL tokens incrementally
-  const sendIncrementalTokens = useCallback(async (tokens: Token[]): Promise<void> => {
+  const sendIncrementalTokens: (tokens: Token[]) => Promise<void> = useCallback(async (tokens: Token[]): Promise<void> => {
     // Filter to ensure we only work with final tokens
-    const finalTokensOnly = tokens.filter(token => token.is_final === true);
+    const finalTokensOnly: Token[] = tokens.filter(token => token.is_final === true);
 
     // Only process tokens that we haven't sent yet
-    const newTokens = finalTokensOnly.slice(sentTokensCount.current);
+    const newTokens: Token[] = finalTokensOnly.slice(sentTokensCount.current);
 
     if (newTokens.length === 0) {
       return;
     }
 
     // Convert only the new tokens to text
-    const newText = getTranscriptText(newTokens);
+    const newText: string = getTranscriptText(newTokens);
 
     if (!newText.trim()) {
       // Update count even if text is empty (to avoid reprocessing)
@@ -116,7 +116,7 @@ export function useTranscriptionSender({
   }, [sendToBackend]);
 
   // Send manual text (doesn't use token tracking)
-  const sendManualText = useCallback(async (text: string): Promise<void> => {
+  const sendManualText: (text: string) => Promise<void> = useCallback(async (text: string): Promise<void> => {
     if (!text.trim()) return;
 
     try {
@@ -127,7 +127,7 @@ export function useTranscriptionSender({
   }, [sendToBackend]);
 
   // Reset tracking (e.g., when starting new session)
-  const reset = useCallback(() => {
+  const reset: () => void = useCallback(() => {
     sentTokensCount.current = 0;
     lastProcessedText.current = "";
     setBufferLength(0);

@@ -20,7 +20,7 @@ export class EventEmitter<T> {
   on(callback: (data: T) => void): () => void {
     this.callbacks.push(callback);
     return () => {
-      const index = this.callbacks.indexOf(callback);
+      const index: number = this.callbacks.indexOf(callback);
       if (index > -1) {
         this.callbacks.splice(index, 1);
       }
@@ -33,7 +33,7 @@ export class EventEmitter<T> {
    */
   emit(data: T): void {
     // Create a copy to avoid issues if callbacks modify the array
-    const callbacksCopy = [...this.callbacks];
+    const callbacksCopy: ((data: T) => void)[] = [...this.callbacks];
     for (const callback of callbacksCopy) {
       callback(data);
     }

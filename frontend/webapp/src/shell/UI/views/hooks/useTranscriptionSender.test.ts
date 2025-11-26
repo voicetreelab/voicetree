@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useTranscriptionSender } from '@/shell/UI/views/hooks/useTranscriptionSender.ts';
+import { useTranscriptionSender } from '@/shell/UI/views/hooks/useTranscriptionSender';
 import { type Token } from '@soniox/speech-to-text-web';
 
 describe('useTranscriptionSender - Behavioral Tests', () => {
-  const endpoint = 'http://localhost:8001/send-text';
+  const endpoint: "http://localhost:8001/send-text" = 'http://localhost:8001/send-text';
   let mockFetch: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
@@ -25,7 +25,7 @@ describe('useTranscriptionSender - Behavioral Tests', () => {
   });
 
   // Helper to create tokens
-  const createToken = (text: string, is_final: boolean = true): Token => ({
+  const createToken: (text: string, is_final?: boolean) => Token = (text: string, is_final: boolean = true): Token => ({
     text,
     is_final,
     speaker: undefined,
@@ -38,7 +38,7 @@ describe('useTranscriptionSender - Behavioral Tests', () => {
       const { result } = renderHook(() => useTranscriptionSender({ endpoint }));
 
       // First batch of tokens
-      const firstTokens = [createToken('Hello'), createToken(' world')];
+      const firstTokens: Token[] = [createToken('Hello'), createToken(' world')];
 
       await act(async () => {
         await result.current.sendIncrementalTokens(firstTokens);
@@ -47,12 +47,12 @@ describe('useTranscriptionSender - Behavioral Tests', () => {
       expect(mockFetch).toHaveBeenCalledTimes(1);
 
       // Verify first send contains "Hello world"
-      const firstCall = mockFetch.mock.calls[0];
+      const firstCall: any[] = mockFetch.mock.calls[0];
       const firstBody = JSON.parse(firstCall[1].body);
       expect(firstBody.text).toBe('Hello world');
 
       // Add more tokens (simulating incremental transcription)
-      const updatedTokens = [
+      const updatedTokens: Token[] = [
         ...firstTokens,
         createToken(' how'),
         createToken(' are'),
@@ -66,7 +66,7 @@ describe('useTranscriptionSender - Behavioral Tests', () => {
       expect(mockFetch).toHaveBeenCalledTimes(2);
 
       // Verify second send contains only the NEW text
-      const secondCall = mockFetch.mock.calls[1];
+      const secondCall: any[] = mockFetch.mock.calls[1];
       const secondBody = JSON.parse(secondCall[1].body);
       expect(secondBody.text).toBe(' how are you');
 
@@ -78,7 +78,7 @@ describe('useTranscriptionSender - Behavioral Tests', () => {
       const { result } = renderHook(() => useTranscriptionSender({ endpoint }));
 
       // Mix of final and non-final tokens
-      const tokens = [
+      const tokens: Token[] = [
         createToken('Hello', true),  // final
         createToken(' world', false), // non-final
         createToken(' test', true),   // final
@@ -100,7 +100,7 @@ describe('useTranscriptionSender - Behavioral Tests', () => {
     it('should not send anything if tokens array is unchanged', async () => {
       const { result } = renderHook(() => useTranscriptionSender({ endpoint }));
 
-      const tokens = [createToken('Test'), createToken(' text')];
+      const tokens: Token[] = [createToken('Test'), createToken(' text')];
 
       // Send once
       await act(async () => {
@@ -121,7 +121,7 @@ describe('useTranscriptionSender - Behavioral Tests', () => {
     it('should handle multiple incremental updates correctly', async () => {
       const { result } = renderHook(() => useTranscriptionSender({ endpoint }));
 
-      const updates = [
+      const updates: { tokens: Token[]; expectedText: string; }[] = [
         { tokens: [createToken('First')], expectedText: 'First' },
         { tokens: [createToken('First'), createToken(' second')], expectedText: ' second' },
         { tokens: [createToken('First'), createToken(' second'), createToken(' third')], expectedText: ' third' },
@@ -135,14 +135,14 @@ describe('useTranscriptionSender - Behavioral Tests', () => {
 
         expect(mockFetch).toHaveBeenCalledTimes(index + 1);
 
-        const call = mockFetch.mock.calls[index];
+        const call: any[] = mockFetch.mock.calls[index];
         const body = JSON.parse(call[1].body);
         expect(body.text).toBe(update.expectedText);
       }
 
       // Verify no text was sent twice
-      const allSentTexts = mockFetch.mock.calls.map(call => JSON.parse(call[1].body).text);
-      const fullText = allSentTexts.join('');
+      const allSentTexts: any[] = mockFetch.mock.calls.map(call => JSON.parse(call[1].body).text);
+      const fullText: string = allSentTexts.join('');
       expect(fullText).toBe('First second third fourth');
     });
   });
@@ -151,7 +151,7 @@ describe('useTranscriptionSender - Behavioral Tests', () => {
     it('should reset tracking and resend all tokens after reset', async () => {
       const { result } = renderHook(() => useTranscriptionSender({ endpoint }));
 
-      const tokens = [createToken('Hello'), createToken(' world')];
+      const tokens: Token[] = [createToken('Hello'), createToken(' world')];
 
       // First send
       await act(async () => {
@@ -182,7 +182,7 @@ describe('useTranscriptionSender - Behavioral Tests', () => {
       const { result } = renderHook(() => useTranscriptionSender({ endpoint }));
 
       // Send some tokens first
-      const tokens = [createToken('Voice'), createToken(' input')];
+      const tokens: Token[] = [createToken('Voice'), createToken(' input')];
       await act(async () => {
         await result.current.sendIncrementalTokens(tokens);
       });
@@ -199,7 +199,7 @@ describe('useTranscriptionSender - Behavioral Tests', () => {
       expect(JSON.parse(mockFetch.mock.calls[1][1].body).text).toBe('Manual text entry');
 
       // Sending more tokens should continue from where we left off
-      const moreTokens = [...tokens, createToken(' continued')];
+      const moreTokens: Token[] = [...tokens, createToken(' continued')];
       await act(async () => {
         await result.current.sendIncrementalTokens(moreTokens);
       });
@@ -212,14 +212,14 @@ describe('useTranscriptionSender - Behavioral Tests', () => {
   describe('Error Handling Behavior', () => {
     it('should not update tracking on failed sends', async () => {
       // Suppress console.error for this test since we're intentionally causing an error
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleErrorSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<{ (...data: any[]): void; (message?: any, ...optionalParams: any[]): void; }> = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       const { result } = renderHook(() => useTranscriptionSender({ endpoint }));
 
       // First send will fail
       mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
-      const firstTokens = [createToken('Hello')];
+      const firstTokens: Token[] = [createToken('Hello')];
 
       await act(async () => {
         await result.current.sendIncrementalTokens(firstTokens);
@@ -237,7 +237,7 @@ describe('useTranscriptionSender - Behavioral Tests', () => {
       });
 
       // Try sending more tokens
-      const allTokens = [createToken('Hello'), createToken(' world')];
+      const allTokens: Token[] = [createToken('Hello'), createToken(' world')];
 
       await act(async () => {
         await result.current.sendIncrementalTokens(allTokens);
@@ -245,7 +245,7 @@ describe('useTranscriptionSender - Behavioral Tests', () => {
 
       // Should send BOTH tokens because first send failed
       expect(mockFetch).toHaveBeenCalledTimes(2);
-      const secondCall = mockFetch.mock.calls[1];
+      const secondCall: any[] = mockFetch.mock.calls[1];
       const secondBody = JSON.parse(secondCall[1].body);
       expect(secondBody.text).toBe('Hello world'); // Both tokens sent
     });
@@ -253,7 +253,7 @@ describe('useTranscriptionSender - Behavioral Tests', () => {
     it('should skip empty text tokens without breaking tracking', async () => {
       const { result } = renderHook(() => useTranscriptionSender({ endpoint }));
 
-      const tokens = [
+      const tokens: Token[] = [
         createToken('Text'),
         createToken(''), // Empty token
         createToken(' '), // Whitespace token - will be included since it's valid text
@@ -268,7 +268,7 @@ describe('useTranscriptionSender - Behavioral Tests', () => {
       expect(JSON.parse(mockFetch.mock.calls[0][1].body).text).toBe('Text ');
 
       // Add more tokens
-      const moreTokens = [...tokens, createToken('More')];
+      const moreTokens: Token[] = [...tokens, createToken('More')];
 
       await act(async () => {
         await result.current.sendIncrementalTokens(moreTokens);
@@ -306,7 +306,7 @@ describe('useTranscriptionSender - Behavioral Tests', () => {
       // Create a promise we can control
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let resolvePromise: (value: any) => void;
-      const controlledPromise = new Promise(resolve => {
+      const controlledPromise: Promise<unknown> = new Promise(resolve => {
         resolvePromise = resolve;
       });
 

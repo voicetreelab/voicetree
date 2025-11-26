@@ -1,4 +1,4 @@
-import { applyPositions as applyPositionsImpl } from './applyPositions.ts'
+import { applyPositions as applyPositionsImpl } from './applyPositions'
 import type { Graph } from '@/pure/graph'
 
 // === POSITIONING ===

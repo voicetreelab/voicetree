@@ -1,6 +1,6 @@
-import { parseMarkdownToGraphNode } from './parse-markdown-to-node.ts'
-import { extractEdges } from './extract-edges.ts'
-import { nodeIdToFilePathWithExtension, filenameToNodeId } from './filename-utils.ts'
+import { parseMarkdownToGraphNode } from './parse-markdown-to-node'
+import { extractEdges } from './extract-edges'
+import { nodeIdToFilePathWithExtension, filenameToNodeId } from './filename-utils'
 import type { GraphNode, NodeIdAndFilePath, Edge, Graph } from '@/pure/graph'
 
 // === MARKDOWN PARSING ===
@@ -17,14 +17,14 @@ export type FilenameToNodeId = (filename: string) => NodeIdAndFilePath
 
 // === EXPORTS ===
 
-export { parseMarkdownToGraphNode } from './parse-markdown-to-node.ts'
+export { parseMarkdownToGraphNode } from './parse-markdown-to-node'
 void (parseMarkdownToGraphNode satisfies ParseMarkdownToGraphNode)
 
-export { extractEdges as extractLinkedNodeIds } from './extract-edges.ts'
+export { extractEdges as extractLinkedNodeIds } from './extract-edges'
 void (extractEdges satisfies ExtractLinkedNodeIds)
 
-export { nodeIdToFilePathWithExtension } from './filename-utils.ts'
+export { nodeIdToFilePathWithExtension } from './filename-utils'
 void (nodeIdToFilePathWithExtension satisfies NodeIdToFilePathWithExtension)
 
-export { filenameToNodeId } from './filename-utils.ts'
+export { filenameToNodeId } from './filename-utils'
 void (filenameToNodeId satisfies FilenameToNodeId)

@@ -21,13 +21,13 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { loadFolder, stopFileWatching, isWatching } from '@/shell/edge/main/graph/watchFolder.ts'
-import { getGraph, setGraph, setVaultPath } from '@/shell/edge/main/state/graph-store.ts'
+import { loadFolder, stopFileWatching, isWatching } from '@/shell/edge/main/graph/watchFolder'
+import { getGraph, setGraph, setVaultPath } from '@/shell/edge/main/state/graph-store'
 import type { GraphDelta } from '@/pure/graph'
 import path from 'path'
 import { promises as fs } from 'fs'
 import type { BrowserWindow } from 'electron'
-import { EXAMPLE_SMALL_PATH, EXAMPLE_LARGE_PATH } from '@/utils/test-utils/fixture-paths.ts'
+import { EXAMPLE_SMALL_PATH, EXAMPLE_LARGE_PATH } from '@/utils/test-utils/fixture-paths'
 
 // Track IPC broadcasts
 interface BroadcastCall {
@@ -36,8 +36,8 @@ interface BroadcastCall {
 }
 
 // Expected counts (based on actual example_folder_fixtures)
-const EXPECTED_SMALL_NODE_COUNT = 7  // Includes 7_Bad_YAML_Frontmatter_Test.md
-const EXPECTED_LARGE_NODE_COUNT = 76
+const EXPECTED_SMALL_NODE_COUNT: 7 = 7  // Includes 7_Bad_YAML_Frontmatter_Test.md
+const EXPECTED_LARGE_NODE_COUNT: 76 = 76
 
 // State for mocks
 let broadcastCalls: Array<BroadcastCall> = []
@@ -77,8 +77,8 @@ describe('Folder Loading - Integration Tests', () => {
     }
 
     // Clean up ctx-nodes directory before tests (may exist from previous test runs)
-    const ctxNodesPath = path.join(EXAMPLE_SMALL_PATH, 'ctx-nodes')
-    const ctxNodesDirExists = await fs.access(ctxNodesPath).then(() => true).catch(() => false)
+    const ctxNodesPath: string = path.join(EXAMPLE_SMALL_PATH, 'ctx-nodes')
+    const ctxNodesDirExists: boolean = await fs.access(ctxNodesPath).then(() => true).catch(() => false)
     if (ctxNodesDirExists) {
       await fs.rm(ctxNodesPath, { recursive: true, force: true })
     }
@@ -88,15 +88,15 @@ describe('Folder Loading - Integration Tests', () => {
     await stopFileWatching()
 
     // Clean up test file if it exists - functional approach without try-catch
-    const testFilePath = path.join(EXAMPLE_SMALL_PATH, 'test-new-file.md')
-    const fileExists = await fs.access(testFilePath).then(() => true).catch(() => false)
+    const testFilePath: string = path.join(EXAMPLE_SMALL_PATH, 'test-new-file.md')
+    const fileExists: boolean = await fs.access(testFilePath).then(() => true).catch(() => false)
     if (fileExists) {
       await fs.unlink(testFilePath)
     }
 
     // Clean up ctx-nodes directory if it exists (created by terminal tests)
-    const ctxNodesPath = path.join(EXAMPLE_SMALL_PATH, 'ctx-nodes')
-    const ctxNodesDirExists = await fs.access(ctxNodesPath).then(() => true).catch(() => false)
+    const ctxNodesPath: string = path.join(EXAMPLE_SMALL_PATH, 'ctx-nodes')
+    const ctxNodesDirExists: boolean = await fs.access(ctxNodesPath).then(() => true).catch(() => false)
     if (ctxNodesDirExists) {
       await fs.rm(ctxNodesPath, { recursive: true, force: true })
     }
@@ -110,13 +110,13 @@ describe('Folder Loading - Integration Tests', () => {
       await loadFolder(EXAMPLE_SMALL_PATH)
 
       // THEN: Graph should have expected number of nodes
-      const graph = getGraph()
-      const nodeCount = Object.keys(graph.nodes).length
+      const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = getGraph()
+      const nodeCount: number = Object.keys(graph.nodes).length
 
       expect(nodeCount).toBe(EXPECTED_SMALL_NODE_COUNT)
 
       // AND: Nodes should have content
-      const nodes = Object.values(graph.nodes)
+      const nodes: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode[] = Object.values(graph.nodes)
       expect(nodes.length).toBeGreaterThan(0)
       nodes.forEach(node => {
         expect(node.contentWithoutYamlOrLinks).toBeDefined()
@@ -137,13 +137,13 @@ describe('Folder Loading - Integration Tests', () => {
       await loadFolder(EXAMPLE_LARGE_PATH)
 
       // THEN: Graph should have expected number of nodes
-      const graph = getGraph()
-      const nodeCount = Object.keys(graph.nodes).length
+      const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = getGraph()
+      const nodeCount: number = Object.keys(graph.nodes).length
 
       expect(nodeCount).toBe(EXPECTED_LARGE_NODE_COUNT)
 
       // AND: Nodes should have content
-      const nodes = Object.values(graph.nodes)
+      const nodes: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode[] = Object.values(graph.nodes)
       expect(nodes.length).toBeGreaterThan(0)
       nodes.forEach(node => {
         expect(node.contentWithoutYamlOrLinks).toBeDefined()
@@ -164,8 +164,8 @@ describe('Folder Loading - Integration Tests', () => {
       await loadFolder(EXAMPLE_SMALL_PATH)
 
       // THEN: Graph should have some edges (at least one file should link to another)
-      const graph = getGraph()
-      const edgeEntries = Object.entries(graph.nodes)
+      const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = getGraph()
+      const edgeEntries: [string, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode][] = Object.entries(graph.nodes)
         .filter(([, node]) => node.outgoingEdges && node.outgoingEdges.length > 0)
 
       // We expect at least some nodes to have outgoing edges
@@ -188,22 +188,22 @@ describe('Folder Loading - Integration Tests', () => {
       // STEP 1: Load example_small (simulating auto-load on startup)
       await loadFolder(EXAMPLE_SMALL_PATH)
 
-      const graph1 = getGraph()
+      const graph1: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = getGraph()
       expect(Object.keys(graph1.nodes).length).toBe(EXPECTED_SMALL_NODE_COUNT)
 
       // Verify nodes have content and edges
-      const smallNodeIds = new Set(Object.keys(graph1.nodes))
+      const smallNodeIds: Set<string> = new Set(Object.keys(graph1.nodes))
       Object.values(graph1.nodes).forEach(node => {
         expect(node.contentWithoutYamlOrLinks.length).toBeGreaterThan(0)
         expect(Array.isArray(node.outgoingEdges)).toBe(true)
       })
 
       // Verify at least some edges exist in small graph
-      const smallEdgesCount = Object.values(graph1.nodes)
+      const smallEdgesCount: number = Object.values(graph1.nodes)
         .filter(node => node.outgoingEdges.length > 0).length
       expect(smallEdgesCount).toBeGreaterThan(0)
 
-      const firstBroadcastCount = broadcastCalls.length
+      const firstBroadcastCount: number = broadcastCalls.length
       expect(firstBroadcastCount).toBeGreaterThan(0)
 
       // Verify that file watcher was set up after loading
@@ -216,24 +216,24 @@ describe('Folder Loading - Integration Tests', () => {
       // Wait for watcher to fully initialize
       await new Promise(resolve => setTimeout(resolve, 1000))
 
-      const testFilePath = path.join(EXAMPLE_SMALL_PATH, 'test-new-file.md')
-      const testFileContent = '# Test New File\n\nThis is a test file for chokidar detection.\n\n[[5_Immediate_Test_Observation_No_Output]]'
+      const testFilePath: string = path.join(EXAMPLE_SMALL_PATH, 'test-new-file.md')
+      const testFileContent: "# Test New File\n\nThis is a test file for chokidar detection.\n\n[[5_Immediate_Test_Observation_No_Output]]" = '# Test New File\n\nThis is a test file for chokidar detection.\n\n[[5_Immediate_Test_Observation_No_Output]]'
       // Expected content after wikilink replacement
-      const expectedContent = '# Test New File\n\nThis is a test file for chokidar detection.\n\n[5_Immediate_Test_Observation_No_Output]*'
+      const expectedContent: "# Test New File\n\nThis is a test file for chokidar detection.\n\n[5_Immediate_Test_Observation_No_Output]*" = '# Test New File\n\nThis is a test file for chokidar detection.\n\n[5_Immediate_Test_Observation_No_Output]*'
 
       // Create a new file on disk
       await fs.writeFile(testFilePath, testFileContent, 'utf-8')
 
       // Wait for chokidar to detect the file addition (with awaitWriteFinish it takes ~1-2 seconds)
       // Poll for the node to appear in the graph
-      let nodeAdded = false
-      const maxWaitTime = 5000 // 5 seconds max
-      const pollInterval = 200 // Check every 200ms
-      const startTime = Date.now()
+      let nodeAdded: boolean = false
+      const maxWaitTime: 5000 = 5000 // 5 seconds max
+      const pollInterval: 200 = 200 // Check every 200ms
+      const startTime: number = Date.now()
 
       while (Date.now() - startTime < maxWaitTime) {
         await new Promise(resolve => setTimeout(resolve, pollInterval))
-        const currentGraph = getGraph()
+        const currentGraph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = getGraph()
         if (currentGraph.nodes['test-new-file.md']) {
           nodeAdded = true
           break
@@ -242,13 +242,13 @@ describe('Folder Loading - Integration Tests', () => {
 
       // Verify the node was added to the graph
       expect(nodeAdded).toBe(true)
-      const graphAfterAdd = getGraph()
+      const graphAfterAdd: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = getGraph()
       expect(graphAfterAdd.nodes['test-new-file.md']).toBeDefined()
       expect(graphAfterAdd.nodes['test-new-file.md'].contentWithoutYamlOrLinks).toBe(expectedContent)
       expect(Object.keys(graphAfterAdd.nodes).length).toBe(EXPECTED_SMALL_NODE_COUNT + 1)
 
       // Verify edge was created from test-new-file to 5_Immediate_Test_Observation_No_Output
-      const testNode = graphAfterAdd.nodes['test-new-file.md']
+      const testNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = graphAfterAdd.nodes['test-new-file.md']
       expect(testNode.outgoingEdges).toBeDefined()
       expect(Array.isArray(testNode.outgoingEdges)).toBe(true)
       // Node IDs now include .md extension
@@ -256,7 +256,7 @@ describe('Folder Loading - Integration Tests', () => {
 
       // Verify broadcast was sent
       expect(broadcastCalls.length).toBeGreaterThan(0)
-      const addBroadcast = broadcastCalls.find(call =>
+      const addBroadcast: BroadcastCall | undefined = broadcastCalls.find(call =>
         call.delta.some(d => d.type === 'UpsertNode' && d.nodeToUpsert.relativeFilePathIsID === 'test-new-file.md')
       )
       expect(addBroadcast).toBeDefined()
@@ -268,12 +268,12 @@ describe('Folder Loading - Integration Tests', () => {
       await fs.unlink(testFilePath)
 
       // Wait for chokidar to detect the file deletion
-      let nodeDeleted = false
-      const deleteStartTime = Date.now()
+      let nodeDeleted: boolean = false
+      const deleteStartTime: number = Date.now()
 
       while (Date.now() - deleteStartTime < maxWaitTime) {
         await new Promise(resolve => setTimeout(resolve, pollInterval))
-        const currentGraph = getGraph()
+        const currentGraph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = getGraph()
         if (!currentGraph.nodes['test-new-file.md']) {
           nodeDeleted = true
           break
@@ -282,13 +282,13 @@ describe('Folder Loading - Integration Tests', () => {
 
       // Verify the node was removed from the graph
       expect(nodeDeleted).toBe(true)
-      const graphAfterDelete = getGraph()
+      const graphAfterDelete: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = getGraph()
       expect(graphAfterDelete.nodes['test-new-file.md']).toBeUndefined()
       expect(Object.keys(graphAfterDelete.nodes).length).toBe(EXPECTED_SMALL_NODE_COUNT)
 
       // Verify broadcast was sent
       expect(broadcastCalls.length).toBeGreaterThan(0)
-      const deleteBroadcast = broadcastCalls.find(call =>
+      const deleteBroadcast: BroadcastCall | undefined = broadcastCalls.find(call =>
         call.delta.some(d => d.type === 'DeleteNode' && d.nodeId === 'test-new-file.md')
       )
       expect(deleteBroadcast).toBeDefined()
@@ -299,10 +299,10 @@ describe('Folder Loading - Integration Tests', () => {
       // STEP 2: Load example_real_large (user switches to larger directory)
       await loadFolder(EXAMPLE_LARGE_PATH)
 
-      const graph2 = getGraph()
+      const graph2: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = getGraph()
       expect(Object.keys(graph2.nodes).length).toBe(EXPECTED_LARGE_NODE_COUNT)
 
-      const largeNodeIds = new Set(Object.keys(graph2.nodes))
+      const largeNodeIds: Set<string> = new Set(Object.keys(graph2.nodes))
 
       // Verify the graph was completely replaced (not merged)
       expect(largeNodeIds.size).toBeGreaterThan(smallNodeIds.size)
@@ -312,21 +312,21 @@ describe('Folder Loading - Integration Tests', () => {
         expect(node.contentWithoutYamlOrLinks.length).toBeGreaterThan(0)
       })
 
-      const secondBroadcastCount = broadcastCalls.length
+      const secondBroadcastCount: number = broadcastCalls.length
       expect(secondBroadcastCount).toBeGreaterThan(0) // At least one broadcast for the load
 
       // STEP 3: Load example_small again (user switches back)
       await loadFolder(EXAMPLE_SMALL_PATH)
 
-      const graph3 = getGraph()
+      const graph3: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = getGraph()
       expect(Object.keys(graph3.nodes).length).toBe(EXPECTED_SMALL_NODE_COUNT)
 
       // Verify we're back to small graph (same count, not same instances necessarily)
-      const finalNodeIds = new Set(Object.keys(graph3.nodes))
+      const finalNodeIds: Set<string> = new Set(Object.keys(graph3.nodes))
       expect(finalNodeIds.size).toBe(smallNodeIds.size)
 
       // Verify edges are still present after switching back
-      const finalEdgesCount = Object.values(graph3.nodes)
+      const finalEdgesCount: number = Object.values(graph3.nodes)
         .filter(node => node.outgoingEdges.length > 0).length
       expect(finalEdgesCount).toBeGreaterThan(0)
 
@@ -355,15 +355,15 @@ describe('Folder Loading - Integration Tests', () => {
 
       // WHEN: Add a new file using the file watching handler module's approach
       // Since chokidar doesn't reliably detect files in test env, we simulate the FS event
-      const newFilePath = path.join(EXAMPLE_SMALL_PATH, 'test-new-file.md')
-      const newFileContent = '# Test New File\n\nThis is a test.'
+      const newFilePath: string = path.join(EXAMPLE_SMALL_PATH, 'test-new-file.md')
+      const newFileContent: "# Test New File\n\nThis is a test." = '# Test New File\n\nThis is a test.'
 
       await fs.writeFile(newFilePath, newFileContent, 'utf-8')
 
       // Import and call the FS event handler directly to simulate watcher detection
-      const { handleFSEventWithStateAndUISides } = await import('@/shell/edge/main/graph/readAndDBEventsPath/handleFSEventWithStateAndUISides.ts')
+      const { handleFSEventWithStateAndUISides } = await import('@/shell/edge/main/graph/readAndDBEventsPath/handleFSEventWithStateAndUISides')
 
-      const addEvent = {
+      const addEvent: { absolutePath: string; content: string; eventType: "Added"; } = {
         absolutePath: newFilePath,
         content: newFileContent,
         eventType: 'Added' as const
@@ -373,7 +373,7 @@ describe('Folder Loading - Integration Tests', () => {
       handleFSEventWithStateAndUISides(addEvent, EXAMPLE_SMALL_PATH, mockMainWindow as unknown as BrowserWindow)
 
       // THEN: Graph should contain the new node
-      const graph = getGraph()
+      const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = getGraph()
       expect(graph.nodes['test-new-file.md']).toBeDefined()
       expect(graph.nodes['test-new-file.md'].contentWithoutYamlOrLinks).toBe(newFileContent)
 
@@ -382,14 +382,14 @@ describe('Folder Loading - Integration Tests', () => {
       expect(broadcastCalls[0].channel).toBe('graph:stateChanged')
 
       // Verify the delta contains UpsertNode action
-      const addDelta = broadcastCalls[0].delta.find(d => d.type === 'UpsertNode')
+      const addDelta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").UpsertNodeAction | undefined = broadcastCalls[0].delta.find(d => d.type === 'UpsertNode')
       expect(addDelta).toBeDefined()
 
       // WHEN: Delete the file
       broadcastCalls.length = 0
       await fs.unlink(newFilePath)
 
-      const deleteEvent = {
+      const deleteEvent: { type: "Delete"; absolutePath: string; } = {
         type: 'Delete' as const,
         absolutePath: newFilePath
       }
@@ -398,7 +398,7 @@ describe('Folder Loading - Integration Tests', () => {
       handleFSEventWithStateAndUISides(deleteEvent, EXAMPLE_SMALL_PATH, mockMainWindow as unknown as BrowserWindow)
 
       // THEN: GraphNode should be removed from graph
-      const graphAfterDelete = getGraph()
+      const graphAfterDelete: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = getGraph()
       expect(graphAfterDelete.nodes['test-new-file.md']).toBeUndefined()
 
       // AND: Broadcast should have been sent
@@ -406,7 +406,7 @@ describe('Folder Loading - Integration Tests', () => {
       expect(broadcastCalls[0].channel).toBe('graph:stateChanged')
 
       // Verify the delta contains DeleteNode action
-      const deleteDelta = broadcastCalls[0].delta.find(d => d.type === 'DeleteNode')
+      const deleteDelta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").DeleteNode | undefined = broadcastCalls[0].delta.find(d => d.type === 'DeleteNode')
       expect(deleteDelta).toBeDefined()
     })
   })
@@ -419,9 +419,9 @@ describe('Folder Loading - Integration Tests', () => {
       // THEN: Should have broadcast 3 times (clear + stateChanged + watching-started)
       expect(broadcastCalls.length).toBe(3)
 
-      const clearBroadcast = broadcastCalls[0]
-      const stateChangedBroadcast = broadcastCalls[1]
-      const watchingStartedBroadcast = broadcastCalls[2]
+      const clearBroadcast: BroadcastCall = broadcastCalls[0]
+      const stateChangedBroadcast: BroadcastCall = broadcastCalls[1]
+      const watchingStartedBroadcast: BroadcastCall = broadcastCalls[2]
 
       // AND: First broadcast should be graph:clear
       expect(clearBroadcast.channel).toBe('graph:clear')
@@ -460,9 +460,9 @@ describe('Folder Loading - Integration Tests', () => {
       expect(broadcastCalls.length).toBe(6)
 
       // Verify second load broadcasts
-      const secondClearBroadcast = broadcastCalls[3]
-      const secondStateChangedBroadcast = broadcastCalls[4]
-      const secondWatchingStartedBroadcast = broadcastCalls[5]
+      const secondClearBroadcast: BroadcastCall = broadcastCalls[3]
+      const secondStateChangedBroadcast: BroadcastCall = broadcastCalls[4]
+      const secondWatchingStartedBroadcast: BroadcastCall = broadcastCalls[5]
       expect(secondClearBroadcast.channel).toBe('graph:clear')
       expect(secondStateChangedBroadcast.channel).toBe('graph:stateChanged')
       expect(secondWatchingStartedBroadcast.channel).toBe('watching-started')
@@ -476,8 +476,8 @@ describe('Folder Loading - Integration Tests', () => {
       await loadFolder(EXAMPLE_SMALL_PATH)
 
       // THEN: All nodes should have required properties
-      const graph = getGraph()
-      const nodes = Object.values(graph.nodes)
+      const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = getGraph()
+      const nodes: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode[] = Object.values(graph.nodes)
 
       nodes.forEach(node => {
         // Required properties
@@ -504,11 +504,11 @@ describe('Folder Loading - Integration Tests', () => {
       await loadFolder(EXAMPLE_SMALL_PATH)
 
       // THEN: Should still load all nodes including the one with bad YAML
-      const graph = getGraph()
+      const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = getGraph()
       expect(Object.keys(graph.nodes).length).toBe(EXPECTED_SMALL_NODE_COUNT)
 
       // AND: The bad YAML file should be present
-      const badYamlNode = graph.nodes['7_Bad_YAML_Frontmatter_Test.md']
+      const badYamlNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = graph.nodes['7_Bad_YAML_Frontmatter_Test.md']
       expect(badYamlNode).toBeDefined()
 
       // AND: Should have content (not skipped due to parse error)

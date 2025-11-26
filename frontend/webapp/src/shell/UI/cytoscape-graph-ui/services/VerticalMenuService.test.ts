@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import cytoscape from 'cytoscape';
 import type { Core } from 'cytoscape';
-import { VerticalMenuService, type VerticalMenuDependencies } from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService.ts';
-import type { MenuItem } from '@/shell/UI/lib/ctxmenu.d.ts';
+import { VerticalMenuService, type VerticalMenuDependencies } from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService';
+import type { MenuItem } from '@/shell/UI/lib/ctxmenu.d';
 
 // Mock ctxmenu
 vi.mock('@/shell/UI/lib/ctxmenu.js', () => ({
@@ -13,16 +13,16 @@ vi.mock('@/shell/UI/lib/ctxmenu.js', () => ({
 }));
 
 // Mock deleteNodeFromUI
-vi.mock('@/shell/edge/UI-edge/graph/handleUIActions.ts', () => ({
+vi.mock('@/shell/edge/UI-edge/graph/handleUIActions', () => ({
   deleteNodeFromUI: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Import mocked modules to access their mocks
 import ctxmenu from '@/shell/UI/lib/ctxmenu.js';
-import { deleteNodeFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions.ts';
+import { deleteNodeFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions';
 
-const mockCtxmenuShow = vi.mocked(ctxmenu.show);
-const mockDeleteNodeFromUI = vi.mocked(deleteNodeFromUI);
+const mockCtxmenuShow: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockedFunction<(menuItems: MenuItem[], eventOrElement: MouseEvent | Element, config?: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/UI/lib/ctxmenu").MenuConfig) => void> = vi.mocked(ctxmenu.show);
+const mockDeleteNodeFromUI: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockedFunction<(nodeId: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").NodeIdAndFilePath, cy: Core) => Promise<void>> = vi.mocked(deleteNodeFromUI);
 
 describe('VerticalMenuService', () => {
   let cy: Core;
@@ -92,8 +92,8 @@ describe('VerticalMenuService', () => {
       service.initialize(cy, mockDeps);
       /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       cy.emit('cxttap', { target: cy, position: { x: 300, y: 300 }, renderedPosition: { x: 300, y: 300 } } as any);
-      const menuItems = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
-      const addNodeItem = menuItems.find((item) => 'text' in item && item.text === 'Add Node Here');
+      const menuItems: MenuItem[] = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
+      const addNodeItem: MenuItem | undefined = menuItems.find((item) => 'text' in item && item.text === 'Add Node Here');
       expect(addNodeItem).toBeDefined();
     });
 
@@ -104,10 +104,10 @@ describe('VerticalMenuService', () => {
       cy.getElementById('node1').select();
       /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       cy.emit('cxttap', { target: cy, position: { x: 300, y: 300 }, renderedPosition: { x: 300, y: 300 } } as any);
-      const menuItems = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
-      const deleteItem = menuItems.find((item) => {
+      const menuItems: MenuItem[] = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
+      const deleteItem: MenuItem | undefined = menuItems.find((item) => {
         if (!('text' in item)) return false;
-        const text = typeof item.text === 'function' ? item.text() : item.text;
+        const text: string = typeof item.text === 'function' ? item.text() : item.text;
         return text.startsWith('Delete Selected');
       });
       expect(deleteItem).toBeDefined();
@@ -118,10 +118,10 @@ describe('VerticalMenuService', () => {
       service.initialize(cy, mockDeps);
       /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       cy.emit('cxttap', { target: cy, position: { x: 300, y: 300 }, renderedPosition: { x: 300, y: 300 } } as any);
-      const menuItems = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
-      const deleteItem = menuItems.find((item) => {
+      const menuItems: MenuItem[] = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
+      const deleteItem: MenuItem | undefined = menuItems.find((item) => {
         if (!('text' in item)) return false;
-        const text = typeof item.text === 'function' ? item.text() : item.text;
+        const text: string = typeof item.text === 'function' ? item.text() : item.text;
         return text.startsWith('Delete Selected');
       });
       expect(deleteItem).toBeUndefined();

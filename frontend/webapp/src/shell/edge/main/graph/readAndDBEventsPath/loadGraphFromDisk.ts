@@ -3,10 +3,10 @@ import * as path from 'path'
 import * as O from "fp-ts/lib/Option.js";
 import * as E from "fp-ts/lib/Either.js";
 import type { Graph, FSUpdate } from '@/pure/graph'
-import { enforceFileLimit, type FileLimitExceededError } from './fileLimitEnforce.ts'
+import { enforceFileLimit, type FileLimitExceededError } from './fileLimitEnforce'
 import { applyPositions } from '@/pure/graph/positioning'
-import { addNodeToGraph } from '@/pure/graph/graphDelta/addNodeToGraph.ts'
-import { applyGraphDeltaToGraph } from '@/pure/graph/graphDelta/applyGraphDeltaToGraph.ts'
+import { addNodeToGraph } from '@/pure/graph/graphDelta/addNodeToGraph'
+import { applyGraphDeltaToGraph } from '@/pure/graph/graphDelta/applyGraphDeltaToGraph'
 
 /**
  * Loads a graph from the filesystem using progressive edge validation.
@@ -38,21 +38,21 @@ export async function loadGraphFromDisk(vaultPath: O.Option<string>): Promise<E.
     }
 
     // Step 1: Scan directory for markdown files
-    const files = await scanMarkdownFiles(vaultPath.value)
+    const files: readonly string[] = await scanMarkdownFiles(vaultPath.value)
 
     // Step 1.5: Enforce file limit (will show error dialog and return Left if exceeded)
-    const limitCheck = enforceFileLimit(files.length);
+    const limitCheck: E.Either<FileLimitExceededError, void> = enforceFileLimit(files.length);
     if (E.isLeft(limitCheck)) {
         return E.left(limitCheck.left);
     }
 
     // Step 2: Progressively build graph by adding nodes one at a time
     // Each addition validates edges and heals incoming edges (order-independent)
-    const graph = await files.reduce(
+    const graph: Graph = await files.reduce(
         async (graphPromise, file) => {
-            const currentGraph = await graphPromise
-            const fullPath = path.join(vaultPath.value, file)
-            const content = await fs.readFile(fullPath, 'utf-8')
+            const currentGraph: Graph = await graphPromise
+            const fullPath: string = path.join(vaultPath.value, file)
+            const content: string = await fs.readFile(fullPath, 'utf-8')
 
             const fsEvent: FSUpdate = {
                 absolutePath: fullPath,
@@ -61,7 +61,7 @@ export async function loadGraphFromDisk(vaultPath: O.Option<string>): Promise<E.
             }
 
             // Use unified function (same as incremental!)
-            const delta = addNodeToGraph(fsEvent, vaultPath.value, currentGraph)
+            const delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = addNodeToGraph(fsEvent, vaultPath.value, currentGraph)
             return applyGraphDeltaToGraph(currentGraph, delta)
         },
         Promise.resolve({ nodes: {} } as Graph)
@@ -79,15 +79,15 @@ export async function loadGraphFromDisk(vaultPath: O.Option<string>): Promise<E.
  */
 async function scanMarkdownFiles(vaultPath: string): Promise<readonly string[]> {
   async function scan(dirPath: string, relativePath = ''): Promise<readonly string[]> {
-    const entries = await fs.readdir(dirPath, { withFileTypes: true })
+    const entries: import("fs").Dirent<string>[] = await fs.readdir(dirPath, { withFileTypes: true })
 
     // Sort entries by name for deterministic ordering
-    const sortedEntries = entries.sort((a, b) => a.name.localeCompare(b.name))
+    const sortedEntries: import("fs").Dirent<string>[] = entries.sort((a, b) => a.name.localeCompare(b.name))
 
-    const results = await Promise.all(
+    const results: (readonly string[])[] = await Promise.all(
       sortedEntries.map(async (entry) => {
-        const fullPath = path.join(dirPath, entry.name)
-        const relPath = relativePath ? path.join(relativePath, entry.name) : entry.name
+        const fullPath: string = path.join(dirPath, entry.name)
+        const relPath: string = relativePath ? path.join(relativePath, entry.name) : entry.name
 
         if (entry.isDirectory()) {
           return scan(fullPath, relPath)

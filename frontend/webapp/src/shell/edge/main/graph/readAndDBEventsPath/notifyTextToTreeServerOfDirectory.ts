@@ -1,4 +1,4 @@
-import {tellSTTServerToLoadDirectory} from "@/shell/edge/main/backend-api.ts";
+import {tellSTTServerToLoadDirectory} from "@/shell/edge/main/backend-api";
 import type {FilePath} from "@/pure/graph";
 
 /**
@@ -16,7 +16,7 @@ export function notifyTextToTreeServerOfDirectory(directoryPath: FilePath): void
  */
 async function attemptNotification(directoryPath: FilePath): Promise<void> {
     try {
-        const response = await tellSTTServerToLoadDirectory(directoryPath);
+        const response: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/backend-api").LoadDirectoryResponse = await tellSTTServerToLoadDirectory(directoryPath);
         console.log(`[NotifyServer] Backend loaded ${response.nodes_loaded} nodes from ${response.directory}`);
     } catch (_error) {
         console.log('[NotifyServer] Failed to notify backend, will retry in 5 seconds...');

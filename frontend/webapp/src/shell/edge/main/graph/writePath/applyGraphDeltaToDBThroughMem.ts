@@ -2,8 +2,8 @@ import * as E from 'fp-ts/lib/Either.js'
 import * as O from 'fp-ts/lib/Option.js'
 import {pipe} from 'fp-ts/lib/function.js'
 import {applyGraphDeltaToGraph, type Env, type GraphDelta} from '@/pure/graph'
-import {apply_graph_deltas_to_db} from '@/shell/edge/main/graph/graphActionsToDBEffects.ts'
-import {getGraph, getVaultPath, setGraph} from '@/shell/edge/main/state/graph-store.ts'
+import {apply_graph_deltas_to_db} from '@/shell/edge/main/graph/graphActionsToDBEffects'
+import {getGraph, getVaultPath, setGraph} from '@/shell/edge/main/state/graph-store'
 import type {Either} from "fp-ts/es6/Either";
 
 /**
@@ -28,7 +28,7 @@ export async function applyGraphDeltaToDBThroughMem(delta: GraphDelta): Promise<
     setGraph(applyGraphDeltaToGraph(getGraph(), delta))
 
     // Extract vault path (fail fast at edge)
-    const vaultPath = pipe(
+    const vaultPath: string = pipe(
         getVaultPath(),
         O.getOrElseW(() => {
             throw new Error('Vault path not initialized')

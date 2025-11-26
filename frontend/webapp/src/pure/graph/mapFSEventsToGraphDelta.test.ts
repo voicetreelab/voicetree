@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { mapFSEventsToGraphDelta } from './mapFSEventsToGraphDelta.ts'
-import type { FSUpdate, FSDelete, Graph } from './index.ts'
+import { mapFSEventsToGraphDelta } from './mapFSEventsToGraphDelta'
+import type { FSUpdate, FSDelete, Graph } from './index'
 
 describe('mapFSEventsToGraphDelta', () => {
   describe('Node ID preservation from fs events', () => {
@@ -10,10 +10,10 @@ describe('mapFSEventsToGraphDelta', () => {
         content: '# Test Note',
         eventType: 'Added'
       }
-      const vaultPath = '/vault'
+      const vaultPath: "/vault" = '/vault'
       const currentGraph: Graph = { nodes: {} }
 
-      const delta = mapFSEventsToGraphDelta(fsUpdate, vaultPath, currentGraph)
+      const delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = mapFSEventsToGraphDelta(fsUpdate, vaultPath, currentGraph)
 
       expect(delta).toHaveLength(1)
       expect(delta[0].type).toBe('UpsertNode')
@@ -27,10 +27,10 @@ describe('mapFSEventsToGraphDelta', () => {
         type: 'Delete',
         absolutePath: '/vault/to-delete.md'
       }
-      const vaultPath = '/vault'
+      const vaultPath: "/vault" = '/vault'
       const currentGraph: Graph = { nodes: {} }
 
-      const delta = mapFSEventsToGraphDelta(fsDelete, vaultPath, currentGraph)
+      const delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = mapFSEventsToGraphDelta(fsDelete, vaultPath, currentGraph)
 
       expect(delta).toHaveLength(1)
       expect(delta[0].type).toBe('DeleteNode')
@@ -45,10 +45,10 @@ describe('mapFSEventsToGraphDelta', () => {
         content: '# Backup',
         eventType: 'Added'
       }
-      const vaultPath = '/vault'
+      const vaultPath: "/vault" = '/vault'
       const currentGraph: Graph = { nodes: {} }
 
-      const delta = mapFSEventsToGraphDelta(fsUpdate, vaultPath, currentGraph)
+      const delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = mapFSEventsToGraphDelta(fsUpdate, vaultPath, currentGraph)
 
       expect(delta).toHaveLength(1)
       expect(delta[0].type).toBe('UpsertNode')

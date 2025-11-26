@@ -22,7 +22,7 @@ function parsePosition(position: unknown): { readonly x: number; readonly y: num
         return undefined
     }
 
-    const pos = position as Record<string, unknown>
+    const pos: Record<string, unknown> = position as Record<string, unknown>
 
     // Check if x and y exist and are numbers
     if (typeof pos.x === 'number' && typeof pos.y === 'number') {
@@ -59,7 +59,7 @@ function parsePosition(position: unknown): { readonly x: number; readonly y: num
  * ```
  */
 export function extractFrontmatter(content: string): Frontmatter {
-    const parsed = matter(content)
+    const parsed: matter.GrayMatterFile<string> = matter(content)
     return {
         node_id: normalizeToString(parsed.data.node_id),
         title: normalizeToString(parsed.data.title),

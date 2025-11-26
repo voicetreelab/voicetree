@@ -16,13 +16,13 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { loadFolder, stopFileWatching, isWatching } from '@/shell/edge/main/graph/watchFolder.ts'
-import { getGraph, setGraph, setVaultPath } from '@/shell/edge/main/state/graph-store.ts'
+import { loadFolder, stopFileWatching, isWatching } from '@/shell/edge/main/graph/watchFolder'
+import { getGraph, setGraph, setVaultPath } from '@/shell/edge/main/state/graph-store'
 import type { GraphDelta } from '@/pure/graph'
 import path from 'path'
 import { promises as fs } from 'fs'
-import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths.ts'
-import { waitForCondition, waitForWatcherReady, waitForFSEvent } from '@/utils/test-utils/waitForCondition.ts'
+import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths'
+import { waitForCondition, waitForWatcherReady, waitForFSEvent } from '@/utils/test-utils/waitForCondition'
 
 // Track IPC broadcasts
 interface BroadcastCall {
@@ -72,10 +72,10 @@ describe('File Watching - Edge Management Tests', () => {
     await stopFileWatching()
 
     // Clean up test files
-    const testFilePath = path.join(EXAMPLE_SMALL_PATH, 'test-new-file.md')
-    const testColorFilePath = path.join(EXAMPLE_SMALL_PATH, 'test-color-node.md')
-    const testFilePathWithChanges = path.join(EXAMPLE_SMALL_PATH, '5_Immediate_Test_Observation_No_Output.md')
-    const originalContent = path.join(EXAMPLE_SMALL_PATH, '5_Immediate_Test_Observation_No_Output.md.backup')
+    const testFilePath: string = path.join(EXAMPLE_SMALL_PATH, 'test-new-file.md')
+    const testColorFilePath: string = path.join(EXAMPLE_SMALL_PATH, 'test-color-node.md')
+    const testFilePathWithChanges: string = path.join(EXAMPLE_SMALL_PATH, '5_Immediate_Test_Observation_No_Output.md')
+    const originalContent: string = path.join(EXAMPLE_SMALL_PATH, '5_Immediate_Test_Observation_No_Output.md.backup')
 
     try {
       await fs.unlink(testFilePath)
@@ -91,7 +91,7 @@ describe('File Watching - Edge Management Tests', () => {
 
     // Restore original content if backup exists
     try {
-      const backup = await fs.readFile(originalContent, 'utf-8')
+      const backup: string = await fs.readFile(originalContent, 'utf-8')
       await fs.writeFile(testFilePathWithChanges, backup, 'utf-8')
       await fs.unlink(originalContent)
     } catch {
@@ -109,8 +109,8 @@ describe('File Watching - Edge Management Tests', () => {
 
       await waitForWatcherReady()
 
-      const testFilePath = path.join(EXAMPLE_SMALL_PATH, 'test-new-file.md')
-      const testFileContent = '# Test New File\n\nThis is a test file.'
+      const testFilePath: string = path.join(EXAMPLE_SMALL_PATH, 'test-new-file.md')
+      const testFileContent: "# Test New File\n\nThis is a test file." = '# Test New File\n\nThis is a test file.'
 
       await fs.writeFile(testFilePath, testFileContent, 'utf-8')
 
@@ -122,28 +122,28 @@ describe('File Watching - Edge Management Tests', () => {
       )
 
       // WHEN: Append wikilink WITH .md to an existing file
-      const targetFilePath = path.join(EXAMPLE_SMALL_PATH, '5_Immediate_Test_Observation_No_Output.md')
-      const originalContent = await fs.readFile(targetFilePath, 'utf-8')
+      const targetFilePath: string = path.join(EXAMPLE_SMALL_PATH, '5_Immediate_Test_Observation_No_Output.md')
+      const originalContent: string = await fs.readFile(targetFilePath, 'utf-8')
 
       // Backup original content
       await fs.writeFile(targetFilePath + '.backup', originalContent, 'utf-8')
 
-      const updatedContent = originalContent + '\n\n[[test-new-file.md]]'
+      const updatedContent: string = originalContent + '\n\n[[test-new-file.md]]'
       await fs.writeFile(targetFilePath, updatedContent, 'utf-8')
 
       // Wait for file change to be detected and edge to be created
       await waitForFSEvent()
       await waitForCondition(
         () => {
-          const sourceNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output.md']
+          const sourceNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output.md']
           return sourceNode?.outgoingEdges?.some(e => e.targetId === 'test-new-file.md') ?? false
         },
         { maxWaitMs: 1000, errorMessage: 'Edge from 5_Immediate_Test_Observation_No_Output to test-new-file not created' }
       )
 
       // THEN: Edge should be created (IDs always have .md extension)
-      const graph = getGraph()
-      const sourceNode = graph.nodes['5_Immediate_Test_Observation_No_Output.md']
+      const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = getGraph()
+      const sourceNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = graph.nodes['5_Immediate_Test_Observation_No_Output.md']
 
       expect(sourceNode.outgoingEdges).toBeDefined()
       expect(sourceNode.outgoingEdges.some(e => e.targetId === 'test-new-file.md')).toBe(true)
@@ -156,8 +156,8 @@ describe('File Watching - Edge Management Tests', () => {
 
       await waitForWatcherReady()
 
-      const testFilePath = path.join(EXAMPLE_SMALL_PATH, 'test-new-file.md')
-      const testFileContent = '# Test New File\n\nThis is a test file.'
+      const testFilePath: string = path.join(EXAMPLE_SMALL_PATH, 'test-new-file.md')
+      const testFileContent: "# Test New File\n\nThis is a test file." = '# Test New File\n\nThis is a test file.'
 
       await fs.writeFile(testFilePath, testFileContent, 'utf-8')
 
@@ -169,28 +169,28 @@ describe('File Watching - Edge Management Tests', () => {
       )
 
       // WHEN: Append wikilink WITHOUT .md to an existing file
-      const targetFilePath = path.join(EXAMPLE_SMALL_PATH, '5_Immediate_Test_Observation_No_Output.md')
-      const originalContent = await fs.readFile(targetFilePath, 'utf-8')
+      const targetFilePath: string = path.join(EXAMPLE_SMALL_PATH, '5_Immediate_Test_Observation_No_Output.md')
+      const originalContent: string = await fs.readFile(targetFilePath, 'utf-8')
 
       // Backup original content
       await fs.writeFile(targetFilePath + '.backup', originalContent, 'utf-8')
 
-      const updatedContent = originalContent + '\n\n[[test-new-file]]'
+      const updatedContent: string = originalContent + '\n\n[[test-new-file]]'
       await fs.writeFile(targetFilePath, updatedContent, 'utf-8')
 
       // Wait for file change to be detected and edge to be created
       await waitForFSEvent()
       await waitForCondition(
         () => {
-          const sourceNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output.md']
+          const sourceNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output.md']
           return sourceNode?.outgoingEdges?.some(e => e.targetId === 'test-new-file.md') ?? false
         },
         { maxWaitMs: 1000, errorMessage: 'Edge from 5_Immediate_Test_Observation_No_Output to test-new-file not created' }
       )
 
       // THEN: Edge should be created
-      const graph = getGraph()
-      const sourceNode = graph.nodes['5_Immediate_Test_Observation_No_Output.md']
+      const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = getGraph()
+      const sourceNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = graph.nodes['5_Immediate_Test_Observation_No_Output.md']
       expect(sourceNode.outgoingEdges).toBeDefined()
       expect(sourceNode.outgoingEdges.some(e => e.targetId === 'test-new-file.md')).toBe(true)
     }, 5000)
@@ -202,8 +202,8 @@ describe('File Watching - Edge Management Tests', () => {
 
       await waitForWatcherReady()
 
-      const testFilePath = path.join(EXAMPLE_SMALL_PATH, 'test-new-file.md')
-      const testFileContent = '# Test New File\n\nThis is a test file.'
+      const testFilePath: string = path.join(EXAMPLE_SMALL_PATH, 'test-new-file.md')
+      const testFileContent: "# Test New File\n\nThis is a test file." = '# Test New File\n\nThis is a test file.'
 
       await fs.writeFile(testFilePath, testFileContent, 'utf-8')
 
@@ -215,8 +215,8 @@ describe('File Watching - Edge Management Tests', () => {
       )
 
       // Define clean original content without any wikilinks to test-new-file
-      const targetFilePath = path.join(EXAMPLE_SMALL_PATH, '5_Immediate_Test_Observation_No_Output.md')
-      const cleanOriginalContent = `---
+      const targetFilePath: string = path.join(EXAMPLE_SMALL_PATH, '5_Immediate_Test_Observation_No_Output.md')
+      const cleanOriginalContent: "---\nnode_id: 5\ntitle: 'Immediate Test Observation: No Output (5)'\n---\n### Speaker observes no output despite repeated speech input during an immediate test.\n\nAll right, so I'm testing 'one, two, three'. I don't see anything. All right, so I'm taking something about talking and...nothing is showing up. All right, so I'm talking, I'm talking, I'm talking, and nothing's coming up. Strange.\n\n\n-----------------\n_Links:_\nParent:\n- is_an_immediate_observation_during [[4_Test_Outcome_No_Output.md]]" = `---
 node_id: 5
 title: 'Immediate Test Observation: No Output (5)'
 ---
@@ -231,7 +231,7 @@ Parent:
 - is_an_immediate_observation_during [[4_Test_Outcome_No_Output.md]]`
 
       // Backup original content (current state which may be dirty from previous test runs)
-      const currentContent = await fs.readFile(targetFilePath, 'utf-8')
+      const currentContent: string = await fs.readFile(targetFilePath, 'utf-8')
       await fs.writeFile(targetFilePath + '.backup', currentContent, 'utf-8')
 
       // First ensure the file is in clean state without the wikilink
@@ -239,14 +239,14 @@ Parent:
       await waitForFSEvent()
 
       // Add wikilink to existing file
-      const updatedContent = cleanOriginalContent + '\n\n[[test-new-file]]'
+      const updatedContent: string = cleanOriginalContent + '\n\n[[test-new-file]]'
       await fs.writeFile(targetFilePath, updatedContent, 'utf-8')
 
       // Wait for edge to be created
       await waitForFSEvent()
       await waitForCondition(
         () => {
-          const sourceNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output.md']
+          const sourceNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output.md']
           return sourceNode?.outgoingEdges?.some(e => e.targetId === 'test-new-file.md') ?? false
         },
         { maxWaitMs: 1000, errorMessage: 'Edge not added before removal test' }
@@ -259,15 +259,15 @@ Parent:
       await waitForFSEvent()
       await waitForCondition(
         () => {
-          const sourceNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output']
+          const sourceNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output']
           return !sourceNode?.outgoingEdges?.some(e => e.targetId === 'test-new-file')
         },
         { maxWaitMs: 1000, errorMessage: 'Edge from 5_Immediate_Test_Observation_No_Output to test-new-file not removed' }
       )
 
       // THEN: Edge should be removed
-      const graph = getGraph()
-      const sourceNode = graph.nodes['5_Immediate_Test_Observation_No_Output.md']
+      const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = getGraph()
+      const sourceNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = graph.nodes['5_Immediate_Test_Observation_No_Output.md']
       expect(sourceNode.outgoingEdges).toBeDefined()
       expect(sourceNode.outgoingEdges.some(e => e.targetId === 'test-new-file.md')).toBe(false)
     }, 5000)
@@ -282,8 +282,8 @@ Parent:
       await waitForWatcherReady()
 
       // WHEN: Create a new file with color in frontmatter
-      const testFilePath = path.join(EXAMPLE_SMALL_PATH, 'test-color-node.md')
-      const testFileContent = `---
+      const testFilePath: string = path.join(EXAMPLE_SMALL_PATH, 'test-color-node.md')
+      const testFileContent: "---\nnode_id: 57\ntitle: (Sam) Fix Implemented and Test Passing (57)\ncolor: cyan\nagent_name: Sam\nposition:\n  x: -819.9742978214647\n  y: -1683.7117827984455\n---\n\n** Summary**\nSuccessfully exposed VoiceTreeGraphView on window object. Test now passes with editor auto-opening correctly.\n\n_Links:_\nParent:\n- [[1762755382696eu7]]" = `---
 node_id: 57
 title: (Sam) Fix Implemented and Test Passing (57)
 color: cyan
@@ -306,15 +306,15 @@ Parent:
       await waitForFSEvent()
       await waitForCondition(
         () => {
-          const node = getGraph().nodes['test-color-node.md']
+          const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = getGraph().nodes['test-color-node.md']
           return node?.nodeUIMetadata.color._tag === 'Some' && node.nodeUIMetadata.color.value === 'cyan'
         },
         { maxWaitMs: 1000, errorMessage: 'test-color-node not added with color parsed from frontmatter' }
       )
 
       // THEN: Verify color was parsed from frontmatter
-      const graph = getGraph()
-      const node = graph.nodes['test-color-node.md']
+      const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = getGraph()
+      const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = graph.nodes['test-color-node.md']
 
       expect(node).toBeDefined()
       expect(node.nodeUIMetadata.color._tag).toBe('Some')

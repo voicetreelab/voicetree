@@ -4,13 +4,13 @@
 import {contextBridge, ipcRenderer} from 'electron';
 import type {GraphDelta} from "@/pure/graph";
 import type {ElectronAPI, Promisify} from '@/shell/electron';
-import type {mainAPI} from '@/shell/edge/main/api.ts';
+import type {mainAPI} from '@/shell/edge/main/api';
 
 // Async function to build and expose the electronAPI
 // This allows us to dynamically fetch API keys from main process at runtime
 async function exposeElectronAPI(): Promise<void> {
     // Step 1: Fetch API keys from main process
-    const apiKeys = await ipcRenderer.invoke('rpc:getApiKeys') as string[]
+    const apiKeys: string[] = await ipcRenderer.invoke('rpc:getApiKeys') as string[]
 
     // Step 2: Build RPC wrappers dynamically (zero-boilerplate: just add to mainAPI)
     const mainAPIWrappers: Record<string, (...args: unknown[]) => Promise<unknown>> = {}
@@ -63,14 +63,14 @@ async function exposeElectronAPI(): Promise<void> {
         graph: {
             // Subscribe to graph delta updates (returns unsubscribe function)
             onGraphUpdate: (callback: (delta: GraphDelta) => void) => {
-                const handler = (_event: unknown, delta: GraphDelta) => callback(delta);
+                const handler: (_event: unknown, delta: GraphDelta) => void = (_event: unknown, delta: GraphDelta) => callback(delta);
                 ipcRenderer.on('graph:stateChanged', handler);
                 return () => ipcRenderer.off('graph:stateChanged', handler);
             },
 
             // Subscribe to graph clear events (returns unsubscribe function)
             onGraphClear: (callback: () => void) => {
-                const handler = () => callback();
+                const handler: () => void = () => callback();
                 ipcRenderer.on('graph:clear', handler);
                 return () => ipcRenderer.off('graph:clear', handler);
             }

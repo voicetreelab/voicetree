@@ -20,12 +20,12 @@ import type { Core } from 'cytoscape';
  * cy.fit(node, getResponsivePadding(cy, 10));
  */
 export function getResponsivePadding(cy: Core, targetPercentage: number = 10): number {
-  const width = cy.width();
-  const height = cy.height();
+  const width: number = cy.width();
+  const height: number = cy.height();
 
   // Use the smaller dimension to calculate padding
   // This ensures padding looks consistent on both portrait and landscape orientations
-  const minDimension = Math.min(width, height);
+  const minDimension: number = Math.min(width, height);
 
   return Math.round((minDimension * targetPercentage) / 100);
 }

@@ -4,9 +4,9 @@ import { promises as fs, createWriteStream } from 'fs';
 import type { WriteStream } from 'fs';
 import http from 'http';
 import { spawn, ChildProcess } from 'child_process';
-import { findAvailablePort } from '@/shell/edge/main/electron/port-utils.ts';
-import { getBuildConfig } from '@/shell/edge/main/electron/build-config.ts';
-import type { ITextToTreeServerManager } from './ITextToTreeServerManager.ts';
+import { findAvailablePort } from '@/shell/edge/main/electron/port-utils';
+import { getBuildConfig } from '@/shell/edge/main/electron/build-config';
+import type { ITextToTreeServerManager } from './ITextToTreeServerManager';
 
 /**
  * Manages the Python TextToTreeServer backend process.
@@ -21,25 +21,25 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
 
   async start(): Promise<number> {
     // Add timeout wrapper
-    const timeoutPromise = new Promise<number>((_, reject) => {
+    const timeoutPromise: Promise<number> = new Promise<number>((_, reject) => {
       setTimeout(() => {
         reject(new Error('[RealTextToTreeServer] Timeout: server failed to start within 30 seconds'));
       }, 30000);
     });
 
-    const startPromise = this.startInternal();
+    const startPromise: Promise<number> = this.startInternal();
 
     return Promise.race([startPromise, timeoutPromise]);
   }
 
   private async startInternal(): Promise<number> {
     // Create a debug log file to capture environment differences
-    const debugLogPath = path.join(app.getPath('userData'), 'server-debug.log');
+    const debugLogPath: string = path.join(app.getPath('userData'), 'server-debug.log');
     this.logStream = createWriteStream(debugLogPath, { flags: 'a' });
 
-    const debugLog = (message: string) => {
-      const timestamp = new Date().toISOString();
-      const logMessage = `[${timestamp}] ${message}\n`;
+    const debugLog: (message: string) => void = (message: string) => {
+      const timestamp: string = new Date().toISOString();
+      const logMessage: string = `[${timestamp}] ${message}\n`;
       if (this.logStream) {
         this.logStream.write(logMessage);
       }
@@ -48,7 +48,7 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
 
     try {
       // Find available port starting from 8001
-      const port = await findAvailablePort(8001);
+      const port: number = await findAvailablePort(8001);
       this.actualPort = port;
 
       debugLog('=== VoiceTree Server Startup ===');
@@ -74,12 +74,12 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
       this.logStream.write(`Full environment:\n${JSON.stringify(process.env, null, 2)}\n`);
 
       // Get build configuration
-      const config = getBuildConfig();
+      const config: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/electron/build-config").BuildConfig = getBuildConfig();
 
       // Spawn configuration based on dev vs prod
-      const command = config.pythonCommand;
-      const args = [...config.pythonArgs, port.toString()];
-      const cwd = config.pythonCwd;
+      const command: string = config.pythonCommand;
+      const args: string[] = [...config.pythonArgs, port.toString()];
+      const cwd: string = config.pythonCwd;
 
       debugLog(`[TextToTreeServer] Starting VoiceTree server on port ${port}...`);
       debugLog(`[TextToTreeServer] Command: ${command}`);
@@ -92,7 +92,7 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
         await this.makeExecutable(config.serverBinaryPath, debugLog);
       }
 
-      const serverEnv = this.buildServerEnvironment(cwd);
+      const serverEnv: NodeJS.ProcessEnv = this.buildServerEnvironment(cwd);
 
       this.serverProcess = spawn(command, args, {
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -116,8 +116,8 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
       return port;
 
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const errorStack = error instanceof Error ? error.stack : '';
+      const errorMessage: string = error instanceof Error ? error.message : String(error);
+      const errorStack: string | undefined = error instanceof Error ? error.stack : '';
       debugLog(`[TextToTreeServer] Error during server startup: ${errorMessage}`);
       debugLog(`[TextToTreeServer] Stack trace: ${errorStack}`);
       this.logStream?.end();
@@ -161,7 +161,7 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
   private async verifyServerExists(serverPath: string, debugLog: (message: string) => void): Promise<void> {
     try {
       await fs.access(serverPath);
-      const stats = await fs.stat(serverPath);
+      const stats: import("fs").Stats = await fs.stat(serverPath);
       debugLog(`[TextToTreeServer] Server file exists, size: ${stats.size} bytes`);
     } catch {
       debugLog('[TextToTreeServer] Server executable not found at: ' + serverPath);
@@ -204,7 +204,7 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
    */
   private attachServerHandlers(serverProcess: ChildProcess, debugLog: (message: string) => void): void {
     // Helper to send logs to all renderer windows
-    const sendToRenderer = (message: string) => {
+    const sendToRenderer: (message: string) => void = (message: string) => {
       BrowserWindow.getAllWindows().forEach(window => {
         window.webContents.send('backend-log', message);
       });
@@ -226,7 +226,7 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
 
     // Handle server exit
     serverProcess.on('exit', (code, signal) => {
-      const message = `[TextToTreeServer] Process exited with code ${code} and signal ${signal}`;
+      const message: string = `[TextToTreeServer] Process exited with code ${code} and signal ${signal}`;
       debugLog(message);
       sendToRenderer(message);
       this.serverProcess = null;
@@ -253,7 +253,7 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
           debugLog(`[TextToTreeServer] Health check failed: ${err.message}`);
         });
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage: string = error instanceof Error ? error.message : String(error);
         debugLog(`[TextToTreeServer] Health check error: ${errorMessage}`);
       }
     }, 2000);

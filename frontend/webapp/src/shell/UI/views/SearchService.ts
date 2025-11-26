@@ -76,10 +76,10 @@ export class SearchService {
    */
   updateSearchData(): void {
       // todo, make this take a Graph object instead.
-    const nodes = this.cy.nodes();
+    const nodes: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").NodeCollection = this.cy.nodes();
 
     const searchData: NinjaAction[] = nodes.map((node) => {
-      const nodeId = node.id();
+      const nodeId: string = node.id();
       const label = node.data('label') ?? nodeId;
       const content = node.data('content') ?? ''; //todo are we setting content in node?
 

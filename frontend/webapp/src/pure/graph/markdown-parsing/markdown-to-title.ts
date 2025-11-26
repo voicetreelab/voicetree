@@ -37,12 +37,12 @@ export function markdownToTitle(title: string | undefined, content: string, file
     }
 
     // Remove frontmatter from content for title extraction
-    const contentWithoutFrontmatter = content.replace(/^---\n[\s\S]*?\n---\n/, '');
+    const contentWithoutFrontmatter: string = content.replace(/^---\n[\s\S]*?\n---\n/, '');
 
     // 2. Check for first heading (one or more # followed by space and text)
-    const headingMatch = contentWithoutFrontmatter.match(/^#+\s+(.+)$/m);
+    const headingMatch: RegExpMatchArray | null = contentWithoutFrontmatter.match(/^#+\s+(.+)$/m);
     if (headingMatch) {
-        const headingText = headingMatch[1].trim();
+        const headingText: string = headingMatch[1].trim();
         if (headingText.length > 200) {
             return headingText.slice(0, 200) + '...';
         }
@@ -50,7 +50,7 @@ export function markdownToTitle(title: string | undefined, content: string, file
     }
 
     // 3. Check for first non-empty line
-    const firstNonEmptyLine = contentWithoutFrontmatter
+    const firstNonEmptyLine: string | undefined = contentWithoutFrontmatter
         .split('\n')
         .map(line => line.trim())
         .find(line => line.length > 0);
@@ -63,7 +63,7 @@ export function markdownToTitle(title: string | undefined, content: string, file
     }
 
     // 4. Use filename, clean up _ and -
-    const filename = filePath.split('/').pop() ?? filePath;
-    const withoutExtension = filename.replace(/\.md$/, '');
+    const filename: string = filePath.split('/').pop() ?? filePath;
+    const withoutExtension: string = filename.replace(/\.md$/, '');
     return withoutExtension.replace(/[_-]/g, ' ');
 }

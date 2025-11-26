@@ -2,8 +2,8 @@ import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { type VariantProps } from "class-variance-authority"
 
-import { cn } from "@/utils/lib/utils.ts"
-import { buttonVariants } from "./button-variants.ts"
+import { cn } from "@/utils/lib/utils"
+import { buttonVariants } from "./button-variants"
 
 function Button({
   className,
@@ -15,7 +15,7 @@ function Button({
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean
   }) {
-  const Comp = asChild ? Slot : "button"
+  const Comp: "button" | React.ForwardRefExoticComponent<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@radix-ui/react-slot/dist/index").SlotProps & React.RefAttributes<HTMLElement>> = asChild ? Slot : "button"
 
   return (
     <Comp

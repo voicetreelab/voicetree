@@ -2,9 +2,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { loadSettings, saveSettings } from './settings_IO.ts';
-import type { VTSettings } from '@/pure/settings/types.ts';
-import { DEFAULT_SETTINGS } from '@/pure/settings/types.ts';
+import { loadSettings, saveSettings } from './settings_IO';
+import type { VTSettings } from '@/pure/settings/types';
+import { DEFAULT_SETTINGS } from '@/pure/settings/types';
 
 vi.mock('electron', () => ({
   app: {
@@ -24,20 +24,20 @@ describe('settings', () => {
   });
 
   it('should create file with defaults on first run', async () => {
-    const settings = await loadSettings();
+    const settings: VTSettings = await loadSettings();
 
     expect(settings).toEqual(DEFAULT_SETTINGS);
 
-    const settingsPath = path.join(testUserDataPath, 'settings.json');
-    const fileExists = await fs.access(settingsPath).then(() => true).catch(() => false);
+    const settingsPath: string = path.join(testUserDataPath, 'settings.json');
+    const fileExists: boolean = await fs.access(settingsPath).then(() => true).catch(() => false);
     expect(fileExists).toBe(true);
 
-    const fileContent = await fs.readFile(settingsPath, 'utf-8');
+    const fileContent: string = await fs.readFile(settingsPath, 'utf-8');
     expect(JSON.parse(fileContent)).toEqual(DEFAULT_SETTINGS);
   });
 
   it('should return saved settings on subsequent calls', async () => {
-    const firstLoad = await loadSettings();
+    const firstLoad: VTSettings = await loadSettings();
     expect(firstLoad).toEqual(DEFAULT_SETTINGS);
 
     const customSettings: VTSettings = {
@@ -48,7 +48,7 @@ describe('settings', () => {
 
     await saveSettings(customSettings);
 
-    const secondLoad = await loadSettings();
+    const secondLoad: VTSettings = await loadSettings();
     expect(secondLoad).toEqual(customSettings);
   });
 
@@ -61,8 +61,8 @@ describe('settings', () => {
 
     await saveSettings(customSettings);
 
-    const settingsPath = path.join(testUserDataPath, 'settings.json');
-    const fileContent = await fs.readFile(settingsPath, 'utf-8');
+    const settingsPath: string = path.join(testUserDataPath, 'settings.json');
+    const fileContent: string = await fs.readFile(settingsPath, 'utf-8');
 
     expect(JSON.parse(fileContent)).toEqual(customSettings);
   });
@@ -78,13 +78,13 @@ describe('settings', () => {
 
     await saveSettings(settings);
 
-    const settingsPath = path.join(testUserDataPath, 'settings.json');
-    const fileExists = await fs.access(settingsPath).then(() => true).catch(() => false);
+    const settingsPath: string = path.join(testUserDataPath, 'settings.json');
+    const fileExists: boolean = await fs.access(settingsPath).then(() => true).catch(() => false);
     expect(fileExists).toBe(true);
   });
 
   it('should throw on corrupted settings file', async () => {
-    const settingsPath = path.join(testUserDataPath, 'settings.json');
+    const settingsPath: string = path.join(testUserDataPath, 'settings.json');
     await fs.writeFile(settingsPath, 'not valid json{');
 
     await expect(loadSettings()).rejects.toThrow();

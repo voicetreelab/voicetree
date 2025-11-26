@@ -19,11 +19,11 @@ export async function waitForCondition(
     readonly errorMessage?: string
   } = {}
 ): Promise<void> {
-  const maxWaitMs = options.maxWaitMs ?? 1000
-  const pollIntervalMs = options.pollIntervalMs ?? 50
-  const errorMessage = options.errorMessage ?? 'Condition not met within timeout'
+  const maxWaitMs: number = options.maxWaitMs ?? 1000
+  const pollIntervalMs: number = options.pollIntervalMs ?? 50
+  const errorMessage: string = options.errorMessage ?? 'Condition not met within timeout'
 
-  const startTime = Date.now()
+  const startTime: number = Date.now()
 
   while (Date.now() - startTime < maxWaitMs) {
     if (condition()) {

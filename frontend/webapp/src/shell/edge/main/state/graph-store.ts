@@ -10,24 +10,24 @@ let currentVaultPath: O.Option<FilePath> = O.none;
 let currentGraph: Graph = { nodes: {} };
 
 // Getter/setter for controlled access to graph state
-export const getGraph = (): Graph => {
+export const getGraph: () => Graph = (): Graph => {
     return currentGraph;
 };
 
-export const setGraph = (graph: Graph): void => {
+export const setGraph: (graph: Graph) => void = (graph: Graph): void => {
     currentGraph = graph;
 };
 
 // Getter/setter for controlled access to vault absolutePath
-export const getVaultPath = (): O.Option<FilePath> => {
+export const getVaultPath: () => O.Option<FilePath> = (): O.Option<FilePath> => {
     return currentVaultPath;
 };
 
-export const setVaultPath = (path: FilePath): void => {
+export const setVaultPath: (path: FilePath) => void = (path: FilePath): void => {
     currentVaultPath = O.some(path);
 };
 
-export const clearVaultPath = (): void => {
+export const clearVaultPath: () => void = (): void => {
     currentVaultPath = O.none;
 };
 

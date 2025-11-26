@@ -14,9 +14,9 @@ import type { Core } from 'cytoscape'
 import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
-import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk.ts'
+import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk'
 
-import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI.ts'
+import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
 import { mapNewGraphToDelta } from '@/pure/graph'
 import path from 'path'
 
@@ -37,26 +37,26 @@ describe('Node Positioning Spacing - Integration', () => {
 
   it('should position nodes from example_real_large folder with proper spacing (< 10% overlap)', async () => {
     // GIVEN: Path to example_real_large folder
-    const exampleFolderPath = path.resolve(process.cwd(), 'example_folder_fixtures', 'example_real_large')
+    const exampleFolderPath: string = path.resolve(process.cwd(), 'example_folder_fixtures', 'example_real_large')
 
     // WHEN: Load graph from disk (this applies positions)
-    const loadResult = await loadGraphFromDisk(O.some(exampleFolderPath))
+    const loadResult: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(exampleFolderPath))
     if (E.isLeft(loadResult)) throw new Error('Expected Right')
-    const graph = loadResult.right
+    const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = loadResult.right
 
     // AND: Convert graph to delta and apply to UI
-    const delta = mapNewGraphToDelta(graph)
+    const delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = mapNewGraphToDelta(graph)
     applyGraphDeltaToUI(cy, delta)
 
     // THEN: All nodes should have positions
-    const nodes = cy.nodes()
+    const nodes: cytoscape.NodeCollection = cy.nodes()
     expect(nodes.length).toBeGreaterThan(0)
 
     // Log node positions for debugging
     console.log(`\n📍 Loaded ${nodes.length} nodes from example_real_large folder`)
 
-    const nodesWithPositions = nodes.filter(node => {
-      const position = node.position()
+    const nodesWithPositions: cytoscape.CollectionReturnValue = nodes.filter(node => {
+      const position: cytoscape.Position = node.position()
       return position.x !== undefined && position.y !== undefined &&
              !isNaN(position.x) && !isNaN(position.y)
     })
@@ -68,16 +68,16 @@ describe('Node Positioning Spacing - Integration', () => {
 
     // AND: Check that nodes are properly spaced
     const nodePairs: Array<{ node1: string; node2: string; distance: number }> = []
-    const MIN_SPACING = 5 // pixels
+    const MIN_SPACING: 5 = 5 // pixels
 
-    for (let i = 0; i < nodes.length; i++) {
-      for (let j = i + 1; j < nodes.length; j++) {
-        const node1 = nodes[i]
-        const node2 = nodes[j]
-        const pos1 = node1.position()
-        const pos2 = node2.position()
+    for (let i: number = 0; i < nodes.length; i++) {
+      for (let j: number = i + 1; j < nodes.length; j++) {
+        const node1: cytoscape.NodeSingular = nodes[i]
+        const node2: cytoscape.NodeSingular = nodes[j]
+        const pos1: cytoscape.Position = node1.position()
+        const pos2: cytoscape.Position = node2.position()
 
-        const distance = Math.sqrt(
+        const distance: number = Math.sqrt(
           Math.pow(pos2.x - pos1.x, 2) + Math.pow(pos2.y - pos1.y, 2)
         )
 
@@ -90,8 +90,8 @@ describe('Node Positioning Spacing - Integration', () => {
     }
 
     // Count pairs that are too close together
-    const tooClosePairs = nodePairs.filter(pair => pair.distance < MIN_SPACING)
-    const overlapPercentage = (tooClosePairs.length / nodePairs.length) * 100
+    const tooClosePairs: { node1: string; node2: string; distance: number; }[] = nodePairs.filter(pair => pair.distance < MIN_SPACING)
+    const overlapPercentage: number = (tooClosePairs.length / nodePairs.length) * 100
 
     // Log diagnostic info
     if (tooClosePairs.length > 0) {

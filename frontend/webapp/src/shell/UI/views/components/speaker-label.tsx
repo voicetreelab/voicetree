@@ -1,4 +1,4 @@
-import { getSpeakerColor } from "@/utils/speaker-colors.ts";
+import { getSpeakerColor } from "@/utils/speaker-colors";
 
 interface SpeakerLabelProps {
   speakerNumber: string | number;
@@ -6,7 +6,7 @@ interface SpeakerLabelProps {
 }
 
 export default function SpeakerLabel({ speakerNumber }: SpeakerLabelProps) {
-  const speakerColor = getSpeakerColor(speakerNumber);
+  const speakerColor: string = getSpeakerColor(speakerNumber);
 
   return (
     <div

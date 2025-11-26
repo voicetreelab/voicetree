@@ -6,11 +6,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Mock dependencies
-const mockIpcMainHandle = vi.fn()
-const mockApplyGraphDeltaToDB = vi.fn()
-const mockGetGraph = vi.fn()
-const mockLoadSettings = vi.fn()
-const mockSaveSettings = vi.fn()
+const mockIpcMainHandle: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any> = vi.fn()
+const mockApplyGraphDeltaToDB: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any> = vi.fn()
+const mockGetGraph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any> = vi.fn()
+const mockLoadSettings: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any> = vi.fn()
+const mockSaveSettings: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any> = vi.fn()
 
 vi.mock('electron', () => ({
   ipcMain: {
@@ -33,7 +33,7 @@ describe('setupRPCHandlers', () => {
   })
 
   it('should register IPC handler for rpc:call channel', async () => {
-    const { setupRPCHandlers } = await import('./rpc-handler.ts')
+    const { setupRPCHandlers } = await import('./rpc-handler')
 
     setupRPCHandlers()
 
@@ -41,14 +41,14 @@ describe('setupRPCHandlers', () => {
   })
 
   it('should call correct function from mainAPI when valid function name provided', async () => {
-    const { setupRPCHandlers } = await import('./rpc-handler.ts')
+    const { setupRPCHandlers } = await import('./rpc-handler')
 
     mockGetGraph.mockReturnValue({ nodes: [], edges: [] })
 
     setupRPCHandlers()
 
     // Get the registered handler
-    const handlerCall = mockIpcMainHandle.mock.calls.find(call => call[0] === 'rpc:call')
+    const handlerCall: any[] | undefined = mockIpcMainHandle.mock.calls.find(call => call[0] === 'rpc:call')
     expect(handlerCall).toBeDefined()
     const handler = handlerCall?.[1]
 
@@ -60,14 +60,14 @@ describe('setupRPCHandlers', () => {
   })
 
   it('should pass arguments correctly to the called function', async () => {
-    const { setupRPCHandlers } = await import('./rpc-handler.ts')
+    const { setupRPCHandlers } = await import('./rpc-handler')
 
-    const mockSettings = { agentLaunchPath: '/test/path', agentCommand: './test.sh' }
+    const mockSettings: { agentLaunchPath: string; agentCommand: string; } = { agentLaunchPath: '/test/path', agentCommand: './test.sh' }
     mockSaveSettings.mockResolvedValue(undefined)
 
     setupRPCHandlers()
 
-    const handlerCall = mockIpcMainHandle.mock.calls.find(call => call[0] === 'rpc:call')
+    const handlerCall: any[] | undefined = mockIpcMainHandle.mock.calls.find(call => call[0] === 'rpc:call')
     const handler = handlerCall?.[1]
 
     // Call handler with 'saveSettings' and arguments
@@ -77,11 +77,11 @@ describe('setupRPCHandlers', () => {
   })
 
   it('should return error when function does not exist in mainAPI', async () => {
-    const { setupRPCHandlers } = await import('./rpc-handler.ts')
+    const { setupRPCHandlers } = await import('./rpc-handler')
 
     setupRPCHandlers()
 
-    const handlerCall = mockIpcMainHandle.mock.calls.find(call => call[0] === 'rpc:call')
+    const handlerCall: any[] | undefined = mockIpcMainHandle.mock.calls.find(call => call[0] === 'rpc:call')
     const handler = handlerCall?.[1]
 
     // Call handler with non-existent function name
@@ -91,15 +91,15 @@ describe('setupRPCHandlers', () => {
   })
 
   it('should handle promise rejections with Error and non-Error values', async () => {
-    const { setupRPCHandlers } = await import('./rpc-handler.ts')
+    const { setupRPCHandlers } = await import('./rpc-handler')
 
     setupRPCHandlers()
 
-    const handlerCall = mockIpcMainHandle.mock.calls.find(call => call[0] === 'rpc:call')
+    const handlerCall: any[] | undefined = mockIpcMainHandle.mock.calls.find(call => call[0] === 'rpc:call')
     const handler = handlerCall?.[1]
 
     // Test promise rejection with Error object
-    const testError = new Error('Test error')
+    const testError: Error = new Error('Test error')
     mockGetGraph.mockRejectedValue(testError)
     const errorResult = await handler({}, 'getGraph', [])
     expect(errorResult).toEqual({ error: 'RPC call failed: Test error' })
@@ -111,14 +111,14 @@ describe('setupRPCHandlers', () => {
   })
 
   it('should preserve return value types from called functions', async () => {
-    const { setupRPCHandlers } = await import('./rpc-handler.ts')
+    const { setupRPCHandlers } = await import('./rpc-handler')
 
-    const mockGraphData = { nodes: [{ id: '1', label: 'test' }], edges: [] }
+    const mockGraphData: { nodes: { id: string; label: string; }[]; edges: never[]; } = { nodes: [{ id: '1', label: 'test' }], edges: [] }
     mockGetGraph.mockReturnValue(mockGraphData)
 
     setupRPCHandlers()
 
-    const handlerCall = mockIpcMainHandle.mock.calls.find(call => call[0] === 'rpc:call')
+    const handlerCall: any[] | undefined = mockIpcMainHandle.mock.calls.find(call => call[0] === 'rpc:call')
     const handler = handlerCall?.[1]
 
     const result = await handler({}, 'getGraph', [])

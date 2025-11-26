@@ -14,9 +14,9 @@ export default function useWebSpeechTranscription() {
   const [nonFinalTokens, setNonFinalTokens] = useState<TranscriptionToken[]>([]);
   const [error, setError] = useState<Error | null>(null);
 
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@types/react/index").RefObject<SpeechRecognition | null> = useRef<SpeechRecognition | null>(null);
 
-  const startTranscription = useCallback(() => {
+  const startTranscription: () => void = useCallback(() => {
     console.log('Starting Web Speech API transcription...');
     setError(null);
     setFinalTokens([]);
@@ -24,13 +24,13 @@ export default function useWebSpeechTranscription() {
     setState('Starting');
 
     try {
-      const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const SpeechRecognitionAPI: { new (): SpeechRecognition; prototype: SpeechRecognition; } = window.SpeechRecognition || window.webkitSpeechRecognition;
 
       if (!SpeechRecognitionAPI) {
         throw new Error('Web Speech API is not supported in this browser');
       }
 
-      const recognition = new SpeechRecognitionAPI();
+      const recognition: SpeechRecognition = new SpeechRecognitionAPI();
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = 'en-US';
@@ -46,9 +46,9 @@ export default function useWebSpeechTranscription() {
         const newNonFinalTokens: TranscriptionToken[] = [];
 
         // Process only the new results since last event
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const result = event.results[i];
-          const transcript = result[0].transcript;
+        for (let i: number = event.resultIndex; i < event.results.length; i++) {
+          const result: SpeechRecognitionResult = event.results[i];
+          const transcript: string = result[0].transcript;
 
           if (result.isFinal) {
             newFinalTokens.push({
@@ -94,7 +94,7 @@ export default function useWebSpeechTranscription() {
     }
   }, []);
 
-  const stopTranscription = useCallback(() => {
+  const stopTranscription: () => void = useCallback(() => {
     console.log('Stopping transcription...');
     setState('Stopping');
 

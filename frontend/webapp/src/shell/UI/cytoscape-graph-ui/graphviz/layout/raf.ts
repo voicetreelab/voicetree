@@ -7,7 +7,7 @@ interface WindowWithPrefixes extends Window {
 let raf: (callback: FrameRequestCallback) => number | void;
 
 if( typeof window !== typeof undefined ){
-  const win = window as unknown as WindowWithPrefixes;
+  const win: WindowWithPrefixes = window as unknown as WindowWithPrefixes;
   raf = ( window.requestAnimationFrame ||
     win.webkitRequestAnimationFrame ||
     win.mozRequestAnimationFrame ||

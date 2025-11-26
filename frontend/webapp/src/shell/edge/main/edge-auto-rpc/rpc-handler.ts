@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron'
-import { mainAPI } from '@/shell/edge/main/api.ts'
+import { mainAPI } from '@/shell/edge/main/api'
 
 type MainAPIKey = keyof typeof mainAPI
 
@@ -10,13 +10,13 @@ export function setupRPCHandlers(): void {
   })
 
   ipcMain.handle('rpc:call', async (_event, fnName: string, args: readonly unknown[]): Promise<unknown> => {
-    const fn = mainAPI[fnName as MainAPIKey]
+    const fn: ((delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta) => Promise<void>) | (() => import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph) | (() => Promise<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/settings/types").VTSettings>) | ((settings: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/settings/types").VTSettings) => Promise<boolean>) | ((directoryPath?: string) => Promise<{ readonly success: boolean; readonly directory?: string; readonly error?: string; }>) | (() => Promise<{ readonly success: boolean; readonly error?: string; }>) | (() => { readonly isWatching: boolean; readonly directory: string | undefined; }) | (() => Promise<{ readonly success: boolean; readonly directory?: string; readonly error?: string; }>) | (() => number | null) | ((parentNodeId: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").NodeIdAndFilePath) => Promise<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").NodeIdAndFilePath>) | (() => string) = mainAPI[fnName as MainAPIKey]
 
     if (typeof fn !== 'function') {
       return { error: `Function not found: ${fnName}` }
     }
 
-    const result = (fn as (...args: readonly unknown[]) => unknown)(...args)
+    const result: unknown = (fn as (...args: readonly unknown[]) => unknown)(...args)
     return Promise.resolve(result)
       .catch((error: unknown) => ({
         error: `RPC call failed: ${error instanceof Error ? error.message : String(error)}`,

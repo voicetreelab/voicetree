@@ -8,8 +8,8 @@
 import path from 'path'
 
 // Resolve project root (this file is in src/utils/test-utils, so go up three levels)
-const PROJECT_ROOT = path.resolve(import.meta.dirname, '../../..')
+const PROJECT_ROOT: string = path.resolve(import.meta.dirname, '../../..')
 
-export const FIXTURES_ROOT = path.join(PROJECT_ROOT, 'example_folder_fixtures')
-export const EXAMPLE_SMALL_PATH = path.join(FIXTURES_ROOT, 'example_small')
-export const EXAMPLE_LARGE_PATH = path.join(FIXTURES_ROOT, 'example_real_large')
+export const FIXTURES_ROOT: string = path.join(PROJECT_ROOT, 'example_folder_fixtures')
+export const EXAMPLE_SMALL_PATH: string = path.join(FIXTURES_ROOT, 'example_small')
+export const EXAMPLE_LARGE_PATH: string = path.join(FIXTURES_ROOT, 'example_real_large')
