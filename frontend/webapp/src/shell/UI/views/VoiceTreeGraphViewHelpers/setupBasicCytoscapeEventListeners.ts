@@ -17,7 +17,7 @@ export function setupBasicCytoscapeEventListeners(
   cy.on('mouseover', 'node', (e) => {
     if (!e.target) return;
 
-    const node = e.target;
+    const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").NodeSingular = e.target;
     cy.elements()
       .difference(node.closedNeighborhood())
       .addClass(CLASS_UNHOVER);
@@ -30,7 +30,7 @@ export function setupBasicCytoscapeEventListeners(
 
     // Stop breathing animation on hover for new nodes and appended content
     if (animationService.isAnimationActive(node)) {
-      const animationType = node.data('animationType');
+      const animationType: string = node.data('animationType');
       if (animationType === 'new_node' || animationType === 'appended_content') {
         animationService.stopAnimationForNode(node);
       }
@@ -62,15 +62,15 @@ export function setupBasicCytoscapeEventListeners(
   // Only update the source and target nodes of the affected edge for efficiency
   cy.on('add', 'edge', (e) => {
     if (!e.target) return;
-    const edge = e.target;
-    const affectedNodes = edge.source().union(edge.target());
+    const edge: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").EdgeSingular = e.target;
+    const affectedNodes: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").NodeCollection = edge.source().union(edge.target());
     styleService.updateNodeSizes(cy, affectedNodes);
   });
 
   cy.on('remove', 'edge', (e) => {
     if (!e.target) return;
-    const edge = e.target;
-    const affectedNodes = edge.source().union(edge.target());
+    const edge: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").EdgeSingular = e.target;
+    const affectedNodes: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").NodeCollection = edge.source().union(edge.target());
     styleService.updateNodeSizes(cy, affectedNodes);
   });
 }

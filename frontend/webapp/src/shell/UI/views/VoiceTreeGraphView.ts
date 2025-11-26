@@ -558,8 +558,9 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
         // Use the same approach as autoLayout.ts
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const ColaLayout = (cy as any).constructor.layouts.cola;
-        const layout = new ColaLayout({
+        const ColaLayout: any = (cy as any).constructor.layouts.cola;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const layout: any = new ColaLayout({
             cy: cy,
             eles: cy.elements(),
             animate: true,

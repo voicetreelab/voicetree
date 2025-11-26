@@ -63,7 +63,7 @@ class MermaidBlockWidget extends WidgetType {
             container.innerHTML = '<div style="padding: 10px; color: #666;">Rendering diagram...</div>';
 
             // Update when rendering completes
-            this.renderPromise?.then(() => {
+            void this.renderPromise?.then(() => {
                 if (this.rendered) {
                     container.innerHTML = this.rendered;
                 }
@@ -126,7 +126,7 @@ function replaceMermaidBlocks(state: EditorState, from?: number, to?: number): R
  * CodeMirror StateField extension for Mermaid diagram rendering
  * Follows the same pattern as renderBlock from codemirror-rich-markdoc
  */
-export function mermaidRender() {
+export function mermaidRender(): StateField<DecorationSet> {
     return StateField.define<DecorationSet>({
         create(state) {
             return RangeSet.of(replaceMermaidBlocks(state), true);

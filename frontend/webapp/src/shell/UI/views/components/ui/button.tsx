@@ -14,7 +14,7 @@ function Button({
 }: React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean
-  }) {
+  }): JSX.Element {
   const Comp: "button" | React.ForwardRefExoticComponent<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@radix-ui/react-slot/dist/index").SlotProps & React.RefAttributes<HTMLElement>> = asChild ? Slot : "button"
 
   return (

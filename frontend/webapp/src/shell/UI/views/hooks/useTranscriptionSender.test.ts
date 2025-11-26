@@ -47,8 +47,9 @@ describe('useTranscriptionSender - Behavioral Tests', () => {
       expect(mockFetch).toHaveBeenCalledTimes(1);
 
       // Verify first send contains "Hello world"
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const firstCall: any[] = mockFetch.mock.calls[0];
-      const firstBody = JSON.parse(firstCall[1].body);
+      const firstBody: { text: string } = JSON.parse(firstCall[1].body);
       expect(firstBody.text).toBe('Hello world');
 
       // Add more tokens (simulating incremental transcription)
@@ -66,8 +67,9 @@ describe('useTranscriptionSender - Behavioral Tests', () => {
       expect(mockFetch).toHaveBeenCalledTimes(2);
 
       // Verify second send contains only the NEW text
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const secondCall: any[] = mockFetch.mock.calls[1];
-      const secondBody = JSON.parse(secondCall[1].body);
+      const secondBody: { text: string } = JSON.parse(secondCall[1].body);
       expect(secondBody.text).toBe(' how are you');
 
       // Should NOT resend "Hello world"
@@ -91,7 +93,7 @@ describe('useTranscriptionSender - Behavioral Tests', () => {
 
       // Should only send the final tokens
       expect(mockFetch).toHaveBeenCalledTimes(1);
-      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const body: { text: string } = JSON.parse(mockFetch.mock.calls[0][1].body);
       expect(body.text).toBe('Hello test'); // Only final tokens
       expect(body.text).not.toContain('world'); // Non-final not included
       expect(body.text).not.toContain('draft'); // Non-final not included
@@ -135,12 +137,14 @@ describe('useTranscriptionSender - Behavioral Tests', () => {
 
         expect(mockFetch).toHaveBeenCalledTimes(index + 1);
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const call: any[] = mockFetch.mock.calls[index];
-        const body = JSON.parse(call[1].body);
+        const body: { text: string } = JSON.parse(call[1].body);
         expect(body.text).toBe(update.expectedText);
       }
 
       // Verify no text was sent twice
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const allSentTexts: any[] = mockFetch.mock.calls.map(call => JSON.parse(call[1].body).text);
       const fullText: string = allSentTexts.join('');
       expect(fullText).toBe('First second third fourth');
@@ -212,6 +216,7 @@ describe('useTranscriptionSender - Behavioral Tests', () => {
   describe('Error Handling Behavior', () => {
     it('should not update tracking on failed sends', async () => {
       // Suppress console.error for this test since we're intentionally causing an error
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const consoleErrorSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<{ (...data: any[]): void; (message?: any, ...optionalParams: any[]): void; }> = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       const { result } = renderHook(() => useTranscriptionSender({ endpoint }));
@@ -245,8 +250,9 @@ describe('useTranscriptionSender - Behavioral Tests', () => {
 
       // Should send BOTH tokens because first send failed
       expect(mockFetch).toHaveBeenCalledTimes(2);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const secondCall: any[] = mockFetch.mock.calls[1];
-      const secondBody = JSON.parse(secondCall[1].body);
+      const secondBody: { text: string } = JSON.parse(secondCall[1].body);
       expect(secondBody.text).toBe('Hello world'); // Both tokens sent
     });
 

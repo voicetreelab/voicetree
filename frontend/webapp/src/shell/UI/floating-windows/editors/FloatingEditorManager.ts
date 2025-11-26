@@ -26,7 +26,7 @@ import {createNewEmptyOrphanNodeFromUI, modifyNodeContentFromUI} from "@/shell/e
 import type {FloatingWindowUIHTMLData} from "@/shell/edge/UI-edge/floating-windows/types";
 import {getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
 import {getVanillaInstance, vanillaFloatingWindowInstances} from "@/shell/edge/UI-edge/state/UIAppState";
-import {fromNodeToMarkdownContent} from "@/pure/graph/markdown-writing/node_to_markdown";
+import {fromNodeToContentWithWikilinks} from "@/pure/graph/markdown-writing/node_to_markdown";
 
 /**
  * Function type for getting current graph state
@@ -62,14 +62,15 @@ export async function createFloatingEditor(
     editorRegistry.set(nodeId, id);
 
     // Always resizable
-    const resizable: true = true;
+    const resizable: true = true as const;
 
     // Derive title and content from nodeId
+    // Editor shows content WITHOUT YAML frontmatter - YAML is managed separately
     const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = await getNodeFromMainToUI(nodeId);
     let content: string = "loading..."
     let title: string = `${nodeId}`; // fallback to nodeId if node not found
     if (node) {
-        content = fromNodeToMarkdownContent(node);
+        content = fromNodeToContentWithWikilinks(node);
         title = `${node.nodeUIMetadata.title}`;
     }
 
@@ -181,8 +182,8 @@ export class FloatingEditorManager {
             void (async () => {
                 console.log('[HoverEditor] GraphNode mouseover');
 
-                const node = event.target;
-                const nodeId = node.id();
+                const node: cytoscape.NodeSingular = event.target;
+                const nodeId: string = node.id();
 
                 // Only open hover editor for markdown nodes (nodes with file extensions)
                 // Terminal nodes, shadow nodes, etc. don't have file extensions
@@ -245,18 +246,19 @@ export class FloatingEditorManager {
     /**
      * Update floating editors based on graph delta
      * For each node upsert, check if there's an open editor and update its content
+     * Editor shows content WITHOUT YAML - uses fromNodeToContentWithWikilinks
      */
     updateFloatingEditors(delta: GraphDelta): void {
         for (const nodeDelta of delta) {
             if (nodeDelta.type === 'UpsertNode') {
                 const nodeId: string = nodeDelta.nodeToUpsert.relativeFilePathIsID;
-                const newContent: string = fromNodeToMarkdownContent(nodeDelta.nodeToUpsert);
+                const newContent: string = fromNodeToContentWithWikilinks(nodeDelta.nodeToUpsert);
                 const editorId: string | undefined = this.nodeIdToEditorId.get(nodeId);
 
                 if (editorId) {
                     // Check if this is our own save coming back from the filesystem
                     const awaiting: string | undefined = this.awaitingUISavedContent.get(nodeId);
-                    if (awaiting === newContent) {
+                    if (awaiting) { // todo for better race condition management, you can do awaiting === content.
                         console.log('[FloatingWindowManager] Ignoring our own save for node:', nodeId);
                         this.awaitingUISavedContent.delete(nodeId);
                         // TODO

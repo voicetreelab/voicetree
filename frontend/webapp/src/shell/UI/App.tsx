@@ -5,7 +5,7 @@ import {Alert, AlertDescription} from "@/shell/UI/views/components/ui/alert";
 import {VoiceTreeGraphView} from "@/shell/UI/views/VoiceTreeGraphView";
 import {useEffect, useRef} from "react";
 
-function App() {
+function App(): import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@types/react/jsx-runtime").JSX.Element {
     // Use the folder watcher hook for file watching
     const {
         isWatching,
@@ -57,7 +57,7 @@ function App() {
             <div className="flex gap-2 mb-2">
                 {isElectron ? (
                     <Button
-                        onClick={startWatching}
+                        onClick={() => void startWatching()}
                         disabled={isLoading}
                         size="sm"
                         variant="default"

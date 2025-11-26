@@ -12,7 +12,7 @@ interface RendererProps {
 // Component for pretty displaying tokens. It adds label for different speakers
 // and label for different languages. It also visually displays difference
 // between final and non-final tokens.
-export default function Renderer({ tokens, placeholder, onPlaceholderClick }: RendererProps) {
+export default function Renderer({ tokens, placeholder, onPlaceholderClick }: RendererProps): JSX.Element {
   let lastSpeaker: string | undefined;
   let lastLanguage: string | undefined;
 

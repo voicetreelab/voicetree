@@ -10,7 +10,7 @@ import useAutoScroll from "@/shell/UI/views/hooks/useAutoScroll";
 import { type Token } from "@soniox/speech-to-text-web";
 import type {} from "@/shell/electron";
 
-export default function VoiceTreeTranscribe() {
+export default function VoiceTreeTranscribe(): JSX.Element {
   const [textInput, setTextInput] = useState("");
   const [allFinalTokens, setAllFinalTokens] = useState<Token[]>([]);
   const [backendPort, setBackendPort] = useState<number | undefined>(undefined);

@@ -59,7 +59,7 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
 /**
  * Update window DOM element position based on node position
  */
-function updateWindowPosition(node: cytoscape.NodeSingular, domElement: HTMLElement) {
+function updateWindowPosition(node: cytoscape.NodeSingular, domElement: HTMLElement): void {
     const pos: cytoscape.Position = node.position();
     domElement.style.left = `${pos.x}px`;
     domElement.style.top = `${pos.y}px`;
@@ -70,7 +70,7 @@ function updateWindowPosition(node: cytoscape.NodeSingular, domElement: HTMLElem
  * Update shadow node dimensions based on window DOM element dimensions
  * Dimensions flow: DOM element (source of truth) → shadow node (for layout)
  */
-function updateShadowNodeDimensions(shadowNode: cytoscape.NodeSingular, domElement: HTMLElement) {
+function updateShadowNodeDimensions(shadowNode: cytoscape.NodeSingular, domElement: HTMLElement): void {
     // Use offsetWidth/Height to get full rendered size including borders
     const width: number = domElement.offsetWidth;
     const height: number = domElement.offsetHeight;
@@ -111,8 +111,24 @@ export function createWindowChrome(
     }
 
     // Event isolation - prevent graph interactions
-    windowElement.addEventListener('mousedown', (e) => {
+    // Also select the associated node when clicking inside the editor
+    // so that Cmd+Enter runs the terminal for this node
+    windowElement.addEventListener('mousedown', (e: MouseEvent): void => {
         e.stopPropagation();
+        // Select the associated node in Cytoscape
+        // First, unselect all other nodes
+        cy.$(':selected').unselect();
+        // Then select the parent node for this editor (derived from window ID)
+        // The window ID is `${nodeId}-editor`, so extract the nodeId
+        const windowId: string = id;
+        const editorSuffix: string = '-editor'; // todo we shouldn't assume
+        const nodeId: string = windowId.endsWith(editorSuffix)
+            ? windowId.slice(0, -editorSuffix.length)
+            : windowId;
+        const parentNode: cytoscape.CollectionReturnValue = cy.getElementById(nodeId);
+        if (parentNode.length > 0) {
+            parentNode.select();
+        }
     });
     windowElement.addEventListener('wheel', (e) => {
         e.stopPropagation();
@@ -189,7 +205,7 @@ function attachDragHandlers(
     cy: cytoscape.Core,
     titleBar: HTMLElement,
     windowElement: HTMLElement
-) {
+): void {
     let isDragging: boolean = false;
     let dragOffset: { x: number; y: number; } = {x: 0, y: 0};
 

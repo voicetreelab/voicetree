@@ -60,7 +60,7 @@ export function useTranscriptionSender({
       });
 
       if (response.ok) {
-        const result = await response.json();
+        const result: { buffer_length?: number } = await response.json();
         if (result.buffer_length !== undefined) {
           setBufferLength(result.buffer_length);
         }

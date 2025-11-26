@@ -26,7 +26,14 @@ export default function useVoiceTreeClient({
   translationConfig,
   onStarted,
   onFinished,
-}: UseVoiceTreeClientOptions) {
+}: UseVoiceTreeClientOptions): {
+  startTranscription: () => Promise<void>;
+  stopTranscription: () => void;
+  state: RecorderState;
+  finalTokens: Token[];
+  nonFinalTokens: Token[];
+  error: TranscriptionError | null;
+} {
   const sonioxClient: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@types/react/index").RefObject<SonioxClient | null> = useRef<SonioxClient | null>(null);
 
   sonioxClient.current ??= new SonioxClient({
