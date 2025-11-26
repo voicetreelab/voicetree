@@ -1,4 +1,3 @@
-import type {} from '@/shell/electron';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebglAddon } from '@xterm/addon-webgl';
@@ -6,8 +5,9 @@ import { ClipboardAddon } from '@xterm/addon-clipboard';
 import { SearchAddon } from '@xterm/addon-search';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import '@xterm/xterm/css/xterm.css';
-import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/types.ts';
-import { FloatingWindowFullscreen } from '@/shell/UI/floating-windows/FloatingWindowFullscreen.ts';
+import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/types';
+import { FloatingWindowFullscreen } from '@/shell/UI/floating-windows/FloatingWindowFullscreen';
+import type { VTSettings } from '@/pure/settings';
 
 export interface TerminalVanillaConfig {
   terminalData: TerminalData;
@@ -26,10 +26,15 @@ export class TerminalVanilla {
   private resizeObserver: ResizeObserver | null = null;
   private resizeTimeout: NodeJS.Timeout | null = null;
   private fullscreen: FloatingWindowFullscreen;
+  private suppressNextEnter: boolean = false;
+  private shiftEnterSendsOptionEnter: boolean = true;
 
   constructor(config: TerminalVanillaConfig) {
     this.container = config.container;
     this.terminalData = config.terminalData;
+
+    void window.electronAPI?.main.loadSettings().then(
+      (settings: VTSettings) => this.shiftEnterSendsOptionEnter = settings.shiftEnterSendsOptionEnter);
 
     // Setup fullscreen with callback to fit terminal when fullscreen changes
     this.fullscreen = new FloatingWindowFullscreen(config.container, () => {
@@ -38,12 +43,12 @@ export class TerminalVanilla {
       }
     });
 
-    this.mount();
+    void this.mount();
   }
 
-  private mount() {
+  private async mount(): Promise<void> {
     // Create terminal instance
-    const term = new XTerm({
+    const term: XTerm = new XTerm({
       cursorBlink: true,
       scrollback: 9999,
         scrollOnEraseInDisplay : true,
@@ -53,7 +58,7 @@ export class TerminalVanilla {
     });
 
     // Add FitAddon
-    const fitAddon = new FitAddon();
+    const fitAddon: FitAddon = new FitAddon();
     term.loadAddon(fitAddon);
 
     this.fitAddon = fitAddon;
@@ -64,7 +69,7 @@ export class TerminalVanilla {
 
     // Load WebGL2 addon for better rendering performance
     try {
-      const webglAddon = new WebglAddon();
+      const webglAddon: WebglAddon = new WebglAddon();
       term.loadAddon(webglAddon);
       webglAddon.onContextLoss(() => {
         console.warn('WebGL context lost, terminal will fall back to DOM renderer');
@@ -75,26 +80,29 @@ export class TerminalVanilla {
     }
 
     // Load clipboard addon for proper copy/paste handling
-    const clipboardAddon = new ClipboardAddon();
+    const clipboardAddon: ClipboardAddon = new ClipboardAddon();
     term.loadAddon(clipboardAddon);
 
     // Load search addon for find-in-terminal functionality
-    const searchAddon = new SearchAddon();
+    const searchAddon: SearchAddon = new SearchAddon();
     term.loadAddon(searchAddon);
 
     // Load Unicode11 addon for better Unicode support
-    const unicode11Addon = new Unicode11Addon();
+    const unicode11Addon: Unicode11Addon = new Unicode11Addon();
     term.loadAddon(unicode11Addon);
     term.unicode.activeVersion = '11';
 
     fitAddon.fit();
 
-    // Intercept Shift+Enter to send Option+Enter sequence (ESC + LF)
+    // Shift+Enter -> Option+Enter: We intercept Shift+Enter and send ESC+CR (\x1b\r).
+    // However, onData still fires with '\r' despite returning false from the handler.
+    // The suppressNextEnter flag prevents that duplicate '\r' from being sent.
     term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
-      if (event.type === 'keydown' && event.key === 'Enter' && event.shiftKey && !event.metaKey && !event.ctrlKey && !event.altKey) {
+      if (this.shiftEnterSendsOptionEnter && event.type === 'keydown' && event.key === 'Enter' && event.shiftKey && !event.metaKey && !event.ctrlKey && !event.altKey) {
         if (this.terminalId && window.electronAPI?.terminal) {
-          void window.electronAPI.terminal.write(this.terminalId, '\x1b\n');
+          void window.electronAPI.terminal.write(this.terminalId, '\x1b\r');
         }
+        this.suppressNextEnter = true;
         return false;
       }
       return true;
@@ -102,6 +110,13 @@ export class TerminalVanilla {
 
     // Handle terminal input
     term.onData(data => {
+      // Skip the CR that onData fires after we handled Shift+Enter
+      if (this.suppressNextEnter && data === '\r') {
+        this.suppressNextEnter = false;
+        return;
+      }
+      this.suppressNextEnter = false;
+
       if (this.terminalId && window.electronAPI?.terminal) {
         window.electronAPI.terminal.write(this.terminalId, data).catch(err => {
           console.error('Terminal write error:', err);
@@ -112,7 +127,7 @@ export class TerminalVanilla {
     // Handle terminal resize
     term.onResize(({ cols, rows }) => {
       if (this.terminalId && window.electronAPI?.terminal) {
-        window.electronAPI.terminal.resize(this.terminalId, cols, rows);
+        void window.electronAPI.terminal.resize(this.terminalId, cols, rows);
       }
     });
 
@@ -130,24 +145,24 @@ export class TerminalVanilla {
     this.resizeObserver.observe(this.container);
 
     // Initialize terminal backend connection
-    this.initTerminal();
+    await this.initTerminal();
   }
 
-  private async initTerminal() {
+  private async initTerminal(): Promise<void> {
     if (!window.electronAPI?.terminal || !this.term) {
       this.term?.writeln('Terminal is only available in Electron mode.');
       this.term?.writeln('Run the app with: npm run electron:dev');
       return;
     }
 
-    const result = await window.electronAPI.terminal.spawn(this.terminalData);
+    const result: { success: boolean; terminalId?: string; error?: string } = await window.electronAPI.terminal.spawn(this.terminalData);
 
     if (result.success && result.terminalId) {
       this.terminalId = result.terminalId;
 
       // Sync initial size
       if (this.term) {
-        window.electronAPI.terminal.resize(result.terminalId, this.term.cols, this.term.rows);
+        void window.electronAPI.terminal.resize(result.terminalId, this.term.cols, this.term.rows);
       }
 
       // Handle terminal output
@@ -165,43 +180,22 @@ export class TerminalVanilla {
         }
       });
     } else {
-      this.term?.writeln('Failed to spawn terminal: ' + (result.error || 'Unknown error'));
+      this.term?.writeln('Failed to spawn terminal: ' + (result.error ?? 'Unknown error'));
     }
   }
 
 
   /**
-   * Enter fullscreen mode
-   */
-  async enterFullscreen() {
-    await this.fullscreen.enter();
-  }
-
-  /**
-   * Exit fullscreen mode
-   */
-  async exitFullscreen() {
-    await this.fullscreen.exit();
-  }
-
-  /**
    * Toggle fullscreen mode
    */
-  async toggleFullscreen() {
+  async toggleFullscreen(): Promise<void> {
     await this.fullscreen.toggle();
-  }
-
-  /**
-   * Check if terminal is in fullscreen mode
-   */
-  isFullscreen(): boolean {
-    return this.fullscreen.isFullscreen();
   }
 
   /**
    * Cleanup and destroy the terminal
    */
-  dispose() {
+  dispose(): void {
     if (this.resizeTimeout) {
       clearTimeout(this.resizeTimeout);
     }
@@ -215,7 +209,7 @@ export class TerminalVanilla {
 
     // Kill terminal process
     if (this.terminalId && window.electronAPI?.terminal) {
-      window.electronAPI.terminal.kill(this.terminalId);
+      void window.electronAPI.terminal.kill(this.terminalId);
     }
 
     // Dispose terminal instance
