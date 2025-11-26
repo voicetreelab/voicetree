@@ -67,9 +67,9 @@ describe('apply_graph_deltas_to_db', () => {
       const fileExists: boolean = await fs.access(filePath).then(() => true).catch(() => false)
       expect(fileExists).toBe(true)
 
-      // Verify file content (includes empty frontmatter from fromNodeToMarkdownContent)
+      // Verify file content (frontmatter includes title and isContextNode from nodeUIMetadata)
       const fileContent: string = await fs.readFile(filePath, 'utf-8')
-      expect(fileContent).toBe('---\n---\n# New Node\n\nThis is content')
+      expect(fileContent).toBe('---\ntitle: New Node\nisContextNode: false\n---\n# New Node\n\nThis is content')
 
       // Verify we can load it back from disk
       const loadResult: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(testVaultPath))
@@ -172,10 +172,10 @@ describe('apply_graph_deltas_to_db', () => {
 
       expect(E.isRight(result)).toBe(true)
 
-      // Verify file was updated on disk (includes empty frontmatter from fromNodeToMarkdownContent)
+      // Verify file was updated on disk (frontmatter includes title and isContextNode from nodeUIMetadata)
       const filePath: string = path.join(testVaultPath, 'node-update-1.md')
       const fileContent: string = await fs.readFile(filePath, 'utf-8')
-      expect(fileContent).toBe('---\n---\n# Updated Title\n\nNew content')
+      expect(fileContent).toBe('---\ntitle: Updated Title\nisContextNode: false\n---\n# Updated Title\n\nNew content')
 
       // Load from disk and verify
       const loadResult4: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(testVaultPath))

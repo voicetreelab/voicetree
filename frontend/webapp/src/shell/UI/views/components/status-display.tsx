@@ -1,3 +1,4 @@
+import type {JSX} from "react";
 import { type RecorderState } from "@soniox/speech-to-text-web";
 
 interface StatusDisplayProps {

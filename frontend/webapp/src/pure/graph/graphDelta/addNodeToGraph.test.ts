@@ -23,22 +23,22 @@ import { mapFSEventsToGraphDelta } from '@/pure/graph/mapFSEventsToGraphDelta'
  */
 
 describe('Progressive Edge Validation - Unified Behavior', () => {
-  const testVaultState: { readonly path: string; } = { path: '' }
+  let testVaultPath: string = ''
 
   beforeAll(async () => {
     const tmpDir: string = await fs.mkdtemp(path.join(os.tmpdir(), 'edge-validation-test-'))
-    testVaultState.path = tmpDir
-    await fs.mkdir(testVaultState.path, { recursive: true })
+    testVaultPath = tmpDir
+    await fs.mkdir(testVaultPath, { recursive: true })
   })
 
   afterAll(async () => {
-    await fs.rm(testVaultState.path, { recursive: true, force: true })
+    await fs.rm(testVaultPath, { recursive: true, force: true })
   })
 
   describe('Bulk Load: Edge Resolution Order Independence', () => {
     it('should produce identical graphs when loading files in forward order (target exists before source)', async () => {
       // Setup: Create temporary vault for forward order test
-      const forwardVaultPath: string = path.join(testVaultState.path, 'forward-order')
+      const forwardVaultPath: string = path.join(testVaultPath, 'forward-order')
       await fs.mkdir(forwardVaultPath, { recursive: true })
 
       // Files in order: target first, then source
@@ -68,7 +68,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
 
     it('should produce identical graphs when loading files in reverse order (source exists before target)', async () => {
       // Setup: Create temporary vault for reverse order test
-      const reverseVaultPath: string = path.join(testVaultState.path, 'reverse-order')
+      const reverseVaultPath: string = path.join(testVaultPath, 'reverse-order')
       await fs.mkdir(reverseVaultPath, { recursive: true })
 
       // Files in reverse order: source first (target doesn't exist yet)
@@ -98,7 +98,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
 
     it('should resolve subfolder links regardless of order (felix/2 -> [[1]] -> felix/1)', async () => {
       // Setup: Test subfolder link resolution bug
-      const subfolderVaultPath: string = path.join(testVaultState.path, 'subfolder-test')
+      const subfolderVaultPath: string = path.join(testVaultPath, 'subfolder-test')
       await fs.mkdir(path.join(subfolderVaultPath, 'felix'), { recursive: true })
 
       // Add in reverse order: file with link first
@@ -128,7 +128,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
 
     it('should handle chain of dependencies regardless of order', async () => {
       // Setup: a->b->c loaded as c,b,a
-      const chainVaultPath: string = path.join(testVaultState.path, 'chain-test')
+      const chainVaultPath: string = path.join(testVaultPath, 'chain-test')
       await fs.mkdir(chainVaultPath, { recursive: true })
 
       // Reverse order
@@ -181,12 +181,12 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
 
       // Incremental: Add source node that links to target
       const fsEvent: FSUpdate = {
-        absolutePath: path.join(testVaultState.path, 'source.md'),
+        absolutePath: path.join(testVaultPath, 'source.md'),
         content: '# Source\n\n- links [[target]]',
         eventType: 'Added'
       }
 
-      const delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = mapFSEventsToGraphDelta(fsEvent, testVaultState.path, currentGraph)
+      const delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = mapFSEventsToGraphDelta(fsEvent, testVaultPath, currentGraph)
 
       // Verify: Edge resolves to existing target node
       expect(delta).toHaveLength(1)
@@ -205,12 +205,12 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
 
       // Incremental: Add node with link to non-existent target
       const fsEvent: FSUpdate = {
-        absolutePath: path.join(testVaultState.path, 'source.md'),
+        absolutePath: path.join(testVaultPath, 'source.md'),
         content: '# Source\n\n- links [[non-existent]]',
         eventType: 'Added'
       }
 
-      const delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = mapFSEventsToGraphDelta(fsEvent, testVaultState.path, currentGraph)
+      const delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = mapFSEventsToGraphDelta(fsEvent, testVaultPath, currentGraph)
 
       // Verify: Edge has raw link text (not resolved)
       expect(delta).toHaveLength(1)
@@ -243,12 +243,12 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
 
       // Incremental: Add felix/2 with link [[1]]
       const fsEvent: FSUpdate = {
-        absolutePath: path.join(testVaultState.path, 'felix', '2.md'),
+        absolutePath: path.join(testVaultPath, 'felix', '2.md'),
         content: '# Node 2\n\n- related [[1]]',
         eventType: 'Added'
       }
 
-      const delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = mapFSEventsToGraphDelta(fsEvent, testVaultState.path, currentGraph)
+      const delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = mapFSEventsToGraphDelta(fsEvent, testVaultPath, currentGraph)
 
       // Verify: Link resolves to felix/1
       expect(delta[0].type).toBe('UpsertNode')
@@ -272,8 +272,8 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       }
 
       // Add child node
-      const fsEvent: FSUpdate = { absolutePath: path.join(testVaultState.path, 'child.md'), content: '# Child', eventType: 'Added' }
-      const delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = mapFSEventsToGraphDelta(fsEvent, testVaultState.path, currentGraph)
+      const fsEvent: FSUpdate = { absolutePath: path.join(testVaultPath, 'child.md'), content: '# Child', eventType: 'Added' }
+      const delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = mapFSEventsToGraphDelta(fsEvent, testVaultPath, currentGraph)
 
       // Parent must be in delta so UI gets second chance to create edge (fixes race condition)
       expect(delta).toHaveLength(2)
@@ -284,7 +284,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
   describe('Unified Behavior: Bulk and Incremental Produce Same Result', () => {
     it('should produce identical graphs: bulk load vs sequential incremental', async () => {
       // BULK LOAD
-      const bulkVaultPath: string = path.join(testVaultState.path, 'bulk-unified')
+      const bulkVaultPath: string = path.join(testVaultPath, 'bulk-unified')
       await fs.mkdir(bulkVaultPath, { recursive: true })
 
       await fs.writeFile(path.join(bulkVaultPath, 'a.md'), '# A\n\n- links [[b]]')
@@ -297,7 +297,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       const bulkGraph: Graph = bulkResult.right
 
       // INCREMENTAL (simulate sequential file additions)
-      const incrementalVaultPath: string = path.join(testVaultState.path, 'incremental-unified')
+      const incrementalVaultPath: string = path.join(testVaultPath, 'incremental-unified')
       await fs.mkdir(incrementalVaultPath, { recursive: true })
 
       // Add files one by one using mapFSEventsToGraphDelta
@@ -338,7 +338,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
 
     it('should produce identical graphs: bulk load vs incremental in REVERSE order', async () => {
       // BULK LOAD (forward order)
-      const bulkVaultPath: string = path.join(testVaultState.path, 'bulk-reverse')
+      const bulkVaultPath: string = path.join(testVaultPath, 'bulk-reverse')
       await fs.mkdir(bulkVaultPath, { recursive: true })
 
       await fs.writeFile(path.join(bulkVaultPath, 'a.md'), '# A\n\n- links [[b]]')
@@ -350,7 +350,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       const bulkGraph: Graph = bulkResult2.right
 
       // INCREMENTAL (reverse order - b before a)
-      const incrementalVaultPath: string = path.join(testVaultState.path, 'incremental-reverse')
+      const incrementalVaultPath: string = path.join(testVaultPath, 'incremental-reverse')
       await fs.mkdir(incrementalVaultPath, { recursive: true })
 
       // Add b first, then a
@@ -381,7 +381,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
 
   describe('Edge Cases: Non-existent Nodes', () => {
     it('bulk load should preserve raw link text when target never exists', async () => {
-      const vaultPath: string = path.join(testVaultState.path, 'non-existent-bulk')
+      const vaultPath: string = path.join(testVaultPath, 'non-existent-bulk')
       await fs.mkdir(vaultPath, { recursive: true })
 
       await fs.writeFile(
@@ -405,12 +405,12 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       const currentGraph: Graph = { nodes: {} }
 
       const fsEvent: FSUpdate = {
-        absolutePath: path.join(testVaultState.path, 'source.md'),
+        absolutePath: path.join(testVaultPath, 'source.md'),
         content: '# Source\n\n- broken [[does-not-exist]]',
         eventType: 'Added'
       }
 
-      const delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = mapFSEventsToGraphDelta(fsEvent, testVaultState.path, currentGraph)
+      const delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = mapFSEventsToGraphDelta(fsEvent, testVaultPath, currentGraph)
 
       // Verify: Edge preserved with raw link text
       expect(delta[0].type).toBe('UpsertNode')
@@ -420,7 +420,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
     })
 
     it('should handle multiple unresolved links', async () => {
-      const vaultPath: string = path.join(testVaultState.path, 'multiple-unresolved')
+      const vaultPath: string = path.join(testVaultPath, 'multiple-unresolved')
       await fs.mkdir(vaultPath, { recursive: true })
 
       await fs.writeFile(

@@ -63,6 +63,22 @@ export interface NodeUIMetadata {
     // width/height is derived from node degree
 }
 
+// {}.entries() throws an error:
+//     Error: emptyObj.entries is not a function
+//
+// So after IPC:
+//     1. additionalYAMLProps: Map(...) becomes {}
+// 2. buildFrontmatterFromMetadata calls metadata.additionalYAMLProps.entries()
+// 3. This throws an error!
+// 4. The error is probably caught somewhere, returning incomplete data
+//
+// The Map type doesn't survive Electron IPC serialization. You need to either:
+//
+// 1. Convert Map to Array/Object before IPC (and back after)
+// 2. Use Object instead of Map for additionalYAMLProps
+//     3. Add serialization handling in the IPC layer
+
+
 // Example object used to derive YAML keys at runtime (types are erased, but object keys remain)
 const _exampleNodeUIMetadata: NodeUIMetadata = {
     title: 'Example Node',

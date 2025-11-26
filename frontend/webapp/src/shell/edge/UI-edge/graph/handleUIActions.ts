@@ -6,8 +6,6 @@ import {
 } from "@/pure/graph/graphDelta/uiInteractionsToGraphDeltas";
 import type {Core} from 'cytoscape';
 import {applyGraphDeltaToUI} from "./applyGraphDeltaToUI";
-import {extractEdges} from "@/pure/graph/markdown-parsing/extract-edges";
-import {markdownToTitle} from "@/pure/graph/markdown-parsing/markdown-to-title";
 import {parseMarkdownToGraphNode} from "@/pure/graph/markdown-parsing";
 import {getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
 

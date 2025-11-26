@@ -1,4 +1,5 @@
 import { getSpeakerColor } from "@/utils/speaker-colors";
+import type {JSX} from "react";
 
 interface SpeakerLabelProps {
   speakerNumber: string | number;
