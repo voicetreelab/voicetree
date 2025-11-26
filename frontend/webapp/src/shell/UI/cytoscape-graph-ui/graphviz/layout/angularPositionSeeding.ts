@@ -8,8 +8,8 @@
 
 import type { Core, NodeSingular } from 'cytoscape';
 
-export const SPAWN_RADIUS: 200 = 200; // pixels from parent
-export const CHILD_ANGLE_CONE: 90 = 90; // degrees (± 45° from parent)
+export const SPAWN_RADIUS: 200 = 200 as const; // pixels from parent
+export const CHILD_ANGLE_CONE: 90 = 90 as const; // degrees (± 45° from parent)
 
 /**
  * Build an array of normalized positions [0, 1] using recursive subdivision
@@ -135,7 +135,7 @@ export function calculateParentAngle(
   parentNode: NodeSingular,
   cy: Core
 ): number | undefined {
-  const grandparentId = parentNode.data('parentId');
+  const grandparentId: string | undefined = parentNode.data('parentId');
 
   // If no grandparent, parent is a root node
   if (!grandparentId) {

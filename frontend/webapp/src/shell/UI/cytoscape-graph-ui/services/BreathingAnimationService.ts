@@ -61,7 +61,7 @@ export class BreathingAnimationService {
   private setupEventListeners(): void {
     // Listen for new nodes
     this.cy.on('add', 'node', (evt) => {
-      const node = evt.target;
+      const node: NodeSingular = evt.target;
 
       // Skip if this is a floating window (has floatingWindow data)
       if (node.data('floatingWindow')) {
@@ -82,7 +82,7 @@ export class BreathingAnimationService {
 
     // Listen for content updates (custom event emitted by file watcher)
     this.cy.on('content-changed', 'node', (evt) => {
-      const node = evt.target;
+      const node: NodeSingular = evt.target;
       this.startBreathingAnimation(node, AnimationType.APPENDED_CONTENT);
     });
   }
@@ -157,14 +157,14 @@ export class BreathingAnimationService {
     const animationType: AnimationType | undefined = node.data('animationType') as AnimationType | undefined;
 
     // Clear timeout if exists
-    const timeout = node.data('_breathingTimeout');
+    const timeout: NodeJS.Timeout | undefined = node.data('_breathingTimeout') as NodeJS.Timeout | undefined;
     if (timeout) {
       clearTimeout(timeout);
       node.removeData('_breathingTimeout');
     }
 
     // Clear interval if exists
-    const interval = node.data('_breathingInterval');
+    const interval: NodeJS.Timeout | undefined = node.data('_breathingInterval') as NodeJS.Timeout | undefined;
     if (interval) {
       clearInterval(interval);
       node.removeData('_breathingInterval');
@@ -199,7 +199,7 @@ export class BreathingAnimationService {
     }
 
     // Clear existing timeout if any
-    const existingTimeout = node.data('_breathingTimeout');
+    const existingTimeout: NodeJS.Timeout | undefined = node.data('_breathingTimeout') as NodeJS.Timeout | undefined;
     if (existingTimeout) {
       clearTimeout(existingTimeout);
     }

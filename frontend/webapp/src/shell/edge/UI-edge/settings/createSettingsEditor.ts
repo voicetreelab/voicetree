@@ -82,8 +82,8 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
         const centerX: number = (cy.width() / 2 - pan.x) / zoom;
         const centerY: number = (cy.height() / 2 - pan.y) / zoom;
 
-        const windowWidth: 600 = 600;
-        const windowHeight: 400 = 400;
+        const windowWidth: 600 = 600 as const;
+        const windowHeight: 400 = 400 as const;
         windowElement.style.left = `${centerX - windowWidth / 2}px`;
         windowElement.style.top = `${centerY - windowHeight / 2}px`;
         windowElement.style.width = `${windowWidth}px`;

@@ -16,7 +16,8 @@ const nop: () => void = function(){};
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const getOptVal: (val: any, ele: any) => any = function( val: any, ele: any ){
     if( isFunction(val) ){
-        const fn = val;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const fn: any = val;
         return fn.apply( ele, [ ele ] );
     } else {
         return val;
@@ -26,7 +27,7 @@ const getOptVal: (val: any, ele: any) => any = function( val: any, ele: any ){
 // constructor
 // options : object containing layout options
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function ColaLayout( this: any, options: any ){
+function ColaLayout( this: any, options: any ): any {
     this.options = assign( {}, defaults, options );
     this._listeners = {}; // Simple event emitter storage
 }
@@ -34,9 +35,7 @@ function ColaLayout( this: any, options: any ){
 // Simple event emitter methods
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ColaLayout.prototype.on = function(event: any, callback: any){
-    if (!this._listeners[event]) {
-        this._listeners[event] = [];
-    }
+    this._listeners[event] ??= [];
     this._listeners[event].push(callback);
     return this;
 };
@@ -63,7 +62,8 @@ ColaLayout.prototype.off = function(event: any, callback: any){
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ColaLayout.prototype.trigger = function(data: any){
-    const event = data.type || data;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const event: any = data.type ?? data;
     if (this._listeners[event]) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         this._listeners[event].forEach((callback: any) => callback(data));
@@ -73,24 +73,31 @@ ColaLayout.prototype.trigger = function(data: any){
 
 // runs the layout
 ColaLayout.prototype.run = function(){
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const layout = this;
-    const options = this.options;
+    // eslint-disable-next-line @typescript-eslint/no-this-alias, @typescript-eslint/no-explicit-any
+    const layout: any = this;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const options: any = this.options;
 
     layout.manuallyStopped = false;
 
-    const cy = options.cy; // cy is automatically populated for us in the constructor
-    const eles = options.eles;
-    const nodes = eles.nodes();
-    const edges = eles.edges();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cy: any = options.cy; // cy is automatically populated for us in the constructor
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const eles: any = options.eles;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const nodes: any = eles.nodes();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const edges: any = eles.edges();
     let ready: boolean = false;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const isParent: (ele: any) => any = (ele: any) => ele.isParent();
 
-    const parentNodes = nodes.filter(isParent);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const parentNodes: any = nodes.filter(isParent);
 
-    const nonparentNodes = nodes.subtract(parentNodes);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const nonparentNodes: any = nodes.subtract(parentNodes);
 
     // TODO: Investigate bounding box offset causing graph flicker when adding nodes
     // The bb.x1/bb.y1 offset transformation causes nodes to jump positions when the bounding box
@@ -103,6 +110,7 @@ ColaLayout.prototype.run = function(){
     // if( bb.y2 === undefined ){ bb.y2 = bb.y1 + bb.h; }
     // if( bb.h === undefined ){ bb.h = bb.y2 - bb.y1; }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const bb: { x1: number; y1: number; w: any; h: any; x2: any; y2: any; } = { x1: 0, y1: 0, w: cy.width(), h: cy.height(), x2: cy.width(), y2: cy.height() };
 
     // console.log('[Cola Debug] Bounding box:', bb);
@@ -117,13 +125,17 @@ ColaLayout.prototype.run = function(){
         // }
 
         for( let i: number = 0; i < nodes.length; i++ ){
-            const node = nodes[i];
-            const dimensions = node.layoutDimensions( options );
-            const scratch = node.scratch('cola');
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const node: any = nodes[i];
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const dimensions: any = node.layoutDimensions( options );
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const scratch: any = node.scratch('cola');
 
             // update node dims
             if( !scratch.updatedDims ){
-                const padding = getOptVal( options.nodeSpacing, node );
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const padding: any = getOptVal( options.nodeSpacing, node );
 
                 scratch.width = dimensions.w + 2*padding;
                 scratch.height = dimensions.h + 2*padding;
@@ -132,8 +144,10 @@ ColaLayout.prototype.run = function(){
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         nodes.positions(function(node: any){
-            const scratch = node.scratch().cola;
-            let retPos;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const scratch: any = node.scratch().cola;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            let retPos: any;
 
             if( !node.grabbed() && nonparentNodes.contains(node) ){
                 retPos = {
@@ -189,7 +203,8 @@ ColaLayout.prototype.run = function(){
         layout.trigger({ type: 'layoutready', layout: layout });
     };
 
-    let ticksPerFrame = options.refresh;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let ticksPerFrame: any = options.refresh;
 
     if( options.refresh < 0 ){
         ticksPerFrame = 1;
@@ -226,6 +241,7 @@ ColaLayout.prototype.run = function(){
             let firstTick: boolean = true;
             let tickCount: number = 0;
 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const inftick: () => any = function(){
                 if( layout.manuallyStopped ){
                     onDone();
@@ -241,7 +257,7 @@ ColaLayout.prototype.run = function(){
                 }
 
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const ret = (adaptor as any).tick();
+                const ret: any = (adaptor as any).tick();
 
                 if (isFirstThreeTicks) {
                     // console.log(`[Cola Debug] ====== Tick #${tickCount} END (converged: ${ret}) ======`);
@@ -265,11 +281,13 @@ ColaLayout.prototype.run = function(){
                 return ret; // allow regular finish b/c of new kick
             };
 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const multitick: () => any = function(){ // multiple ticks in a row
-                let ret;
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                let ret: any;
 
                 for( let i: number = 0; i < ticksPerFrame && !ret; i++ ){
-                    ret = ret || inftick(); // pick up true ret vals => sim done
+                    ret = ret ?? inftick(); // pick up true ret vals => sim done
                 }
 
                 return ret;
@@ -299,7 +317,8 @@ ColaLayout.prototype.run = function(){
     layout.adaptor = adaptor;
 
     // if set no grabbing during layout
-    const grabbableNodes = nodes.filter(':grabbable');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const grabbableNodes: any = nodes.filter(':grabbable');
     if( options.ungrabifyWhileSimulating ){
         grabbableNodes.ungrabify();
     }
@@ -317,8 +336,10 @@ ColaLayout.prototype.run = function(){
     nodes.on('grab free position', grabHandler = function(this: any, e: any){
         // eslint-disable-next-line @typescript-eslint/no-this-alias, @typescript-eslint/no-explicit-any
         const node: any = this;
-        const scrCola = node.scratch().cola;
-        const pos = node.position();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const scrCola: any = node.scratch().cola;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const pos: any = node.position();
         const nodeIsTarget: boolean = e.cyTarget === node || e.target === node;
 
         if( !nodeIsTarget ){ return; }
@@ -347,7 +368,8 @@ ColaLayout.prototype.run = function(){
     nodes.on('lock unlock', lockHandler = function(this: any){
         // eslint-disable-next-line @typescript-eslint/no-this-alias, @typescript-eslint/no-explicit-any
         const node: any = this;
-        const scrCola = node.scratch().cola;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const scrCola: any = node.scratch().cola;
 
         scrCola.fixed = node.locked();
 
@@ -361,10 +383,14 @@ ColaLayout.prototype.run = function(){
     // add nodes to cola
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     adaptor.nodes( nonparentNodes.map(function( node: any, i: any ){
-        const padding = getOptVal( options.nodeSpacing, node );
-        const pos = node.position();
-        const dimensions = node.layoutDimensions( options );
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const padding: any = getOptVal( options.nodeSpacing, node );
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const pos: any = node.position();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const dimensions: any = node.layoutDimensions( options );
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const struct: { x: number; y: number; width: any; height: any; index: any; fixed: any; } = node.scratch().cola = {
             x: (options.randomize && !node.locked()) || pos.x === undefined ? Math.round( Math.random() * bb.w ) : pos.x - bb.x1,
             y: (options.randomize && !node.locked()) || pos.y === undefined ? Math.round( Math.random() * bb.h ) : pos.y - bb.y1,
@@ -386,19 +412,23 @@ ColaLayout.prototype.run = function(){
     if( options.alignment ){ // then set alignment constraints
 
         if(options.alignment.vertical) {
-            const verticalAlignments = options.alignment.vertical;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const verticalAlignments: any = options.alignment.vertical;
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             verticalAlignments.forEach(function(alignment: any){
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const offsetsX: any[] = [];
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 alignment.forEach(function(nodeData: any){
-                    const node = nodeData.node;
-                    const scrCola = node.scratch().cola;
-                    const index = scrCola.index;
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const node: any = nodeData.node;
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const scrCola: any = node.scratch().cola;
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const index: any = scrCola.index;
                     offsetsX.push({
                         node: index,
-                        offset: nodeData.offset ? nodeData.offset : 0
+                        offset: nodeData.offset ?? 0
                     });
                 });
                 constraints.push({
@@ -410,19 +440,23 @@ ColaLayout.prototype.run = function(){
         }
 
         if(options.alignment.horizontal) {
-            const horizontalAlignments = options.alignment.horizontal;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const horizontalAlignments: any = options.alignment.horizontal;
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             horizontalAlignments.forEach(function(alignment: any){
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const offsetsY: any[] = [];
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 alignment.forEach(function(nodeData: any){
-                    const node = nodeData.node;
-                    const scrCola = node.scratch().cola;
-                    const index = scrCola.index;
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const node: any = nodeData.node;
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const scrCola: any = node.scratch().cola;
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const index: any = scrCola.index;
                     offsetsY.push({
                         node: index,
-                        offset: nodeData.offset ? nodeData.offset : 0
+                        offset: nodeData.offset ?? 0
                     });
                 });
                 constraints.push({
@@ -442,8 +476,10 @@ ColaLayout.prototype.run = function(){
 
             // for the constraints to be passed to cola layout adaptor use indices of nodes,
             // not the nodes themselves
-            const leftIndex = inequality.left.scratch().cola.index;
-            const rightIndex = inequality.right.scratch().cola.index;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const leftIndex: any = inequality.left.scratch().cola.index;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const rightIndex: any = inequality.right.scratch().cola.index;
 
             constraints.push({
                 axis: inequality.axis,
@@ -464,16 +500,21 @@ ColaLayout.prototype.run = function(){
     // add compound nodes to cola
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     adaptor.groups( parentNodes.map(function( node: any, i: any ){ // add basic group incl leaf nodes
-        const optPadding = getOptVal( options.nodeSpacing, node );
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const optPadding: any = getOptVal( options.nodeSpacing, node );
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const getPadding: (d: any) => number = function(d: any){
             return parseFloat( node.style('padding-'+d) );
         };
 
-        const pleft = getPadding('left') + optPadding;
-        const pright = getPadding('right') + optPadding;
-        const ptop = getPadding('top') + optPadding;
-        const pbottom = getPadding('bottom') + optPadding;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const pleft: any = getPadding('left') + optPadding;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const pright: any = getPadding('right') + optPadding;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ptop: any = getPadding('top') + optPadding;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const pbottom: any = getPadding('bottom') + optPadding;
 
         node.scratch().cola = {
             index: i,
@@ -506,8 +547,10 @@ ColaLayout.prototype.run = function(){
     }) );
 
     // get the edge length setting mechanism
-    let length;
-    let lengthFnName;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let length: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let lengthFnName: any;
     if( options.edgeLength != null ){
         length = options.edgeLength;
         lengthFnName = 'linkDistance';
@@ -555,9 +598,10 @@ ColaLayout.prototype.run = function(){
 
     // set the flow of cola
     if( options.flow ){
-        let flow;
-        const defAxis: "y" = 'y';
-        const defMinSep: 50 = 50;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let flow: any;
+        const defAxis: "y" = 'y' as const;
+        const defMinSep: 50 = 50 as const;
 
         if( isString(options.flow) ){
             flow = {
@@ -572,8 +616,8 @@ ColaLayout.prototype.run = function(){
         } else if( isObject(options.flow) ){
             flow = options.flow;
 
-            flow.axis = flow.axis || defAxis;
-            flow.minSeparation = flow.minSeparation != null ? flow.minSeparation : defMinSep;
+            flow.axis = flow.axis ?? defAxis;
+            flow.minSeparation = flow.minSeparation ?? defMinSep;
         } else { // e.g. options.flow: true
             flow = {
                 axis: defAxis,

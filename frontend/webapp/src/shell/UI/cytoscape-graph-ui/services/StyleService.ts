@@ -77,7 +77,7 @@ export class StyleService {
     return false;
   }
 
-  private getGraphColors() {
+  private getGraphColors(): { fillColor: string; fillHighlightColor: string; accentBorderColor: string; lineColor: string; lineHighlightColor: string; textColor: string; danglingColor: string; } {
     const isDark: boolean = this.isDarkMode();
 
     console.log('[StyleService] getGraphColors - isDark:', isDark, 'textColor:', isDark ? '#dcddde' : '#2a2a2a');
@@ -118,7 +118,7 @@ export class StyleService {
 
       // Context nodes - square shape with lighter gray
       {
-        selector: 'node[nodeType = "context"]', // todo, doesn't work.
+        selector: 'node[?isContextNode]',
         style: {
           'shape': 'rectangle',
           'background-color': '#7a7a7a',
