@@ -11,7 +11,7 @@ export default defineConfig({
   fullyParallel: false, // Run e2e-tests sequentially for Electron
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: 5, // Single worker for Electron e2e-tests
+  workers: 3, // Limit parallel Electron instances to reduce resource contention
   // Suppress noisy internal warnings
   quiet: process.env.PLAYWRIGHT_QUIET !== 'false',
   reporter: [

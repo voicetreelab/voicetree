@@ -19,11 +19,15 @@
 import { test as base, expect, _electron as electron } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
+import { promises as fs } from 'fs';
+import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { ElectronAPI } from '@/utils/types/electron';
+import type { ElectronAPI } from '@/shell/electron';
 
 // Use absolute paths
 const PROJECT_ROOT = path.resolve(process.cwd());
+// Source onboarding files (in dev mode this is in public/)
+const ONBOARDING_SOURCE = path.join(PROJECT_ROOT, 'public', 'onboarding_tree');
 
 // Type definitions (already uses ElectronAPI from types)
 interface ExtendedWindow {
@@ -31,15 +35,57 @@ interface ExtendedWindow {
   electronAPI?: ElectronAPI;
 }
 
+/**
+ * Recursive async copy function for directories
+ */ // todo wtf? don't have this in the test, this is src code, either use the src code or ???
+async function copyDir(src: string, dest: string): Promise<void> {
+  await fs.mkdir(dest, { recursive: true });
+  const entries = await fs.readdir(src, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+
+    if (entry.isDirectory()) {
+      await copyDir(srcPath, destPath);
+    } else {
+      await fs.copyFile(srcPath, destPath);
+    }
+  }
+}
+
 // Extend test with Electron app
 const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
+  tempUserDataPath: string;
 }>({
-  electronApp: async ({}, use) => {
-    // Launch in test mode for fast startup
+  tempUserDataPath: async ({}, use) => {
+    // Create a temporary userData directory for this test (isolated from other tests)
+    const tempPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-onboarding-test-'));
+
+    // Copy onboarding_tree into the temp userData directory
+    // This simulates the first-run setup without running the actual setup code
+    const onboardingDest = path.join(tempPath, 'onboarding_tree');
+    await copyDir(ONBOARDING_SOURCE, onboardingDest);
+    console.log('[Onboarding Test] Copied onboarding_tree to temp userData:', onboardingDest);
+
+    // DO NOT create voicetree-config.json - this simulates first run
+
+    await use(tempPath);
+
+    // Cleanup temp directory after test
+    await fs.rm(tempPath, { recursive: true, force: true });
+    console.log('[Onboarding Test] Cleaned up temp userData directory');
+  },
+
+  electronApp: async ({ tempUserDataPath }, use) => {
+    // Launch in test mode with isolated userData directory
     const electronApp = await electron.launch({
-      args: [path.join(PROJECT_ROOT, 'dist-electron/main/index.js')],
+      args: [
+        path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
+        `--user-data-dir=${tempUserDataPath}` // Use temp userData to isolate test
+      ],
       env: {
         ...process.env,
         NODE_ENV: 'test',
@@ -88,9 +134,9 @@ const test = base.extend<{
 });
 
 test.describe('Onboarding First Run', () => {
-  test('should load onboarding directory on first run and display 5 nodes', async ({ appWindow, electronApp }) => {
+  test('should load onboarding directory on first run and display 5 nodes', async ({ appWindow, tempUserDataPath }) => {
     test.setTimeout(20000); // 20 second timeout for this test
-    console.log('=== ONBOARDING FIRST-RUN TEST: Verify onboarding directory can be loaded ===');
+    console.log('=== ONBOARDING FIRST-RUN TEST: Verify onboarding directory loads automatically ===');
 
     // Step 1: Verify app loaded
     const appReady = await appWindow.evaluate(() => {
@@ -100,25 +146,23 @@ test.describe('Onboarding First Run', () => {
     expect(appReady).toBe(true);
     console.log('✓ App loaded successfully');
 
-    // Step 2: Get the onboarding directory path from the Electron app
-    const userData = await electronApp.evaluate(async ({ app }) => {
-      return app.getPath('userData');
-    });
-    const onboardingPath = path.join(userData, 'onboarding_tree');
-    console.log('✓ Onboarding directory path:', onboardingPath);
+    // Step 2: Get the expected onboarding directory path
+    const onboardingPath = path.join(tempUserDataPath, 'onboarding_tree');
+    console.log('✓ Expected onboarding directory path:', onboardingPath);
 
-    // Step 3: Manually load the onboarding directory (simulating first-run behavior)
-    const watchResult = await appWindow.evaluate(async (vaultPath) => {
+    // Step 3: Trigger initialLoad to load the onboarding directory automatically
+    // Since there's no config file, this should load onboarding
+    const loadResult = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.main.startFileWatching(vaultPath);
-    }, onboardingPath);
+      return await api.main.loadPreviousFolder();
+    });
 
-    expect(watchResult.success).toBe(true);
-    console.log('✓ Onboarding directory loaded successfully');
+    expect(loadResult.success).toBe(true);
+    console.log('✓ Initial load triggered successfully');
 
     // Step 4: Wait for graph to load
-    await appWindow.waitForTimeout(1000);
+    await appWindow.waitForTimeout(2000);
 
     // Step 5: Verify the watched directory is the onboarding directory
     const watchStatus = await appWindow.evaluate(async () => {
@@ -132,7 +176,7 @@ test.describe('Onboarding First Run', () => {
     expect(watchStatus.directory).toContain('onboarding_tree');
     console.log('✓ Onboarding directory is being watched:', watchStatus.directory);
 
-    // Step 4: Verify graph state contains exactly 5 nodes
+    // Step 6: Verify graph state contains exactly 5 nodes
     const graphState = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
@@ -147,7 +191,7 @@ test.describe('Onboarding First Run', () => {
     expect(nodeCount).toBeGreaterThanOrEqual(5);
     expect(nodeCount).toBeLessThanOrEqual(6);
 
-    // Step 5: Verify Cytoscape UI-edge has rendered the nodes
+    // Step 7: Verify Cytoscape UI has rendered the nodes
     const cytoscapeState = await appWindow.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
@@ -164,7 +208,7 @@ test.describe('Onboarding First Run', () => {
     expect(cytoscapeState.nodeCount).toBeGreaterThanOrEqual(5);
     expect(cytoscapeState.nodeCount).toBeLessThanOrEqual(6);
 
-    // Step 6: Verify node labels match expected onboarding files
+    // Step 8: Verify node labels match expected onboarding files
     // Note: Labels are extracted from frontmatter or filename and may be title-cased
     const expectedLabels = [
       'Command Palette',

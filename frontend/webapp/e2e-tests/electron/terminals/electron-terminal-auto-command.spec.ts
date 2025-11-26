@@ -11,7 +11,7 @@ import { test as base, expect, _electron as electron } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { ElectronAPI } from '@/utils/types/electron';
+import type { ElectronAPI } from '@/shell/electron';
 
 // Use absolute paths for example_folder_fixtures
 const PROJECT_ROOT = path.resolve(process.cwd());

@@ -3,7 +3,7 @@
 
 import {contextBridge, ipcRenderer} from 'electron';
 import type {GraphDelta} from "@/pure/graph";
-import type {ElectronAPI, Promisify} from '@/utils/types/electron';
+import type {ElectronAPI, Promisify} from '@/shell/electron';
 import type {mainAPI} from '@/shell/edge/main/api.ts';
 
 // Async function to build and expose the electronAPI

@@ -14,7 +14,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore, EdgeSingular } from 'cytoscape';
-import type { ElectronAPI } from '@/utils/types/electron';
+import type { ElectronAPI } from '@/shell/electron';
 
 // Use absolute paths
 const PROJECT_ROOT = path.resolve(process.cwd());

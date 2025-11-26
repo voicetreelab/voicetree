@@ -30,8 +30,8 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { ElectronAPI } from '@/utils/types/electron';
-import type { Settings } from '@/pure/settings';
+import type { ElectronAPI } from '@/shell/electron';
+import type { VTSettings } from '@/pure/settings';
 
 // Use absolute paths for example_folder_fixtures
 const PROJECT_ROOT = path.resolve(process.cwd());
@@ -236,7 +236,7 @@ test.describe('Settings Integration E2E', () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       return await api.main.loadSettings();
-    }) as Settings;
+    }) as VTSettings;
 
     console.log('Saved settings:', savedSettings);
     expect(savedSettings.agentCommand).toBe(newCommand);

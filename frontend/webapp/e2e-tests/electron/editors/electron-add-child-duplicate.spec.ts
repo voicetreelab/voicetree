@@ -9,7 +9,7 @@ import { test as base, expect, _electron as electron } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import type { Core as CytoscapeCore, NodeSingular } from 'cytoscape';
-import type { ElectronAPI } from '@/utils/types/electron';
+import type { ElectronAPI } from '@/shell/electron';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 

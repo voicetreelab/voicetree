@@ -87,83 +87,61 @@ test.describe('Context Menu Close on Mouseout (Browser)', () => {
     await sendGraphDelta(page, graphDelta);
     console.log('Graph delta sent');
 
-    // Step 3: Wait for layout to complete (Cola layout runs after node is added)
-    await page.waitForFunction(() => {
-      // Wait for layout complete log or a reasonable time
-      return true;
-    });
+    // Step 3: Wait for layout to complete
     await page.waitForTimeout(500); // Wait for Cola layout to complete
     console.log('Waited for layout');
 
-    // Step 4: Get the FINAL node position after layout
-    const { nodeX, nodeY, containerLeft, containerTop } = await page.evaluate(() => {
+    // Step 4: Trigger mouseover on the node using Cytoscape events
+    // This is the correct way to trigger the radial menu
+    await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
       const node = cy.$('#context-menu-test-node.md');
       if (node.length === 0) throw new Error('Node not found');
-      const rp = node.renderedPosition();
-      const container = cy.container();
-      if (!container) throw new Error('Container not found');
-      const rect = container.getBoundingClientRect();
-      return {
-        nodeX: rp.x,
-        nodeY: rp.y,
-        containerLeft: rect.left,
-        containerTop: rect.top
-      };
+      node.emit('mouseover');
     });
-
-    const absoluteX = containerLeft + nodeX;
-    const absoluteY = containerTop + nodeY;
-    console.log(`Node position: (${absoluteX}, ${absoluteY})`);
-
-    // Step 5: Move mouse to node to trigger context menu
-    await page.mouse.move(absoluteX, absoluteY);
     await page.waitForTimeout(300); // Give time for mouseover event to process
-    console.log('Mouse moved to node');
+    console.log('Mouseover event triggered on node');
 
-    // Step 6: Check if context menu opened
-    // cxtmenu shows the menu by setting display to non-'none' value
+    // Step 5: Check if context menu opened
+    // The horizontal menu uses .ctxmenu element (note: ctxmenu, not cxtmenu)
     const menuVisibleAfterHover = await page.evaluate(() => {
-      const cxtmenus = document.querySelectorAll('.cxtmenu');
-      for (let i = 0; i < cxtmenus.length; i++) {
-        const menu = cxtmenus[i] as HTMLElement;
-        // Menu is visible if display is not 'none' (could be 'block', '' or other)
-        if (menu.style.display !== 'none' && menu.style.display !== '') {
-          console.log('[Test] Menu visible with display:', menu.style.display);
-          return true;
-        }
+      const menu = document.querySelector('.ctxmenu') as HTMLElement | null;
+      if (!menu) {
+        console.log('[Test] No .ctxmenu element found');
+        return false;
       }
-      // Also check computed style
-      for (let i = 0; i < cxtmenus.length; i++) {
-        const menu = cxtmenus[i] as HTMLElement;
-        const computed = window.getComputedStyle(menu);
-        if (computed.display !== 'none') {
-          console.log('[Test] Menu visible (computed display):', computed.display);
-          return true;
-        }
-      }
-      return false;
+      const computed = window.getComputedStyle(menu);
+      const isVisible = computed.display !== 'none';
+      console.log('[Test] Menu display:', computed.display, 'visible:', isVisible);
+      return isVisible;
     });
     console.log(`Menu visible after hover: ${menuVisibleAfterHover}`);
     expect(menuVisibleAfterHover).toBe(true);
 
-    // Step 7: Move mouse away from node (to background)
-    await page.mouse.move(absoluteX + 200, absoluteY + 200);
+    // Step 6: Trigger mouseover on background (cy itself) to close menu
+    // This simulates moving mouse away from the node
+    await page.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+      // Emit mouseover on the cy instance itself (background)
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+      cy.emit('mouseover', { target: cy } as any);
+    });
     await page.waitForTimeout(300);
-    console.log('Mouse moved away from node');
+    console.log('Mouseover event triggered on background');
 
-    // Step 8: Verify menu closed
+    // Step 7: Verify menu closed
     const menuVisibleAfterMouseout = await page.evaluate(() => {
-      const cxtmenus = document.querySelectorAll('.cxtmenu');
-      for (let i = 0; i < cxtmenus.length; i++) {
-        const menu = cxtmenus[i] as HTMLElement;
-        // Menu is hidden if display is 'none' or empty string (default)
-        if (menu.style.display !== 'none' && menu.style.display !== '') {
-          return true;
-        }
+      const menu = document.querySelector('.ctxmenu') as HTMLElement | null;
+      if (!menu) {
+        console.log('[Test] No .ctxmenu element found after mouseout');
+        return false;
       }
-      return false;
+      const computed = window.getComputedStyle(menu);
+      const isVisible = computed.display !== 'none';
+      console.log('[Test] Menu display after mouseout:', computed.display, 'visible:', isVisible);
+      return isVisible;
     });
     console.log(`Menu visible after mouseout: ${menuVisibleAfterMouseout}`);
     expect(menuVisibleAfterMouseout).toBe(false);

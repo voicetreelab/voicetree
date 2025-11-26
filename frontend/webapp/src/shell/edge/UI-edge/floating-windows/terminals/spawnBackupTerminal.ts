@@ -1,4 +1,4 @@
-import type {} from '@/utils/types/electron';
+import type {} from '@/shell/electron';
 import type {Core} from "cytoscape";
 import type {Position} from "@/pure/graph";
 import {addTerminalToMapState, getNextTerminalCount, getTerminals} from "@/shell/edge/UI-edge/state/UIAppState.ts";

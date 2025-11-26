@@ -199,56 +199,35 @@ test.describe('Cmd+N and Cmd+Enter Hotkeys (Browser)', () => {
     console.log('\n=== Starting Cmd+Enter test (Browser) ===');
 
     console.log('=== Step 1: Mock Electron API with settings ===');
+    // Use standard mock setup, then extend it with additional methods
+    await setupMockElectronAPI(page);
+
+    // Extend the mock with additional methods needed for terminal spawning
     await page.addInitScript(() => {
-      // Extend the mock to include settings support
-      const mockAPI = {
+      interface ExtendedElectronAPI {
         main: {
-          getGraph: async () => ({ nodes: {}, edges: [] }),
-          loadSettings: async () => ({ agentCommand: './mock-claude.sh' }),
-          applyGraphDeltaToDBAndMem: async () => undefined,
-          getWatchStatus: async () => ({ isWatching: false, directory: '/mock/vault' }),
-          startFileWatching: async () => ({ success: true }),
-          stopFileWatching: async () => ({ success: true }),
-          loadPreviousFolder: async () => ({ success: false }),
-          getBackendPort: async () => 5001
-        },
-        terminal: {
-          spawn: async () => ({ success: false }),
-          write: async () => undefined,
-          resize: async () => undefined,
-          kill: async () => undefined,
-          onData: () => undefined,
-          onExit: () => undefined
-        },
-        positions: {
-          save: async () => ({ success: true }),
-          load: async () => ({ success: false, positions: {} })
-        },
-        graph: {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          _graphState: { nodes: {}, edges: [] } as any,
-          applyGraphDelta: async () => ({ success: true }),
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          getState: async () => mockAPI.graph._graphState,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          onGraphUpdate: (callback: (delta: any) => void) => {
-            mockAPI.graph._updateCallback = callback;
-            return () => undefined;
-          },
-          onGraphClear: () => () => undefined,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          _updateCallback: undefined as ((delta: any) => void) | undefined
-        },
-        onWatchingStarted: () => undefined,
-        onFileWatchingStopped: () => undefined,
-        onBackendLog: () => undefined,
-        removeAllListeners: () => undefined,
-        invoke: async () => undefined,
-        on: () => undefined,
-        off: () => undefined
-      };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (window as any).electronAPI = mockAPI;
+          loadSettings: () => Promise<{ agentCommand: string; terminalSpawnPathRelativeToWatchedDirectory?: string }>;
+          createContextNode: (parentNodeId: string) => Promise<string>;
+          getAppSupportPath: () => Promise<string>;
+        };
+      }
+      const electronAPI = (window as unknown as { electronAPI: ExtendedElectronAPI }).electronAPI;
+      if (electronAPI) {
+        // Override loadSettings to include agentCommand
+        electronAPI.main.loadSettings = async () => ({
+          agentCommand: './mock-claude.sh',
+          terminalSpawnPathRelativeToWatchedDirectory: undefined
+        });
+
+        // Add createContextNode method
+        electronAPI.main.createContextNode = async (parentNodeId: string) => {
+          // For testing, just return a mock context node ID
+          return `${parentNodeId}-context`;
+        };
+
+        // Add getAppSupportPath method
+        electronAPI.main.getAppSupportPath = async () => '/mock/app-support';
+      }
     });
 
     console.log('=== Step 2: Navigate to app ===');
@@ -267,7 +246,28 @@ test.describe('Cmd+N and Cmd+Enter Hotkeys (Browser)', () => {
     expect(initialNodeCount).toBe(5);
     console.log(`✓ Test graph setup with ${initialNodeCount} nodes`);
 
-    console.log('=== Step 5: Select a node ===');
+    console.log('=== Step 5: Mark first node as context node and update mock graph state ===');
+    // Mark the first node as a context node so terminal spawn doesn't try to create a new one
+    await page.evaluate(() => {
+      interface MockGraphAPI {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        _graphState: { nodes: Record<string, any>; edges: any[] };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        _updateCallback?: (delta: any) => void;
+      }
+      const electronAPI = (window as ExtendedWindow).electronAPI;
+      const mockGraph = electronAPI?.graph as MockGraphAPI | undefined;
+      if (!mockGraph?._graphState) throw new Error('Mock graph state not available');
+
+      const firstNodeId = 'test-node-1.md';
+      const node = mockGraph._graphState.nodes[firstNodeId];
+      if (node) {
+        // Mark it as a context node so spawnTerminalWithNewContextNode reuses it
+        node.nodeUIMetadata.isContextNode = true;
+      }
+    });
+
+    console.log('=== Step 6: Select the context node ===');
     const selectedNodeId = await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
@@ -279,7 +279,7 @@ test.describe('Cmd+N and Cmd+Enter Hotkeys (Browser)', () => {
     });
     console.log(`✓ Selected node: ${selectedNodeId}`);
 
-    console.log('=== Step 6: Count initial terminal nodes ===');
+    console.log('=== Step 7: Count initial terminal nodes ===');
     const initialTerminalCount = await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
@@ -293,13 +293,13 @@ test.describe('Cmd+N and Cmd+Enter Hotkeys (Browser)', () => {
     });
     console.log(`Initial terminal count: ${initialTerminalCount}`);
 
-    console.log('=== Step 7: Press Cmd+Enter ===');
+    console.log('=== Step 8: Press Cmd+Enter ===');
     await page.keyboard.press('Meta+Enter');
 
-    // Wait for terminal creation
-    await page.waitForTimeout(200);
+    // Wait for terminal creation (spawnTerminalWithNewContextNode has a 1000ms setTimeout)
+    await page.waitForTimeout(1200);
 
-    console.log('=== Step 8: Verify terminal was created ===');
+    console.log('=== Step 9: Verify terminal was created ===');
     const finalTerminalCount = await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
