@@ -3,6 +3,22 @@ import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 
 /**
+ * Converts node content (without YAML) back to markdown with wikilinks restored.
+ * Used for displaying in editors where YAML should NOT be shown.
+ *
+ * @param node - GraphNode containing contentWithoutYamlOrLinks
+ * @returns Content with [link]* converted back to [[link]] wikilinks
+ */
+export function fromNodeToContentWithWikilinks(node: GraphNode): string {
+    // Handle case where content might be undefined (new nodes)
+    if (!node.contentWithoutYamlOrLinks) {
+        return '';
+    }
+    // Convert [link]* placeholders back to [[link]] wikilinks
+    return node.contentWithoutYamlOrLinks.replace(/\[([^\]]+)\]\*/g, '[[$1]]');
+}
+
+/**
  * Converts a GraphNode to markdown file content with frontmatter and wikilinks
  *
  * Format:
@@ -43,49 +59,49 @@ function tryParseJSON(value: string): unknown {
     // Try to detect if this is likely JSON (starts with [ or {)
     if ((value.startsWith('[') && value.endsWith(']')) ||
         (value.startsWith('{') && value.endsWith('}'))) {
-        const parseResult: E.Either<string, any> = E.tryCatch(
-            () => JSON.parse(value),
+        return E.getOrElse(() => value as unknown)(E.tryCatch(
+            () => JSON.parse(value) as unknown,
             () => value // On error, return original string
-        )
-        return E.getOrElse(() => value)(parseResult)
+        ))
     }
     return value
 }
 
 /**
- * Builds frontmatter string from NodeUIMetadata
+ * Checks if a value is an fp-ts Option type
+ */
+function isOption(value: unknown): value is O.Option<unknown> {
+    return typeof value === 'object' && value !== null && '_tag' in value &&
+        ((value as {readonly _tag: string})._tag === 'Some' || (value as {readonly _tag: string})._tag === 'None');
+}
+
+/**
+ * Builds frontmatter string from NodeUIMetadata by dynamically iterating over all keys.
  */
 function buildFrontmatterFromMetadata(metadata: NodeUIMetadata): string {
-    const frontmatterData: Record<string, unknown> = {};
+    // todo, do order determinisitcally, otherwhise yaml order will keep changing?
 
-    // Add color if present
-    O.fold(
-        () => {}, // no color
-        (color: string) => { frontmatterData.color = color; }
-    )(metadata.color);
+    // Build frontmatter from typed metadata fields
+    const typedFieldsData: Record<string, unknown> = Object.keys(metadata)
+        .filter((key) => key !== 'additionalYAMLProps')
+        .reduce((acc: Record<string, unknown>, key: string) => {
+            const value: unknown = metadata[key as keyof NodeUIMetadata];
 
-    // Add position if present
-    O.fold(
-        () => {}, // no position
-        (pos: {readonly x: number; readonly y: number}) => {
-            frontmatterData.position = { x: pos.x, y: pos.y };
-        }
-    )(metadata.position);
+            if (isOption(value)) {
+                return O.isSome(value) ? { ...acc, [key]: value.value } : acc;
+            }
 
-    // Add isContextNode if true (only write when true to keep frontmatter clean)
-    if (metadata.isContextNode) {
-        frontmatterData.isContextNode = true;
-    }
+            return value !== undefined && value !== null ? { ...acc, [key]: value } : acc;
+        }, {});
 
-    // Add additional YAML properties (these don't include color/position/isContextNode
-    // since those have explicit typed fields and aren't stored in additionalYAMLProps)
-    metadata.additionalYAMLProps.forEach((value, key) => {
-        // Try to parse JSON strings back to their original structure
-        frontmatterData[key] = tryParseJSON(value)
-    })
+    // Add additional YAML properties
+    const additionalData: Record<string, unknown> = Array.from(metadata.additionalYAMLProps.entries())
+        .reduce((acc: Record<string, unknown>, [key, value]: readonly [string, string]) => ({
+            ...acc,
+            [key]: tryParseJSON(value)
+        }), {});
 
-    // Build frontmatter string from data
-    return buildFrontmatterFromData(frontmatterData);
+    return buildFrontmatterFromData({ ...typedFieldsData, ...additionalData });
 }
 
 /**
@@ -115,7 +131,7 @@ function valueToYAML(value: unknown, indent: string = ''): string {
 
     if (typeof value === 'object') {
         // Convert object to nested YAML
-        const entries: [string, any][] = Object.entries(value)
+        const entries: readonly (readonly [string, unknown])[] = Object.entries(value)
         return entries.reduce((acc, [k, v]) => {
             const nestedValue: string = typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean'
                 ? String(v)
@@ -128,7 +144,7 @@ function valueToYAML(value: unknown, indent: string = ''): string {
 }
 
 function buildFrontmatterFromData(data: Record<string, unknown>): string {
-    const entries: [string, unknown][] = Object.entries(data).filter(([, value]) => value !== undefined);
+    const entries: readonly (readonly [string, unknown])[] = Object.entries(data).filter(([, value]) => value !== undefined);
 
     if (entries.length === 0) {
         return '---\n---\n';
