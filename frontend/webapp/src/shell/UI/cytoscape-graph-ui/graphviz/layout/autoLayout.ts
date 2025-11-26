@@ -70,7 +70,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     layoutRunning = true;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const layout = new (ColaLayout as any)({
+    const layout: any = new (ColaLayout as any)({
       cy: cy,
       eles: cy.elements(),
       animate: colaOptions.animate,

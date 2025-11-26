@@ -203,6 +203,7 @@ describe('StyleService', () => {
 
     it('should update node sizes based on degree programmatically', () => {
       // Create a mock Cytoscape instance with nodes
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const mockNodes: { data: () => undefined; degree: () => number; style: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any>; }[] = [
         {
           data: () => undefined,
@@ -233,9 +234,9 @@ describe('StyleService', () => {
       expect(mockNodes[2].style).toHaveBeenCalled();
 
       // Extract the applied sizes
-      const size0 = mockNodes[0].style.mock.calls[0][0].width;
-      const size1 = mockNodes[1].style.mock.calls[0][0].width;
-      const size2 = mockNodes[2].style.mock.calls[0][0].width;
+      const size0: number = mockNodes[0].style.mock.calls[0][0].width as number;
+      const size1: number = mockNodes[1].style.mock.calls[0][0].width as number;
+      const size2: number = mockNodes[2].style.mock.calls[0][0].width as number;
 
       // Verify sizes increase with degree: degree 0 < degree 30 < degree 60
       expect(size0).toBeLessThan(size1);
