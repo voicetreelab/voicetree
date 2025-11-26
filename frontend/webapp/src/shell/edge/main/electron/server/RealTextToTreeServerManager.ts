@@ -62,12 +62,12 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
 
       // Log critical environment variables
       debugLog('--- Environment Variables ---');
-      debugLog(`PATH: ${process.env.PATH || 'UNDEFINED'}`);
-      debugLog(`HOME: ${process.env.HOME || 'UNDEFINED'}`);
-      debugLog(`USER: ${process.env.USER || 'UNDEFINED'}`);
-      debugLog(`SHELL: ${process.env.SHELL || 'UNDEFINED'}`);
-      debugLog(`PYTHONPATH: ${process.env.PYTHONPATH || 'NOT SET'}`);
-      debugLog(`PYTHONHOME: ${process.env.PYTHONHOME || 'NOT SET'}`);
+      debugLog(`PATH: ${process.env.PATH ?? 'UNDEFINED'}`);
+      debugLog(`HOME: ${process.env.HOME ?? 'UNDEFINED'}`);
+      debugLog(`USER: ${process.env.USER ?? 'UNDEFINED'}`);
+      debugLog(`SHELL: ${process.env.SHELL ?? 'UNDEFINED'}`);
+      debugLog(`PYTHONPATH: ${process.env.PYTHONPATH ?? 'NOT SET'}`);
+      debugLog(`PYTHONHOME: ${process.env.PYTHONHOME ?? 'NOT SET'}`);
       debugLog(`Total env vars count: ${Object.keys(process.env).length}`);
 
       // Log all environment variables to file (not console to avoid clutter)
@@ -195,7 +195,7 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
       // Add minimal PATH if it's missing critical directories
       PATH: process.env.PATH?.includes('/usr/local/bin')
         ? process.env.PATH
-        : `/usr/local/bin:/opt/homebrew/bin:${process.env.PATH || '/usr/bin:/bin:/usr/sbin:/sbin'}`
+        : `/usr/local/bin:/opt/homebrew/bin:${process.env.PATH ?? '/usr/bin:/bin:/usr/sbin:/sbin'}`
     };
   }
 
@@ -212,14 +212,14 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
 
     // Log server stdout
     serverProcess.stdout?.on('data', (data) => {
-      const output = data.toString().trim();
+      const output: string = data.toString().trim();
       debugLog(`[Server stdout] ${output}`);
       sendToRenderer(output);
     });
 
     // Log server stderr
     serverProcess.stderr?.on('data', (data) => {
-      const output = data.toString().trim();
+      const output: string = data.toString().trim();
       debugLog(`[Server stderr] ${output}`);
       sendToRenderer(output);
     });
@@ -245,17 +245,19 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
    * Schedule a health check to test if the server is accessible
    */
   private scheduleHealthCheck(debugLog: (message: string) => void, port: number): void {
-    setTimeout(async () => {
-      try {
-        http.get(`http://localhost:${port}/health`, (res) => {
-          debugLog(`[TextToTreeServer] Health check response code: ${res.statusCode}`);
-        }).on('error', (err: Error) => {
-          debugLog(`[TextToTreeServer] Health check failed: ${err.message}`);
-        });
-      } catch (error) {
-        const errorMessage: string = error instanceof Error ? error.message : String(error);
-        debugLog(`[TextToTreeServer] Health check error: ${errorMessage}`);
-      }
+    setTimeout(() => {
+      void (async () => {
+        try {
+          http.get(`http://localhost:${port}/health`, (res) => {
+            debugLog(`[TextToTreeServer] Health check response code: ${res.statusCode}`);
+          }).on('error', (err: Error) => {
+            debugLog(`[TextToTreeServer] Health check failed: ${err.message}`);
+          });
+        } catch (error) {
+          const errorMessage: string = error instanceof Error ? error.message : String(error);
+          debugLog(`[TextToTreeServer] Health check error: ${errorMessage}`);
+        }
+      })();
     }, 2000);
   }
 }

@@ -22,7 +22,7 @@ import {addNodeToGraph} from '@/pure/graph/graphDelta/addNodeToGraph'
 import {getGraph, getVaultPath, setVaultPath} from '@/shell/edge/main/state/graph-store'
 import {applyGraphDeltaToDBThroughMem} from '@/shell/edge/main/graph/writePath/applyGraphDeltaToDBThroughMem'
 
-const MCP_PORT: 3001 = 3001
+const MCP_PORT: 3001 = 3001 as const
 
 /**
  * Creates and configures the MCP server with VoiceTree tools.

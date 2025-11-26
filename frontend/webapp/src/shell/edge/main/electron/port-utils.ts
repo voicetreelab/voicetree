@@ -36,7 +36,7 @@ export async function isPortAvailable(port: number): Promise<boolean> {
  */
 export async function findAvailablePort(startPort: number): Promise<number> {
   let port: number = startPort;
-  const maxAttempts: 100 = 100; // Try up to 100 ports
+  const maxAttempts: 100 = 100 as const; // Try up to 100 ports
 
   for (let i: number = 0; i < maxAttempts; i++) {
     const isAvailable: boolean = await isPortAvailable(port);

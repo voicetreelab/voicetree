@@ -32,7 +32,7 @@ export function calculateInitialPositionForChild(
         const parentAngle: number | undefined = calculateParentAngle(parentNode, grandparentNode);
 
         // Use provided child index, or count existing children for new child
-        const indexToUse: number = childIndex !== undefined ? childIndex : parentNode.outgoingEdges.length;
+        const indexToUse: number = childIndex ?? parentNode.outgoingEdges.length;
 
         // Calculate angle for this child (will be the Nth child, 0-indexed)
         const angle: number = calculateChildAngle(indexToUse, parentAngle);

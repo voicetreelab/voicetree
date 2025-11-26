@@ -68,7 +68,7 @@ describe('Node Positioning Spacing - Integration', () => {
 
     // AND: Check that nodes are properly spaced
     const nodePairs: Array<{ node1: string; node2: string; distance: number }> = []
-    const MIN_SPACING: 5 = 5 // pixels
+    const MIN_SPACING: 5 = 5 as const; // pixels
 
     for (let i: number = 0; i < nodes.length; i++) {
       for (let j: number = i + 1; j < nodes.length; j++) {

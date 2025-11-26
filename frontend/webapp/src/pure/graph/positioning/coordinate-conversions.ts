@@ -11,12 +11,12 @@ export function toScreenCoords(
   graphX: number,
   graphY: number,
   cy: Core
-): { x: number; y: number } {
+): { readonly x: number; readonly y: number } {
   const zoom: number = cy.zoom();
   const pan: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").Position = cy.pan();
   const containerRect: DOMRect = cy.container()!.getBoundingClientRect();
 
-  const result: { x: number; y: number; } = {
+  const result: { readonly x: number; readonly y: number; } = {
     x: (graphX * zoom) + pan.x + containerRect.left,
     y: (graphY * zoom) + pan.y + containerRect.top
   };
@@ -37,7 +37,7 @@ export function toGraphCoords(
   screenX: number,
   screenY: number,
   cy: Core
-): { x: number; y: number } {
+): { readonly x: number; readonly y: number } {
   const zoom: number = cy.zoom();
   const pan: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").Position = cy.pan();
   const containerRect: DOMRect = cy.container()!.getBoundingClientRect();

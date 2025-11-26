@@ -99,14 +99,14 @@ async function setupToolsDirectoryInternal(config: ReturnType<typeof getBuildCon
     try {
       await fs.access(toolsSource);
       toolsExist = true;
-    } catch (error) {
+    } catch (_error) {
       console.error('[Setup] Source tools directory not found at:', toolsSource);
     }
 
     try {
       await fs.access(backendSource);
       backendExist = true;
-    } catch (error) {
+    } catch (_error) {
       console.error('[Setup] Source backend directory not found at:', backendSource);
     }
 

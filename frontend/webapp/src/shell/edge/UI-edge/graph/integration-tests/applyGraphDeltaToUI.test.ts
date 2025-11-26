@@ -761,6 +761,60 @@ describe('applyGraphDeltaToUI - Integration', () => {
             expect(edge.data('label')).toBe('simple label')
         })
 
+        // todo, we might not be handling the case where the shadow node has been closed/removed?
+        // human: DO NOT REMOVE THIS TEST - it catches a critical bug where edges to floating
+        // human: windows (terminals/editors) were incorrectly deleted during graph sync.
+        // human: Shadow nodes are UI-only anchors not tracked in the graph model.
+        it('should NOT remove edges to shadow nodes (floating terminals/editors)', () => {
+            // GIVEN: A parent node in the graph
+            const parent: GraphNode = {
+                relativeFilePathIsID: 'parent.md',
+                contentWithoutYamlOrLinks: '# Parent',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    title: 'Parent',
+                    color: O.none,
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            }
+
+            applyGraphDeltaToUI(cy, [{ type: 'UpsertNode', nodeToUpsert: parent }])
+
+            // AND: A shadow node (floating window anchor) with edge from parent
+            // This simulates what anchorToNode() creates for terminals/editors
+            cy.add({
+                group: 'nodes',
+                data: {
+                    id: 'shadow-child-parent.md-parent.md-terminal-0',
+                    isShadowNode: true,
+                    isFloatingWindow: true,
+                    windowType: 'terminal'
+                },
+                position: { x: 150, y: 150 }
+            })
+
+            cy.add({
+                group: 'edges',
+                data: {
+                    id: 'edge-parent.md-shadow-child-parent.md-parent.md-terminal-0',
+                    source: 'parent.md',
+                    target: 'shadow-child-parent.md-parent.md-terminal-0'
+                }
+            })
+
+            expect(cy.edges().length).toBe(1)
+
+            // WHEN: Parent is updated (e.g., file changed on disk)
+            // The graph model knows nothing about shadow nodes, so outgoingEdges is empty
+            applyGraphDeltaToUI(cy, [{ type: 'UpsertNode', nodeToUpsert: parent }])
+
+            // THEN: Edge to shadow node should be preserved (not removed)
+            expect(cy.edges().length).toBe(1)
+            expect(cy.getElementById('edge-parent.md-shadow-child-parent.md-parent.md-terminal-0').length).toBe(1)
+        })
+
         it('should handle edge lifecycle: creation after target exists, persistence on update, removal on link delete', () => {
             // Helper to create node with minimal boilerplate
             const makeNode: (id: string, edges?: Array<{ targetId: string; label: string; }>) => GraphNode = (id: string, edges: Array<{targetId: string, label: string}> = []): GraphNode => ({

@@ -4,6 +4,13 @@ import { getSubgraphByDistance, graphToAscii, getNodeIdsInTraversalOrder } from 
 /** Folder where context nodes are stored */
 export const CONTEXT_NODES_FOLDER: "ctx-nodes" = 'ctx-nodes'
 
+/** Truncate a title to at most 5 words to prevent excessively long context node names */
+function truncateToFiveWords(title: string): string {
+  const words: string[] = title.split(/\s+/)
+  if (words.length <= 5) return title
+  return words.slice(0, 5).join(' ') + '...'
+}
+
 import { getGraph } from '@/shell/edge/main/state/graph-store'
 import { applyGraphDeltaToDBThroughMem } from '@/shell/edge/main/graph/writePath/applyGraphDeltaToDBThroughMem'
 import { fromCreateChildToUpsertNode } from '@/pure/graph/graphDelta/uiInteractionsToGraphDeltas'
@@ -32,7 +39,7 @@ export async function createContextNode(
   }
 
   // 2. PURE: Extract subgraph within distance 7
-  const maxDistance: 5 = 5
+  const maxDistance: 5 = 5 as const
   const subgraph: Graph = getSubgraphByDistance(
     currentGraph,
     parentNodeId,
@@ -91,7 +98,7 @@ function buildContextNodeContent(
   const nodeDetailsList: string = generateNodeDetailsList(subgraph, parentNodeId)
 
   return `---
-title: CONTEXT for ${parentTitle}
+title: Context for ${truncateToFiveWords(parentTitle)}
 isContextNode: true
 ---
 
@@ -116,7 +123,7 @@ function generateNodeDetailsList(
   const lines: string[] = []
 
   // Get nodes in traversal order (same as ASCII tree)
-  const orderedNodeIds: string[] = getNodeIdsInTraversalOrder(subgraph)
+  const orderedNodeIds: readonly string[] = getNodeIdsInTraversalOrder(subgraph)
 
   for (const nodeId of orderedNodeIds) {
     const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = subgraph.nodes[nodeId]

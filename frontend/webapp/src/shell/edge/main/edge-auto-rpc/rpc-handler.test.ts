@@ -6,10 +6,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Mock dependencies
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockIpcMainHandle: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any> = vi.fn()
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockApplyGraphDeltaToDB: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any> = vi.fn()
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockGetGraph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any> = vi.fn()
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockLoadSettings: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any> = vi.fn()
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockSaveSettings: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any> = vi.fn()
 
 vi.mock('electron', () => ({
@@ -48,12 +53,15 @@ describe('setupRPCHandlers', () => {
     setupRPCHandlers()
 
     // Get the registered handler
-    const handlerCall: any[] | undefined = mockIpcMainHandle.mock.calls.find(call => call[0] === 'rpc:call')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handlerCall: any[] | undefined = mockIpcMainHandle.mock.calls.find(call => call[0] === 'rpc:call') as any[] | undefined;
     expect(handlerCall).toBeDefined()
-    const handler = handlerCall?.[1]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handler: any = handlerCall?.[1];
 
     // Call handler with 'getGraph' function name
-    const result = await handler({}, 'getGraph', [])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result: any = await handler({}, 'getGraph', []);
 
     expect(mockGetGraph).toHaveBeenCalled()
     expect(result).toEqual({ nodes: [], edges: [] })
@@ -67,8 +75,10 @@ describe('setupRPCHandlers', () => {
 
     setupRPCHandlers()
 
-    const handlerCall: any[] | undefined = mockIpcMainHandle.mock.calls.find(call => call[0] === 'rpc:call')
-    const handler = handlerCall?.[1]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handlerCall: any[] | undefined = mockIpcMainHandle.mock.calls.find(call => call[0] === 'rpc:call') as any[] | undefined;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handler: any = handlerCall?.[1];
 
     // Call handler with 'saveSettings' and arguments
     await handler({}, 'saveSettings', [mockSettings])
@@ -81,11 +91,14 @@ describe('setupRPCHandlers', () => {
 
     setupRPCHandlers()
 
-    const handlerCall: any[] | undefined = mockIpcMainHandle.mock.calls.find(call => call[0] === 'rpc:call')
-    const handler = handlerCall?.[1]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handlerCall: any[] | undefined = mockIpcMainHandle.mock.calls.find(call => call[0] === 'rpc:call') as any[] | undefined;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handler: any = handlerCall?.[1];
 
     // Call handler with non-existent function name
-    const result = await handler({}, 'nonExistentFunction', [])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result: any = await handler({}, 'nonExistentFunction', []);
 
     expect(result).toEqual({ error: 'Function not found: nonExistentFunction' })
   })
@@ -95,18 +108,22 @@ describe('setupRPCHandlers', () => {
 
     setupRPCHandlers()
 
-    const handlerCall: any[] | undefined = mockIpcMainHandle.mock.calls.find(call => call[0] === 'rpc:call')
-    const handler = handlerCall?.[1]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handlerCall: any[] | undefined = mockIpcMainHandle.mock.calls.find(call => call[0] === 'rpc:call') as any[] | undefined;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handler: any = handlerCall?.[1];
 
     // Test promise rejection with Error object
     const testError: Error = new Error('Test error')
     mockGetGraph.mockRejectedValue(testError)
-    const errorResult = await handler({}, 'getGraph', [])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const errorResult: any = await handler({}, 'getGraph', []);
     expect(errorResult).toEqual({ error: 'RPC call failed: Test error' })
 
     // Test promise rejection with non-Error value
     mockGetGraph.mockRejectedValue('String error')
-    const nonErrorResult = await handler({}, 'getGraph', [])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const nonErrorResult: any = await handler({}, 'getGraph', []);
     expect(nonErrorResult).toEqual({ error: 'RPC call failed: String error' })
   })
 
@@ -118,10 +135,13 @@ describe('setupRPCHandlers', () => {
 
     setupRPCHandlers()
 
-    const handlerCall: any[] | undefined = mockIpcMainHandle.mock.calls.find(call => call[0] === 'rpc:call')
-    const handler = handlerCall?.[1]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handlerCall: any[] | undefined = mockIpcMainHandle.mock.calls.find(call => call[0] === 'rpc:call') as any[] | undefined;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handler: any = handlerCall?.[1];
 
-    const result = await handler({}, 'getGraph', [])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result: any = await handler({}, 'getGraph', []);
 
     expect(result).toBe(mockGraphData) // Exact object reference preserved
   })

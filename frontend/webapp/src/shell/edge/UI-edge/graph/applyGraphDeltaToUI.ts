@@ -1,4 +1,4 @@
-import type {Core} from "cytoscape";
+import type {Core, NodeSingular} from "cytoscape";
 import type {GraphDelta} from "@/pure/graph";
 import * as O from 'fp-ts/lib/Option.js';
 import {prettyPrintGraphDelta, stripDeltaForReplay} from "@/pure/graph";
@@ -49,7 +49,8 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                             label: node.nodeUIMetadata.title,
                             content: node.contentWithoutYamlOrLinks,
                             summary: '',
-                            color: colorValue
+                            color: colorValue,
+                            isContextNode: node.nodeUIMetadata.isContextNode === true
                         },
                         position: {
                             x: pos.x,
@@ -69,6 +70,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                     } else {
                         existingNode.data('color', color);
                     }
+                    existingNode.data('isContextNode', node.nodeUIMetadata.isContextNode === true);
                     existingNode.emit('content-changed'); //todo, this event system, should we use this or hook into FS at breathing animation? same for markdown editor updates...
                 }
             } else if (nodeDelta.type === 'DeleteNode') {
@@ -88,13 +90,21 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
 
                 // Get current edges from this node in Cytoscape
                 const currentEdges: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").EdgeCollection = cy.edges(`[source = "${nodeId}"]`);
-                const currentTargets: Set<any> = new Set(currentEdges.map(edge => edge.data('target')));
+                const currentTargets: Set<string> = new Set(currentEdges.map(edge => edge.data('target') as string));
                 const desiredTargets: Set<string> = new Set(node.outgoingEdges.map(edge => edge.targetId));
 
                 // Remove edges that are no longer in outgoingEdges
+                // BUT: Don't remove edges to floating window shadow nodes (terminals/editors)
+                // These are UI-only nodes not tracked in the graph model
                 currentEdges.forEach((edge) => {
-                    const target = edge.data('target');
+                    const target: string = edge.data('target') as string;
                     if (!desiredTargets.has(target)) {
+                        const targetNode: jNodeSingular =  cy.getElementById(target);
+                        const isShadowNode: boolean = targetNode.length > 0 && targetNode.data('isShadowNode') === true;
+                        if (isShadowNode) {
+                            console.log(`[applyGraphDeltaToUI] Keeping edge to shadow node: ${nodeId}->${target}`);
+                            return;
+                        }
                         console.log(`[applyGraphDeltaToUI] Removing edge no longer in graph: ${nodeId}->${target}`);
                         edge.remove();
                     }

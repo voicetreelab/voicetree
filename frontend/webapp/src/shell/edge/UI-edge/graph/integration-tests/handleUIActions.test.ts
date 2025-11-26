@@ -122,7 +122,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
 
         // AND: Should have called electronAPI to persist the change
         // The GraphDelta should contain 2 actions: new child node + updated parent with edge
-        const graphDeltaCall = (window as any).electronAPI!.main.applyGraphDeltaToDBThroughMem.mock.calls[0]?.[0]
+        const graphDeltaCall: any[] = (window as any).electronAPI!.main.applyGraphDeltaToDBThroughMem.mock.calls[0]?.[0] as any[];
         expect(graphDeltaCall).toHaveLength(2)
 
         // First action: UpsertNode for new child
@@ -132,9 +132,9 @@ describe('createNewChildNodeFromUI - Integration', () => {
         // Second action: UpsertNode for parent with edge to new child
         expect(graphDeltaCall[1].type).toBe('UpsertNode')
         expect(graphDeltaCall[1].nodeToUpsert.relativeFilePathIsID).toBe('parent.md')
-        const hasEdgeToNewNode = graphDeltaCall[1].nodeToUpsert.outgoingEdges.some(
+        const hasEdgeToNewNode: boolean = graphDeltaCall[1].nodeToUpsert.outgoingEdges.some(
             (edge: { targetId: string }) => edge.targetId === newNodeId
-        )
+        ) as boolean;
         expect(hasEdgeToNewNode).toBe(true)
     })
 

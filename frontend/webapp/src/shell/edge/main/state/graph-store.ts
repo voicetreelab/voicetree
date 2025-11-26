@@ -3,10 +3,8 @@ import * as O from "fp-ts/lib/Option.js";
 
 // The ONLY mutable state in the functional architecture
 // Initialized to empty/none - will be populated when file watching starts
-// eslint-disable-next-line functional/no-let
 let currentVaultPath: O.Option<FilePath> = O.none;
 
-// eslint-disable-next-line functional/no-let
 let currentGraph: Graph = { nodes: {} };
 
 // Getter/setter for controlled access to graph state

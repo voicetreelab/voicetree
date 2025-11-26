@@ -62,7 +62,7 @@ export function getBuildConfig(): BuildConfig {
  * Get common environment values used by both dev and prod configs
  */
 function getCommonEnv(): CommonEnv {
-  const nodeEnv: NodeEnv = (process.env.NODE_ENV || 'production') as NodeEnv;
+  const nodeEnv: NodeEnv = (process.env.NODE_ENV ?? 'production') as NodeEnv;
   const isTest: boolean = process.env.HEADLESS_TEST === '1' || nodeEnv === 'test';
   const isPackaged: boolean = app.isPackaged;
   const userDataPath: string = app.getPath('userData');

@@ -57,6 +57,7 @@ export interface NodeUIMetadata {
     readonly title: string // Computed from frontmatter title, first heading, or filename
     readonly color: O.Option<string>
     readonly position: O.Option<Position>
+    // todo,ReadonlyMap doesn't serialize over IPC? must be record?
     readonly additionalYAMLProps: ReadonlyMap<string,string> // todo support this at both read and write paths for Node <-> Markdown
     readonly isContextNode?: boolean // undefined means false
     // width/height is derived from node degree
@@ -72,7 +73,7 @@ const _exampleNodeUIMetadata: NodeUIMetadata = {
 }
 
 // Keys that have explicit fields in NodeUIMetadata (excludes additionalYAMLProps which holds the rest)
-export const NODE_UI_METADATA_YAML_KEYS: Set<string> = new Set(
+export const NODE_UI_METADATA_YAML_KEYS: ReadonlySet<string> = new Set(
     Object.keys(_exampleNodeUIMetadata).filter(k => k !== 'additionalYAMLProps')
 )
 

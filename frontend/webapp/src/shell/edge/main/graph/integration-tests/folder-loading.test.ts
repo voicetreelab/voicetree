@@ -36,8 +36,8 @@ interface BroadcastCall {
 }
 
 // Expected counts (based on actual example_folder_fixtures)
-const EXPECTED_SMALL_NODE_COUNT: 7 = 7  // Includes 7_Bad_YAML_Frontmatter_Test.md
-const EXPECTED_LARGE_NODE_COUNT: 76 = 76
+const EXPECTED_SMALL_NODE_COUNT: 7 = 7 as const  // Includes 7_Bad_YAML_Frontmatter_Test.md
+const EXPECTED_LARGE_NODE_COUNT: 76 = 76 as const
 
 // State for mocks
 let broadcastCalls: Array<BroadcastCall> = []
@@ -227,8 +227,8 @@ describe('Folder Loading - Integration Tests', () => {
       // Wait for chokidar to detect the file addition (with awaitWriteFinish it takes ~1-2 seconds)
       // Poll for the node to appear in the graph
       let nodeAdded: boolean = false
-      const maxWaitTime: 5000 = 5000 // 5 seconds max
-      const pollInterval: 200 = 200 // Check every 200ms
+      const maxWaitTime: 5000 = 5000 as const // 5 seconds max
+      const pollInterval: 200 = 200 as const // Check every 200ms
       const startTime: number = Date.now()
 
       while (Date.now() - startTime < maxWaitTime) {
