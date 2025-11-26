@@ -187,11 +187,11 @@ describe('graphToAscii', () => {
     console.log(`Total edges: ${edgeCount}`)
 
     // Show a few nodes with their edges
-    const nodeEntries: [string, GraphNode][] = Object.entries(graph.nodes).slice(0, 3)
-    nodeEntries.forEach(([_id, node]: [string, GraphNode]) => {
+    const nodeEntries: readonly (readonly [string, GraphNode])[] = Object.entries(graph.nodes).slice(0, 3)
+    nodeEntries.forEach(([_id, node]: readonly [string, GraphNode]) => {
       console.log(`\nNode: ${node.nodeUIMetadata.title}`)
       console.log(`  Edges: ${node.outgoingEdges.length}`)
-      node.outgoingEdges.forEach((edge: { targetId: string }) => {
+      node.outgoingEdges.forEach((edge: { readonly targetId: string }) => {
         const targetNode: GraphNode = graph.nodes[edge.targetId]
         console.log(`    -> ${targetNode?.nodeUIMetadata.title ?? edge.targetId}`)
       })

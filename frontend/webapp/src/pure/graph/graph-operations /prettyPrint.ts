@@ -5,13 +5,13 @@ import * as O from 'fp-ts/lib/Option.js';
  * Pretty print a graph for debugging
  */
 export function prettyPrintGraph(graph: Graph): string {
-  const header: string[] = [
+  const header: readonly string[] = [
     '='.repeat(60),
     `GRAPH STATE (${Object.keys(graph.nodes).length} nodes)`,
     '='.repeat(60)
   ];
 
-  const nodeLines: string[] = Object.entries(graph.nodes).flatMap(([nodeId, node]) => {
+  const nodeLines: readonly string[] = Object.entries(graph.nodes).flatMap(([nodeId, node]) => {
     const posStr: string = O.isSome(node.nodeUIMetadata.position)
       ? `(${node.nodeUIMetadata.position.value.x}, ${node.nodeUIMetadata.position.value.y})`
       : 'none';
@@ -24,7 +24,7 @@ export function prettyPrintGraph(graph: Graph): string {
     ];
   });
 
-  const footer: string[] = ['\n' + '='.repeat(60)];
+  const footer: readonly string[] = ['\n' + '='.repeat(60)];
 
   return [...header, ...nodeLines, ...footer].join('\n');
 }
@@ -51,9 +51,9 @@ export function prettyPrintGraphDelta(delta: GraphDelta): string {
     return 'GraphDelta: []';
   }
 
-  const header: string[] = [`GraphDelta (${delta.length} operations):`];
+  const header: readonly string[] = [`GraphDelta (${delta.length} operations):`];
 
-  const operationLines: string[] = delta.flatMap((nodeDelta, index) => {
+  const operationLines: readonly string[] = delta.flatMap((nodeDelta, index) => {
     if (nodeDelta.type === 'UpsertNode') {
       const node: GraphNode = nodeDelta.nodeToUpsert;
       const content: string = node.contentWithoutYamlOrLinks || '';

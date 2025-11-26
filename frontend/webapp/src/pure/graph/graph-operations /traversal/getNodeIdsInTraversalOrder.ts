@@ -21,16 +21,18 @@
  */
 
 import type { Graph, NodeIdAndFilePath } from '@/pure/graph'
-import { reverseGraphEdges } from '../graph-transformations'
+import { reverseGraphEdges } from '@/pure/graph/graph-operations /graph-transformations'
 
-export function getNodeIdsInTraversalOrder(graph: Graph): NodeIdAndFilePath[] {
+export function getNodeIdsInTraversalOrder(graph: Graph): readonly NodeIdAndFilePath[] {
+  // eslint-disable-next-line functional/prefer-readonly-type
   const nodeIds: NodeIdAndFilePath[] = []
+  // eslint-disable-next-line functional/prefer-readonly-type
   const visited: Set<string> = new Set<NodeIdAndFilePath>()
 
   // Find root nodes (nodes with no incoming edges)
   // We reverse the graph to identify which nodes have no incoming edges
   const reversedGraph: Graph = reverseGraphEdges(graph)
-  const roots: string[] = Object.keys(graph.nodes).filter(nodeId => {
+  const roots: readonly string[] = Object.keys(graph.nodes).filter(nodeId => {
     const reversedNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = reversedGraph.nodes[nodeId]
     return !reversedNode || reversedNode.outgoingEdges.length === 0
   })
@@ -50,7 +52,7 @@ export function getNodeIdsInTraversalOrder(graph: Graph): NodeIdAndFilePath[] {
     nodeIds.push(nodeId)
 
     // Traverse children in order
-    const children: string[] = node.outgoingEdges.map(e => e.targetId)
+    const children: readonly string[] = node.outgoingEdges.map(e => e.targetId)
     children.forEach(childId => traverse(childId))
   }
 

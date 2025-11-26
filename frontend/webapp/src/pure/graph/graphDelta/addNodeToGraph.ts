@@ -5,12 +5,12 @@ import {extractPathSegments, findBestMatchingNode} from '@/pure/graph/markdown-p
 import {setOutgoingEdges} from '@/pure/graph/graph-operations /graph-edge-operations'
 import {filenameToNodeId} from '@/pure/graph/markdown-parsing/filename-utils'
 
-function healNodeEdges(affectedNodeIds: readonly NodeIdAndFilePath[], currentGraph: Graph, graphWithNewNode: Graph) {
-    const healedNodes: GraphNode[] = affectedNodeIds.map((affectedNodeId) => {
+function healNodeEdges(affectedNodeIds: readonly NodeIdAndFilePath[], currentGraph: Graph, graphWithNewNode: Graph): readonly GraphNode[] {
+    const healedNodes: readonly GraphNode[] = affectedNodeIds.map((affectedNodeId) => {
         const affectedNode: GraphNode = currentGraph.nodes[affectedNodeId]
 
         // Re-resolve the existing edges against the updated graph
-        const healedEdges: { targetId: string; label: string; }[] = affectedNode.outgoingEdges.map((edge) => {
+        const healedEdges: readonly { readonly targetId: string; readonly label: string; }[] = affectedNode.outgoingEdges.map((edge) => {
             // Try to resolve the raw targetId to an actual node
             //todo suss
             const resolvedTargetId: string | undefined = findBestMatchingNode(edge.targetId, graphWithNewNode.nodes)
@@ -84,7 +84,7 @@ export function addNodeToGraph(
     // Step 7: Re-validate edges for each affected node (healing)
     // Nodes already have edges with raw targetIds from parseMarkdownToGraphNode
     // We just need to re-resolve those raw targetIds against the updated graph
-    const healedNodes: GraphNode[] = healNodeEdges(affectedNodeIds, currentGraph, graphWithNewNode);
+    const healedNodes: readonly GraphNode[] = healNodeEdges(affectedNodeIds, currentGraph, graphWithNewNode);
 
     // Step 8: Return GraphDelta with new node + all healed nodes
     const upsertActions: readonly UpsertNodeAction[] = [

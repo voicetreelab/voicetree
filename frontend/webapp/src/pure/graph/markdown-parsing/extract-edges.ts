@@ -10,12 +10,12 @@ import type { NodeIdAndFilePath, GraphNode, Edge } from '@/pure/graph'
  *      // and then append without extension  => ["Users/user/vault/folder/file", "user/vault/folder/file", "vault/folder/file", "folder/file", "file"]
  */
 export function extractPathSegments(path: string): readonly string[] {
-  const parts: string[] = path.split('/').filter(p => p.length > 0)
+  const parts: readonly string[] = path.split('/').filter(p => p.length > 0)
 
   if (parts.length === 0) return []
 
   // Build segments from longest to shortest (most specific to least specific)
-  const segmentsWithExt: string[] = Array.from(
+  const segmentsWithExt: readonly string[] = Array.from(
     { length: parts.length },
     (_, i) => parts.slice(i).join('/')
   )
@@ -23,7 +23,7 @@ export function extractPathSegments(path: string): readonly string[] {
   // Remove extension from the last part to create "without extension" variants
   const removeExtension: (s: string) => string = (s: string): string => s.replace(/\.[^.]+$/, '')
 
-  const segmentsWithoutExt: string[] = segmentsWithExt
+  const segmentsWithoutExt: readonly string[] = segmentsWithExt
     .map(removeExtension)
     .filter(s => !segmentsWithExt.includes(s)) // Only add if different from with-ext version
 
@@ -43,7 +43,7 @@ function matchSegment(
 ): NodeIdAndFilePath | undefined {
   // Find ALL nodes where segment matches any of their path segments
   // (includes exact matches where nodeId === segment)
-  const matches: string[] = Object.keys(nodes).filter((nodeId) => {
+  const matches: readonly string[] = Object.keys(nodes).filter((nodeId) => {
     const nodeSegments: readonly string[] = extractPathSegments(nodeId)
     return nodeSegments.includes(segment)
   })
@@ -110,9 +110,9 @@ export function extractEdges(
   nodes: Record<NodeIdAndFilePath, GraphNode>
 ): readonly Edge[] {
   const wikilinkRegex: RegExp = /\[\[([^\]]+)\]\]/g
-  const matches: RegExpExecArray[] = [...content.matchAll(wikilinkRegex)]
+  const matches: readonly RegExpExecArray[] = [...content.matchAll(wikilinkRegex)]
 
-  const edges: { targetId: string; label: string; }[] = matches
+  const edges: readonly { readonly targetId: string; readonly label: string; }[] = matches
     .map((match) => {
       const rawLinkText: string = match[1].trim()
       const matchIndex: number = match.index!
@@ -137,7 +137,7 @@ export function extractEdges(
     })
 
   // Remove duplicates while preserving order (by targetId)
-  const seenTargets: Set<string> = new Set<NodeIdAndFilePath>()
+  const seenTargets: ReadonlySet<string> = new Set<NodeIdAndFilePath>()
   return edges.filter(edge => {
     if (seenTargets.has(edge.targetId)) {
       return false

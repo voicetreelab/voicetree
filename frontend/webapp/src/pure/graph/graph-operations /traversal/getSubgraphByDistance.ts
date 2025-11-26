@@ -45,7 +45,7 @@ export function getSubgraphByDistance(
     const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = graph.nodes[nodeId]
 
     // Add current node to visited set
-    const newVisited: Set<string> = new Set([...visited, nodeId])
+    const newVisited: ReadonlySet<string> = new Set([...visited, nodeId])
 
     // Explore outgoing edges (children, cost 1.5) - only if within distance threshold
     const afterChildren: ReadonlySet<string> = node.outgoingEdges
@@ -71,12 +71,12 @@ export function getSubgraphByDistance(
 
   // Filter graph to only visited nodes, and filter edges to only include
   // edges where both source and target are in the visited set
-  const filteredNodes: { [k: string]: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode; } = Object.fromEntries(
+  const filteredNodes: { readonly [k: string]: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode; } = Object.fromEntries(
     Array.from(visited)
       .filter(id => graph.nodes[id])
       .map(id => {
         const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = graph.nodes[id]
-        const filteredEdges: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = node.outgoingEdges.filter(edge => visited.has(edge.targetId))
+        const filteredEdges: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = node.outgoingEdges.filter(edge => visited.has(edge.targetId))
         return [id, setOutgoingEdges(node, filteredEdges)]
       })
   )

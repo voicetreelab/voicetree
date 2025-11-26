@@ -41,7 +41,7 @@ export function removeOutgoingEdge(node: GraphNode, targetId: NodeIdAndFilePath)
  * Returns a new node with the edges removed (does not mutate).
  */
 export function removeOutgoingEdges(node: GraphNode, targetIds: readonly NodeIdAndFilePath[]): GraphNode {
-    const targetSet: Set<string> = new Set(targetIds)
+    const targetSet: ReadonlySet<string> = new Set(targetIds)
     return {
         ...node,
         outgoingEdges: node.outgoingEdges.filter(e => !targetSet.has(e.targetId))
