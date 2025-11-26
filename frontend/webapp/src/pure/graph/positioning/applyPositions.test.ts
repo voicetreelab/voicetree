@@ -75,7 +75,7 @@ describe('applyPositions', () => {
       const result: Graph = applyPositions(graph)
 
       // Assertion 1: All nodes should now have positions
-      const nodesWithPositions: GraphNode[] = Object.values(result.nodes).filter(node =>
+      const nodesWithPositions: readonly GraphNode[] = Object.values(result.nodes).filter(node =>
         O.isSome(node.nodeUIMetadata.position)
       )
 
@@ -84,7 +84,7 @@ describe('applyPositions', () => {
       // Assertion 1.5: No node should be within 10px of any other node
       // Note: With high branching factors (up to 6 children), angular positioning
       // may place some nodes close together. This is a known limitation.
-      const positions: Position[] = nodesWithPositions.map(node =>
+      const positions: readonly Position[] = nodesWithPositions.map(node =>
         O.toUndefined(node.nodeUIMetadata.position)!
       )
       const tooCloseNodes: readonly (readonly [Position, Position])[] = findNodesTooClose(positions, 10)
@@ -213,6 +213,7 @@ function generateRandomNAryTree(nodeCount: number, maxChildren: number): Graph {
   }
 
   const nodes: Record<NodeIdAndFilePath, GraphNode> = {}
+  // eslint-disable-next-line functional/prefer-readonly-type
   const nodeIds: NodeIdAndFilePath[] = []
 
   // Create root node
@@ -221,6 +222,7 @@ function generateRandomNAryTree(nodeCount: number, maxChildren: number): Graph {
   nodes[rootId] = createNode(rootId, [])
 
   // Track which nodes can still have children added
+  // eslint-disable-next-line functional/prefer-readonly-type
   const availableParents: string[] = [rootId]
   let nextNodeIndex: number = 1
 
@@ -232,6 +234,7 @@ function generateRandomNAryTree(nodeCount: number, maxChildren: number): Graph {
     // Random number of children (0 to maxChildren)
     const childCount: number = Math.floor(Math.random() * (maxChildren + 1))
 
+    // eslint-disable-next-line functional/prefer-readonly-type
     const children: NodeIdAndFilePath[] = []
     for (let i: number = 0; i < childCount && nextNodeIndex < nodeCount; i++) {
       const childId: string = `node_${nextNodeIndex}.md`
@@ -280,6 +283,7 @@ function findNodesTooClose(
   positions: readonly Position[],
   minDistance: number
 ): readonly (readonly [Position, Position])[] {
+  // eslint-disable-next-line functional/prefer-readonly-type
   const tooClose: [Position, Position][] = []
 
   for (let i: number = 0; i < positions.length; i++) {
@@ -313,6 +317,7 @@ interface Edge {
  * Extract all edges from the graph with their positions
  */
 function extractEdges(graph: Graph): readonly Edge[] {
+  // eslint-disable-next-line functional/prefer-readonly-type
   const edges: Edge[] = []
 
   Object.values(graph.nodes).forEach(node => {
@@ -339,6 +344,7 @@ function extractEdges(graph: Graph): readonly Edge[] {
  * Find all pairs of overlapping edges
  */
 function findOverlappingEdges(edges: readonly Edge[]): readonly (readonly [Edge, Edge])[] {
+  // eslint-disable-next-line functional/prefer-readonly-type
   const overlaps: [Edge, Edge][] = []
 
   for (let i: number = 0; i < edges.length; i++) {
@@ -376,7 +382,7 @@ function shareVertex(edge1: Edge, edge2: Edge): boolean {
  * Check if two positions are equal (with small epsilon for floating point)
  */
 function positionsEqual(p1: Position, p2: Position): boolean {
-  const epsilon: 0.001 = 0.001
+  const epsilon: 0.001 = 0.001 as const
   return Math.abs(p1.x - p2.x) < epsilon && Math.abs(p1.y - p2.y) < epsilon
 }
 

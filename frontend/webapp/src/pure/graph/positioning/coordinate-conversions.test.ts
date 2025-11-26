@@ -26,7 +26,7 @@ describe('Coordinate Conversions', () => {
   describe('toScreenCoords', () => {
     it('should convert graph coordinates to screen coordinates at zoom 1 with no pan', () => {
       const cy: Core = createMockCy(1, 0, 0, 0, 0);
-      const result: { x: number; y: number; } = toScreenCoords(100, 100, cy);
+      const result: { readonly x: number; readonly y: number; } = toScreenCoords(100, 100, cy);
 
       // At zoom 1, no pan, no container offset: screen = graph
       expect(result.x).toBe(100);
@@ -35,7 +35,7 @@ describe('Coordinate Conversions', () => {
 
     it('should scale coordinates based on zoom level', () => {
       const cy: Core = createMockCy(2, 0, 0, 0, 0);
-      const result: { x: number; y: number; } = toScreenCoords(100, 100, cy);
+      const result: { readonly x: number; readonly y: number; } = toScreenCoords(100, 100, cy);
 
       // At zoom 2: screen = graph * 2
       expect(result.x).toBe(200);
@@ -44,7 +44,7 @@ describe('Coordinate Conversions', () => {
 
     it('should apply pan offset to screen coordinates', () => {
       const cy: Core = createMockCy(1, 50, 75, 0, 0);
-      const result: { x: number; y: number; } = toScreenCoords(100, 100, cy);
+      const result: { readonly x: number; readonly y: number; } = toScreenCoords(100, 100, cy);
 
       // With pan: screen = graph + pan
       expect(result.x).toBe(150);
@@ -53,7 +53,7 @@ describe('Coordinate Conversions', () => {
 
     it('should account for container offset from viewport', () => {
       const cy: Core = createMockCy(1, 0, 0, 200, 100);
-      const result: { x: number; y: number; } = toScreenCoords(100, 100, cy);
+      const result: { readonly x: number; readonly y: number; } = toScreenCoords(100, 100, cy);
 
       // With container offset: screen = graph + container offset
       expect(result.x).toBe(300);
@@ -62,7 +62,7 @@ describe('Coordinate Conversions', () => {
 
     it('should combine zoom, pan, and container offset correctly', () => {
       const cy: Core = createMockCy(1.5, 25, 30, 100, 50);
-      const result: { x: number; y: number; } = toScreenCoords(100, 100, cy);
+      const result: { readonly x: number; readonly y: number; } = toScreenCoords(100, 100, cy);
 
       // screen = (graph * zoom) + pan + container offset
       // x: (100 * 1.5) + 25 + 100 = 275
@@ -73,7 +73,7 @@ describe('Coordinate Conversions', () => {
 
     it('should handle negative graph coordinates', () => {
       const cy: Core = createMockCy(1, 0, 0, 0, 0);
-      const result: { x: number; y: number; } = toScreenCoords(-50, -50, cy);
+      const result: { readonly x: number; readonly y: number; } = toScreenCoords(-50, -50, cy);
 
       expect(result.x).toBe(-50);
       expect(result.y).toBe(-50);
@@ -83,7 +83,7 @@ describe('Coordinate Conversions', () => {
   describe('toGraphCoords', () => {
     it('should convert screen coordinates to graph coordinates at zoom 1 with no pan', () => {
       const cy: Core = createMockCy(1, 0, 0, 0, 0);
-      const result: { x: number; y: number; } = toGraphCoords(100, 100, cy);
+      const result: { readonly x: number; readonly y: number; } = toGraphCoords(100, 100, cy);
 
       // At zoom 1, no pan, no container offset: graph = screen
       expect(result.x).toBe(100);
@@ -92,7 +92,7 @@ describe('Coordinate Conversions', () => {
 
     it('should inversely scale coordinates based on zoom level', () => {
       const cy: Core = createMockCy(2, 0, 0, 0, 0);
-      const result: { x: number; y: number; } = toGraphCoords(200, 200, cy);
+      const result: { readonly x: number; readonly y: number; } = toGraphCoords(200, 200, cy);
 
       // At zoom 2: graph = screen / 2
       expect(result.x).toBe(100);
@@ -101,7 +101,7 @@ describe('Coordinate Conversions', () => {
 
     it('should remove pan offset from screen coordinates', () => {
       const cy: Core = createMockCy(1, 50, 75, 0, 0);
-      const result: { x: number; y: number; } = toGraphCoords(150, 175, cy);
+      const result: { readonly x: number; readonly y: number; } = toGraphCoords(150, 175, cy);
 
       // With pan: graph = screen - pan
       expect(result.x).toBe(100);
@@ -110,7 +110,7 @@ describe('Coordinate Conversions', () => {
 
     it('should subtract container offset from screen coordinates', () => {
       const cy: Core = createMockCy(1, 0, 0, 200, 100);
-      const result: { x: number; y: number; } = toGraphCoords(300, 200, cy);
+      const result: { readonly x: number; readonly y: number; } = toGraphCoords(300, 200, cy);
 
       // With container offset: graph = screen - container offset
       expect(result.x).toBe(100);
@@ -119,7 +119,7 @@ describe('Coordinate Conversions', () => {
 
     it('should correctly inverse the combined transformation', () => {
       const cy: Core = createMockCy(1.5, 25, 30, 100, 50);
-      const result: { x: number; y: number; } = toGraphCoords(275, 230, cy);
+      const result: { readonly x: number; readonly y: number; } = toGraphCoords(275, 230, cy);
 
       // graph = (screen - container offset - pan) / zoom
       // x: (275 - 100 - 25) / 1.5 = 100
@@ -130,10 +130,10 @@ describe('Coordinate Conversions', () => {
 
     it('should be the inverse of toScreenCoords', () => {
       const cy: Core = createMockCy(1.75, 42, -17, 83, 29);
-      const graphCoords: { x: number; y: number; } = { x: 150, y: -75 };
+      const graphCoords: { readonly x: number; readonly y: number; } = { x: 150, y: -75 };
 
-      const screenCoords: { x: number; y: number; } = toScreenCoords(graphCoords.x, graphCoords.y, cy);
-      const backToGraph: { x: number; y: number; } = toGraphCoords(screenCoords.x, screenCoords.y, cy);
+      const screenCoords: { readonly x: number; readonly y: number; } = toScreenCoords(graphCoords.x, graphCoords.y, cy);
+      const backToGraph: { readonly x: number; readonly y: number; } = toGraphCoords(screenCoords.x, screenCoords.y, cy);
 
       expect(backToGraph.x).toBeCloseTo(graphCoords.x, 10);
       expect(backToGraph.y).toBeCloseTo(graphCoords.y, 10);
@@ -166,8 +166,8 @@ describe('Coordinate Conversions', () => {
     });
 
     it('should be the inverse of graphToScreen', () => {
-      const value: 42 = 42;
-      const zoom: 1.7 = 1.7;
+      const value: 42 = 42 as const;
+      const zoom: 1.7 = 1.7 as const;
 
       const screen: number = graphToScreen(value, zoom);
       const backToGraph: number = screenToGraph(screen, zoom);
@@ -181,19 +181,19 @@ describe('Coordinate Conversions', () => {
       // This test ensures that the method used to calculate initial window position
       // matches the method used by updateEditorPositions, avoiding window "teleportation"
 
-      const zoom: 0.4 = 0.4;
-      const pan: { x: number; y: number; } = { x: -9353.98, y: 40.82 };
-      const containerRect: { left: number; top: number; } = { left: 16, top: 242 };
+      const zoom: 0.4 = 0.4 as const;
+      const pan: { readonly x: -9353.98; readonly y: 40.82; } = { x: -9353.98, y: 40.82 } as const;
+      const containerRect: { readonly left: 16; readonly top: 242; } = { left: 16, top: 242 } as const;
       const cy: Core = createMockCy(zoom, pan.x, pan.y, containerRect.left, containerRect.top);
 
       // Simulate a node at a specific graph position
-      const nodeGraphPos: { x: number; y: number; } = { x: 23508.19, y: 126.54 };
-      const windowWidth: 700 = 700;
-      const nodeRadius: 40 = 40;
-      const spacing: 10 = 10;
+      const nodeGraphPos: { readonly x: 23508.19; readonly y: 126.54; } = { x: 23508.19, y: 126.54 } as const;
+      const windowWidth: 700 = 700 as const;
+      const nodeRadius: 40 = 40 as const;
+      const spacing: 10 = 10 as const;
 
       // Calculate the graph offset (how we position the window relative to the node in graph coords)
-      const graphOffset: { x: number; y: number; } = {
+      const graphOffset: { readonly x: number; readonly y: number; } = {
         x: -(windowWidth / 2) / zoom,
         y: (nodeRadius + spacing) / zoom
       };
@@ -202,10 +202,10 @@ describe('Coordinate Conversions', () => {
       // This MUST match how updateEditorPositions calculates positions
       const graphX: number = nodeGraphPos.x + graphOffset.x;
       const graphY: number = nodeGraphPos.y + graphOffset.y;
-      const initialPos: { x: number; y: number; } = toScreenCoords(graphX, graphY, cy);
+      const initialPos: { readonly x: number; readonly y: number; } = toScreenCoords(graphX, graphY, cy);
 
       // Simulate what updateEditorPositions does (must match initial position)
-      const updatedPos: { x: number; y: number; } = toScreenCoords(
+      const updatedPos: { readonly x: number; readonly y: number; } = toScreenCoords(
         nodeGraphPos.x + graphOffset.x,
         nodeGraphPos.y + graphOffset.y,
         cy
@@ -226,7 +226,7 @@ describe('Coordinate Conversions', () => {
   describe('edge cases', () => {
     it('should handle very small zoom levels', () => {
       const cy: Core = createMockCy(0.1, 0, 0, 0, 0);
-      const screenCoords: { x: number; y: number; } = toScreenCoords(100, 100, cy);
+      const screenCoords: { readonly x: number; readonly y: number; } = toScreenCoords(100, 100, cy);
 
       expect(screenCoords.x).toBe(10);
       expect(screenCoords.y).toBe(10);
@@ -234,7 +234,7 @@ describe('Coordinate Conversions', () => {
 
     it('should handle very large zoom levels', () => {
       const cy: Core = createMockCy(10, 0, 0, 0, 0);
-      const screenCoords: { x: number; y: number; } = toScreenCoords(100, 100, cy);
+      const screenCoords: { readonly x: number; readonly y: number; } = toScreenCoords(100, 100, cy);
 
       expect(screenCoords.x).toBe(1000);
       expect(screenCoords.y).toBe(1000);
@@ -242,10 +242,10 @@ describe('Coordinate Conversions', () => {
 
     it('should maintain precision for floating point operations', () => {
       const cy: Core = createMockCy(1.333333, 12.5, 7.25, 10.5, 20.75);
-      const graphCoords: { x: number; y: number; } = { x: 123.456, y: 789.012 };
+      const graphCoords: { readonly x: number; readonly y: number; } = { x: 123.456, y: 789.012 };
 
-      const screenCoords: { x: number; y: number; } = toScreenCoords(graphCoords.x, graphCoords.y, cy);
-      const backToGraph: { x: number; y: number; } = toGraphCoords(screenCoords.x, screenCoords.y, cy);
+      const screenCoords: { readonly x: number; readonly y: number; } = toScreenCoords(graphCoords.x, graphCoords.y, cy);
+      const backToGraph: { readonly x: number; readonly y: number; } = toGraphCoords(screenCoords.x, screenCoords.y, cy);
 
       expect(backToGraph.x).toBeCloseTo(graphCoords.x, 5);
       expect(backToGraph.y).toBeCloseTo(graphCoords.y, 5);

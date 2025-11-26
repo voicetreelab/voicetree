@@ -34,7 +34,7 @@ if (autoUpdater.logger && 'transports' in autoUpdater.logger) {
 }
 
 // Send update status messages to renderer process
-function sendUpdateStatusToWindow(text: string) {
+function sendUpdateStatusToWindow(text: string): void {
   log.info(text);
   const mainWindow: Electron.BrowserWindow = BrowserWindow.getAllWindows()[0];
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -116,7 +116,7 @@ let textToTreeServerPort: number | null = null;
 // Functional Graph Architecture
 // ============================================================================
 
-function createWindow() {
+function createWindow(): void {
   // Note: BrowserWindow icon property only works on Windows/Linux
   // macOS uses app.dock.setIcon() instead
   const iconPath: string = process.platform === 'darwin'

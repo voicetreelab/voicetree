@@ -49,8 +49,9 @@ async function getLastDirectory(): Promise<O.Option<FilePath>> {
     const configPath: string = getConfigPath();
     return fs.readFile(configPath, 'utf8')
         .then(data => {
-            const config = JSON.parse(data);
-            return O.fromNullable(config.lastDirectory);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const config: any = JSON.parse(data);
+            return O.fromNullable(config.lastDirectory as FilePath | null | undefined);
         })
         .catch((error) => {
             console.error("getLastDirectory", error);

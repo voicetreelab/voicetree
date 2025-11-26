@@ -5,7 +5,7 @@ import type { WebContents } from 'electron';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/types";
 import {getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 
-interface TerminalSpawnResult {
+export interface TerminalSpawnResult {
   success: boolean;
   terminalId: string;
   error?: string;

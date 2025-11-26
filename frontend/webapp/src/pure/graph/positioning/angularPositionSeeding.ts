@@ -11,8 +11,8 @@
 import type { GraphNode } from '@/pure/graph';
 import * as O from 'fp-ts/lib/Option.js';
 
-export const SPAWN_RADIUS: 500 = 500; // pixels from parent
-export const CHILD_ANGLE_CONE: 180 = 180; // degrees (± 45° from parent)
+export const SPAWN_RADIUS: 500 = 500 as const; // pixels from parent
+export const CHILD_ANGLE_CONE: 180 = 180 as const; // degrees (± 45° from parent)
 
 /**
  * Calculate midpoint between two positions on a circular scale [0, 1)
@@ -78,7 +78,7 @@ function buildSubdividedPositions(count: number): readonly number[] {
 
   // Level 0: quarters
   const initialLevels: readonly (readonly number[])[] = [[0, 0.25, 0.5, 0.75]];
-  const initialCount: 4 = 4;
+  const initialCount: number = 4;
 
   // Build levels recursively until we have enough positions
   const allLevels: readonly (readonly number[])[] = buildLevelsUntilCount(initialLevels, initialCount, count);

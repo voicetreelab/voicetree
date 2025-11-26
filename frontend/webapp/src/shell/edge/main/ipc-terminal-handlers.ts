@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
 import type TerminalManager from '@/shell/edge/main/electron/terminal-manager'
+import type { TerminalSpawnResult } from '@/shell/edge/main/electron/terminal-manager'
 import { getWatchedDirectory } from '@/shell/edge/main/graph/watchFolder'
 
 // Import dependencies directly - functional programming style
@@ -7,7 +8,7 @@ import { getWatchedDirectory } from '@/shell/edge/main/graph/watchFolder'
 export function registerTerminalIpcHandlers(
   terminalManager: TerminalManager,
   getToolsDirectory: () => string
-) {
+): void {
   // ============================================================================
   // Terminal IPC handlers - kept here since they need event.sender
   // ============================================================================

@@ -122,7 +122,7 @@ Setup instructions.`
 
     expect(cytoscapeEdge.length).toBe(1)
 
-    const edgeLabel = cytoscapeEdge.data('label')
+    const edgeLabel: string = cytoscapeEdge.data('label')
     console.log('  Edge label in Cytoscape:', JSON.stringify(edgeLabel))
 
     // Note: Underscores are intentionally replaced with spaces in UI (see applyGraphDeltaToUI.test.ts)

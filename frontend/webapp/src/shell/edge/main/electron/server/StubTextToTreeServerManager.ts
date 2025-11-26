@@ -36,7 +36,8 @@ export class StubTextToTreeServerManager implements ITextToTreeServerManager {
         req.on('end', () => {
           let directoryPath: string = 'unknown';
           try {
-            const parsed = JSON.parse(body);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const parsed: any = JSON.parse(body);
             directoryPath = parsed.directory_path ?? directoryPath;
           } catch {
             console.log('[StubTextToTreeServer] Failed to parse load-directory payload');

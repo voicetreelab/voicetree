@@ -66,7 +66,7 @@ export function applyPositions(graph: Graph): Graph {
     ).graph
 
     // Remove ghost root from final result
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     
     const { [GHOST_ROOT_ID]: _, ...finalNodes } = graphWithAllPositions.nodes
 
     return { nodes: finalNodes }
