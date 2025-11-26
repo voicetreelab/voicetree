@@ -1,4 +1,5 @@
 import * as React from "react"
+import type {JSX} from "react"
 
 import { cn } from "@/utils/lib/utils"
 

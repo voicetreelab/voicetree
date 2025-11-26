@@ -1,3 +1,4 @@
+import type {JSX} from "react";
 import { type Token } from "@soniox/speech-to-text-web";
 import { getLanguage } from "@/utils/config/languages";
 import SpeakerLabel from "@/shell/UI/views/components/speaker-label";

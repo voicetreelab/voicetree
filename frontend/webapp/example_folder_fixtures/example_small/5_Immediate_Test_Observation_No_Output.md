@@ -1,6 +1,10 @@
 ---
+title: "Immediate Test Observation: No Output (5)"
+position:
+  x: 3.061616997868383e-14
+  y: 500
+isContextNode: false
 node_id: 5
-title: 'Immediate Test Observation: No Output (5)'
 ---
 ### Speaker observes no output despite repeated speech input during an immediate test.
 

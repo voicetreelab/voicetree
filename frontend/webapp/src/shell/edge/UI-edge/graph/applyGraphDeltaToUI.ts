@@ -1,4 +1,5 @@
 import type {Core, NodeSingular} from "cytoscape";
+type CyNodeSingular = NodeSingular;
 import type {GraphDelta} from "@/pure/graph";
 import * as O from 'fp-ts/lib/Option.js';
 import {prettyPrintGraphDelta, stripDeltaForReplay} from "@/pure/graph";
@@ -99,7 +100,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                 currentEdges.forEach((edge) => {
                     const target: string = edge.data('target') as string;
                     if (!desiredTargets.has(target)) {
-                        const targetNode: jNodeSingular =  cy.getElementById(target);
+                        const targetNode: CyNodeSingular =  cy.getElementById(target);
                         const isShadowNode: boolean = targetNode.length > 0 && targetNode.data('isShadowNode') === true;
                         if (isShadowNode) {
                             console.log(`[applyGraphDeltaToUI] Keeping edge to shadow node: ${nodeId}->${target}`);

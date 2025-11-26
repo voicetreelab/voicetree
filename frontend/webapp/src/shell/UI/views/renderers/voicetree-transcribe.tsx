@@ -1,3 +1,4 @@
+import type {JSX} from "react";
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/utils/lib/utils";
 import AnimatedMicIcon from "@/shell/UI/views/components/animated-mic-icon";

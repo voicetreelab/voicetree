@@ -53,7 +53,7 @@ function matchSegment(
   }
 
   // Return most specific match (longest path) for better specificity
-  return matches.sort((a, b) => b.length - a.length)[0]
+  return [...matches].sort((a: string, b: string) => b.length - a.length)[0]
 }
 
 /**
@@ -137,7 +137,7 @@ export function extractEdges(
     })
 
   // Remove duplicates while preserving order (by targetId)
-  const seenTargets: ReadonlySet<string> = new Set<NodeIdAndFilePath>()
+  const seenTargets: Set<string> = new Set<NodeIdAndFilePath>()
   return edges.filter(edge => {
     if (seenTargets.has(edge.targetId)) {
       return false

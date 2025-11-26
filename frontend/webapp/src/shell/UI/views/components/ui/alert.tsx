@@ -1,4 +1,5 @@
 import * as React from "react"
+import type {JSX} from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/utils/lib/utils"

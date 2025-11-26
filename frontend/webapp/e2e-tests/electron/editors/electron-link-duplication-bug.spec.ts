@@ -305,8 +305,8 @@ Some more content here.`;
     console.log('✓ Link duplication test completed');
   });
 
-  test('should restore link in markdown file after deletion because edge persists in graph', async ({ appWindow, testVaultPath }) => {
-    console.log('=== Testing link removal and restoration behavior ===');
+  test('should remove link from markdown file and graph when deleted in editor', async ({ appWindow, testVaultPath }) => {
+    console.log('=== Testing link removal behavior ===');
 
     // 1. Create a test markdown file with a link
     const testNodeId = 'test-node-remove-link.md';
@@ -454,16 +454,16 @@ End of content.`;
 
     console.log(`📊 Final link count: ${finalLinkCount}`);
 
-    // THE KEY ASSERTION: Link is RESTORED in markdown because edge persists in graph
-    // Due to the current implementation where edges persist even after being removed from markdown,
-    // and the system re-writes the file with the persisted edge, the link count remains 1
-    if (finalLinkCount === 1) {
-      console.log(`✅ Link was restored in markdown (current behavior: edge persists, link is re-added)`);
+    // THE KEY ASSERTION: Link should be REMOVED from markdown
+    // When a link is deleted in the editor, it should be removed from the file
+    // The file watcher will update the graph to remove the edge
+    if (finalLinkCount === 0) {
+      console.log(`✅ Link was removed from markdown as expected`);
     } else {
-      console.error(`❌ UNEXPECTED: Expected link to be restored (count 1), but found ${finalLinkCount}`);
+      console.error(`❌ UNEXPECTED: Expected link to be removed (count 0), but found ${finalLinkCount}`);
     }
 
-    expect(finalLinkCount).toBe(1);
+    expect(finalLinkCount).toBe(0);
 
     // 9. Verify edge behavior in graph after link removal
     // Wait for file watcher to process the change and update the graph UI-edge
@@ -477,12 +477,11 @@ End of content.`;
       return edges.length > 0;
     }, { sourceId: testNodeId, targetId: linkedNodeId });
 
-    // CURRENT BEHAVIOR: Edge is NOT removed from graph due to race condition protection
-    // in applyGraphDeltaToUI.ts (lines 84-92). The code only removes edges when the
-    // target node doesn't exist, to prevent race conditions during file watching.
-    // This means edges persist in the graph even after being removed from markdown.
-    expect(edgeExistsAfterRemoval).toBe(true);
-    console.log('ℹ Edge still exists in graph (current behavior due to race condition protection)');
+    // EXPECTED BEHAVIOR: Edge should be removed from graph when link is removed from markdown
+    // The file watcher parses the updated markdown and updates the graph
+    // applyGraphDeltaToUI then removes edges that are no longer in outgoingEdges
+    expect(edgeExistsAfterRemoval).toBe(false);
+    console.log('✓ Edge was removed from graph as expected');
 
     console.log('✓ Link removal test completed');
   });

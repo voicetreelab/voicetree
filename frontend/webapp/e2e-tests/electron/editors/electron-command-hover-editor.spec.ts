@@ -79,7 +79,27 @@ const test = base.extend<{
   },
 
   appWindow: async ({ electronApp }, use) => {
-    const window = await electronApp.firstWindow();
+    // Wait for window with better error handling to diagnose intermittent failures
+    let window: Page;
+    try {
+      // firstWindow() uses the test timeout from config (30s)
+      // If it fails, try to diagnose the issue
+      window = await electronApp.firstWindow();
+    } catch (error) {
+      console.error('Failed to get first window. Attempting to diagnose...');
+      const windows = electronApp.windows();
+      console.error(`Number of windows: ${windows.length}`);
+
+      // Try to get process info
+      try {
+        const process = electronApp.process();
+        console.error(`Electron process PID: ${process?.pid}`);
+      } catch (e) {
+        console.error('Could not get electron process info:', e);
+      }
+
+      throw new Error(`Failed to get first window within test timeout: ${error instanceof Error ? error.message : String(error)}`);
+    }
 
     // Log console messages for debugging
     window.on('console', msg => {
@@ -120,18 +140,36 @@ const test = base.extend<{
     }, { timeout: 10000 });
 
     // Wait for electronAPI graph to be populated (this is crucial for hover editors)
-    await window.waitForFunction(async () => {
+    // Note: Using polling approach with evaluate() since waitForFunction() doesn't support async predicates
+    let graphLoaded = false;
+    const graphLoadStart = Date.now();
+    while (!graphLoaded && (Date.now() - graphLoadStart) < 15000) {
       try {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
-        if (!api?.main?.getGraph) return false;
-        const graph = await api.main.getGraph();
-        console.log('[TEST FIXTURE] Graph nodes count:', graph ? Object.keys(graph.nodes).length : 0);
-        return graph && Object.keys(graph.nodes).length > 0;
+        const result = await window.evaluate(async () => {
+          try {
+            const api = (window as unknown as ExtendedWindow).electronAPI;
+            if (!api?.main?.getGraph) return false;
+            const graph = await api.main.getGraph();
+            console.log('[TEST FIXTURE] Graph nodes count:', graph ? Object.keys(graph.nodes).length : 0);
+            return graph && Object.keys(graph.nodes).length > 0;
+          } catch (e) {
+            console.log('[TEST FIXTURE] Error checking graph:', e);
+            return false;
+          }
+        });
+        graphLoaded = result ?? false;
+        if (!graphLoaded) {
+          await window.waitForTimeout(100); // Poll every 100ms
+        }
       } catch (e) {
-        console.log('[TEST FIXTURE] Error checking graph:', e);
-        return false;
+        console.error('[TEST FIXTURE] Error during graph check:', e);
+        await window.waitForTimeout(100);
       }
-    }, { timeout: 15000 });
+    }
+
+    if (!graphLoaded) {
+      throw new Error('Graph failed to load within 15 seconds');
+    }
 
     // Give extra time for graph to fully stabilize after initial load
     await window.waitForTimeout(1000);

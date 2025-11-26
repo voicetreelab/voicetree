@@ -9,7 +9,7 @@ import {
   sendGraphDelta,
   waitForCytoscapeReady,
   type ExtendedWindow
-} from '@e2e/playwright-browser/graph-delta-test-utils.ts';
+} from '@e2e/playwright-browser/graph-delta-test-utils.js';
 import type { GraphDelta } from '@/pure/graph';
 
 // Custom fixture to capture console logs and only show on failure
@@ -56,8 +56,8 @@ const test = base.extend<{ consoleCapture: ConsoleCapture }>({
 });
 
 test.describe('Context Menu Close on Mouseout (Browser)', () => {
-  test('should close context menu when mouse moves away from node', async ({ page, consoleCapture: _consoleCapture }) => {
-    console.log('\n=== Starting context menu mouseout test ===');
+  test('should close context menu when clicking outside', async ({ page, consoleCapture: _consoleCapture }) => {
+    console.log('\n=== Starting context menu close test ===');
 
     // Step 1: Setup
     await setupMockElectronAPI(page);
@@ -92,7 +92,7 @@ test.describe('Context Menu Close on Mouseout (Browser)', () => {
     console.log('Waited for layout');
 
     // Step 4: Trigger mouseover on the node using Cytoscape events
-    // This is the correct way to trigger the radial menu
+    // This triggers the horizontal menu
     await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
@@ -104,11 +104,11 @@ test.describe('Context Menu Close on Mouseout (Browser)', () => {
     console.log('Mouseover event triggered on node');
 
     // Step 5: Check if context menu opened
-    // The horizontal menu uses .ctxmenu element (note: ctxmenu, not cxtmenu)
+    // The horizontal menu uses .cy-horizontal-context-menu element
     const menuVisibleAfterHover = await page.evaluate(() => {
-      const menu = document.querySelector('.ctxmenu') as HTMLElement | null;
+      const menu = document.querySelector('.cy-horizontal-context-menu') as HTMLElement | null;
       if (!menu) {
-        console.log('[Test] No .ctxmenu element found');
+        console.log('[Test] No .cy-horizontal-context-menu element found');
         return false;
       }
       const computed = window.getComputedStyle(menu);
@@ -119,33 +119,28 @@ test.describe('Context Menu Close on Mouseout (Browser)', () => {
     console.log(`Menu visible after hover: ${menuVisibleAfterHover}`);
     expect(menuVisibleAfterHover).toBe(true);
 
-    // Step 6: Trigger mouseover on background (cy itself) to close menu
-    // This simulates moving mouse away from the node
-    await page.evaluate(() => {
-      const cy = (window as ExtendedWindow).cytoscapeInstance;
-      if (!cy) throw new Error('Cytoscape not initialized');
-      // Emit mouseover on the cy instance itself (background)
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      cy.emit('mouseover', { target: cy } as any);
-    });
-    await page.waitForTimeout(300);
-    console.log('Mouseover event triggered on background');
+    // Step 6: Click outside the menu to close it
+    // The menu closes via click-outside handler, not on mouse movement
+    await page.waitForTimeout(150); // Wait for click-outside handler to be registered (it has a 100ms delay)
+    await page.mouse.click(100, 100); // Click somewhere away from the menu
+    await page.waitForTimeout(100);
+    console.log('Clicked outside the menu');
 
     // Step 7: Verify menu closed
-    const menuVisibleAfterMouseout = await page.evaluate(() => {
-      const menu = document.querySelector('.ctxmenu') as HTMLElement | null;
+    const menuVisibleAfterClick = await page.evaluate(() => {
+      const menu = document.querySelector('.cy-horizontal-context-menu') as HTMLElement | null;
       if (!menu) {
-        console.log('[Test] No .ctxmenu element found after mouseout');
+        console.log('[Test] Menu was removed from DOM');
         return false;
       }
       const computed = window.getComputedStyle(menu);
       const isVisible = computed.display !== 'none';
-      console.log('[Test] Menu display after mouseout:', computed.display, 'visible:', isVisible);
+      console.log('[Test] Menu display after click:', computed.display, 'visible:', isVisible);
       return isVisible;
     });
-    console.log(`Menu visible after mouseout: ${menuVisibleAfterMouseout}`);
-    expect(menuVisibleAfterMouseout).toBe(false);
+    console.log(`Menu visible after click outside: ${menuVisibleAfterClick}`);
+    expect(menuVisibleAfterClick).toBe(false);
 
-    console.log('Test completed successfully - context menu closes when mouse moves away from node');
+    console.log('Test completed successfully - context menu closes when clicking outside');
   });
 });
