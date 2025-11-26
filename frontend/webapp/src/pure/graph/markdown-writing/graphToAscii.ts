@@ -4,7 +4,7 @@
  */
 
 import type { Graph, NodeIdAndFilePath } from '@/pure/graph'
-import { reverseGraphEdges } from '../graph-operations /graph-transformations'
+import { reverseGraphEdges } from '@/pure/graph/graph-operations /graph-transformations'
 
 /**
  * Converts a Graph into an ASCII tree visualization.
@@ -31,13 +31,15 @@ import { reverseGraphEdges } from '../graph-operations /graph-transformations'
 
 
 export function graphToAscii(graph: Graph): string {
+  // eslint-disable-next-line functional/prefer-readonly-type
   const lines: string[] = []
+  // eslint-disable-next-line functional/prefer-readonly-type
   const visited: Set<string> = new Set<NodeIdAndFilePath>()
 
   // Find root nodes (nodes with no incoming edges)
   // We reverse the graph to identify which nodes have no incoming edges
   const reversedGraph: Graph = reverseGraphEdges(graph)
-  const roots: string[] = Object.keys(graph.nodes).filter(nodeId => {
+  const roots: readonly string[] = Object.keys(graph.nodes).filter(nodeId => {
     const reversedNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = reversedGraph.nodes[nodeId]
     return !reversedNode || reversedNode.outgoingEdges.length === 0
   })
@@ -68,7 +70,7 @@ export function graphToAscii(graph: Graph): string {
     }
 
     // Print children
-    const children: string[] = node.outgoingEdges.map(e => e.targetId)
+    const children: readonly string[] = node.outgoingEdges.map(e => e.targetId)
     children.forEach((childId, index) => {
       const isLastChild: boolean = index === children.length - 1
       const extension: "    " | "│   " = isLast ? '    ' : '│   '

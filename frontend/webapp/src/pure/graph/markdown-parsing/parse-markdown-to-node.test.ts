@@ -40,7 +40,7 @@ position:
     expect(result.contentWithoutYamlOrLinks).toBe('# Content here')
     expect(O.isSome(result.nodeUIMetadata.position)).toBe(true)
 
-    const position: { x: number; y: number; } = O.getOrElse(() => ({ x: 0, y: 0 }))(result.nodeUIMetadata.position)
+    const position: { readonly x: number; readonly y: number; } = O.getOrElse(() => ({ x: 0, y: 0 }))(result.nodeUIMetadata.position)
     expect(position.x).toBe(100)
     expect(position.y).toBe(200)
   })
@@ -267,7 +267,7 @@ metadata:
 
       const metadata: string | undefined = result.nodeUIMetadata.additionalYAMLProps.get('metadata')
       expect(metadata).toBeDefined()
-      const parsed = JSON.parse(metadata!)
+      const parsed: { readonly created: string; readonly version: number; } = JSON.parse(metadata!)
       expect(parsed.created).toBe('2024-01-15')
       expect(parsed.version).toBe(2)
     })

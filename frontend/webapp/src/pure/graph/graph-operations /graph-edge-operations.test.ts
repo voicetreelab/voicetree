@@ -9,7 +9,7 @@ import type { GraphNode, Edge } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
 
 describe('graph-edge-operations', () => {
-  const createTestNode: (id: string, edges?: Edge[]) => GraphNode = (id: string, edges: Edge[] = []): GraphNode => ({
+  const createTestNode: (id: string, edges?: readonly Edge[]) => GraphNode = (id: string, edges: readonly Edge[] = []): GraphNode => ({
     relativeFilePathIsID: id,
     outgoingEdges: edges,
     contentWithoutYamlOrLinks: 'test content',

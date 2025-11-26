@@ -24,7 +24,7 @@ describe('getNodeIdsInTraversalOrder', () => {
       }
     }
 
-    const result: string[] = getNodeIdsInTraversalOrder(graph)
+    const result: readonly string[] = getNodeIdsInTraversalOrder(graph)
 
     expect(result).toEqual(['A'])
   })
@@ -40,7 +40,7 @@ describe('getNodeIdsInTraversalOrder', () => {
       }
     }
 
-    const result: string[] = getNodeIdsInTraversalOrder(graph)
+    const result: readonly string[] = getNodeIdsInTraversalOrder(graph)
 
     // Depth-first: Root -> Child1 -> Grandchild1 -> Grandchild2 -> Child2
     expect(result).toEqual(['Root', 'Child1', 'Grandchild1', 'Grandchild2', 'Child2'])
@@ -51,7 +51,7 @@ describe('getNodeIdsInTraversalOrder', () => {
       nodes: {}
     }
 
-    const result: string[] = getNodeIdsInTraversalOrder(graph)
+    const result: readonly string[] = getNodeIdsInTraversalOrder(graph)
 
     expect(result).toEqual([])
   })
@@ -67,7 +67,7 @@ describe('getNodeIdsInTraversalOrder', () => {
       }
     }
 
-    const result: string[] = getNodeIdsInTraversalOrder(graph)
+    const result: readonly string[] = getNodeIdsInTraversalOrder(graph)
 
     // D should only appear once (first time visited via B)
     expect(result).toEqual(['A', 'B', 'D', 'C'])
@@ -83,7 +83,7 @@ describe('getNodeIdsInTraversalOrder', () => {
       }
     }
 
-    const result: string[] = getNodeIdsInTraversalOrder(graph)
+    const result: readonly string[] = getNodeIdsInTraversalOrder(graph)
 
     // Should include all nodes, roots processed in object key order
     expect(result.length).toBe(4)
@@ -106,7 +106,7 @@ describe('getNodeIdsInTraversalOrder', () => {
       }
     }
 
-    const result: string[] = getNodeIdsInTraversalOrder(graph)
+    const result: readonly string[] = getNodeIdsInTraversalOrder(graph)
 
     // In a pure cycle, neither node is a root, so result is empty
     expect(result).toEqual([])
@@ -125,7 +125,7 @@ describe('getNodeIdsInTraversalOrder', () => {
       }
     }
 
-    const result: string[] = getNodeIdsInTraversalOrder(graph)
+    const result: readonly string[] = getNodeIdsInTraversalOrder(graph)
 
     // Depth-first traversal order
     expect(result).toEqual([

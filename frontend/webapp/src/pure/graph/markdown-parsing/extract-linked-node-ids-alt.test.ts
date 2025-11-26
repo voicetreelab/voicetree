@@ -19,7 +19,7 @@ describe('extractLinkedNodeIds', () => {
 
   it('should extract linked node IDs by node ID directly', () => {
     const content: "See [[node-a]] and [[node-b]]" = 'See [[node-a]] and [[node-b]]'
-    const nodes: { 'node-a': GraphNode; 'node-b': GraphNode; } = {
+    const nodes: { readonly 'node-a': GraphNode; readonly 'node-b': GraphNode; } = {
       'node-a': createNode('node-a'),
       'node-b': createNode('node-b')
     }
@@ -34,7 +34,7 @@ describe('extractLinkedNodeIds', () => {
 
   it('should extract linked node IDs by filename with .md extension', () => {
     const content: "See [[node-a.md]] and [[node-b.md]]" = 'See [[node-a.md]] and [[node-b.md]]'
-    const nodes: { 'node-a': GraphNode; 'node-b': GraphNode; } = {
+    const nodes: { readonly 'node-a': GraphNode; readonly 'node-b': GraphNode; } = {
       'node-a': createNode('node-a'),
       'node-b': createNode('node-b')
     }
@@ -51,7 +51,7 @@ describe('extractLinkedNodeIds', () => {
     // BUG REPRODUCTION: This test documents the bug where links with ./ prefix are not resolved
     // The link [[./_179.md]] should resolve to node ID '_179'
     const content: "Parent: [[./_179.md]]" = 'Parent: [[./_179.md]]'
-    const nodes: { _179: GraphNode; '181_Xavier_VS_Code_Integration_Summary_Path_C_Implementation_Analysis': GraphNode; } = {
+    const nodes: { readonly _179: GraphNode; readonly '181_Xavier_VS_Code_Integration_Summary_Path_C_Implementation_Analysis': GraphNode; } = {
       '_179': createNode('_179'),
       '181_Xavier_VS_Code_Integration_Summary_Path_C_Implementation_Analysis': createNode(
         '181_Xavier_VS_Code_Integration_Summary_Path_C_Implementation_Analysis'
@@ -66,7 +66,7 @@ describe('extractLinkedNodeIds', () => {
   it('should handle multiple link formats with ./ prefix', () => {
     // Additional test case for the ./ prefix bug
     const content: "Links: [[./node-a.md]] and [[./node-b.md]] and [[node-c.md]]" = 'Links: [[./node-a.md]] and [[./node-b.md]] and [[node-c.md]]'
-    const nodes: { 'node-a': GraphNode; 'node-b': GraphNode; 'node-c': GraphNode; } = {
+    const nodes: { readonly 'node-a': GraphNode; readonly 'node-b': GraphNode; readonly 'node-c': GraphNode; } = {
       'node-a': createNode('node-a'),
       'node-b': createNode('node-b'),
       'node-c': createNode('node-c')
@@ -84,7 +84,7 @@ describe('extractLinkedNodeIds', () => {
 
   it('should return empty array when no wikilinks found', () => {
     const content: "Just plain text with no links" = 'Just plain text with no links'
-    const nodes: { 'node-a': GraphNode; } = {
+    const nodes: { readonly 'node-a': GraphNode; } = {
       'node-a': createNode('node-a')
     }
 
@@ -95,7 +95,7 @@ describe('extractLinkedNodeIds', () => {
 
   it('should preserve unresolved wikilinks for future node creation', () => {
     const content: "See [[node-a]] and [[non-existent-node]]" = 'See [[node-a]] and [[non-existent-node]]'
-    const nodes: { 'node-a': GraphNode; } = {
+    const nodes: { readonly 'node-a': GraphNode; } = {
       'node-a': createNode('node-a')
     }
 
@@ -109,7 +109,7 @@ describe('extractLinkedNodeIds', () => {
 
   it('should remove duplicate links', () => {
     const content: "See [[node-a]] and [[node-b]] and [[node-a]] again" = 'See [[node-a]] and [[node-b]] and [[node-a]] again'
-    const nodes: { 'node-a': GraphNode; 'node-b': GraphNode; } = {
+    const nodes: { readonly 'node-a': GraphNode; readonly 'node-b': GraphNode; } = {
       'node-a': createNode('node-a'),
       'node-b': createNode('node-b')
     }
@@ -124,7 +124,7 @@ describe('extractLinkedNodeIds', () => {
 
   it('should trim whitespace in link text', () => {
     const content: "See [[  node-a  ]] with extra spaces" = 'See [[  node-a  ]] with extra spaces'
-    const nodes: { 'node-a': GraphNode; } = {
+    const nodes: { readonly 'node-a': GraphNode; } = {
       'node-a': createNode('node-a')
     }
 
@@ -135,7 +135,7 @@ describe('extractLinkedNodeIds', () => {
 
   it('should preserve links even when nodes record is empty', () => {
     const content: "See [[node-a]]" = 'See [[node-a]]'
-    const nodes: {} = {}
+    const nodes: Record<string, never> = {}
 
     const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
 
@@ -152,7 +152,7 @@ describe('extractLinkedNodeIds', () => {
     // This unit test passes (extractLinkedNodeIds works correctly),
     // so the bug must be in how edges are created from the extracted IDs
     const content: "See [[test-new-file.md]]" = 'See [[test-new-file.md]]'
-    const nodes: { 'test-new-file': GraphNode; } = {
+    const nodes: { readonly 'test-new-file': GraphNode; } = {
       'test-new-file': createNode('test-new-file')
     }
 

@@ -22,7 +22,7 @@ describe('extractEdges - subfolder bug reproduction', () => {
     // Node "felix/2.md" links to "felix/1.md"
     // Link text in content is just "[[1.md]]" (without the subfolder prefix)
 
-    const nodes: { 'felix/1': GraphNode; 'felix/2': GraphNode; } = {
+    const nodes: { readonly 'felix/1': GraphNode; readonly 'felix/2': GraphNode; } = {
       'felix/1': createNode('felix/1', '# Node 1 in felix', 'Node 1'),
       'felix/2': createNode('felix/2', 'Parent:\n- is_related_to [[1.md]]', 'Node 2')
     }
@@ -42,7 +42,7 @@ describe('extractEdges - subfolder bug reproduction', () => {
     // Variation: link is just [[1_Positive_Observation_on_System_Performance_Result.md]]
     // Both source and target are in felix/ subfolder
 
-    const nodes: { 'felix/1_Positive_Observation_on_System_Performance_Result': GraphNode; 'felix/2_Unexplained_Bug_Encountered': GraphNode; } = {
+    const nodes: { readonly 'felix/1_Positive_Observation_on_System_Performance_Result': GraphNode; readonly 'felix/2_Unexplained_Bug_Encountered': GraphNode; } = {
       'felix/1_Positive_Observation_on_System_Performance_Result': createNode(
         'felix/1_Positive_Observation_on_System_Performance_Result',
         '# Positive Observation',
@@ -67,7 +67,7 @@ describe('extractEdges - subfolder bug reproduction', () => {
 
   it('should work when using full path in wikilink', () => {
     // Control test: This SHOULD work with full path
-    const nodes: { 'felix/1': GraphNode; 'felix/2': GraphNode; } = {
+    const nodes: { readonly 'felix/1': GraphNode; readonly 'felix/2': GraphNode; } = {
       'felix/1': createNode('felix/1', '# Node 1', 'Node 1'),
       'felix/2': createNode('felix/2', '- related [[felix/1.md]]', 'Node 2')
     }

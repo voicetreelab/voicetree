@@ -93,7 +93,7 @@ function randomChars(number: number): string {
     ).join('');
 }
 
-export function createNewNodeNoParent(pos: Position) {
+export function createNewNodeNoParent(pos: Position): { readonly newNode: GraphNode; readonly graphDelta: GraphDelta; } {
     const newNode: GraphNode = {
         relativeFilePathIsID: Date.now().toString() + randomChars(3) + ".md", // file with current date time + 3 random characters , //todo doesn't guarantee uniqueness, but tis good enough
         outgoingEdges: [],

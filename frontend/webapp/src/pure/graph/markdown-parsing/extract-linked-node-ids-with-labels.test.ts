@@ -29,7 +29,7 @@ describe('extractLinkedNodeIds - relationship labels integration', () => {
 
 This references [[intro]] and extends [[architecture]].`
 
-      const nodes: { intro: GraphNode; architecture: GraphNode; } = {
+      const nodes: { readonly intro: GraphNode; readonly architecture: GraphNode; } = {
         'intro': createNode('intro'),
         'architecture': createNode('architecture')
       }
@@ -40,13 +40,13 @@ This references [[intro]] and extends [[architecture]].`
       expect(result).toEqual([
         { targetId: 'intro', label: 'This references' },
         { targetId: 'architecture', label: 'This references [[intro]] and extends' }
-      ] as Edge[])
+      ] as readonly Edge[])
     })
 
     it('should extract empty label when wikilink has no preceding text', () => {
       const content: "See [[node-a]] for details." = `See [[node-a]] for details.`
 
-      const nodes: { 'node-a': GraphNode; } = {
+      const nodes: { readonly 'node-a': GraphNode; } = {
         'node-a': createNode('node-a')
       }
 
@@ -54,7 +54,7 @@ This references [[intro]] and extends [[architecture]].`
 
       expect(result).toEqual([
         { targetId: 'node-a', label: 'See' }
-      ] as Edge[])
+      ] as readonly Edge[])
     })
 
     it('should handle mixed labeled and unlabeled links', () => {
@@ -65,7 +65,7 @@ This references [[intro]] and extends [[architecture]].`
 - extends [[core]]
 `
 
-      const nodes: { 'plain-link': GraphNode; intro: GraphNode; 'another-plain': GraphNode; core: GraphNode; } = {
+      const nodes: { readonly 'plain-link': GraphNode; readonly intro: GraphNode; readonly 'another-plain': GraphNode; readonly core: GraphNode; } = {
         'plain-link': createNode('plain-link'),
         'intro': createNode('intro'),
         'another-plain': createNode('another-plain'),
@@ -80,13 +80,13 @@ This references [[intro]] and extends [[architecture]].`
         { targetId: 'intro', label: 'references' },
         { targetId: 'another-plain', label: '-' },
         { targetId: 'core', label: 'extends' }
-      ] as Edge[])
+      ] as readonly Edge[])
     })
 
     it('should extract multi-word relationship labels', () => {
       const content: "This is a child of [[parent]] and builds upon [[foundation]]." = `This is a child of [[parent]] and builds upon [[foundation]].`
 
-      const nodes: { parent: GraphNode; foundation: GraphNode; } = {
+      const nodes: { readonly parent: GraphNode; readonly foundation: GraphNode; } = {
         'parent': createNode('parent'),
         'foundation': createNode('foundation')
       }
@@ -96,7 +96,7 @@ This references [[intro]] and extends [[architecture]].`
       expect(result).toEqual([
         { targetId: 'parent', label: 'This is a child of' },
         { targetId: 'foundation', label: 'This is a child of [[parent]] and builds upon' }
-      ] as Edge[])
+      ] as readonly Edge[])
     })
 
     it('should handle bullet list format with relationship labels', () => {
@@ -110,7 +110,7 @@ Children:
 - extends functionality [[child-2]]
 `
 
-      const nodes: { 'parent-node': GraphNode; 'child-1': GraphNode; 'child-2': GraphNode; } = {
+      const nodes: { readonly 'parent-node': GraphNode; readonly 'child-1': GraphNode; readonly 'child-2': GraphNode; } = {
         'parent-node': createNode('parent-node'),
         'child-1': createNode('child-1'),
         'child-2': createNode('child-2')
@@ -122,13 +122,13 @@ Children:
         { targetId: 'parent-node', label: 'is child of' },
         { targetId: 'child-1', label: 'has implementation' },
         { targetId: 'child-2', label: 'extends functionality' }
-      ] as Edge[])
+      ] as readonly Edge[])
     })
 
     it('should trim whitespace from relationship labels', () => {
       const content: "   references   [[node]]  " = `   references   [[node]]  `
 
-      const nodes: { node: GraphNode; } = {
+      const nodes: { readonly node: GraphNode; } = {
         'node': createNode('node')
       }
 
@@ -136,7 +136,7 @@ Children:
 
       expect(result).toEqual([
         { targetId: 'node', label: 'references' }
-      ] as Edge[])
+      ] as readonly Edge[])
     })
 
     it('should handle relationship labels with special characters', () => {
@@ -146,7 +146,7 @@ Children:
 - related-to: [[related]]
 `
 
-      const nodes: { type: GraphNode; whole: GraphNode; related: GraphNode; } = {
+      const nodes: { readonly type: GraphNode; readonly whole: GraphNode; readonly related: GraphNode; } = {
         'type': createNode('type'),
         'whole': createNode('whole'),
         'related': createNode('related')
@@ -158,7 +158,7 @@ Children:
         { targetId: 'type', label: 'is-a' },
         { targetId: 'whole', label: 'part_of' },
         { targetId: 'related', label: 'related-to:' }
-      ] as Edge[])
+      ] as readonly Edge[])
     })
 
     it('should extract only text on same line as relationship label', () => {
@@ -170,7 +170,7 @@ It eventually references [[node-a]].
 And then continues with more text.
 `
 
-      const nodes: { 'node-a': GraphNode; } = {
+      const nodes: { readonly 'node-a': GraphNode; } = {
         'node-a': createNode('node-a')
       }
 
@@ -178,7 +178,7 @@ And then continues with more text.
 
       expect(result).toEqual([
         { targetId: 'node-a', label: 'It eventually references' }
-      ] as Edge[])
+      ] as readonly Edge[])
     })
 
     it('should preserve duplicate removal with labeled edges', () => {
@@ -188,7 +188,7 @@ And then continues with more text.
 - [[intro]]
 `
 
-      const nodes: { intro: GraphNode; } = {
+      const nodes: { readonly intro: GraphNode; } = {
         'intro': createNode('intro')
       }
 
@@ -197,12 +197,12 @@ And then continues with more text.
       // Should keep first occurrence with its label
       expect(result).toEqual([
         { targetId: 'intro', label: 'references' }
-      ] as Edge[])
+      ] as readonly Edge[])
     })
 
     it('should handle empty content', () => {
       const content: "" = ''
-      const nodes: { node: GraphNode; } = {
+      const nodes: { readonly node: GraphNode; } = {
         'node': createNode('node')
       }
 
@@ -217,7 +217,7 @@ And then continues with more text.
 - extends [[non-existent]]
 `
 
-      const nodes: { existing: GraphNode; } = {
+      const nodes: { readonly existing: GraphNode; } = {
         'existing': createNode('existing')
       }
 
@@ -226,7 +226,7 @@ And then continues with more text.
       expect(result).toEqual([
         { targetId: 'existing', label: 'references' },
         { targetId: 'non-existent', label: 'extends' }
-      ] as Edge[])
+      ] as readonly Edge[])
     })
 
     it('should extract label from user markdown format with Parent: section', () => {
@@ -244,7 +244,7 @@ _Links:_
 Parent:
 - is_a_prerequisite_for [[3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation.md]]`
 
-      const nodes: { '3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation': GraphNode; } = {
+      const nodes: { readonly '3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation': GraphNode; } = {
         '3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation': createNode('3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation')
       }
 
@@ -252,7 +252,7 @@ Parent:
 
       expect(result).toEqual([
         { targetId: '3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation', label: 'is_a_prerequisite_for' }
-      ] as Edge[])
+      ] as readonly Edge[])
     })
 
     it('DEBUGGING: should extract is_a_prerequisite_for label from real user file', () => {
@@ -271,7 +271,7 @@ _Links:_
 Parent:
 - is_a_prerequisite_for [[3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation.md]]`
 
-      const nodes: { '3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation': GraphNode; } = {
+      const nodes: { readonly '3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation': GraphNode; } = {
         '3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation': createNode('3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation')
       }
 
@@ -283,7 +283,7 @@ Parent:
       // This should extract the label, but currently doesn't
       expect(result).toEqual([
         { targetId: '3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation', label: 'is_a_prerequisite_for' }
-      ] as Edge[])
+      ] as readonly Edge[])
     })
   })
 
@@ -291,7 +291,7 @@ Parent:
     it('should extract labels with absolute path wikilinks', () => {
       const content: "references [[/Users/user/vault/folder/file.md]]" = 'references [[/Users/user/vault/folder/file.md]]'
 
-      const nodes: { 'folder/file': GraphNode; } = {
+      const nodes: { readonly 'folder/file': GraphNode; } = {
         'folder/file': createNode('folder/file')
       }
 
@@ -299,13 +299,13 @@ Parent:
 
       expect(result).toEqual([
         { targetId: 'folder/file', label: 'references' }
-      ] as Edge[])
+      ] as readonly Edge[])
     })
 
     it('should extract labels with relative path wikilinks', () => {
       const content: "extends [[../other/node.md]]" = 'extends [[../other/node.md]]'
 
-      const nodes: { 'other/node': GraphNode; } = {
+      const nodes: { readonly 'other/node': GraphNode; } = {
         'other/node': createNode('other/node')
       }
 
@@ -313,7 +313,7 @@ Parent:
 
       expect(result).toEqual([
         { targetId: 'other/node', label: 'extends' }
-      ] as Edge[])
+      ] as readonly Edge[])
     })
   })
 })

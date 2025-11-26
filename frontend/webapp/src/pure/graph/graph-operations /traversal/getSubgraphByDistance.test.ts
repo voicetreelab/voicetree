@@ -17,7 +17,7 @@ describe('getSubgraphByDistance', () => {
     }
   })
 
-  const toEdges: (ids: readonly string[]) => { targetId: string; label: string; }[] = (ids: readonly string[]) => ids.map(targetId => ({ targetId, label: '' }))
+  const toEdges: (ids: readonly string[]) => readonly { readonly targetId: string; readonly label: string; }[] = (ids: readonly string[]) => ids.map(targetId => ({ targetId, label: '' }))
 
   describe('basic functionality', () => {
     it('should return only the start node when no neighbors within distance', () => {
@@ -318,8 +318,8 @@ describe('getSubgraphByDistance', () => {
         }
       }
 
-      const originalAEdges: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = [...graph.nodes['A'].outgoingEdges]
-      const originalBEdges: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = [...graph.nodes['B'].outgoingEdges]
+      const originalAEdges: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = [...graph.nodes['A'].outgoingEdges]
+      const originalBEdges: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = [...graph.nodes['B'].outgoingEdges]
 
       getSubgraphByDistance(graph, 'A', 7)
 

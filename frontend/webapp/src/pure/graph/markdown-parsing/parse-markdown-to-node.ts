@@ -100,7 +100,7 @@ function extractAdditionalYAMLProps(
     rawYAMLData: Record<string, unknown>,
     keysWithExplicitFields: ReadonlySet<string>
 ): ReadonlyMap<string, string> {
-    const additionalProps: Map<string, string> = Object.entries(rawYAMLData).reduce((acc, [key, value]) => {
+    const additionalProps: ReadonlyMap<string, string> = Object.entries(rawYAMLData).reduce((acc, [key, value]) => {
         if (!keysWithExplicitFields.has(key) && value !== undefined && value !== null) {
             acc.set(key, valueToString(value))
         }
@@ -120,7 +120,7 @@ export function parseMarkdownToGraphNode(content: string, filename: string, grap
             return error
         }
     )
-    const parsed: { content: string; data: Record<string, unknown>; } = E.getOrElse(() => ({ content, data: {} as Record<string, unknown> }))(parseResult)
+    const parsed: { readonly content: string; readonly data: Record<string, unknown>; } = E.getOrElse(() => ({ content, data: {} as Record<string, unknown> }))(parseResult)
     const contentWithoutFrontmatter: string = parsed.content
 
     // Extract frontmatter fields directly from raw YAML data

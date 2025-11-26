@@ -23,7 +23,7 @@ import { mapFSEventsToGraphDelta } from '@/pure/graph/mapFSEventsToGraphDelta'
  */
 
 describe('Progressive Edge Validation - Unified Behavior', () => {
-  const testVaultState: { path: string; } = { path: '' }
+  const testVaultState: { readonly path: string; } = { path: '' }
 
   beforeAll(async () => {
     const tmpDir: string = await fs.mkdtemp(path.join(os.tmpdir(), 'edge-validation-test-'))
@@ -301,7 +301,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       await fs.mkdir(incrementalVaultPath, { recursive: true })
 
       // Add files one by one using mapFSEventsToGraphDelta
-      const files: { name: string; content: string; }[] = [
+      const files: readonly { readonly name: string; readonly content: string; }[] = [
         { name: 'a.md', content: '# A\n\n- links [[b]]' },
         { name: 'b.md', content: '# B\n\n- links [[c]]' },
         { name: 'c.md', content: '# C' }
@@ -354,7 +354,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       await fs.mkdir(incrementalVaultPath, { recursive: true })
 
       // Add b first, then a
-      const files: { name: string; content: string; }[] = [
+      const files: readonly { readonly name: string; readonly content: string; }[] = [
         { name: 'b.md', content: '# B' },
         { name: 'a.md', content: '# A\n\n- links [[b]]' }
       ]
@@ -435,7 +435,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
 
       // Verify: All edges preserved as raw text
       expect(graph.nodes['source.md'].outgoingEdges).toHaveLength(3)
-      expect(graph.nodes['source.md'].outgoingEdges.map((e: { targetId: string }) => e.targetId)).toEqual(['a', 'b', 'c'])
+      expect(graph.nodes['source.md'].outgoingEdges.map((e: { readonly targetId: string }) => e.targetId)).toEqual(['a', 'b', 'c'])
 
       await fs.rm(vaultPath, { recursive: true })
     })

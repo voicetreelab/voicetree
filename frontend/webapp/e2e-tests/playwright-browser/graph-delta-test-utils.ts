@@ -124,11 +124,13 @@ export function createTestGraphDelta(): GraphDelta {
       nodeToUpsert: {
         relativeFilePathIsID: 'test-node-1.md',
         contentWithoutYamlOrLinks: '# Introduction\\nThis is the introduction node.',
-        outgoingEdges: ['test-node-2.md'],
+        outgoingEdges: [{ targetId: 'test-node-2.md', label: '' }],
         nodeUIMetadata: {
           title: 'Introduction',
           color: { _tag: 'None' } as const,
-          position: { _tag: 'Some', value: { x: 100, y: 100 } } as const
+          position: { _tag: 'Some', value: { x: 100, y: 100 } } as const,
+          additionalYAMLProps: new Map(),
+          isContextNode: false
         }
       }
     },
@@ -137,11 +139,13 @@ export function createTestGraphDelta(): GraphDelta {
       nodeToUpsert: {
         relativeFilePathIsID: 'test-node-2.md',
         contentWithoutYamlOrLinks: '# Architecture\\nArchitecture documentation.',
-        outgoingEdges: ['test-node-3.md'],
+        outgoingEdges: [{ targetId: 'test-node-3.md', label: '' }],
         nodeUIMetadata: {
           title: 'Architecture',
           color: { _tag: 'None' } as const,
-          position: { _tag: 'Some', value: { x: 300, y: 150 } } as const
+          position: { _tag: 'Some', value: { x: 300, y: 150 } } as const,
+          additionalYAMLProps: new Map(),
+          isContextNode: false
         }
       }
     },
@@ -154,7 +158,9 @@ export function createTestGraphDelta(): GraphDelta {
         nodeUIMetadata: {
           title: 'Core Principles',
           color: { _tag: 'None' } as const,
-          position: { _tag: 'Some', value: { x: 500, y: 200 } } as const
+          position: { _tag: 'Some', value: { x: 500, y: 200 } } as const,
+          additionalYAMLProps: new Map(),
+          isContextNode: false
         }
       }
     },
@@ -167,7 +173,9 @@ export function createTestGraphDelta(): GraphDelta {
         nodeUIMetadata: {
           title: 'API Design',
           color: { _tag: 'None' } as const,
-          position: { _tag: 'Some', value: { x: 700, y: 250 } } as const
+          position: { _tag: 'Some', value: { x: 700, y: 250 } } as const,
+          additionalYAMLProps: new Map(),
+          isContextNode: false
         }
       }
     },
@@ -180,7 +188,9 @@ export function createTestGraphDelta(): GraphDelta {
         nodeUIMetadata: {
           title: 'Testing Guide',
           color: { _tag: 'None' } as const,
-          position: { _tag: 'Some', value: { x: 900, y: 300 } } as const
+          position: { _tag: 'Some', value: { x: 900, y: 300 } } as const,
+          additionalYAMLProps: new Map(),
+          isContextNode: false
         }
       }
     }
@@ -198,7 +208,43 @@ export function createTestGraphDelta(): GraphDelta {
  * @param graphDelta - The GraphDelta to send (use createTestGraphDelta() for a default set)
  */
 export async function sendGraphDelta(page: Page, graphDelta: GraphDelta): Promise<void> {
+  // Pre-process delta to convert Maps to arrays for serialization
+  // Maps don't serialize properly through Playwright's evaluate
+  const serializableDelta = graphDelta.map((action) => {
+    if (action.type === 'UpsertNode' && action.nodeToUpsert.nodeUIMetadata.additionalYAMLProps instanceof Map) {
+      return {
+        ...action,
+        nodeToUpsert: {
+          ...action.nodeToUpsert,
+          nodeUIMetadata: {
+            ...action.nodeToUpsert.nodeUIMetadata,
+            // Convert Map to array of entries for serialization
+            additionalYAMLProps: Array.from(action.nodeToUpsert.nodeUIMetadata.additionalYAMLProps.entries())
+          }
+        }
+      };
+    }
+    return action;
+  });
+
   await page.evaluate((delta) => {
+    // Reconstruct Maps from serialized arrays inside browser context
+    const reconstructedDelta = delta.map((action) => {
+      if (action.type === 'UpsertNode' && Array.isArray(action.nodeToUpsert.nodeUIMetadata.additionalYAMLProps)) {
+        return {
+          ...action,
+          nodeToUpsert: {
+            ...action.nodeToUpsert,
+            nodeUIMetadata: {
+              ...action.nodeToUpsert.nodeUIMetadata,
+              additionalYAMLProps: new Map(action.nodeToUpsert.nodeUIMetadata.additionalYAMLProps)
+            }
+          }
+        };
+      }
+      return action;
+    }) as GraphDelta;
+
     const electronAPI = (window as unknown as ExtendedWindow).electronAPI;
     if (!electronAPI) throw new Error('electronAPI not available');
 
@@ -210,7 +256,7 @@ export async function sendGraphDelta(page: Page, graphDelta: GraphDelta): Promis
     };
 
     // Update mock graph state based on delta
-    delta.forEach((nodeDelta) => {
+    reconstructedDelta.forEach((nodeDelta) => {
       if (nodeDelta.type === 'UpsertNode') {
         const node = nodeDelta.nodeToUpsert;
         mockGraphAPI._graphState.nodes[node.relativeFilePathIsID] = node;
@@ -220,12 +266,12 @@ export async function sendGraphDelta(page: Page, graphDelta: GraphDelta): Promis
     });
 
     if (mockGraphAPI._updateCallback) {
-      mockGraphAPI._updateCallback(delta);
+      mockGraphAPI._updateCallback(reconstructedDelta);
       console.log('[Test] Triggered graph update via electronAPI callback');
     } else {
       console.error('[Test] No graph update callback registered!');
     }
-  }, graphDelta);
+  }, serializableDelta);
 }
 
 /**

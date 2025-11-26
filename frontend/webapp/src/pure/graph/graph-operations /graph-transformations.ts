@@ -51,19 +51,19 @@ export function reverseGraphEdges(graph: Graph): Graph {
             const incomingEdges: readonly { readonly sourceId: NodeIdAndFilePath; readonly label: string; }[] = incomingEdgesMap[nodeId] || []
 
             // Get reversed edges (from incoming)
-            const reversedEdges: { targetId: string; label: string; }[] = incomingEdges.map(({ sourceId, label }) => ({
+            const reversedEdges: readonly { readonly targetId: string; readonly label: string; }[] = incomingEdges.map(({ sourceId, label }) => ({
                 targetId: sourceId,
                 label  // Preserve the label from the original edge
             }))
 
             // Preserve original edges that point to non-existent nodes
             // (these can't be reversed because the target node doesn't exist)
-            const edgesToNonExistentNodes: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = node.outgoingEdges.filter(
+            const edgesToNonExistentNodes: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = node.outgoingEdges.filter(
                 edge => !graph.nodes[edge.targetId]
             )
 
             // Combine reversed edges with edges to non-existent nodes
-            const newOutgoingEdges: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = [...reversedEdges, ...edgesToNonExistentNodes]
+            const newOutgoingEdges: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = [...reversedEdges, ...edgesToNonExistentNodes]
 
             return {
                 ...acc,
