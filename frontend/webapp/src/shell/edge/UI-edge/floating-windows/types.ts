@@ -3,15 +3,6 @@
 
 import type {NodeIdAndFilePath} from "@/pure/graph";
 
-/**
- * Offset from parent node to pinned editor position.
- * Used to maintain editor position relative to parent via Cola gap constraints.
- */
-export interface PinOffset {
-    dx: number;  // x offset from parent node center
-    dy: number;  // y offset from parent node center
-}
-
 export type FloatingWindowType = 'MarkdownEditor' | 'Terminal';
 
 export interface TerminalData {

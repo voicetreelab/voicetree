@@ -313,7 +313,7 @@ export function anchorToNode(
     cy : cytoscape.Core,
     floatingWindow: FloatingWindowUIHTMLData,
     parentNodeId: NodeIdAndFilePath,
-    shadowNodeData?: Record<string, unknown>
+    shadowNodeData?: Record<string, unknown> // todo remove. get from type
 ): cytoscape.NodeSingular {
     const {windowElement, titleBar} = floatingWindow;
 
