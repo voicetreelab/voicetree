@@ -1,64 +1,83 @@
 import type { NodeIdAndFilePath, GraphNode, Edge } from '@/pure/graph'
 
 /**
- * Extracts path segments from a path, from longest to shortest.
- * This allows preferring longer, more specific matches over shorter ones.
+ * Extracts path components, normalizing for comparison.
+ * - Filters out empty strings, '.', and '..' (relative path markers)
+ * - Strips .md extension from final component (baseName)
+ *
+ * LIMITATION: Only strips .md extension. This means:
+ * - "foo.md" matches "foo" ✓
+ * - "foo" matches "foo.md" ✓
+ * - "foo.txt" does NOT match "foo.md" ✓ (correct - different extensions)
+ * - "foo" does NOT match "foo.txt" (may be unexpected if we add other file types)
+ *
+ * If we add non-.md file types, we should update this to:
+ * - If link has an extension: require exact extension match
+ * - If link has no extension: match any extension (strip from both)
  *
  * @example
- * extractPathSegments("/Users/user/vault/folder/file.md")
- * => ["Users/user/vault/folder/file.md", "user/vault/folder/file.md", "vault/folder/file.md", "folder/file.md", "file.md"]
- *      // and then append without extension  => ["Users/user/vault/folder/file", "user/vault/folder/file", "vault/folder/file", "folder/file", "file"]
+ * getPathComponents("ctx-nodes/VT/foo.md")  => ["ctx-nodes", "VT", "foo"]
+ * getPathComponents("./foo.md")             => ["foo"]
+ * getPathComponents("../bar/foo.md")        => ["bar", "foo"]
+ * getPathComponents("foo")                  => ["foo"]
  */
-export function extractPathSegments(path: string): readonly string[] {
-  const parts: readonly string[] = path.split('/').filter(p => p.length > 0)
+export function getPathComponents(path: string): readonly string[] {
+  const components: readonly string[] = path
+    .split('/')
+    .filter(p => p !== '' && p !== '.' && p !== '..')
 
-  if (parts.length === 0) return []
+  if (components.length === 0) return []
 
-  // Build segments from longest to shortest (most specific to least specific)
-  const segmentsWithExt: readonly string[] = Array.from(
-    { length: parts.length },
-    (_, i) => parts.slice(i).join('/')
-  )
-
-  // Remove extension from the last part to create "without extension" variants
-  const removeExtension: (s: string) => string = (s: string): string => s.replace(/\.[^.]+$/, '')
-
-  const segmentsWithoutExt: readonly string[] = segmentsWithExt
-    .map(removeExtension)
-    .filter(s => !segmentsWithExt.includes(s)) // Only add if different from with-ext version
-
-  return [...segmentsWithExt, ...segmentsWithoutExt]
+  // Strip .md extension from last component only (immutably)
+  const lastIdx: number = components.length - 1
+  return [
+    ...components.slice(0, lastIdx),
+    components[lastIdx].replace(/\.md$/, '')
+  ]
 }
 
 /**
- * Attempts to match a single path segment against available nodes.
+ * Scores how well a link text matches a node ID.
  *
- * @param segment - Path segment to match
- * @param nodes - All available nodes
- * @returns Matching node ID or undefined
+ * Compares path components from the end (suffix matching).
+ * Higher score = more path components match = tighter/better match.
+ *
+ * - 0 = no match (baseNames differ)
+ * - 1 = baseName matches only
+ * - 2+ = baseName + parent directories match
+ *
+ * @example
+ * linkMatchScore("./foo.md", "a/b/foo.md")       // => 1 (baseName only)
+ * linkMatchScore("b/foo.md", "a/b/foo.md")       // => 2 (b/foo matches)
+ * linkMatchScore("a/b/foo.md", "a/b/foo.md")     // => 3 (full match)
+ * linkMatchScore("./bar.md", "a/b/foo.md")       // => 0 (no match)
+ * linkMatchScore("foo", "a/b/foo.md")            // => 1 (no extension still matches)
  */
-function matchSegment(
-  segment: string,
-  nodes: Record<NodeIdAndFilePath, GraphNode>
-): NodeIdAndFilePath | undefined {
-  // Find ALL nodes where segment matches any of their path segments
-  // (includes exact matches where nodeId === segment)
-  const matches: readonly string[] = Object.keys(nodes).filter((nodeId) => {
-    const nodeSegments: readonly string[] = extractPathSegments(nodeId)
-    return nodeSegments.includes(segment)
+export function linkMatchScore(linkText: string, nodeId: string): number {
+  const linkComponents: readonly string[] = getPathComponents(linkText)
+  const nodeComponents: readonly string[] = getPathComponents(nodeId)
+
+  if (linkComponents.length === 0 || nodeComponents.length === 0) return 0
+
+  // Count matching components from the end (suffix matching)
+  // Use reduceRight-style logic: compare from end, stop at first mismatch
+  const minLen: number = Math.min(linkComponents.length, nodeComponents.length)
+  const indices: readonly number[] = Array.from({ length: minLen }, (_, i: number) => i)
+
+  // Find first mismatch index, then count is that index (or minLen if all match)
+  const firstMismatchIdx: number = indices.findIndex((i: number) => {
+    const linkComp: string = linkComponents[linkComponents.length - 1 - i]
+    const nodeComp: string = nodeComponents[nodeComponents.length - 1 - i]
+    return linkComp !== nodeComp
   })
 
-  if (matches.length === 0) {
-    return undefined
-  }
-
-  // Return most specific match (longest path) for better specificity
-  return [...matches].sort((a: string, b: string) => b.length - a.length)[0]
+  return firstMismatchIdx === -1 ? minLen : firstMismatchIdx
 }
 
 /**
  * Finds the best matching node ID for a given link text.
- * Prefers longer path matches over shorter ones for better specificity.
+ * Uses linkMatchScore to find the node with the highest match score.
+ * When scores are equal, prefers shorter node paths (more specific match).
  *
  * @param linkText - The link text to match (can be absolute path, relative path, or filename)
  * @param nodes - All available nodes
@@ -68,17 +87,20 @@ export function findBestMatchingNode(
   linkText: string,
   nodes: Record<NodeIdAndFilePath, GraphNode>
 ): NodeIdAndFilePath | undefined {
-  // Extract all possible path segments from the link text
-  const linkSegments: readonly string[] = extractPathSegments(linkText)
+  type BestMatch = { readonly nodeId: NodeIdAndFilePath | undefined; readonly score: number }
 
-  if (linkSegments.length === 0) return undefined
-
-  // Try to match each segment, preferring longer matches (first in array)
-  // Use reduce to find first matching segment
-  return linkSegments.reduce<NodeIdAndFilePath | undefined>(
-    (foundMatch, segment) => foundMatch ?? matchSegment(segment, nodes),
-    undefined
+  const result: BestMatch = Object.keys(nodes).reduce<BestMatch>(
+    (best: BestMatch, nodeId: string) => {
+      const score: number = linkMatchScore(linkText, nodeId)
+      // Higher score wins; on tie, prefer shorter path (more specific)
+      const isBetter: boolean = score > best.score ||
+        (score === best.score && score > 0 && best.nodeId !== undefined && nodeId.length < best.nodeId.length)
+      return isBetter ? { nodeId, score } : best
+    },
+    { nodeId: undefined, score: 0 }
   )
+
+  return result.nodeId
 }
 
 /**
@@ -126,8 +148,6 @@ export function extractEdges(
       // Remove list markers (-, *, +) from start
       const label: string = labelText.replace(/^[-*+]\s+/, '')
 
-      // Strip relative path prefixes (./ or ../) for matching TODO SUS, DONT DO THIS
-      // const linkText = rawLinkText.replace(/^\.\.?\//g, '')
 
       // Find best matching node, preferring longer path matches
       // If no match found, use raw link text to preserve for future node creation
@@ -137,12 +157,18 @@ export function extractEdges(
     })
 
   // Remove duplicates while preserving order (by targetId)
-  const seenTargets: Set<string> = new Set<NodeIdAndFilePath>()
-  return edges.filter(edge => {
-    if (seenTargets.has(edge.targetId)) {
-      return false
-    }
-    seenTargets.add(edge.targetId)
-    return true
-  })
+  type Accumulator = { readonly seen: ReadonlySet<string>; readonly result: readonly Edge[] }
+  const deduplicated: Accumulator = edges.reduce<Accumulator>(
+    (acc: Accumulator, edge: { readonly targetId: string; readonly label: string }) => {
+      if (acc.seen.has(edge.targetId)) {
+        return acc
+      }
+      return {
+        seen: new Set([...acc.seen, edge.targetId]),
+        result: [...acc.result, edge]
+      }
+    },
+    { seen: new Set<string>(), result: [] }
+  )
+  return deduplicated.result
 }
