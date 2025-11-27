@@ -35,7 +35,12 @@ import {StyleService} from '@/shell/UI/cytoscape-graph-ui/services/StyleService'
 import {BreathingAnimationService} from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService';
 import {HorizontalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService';
 import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService';
-import {FloatingEditorManager} from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorManager-v2';
+import {
+    setupCommandHover,
+    updateFloatingEditors,
+    closeAllEditors,
+    disposeEditorManager,
+} from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorManager-v2';
 import {HotkeyManager} from './HotkeyManager';
 import {SearchService} from './SearchService';
 import {GraphNavigationService} from './GraphNavigationService';
@@ -72,7 +77,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     private verticalMenuService?: VerticalMenuService; // Initialized in setupCytoscape()
 
     // Managers
-    private floatingWindowManager: FloatingEditorManager;
     private hotkeyManager: HotkeyManager;
     private searchService: SearchService;
     private navigationService: GraphNavigationService;
@@ -119,11 +123,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
         // Initialize managers (after cy is created in render())
         this.hotkeyManager = new HotkeyManager();
-        this.floatingWindowManager = new FloatingEditorManager(
-            this.cy,
-            () => this.getCurrentGraphState(),
-            this.hotkeyManager
-        );
         this.navigationService = new GraphNavigationService(this.cy);
         this.searchService = new SearchService(
             this.cy,
@@ -140,7 +139,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
         // Setup command-hover mode
         // TEMP: Disabled to test if this is causing editor tap issues
-        this.floatingWindowManager.setupCommandHover();
+        setupCommandHover(this.cy);
 
         // Subscribe to graph delta updates via electronAPI
         this.subscribeToGraphUpdates();
@@ -179,7 +178,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             this.searchService.updateSearchData();
 
             // Update floating editor windows with new content from external changes
-            this.floatingWindowManager.updateFloatingEditors(delta);
+            updateFloatingEditors(this.cy, delta);
 
             // Update navigator visibility based on node count
             this.updateNavigatorVisibility();
@@ -191,7 +190,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             clearCytoscapeState(this.cy);
 
             // Close all open floating editors
-            this.floatingWindowManager.closeAllEditors();
+            closeAllEditors(this.cy);
 
             if (this.emptyStateOverlay) {
                 this.emptyStateOverlay.style.display = 'flex';
@@ -406,7 +405,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             onLayoutComplete: () => this.layoutCompleteEmitter.emit(),
             onNodeSelected: (nodeId) => this.nodeSelectedEmitter.emit(nodeId),
             getCurrentGraphState: () => this.getCurrentGraphState(),
-            floatingWindowManager: this.floatingWindowManager
         });
         this.horizontalMenuService = menuServices.horizontalMenuService;
         this.verticalMenuService = menuServices.verticalMenuService;
@@ -441,7 +439,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         this.hotkeyManager.setupGraphHotkeys({
             fitToLastNode: () => this.navigationService.fitToLastNode(),
             cycleTerminal: (direction) => this.navigationService.cycleTerminal(direction),
-            createNewNode: createNewNodeAction(this.cy, this.floatingWindowManager),
+            createNewNode: createNewNodeAction(this.cy),
             runTerminal: runTerminalAction(this.cy)
         });
 
@@ -658,7 +656,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
         // Dispose managers
         this.hotkeyManager.dispose();
-        this.floatingWindowManager.dispose();
+        disposeEditorManager(this.cy);
         this.searchService.dispose();
 
         // Dispose menu services

@@ -17,7 +17,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { computeMergeGraphDelta } from '@/pure/graph/graph-operations/merge/computeMergeGraphDelta'
+import { computeMergeGraphDelta } from '@/pure/graph/graph-operations /merge/computeMergeGraphDelta'
 import { applyGraphDeltaToGraph } from '@/pure/graph'
 import type { Graph, GraphNode, Edge, GraphDelta } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'

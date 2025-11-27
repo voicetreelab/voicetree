@@ -85,16 +85,16 @@ describe('GraphNavigationService', () => {
   });
 
   describe('cycleTerminal', () => {
-    const mockFocus: MockInstance = vi.fn();
+    const mockFocus: MockInstance<() => void> = vi.fn();
 
     beforeEach(() => {
       // Use cy directly
-      // Add terminal nodes (shadow nodes with windowType: 'terminal')
+      // Add terminal nodes (shadow nodes with windowType: 'Terminal')
       cy.add([
         {
           data: {
             id: 'terminal-node1',
-            windowType: 'terminal',
+            windowType: 'Terminal',
             isShadowNode: true,
             label: 'Terminal 1'
           },
@@ -103,7 +103,7 @@ describe('GraphNavigationService', () => {
         {
           data: {
             id: 'terminal-node2',
-            windowType: 'terminal',
+            windowType: 'Terminal',
             isShadowNode: true,
             label: 'Terminal 2'
           },
@@ -112,7 +112,7 @@ describe('GraphNavigationService', () => {
         {
           data: {
             id: 'terminal-node3',
-            windowType: 'terminal',
+            windowType: 'Terminal',
             isShadowNode: true,
             label: 'Terminal 3'
           },
@@ -122,7 +122,7 @@ describe('GraphNavigationService', () => {
 
       // Register mock terminal instance with focus
       mockFocus.mockClear();
-      vanillaFloatingWindowInstances.set('terminal-node2', { dispose: vi.fn(), focus: () => { mockFocus(); } });
+      vanillaFloatingWindowInstances.set('terminal-node2', { dispose: vi.fn(), focus: mockFocus as unknown as () => void });
     });
 
     afterEach(() => {
@@ -218,7 +218,7 @@ describe('GraphNavigationService', () => {
     it('should do nothing when no terminal nodes exist', () => {
       // Use cy directly
       // Remove all terminal nodes
-      cy.remove('node[windowType = "terminal"]');
+      cy.remove('node[windowType = "Terminal"]');
 
       const fitSpy: MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
 
@@ -227,20 +227,20 @@ describe('GraphNavigationService', () => {
       expect(fitSpy).not.toHaveBeenCalled();
     });
 
-    it('should only cycle through nodes with windowType=terminal and isShadowNode=true', () => {
+    it('should only cycle through nodes with windowType=Terminal and isShadowNode=true', () => {
       // Use cy directly
-      // Add a node with windowType terminal but not a shadow node
+      // Add a node with windowType Terminal but not a shadow node
       cy.add({
         data: {
           id: 'terminal-fake',
-          windowType: 'terminal',
+          windowType: 'Terminal',
           isShadowNode: false,
           label: 'Not a real terminal'
         },
         position: { x: 500, y: 100 }
       });
 
-      // Add a shadow node without windowType terminal
+      // Add a shadow node without windowType Terminal
       cy.add({
         data: {
           id: 'shadow-other',
@@ -348,8 +348,8 @@ describe('GraphNavigationService', () => {
       // Use cy directly
       // Add terminals
       cy.add([
-        { data: { id: 'terminal-a', windowType: 'terminal', isShadowNode: true }, position: { x: 400, y: 100 } },
-        { data: { id: 'terminal-b', windowType: 'terminal', isShadowNode: true }, position: { x: 400, y: 200 } }
+        { data: { id: 'terminal-a', windowType: 'Terminal', isShadowNode: true }, position: { x: 400, y: 100 } },
+        { data: { id: 'terminal-b', windowType: 'Terminal', isShadowNode: true }, position: { x: 400, y: 200 } }
       ]);
 
       const fitSpy: MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');

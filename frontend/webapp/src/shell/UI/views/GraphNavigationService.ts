@@ -61,7 +61,7 @@ export class GraphNavigationService {
     const cy: Core = this.cy;
     const terminalNodes: CollectionReturnValue = cy.nodes().filter(
       (node) =>
-        node.data('windowType') === 'terminal' &&
+        node.data('windowType') === 'Terminal' &&
         node.data('isShadowNode') === true
     );
 

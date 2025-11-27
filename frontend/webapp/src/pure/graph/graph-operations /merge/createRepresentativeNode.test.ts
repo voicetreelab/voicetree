@@ -203,11 +203,14 @@ describe('createRepresentativeNode', () => {
         expect(result.contentWithoutYamlOrLinks).toContain('Just some content without a header')
     })
 
-    it('should create representative with no outgoing edges', () => {
+    it('should preserve external outgoing edges and discard internal ones', () => {
         const nodes: readonly GraphNode[] = [
             {
                 relativeFilePathIsID: 'node1.md',
-                outgoingEdges: [{ targetId: 'target1.md', label: 'link1' }],
+                outgoingEdges: [
+                    { targetId: 'external1.md', label: 'external_link1' },
+                    { targetId: 'node2.md', label: 'internal_link' } // internal - should be discarded
+                ],
                 contentWithoutYamlOrLinks: '# Node One',
                 nodeUIMetadata: {
                     color: O.none,
@@ -217,7 +220,7 @@ describe('createRepresentativeNode', () => {
             },
             {
                 relativeFilePathIsID: 'node2.md',
-                outgoingEdges: [{ targetId: 'target2.md', label: 'link2' }],
+                outgoingEdges: [{ targetId: 'external2.md', label: 'external_link2' }],
                 contentWithoutYamlOrLinks: '# Node Two',
                 nodeUIMetadata: {
                     color: O.none,
@@ -229,7 +232,42 @@ describe('createRepresentativeNode', () => {
 
         const result: GraphNode = createRepresentativeNode(nodes, 'merged.md')
 
-        expect(result.outgoingEdges).toEqual([])
+        // Should have both external edges, but not the internal one
+        expect(result.outgoingEdges).toHaveLength(2)
+        expect(result.outgoingEdges).toContainEqual({ targetId: 'external1.md', label: 'external_link1' })
+        expect(result.outgoingEdges).toContainEqual({ targetId: 'external2.md', label: 'external_link2' })
+    })
+
+    it('should deduplicate external edges by targetId', () => {
+        const nodes: readonly GraphNode[] = [
+            {
+                relativeFilePathIsID: 'node1.md',
+                outgoingEdges: [{ targetId: 'shared-target.md', label: 'link_from_node1' }],
+                contentWithoutYamlOrLinks: '# Node One',
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 0, y: 0 }),
+                    additionalYAMLProps: new Map()
+                }
+            },
+            {
+                relativeFilePathIsID: 'node2.md',
+                outgoingEdges: [{ targetId: 'shared-target.md', label: 'link_from_node2' }],
+                contentWithoutYamlOrLinks: '# Node Two',
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map()
+                }
+            }
+        ]
+
+        const result: GraphNode = createRepresentativeNode(nodes, 'merged.md')
+
+        // Should keep only first occurrence when multiple nodes link to same target
+        expect(result.outgoingEdges).toHaveLength(1)
+        expect(result.outgoingEdges[0].targetId).toBe('shared-target.md')
+        expect(result.outgoingEdges[0].label).toBe('link_from_node1') // keeps first
     })
 
     it('should use new node ID as relativeFilePathIsID', () => {

@@ -16,7 +16,7 @@ import {
     anchorToNode,
     disposeFloatingWindow,
     getOrCreateOverlay,
-} from "@/shell/UI/floating-windows/cytoscape-floating-windows-v2";
+} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows-v2";
 import { TerminalVanilla } from "@/shell/UI/floating-windows/terminals/TerminalVanilla";
 import posthog from "posthog-js";
 import {
