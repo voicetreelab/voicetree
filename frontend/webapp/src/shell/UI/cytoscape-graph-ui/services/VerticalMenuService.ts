@@ -1,6 +1,6 @@
 import type {Core, Position as CyPosition} from 'cytoscape';
 import ctxmenu from '@/shell/UI/lib/ctxmenu.js';
-import {deleteNodeFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions";
+import {deleteNodeFromUI, mergeSelectedNodesFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions";
 
 export interface Position {
     x: number;
@@ -99,19 +99,33 @@ export class VerticalMenuService {
             });
         }
 
-        // Delete selected nodes (only show if nodes are selected)
+        // Selection-based actions - always show but disable when no nodes selected
         const selectedCount: number = this.cy!.$(':selected').nodes().size();
-        if (selectedCount > 0) {
-            menuItems.push({
-                text: `Delete Selected (${selectedCount})`,
-                action: async () => {
-                    const selectedNodeIds: string[] = this.cy!.$(':selected').nodes().map(n => n.id());
-                    for (const id of selectedNodeIds) {
-                        await deleteNodeFromUI(id, this.cy!);
-                    }
-                },
-            });
-        }
+        const noNodesSelected: boolean = selectedCount === 0;
+
+        menuItems.push({
+            text: noNodesSelected ? 'Delete (0 nodes selected)' : `Delete Selected (${selectedCount})`,
+            disabled: noNodesSelected,
+            action: noNodesSelected ? undefined : async () => {
+                const selectedNodeIds: string[] = this.cy!.$(':selected').nodes().map(n => n.id());
+                for (const id of selectedNodeIds) {
+                    await deleteNodeFromUI(id, this.cy!);
+                }
+            },
+        });
+
+        // Merge selected nodes - always show but disable when less than 2 nodes selected
+        const cannotMerge: boolean = selectedCount < 2;
+        menuItems.push({
+            text: cannotMerge
+                ? (noNodesSelected ? 'Merge (0 nodes selected)' : `Merge (${selectedCount} node selected)`)
+                : `Merge Selected (${selectedCount})`,
+            disabled: cannotMerge,
+            action: cannotMerge ? undefined : async () => {
+                const selectedNodeIds: string[] = this.cy!.$(':selected').nodes().map(n => n.id());
+                await mergeSelectedNodesFromUI(selectedNodeIds, this.cy!);
+            },
+        });
 
         return menuItems;
     }
