@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import {
   SonioxClient,
   type ErrorStatus,
@@ -34,7 +34,7 @@ export default function useVoiceTreeClient({
   nonFinalTokens: Token[];
   error: TranscriptionError | null;
 } {
-  const sonioxClient: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@types/react/index").RefObject<SonioxClient | null> = useRef<SonioxClient | null>(null);
+  const sonioxClient: RefObject<SonioxClient | null> = useRef<SonioxClient | null>(null);
 
   sonioxClient.current ??= new SonioxClient({
     apiKey,
@@ -46,15 +46,13 @@ export default function useVoiceTreeClient({
   const [error, setError] = useState<TranscriptionError | null>(null);
 
   const startTranscription: () => Promise<void> = useCallback(async () => {
+    // Kill any existing client and create fresh one
+    sonioxClient.current?.cancel();
+    sonioxClient.current = new SonioxClient({ apiKey });
+
     setFinalTokens([]);
     setNonFinalTokens([]);
     setError(null);
-
-    // Check if we have a client
-    if (!sonioxClient.current) {
-      console.error('❌ [VoiceTree] No Soniox client available!');
-      return;
-    }
 
     // First message we send contains configuration. Here we set if we set if we
     // are transcribing or translating. For translation we also set if it is
@@ -107,7 +105,7 @@ export default function useVoiceTreeClient({
         setNonFinalTokens(newNonFinalTokens);
       },
     });
-  }, [onFinished, onStarted, translationConfig]);
+  }, [apiKey, onFinished, onStarted, translationConfig]);
 
   const stopTranscription: () => void = useCallback(() => {
     sonioxClient.current?.stop();
