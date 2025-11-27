@@ -20,7 +20,19 @@ Always include a list of all the file paths you have modified.
 
 files changed: e.g. file1.md, file2.py, etc..
 
-<OPTIONAL> ##DIFF </OPTIONAL>
+<OPTIONAL> ##DIFF 
+
+```<coding_language>
+<code_diff>
+```
+<example_diff>
+```typescript
+-   badCode([]);
++   goodCode([]);
+```
+</example_diff>
+
+</OPTIONAL>
 
 <optional>
 \```mermaid
