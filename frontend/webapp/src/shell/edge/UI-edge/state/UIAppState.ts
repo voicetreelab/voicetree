@@ -132,6 +132,57 @@ export function clearTerminals(): void {
 }
 
 // =============================================================================
+// Derived Editor Queries
+// =============================================================================
+
+/**
+ * Get the current hover editor (editor without anchor).
+ * Hover editors have anchoredToNodeId = O.none, while permanent editors have O.some(nodeId).
+ * This is derived state - no separate tracking needed.
+ */
+export function getHoverEditor(): Option<EditorData> {
+    for (const editor of editors.values()) {
+        if (O.isNone(editor.anchoredToNodeId)) {
+            return O.some(editor);
+        }
+    }
+    return O.none;
+}
+
+// =============================================================================
+// Awaiting UI Saved Content (for race condition handling in editor save flow)
+// =============================================================================
+
+/**
+ * Tracks content that we're saving from the UI-edge to prevent feedback loop.
+ * Used by updateFloatingEditors to ignore changes we initiated.
+ *
+ * Flow 1 (external fs change): fs -> updateFloatingEditors (set awaiting) -> onChange DONT SAVE, clear awaiting
+ * Flow 2 (our UI change): onChange -> set awaiting -> fs -> updateFloatingEditors DONT SET, clear awaiting
+ */
+const awaitingUISavedContent: Map<NodeIdAndFilePath, string> = new Map();
+
+export function getAwaitingUISavedContent(): Map<NodeIdAndFilePath, string> {
+    return awaitingUISavedContent;
+}
+
+export function setAwaitingUISavedContent(nodeId: NodeIdAndFilePath, content: string): void {
+    awaitingUISavedContent.set(nodeId, content);
+}
+
+export function getAwaitingContent(nodeId: NodeIdAndFilePath): string | undefined {
+    return awaitingUISavedContent.get(nodeId);
+}
+
+export function deleteAwaitingContent(nodeId: NodeIdAndFilePath): void {
+    awaitingUISavedContent.delete(nodeId);
+}
+
+export function clearAwaitingUISavedContent(): void {
+    awaitingUISavedContent.clear();
+}
+
+// =============================================================================
 // Legacy: vanillaFloatingWindowInstances (to be removed in Phase 3+)
 // =============================================================================
 

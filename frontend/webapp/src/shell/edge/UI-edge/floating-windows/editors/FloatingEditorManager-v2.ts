@@ -1,10 +1,10 @@
 /**
- * FloatingEditorManager V2 - Using types-v2 and cytoscape-floating-windows-v2
+ * FloatingEditorManager V2 - Fully Functional (No Classes)
  *
- * Rewritten to use:
+ * Uses:
  * - EditorData from types-v2.ts (flat type with derived IDs)
  * - createWindowChrome, anchorToNode, disposeFloatingWindow from cytoscape-floating-windows-v2.ts
- * - addEditor, removeEditor, getEditorByNodeId from UIAppState.ts
+ * - addEditor, removeEditor, getEditorByNodeId, getHoverEditor from UIAppState.ts
  *
  * Keeps battle-tested save logic:
  * - awaitingUISavedContent pattern for race condition handling
@@ -15,9 +15,8 @@ import type cytoscape from 'cytoscape';
 import type { Core } from 'cytoscape';
 import * as O from 'fp-ts/lib/Option.js';
 
-import type { Graph, GraphDelta, NodeIdAndFilePath, GraphNode } from '@/pure/graph';
+import type { GraphDelta, NodeIdAndFilePath, GraphNode } from '@/pure/graph';
 import type { Position } from '@/shell/UI/views/IVoiceTreeGraphView';
-import type { HotkeyManager } from '@/shell/UI/views/HotkeyManager';
 
 import {
     createEditorData,
@@ -34,13 +33,17 @@ import {
     attachCloseHandler,
     getOrCreateOverlay,
     getDefaultDimensions,
-} from '@/shell/UI/floating-windows/cytoscape-floating-windows-v2';
+} from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows-v2';
 
 import {
     addEditor,
     getEditorByNodeId,
     getEditors,
+    getHoverEditor,
     vanillaFloatingWindowInstances,
+    getAwaitingContent,
+    setAwaitingUISavedContent,
+    deleteAwaitingContent,
 } from '@/shell/edge/UI-edge/state/UIAppState';
 
 import { CodeMirrorEditorView } from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
@@ -50,13 +53,7 @@ import { fromNodeToContentWithWikilinks } from '@/pure/graph/markdown-writing/no
 import { getNodeTitle } from '@/pure/graph/markdown-parsing';
 
 // =============================================================================
-// Types
-// =============================================================================
-
-type GetGraphState = () => Graph;
-
-// =============================================================================
-// Create Floating Editor (standalone function)
+// Create Floating Editor
 // =============================================================================
 
 /**
@@ -65,13 +62,11 @@ type GetGraphState = () => Graph;
  *
  * @param cy - Cytoscape instance
  * @param nodeId - ID of the node to edit (used to fetch content and derive editor ID)
- * @param awaitingUISavedContent - Map to track content being saved from UI-edge to prevent feedback loop
- * @param anchoredToNodeId - Optional node to anchor to (O.some for anchored, O.none for hover)
+ * @param anchoredToNodeId - Optional node to anchor to (set for anchored, undefined for hover)
  */
 export async function createFloatingEditor(
     cy: cytoscape.Core,
     nodeId: NodeIdAndFilePath,
-    awaitingUISavedContent: Map<NodeIdAndFilePath, string>,
     anchoredToNodeId: NodeIdAndFilePath | undefined
 ): Promise<EditorData | undefined> {
     // Check if editor already exists for this node
@@ -122,8 +117,8 @@ export async function createFloatingEditor(
     editor.onChange((newContent: string): void => {
         void (async (): Promise<void> => {
             // Skip if this onChange wasn't by the user, but rather an externalChange, so fs would already have it
-            if (awaitingUISavedContent.get(nodeId) === newContent) {
-                awaitingUISavedContent.delete(nodeId);
+            if (getAwaitingContent(nodeId) === newContent) {
+                deleteAwaitingContent(nodeId);
                 return;
             }
             // IMPORTANT THE TWO PATHS WE ARE TAKING CARE OF HERE ARE
@@ -132,7 +127,7 @@ export async function createFloatingEditor(
 
             console.log('[createFloatingEditor-v2] Saving editor content for node:', nodeId);
             // Track this content so we can ignore it when it comes back from filesystem
-            awaitingUISavedContent.set(nodeId, newContent);
+            setAwaitingUISavedContent(nodeId, newContent);
             await modifyNodeContentFromUI(nodeId, newContent, cy);
         })();
     });
@@ -169,7 +164,7 @@ export async function createFloatingEditor(
 }
 
 // =============================================================================
-// Close Editor Function
+// Close Editor
 // =============================================================================
 
 /**
@@ -190,250 +185,252 @@ export function closeEditor(cy: Core, editor: EditorData): void {
 }
 
 // =============================================================================
-// FloatingEditorManager Class
+// Close Hover Editor
 // =============================================================================
 
 /**
- * Manages all floating editor windows for the graph
+ * Close the current hover editor (editor without anchor)
  */
-export class FloatingEditorManager {
-    private cy: Core;
+export function closeHoverEditor(cy: Core): void {
+    const hoverEditorOption: O.Option<EditorData> = getHoverEditor();
+    if (O.isNone(hoverEditorOption)) return;
 
-    // Hover mode state - store full EditorData so closeEditor() can be called
-    private currentHoverEditor: EditorData | null = null;
+    console.log('[FloatingEditorManager-v2] Closing command-hover editor');
+    closeEditor(cy, hoverEditorOption.value);
+}
 
-    // Track content that we're saving from the UI-edge to prevent feedback loop
-    private awaitingUISavedContent: Map<NodeIdAndFilePath, string> = new Map();
+// =============================================================================
+// Open Hover Editor
+// =============================================================================
 
-    constructor(
-        cy: Core,
-        _getGraphState: GetGraphState,
-        _hotkeyManager: HotkeyManager
-    ) {
-        this.cy = cy;
+/**
+ * Open a hover editor at the given position
+ */
+async function openHoverEditor(
+    cy: Core,
+    nodeId: NodeIdAndFilePath,
+    nodePos: Position
+): Promise<void> {
+    // Skip if this node already has an editor open (hover or permanent)
+    const existingEditor: O.Option<EditorData> = getEditorByNodeId(nodeId);
+    if (O.isSome(existingEditor)) {
+        console.log('[HoverEditor-v2] Skipping - node already has editor:', nodeId);
+        return;
     }
 
-    // ============================================================================
-    // PUBLIC API
-    // ============================================================================
+    // Close any existing hover editor
+    closeHoverEditor(cy);
 
-    /**
-     * Setup hover mode (hover to show editor)
-     */
-    setupCommandHover(): void {
-        // Listen for node hover
-        this.cy.on('mouseover', 'node', (event: cytoscape.EventObject): void => {
-            void (async (): Promise<void> => {
-                console.log('[HoverEditor-v2] GraphNode mouseover');
+    console.log('[FloatingEditorManager-v2] Creating command-hover editor for node:', nodeId);
 
-                const node: cytoscape.NodeSingular = event.target;
-                const nodeId: string = node.id();
+    try {
+        // Create floating editor with anchoredToNodeId: undefined (hover mode, no shadow node)
+        const editor: EditorData | undefined = await createFloatingEditor(
+            cy,
+            nodeId,
+            undefined // Not anchored - hover mode
+        );
 
-                // Only open hover editor for markdown nodes (nodes with file extensions)
-                // Terminal nodes, shadow nodes, etc. don't have file extensions
-                const hasFileExtension: boolean = /\.\w+$/.test(nodeId);
-                if (!hasFileExtension) {
-                    console.log('[HoverEditor-v2] Skipping non-markdown node:', nodeId);
-                    return;
-                }
-
-                // Open hover editor
-                await this.openHoverEditor(nodeId, node.position());
-            })();
-        });
-    }
-
-    /**
-     * Create a floating editor window
-     * Creates a child shadow node and anchors the editor to it
-     */
-    async createAnchoredFloatingEditor(
-        nodeId: NodeIdAndFilePath
-    ): Promise<void> {
-        try {
-            // Create floating editor window with anchoredToNodeId set
-            const editor: EditorData | undefined = await createFloatingEditor(
-                this.cy,
-                nodeId,
-                this.awaitingUISavedContent,
-                nodeId // Anchor to the same node we're editing
-            );
-
-            // Return early if editor already exists
-            if (!editor) {
-                console.log('[FloatingEditorManager-v2] Editor already exists');
-                return;
-            }
-
-            // Anchor to node using v2 function
-            anchorToNode(this.cy, editor);
-
-        } catch (error) {
-            console.error('[FloatingEditorManager-v2] Error creating floating editor:', error);
-        }
-    }
-
-    /**
-     * Close all open floating editors
-     * Called when graph is cleared
-     */
-    closeAllEditors(): void {
-        const editors: Map<EditorId, EditorData> = getEditors();
-        for (const editor of editors.values()) {
-            closeEditor(this.cy, editor);
-        }
-    }
-
-    /**
-     * Update floating editors based on graph delta
-     * For each node upsert, check if there's an open editor and update its content
-     * Editor shows content WITHOUT YAML - uses fromNodeToContentWithWikilinks
-     */
-    updateFloatingEditors(delta: GraphDelta): void {
-        for (const nodeDelta of delta) {
-            if (nodeDelta.type === 'UpsertNode') {
-                const nodeId: string = nodeDelta.nodeToUpsert.relativeFilePathIsID;
-                const newContent: string = fromNodeToContentWithWikilinks(nodeDelta.nodeToUpsert);
-
-                // Check if there's an open editor for this node
-                const editorOption: O.Option<EditorData> = getEditorByNodeId(nodeId);
-
-                if (O.isSome(editorOption)) {
-                    const editor: EditorData = editorOption.value;
-                    const editorId: EditorId = getEditorId(editor);
-
-                    // Check if this is our own save coming back from the filesystem
-                    const awaiting: string | undefined = this.awaitingUISavedContent.get(nodeId);
-                    if (awaiting) {
-                        console.log('[FloatingEditorManager-v2] Ignoring our own save for node:', nodeId);
-                        if (awaiting === newContent) {
-                            // Handle multiple saves in a row from UI, awaiting A, awaiting AB, awaiting ABC
-                            // They are debounced 400ms, but in case they come out of order we don't want to throw away ABC when we process A
-                            this.awaitingUISavedContent.delete(nodeId);
-                        } else {
-                            // But we also don't want to never register external changes again! So always clear at some point
-                            setTimeout((): void => { this.awaitingUISavedContent.delete(nodeId); }, 1000);
-                        }
-                        continue; // ignore this change, we already have it in editor state
-                    }
-
-                    // Get the editor instance from vanillaFloatingWindowInstances
-                    const editorInstance: { dispose: () => void; focus?: () => void } | undefined =
-                        vanillaFloatingWindowInstances.get(editorId);
-
-                    if (editorInstance && 'setValue' in editorInstance && 'getValue' in editorInstance) {
-                        const cmEditor: CodeMirrorEditorView = editorInstance as CodeMirrorEditorView;
-
-                        // Only update if content has changed to avoid cursor jumps
-                        if (cmEditor.getValue() !== newContent) {
-                            console.log('[FloatingEditorManager-v2] Updating editor content for node:', nodeId);
-                            // VERY IMPORTANT: we now register this save, so we don't infinite loop by calling onChange -> fs
-                            this.awaitingUISavedContent.set(nodeId, newContent);
-                            cmEditor.setValue(newContent);
-                        }
-                    }
-                }
-            } else if (nodeDelta.type === 'DeleteNode') {
-                // Handle node deletion - close the editor if open
-                const nodeId: string = nodeDelta.nodeId;
-                const editorOption: O.Option<EditorData> = getEditorByNodeId(nodeId);
-
-                if (O.isSome(editorOption)) {
-                    console.log('[FloatingEditorManager-v2] Closing editor for deleted node:', nodeId);
-                    closeEditor(this.cy, editorOption.value);
-                }
-            }
-        }
-    }
-
-    /**
-     * Cleanup
-     */
-    dispose(): void {
-        // Close hover editor if open
-        this.closeHoverEditor();
-    }
-
-    // ============================================================================
-    // PRIVATE HELPERS
-    // ============================================================================
-
-    private async openHoverEditor(
-        nodeId: NodeIdAndFilePath,
-        nodePos: Position
-    ): Promise<void> {
-        // Skip if this node already has an editor open (hover or permanent)
-        const existingEditor: O.Option<EditorData> = getEditorByNodeId(nodeId);
-        if (O.isSome(existingEditor)) {
-            console.log('[HoverEditor-v2] Skipping - node already has editor:', nodeId);
+        if (!editor || !editor.ui) {
+            console.log('[FloatingEditorManager-v2] Failed to create hover editor');
             return;
         }
 
-        // Close any existing hover editor
-        this.closeHoverEditor();
+        // Set position manually (no shadow node to sync with)
+        const dimensions: { width: number; height: number } = getDefaultDimensions('Editor');
+        editor.ui.windowElement.style.left = `${nodePos.x - dimensions.width / 2}px`;
+        editor.ui.windowElement.style.top = `${nodePos.y + 10}px`;
 
-        console.log('[FloatingEditorManager-v2] Creating command-hover editor for node:', nodeId);
+        // Close on click outside
+        const handleClickOutside: (e: MouseEvent) => void = (e: MouseEvent): void => {
+            if (editor.ui && !editor.ui.windowElement.contains(e.target as Node)) {
+                console.log('[CommandHover-v2] Click outside detected, closing editor');
+                closeHoverEditor(cy);
+                document.removeEventListener('mousedown', handleClickOutside);
+            }
+        };
 
-        try {
-            // Create floating editor with anchoredToNodeId: undefined (hover mode, no shadow node)
-            const editor: EditorData | undefined = await createFloatingEditor(
-                this.cy,
-                nodeId,
-                this.awaitingUISavedContent,
-                undefined // Not anchored - hover mode
-            );
+        // Add listener after a short delay to prevent immediate closure
+        setTimeout((): void => {
+            document.addEventListener('mousedown', handleClickOutside);
+        }, 100);
 
-            if (!editor || !editor.ui) {
-                console.log('[FloatingEditorManager-v2] Failed to create hover editor');
+    } catch (error) {
+        console.error('[FloatingEditorManager-v2] Error creating hover editor:', error);
+    }
+}
+
+// =============================================================================
+// Setup Command Hover
+// =============================================================================
+
+/**
+ * Setup hover mode (hover to show editor)
+ */
+export function setupCommandHover(cy: Core): void {
+    // Listen for node hover
+    cy.on('mouseover', 'node', (event: cytoscape.EventObject): void => {
+        void (async (): Promise<void> => {
+            console.log('[HoverEditor-v2] GraphNode mouseover');
+
+            const node: cytoscape.NodeSingular = event.target;
+            const nodeId: string = node.id();
+
+            // Only open hover editor for markdown nodes (nodes with file extensions)
+            // Terminal nodes, shadow nodes, etc. don't have file extensions
+            const hasFileExtension: boolean = /\.\w+$/.test(nodeId);
+            if (!hasFileExtension) {
+                console.log('[HoverEditor-v2] Skipping non-markdown node:', nodeId);
                 return;
             }
 
-            // Set position manually (no shadow node to sync with)
-            const dimensions: { width: number; height: number } = getDefaultDimensions('Editor');
-            editor.ui.windowElement.style.left = `${nodePos.x - dimensions.width / 2}px`;
-            editor.ui.windowElement.style.top = `${nodePos.y + 10}px`;
+            // Open hover editor
+            await openHoverEditor(cy, nodeId, node.position());
+        })();
+    });
+}
 
-            // Close on click outside
-            const handleClickOutside: (e: MouseEvent) => void = (e: MouseEvent): void => {
-                if (editor.ui && !editor.ui.windowElement.contains(e.target as Node)) {
-                    console.log('[CommandHover-v2] Click outside detected, closing editor');
-                    this.closeHoverEditor();
-                    document.removeEventListener('mousedown', handleClickOutside);
+// =============================================================================
+// Create Anchored Floating Editor
+// =============================================================================
+
+/**
+ * Create a floating editor window anchored to a node
+ * Creates a child shadow node and anchors the editor to it
+ */
+export async function createAnchoredFloatingEditor(
+    cy: Core,
+    nodeId: NodeIdAndFilePath
+): Promise<void> {
+    try {
+        // Create floating editor window with anchoredToNodeId set
+        const editor: EditorData | undefined = await createFloatingEditor(
+            cy,
+            nodeId,
+            nodeId // Anchor to the same node we're editing
+        );
+
+        // Return early if editor already exists
+        if (!editor) {
+            console.log('[FloatingEditorManager-v2] Editor already exists');
+            return;
+        }
+
+        // Anchor to node using v2 function
+        anchorToNode(cy, editor);
+
+    } catch (error) {
+        console.error('[FloatingEditorManager-v2] Error creating floating editor:', error);
+    }
+}
+
+// =============================================================================
+// Close All Editors
+// =============================================================================
+
+/**
+ * Close all open floating editors
+ * Called when graph is cleared
+ */
+export function closeAllEditors(cy: Core): void {
+    const editors: Map<EditorId, EditorData> = getEditors();
+    for (const editor of editors.values()) {
+        closeEditor(cy, editor);
+    }
+}
+
+// =============================================================================
+// Update Floating Editors
+// =============================================================================
+
+/**
+ * Update floating editors based on graph delta
+ * For each node upsert, check if there's an open editor and update its content
+ * Editor shows content WITHOUT YAML - uses fromNodeToContentWithWikilinks
+ */
+export function updateFloatingEditors(cy: Core, delta: GraphDelta): void {
+    for (const nodeDelta of delta) {
+        if (nodeDelta.type === 'UpsertNode') {
+            const nodeId: string = nodeDelta.nodeToUpsert.relativeFilePathIsID;
+            const newContent: string = fromNodeToContentWithWikilinks(nodeDelta.nodeToUpsert);
+
+            // Check if there's an open editor for this node
+            const editorOption: O.Option<EditorData> = getEditorByNodeId(nodeId);
+
+            if (O.isSome(editorOption)) {
+                const editor: EditorData = editorOption.value;
+                const editorId: EditorId = getEditorId(editor);
+
+                // Check if this is our own save coming back from the filesystem
+                const awaiting: string | undefined = getAwaitingContent(nodeId);
+                if (awaiting) {
+                    console.log('[FloatingEditorManager-v2] Ignoring our own save for node:', nodeId);
+                    if (awaiting === newContent) {
+                        // Handle multiple saves in a row from UI, awaiting A, awaiting AB, awaiting ABC
+                        // They are debounced 400ms, but in case they come out of order we don't want to throw away ABC when we process A
+                        deleteAwaitingContent(nodeId);
+                    } else {
+                        // But we also don't want to never register external changes again! So always clear at some point
+                        setTimeout((): void => { deleteAwaitingContent(nodeId); }, 1000);
+                    }
+                    continue; // ignore this change, we already have it in editor state
                 }
-            };
 
-            // Add listener after a short delay to prevent immediate closure
-            setTimeout((): void => {
-                document.addEventListener('mousedown', handleClickOutside);
-            }, 100);
+                // Get the editor instance from vanillaFloatingWindowInstances
+                const editorInstance: { dispose: () => void; focus?: () => void } | undefined =
+                    vanillaFloatingWindowInstances.get(editorId);
 
-            // Store reference
-            this.currentHoverEditor = editor;
-        } catch (error) {
-            console.error('[FloatingEditorManager-v2] Error creating hover editor:', error);
+                if (editorInstance && 'setValue' in editorInstance && 'getValue' in editorInstance) {
+                    const cmEditor: CodeMirrorEditorView = editorInstance as CodeMirrorEditorView;
+
+                    // Only update if content has changed to avoid cursor jumps
+                    if (cmEditor.getValue() !== newContent) {
+                        console.log('[FloatingEditorManager-v2] Updating editor content for node:', nodeId);
+                        // VERY IMPORTANT: we now register this save, so we don't infinite loop by calling onChange -> fs
+                        setAwaitingUISavedContent(nodeId, newContent);
+                        cmEditor.setValue(newContent);
+                    }
+                }
+            }
+        } else if (nodeDelta.type === 'DeleteNode') {
+            // Handle node deletion - close the editor if open
+            const nodeId: string = nodeDelta.nodeId;
+            const editorOption: O.Option<EditorData> = getEditorByNodeId(nodeId);
+
+            if (O.isSome(editorOption)) {
+                console.log('[FloatingEditorManager-v2] Closing editor for deleted node:', nodeId);
+                closeEditor(cy, editorOption.value);
+            }
         }
     }
+}
 
-    private closeHoverEditor(): void {
-        if (!this.currentHoverEditor) return;
+// =============================================================================
+// Handle Add Node At Position
+// =============================================================================
 
-        console.log('[FloatingEditorManager-v2] Closing command-hover editor');
-        closeEditor(this.cy, this.currentHoverEditor);
-        this.currentHoverEditor = null;
+/**
+ * Handle adding a node at a specific position
+ * Used by ContextMenuService callbacks
+ */
+export async function handleAddNodeAtPosition(cy: Core, position: Position): Promise<void> {
+    try {
+        // Pass position directly to Electron - it will save it immediately
+        const nodeId: string = await createNewEmptyOrphanNodeFromUI(position, cy);
+        await createAnchoredFloatingEditor(cy, nodeId);
+        console.log('[FloatingEditorManager-v2] Creating node:', nodeId);
+    } catch (error) {
+        console.error('[FloatingEditorManager-v2] Error creating standalone node:', error);
     }
+}
 
-    /**
-     * Handle adding a node at a specific position
-     * Made public for use by ContextMenuService callbacks
-     */
-    async handleAddNodeAtPosition(position: Position): Promise<void> {
-        try {
-            // Pass position directly to Electron - it will save it immediately
-            const nodeId: string = await createNewEmptyOrphanNodeFromUI(position, this.cy);
-            await this.createAnchoredFloatingEditor(nodeId);
-            console.log('[FloatingEditorManager-v2] Creating node:', nodeId);
-        } catch (error) {
-            console.error('[FloatingEditorManager-v2] Error creating standalone node:', error);
-        }
-    }
+// =============================================================================
+// Dispose (Cleanup)
+// =============================================================================
+
+/**
+ * Cleanup - close hover editor if open
+ */
+export function disposeEditorManager(cy: Core): void {
+    closeHoverEditor(cy);
 }
