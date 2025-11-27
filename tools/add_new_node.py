@@ -95,7 +95,7 @@ def addNewNode(parent_file, name, markdown_content, relationship_to, color_overr
     # Sanitize markdown content to prevent header rendering issues
     # Only escape headers at the beginning of lines
     # todo don't know why the fuck we were doing this
-    # lines = markdown_content.split('\n')
+    sanitized_content = markdown_content
     # sanitized_lines = []
     # for line in lines:
     #     stripped = line.strip()
@@ -117,12 +117,10 @@ def addNewNode(parent_file, name, markdown_content, relationship_to, color_overr
         title_with_agent = f"{name} ({new_node_id})"
     
     # Escape single quotes in title for YAML safety (double them)
-    yaml_safe_title = title_with_agent.replace("'", "''")
 
     frontmatter_lines = [
         "---",
         f"node_id: {new_node_id}",
-        f"title: '{yaml_safe_title}'",
         f"color: {color}"
     ]
     
@@ -130,6 +128,7 @@ def addNewNode(parent_file, name, markdown_content, relationship_to, color_overr
     frontmatter_lines.append(f"agent_name: {agent_name}")
     
     frontmatter_lines.append("---")
+    frontmatter_lines.append(f"# {title_with_agent}")
     
     # Calculate relative path from vault root for the parent link
     relative_parent_dir = parent_dir.relative_to(vault_dir)
