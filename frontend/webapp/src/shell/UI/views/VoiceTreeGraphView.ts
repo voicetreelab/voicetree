@@ -48,6 +48,8 @@ import {setupBasicCytoscapeEventListeners, setupCytoscape} from './VoiceTreeGrap
 import {applyGraphDeltaToUI} from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI';
 import {clearCytoscapeState} from '@/shell/edge/UI-edge/graph/clearCytoscapeState';
 import {createSettingsEditor} from "@/shell/edge/UI-edge/settings/createSettingsEditor";
+import type {ElectronAPI} from '@/shell/electron';
+import type {UpsertNodeAction} from '@/pure/graph';
 
 import {
     spawnBackupTerminal
@@ -149,7 +151,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
      */
     private subscribeToGraphUpdates(): void {
         // Access electronAPI with type assertion since global Window type may not be recognized
-        const electronAPI: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/electron").ElectronAPI = window.electronAPI;
+        const electronAPI: ElectronAPI = window.electronAPI;
 
         if (!electronAPI?.graph?.onGraphUpdate) {
             console.error('[VoiceTreeGraphView] electronAPI not available, skipping graph subscription');
@@ -165,7 +167,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             applyGraphDeltaToUI(this.cy, delta);
 
             // Track last created node for "fit to last node" hotkey (Space)
-            const lastUpsertedNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").UpsertNodeAction | undefined = delta.filter(d => d.type === 'UpsertNode').pop();
+            const lastUpsertedNode: UpsertNodeAction | undefined = delta.filter(d => d.type === 'UpsertNode').pop();
             if (lastUpsertedNode && lastUpsertedNode.type === 'UpsertNode') {
                 this.navigationService.setLastCreatedNodeId(lastUpsertedNode.nodeToUpsert.relativeFilePathIsID);
             }
@@ -213,7 +215,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
      * Auto-load the last watched folder (if one exists)
      */
     private autoLoadPreviousFolder(): void {
-        const electronAPI: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/electron").ElectronAPI = window.electronAPI;
+        const electronAPI: ElectronAPI = window.electronAPI;
 
         if (!electronAPI?.main?.loadPreviousFolder) {
             console.warn('[VoiceTreeGraphView] loadPreviousFolder not available');

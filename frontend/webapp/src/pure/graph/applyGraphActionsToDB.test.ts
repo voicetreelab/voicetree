@@ -1,14 +1,14 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { apply_graph_deltas_to_db } from '@/shell/edge/main/graph/graphActionsToDBEffects'
-import type { DeleteNode, Env, UpsertNodeAction, GraphNode } from '@/pure/graph/index'
+import type { DeleteNode, Env, UpsertNodeAction, GraphNode, FSWriteEffect, GraphDelta, Graph } from '@/pure/graph/index'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 import { tmpdir } from 'os'
 import path from 'path'
 import { promises as fs } from 'fs'
 import { markdownToTitle } from '@/pure/graph/markdown-parsing/markdown-to-title'
-import { extractFrontmatter } from '@/pure/graph/markdown-parsing/extract-frontmatter'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk'
+import type { FileLimitExceededError } from '@/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce'
 
 describe('apply_graph_deltas_to_db', () => {
   const testVaultPath: string = path.join(tmpdir(), 'test-vault-apply-deltas-to-db')
@@ -30,8 +30,8 @@ describe('apply_graph_deltas_to_db', () => {
 
   // Helper to create a test node
   const createTestNode: (nodeId: string, content: string) => GraphNode = (nodeId: string, content: string): GraphNode => {
-    const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(content)
-    const title: string = markdownToTitle(frontmatter.title, content, nodeId)
+    // Title is derived from Markdown content (single source of truth)
+    const title: string = markdownToTitle(content, nodeId)
     return {
       relativeFilePathIsID: nodeId,
       contentWithoutYamlOrLinks: content,
@@ -55,10 +55,10 @@ describe('apply_graph_deltas_to_db', () => {
       }
 
       // Create effect (pure - no execution)
-      const effect: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").FSWriteEffect<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta> = apply_graph_deltas_to_db([action])
+      const effect: FSWriteEffect<GraphDelta> = apply_graph_deltas_to_db([action])
 
       // Execute effect with environment
-      const result: E.Either<Error, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta> = await effect(testEnv)()
+      const result: E.Either<Error, GraphDelta> = await effect(testEnv)()
 
       expect(E.isRight(result)).toBe(true)
 
@@ -67,15 +67,15 @@ describe('apply_graph_deltas_to_db', () => {
       const fileExists: boolean = await fs.access(filePath).then(() => true).catch(() => false)
       expect(fileExists).toBe(true)
 
-      // Verify file content (frontmatter includes title and isContextNode from nodeUIMetadata)
+      // Verify file content (frontmatter includes isContextNode but NOT title - title is derived from markdown)
       const fileContent: string = await fs.readFile(filePath, 'utf-8')
-      expect(fileContent).toBe('---\ntitle: New Node\nisContextNode: false\n---\n# New Node\n\nThis is content')
+      expect(fileContent).toBe('---\nisContextNode: false\n---\n# New Node\n\nThis is content')
 
       // Verify we can load it back from disk
-      const loadResult: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(testVaultPath))
+      const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(testVaultPath))
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(loadResult)) throw new Error('Expected Right')
-      const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = loadResult.right
+      const graph: Graph = loadResult.right
       // Node IDs include .md extension when loaded from disk
       expect(graph.nodes['node-1.md']).toBeDefined()
       // parseMarkdownToGraphNode strips YAML frontmatter from contentWithoutYamlOrLinks
@@ -89,19 +89,19 @@ describe('apply_graph_deltas_to_db', () => {
         nodeToUpsert: newNode
       }
 
-      const effect: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").FSWriteEffect<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta> = apply_graph_deltas_to_db([action])
-      const result: E.Either<Error, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta> = await effect(testEnv)()
+      const effect: FSWriteEffect<GraphDelta> = apply_graph_deltas_to_db([action])
+      const result: E.Either<Error, GraphDelta> = await effect(testEnv)()
 
       expect(E.isRight(result)).toBe(true)
 
       // Load from disk and verify title
-      const loadResult2: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(testVaultPath))
+      const loadResult2: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(testVaultPath))
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(loadResult2)) throw new Error('Expected Right')
-      const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = loadResult2.right
+      const graph: Graph = loadResult2.right
       // Node IDs include .md extension when loaded from disk
-      const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(graph.nodes['node-2.md'].contentWithoutYamlOrLinks)
-      const title: string = markdownToTitle(frontmatter.title, graph.nodes['node-2.md'].contentWithoutYamlOrLinks, graph.nodes['node-2.md'].relativeFilePathIsID)
+      // Title is derived from Markdown content (single source of truth)
+      const title: string = markdownToTitle(graph.nodes['node-2.md'].contentWithoutYamlOrLinks, graph.nodes['node-2.md'].relativeFilePathIsID)
       expect(title).toBe('My Title')
     })
 
@@ -112,22 +112,22 @@ describe('apply_graph_deltas_to_db', () => {
         nodeToUpsert: newNode
       }
 
-      const effect: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").FSWriteEffect<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta> = apply_graph_deltas_to_db([action])
-      const result: E.Either<Error, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta> = await effect(testEnv)()
+      const effect: FSWriteEffect<GraphDelta> = apply_graph_deltas_to_db([action])
+      const result: E.Either<Error, GraphDelta> = await effect(testEnv)()
 
       expect(E.isRight(result)).toBe(true)
 
       // Load from disk and verify title
-      const loadResult3: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(testVaultPath))
+      const loadResult3: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(testVaultPath))
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(loadResult3)) throw new Error('Expected Right')
-      const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = loadResult3.right
+      const graph: Graph = loadResult3.right
       // Node IDs include .md extension when loaded from disk
       // When content is empty, fromNodeToMarkdownContent writes '---\n---\n' (empty frontmatter)
       // parseMarkdownToGraphNode strips the frontmatter, leaving empty content
       // markdownToTitle falls back to filename when content is empty
-      const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(graph.nodes['node-3.md'].contentWithoutYamlOrLinks)
-      const title: string = markdownToTitle(frontmatter.title, graph.nodes['node-3.md'].contentWithoutYamlOrLinks, graph.nodes['node-3.md'].relativeFilePathIsID)
+      // Title is derived from Markdown content (single source of truth)
+      const title: string = markdownToTitle(graph.nodes['node-3.md'].contentWithoutYamlOrLinks, graph.nodes['node-3.md'].relativeFilePathIsID)
       // Empty content falls back to filename-based title
       expect(title).toBe('node 3')
     })
@@ -139,8 +139,8 @@ describe('apply_graph_deltas_to_db', () => {
         nodeToUpsert: newNode
       }
 
-      const effect: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").FSWriteEffect<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta> = apply_graph_deltas_to_db([action])
-      const result: E.Either<Error, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta> = await effect(testEnv)()
+      const effect: FSWriteEffect<GraphDelta> = apply_graph_deltas_to_db([action])
+      const result: E.Either<Error, GraphDelta> = await effect(testEnv)()
 
       expect(E.isRight(result)).toBe(true)
       if (E.isRight(result)) {
@@ -167,26 +167,26 @@ describe('apply_graph_deltas_to_db', () => {
         nodeToUpsert: updatedNode
       }
 
-      const effect: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").FSWriteEffect<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta> = apply_graph_deltas_to_db([updateAction])
-      const result: E.Either<Error, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta> = await effect(testEnv)()
+      const effect: FSWriteEffect<GraphDelta> = apply_graph_deltas_to_db([updateAction])
+      const result: E.Either<Error, GraphDelta> = await effect(testEnv)()
 
       expect(E.isRight(result)).toBe(true)
 
-      // Verify file was updated on disk (frontmatter includes title and isContextNode from nodeUIMetadata)
+      // Verify file was updated on disk (frontmatter includes isContextNode but NOT title - title is derived from markdown)
       const filePath: string = path.join(testVaultPath, 'node-update-1.md')
       const fileContent: string = await fs.readFile(filePath, 'utf-8')
-      expect(fileContent).toBe('---\ntitle: Updated Title\nisContextNode: false\n---\n# Updated Title\n\nNew content')
+      expect(fileContent).toBe('---\nisContextNode: false\n---\n# Updated Title\n\nNew content')
 
       // Load from disk and verify
-      const loadResult4: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(testVaultPath))
+      const loadResult4: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(testVaultPath))
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(loadResult4)) throw new Error('Expected Right')
-      const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = loadResult4.right
+      const graph: Graph = loadResult4.right
       // Node IDs include .md extension when loaded from disk
       // parseMarkdownToGraphNode strips YAML frontmatter from contentWithoutYamlOrLinks
       expect(graph.nodes['node-update-1.md'].contentWithoutYamlOrLinks).toBe('# Updated Title\n\nNew content')
-      const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(graph.nodes['node-update-1.md'].contentWithoutYamlOrLinks)
-      const title: string = markdownToTitle(frontmatter.title, graph.nodes['node-update-1.md'].contentWithoutYamlOrLinks, graph.nodes['node-update-1.md'].relativeFilePathIsID)
+      // Title is derived from Markdown content (single source of truth)
+      const title: string = markdownToTitle(graph.nodes['node-update-1.md'].contentWithoutYamlOrLinks, graph.nodes['node-update-1.md'].relativeFilePathIsID)
       expect(title).toBe('Updated Title')
     })
 
@@ -205,16 +205,16 @@ describe('apply_graph_deltas_to_db', () => {
         nodeToUpsert: updatedNode
       }
 
-      const effect: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").FSWriteEffect<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta> = apply_graph_deltas_to_db([updateAction])
-      const result: E.Either<Error, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta> = await effect(testEnv)()
+      const effect: FSWriteEffect<GraphDelta> = apply_graph_deltas_to_db([updateAction])
+      const result: E.Either<Error, GraphDelta> = await effect(testEnv)()
 
       expect(E.isRight(result)).toBe(true)
 
       // Load from disk and verify ID is preserved
-      const loadResult5: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(testVaultPath))
+      const loadResult5: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(testVaultPath))
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(loadResult5)) throw new Error('Expected Right')
-      const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = loadResult5.right
+      const graph: Graph = loadResult5.right
       // Node IDs include .md extension when loaded from disk
       expect(graph.nodes['node-update-2.md'].relativeFilePathIsID).toBe('node-update-2.md')
     })
@@ -240,8 +240,8 @@ describe('apply_graph_deltas_to_db', () => {
         nodeId: 'node-delete-1'
       }
 
-      const effect: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").FSWriteEffect<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta> = apply_graph_deltas_to_db([action])
-      const result: E.Either<Error, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta> = await effect(testEnv)()
+      const effect: FSWriteEffect<GraphDelta> = apply_graph_deltas_to_db([action])
+      const result: E.Either<Error, GraphDelta> = await effect(testEnv)()
 
       expect(E.isRight(result)).toBe(true)
 
@@ -250,10 +250,10 @@ describe('apply_graph_deltas_to_db', () => {
       expect(existsAfter).toBe(false)
 
       // Verify it's not in the graph when loaded from disk
-      const loadResult6: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(testVaultPath))
+      const loadResult6: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(testVaultPath))
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(loadResult6)) throw new Error('Expected Right')
-      const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = loadResult6.right
+      const graph: Graph = loadResult6.right
       // Node IDs include .md extension when loaded from disk
       expect(graph.nodes['node-delete-1.md']).toBeUndefined()
     })
@@ -264,8 +264,8 @@ describe('apply_graph_deltas_to_db', () => {
         nodeId: 'non-existent'
       }
 
-      const effect: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").FSWriteEffect<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta> = apply_graph_deltas_to_db([action])
-      const result: E.Either<Error, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta> = await effect(testEnv)()
+      const effect: FSWriteEffect<GraphDelta> = apply_graph_deltas_to_db([action])
+      const result: E.Either<Error, GraphDelta> = await effect(testEnv)()
 
       // Fail fast - deleting non-existent file should fail
       expect(E.isLeft(result)).toBe(true)
@@ -288,8 +288,8 @@ describe('apply_graph_deltas_to_db', () => {
         nodeId: 'node-delete-2'
       }
 
-      const effect: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").FSWriteEffect<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta> = apply_graph_deltas_to_db([action])
-      const result: E.Either<Error, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta> = await effect(testEnv)()
+      const effect: FSWriteEffect<GraphDelta> = apply_graph_deltas_to_db([action])
+      const result: E.Either<Error, GraphDelta> = await effect(testEnv)()
 
       expect(E.isRight(result)).toBe(true)
       if (E.isRight(result)) {
@@ -307,7 +307,7 @@ describe('apply_graph_deltas_to_db', () => {
         nodeToUpsert: newNode
       }
 
-      const effect: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").FSWriteEffect<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta> = apply_graph_deltas_to_db([action])
+      const effect: FSWriteEffect<GraphDelta> = apply_graph_deltas_to_db([action])
 
       // Should be a function (Reader)
       expect(typeof effect).toBe('function')
@@ -352,11 +352,11 @@ describe('apply_graph_deltas_to_db', () => {
       }
 
       // Same effect, different environments
-      const effect: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").FSWriteEffect<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta> = apply_graph_deltas_to_db([action])
+      const effect: FSWriteEffect<GraphDelta> = apply_graph_deltas_to_db([action])
 
       // Can execute with different environments
-      const result1: E.Either<Error, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta> = await effect(env1)()
-      const result2: E.Either<Error, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta> = await effect(env2)()
+      const result1: E.Either<Error, GraphDelta> = await effect(env1)()
+      const result2: E.Either<Error, GraphDelta> = await effect(env2)()
 
       // Both should succeed
       expect(E.isRight(result1)).toBe(true)

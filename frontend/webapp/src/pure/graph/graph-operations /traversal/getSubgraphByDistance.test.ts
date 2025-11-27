@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { getSubgraphByDistance } from '@/pure/graph/graph-operations /traversal/getSubgraphByDistance'
-import type { Graph, GraphNode } from '@/pure/graph'
+import type { Graph, GraphNode, Edge } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
 
 describe('getSubgraphByDistance', () => {
@@ -318,8 +318,8 @@ describe('getSubgraphByDistance', () => {
         }
       }
 
-      const originalAEdges: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = [...graph.nodes['A'].outgoingEdges]
-      const originalBEdges: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = [...graph.nodes['B'].outgoingEdges]
+      const originalAEdges: readonly Edge[] = [...graph.nodes['A'].outgoingEdges]
+      const originalBEdges: readonly Edge[] = [...graph.nodes['B'].outgoingEdges]
 
       getSubgraphByDistance(graph, 'A', 7)
 

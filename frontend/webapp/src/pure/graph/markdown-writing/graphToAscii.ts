@@ -3,7 +3,7 @@
  * Ports the Python `visualize_markdown_tree` logic to TypeScript.
  */
 
-import type { Graph, NodeIdAndFilePath } from '@/pure/graph'
+import type { Graph, NodeIdAndFilePath, GraphNode } from '@/pure/graph'
 import { reverseGraphEdges } from '@/pure/graph/graph-operations /graph-transformations'
 
 /**
@@ -40,7 +40,7 @@ export function graphToAscii(graph: Graph): string {
   // We reverse the graph to identify which nodes have no incoming edges
   const reversedGraph: Graph = reverseGraphEdges(graph)
   const roots: readonly string[] = Object.keys(graph.nodes).filter(nodeId => {
-    const reversedNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = reversedGraph.nodes[nodeId]
+    const reversedNode: GraphNode = reversedGraph.nodes[nodeId]
     return !reversedNode || reversedNode.outgoingEdges.length === 0
   })
 
@@ -56,7 +56,7 @@ export function graphToAscii(graph: Graph): string {
     if (visited.has(nodeId)) return
     visited.add(nodeId)
 
-    const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = graph.nodes[nodeId]
+    const node: GraphNode = graph.nodes[nodeId]
     if (!node) return // Safety check for missing nodes
 
     const title: string = node.nodeUIMetadata.title

@@ -1,5 +1,5 @@
-import type {Core, NodeSingular} from 'cytoscape';
-import type {NodeIdAndFilePath} from "@/pure/graph";
+import type {Core, NodeSingular, Position} from 'cytoscape';
+import type {NodeIdAndFilePath, GraphNode} from "@/pure/graph";
 import {createNewChildNodeFromUI, deleteNodeFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions";
 import {
     spawnTerminalWithNewContextNode
@@ -147,7 +147,7 @@ export class HorizontalMenuService {
             }
 
             // Use graph position (not rendered position) since menu is in the overlay
-            const position: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").Position = node.position();
+            const position: Position = node.position();
 
             this.showMenu(node, position);
         });
@@ -296,7 +296,7 @@ export class HorizontalMenuService {
                 icon: Clipboard,
                 label: 'Copy Content',
                 action: async () => {
-                    const graphNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = await getNodeFromMainToUI(nodeId);
+                    const graphNode: GraphNode = await getNodeFromMainToUI(nodeId);
                     void navigator.clipboard.writeText(graphNode.contentWithoutYamlOrLinks);
                 },
             },

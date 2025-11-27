@@ -1,8 +1,8 @@
-import type {GraphNode, NodeIdAndFilePath} from "@/pure/graph";
+import type {Graph, GraphNode, NodeIdAndFilePath} from "@/pure/graph";
 import {nodeIdToFilePathWithExtension} from "@/pure/graph/markdown-parsing";
 
 export async function getNodeFromMainToUI(nodeId: string): Promise<GraphNode> {
-    const currentGraph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = await window.electronAPI?.main.getGraph() // todo just getNode()
+    const currentGraph: Graph = await window.electronAPI?.main.getGraph() // todo just getNode()
     if (!currentGraph) {
         console.error("NO GRAPH IN STATE")
         throw Error("NO GRAPH IN STATE")

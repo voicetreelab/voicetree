@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useTranscriptionSender } from '@/shell/UI/views/hooks/useTranscriptionSender';
 import { type Token } from '@soniox/speech-to-text-web';
@@ -217,7 +217,7 @@ describe('useTranscriptionSender - Behavioral Tests', () => {
     it('should not update tracking on failed sends', async () => {
       // Suppress console.error for this test since we're intentionally causing an error
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const consoleErrorSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<{ (...data: any[]): void; (message?: any, ...optionalParams: any[]): void; }> = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleErrorSpy: MockInstance<{ (...data: any[]): void; (message?: any, ...optionalParams: any[]): void; }> = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       const { result } = renderHook(() => useTranscriptionSender({ endpoint }));
 

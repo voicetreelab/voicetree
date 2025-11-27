@@ -18,7 +18,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { loadFolder, stopFileWatching, isWatching } from '@/shell/edge/main/graph/watchFolder'
 import { getGraph, setGraph, setVaultPath } from '@/shell/edge/main/state/graph-store'
-import type { GraphDelta } from '@/pure/graph'
+import type { GraphDelta, Graph, GraphNode } from '@/pure/graph'
 import path from 'path'
 import { promises as fs } from 'fs'
 import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths'
@@ -135,15 +135,15 @@ describe('File Watching - Edge Management Tests', () => {
       await waitForFSEvent()
       await waitForCondition(
         () => {
-          const sourceNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output.md']
+          const sourceNode: GraphNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output.md']
           return sourceNode?.outgoingEdges?.some(e => e.targetId === 'test-new-file.md') ?? false
         },
         { maxWaitMs: 1000, errorMessage: 'Edge from 5_Immediate_Test_Observation_No_Output to test-new-file not created' }
       )
 
       // THEN: Edge should be created (IDs always have .md extension)
-      const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = getGraph()
-      const sourceNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = graph.nodes['5_Immediate_Test_Observation_No_Output.md']
+      const graph: Graph = getGraph()
+      const sourceNode: GraphNode = graph.nodes['5_Immediate_Test_Observation_No_Output.md']
 
       expect(sourceNode.outgoingEdges).toBeDefined()
       expect(sourceNode.outgoingEdges.some(e => e.targetId === 'test-new-file.md')).toBe(true)
@@ -182,15 +182,15 @@ describe('File Watching - Edge Management Tests', () => {
       await waitForFSEvent()
       await waitForCondition(
         () => {
-          const sourceNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output.md']
+          const sourceNode: GraphNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output.md']
           return sourceNode?.outgoingEdges?.some(e => e.targetId === 'test-new-file.md') ?? false
         },
         { maxWaitMs: 1000, errorMessage: 'Edge from 5_Immediate_Test_Observation_No_Output to test-new-file not created' }
       )
 
       // THEN: Edge should be created
-      const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = getGraph()
-      const sourceNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = graph.nodes['5_Immediate_Test_Observation_No_Output.md']
+      const graph: Graph = getGraph()
+      const sourceNode: GraphNode = graph.nodes['5_Immediate_Test_Observation_No_Output.md']
       expect(sourceNode.outgoingEdges).toBeDefined()
       expect(sourceNode.outgoingEdges.some(e => e.targetId === 'test-new-file.md')).toBe(true)
     }, 5000)
@@ -246,7 +246,7 @@ Parent:
       await waitForFSEvent()
       await waitForCondition(
         () => {
-          const sourceNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output.md']
+          const sourceNode: GraphNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output.md']
           return sourceNode?.outgoingEdges?.some(e => e.targetId === 'test-new-file.md') ?? false
         },
         { maxWaitMs: 1000, errorMessage: 'Edge not added before removal test' }
@@ -259,15 +259,15 @@ Parent:
       await waitForFSEvent()
       await waitForCondition(
         () => {
-          const sourceNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output']
+          const sourceNode: GraphNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output']
           return !sourceNode?.outgoingEdges?.some(e => e.targetId === 'test-new-file')
         },
         { maxWaitMs: 1000, errorMessage: 'Edge from 5_Immediate_Test_Observation_No_Output to test-new-file not removed' }
       )
 
       // THEN: Edge should be removed
-      const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = getGraph()
-      const sourceNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = graph.nodes['5_Immediate_Test_Observation_No_Output.md']
+      const graph: Graph = getGraph()
+      const sourceNode: GraphNode = graph.nodes['5_Immediate_Test_Observation_No_Output.md']
       expect(sourceNode.outgoingEdges).toBeDefined()
       expect(sourceNode.outgoingEdges.some(e => e.targetId === 'test-new-file.md')).toBe(false)
     }, 5000)
@@ -306,15 +306,15 @@ Parent:
       await waitForFSEvent()
       await waitForCondition(
         () => {
-          const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = getGraph().nodes['test-color-node.md']
+          const node: GraphNode = getGraph().nodes['test-color-node.md']
           return node?.nodeUIMetadata.color._tag === 'Some' && node.nodeUIMetadata.color.value === 'cyan'
         },
         { maxWaitMs: 1000, errorMessage: 'test-color-node not added with color parsed from frontmatter' }
       )
 
       // THEN: Verify color was parsed from frontmatter
-      const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = getGraph()
-      const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = graph.nodes['test-color-node.md']
+      const graph: Graph = getGraph()
+      const node: GraphNode = graph.nodes['test-color-node.md']
 
       expect(node).toBeDefined()
       expect(node.nodeUIMetadata.color._tag).toBe('Some')

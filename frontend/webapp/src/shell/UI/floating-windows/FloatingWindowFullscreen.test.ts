@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import type { Mock } from 'vitest';
 import { FloatingWindowFullscreen } from '@/shell/UI/floating-windows/FloatingWindowFullscreen';
 
 describe('FloatingWindowFullscreen', () => {
@@ -27,9 +28,9 @@ describe('FloatingWindowFullscreen', () => {
 
   it('should toggle between fullscreen and non-fullscreen states', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const requestFullscreenMock: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any> = vi.fn().mockResolvedValue(undefined);
+    const requestFullscreenMock: Mock<(...args: any[]) => any> = vi.fn().mockResolvedValue(undefined);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const exitFullscreenMock: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any> = vi.fn().mockResolvedValue(undefined);
+    const exitFullscreenMock: Mock<(...args: any[]) => any> = vi.fn().mockResolvedValue(undefined);
     container.requestFullscreen = requestFullscreenMock;
     Object.defineProperty(document, 'exitFullscreen', {
       value: exitFullscreenMock,
@@ -57,7 +58,7 @@ describe('FloatingWindowFullscreen', () => {
 
   it('should invoke callback on fullscreen change events', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const callback: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any> = vi.fn();
+    const callback: Mock<(...args: any[]) => any> = vi.fn();
     fullscreen = new FloatingWindowFullscreen(container, callback);
 
     const event: Event = new Event('fullscreenchange');
@@ -68,7 +69,7 @@ describe('FloatingWindowFullscreen', () => {
 
   it('should remove event listeners and not invoke callback after dispose', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const callback: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any> = vi.fn();
+    const callback: Mock<(...args: any[]) => any> = vi.fn();
     fullscreen = new FloatingWindowFullscreen(container, callback);
 
     fullscreen.dispose();

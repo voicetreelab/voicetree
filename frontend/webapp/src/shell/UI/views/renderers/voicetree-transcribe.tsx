@@ -1,5 +1,6 @@
 import type {JSX} from "react";
 import { useState, useEffect, useRef } from "react";
+import type { RefObject } from "react";
 import { cn } from "@/utils/lib/utils";
 import AnimatedMicIcon from "@/shell/UI/views/components/animated-mic-icon";
 import StatusDisplay from "@/shell/UI/views/components/status-display";
@@ -49,10 +50,10 @@ export default function VoiceTreeTranscribe(): JSX.Element {
   });
 
   // Track how many voice tokens we've seen to append new ones only
-  const voiceTokenCountRef: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@types/react/index").RefObject<number> = useRef(0);
+  const voiceTokenCountRef: RefObject<number> = useRef(0);
   // Track if we're currently sending to prevent duplicate sends
-  const isSendingRef: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@types/react/index").RefObject<boolean> = useRef(false);
-  const lastSentCountRef: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@types/react/index").RefObject<number> = useRef(0);
+  const isSendingRef: RefObject<boolean> = useRef(false);
+  const lastSentCountRef: RefObject<number> = useRef(0);
 
   // Append new voice final tokens to our combined list
   useEffect(() => {
@@ -71,7 +72,7 @@ export default function VoiceTreeTranscribe(): JSX.Element {
 
   // Combine all tokens for display
   const allTokens: Token[] = [...allFinalTokens, ...nonFinalTokens];
-  const autoScrollRef: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@types/react/index").RefObject<HTMLDivElement | null> = useAutoScroll(allTokens);
+  const autoScrollRef: RefObject<HTMLDivElement | null> = useAutoScroll(allTokens);
 
   // Show error popup when Soniox fails
   useEffect(() => {

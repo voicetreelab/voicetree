@@ -4,18 +4,19 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import type { Mock } from 'vitest'
 
 // Mock dependencies
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockIpcMainHandle: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any> = vi.fn()
+const mockIpcMainHandle: Mock<(...args: any[]) => any> = vi.fn()
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockApplyGraphDeltaToDB: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any> = vi.fn()
+const mockApplyGraphDeltaToDB: Mock<(...args: any[]) => any> = vi.fn()
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockGetGraph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any> = vi.fn()
+const mockGetGraph: Mock<(...args: any[]) => any> = vi.fn()
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockLoadSettings: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any> = vi.fn()
+const mockLoadSettings: Mock<(...args: any[]) => any> = vi.fn()
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockSaveSettings: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any> = vi.fn()
+const mockSaveSettings: Mock<(...args: any[]) => any> = vi.fn()
 
 vi.mock('electron', () => ({
   ipcMain: {

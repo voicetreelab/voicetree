@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { reverseGraphEdges } from '@/pure/graph/graph-operations /graph-transformations'
-import type { Graph, GraphNode } from '@/pure/graph'
+import type { Graph, GraphNode, Edge } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
 
 describe('graph-transformations', () => {
@@ -114,8 +114,8 @@ describe('graph-transformations', () => {
         }
       }
 
-      const originalAEdges: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = [...graph.nodes['A'].outgoingEdges]
-      const originalBEdges: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = [...graph.nodes['B'].outgoingEdges]
+      const originalAEdges: readonly Edge[] = [...graph.nodes['A'].outgoingEdges]
+      const originalBEdges: readonly Edge[] = [...graph.nodes['B'].outgoingEdges]
 
       reverseGraphEdges(graph)
 

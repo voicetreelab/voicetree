@@ -8,7 +8,7 @@
  * Pure functions that operate on the functional GraphNode type without cytoscape dependencies.
  */
 
-import type { GraphNode } from '@/pure/graph';
+import type { GraphNode, Position } from '@/pure/graph';
 import * as O from 'fp-ts/lib/Option.js';
 
 export const SPAWN_RADIUS: 500 = 500 as const; // pixels from parent
@@ -161,16 +161,16 @@ export function calculateParentAngle(
   }
 
   // Get positions from nodeUIMetadata - return undefined if either position is None
-  const grandparentPosOption: O.Option<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Position> = grandparentNode.nodeUIMetadata.position;
-  const parentPosOption: O.Option<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Position> = parentNode.nodeUIMetadata.position;
+  const grandparentPosOption: O.Option<Position> = grandparentNode.nodeUIMetadata.position;
+  const parentPosOption: O.Option<Position> = parentNode.nodeUIMetadata.position;
 
   if (!O.isSome(grandparentPosOption) || !O.isSome(parentPosOption)) {
     return undefined;
   }
 
   // Extract values from Some<Position>
-  const grandparentPos: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Position = grandparentPosOption.value;
-  const parentPos: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Position = parentPosOption.value;
+  const grandparentPos: Position = grandparentPosOption.value;
+  const parentPos: Position = parentPosOption.value;
 
   // Calculate vector from grandparent to parent
   const dx: number = parentPos.x - grandparentPos.x;

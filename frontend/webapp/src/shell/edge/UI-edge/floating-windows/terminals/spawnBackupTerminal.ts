@@ -1,5 +1,6 @@
 import type {} from '@/shell/electron';
 import type {Core} from "cytoscape";
+import type { Position as CyPosition, CollectionReturnValue } from "cytoscape";
 import type {Position} from "@/pure/graph";
 import {addTerminalToMapState, getNextTerminalCount, getTerminals} from "@/shell/edge/UI-edge/state/UIAppState";
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/types";
@@ -26,7 +27,7 @@ export async function spawnBackupTerminal(cy: Core): Promise<void> {
     const backupCommand: string = `mkdir -p "${watchDir}/../backups" && mv "${watchDir}" "${watchDir}/../backups/${vaultName}-$(date +%Y%m%d-%H%M%S)" && mkdir -p "${watchDir}"`;
 
     // Get position in center of current viewport (where user is looking)
-    const pan: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").Position = cy.pan();
+    const pan: CyPosition = cy.pan();
     const zoom: number = cy.zoom();
     const centerX: number = (cy.width() / 2 - pan.x) / zoom;
     const centerY: number = (cy.height() / 2 - pan.y) / zoom;
@@ -59,14 +60,14 @@ export async function spawnBackupTerminal(cy: Core): Promise<void> {
     // Fit the graph to include the newly spawned terminal
     // Terminal ID will be: backup-terminal-terminal-0
     setTimeout(() => {
-        const terminalNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").CollectionReturnValue = cy.$('#backup-terminal-terminal-0');
+        const terminalNode: CollectionReturnValue = cy.$('#backup-terminal-terminal-0');
         if (terminalNode.length > 0) {
             cy.fit(terminalNode, 50); // 50px padding
         }
     }, 50);
 
     setTimeout(() => {
-        const terminalNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").CollectionReturnValue = cy.$('#backup-terminal-terminal-0');
+        const terminalNode: CollectionReturnValue = cy.$('#backup-terminal-terminal-0');
         if (terminalNode.length > 0) {
             cy.fit(terminalNode, 50); // 50px padding
         }
@@ -81,7 +82,7 @@ export async function spawnTerminalWithSyntheticParent(
     const syntheticNodeId: string = terminalData.attachedToNodeId;
 
     // Create synthetic parent node if it doesn't exist
-    let syntheticNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").CollectionReturnValue = cy.getElementById(syntheticNodeId);
+    let syntheticNode: CollectionReturnValue = cy.getElementById(syntheticNodeId);
     if (syntheticNode.length === 0) {
         syntheticNode = cy.add({
             group: 'nodes',

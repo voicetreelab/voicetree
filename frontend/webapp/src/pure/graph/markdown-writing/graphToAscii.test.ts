@@ -4,6 +4,7 @@ import type { Graph, GraphNode } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk'
+import type { FileLimitExceededError } from '@/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce'
 
 import { EXAMPLE_SMALL_PATH, EXAMPLE_LARGE_PATH } from '@/utils/test-utils/fixture-paths'
 
@@ -148,7 +149,7 @@ describe('graphToAscii', () => {
 
   it('should render example_large fixture - visual output inspection', async () => {
     // Load the real example_large graph from disk
-    const loadResult: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(EXAMPLE_LARGE_PATH))
+    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(EXAMPLE_LARGE_PATH))
     // eslint-disable-next-line functional/no-throw-statements
     if (E.isLeft(loadResult)) throw new Error('Expected Right')
     const graph: Graph = loadResult.right
@@ -173,7 +174,7 @@ describe('graphToAscii', () => {
 
   it('should render example_small fixture - visual output inspection', async () => {
     // Load the real example_small graph from disk
-    const loadResult2: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH))
+    const loadResult2: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH))
     // eslint-disable-next-line functional/no-throw-statements
     if (E.isLeft(loadResult2)) throw new Error('Expected Right')
     const graph: Graph = loadResult2.right

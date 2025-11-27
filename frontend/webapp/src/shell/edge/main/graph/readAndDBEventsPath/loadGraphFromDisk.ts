@@ -2,7 +2,8 @@ import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as O from "fp-ts/lib/Option.js";
 import * as E from "fp-ts/lib/Either.js";
-import type { Graph, FSUpdate } from '@/pure/graph'
+import type { Graph, FSUpdate, GraphDelta } from '@/pure/graph'
+import type { Dirent } from 'fs'
 import { enforceFileLimit, type FileLimitExceededError } from './fileLimitEnforce'
 import { applyPositions } from '@/pure/graph/positioning'
 import { addNodeToGraph } from '@/pure/graph/graphDelta/addNodeToGraph'
@@ -61,7 +62,7 @@ export async function loadGraphFromDisk(vaultPath: O.Option<string>): Promise<E.
             }
 
             // Use unified function (same as incremental!)
-            const delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = addNodeToGraph(fsEvent, vaultPath.value, currentGraph)
+            const delta: GraphDelta = addNodeToGraph(fsEvent, vaultPath.value, currentGraph)
             return applyGraphDeltaToGraph(currentGraph, delta)
         },
         Promise.resolve({ nodes: {} } as Graph)
@@ -79,10 +80,10 @@ export async function loadGraphFromDisk(vaultPath: O.Option<string>): Promise<E.
  */
 async function scanMarkdownFiles(vaultPath: string): Promise<readonly string[]> {
   async function scan(dirPath: string, relativePath = ''): Promise<readonly string[]> {
-    const entries: import("fs").Dirent<string>[] = await fs.readdir(dirPath, { withFileTypes: true })
+    const entries: Dirent<string>[] = await fs.readdir(dirPath, { withFileTypes: true })
 
     // Sort entries by name for deterministic ordering
-    const sortedEntries: import("fs").Dirent<string>[] = entries.sort((a, b) => a.name.localeCompare(b.name))
+    const sortedEntries: Dirent<string>[] = entries.sort((a, b) => a.name.localeCompare(b.name))
 
     const results: (readonly string[])[] = await Promise.all(
       sortedEntries.map(async (entry) => {

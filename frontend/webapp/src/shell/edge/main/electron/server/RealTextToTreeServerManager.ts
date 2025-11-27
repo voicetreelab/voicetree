@@ -7,6 +7,8 @@ import { spawn, ChildProcess } from 'child_process';
 import { findAvailablePort } from '@/shell/edge/main/electron/port-utils';
 import { getBuildConfig } from '@/shell/edge/main/electron/build-config';
 import type { ITextToTreeServerManager } from './ITextToTreeServerManager';
+import type { BuildConfig } from '@/shell/edge/main/electron/build-config';
+import type { Stats } from 'fs';
 
 /**
  * Manages the Python TextToTreeServer backend process.
@@ -74,7 +76,7 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
       this.logStream.write(`Full environment:\n${JSON.stringify(process.env, null, 2)}\n`);
 
       // Get build configuration
-      const config: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/electron/build-config").BuildConfig = getBuildConfig();
+      const config: BuildConfig = getBuildConfig();
 
       // Spawn configuration based on dev vs prod
       const command: string = config.pythonCommand;
@@ -161,7 +163,7 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
   private async verifyServerExists(serverPath: string, debugLog: (message: string) => void): Promise<void> {
     try {
       await fs.access(serverPath);
-      const stats: import("fs").Stats = await fs.stat(serverPath);
+      const stats: Stats = await fs.stat(serverPath);
       debugLog(`[TextToTreeServer] Server file exists, size: ${stats.size} bytes`);
     } catch {
       debugLog('[TextToTreeServer] Server executable not found at: ' + serverPath);

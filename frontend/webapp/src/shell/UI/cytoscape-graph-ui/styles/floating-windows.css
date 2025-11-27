@@ -188,7 +188,8 @@
 /*  font-family: sans-serif;*/
 /*}*/
 
-.ͼo .ͼ7 {
-    font-size: 18px !important;
-    text-decoration: underline !important;
-}
+/*THIS DOESNT WORK CodeMirror's auto-generated class names (`ͼo`, `ͼ7`) are  unstable and change between builds/loads.  Use CodeMirror's official `HighlightStyle.define()` API*/
+/*.ͼo .ͼ7 {*/
+/*    font-size: 18px !important;*/
+/*    text-decoration: underline !important;*/
+/*}*/

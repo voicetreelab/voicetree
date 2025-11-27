@@ -16,7 +16,8 @@
 
 import { describe, it, expect } from 'vitest'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk'
-import type { Edge } from '@/pure/graph'
+import type { Edge, Graph, GraphNode } from '@/pure/graph'
+import type { FileLimitExceededError } from '@/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce'
 
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
@@ -28,9 +29,9 @@ describe('loadGraphFromDisk - Edge Extraction', () => {
       const vaultPath: "/Users/bobbobby/repos/vaults/vscode_spike" = '/Users/bobbobby/repos/vaults/vscode_spike'
 
       // WHEN: Load graph from disk
-      const loadResult: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(vaultPath))
+      const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(vaultPath))
       if (E.isLeft(loadResult)) throw new Error('Expected Right')
-      const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = loadResult.right
+      const graph: Graph = loadResult.right
 
       // THEN: Graph should contain both nodes
       expect(graph.nodes['181_Xavier_VS_Code_Integration_Summary_Path_C_Implementation_Analysis.md']).toBeDefined()
@@ -39,7 +40,7 @@ describe('loadGraphFromDisk - Edge Extraction', () => {
       // AND: loadGraphFromDisk applies reverseGraphEdges twice (before and after applyPositions)
       // This means edges are back in their original form: 181 -> _179
       // So node 181 should have _179 in its outgoing edges
-      const node181: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = graph.nodes['181_Xavier_VS_Code_Integration_Summary_Path_C_Implementation_Analysis.md']
+      const node181: GraphNode = graph.nodes['181_Xavier_VS_Code_Integration_Summary_Path_C_Implementation_Analysis.md']
 
       expect(node181.outgoingEdges.some((e: Edge) => e.targetId === '_179.md')).toBe(true)
     })

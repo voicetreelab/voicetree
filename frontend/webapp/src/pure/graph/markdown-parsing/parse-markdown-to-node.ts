@@ -1,7 +1,7 @@
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 import matter from 'gray-matter'
-import type {Graph, GraphNode} from '@/pure/graph'
+import type {Graph, GraphNode, Edge} from '@/pure/graph'
 import {NODE_UI_METADATA_YAML_KEYS} from '@/pure/graph'
 import {filenameToNodeId} from '@/pure/graph/markdown-parsing/filename-utils'
 import {markdownToTitle} from '@/pure/graph/markdown-parsing/markdown-to-title'
@@ -16,9 +16,10 @@ import {extractEdges} from "@/pure/graph/markdown-parsing/extract-edges";
  * @param filename - Filename of the markdown file (used as fallback for node_id)
  * @returns GraphNode with all fields populated
  *
- * Field resolution priority:
+ * Field resolution:
  * - relativeFilePathIsID: filenameToNodeId(filename)
- * - title: frontmatter.title > extractTitle(content) > filename
+ * - title: Derived from Markdown content (first heading > first line > filename).
+ *          YAML frontmatter title is ignored - Markdown is the single source of truth.
  * - content: full markdown content
  * - color: Option.some(frontmatter.color) | Option.none
  * - position: Option.some(frontmatter.position) | Option.none
@@ -26,19 +27,18 @@ import {extractEdges} from "@/pure/graph/markdown-parsing/extract-edges";
  * @example
  * ```typescript
  * const content = `---
- * node_id: "123"
- * title: "My GraphNode"
  * color: "#FF0000"
  * position:
  *   x: 100
  *   y: 200
  * ---
- * # Content here`
+ * # My Title
+ * Content here`
  *
  * const node = parseMarkdownToGraphNode(content, "test.md")
  * // node = {
  * //   relativeFilePathIsID: "test",
- * //   title: "My GraphNode",
+ * //   title: "My Title",  // from markdown heading, not YAML
  * //   content: content,
  * //   color: O.some("#FF0000"),
  * //   position: O.some({ x: 100, y: 200 })
@@ -124,18 +124,18 @@ export function parseMarkdownToGraphNode(content: string, filename: string, grap
     const contentWithoutFrontmatter: string = parsed.content
 
     // Extract frontmatter fields directly from raw YAML data
-    const titleFromFrontmatter: string | undefined = normalizeToString(parsed.data.title)
+    // Note: title is NOT read from YAML - Markdown is the single source of truth for titles
     const color: string | undefined = normalizeToString(parsed.data.color)
     const position: { readonly x: number; readonly y: number; } | undefined = parsePosition(parsed.data.position)
 
     // Extract edges from original content (before stripping wikilinks)
-    const edges: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, graph.nodes)
+    const edges: readonly Edge[] = extractEdges(content, graph.nodes)
 
     // Replace [[link]] with [link]* (strip wikilink syntax)
     const contentWithoutYamlOrLinks: string = contentWithoutFrontmatter.replace(/\[\[([^\]]+)\]\]/g, '[$1]*')
 
-    // Compute title using markdownToTitle
-    const title: string = markdownToTitle(titleFromFrontmatter, contentWithoutYamlOrLinks, filename)
+    // Compute title from Markdown content (single source of truth - YAML title is ignored)
+    const title: string = markdownToTitle(contentWithoutYamlOrLinks, filename)
 
     // Read isContextNode from frontmatter (explicit, not derived)
     const isContextNode: boolean = parsed.data.isContextNode === true

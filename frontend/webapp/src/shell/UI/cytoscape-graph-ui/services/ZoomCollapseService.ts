@@ -1,4 +1,4 @@
-import {type Core, type NodeSingular} from 'cytoscape';
+import {type Core, type NodeSingular, type Position} from 'cytoscape';
 
 /**
  * SPIKE: Auto-collapse nodes based on edge pixel distance
@@ -34,8 +34,8 @@ export class ZoomCollapseService {
             const target: NodeSingular = edge.target();
 
             // Calculate pixel distance
-            const sourcePos: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").Position = source.renderedPosition();
-            const targetPos: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").Position = target.renderedPosition();
+            const sourcePos: Position = source.renderedPosition();
+            const targetPos: Position = target.renderedPosition();
             const dx: number = targetPos.x - sourcePos.x;
             const dy: number = targetPos.y - sourcePos.y;
             const pixelLength: number = Math.sqrt(dx * dx + dy * dy);

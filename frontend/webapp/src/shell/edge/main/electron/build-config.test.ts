@@ -23,6 +23,7 @@ vi.mock('electron', () => ({
 
 // Import after mocking
 import { getBuildConfig } from '@/shell/edge/main/electron/build-config';
+import type { BuildConfig } from '@/shell/edge/main/electron/build-config';
 
 describe('build-config', () => {
   const mockUserDataPath: "/Users/test/Library/Application Support/Electron" = '/Users/test/Library/Application Support/Electron';
@@ -46,21 +47,21 @@ describe('build-config', () => {
     });
 
     it('should use repo source for tools in development', () => {
-      const config: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/electron/build-config").BuildConfig = getBuildConfig();
+      const config: BuildConfig = getBuildConfig();
 
       expect(config.toolsSource).toBe(path.join(repoRoot, 'tools'));
       expect(config.backendSource).toBe(path.join(repoRoot, 'backend'));
     });
 
     it('should use Application Support for destination', () => {
-      const config: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/electron/build-config").BuildConfig = getBuildConfig();
+      const config: BuildConfig = getBuildConfig();
 
       expect(config.toolsDest).toBe(path.join(mockUserDataPath, 'tools'));
       expect(config.backendDest).toBe(path.join(mockUserDataPath, 'backend'));
     });
 
     it('should configure Python to run directly from source', () => {
-      const config: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/electron/build-config").BuildConfig = getBuildConfig();
+      const config: BuildConfig = getBuildConfig();
 
       expect(config.pythonCommand).toBe('python');
       expect(config.pythonArgs).toEqual(['server.py']);
@@ -69,7 +70,7 @@ describe('build-config', () => {
     });
 
     it('should enable tool copying in development', () => {
-      const config: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/electron/build-config").BuildConfig = getBuildConfig();
+      const config: BuildConfig = getBuildConfig();
 
       expect(config.shouldCopyTools).toBe(true);
     });
@@ -82,7 +83,7 @@ describe('build-config', () => {
     });
 
     it('should use repo for tools in production build', () => {
-      const config: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/electron/build-config").BuildConfig = getBuildConfig();
+      const config: BuildConfig = getBuildConfig();
 
       // In production but not packaged, still uses repo
       expect(config.toolsSource).toBe(path.join(repoRoot, 'tools'));
@@ -90,7 +91,7 @@ describe('build-config', () => {
     });
 
     it('should configure compiled Python binary', () => {
-      const config: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/electron/build-config").BuildConfig = getBuildConfig();
+      const config: BuildConfig = getBuildConfig();
 
       const expectedBinaryPath: string = path.join(repoRoot, 'dist', 'resources', 'server', 'voicetree-server');
       expect(config.pythonCommand).toBe(expectedBinaryPath);
@@ -116,14 +117,14 @@ describe('build-config', () => {
     });
 
     it('should use process.resourcesPath for tools in packaged app', () => {
-      const config: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/electron/build-config").BuildConfig = getBuildConfig();
+      const config: BuildConfig = getBuildConfig();
 
       expect(config.toolsSource).toBe(path.join(mockResourcesPath, 'tools'));
       expect(config.backendSource).toBe(path.join(mockResourcesPath, 'backend'));
     });
 
     it('should use process.resourcesPath for server binary', () => {
-      const config: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/electron/build-config").BuildConfig = getBuildConfig();
+      const config: BuildConfig = getBuildConfig();
 
       const expectedBinaryPath: string = path.join(mockResourcesPath, 'server', 'voicetree-server');
       expect(config.serverBinaryPath).toBe(expectedBinaryPath);
@@ -135,7 +136,7 @@ describe('build-config', () => {
     it('should skip tool copying in test mode', () => {
       process.env.HEADLESS_TEST = '1';
 
-      const config: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/electron/build-config").BuildConfig = getBuildConfig();
+      const config: BuildConfig = getBuildConfig();
 
       expect(config.shouldCopyTools).toBe(false);
     });
@@ -144,10 +145,10 @@ describe('build-config', () => {
   describe('Path Consistency', () => {
     it('should maintain same destination paths across all modes', () => {
       process.env.NODE_ENV = 'development';
-      const devConfig: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/electron/build-config").BuildConfig = getBuildConfig();
+      const devConfig: BuildConfig = getBuildConfig();
 
       process.env.NODE_ENV = 'production';
-      const prodConfig: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/electron/build-config").BuildConfig = getBuildConfig();
+      const prodConfig: BuildConfig = getBuildConfig();
 
       // Destinations should be same regardless of mode
       expect(devConfig.toolsDest).toBe(prodConfig.toolsDest);
@@ -159,7 +160,7 @@ describe('build-config', () => {
 
       // Unpackaged
       mockApp.isPackaged = false;
-      const unpackagedConfig: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/electron/build-config").BuildConfig = getBuildConfig();
+      const unpackagedConfig: BuildConfig = getBuildConfig();
 
       // Packaged
       mockApp.isPackaged = true;
@@ -168,7 +169,7 @@ describe('build-config', () => {
         writable: true,
         configurable: true
       });
-      const packagedConfig: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/electron/build-config").BuildConfig = getBuildConfig();
+      const packagedConfig: BuildConfig = getBuildConfig();
 
       // Source should differ
       expect(unpackagedConfig.toolsSource).not.toBe(packagedConfig.toolsSource);
@@ -179,7 +180,7 @@ describe('build-config', () => {
   describe('Edge Cases', () => {
     it('should default to production if NODE_ENV not set', () => {
       delete process.env.NODE_ENV;
-      const config: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/electron/build-config").BuildConfig = getBuildConfig();
+      const config: BuildConfig = getBuildConfig();
 
       // Should use production config (has serverBinaryPath)
       expect(config.serverBinaryPath).not.toBeNull();

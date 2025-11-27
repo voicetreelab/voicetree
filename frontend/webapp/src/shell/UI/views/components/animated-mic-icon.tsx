@@ -1,3 +1,5 @@
+import type { JSX } from "react";
+
 interface AnimatedMicIconProps {
   isRecording: boolean;
   size?: number;
@@ -6,7 +8,7 @@ interface AnimatedMicIconProps {
 export default function AnimatedMicIcon({
   isRecording,
   size = 24
-}: AnimatedMicIconProps): import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@types/react/jsx-runtime").JSX.Element {
+}: AnimatedMicIconProps): JSX.Element {
   return (
     <svg
       width={size}

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import { extractEdges } from '@/pure/graph/markdown-parsing/extract-edges'
-import type { GraphNode } from '@/pure/graph'
+import type { GraphNode, Edge } from '@/pure/graph'
 
 describe('extractLinkedNodeIds', () => {
   const createNode: (id: string, content?: string, title?: string) => GraphNode = (id: string, content = '', title = id): GraphNode => ({
@@ -25,7 +25,7 @@ describe('extractLinkedNodeIds', () => {
       '3': createNode('3')
     }
 
-    const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+    const result: readonly Edge[] = extractEdges(content, nodes)
 
     expect(result).toEqual([
       { targetId: '1', label: 'See' },
@@ -40,7 +40,7 @@ describe('extractLinkedNodeIds', () => {
       'node-b': createNode('node-b')
     }
 
-    const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+    const result: readonly Edge[] = extractEdges(content, nodes)
 
     expect(result).toEqual([
       { targetId: 'node-a', label: 'See' },
@@ -54,7 +54,7 @@ describe('extractLinkedNodeIds', () => {
       '1': createNode('1')
     }
 
-    const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+    const result: readonly Edge[] = extractEdges(content, nodes)
 
     expect(result).toEqual([])
   })
@@ -65,7 +65,7 @@ describe('extractLinkedNodeIds', () => {
       '1': createNode('1')
     }
 
-    const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+    const result: readonly Edge[] = extractEdges(content, nodes)
 
     expect(result).toEqual([
       { targetId: '1', label: 'See' },
@@ -80,7 +80,7 @@ describe('extractLinkedNodeIds', () => {
       '2': createNode('2')
     }
 
-    const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+    const result: readonly Edge[] = extractEdges(content, nodes)
 
     expect(result).toEqual([
       { targetId: '1', label: 'See' },
@@ -96,7 +96,7 @@ describe('extractLinkedNodeIds', () => {
       '3': createNode('3')
     }
 
-    const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+    const result: readonly Edge[] = extractEdges(content, nodes)
 
     expect(result).toEqual([
       { targetId: '3', label: '' },
@@ -113,7 +113,7 @@ describe('extractLinkedNodeIds', () => {
       '3': createNode('3')
     }
 
-    const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+    const result: readonly Edge[] = extractEdges(content, nodes)
 
     expect(result).toEqual([
       { targetId: '1', label: 'Multiple links:' },
@@ -132,7 +132,7 @@ Line 3 with [[3]]`
       '3': createNode('3')
     }
 
-    const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+    const result: readonly Edge[] = extractEdges(content, nodes)
 
     expect(result).toEqual([
       { targetId: '1', label: 'Line 1 with' },
@@ -147,7 +147,7 @@ Line 3 with [[3]]`
       '1': createNode('1')
     }
 
-    const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+    const result: readonly Edge[] = extractEdges(content, nodes)
 
     expect(result).toEqual([{ targetId: '1', label: 'See' }])
   })
@@ -156,7 +156,7 @@ Line 3 with [[3]]`
     const content: "See [[GraphNode A]]" = 'See [[GraphNode A]]'
     const nodes: Record<string, never> = {}
 
-    const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+    const result: readonly Edge[] = extractEdges(content, nodes)
 
     expect(result).toEqual([{ targetId: 'GraphNode A', label: 'See' }])
   })
@@ -165,7 +165,7 @@ Line 3 with [[3]]`
     const content: "Just plain text" = 'Just plain text'
     const nodes: Readonly<Record<string, never>> = {}
 
-    const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+    const result: readonly Edge[] = extractEdges(content, nodes)
 
     expect(result).toEqual([])
   })
@@ -178,7 +178,7 @@ Line 3 with [[3]]`
         'vscode_spike/_179': createNode('vscode_spike/_179')
       }
 
-      const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+      const result: readonly Edge[] = extractEdges(content, nodes)
 
       // Prefers longer match (vscode_spike/_179) over shorter (_179) for better specificity
       expect(result).toEqual([{ targetId: 'vscode_spike/_179', label: 'See' }])
@@ -190,7 +190,7 @@ Line 3 with [[3]]`
         'vscode_spike/_179': createNode('vscode_spike/_179')
       }
 
-      const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+      const result: readonly Edge[] = extractEdges(content, nodes)
 
       expect(result).toEqual([{ targetId: 'vscode_spike/_179', label: 'Link to' }])
     })
@@ -202,7 +202,7 @@ Line 3 with [[3]]`
         'subfolder/node2': createNode('subfolder/node2')
       }
 
-      const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+      const result: readonly Edge[] = extractEdges(content, nodes)
 
       expect(result).toEqual([
         { targetId: 'other_folder/node', label: 'See' },
@@ -218,7 +218,7 @@ Line 3 with [[3]]`
         'vault/folder/file': createNode('vault/folder/file')
       }
 
-      const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+      const result: readonly Edge[] = extractEdges(content, nodes)
 
       // Prefers 'vault/folder/file' over 'folder/file' over 'file'
       expect(result).toEqual([{ targetId: 'vault/folder/file', label: 'Link to' }])
@@ -231,7 +231,7 @@ Line 3 with [[3]]`
         'project/_179': createNode('project/_179')
       }
 
-      const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+      const result: readonly Edge[] = extractEdges(content, nodes)
 
       // Prefers longer match with more path context
       expect(result).toEqual([{ targetId: 'project/_179', label: 'See' }])
@@ -243,7 +243,7 @@ Line 3 with [[3]]`
         'vault/note': createNode('vault/note')
       }
 
-      const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+      const result: readonly Edge[] = extractEdges(content, nodes)
 
       // All three relative paths should resolve to the same node - first occurrence wins
       expect(result).toEqual([{ targetId: 'vault/note', label: 'Multiple refs:' }])
@@ -255,7 +255,7 @@ Line 3 with [[3]]`
         'node_with-special.chars': createNode('node_with-special.chars')
       }
 
-      const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+      const result: readonly Edge[] = extractEdges(content, nodes)
 
       expect(result).toEqual([{ targetId: 'node_with-special.chars', label: 'Link to' }])
     })
@@ -268,7 +268,7 @@ Line 3 with [[3]]`
         'deeply/nested/file': createNode('deeply/nested/file')
       }
 
-      const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+      const result: readonly Edge[] = extractEdges(content, nodes)
 
       // Prefers 'deeply/nested/file' over 'nested/file' over 'file'
       // The longer match provides more specificity and reduces ambiguity
@@ -286,7 +286,7 @@ Line 3 with [[3]]`
         'folder/_179': createNode('folder/_179')
       }
 
-      const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+      const result: readonly Edge[] = extractEdges(content, nodes)
 
       // All paths should resolve to the same node (after proper path resolution)
       // First occurrence wins with its label
@@ -301,7 +301,7 @@ Line 3 with [[3]]`
         'src/README.md': createNode('src/README.md')
       }
 
-      const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+      const result: readonly Edge[] = extractEdges(content, nodes)
 
       // When multiple nodes match the same filename, returns the first matching node found
       // In this case 'docs/README.md' matches the filename 'README.md'
@@ -328,7 +328,7 @@ Parent:
       '3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation': createNode('3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation')
     }
 
-    const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+    const result: readonly Edge[] = extractEdges(content, nodes)
 
     expect(result).toEqual([
       { targetId: '3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation', label: 'is_a_prerequisite_for' }

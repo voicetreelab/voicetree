@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import { extractEdges } from '@/pure/graph/markdown-parsing/extract-edges'
 import type { GraphNode } from '@/pure/graph'
+import type { Edge } from '@/pure/graph'
 
 describe('extractLinkedNodeIds', () => {
   const createNode: (id: string) => GraphNode = (id: string): GraphNode => ({
@@ -24,7 +25,7 @@ describe('extractLinkedNodeIds', () => {
       'node-b': createNode('node-b')
     }
 
-    const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+    const result: readonly Edge[] = extractEdges(content, nodes)
 
     expect(result).toEqual([
       { targetId: 'node-a', label: 'See' },
@@ -39,7 +40,7 @@ describe('extractLinkedNodeIds', () => {
       'node-b': createNode('node-b')
     }
 
-    const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+    const result: readonly Edge[] = extractEdges(content, nodes)
 
     expect(result).toEqual([
       { targetId: 'node-a', label: 'See' },
@@ -58,7 +59,7 @@ describe('extractLinkedNodeIds', () => {
       )
     }
 
-    const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+    const result: readonly Edge[] = extractEdges(content, nodes)
 
     expect(result).toEqual([{ targetId: '_179', label: 'Parent:' }])
   })
@@ -72,7 +73,7 @@ describe('extractLinkedNodeIds', () => {
       'node-c': createNode('node-c')
     }
 
-    const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+    const result: readonly Edge[] = extractEdges(content, nodes)
 
     // Should resolve all three links
     expect(result).toEqual([
@@ -88,7 +89,7 @@ describe('extractLinkedNodeIds', () => {
       'node-a': createNode('node-a')
     }
 
-    const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+    const result: readonly Edge[] = extractEdges(content, nodes)
 
     expect(result).toEqual([])
   })
@@ -99,7 +100,7 @@ describe('extractLinkedNodeIds', () => {
       'node-a': createNode('node-a')
     }
 
-    const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+    const result: readonly Edge[] = extractEdges(content, nodes)
 
     expect(result).toEqual([
       { targetId: 'node-a', label: 'See' },
@@ -114,7 +115,7 @@ describe('extractLinkedNodeIds', () => {
       'node-b': createNode('node-b')
     }
 
-    const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+    const result: readonly Edge[] = extractEdges(content, nodes)
 
     expect(result).toEqual([
       { targetId: 'node-a', label: 'See' },
@@ -128,7 +129,7 @@ describe('extractLinkedNodeIds', () => {
       'node-a': createNode('node-a')
     }
 
-    const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+    const result: readonly Edge[] = extractEdges(content, nodes)
 
     expect(result).toEqual([{ targetId: 'node-a', label: 'See' }])
   })
@@ -137,7 +138,7 @@ describe('extractLinkedNodeIds', () => {
     const content: "See [[node-a]]" = 'See [[node-a]]'
     const nodes: Record<string, never> = {}
 
-    const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+    const result: readonly Edge[] = extractEdges(content, nodes)
 
     expect(result).toEqual([{ targetId: 'node-a', label: 'See' }])
   })
@@ -156,7 +157,7 @@ describe('extractLinkedNodeIds', () => {
       'test-new-file': createNode('test-new-file')
     }
 
-    const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+    const result: readonly Edge[] = extractEdges(content, nodes)
 
     // Should strip .md extension
     expect(result).toEqual([{ targetId: 'test-new-file', label: 'See' }])

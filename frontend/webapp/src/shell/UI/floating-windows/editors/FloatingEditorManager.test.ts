@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi, beforeAll } from 'vitest';
+import type { MockInstance } from 'vitest';
 
 // Mock window event listeners before importing any modules
 // This prevents mermaid from failing during module initialization
@@ -107,7 +108,7 @@ describe('FloatingWindowManager - Terminal Node Filtering', () => {
 
         it('should allow hover editor attempt for markdown nodes (nodes with .md extension)', async () => {
             // Spy on the private openHoverEditor method to verify it's called
-            const openHoverEditorSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<(this: unknown, ...args: unknown[]) => unknown> = vi.spyOn(manager as never, 'openHoverEditor' as never);
+            const openHoverEditorSpy: MockInstance<(this: unknown, ...args: unknown[]) => unknown> = vi.spyOn(manager as never, 'openHoverEditor' as never);
 
             // Add a markdown node (with .md extension)
             cy.add({

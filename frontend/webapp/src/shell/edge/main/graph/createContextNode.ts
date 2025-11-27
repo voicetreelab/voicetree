@@ -1,4 +1,4 @@
-import type {Graph, GraphDelta, NodeIdAndFilePath} from '@/pure/graph'
+import type {Graph, GraphDelta, NodeIdAndFilePath, GraphNode} from '@/pure/graph'
 import { getSubgraphByDistance, graphToAscii, getNodeIdsInTraversalOrder } from '@/pure/graph'
 
 /** Folder where context nodes are stored */
@@ -54,7 +54,7 @@ export async function createContextNode(
   const contextNodeId: string = `${CONTEXT_NODES_FOLDER}/${parentNodeId}_context_${timestamp}.md`
 
   // 5. EDGE: Get parent node info for context
-  const parentNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = currentGraph.nodes[parentNodeId]
+  const parentNode: GraphNode = currentGraph.nodes[parentNodeId]
   const parentTitle: string = parentNode.nodeUIMetadata.title
 
   // 6. EDGE: Build markdown content with frontmatter
@@ -132,7 +132,7 @@ function generateNodeDetailsList(
   const orderedNodeIds: readonly string[] = getNodeIdsInTraversalOrder(subgraph)
 
   for (const nodeId of orderedNodeIds) {
-    const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = subgraph.nodes[nodeId]
+    const node: GraphNode = subgraph.nodes[nodeId]
     // Skip context nodes to prevent self-referencing in generated context
     if (node.nodeUIMetadata.isContextNode) {
       continue

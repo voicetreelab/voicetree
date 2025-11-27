@@ -3,7 +3,7 @@
  * These functions transform entire graphs, operating on all nodes at once.
  */
 
-import type { Graph, GraphNode, NodeIdAndFilePath } from '@/pure/graph'
+import type { Graph, GraphNode, NodeIdAndFilePath, Edge } from '@/pure/graph'
 import { setOutgoingEdges } from './graph-edge-operations'
 
 /**
@@ -58,12 +58,12 @@ export function reverseGraphEdges(graph: Graph): Graph {
 
             // Preserve original edges that point to non-existent nodes
             // (these can't be reversed because the target node doesn't exist)
-            const edgesToNonExistentNodes: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = node.outgoingEdges.filter(
+            const edgesToNonExistentNodes: readonly Edge[] = node.outgoingEdges.filter(
                 edge => !graph.nodes[edge.targetId]
             )
 
             // Combine reversed edges with edges to non-existent nodes
-            const newOutgoingEdges: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = [...reversedEdges, ...edgesToNonExistentNodes]
+            const newOutgoingEdges: readonly Edge[] = [...reversedEdges, ...edgesToNonExistentNodes]
 
             return {
                 ...acc,

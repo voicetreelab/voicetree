@@ -193,6 +193,13 @@ export class TerminalVanilla {
   }
 
   /**
+   * Focus the terminal so it receives keyboard input
+   */
+  focus(): void {
+    this.term?.focus();
+  }
+
+  /**
    * Cleanup and destroy the terminal
    */
   dispose(): void {

@@ -20,7 +20,7 @@ import {
 } from '@/shell/UI/floating-windows/cytoscape-floating-windows';
 import type {Position} from '@/shell/UI/views/IVoiceTreeGraphView';
 import type {HotkeyManager} from '@/shell/UI/views/HotkeyManager';
-import type {Graph, GraphDelta, NodeIdAndFilePath} from '@/pure/graph';
+import type {Graph, GraphDelta, NodeIdAndFilePath, GraphNode} from '@/pure/graph';
 import {CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
 import {createNewEmptyOrphanNodeFromUI, modifyNodeContentFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions";
 import type {FloatingWindowUIHTMLData} from "@/shell/edge/UI-edge/floating-windows/types";
@@ -66,7 +66,7 @@ export async function createFloatingEditor(
 
     // Derive title and content from nodeId
     // Editor shows content WITHOUT YAML frontmatter - YAML is managed separately
-    const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = await getNodeFromMainToUI(nodeId);
+    const node: GraphNode = await getNodeFromMainToUI(nodeId);
     let content: string = "loading..."
     let title: string = `${nodeId}`; // fallback to nodeId if node not found
     if (node) {

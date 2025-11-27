@@ -54,7 +54,7 @@ export interface GraphNode {
 }
 
 export interface NodeUIMetadata {
-    readonly title: string // Computed from frontmatter title, first heading, or filename
+    readonly title: string // Derived from Markdown content (first heading > first line > filename). NOT stored in YAML.
     readonly color: O.Option<string>
     readonly position: O.Option<Position>
     // todo,ReadonlyMap doesn't serialize over IPC? must be record?

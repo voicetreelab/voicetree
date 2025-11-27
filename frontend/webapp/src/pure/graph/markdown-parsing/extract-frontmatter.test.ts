@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { extractFrontmatter } from '@/pure/graph/markdown-parsing/extract-frontmatter'
+import type { Frontmatter } from '@/pure/graph/markdown-parsing/extract-frontmatter'
 
 describe('extractFrontmatter', () => {
   it('should extract all frontmatter fields', () => {
@@ -11,7 +12,7 @@ color: "#FF0000"
 ---
 # Content here`
 
-    const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(content)
+    const result: Frontmatter = extractFrontmatter(content)
 
     expect(result).toEqual({
       node_id: '123',
@@ -29,7 +30,7 @@ title: 'Bug: Auto-open Markdown Editor (3)'
 ---
 ### The manual editor's auto-open Markdown editor functionality is not working`
 
-    const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(content)
+    const result: Frontmatter = extractFrontmatter(content)
 
     expect(result.title).toBe('Bug: Auto-open Markdown Editor (3)')
     expect(result.node_id).toBe('3')
@@ -38,7 +39,7 @@ title: 'Bug: Auto-open Markdown Editor (3)'
   it('should handle missing frontmatter', () => {
     const content: "# Just a heading\n\nNo frontmatter here" = '# Just a heading\n\nNo frontmatter here'
 
-    const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(content)
+    const result: Frontmatter = extractFrontmatter(content)
 
     expect(result).toEqual({
       node_id: undefined,
@@ -56,7 +57,7 @@ title: "Partial Node"
 ---
 # Content`
 
-    const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(content)
+    const result: Frontmatter = extractFrontmatter(content)
 
     expect(result).toEqual({
       node_id: '456',
@@ -72,7 +73,7 @@ title: "Partial Node"
 ---
 # Content`
 
-    const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(content)
+    const result: Frontmatter = extractFrontmatter(content)
 
     expect(result).toEqual({
       node_id: undefined,
@@ -92,7 +93,7 @@ another: 123
 ---
 # Content`
 
-    const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(content)
+    const result: Frontmatter = extractFrontmatter(content)
 
     expect(result).toEqual({
       node_id: '789',
@@ -124,7 +125,7 @@ summary: Valid YAML with parens
 # Content`
 
     // Parentheses are fine as long as there's no unquoted colon
-    const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(content)
+    const result: Frontmatter = extractFrontmatter(content)
     expect(result).toEqual({
       node_id: '456',
       title: '(Sam) Some Title Without Colons (v2)',
@@ -141,7 +142,7 @@ title: "Numeric ID"
 ---
 # Content`
 
-    const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(content)
+    const result: Frontmatter = extractFrontmatter(content)
 
     expect(result).toEqual({
       node_id: '123',
@@ -163,7 +164,7 @@ position:
 ---
 # Content`
 
-    const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(content)
+    const result: Frontmatter = extractFrontmatter(content)
 
     expect(result).toEqual({
       node_id: '123',
@@ -181,7 +182,7 @@ title: "No Position"
 ---
 # Content`
 
-    const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(content)
+    const result: Frontmatter = extractFrontmatter(content)
 
     expect(result).toEqual({
       node_id: '123',
@@ -199,7 +200,7 @@ position: "invalid"
 ---
 # Content`
 
-    const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(content)
+    const result: Frontmatter = extractFrontmatter(content)
 
     expect(result.position).toBeUndefined()
   })
@@ -212,7 +213,7 @@ position:
 ---
 # Content`
 
-    const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(content)
+    const result: Frontmatter = extractFrontmatter(content)
 
     expect(result.position).toBeUndefined()
   })
