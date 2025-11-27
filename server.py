@@ -73,14 +73,20 @@ simple_buffer = ""
 # FastAPI app setup
 app = FastAPI(title="VoiceTree Server", description="API for processing text into VoiceTree")
 
+# Auto-sync interval: reload markdown files from disk when idle
+AUTO_SYNC_INTERVAL_SECONDS = 5.0
+
 # Background processing task (like main.py's llm_processing_loop)
 async def buffer_processing_loop():
     """
     Continuously process text from buffer when ready.
     This mirrors main.py by offloading the LLM work to a dedicated thread so the
     event loop stays responsive for incoming HTTP requests.
+
+    When idle (buffer empty), periodically reloads markdown files from disk
+    to pick up external changes (auto-sync).
     """
-    global simple_buffer
+    global simple_buffer, decision_tree, converter, processor
     logger.info("Starting buffer processing loop...")
 
     # Dedicated executor so we never block the FastAPI event loop with LLM calls.
@@ -92,6 +98,8 @@ async def buffer_processing_loop():
             asyncio.run(processor.process_new_text_and_update_markdown(text_to_process))
         except Exception as exc:
             logger.error(f"Error in LLM processing thread: {exc}", exc_info=True)
+
+    last_sync_time = time.time()
 
     try:
         loop = asyncio.get_running_loop()
@@ -115,6 +123,20 @@ async def buffer_processing_loop():
                         await loop.run_in_executor(executor, run_llm_in_thread, text_to_process)
 
                         logger.info("Buffer processing completed")
+                else:
+                    # Idle - auto-sync: reload markdown files from disk to pick up external changes
+                    # Only reload when BOTH buffers are empty to avoid losing unprocessed text
+                    processor_buffer_empty = (processor is None or
+                                              len(processor.buffer_manager.getBuffer()) == 0)
+                    if (markdown_dir and
+                        processor_buffer_empty and
+                        time.time() - last_sync_time > AUTO_SYNC_INTERVAL_SECONDS):
+                        try:
+                            decision_tree, converter, processor, _ = initialize_tree_state(markdown_dir)
+                            last_sync_time = time.time()
+                            logger.debug(f"Auto-sync complete: reloaded {len(decision_tree.tree)} nodes from {markdown_dir}")
+                        except Exception as e:
+                            logger.error(f"Auto-sync failed: {e}", exc_info=True)
 
                 # Small delay to prevent CPU spinning
                 await asyncio.sleep(0.1)

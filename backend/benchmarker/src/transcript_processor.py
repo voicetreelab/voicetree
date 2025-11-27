@@ -35,23 +35,22 @@ class TranscriptProcessor:
         # Reset the workflow I/O log for a clean run
         clear_workflow_log()
 
-        # Create fresh instances for each transcript
-        self.decision_tree = MarkdownTree()
-
-        # Use a unique state file in temp directory for each transcript to avoid cross-contamination
-        temp_dir = tempfile.gettempdir()
-        state_file_name = os.path.join(temp_dir, f"benchmark_workflow_state_{hashlib.md5(transcript_file.encode()).hexdigest()[:8]}.json")
-
         # Determine output directory
         if output_subdirectory:
             output_dir = os.path.join(OUTPUT_DIR, output_subdirectory)
         else:
             output_dir = OUTPUT_DIR
 
+        # Create fresh instances for each transcript
+        self.decision_tree = MarkdownTree(output_dir=output_dir)
+
+        # Use a unique state file in temp directory for each transcript to avoid cross-contamination
+        temp_dir = tempfile.gettempdir()
+        state_file_name = os.path.join(temp_dir, f"benchmark_workflow_state_{hashlib.md5(transcript_file.encode()).hexdigest()[:8]}.json")
+
         self.processor = ChunkProcessor(
             self.decision_tree,
-            converter=TreeToMarkdownConverter(self.decision_tree.tree),
-            output_dir=output_dir
+            converter=TreeToMarkdownConverter(self.decision_tree.tree)
         )
 
         # Clear any existing workflow state before processing
