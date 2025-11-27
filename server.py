@@ -45,11 +45,14 @@ def initialize_tree_state(directory_path: str) -> tuple:
     """
     if os.path.exists(directory_path):
         logger.info(f"Loading existing markdown tree from {directory_path}")
-        tree = load_markdown_tree(directory_path)
+        tree = load_markdown_tree(directory_path) # todo shouldn't branch here, load dir should just load if exists, new graph if not
     else:
         logger.info(f"Creating new empty tree for {directory_path}")
         os.makedirs(directory_path, exist_ok=True)
         tree = MarkdownTree(output_dir=directory_path)
+
+    # Voice-to-text files go to VT/voice subdirectory
+    os.makedirs(directory_path + "/VT", exist_ok=True)
 
     converter = TreeToMarkdownConverter(tree.tree)
     processor = ChunkProcessor(tree, converter=converter)
