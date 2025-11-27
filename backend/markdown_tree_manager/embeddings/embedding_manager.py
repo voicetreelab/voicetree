@@ -118,6 +118,8 @@ class EmbeddingManager:
         top_k: int = 10,
         filter_dict: Optional[dict[str, Any]] = None
     ) -> List[int]:
+
+        logger.info(f" [VECTOR SEARCH] Embedding manager search for {query}")
         """
         Search for similar nodes using vector similarity.
 
@@ -139,6 +141,7 @@ class EmbeddingManager:
             filter_dict=filter_dict,
             include_scores=False
         )
+        logger.info(f" [VECTOR SEARCH] Found {len(results)} results for {query}")
         # Ensure we return List[int] as expected by type annotation
         # include_scores=False should always return List[int], but MyPy can't infer this
         if isinstance(results, list):

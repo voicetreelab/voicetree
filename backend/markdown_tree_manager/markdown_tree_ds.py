@@ -29,7 +29,7 @@ class Node:
         self.created_at: datetime = datetime.now()
         self.modified_at: datetime = datetime.now()
         self.title = name
-        self.filename: str = str(node_id) + "_" + generate_filename_from_keywords(self.title)
+        self.filename: str = generate_filename_from_keywords(self.title)
         self.summary: str = summary
         self.num_appends: int = 0
         self.tags: list[str] = []  # Support for multiple tags per node
@@ -50,7 +50,7 @@ class MarkdownTree:
         """
         self.tree: dict[int, Node] = {}
         self.next_node_id: int = 1
-        self.output_dir = output_dir or "markdownTreeVaultDefault"
+        self.output_dir = output_dir
         self._markdown_converter = None  # Will be set to TreeToMarkdownConverter when needed
 
         # Create output directory if it doesn't exist
@@ -487,6 +487,7 @@ class MarkdownTree:
                 logging.error(f"Search failed: {e}")
         return []
 
+    # TODO WHY DO WE HAVE THIS AND search_similar_nodes ????????????
     def search_similar_nodes_vector(self, query: str, top_k: int = 10) -> list[tuple[int, float]]:
         """
         Search for similar nodes using vector embeddings with scores.
