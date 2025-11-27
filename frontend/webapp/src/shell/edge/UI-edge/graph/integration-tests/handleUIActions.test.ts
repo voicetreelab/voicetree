@@ -13,8 +13,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type {Core} from 'cytoscape';
 import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
-import { createNewChildNodeFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions'
-import type { Graph } from '@/pure/graph'
+import { createNewChildNodeFromUI, modifyNodeContentFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions'
+import type { Graph, GraphNode } from '@/pure/graph'
 
 describe('createNewChildNodeFromUI - Integration', () => {
     let cy: Core
@@ -173,5 +173,106 @@ describe('createNewChildNodeFromUI - Integration', () => {
         const childNode: cytoscape.CollectionReturnValue = cy.getElementById('child1.md')
         expect(childNode.data('label')).toBe('Child 1')
         expect(childNode.data('content')).toBe('# Child 1')
+    })
+})
+
+describe('modifyNodeContentFromUI - Integration', () => {
+    let cy: Core
+    let mockGraph: Graph
+
+    beforeEach(() => {
+        // Create a minimal graph with 1 node
+        mockGraph = {
+            nodes: {
+                'test.md': {
+                    relativeFilePathIsID: 'test.md',
+                    contentWithoutYamlOrLinks: '# Old Title\n\nSome content',
+                    outgoingEdges: [],
+                    nodeUIMetadata: {
+                        title: 'Old Title',
+                        color: O.some('#FF0000'),
+                        position: O.some({ x: 100, y: 100 }),
+                        additionalYAMLProps: new Map(),
+                        isContextNode: false
+                    }
+                }
+            }
+        }
+
+        // Initialize headless cytoscape with the node
+        cy = cytoscape({
+            headless: true,
+            elements: [
+                {
+                    group: 'nodes' as const,
+                    data: { id: 'test.md', label: 'Old Title', content: '# Old Title\n\nSome content', summary: '' },
+                    position: { x: 100, y: 100 }
+                }
+            ]
+        })
+
+        // Mock window.electronAPI
+        global.window = {
+            electronAPI: {
+                main: {
+                    getGraph: vi.fn().mockReturnValue(mockGraph),
+                    applyGraphDeltaToDBThroughMem: vi.fn().mockResolvedValue(undefined),
+                    getNode: vi.fn().mockImplementation((nodeId: string) => mockGraph.nodes[nodeId])
+                }
+            }
+        } as unknown as Window & typeof globalThis
+    })
+
+    afterEach(() => {
+        cy.destroy()
+        vi.clearAllMocks()
+    })
+
+    it('should update node title in cytoscape when content heading changes', async () => {
+        // GIVEN: Node with title "Old Title"
+        expect(cy.getElementById('test.md').data('label')).toBe('Old Title')
+
+        // WHEN: Modifying content with a new heading
+        const newContent: string = '# New Title\n\nSome content'
+        await modifyNodeContentFromUI('test.md', newContent, cy)
+
+        // THEN: Cytoscape node label should be updated to new title
+        expect(cy.getElementById('test.md').data('label')).toBe('New Title')
+    })
+
+    it('should preserve position in GraphDelta when updating content', async () => {
+        // GIVEN: Node with position (100, 100) in metadata
+
+        // WHEN: Modifying content (which doesn't include position in frontmatter)
+        const newContent: string = '# New Title\n\nSome content'
+        await modifyNodeContentFromUI('test.md', newContent, cy)
+
+        // THEN: GraphDelta should contain node with preserved position from old metadata
+        const graphDeltaCall: any[] = (window as any).electronAPI!.main.applyGraphDeltaToDBThroughMem.mock.calls[0]?.[0] as any[]
+        const upsertedNode: GraphNode = graphDeltaCall[0].nodeToUpsert as GraphNode
+
+        // Position should be preserved from old metadata (O.some({x: 100, y: 100}))
+        expect(O.isSome(upsertedNode.nodeUIMetadata.position)).toBe(true)
+        if (O.isSome(upsertedNode.nodeUIMetadata.position)) {
+            expect(upsertedNode.nodeUIMetadata.position.value.x).toBe(100)
+            expect(upsertedNode.nodeUIMetadata.position.value.y).toBe(100)
+        }
+    })
+
+    it('should call applyGraphDeltaToDBThroughMem with updated node including new title', async () => {
+        // GIVEN: Node with old title
+        expect(cy.getElementById('test.md').data('label')).toBe('Old Title')
+
+        // WHEN: Modifying content with new title
+        const newContent: string = '# Updated Title\n\nNew content here'
+        await modifyNodeContentFromUI('test.md', newContent, cy)
+
+        // THEN: GraphDelta should contain node with new title
+        const graphDeltaCall: any[] = (window as any).electronAPI!.main.applyGraphDeltaToDBThroughMem.mock.calls[0]?.[0] as any[]
+        expect(graphDeltaCall).toHaveLength(1)
+        expect(graphDeltaCall[0].type).toBe('UpsertNode')
+
+        const upsertedNode: GraphNode = graphDeltaCall[0].nodeToUpsert as GraphNode
+        expect(upsertedNode.nodeUIMetadata.title).toBe('Updated Title')
     })
 })

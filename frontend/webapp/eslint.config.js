@@ -49,10 +49,14 @@ export default tseslint.config([
       // Nullish coalescing - prevent || bugs with falsy values
       '@typescript-eslint/prefer-nullish-coalescing': 'error',
       // Ban parent directory imports (allow same-directory imports)
+      // Ban absolute filesystem paths (e.g., /Users/...)
       'no-restricted-imports': ['error', {
         patterns: [{
           group: ['../*', '../**'],
           message: 'Use absolute imports for cross-directory imports. Use @/* for src imports.'
+        }, {
+          group: ['/Users/*', '/Users/**', '/home/*', '/home/**', '/opt/*', '/opt/**'],
+          message: 'Do not use absolute filesystem paths in imports. Use relative or alias imports.'
         }]
       }],
       // Require explicit type annotations on variables and function returns

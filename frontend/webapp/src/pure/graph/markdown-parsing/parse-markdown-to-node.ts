@@ -140,6 +140,11 @@ export function parseMarkdownToGraphNode(content: string, filename: string, grap
     // Read isContextNode from frontmatter (explicit, not derived)
     const isContextNode: boolean = parsed.data.isContextNode === true
 
+    // Read containedNodeIds from frontmatter (array of node IDs whose content is in this context node)
+    const containedNodeIds: readonly string[] | undefined = Array.isArray(parsed.data.containedNodeIds)
+        ? parsed.data.containedNodeIds.filter((id): id is string => typeof id === 'string')
+        : undefined
+
     // Extract additional YAML properties, excluding keys that have explicit fields in NodeUIMetadata
     const additionalYAMLProps: ReadonlyMap<string, string> = extractAdditionalYAMLProps(parsed.data, NODE_UI_METADATA_YAML_KEYS)
 
@@ -153,7 +158,8 @@ export function parseMarkdownToGraphNode(content: string, filename: string, grap
             color: color ? O.some(color) : O.none,
             position: position ? O.some(position) : O.none,
             additionalYAMLProps,
-            isContextNode
+            isContextNode,
+            containedNodeIds
         }
     }
 }

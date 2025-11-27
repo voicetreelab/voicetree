@@ -11,7 +11,8 @@ function getAppSupportPath(): string {
   return app.getPath('userData');
 }
 
-export const mainAPI: { applyGraphDeltaToDBThroughMem: (delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta) => Promise<void>; getGraph: () => import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph; loadSettings: () => Promise<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/settings/types").VTSettings>; saveSettings: (settings: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/settings/types").VTSettings) => Promise<boolean>; startFileWatching: (directoryPath?: string) => Promise<{ readonly success: boolean; readonly directory?: string; readonly error?: string; }>; stopFileWatching: () => Promise<{ readonly success: boolean; readonly error?: string; }>; getWatchStatus: () => { readonly isWatching: boolean; readonly directory: string | undefined; }; loadPreviousFolder: () => Promise<{ readonly success: boolean; readonly directory?: string; readonly error?: string; }>; getBackendPort: () => number | null; createContextNode: (parentNodeId: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").NodeIdAndFilePath) => Promise<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").NodeIdAndFilePath>; getAppSupportPath: () => string; } = {
+// eslint-disable-next-line @typescript-eslint/typedef
+export const mainAPI = {
   // Graph operations - renderer-friendly wrappers
   applyGraphDeltaToDBThroughMem,
 

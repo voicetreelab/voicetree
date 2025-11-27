@@ -137,6 +137,15 @@ export class HorizontalMenuService {
         // Show horizontal menu on node hover
         this.cy.on('mouseover', 'node', (event) => {
             const node: NodeSingular = event.target as NodeSingular;
+            const nodeId: string = node.id();
+
+            // Only open horizontal menu for markdown nodes (nodes with file extensions)
+            // Terminal nodes, shadow nodes, etc. don't have file extensions
+            const hasFileExtension: boolean = /\.\w+$/.test(nodeId);
+            if (!hasFileExtension) {
+                return;
+            }
+
             // Use graph position (not rendered position) since menu is in the overlay
             const position: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").Position = node.position();
 

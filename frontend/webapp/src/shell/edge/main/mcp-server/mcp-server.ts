@@ -21,6 +21,7 @@ import type {FSUpdate} from '@/pure/graph'
 import {addNodeToGraph} from '@/pure/graph/graphDelta/addNodeToGraph'
 import {getGraph, getVaultPath, setVaultPath} from '@/shell/edge/main/state/graph-store'
 import {applyGraphDeltaToDBThroughMem} from '@/shell/edge/main/graph/writePath/applyGraphDeltaToDBThroughMem'
+import {getUnseenNodesAroundContextNode, type UnseenNode} from '@/shell/edge/main/graph/getUnseenNodesAroundContextNode'
 
 const MCP_PORT: 3001 = 3001 as const
 
@@ -176,6 +177,51 @@ export function createMcpServer(): McpServer {
                     type: 'text',
                     text: JSON.stringify({nodes}, null, 2)
                 }]
+            }
+        }
+    )
+
+    // Tool: get_unseen_nodes_around_context_node
+    server.registerTool(
+        'get_unseen_nodes_around_context_node',
+        {
+            title: 'Get Unseen Nodes Around Context Node',
+            description: 'For a given context node, re-runs the graph traversal and returns nodes that were not included in the original context. Returns content without YAML frontmatter.',
+            inputSchema: {
+                contextNodeId: z.string().describe('The ID of the context node to find unseen nodes around')
+            }
+        },
+        async ({contextNodeId}) => {
+            try {
+                const unseenNodes: readonly UnseenNode[] = getUnseenNodesAroundContextNode(contextNodeId)
+
+                return {
+                    content: [{
+                        type: 'text',
+                        text: JSON.stringify({
+                            success: true,
+                            contextNodeId,
+                            unseenNodeCount: unseenNodes.length,
+                            unseenNodes: unseenNodes.map(node => ({
+                                nodeId: node.nodeId,
+                                content: node.content
+                            }))
+                        }, null, 2)
+                    }]
+                }
+            } catch (error) {
+                const errorMessage: string = error instanceof Error ? error.message : String(error)
+                return {
+                    content: [{
+                        type: 'text',
+                        text: JSON.stringify({
+                            success: false,
+                            contextNodeId,
+                            error: errorMessage
+                        })
+                    }],
+                    isError: true
+                }
             }
         }
     )

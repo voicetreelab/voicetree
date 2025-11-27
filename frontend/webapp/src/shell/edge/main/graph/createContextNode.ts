@@ -1,4 +1,4 @@
-import type { Graph, NodeIdAndFilePath } from '@/pure/graph'
+import type {Graph, GraphDelta, NodeIdAndFilePath} from '@/pure/graph'
 import { getSubgraphByDistance, graphToAscii, getNodeIdsInTraversalOrder } from '@/pure/graph'
 
 /** Folder where context nodes are stored */
@@ -67,15 +67,12 @@ export async function createContextNode(
   )
 
   // 7. PURE: Create context node delta using fromCreateChildToUpsertNode
-  const contextNodeDelta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = fromCreateChildToUpsertNode(
+  const contextNodeDelta: GraphDelta = fromCreateChildToUpsertNode(
     currentGraph,
     parentNode,
     content,
     contextNodeId
-  ) // todo HERE IS WHERE THE BUG IS FOR MULTIPLE EDGES FOR CONTEXT NODES!!!
-    // bc we set content as the markdown content with []* type links, which will be written toMarkdown as real links (?)
-    // wait actually this would skip the Node -> markdown stage? no it wouldn't.
-    // yes it would, via writeNodeToFile(node: GraphNode): FSWriteEffect<void> {
+  )
 
   // 8. EDGE: Apply via GraphDelta pipeline
   await applyGraphDeltaToDBThroughMem(contextNodeDelta)
@@ -97,10 +94,19 @@ function buildContextNodeContent(
     // todo this should be done by creatingGraphNode, and then calling to markdown function on it.
   const nodeDetailsList: string = generateNodeDetailsList(subgraph, parentNodeId)
 
+  // Collect all node IDs from the subgraph (excluding context nodes to prevent self-referencing)
+  const containedNodeIds: readonly string[] = Object.keys(subgraph.nodes)
+    .filter(nodeId => !subgraph.nodes[nodeId].nodeUIMetadata.isContextNode)
+
+  // Format containedNodeIds as YAML array
+  const containedNodeIdsYaml: string = containedNodeIds.length > 0
+    ? `containedNodeIds:\n${containedNodeIds.map(id => `  - ${id}`).join('\n')}\n`
+    : ''
+
   return `---
-title: Context for ${truncateToFiveWords(parentTitle)}
+title: "CONTEXT for: '${truncateToFiveWords(parentTitle)}'"
 isContextNode: true
----
+${containedNodeIdsYaml}---
 
 ## CONTEXT for: '${parentTitle}'
 \`\`\`

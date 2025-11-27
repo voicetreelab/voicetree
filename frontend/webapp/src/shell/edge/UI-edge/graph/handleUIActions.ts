@@ -1,4 +1,4 @@
-import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath, Position, UpsertNodeAction} from "@/pure/graph";
+import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath, NodeUIMetadata, Position, UpsertNodeAction} from "@/pure/graph";
 import {
     createDeleteNodeAction,
     createNewNodeNoParent,
@@ -8,6 +8,25 @@ import type {Core} from 'cytoscape';
 import {applyGraphDeltaToUI} from "./applyGraphDeltaToUI";
 import {parseMarkdownToGraphNode} from "@/pure/graph/markdown-parsing";
 import {getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
+import * as O from 'fp-ts/lib/Option.js';
+
+/**
+ * Merges new metadata with old metadata, preferring new values when they are "present".
+ * - For Option types: use new if Some, otherwise keep old
+ * - For optional fields (undefined): use new if defined, otherwise keep old
+ * - For title (always present): always use new
+ * - For Map: use new if non-empty, otherwise keep old
+ */
+function mergeNodeUIMetadata(oldMeta: NodeUIMetadata, newMeta: NodeUIMetadata): NodeUIMetadata {
+    return {
+        title: newMeta.title, // title is always computed from content, always use new
+        color: O.isSome(newMeta.color) ? newMeta.color : oldMeta.color,
+        position: O.isSome(newMeta.position) ? newMeta.position : oldMeta.position,
+        additionalYAMLProps: newMeta.additionalYAMLProps.size > 0 ? newMeta.additionalYAMLProps : oldMeta.additionalYAMLProps,
+        isContextNode: newMeta.isContextNode ?? oldMeta.isContextNode,
+        containedNodeIds: newMeta.containedNodeIds ?? oldMeta.containedNodeIds,
+    };
+}
 
 
 export async function createNewChildNodeFromUI(
@@ -67,11 +86,13 @@ export async function modifyNodeContentFromUI(
     }
 
     // Create GraphDelta with updated edges based on new content
-    // const graphDelta: GraphDelta = fromContentChangeToGraphDelta(currentNode, newContent, currentGraph);
     const newNodeFromContentChange : GraphNode = parseMarkdownToGraphNode(newContent, nodeId, currentGraph)
-    const nodeChangedWithOldMetadata : GraphNode = {...newNodeFromContentChange, nodeUIMetadata: currentNode.nodeUIMetadata};
 
-    const graphDelta : GraphDelta = nodeToDelta(nodeChangedWithOldMetadata)
+    // Merge metadata: use new values where present, fall back to old values for missing fields (e.g., position)
+    const mergedMetadata: NodeUIMetadata = mergeNodeUIMetadata(currentNode.nodeUIMetadata, newNodeFromContentChange.nodeUIMetadata);
+    const nodeWithMergedMetadata : GraphNode = {...newNodeFromContentChange, nodeUIMetadata: mergedMetadata};
+
+    const graphDelta : GraphDelta = nodeToDelta(nodeWithMergedMetadata)
 
     // Optimistic UI-edge update for edge changes
     applyGraphDeltaToUI(cy, graphDelta);
