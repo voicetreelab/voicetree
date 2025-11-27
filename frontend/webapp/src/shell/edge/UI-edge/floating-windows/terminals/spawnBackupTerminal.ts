@@ -2,15 +2,18 @@ import type {} from '@/shell/electron';
 import type {Core} from "cytoscape";
 import type { Position as CyPosition, CollectionReturnValue } from "cytoscape";
 import type {Position} from "@/pure/graph";
-import {addTerminalToMapState, getNextTerminalCount, getTerminals} from "@/shell/edge/UI-edge/state/UIAppState";
-import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/types";
+import {addTerminal, getNextTerminalCount, getTerminals} from "@/shell/edge/UI-edge/state/UIAppState";
+import {
+    createTerminalData,
+    getTerminalId,
+    type TerminalData,
+    type TerminalId,
+} from "@/shell/edge/UI-edge/floating-windows/types-v2";
 import {
     createFloatingTerminal
-} from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
+} from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI-v2";
 
 export async function spawnBackupTerminal(cy: Core): Promise<void> {
-    // construct a TerminalData without Floating window,
-
     // Get watch directory from IPC
     const status: { readonly isWatching: boolean; readonly directory: string | undefined; } = await window.electronAPI?.main.getWatchStatus();
     const watchDir: string | undefined = status?.directory;
@@ -34,40 +37,37 @@ export async function spawnBackupTerminal(cy: Core): Promise<void> {
     const position: Position = { x: centerX, y: centerY };
 
     // Get next terminal count for backup terminal
-    const terminals: Map<string, TerminalData> = getTerminals();
+    const terminalsMap: Map<TerminalId, TerminalData> = getTerminals();
     const syntheticNodeId: "backup-terminal" = 'backup-terminal';
-    const terminalCount: number = getNextTerminalCount(terminals, syntheticNodeId);
-    const terminalId: string = `${syntheticNodeId}-terminal-${terminalCount}`;
+    const terminalCount: number = getNextTerminalCount(terminalsMap, syntheticNodeId);
 
-    // Create TerminalData object
-    const terminal: TerminalData = {
+    // Create TerminalData using v2 factory function
+    const terminalData: TerminalData = createTerminalData({
         attachedToNodeId: syntheticNodeId,
         terminalCount: terminalCount,
+        title: `Backup ${vaultName}`,
+        anchoredToNodeId: undefined, // Not anchored to a node
         initialCommand: backupCommand,
         executeCommand: true,
-        floatingWindow: {
-            cyAnchorNodeId: syntheticNodeId,
-            associatedTerminalOrEditorID: terminalId,
-            component: 'Terminal',
-            title: `Backup ${vaultName}`,
-            resizable: true
-        }
-    };
+        initialSpawnDirectory: undefined,
+        initialEnvVars: {},
+    });
+
+    const terminalId: TerminalId = getTerminalId(terminalData);
 
     // Create floating terminal with synthetic parent node
-    await spawnTerminalWithSyntheticParent(cy, position, terminal);
+    await spawnTerminalWithSyntheticParent(cy, position, terminalData);
 
     // Fit the graph to include the newly spawned terminal
-    // Terminal ID will be: backup-terminal-terminal-0
     setTimeout(() => {
-        const terminalNode: CollectionReturnValue = cy.$('#backup-terminal-terminal-0');
+        const terminalNode: CollectionReturnValue = cy.$(`#${terminalId}`);
         if (terminalNode.length > 0) {
             cy.fit(terminalNode, 50); // 50px padding
         }
     }, 50);
 
     setTimeout(() => {
-        const terminalNode: CollectionReturnValue = cy.$('#backup-terminal-terminal-0');
+        const terminalNode: CollectionReturnValue = cy.$(`#${terminalId}`);
         if (terminalNode.length > 0) {
             cy.fit(terminalNode, 50); // 50px padding
         }
@@ -96,8 +96,10 @@ export async function spawnTerminalWithSyntheticParent(
     }
 
     // Create the terminal at the specified position
-    await createFloatingTerminal(cy, syntheticNodeId, terminalData, position);
+    const terminalWithUI: TerminalData | undefined = await createFloatingTerminal(cy, syntheticNodeId, terminalData, position);
 
-    // Store terminal in state
-    addTerminalToMapState(terminalData);
+    // Store terminal in state (with ui populated)
+    if (terminalWithUI) {
+        addTerminal(terminalWithUI);
+    }
 }

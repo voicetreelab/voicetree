@@ -5,12 +5,14 @@
 
 import type {} from '@/shell/electron';
 import type {Core, Position} from 'cytoscape';
-import {createWindowChrome, getOrCreateOverlay} from '@/shell/UI/floating-windows/cytoscape-floating-windows';
+import {createWindowChrome, getOrCreateOverlay} from '@/shell/UI/floating-windows/cytoscape-floating-windows-v2';
 import type {VTSettings} from '@/pure/settings/types';
 import {CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
+import type {FloatingWindowFields, EditorId} from '@/shell/edge/UI-edge/floating-windows/types-v2';
+import * as O from 'fp-ts/lib/Option.js';
 
 export async function createSettingsEditor(cy: Core): Promise<void> {
-    const settingsId: "settings-editor" = 'settings-editor';
+    const settingsId: EditorId = 'settings-editor' as EditorId;
 
     try {
         // Check if already exists
@@ -33,14 +35,16 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
         // Get overlay
         const overlay: HTMLElement = getOrCreateOverlay(cy);
 
-        // Create window chrome with CodeMirror editor
-        const {windowElement, contentContainer} = createWindowChrome(cy, {
-            associatedTerminalOrEditorID: settingsId,
-            title: 'Types',
-            component: 'MarkdownEditor',
+        // Create FloatingWindowFields for v2 createWindowChrome
+        const settingsWindowFields: FloatingWindowFields = {
+            anchoredToNodeId: O.none,
+            title: 'Settings',
             resizable: true,
-            initialContent: settingsJson
-        });
+            shadowNodeDimensions: { width: 600, height: 400 },
+        };
+
+        // Create window chrome with CodeMirror editor
+        const {windowElement, contentContainer} = createWindowChrome(cy, settingsWindowFields, settingsId);
 
         // Create CodeMirror editor instance for JSON editing
         const editor: CodeMirrorEditorView = new CodeMirrorEditorView(

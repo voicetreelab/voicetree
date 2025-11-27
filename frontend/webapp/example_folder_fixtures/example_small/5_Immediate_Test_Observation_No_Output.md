@@ -1,5 +1,4 @@
 ---
-title: "Immediate Test Observation: No Output (5)"
 position:
   x: 3.061616997868383e-14
   y: 500

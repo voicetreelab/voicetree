@@ -3,7 +3,7 @@
  */
 import type {Core, NodeSingular} from 'cytoscape';
 import type {Graph, NodeIdAndFilePath} from '@/pure/graph';
-import type {FloatingEditorManager} from '@/shell/UI/floating-windows/editors/FloatingEditorManager';
+import type {FloatingEditorManager} from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorManager-v2';
 import {HorizontalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService';
 import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService';
 import {enableAutoLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout';
