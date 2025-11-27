@@ -35,7 +35,7 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
 
         // Create window chrome with CodeMirror editor
         const {windowElement, contentContainer} = createWindowChrome(cy, {
-            id: settingsId,
+            associatedTerminalOrEditorID: settingsId,
             title: 'Types',
             component: 'MarkdownEditor',
             resizable: true,

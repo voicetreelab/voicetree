@@ -80,7 +80,7 @@ export async function createFloatingEditor(
 
     // Create window chrome (don't pass onClose, we'll handle it in the cleanup wrapper)
     const {windowElement, contentContainer, titleBar} = createWindowChrome(cy, {
-        id,
+        associatedTerminalOrEditorID: id,
         title,
         component: 'MarkdownEditor',
         resizable,
@@ -100,6 +100,20 @@ export async function createFloatingEditor(
     // Setup auto-save with modifyNodeContentFromUI
     editor.onChange((newContent): void => {
         void (async () => {
+            // skip if this onChange wasn't by the user, but rather an externalChange, so fs would already have it
+            if (awaitingUISavedContent.get(nodeId) == newContent){
+                awaitingUISavedContent.delete(nodeId)
+                // todo, this logic needs to be tested. and we really should remove the passing by reference of awaitingUISavedContent
+                return;
+            }
+            // IMPORTANT THE TWO PATHS WE ARE TAKING CARE OF HERE ARE
+
+            // 1. external fs change -> updateFloatingEditors (set awaiting) -> onChange DONT SAVE, clear awaiting
+            // 2. our change (from ui editor) -> onChange -> set awaiting -> fs -> updateFloatingEditors DONT SET, clear awaiting
+
+            // okay, but if we are doing many edits in a row, our awaiting will be cleared.... (only clear awaiting if === ? )
+
+
             console.log('[createAnchoredFloatingEditor] Saving editor content for node:', nodeId);
             // Track this content so we can ignore it when it comes back from filesystem
             awaitingUISavedContent.set(nodeId, newContent);
@@ -261,7 +275,18 @@ export class FloatingEditorManager {
                     const awaiting: string | undefined = this.awaitingUISavedContent.get(nodeId);
                     if (awaiting) { // todo for better race condition management, you can do awaiting === content.
                         console.log('[FloatingWindowManager] Ignoring our own save for node:', nodeId);
-                        this.awaitingUISavedContent.delete(nodeId);
+                        if (awaiting === newContent){
+                            // this is to handle multiple saves in a row from UI, awaiting A, awaiting AB, awaiting ABC.
+                            // they are debounced 400ms, but in case they come out of order we really don't want to throw away ABC when we process A
+                            this.awaitingUISavedContent.delete(nodeId);
+                        }
+                        else{
+                            // but we also don't really want to never register external changes again! so always clear at some point
+                            setTimeout(() => this.awaitingUISavedContent.delete(nodeId), 1000)
+                        }
+                        // todo, i'm sure there is a better way of doing this all, some thing more standard.
+                        // this all seems a bit hacky
+
                         // TODO
                         //    Edge Case to Be Aware Of
                         //
@@ -271,7 +296,9 @@ export class FloatingEditorManager {
                         //   - Save "AB" → store "AB" (overwrites)
                         //   - FS event "A" arrives late → doesn't match "AB" → might update
                         //   incorrectly
-                        continue;
+
+
+                        continue; // ignore this change, we already have it in editor state
                     }
 
                     // Get the editor instance from vanillaFloatingWindowInstances
@@ -283,9 +310,9 @@ export class FloatingEditorManager {
                         // Only update if content has changed to avoid cursor jumps
                         if (editor.getValue() !== newContent) {
                             console.log('[FloatingWindowManager] Updating editor content for node:', nodeId);
+                            // VERY IMPORTANT: we now register this save, so we don't infinite loop by calling onChange -> fs
+                            this.awaitingUISavedContent.set(nodeId, newContent);
                             editor.setValue(newContent);
-                            // Clean up the map entry when applying external changes
-                            this.awaitingUISavedContent.delete(nodeId);
                         }
                     }
                 }

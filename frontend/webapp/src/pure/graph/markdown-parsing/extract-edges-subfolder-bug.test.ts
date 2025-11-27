@@ -4,12 +4,11 @@ import { extractEdges } from '@/pure/graph/markdown-parsing/extract-edges'
 import type { GraphNode, Edge } from '@/pure/graph'
 
 describe('extractEdges - subfolder bug reproduction', () => {
-  const createNode: (id: string, content?: string, title?: string) => GraphNode = (id: string, content = '', title = id): GraphNode => ({
+  const createNode: (id: string, content?: string) => GraphNode = (id: string, content = ''): GraphNode => ({
     relativeFilePathIsID: id,
     contentWithoutYamlOrLinks: content,
     outgoingEdges: [],
     nodeUIMetadata: {
-      title,
       color: O.none,
       position: O.none,
       additionalYAMLProps: new Map(),
@@ -23,8 +22,8 @@ describe('extractEdges - subfolder bug reproduction', () => {
     // Link text in content is just "[[1.md]]" (without the subfolder prefix)
 
     const nodes: { readonly 'felix/1': GraphNode; readonly 'felix/2': GraphNode; } = {
-      'felix/1': createNode('felix/1', '# Node 1 in felix', 'Node 1'),
-      'felix/2': createNode('felix/2', 'Parent:\n- is_related_to [[1.md]]', 'Node 2')
+      'felix/1': createNode('felix/1', '# Node 1 in felix'),
+      'felix/2': createNode('felix/2', 'Parent:\n- is_related_to [[1.md]]')
     }
 
     const content: string = nodes['felix/2'].contentWithoutYamlOrLinks
@@ -45,13 +44,11 @@ describe('extractEdges - subfolder bug reproduction', () => {
     const nodes: { readonly 'felix/1_Positive_Observation_on_System_Performance_Result': GraphNode; readonly 'felix/2_Unexplained_Bug_Encountered': GraphNode; } = {
       'felix/1_Positive_Observation_on_System_Performance_Result': createNode(
         'felix/1_Positive_Observation_on_System_Performance_Result',
-        '# Positive Observation',
-        'Positive Observation'
+        '# Positive Observation'
       ),
       'felix/2_Unexplained_Bug_Encountered': createNode(
         'felix/2_Unexplained_Bug_Encountered',
-        'Parent:\n- is_a_past_issue_related_to [[1_Positive_Observation_on_System_Performance_Result.md]]',
-        'Unexplained Bug'
+        'Parent:\n- is_a_past_issue_related_to [[1_Positive_Observation_on_System_Performance_Result.md]]'
       )
     }
 
@@ -68,8 +65,8 @@ describe('extractEdges - subfolder bug reproduction', () => {
   it('should work when using full path in wikilink', () => {
     // Control test: This SHOULD work with full path
     const nodes: { readonly 'felix/1': GraphNode; readonly 'felix/2': GraphNode; } = {
-      'felix/1': createNode('felix/1', '# Node 1', 'Node 1'),
-      'felix/2': createNode('felix/2', '- related [[felix/1.md]]', 'Node 2')
+      'felix/1': createNode('felix/1', '# Node 1'),
+      'felix/2': createNode('felix/2', '- related [[felix/1.md]]')
     }
 
     const content: string = nodes['felix/2'].contentWithoutYamlOrLinks

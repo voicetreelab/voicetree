@@ -30,14 +30,11 @@ describe('apply_graph_deltas_to_db', () => {
 
   // Helper to create a test node
   const createTestNode: (nodeId: string, content: string) => GraphNode = (nodeId: string, content: string): GraphNode => {
-    // Title is derived from Markdown content (single source of truth)
-    const title: string = markdownToTitle(content, nodeId)
     return {
       relativeFilePathIsID: nodeId,
       contentWithoutYamlOrLinks: content,
       outgoingEdges: [],
       nodeUIMetadata: {
-        title,
         color: O.none,
         position: O.none,
         additionalYAMLProps: new Map(),

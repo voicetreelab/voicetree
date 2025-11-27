@@ -47,7 +47,7 @@ export async function spawnBackupTerminal(cy: Core): Promise<void> {
         executeCommand: true,
         floatingWindow: {
             cyAnchorNodeId: syntheticNodeId,
-            id: terminalId,
+            associatedTerminalOrEditorID: terminalId,
             component: 'Terminal',
             title: `Backup ${vaultName}`,
             resizable: true

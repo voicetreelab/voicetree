@@ -141,7 +141,6 @@ Child content`
                     nodeUIMetadata: {
                         color: O.none,
                         position: O.of({ x: 100, y: 100 }),
-                        title: 'parent',
                         additionalYAMLProps: new Map(),
                         isContextNode: false
                     }
@@ -153,7 +152,6 @@ Child content`
                     nodeUIMetadata: {
                         color: O.none,
                         position: O.of({ x: 200, y: 200 }),
-                        title: 'child1',
                         additionalYAMLProps: new Map(),
                         isContextNode: false
                     }
@@ -326,7 +324,6 @@ Child content`
                     nodeUIMetadata: {
                         color: O.none,
                         position: O.of({ x: 100, y: 100 }),
-                        title: 'parent',
                         additionalYAMLProps: new Map(),
                         isContextNode: false
                     }
@@ -338,7 +335,6 @@ Child content`
                     nodeUIMetadata: {
                         color: O.none,
                         position: O.of({ x: 200, y: 200 }),
-                        title: 'child1',
                         additionalYAMLProps: new Map(),
                         isContextNode: false
                     }

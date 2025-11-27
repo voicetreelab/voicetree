@@ -122,7 +122,7 @@ describe('GraphNavigationService', () => {
 
       // Register mock terminal instance with focus
       mockFocus.mockClear();
-      vanillaFloatingWindowInstances.set('terminal-node2', { dispose: vi.fn(), focus: mockFocus });
+      vanillaFloatingWindowInstances.set('terminal-node2', { dispose: vi.fn(), focus: () => { mockFocus(); } });
     });
 
     afterEach(() => {
