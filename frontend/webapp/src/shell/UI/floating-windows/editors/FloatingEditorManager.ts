@@ -27,6 +27,7 @@ import type {FloatingWindowUIHTMLData} from "@/shell/edge/UI-edge/floating-windo
 import {getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
 import {getVanillaInstance, vanillaFloatingWindowInstances} from "@/shell/edge/UI-edge/state/UIAppState";
 import {fromNodeToContentWithWikilinks} from "@/pure/graph/markdown-writing/node_to_markdown";
+import {getNodeTitle} from "@/pure/graph/markdown-parsing";
 
 /**
  * Function type for getting current graph state
@@ -71,7 +72,7 @@ export async function createFloatingEditor(
     let title: string = `${nodeId}`; // fallback to nodeId if node not found
     if (node) {
         content = fromNodeToContentWithWikilinks(node);
-        title = `${node.nodeUIMetadata.title}`;
+        title = `${getNodeTitle(node)}`;
     }
 
     // Get overlay

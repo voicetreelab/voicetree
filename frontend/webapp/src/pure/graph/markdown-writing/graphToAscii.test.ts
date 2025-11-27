@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { graphToAscii } from '@/pure/graph/markdown-writing/graphToAscii'
 import type { Graph, GraphNode } from '@/pure/graph'
+import { getNodeTitle } from '@/pure/graph/markdown-parsing'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk'
@@ -9,14 +10,14 @@ import type { FileLimitExceededError } from '@/shell/edge/main/graph/readAndDBEv
 import { EXAMPLE_SMALL_PATH, EXAMPLE_LARGE_PATH } from '@/utils/test-utils/fixture-paths'
 
 describe('graphToAscii', () => {
+  // Title is derived from content, so use # heading to set the title
   const createTestNode: (id: string, edges?: readonly string[]) => GraphNode = (id: string, edges: readonly string[] = []): GraphNode => ({
     relativeFilePathIsID: id,
     outgoingEdges: edges.map(targetId => ({ targetId, label: '' })),
-    contentWithoutYamlOrLinks: `content of ${id}`,
+    contentWithoutYamlOrLinks: `# ${id}`,
     nodeUIMetadata: {
       color: O.none,
       position: O.none,
-      title: id,
       additionalYAMLProps: new Map(),
       isContextNode: false
     }
@@ -190,11 +191,11 @@ describe('graphToAscii', () => {
     // Show a few nodes with their edges
     const nodeEntries: readonly (readonly [string, GraphNode])[] = Object.entries(graph.nodes).slice(0, 3)
     nodeEntries.forEach(([_id, node]: readonly [string, GraphNode]) => {
-      console.log(`\nNode: ${node.nodeUIMetadata.title}`)
+      console.log(`\nNode: ${getNodeTitle(node)}`)
       console.log(`  Edges: ${node.outgoingEdges.length}`)
       node.outgoingEdges.forEach((edge: { readonly targetId: string }) => {
         const targetNode: GraphNode = graph.nodes[edge.targetId]
-        console.log(`    -> ${targetNode?.nodeUIMetadata.title ?? edge.targetId}`)
+        console.log(`    -> ${targetNode ? getNodeTitle(targetNode) : edge.targetId}`)
       })
     })
     console.log('='.repeat(80))

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi, type MockInstance } fr
 import { GraphNavigationService } from '@/shell/UI/views/GraphNavigationService';
 import cytoscape, { type Core, type Collection } from 'cytoscape';
 import '@/shell/UI/cytoscape-graph-ui'; // Import to trigger extension registration
+import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
 
 describe('GraphNavigationService', () => {
   let service: GraphNavigationService;
@@ -84,6 +85,8 @@ describe('GraphNavigationService', () => {
   });
 
   describe('cycleTerminal', () => {
+    const mockFocus: MockInstance = vi.fn();
+
     beforeEach(() => {
       // Use cy directly
       // Add terminal nodes (shadow nodes with windowType: 'terminal')
@@ -116,6 +119,14 @@ describe('GraphNavigationService', () => {
           position: { x: 400, y: 300 }
         }
       ]);
+
+      // Register mock terminal instance with focus
+      mockFocus.mockClear();
+      vanillaFloatingWindowInstances.set('terminal-node2', { dispose: vi.fn(), focus: mockFocus });
+    });
+
+    afterEach(() => {
+      vanillaFloatingWindowInstances.delete('terminal-node2');
     });
 
     it('should cycle to next terminal in forward direction', () => {
@@ -128,6 +139,7 @@ describe('GraphNavigationService', () => {
       expect(fitSpy).toHaveBeenCalled();
       const fittedNode: cytoscape.Collection<cytoscape.SingularElementReturnValue, cytoscape.SingularElementArgument> = fitSpy.mock.calls[0]?.[0] as Collection;
       expect(fittedNode.first()?.id()).toBe('terminal-node2');
+      expect(mockFocus).toHaveBeenCalled(); // Auto-focus on cycled terminal
     });
 
     it('should cycle through all terminals in forward direction', () => {

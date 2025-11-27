@@ -41,7 +41,7 @@ export interface GraphNode {
     // CORE GRAPH STRUCTURE
     readonly outgoingEdges: readonly Edge[] // Adjacency list to children / outgoing outgoingEdges
     // incomingEdges is derived
-    readonly relativeFilePathIsID: NodeIdAndFilePath //  we enforce relativeFilePathIsID = relativeFilePath
+    readonly relativeFilePathIsID: NodeIdAndFilePath //  we enforce relativeFilePathIsID = relativeFilePath to watched folder
 
     // DATA - content WITHOUT frontmatter or wikilinks (those are in edges + metadata)
     readonly contentWithoutYamlOrLinks: string
@@ -54,7 +54,7 @@ export interface GraphNode {
 }
 
 export interface NodeUIMetadata {
-    readonly title: string // Derived from Markdown content (first heading > first line > filename). NOT stored in YAML.
+    // NOTE: title is NOT stored here - it's derived via getNodeTitle(node) from Markdown content
     readonly color: O.Option<string>
     readonly position: O.Option<Position>
     // todo,ReadonlyMap doesn't serialize over IPC? must be record?
@@ -82,7 +82,6 @@ export interface NodeUIMetadata {
 
 // Example object used to derive YAML keys at runtime (types are erased, but object keys remain)
 const _exampleNodeUIMetadata: NodeUIMetadata = {
-    title: 'Example Node',
     color: O.some('purple'),
     position: O.some({ x: 100, y: 200 }),
     additionalYAMLProps: new Map([['agent_name', 'Wendy']]),
@@ -90,9 +89,12 @@ const _exampleNodeUIMetadata: NodeUIMetadata = {
 }
 
 // Keys that have explicit fields in NodeUIMetadata (excludes additionalYAMLProps which holds the rest)
-export const NODE_UI_METADATA_YAML_KEYS: ReadonlySet<string> = new Set(
-    Object.keys(_exampleNodeUIMetadata).filter(k => k !== 'additionalYAMLProps')
-)
+// Also includes 'title' which is NOT stored in NodeUIMetadata but should be excluded from additionalYAMLProps
+// since title is derived from markdown content (single source of truth)
+export const NODE_UI_METADATA_YAML_KEYS: ReadonlySet<string> = new Set([
+    ...Object.keys(_exampleNodeUIMetadata).filter(k => k !== 'additionalYAMLProps'),
+    'title' // Legacy YAML title is ignored - title comes from markdown content via getNodeTitle()
+])
 
 // ============================================================================
 // GRAPH DELTAS

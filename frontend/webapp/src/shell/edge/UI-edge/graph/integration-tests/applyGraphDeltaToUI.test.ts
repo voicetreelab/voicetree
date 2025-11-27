@@ -41,7 +41,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Parent GraphNode',
                 outgoingEdges: [],
                 nodeUIMetadata: {
-                    title: 'Parent GraphNode',
+
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
                     additionalYAMLProps: new Map(),
@@ -64,7 +64,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Child GraphNode',
                 outgoingEdges: [],
                 nodeUIMetadata: {
-                    title: 'Child GraphNode',
+
                     color: O.none,
                     position: O.some({ x: 200, y: 200 }),
                     additionalYAMLProps: new Map(),
@@ -120,7 +120,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Orphan GraphNode',
                 outgoingEdges: [],
                 nodeUIMetadata: {
-                    title: 'Orphan GraphNode',
+
                     color: O.none,
                     position: O.some({ x: 300, y: 300 }),
                     additionalYAMLProps: new Map(),
@@ -153,7 +153,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# GraphNode to Delete',
                 outgoingEdges: [],
                 nodeUIMetadata: {
-                    title: 'GraphNode to Delete',
+
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
                     additionalYAMLProps: new Map(),
@@ -194,7 +194,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Original Content',
                 outgoingEdges: [],
                 nodeUIMetadata: {
-                    title: 'Original Content',
+
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
                     additionalYAMLProps: new Map(),
@@ -221,7 +221,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Updated Content',
                 outgoingEdges: [],
                 nodeUIMetadata: {
-                    title: 'Updated Content',
+
                     color: O.some('#ff0000'),
                     position: O.some({ x: 500, y: 500 }), // Different position
                     additionalYAMLProps: new Map(),
@@ -266,7 +266,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Bulk GraphNode 1',
                 outgoingEdges: [{ targetId: 'bulk-2', label: '' }],
                 nodeUIMetadata: {
-                    title: 'Bulk GraphNode 1',
+
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
                     additionalYAMLProps: new Map(),
@@ -279,7 +279,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Bulk GraphNode 2',
                 outgoingEdges: [{ targetId: 'bulk-3', label: '' }],
                 nodeUIMetadata: {
-                    title: 'Bulk GraphNode 2',
+
                     color: O.some('#00ff00'),
                     position: O.some({ x: 200, y: 200 }),
                     additionalYAMLProps: new Map(),
@@ -292,7 +292,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Bulk GraphNode 3',
                 outgoingEdges: [],
                 nodeUIMetadata: {
-                    title: 'Bulk GraphNode 3',
+
                     color: O.none,
                     position: O.some({ x: 300, y: 300 }),
                     additionalYAMLProps: new Map(),
@@ -328,7 +328,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Existing',
                 outgoingEdges: [],
                 nodeUIMetadata: {
-                    title: 'Existing',
+
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
                     additionalYAMLProps: new Map(),
@@ -341,7 +341,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Will be deleted',
                 outgoingEdges: [],
                 nodeUIMetadata: {
-                    title: 'Will be deleted',
+
                     color: O.none,
                     position: O.some({ x: 200, y: 200 }),
                     additionalYAMLProps: new Map(),
@@ -364,7 +364,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# New GraphNode',
                 outgoingEdges: [],
                 nodeUIMetadata: {
-                    title: 'New GraphNode',
+
                     color: O.none,
                     position: O.some({ x: 300, y: 300 }),
                     additionalYAMLProps: new Map(),
@@ -376,7 +376,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 ...existingNode,
                 contentWithoutYamlOrLinks: '# Updated Existing',
                 nodeUIMetadata: {
-                    title: 'Updated Existing',
+
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
                     additionalYAMLProps: new Map(),
@@ -417,7 +417,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Parent',
                 outgoingEdges: [{ targetId: 'child', label: '' }],
                 nodeUIMetadata: {
-                    title: 'Parent',
+
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
                     additionalYAMLProps: new Map(),
@@ -430,7 +430,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Child',
                 outgoingEdges: [],
                 nodeUIMetadata: {
-                    title: 'Child',
+
                     color: O.none,
                     position: O.some({ x: 200, y: 200 }),
                     additionalYAMLProps: new Map(),
@@ -465,7 +465,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Parent',
                 outgoingEdges: [{ targetId: 'child', label: 'test-label' }],
                 nodeUIMetadata: {
-                    title: 'Parent',
+
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
                     additionalYAMLProps: new Map(),
@@ -478,7 +478,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Child',
                 outgoingEdges: [],
                 nodeUIMetadata: {
-                    title: 'Child',
+
                     color: O.none,
                     position: O.some({ x: 200, y: 200 }),
                     additionalYAMLProps: new Map(),
@@ -510,7 +510,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Parent',
                 outgoingEdges: [{ targetId: 'child', label: '' }],
                 nodeUIMetadata: {
-                    title: 'Parent',
+
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
                     additionalYAMLProps: new Map(),
@@ -523,7 +523,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Child',
                 outgoingEdges: [],
                 nodeUIMetadata: {
-                    title: 'Child',
+
                     color: O.none,
                     position: O.some({ x: 200, y: 200 }),
                     additionalYAMLProps: new Map(),
@@ -558,7 +558,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Parent',
                 outgoingEdges: [{ targetId: 'child', label: 'is parent of' }],
                 nodeUIMetadata: {
-                    title: 'Parent',
+
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
                     additionalYAMLProps: new Map(),
@@ -571,7 +571,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Child',
                 outgoingEdges: [],
                 nodeUIMetadata: {
-                    title: 'Child',
+
                     color: O.none,
                     position: O.some({ x: 200, y: 200 }),
                     additionalYAMLProps: new Map(),
@@ -600,7 +600,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Parent',
                 outgoingEdges: [{ targetId: 'child', label: '' }],
                 nodeUIMetadata: {
-                    title: 'Parent',
+
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
                     additionalYAMLProps: new Map(),
@@ -613,7 +613,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Child',
                 outgoingEdges: [],
                 nodeUIMetadata: {
-                    title: 'Child',
+
                     color: O.none,
                     position: O.some({ x: 200, y: 200 }),
                     additionalYAMLProps: new Map(),
@@ -642,7 +642,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Parent',
                 outgoingEdges: [{ targetId: 'child', label: 'is_a_prerequisite_for' }],
                 nodeUIMetadata: {
-                    title: 'Parent',
+
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
                     additionalYAMLProps: new Map(),
@@ -655,7 +655,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Child',
                 outgoingEdges: [],
                 nodeUIMetadata: {
-                    title: 'Child',
+
                     color: O.none,
                     position: O.some({ x: 200, y: 200 }),
                     additionalYAMLProps: new Map(),
@@ -684,7 +684,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Parent',
                 outgoingEdges: [{ targetId: 'child', label: 'this_is_a_complex_relationship_label' }],
                 nodeUIMetadata: {
-                    title: 'Parent',
+
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
                     additionalYAMLProps: new Map(),
@@ -697,7 +697,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Child',
                 outgoingEdges: [],
                 nodeUIMetadata: {
-                    title: 'Child',
+
                     color: O.none,
                     position: O.some({ x: 200, y: 200 }),
                     additionalYAMLProps: new Map(),
@@ -726,7 +726,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Parent',
                 outgoingEdges: [{ targetId: 'child', label: 'simple label' }],
                 nodeUIMetadata: {
-                    title: 'Parent',
+
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
                     additionalYAMLProps: new Map(),
@@ -739,7 +739,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Child',
                 outgoingEdges: [],
                 nodeUIMetadata: {
-                    title: 'Child',
+
                     color: O.none,
                     position: O.some({ x: 200, y: 200 }),
                     additionalYAMLProps: new Map(),
@@ -772,7 +772,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Parent',
                 outgoingEdges: [],
                 nodeUIMetadata: {
-                    title: 'Parent',
+
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
                     additionalYAMLProps: new Map(),
@@ -821,7 +821,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 relativeFilePathIsID: id,
                 contentWithoutYamlOrLinks: `# ${id}`,
                 outgoingEdges: edges,
-                nodeUIMetadata: { title: id, color: O.none, position: O.some({ x: 0, y: 0 }), additionalYAMLProps: new Map(), isContextNode: false }
+                nodeUIMetadata: { color: O.none, position: O.some({ x: 0, y: 0 }), additionalYAMLProps: new Map(), isContextNode: false }
             })
 
             // CASE 1: Edge created when child arrives in same delta as parent update (race condition fix)
@@ -839,7 +839,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             // CASE 2: Edge persists when node updated but link remains (what old "race condition protection" tried to cover)
             applyGraphDeltaToUI(cy, [{ type: 'UpsertNode', nodeToUpsert: { ...makeNode('parent', [{ targetId: 'child', label: '' }]), contentWithoutYamlOrLinks: '# Parent Updated' } }])
             expect(cy.edges().length).toBe(1) // Edge still exists
-            expect(cy.getElementById('parent').data('label')).toBe('parent') // Node was updated
+            expect(cy.getElementById('parent').data('label')).toBe('Parent Updated') // Label derived from updated content
 
             // CASE 3: Edge removed when wikilink deleted from markdown
             applyGraphDeltaToUI(cy, [{ type: 'UpsertNode', nodeToUpsert: makeNode('parent', []) }]) // No more edges
@@ -862,7 +862,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: `# Node ${i}`,
                 outgoingEdges: [],
                 nodeUIMetadata: {
-                    title: `Node ${i}`,
+
                     color: O.some(color),
                     position: O.some({ x: i * 100, y: 100 }),
                     additionalYAMLProps: new Map(),
@@ -896,7 +896,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: `# Invalid ${i}`,
                 outgoingEdges: [],
                 nodeUIMetadata: {
-                    title: `Invalid ${i}`,
+
                     color: O.some(color),
                     position: O.some({ x: i * 100, y: 100 }),
                     additionalYAMLProps: new Map(),
@@ -925,7 +925,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Original',
                 outgoingEdges: [],
                 nodeUIMetadata: {
-                    title: 'Original',
+
                     color: O.some('#ff0000'),
                     position: O.some({ x: 100, y: 100 }),
                     additionalYAMLProps: new Map(),
@@ -946,7 +946,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Updated',
                 outgoingEdges: [],
                 nodeUIMetadata: {
-                    title: 'Updated',
+
                     color: O.some('cyancyan'),
                     position: O.some({ x: 100, y: 100 }),
                     additionalYAMLProps: new Map(),
@@ -978,7 +978,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Original Content',
                 outgoingEdges: [],
                 nodeUIMetadata: {
-                    title: 'Original Title',
+
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
                     additionalYAMLProps: new Map(),
@@ -1009,7 +1009,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 contentWithoutYamlOrLinks: '# Updated Content\n\nNew paragraph added',
                 outgoingEdges: [],
                 nodeUIMetadata: {
-                    title: 'Updated Title',
+
                     color: O.some('#ff0000'),
                     position: O.some({ x: 100, y: 100 }),
                     additionalYAMLProps: new Map(),

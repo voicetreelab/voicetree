@@ -3,6 +3,7 @@ type CyNodeSingular = NodeSingular;
 import type {GraphDelta, GraphNode} from "@/pure/graph";
 import * as O from 'fp-ts/lib/Option.js';
 import {prettyPrintGraphDelta, stripDeltaForReplay} from "@/pure/graph";
+import {getNodeTitle} from "@/pure/graph/markdown-parsing";
 import posthog from "posthog-js";
 
 /**
@@ -47,7 +48,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                         group: 'nodes' as const,
                         data: {
                             id: nodeId,
-                            label: node.nodeUIMetadata.title,
+                            label: getNodeTitle(node),
                             content: node.contentWithoutYamlOrLinks,
                             summary: '',
                             color: colorValue,
@@ -60,7 +61,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                     });
                 } else {
                     // Update existing node metadata (but NOT position)
-                    existingNode.data('label', node.nodeUIMetadata.title);
+                    existingNode.data('label', getNodeTitle(node));
                     // DO NOT sET existingNode.data('content', node.content); it's too much storage duplicated unnec in frontend.
                     existingNode.data('summary', '');
                     const color: string | undefined = O.isSome(node.nodeUIMetadata.color) && isValidCSSColor(node.nodeUIMetadata.color.value)

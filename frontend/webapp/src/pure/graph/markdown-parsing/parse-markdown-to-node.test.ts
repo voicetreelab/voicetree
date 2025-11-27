@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
-import { parseMarkdownToGraphNode } from '@/pure/graph/markdown-parsing/parse-markdown-to-node'
+import { parseMarkdownToGraphNode, getNodeTitle } from '@/pure/graph/markdown-parsing'
 import type { Graph, GraphNode } from '@/pure/graph'
 
 // Helper to create an empty graph for testing
@@ -120,8 +120,8 @@ Content here`
     // NOTE: gray-matter doesn't always strip invalid YAML, it tries to parse it anyway
     // The important thing is that it doesn't throw and the app keeps working
     expect(result.outgoingEdges).toEqual([])
-    // Should fall back to heading when YAML parsing fails
-    expect(result.nodeUIMetadata.title).toBe('Fallback Heading')
+    // Should fall back to heading when YAML parsing fails - title is derived via getNodeTitle
+    expect(getNodeTitle(result)).toBe('Fallback Heading')
     // Content should have YAML stripped (gray-matter tries its best)
     expect(result.contentWithoutYamlOrLinks).toContain('# Fallback Heading')
   })

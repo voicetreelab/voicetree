@@ -17,7 +17,7 @@ describe('fromNodeToMarkdownContent', () => {
         nodeUIMetadata: {
           color: O.some('#00FF00'),
           position: O.none,
-          title: 'test.md',
+
           additionalYAMLProps: new Map(),
           isContextNode: false
         }
@@ -38,7 +38,7 @@ describe('fromNodeToMarkdownContent', () => {
         nodeUIMetadata: {
           color: O.some('#00FF00'),
           position: O.none,
-          title: 'test.md',
+
           additionalYAMLProps: new Map(),
           isContextNode: false
         }
@@ -60,7 +60,6 @@ describe('fromNodeToMarkdownContent', () => {
         nodeUIMetadata: {
           color: O.none,
           position: O.some({ x: 100, y: 200 }),
-          title: 'test.md',
           additionalYAMLProps: new Map(),
           isContextNode: false
         }
@@ -83,7 +82,6 @@ describe('fromNodeToMarkdownContent', () => {
         nodeUIMetadata: {
           color: O.some('#FFAA00'),
           position: O.some({ x: 300, y: 400 }),
-          title: 'test.md',
           additionalYAMLProps: new Map(),
           isContextNode: false
         }
@@ -107,7 +105,6 @@ describe('fromNodeToMarkdownContent', () => {
         nodeUIMetadata: {
           color: O.some('#0000FF'),
           position: O.some({ x: 50, y: 75 }),
-          title: 'test.md',
           additionalYAMLProps: new Map(),
           isContextNode: false
         }
@@ -131,7 +128,7 @@ describe('fromNodeToMarkdownContent', () => {
         nodeUIMetadata: {
           color: O.some('#AABBCC'),
           position: O.none,
-          title: 'test.md',
+
           additionalYAMLProps: new Map(),
           isContextNode: false
         }
@@ -152,7 +149,6 @@ describe('fromNodeToMarkdownContent', () => {
         nodeUIMetadata: {
           color: O.some('#DDEEFF'),
           position: O.some({ x: 10, y: 20 }),
-          title: 'test.md',
           additionalYAMLProps: new Map(),
           isContextNode: false
         }
@@ -175,7 +171,7 @@ describe('fromNodeToMarkdownContent', () => {
         nodeUIMetadata: {
           color: O.none,
           position: O.none,
-          title: 'test.md',
+
           additionalYAMLProps: new Map(),
           isContextNode: false
         }
@@ -200,7 +196,7 @@ describe('fromNodeToMarkdownContent', () => {
         nodeUIMetadata: {
           color: O.none,
           position: O.none,
-          title: 'test.md',
+
           additionalYAMLProps: new Map(),
           isContextNode: false
         }
@@ -223,7 +219,7 @@ describe('fromNodeToMarkdownContent', () => {
         nodeUIMetadata: {
           color: O.none,
           position: O.none,
-          title: 'test.md',
+
           additionalYAMLProps: new Map(),
           isContextNode: false
         }
@@ -243,7 +239,7 @@ describe('fromNodeToMarkdownContent', () => {
         nodeUIMetadata: {
           color: O.none,
           position: O.none,
-          title: 'test.md',
+
           additionalYAMLProps: new Map(),
           isContextNode: false
         }
@@ -271,7 +267,7 @@ describe('fromNodeToMarkdownContent', () => {
         nodeUIMetadata: {
           color: O.none,
           position: O.none,
-          title: 'test.md',
+
           additionalYAMLProps: new Map([
             ['author', 'John Doe'],
             ['custom_field', 'some value']
@@ -294,7 +290,7 @@ describe('fromNodeToMarkdownContent', () => {
         nodeUIMetadata: {
           color: O.none,
           position: O.none,
-          title: 'test.md',
+
           additionalYAMLProps: new Map([
             ['priority', '5'],
             ['version', '2.1']
@@ -317,7 +313,7 @@ describe('fromNodeToMarkdownContent', () => {
         nodeUIMetadata: {
           color: O.none,
           position: O.none,
-          title: 'test.md',
+
           additionalYAMLProps: new Map([
             ['published', 'true'],
             ['archived', 'false']
@@ -340,7 +336,7 @@ describe('fromNodeToMarkdownContent', () => {
         nodeUIMetadata: {
           color: O.none,
           position: O.none,
-          title: 'test.md',
+
           additionalYAMLProps: new Map([
             ['tags', '["important","draft"]']
           ]),
@@ -364,7 +360,7 @@ describe('fromNodeToMarkdownContent', () => {
         nodeUIMetadata: {
           color: O.none,
           position: O.none,
-          title: 'test.md',
+
           additionalYAMLProps: new Map([
             ['metadata', '{"created":"2024-01-15","version":2}']
           ]),
@@ -388,7 +384,6 @@ describe('fromNodeToMarkdownContent', () => {
         nodeUIMetadata: {
           color: O.some('#FF0000'),
           position: O.some({ x: 100, y: 200 }),
-          title: 'test.md',
           additionalYAMLProps: new Map([
             ['author', 'Jane Smith'],
             ['priority', '3']
@@ -416,7 +411,7 @@ describe('fromNodeToMarkdownContent', () => {
         nodeUIMetadata: {
           color: O.some('#FF0000'),
           position: O.none,
-          title: 'test.md',
+
           additionalYAMLProps: new Map(),
           isContextNode: false
         }
@@ -509,7 +504,6 @@ Content with complex frontmatter`
         nodeUIMetadata: {
           color: O.some('#ABCDEF'),
           position: O.some({ x: 150, y: 250 }),
-          title: 'Test Node',
           additionalYAMLProps: new Map([
             ['author', 'Jane Smith'],
             ['category', 'research']
@@ -565,7 +559,7 @@ Just content, no frontmatter`
         nodeUIMetadata: {
           color: O.none,
           position: O.none,
-          title: 'Context Node',
+
           additionalYAMLProps: new Map(),
           isContextNode: true,
           containedNodeIds: ['node1.md', 'folder/node2.md', 'node3.md']
@@ -612,7 +606,7 @@ containedNodeIds:
         nodeUIMetadata: {
           color: O.none,
           position: O.none,
-          title: 'Regular Node',
+
           additionalYAMLProps: new Map(),
           isContextNode: false
         }

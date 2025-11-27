@@ -24,6 +24,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { loadFolder, stopFileWatching, isWatching } from '@/shell/edge/main/graph/watchFolder'
 import { getGraph, setGraph, setVaultPath } from '@/shell/edge/main/state/graph-store'
 import type { GraphDelta, Graph, UpsertNodeAction, DeleteNode, GraphNode, Edge } from '@/pure/graph'
+import { getNodeTitle } from '@/pure/graph/markdown-parsing'
 import path from 'path'
 import { promises as fs } from 'fs'
 import type { BrowserWindow } from 'electron'
@@ -515,12 +516,13 @@ describe('Folder Loading - Integration Tests', () => {
       expect(badYamlNode.contentWithoutYamlOrLinks).toBeDefined()
       expect(badYamlNode.contentWithoutYamlOrLinks.length).toBeGreaterThan(0)
 
-      // AND: Should have used fallback title (from heading, not the unparseable frontmatter)
-      expect(badYamlNode.nodeUIMetadata.title).toBeDefined()
+      // AND: Should derive title from heading (via getNodeTitle), not the unparseable frontmatter
+      const title: string = getNodeTitle(badYamlNode)
+      expect(title).toBeDefined()
       // The title should be from the heading "Bad YAML Frontmatter Test"
       // NOT from the broken frontmatter title
-      expect(badYamlNode.nodeUIMetadata.title).not.toBe('(Sam) Proposed Fix: Expose VoiceTreeGraphView (55)')
-      expect(badYamlNode.nodeUIMetadata.title).toBe('Bad YAML Frontmatter Test')
+      expect(title).not.toBe('(Sam) Proposed Fix: Expose VoiceTreeGraphView (55)')
+      expect(title).toBe('Bad YAML Frontmatter Test')
     })
   })
 })

@@ -4,7 +4,6 @@ import matter from 'gray-matter'
 import type {Graph, GraphNode, Edge} from '@/pure/graph'
 import {NODE_UI_METADATA_YAML_KEYS} from '@/pure/graph'
 import {filenameToNodeId} from '@/pure/graph/markdown-parsing/filename-utils'
-import {markdownToTitle} from '@/pure/graph/markdown-parsing/markdown-to-title'
 import {extractEdges} from "@/pure/graph/markdown-parsing/extract-edges";
 
 /**
@@ -18,8 +17,7 @@ import {extractEdges} from "@/pure/graph/markdown-parsing/extract-edges";
  *
  * Field resolution:
  * - relativeFilePathIsID: filenameToNodeId(filename)
- * - title: Derived from Markdown content (first heading > first line > filename).
- *          YAML frontmatter title is ignored - Markdown is the single source of truth.
+ * - title: NOT stored in GraphNode - derived via getNodeTitle(node) when needed
  * - content: full markdown content
  * - color: Option.some(frontmatter.color) | Option.none
  * - position: Option.some(frontmatter.position) | Option.none
@@ -38,11 +36,11 @@ import {extractEdges} from "@/pure/graph/markdown-parsing/extract-edges";
  * const node = parseMarkdownToGraphNode(content, "test.md")
  * // node = {
  * //   relativeFilePathIsID: "test",
- * //   title: "My Title",  // from markdown heading, not YAML
  * //   content: content,
  * //   color: O.some("#FF0000"),
  * //   position: O.some({ x: 100, y: 200 })
  * // }
+ * // To get title: getNodeTitle(node) => "My Title"
  * ```
  */
 
@@ -134,8 +132,7 @@ export function parseMarkdownToGraphNode(content: string, filename: string, grap
     // Replace [[link]] with [link]* (strip wikilink syntax)
     const contentWithoutYamlOrLinks: string = contentWithoutFrontmatter.replace(/\[\[([^\]]+)\]\]/g, '[$1]*')
 
-    // Compute title from Markdown content (single source of truth - YAML title is ignored)
-    const title: string = markdownToTitle(contentWithoutYamlOrLinks, filename)
+    // NOTE: title is NOT stored in nodeUIMetadata - use getNodeTitle(node) to derive it when needed
 
     // Read isContextNode from frontmatter (explicit, not derived)
     const isContextNode: boolean = parsed.data.isContextNode === true
@@ -148,13 +145,12 @@ export function parseMarkdownToGraphNode(content: string, filename: string, grap
     // Extract additional YAML properties, excluding keys that have explicit fields in NodeUIMetadata
     const additionalYAMLProps: ReadonlyMap<string, string> = extractAdditionalYAMLProps(parsed.data, NODE_UI_METADATA_YAML_KEYS)
 
-    // Return node with computed title
+    // Return node (title is derived via getNodeTitle when needed, not stored)
     return {
         relativeFilePathIsID: filenameToNodeId(filename),
         outgoingEdges: edges,
         contentWithoutYamlOrLinks,
         nodeUIMetadata: {
-            title,
             color: color ? O.some(color) : O.none,
             position: position ? O.some(position) : O.none,
             additionalYAMLProps,

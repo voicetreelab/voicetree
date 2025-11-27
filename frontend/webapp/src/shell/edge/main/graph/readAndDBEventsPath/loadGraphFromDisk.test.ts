@@ -6,6 +6,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk'
 import type { Graph, GraphNode } from '@/pure/graph'
+import { getNodeTitle } from '@/pure/graph/markdown-parsing'
 import type { FileLimitExceededError } from '@/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce'
 
 describe('loadGraphFromDisk', () => {
@@ -166,9 +167,9 @@ This is in a subfolder.`
 
     const node1: GraphNode = graph.nodes['node1.md']
     // Node1 has BOTH frontmatter title "Node One" AND heading "# Node One Content"
-    // Markdown is the single source of truth - title comes from heading, not YAML
-    expect(node1.nodeUIMetadata.title).toBe('Node One Content')
-    expect(node1.nodeUIMetadata.title).not.toBe('Node One') // YAML title is ignored
+    // Markdown is the single source of truth - title comes from heading via getNodeTitle
+    expect(getNodeTitle(node1)).toBe('Node One Content')
+    expect(getNodeTitle(node1)).not.toBe('Node One') // YAML title is ignored
   })
 
   it('should be a pure IO function (same input -> same IO)', async () => {

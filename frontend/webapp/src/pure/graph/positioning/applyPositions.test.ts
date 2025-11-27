@@ -194,7 +194,7 @@ function createNode(id: NodeIdAndFilePath, outgoingEdges: readonly NodeIdAndFile
     outgoingEdges: outgoingEdges.map(targetId => ({ targetId, label: '' })),
     contentWithoutYamlOrLinks: `# ${id}\n\nContent for ${id}`,
     nodeUIMetadata: {
-      title: id,
+
       color: O.none,
       position: O.none,
       additionalYAMLProps: new Map(),

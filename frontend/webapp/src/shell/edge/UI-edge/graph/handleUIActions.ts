@@ -14,12 +14,11 @@ import * as O from 'fp-ts/lib/Option.js';
  * Merges new metadata with old metadata, preferring new values when they are "present".
  * - For Option types: use new if Some, otherwise keep old
  * - For optional fields (undefined): use new if defined, otherwise keep old
- * - For title (always present): always use new
  * - For Map: use new if non-empty, otherwise keep old
+ * NOTE: title is NOT stored in metadata - it's derived via getNodeTitle(node) when needed
  */
 function mergeNodeUIMetadata(oldMeta: NodeUIMetadata, newMeta: NodeUIMetadata): NodeUIMetadata {
     return {
-        title: newMeta.title, // title is always computed from content, always use new
         color: O.isSome(newMeta.color) ? newMeta.color : oldMeta.color,
         position: O.isSome(newMeta.position) ? newMeta.position : oldMeta.position,
         additionalYAMLProps: newMeta.additionalYAMLProps.size > 0 ? newMeta.additionalYAMLProps : oldMeta.additionalYAMLProps,

@@ -18,6 +18,7 @@ import {
     vanillaFloatingWindowInstances
 } from "@/shell/edge/UI-edge/state/UIAppState";
 import {getFilePathForNode, getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
+import {getNodeTitle} from "@/pure/graph/markdown-parsing";
 import type {VTSettings} from "@/pure/settings";
 
 
@@ -73,7 +74,7 @@ export async function spawnTerminalWithNewContextNode(
     const terminalCount: number = getNextTerminalCount(terminals, contextNodeId);
 
     // Get context node title for the terminal window
-    const title: string = contextNode.nodeUIMetadata.title;
+    const title: string = getNodeTitle(contextNode);
 
     // Compute initial_spawn_directory from watch directory + relative path setting
     let initial_spawn_directory: string | undefined;
@@ -156,7 +157,7 @@ export async function createFloatingTerminal(
     try {
         // Get parent node's title
         const node: GraphNode = await getNodeFromMainToUI(nodeId);
-        const title: string = node ? `${node.nodeUIMetadata.title}` : `${nodeId}`;
+        const title: string = node ? `${getNodeTitle(node)}` : `${nodeId}`;
 
         // Populate floatingWindow field in terminalData
         terminalData.floatingWindow = {
