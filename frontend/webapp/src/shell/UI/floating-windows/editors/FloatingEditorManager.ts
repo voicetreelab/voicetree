@@ -80,6 +80,7 @@ export async function createFloatingEditor(
 
     // Create window chrome (don't pass onClose, we'll handle it in the cleanup wrapper)
     const {windowElement, contentContainer, titleBar} = createWindowChrome(cy, {
+        anchored: true, //todo not always true
         associatedTerminalOrEditorID: id,
         title,
         component: 'MarkdownEditor',
