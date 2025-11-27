@@ -1,7 +1,7 @@
 import type {FSUpdate, Graph, GraphDelta, GraphNode, NodeIdAndFilePath, UpsertNodeAction} from '@/pure/graph'
 import path from 'path'
 import {parseMarkdownToGraphNode} from '@/pure/graph/markdown-parsing/parse-markdown-to-node'
-import {extractPathSegments, findBestMatchingNode} from '@/pure/graph/markdown-parsing/extract-edges'
+import {linkMatchScore, findBestMatchingNode} from '@/pure/graph/markdown-parsing/extract-edges'
 import {setOutgoingEdges} from '@/pure/graph/graph-operations /graph-edge-operations'
 import {filenameToNodeId} from '@/pure/graph/markdown-parsing/filename-utils'
 
@@ -11,8 +11,7 @@ function healNodeEdges(affectedNodeIds: readonly NodeIdAndFilePath[], currentGra
 
         // Re-resolve the existing edges against the updated graph
         const healedEdges: readonly { readonly targetId: string; readonly label: string; }[] = affectedNode.outgoingEdges.map((edge) => {
-            // Try to resolve the raw targetId to an actual node
-            //todo suss
+            // Try to resolve the raw targetId to an actual node using linkMatchScore-based matching
             const resolvedTargetId: string | undefined = findBestMatchingNode(edge.targetId, graphWithNewNode.nodes)
             return {
                 ...edge,
@@ -101,8 +100,8 @@ export function addNodeToGraph(
 /**
  * Finds all nodes that have edges potentially pointing to the newly added node.
  *
- * Uses smart matching: checks if any existing node has an edge with a raw targetId
- * that matches any path segment of the new node.
+ * Uses linkMatchScore to check if any existing node has an edge with a raw targetId
+ * that matches the new node's ID (handles ./, ../, and .md normalization).
  *
  * @param newNode - The newly added node
  * @param currentGraph - Current graph state
@@ -110,28 +109,25 @@ export function addNodeToGraph(
  *
  * @example
  * ```typescript
- * // New node: "felix/1"
- * // Existing nodes: { "felix/2": { edges: [{ targetId: "1", ... }] } }
+ * // New node: "ctx-nodes/VT/foo.md"
+ * // Existing nodes: { "other.md": { edges: [{ targetId: "./foo.md", ... }] } }
  * //
- * // extractPathSegments("felix/1") => ["felix/1", "1"]
- * // "felix/2" has edge with targetId="1" which matches segment "1"
- * // => Returns ["felix/2"]
+ * // linkMatchScore("./foo.md", "ctx-nodes/VT/foo.md") => 1 (baseNames match)
+ * // => Returns ["other.md"]
  * ```
  */
 function findNodesWithPotentialEdgesToNode(
     newNode: GraphNode,
     currentGraph: Graph
 ): readonly NodeIdAndFilePath[] {
-    // Extract all possible path segments from the new node's ID
-    // e.g., "felix/1" => ["felix/1", "1"] and the ones with .md
-    const segments: readonly string[] = extractPathSegments(newNode.relativeFilePathIsID)
+    const newNodeId: string = newNode.relativeFilePathIsID
 
-    // Find all nodes that have edges with targetId matching any segment
+    // Find all nodes that have edges with targetId matching the new node
     return Object.values(currentGraph.nodes)
-        .filter((node) =>
-            node.outgoingEdges.some((edge) => segments.includes(edge.targetId))
+        .filter((node: GraphNode) =>
+            node.outgoingEdges.some((edge) => linkMatchScore(edge.targetId, newNodeId) > 0)
         )
-        .map((node) => node.relativeFilePathIsID)
+        .map((node: GraphNode) => node.relativeFilePathIsID)
 }
 
 /**
