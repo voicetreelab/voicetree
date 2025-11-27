@@ -68,7 +68,9 @@ describe('computeMergeGraphDelta', () => {
         // First should be UpsertNode for representative
         expect(result[0].type).toBe('UpsertNode')
         if (result[0].type === 'UpsertNode') {
-            expect(result[0].nodeToUpsert.contentWithoutYamlOrLinks).toBe('# Merged: First, Second')
+            // Content should include all original content
+            expect(result[0].nodeToUpsert.contentWithoutYamlOrLinks).toContain('# First')
+            expect(result[0].nodeToUpsert.contentWithoutYamlOrLinks).toContain('# Second')
             // Centroid of (0,0) and (100,100) is (50,50)
             expect(O.isSome(result[0].nodeToUpsert.nodeUIMetadata.position)).toBe(true)
             if (O.isSome(result[0].nodeToUpsert.nodeUIMetadata.position)) {

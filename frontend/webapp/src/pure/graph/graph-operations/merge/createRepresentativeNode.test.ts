@@ -36,7 +36,7 @@ describe('createRepresentativeNode', () => {
         }
     })
 
-    it('should combine node titles in content', () => {
+    it('should include ASCII tree and accumulate all content from nodes', () => {
         const nodes: readonly GraphNode[] = [
             {
                 relativeFilePathIsID: 'node1.md',
@@ -57,22 +57,17 @@ describe('createRepresentativeNode', () => {
                     position: O.some({ x: 100, y: 100 }),
                     additionalYAMLProps: new Map()
                 }
-            },
-            {
-                relativeFilePathIsID: 'node3.md',
-                outgoingEdges: [],
-                contentWithoutYamlOrLinks: '# Third Node',
-                nodeUIMetadata: {
-                    color: O.none,
-                    position: O.some({ x: 200, y: 200 }),
-                    additionalYAMLProps: new Map()
-                }
             }
         ]
 
         const result: GraphNode = createRepresentativeNode(nodes, 'merged.md')
 
-        expect(result.contentWithoutYamlOrLinks).toBe('# Merged: First Node, Second Node, Third Node')
+        // Should include header, ASCII tree in code block, and accumulated content
+        expect(result.contentWithoutYamlOrLinks).toContain('# Merged Node')
+        expect(result.contentWithoutYamlOrLinks).toContain('```')
+        expect(result.contentWithoutYamlOrLinks).toContain('# First Node\nSome content')
+        expect(result.contentWithoutYamlOrLinks).toContain('# Second Node\nMore content')
+        expect(result.contentWithoutYamlOrLinks).toContain('---')
     })
 
     it('should exclude nodes without positions from centroid calculation', () => {
@@ -133,14 +128,51 @@ describe('createRepresentativeNode', () => {
 
         const result: GraphNode = createRepresentativeNode(nodes, 'merged.md')
 
-        expect(result.contentWithoutYamlOrLinks).toBe('# Merged: Single Node')
+        expect(result.contentWithoutYamlOrLinks).toContain('# Merged Node')
+        expect(result.contentWithoutYamlOrLinks).toContain('# Single Node')
         expect(O.isSome(result.nodeUIMetadata.position)).toBe(true)
         if (O.isSome(result.nodeUIMetadata.position)) {
             expect(result.nodeUIMetadata.position.value).toEqual({ x: 50, y: 75 })
         }
     })
 
-    it('should handle nodes with and without headers', () => {
+    it('should show ASCII tree with internal edges only', () => {
+        const nodes: readonly GraphNode[] = [
+            {
+                relativeFilePathIsID: 'parent.md',
+                outgoingEdges: [
+                    { targetId: 'child.md', label: 'has_child' },
+                    { targetId: 'external.md', label: 'external_link' } // This should be filtered out
+                ],
+                contentWithoutYamlOrLinks: '# Parent Node',
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 0, y: 0 }),
+                    additionalYAMLProps: new Map()
+                }
+            },
+            {
+                relativeFilePathIsID: 'child.md',
+                outgoingEdges: [],
+                contentWithoutYamlOrLinks: '# Child Node',
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map()
+                }
+            }
+        ]
+
+        const result: GraphNode = createRepresentativeNode(nodes, 'merged.md')
+
+        // ASCII tree should show parent -> child relationship
+        expect(result.contentWithoutYamlOrLinks).toContain('Parent Node')
+        expect(result.contentWithoutYamlOrLinks).toContain('Child Node')
+        // The tree structure should show the hierarchy
+        expect(result.contentWithoutYamlOrLinks).toContain('└──')
+    })
+
+    it('should include content from nodes with and without headers', () => {
         const nodes: readonly GraphNode[] = [
             {
                 relativeFilePathIsID: 'node1.md',
@@ -166,7 +198,9 @@ describe('createRepresentativeNode', () => {
 
         const result: GraphNode = createRepresentativeNode(nodes, 'merged.md')
 
-        expect(result.contentWithoutYamlOrLinks).toBe('# Merged: Titled Node, Untitled')
+        // Should include all content from both nodes
+        expect(result.contentWithoutYamlOrLinks).toContain('# Titled Node')
+        expect(result.contentWithoutYamlOrLinks).toContain('Just some content without a header')
     })
 
     it('should create representative with no outgoing edges', () => {

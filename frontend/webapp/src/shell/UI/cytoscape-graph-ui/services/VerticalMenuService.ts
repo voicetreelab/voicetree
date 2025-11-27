@@ -1,6 +1,7 @@
 import type {Core, Position as CyPosition} from 'cytoscape';
 import ctxmenu from '@/shell/UI/lib/ctxmenu.js';
-import {deleteNodeFromUI, mergeSelectedNodesFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions";
+import {deleteNodeFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions";
+import {mergeSelectedNodesFromUI} from "@/shell/edge/UI-edge/graph/mergeSelectedNodesFromUI";
 
 export interface Position {
     x: number;
