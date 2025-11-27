@@ -74,11 +74,9 @@ def parse_markdown_file_complete(filepath: Path) -> Optional[ParsedNode]:
             return None
         node_id = node_id_from_meta
 
-    # Get title from metadata (preserves full title with ID)
-    title = metadata.get('title', 'Untitled')
-
-    # Extract summary and parse content
-    summary, main_content = extract_summary_and_main_content(content_after_frontmatter)
+    # Extract title, summary, and parse content
+    # Title comes from first heading (#), summary from second heading (###)
+    title, summary, main_content = extract_title_summary_and_content(content_after_frontmatter)
 
     # Extract datetime fields
     created_at = metadata.get('created_at', datetime.now().isoformat())
@@ -111,29 +109,42 @@ def parse_markdown_file_complete(filepath: Path) -> Optional[ParsedNode]:
     }
 
 
-def extract_summary_and_main_content(markdown_content: str) -> tuple[str, str]:
+def extract_title_summary_and_content(markdown_content: str) -> tuple[str, str, str]:
     """
-    Extract summary and main content from markdown after frontmatter.
+    Extract title, summary, and main content from markdown after frontmatter.
+
+    Title is the first heading (# or any level).
+    Summary is the first ### heading after the title.
+    Content is everything else before the links section.
 
     Args:
         markdown_content: Markdown content after frontmatter
 
     Returns:
-        Tuple of (summary, main_content)
+        Tuple of (title, summary, main_content)
     """
     lines = markdown_content.strip().split('\n')
+    title = "Untitled"
     summary = ""
     content_lines = []
+    found_title = False
     found_summary = False
 
     for line in lines:
-        # Check if line is a summary (starts with ###)
-        if line.strip().startswith('###') and not found_summary:
-            summary = line.strip().lstrip('#').strip()
-            found_summary = True
-            # Skip the summary line
+        stripped = line.strip()
+        # Check if line is a title (first heading of any level)
+        if stripped.startswith('#') and not found_title:
+            title = stripped.lstrip('#').strip()
+            found_title = True
+            # Skip the title line from content
             continue
-        elif line.strip() == '-----------------':
+        # Check if line is a summary (### heading after title)
+        elif stripped.startswith('###') and not found_summary:
+            summary = stripped.lstrip('#').strip()
+            found_summary = True
+            # Skip the summary line from content
+            continue
+        elif stripped == '-----------------':
             # Stop before the links section
             break
         else:
@@ -142,7 +153,7 @@ def extract_summary_and_main_content(markdown_content: str) -> tuple[str, str]:
     # Join content lines
     content = '\n'.join(content_lines).strip()
 
-    return summary, content
+    return title, summary, content
 
 
 def extract_parent_relationship(content: str) -> Optional[ParentRelationship]:

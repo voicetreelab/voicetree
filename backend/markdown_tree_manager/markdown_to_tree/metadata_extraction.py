@@ -10,22 +10,17 @@ import re
 
 def extract_title(content: str) -> str:
     """
-    Extract title from markdown frontmatter.
-    Looks for 'title: Title Name' in YAML frontmatter.
+    Extract title from markdown content.
+    Looks for the first markdown heading (# Title).
 
     Args:
-        content: Markdown content with frontmatter
+        content: Markdown content
 
     Returns:
         Extracted title or empty string if not found
     """
-    # Look for title in YAML frontmatter
-    match = re.search(r'^title:\s*(.+?)(?:\s*\(.+\))?$', content, re.MULTILINE)
-    if match:
-        return match.group(1).strip()
-
-    # Fallback: look for first # heading
-    match = re.search(r'^#\s+(.+?)$', content, re.MULTILINE)
+    # Look for first # heading (any level)
+    match = re.search(r'^#+\s+(.+?)$', content, re.MULTILINE)
     if match:
         return match.group(1).strip()
 
@@ -34,8 +29,8 @@ def extract_title(content: str) -> str:
 
 def extract_summary(content: str) -> str:
     """
-    Extract summary from first ### heading content.
-    Gets the text immediately following the first ### heading.
+    Extract summary from the second heading (### level).
+    The first heading is the title, the second (###) is the summary.
 
     Args:
         content: Markdown content
@@ -43,7 +38,7 @@ def extract_summary(content: str) -> str:
     Returns:
         Extracted summary or empty string if not found
     """
-    # Find the first ### heading line
+    # Find the first ### heading line (second heading after # title)
     match = re.search(r'^###\s+(.+?)$', content, re.MULTILINE)
 
     if match:

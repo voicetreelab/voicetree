@@ -46,19 +46,16 @@ class TreeToMarkdownConverter:
                     hashtags = ' '.join(f"#{tag}" for tag in node_data.tags)
                     f.write(f"{hashtags}\n")
 
-                # Write YAML frontmatter
-                # Check if node_id is already in the title to avoid duplicate appending
-                if f"({node_id})" not in node_data.title:
-                    title_with_id = f"{node_data.title} ({node_id})"
-                else:
-                    title_with_id = node_data.title
-
+                # Write YAML frontmatter (node_id only, title goes in markdown heading)
                 frontmatter = insert_yaml_frontmatter({
-                    "title": title_with_id,
                     "node_id": node_id,
                 })
                 f.write(frontmatter)
 
+                # Write title as first markdown heading
+                f.write(f"# {node_data.title}\n\n")
+
+                # Write summary as second heading
                 if node_data.summary and node_data.summary.strip():
                     if "#" not in node_data.summary:
                         f.write(f"### {node_data.summary}\n\n")
