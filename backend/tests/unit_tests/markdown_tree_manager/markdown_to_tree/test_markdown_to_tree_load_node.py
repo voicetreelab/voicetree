@@ -27,8 +27,9 @@ class TestLoadNodeFunction:
         # First create the parent file
         parent_content = """---
 node_id: 19
-title: Implement Vector Search
 ---
+# Implement Vector Search
+
 ### Vector search implementation
 
 Content here.
@@ -44,10 +45,11 @@ Children:
         # Now create the test file with Children link (no Parent link)
         content = """---
 node_id: 20
-title: Dependency Traversal for Relevant Nodes
 color: blue
 agent_name: TestBot
 ---
+# Dependency Traversal for Relevant Nodes
+
 ### Performs an MVP dependency traversal to find the most relevant nodes using TF-IDF
 
 This system traverses the graph following parent dependencies and accumulates content to provide context for LLM queries. The traversal includes both parent and child relationships to build comprehensive context.
@@ -105,8 +107,9 @@ Children:
         """Test load_node with a minimal markdown file"""
         minimal_content = """---
 node_id: 1
-title: Simple Node
 ---
+# Simple Node
+
 ### Basic summary
 
 Just some content."""
@@ -146,8 +149,8 @@ Some content without frontmatter."""
         """Test load_node with file that has no ### summary heading"""
         no_summary_content = """---
 node_id: 5
-title: No Summary Node
 ---
+# No Summary Node
 
 Just content without a summary heading."""
 
