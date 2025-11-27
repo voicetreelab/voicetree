@@ -10,12 +10,11 @@ import type { GraphNode, Edge } from '@/pure/graph'
  * from markdown content, which should now return Edge[] instead of NodeId[].
  */
 describe('extractLinkedNodeIds - relationship labels integration', () => {
-  const createNode: (id: string, content?: string, title?: string) => GraphNode = (id: string, content = '', title = id): GraphNode => ({
+  const createNode: (id: string, content?: string) => GraphNode = (id: string, content = ''): GraphNode => ({
     relativeFilePathIsID: id,
     contentWithoutYamlOrLinks: content,
     outgoingEdges: [],
     nodeUIMetadata: {
-      title,
       color: O.none,
       position: O.none,
       additionalYAMLProps: new Map(),

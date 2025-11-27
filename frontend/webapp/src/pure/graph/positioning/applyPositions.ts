@@ -41,7 +41,6 @@ export function applyPositions(graph: Graph): Graph {
         outgoingEdges: rootNodes.map(targetId => ({ targetId, label: '' })),
         contentWithoutYamlOrLinks: '',
         nodeUIMetadata: {
-            title : "GHOST",
             color: O.none,
             position: O.some(GHOST_ROOT_POSITION),
             additionalYAMLProps: new Map(),

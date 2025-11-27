@@ -91,16 +91,16 @@ export function createWindowChrome(
     cy: cytoscape.Core,
     config: FloatingWindowData
 ): { windowElement: HTMLElement; contentContainer: HTMLElement; titleBar: HTMLElement } {
-    const {id, title, resizable = false, component} = config;
+    const {associatedTerminalOrEditorID, title, resizable = false, component} = config;
 
     // Get initial dimensions for this component type
     const dimensions: { width: number; height: number; } = config.shadowNodeDimensions ?? getDefaultDimensions(component);
 
     // Create main window container
     const windowElement: HTMLDivElement = document.createElement('div');
-    windowElement.id = `window-${id}`;
+    windowElement.id = `window-${associatedTerminalOrEditorID}`;
     windowElement.className = 'cy-floating-window';
-    windowElement.setAttribute('data-shadow-node-relativeFilePathIsID', id);
+    windowElement.setAttribute('data-shadow-node-relativeFilePathIsID', associatedTerminalOrEditorID) // todo, move this to the type system (this will be unnecessary once we start using EditorData type);
 
     // Set initial dimensions
     windowElement.style.width = `${dimensions.width}px`;
@@ -120,7 +120,7 @@ export function createWindowChrome(
         cy.$(':selected').unselect();
         // Then select the parent node for this editor (derived from window ID)
         // The window ID is `${nodeId}-editor`, so extract the nodeId
-        const windowId: string = id;
+        const windowId: string = associatedTerminalOrEditorID;
         const editorSuffix: string = '-editor'; // todo we shouldn't assume
         const nodeId: string = windowId.endsWith(editorSuffix)
             ? windowId.slice(0, -editorSuffix.length)
@@ -141,7 +141,7 @@ export function createWindowChrome(
     // Create title text
     const titleText: HTMLSpanElement = document.createElement('span');
     titleText.className = 'cy-floating-window-title-text';
-    titleText.textContent = title || `Window: ${id}`;
+    titleText.textContent = title || `Window: ${associatedTerminalOrEditorID}`;
 
     // Create fullscreen button for all components
     const fullscreenButton: HTMLButtonElement = document.createElement('button');
@@ -151,7 +151,7 @@ export function createWindowChrome(
 
     // Attach fullscreen handler
     fullscreenButton.addEventListener('click', () => {
-        const vanillaInstance: { dispose: () => void; } | undefined = vanillaFloatingWindowInstances.get(id);
+        const vanillaInstance: { dispose: () => void; } | undefined = vanillaFloatingWindowInstances.get(associatedTerminalOrEditorID);
         if (vanillaInstance && 'toggleFullscreen' in vanillaInstance) {
             void (vanillaInstance as { toggleFullscreen: () => Promise<void> }).toggleFullscreen();
         }
@@ -169,15 +169,15 @@ export function createWindowChrome(
             config.onClose();
         }
         // Find and remove shadow node (use getElementById to handle IDs with special chars like /)
-        const shadowNode: cytoscape.CollectionReturnValue = cy.getElementById(id);
+        const shadowNode: cytoscape.CollectionReturnValue = cy.getElementById(associatedTerminalOrEditorID);
         if (shadowNode.length > 0) {
             shadowNode.remove();
         }
         // Dispose vanilla JS instances
-        const vanillaInstance: { dispose: () => void; } | undefined = vanillaFloatingWindowInstances.get(id);
+        const vanillaInstance: { dispose: () => void; } | undefined = vanillaFloatingWindowInstances.get(associatedTerminalOrEditorID);
         if (vanillaInstance) {
             vanillaInstance.dispose();
-            vanillaFloatingWindowInstances.delete(id);
+            vanillaFloatingWindowInstances.delete(associatedTerminalOrEditorID);
         }
         windowElement.remove();
     });
@@ -254,7 +254,7 @@ function attachDragHandlers(
         windowElement.style.top = `${graphY}px`;
 
         // Update shadow node position so edge follows (use getElementById to handle IDs with special chars like /)
-        const shadowNodeId: string | null = windowElement.getAttribute('data-shadow-node-relativeFilePathIsID');
+        const shadowNodeId: string | null = windowElement.getAttribute('data-shadow-node-relativeFilePathIsID') // todo, move this to the type system (this will be unnecessary once we start using EditorData type);
         if (shadowNodeId) {
             const shadowNode: cytoscape.CollectionReturnValue = cy.getElementById(shadowNodeId);
             if (shadowNode.length > 0) {
@@ -329,7 +329,7 @@ export function anchorToNode(
     }
 
     // 1. Create child shadow node ID based on parent node
-    const childShadowId: string = `shadow-child-${parentNodeId}-${floatingWindow.id}`;
+    const childShadowId: string = `shadow-child-${parentNodeId}-${floatingWindow.id}`; // todo, move this to the type system (this will be unnecessary once we start using EditorData type)
 
     // 2. Position child shadow node offset from parent (+50, +50)
     const parentPos: cytoscape.Position = parentNode.position();
@@ -354,7 +354,7 @@ export function anchorToNode(
     });
 
     // Update window element's data attribute to point to shadow node
-    windowElement.setAttribute('data-shadow-node-relativeFilePathIsID', childShadowId);
+    windowElement.setAttribute('data-shadow-node-relativeFilePathIsID', childShadowId); // todo this will be unnecessary once we start using EditorData type
 
     // 2. Get initial dimensions from rendered window
     const dimensions: { width: number; height: number; } = {

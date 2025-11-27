@@ -104,7 +104,7 @@ export async function spawnTerminalWithNewContextNode(
         },
         floatingWindow: {
             cyAnchorNodeId: contextNodeId,
-            id: terminalId,
+            associatedTerminalOrEditorID: terminalId,
             component: 'Terminal',
             title: title,
             resizable: true
@@ -162,7 +162,7 @@ export async function createFloatingTerminal(
         // Populate floatingWindow field in terminalData
         terminalData.floatingWindow = {
             cyAnchorNodeId: nodeId,
-            id: terminalId,
+            associatedTerminalOrEditorID: terminalId,
             component: 'Terminal',
             title: title,
             resizable: true
@@ -203,14 +203,14 @@ export function createFloatingTerminalWindow(
         throw new Error('TerminalData must have floatingWindow field populated');
     }
 
-    const {id, title, resizable = true, onClose} = terminalData.floatingWindow;
+    const {associatedTerminalOrEditorID, title, resizable = true, onClose} = terminalData.floatingWindow;
 
     // Get overlay
     const overlay: HTMLElement = getOrCreateOverlay(cy);
 
     // Create window chrome (don't pass onClose, we'll handle it in the cleanup wrapper)
     const {windowElement, contentContainer, titleBar} = createWindowChrome(cy, {
-        id,
+        id: associatedTerminalOrEditorID,
         title,
         component: 'Terminal',
         resizable,
@@ -224,28 +224,28 @@ export function createFloatingTerminalWindow(
     }); // todo, move this up one level.
 
     // Store for cleanup
-    vanillaFloatingWindowInstances.set(id, terminal);
+    vanillaFloatingWindowInstances.set(associatedTerminalOrEditorID, terminal);
 
     // Analytics: Track terminal opened
-    posthog.capture('terminal_opened', {terminalId: id});
+    posthog.capture('terminal_opened', {terminalId: associatedTerminalOrEditorID});
 
     // Create cleanup wrapper that can be extended by anchorToNode
     const floatingWindow: FloatingWindowUIHTMLData = {
-        id,
+        id: associatedTerminalOrEditorID,
         windowElement,
         contentContainer,
         titleBar,
         cleanup: () => {
             // Analytics: Track terminal closed
-            posthog.capture('terminal_closed', {terminalId: id});
+            posthog.capture('terminal_closed', {terminalId: associatedTerminalOrEditorID});
 
             // Remove from state
             removeTerminalFromMapState(terminalData);
 
-            const vanillaInstance: { dispose: () => void; } | undefined = vanillaFloatingWindowInstances.get(id);
+            const vanillaInstance: { dispose: () => void; } | undefined = vanillaFloatingWindowInstances.get(associatedTerminalOrEditorID);
             if (vanillaInstance) {
                 vanillaInstance.dispose();
-                vanillaFloatingWindowInstances.delete(id);
+                vanillaFloatingWindowInstances.delete(associatedTerminalOrEditorID);
             }
             windowElement.remove();
             if (onClose) {

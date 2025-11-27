@@ -4,12 +4,11 @@ import { extractEdges } from '@/pure/graph/markdown-parsing/extract-edges'
 import type { GraphNode, Edge } from '@/pure/graph'
 
 describe('extractLinkedNodeIds', () => {
-  const createNode: (id: string, content?: string, title?: string) => GraphNode = (id: string, content = '', title = id): GraphNode => ({
+  const createNode: (id: string, content?: string) => GraphNode = (id: string, content = ''): GraphNode => ({
     relativeFilePathIsID: id,
     contentWithoutYamlOrLinks: content,
     outgoingEdges: [],
     nodeUIMetadata: {
-      title,
       color: O.none,
       position: O.none,
       additionalYAMLProps: new Map(),

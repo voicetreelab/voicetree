@@ -182,7 +182,7 @@ describe('Floating window drag syncs shadow node position (bug fix test)', () =>
         // Create floating window chrome
         const windowId: string = `${parentNodeId}-editor`;
         const { windowElement, contentContainer, titleBar } = createWindowChrome(cy, {
-            id: windowId,
+            associatedTerminalOrEditorID: windowId,
             title: 'Test Editor',
             component: 'MarkdownEditor'
         });
@@ -241,7 +241,7 @@ describe('Floating window drag syncs shadow node position (bug fix test)', () =>
 
         const windowId: string = `${parentNodeId}-editor`;
         const { windowElement, contentContainer, titleBar } = createWindowChrome(cy, {
-            id: windowId,
+            associatedTerminalOrEditorID: windowId,
             title: 'Test Editor',
             component: 'MarkdownEditor'
         });
@@ -283,7 +283,7 @@ describe('Floating window drag syncs shadow node position (bug fix test)', () =>
 
         const windowId: string = `${parentNodeId}-editor`;
         const { windowElement, contentContainer, titleBar } = createWindowChrome(cy, {
-            id: windowId,
+            associatedTerminalOrEditorID: windowId,
             title: 'Test Editor',
             component: 'MarkdownEditor'
         });
