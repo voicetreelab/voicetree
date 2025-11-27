@@ -1,15 +1,17 @@
 /**
  * Pure functional graph actions for hotkeys
  *
- * These are higher-order functions that close over dependencies (cy, floatingWindowManager)
+ * These are higher-order functions that close over dependencies (cy)
  * and return action handlers that can be registered with HotkeyManager.
  */
 
 import type {Core, Position} from 'cytoscape';
-import type {FloatingEditorManager} from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorManager-v2';
 import {
     spawnTerminalWithNewContextNode
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI-v2";
+import {
+    createAnchoredFloatingEditor,
+} from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorManager-v2';
 
 /**
  * Get currently selected graph nodes (excluding floating windows)
@@ -26,9 +28,8 @@ const getSelectedGraphNodes: (cy: Core) => string[] = (cy: Core): string[] => {
  * - If node selected: creates child node
  * - If no selection: creates orphan at viewport center
  */
-export const createNewNodeAction: (cy: Core, floatingWindowManager: FloatingEditorManager) => () => void = (
+export const createNewNodeAction: (cy: Core) => () => void = (
   cy: Core,
-  floatingWindowManager: FloatingEditorManager
 ) => (): void => {
   const selectedNodes: string[] = getSelectedGraphNodes(cy);
 
@@ -38,7 +39,7 @@ export const createNewNodeAction: (cy: Core, floatingWindowManager: FloatingEdit
     void (async () => {
       const {createNewChildNodeFromUI} = await import('@/shell/edge/UI-edge/graph/handleUIActions');
       const childId: string = await createNewChildNodeFromUI(parentNodeId, cy);
-      await floatingWindowManager.createAnchoredFloatingEditor(childId);
+      await createAnchoredFloatingEditor(cy, childId);
     })();
   } else {
     // Create orphan node at center of viewport
@@ -49,7 +50,7 @@ export const createNewNodeAction: (cy: Core, floatingWindowManager: FloatingEdit
       const centerX: number = (cy.width() / 2 - pan.x) / zoom;
       const centerY: number = (cy.height() / 2 - pan.y) / zoom;
       const nodeId: string = await createNewEmptyOrphanNodeFromUI({x: centerX, y: centerY}, cy);
-      await floatingWindowManager.createAnchoredFloatingEditor(nodeId);
+      await createAnchoredFloatingEditor(cy, nodeId);
     })();
   }
 };
