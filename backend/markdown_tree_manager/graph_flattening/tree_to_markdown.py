@@ -15,7 +15,7 @@ class TreeToMarkdownConverter:
         # self.mContextualTreeManager = contextual_tree_manager
         self.tree_data = tree_data
 
-    def convert_nodes(self, output_dir: str = "markdownTreeVaultDefault", nodes_to_update: Optional[set[int]] = None) -> None:
+    def convert_nodes(self, output_dir: str, nodes_to_update: Optional[set[int]] = None) -> None:
         """Converts the specified nodes to Markdown files."""
         logging.info(f"TreeToMarkdownConverter.convert_nodes called with output_dir='{output_dir}' (absolute: {os.path.abspath(output_dir)})")
         print(f"DEBUG: TreeToMarkdownConverter.convert_nodes called with output_dir='{output_dir}' (absolute: {os.path.abspath(output_dir)})")
