@@ -170,7 +170,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
             contentWithoutYamlOrLinks: '# Target',
             outgoingEdges: [],
             nodeUIMetadata: {
-              title: 'Target',
+
               color: O.none,
               position: O.none,
               additionalYAMLProps: new Map(),
@@ -232,7 +232,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
             contentWithoutYamlOrLinks: '# Node 1',
             outgoingEdges: [],
             nodeUIMetadata: {
-              title: 'Node 1',
+
               color: O.none,
               position: O.none,
               additionalYAMLProps: new Map(),
@@ -267,7 +267,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
             relativeFilePathIsID: 'parent.md',
             contentWithoutYamlOrLinks: '# Parent',
             outgoingEdges: [{ targetId: 'child.md', label: 'links to' }],
-            nodeUIMetadata: { title: 'Parent', color: O.none, position: O.none, additionalYAMLProps: new Map(), isContextNode: false }
+            nodeUIMetadata: { color: O.none, position: O.none, additionalYAMLProps: new Map(), isContextNode: false }
           }
         }
       }

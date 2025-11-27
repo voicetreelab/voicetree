@@ -19,8 +19,10 @@ export function fromCreateChildToUpsertNode(
     graph: Graph,
     parentNode: GraphNode,
     newNodeContent: string = "# new",
+    // todo, stripExtension(parentNode.relativeFilePathIsID) so there's no double .md
     newFilePathIsID: NodeIdAndFilePath = parentNode.relativeFilePathIsID + '_' + parentNode.outgoingEdges.length + ".md", //todo doesn't guarantee uniqueness, but tis good enough
 ): GraphDelta {
+
     // Parse the content to extract metadata (including isContextNode from frontmatter)
     const parsedNode: GraphNode = parseMarkdownToGraphNode(newNodeContent, newFilePathIsID, graph)
 
@@ -95,11 +97,11 @@ function randomChars(number: number): string {
 
 export function createNewNodeNoParent(pos: Position): { readonly newNode: GraphNode; readonly graphDelta: GraphDelta; } {
     const newNode: GraphNode = {
-        relativeFilePathIsID: Date.now().toString() + randomChars(3) + ".md", // file with current date time + 3 random characters , //todo doesn't guarantee uniqueness, but tis good enough
+        relativeFilePathIsID: 'VT/' + Date.now().toString() + randomChars(3) + ".md", // file with current date time + 3 random characters , //todo doesn't guarantee uniqueness, but tis good enough
         outgoingEdges: [],
         contentWithoutYamlOrLinks: '# New',
         nodeUIMetadata: {
-            title: 'New',
+            // NOTE: title is derived via getNodeTitle from contentWithoutYamlOrLinks
             color: O.none,
             position: O.of(pos),
             additionalYAMLProps: new Map(),

@@ -245,6 +245,17 @@ export class StyleService {
         }
       },
 
+      // Selected nodes - green outline offset by 5px
+      {
+        selector: 'node:selected',
+        style: {
+          'outline-width': 2,
+          'outline-color': '#00cc66',
+          'outline-offset': 5,
+          'outline-opacity': 1,
+        }
+      },
+
       // Breathing animation states - pinned nodes (orange)
       {
         selector: 'node.breathing-pinned-expand',

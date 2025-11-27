@@ -19,6 +19,7 @@ import * as O from 'fp-ts/lib/Option.js'
 
 import type {FSUpdate, Graph, GraphDelta} from '@/pure/graph'
 import {addNodeToGraph} from '@/pure/graph/graphDelta/addNodeToGraph'
+import {getNodeTitle} from '@/pure/graph/markdown-parsing'
 import {getGraph, getVaultPath, setVaultPath} from '@/shell/edge/main/state/graph-store'
 import {applyGraphDeltaToDBThroughMem} from '@/shell/edge/main/graph/writePath/applyGraphDeltaToDBThroughMem'
 import {getUnseenNodesAroundContextNode, type UnseenNode} from '@/shell/edge/main/graph/getUnseenNodesAroundContextNode'
@@ -136,7 +137,7 @@ export function createMcpServer(): McpServer {
             for (const [_nodeId, node] of Object.entries(graph.nodes)) {
                 nodes[node.relativeFilePathIsID] = {
                     id: node.relativeFilePathIsID,
-                    title: node.nodeUIMetadata.title,
+                    title: getNodeTitle(node),
                     content: node.contentWithoutYamlOrLinks,
                     outgoingEdges: node.outgoingEdges.map(e => ({
                         targetId: e.targetId,
@@ -169,7 +170,7 @@ export function createMcpServer(): McpServer {
             const graph: Graph = getGraph()
             const nodes: { id: string; title: string; }[] = Object.values(graph.nodes).map(node => ({
                 id: node.relativeFilePathIsID,
-                title: node.nodeUIMetadata.title
+                title: getNodeTitle(node)
             }))
 
             return {

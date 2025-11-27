@@ -10,7 +10,7 @@ describe('extractLinkedNodeIds', () => {
     contentWithoutYamlOrLinks: '',
     outgoingEdges: [],
     nodeUIMetadata: {
-      title: id,
+
       color: O.none,
       position: O.none,
       additionalYAMLProps: new Map(),

@@ -15,6 +15,7 @@ import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
 import { createNewChildNodeFromUI, modifyNodeContentFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions'
 import type { Graph, GraphNode } from '@/pure/graph'
+import { getNodeTitle } from '@/pure/graph/markdown-parsing'
 
 describe('createNewChildNodeFromUI - Integration', () => {
     let cy: Core
@@ -22,6 +23,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
 
     beforeEach(() => {
         // Create a minimal graph with 2 nodes
+        // NOTE: title is derived via getNodeTitle from contentWithoutYamlOrLinks
         mockGraph = {
             nodes: {
                 'parent.md': {
@@ -29,7 +31,6 @@ describe('createNewChildNodeFromUI - Integration', () => {
                     contentWithoutYamlOrLinks: '# Parent GraphNode',
                     outgoingEdges: [{ targetId: 'child1.md', label: '' }],
                     nodeUIMetadata: {
-                        title: 'Parent GraphNode',
                         color: O.none,
                         position: O.some({ x: 100, y: 100 }),
                         additionalYAMLProps: new Map(),
@@ -41,7 +42,6 @@ describe('createNewChildNodeFromUI - Integration', () => {
                     contentWithoutYamlOrLinks: '# Child 1',
                     outgoingEdges: [],
                     nodeUIMetadata: {
-                        title: 'Child 1',
                         color: O.none,
                         position: O.some({ x: 200, y: 200 }),
                         additionalYAMLProps: new Map(),
@@ -107,7 +107,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
         // AND: Should have 2 edges (parent->child1, parent->new_child)
         expect(cy.edges()).toHaveLength(2)
 
-        // AND: The new node should exist with correct label from nodeUIMetadata.title
+        // AND: The new node should exist with correct label derived via getNodeTitle
         const newNodeId: "parent.md_1.md" = 'parent.md_1.md' // Based on naming convention in fromUICreateChildToUpsertNode
         const newNode: cytoscape.CollectionReturnValue = cy.getElementById(newNodeId)
         expect(newNode.length).toBe(1)
@@ -182,6 +182,7 @@ describe('modifyNodeContentFromUI - Integration', () => {
 
     beforeEach(() => {
         // Create a minimal graph with 1 node
+        // NOTE: title is derived via getNodeTitle from contentWithoutYamlOrLinks
         mockGraph = {
             nodes: {
                 'test.md': {
@@ -189,7 +190,6 @@ describe('modifyNodeContentFromUI - Integration', () => {
                     contentWithoutYamlOrLinks: '# Old Title\n\nSome content',
                     outgoingEdges: [],
                     nodeUIMetadata: {
-                        title: 'Old Title',
                         color: O.some('#FF0000'),
                         position: O.some({ x: 100, y: 100 }),
                         additionalYAMLProps: new Map(),
@@ -259,20 +259,21 @@ describe('modifyNodeContentFromUI - Integration', () => {
         }
     })
 
-    it('should call applyGraphDeltaToDBThroughMem with updated node including new title', async () => {
-        // GIVEN: Node with old title
+    it('should call applyGraphDeltaToDBThroughMem with updated node - title derived from content', async () => {
+        // GIVEN: Node with old title (derived from content heading)
         expect(cy.getElementById('test.md').data('label')).toBe('Old Title')
 
         // WHEN: Modifying content with new title
         const newContent: string = '# Updated Title\n\nNew content here'
         await modifyNodeContentFromUI('test.md', newContent, cy)
 
-        // THEN: GraphDelta should contain node with new title
+        // THEN: GraphDelta should contain node with content that derives the new title
         const graphDeltaCall: any[] = (window as any).electronAPI!.main.applyGraphDeltaToDBThroughMem.mock.calls[0]?.[0] as any[]
         expect(graphDeltaCall).toHaveLength(1)
         expect(graphDeltaCall[0].type).toBe('UpsertNode')
 
         const upsertedNode: GraphNode = graphDeltaCall[0].nodeToUpsert as GraphNode
-        expect(upsertedNode.nodeUIMetadata.title).toBe('Updated Title')
+        // Title is derived from content via getNodeTitle, not stored in metadata
+        expect(getNodeTitle(upsertedNode)).toBe('Updated Title')
     })
 })

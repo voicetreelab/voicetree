@@ -54,7 +54,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
         contentWithoutYamlOrLinks: '# Test Integration GraphNode\n\nThis is test content for integration testing.',
         outgoingEdges: [],
         nodeUIMetadata: {
-          title: 'Test Integration GraphNode',
+
           color: O.none,
           position: O.none,
           additionalYAMLProps: new Map(),
@@ -95,7 +95,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
           { targetId: '2_VoiceTree_Node_ID_Duplication_Bug', label: '' }
         ],
         nodeUIMetadata: {
-          title: 'GraphNode With Links',
+
           color: O.some('#FF5733'),
           position: O.some({ x: 100, y: 200 }),
           additionalYAMLProps: new Map(),
@@ -133,7 +133,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
         contentWithoutYamlOrLinks: '# GraphNode To Delete\n\nThis node will be deleted.',
         outgoingEdges: [],
         nodeUIMetadata: {
-          title: 'GraphNode To Delete',
+
           color: O.none,
           position: O.none,
           additionalYAMLProps: new Map(),
@@ -180,7 +180,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
         contentWithoutYamlOrLinks: '# Original Content',
         outgoingEdges: [],
         nodeUIMetadata: {
-          title: 'Original Content',
+
           color: O.none,
           position: O.none,
           additionalYAMLProps: new Map(),
@@ -201,7 +201,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
         ...createNode,
         contentWithoutYamlOrLinks: '# Updated Content\n\nThis content has been updated.',
         nodeUIMetadata: {
-          title: 'Updated Content',
+
           color: O.none,
           position: O.none,
           additionalYAMLProps: new Map(),
@@ -243,7 +243,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
           contentWithoutYamlOrLinks: '# Test',
           outgoingEdges: [],
           nodeUIMetadata: {
-            title: 'Test',
+
             color: O.none,
             position: O.none,
             additionalYAMLProps: new Map(),

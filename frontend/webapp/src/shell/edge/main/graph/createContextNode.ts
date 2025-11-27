@@ -1,5 +1,6 @@
 import type {Graph, GraphDelta, NodeIdAndFilePath, GraphNode} from '@/pure/graph'
 import { getSubgraphByDistance, graphToAscii, getNodeIdsInTraversalOrder } from '@/pure/graph'
+import { getNodeTitle } from '@/pure/graph/markdown-parsing'
 
 /** Folder where context nodes are stored */
 export const CONTEXT_NODES_FOLDER: "ctx-nodes" = 'ctx-nodes'
@@ -55,7 +56,7 @@ export async function createContextNode(
 
   // 5. EDGE: Get parent node info for context
   const parentNode: GraphNode = currentGraph.nodes[parentNodeId]
-  const parentTitle: string = parentNode.nodeUIMetadata.title
+  const parentTitle: string = getNodeTitle(parentNode)
 
   // 6. EDGE: Build markdown content with frontmatter
   const content: string = buildContextNodeContent(

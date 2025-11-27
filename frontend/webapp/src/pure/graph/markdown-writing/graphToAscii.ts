@@ -5,6 +5,7 @@
 
 import type { Graph, NodeIdAndFilePath, GraphNode } from '@/pure/graph'
 import { reverseGraphEdges } from '@/pure/graph/graph-operations /graph-transformations'
+import { getNodeTitle } from '@/pure/graph/markdown-parsing'
 
 /**
  * Converts a Graph into an ASCII tree visualization.
@@ -59,7 +60,7 @@ export function graphToAscii(graph: Graph): string {
     const node: GraphNode = graph.nodes[nodeId]
     if (!node) return // Safety check for missing nodes
 
-    const title: string = node.nodeUIMetadata.title
+    const title: string = getNodeTitle(node)
 
     // Print current node with connectors
     if (isRoot) {
