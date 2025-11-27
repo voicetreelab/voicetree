@@ -326,4 +326,77 @@ Content without frontmatter`
       expect(result.nodeUIMetadata.additionalYAMLProps.size).toBe(0)
     })
   })
+
+  describe('containedNodeIds', () => {
+    it('should parse containedNodeIds array from frontmatter', () => {
+      const content: string = `---
+isContextNode: true
+containedNodeIds:
+  - node1.md
+  - folder/node2.md
+  - deep/path/node3.md
+---
+# Context Node Content`
+
+      const result: import('@/pure/graph').GraphNode = parseMarkdownToGraphNode(content, 'context.md', emptyGraph)
+
+      expect(result.nodeUIMetadata.isContextNode).toBe(true)
+      expect(result.nodeUIMetadata.containedNodeIds).toEqual([
+        'node1.md',
+        'folder/node2.md',
+        'deep/path/node3.md'
+      ])
+    })
+
+    it('should return undefined for containedNodeIds when not present', () => {
+      const content: string = `---
+title: Regular Node
+---
+# Content`
+
+      const result: import('@/pure/graph').GraphNode = parseMarkdownToGraphNode(content, 'regular.md', emptyGraph)
+
+      expect(result.nodeUIMetadata.containedNodeIds).toBeUndefined()
+    })
+
+    it('should return undefined for containedNodeIds when not an array', () => {
+      const content: string = `---
+containedNodeIds: "not-an-array"
+---
+# Content`
+
+      const result: import('@/pure/graph').GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
+
+      expect(result.nodeUIMetadata.containedNodeIds).toBeUndefined()
+    })
+
+    it('should filter out non-string values from containedNodeIds', () => {
+      const content: string = `---
+containedNodeIds:
+  - valid-node.md
+  - 123
+  - another-valid.md
+---
+# Content`
+
+      const result: import('@/pure/graph').GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
+
+      // Only string values should be included
+      expect(result.nodeUIMetadata.containedNodeIds).toEqual([
+        'valid-node.md',
+        'another-valid.md'
+      ])
+    })
+
+    it('should return empty array when containedNodeIds is empty array', () => {
+      const content: string = `---
+containedNodeIds: []
+---
+# Content`
+
+      const result: import('@/pure/graph').GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
+
+      expect(result.nodeUIMetadata.containedNodeIds).toEqual([])
+    })
+  })
 })

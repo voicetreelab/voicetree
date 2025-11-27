@@ -1,5 +1,5 @@
 import type {} from '@/shell/electron';
-import type {NodeIdAndFilePath, Position} from "@/pure/graph";
+import type {GraphNode, NodeIdAndFilePath, Position} from "@/pure/graph";
 import type {Core} from "cytoscape";
 import {
     anchorToNode,
@@ -64,7 +64,7 @@ export async function spawnTerminalWithNewContextNode(
     }
 
     // Get the context node to read its content
-    const contextNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = parentNode.nodeUIMetadata.isContextNode
+    const contextNode: GraphNode = parentNode.nodeUIMetadata.isContextNode
         ? parentNode
         : await getNodeFromMainToUI(contextNodeId);
     const contextContent: string = contextNode.contentWithoutYamlOrLinks;

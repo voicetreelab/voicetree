@@ -168,8 +168,8 @@ export function createWindowChrome(
         if (config.onClose) {
             config.onClose();
         }
-        // Find and remove shadow node
-        const shadowNode: cytoscape.CollectionReturnValue = cy.$(`#${id}`);
+        // Find and remove shadow node (use getElementById to handle IDs with special chars like /)
+        const shadowNode: cytoscape.CollectionReturnValue = cy.getElementById(id);
         if (shadowNode.length > 0) {
             shadowNode.remove();
         }
@@ -253,10 +253,10 @@ function attachDragHandlers(
         windowElement.style.left = `${graphX}px`;
         windowElement.style.top = `${graphY}px`;
 
-        // Update shadow node position so edge follows
+        // Update shadow node position so edge follows (use getElementById to handle IDs with special chars like /)
         const shadowNodeId: string | null = windowElement.getAttribute('data-shadow-node-relativeFilePathIsID');
         if (shadowNodeId) {
-            const shadowNode: cytoscape.CollectionReturnValue = cy.$(`#${shadowNodeId}`);
+            const shadowNode: cytoscape.CollectionReturnValue = cy.getElementById(shadowNodeId);
             if (shadowNode.length > 0) {
                 shadowNode.position({x: graphX, y: graphY});
             }

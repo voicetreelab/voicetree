@@ -4,7 +4,7 @@
   "description": "Transform voice into navigable concept graphs",
   "author": "Manu Masson",
   "private": true,
-  "version": "1.4.11",
+  "version": "1.4.12",
   "type": "module",
   "main": "dist-electron/main/index.js",
   "scripts": {
@@ -20,7 +20,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:test": "tsc -b && vite build && npm run test:smoke",
-    "electron": "npx kill-port 3000 2>/dev/null || true && electron-vite dev --watch",
+    "electron:watch": "npx kill-port 3000 2>/dev/null || true && electron-vite dev --watch",
+    "electron": "npx kill-port 3000 2>/dev/null || true && electron-vite dev",
     "electron:prod": "electron-vite build && electron .",
     "electron:build": "electron-vite build",
     "electron:pack": "electron-vite build && electron-builder",

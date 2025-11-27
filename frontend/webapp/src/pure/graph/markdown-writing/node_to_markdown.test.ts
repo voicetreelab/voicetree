@@ -555,4 +555,72 @@ Just content, no frontmatter`
       expect(O.isNone(node2.nodeUIMetadata.position)).toBe(true)
     })
   })
+
+  describe('containedNodeIds', () => {
+    it('should write containedNodeIds array to frontmatter', () => {
+      const node: GraphNode = {
+        relativeFilePathIsID: 'context.md',
+        contentWithoutYamlOrLinks: '# Context Node',
+        outgoingEdges: [],
+        nodeUIMetadata: {
+          color: O.none,
+          position: O.none,
+          title: 'Context Node',
+          additionalYAMLProps: new Map(),
+          isContextNode: true,
+          containedNodeIds: ['node1.md', 'folder/node2.md', 'node3.md']
+        }
+      }
+
+      const result: string = fromNodeToMarkdownContent(node)
+
+      expect(result).toContain('containedNodeIds:')
+      expect(result).toContain('- node1.md')
+      expect(result).toContain('- folder/node2.md')
+      expect(result).toContain('- node3.md')
+      expect(result).toContain('isContextNode: true')
+    })
+
+    it('should preserve containedNodeIds through round-trip', () => {
+      const originalMarkdown: string = `---
+title: Context Node
+isContextNode: true
+containedNodeIds:
+  - node1.md
+  - folder/node2.md
+  - deep/path/node3.md
+---
+# Context Node Content`
+
+      const node: GraphNode = parseMarkdownToGraphNode(originalMarkdown, 'context.md', emptyGraph)
+      const writtenMarkdown: string = fromNodeToMarkdownContent(node)
+      const reparsedNode: GraphNode = parseMarkdownToGraphNode(writtenMarkdown, 'context.md', emptyGraph)
+
+      expect(reparsedNode.nodeUIMetadata.isContextNode).toBe(true)
+      expect(reparsedNode.nodeUIMetadata.containedNodeIds).toEqual([
+        'node1.md',
+        'folder/node2.md',
+        'deep/path/node3.md'
+      ])
+    })
+
+    it('should not write containedNodeIds when undefined', () => {
+      const node: GraphNode = {
+        relativeFilePathIsID: 'regular.md',
+        contentWithoutYamlOrLinks: '# Regular Node',
+        outgoingEdges: [],
+        nodeUIMetadata: {
+          color: O.none,
+          position: O.none,
+          title: 'Regular Node',
+          additionalYAMLProps: new Map(),
+          isContextNode: false
+        }
+      }
+
+      const result: string = fromNodeToMarkdownContent(node)
+
+      expect(result).not.toContain('containedNodeIds')
+    })
+  })
 })

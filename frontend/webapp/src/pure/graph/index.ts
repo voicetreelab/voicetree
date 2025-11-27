@@ -60,6 +60,7 @@ export interface NodeUIMetadata {
     // todo,ReadonlyMap doesn't serialize over IPC? must be record?
     readonly additionalYAMLProps: ReadonlyMap<string,string> // todo support this at both read and write paths for Node <-> Markdown
     readonly isContextNode?: boolean // undefined means false
+    readonly containedNodeIds?: readonly NodeIdAndFilePath[] // Node IDs whose content is contained in this context node
     // width/height is derived from node degree
 }
 
