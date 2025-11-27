@@ -81,6 +81,7 @@ export default tseslint.config([
     files: [
       '**/pure/**/*.ts',
       '**/functional/**/*.ts',
+      '**/functional/shell/edge/**/*.ts',
     ],
     plugins: {
       functional

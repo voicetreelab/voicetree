@@ -15,11 +15,21 @@ import { python } from '@codemirror/lang-python';
 import { json } from '@codemirror/lang-json';
 import { java } from '@codemirror/lang-java';
 import tagParser from 'codemirror-rich-markdoc/src/tagParser';
-import richMarkdocHighlightStyle from 'codemirror-rich-markdoc/src/highlightStyle';
 
-// Custom h1 override - applied on top of rich-markdoc defaults
-const customH1Style: HighlightStyle = HighlightStyle.define([
+// Combined highlight style: copied from codemirror-rich-markdoc/src/highlightStyle.ts
+// with h1 modified (32px -> 18px, added underline)
+const markdownHighlightStyle: HighlightStyle = HighlightStyle.define([
   { tag: t.heading1, fontWeight: 'bold', fontFamily: 'sans-serif', fontSize: '18px', textDecoration: 'underline' },
+  { tag: t.heading2, fontWeight: 'bold', fontFamily: 'sans-serif', fontSize: '28px', textDecoration: 'none' },
+  { tag: t.heading3, fontWeight: 'bold', fontFamily: 'sans-serif', fontSize: '24px', textDecoration: 'none' },
+  { tag: t.heading4, fontWeight: 'bold', fontFamily: 'sans-serif', fontSize: '22px', textDecoration: 'none' },
+  { tag: t.link, fontFamily: 'sans-serif', textDecoration: 'underline', color: 'blue' },
+  { tag: t.emphasis, fontFamily: 'sans-serif', fontStyle: 'italic' },
+  { tag: t.strong, fontFamily: 'sans-serif', fontWeight: 'bold' },
+  { tag: t.monospace, fontFamily: 'monospace' },
+  { tag: t.content, fontFamily: 'sans-serif' },
+  { tag: t.meta, color: 'darkgrey' },
+  { tag: t.strikethrough, color: 'darkgrey', textDecoration: 'line-through' },
 ]);
 import RichEditPlugin from 'codemirror-rich-markdoc/src/richEdit';
 import renderBlock from 'codemirror-rich-markdoc/src/renderBlock';
@@ -134,8 +144,7 @@ export class CodeMirrorEditorView extends Disposable {
       provide: () => [
         markdownWithFrontmatter, // Provide markdown with frontmatter support
         renderBlock({}), // Markdoc config
-        syntaxHighlighting(richMarkdocHighlightStyle), // Base rich-markdoc styles for h2, h3, etc.
-        syntaxHighlighting(customH1Style) // Override h1 to be smaller
+        syntaxHighlighting(markdownHighlightStyle) // Rich-markdoc styles with custom h1 (smaller)
       ],
       eventHandlers: {
         mousedown({ target }, view) {

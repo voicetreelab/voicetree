@@ -790,7 +790,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     id: 'shadow-child-parent.md-parent.md-terminal-0',
                     isShadowNode: true,
                     isFloatingWindow: true,
-                    windowType: 'terminal'
+                    windowType: 'Terminal'
                 },
                 position: { x: 150, y: 150 }
             })

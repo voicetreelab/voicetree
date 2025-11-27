@@ -20,6 +20,7 @@ import {
     getFloatingWindowId,
     getShadowNodeId,
     isEditorData,
+    isTerminalData,
 } from '@/shell/edge/UI-edge/floating-windows/types-v2';
 import { removeEditor, removeTerminal } from "@/shell/edge/UI-edge/state/UIAppState";
 
@@ -214,7 +215,7 @@ function attachDragHandlers(
  */
 export function createWindowChrome(
     cy: cytoscape.Core,
-    fw: FloatingWindowFields,
+    fw: FloatingWindowData | FloatingWindowFields,
     id: EditorId | TerminalId
 ): FloatingWindowUIData {
     const dimensions: { width: number; height: number } = fw.shadowNodeDimensions;
@@ -237,9 +238,24 @@ export function createWindowChrome(
         e.stopPropagation();
         cy.$(':selected').unselect();
 
-        // Select the parent node if anchored
-        if (O.isSome(fw.anchoredToNodeId)) {
-            const parentNode: cytoscape.CollectionReturnValue = cy.getElementById(fw.anchoredToNodeId.value);
+        // Select the node associated with this floating window
+        // Use contentLinkedToNodeId for editors, attachedToNodeId for terminals
+        let nodeIdToSelect: NodeIdAndFilePath | undefined;
+        if ('type' in fw) {
+            // fw is FloatingWindowData (has type discriminant)
+            const fwData: FloatingWindowData = fw as FloatingWindowData;
+            if (isEditorData(fwData)) {
+                nodeIdToSelect = fwData.contentLinkedToNodeId;
+            } else if (isTerminalData(fwData)) {
+                nodeIdToSelect = fwData.attachedToNodeId;
+            }
+        } else if (O.isSome(fw.anchoredToNodeId)) {
+            // Fallback for plain FloatingWindowFields (e.g., settings editor)
+            nodeIdToSelect = fw.anchoredToNodeId.value;
+        }
+
+        if (nodeIdToSelect) {
+            const parentNode: cytoscape.CollectionReturnValue = cy.getElementById(nodeIdToSelect);
             if (parentNode.length > 0) {
                 parentNode.select();
             }
@@ -339,6 +355,8 @@ export function anchorToNode(
             parentId: parentNodeId,
             parentNodeId: parentNodeId,
             isFloatingWindow: true,
+            isShadowNode: true,
+            windowType: fw.type, // 'Terminal' or 'Editor' from V2 type system
             laidOut: false
         },
         position: childPosition

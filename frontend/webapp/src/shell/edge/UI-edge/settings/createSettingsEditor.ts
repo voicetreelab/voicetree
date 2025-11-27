@@ -5,7 +5,7 @@
 
 import type {} from '@/shell/electron';
 import type {Core, Position} from 'cytoscape';
-import {createWindowChrome, getOrCreateOverlay} from '@/shell/UI/floating-windows/cytoscape-floating-windows-v2';
+import {createWindowChrome, getOrCreateOverlay} from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows-v2';
 import type {VTSettings} from '@/pure/settings/types';
 import {CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
 import type {FloatingWindowFields, EditorId} from '@/shell/edge/UI-edge/floating-windows/types-v2';
