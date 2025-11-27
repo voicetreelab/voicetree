@@ -3,10 +3,10 @@ import type {NodeIdAndFilePath, GraphNode} from "@/pure/graph";
 import {createNewChildNodeFromUI, deleteNodeFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions";
 import {
     spawnTerminalWithNewContextNode
-} from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
+} from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI-v2";
 import {getFilePathForNode, getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
 import {Plus, Play, Trash2, Pencil, Clipboard, MoreHorizontal, createElement, type IconNode} from 'lucide';
-import {getOrCreateOverlay} from "@/shell/UI/floating-windows/cytoscape-floating-windows";
+import {getOrCreateOverlay} from "@/shell/UI/floating-windows/cytoscape-floating-windows-v2";
 
 /** Menu item interface for the custom horizontal menu */
 interface HorizontalMenuItem {

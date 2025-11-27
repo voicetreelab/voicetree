@@ -4,6 +4,11 @@ import cytoscape from 'cytoscape';
 import type { Core } from 'cytoscape';
 import { VerticalMenuService, type VerticalMenuDependencies } from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService';
 import type { MenuItem } from '@/shell/UI/lib/ctxmenu.d';
+
+/** Type guard to check if menu item has disabled property */
+function hasDisabled(item: MenuItem): item is MenuItem & { disabled?: boolean } {
+  return 'disabled' in item;
+}
 import type { MenuConfig } from '@/shell/UI/lib/ctxmenu';
 import type { NodeIdAndFilePath } from '@/pure/graph/index';
 
@@ -100,7 +105,7 @@ describe('VerticalMenuService', () => {
       expect(addNodeItem).toBeDefined();
     });
 
-    it('should include Delete Selected option when nodes are selected', () => {
+    it('should include enabled Delete Selected option when nodes are selected', () => {
       service = new VerticalMenuService();
       service.initialize(cy, mockDeps);
       // Select a node
@@ -114,9 +119,10 @@ describe('VerticalMenuService', () => {
         return text.startsWith('Delete Selected');
       });
       expect(deleteItem).toBeDefined();
+      expect(hasDisabled(deleteItem!) && deleteItem.disabled).toBeFalsy();
     });
 
-    it('should not include Delete Selected option when no nodes are selected', () => {
+    it('should show disabled Delete option with "0 nodes selected" when no nodes are selected', () => {
       service = new VerticalMenuService();
       service.initialize(cy, mockDeps);
       /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
@@ -125,9 +131,58 @@ describe('VerticalMenuService', () => {
       const deleteItem: MenuItem | undefined = menuItems.find((item) => {
         if (!('text' in item)) return false;
         const text: string = typeof item.text === 'function' ? item.text() : item.text;
-        return text.startsWith('Delete Selected');
+        return text.includes('Delete') && text.includes('0 nodes selected');
       });
-      expect(deleteItem).toBeUndefined();
+      expect(deleteItem).toBeDefined();
+      expect(hasDisabled(deleteItem!) && deleteItem.disabled).toBe(true);
+    });
+
+    it('should show disabled Merge option with "0 nodes selected" when no nodes are selected', () => {
+      service = new VerticalMenuService();
+      service.initialize(cy, mockDeps);
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+      cy.emit('cxttap', { target: cy, position: { x: 300, y: 300 }, renderedPosition: { x: 300, y: 300 } } as any);
+      const menuItems: MenuItem[] = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
+      const mergeItem: MenuItem | undefined = menuItems.find((item) => {
+        if (!('text' in item)) return false;
+        const text: string = typeof item.text === 'function' ? item.text() : item.text;
+        return text.includes('Merge') && text.includes('0 nodes selected');
+      });
+      expect(mergeItem).toBeDefined();
+      expect(hasDisabled(mergeItem!) && mergeItem.disabled).toBe(true);
+    });
+
+    it('should show disabled Merge option when only 1 node is selected', () => {
+      service = new VerticalMenuService();
+      service.initialize(cy, mockDeps);
+      cy.getElementById('node1').select();
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+      cy.emit('cxttap', { target: cy, position: { x: 300, y: 300 }, renderedPosition: { x: 300, y: 300 } } as any);
+      const menuItems: MenuItem[] = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
+      const mergeItem: MenuItem | undefined = menuItems.find((item) => {
+        if (!('text' in item)) return false;
+        const text: string = typeof item.text === 'function' ? item.text() : item.text;
+        return text.includes('Merge') && text.includes('1 node selected');
+      });
+      expect(mergeItem).toBeDefined();
+      expect(hasDisabled(mergeItem!) && mergeItem.disabled).toBe(true);
+    });
+
+    it('should show enabled Merge Selected option when 2+ nodes are selected', () => {
+      service = new VerticalMenuService();
+      service.initialize(cy, mockDeps);
+      cy.getElementById('node1').select();
+      cy.getElementById('node2').select();
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+      cy.emit('cxttap', { target: cy, position: { x: 300, y: 300 }, renderedPosition: { x: 300, y: 300 } } as any);
+      const menuItems: MenuItem[] = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
+      const mergeItem: MenuItem | undefined = menuItems.find((item) => {
+        if (!('text' in item)) return false;
+        const text: string = typeof item.text === 'function' ? item.text() : item.text;
+        return text.startsWith('Merge Selected');
+      });
+      expect(mergeItem).toBeDefined();
+      expect(hasDisabled(mergeItem!) && mergeItem.disabled).toBeFalsy();
     });
   });
 

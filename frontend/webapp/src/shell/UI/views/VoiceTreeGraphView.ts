@@ -35,7 +35,7 @@ import {StyleService} from '@/shell/UI/cytoscape-graph-ui/services/StyleService'
 import {BreathingAnimationService} from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService';
 import {HorizontalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService';
 import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService';
-import {FloatingEditorManager} from '@/shell/UI/floating-windows/editors/FloatingEditorManager';
+import {FloatingEditorManager} from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorManager-v2';
 import {HotkeyManager} from './HotkeyManager';
 import {SearchService} from './SearchService';
 import {GraphNavigationService} from './GraphNavigationService';

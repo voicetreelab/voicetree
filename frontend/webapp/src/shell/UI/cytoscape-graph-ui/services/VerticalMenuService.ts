@@ -16,6 +16,7 @@ export interface MenuItem {
     html?: string;
     action?: () => void | Promise<void>;
     subMenu?: MenuItem[];
+    disabled?: boolean;
 }
 
 /** Helper to show menu with optional direction config */
@@ -106,7 +107,8 @@ export class VerticalMenuService {
         menuItems.push({
             text: noNodesSelected ? 'Delete (0 nodes selected)' : `Delete Selected (${selectedCount})`,
             disabled: noNodesSelected,
-            action: noNodesSelected ? undefined : async () => {
+            action: async () => {
+                if (noNodesSelected) return;
                 const selectedNodeIds: string[] = this.cy!.$(':selected').nodes().map(n => n.id());
                 for (const id of selectedNodeIds) {
                     await deleteNodeFromUI(id, this.cy!);
@@ -121,7 +123,8 @@ export class VerticalMenuService {
                 ? (noNodesSelected ? 'Merge (0 nodes selected)' : `Merge (${selectedCount} node selected)`)
                 : `Merge Selected (${selectedCount})`,
             disabled: cannotMerge,
-            action: cannotMerge ? undefined : async () => {
+            action: async () => {
+                if (cannotMerge) return;
                 const selectedNodeIds: string[] = this.cy!.$(':selected').nodes().map(n => n.id());
                 await mergeSelectedNodesFromUI(selectedNodeIds, this.cy!);
             },

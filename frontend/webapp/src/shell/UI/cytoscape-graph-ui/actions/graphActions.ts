@@ -6,10 +6,10 @@
  */
 
 import type {Core, Position} from 'cytoscape';
-import type {FloatingEditorManager} from '@/shell/UI/floating-windows/editors/FloatingEditorManager';
+import type {FloatingEditorManager} from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorManager-v2';
 import {
     spawnTerminalWithNewContextNode
-} from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
+} from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI-v2";
 
 /**
  * Get currently selected graph nodes (excluding floating windows)

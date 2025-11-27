@@ -1,4 +1,13 @@
-import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath, NodeUIMetadata, Position, UpsertNodeAction} from "@/pure/graph";
+import type {
+    Graph,
+    GraphDelta,
+    GraphNode,
+    NodeIdAndFilePath,
+    NodeUIMetadata,
+    Position,
+    UpsertNodeAction
+} from "@/pure/graph";
+// Import for global Window.electronAPI type declaration (prefixed to satisfy unused-vars rule)
 import {
     createDeleteNodeAction,
     createNewNodeNoParent,
