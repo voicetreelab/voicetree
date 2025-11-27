@@ -94,19 +94,20 @@ def addNewNode(parent_file, name, markdown_content, relationship_to, color_overr
     
     # Sanitize markdown content to prevent header rendering issues
     # Only escape headers at the beginning of lines
-    lines = markdown_content.split('\n')
-    sanitized_lines = []
-    for line in lines:
-        stripped = line.strip()
-        if stripped.startswith('###'):
-            sanitized_lines.append(line.replace('###', '**', 1) + '**')
-        elif stripped.startswith('##'):
-            sanitized_lines.append(line.replace('##', '**', 1) + '**')
-        elif stripped.startswith('#'):
-            sanitized_lines.append(line.replace('#', '**', 1) + '**')
-        else:
-            sanitized_lines.append(line)
-    sanitized_content = '\n'.join(sanitized_lines)
+    # todo don't know why the fuck we were doing this
+    # lines = markdown_content.split('\n')
+    # sanitized_lines = []
+    # for line in lines:
+    #     stripped = line.strip()
+    #     if stripped.startswith('###'):
+    #         sanitized_lines.append(line.replace('###', '**', 1) + '**')
+    #     elif stripped.startswith('##'):
+    #         sanitized_lines.append(line.replace('##', '**', 1) + '**')
+    #     elif stripped.startswith('#'):
+    #         sanitized_lines.append(line.replace('#', '**', 1) + '**')
+    #     else:
+    #         sanitized_lines.append(line)
+    # sanitized_content = '\n'.join(sanitized_lines)
     
     # Create the new node content with frontmatter
     # Include agent name in title if it's an agent-created node

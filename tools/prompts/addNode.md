@@ -13,15 +13,13 @@ Always include a list of all the file paths you have modified.
 
 2. If the changes involve architectural changes, include a mermaid diagram for visual representation of the change/architecture/flow. Do not include a diagram if it's easier to explain as text.
 
-### Content Format Template:
-```markdown
+<MARKDOWN new node Format Template>
 
 ##Summary, concise high level description of what was accomplished
 
+
+<OPTIONAL if files changed> ##DIFF 
 files changed: e.g. file1.md, file2.py, etc..
-
-<OPTIONAL> ##DIFF 
-
 ```<coding_language>
 <code_diff>
 ```
@@ -50,7 +48,7 @@ files changed: e.g. file1.md, file2.py, etc..
 If relevant, include how this change affects the overall system, dependencies, or workflow.
 If relevant, include difficulties you faced in accomplishing this task, tech debt which made it hard.
 </OPTIONAL>
-```
+</MARKDOWN new node Format Template>
 
 This tool will automatically:
 - Use your color ($AGENT_COLOR)
