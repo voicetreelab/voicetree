@@ -39,8 +39,8 @@ export async function createContextNode(
     throw new Error(`Node ${parentNodeId} not found in graph`)
   }
 
-  // 2. PURE: Extract subgraph within distance 7
-  const maxDistance: 5 = 5 as const
+  // 2. PURE: Extract subgraph within distance
+  const maxDistance: number = 7 as const
   const subgraph: Graph = getSubgraphByDistance(
     currentGraph,
     parentNodeId,

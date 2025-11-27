@@ -26,6 +26,7 @@ function isValidCSSColor(color: string): boolean {
 export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
     console.log("applyGraphDeltaToUI", delta.length);
     console.log('[applyGraphDeltaToUI] Starting\n' + prettyPrintGraphDelta(delta));
+    let newNodeCount: number = 0;
     cy.batch(() => {
         // PASS 1: Create/update all nodes and handle deletions
         delta.forEach((nodeDelta) => {
@@ -36,6 +37,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                 const isNewNode: boolean = existingNode.length === 0;
 
                 if (isNewNode) {
+                    newNodeCount++;
                     // Add new node with position (or default to origin if none)
                     const pos: { x: number; y: number; } = O.getOrElse(() => ({x: 0, y: 0}))(node.nodeUIMetadata.position);
                     const colorValue: string | undefined = O.isSome(node.nodeUIMetadata.color) && isValidCSSColor(node.nodeUIMetadata.color.value)
@@ -144,7 +146,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
             }
         });
     });
-    if (delta.length >= 3) { // if not just one node + incoming changing, probs a bulk load.
+    if (newNodeCount >= 2) { // if not just one node + incoming changing, probs a bulk load.
         cy.fit()
         // setTimeout(() =>  cy.fit(), 800) // cy.fit  after layout would have finished. UNNECESSARY IF WE HAVE POSITIONS DERIVED FROM ANGULAR
     }

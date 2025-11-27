@@ -3,6 +3,15 @@
 
 import type {NodeIdAndFilePath} from "@/pure/graph";
 
+/**
+ * Offset from parent node to pinned editor position.
+ * Used to maintain editor position relative to parent via Cola gap constraints.
+ */
+export interface PinOffset {
+    dx: number;  // x offset from parent node center
+    dy: number;  // y offset from parent node center
+}
+
 export type FloatingWindowType = 'MarkdownEditor' | 'Terminal';
 
 export interface TerminalData {
@@ -42,11 +51,13 @@ export type GetContentForEditor = (editor: EditorData) => string // e.g. returni
 
 export type EditorOnSave = (editor: EditorData, content : string) => Promise<void> // e.g. returning replaceLinks(getNode(contentLinkedToNodeId).contentWithoutYaml)
 
+//todo, why isn't eslint enforcing readonly types here?
 export interface FloatingWindowData {
-    anchored: boolean;
-    // anchoredToNodeId is derived.
+    // anchored: boolean; derived from anchoredToNodeId
+    anchoredToNodeId?: NodeIdAndFilePath; //todo optional is probs better here
+    // anchoredToNodeId is derived. getAnchorNodeId
     // cyAnchorNodeId?: string; // Optional - only needed when anchoring to a node, todo again avoid, it should be derived: id + -anchor
-    associatedTerminalOrEditorID: TerminalId | EditorId; //todo ideally we remove it in the future and reverse the types so FloatingWindowData HAS a Terminal | Editor
+    readonly associatedTerminalOrEditorID: TerminalId | EditorId; //todo ideally we remove it in the future and reverse the types so FloatingWindowData HAS a Terminal | Editor
     component: FloatingWindowType;
     title: string;
     HTMLData?: FloatingWindowUIHTMLData
@@ -60,7 +71,7 @@ export interface FloatingWindowData {
 }
 export type AnchorNodeId = string;
 
-export function getAnchorNodeId(floatingWindow: FloatingWindowData) : AnchorNodeId {
+export function getAnchorShadowNodeId(floatingWindow: FloatingWindowData) : AnchorNodeId {
     return floatingWindow.associatedTerminalOrEditorID + "-anchor-shadowNode"
 }
 
