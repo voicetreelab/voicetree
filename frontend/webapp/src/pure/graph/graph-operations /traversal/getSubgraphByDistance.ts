@@ -3,7 +3,7 @@
  * Uses DFS traversal with different edge costs for outgoing vs incoming edges.
  */
 
-import type { Graph, NodeIdAndFilePath } from '@/pure/graph'
+import type { Graph, NodeIdAndFilePath, GraphNode, Edge } from '@/pure/graph'
 import { getIncomingNodes } from '@/pure/graph/graph-operations /getIncomingNodes'
 import { setOutgoingEdges } from '@/pure/graph/graph-operations /graph-edge-operations'
 
@@ -42,7 +42,7 @@ export function getSubgraphByDistance(
       return visited
     }
 
-    const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = graph.nodes[nodeId]
+    const node: GraphNode = graph.nodes[nodeId]
 
     // Add current node to visited set
     const newVisited: ReadonlySet<string> = new Set([...visited, nodeId])
@@ -56,7 +56,7 @@ export function getSubgraphByDistance(
       )
 
     // Explore incoming edges (parents, cost 1.0) - only if within distance threshold
-    const incomingNodes: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode[] = getIncomingNodes(node, graph)
+    const incomingNodes: readonly GraphNode[] = getIncomingNodes(node, graph)
     const afterParents: ReadonlySet<string> = incomingNodes
       .filter(() => distance + 1.0 < maxDistance)
       .reduce<ReadonlySet<NodeIdAndFilePath>>(
@@ -71,12 +71,12 @@ export function getSubgraphByDistance(
 
   // Filter graph to only visited nodes, and filter edges to only include
   // edges where both source and target are in the visited set
-  const filteredNodes: { readonly [k: string]: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode; } = Object.fromEntries(
+  const filteredNodes: { readonly [k: string]: GraphNode } = Object.fromEntries(
     Array.from(visited)
       .filter(id => graph.nodes[id])
       .map(id => {
-        const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = graph.nodes[id]
-        const filteredEdges: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = node.outgoingEdges.filter(edge => visited.has(edge.targetId))
+        const node: GraphNode = graph.nodes[id]
+        const filteredEdges: readonly Edge[] = node.outgoingEdges.filter(edge => visited.has(edge.targetId))
         return [id, setOutgoingEdges(node, filteredEdges)]
       })
   )

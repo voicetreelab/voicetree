@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { MockInstance } from 'vitest';
 import { notifyTextToTreeServerOfDirectory } from './notifyTextToTreeServerOfDirectory';
 import * as backendApi from '@/shell/edge/main/backend-api';
 
@@ -14,7 +15,7 @@ describe('notifyTextToTreeServerOfDirectory', () => {
 
   it('should successfully notify backend when it is ready immediately', async () => {
     // GIVEN: Backend succeeds
-    const loadDirMock: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<(directoryPath: string) => Promise<backendApi.LoadDirectoryResponse>> = vi.spyOn(backendApi, 'tellSTTServerToLoadDirectory')
+    const loadDirMock: MockInstance<(directoryPath: string) => Promise<backendApi.LoadDirectoryResponse>> = vi.spyOn(backendApi, 'tellSTTServerToLoadDirectory')
       .mockResolvedValue({
         status: 'success',
         message: 'Directory loaded',
@@ -34,7 +35,7 @@ describe('notifyTextToTreeServerOfDirectory', () => {
 
   it('should retry on failure until backend succeeds', async () => {
     // GIVEN: Backend fails twice, then succeeds
-    const loadDirMock: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<(directoryPath: string) => Promise<backendApi.LoadDirectoryResponse>> = vi.spyOn(backendApi, 'tellSTTServerToLoadDirectory')
+    const loadDirMock: MockInstance<(directoryPath: string) => Promise<backendApi.LoadDirectoryResponse>> = vi.spyOn(backendApi, 'tellSTTServerToLoadDirectory')
       .mockRejectedValueOnce(new Error('Connection error'))
       .mockRejectedValueOnce(new Error('Connection error'))
       .mockResolvedValueOnce({

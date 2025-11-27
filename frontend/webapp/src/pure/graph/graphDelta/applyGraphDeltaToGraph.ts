@@ -1,4 +1,4 @@
-import type {Graph, GraphDelta} from '@/pure/graph'
+import type {Graph, GraphDelta, GraphNode} from '@/pure/graph'
 import {removeOutgoingEdge} from '@/pure/graph/graph-operations /graph-edge-operations'
 
 /**
@@ -34,15 +34,15 @@ export function applyGraphDeltaToGraph(graph: Graph, delta: GraphDelta): Graph {
             }
         } else if (nodeDelta.type === 'DeleteNode') {
             // Delete node: remove from nodes and clean up edges
-            const remainingNodes: { readonly [k: string]: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode; } = Object.fromEntries(
+            const remainingNodes: { readonly [k: string]: GraphNode; } = Object.fromEntries(
                 Object.entries(currentGraph.nodes).filter(([nodeId]) => nodeId !== nodeDelta.nodeId)
             )
 
             // Remove any edges pointing to the deleted node from remaining nodes
-            const nodesWithCleanedEdges: { readonly [k: string]: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode; } = Object.fromEntries(
+            const nodesWithCleanedEdges: { readonly [k: string]: GraphNode; } = Object.fromEntries(
                 Object.entries(remainingNodes).map(([nodeId, node]) => {
                     // Filter out edges pointing to deleted node
-                    const cleanedNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = removeOutgoingEdge(node, nodeDelta.nodeId)
+                    const cleanedNode: GraphNode = removeOutgoingEdge(node, nodeDelta.nodeId)
                     return [nodeId, cleanedNode]
                 })
             )

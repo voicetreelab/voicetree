@@ -1,359 +1,93 @@
 import { describe, it, expect } from 'vitest'
 import { markdownToTitle } from './markdown-to-title'
-import { extractFrontmatter } from './extract-frontmatter'
-import * as O from 'fp-ts/lib/Option.js'
-import type { GraphNode } from '@/pure/graph'
 
 describe('markdownToTitle', () => {
-    describe('Frontmatter title priority', () => {
-        it('should extract title from frontmatter', () => {
-            const node: GraphNode = {
-                relativeFilePathIsID: '3.md',
-                contentWithoutYamlOrLinks: `---
-node_id: 3
-title: 'Bug: Auto-open Markdown Editor (3)'
----
-# Some Heading
-
-Content here`,
-                outgoingEdges: [],
-                nodeUIMetadata: {
-                    title: '',
-                    color: O.none,
-                    position: O.none,
-                    additionalYAMLProps: new Map(),
-                    isContextNode: false
-                }
-            }
-
-            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
-            expect(title).toBe('Bug: Auto-open Markdown Editor (3)')
-        })
-
-        it('should handle frontmatter title without quotes', () => {
-            const node: GraphNode = {
-                relativeFilePathIsID: 'test.md',
-                contentWithoutYamlOrLinks: `---
-title: Simple Title
----
-Content`,
-                outgoingEdges: [],
-                nodeUIMetadata: {
-                    title: '',
-                    color: O.none,
-                    position: O.none,
-                    additionalYAMLProps: new Map(),
-                    isContextNode: false
-                }
-            }
-
-            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
-            expect(title).toBe('Simple Title')
-        })
-
-        it('should handle frontmatter title with double quotes', () => {
-            const node: GraphNode = {
-                relativeFilePathIsID: 'test.md',
-                contentWithoutYamlOrLinks: `---
-title: "Title With Double Quotes"
----
-Content`,
-                outgoingEdges: [],
-                nodeUIMetadata: {
-                    title: '',
-                    color: O.none,
-                    position: O.none,
-                    additionalYAMLProps: new Map(),
-                    isContextNode: false
-                }
-            }
-
-            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
-            expect(title).toBe('Title With Double Quotes')
-        })
-
-        it('should handle frontmatter title with apostrophes inside double quotes', () => {
-            const node: GraphNode = {
-                relativeFilePathIsID: 'test.md',
-                contentWithoutYamlOrLinks: `---
-title: "It's a Title with Apostrophe's"
----
-Content`,
-                outgoingEdges: [],
-                nodeUIMetadata: {
-                    title: '',
-                    color: O.none,
-                    position: O.none,
-                    additionalYAMLProps: new Map(),
-                    isContextNode: false
-                }
-            }
-
-            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
-            expect(title).toBe("It's a Title with Apostrophe's")
-        })
-
-        it('should handle frontmatter title with special characters', () => {
-            const node: GraphNode = {
-                relativeFilePathIsID: 'test.md',
-                contentWithoutYamlOrLinks: `---
-title: "Special: Characters! & Symbols?"
----
-Content`,
-                outgoingEdges: [],
-                nodeUIMetadata: {
-                    title: '',
-                    color: O.none,
-                    position: O.none,
-                    additionalYAMLProps: new Map(),
-                    isContextNode: false
-                }
-            }
-
-            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
-            expect(title).toBe('Special: Characters! & Symbols?')
-        })
-
-        it('should prioritize frontmatter title over heading', () => {
-            const node: GraphNode = {
-                relativeFilePathIsID: 'test.md',
-                contentWithoutYamlOrLinks: `---
-title: Frontmatter Title
+    describe('Markdown is single source of truth', () => {
+        it('should extract title from heading even when YAML has title', () => {
+            // YAML title is ignored - Markdown heading is the source of truth
+            const content = `---
+title: 'YAML Title (ignored)'
 ---
 # Heading Title
 
-Content`,
-                outgoingEdges: [],
-                nodeUIMetadata: {
-                    title: '',
-                    color: O.none,
-                    position: O.none,
-                    additionalYAMLProps: new Map(),
-                    isContextNode: false
-                }
-            }
-
-            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
-            expect(title).toBe('Frontmatter Title')
+Content here`
+            const title: string = markdownToTitle(content, '3.md')
+            expect(title).toBe('Heading Title')
         })
 
-        it('should prioritize frontmatter title over ### heading', () => {
-            const node: GraphNode = {
-                relativeFilePathIsID: '3.md',
-                contentWithoutYamlOrLinks: `---
-node_id: 3
-title: 'Bug: Auto-open Markdown Editor (3)'
----
-### The manual editor's auto-open Markdown editor functionality is not working when creating new child nodes.
-
-Content`,
-                outgoingEdges: [],
-                nodeUIMetadata: {
-                    title: '',
-                    color: O.none,
-                    position: O.none,
-                    additionalYAMLProps: new Map(),
-                    isContextNode: false
-                }
-            }
-
-            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
-            expect(title).toBe('Bug: Auto-open Markdown Editor (3)')
-        })
-    })
-
-    describe('Heading fallback', () => {
-        it('should extract title from first heading when no frontmatter title', () => {
-            const node: GraphNode = {
-                relativeFilePathIsID: 'test.md',
-                contentWithoutYamlOrLinks: `# My Heading
-
-Content here`,
-                outgoingEdges: [],
-                nodeUIMetadata: {
-                    title: '',
-                    color: O.none,
-                    position: O.none,
-                    additionalYAMLProps: new Map(),
-                    isContextNode: false
-                }
-            }
-
-            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
-            expect(title).toBe('My Heading')
-        })
-
-        it('should extract title from heading even with frontmatter but no title field', () => {
-            const node: GraphNode = {
-                relativeFilePathIsID: 'test.md',
-                contentWithoutYamlOrLinks: `---
+        it('should extract title from heading with frontmatter that has no title', () => {
+            const content = `---
 color: red
 ---
 # Heading Title
 
-Content`,
-                outgoingEdges: [],
-                nodeUIMetadata: {
-                    title: '',
-                    color: O.none,
-                    position: O.none,
-                    additionalYAMLProps: new Map(),
-                    isContextNode: false
-                }
-            }
+Content`
+            const title: string = markdownToTitle(content, 'test.md')
+            expect(title).toBe('Heading Title')
+        })
 
-            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+        it('should use first line when no heading, even if YAML has title', () => {
+            const content = `---
+title: "YAML Title (ignored)"
+---
+First line content
+
+More content`
+            const title: string = markdownToTitle(content, 'test.md')
+            expect(title).toBe('First line content')
+        })
+    })
+
+    describe('Heading extraction', () => {
+        it('should extract title from first heading', () => {
+            const content = `# My Heading
+
+Content here`
+            const title: string = markdownToTitle(content, 'test.md')
+            expect(title).toBe('My Heading')
+        })
+
+        it('should extract title from ### heading', () => {
+            const content = `### Sub-heading Title
+
+Content`
+            const title: string = markdownToTitle(content, 'test.md')
+            expect(title).toBe('Sub-heading Title')
+        })
+
+        it('should prioritize heading over first line', () => {
+            const content = `# Heading Title
+First line of content
+
+More content`
+            const title: string = markdownToTitle(content, 'test.md')
             expect(title).toBe('Heading Title')
         })
     })
 
-    describe('Filename fallback', () => {
-        it('should use first line when no frontmatter title or heading', () => {
-            const node: GraphNode = {
-                relativeFilePathIsID: 'my-test_file.md',
-                contentWithoutYamlOrLinks: 'Just content, no heading',
-                outgoingEdges: [],
-                nodeUIMetadata: {
-                    title: '',
-                    color: O.none,
-                    position: O.none,
-                    additionalYAMLProps: new Map(),
-                    isContextNode: false
-                }
-            }
-
-            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
-            expect(title).toBe('Just content, no heading') // Now uses first line, not filename
+    describe('First line fallback', () => {
+        it('should use first line when no heading', () => {
+            const content = 'Just content, no heading'
+            const title: string = markdownToTitle(content, 'my-test_file.md')
+            expect(title).toBe('Just content, no heading')
         })
 
         it('should use first line instead of filename when content exists', () => {
-            const node: GraphNode = {
-                relativeFilePathIsID: 'folder/another_folder/test-file_name.md',
-                contentWithoutYamlOrLinks: 'Content',
-                outgoingEdges: [],
-                nodeUIMetadata: {
-                    title: '',
-                    color: O.none,
-                    position: O.none,
-                    additionalYAMLProps: new Map(),
-                    isContextNode: false
-                }
-            }
-
-            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
-            expect(title).toBe('Content') // Now uses first line, not filename
+            const content = 'Content'
+            const title: string = markdownToTitle(content, 'folder/another_folder/test-file_name.md')
+            expect(title).toBe('Content')
         })
 
-        it('should clean up underscores and dashes in filename when no content', () => {
-            const node: GraphNode = {
-                relativeFilePathIsID: 'folder/another_folder/test-file_name.md',
-                contentWithoutYamlOrLinks: '',
-                outgoingEdges: [],
-                nodeUIMetadata: {
-                    title: '',
-                    color: O.none,
-                    position: O.none,
-                    additionalYAMLProps: new Map(),
-                    isContextNode: false
-                }
-            }
-
-            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
-            expect(title).toBe('test file name')
-        })
-    })
-
-    describe('Regression: Real-world content from production', () => {
-        it('should extract title from production frontmatter with node_id and position', () => {
-            const node: GraphNode = {
-                relativeFilePathIsID: '12_Manually_Creating_Task_Tree_Nodes',
-                contentWithoutYamlOrLinks: `---
-node_id: 12
-title: Manually Creating Task Tree Nodes (12)
----
-### Users can manually create nodes in the task tree.
-
-Users can manually create nodes in the task tree, often preferred over speaking.`,
-                outgoingEdges: [],
-                nodeUIMetadata: {
-                    title: '',
-                    color: O.none,
-                    position: O.none,
-                    additionalYAMLProps: new Map(),
-                    isContextNode: false
-                }
-            }
-
-            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
-            expect(title).toBe('Manually Creating Task Tree Nodes (12)')
-        })
-
-        it('should extract title from frontmatter with quoted value', () => {
-            const node: GraphNode = {
-                relativeFilePathIsID: '9_Ethical_Concern_Objectifying_Colleagues',
-                contentWithoutYamlOrLinks: `---
-node_id: 9
-title: "Ethical Concern: Objectifying Colleagues (9)"
-position:
-  x: 1153.2814824381885
-  y: -653.281482438188
----
-### Raises an ethical concern about the objectification of colleagues.`,
-                outgoingEdges: [],
-                nodeUIMetadata: {
-                    title: '',
-                    color: O.none,
-                    position: O.none,
-                    additionalYAMLProps: new Map(),
-                    isContextNode: false
-                }
-            }
-
-            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
-            expect(title).toBe('Ethical Concern: Objectifying Colleagues (9)')
-        })
-    })
-
-    describe('First line fallback (new feature)', () => {
         it('should extract title from first non-empty line when no heading', () => {
-            const node: GraphNode = {
-                relativeFilePathIsID: 'test.md',
-                contentWithoutYamlOrLinks: `This is the first line of content
+            const content = `This is the first line of content
 
-And this is more content`,
-                outgoingEdges: [],
-                nodeUIMetadata: {
-                    title: '',
-                    color: O.none,
-                    position: O.none,
-                    additionalYAMLProps: new Map(),
-                    isContextNode: false
-                }
-            }
-
-            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+And this is more content`
+            const title: string = markdownToTitle(content, 'test.md')
             expect(title).toBe('This is the first line of content')
         })
 
         it('should extract title from first non-empty line after frontmatter', () => {
-            const node: GraphNode = {
-                relativeFilePathIsID: 'test.md',
-                contentWithoutYamlOrLinks: `---
+            const content = `---
 color: red
 position:
   x: 100
@@ -362,152 +96,86 @@ position:
 
 This is the first line after frontmatter
 
-More content here`,
-                outgoingEdges: [],
-                nodeUIMetadata: {
-                    title: '',
-                    color: O.none,
-                    position: O.none,
-                    additionalYAMLProps: new Map(),
-                    isContextNode: false
-                }
-            }
-
-            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+More content here`
+            const title: string = markdownToTitle(content, 'test.md')
             expect(title).toBe('This is the first line after frontmatter')
         })
 
         it('should trim whitespace from first line', () => {
-            const node: GraphNode = {
-                relativeFilePathIsID: 'test.md',
-                contentWithoutYamlOrLinks: `
+            const content = `
 
    First line with leading whitespace
 
-More content`,
-                outgoingEdges: [],
-                nodeUIMetadata: {
-                    title: '',
-                    color: O.none,
-                    position: O.none,
-                    additionalYAMLProps: new Map(),
-                    isContextNode: false
-                }
-            }
-
-            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+More content`
+            const title: string = markdownToTitle(content, 'test.md')
             expect(title).toBe('First line with leading whitespace')
-        })
-
-        it('should prioritize heading over first line', () => {
-            const node: GraphNode = {
-                relativeFilePathIsID: 'test.md',
-                contentWithoutYamlOrLinks: `# Heading Title
-First line of content
-
-More content`,
-                outgoingEdges: [],
-                nodeUIMetadata: {
-                    title: '',
-                    color: O.none,
-                    position: O.none,
-                    additionalYAMLProps: new Map(),
-                    isContextNode: false
-                }
-            }
-
-            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
-            expect(title).toBe('Heading Title')
         })
 
         it('should truncate first line when too long', () => {
             const longLine: string = 'a'.repeat(250)
-            const node: GraphNode = {
-                relativeFilePathIsID: 'test-file.md',
-                contentWithoutYamlOrLinks: longLine,
-                outgoingEdges: [],
-                nodeUIMetadata: {
-                    title: '',
-                    color: O.none,
-                    position: O.none,
-                    additionalYAMLProps: new Map(),
-                    isContextNode: false
-                }
-            }
+            const title: string = markdownToTitle(longLine, 'test-file.md')
+            expect(title).toBe('a'.repeat(200) + '...')
+        })
+    })
 
-            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
-            expect(title).toBe('a'.repeat(200) + '...') // Should truncate with ...
+    describe('Filename fallback', () => {
+        it('should clean up underscores and dashes in filename when no content', () => {
+            const title: string = markdownToTitle('', 'folder/another_folder/test-file_name.md')
+            expect(title).toBe('test file name')
+        })
+
+        it('should handle empty content', () => {
+            const title: string = markdownToTitle('', 'empty.md')
+            expect(title).toBe('empty')
+        })
+    })
+
+    describe('Real-world content from production', () => {
+        it('should extract title from heading when YAML has node_id and position', () => {
+            const content = `---
+node_id: 12
+title: YAML Title (ignored)
+---
+### Users can manually create nodes in the task tree.
+
+Users can manually create nodes in the task tree, often preferred over speaking.`
+            const title: string = markdownToTitle(content, '12_Manually_Creating_Task_Tree_Nodes')
+            expect(title).toBe('Users can manually create nodes in the task tree.')
+        })
+
+        it('should extract title from heading with quoted value in YAML', () => {
+            const content = `---
+node_id: 9
+title: "YAML Title: Ignored (9)"
+position:
+  x: 1153.2814824381885
+  y: -653.281482438188
+---
+### Raises an ethical concern about the objectification of colleagues.`
+            const title: string = markdownToTitle(content, '9_Ethical_Concern_Objectifying_Colleagues')
+            expect(title).toBe('Raises an ethical concern about the objectification of colleagues.')
         })
     })
 
     describe('Edge cases', () => {
-        it('should handle empty content', () => {
-            const node: GraphNode = {
-                relativeFilePathIsID: 'empty.md',
-                contentWithoutYamlOrLinks: '',
-                outgoingEdges: [],
-                nodeUIMetadata: {
-                    title: '',
-                    color: O.none,
-                    position: O.none,
-                    additionalYAMLProps: new Map(),
-                    isContextNode: false
-                }
-            }
-
-            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
-            expect(title).toBe('empty')
-        })
-
         it('should truncate very long heading with ellipsis', () => {
             const longHeading: string = 'a'.repeat(250)
-            const node: GraphNode = {
-                relativeFilePathIsID: 'test-file.md',
-                contentWithoutYamlOrLinks: `# ${longHeading}
-Short first line after heading`,
-                outgoingEdges: [],
-                nodeUIMetadata: {
-                    title: '',
-                    color: O.none,
-                    position: O.none,
-                    additionalYAMLProps: new Map(),
-                    isContextNode: false
-                }
-            }
-
-            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const content = `# ${longHeading}
+Short first line after heading`
+            const title: string = markdownToTitle(content, 'test-file.md')
             expect(title).toBe('a'.repeat(200) + '...')
         })
 
         it('should handle heading between 100-200 chars (updated limit)', () => {
             const heading150: string = 'a'.repeat(150)
-            const node: GraphNode = {
-                relativeFilePathIsID: 'test-file.md',
-                contentWithoutYamlOrLinks: `# ${heading150}`,
-                outgoingEdges: [],
-                nodeUIMetadata: {
-                    title: '',
-                    color: O.none,
-                    position: O.none,
-                    additionalYAMLProps: new Map(),
-                    isContextNode: false
-                }
-            }
-
-            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
-            expect(title).toBe(heading150) // Should now work with 200 char limit
+            const content = `# ${heading150}`
+            const title: string = markdownToTitle(content, 'test-file.md')
+            expect(title).toBe(heading150)
         })
 
         it.skip('BUG REPRODUCTION: should NOT use "---" as title when frontmatter is completely empty', () => {
             // KNOWN BUG: When frontmatter is completely empty (---\n---), the regex in
-            // markdownToTitle.ts line 46 fails to match and strip the frontmatter properly.
+            // markdownToTitle.ts fails to match and strip the frontmatter properly.
             // This causes "---" to be picked up as the first non-empty line.
             //
             // Root cause: The regex /^---\n[\s\S]*?\n---\n/ expects at least some content
@@ -519,55 +187,26 @@ Short first line after heading`,
             // This test is skipped to document the bug without failing the test suite.
             // When the bug is fixed in production code, this test should be unskipped.
 
-            const node: GraphNode = {
-                relativeFilePathIsID: '1763527551220TNQ.md',
-                contentWithoutYamlOrLinks: `---
+            const content = `---
 ---
 
-there's a bug where in some condition somewhere, the title becomes "---"`,
-                outgoingEdges: [],
-                nodeUIMetadata: {
-                    title: '',
-                    color: O.none,
-                    position: O.none,
-                    additionalYAMLProps: new Map(),
-                    isContextNode: false
-                }
-            }
+there's a bug where in some condition somewhere, the title becomes "---"`
+            const title: string = markdownToTitle(content, '1763527551220TNQ.md')
 
-            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
-
-            // The bug: title becomes "---" because the regex doesn't strip empty frontmatter
-            // Expected: should use first real line of content or filename
             expect(title).not.toBe('---')
             expect(title).toBe("there's a bug where in some condition somewhere, the title becomes \"---\"")
         })
 
-        it('BUG REPRODUCTION: should NOT use "---" as title when frontmatter only has position', () => {
-            const node: GraphNode = {
-                relativeFilePathIsID: '1763527551220TNQ.md',
-                contentWithoutYamlOrLinks: `---
+        it('should NOT use "---" as title when frontmatter only has position', () => {
+            const content = `---
 position:
   x: 1311.368120831565
   y: 722.5336838585305
 ---
 
-there's a bug where in some condition somewhere, the title becomes "---"`,
-                outgoingEdges: [],
-                nodeUIMetadata: {
-                    title: '',
-                    color: O.none,
-                    position: O.none,
-                    additionalYAMLProps: new Map(),
-                    isContextNode: false
-                }
-            }
+there's a bug where in some condition somewhere, the title becomes "---"`
+            const title: string = markdownToTitle(content, '1763527551220TNQ.md')
 
-            const frontmatter: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/markdown-parsing/extract-frontmatter").Frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title: string = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
-
-            // Should correctly strip frontmatter and use first content line
             expect(title).not.toBe('---')
             expect(title).toBe("there's a bug where in some condition somewhere, the title becomes \"---\"")
         })

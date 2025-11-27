@@ -1,40 +1,34 @@
 import type {FilePath} from '@/pure/graph';
 
 /**
- * Compute the display title for a graph node
+ * Compute the display title for a graph node from Markdown content.
+ * Markdown is the single source of truth for node titles - YAML frontmatter title is ignored.
  *
  * Pure function: same input -> same output, no side effects
  *
  * Priority:
- * 1. Frontmatter title key (if present)
- * 2. First markdown heading (truncated to 200 chars + "..." if longer)
- * 3. First non-empty line of content (truncated to 200 chars + "..." if longer)
- * 4. Filename with _ and - replaced by spaces
+ * 1. First markdown heading (truncated to 200 chars + "..." if longer)
+ * 2. First non-empty line of content (truncated to 200 chars + "..." if longer)
+ * 3. Filename with _ and - replaced by spaces
  *
  * @returns A human-readable title string
  *
  * @example
  * ```typescript
- * // With frontmatter title
- * markdownToTitle("My Title", content, 'path/to/file.md') // => "My Title"
- *
  * // With heading
- * markdownToTitle(undefined, '# Hello World\nContent', 'path/to/file.md') // => "Hello World"
+ * markdownToTitle('# Hello World\nContent', 'path/to/file.md') // => "Hello World"
  *
  * // With first line
- * markdownToTitle(undefined, 'Plain content line', 'path/to/file.md') // => "Plain content line"
+ * markdownToTitle('Plain content line', 'path/to/file.md') // => "Plain content line"
  *
  * // Long heading truncated
- * markdownToTitle(undefined, '# ' + 'a'.repeat(250), 'path/to/file.md') // => "aaa...aaa..." (200 chars + "...")
+ * markdownToTitle('# ' + 'a'.repeat(250), 'path/to/file.md') // => "aaa...aaa..." (200 chars + "...")
  *
  * // Filename fallback
- * markdownToTitle(undefined, '', 'path/to/my-example_file.md') // => "my example file"
+ * markdownToTitle('', 'path/to/my-example_file.md') // => "my example file"
  * ```
  */
-export function markdownToTitle(title: string | undefined, content: string, filePath: FilePath): string {
-    if (title) {
-        return title;
-    }
+export function markdownToTitle(content: string, filePath: FilePath): string {
 
     // Remove frontmatter from content for title extraction
     const contentWithoutFrontmatter: string = content.replace(/^---\n[\s\S]*?\n---\n/, '');

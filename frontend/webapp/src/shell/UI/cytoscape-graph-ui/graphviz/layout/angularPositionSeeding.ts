@@ -6,7 +6,7 @@
  * then midpoints (45°, 135°, etc.), recursively subdividing as needed.
  */
 
-import type { Core, NodeSingular } from 'cytoscape';
+import type { Core, NodeSingular, CollectionReturnValue, Position } from 'cytoscape';
 
 export const SPAWN_RADIUS: 200 = 200 as const; // pixels from parent
 export const CHILD_ANGLE_CONE: 90 = 90 as const; // degrees (± 45° from parent)
@@ -142,14 +142,14 @@ export function calculateParentAngle(
     return undefined; // No angle constraint
   }
 
-  const grandparent: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").CollectionReturnValue = cy.getElementById(grandparentId);
+  const grandparent: CollectionReturnValue = cy.getElementById(grandparentId);
   if (grandparent.length === 0) {
     return undefined;
   }
 
   // Calculate vector from grandparent to parent
-  const grandparentPos: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").Position = grandparent.position();
-  const parentPos: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").Position = parentNode.position();
+  const grandparentPos: Position = grandparent.position();
+  const parentPos: Position = parentNode.position();
 
   const dx: number = parentPos.x - grandparentPos.x;
   const dy: number = parentPos.y - grandparentPos.y;

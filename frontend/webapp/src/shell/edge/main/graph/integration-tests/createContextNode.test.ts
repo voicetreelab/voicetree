@@ -28,7 +28,8 @@ import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 import { promises as fs } from 'fs'
 import path from 'path'
-import type { NodeIdAndFilePath, Edge, GraphNode } from '@/pure/graph'
+import type { NodeIdAndFilePath, Edge, GraphNode, Graph } from '@/pure/graph'
+import type { FileLimitExceededError } from '@/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce'
 
 describe('createContextNode - Integration Tests', () => {
   let createdContextNodeId: NodeIdAndFilePath | null = null
@@ -39,9 +40,9 @@ describe('createContextNode - Integration Tests', () => {
     setVaultPath(EXAMPLE_SMALL_PATH)
 
     // Load the graph from disk
-    const loadResult: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH))
+    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH))
     if (E.isLeft(loadResult)) throw new Error('Expected Right')
-    const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = loadResult.right
+    const graph: Graph = loadResult.right
     setGraph(graph)
 
     // Clear parent node backups
@@ -165,9 +166,9 @@ describe('createContextNode - Integration Tests', () => {
       createdContextNodeId = contextNodeId
 
       // AND: Reload graph from disk
-      const reloadResult: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH))
+      const reloadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH))
       if (E.isLeft(reloadResult)) throw new Error('Expected Right')
-      const reloadedGraph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = reloadResult.right
+      const reloadedGraph: Graph = reloadResult.right
 
       // THEN: The context node should be present in reloaded graph
       expect(reloadedGraph.nodes[contextNodeId]).toBeDefined()
@@ -268,9 +269,9 @@ describe('createContextNode - Integration Tests', () => {
     it('should create context node with only one edge to parent, not one edge per subgraph node', async () => {
       // GIVEN: example_real_large fixture with at least 5 nodes
       setVaultPath(EXAMPLE_LARGE_PATH)
-      const largeLoadResult: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(EXAMPLE_LARGE_PATH))
+      const largeLoadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(EXAMPLE_LARGE_PATH))
       if (E.isLeft(largeLoadResult)) throw new Error('Expected Right')
-      const largeGraph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = largeLoadResult.right
+      const largeGraph: Graph = largeLoadResult.right
       setGraph(largeGraph)
 
       // VERIFY: Graph has at least 5 nodes
@@ -336,9 +337,9 @@ describe('createContextNode - Integration Tests', () => {
       }
 
       // THEN: Reload graph to get the context node
-      const largeReloadResult: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(EXAMPLE_LARGE_PATH))
+      const largeReloadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(EXAMPLE_LARGE_PATH))
       if (E.isLeft(largeReloadResult)) throw new Error('Expected Right')
-      const reloadedGraph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = largeReloadResult.right
+      const reloadedGraph: Graph = largeReloadResult.right
 
       // VERIFY: Context node exists in reloaded graph
       expect(reloadedGraph.nodes[contextNodeId]).toBeDefined()

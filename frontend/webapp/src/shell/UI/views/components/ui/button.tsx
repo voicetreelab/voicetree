@@ -1,6 +1,6 @@
 import * as React from "react"
 import type {JSX} from "react"
-import { Slot } from "@radix-ui/react-slot"
+import { Slot, type SlotProps } from "@radix-ui/react-slot"
 import { type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/utils/lib/utils"
@@ -16,7 +16,7 @@ function Button({
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean
   }): JSX.Element {
-  const Comp: "button" | React.ForwardRefExoticComponent<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@radix-ui/react-slot/dist/index").SlotProps & React.RefAttributes<HTMLElement>> = asChild ? Slot : "button"
+  const Comp: "button" | React.ForwardRefExoticComponent<SlotProps & React.RefAttributes<HTMLElement>> = asChild ? Slot : "button"
 
   return (
     <Comp

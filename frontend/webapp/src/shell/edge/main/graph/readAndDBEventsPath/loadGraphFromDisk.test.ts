@@ -5,6 +5,8 @@ import * as os from 'os'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk'
+import type { Graph, GraphNode } from '@/pure/graph'
+import type { FileLimitExceededError } from '@/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce'
 
 describe('loadGraphFromDisk', () => {
   const testVaultPaths: { testVault: string; emptyVault: string; } = {
@@ -76,17 +78,17 @@ This is in a subfolder.`
   })
 
   it('should load empty graph from empty directory', async () => {
-    const r1: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(testVaultPaths.emptyVault))
+    const r1: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(testVaultPaths.emptyVault))
     if (E.isLeft(r1)) throw new Error('Expected Right')
-    const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = r1.right
+    const graph: Graph = r1.right
 
     expect(Object.keys(graph.nodes)).toHaveLength(0)
   })
 
   it('should load all nodes from vault', async () => {
-    const r2: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
+    const r2: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
     if (E.isLeft(r2)) throw new Error('Expected Right')
-    const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = r2.right
+    const graph: Graph = r2.right
 
     expect(Object.keys(graph.nodes)).toHaveLength(4)
     expect(graph.nodes['node1.md']).toBeDefined()
@@ -96,11 +98,11 @@ This is in a subfolder.`
   })
 
   it('should parse node properties from frontmatter', async () => {
-    const r3: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
+    const r3: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
     if (E.isLeft(r3)) throw new Error('Expected Right')
-    const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = r3.right
+    const graph: Graph = r3.right
 
-    const node1: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = graph.nodes['node1.md']
+    const node1: GraphNode = graph.nodes['node1.md']
     // contentWithoutYamlOrLinks should NOT contain YAML frontmatter (it's stripped)
     expect(node1.contentWithoutYamlOrLinks).not.toContain('title: "Node One"')
     expect(node1.contentWithoutYamlOrLinks).not.toContain('summary: "First node"')
@@ -114,26 +116,26 @@ This is in a subfolder.`
   })
 
   it('should use filename as node_id when missing from frontmatter', async () => {
-    const r4: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
+    const r4: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
     if (E.isLeft(r4)) throw new Error('Expected Right')
-    const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = r4.right
+    const graph: Graph = r4.right
 
     expect(graph.nodes['node3.md']).toBeDefined()
     expect(graph.nodes['node3.md'].relativeFilePathIsID).toBe('node3.md')
   })
 
   it('should extract title from heading when not in frontmatter', async () => {
-    const r5: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
+    const r5: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
     if (E.isLeft(r5)) throw new Error('Expected Right')
-    const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = r5.right
+    const graph: Graph = r5.right
 
     expect(graph.nodes['node3.md'].contentWithoutYamlOrLinks).toContain('# Node Three')
   })
 
   it('should build outgoingEdges from wikilinks', async () => {
-    const r6: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
+    const r6: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
     if (E.isLeft(r6)) throw new Error('Expected Right')
-    const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = r6.right
+    const graph: Graph = r6.right
 
     expect(graph.nodes['node1.md'].outgoingEdges).toEqual([{ targetId: 'node2.md', label: 'This is node one. It links to' }])
     expect(graph.nodes['node2.md'].outgoingEdges.some((e: { targetId: string }) => e.targetId === 'node1.md')).toBe(true)
@@ -141,41 +143,41 @@ This is in a subfolder.`
   })
 
   it('should handle nodes with no links', async () => {
-    const r7: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
+    const r7: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
     if (E.isLeft(r7)) throw new Error('Expected Right')
-    const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = r7.right
+    const graph: Graph = r7.right
 
     expect(graph.nodes['node3.md'].outgoingEdges).toEqual([])
   })
 
   it('should handle nested directory structure', async () => {
-    const r8: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
+    const r8: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
     if (E.isLeft(r8)) throw new Error('Expected Right')
-    const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = r8.right
+    const graph: Graph = r8.right
 
     expect(graph.nodes['subfolder/nested.md']).toBeDefined()
     expect(graph.nodes['subfolder/nested.md'].contentWithoutYamlOrLinks).toContain('# Nested')
   })
 
-  it('should prioritize frontmatter title over heading title', async () => {
-    const r9: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
+  it('should derive title from Markdown heading (single source of truth)', async () => {
+    const r9: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
     if (E.isLeft(r9)) throw new Error('Expected Right')
-    const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = r9.right
+    const graph: Graph = r9.right
 
-    const node1: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = graph.nodes['node1.md']
+    const node1: GraphNode = graph.nodes['node1.md']
     // Node1 has BOTH frontmatter title "Node One" AND heading "# Node One Content"
-    // The title should come from frontmatter, not the heading
-    expect(node1.nodeUIMetadata.title).toBe('Node One')
-    expect(node1.nodeUIMetadata.title).not.toBe('Node One Content')
+    // Markdown is the single source of truth - title comes from heading, not YAML
+    expect(node1.nodeUIMetadata.title).toBe('Node One Content')
+    expect(node1.nodeUIMetadata.title).not.toBe('Node One') // YAML title is ignored
   })
 
   it('should be a pure IO function (same input -> same IO)', async () => {
-    const r10: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
+    const r10: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
     if (E.isLeft(r10)) throw new Error('Expected Right')
-    const graph1: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = r10.right
-    const r11: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
+    const graph1: Graph = r10.right
+    const r11: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
     if (E.isLeft(r11)) throw new Error('Expected Right')
-    const graph2: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = r11.right
+    const graph2: Graph = r11.right
 
     expect(Object.keys(graph1.nodes).sort()).toEqual(Object.keys(graph2.nodes).sort())
   })

@@ -8,7 +8,7 @@
  * - Updates search data when nodes change
  */
 
-import type { Core } from 'cytoscape';
+import type { Core, NodeCollection } from 'cytoscape';
 import 'ninja-keys';
 
 // Extend HTMLElement for ninja-keys custom element
@@ -76,7 +76,7 @@ export class SearchService {
    */
   updateSearchData(): void {
       // todo, make this take a Graph object instead.
-    const nodes: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").NodeCollection = this.cy.nodes();
+    const nodes: NodeCollection = this.cy.nodes();
 
     const searchData: NinjaAction[] = nodes.map((node) => {
       const nodeId: string = node.id();

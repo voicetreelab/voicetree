@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import type { Mock } from 'vitest';
 import { StyleService } from '@/shell/UI/cytoscape-graph-ui/services/StyleService';
 import type { Core } from 'cytoscape';
 
@@ -204,7 +205,7 @@ describe('StyleService', () => {
     it('should update node sizes based on degree programmatically', () => {
       // Create a mock Cytoscape instance with nodes
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const mockNodes: { data: () => undefined; degree: () => number; style: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").Mock<(...args: any[]) => any>; }[] = [
+      const mockNodes: { data: () => undefined; degree: () => number; style: Mock<(...args: any[]) => any>; }[] = [
         {
           data: () => undefined,
           degree: () => 0,

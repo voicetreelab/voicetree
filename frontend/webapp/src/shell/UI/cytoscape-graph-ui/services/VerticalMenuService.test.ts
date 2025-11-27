@@ -1,8 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
 import cytoscape from 'cytoscape';
 import type { Core } from 'cytoscape';
 import { VerticalMenuService, type VerticalMenuDependencies } from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService';
 import type { MenuItem } from '@/shell/UI/lib/ctxmenu.d';
+import type { MenuConfig } from '@/shell/UI/lib/ctxmenu';
+import type { NodeIdAndFilePath } from '@/pure/graph/index';
 
 // Mock ctxmenu
 vi.mock('@/shell/UI/lib/ctxmenu.js', () => ({
@@ -21,8 +24,8 @@ vi.mock('@/shell/edge/UI-edge/graph/handleUIActions', () => ({
 import ctxmenu from '@/shell/UI/lib/ctxmenu.js';
 import { deleteNodeFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions';
 
-const mockCtxmenuShow: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockedFunction<(menuItems: MenuItem[], eventOrElement: MouseEvent | Element, config?: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/UI/lib/ctxmenu").MenuConfig) => void> = vi.mocked(ctxmenu.show);
-const mockDeleteNodeFromUI: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockedFunction<(nodeId: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").NodeIdAndFilePath, cy: Core) => Promise<void>> = vi.mocked(deleteNodeFromUI);
+const mockCtxmenuShow: MockedFunction<(menuItems: MenuItem[], eventOrElement: MouseEvent | Element, config?: MenuConfig) => void> = vi.mocked(ctxmenu.show);
+const mockDeleteNodeFromUI: MockedFunction<(nodeId: NodeIdAndFilePath, cy: Core) => Promise<void>> = vi.mocked(deleteNodeFromUI);
 
 describe('VerticalMenuService', () => {
   let cy: Core;

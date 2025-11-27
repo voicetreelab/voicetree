@@ -10,8 +10,9 @@
  * This class owns all user-triggered navigation state and operations.
  */
 
-import type { Core } from 'cytoscape';
+import type { Core, CollectionReturnValue, SingularElementArgument } from 'cytoscape';
 import { getResponsivePadding } from '@/utils/responsivePadding';
+import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
 
 /**
  * Manages all user-triggered navigation actions for the graph
@@ -44,7 +45,7 @@ export class GraphNavigationService {
   fitToLastNode(): void {
     if (this.lastCreatedNodeId) {
       const cy: Core = this.cy;
-      const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").CollectionReturnValue = cy.getElementById(this.lastCreatedNodeId);
+      const node: CollectionReturnValue = cy.getElementById(this.lastCreatedNodeId);
       if (node.length > 0) {
         // Use 19% of viewport for comfortable zoom on new nodes (was 275px on 1440p)
         cy.fit(node, getResponsivePadding(cy, 19));
@@ -58,7 +59,7 @@ export class GraphNavigationService {
    */
   cycleTerminal(direction: 1 | -1): void {
     const cy: Core = this.cy;
-    const terminalNodes: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").CollectionReturnValue = cy.nodes().filter(
+    const terminalNodes: CollectionReturnValue = cy.nodes().filter(
       (node) =>
         node.data('windowType') === 'terminal' &&
         node.data('isShadowNode') === true
@@ -81,7 +82,7 @@ export class GraphNavigationService {
     }
 
     // Sort terminals
-    const sortedTerminals: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").SingularElementArgument[] = terminalNodes.toArray().sort((a, b) =>
+    const sortedTerminals: SingularElementArgument[] = terminalNodes.toArray().sort((a, b) =>
       a.id().localeCompare(b.id())
     );
 
@@ -93,9 +94,16 @@ export class GraphNavigationService {
     }
 
     // Fit to terminal with reasonable padding
-    const targetTerminal: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").SingularElementArgument = sortedTerminals[this.currentTerminalIndex];
+    const targetTerminal: SingularElementArgument = sortedTerminals[this.currentTerminalIndex];
     // Use 14% of viewport for terminal cycling (was 200px on 1440p)
     cy.fit(targetTerminal, getResponsivePadding(cy, 14));
+
+    // Focus the terminal so keyboard input goes directly to it
+    const terminalId: string = targetTerminal.id();
+    const vanillaInstance: { dispose: () => void; focus?: () => void } | undefined = vanillaFloatingWindowInstances.get(terminalId);
+    if (vanillaInstance?.focus) {
+      vanillaInstance.focus();
+    }
   }
 
   /**
@@ -104,7 +112,7 @@ export class GraphNavigationService {
   handleSearchSelect(nodeId: string): void {
     console.log('[GraphNavigationService] handleSearchSelect called with nodeId:', nodeId);
     const cy: Core = this.cy;
-    const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").CollectionReturnValue = cy.getElementById(nodeId);
+    const node: CollectionReturnValue = cy.getElementById(nodeId);
     console.log('[GraphNavigationService] Found node:', node.length > 0, node);
 
     if (node.length > 0) {

@@ -1,4 +1,4 @@
-import type { Core } from 'cytoscape';
+import type { Core, Position } from 'cytoscape';
 
 /**
  * Converts graph coordinates to screen coordinates.
@@ -13,7 +13,7 @@ export function toScreenCoords(
   cy: Core
 ): { readonly x: number; readonly y: number } {
   const zoom: number = cy.zoom();
-  const pan: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").Position = cy.pan();
+  const pan: Position = cy.pan();
   const containerRect: DOMRect = cy.container()!.getBoundingClientRect();
 
   const result: { readonly x: number; readonly y: number; } = {
@@ -39,7 +39,7 @@ export function toGraphCoords(
   cy: Core
 ): { readonly x: number; readonly y: number } {
   const zoom: number = cy.zoom();
-  const pan: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").Position = cy.pan();
+  const pan: Position = cy.pan();
   const containerRect: DOMRect = cy.container()!.getBoundingClientRect();
 
   return {

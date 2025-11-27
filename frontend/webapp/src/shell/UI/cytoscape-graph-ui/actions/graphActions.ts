@@ -5,7 +5,7 @@
  * and return action handlers that can be registered with HotkeyManager.
  */
 
-import type {Core} from 'cytoscape';
+import type {Core, Position} from 'cytoscape';
 import type {FloatingEditorManager} from '@/shell/UI/floating-windows/editors/FloatingEditorManager';
 import {
     spawnTerminalWithNewContextNode
@@ -44,7 +44,7 @@ export const createNewNodeAction: (cy: Core, floatingWindowManager: FloatingEdit
     // Create orphan node at center of viewport
     void (async () => {
       const {createNewEmptyOrphanNodeFromUI} = await import('@/shell/edge/UI-edge/graph/handleUIActions');
-      const pan: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").Position = cy.pan();
+      const pan: Position = cy.pan();
       const zoom: number = cy.zoom();
       const centerX: number = (cy.width() / 2 - pan.x) / zoom;
       const centerY: number = (cy.height() / 2 - pan.y) / zoom;

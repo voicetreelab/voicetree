@@ -59,6 +59,11 @@ export default tseslint.config([
           message: 'Do not use absolute filesystem paths in imports. Use relative or alias imports.'
         }]
       }],
+      // Ban absolute filesystem paths in inline import types (matches /Users, /home, /opt)
+      'no-restricted-syntax': ['error', {
+        selector: 'TSImportType[argument.literal.value=/^.(Users|home|opt)/]',
+        message: 'Do not use absolute filesystem paths in inline import types. Use relative or alias imports.'
+      }],
       // Require explicit type annotations on variables and function returns
       '@typescript-eslint/typedef': ['error', {
         variableDeclaration: true,

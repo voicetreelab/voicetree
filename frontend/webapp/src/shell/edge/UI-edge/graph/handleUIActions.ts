@@ -35,7 +35,7 @@ export async function createNewChildNodeFromUI(
 ): Promise<NodeIdAndFilePath> {
 
     // Get current graph state
-    const currentGraph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = await window.electronAPI?.main.getGraph() // todo, in memory renderer cache?
+    const currentGraph: Graph = await window.electronAPI?.main.getGraph() // todo, in memory renderer cache?
     if (!currentGraph) {
         console.error("NO GRAPH IN STATE")
         return "-1"; //todo cleaner

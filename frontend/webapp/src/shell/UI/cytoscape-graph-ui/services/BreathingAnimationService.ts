@@ -1,4 +1,4 @@
-import type { Core, NodeSingular } from 'cytoscape';
+import type { Core, NodeSingular, NodeCollection, CollectionReturnValue } from 'cytoscape';
 
 export const AnimationType: { readonly PINNED: "pinned"; readonly NEW_NODE: "new_node"; readonly APPENDED_CONTENT: "appended_content"; } = {
   PINNED: 'pinned',
@@ -237,7 +237,7 @@ export class BreathingAnimationService {
    * Legacy methods for backward compatibility (used by e2e-tests and pinned nodes).
    * These wrap the new event-driven approach.
    */
-  addBreathingAnimation(nodes: NodeSingular | import('cytoscape').NodeCollection, type: AnimationType = AnimationType.NEW_NODE): void {
+  addBreathingAnimation(nodes: NodeSingular | NodeCollection, type: AnimationType = AnimationType.NEW_NODE): void {
     const nodeArray: NodeSingular[] = 'forEach' in nodes ? Array.from(nodes) : [nodes];
 
     nodeArray.forEach((node) => {
@@ -245,7 +245,7 @@ export class BreathingAnimationService {
     });
   }
 
-  stopAllAnimations(nodes: import('cytoscape').NodeCollection): void {
+  stopAllAnimations(nodes: NodeCollection): void {
     nodes.forEach((node) => {
       this.stopAnimationForNode(node);
     });
@@ -253,7 +253,7 @@ export class BreathingAnimationService {
 
   // Not used anymore, but kept for backward compatibility
   stopAnimation(nodeId: string): void {
-    const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").CollectionReturnValue = this.cy.getElementById(nodeId);
+    const node: CollectionReturnValue = this.cy.getElementById(nodeId);
     if (node.length > 0) {
       this.stopAnimationForNode(node);
     }

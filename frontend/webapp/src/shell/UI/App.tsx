@@ -4,8 +4,10 @@ import {Button} from "@/shell/UI/views/components/ui/button";
 import {Alert, AlertDescription} from "@/shell/UI/views/components/ui/alert";
 import {VoiceTreeGraphView} from "@/shell/UI/views/VoiceTreeGraphView";
 import {useEffect, useRef} from "react";
+import type { JSX } from "react/jsx-runtime";
+import type { RefObject } from "react";
 
-function App(): import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@types/react/jsx-runtime").JSX.Element {
+function App(): JSX.Element {
     // Use the folder watcher hook for file watching
     const {
         isWatching,
@@ -18,10 +20,10 @@ function App(): import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_mod
     } = useFolderWatcher();
 
     // Ref for graph container
-    const graphContainerRef: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@types/react/index").RefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);
+    const graphContainerRef: RefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);
 
     // File Watching Control Panel Component
-    const FileWatchingPanel: () => import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@types/react/jsx-runtime").JSX.Element = () => (
+    const FileWatchingPanel: () => JSX.Element = () => (
         <div className="border rounded-lg p-2 mt-2 bg-white shadow-sm">
 
             {/* Status Display */}

@@ -2,6 +2,7 @@ import {Decoration, WidgetType, EditorView, type DecorationSet} from '@codemirro
 import {RangeSet, StateField, type EditorState, type Range} from '@codemirror/state';
 import {syntaxTree} from '@codemirror/language';
 import mermaid from 'mermaid';
+import type { RenderResult } from 'mermaid';
 
 // Initialize Mermaid with default config
 mermaid.initialize({
@@ -35,7 +36,7 @@ class MermaidBlockWidget extends WidgetType {
     private async renderMermaid(diagramSource: string): Promise<void> {
         try {
             const id: string = 'mermaid-' + Math.random().toString(36).substring(2, 11);
-            const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/mermaid/dist/types").RenderResult = await mermaid.render(id, diagramSource);
+            const result: RenderResult = await mermaid.render(id, diagramSource);
             this.rendered = result.svg;
         } catch (error) {
             console.error('Mermaid rendering error:', error);

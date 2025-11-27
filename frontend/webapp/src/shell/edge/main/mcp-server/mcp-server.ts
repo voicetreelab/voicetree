@@ -14,10 +14,10 @@
 import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js'
 import {StreamableHTTPServerTransport} from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import {z} from 'zod'
-import express from 'express'
+import express, {type Express} from 'express'
 import * as O from 'fp-ts/lib/Option.js'
 
-import type {FSUpdate} from '@/pure/graph'
+import type {FSUpdate, Graph, GraphDelta} from '@/pure/graph'
 import {addNodeToGraph} from '@/pure/graph/graphDelta/addNodeToGraph'
 import {getGraph, getVaultPath, setVaultPath} from '@/shell/edge/main/state/graph-store'
 import {applyGraphDeltaToDBThroughMem} from '@/shell/edge/main/graph/writePath/applyGraphDeltaToDBThroughMem'
@@ -97,8 +97,8 @@ export function createMcpServer(): McpServer {
             }
 
             // Apply to graph using pure function
-            const currentGraph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = getGraph()
-            const delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = addNodeToGraph(fsEvent, vaultPath, currentGraph)
+            const currentGraph: Graph = getGraph()
+            const delta: GraphDelta = addNodeToGraph(fsEvent, vaultPath, currentGraph)
 
             // Persist to filesystem
             await applyGraphDeltaToDBThroughMem(delta)
@@ -125,7 +125,7 @@ export function createMcpServer(): McpServer {
             inputSchema: {}
         },
         async () => {
-            const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = getGraph()
+            const graph: Graph = getGraph()
             const nodes: Record<string, {
                 id: string
                 title: string
@@ -166,7 +166,7 @@ export function createMcpServer(): McpServer {
             inputSchema: {}
         },
         async () => {
-            const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = getGraph()
+            const graph: Graph = getGraph()
             const nodes: { id: string; title: string; }[] = Object.values(graph.nodes).map(node => ({
                 id: node.relativeFilePathIsID,
                 title: node.nodeUIMetadata.title
@@ -236,7 +236,7 @@ export function createMcpServer(): McpServer {
 export async function startMcpServer(): Promise<void> {
     const mcpServer: McpServer = createMcpServer()
 
-    const app: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@types/express-serve-static-core/index").Express = express()
+    const app: Express = express()
     app.use(express.json())
 
     app.post('/mcp', async (req, res) => {

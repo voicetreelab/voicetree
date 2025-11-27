@@ -1,4 +1,4 @@
-import type {FSEvent, GraphDelta} from "@/pure/graph";
+import type {FSEvent, GraphDelta, Graph} from "@/pure/graph";
 import {mapFSEventsToGraphDelta} from "@/pure/graph";
 import type {BrowserWindow} from "electron";
 import {applyGraphDeltaToMemStateAndUI} from "@/shell/edge/main/graph/readAndDBEventsPath/applyGraphDeltaToMemStateAndUI";
@@ -24,7 +24,7 @@ export function handleFSEventWithStateAndUISides(
     mainWindow: BrowserWindow
 ): void {
     // 1. Get current graph state to resolve wikilinks
-    const currentGraph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = getGraph();
+    const currentGraph: Graph = getGraph();
 
     // 2. Map filesystem event to graph delta (pure)
     const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, vaultPath, currentGraph);

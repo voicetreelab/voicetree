@@ -10,13 +10,14 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import type { Core } from 'cytoscape'
+import type { Core, Position, NodeCollection, CollectionReturnValue, NodeSingular } from 'cytoscape'
 import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk'
-
+import type { FileLimitExceededError } from '@/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
+import type { Graph, GraphDelta } from '@/pure/graph'
 import { mapNewGraphToDelta } from '@/pure/graph'
 import path from 'path'
 
@@ -40,23 +41,23 @@ describe('Node Positioning Spacing - Integration', () => {
     const exampleFolderPath: string = path.resolve(process.cwd(), 'example_folder_fixtures', 'example_real_large')
 
     // WHEN: Load graph from disk (this applies positions)
-    const loadResult: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(exampleFolderPath))
+    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(exampleFolderPath))
     if (E.isLeft(loadResult)) throw new Error('Expected Right')
-    const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = loadResult.right
+    const graph: Graph = loadResult.right
 
     // AND: Convert graph to delta and apply to UI
-    const delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = mapNewGraphToDelta(graph)
+    const delta: GraphDelta = mapNewGraphToDelta(graph)
     applyGraphDeltaToUI(cy, delta)
 
     // THEN: All nodes should have positions
-    const nodes: cytoscape.NodeCollection = cy.nodes()
+    const nodes: NodeCollection = cy.nodes()
     expect(nodes.length).toBeGreaterThan(0)
 
     // Log node positions for debugging
     console.log(`\n📍 Loaded ${nodes.length} nodes from example_real_large folder`)
 
-    const nodesWithPositions: cytoscape.CollectionReturnValue = nodes.filter(node => {
-      const position: cytoscape.Position = node.position()
+    const nodesWithPositions: CollectionReturnValue = nodes.filter(node => {
+      const position: Position = node.position()
       return position.x !== undefined && position.y !== undefined &&
              !isNaN(position.x) && !isNaN(position.y)
     })
@@ -72,10 +73,10 @@ describe('Node Positioning Spacing - Integration', () => {
 
     for (let i: number = 0; i < nodes.length; i++) {
       for (let j: number = i + 1; j < nodes.length; j++) {
-        const node1: cytoscape.NodeSingular = nodes[i]
-        const node2: cytoscape.NodeSingular = nodes[j]
-        const pos1: cytoscape.Position = node1.position()
-        const pos2: cytoscape.Position = node2.position()
+        const node1: NodeSingular = nodes[i]
+        const node2: NodeSingular = nodes[j]
+        const pos1: Position = node1.position()
+        const pos2: Position = node2.position()
 
         const distance: number = Math.sqrt(
           Math.pow(pos2.x - pos1.x, 2) + Math.pow(pos2.y - pos1.y, 2)

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import { parseMarkdownToGraphNode } from '@/pure/graph/markdown-parsing/parse-markdown-to-node'
-import type { Graph } from '@/pure/graph'
+import type { Graph, GraphNode } from '@/pure/graph'
 
 // Helper to create an empty graph for testing
 const emptyGraph: Graph = { nodes: {} }
@@ -14,7 +14,7 @@ color: "#FF0000"
 # Content here
 Some text`
 
-    const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
+    const result: GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
     expect(result.relativeFilePathIsID).toBe('test.md')
     // contentWithoutYamlOrLinks should have YAML stripped
@@ -33,7 +33,7 @@ position:
 ---
 # Content here`
 
-    const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
+    const result: GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
     expect(result.relativeFilePathIsID).toBe('test.md')
     // contentWithoutYamlOrLinks should have YAML stripped
@@ -48,7 +48,7 @@ position:
   it('should use filename for node_id', () => {
     const content: "# Content" = `# Content`
 
-    const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = parseMarkdownToGraphNode(content, 'my-file.md', emptyGraph)
+    const result: GraphNode = parseMarkdownToGraphNode(content, 'my-file.md', emptyGraph)
 
     expect(result.relativeFilePathIsID).toBe('my-file.md')
   })
@@ -58,7 +58,7 @@ position:
 
 Content`
 
-    const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
+    const result: GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
     expect(O.isNone(result.nodeUIMetadata.color)).toBe(true)
   })
@@ -68,7 +68,7 @@ Content`
 
 Content`
 
-    const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
+    const result: GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
     expect(O.isNone(result.nodeUIMetadata.position)).toBe(true)
   })
@@ -81,7 +81,7 @@ color: "#123456"
 
 Content here`
 
-    const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
+    const result: GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
     // contentWithoutYamlOrLinks should have YAML stripped
     expect(result.contentWithoutYamlOrLinks).toBe('# Test\n\nContent here')
@@ -90,7 +90,7 @@ Content here`
   it('should handle nested paths in filename', () => {
     const content: "# Test" = '# Test'
 
-    const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = parseMarkdownToGraphNode(content, 'subfolder/nested/file.md', emptyGraph)
+    const result: GraphNode = parseMarkdownToGraphNode(content, 'subfolder/nested/file.md', emptyGraph)
 
     expect(result.relativeFilePathIsID).toBe('subfolder/nested/file.md')
   })
@@ -98,7 +98,7 @@ Content here`
   it('should have empty outgoingEdges array', () => {
     const content: "# Test" = `# Test`
 
-    const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
+    const result: GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
     expect(result.outgoingEdges).toEqual([])
   })
@@ -114,7 +114,7 @@ bad_key: unquoted value with : colon causes problems
 Content here`
 
     // Should not throw, should return a valid node
-    const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = parseMarkdownToGraphNode(content, 'bad-yaml.md', emptyGraph)
+    const result: GraphNode = parseMarkdownToGraphNode(content, 'bad-yaml.md', emptyGraph)
 
     expect(result.relativeFilePathIsID).toBe('bad-yaml.md')
     // NOTE: gray-matter doesn't always strip invalid YAML, it tries to parse it anyway
@@ -131,7 +131,7 @@ Content here`
 
 This references [[other-note]] and [[another-note]].`
 
-    const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
+    const result: GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
     expect(result.relativeFilePathIsID).toBe('test.md')
     // Wikilinks should be replaced with [link]* notation
@@ -150,7 +150,7 @@ color: "#FF0000"
 
 Content with [[link-one]] and [[link-two]]`
 
-    const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
+    const result: GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
     // Both YAML and wikilinks should be processed
     expect(result.contentWithoutYamlOrLinks).toBe('# Test\n\nContent with [link-one]* and [link-two]*')
@@ -162,7 +162,7 @@ Content with [[link-one]] and [[link-two]]`
     it('should keep .md extension in node ID for simple filename', () => {
       const content: "# Test Content" = '# Test Content'
 
-      const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = parseMarkdownToGraphNode(content, 'test-file.md', emptyGraph)
+      const result: GraphNode = parseMarkdownToGraphNode(content, 'test-file.md', emptyGraph)
 
       expect(result.relativeFilePathIsID).toBe('test-file.md')
     })
@@ -170,7 +170,7 @@ Content with [[link-one]] and [[link-two]]`
     it('should keep .md extension in node ID for nested path', () => {
       const content: "# Nested Content" = '# Nested Content'
 
-      const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = parseMarkdownToGraphNode(content, 'folder/subfolder/note.md', emptyGraph)
+      const result: GraphNode = parseMarkdownToGraphNode(content, 'folder/subfolder/note.md', emptyGraph)
 
       expect(result.relativeFilePathIsID).toBe('folder/subfolder/note.md')
     })
@@ -178,7 +178,7 @@ Content with [[link-one]] and [[link-two]]`
     it('should keep .md extension when file has multiple dots', () => {
       const content: "# Multi-dot file" = '# Multi-dot file'
 
-      const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = parseMarkdownToGraphNode(content, 'file.backup.md', emptyGraph)
+      const result: GraphNode = parseMarkdownToGraphNode(content, 'file.backup.md', emptyGraph)
 
       expect(result.relativeFilePathIsID).toBe('file.backup.md')
     })
@@ -186,7 +186,7 @@ Content with [[link-one]] and [[link-two]]`
     it('should handle file without .md extension as-is', () => {
       const content: "# No extension" = '# No extension'
 
-      const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = parseMarkdownToGraphNode(content, 'no-extension', emptyGraph)
+      const result: GraphNode = parseMarkdownToGraphNode(content, 'no-extension', emptyGraph)
 
       expect(result.relativeFilePathIsID).toBe('no-extension')
     })
@@ -201,7 +201,7 @@ custom_field: "some value"
 ---
 # Test`
 
-      const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
+      const result: GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
       // color has an explicit typed field, so NOT in additionalYAMLProps
       // author and custom_field don't have explicit fields, so they ARE in additionalYAMLProps
@@ -218,7 +218,7 @@ version: 2.1
 ---
 # Test`
 
-      const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
+      const result: GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
       expect(result.nodeUIMetadata.additionalYAMLProps.get('priority')).toBe('5')
       expect(result.nodeUIMetadata.additionalYAMLProps.get('version')).toBe('2.1')
@@ -231,7 +231,7 @@ archived: false
 ---
 # Test`
 
-      const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
+      const result: GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
       expect(result.nodeUIMetadata.additionalYAMLProps.get('published')).toBe('true')
       expect(result.nodeUIMetadata.additionalYAMLProps.get('archived')).toBe('false')
@@ -249,7 +249,7 @@ numbers:
 ---
 # Test`
 
-      const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
+      const result: GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
       expect(result.nodeUIMetadata.additionalYAMLProps.get('tags')).toBe('["important","draft"]')
       expect(result.nodeUIMetadata.additionalYAMLProps.get('numbers')).toBe('[1,2,3]')
@@ -263,7 +263,7 @@ metadata:
 ---
 # Test`
 
-      const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
+      const result: GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
       const metadata: string | undefined = result.nodeUIMetadata.additionalYAMLProps.get('metadata')
       expect(metadata).toBeDefined()
@@ -285,7 +285,7 @@ custom_prop: "should be included"
 ---
 # Test`
 
-      const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
+      const result: GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
       // color, position, isContextNode, title have explicit typed fields → NOT in additionalYAMLProps
       // summary, node_id, custom_prop don't → ARE in additionalYAMLProps
@@ -307,7 +307,7 @@ position:
 ---
 # Test`
 
-      const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
+      const result: GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
       // color and position have explicit typed fields, so NOT in additionalYAMLProps
       expect(result.nodeUIMetadata.additionalYAMLProps.size).toBe(0)
@@ -321,7 +321,7 @@ position:
 
 Content without frontmatter`
 
-      const result: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
+      const result: GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
       expect(result.nodeUIMetadata.additionalYAMLProps.size).toBe(0)
     })
@@ -338,7 +338,7 @@ containedNodeIds:
 ---
 # Context Node Content`
 
-      const result: import('@/pure/graph').GraphNode = parseMarkdownToGraphNode(content, 'context.md', emptyGraph)
+      const result: GraphNode = parseMarkdownToGraphNode(content, 'context.md', emptyGraph)
 
       expect(result.nodeUIMetadata.isContextNode).toBe(true)
       expect(result.nodeUIMetadata.containedNodeIds).toEqual([
@@ -354,7 +354,7 @@ title: Regular Node
 ---
 # Content`
 
-      const result: import('@/pure/graph').GraphNode = parseMarkdownToGraphNode(content, 'regular.md', emptyGraph)
+      const result: GraphNode = parseMarkdownToGraphNode(content, 'regular.md', emptyGraph)
 
       expect(result.nodeUIMetadata.containedNodeIds).toBeUndefined()
     })

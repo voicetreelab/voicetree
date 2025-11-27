@@ -1,6 +1,6 @@
-import type {Core, NodeSingular} from "cytoscape";
+import type {Core, NodeSingular, CollectionReturnValue, EdgeCollection} from "cytoscape";
 type CyNodeSingular = NodeSingular;
-import type {GraphDelta} from "@/pure/graph";
+import type {GraphDelta, GraphNode} from "@/pure/graph";
 import * as O from 'fp-ts/lib/Option.js';
 import {prettyPrintGraphDelta, stripDeltaForReplay} from "@/pure/graph";
 import posthog from "posthog-js";
@@ -29,9 +29,9 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
         // PASS 1: Create/update all nodes and handle deletions
         delta.forEach((nodeDelta) => {
             if (nodeDelta.type === 'UpsertNode') {
-                const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = nodeDelta.nodeToUpsert;
+                const node: GraphNode = nodeDelta.nodeToUpsert;
                 const nodeId: string = node.relativeFilePathIsID;
-                const existingNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").CollectionReturnValue = cy.getElementById(nodeId);
+                const existingNode: CollectionReturnValue = cy.getElementById(nodeId);
                 const isNewNode: boolean = existingNode.length === 0;
 
                 if (isNewNode) {
@@ -76,7 +76,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                 }
             } else if (nodeDelta.type === 'DeleteNode') {
                 const nodeId: string = nodeDelta.nodeId;
-                const nodeToRemove: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").CollectionReturnValue = cy.getElementById(nodeId);
+                const nodeToRemove: CollectionReturnValue = cy.getElementById(nodeId);
                 if (nodeToRemove.length > 0) {
                     nodeToRemove.remove();
                 }
@@ -86,11 +86,11 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
         // PASS 2: Sync edges for each node (add missing, remove stale)
         delta.forEach((nodeDelta) => {
             if (nodeDelta.type === 'UpsertNode') {
-                const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = nodeDelta.nodeToUpsert;
+                const node: GraphNode = nodeDelta.nodeToUpsert;
                 const nodeId: string = node.relativeFilePathIsID;
 
                 // Get current edges from this node in Cytoscape
-                const currentEdges: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").EdgeCollection = cy.edges(`[source = "${nodeId}"]`);
+                const currentEdges: EdgeCollection = cy.edges(`[source = "${nodeId}"]`);
                 const currentTargets: Set<string> = new Set(currentEdges.map(edge => edge.data('target') as string));
                 const desiredTargets: Set<string> = new Set(node.outgoingEdges.map(edge => edge.targetId));
 
@@ -119,8 +119,8 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                         // (belt-and-suspenders check - currentTargets should catch most cases,
                         // but direct getElementById catches edge cases like same node appearing
                         // multiple times in delta or race conditions between deltas)
-                        const targetNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").CollectionReturnValue = cy.getElementById(edge.targetId);
-                        const existingEdge: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").CollectionReturnValue = cy.getElementById(edgeId);
+                        const targetNode: CollectionReturnValue = cy.getElementById(edge.targetId);
+                        const existingEdge: CollectionReturnValue = cy.getElementById(edgeId);
                         if (existingEdge.length > 0) {
                             // Edge already exists (race condition or duplicate in delta)
                             console.log(`[applyGraphDeltaToUI] Edge ${edgeId} already exists, skipping`);

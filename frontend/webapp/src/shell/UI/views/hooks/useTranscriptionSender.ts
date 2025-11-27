@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, type RefObject } from 'react';
 import { type Token } from '@soniox/speech-to-text-web';
 
 interface UseTranscriptionSenderOptions {
@@ -27,8 +27,8 @@ export function useTranscriptionSender({
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
   // Track what's been sent (doesn't trigger re-render)
-  const sentTokensCount: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@types/react/index").RefObject<number> = useRef(0);
-  const lastProcessedText: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@types/react/index").RefObject<string> = useRef("");
+  const sentTokensCount: RefObject<number> = useRef(0);
+  const lastProcessedText: RefObject<string> = useRef("");
 
   // Extract text from tokens (only final tokens)
   const getTranscriptText: (tokens: Token[]) => string = (tokens: Token[]): string => {

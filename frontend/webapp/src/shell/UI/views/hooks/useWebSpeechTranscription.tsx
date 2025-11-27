@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import type { RefObject } from 'react';
 
 export type TranscriptionState = 'Idle' | 'Starting' | 'Running' | 'Stopping' | 'Stopped';
 
@@ -21,7 +22,7 @@ export default function useWebSpeechTranscription(): {
   const [nonFinalTokens, setNonFinalTokens] = useState<TranscriptionToken[]>([]);
   const [error, setError] = useState<Error | null>(null);
 
-  const recognitionRef: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/@types/react/index").RefObject<SpeechRecognition | null> = useRef<SpeechRecognition | null>(null);
+  const recognitionRef: RefObject<SpeechRecognition | null> = useRef<SpeechRecognition | null>(null);
 
   const startTranscription: () => void = useCallback(() => {
     console.log('Starting Web Speech API transcription...');

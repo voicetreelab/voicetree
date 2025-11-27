@@ -21,18 +21,19 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { spawnTerminalWithNewContextNode } from '@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk'
-
+import type { FileLimitExceededError } from '@/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce'
 import { setGraph, setVaultPath, getVaultPath, getGraph } from '@/shell/edge/main/state/graph-store'
 import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 import { promises as fs } from 'fs'
 import path from 'path'
-import type { NodeIdAndFilePath } from '@/pure/graph'
+import type { NodeIdAndFilePath, Graph } from '@/pure/graph'
 import cytoscape from 'cytoscape'
 import type { Core } from 'cytoscape'
 import { getTerminals, clearTerminals } from '@/shell/edge/UI-edge/state/UIAppState'
 import { createContextNode } from '@/shell/edge/main/graph/createContextNode'
+import type { TerminalData } from '@/shell/electron'
 
 describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
   let createdContextNodeIds: NodeIdAndFilePath[] = []
@@ -44,9 +45,9 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
     setVaultPath(EXAMPLE_SMALL_PATH)
 
     // Load the graph from disk
-    const loadResult: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH))
+    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH))
     if (E.isLeft(loadResult)) throw new Error('Expected Right')
-    const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = loadResult.right
+    const graph: Graph = loadResult.right
     setGraph(graph)
 
     // Create a minimal Cytoscape instance for testing
@@ -147,12 +148,12 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
       await new Promise(resolve => setTimeout(resolve, 1100))
 
       // THEN: A context node should be created
-      const terminals: Map<string, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/electron").TerminalData> = getTerminals()
-      const terminalEntries: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/electron").TerminalData[] = Array.from(terminals.values())
+      const terminals: Map<string, TerminalData> = getTerminals()
+      const terminalEntries: TerminalData[] = Array.from(terminals.values())
       expect(terminalEntries.length).toBeGreaterThan(0)
 
       // Find the terminal attached to a context node (ctx-nodes/)
-      const contextTerminal: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/electron").TerminalData | undefined = terminalEntries.find(t =>
+      const contextTerminal: TerminalData | undefined = terminalEntries.find(t =>
         t.attachedToNodeId.includes('ctx-nodes/')
       )
       expect(contextTerminal).toBeDefined()
@@ -213,9 +214,9 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
       await new Promise(resolve => setTimeout(resolve, 1100))
 
       // THEN: Terminal should be attached to context node, not parent
-      const terminals: Map<string, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/electron").TerminalData> = getTerminals()
-      const terminalEntries: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/electron").TerminalData[] = Array.from(terminals.values())
-      const contextTerminal: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/electron").TerminalData | undefined = terminalEntries.find(t =>
+      const terminals: Map<string, TerminalData> = getTerminals()
+      const terminalEntries: TerminalData[] = Array.from(terminals.values())
+      const contextTerminal: TerminalData | undefined = terminalEntries.find(t =>
         t.attachedToNodeId.includes('ctx-nodes/') &&
         t.attachedToNodeId.includes(parentNodeId)
       )
@@ -248,8 +249,8 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
       await new Promise(resolve => setTimeout(resolve, 1100))
 
       // THEN: First terminal for the context node should have terminalCount = 0 (0-indexed)
-      const terminals: Map<string, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/electron").TerminalData> = getTerminals()
-      const contextTerminal: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/electron").TerminalData | undefined = Array.from(terminals.values()).find(t =>
+      const terminals: Map<string, TerminalData> = getTerminals()
+      const contextTerminal: TerminalData | undefined = Array.from(terminals.values()).find(t =>
         t.attachedToNodeId.includes('ctx-nodes/')
       )
 
@@ -278,8 +279,8 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
       await new Promise(resolve => setTimeout(resolve, 1100))
 
       // Get the created context node ID
-      const terminals: Map<string, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/electron").TerminalData> = getTerminals()
-      const firstTerminal: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/electron").TerminalData | undefined = Array.from(terminals.values()).find(t =>
+      const terminals: Map<string, TerminalData> = getTerminals()
+      const firstTerminal: TerminalData | undefined = Array.from(terminals.values()).find(t =>
         t.attachedToNodeId.includes('ctx-nodes/')
       )
       expect(firstTerminal).toBeDefined()
@@ -298,19 +299,19 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
       await new Promise(resolve => setTimeout(resolve, 1100))
 
       // THEN: Should NOT create another context node, should reuse the existing one
-      const allTerminals: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/electron").TerminalData[] = Array.from(getTerminals().values())
+      const allTerminals: TerminalData[] = Array.from(getTerminals().values())
 
       // There should be 2 terminals now
       expect(allTerminals.length).toBe(2)
 
       // Both terminals should be attached to the SAME context node
-      const contextTerminals: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/electron").TerminalData[] = allTerminals.filter(t =>
+      const contextTerminals: TerminalData[] = allTerminals.filter(t =>
         t.attachedToNodeId === contextNodeId
       )
       expect(contextTerminals.length).toBe(2)
 
       // Verify no nested context nodes were created (ctx-nodes/ctx-nodes/...)
-      const nestedContextTerminals: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/electron").TerminalData[] = allTerminals.filter(t =>
+      const nestedContextTerminals: TerminalData[] = allTerminals.filter(t =>
         t.attachedToNodeId.includes('ctx-nodes/ctx-nodes/')
       )
       expect(nestedContextTerminals.length).toBe(0)
@@ -336,8 +337,8 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
       await new Promise(resolve => setTimeout(resolve, 1100))
 
       // THEN: initial_content should contain ASCII tree
-      const terminals: Map<string, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/electron").TerminalData> = getTerminals()
-      const contextTerminal: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/electron").TerminalData | undefined = Array.from(terminals.values()).find(t =>
+      const terminals: Map<string, TerminalData> = getTerminals()
+      const contextTerminal: TerminalData | undefined = Array.from(terminals.values()).find(t =>
         t.attachedToNodeId.includes('ctx-nodes/')
       )
 

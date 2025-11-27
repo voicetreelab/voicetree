@@ -77,13 +77,15 @@ function isOption(value: unknown): value is O.Option<unknown> {
 
 /**
  * Builds frontmatter string from NodeUIMetadata by dynamically iterating over all keys.
+ * Note: title is NOT written to YAML - it's derived from Markdown content (single source of truth).
  */
 function buildFrontmatterFromMetadata(metadata: NodeUIMetadata): string {
     // todo, do order determinisitcally, otherwhise yaml order will keep changing?
 
     // Build frontmatter from typed metadata fields
+    // Note: title is excluded - Markdown content is the single source of truth for titles
     const typedFieldsData: Record<string, unknown> = Object.keys(metadata)
-        .filter((key) => key !== 'additionalYAMLProps')
+        .filter((key) => key !== 'additionalYAMLProps' && key !== 'title')
         .reduce((acc: Record<string, unknown>, key: string) => {
             const value: unknown = metadata[key as keyof NodeUIMetadata];
 

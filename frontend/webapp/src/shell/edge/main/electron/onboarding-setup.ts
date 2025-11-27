@@ -2,6 +2,8 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { app } from 'electron';
 import { getBuildConfig } from './build-config';
+import type { BuildConfig } from '@/shell/edge/main/electron/build-config';
+import type { Dirent } from 'fs';
 
 /**
  * Get the onboarding directory path in Application Support
@@ -36,7 +38,7 @@ function getOnboardingSource(): string {
  */
 async function copyDir(src: string, dest: string): Promise<void> {
   await fs.mkdir(dest, { recursive: true });
-  const entries: import("fs").Dirent<string>[] = await fs.readdir(src, { withFileTypes: true });
+  const entries: Dirent<string>[] = await fs.readdir(src, { withFileTypes: true });
 
   for (const entry of entries) {
     const srcPath: string = path.join(src, entry.name);
@@ -60,7 +62,7 @@ async function copyDir(src: string, dest: string): Promise<void> {
  * Uses centralized build-config for path resolution
  */
 export async function setupOnboardingDirectory(): Promise<void> {
-  const config: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/electron/build-config").BuildConfig = getBuildConfig();
+  const config: BuildConfig = getBuildConfig();
 
   // Skip entirely in test mode
   if (!config.shouldCopyTools) {

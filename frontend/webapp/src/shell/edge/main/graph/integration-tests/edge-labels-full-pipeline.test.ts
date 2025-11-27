@@ -8,6 +8,8 @@ import { mapNewGraphToDelta } from '@/pure/graph/graphDelta/mapNewGraphtoDelta'
 import cytoscape from 'cytoscape'
 import type { Core } from 'cytoscape'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
+import type { Graph, GraphNode, GraphDelta, NodeDelta } from '@/pure/graph'
+import type { FileLimitExceededError } from '@/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce'
 
 /**
  * Integration test for edge labels through the full pipeline:
@@ -66,16 +68,16 @@ Setup instructions.`
     console.log('✓ Step 1: Created markdown files on disk')
 
     // STEP 2: Load graph from disk
-    const loadResult: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(tempDir))
+    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(tempDir))
     if (E.isLeft(loadResult)) throw new Error('Expected Right')
-    const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = loadResult.right
+    const graph: Graph = loadResult.right
 
     console.log('✓ Step 2: Loaded graph from disk')
     console.log('  Graph nodes:', Object.keys(graph.nodes))
     console.log('  All node IDs in graph:', JSON.stringify(Object.keys(graph.nodes), null, 2))
 
     // VERIFY: Graph should have edges with labels
-    const node5: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = graph.nodes['5_Understand_G_Cloud_Lambda.md']
+    const node5: GraphNode = graph.nodes['5_Understand_G_Cloud_Lambda.md']
     expect(node5).toBeDefined()
     expect(node5.outgoingEdges).toHaveLength(1)
 
@@ -89,13 +91,13 @@ Setup instructions.`
     console.log('✓ Step 3: Verified edge has label in Graph')
 
     // STEP 3: Convert graph to GraphDelta
-    const delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = mapNewGraphToDelta(graph)
+    const delta: GraphDelta = mapNewGraphToDelta(graph)
 
     console.log('✓ Step 4: Converted graph to GraphDelta')
     console.log('  Delta length:', delta.length)
 
     // Find node 5 in delta
-    const node5Delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").NodeDelta | undefined = delta.find(d => d.type === 'UpsertNode' && d.nodeToUpsert.relativeFilePathIsID === '5_Understand_G_Cloud_Lambda.md')
+    const node5Delta: NodeDelta | undefined = delta.find(d => d.type === 'UpsertNode' && d.nodeToUpsert.relativeFilePathIsID === '5_Understand_G_Cloud_Lambda.md')
     expect(node5Delta).toBeDefined()
 
     if (node5Delta?.type === 'UpsertNode') {
@@ -148,13 +150,13 @@ _Links:_
     await fs.writeFile(path.join(tempDir, 'node-b.md'), '# Node B', 'utf-8')
     await fs.writeFile(path.join(tempDir, 'node-c.md'), '# Node C', 'utf-8')
 
-    const loadResult2: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph> = await loadGraphFromDisk(O.some(tempDir))
+    const loadResult2: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(tempDir))
     if (E.isLeft(loadResult2)) throw new Error('Expected Right')
-    const graph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = loadResult2.right
-    const delta: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphDelta = mapNewGraphToDelta(graph)
+    const graph: Graph = loadResult2.right
+    const delta: GraphDelta = mapNewGraphToDelta(graph)
     applyGraphDeltaToUI(cy, delta)
 
-    const mainNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = graph.nodes['main.md']
+    const mainNode: GraphNode = graph.nodes['main.md']
     expect(mainNode.outgoingEdges).toHaveLength(3)
     expect(mainNode.outgoingEdges).toEqual([
       { targetId: 'node-a.md', label: 'references' },

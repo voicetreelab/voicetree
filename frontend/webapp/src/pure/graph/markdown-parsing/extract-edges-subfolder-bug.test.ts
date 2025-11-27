@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import { extractEdges } from '@/pure/graph/markdown-parsing/extract-edges'
-import type { GraphNode } from '@/pure/graph'
+import type { GraphNode, Edge } from '@/pure/graph'
 
 describe('extractEdges - subfolder bug reproduction', () => {
   const createNode: (id: string, content?: string, title?: string) => GraphNode = (id: string, content = '', title = id): GraphNode => ({
@@ -29,7 +29,7 @@ describe('extractEdges - subfolder bug reproduction', () => {
 
     const content: string = nodes['felix/2'].contentWithoutYamlOrLinks
 
-    const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+    const result: readonly Edge[] = extractEdges(content, nodes)
 
     // EXPECTED: Should find the edge from felix/2 -> felix/1
     // ACTUAL: Returns empty array because matching fails
@@ -57,7 +57,7 @@ describe('extractEdges - subfolder bug reproduction', () => {
 
     const content: string = nodes['felix/2_Unexplained_Bug_Encountered'].contentWithoutYamlOrLinks
 
-    const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+    const result: readonly Edge[] = extractEdges(content, nodes)
 
     // EXPECTED: Should find felix/1_Positive_Observation_on_System_Performance_Result
     expect(result).toEqual([
@@ -74,7 +74,7 @@ describe('extractEdges - subfolder bug reproduction', () => {
 
     const content: string = nodes['felix/2'].contentWithoutYamlOrLinks
 
-    const result: readonly import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Edge[] = extractEdges(content, nodes)
+    const result: readonly Edge[] = extractEdges(content, nodes)
 
     expect(result).toEqual([
       { targetId: 'felix/1', label: 'related' }

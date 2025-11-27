@@ -4,7 +4,7 @@
  */
 
 import type {} from '@/shell/electron';
-import type {Core} from 'cytoscape';
+import type {Core, Position} from 'cytoscape';
 import {createWindowChrome, getOrCreateOverlay} from '@/shell/UI/floating-windows/cytoscape-floating-windows';
 import type {VTSettings} from '@/pure/settings/types';
 import {CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
@@ -77,7 +77,7 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
         vanillaInstances.set(settingsId, editor);
 
         // Position window in center of current viewport (same as backup terminal)
-        const pan: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").Position = cy.pan();
+        const pan: Position = cy.pan();
         const zoom: number = cy.zoom();
         const centerX: number = (cy.width() / 2 - pan.x) / zoom;
         const centerY: number = (cy.height() / 2 - pan.y) / zoom;

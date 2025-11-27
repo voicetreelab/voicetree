@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import type { MockInstance } from 'vitest';
 import { BreathingAnimationService, AnimationType } from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService';
 import cytoscape, { type NodeSingular } from 'cytoscape';
 
@@ -70,7 +71,7 @@ describe('BreathingAnimationService', () => {
 
     it('should set timeout for animations with timeout config', () => {
       vi.useFakeTimers();
-      const setTimeoutSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<typeof setTimeout> = vi.spyOn(global, 'setTimeout');
+      const setTimeoutSpy: MockInstance<typeof setTimeout> = vi.spyOn(global, 'setTimeout');
 
       // NEW_NODE has no timeout (0 = no timeout, persists until next node)
       service.addBreathingAnimation(node, AnimationType.NEW_NODE);
@@ -101,7 +102,7 @@ describe('BreathingAnimationService', () => {
     });
 
     it('should stop existing animation before adding new one', () => {
-      const stopAnimationSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<(node: NodeSingular) => void> = vi.spyOn(service, 'stopAnimationForNode');
+      const stopAnimationSpy: MockInstance<(node: NodeSingular) => void> = vi.spyOn(service, 'stopAnimationForNode');
 
       service.addBreathingAnimation(node, AnimationType.NEW_NODE);
       service.addBreathingAnimation(node, AnimationType.PINNED);
@@ -129,7 +130,7 @@ describe('BreathingAnimationService', () => {
       service.addBreathingAnimation(node, AnimationType.NEW_NODE);
 
       // Spy on removeStyle to verify border properties are reset
-      const removeStyleSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<(names?: string) => cytoscape.NodeSingular> = vi.spyOn(node, 'removeStyle');
+      const removeStyleSpy: MockInstance<(names?: string) => cytoscape.NodeSingular> = vi.spyOn(node, 'removeStyle');
 
       service.stopAnimationForNode(node);
 
@@ -146,7 +147,7 @@ describe('BreathingAnimationService', () => {
 
     it('should remove animation classes and data from node', () => {
       vi.useFakeTimers();
-      const removeDataSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<(...names: string[]) => cytoscape.CollectionReturnValue> = vi.spyOn(node, 'removeData');
+      const removeDataSpy: MockInstance<(...names: string[]) => cytoscape.CollectionReturnValue> = vi.spyOn(node, 'removeData');
 
       service.addBreathingAnimation(node, AnimationType.NEW_NODE);
 
@@ -169,7 +170,7 @@ describe('BreathingAnimationService', () => {
 
     it('should clear the animation interval', () => {
       vi.useFakeTimers();
-      const clearIntervalSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<{ (id: number | undefined): void; (timeout: NodeJS.Timeout | string | number | undefined): void; }> = vi.spyOn(global, 'clearInterval');
+      const clearIntervalSpy: MockInstance<{ (id: number | undefined): void; (timeout: NodeJS.Timeout | string | number | undefined): void; }> = vi.spyOn(global, 'clearInterval');
 
       service.addBreathingAnimation(node, AnimationType.NEW_NODE);
       service.stopAnimationForNode(node);
@@ -187,7 +188,7 @@ describe('BreathingAnimationService', () => {
       const nodes: cytoscape.NodeCollection = cy.nodes();
       service.addBreathingAnimation(nodes, AnimationType.NEW_NODE);
 
-      const stopSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<(node: NodeSingular) => void> = vi.spyOn(service, 'stopAnimationForNode');
+      const stopSpy: MockInstance<(node: NodeSingular) => void> = vi.spyOn(service, 'stopAnimationForNode');
       service.stopAllAnimations(nodes);
 
       expect(stopSpy).toHaveBeenCalledTimes(2);
@@ -214,8 +215,8 @@ describe('BreathingAnimationService', () => {
   describe('destroy', () => {
     it('should clear all timeouts and intervals', () => {
       vi.useFakeTimers();
-      const clearTimeoutSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<{ (id: number | undefined): void; (timeout: NodeJS.Timeout | string | number | undefined): void; }> = vi.spyOn(global, 'clearTimeout');
-      const clearIntervalSpy: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/vitest/dist/index").MockInstance<{ (id: number | undefined): void; (timeout: NodeJS.Timeout | string | number | undefined): void; }> = vi.spyOn(global, 'clearInterval');
+      const clearTimeoutSpy: MockInstance<{ (id: number | undefined): void; (timeout: NodeJS.Timeout | string | number | undefined): void; }> = vi.spyOn(global, 'clearTimeout');
+      const clearIntervalSpy: MockInstance<{ (id: number | undefined): void; (timeout: NodeJS.Timeout | string | number | undefined): void; }> = vi.spyOn(global, 'clearInterval');
 
       service.addBreathingAnimation(node, AnimationType.NEW_NODE);
       service.addBreathingAnimation(node, AnimationType.APPENDED_CONTENT);

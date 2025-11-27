@@ -1,13 +1,15 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { getBuildConfig } from './build-config';
+import type { BuildConfig } from '@/shell/edge/main/electron/build-config';
+import type { Dirent } from 'fs';
 
 /**
  * Get the tools directory absolutePath in Application Support
  * Returns the user-writable location where agent tools are stored
  */
 export function getToolsDirectory(): string {
-  const config: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/electron/build-config").BuildConfig = getBuildConfig();
+  const config: BuildConfig = getBuildConfig();
   return config.toolsDest;
 }
 
@@ -16,7 +18,7 @@ export function getToolsDirectory(): string {
  * Returns the user-writable location where backend modules are stored
  */
 export function getBackendDirectory(): string {
-  const config: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/electron/build-config").BuildConfig = getBuildConfig();
+  const config: BuildConfig = getBuildConfig();
   return config.backendDest;
 }
 
@@ -25,7 +27,7 @@ export function getBackendDirectory(): string {
  */
 async function copyDir(src: string, dest: string): Promise<void> {
   await fs.mkdir(dest, { recursive: true });
-  const entries: import("fs").Dirent<string>[] = await fs.readdir(src, { withFileTypes: true });
+  const entries: Dirent<string>[] = await fs.readdir(src, { withFileTypes: true });
 
   for (const entry of entries) {
     const srcPath: string = path.join(src, entry.name);
@@ -48,7 +50,7 @@ async function copyDir(src: string, dest: string): Promise<void> {
  * Uses centralized build-config for all absolutePath resolution
  */
 export async function setupToolsDirectory(): Promise<void> {
-  const config: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/electron/build-config").BuildConfig = getBuildConfig();
+  const config: BuildConfig = getBuildConfig();
 
   // Skip entirely in test mode
   if (!config.shouldCopyTools) {

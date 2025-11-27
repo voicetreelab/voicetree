@@ -1,6 +1,6 @@
 import type {} from '@/shell/electron';
 import type {GraphNode, NodeIdAndFilePath, Position} from "@/pure/graph";
-import type {Core} from "cytoscape";
+import type {Core, CollectionReturnValue, NodeCollection, Position as CyPosition} from "cytoscape";
 import {
     anchorToNode,
     createWindowChrome,
@@ -45,7 +45,7 @@ export async function spawnTerminalWithNewContextNode(
     const agentCommand: string = settings.agentCommand;
 
     // Check if the parent node is already a context node - if so, reuse it
-    const parentNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = await getNodeFromMainToUI(parentNodeId);
+    const parentNode: GraphNode = await getNodeFromMainToUI(parentNodeId);
     if (!parentNode) {
         throw Error(`Node ${parentNodeId} not found in graph`);
     }
@@ -114,9 +114,9 @@ export async function spawnTerminalWithNewContextNode(
     // Position the terminal near the context node
     setTimeout(() => {
         void (async () => {
-            const targetNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").CollectionReturnValue = cy.getElementById(contextNodeId);
+            const targetNode: CollectionReturnValue = cy.getElementById(contextNodeId);
 
-            const nodePos: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").Position = targetNode.position();
+            const nodePos: CyPosition = targetNode.position();
             console.log("spawn terminal: " + terminalId);
             await createFloatingTerminal(cy, contextNodeId, terminalData, nodePos);
             console.log("spawned terminal: " + terminalId);
@@ -143,19 +143,19 @@ export async function createFloatingTerminal(
     console.log('[FloatingWindowManager] Creating floating terminal:', terminalId);
 
     // Check if already exists
-    const existing: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").NodeCollection = cy.nodes(`#${terminalId}`);
+    const existing: NodeCollection = cy.nodes(`#${terminalId}`);
     if (existing && existing.length > 0) {
         console.log('[FloatingWindowManager] Terminal already exists');
         return;
     }
 
     // Check if parent node exists
-    const parentNode: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").CollectionReturnValue = cy.getElementById(nodeId);
+    const parentNode: CollectionReturnValue = cy.getElementById(nodeId);
     const parentNodeExists: boolean = parentNode.length > 0;
 
     try {
         // Get parent node's title
-        const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").GraphNode = await getNodeFromMainToUI(nodeId);
+        const node: GraphNode = await getNodeFromMainToUI(nodeId);
         const title: string = node ? `${node.nodeUIMetadata.title}` : `${nodeId}`;
 
         // Populate floatingWindow field in terminalData

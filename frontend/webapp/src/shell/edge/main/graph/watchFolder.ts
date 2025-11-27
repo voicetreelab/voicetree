@@ -1,5 +1,6 @@
 import {loadGraphFromDisk} from "@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk";
 import type {FilePath, Graph, GraphDelta, FSDelete} from "@/pure/graph";
+import type {FileLimitExceededError} from "@/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce";
 import {setGraph, setVaultPath} from "@/shell/edge/main/state/graph-store";
 import {app, dialog} from "electron";
 import path from "path";
@@ -9,6 +10,7 @@ import {promises as fs} from "fs";
 import fsSync from "fs";
 import chokidar, {type FSWatcher} from "chokidar";
 import type {FSUpdate} from "@/pure/graph";
+import type {Stats} from "fs";
 import {handleFSEventWithStateAndUISides} from "@/shell/edge/main/graph/readAndDBEventsPath/handleFSEventWithStateAndUISides";
 import {mapNewGraphToDelta} from "@/pure/graph";
 import {applyGraphDeltaToMemStateAndUI} from "@/shell/edge/main/graph/readAndDBEventsPath/applyGraphDeltaToMemStateAndUI";
@@ -86,7 +88,7 @@ export async function loadFolder(vaultPath: FilePath): Promise<void>  {
     }
 
     // Load graph from disk (IO operation)
-    const loadResult: E.Either<import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce").FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(vaultPath));
+    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(vaultPath));
 
     // Exit early if file limit exceeded
     if (E.isLeft(loadResult)) {
@@ -161,7 +163,7 @@ async function setupWatcher(vaultPath: FilePath): Promise<void> {
     watcher = chokidar.watch(vaultPath, {
         ignored: [
             // Only watch .md files (directories must pass through for traversal)
-            (filePath: string, stats?: import('fs').Stats) => {
+            (filePath: string, stats?: Stats) => {
                 // If stats available, use it to detect directories
                 if (stats?.isDirectory()) {
                     return false;

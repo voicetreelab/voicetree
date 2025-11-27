@@ -1,4 +1,4 @@
-import type {Core} from 'cytoscape';
+import type {Core, Position as CyPosition} from 'cytoscape';
 import ctxmenu from '@/shell/UI/lib/ctxmenu.js';
 import {deleteNodeFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions";
 
@@ -64,8 +64,8 @@ export class VerticalMenuService {
         // Handle right-click on background - show vertical menu
         this.cy.on('cxttap', (event) => {
             if (event.target === this.cy) {
-                const position: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").Position = event.position ?? { x: 0, y: 0 };
-                const renderedPosition: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").Position = event.renderedPosition ?? position;
+                const position: CyPosition = event.position ?? { x: 0, y: 0 };
+                const renderedPosition: CyPosition = event.renderedPosition ?? position;
 
                 const container: HTMLElement | null = this.cy!.container();
                 if (!container) return;

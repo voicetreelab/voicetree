@@ -2,7 +2,7 @@
  * Setup basic cytoscape event listeners for hover, focus, box selection, etc.
  * These handle visual feedback and basic interactions.
  */
-import type { Core } from 'cytoscape';
+import type { Core, NodeSingular, EdgeSingular, CollectionReturnValue, NodeCollection } from 'cytoscape';
 import type { BreathingAnimationService } from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService';
 import type { StyleService } from '@/shell/UI/cytoscape-graph-ui/services/StyleService';
 import { CLASS_HOVER, CLASS_UNHOVER, CLASS_CONNECTED_HOVER } from '@/shell/UI/cytoscape-graph-ui/constants';
@@ -17,7 +17,7 @@ export function setupBasicCytoscapeEventListeners(
   cy.on('mouseover', 'node', (e) => {
     if (!e.target) return;
 
-    const node: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").NodeSingular = e.target;
+    const node: NodeSingular = e.target;
     cy.elements()
       .difference(node.closedNeighborhood())
       .addClass(CLASS_UNHOVER);
@@ -54,7 +54,7 @@ export function setupBasicCytoscapeEventListeners(
 
   // Box selection end event - log selected nodes
   cy.on('boxend', () => {
-    const selected: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").CollectionReturnValue = cy.$('node:selected');
+    const selected: CollectionReturnValue = cy.$('node:selected');
     console.log(`[VoiceTreeGraphView] Box selection: ${selected.length} nodes selected`, selected.map(n => n.id()));
   });
 
@@ -62,15 +62,15 @@ export function setupBasicCytoscapeEventListeners(
   // Only update the source and target nodes of the affected edge for efficiency
   cy.on('add', 'edge', (e) => {
     if (!e.target) return;
-    const edge: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").EdgeSingular = e.target;
-    const affectedNodes: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").NodeCollection = edge.source().union(edge.target());
+    const edge: EdgeSingular = e.target;
+    const affectedNodes: NodeCollection = edge.source().union(edge.target());
     styleService.updateNodeSizes(cy, affectedNodes);
   });
 
   cy.on('remove', 'edge', (e) => {
     if (!e.target) return;
-    const edge: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").EdgeSingular = e.target;
-    const affectedNodes: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/node_modules/cytoscape/index").NodeCollection = edge.source().union(edge.target());
+    const edge: EdgeSingular = e.target;
+    const affectedNodes: NodeCollection = edge.source().union(edge.target());
     styleService.updateNodeSizes(cy, affectedNodes);
   });
 }
