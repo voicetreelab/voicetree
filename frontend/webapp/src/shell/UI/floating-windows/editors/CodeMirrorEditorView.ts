@@ -15,21 +15,11 @@ import { python } from '@codemirror/lang-python';
 import { json } from '@codemirror/lang-json';
 import { java } from '@codemirror/lang-java';
 import tagParser from 'codemirror-rich-markdoc/src/tagParser';
-// Custom highlight style with smaller headings (replaces rich-markdoc default)
-const customHighlightStyle: HighlightStyle = HighlightStyle.define([
-  // Headings - smaller than rich-markdoc defaults (32px/28px/24px -> 18px/16px/14px)
+import richMarkdocHighlightStyle from 'codemirror-rich-markdoc/src/highlightStyle';
+
+// Custom h1 override - applied on top of rich-markdoc defaults
+const customH1Style: HighlightStyle = HighlightStyle.define([
   { tag: t.heading1, fontWeight: 'bold', fontFamily: 'sans-serif', fontSize: '18px', textDecoration: 'underline' },
-  // { tag: t.heading2, fontWeight: 'bold', fontFamily: 'sans-serif', fontSize: '16px', textDecoration: 'none' },
-  // { tag: t.heading3, fontWeight: 'bold', fontFamily: 'sans-serif', fontSize: '14px', textDecoration: 'none' },
-  // { tag: t.heading4, fontWeight: 'bold', fontFamily: 'sans-serif', fontSize: '13px', textDecoration: 'none' },
-  // Rest from rich-markdoc highlightStyle
-  // { tag: t.link, fontFamily: 'sans-serif', textDecoration: 'underline', color: 'blue' },
-  // { tag: t.emphasis, fontFamily: 'sans-serif', fontStyle: 'italic' },
-  // { tag: t.strong, fontFamily: 'sans-serif', fontWeight: 'bold' },
-  // { tag: t.monospace, fontFamily: 'monospace' },
-  // { tag: t.content, fontFamily: 'sans-serif' },
-  // { tag: t.meta, color: 'darkgrey' },
-  // { tag: t.strikethrough, color: 'darkgrey', textDecoration: 'line-through' },
 ]);
 import RichEditPlugin from 'codemirror-rich-markdoc/src/richEdit';
 import renderBlock from 'codemirror-rich-markdoc/src/renderBlock';
@@ -121,7 +111,7 @@ export class CodeMirrorEditorView extends Disposable {
 
     // 1. Create markdown config with tagParser extension (for Markdoc {% %} tags)
     // and codeLanguages for syntax highlighting in code blocks
-    const markdownConfig = {
+    const markdownConfig: Parameters<typeof markdown>[0] = {
       extensions: [tagParser],
       codeLanguages: [
         LanguageDescription.of({ name: 'javascript', alias: ['js'], support: javascript() }),
@@ -144,7 +134,8 @@ export class CodeMirrorEditorView extends Disposable {
       provide: () => [
         markdownWithFrontmatter, // Provide markdown with frontmatter support
         renderBlock({}), // Markdoc config
-        syntaxHighlighting(customHighlightStyle) // Custom style with smaller headings
+        syntaxHighlighting(richMarkdocHighlightStyle), // Base rich-markdoc styles for h2, h3, etc.
+        syntaxHighlighting(customH1Style) // Override h1 to be smaller
       ],
       eventHandlers: {
         mousedown({ target }, view) {

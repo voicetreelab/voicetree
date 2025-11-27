@@ -103,6 +103,7 @@ export async function spawnTerminalWithNewContextNode(
             context_node_content: contextContent,
         },
         floatingWindow: {
+            anchored : true,
             cyAnchorNodeId: contextNodeId,
             associatedTerminalOrEditorID: terminalId,
             component: 'Terminal',
@@ -160,8 +161,9 @@ export async function createFloatingTerminal(
         const title: string = node ? `${getNodeTitle(node)}` : `${nodeId}`;
 
         // Populate floatingWindow field in terminalData
+        // todo why the fyck are we doing this? terminalData already defined with .floatingWindow.
         terminalData.floatingWindow = {
-            cyAnchorNodeId: nodeId,
+            anchored : true, //todo
             associatedTerminalOrEditorID: terminalId,
             component: 'Terminal',
             title: title,
@@ -174,6 +176,7 @@ export async function createFloatingTerminal(
 
         if (parentNodeExists) {
             // Anchor to parent node
+
             anchorToNode(cy, floatingWindow, nodeId, {
                 isFloatingWindow: true,
                 isShadowNode: true,
@@ -210,11 +213,11 @@ export function createFloatingTerminalWindow(
 
     // Create window chrome (don't pass onClose, we'll handle it in the cleanup wrapper)
     const {windowElement, contentContainer, titleBar} = createWindowChrome(cy, {
-        id: associatedTerminalOrEditorID,
+        associatedTerminalOrEditorID,
         title,
         component: 'Terminal',
         resizable,
-        cyAnchorNodeId: terminalData.attachedToNodeId
+        anchored: true //todo
     });
 
     // Create Terminal instance
