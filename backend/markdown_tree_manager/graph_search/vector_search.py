@@ -107,6 +107,8 @@ def find_similar_by_embedding(
     threshold: float = 0.3,
     query_embedding: Optional[NDArray[np.float64]] = None
 ) -> list[tuple[int, float]]:
+    # todo, this method is unused in our main loop. shld be rmeoved.
+    logging.info(f"Searching for {query} using embeddings")
     """
     Find nodes similar to query using embeddings.
 
@@ -169,7 +171,7 @@ def find_similar_by_embedding(
         logging.error(f"Failed to find similar nodes with Gemini: {e}")
         return []
 
-
+# TODO I THINK THIS METHOD SHOULD BE REMOVED IS UNUSED
 def find_relevant_nodes_for_context(
     tree: dict[int, Any],
     query: str,
