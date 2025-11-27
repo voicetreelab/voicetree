@@ -84,10 +84,11 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
         # Check content of the updated file
         with open(file_path) as f:
             content = f.read()
-            # Check YAML frontmatter
+            # Check YAML frontmatter (only node_id, no title)
             self.assertIn("---\n", content)
-            self.assertIn("title: Child Node 1 (1)\n", content)
             self.assertIn("node_id: 1\n", content)
+            # Title should be in markdown heading, not YAML
+            self.assertIn("# Child Node 1\n", content)
             self.assertIn("Updated Child Node 1", content)
             # Note: With parent->child links, the child node should NOT have a Parent link
             # The parent file (node 0) should have the Children link instead
@@ -173,18 +174,20 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
         self.assertEqual(TreeToMarkdownConverter.convert_to_snake_case("already_snake_case"), "already_snake_case")
 
     def test_yaml_frontmatter(self):
-        # Test that YAML frontmatter is written correctly
+        # Test that YAML frontmatter is written correctly (only node_id, title in markdown)
         nodes_to_update = {0}
         self.converter.convert_nodes(output_dir=self.output_dir, nodes_to_update=nodes_to_update)
 
         file_path = os.path.join(self.output_dir, self.tree_data[0].filename)
         with open(file_path) as f:
             content = f.read()
-            # Check YAML frontmatter format
+            # Check YAML frontmatter format (only node_id)
             self.assertTrue(content.startswith("---\n"))
-            self.assertIn("title: root node (0)\n", content)
             self.assertIn("node_id: 0\n", content)
-            # Note: created_at and modified_at are not included in current YAML frontmatter format
+            # Title should NOT be in YAML frontmatter
+            self.assertNotIn("title:", content.split("---")[1])  # Check within frontmatter
+            # Title should be in markdown heading
+            self.assertIn("# root node\n", content)
             # Check that frontmatter ends properly
             frontmatter_end = content.find("---\n", 4)
             self.assertGreater(frontmatter_end, 4)
@@ -299,7 +302,8 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
             lines = content.split('\n')
             self.assertEqual(lines[0], "#newborn_children #adult_owl #south_zoo #average")
             self.assertEqual(lines[1], "---")
-            self.assertIn("title: Multi Tagged Node", content)
+            # Title should be in markdown heading, not YAML
+            self.assertIn("# Multi Tagged Node\n", content)
 
         # Test single-tagged node
         single_file_path = os.path.join(self.output_dir, single_tagged_node.filename)
@@ -308,7 +312,7 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
             lines = content.split('\n')
             self.assertEqual(lines[0], "#domestic_pets")
             self.assertEqual(lines[1], "---")
-            self.assertIn("title: Single Tagged Node", content)
+            self.assertIn("# Single Tagged Node\n", content)
 
         # Test empty tags behaves like no tags
         empty_file_path = os.path.join(self.output_dir, empty_tagged_node.filename)
@@ -316,7 +320,7 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
             content = f.read()
             lines = content.split('\n')
             self.assertEqual(lines[0], "---")  # Should start with YAML frontmatter, no hashtags
-            self.assertIn("title: Empty Tagged Node", content)
+            self.assertIn("# Empty Tagged Node\n", content)
 
         # Test special characters in tags
         special_file_path = os.path.join(self.output_dir, special_tagged_node.filename)
@@ -325,7 +329,7 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
             lines = content.split('\n')
             self.assertEqual(lines[0], "#animal-behavior #zoo_animals #math123")
             self.assertEqual(lines[1], "---")
-            self.assertIn("title: Special Tagged Node", content)
+            self.assertIn("# Special Tagged Node\n", content)
 
 
 if __name__ == '__main__':

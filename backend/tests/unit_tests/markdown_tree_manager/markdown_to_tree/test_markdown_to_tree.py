@@ -27,13 +27,15 @@ class TestMarkdownToTreeConverter:
     def sample_markdown_files(self, temp_dir):
         """Create sample markdown files for testing"""
         # Root node (with Children link)
+        # New format: title in # heading, not YAML
         root_content = """---
 created_at: '2025-07-28T10:00:00.000000'
 modified_at: '2025-07-28T10:00:00.000000'
 node_id: 1
-title: Root Node
 color: green
 ---
+# Root Node
+
 ### This is the root node summary
 
 This is the main content of the root node.
@@ -52,8 +54,9 @@ Children:
 created_at: '2025-07-28T11:00:00.000000'
 modified_at: '2025-07-28T11:00:00.000000'
 node_id: 2
-title: Child Node
 ---
+# Child Node
+
 ### Child node summary
 
 Child node content goes here.
@@ -71,8 +74,9 @@ Children:
 created_at: '2025-07-28T12:00:00.000000'
 modified_at: '2025-07-28T12:00:00.000000'
 node_id: 3
-title: Grandchild Node
 ---
+# Grandchild Node
+
 ### Grandchild summary
 
 More content here.
@@ -218,8 +222,9 @@ created_at: '2025-07-28T10:00:00.000000'
         """Test parsing of complex content with multiple sections"""
         complex_content = """---
 node_id: 10
-title: Complex Node
 ---
+# Complex Node
+
 ### Main summary line
 
 First paragraph of content.
@@ -244,6 +249,7 @@ _Links:_
         tree_data = converter.load_tree_from_markdown(temp_dir)
 
         node = tree_data[10]
+        assert node.title == "Complex Node"
         assert node.summary == "Main summary line"
         assert "First paragraph" in node.content
         assert "def example():" in node.content
@@ -253,8 +259,9 @@ _Links:_
         """Test parsing of markdown file with no links section"""
         no_links_content = """---
 node_id: 1
-title: Introduction to VoiceTree and its Founder (1)
 ---
+# Introduction to VoiceTree and its Founder (1)
+
 ### Manu, founder of VoiceTree, introduces the inefficiency of current LLMs in simulating memory through brute-force re-processing of chat history.
 
 Hey YC, I'm Manu, the founder of VoiceTree. Today's LLMs essentially simulate memory through brute force: they re-process the whole chat history and context for every single turn, which is inefficient.
@@ -283,8 +290,9 @@ _Links:_
         # First create the parent file with Children link
         parent_content = """---
 node_id: 3
-title: Graph as Shared Human-AI Memory (3)
 ---
+# Graph as Shared Human-AI Memory (3)
+
 ### The graph serves as shared memory
 
 Content here.
@@ -299,8 +307,9 @@ Children:
 
         no_summary_content = """---
 node_id: 6
-title: Agent in Shared Workspace (6)
 ---
+# Agent in Shared Workspace (6)
+
 An agent can be added into the shared workspace, getting the exact context it needs directly from the graph. This makes the interaction cheaper and more accurate, eliminating the need to re-explain any context. The agent's progress is also visible in real-time.
 
 
@@ -325,8 +334,9 @@ _Links:_
         # Create parent file with Children link
         parent_content = """---
 node_id: 6
-title: Agent in Shared Workspace (6)
 ---
+# Agent in Shared Workspace (6)
+
 ### Agent workspace summary
 
 Content here.
@@ -341,9 +351,10 @@ Children:
 
         complex_mermaid_content = """---
 node_id: 6_1
-title: Agent-Graph Interaction Flow (6_1)
 color: pink
 ---
+# Agent-Graph Interaction Flow (6_1)
+
 ```mermaid
 graph TD
     A[Human User] --> B[VoiceTree Graph]
@@ -390,8 +401,9 @@ _Links:_
         # File with empty links section
         empty_links_content = """---
 node_id: 1
-title: Empty Links Node
 ---
+# Empty Links Node
+
 ### Summary here
 
 Content here.
@@ -403,8 +415,9 @@ _Links:_
         # File with no links section at all
         no_links_content = """---
 node_id: 2
-title: No Links Node
 ---
+# No Links Node
+
 ### Summary here
 
 Content here.
@@ -433,8 +446,9 @@ Content here.
         """Test parsing files with mixed content types (code, lists, quotes)"""
         mixed_content = """---
 node_id: 100
-title: Mixed Content Example
 ---
+# Mixed Content Example
+
 ### This node contains various content types
 
 Here's some regular text.
@@ -496,8 +510,9 @@ _Links:_
         """Test that only the first ### line is treated as summary"""
         multiple_summary_content = """---
 node_id: 200
-title: Multiple Summary Test
 ---
+# Multiple Summary Test
+
 ### This is the actual summary
 
 Content starts here.
@@ -517,6 +532,7 @@ _Links:_
 
         assert len(tree_data) == 1
         node = tree_data[200]
+        assert node.title == "Multiple Summary Test"
         assert node.summary == "This is the actual summary"
         assert "Content starts here." in node.content
         assert "### This is just a heading in the content" in node.content
