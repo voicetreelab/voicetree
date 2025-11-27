@@ -21,6 +21,7 @@ class TreeToMarkdownConverter:
         print(f"DEBUG: TreeToMarkdownConverter.convert_nodes called with output_dir='{output_dir}' (absolute: {os.path.abspath(output_dir)})")
 
         os.makedirs(output_dir, exist_ok=True)
+        os.makedirs(os.path.join(output_dir, "VT"), exist_ok=True)  # Ensure VT subdirectory exists
         if (len(nodes_to_update)> 0):
             logging.info(f"updating/writing markdown for nodes {nodes_to_update}")
 
