@@ -123,7 +123,7 @@ function findNodesWithPotentialEdgesToNode(
     currentGraph: Graph
 ): readonly NodeIdAndFilePath[] {
     // Extract all possible path segments from the new node's ID
-    // e.g., "felix/1" => ["felix/1", "1"]
+    // e.g., "felix/1" => ["felix/1", "1"] and the ones with .md
     const segments: readonly string[] = extractPathSegments(newNode.relativeFilePathIsID)
 
     // Find all nodes that have edges with targetId matching any segment

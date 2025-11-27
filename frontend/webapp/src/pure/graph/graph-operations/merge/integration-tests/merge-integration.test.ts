@@ -85,10 +85,10 @@ describe('Merge Selected Nodes - Integration Tests', () => {
             const mergedNodeId: string = mergedNodeIds[0]
             const mergedNode: GraphNode = resultGraph.nodes[mergedNodeId]
 
-            // AND: Merged node should have combined content
-            expect(mergedNode.contentWithoutYamlOrLinks).toContain('Merged:')
-            expect(mergedNode.contentWithoutYamlOrLinks).toContain('Internal 1')
-            expect(mergedNode.contentWithoutYamlOrLinks).toContain('Internal 2')
+            // AND: Merged node should have combined content with ASCII tree and all original content
+            expect(mergedNode.contentWithoutYamlOrLinks).toContain('# Merged Node')
+            expect(mergedNode.contentWithoutYamlOrLinks).toContain('# Internal 1')
+            expect(mergedNode.contentWithoutYamlOrLinks).toContain('# Internal 2')
 
             // AND: Merged node should have centroid position (100, 150)
             expect(O.isSome(mergedNode.nodeUIMetadata.position)).toBe(true)
