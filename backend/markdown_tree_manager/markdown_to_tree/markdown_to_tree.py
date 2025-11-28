@@ -17,9 +17,37 @@ from backend.types import ParsedNodeKeys, RelationshipKeys
 class MarkdownToTreeConverter:
     """Converts markdown files back to tree data structure"""
 
+    # Directories to exclude from recursive scanning
+    EXCLUDED_DIRS = {'.obsidian', '.git', 'chromadb_data', 'node_modules', '__pycache__', '.venv', 'ctx-nodes', 'CTX- nodes'}
+
     def __init__(self):
         self.tree_data: dict[int, Node] = {}
         self.filename_to_node_id: dict[str, int] = {}
+        # Also index by basename for resolving links that don't use full paths
+        self._basename_to_relative_path: dict[str, str] = {}
+
+    def _should_exclude_path(self, filepath: Path, root: Path) -> bool:
+        """Check if a path should be excluded from scanning."""
+        relative = filepath.relative_to(root)
+        # Exclude if any part of the path starts with '.' or is in EXCLUDED_DIRS
+        for part in relative.parts:
+            if part.startswith('.') or part in self.EXCLUDED_DIRS:
+                return True
+        return False
+
+    def _resolve_filename(self, link_filename: str) -> Optional[str]:
+        # todo, this feels like an unnecessary layer of indirection and just overall introducing debt
+        """
+        Resolve a filename from a link to the actual relative path.
+        Handles both full relative paths and basenames.
+        """
+        # First try exact match (for full relative paths)
+        if link_filename in self.filename_to_node_id:
+            return link_filename
+        # Fall back to basename match (for legacy links using just the filename)
+        if link_filename in self._basename_to_relative_path:
+            return self._basename_to_relative_path[link_filename]
+        return None
 
     def load_tree_from_markdown(self, markdown_dir: str) -> dict[int, Node]:
         """
@@ -36,26 +64,34 @@ class MarkdownToTreeConverter:
         if not os.path.exists(markdown_dir):
             raise ValueError(f"Markdown directory does not exist: {markdown_dir}")
 
-        # First pass: Load all nodes and build filename mapping
-        markdown_files = [f for f in os.listdir(markdown_dir) if f.endswith('.md')]
+        # First pass: Load all nodes and build filename mapping (recursively scan subfolders)
+        markdown_dir_path = Path(markdown_dir)
+        all_md_files = list(markdown_dir_path.rglob('*.md'))
+        # Filter out excluded directories
+        markdown_files = [f for f in all_md_files if not self._should_exclude_path(f, markdown_dir_path)]
 
-        for filename in markdown_files:
-            filepath = os.path.join(markdown_dir, filename)
+        for filepath in markdown_files:
+            # Use relative path from markdown_dir as the filename
+            relative_path = str(filepath.relative_to(markdown_dir_path))
             try:
-                node = self._parse_markdown_file(filepath, filename)
+                node = self._parse_markdown_file(str(filepath), relative_path)
                 if node:
                     self.tree_data[node.id] = node
-                    self.filename_to_node_id[filename] = node.id
+                    self.filename_to_node_id[relative_path] = node.id
+                    # Also index by basename for link resolution
+                    basename = filepath.name
+                    if basename not in self._basename_to_relative_path:
+                        self._basename_to_relative_path[basename] = relative_path
             except Exception as e:
-                logging.error(f"Error parsing file {filename}: {e}")
+                logging.error(f"Error parsing file {relative_path}: {e}")
 
         # Second pass: Resolve relationships
-        for filename in markdown_files:
-            filepath = os.path.join(markdown_dir, filename)
+        for filepath in markdown_files:
+            relative_path = str(filepath.relative_to(markdown_dir_path))
             try:
-                self._parse_relationships(filepath, filename)
+                self._parse_relationships(str(filepath), relative_path)
             except Exception as e:
-                logging.error(f"Error parsing relationships in {filename}: {e}")
+                logging.error(f"Error parsing relationships in {relative_path}: {e}")
 
         logging.info(f"Loaded {len(self.tree_data)} nodes from markdown")
         return self.tree_data
@@ -101,6 +137,9 @@ class MarkdownToTreeConverter:
 
 
     def _parse_relationships(self, filepath: str, filename: str) -> None:
+
+        # this new method looks super sus. can't we just set
+
         """
         Parse relationships from the Links section of markdown file.
         This is now a thin wrapper around the module's relationship parser.
@@ -127,8 +166,9 @@ class MarkdownToTreeConverter:
             parent_filename = relationships[RelationshipKeys.PARENT][RelationshipKeys.PARENT_FILENAME]
             relationship_type = relationships[RelationshipKeys.PARENT][RelationshipKeys.RELATIONSHIP_TYPE]
 
-            if parent_filename in self.filename_to_node_id:
-                parent_id = self.filename_to_node_id[parent_filename]
+            resolved_parent = self._resolve_filename(parent_filename)
+            if resolved_parent:
+                parent_id = self.filename_to_node_id[resolved_parent]
                 node.parent_id = parent_id
                 node.relationships[parent_id] = relationship_type
 
@@ -143,8 +183,9 @@ class MarkdownToTreeConverter:
             child_filename = child_info[RelationshipKeys.CHILD_FILENAME]
             relationship_type = child_info[RelationshipKeys.RELATIONSHIP_TYPE]
 
-            if child_filename in self.filename_to_node_id:
-                child_id = self.filename_to_node_id[child_filename]
+            resolved_child = self._resolve_filename(child_filename)
+            if resolved_child:
+                child_id = self.filename_to_node_id[resolved_child]
                 if child_id not in node.children:
                     node.children.append(child_id)
 

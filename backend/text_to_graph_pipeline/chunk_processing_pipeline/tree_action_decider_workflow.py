@@ -243,6 +243,10 @@ class TreeActionDeciderWorkflow:
         # Get transcript history from our own history manager
         transcript_history = self.get_transcript_history()
 
+        logging.info(f"rec history of len {len(transcript_history)}")
+        if len(transcript_history) > 50:
+            logging.info(f"last n {transcript_history[-50:]}")
+
         # The append_agent now returns both actions and segment information
         append_agent_result: AppendAgentResult = await self.append_agent.run(
             transcript_text=text_chunk,
