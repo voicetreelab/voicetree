@@ -11,7 +11,8 @@ import type {
 import {
     createDeleteNodeAction,
     createNewNodeNoParent,
-    fromCreateChildToUpsertNode
+    fromCreateChildToUpsertNode,
+    fromContentChangeToGraphDelta
 } from "@/pure/graph/graphDelta/uiInteractionsToGraphDeltas";
 import type {Core} from 'cytoscape';
 import {applyGraphDeltaToUI} from "./applyGraphDeltaToUI";
@@ -75,17 +76,13 @@ export async function createNewEmptyOrphanNodeFromUI(
     return newNode.relativeFilePathIsID;
 }
 
-function nodeToDelta(graphNode: GraphNode) : GraphDelta {
-    return [{type: 'UpsertNode', nodeToUpsert: graphNode}];
-}
-
 export async function modifyNodeContentFromUI(
     nodeId: NodeIdAndFilePath,
     newContent: string,
     cy: Core,
 ): Promise<void> {
 
-    // // Get current graph state
+    // Get current graph state
     const currentNode: GraphNode = await getNodeFromMainToUI(nodeId);
     const currentGraph: Graph = await window.electronAPI?.main.getGraph();
     if (!currentGraph) {
@@ -93,14 +90,26 @@ export async function modifyNodeContentFromUI(
         return;
     }
 
-    // Create GraphDelta with updated edges based on new content
-    const newNodeFromContentChange : GraphNode = parseMarkdownToGraphNode(newContent, nodeId, currentGraph)
+    // Create GraphDelta with previousNode for undo support and recent tabs filtering
+    const graphDeltaFromContent: GraphDelta = fromContentChangeToGraphDelta(currentNode, newContent, currentGraph);
+
+    // Need to merge metadata since fromContentChangeToGraphDelta uses parseMarkdownToGraphNode
+    // which doesn't preserve position and other metadata from the original node
+    const upsertAction = graphDeltaFromContent[0]; //todo avoid assuming array index
+    if (upsertAction.type !== 'UpsertNode') {
+        throw new Error('Expected UpsertNode action');
+    }
+    const newNodeFromContentChange = upsertAction.nodeToUpsert;
 
     // Merge metadata: use new values where present, fall back to old values for missing fields (e.g., position)
     const mergedMetadata: NodeUIMetadata = mergeNodeUIMetadata(currentNode.nodeUIMetadata, newNodeFromContentChange.nodeUIMetadata);
-    const nodeWithMergedMetadata : GraphNode = {...newNodeFromContentChange, nodeUIMetadata: mergedMetadata};
+    const nodeWithMergedMetadata: GraphNode = {...newNodeFromContentChange, nodeUIMetadata: mergedMetadata};
 
-    const graphDelta : GraphDelta = nodeToDelta(nodeWithMergedMetadata)
+    const graphDelta: GraphDelta = [{
+        type: 'UpsertNode',
+        nodeToUpsert: nodeWithMergedMetadata,
+        previousNode: upsertAction.previousNode  // Preserve previousNode from the delta
+    }];
 
     // Optimistic UI-edge update for edge changes
     applyGraphDeltaToUI(cy, graphDelta);
@@ -112,8 +121,11 @@ export async function deleteNodeFromUI(
     nodeId: NodeIdAndFilePath,
     cy: Core
 ): Promise<void> {
-    // Create GraphDelta for deletion
-    const graphDelta: GraphDelta = createDeleteNodeAction(nodeId);
+    // Get the node before deletion for undo support
+    const nodeToDelete: GraphNode = await getNodeFromMainToUI(nodeId);
+
+    // Create GraphDelta for deletion with the node data for undo
+    const graphDelta: GraphDelta = createDeleteNodeAction(nodeId, nodeToDelete);
 
     // Optimistic UI-edge update: immediately remove node from cytoscape
     applyGraphDeltaToUI(cy, graphDelta);
