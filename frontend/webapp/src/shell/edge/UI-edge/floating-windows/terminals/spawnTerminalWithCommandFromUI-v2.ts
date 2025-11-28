@@ -32,7 +32,6 @@ import {
     getTerminals,
     vanillaFloatingWindowInstances,
 } from "@/shell/edge/UI-edge/state/UIAppState";
-import type { TerminalData as OldTerminalData } from "@/shell/edge/UI-edge/floating-windows/types";
 import { getFilePathForNode, getNodeFromMainToUI } from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
 import { getNodeTitle } from "@/pure/graph/markdown-parsing";
 import type { VTSettings } from "@/pure/settings";
@@ -213,19 +212,9 @@ export function createFloatingTerminalWindow(
     const terminalWithUI: TerminalData = { ...terminalData, ui };
 
     // Create Terminal instance
-    // Note: TerminalVanilla expects old TerminalData type, need to adapt
-    const terminalVanillaData: OldTerminalData = {
-        attachedToNodeId: terminalData.attachedToNodeId,
-        terminalCount: terminalData.terminalCount,
-        initialCommand: terminalData.initialCommand,
-        executeCommand: terminalData.executeCommand,
-        initial_spawn_directory: terminalData.initialSpawnDirectory,
-        initialEnvVars: terminalData.initialEnvVars,
-    };
-
     const terminal: TerminalVanilla = new TerminalVanilla({
         container: ui.contentContainer,
-        terminalData: terminalVanillaData
+        terminalData: terminalData
     });
 
     // Store for cleanup (legacy pattern - will be removed in future)

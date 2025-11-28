@@ -2,8 +2,8 @@ import path from 'path';
 import { promises as fs } from 'fs';
 import pty, { type IPty } from 'node-pty';
 import type { WebContents } from 'electron';
-import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/types";
-import {getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
+import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/types-v2";
+import {getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types-v2";
 
 export interface TerminalSpawnResult {
   success: boolean;
@@ -60,8 +60,8 @@ export default class TerminalManager {
       // 2. Login shells reset environment, overwriting our custom env vars
       const shellArgs: string[] = [];
 
-      // Use initial_spawn_directory from terminalData if provided, otherwise fall back to tools directory
-      let cwd: string = terminalData.initial_spawn_directory ?? getToolsDirectory();
+      // Use initialSpawnDirectory from terminalData if provided, otherwise fall back to tools directory
+      let cwd: string = terminalData.initialSpawnDirectory ?? getToolsDirectory();
       try {
         await fs.access(cwd);
       } catch {
