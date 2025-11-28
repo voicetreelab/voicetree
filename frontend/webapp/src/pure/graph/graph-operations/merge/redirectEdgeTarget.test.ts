@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { redirectEdgeTarget } from '@/pure/graph/graph-operations /merge/redirectEdgeTarget'
+import { redirectEdgeTarget } from '@/pure/graph/graph-operations/merge/redirectEdgeTarget'
 import type { GraphNode, Edge, NodeIdAndFilePath } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
 

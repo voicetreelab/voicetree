@@ -340,4 +340,133 @@ describe('createRepresentativeNode', () => {
         expect(result.nodeUIMetadata.isContextNode).toBe(false)
         expect(result.nodeUIMetadata.containedNodeIds).toBeUndefined()
     })
+
+    describe('merge title generation', () => {
+        it('should use "Merged Node" title when no mergeTitleInfo provided', () => {
+            const nodes: readonly GraphNode[] = [
+                {
+                    relativeFilePathIsID: 'node1.md',
+                    outgoingEdges: [],
+                    contentWithoutYamlOrLinks: '# Node One',
+                    nodeUIMetadata: {
+                        color: O.none,
+                        position: O.some({ x: 0, y: 0 }),
+                        additionalYAMLProps: new Map()
+                    }
+                },
+                {
+                    relativeFilePathIsID: 'node2.md',
+                    outgoingEdges: [],
+                    contentWithoutYamlOrLinks: '# Node Two',
+                    nodeUIMetadata: {
+                        color: O.none,
+                        position: O.some({ x: 100, y: 100 }),
+                        additionalYAMLProps: new Map()
+                    }
+                }
+            ]
+
+            const result: GraphNode = createRepresentativeNode(nodes, 'merged.md')
+
+            expect(result.contentWithoutYamlOrLinks).toContain('# Merged Node')
+        })
+
+        it('should use representative parent title with "+ N other nodes" format', () => {
+            const nodes: readonly GraphNode[] = [
+                {
+                    relativeFilePathIsID: 'node1.md',
+                    outgoingEdges: [],
+                    contentWithoutYamlOrLinks: '# Node One',
+                    nodeUIMetadata: {
+                        color: O.none,
+                        position: O.some({ x: 0, y: 0 }),
+                        additionalYAMLProps: new Map()
+                    }
+                },
+                {
+                    relativeFilePathIsID: 'node2.md',
+                    outgoingEdges: [],
+                    contentWithoutYamlOrLinks: '# Node Two',
+                    nodeUIMetadata: {
+                        color: O.none,
+                        position: O.some({ x: 100, y: 100 }),
+                        additionalYAMLProps: new Map()
+                    }
+                },
+                {
+                    relativeFilePathIsID: 'node3.md',
+                    outgoingEdges: [],
+                    contentWithoutYamlOrLinks: '# Node Three',
+                    nodeUIMetadata: {
+                        color: O.none,
+                        position: O.some({ x: 200, y: 200 }),
+                        additionalYAMLProps: new Map()
+                    }
+                }
+            ]
+
+            const result: GraphNode = createRepresentativeNode(nodes, 'merged.md', {
+                representativeTitle: 'Parent Node',
+                otherNodesCount: 2
+            })
+
+            expect(result.contentWithoutYamlOrLinks).toContain('# Parent Node + 2 other nodes')
+        })
+
+        it('should use singular "node" when otherNodesCount is 1', () => {
+            const nodes: readonly GraphNode[] = [
+                {
+                    relativeFilePathIsID: 'node1.md',
+                    outgoingEdges: [],
+                    contentWithoutYamlOrLinks: '# Node One',
+                    nodeUIMetadata: {
+                        color: O.none,
+                        position: O.some({ x: 0, y: 0 }),
+                        additionalYAMLProps: new Map()
+                    }
+                },
+                {
+                    relativeFilePathIsID: 'node2.md',
+                    outgoingEdges: [],
+                    contentWithoutYamlOrLinks: '# Node Two',
+                    nodeUIMetadata: {
+                        color: O.none,
+                        position: O.some({ x: 100, y: 100 }),
+                        additionalYAMLProps: new Map()
+                    }
+                }
+            ]
+
+            const result: GraphNode = createRepresentativeNode(nodes, 'merged.md', {
+                representativeTitle: 'My Parent',
+                otherNodesCount: 1
+            })
+
+            expect(result.contentWithoutYamlOrLinks).toContain('# My Parent + 1 other node')
+            expect(result.contentWithoutYamlOrLinks).not.toContain('other nodes')
+        })
+
+        it('should use just the representative title when otherNodesCount is 0', () => {
+            const nodes: readonly GraphNode[] = [
+                {
+                    relativeFilePathIsID: 'node1.md',
+                    outgoingEdges: [],
+                    contentWithoutYamlOrLinks: '# Node One',
+                    nodeUIMetadata: {
+                        color: O.none,
+                        position: O.some({ x: 0, y: 0 }),
+                        additionalYAMLProps: new Map()
+                    }
+                }
+            ]
+
+            const result: GraphNode = createRepresentativeNode(nodes, 'merged.md', {
+                representativeTitle: 'Solo Parent',
+                otherNodesCount: 0
+            })
+
+            expect(result.contentWithoutYamlOrLinks).toContain('# Solo Parent')
+            expect(result.contentWithoutYamlOrLinks).not.toContain('+ 0')
+        })
+    })
 })

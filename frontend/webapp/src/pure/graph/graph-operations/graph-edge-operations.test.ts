@@ -4,7 +4,7 @@ import {
   removeOutgoingEdge,
   removeOutgoingEdges,
   setOutgoingEdges
-} from '@/pure/graph/graph-operations /graph-edge-operations'
+} from '@/pure/graph/graph-operations/graph-edge-operations'
 import type { GraphNode, Edge } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
 

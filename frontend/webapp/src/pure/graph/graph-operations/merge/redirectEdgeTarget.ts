@@ -24,11 +24,6 @@ export function redirectEdgeTarget(
     return edge
   })
 
-  // If no edges changed, return original node (immutability optimization)
-  if (updatedEdges === node.outgoingEdges) {
-    return node
-  }
-
   return {
     ...node,
     outgoingEdges: updatedEdges

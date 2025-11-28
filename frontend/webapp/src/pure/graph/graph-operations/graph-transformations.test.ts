@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { reverseGraphEdges } from '@/pure/graph/graph-operations /graph-transformations'
+import { reverseGraphEdges } from '@/pure/graph/graph-operations/graph-transformations'
 import type { Graph, GraphNode, Edge } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { findRepresentativeParent } from './findRepresentativeParent'
+import { findRepresentativeNode } from './findRepresentativeNode'
 import type { Graph, GraphNode, Edge } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
 
@@ -26,11 +26,11 @@ function createEdge(targetId: string, label = ''): Edge {
     return { targetId, label }
 }
 
-describe('findRepresentativeParent', () => {
-    it('should return the node with most ancestors within subgraph', () => {
+describe('findRepresentativeNode', () => {
+    it('should return the node with most reachable nodes within subgraph', () => {
         // Subgraph: nodeA -> nodeB -> nodeC
-        // nodeC has 2 ancestors (A and B), nodeB has 1 (A), nodeA has 0
-        // nodeC should be chosen as representative
+        // nodeA can reach 2 nodes (B and C), nodeB can reach 1 (C), nodeC can reach 0
+        // nodeA should be chosen as representative
         const graph: Graph = {
             nodes: {
                 'nodeA.md': createNode('nodeA.md', [createEdge('nodeB.md')], '# Node A'),
@@ -39,14 +39,14 @@ describe('findRepresentativeParent', () => {
             }
         }
 
-        const result = findRepresentativeParent(['nodeA.md', 'nodeB.md', 'nodeC.md'], graph)
+        const result = findRepresentativeNode(['nodeA.md', 'nodeB.md', 'nodeC.md'], graph)
 
-        expect(result).toBe('nodeC.md')
+        expect(result).toBe('nodeA.md')
     })
 
-    it('should return first node alphabetically when all have same ancestor count', () => {
+    it('should return first node alphabetically when all have same reachable count', () => {
         // Subgraph: nodeA, nodeB, nodeC (no edges between them)
-        // All have 0 ancestors, so pick alphabetically first
+        // All can reach 0 nodes, so pick alphabetically first
         const graph: Graph = {
             nodes: {
                 'nodeB.md': createNode('nodeB.md', [], '# Node B'),
@@ -55,32 +55,32 @@ describe('findRepresentativeParent', () => {
             }
         }
 
-        const result = findRepresentativeParent(['nodeA.md', 'nodeB.md', 'nodeC.md'], graph)
+        const result = findRepresentativeNode(['nodeA.md', 'nodeB.md', 'nodeC.md'], graph)
 
         expect(result).toBe('nodeA.md')
     })
 
-    it('should only count ancestors within the subgraph, not external nodes', () => {
-        // external -> nodeA -> nodeB (external not in subgraph)
-        // nodeA has 0 ancestors in subgraph (external doesn't count)
-        // nodeB has 1 ancestor in subgraph (nodeA)
-        // nodeB should be chosen
+    it('should only count reachable nodes within the subgraph, not external nodes', () => {
+        // nodeA -> nodeB -> external (external not in subgraph)
+        // nodeA can reach 1 node in subgraph (nodeB), not counting external
+        // nodeB can reach 0 nodes in subgraph (external doesn't count)
+        // nodeA should be chosen
         const graph: Graph = {
             nodes: {
-                'external.md': createNode('external.md', [createEdge('nodeA.md')], '# External'),
                 'nodeA.md': createNode('nodeA.md', [createEdge('nodeB.md')], '# Node A'),
-                'nodeB.md': createNode('nodeB.md', [], '# Node B')
+                'nodeB.md': createNode('nodeB.md', [createEdge('external.md')], '# Node B'),
+                'external.md': createNode('external.md', [], '# External')
             }
         }
 
-        const result = findRepresentativeParent(['nodeA.md', 'nodeB.md'], graph)
+        const result = findRepresentativeNode(['nodeA.md', 'nodeB.md'], graph)
 
-        expect(result).toBe('nodeB.md')
+        expect(result).toBe('nodeA.md')
     })
 
     it('should handle deep chains within subgraph', () => {
         // Subgraph: a -> b -> c -> d -> e
-        // e has 4 ancestors (a, b, c, d)
+        // a can reach 4 nodes (b, c, d, e)
         const graph: Graph = {
             nodes: {
                 'a.md': createNode('a.md', [createEdge('b.md')], '# A'),
@@ -91,26 +91,27 @@ describe('findRepresentativeParent', () => {
             }
         }
 
-        const result = findRepresentativeParent(['a.md', 'b.md', 'c.md', 'd.md', 'e.md'], graph)
+        const result = findRepresentativeNode(['a.md', 'b.md', 'c.md', 'd.md', 'e.md'], graph)
 
-        expect(result).toBe('e.md')
+        expect(result).toBe('a.md')
     })
 
     it('should return undefined for empty subgraph', () => {
         const graph: Graph = { nodes: {} }
 
-        const result = findRepresentativeParent([], graph)
+        const result = findRepresentativeNode([], graph)
 
         expect(result).toBeUndefined()
     })
 
-    it('should handle branching structures and pick deepest node', () => {
+    it('should handle branching structures and pick node with most reachable', () => {
         // Subgraph:
         //   nodeA -> nodeB
         //   nodeA -> nodeC -> nodeD
-        // nodeB has 1 ancestor (A)
-        // nodeD has 2 ancestors (A, C)
-        // nodeD should be chosen
+        // nodeA can reach 3 nodes (B, C, D)
+        // nodeC can reach 1 node (D)
+        // nodeB and nodeD can reach 0 nodes
+        // nodeA should be chosen
         const graph: Graph = {
             nodes: {
                 'nodeA.md': createNode('nodeA.md', [createEdge('nodeB.md'), createEdge('nodeC.md')], '# Node A'),
@@ -120,8 +121,8 @@ describe('findRepresentativeParent', () => {
             }
         }
 
-        const result = findRepresentativeParent(['nodeA.md', 'nodeB.md', 'nodeC.md', 'nodeD.md'], graph)
+        const result = findRepresentativeNode(['nodeA.md', 'nodeB.md', 'nodeC.md', 'nodeD.md'], graph)
 
-        expect(result).toBe('nodeD.md')
+        expect(result).toBe('nodeA.md')
     })
 })
