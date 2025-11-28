@@ -130,16 +130,16 @@ function App(): JSX.Element {
                     <div ref={graphContainerRef} className="h-full w-full"/>
                 </div>
             </div>
-            {/* Top Section: Transcribe UI-edge (auto height) */}
-            <div className="flex-shrink-0 py-2 px-4">
+            {/* Top Section: Transcribe UI-edge (auto height) - z-index above floating windows (1000) */}
+            <div className="flex-shrink-0 py-2 px-4" style={{ position: 'relative', zIndex: 1050 }}>
                 <div className="flex gap-4">
                     {/* File Watching Panel - 1/6 width */}
                     <div className="w-1/6">
                         <FileWatchingPanel/>
                     </div>
 
-                    {/* Voice Transcribe Component - 5/6 width */}
-                    <div className="flex-1">
+                    {/* Voice Transcribe Component - reduced width to leave room for minimap */}
+                    <div className="flex-1 mr-[140px]">
                         <VoiceTreeTranscribe/>
                         {/*//            <VoiceInputViewWrapper /> broken*/}
                     </div>
