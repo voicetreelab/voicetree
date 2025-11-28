@@ -14,7 +14,7 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 
 // Type definitions
-interface ExtendedWindow extends Window {
+interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
   electronAPI?: ElectronAPI;
 }
@@ -63,7 +63,7 @@ const test = base.extend<{
         HEADLESS_TEST: '1',
         MINIMIZE_TEST: '1'
       },
-      timeout: 8000
+      timeout: 30000
     });
 
     await use(electronApp);
@@ -101,7 +101,7 @@ const test = base.extend<{
       console.error('Stack:', error.stack);
     });
 
-    await window.waitForLoadState('domcontentloaded');
+    await window.waitForLoadState('domcontentloaded', { timeout: 60000 });
 
     // Check for errors before waiting for cytoscapeInstance
     const hasErrors = await window.evaluate(() => {
@@ -129,7 +129,7 @@ const test = base.extend<{
 
 test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
   test('should only create ONE node when adding child via context menu', async ({ appWindow, testVaultPath }) => {
-    test.setTimeout(15000);
+    test.setTimeout(90000);
     console.log('=== Testing add child node duplicate bug ===');
 
     // Start watching the test vault

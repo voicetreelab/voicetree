@@ -9,7 +9,7 @@ import {
   sendGraphDelta,
   waitForCytoscapeReady,
   type ExtendedWindow
-} from '@e2e/playwright-browser/graph-delta-test-utils.ts';
+} from '@e2e/playwright-browser/graph-delta-test-utils';
 import type { GraphDelta } from '@/pure/graph';
 
 // Custom fixture to capture console logs and only show on failure
@@ -89,9 +89,10 @@ test.describe('Floating Anchored Editor (Browser)', () => {
           contentWithoutYamlOrLinks: testContent,
           outgoingEdges: [],
           nodeUIMetadata: {
-            title: 'Test Node',
             color: { _tag: 'None' } as const,
-            position: { _tag: 'Some', value: { x: 400, y: 400 } } as const
+            position: { _tag: 'Some', value: { x: 400, y: 400 } } as const,
+            additionalYAMLProps: new Map(),
+            isContextNode: false
           }
         }
       }
@@ -149,10 +150,11 @@ test.describe('Floating Anchored Editor (Browser)', () => {
     const initialDims = await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
-      // The editor is now anchored to a child shadow node
-      // Child shadow ID format: shadow-child-{parentNodeId}-{floatingWindowId}
-      // floatingWindowId = {nodeId}-editor
-      const childShadowNode = cy.$('#shadow-child-test-editor-node\\.md-test-editor-node\\.md-editor');
+      // The editor is now anchored to a shadow node
+      // Shadow node ID format: {nodeId}-editor-anchor-shadowNode
+      // For nodeId 'test-editor-node.md', editorId is 'test-editor-node.md-editor'
+      // So shadow node ID is 'test-editor-node.md-editor-anchor-shadowNode'
+      const childShadowNode = cy.$('#test-editor-node\\.md-editor-anchor-shadowNode');
       if (childShadowNode.length === 0) throw new Error('Child shadow node not found');
 
       // Verify parent relationship
@@ -216,7 +218,7 @@ test.describe('Floating Anchored Editor (Browser)', () => {
     const childShadowNodePos = await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
-      const childShadowNode = cy.$('#shadow-child-test-editor-node\\.md-test-editor-node\\.md-editor');
+      const childShadowNode = cy.$('#test-editor-node\\.md-editor-anchor-shadowNode');
       return childShadowNode.position();
     });
     console.log(`  Child shadow node pos: (${childShadowNodePos.x}, ${childShadowNodePos.y})`);
@@ -244,7 +246,7 @@ test.describe('Floating Anchored Editor (Browser)', () => {
     const childShadowNodeRemoved = await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
-      const childShadowNode = cy.$('#shadow-child-test-editor-node\\.md-test-editor-node\\.md-editor');
+      const childShadowNode = cy.$('#test-editor-node\\.md-editor-anchor-shadowNode');
       return childShadowNode.length === 0;
     });
     expect(childShadowNodeRemoved).toBe(true);

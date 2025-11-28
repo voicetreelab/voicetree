@@ -11,7 +11,7 @@ import {
   waitForCytoscapeReady,
   getNodeCount,
   type ExtendedWindow
-} from '@e2e/playwright-browser/graph-delta-test-utils.ts';
+} from '@e2e/playwright-browser/graph-delta-test-utils';
 
 // Custom fixture to capture console logs and only show on failure
 type ConsoleCapture = {
@@ -140,9 +140,10 @@ test.describe('Search Navigation (Browser)', () => {
     console.log(`  Target node: ${targetNode.label} (${targetNode.id})`);
 
     console.log('=== Step 8: Type search query into ninja-keys ===');
-    // Type a few characters from the node ID (which is now the filename like "test-node-1.md")
-    // We search for "test-node" which should match the node ID
-    const searchQuery = 'test-node';
+    // Search by the node label/title since ninja-keys searches the 'title' field
+    // The label is set to the first line of content, e.g., "Introduction\nThis is the introduction node."
+    // We search for "Architecture" which should match the Architecture node's title
+    const searchQuery = 'Architecture';
     await page.keyboard.type(searchQuery);
 
     // Wait for search results to update
@@ -161,10 +162,16 @@ test.describe('Search Navigation (Browser)', () => {
       if (!cy) throw new Error('Cytoscape not initialized');
       const zoom = cy.zoom();
       const pan = cy.pan();
-      return { zoom, pan };
+      const selectedNodes = cy.$(':selected').map((n: cytoscape.NodeSingular) => n.id());
+      return { zoom, pan, selectedNodes };
     });
 
     console.log(`  State after first nav - zoom: ${stateAfterFirstNav.zoom}, pan: (${stateAfterFirstNav.pan.x}, ${stateAfterFirstNav.pan.y})`);
+    console.log(`  Selected nodes: ${stateAfterFirstNav.selectedNodes.join(', ')}`);
+
+    // Verify node was selected after search navigation
+    expect(stateAfterFirstNav.selectedNodes.length).toBe(1);
+    console.log('✓ Node is selected after search navigation');
 
     console.log('=== Step 11: Verify ninja-keys modal closed ===');
     const ninjaKeysClosed = await page.evaluate(() => {

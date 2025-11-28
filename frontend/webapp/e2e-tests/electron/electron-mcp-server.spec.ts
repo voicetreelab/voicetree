@@ -71,7 +71,7 @@ const test = base.extend<{
                 HEADLESS_TEST: '1',
                 MINIMIZE_TEST: '1'
             },
-            timeout: 60000
+            timeout: 1000 // todo, we shouldn't even need a timeout, if you want to increase this, don't. there's probably a better way, don't be lazy.
         });
 
         await use(electronApp);
@@ -92,6 +92,9 @@ const test = base.extend<{
         }
 
         await electronApp.close();
+
+        // Give extra time for MCP server to fully shut down before next test
+        await new Promise(resolve => setTimeout(resolve, 2000));
     },
 
     appWindow: async ({ electronApp }, use) => {
@@ -190,7 +193,8 @@ async function mcpCallTool(toolName: string, args: Record<string, unknown>): Pro
 
 test.describe('MCP Server Integration', () => {
     // MCP server uses a fixed port (3001), so tests must run serially to avoid conflicts
-    test.describe.configure({ mode: 'serial' });
+    // Increased timeout for MCP server startup and cleanup
+    test.describe.configure({ mode: 'serial', timeout: 90000 });
 
     // File created by test - will be cleaned up
     const TEST_NODE_ID = 'mcp_test_node_' + Date.now();

@@ -35,8 +35,12 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
 
         // Settings operations
         loadSettings: async () => ({
-          agentCommand: './claude.sh',
-          backendPort: 5001
+          terminalSpawnPathRelativeToWatchedDirectory: '../',
+          agents: [
+            { name: 'Claude', command: './claude.sh' }, //todo, old
+            { name: 'Gemini', command: 'gemini' }
+          ],
+          shiftEnterSendsOptionEnter: true
         }),
         saveSettings: async () => ({ success: true }),
 
@@ -126,7 +130,6 @@ export function createTestGraphDelta(): GraphDelta {
         contentWithoutYamlOrLinks: '# Introduction\\nThis is the introduction node.',
         outgoingEdges: [{ targetId: 'test-node-2.md', label: '' }],
         nodeUIMetadata: {
-          title: 'Introduction',
           color: { _tag: 'None' } as const,
           position: { _tag: 'Some', value: { x: 100, y: 100 } } as const,
           additionalYAMLProps: new Map(),
@@ -141,7 +144,6 @@ export function createTestGraphDelta(): GraphDelta {
         contentWithoutYamlOrLinks: '# Architecture\\nArchitecture documentation.',
         outgoingEdges: [{ targetId: 'test-node-3.md', label: '' }],
         nodeUIMetadata: {
-          title: 'Architecture',
           color: { _tag: 'None' } as const,
           position: { _tag: 'Some', value: { x: 300, y: 150 } } as const,
           additionalYAMLProps: new Map(),
@@ -156,7 +158,6 @@ export function createTestGraphDelta(): GraphDelta {
         contentWithoutYamlOrLinks: '# Core Principles\\nCore principles guide.',
         outgoingEdges: [],
         nodeUIMetadata: {
-          title: 'Core Principles',
           color: { _tag: 'None' } as const,
           position: { _tag: 'Some', value: { x: 500, y: 200 } } as const,
           additionalYAMLProps: new Map(),
@@ -171,7 +172,6 @@ export function createTestGraphDelta(): GraphDelta {
         contentWithoutYamlOrLinks: '# API Design\\nAPI design patterns.',
         outgoingEdges: [],
         nodeUIMetadata: {
-          title: 'API Design',
           color: { _tag: 'None' } as const,
           position: { _tag: 'Some', value: { x: 700, y: 250 } } as const,
           additionalYAMLProps: new Map(),
@@ -186,7 +186,6 @@ export function createTestGraphDelta(): GraphDelta {
         contentWithoutYamlOrLinks: '# Testing Guide\\nHow to test the system.',
         outgoingEdges: [],
         nodeUIMetadata: {
-          title: 'Testing Guide',
           color: { _tag: 'None' } as const,
           position: { _tag: 'Some', value: { x: 900, y: 300 } } as const,
           additionalYAMLProps: new Map(),

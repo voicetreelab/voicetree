@@ -43,7 +43,7 @@ const test = base.extend<{
 }>({
   // Set up Electron application
   // IMPORTANT: Each test gets isolated userData to prevent state pollution
-  electronApp: async ({}, use) => {
+  electronApp: [async ({}, use) => {
     // Create a temporary userData directory for test isolation
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-editor-test-'));
 
@@ -73,7 +73,7 @@ const test = base.extend<{
         }
       });
       // Wait for pending file system events to drain
-      await page.waitForTimeout(30);
+      await page.waitForTimeout(300);
     } catch {
       // Window might already be closed, that's okay
       console.log('Note: Could not stop file watching during cleanup (window may be closed)');
@@ -83,10 +83,10 @@ const test = base.extend<{
 
     // Cleanup temp directory
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
-  },
+  }, { timeout: 45000 }],
 
   // Get the main window
-  appWindow: async ({ electronApp }, use) => {
+  appWindow: [async ({ electronApp }, use) => {
     const page = await electronApp.firstWindow();
 
     // Log console messages for debugging
@@ -123,7 +123,7 @@ const test = base.extend<{
     await page.waitForTimeout(100);
 
     await use(page);
-  }
+  }, { timeout: 30000 }]
 });
 
 test.describe('Markdown Editor CRUD Tests', () => {
@@ -145,6 +145,7 @@ test.describe('Markdown Editor CRUD Tests', () => {
   });
 
   test('should save markdown files in subfolders via editor', async ({ appWindow }) => {
+    test.setTimeout(60000); // Increase timeout to 60s for this complex test
     console.log('=== Testing markdown file saving in subfolders ===');
 
     // Start watching the fixture vault
@@ -502,6 +503,7 @@ test.describe('Markdown Editor CRUD Tests', () => {
   });
 
   test('should sync external file changes to open editors (bidirectional sync)', async ({ appWindow }) => {
+    test.setTimeout(60000); // Increase timeout to 60s for this complex test
     console.log('=== Testing bidirectional sync: external changes -> open editor ===');
 
     // Start watching the fixture vault

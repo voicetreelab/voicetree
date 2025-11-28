@@ -14,7 +14,7 @@ import {
   sendGraphDelta,
   waitForCytoscapeReady,
   type ExtendedWindow
-} from '@e2e/playwright-browser/graph-delta-test-utils.ts';
+} from '@e2e/playwright-browser/graph-delta-test-utils';
 import type { GraphDelta } from '@/pure/graph';
 
 import type { Page } from '@playwright/test';
@@ -70,17 +70,12 @@ const test = base.extend<{ consoleCapture: ConsoleCapture }>({
 interface ExtendedWindowWithAll extends ExtendedWindow {
   electronAPI?: {
     main: {
-      applyGraphDeltaToDBAndMem: (delta: GraphDelta) => Promise<{ success: boolean }>;
+      applyGraphDeltaToDBThroughMem: (delta: GraphDelta) => Promise<{ success: boolean }>;
       getGraph: () => Promise<{ nodes: Record<string, GraphNode> }>;
     };
     graph: {
       _graphState: { nodes: Record<string, unknown> };
       _updateCallback?: (delta: GraphDelta) => void;
-    };
-  };
-  voiceTreeGraphView?: {
-    floatingWindowManager?: {
-      createAnchoredFloatingEditor: (nodeId: string) => Promise<void>;
     };
   };
 }
@@ -93,9 +88,9 @@ async function setupExtendedMockElectronAPI(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const api = (window as unknown as ExtendedWindowWithAll).electronAPI;
     if (api && api.main && api.graph) {
-      // Mock applyGraphDeltaToDBAndMem to update state immediately
-      api.main.applyGraphDeltaToDBAndMem = async (delta: GraphDelta) => {
-        console.log('[Mock] applyGraphDeltaToDBAndMem called with', delta.length, 'operations');
+      // Mock applyGraphDeltaToDBThroughMem to update state immediately
+      api.main.applyGraphDeltaToDBThroughMem = async (delta: GraphDelta) => {
+        console.log('[Mock] applyGraphDeltaToDBThroughMem called with', delta.length, 'operations');
 
         // Update graph state
         delta.forEach((nodeDelta) => {
@@ -148,9 +143,10 @@ test.describe('Editor Auto-Open on GraphNode Creation (Browser)', () => {
           contentWithoutYamlOrLinks: parentContent,
           outgoingEdges: [],
           nodeUIMetadata: {
-            title: 'Parent Node',
             color: { _tag: 'None' } as const,
-            position: { _tag: 'Some', value: { x: 400, y: 400 } } as const
+            position: { _tag: 'Some', value: { x: 400, y: 400 } } as const,
+            additionalYAMLProps: new Map(),
+            isContextNode: false
           }
         }
       }
@@ -159,74 +155,47 @@ test.describe('Editor Auto-Open on GraphNode Creation (Browser)', () => {
     await page.waitForTimeout(50); // Wait for layout
     console.log('✓ Parent node added to graph');
 
-    console.log('=== Step 5: Simulate child node creation (mimicking context menu "Create Child") ===');
-    // This simulates what happens when the context menu "Create Child" action is triggered
-    const { childNodeId, editorOpened } = await page.evaluate(async () => {
-      const cy = (window as ExtendedWindow).cytoscapeInstance;
-      if (!cy) throw new Error('Cytoscape not initialized');
+    console.log('=== Step 5: Simulate Cmd+N to create child node ===');
+    // Select the parent node first
+    await page.evaluate(() => {
+      const cytoscapeInst = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cytoscapeInst) throw new Error('Cytoscape not initialized');
 
-      // Get the parent node
-      const parentNode = cy.$('#parent-node\\.md');
+      const parentNode = cytoscapeInst.$('#parent-node\\.md');
       if (parentNode.length === 0) throw new Error('Parent node not found');
 
-      // Get graph state
-      const graphState = await (window as unknown as ExtendedWindowWithAll).electronAPI?.main.getGraph();
-      if (!graphState) throw new Error('No graph state');
+      parentNode.select();
+    });
 
-      const parentGraphNode = graphState.nodes['parent-node.md'];
-      if (!parentGraphNode) throw new Error('Parent graph node not found');
+    // Press Cmd+N to create child node (this triggers createNewNodeAction -> createAnchoredFloatingEditor)
+    await page.keyboard.press('Meta+n'); // todo, incorrect, this only triggers create child if parent was :selected
 
-      // Manually create child node (simulating createNewChildNodeFromUI logic)
-      const timestamp = Date.now();
-      const randomSuffix = Math.random().toString(36).substring(2, 5);
-      const childId = `${timestamp}${randomSuffix}`;
+    // Wait for node creation and editor to open
+    await page.waitForTimeout(800);
 
-      const childNode = {
-        relativeFilePathIsID: childId,
-        content: '# New Node',
-        outgoingEdges: [],
-        nodeUIMetadata: {
-          title: 'New Node',
-          color: { _tag: 'None' } as const,
-          position: { _tag: 'None' } as const // Cola will position it
-        }
-      };
+    console.log('=== Step 6: Verify child node and editor were created ===');
+    const { childNodeId, editorOpened } = await page.evaluate(() => {
+      const cytoscapeInst = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cytoscapeInst) throw new Error('Cytoscape not initialized');
 
-      // Update parent to have edge to child
-      const updatedParent = {
-        ...parentGraphNode,
-        outgoingEdges: [...parentGraphNode.outgoingEdges, { targetId: childId, label: '' }]
-      };
+      // Find the newly created child node (should have edge from parent)
+      const parentNode = cytoscapeInst.$('#parent-node\\.md');
+      const childNodes = parentNode.outgoers('node').filter((n) => !n.data('isShadowNode'));
 
-      const delta = [
-        { type: 'UpsertNode' as const, nodeToUpsert: childNode },
-        { type: 'UpsertNode' as const, nodeToUpsert: updatedParent }
-      ];
-
-      // Apply delta (this will trigger UI-edge update)
-      await (window as unknown as ExtendedWindowWithAll).electronAPI?.main.applyGraphDeltaToDBAndMem(delta);
-
-      // Wait a bit for node to be added to cy
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // NOW call createAnchoredFloatingEditor (simulating what context menu does)
-      // We need to access this via the global window object
-      const view = (window as unknown as ExtendedWindowWithAll).voiceTreeGraphView;
-      if (view?.floatingWindowManager?.createAnchoredFloatingEditor) {
-        console.log('[Test] Calling createAnchoredFloatingEditor for child:', childId);
-        await view.floatingWindowManager.createAnchoredFloatingEditor(childId);
-      } else {
-        console.error('[Test] Cannot access createAnchoredFloatingEditor');
+      if (childNodes.length === 0) {
+        return { childNodeId: 'none', editorOpened: false };
       }
 
-      // Check if editor window was created
-      await new Promise(resolve => setTimeout(resolve, 500));
-      const editorSelector = `#window-${childId}-editor`;
-      const editorEl = document.querySelector(editorSelector);
+      const childId = childNodes[0].id();
+
+      // Check if editor window exists
+      // The window ID format is: window-{nodeId}-editor
+      const windows = Array.from(document.querySelectorAll('[id^="window-"]'));
+      const editorWindow = windows.find((w) => w.id.includes(childId) && w.id.includes('editor'));
 
       return {
         childNodeId: childId,
-        editorOpened: editorEl !== null
+        editorOpened: editorWindow !== undefined
       };
     });
 
@@ -235,9 +204,9 @@ test.describe('Editor Auto-Open on GraphNode Creation (Browser)', () => {
 
     // Log all windows and nodes for debugging
     const debugInfo = await page.evaluate(() => {
-      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      const cytoscapeInst = (window as ExtendedWindow).cytoscapeInstance;
       const windows = document.querySelectorAll('[id^="window-"]');
-      const nodes = cy ? cy.nodes().map((n) => ({
+      const nodes = cytoscapeInst ? cytoscapeInst.nodes().map((n) => ({
         id: n.id(),
         isShadow: n.data('isShadowNode')
       })) : [];

@@ -206,17 +206,19 @@ test.describe('Cmd+N and Cmd+Enter Hotkeys (Browser)', () => {
     await page.addInitScript(() => {
       interface ExtendedElectronAPI {
         main: {
-          loadSettings: () => Promise<{ agentCommand: string; terminalSpawnPathRelativeToWatchedDirectory?: string }>;
+          loadSettings: () => Promise<{ agents: Array<{ name: string; command: string }>; terminalSpawnPathRelativeToWatchedDirectory?: string; shiftEnterSendsOptionEnter: boolean }>;
           createContextNode: (parentNodeId: string) => Promise<string>;
           getAppSupportPath: () => Promise<string>;
+          getWatchStatus: () => Promise<{ isWatching: boolean; directory: string | undefined }>;
         };
       }
       const electronAPI = (window as unknown as { electronAPI: ExtendedElectronAPI }).electronAPI;
       if (electronAPI) {
-        // Override loadSettings to include agentCommand
+        // Override loadSettings to include agents array
         electronAPI.main.loadSettings = async () => ({
-          agentCommand: './mock-claude.sh',
-          terminalSpawnPathRelativeToWatchedDirectory: undefined
+          agents: [{ name: 'Claude', command: './mock-claude.sh' }],
+          terminalSpawnPathRelativeToWatchedDirectory: undefined,
+          shiftEnterSendsOptionEnter: true
         });
 
         // Add createContextNode method
@@ -227,6 +229,9 @@ test.describe('Cmd+N and Cmd+Enter Hotkeys (Browser)', () => {
 
         // Add getAppSupportPath method
         electronAPI.main.getAppSupportPath = async () => '/mock/app-support';
+
+        // Add getWatchStatus method
+        electronAPI.main.getWatchStatus = async () => ({ isWatching: false, directory: undefined });
       }
     });
 
@@ -287,7 +292,7 @@ test.describe('Cmd+N and Cmd+Enter Hotkeys (Browser)', () => {
       // Count terminal shadow nodes
       const terminals = cy.nodes().filter(node =>
         node.data('isShadowNode') === true &&
-        node.data('windowType') === 'terminal'
+        node.data('windowType') === 'Terminal'
       );
       return terminals.length;
     });
@@ -307,7 +312,7 @@ test.describe('Cmd+N and Cmd+Enter Hotkeys (Browser)', () => {
       // Count terminal shadow nodes
       const terminals = cy.nodes().filter(node =>
         node.data('isShadowNode') === true &&
-        node.data('windowType') === 'terminal'
+        node.data('windowType') === 'Terminal'
       );
       return terminals.length;
     });
@@ -357,7 +362,7 @@ test.describe('Cmd+N and Cmd+Enter Hotkeys (Browser)', () => {
       // Count terminal shadow nodes
       const terminals = cy.nodes().filter(node =>
         node.data('isShadowNode') === true &&
-        node.data('windowType') === 'terminal'
+        node.data('windowType') === 'Terminal'
       );
       return terminals.length;
     });
@@ -377,7 +382,7 @@ test.describe('Cmd+N and Cmd+Enter Hotkeys (Browser)', () => {
       // Count terminal shadow nodes
       const terminals = cy.nodes().filter(node =>
         node.data('isShadowNode') === true &&
-        node.data('windowType') === 'terminal'
+        node.data('windowType') === 'Terminal'
       );
       return terminals.length;
     });

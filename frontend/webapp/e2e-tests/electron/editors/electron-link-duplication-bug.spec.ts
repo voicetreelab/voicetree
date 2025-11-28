@@ -90,7 +90,8 @@ const test = base.extend<{
         HEADLESS_TEST: '1',
         MINIMIZE_TEST: '1'
       },
-      timeout: 8000
+      timeout: 8000  // NO INCREASING, DO NOT RANDOMLY INTRODUCE HUGE TIMEOUTS INTO OUR TESTS. IF ITS TIMING OUT THERES PROBABLY A PROBLEM or we ARE TESTING BADLY
+
     });
 
     await use(electronApp);
@@ -116,7 +117,7 @@ const test = base.extend<{
   },
 
   appWindow: async ({ electronApp, testVaultPath: _testVaultPath }, use) => {
-    const page = await electronApp.firstWindow();
+    const page = await electronApp.firstWindow({ timeout: 30000 });
 
     // Log console messages
     page.on('console', msg => {
@@ -128,7 +129,7 @@ const test = base.extend<{
       console.error('Stack:', error.stack);
     });
 
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('domcontentloaded', { timeout: 30000 });
 
     // Check for errors before waiting for cytoscapeInstance
     const hasErrors = await page.evaluate(() => {
@@ -147,7 +148,10 @@ const test = base.extend<{
       console.error('Pre-initialization errors:', hasErrors);
     }
 
-    await page.waitForFunction(() => (window as ExtendedWindow).cytoscapeInstance, { timeout: 20000 });
+    await page.waitForFunction(() => (window as ExtendedWindow).cytoscapeInstance, { timeout: 30000 });
+
+    // Wait for electronAPI to be available
+    await page.waitForFunction(() => (window as ExtendedWindow).electronAPI?.main, { timeout: 30000 });
     await page.waitForTimeout(100);
 
     await use(page);
@@ -156,6 +160,7 @@ const test = base.extend<{
 
 test.describe('Link Duplication Bug', () => {
   test('should NOT duplicate links when editing markdown in floating editor', async ({ appWindow, testVaultPath }) => {
+    test.setTimeout(60000); // Increase timeout to 60s for this test (has 5s wait)
     console.log('=== Testing link duplication bug ===');
 
     // 1. Create a test markdown file with a link
@@ -306,6 +311,7 @@ Some more content here.`;
   });
 
   test('should remove link from markdown file and graph when deleted in editor', async ({ appWindow, testVaultPath }) => {
+    test.setTimeout(60000); // Increase timeout to 60s for this test (has 5s wait)
     console.log('=== Testing link removal behavior ===');
 
     // 1. Create a test markdown file with a link

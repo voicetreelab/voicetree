@@ -181,7 +181,7 @@ test.describe('Hotkey Navigation (Browser)', () => {
             id: 'shadow-child-terminal-1',
             label: 'Terminal 1',
             isShadowNode: true,
-            windowType: 'terminal'
+            windowType: 'Terminal'
           },
           position: { x: 100, y: 100 }
         },
@@ -191,7 +191,7 @@ test.describe('Hotkey Navigation (Browser)', () => {
             id: 'shadow-child-terminal-2',
             label: 'Terminal 2',
             isShadowNode: true,
-            windowType: 'terminal'
+            windowType: 'Terminal'
           },
           position: { x: 300, y: 100 }
         },
@@ -201,7 +201,7 @@ test.describe('Hotkey Navigation (Browser)', () => {
             id: 'shadow-child-terminal-3',
             label: 'Terminal 3',
             isShadowNode: true,
-            windowType: 'terminal'
+            windowType: 'Terminal'
           },
           position: { x: 500, y: 100 }
         }

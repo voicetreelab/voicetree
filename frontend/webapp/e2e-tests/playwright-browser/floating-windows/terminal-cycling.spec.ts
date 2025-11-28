@@ -12,7 +12,7 @@ import {
   sendGraphDelta,
   waitForCytoscapeReady,
   type ExtendedWindow
-} from '@e2e/playwright-browser/graph-delta-test-utils.ts';
+} from '@e2e/playwright-browser/graph-delta-test-utils';
 
 // Custom fixture to capture console logs and only show on failure
 type ConsoleCapture = {
@@ -108,7 +108,7 @@ test.describe('Terminal Cycling (Browser)', () => {
             parentNodeId: parent1,
             isFloatingWindow: true,
             isShadowNode: true,
-            windowType: 'terminal',
+            windowType: 'Terminal',
             laidOut: false
           },
           position: { x: 100, y: 100 }
@@ -121,7 +121,7 @@ test.describe('Terminal Cycling (Browser)', () => {
             parentNodeId: parent2,
             isFloatingWindow: true,
             isShadowNode: true,
-            windowType: 'terminal',
+            windowType: 'Terminal',
             laidOut: false
           },
           position: { x: 300, y: 100 }
@@ -134,7 +134,7 @@ test.describe('Terminal Cycling (Browser)', () => {
             parentNodeId: parent3,
             isFloatingWindow: true,
             isShadowNode: true,
-            windowType: 'terminal',
+            windowType: 'Terminal',
             laidOut: false
           },
           position: { x: 500, y: 100 }
