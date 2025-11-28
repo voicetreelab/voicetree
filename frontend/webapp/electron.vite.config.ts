@@ -22,9 +22,6 @@ export default defineConfig({
     build: {
       outDir: 'dist-electron/main',
       logLevel: 'error',
-      watch: {
-        buildDelay: 500 // Debounce rebuilds by 500ms to reduce restart frequency
-      },
       rollupOptions: {
         input: {
           index: path.resolve(__dirname, 'src/shell/edge/main/electron/main.ts')
@@ -44,9 +41,6 @@ export default defineConfig({
     build: {
       outDir: 'dist-electron/preload',
       logLevel: 'error',
-      watch: {
-        buildDelay: 500 // Debounce rebuilds by 500ms to reduce restart frequency
-      },
       rollupOptions: {
         input: {
           index: path.resolve(__dirname, 'src/shell/edge/main/electron/preload.ts')
@@ -102,9 +96,7 @@ export default defineConfig({
       port: parseInt(process.env.DEV_SERVER_PORT || '3000'),
       strictPort: true,
       host: true,
-      hmr: {
-        overlay: true
-      },
+      hmr: false, // Disable HMR - use electron:watch script if you want hot reload
       watch: {
         ignored: [
           '**/dist/**',
@@ -112,12 +104,7 @@ export default defineConfig({
           '**/resources/**',
           '**/.venv*/**',
           '**/node_modules/**'
-        ],
-        // Debounce file change events to prevent HMR loops
-        awaitWriteFinish: {
-          stabilityThreshold: 200,
-          pollInterval: 100
-        }
+        ]
       }
     },
     build: {
