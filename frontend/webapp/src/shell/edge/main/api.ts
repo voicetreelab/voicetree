@@ -5,6 +5,7 @@ import {getWatchStatus, loadPreviousFolder, startFileWatching, stopFileWatching}
 import {getBackendPort} from "@/shell/edge/main/state/app-electron-state";
 import {createContextNode} from "@/shell/edge/main/graph/createContextNode";
 import {app} from 'electron';
+import {saveNodePositions} from "@/shell/edge/main/saveNodePositions";
 
 /** Get the VoiceTree Application Support directory path */
 function getAppSupportPath(): string {
@@ -17,6 +18,9 @@ export const mainAPI = {
   applyGraphDeltaToDBThroughMem,
 
   getGraph,
+
+  // Position saving - lightweight in-memory update
+  saveNodePositions,
 
   // Settings operations
   loadSettings,

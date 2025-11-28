@@ -17,8 +17,9 @@ import * as E from 'fp-ts/lib/Either.js'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk'
 import type { FileLimitExceededError } from '@/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
-import type { Graph, GraphDelta } from '@/pure/graph'
+import type { Graph, GraphDelta, GraphNode, UpsertNodeAction } from '@/pure/graph'
 import { mapNewGraphToDelta } from '@/pure/graph'
+import { fromCreateChildToUpsertNode } from '@/pure/graph/graphDelta/uiInteractionsToGraphDeltas'
 import path from 'path'
 
 describe('Node Positioning Spacing - Integration', () => {
@@ -105,5 +106,79 @@ describe('Node Positioning Spacing - Integration', () => {
 
     // FAIL if more than 10% of pairs are too close
     expect(overlapPercentage).toBeLessThan(10)
+  })
+
+  it('should investigate child node position: simulates bug where cytoscape position diverges from graph model', async () => {
+    // GIVEN: Load example_real_large folder
+    const exampleFolderPath: string = path.resolve(process.cwd(), 'example_folder_fixtures', 'example_real_large')
+    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(exampleFolderPath))
+    if (E.isLeft(loadResult)) throw new Error('Expected Right')
+    const graph: Graph = loadResult.right
+
+    // AND: Apply graph to cytoscape UI
+    const delta: GraphDelta = mapNewGraphToDelta(graph)
+    applyGraphDeltaToUI(cy, delta)
+
+    // WHEN: Pick a parent node that has children (to ensure it has a position)
+    const parentNodeId: string | undefined = Object.keys(graph.nodes).find(nodeId => {
+      const node: GraphNode = graph.nodes[nodeId]
+      return node.outgoingEdges.length > 0 && O.isSome(node.nodeUIMetadata.position)
+    })
+
+    if (!parentNodeId) throw new Error('No parent node with children found')
+
+    const parentNode: GraphNode = graph.nodes[parentNodeId]
+    const cyParentNode: NodeSingular = cy.getElementById(parentNodeId) as NodeSingular
+
+    // SIMULATE THE BUG: Move node in Cytoscape (like user drag or layout would)
+    // This diverges cytoscape position from the graph model
+    const SIMULATED_DRAG_OFFSET: Position = { x: 500, y: 300 }
+    const originalCyPosition: Position = { ...cyParentNode.position() }
+    cyParentNode.position({
+      x: originalCyPosition.x + SIMULATED_DRAG_OFFSET.x,
+      y: originalCyPosition.y + SIMULATED_DRAG_OFFSET.y
+    })
+    const newCyPosition: Position = cyParentNode.position()
+
+    // Graph model still has OLD position (this is the bug scenario)
+    const graphModelPosition: Position | undefined = O.isSome(parentNode.nodeUIMetadata.position)
+      ? parentNode.nodeUIMetadata.position.value
+      : undefined
+
+    // Create a child node using the STALE graph model's parent position
+    const childDelta: GraphDelta = fromCreateChildToUpsertNode(graph, parentNode)
+    const childNode: GraphNode = (childDelta[0] as UpsertNodeAction).nodeToUpsert
+    const childPosition: Position | undefined = O.isSome(childNode.nodeUIMetadata.position)
+      ? childNode.nodeUIMetadata.position.value
+      : undefined
+
+    // Calculate where child SHOULD be (relative to Cytoscape's current position)
+    const childOffset: Position | undefined = childPosition && graphModelPosition
+      ? { x: childPosition.x - graphModelPosition.x, y: childPosition.y - graphModelPosition.y }
+      : undefined
+    const expectedChildPosition: Position | undefined = childOffset
+      ? { x: newCyPosition.x + childOffset.x, y: newCyPosition.y + childOffset.y }
+      : undefined
+
+    // The distance between where child IS vs where it SHOULD BE
+    const childPositionError: number = childPosition && expectedChildPosition
+      ? Math.sqrt(
+          Math.pow(childPosition.x - expectedChildPosition.x, 2) +
+          Math.pow(childPosition.y - expectedChildPosition.y, 2)
+        )
+      : 0
+
+    // THIS TEST DOCUMENTS THE BUG:
+    // Child should spawn near the parent's CURRENT Cytoscape position,
+    // but instead spawns near the STALE graph model position.
+    // Once fixed, child should spawn within SPAWN_RADIUS (200px) of Cytoscape position.
+    const ACCEPTABLE_ERROR: number = 10 // px tolerance
+    expect(
+      childPositionError,
+      `Child position error is ${childPositionError.toFixed(2)}px.
+      Child spawned at ${JSON.stringify(childPosition)} but should be near ${JSON.stringify(expectedChildPosition)}.
+      This bug occurs because fromCreateChildToUpsertNode uses parentNode.nodeUIMetadata.position
+      (Graph model = ${JSON.stringify(graphModelPosition)}) instead of Cytoscape position (${JSON.stringify(newCyPosition)}).`
+    ).toBeLessThan(ACCEPTABLE_ERROR)
   })
 })

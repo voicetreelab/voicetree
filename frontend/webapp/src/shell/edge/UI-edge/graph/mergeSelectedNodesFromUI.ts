@@ -1,6 +1,6 @@
 import type {Graph, GraphDelta, NodeIdAndFilePath} from "@/pure/graph";
 import type {Core} from "cytoscape";
-import {computeMergeGraphDelta} from "@/pure/graph/graph-operations /merge/computeMergeGraphDelta";
+import {computeMergeGraphDelta} from "@/pure/graph/graph-operations/merge/computeMergeGraphDelta";
 import {applyGraphDeltaToUI} from "@/shell/edge/UI-edge/graph/applyGraphDeltaToUI";
 
 /**
