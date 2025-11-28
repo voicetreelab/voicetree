@@ -34,7 +34,7 @@ export class TerminalVanilla {
     this.terminalData = config.terminalData;
 
     void window.electronAPI?.main.loadSettings().then(
-      (settings: VTSettings) => this.shiftEnterSendsOptionEnter = settings.shiftEnterSendsOptionEnter);
+      (settings: VTSettings) => this.shiftEnterSendsOptionEnter = settings.shiftEnterSendsOptionEnter ?? true);
 
     // Setup fullscreen with callback to fit terminal when fullscreen changes
     this.fullscreen = new FloatingWindowFullscreen(config.container, () => {
