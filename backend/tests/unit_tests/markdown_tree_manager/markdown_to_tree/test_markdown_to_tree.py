@@ -11,7 +11,11 @@ from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import (
 from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import (
     load_markdown_tree,
 )
+from backend.markdown_tree_manager.markdown_to_tree.comprehensive_parser import (
+    parse_relationships_from_links,
+)
 from backend.markdown_tree_manager.markdown_tree_ds import Node
+from backend.types import RelationshipKeys
 
 
 class TestMarkdownToTreeConverter:
@@ -537,3 +541,211 @@ _Links:_
         assert "Content starts here." in node.content
         assert "### This is just a heading in the content" in node.content
         assert "More content after the heading." in node.content
+
+    def test_load_nodes_from_subfolders(self, temp_dir):
+        """Test that nodes in subfolders are loaded correctly"""
+        # Create a subfolder
+        subfolder = os.path.join(temp_dir, "VT")
+        os.makedirs(subfolder)
+
+        # Create a node in the subfolder
+        subfolder_content = """---
+node_id: 42
+---
+# Node in Subfolder
+
+### This node is in a subfolder
+
+Content of the subfolder node.
+
+-----------------
+_Links:_
+"""
+        with open(os.path.join(subfolder, "42_subfolder_node.md"), 'w') as f:
+            f.write(subfolder_content)
+
+        # Create another node in a nested subfolder
+        nested_subfolder = os.path.join(subfolder, "nested")
+        os.makedirs(nested_subfolder)
+
+        nested_content = """---
+node_id: 43
+---
+# Nested Node
+
+### This node is deeply nested
+
+Nested content.
+
+-----------------
+_Links:_
+"""
+        with open(os.path.join(nested_subfolder, "43_nested_node.md"), 'w') as f:
+            f.write(nested_content)
+
+        converter = MarkdownToTreeConverter()
+        tree_data = converter.load_tree_from_markdown(temp_dir)
+
+        # Should load both nodes from subfolders
+        assert len(tree_data) == 2
+        assert 42 in tree_data
+        assert 43 in tree_data
+
+        # Check that filenames include the relative path
+        assert "VT/42_subfolder_node.md" in converter.filename_to_node_id
+        assert "VT/nested/43_nested_node.md" in converter.filename_to_node_id
+
+    def test_excludes_hidden_directories(self, temp_dir):
+        """Test that hidden directories like .obsidian are excluded from scanning"""
+        # Create a valid node in the root
+        valid_content = """---
+node_id: 1
+---
+# Valid Node
+
+### Valid summary
+
+Content here.
+
+-----------------
+_Links:_
+"""
+        with open(os.path.join(temp_dir, "1_valid.md"), 'w') as f:
+            f.write(valid_content)
+
+        # Create .obsidian directory with a markdown file (should be excluded)
+        obsidian_dir = os.path.join(temp_dir, ".obsidian")
+        os.makedirs(obsidian_dir)
+        obsidian_content = """# Some Obsidian README
+This is not a VoiceTree node.
+"""
+        with open(os.path.join(obsidian_dir, "README.md"), 'w') as f:
+            f.write(obsidian_content)
+
+        # Create chromadb_data directory (should be excluded)
+        chromadb_dir = os.path.join(temp_dir, "chromadb_data")
+        os.makedirs(chromadb_dir)
+        with open(os.path.join(chromadb_dir, "notes.md"), 'w') as f:
+            f.write("# Not a node")
+
+        converter = MarkdownToTreeConverter()
+        tree_data = converter.load_tree_from_markdown(temp_dir)
+
+        # Should only load the valid node, not the hidden/excluded ones
+        assert len(tree_data) == 1
+        assert 1 in tree_data
+        assert ".obsidian/README.md" not in converter.filename_to_node_id
+        assert "chromadb_data/notes.md" not in converter.filename_to_node_id
+
+    def test_relationships_resolve_with_basename(self, temp_dir):
+        """Test that relationships using just basename still resolve when nodes are in subfolders"""
+        # Create subfolder
+        subfolder = os.path.join(temp_dir, "VT")
+        os.makedirs(subfolder)
+
+        # Parent node in subfolder with Children link using just basename
+        parent_content = """---
+node_id: 10
+---
+# Parent Node
+
+### Parent summary
+
+Parent content.
+
+-----------------
+_Links:_
+Children:
+- is_subtask_of [[11_child.md]]
+"""
+        with open(os.path.join(subfolder, "10_parent.md"), 'w') as f:
+            f.write(parent_content)
+
+        # Child node in same subfolder
+        child_content = """---
+node_id: 11
+---
+# Child Node
+
+### Child summary
+
+Child content.
+
+-----------------
+_Links:_
+"""
+        with open(os.path.join(subfolder, "11_child.md"), 'w') as f:
+            f.write(child_content)
+
+        converter = MarkdownToTreeConverter()
+        tree_data = converter.load_tree_from_markdown(temp_dir)
+
+        # Both nodes should be loaded
+        assert len(tree_data) == 2
+        assert 10 in tree_data
+        assert 11 in tree_data
+
+        # Relationship should be resolved even though link used basename
+        parent = tree_data[10]
+        child = tree_data[11]
+        assert 11 in parent.children
+        assert child.parent_id == 10
+
+
+class TestParseRelationshipsFromLinks:
+    """Tests for the parse_relationships_from_links function."""
+
+    def test_parses_children_with_relationship_type(self):
+        """Test parsing children links with relationship types."""
+        content = """-----------------
+_Links:_
+Children:
+- is_a_sub_task_of [[2_child_node.md]]
+- implements [[3_another_child.md]]
+"""
+        result = parse_relationships_from_links(content)
+
+        assert len(result[RelationshipKeys.CHILDREN]) == 2
+        assert result[RelationshipKeys.CHILDREN][0][RelationshipKeys.CHILD_FILENAME] == "2_child_node.md"
+        assert result[RelationshipKeys.CHILDREN][0][RelationshipKeys.RELATIONSHIP_TYPE] == "is a sub task of"
+        assert result[RelationshipKeys.CHILDREN][1][RelationshipKeys.CHILD_FILENAME] == "3_another_child.md"
+        assert result[RelationshipKeys.CHILDREN][1][RelationshipKeys.RELATIONSHIP_TYPE] == "implements"
+
+    def test_parses_empty_links_section(self):
+        """Test parsing empty links section."""
+        content = """-----------------
+_Links:_
+"""
+        result = parse_relationships_from_links(content)
+
+        assert result[RelationshipKeys.PARENT] is None
+        assert len(result[RelationshipKeys.CHILDREN]) == 0
+
+    def test_returns_empty_when_no_links_section(self):
+        """Test parsing content without links section."""
+        content = """# Some Node
+
+Some content here.
+"""
+        result = parse_relationships_from_links(content)
+
+        assert result[RelationshipKeys.PARENT] is None
+        assert len(result[RelationshipKeys.CHILDREN]) == 0
+
+    def test_parses_wikilinks_outside_children_section(self):
+        """Test that wikilinks outside Children section are parsed as children."""
+        content = """-----------------
+_Links:_
+Parent:
+- is_an_immediate_observation_during [[4_Test_Outcome_No_Output.md]]
+
+[[ctx-nodes/5_context_1.md]]
+[[ctx-nodes/5_context_2.md]]
+"""
+        result = parse_relationships_from_links(content)
+
+        # Should find the bare wikilinks as children (with empty relationship type)
+        children = result[RelationshipKeys.CHILDREN]
+        child_filenames = [c[RelationshipKeys.CHILD_FILENAME] for c in children]
+        assert "ctx-nodes/5_context_1.md" in child_filenames
+        assert "ctx-nodes/5_context_2.md" in child_filenames

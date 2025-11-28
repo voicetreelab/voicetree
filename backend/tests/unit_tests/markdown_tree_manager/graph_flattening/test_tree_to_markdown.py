@@ -4,6 +4,7 @@ from datetime import datetime
 
 from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import (
     TreeToMarkdownConverter,
+    extract_extra_links_from_file,
 )
 from backend.markdown_tree_manager.markdown_tree_ds import Node
 from backend.markdown_tree_manager.utils import generate_filename_from_keywords
@@ -43,15 +44,10 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
         os.mkdir(self.output_dir)
 
     def tearDown(self):
-        #        Clean up the temporary output directory
-        for filename in os.listdir(self.output_dir):
-            file_path = os.path.join(self.output_dir, filename)
-            try:
-                if os.path.isfile(file_path):
-                    os.unlink(file_path)
-            except Exception as e:
-                print(f'Failed to delete {file_path}. Reason: {e}')
-        os.rmdir(self.output_dir)
+        # Clean up the temporary output directory (recursively)
+        import shutil
+        if os.path.exists(self.output_dir):
+            shutil.rmtree(self.output_dir)
 
     # def test_convertTree(self):
     #     self.converter.convert_tree(output_dir=self.output_dir)
@@ -330,6 +326,283 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
             self.assertEqual(lines[0], "#animal-behavior #zoo_animals #math123")
             self.assertEqual(lines[1], "---")
             self.assertIn("# Special Tagged Node\n", content)
+
+
+class TestExtractExtraLinks(unittest.TestCase):
+    """Tests for the extract_extra_links_from_file function"""
+
+    def setUp(self):
+        self.output_dir = "test_extra_links"
+        os.makedirs(self.output_dir, exist_ok=True)
+
+    def tearDown(self):
+        for filename in os.listdir(self.output_dir):
+            file_path = os.path.join(self.output_dir, filename)
+            try:
+                if os.path.isfile(file_path):
+                    os.unlink(file_path)
+            except Exception as e:
+                print(f'Failed to delete {file_path}. Reason: {e}')
+        os.rmdir(self.output_dir)
+
+    def test_extract_extra_links_with_context_link(self):
+        """Test that context links after Children: section are extracted"""
+        content = """---
+node_id: 14
+---
+# Test Node
+
+### Summary
+
+Content here.
+
+
+-----------------
+_Links:_
+Children:
+- is_child_of [[child.md]]
+
+[[ctx-nodes/VT/test_context.md]]
+"""
+        file_path = os.path.join(self.output_dir, "test.md")
+        with open(file_path, 'w') as f:
+            f.write(content)
+
+        extra_links = extract_extra_links_from_file(file_path)
+        self.assertEqual(len(extra_links), 1)
+        self.assertEqual(extra_links[0], "[[ctx-nodes/VT/test_context.md]]")
+
+    def test_extract_extra_links_with_multiple_context_links(self):
+        """Test extraction of multiple extra links"""
+        content = """---
+node_id: 14
+---
+# Test Node
+
+### Summary
+
+Content.
+
+
+-----------------
+_Links:_
+Children:
+- is_child_of [[child1.md]]
+- is_child_of [[child2.md]]
+
+[[ctx-nodes/context1.md]]
+[[ctx-nodes/context2.md]]
+[[external/reference.md]]
+"""
+        file_path = os.path.join(self.output_dir, "test.md")
+        with open(file_path, 'w') as f:
+            f.write(content)
+
+        extra_links = extract_extra_links_from_file(file_path)
+        self.assertEqual(len(extra_links), 3)
+        self.assertIn("[[ctx-nodes/context1.md]]", extra_links)
+        self.assertIn("[[ctx-nodes/context2.md]]", extra_links)
+        self.assertIn("[[external/reference.md]]", extra_links)
+
+    def test_extract_extra_links_no_extra_links(self):
+        """Test that no extra links returns empty list"""
+        content = """---
+node_id: 14
+---
+# Test Node
+
+### Summary
+
+Content.
+
+
+-----------------
+_Links:_
+Children:
+- is_child_of [[child.md]]
+"""
+        file_path = os.path.join(self.output_dir, "test.md")
+        with open(file_path, 'w') as f:
+            f.write(content)
+
+        extra_links = extract_extra_links_from_file(file_path)
+        self.assertEqual(len(extra_links), 0)
+
+    def test_extract_extra_links_no_children_section(self):
+        """Test extraction when there's no Children: section"""
+        content = """---
+node_id: 14
+---
+# Test Node
+
+### Summary
+
+Content.
+
+
+-----------------
+_Links:_
+
+[[ctx-nodes/context.md]]
+"""
+        file_path = os.path.join(self.output_dir, "test.md")
+        with open(file_path, 'w') as f:
+            f.write(content)
+
+        extra_links = extract_extra_links_from_file(file_path)
+        self.assertEqual(len(extra_links), 1)
+        self.assertEqual(extra_links[0], "[[ctx-nodes/context.md]]")
+
+    def test_extract_extra_links_nonexistent_file(self):
+        """Test that nonexistent file returns empty list"""
+        extra_links = extract_extra_links_from_file("/nonexistent/path.md")
+        self.assertEqual(len(extra_links), 0)
+
+    def test_extract_extra_links_no_links_section(self):
+        """Test file without _Links:_ section returns empty list"""
+        content = """---
+node_id: 14
+---
+# Test Node
+
+### Summary
+
+Content without links section.
+"""
+        file_path = os.path.join(self.output_dir, "test.md")
+        with open(file_path, 'w') as f:
+            f.write(content)
+
+        extra_links = extract_extra_links_from_file(file_path)
+        self.assertEqual(len(extra_links), 0)
+
+
+class TestPreserveExtraLinksOnWrite(unittest.TestCase):
+    """Tests for preserving extra links when rewriting markdown files"""
+
+    def setUp(self):
+        self.output_dir = "test_preserve_links"
+        os.makedirs(self.output_dir, exist_ok=True)
+
+    def tearDown(self):
+        # Clean up including VT subdirectory
+        if os.path.exists(os.path.join(self.output_dir, "VT")):
+            vt_dir = os.path.join(self.output_dir, "VT")
+            for filename in os.listdir(vt_dir):
+                os.unlink(os.path.join(vt_dir, filename))
+            os.rmdir(vt_dir)
+        for filename in os.listdir(self.output_dir):
+            file_path = os.path.join(self.output_dir, filename)
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+        os.rmdir(self.output_dir)
+
+    def test_preserve_context_link_when_adding_child(self):
+        """Test that external context links are preserved when adding a new child"""
+        # Create initial file with context link
+        initial_content = """---
+node_id: 1
+---
+# Parent Node
+
+### Parent summary
+
+Parent content.
+
+
+-----------------
+_Links:_
+Children:
+- is_child_of [[VT/2_Child_Node.md]]
+
+[[ctx-nodes/important_context.md]]
+"""
+        parent_filename = "VT/1_Parent_Node.md"
+        os.makedirs(os.path.join(self.output_dir, "VT"), exist_ok=True)
+        file_path = os.path.join(self.output_dir, parent_filename)
+        with open(file_path, 'w') as f:
+            f.write(initial_content)
+
+        # Set up tree data with parent having two children now
+        parent_node = Node(node_id=1, name="Parent Node", content="Parent content.", summary="Parent summary")
+        parent_node.filename = parent_filename
+        parent_node.children = [2, 3]  # Now has 2 children
+
+        child1_node = Node(node_id=2, name="Child Node", content="Child content", summary="Child summary")
+        child1_node.filename = "VT/2_Child_Node.md"
+        child1_node.relationships[1] = "is child of"
+
+        child2_node = Node(node_id=3, name="New Child", content="New child content", summary="New child summary")
+        child2_node.filename = "VT/3_New_Child.md"
+        child2_node.relationships[1] = "extends"
+
+        tree_data = {1: parent_node, 2: child1_node, 3: child2_node}
+        converter = TreeToMarkdownConverter(tree_data)
+
+        # Rewrite the parent node (simulating adding a new child)
+        converter.convert_nodes(output_dir=self.output_dir, nodes_to_update={1})
+
+        # Verify the context link is preserved
+        with open(file_path) as f:
+            content = f.read()
+
+        # Should have both children
+        self.assertIn("- is_child_of [[VT/2_Child_Node.md]]", content)
+        self.assertIn("- extends [[VT/3_New_Child.md]]", content)
+
+        # Context link should be preserved
+        self.assertIn("[[ctx-nodes/important_context.md]]", content)
+
+    def test_preserve_multiple_context_links(self):
+        """Test that multiple external links are preserved"""
+        initial_content = """---
+node_id: 1
+---
+# Test Node
+
+### Summary
+
+Content.
+
+
+-----------------
+_Links:_
+
+[[ctx-nodes/context1.md]]
+[[ctx-nodes/context2.md]]
+[[external/reference.md]]
+"""
+        filename = "VT/1_Test_Node.md"
+        os.makedirs(os.path.join(self.output_dir, "VT"), exist_ok=True)
+        file_path = os.path.join(self.output_dir, filename)
+        with open(file_path, 'w') as f:
+            f.write(initial_content)
+
+        # Set up tree data - node now has a child
+        node = Node(node_id=1, name="Test Node", content="Content.", summary="Summary")
+        node.filename = filename
+        node.children = [2]
+
+        child_node = Node(node_id=2, name="Child", content="Child content", summary="Child summary")
+        child_node.filename = "VT/2_Child.md"
+        child_node.relationships[1] = "child of"
+
+        tree_data = {1: node, 2: child_node}
+        converter = TreeToMarkdownConverter(tree_data)
+
+        converter.convert_nodes(output_dir=self.output_dir, nodes_to_update={1})
+
+        with open(file_path) as f:
+            content = f.read()
+
+        # Child link should be added
+        self.assertIn("Children:", content)
+        self.assertIn("- child_of [[VT/2_Child.md]]", content)
+
+        # All context links should be preserved
+        self.assertIn("[[ctx-nodes/context1.md]]", content)
+        self.assertIn("[[ctx-nodes/context2.md]]", content)
+        self.assertIn("[[external/reference.md]]", content)
 
 
 if __name__ == '__main__':

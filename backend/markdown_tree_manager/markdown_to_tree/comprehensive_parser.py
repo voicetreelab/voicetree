@@ -92,7 +92,7 @@ def parse_markdown_file_complete(filepath: Path) -> Optional[ParsedNode]:
     links = extract_markdown_links(content)
 
     # Parse parent relationship from Links section
-    parent_info = extract_parent_relationship(content)
+    parent_info = extract_parent_relationship(content) # DEPRECATED
 
     return {
         ParsedNodeKeys.NODE_ID: node_id,
@@ -138,8 +138,8 @@ def extract_title_summary_and_content(markdown_content: str) -> tuple[str, str, 
             found_title = True
             # Skip the title line from content
             continue
-        # Check if line is a summary (### heading after title)
-        elif stripped.startswith('###') and not found_summary:
+        # Check if line is a summary (## or ### heading after title)
+        elif stripped.startswith('##') and not found_summary:
             summary = stripped.lstrip('#').strip()
             found_summary = True
             # Skip the summary line from content
@@ -187,7 +187,12 @@ def extract_parent_relationship(content: str) -> Optional[ParentRelationship]:
 
 def parse_relationships_from_links(content: str) -> ParsedRelationships:
     """
-    Parse all relationships from the Links section.
+    Parse all relationships from the Links section by extracting wikilinks.
+
+    Finds all [[filename]] wikilinks in the Links section. If a wikilink
+    has a relationship type prefix (e.g., "- relationship_type [[...]]"),
+    that relationship type is captured; otherwise, the relationship type
+    is empty.
 
     Args:
         content: Full markdown content
@@ -195,30 +200,32 @@ def parse_relationships_from_links(content: str) -> ParsedRelationships:
     Returns:
         Dictionary with parent and children relationships
     """
-    links_match = re.search(r'_Links:_\s*\n(.*?)(?:\n\n|$)', content, re.DOTALL)
+    links_match = re.search(r'_Links:_\s*\n(.*)', content, re.DOTALL)
     if not links_match:
         return {RelationshipKeys.PARENT: None, RelationshipKeys.CHILDREN: []}
 
     links_content = links_match.group(1)
     result: ParsedRelationships = {RelationshipKeys.PARENT: None, RelationshipKeys.CHILDREN: []}
 
-    # Parse children relationships from "Children:" section
-    # Expected format:
-    # Children:
-    # - {relationship_type} [[{child_filename}]]
-    # - {relationship_type} [[{child_filename}]]
-    children_section = re.search(r'Children:\s*\n(.*?)(?:\n\n|$)', links_content, re.DOTALL)
-    if children_section:
-        children_lines = children_section.group(1).strip().split('\n')
-        for line in children_lines:
-            # Match format: - {relationship_type} [[{child_filename}]]
-            child_match = re.match(r'-\s*(.+?)\s*\[\[(.*?)\]\]', line)
-            if child_match:
-                relationship_type = child_match.group(1).strip()
-                child_filename = child_match.group(2).strip()
+    # Find all wikilinks in the links section
+    # Pattern: optionally "- relationship_type " followed by [[filename]]
+    for line in links_content.split('\n'):
+        # Try to match: - {relationship_type} [[{filename}]]
+        match_with_rel = re.match(r'-\s*(.+?)\s*\[\[([^\]]+)\]\]', line)
+        if match_with_rel:
+            relationship_type = match_with_rel.group(1).strip().replace('_', ' ')
+            filename = match_with_rel.group(2).strip()
+            result[RelationshipKeys.CHILDREN].append({
+                RelationshipKeys.CHILD_FILENAME: filename,
+                RelationshipKeys.RELATIONSHIP_TYPE: relationship_type
+            })
+        else:
+            # Try to match bare wikilinks: [[{filename}]]
+            bare_links = re.findall(r'\[\[([^\]]+)\]\]', line)
+            for filename in bare_links:
                 result[RelationshipKeys.CHILDREN].append({
-                    RelationshipKeys.CHILD_FILENAME: child_filename,
-                    RelationshipKeys.RELATIONSHIP_TYPE: relationship_type.replace('_', ' ')
+                    RelationshipKeys.CHILD_FILENAME: filename.strip(),
+                    RelationshipKeys.RELATIONSHIP_TYPE: '' # todo, why do we no longer send relationship_type.replace('_', ' ') ???
                 })
 
     return result

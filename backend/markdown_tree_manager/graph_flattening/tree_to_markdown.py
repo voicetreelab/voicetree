@@ -1,6 +1,7 @@
 # treeToMarkdown.py
 import logging
 import os
+import re
 import traceback
 from typing import Optional, Any
 
@@ -8,6 +9,71 @@ from typing import Optional, Any
 from backend.markdown_tree_manager.markdown_tree_ds import Node
 from backend.markdown_tree_manager.utils import generate_filename_from_keywords
 from backend.markdown_tree_manager.utils import insert_yaml_frontmatter
+
+
+def extract_extra_links_from_file(file_path: str) -> list[str]:
+    # todo, this is really awful. we shouldn't have to do this.
+    # but since we are, todo, we should atleasst not add complex parsing logic
+    # todo, just get all wikilinks, then afterwards, add back any wikilinkss that are no longer in the markdown content after writing
+
+
+    """
+    Extract extra links from an existing markdown file that should be preserved.
+
+    These are links that appear after the _Links:_ section but are NOT part of
+    the Children: section (e.g., external context links added by UI or other tools).
+
+    Args:
+        file_path: Path to the existing markdown file
+
+    Returns:
+        List of extra link lines to preserve (without trailing newlines)
+    """
+    if not os.path.exists(file_path):
+        return []
+
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+    except (OSError, IOError):
+        return []
+
+    # Find the _Links:_ section
+    links_match = re.search(r'_Links:_\s*\n(.*)', content, re.DOTALL)
+    if not links_match:
+        return []
+
+    links_content = links_match.group(1)
+    lines = links_content.split('\n')
+
+    extra_links = []
+    in_children_section = False
+
+    for line in lines:
+        stripped = line.strip()
+
+        # Skip empty lines
+        if not stripped:
+            continue
+
+        # Detect start of Children: section
+        if stripped == 'Children:':
+            in_children_section = True
+            continue
+
+        # If in Children: section, skip child link lines (start with "- ")
+        if in_children_section:
+            if stripped.startswith('- '):
+                continue
+            else:
+                # End of Children: section - any subsequent content is extra
+                in_children_section = False
+
+        # This is an extra link to preserve (e.g., [[ctx-nodes/...]])
+        if '[[' in stripped and ']]' in stripped:
+            extra_links.append(stripped)
+
+    return extra_links
 
 
 class TreeToMarkdownConverter:
@@ -41,6 +107,9 @@ class TreeToMarkdownConverter:
                 # node_data.content.replace(title_match.group(0), "")
             file_path = os.path.join(output_dir, file_name)
 
+            # Preserve extra links from existing file before overwriting
+            extra_links = extract_extra_links_from_file(file_path)
+
             with open(file_path, 'w') as f:
                 # Write tags as hashtags on first line if tags exist
                 if node_data.tags:
@@ -51,6 +120,7 @@ class TreeToMarkdownConverter:
                 frontmatter = insert_yaml_frontmatter({
                     "node_id": node_id,
                 })
+
                 f.write(frontmatter)
 
                 # Write title as first markdown heading
@@ -85,6 +155,12 @@ class TreeToMarkdownConverter:
                             f.write(f"- {child_relationship} [[{child_file_name}]]\n")
                         else:
                             logging.error(f"Child node {child_id} not found in tree_data")
+
+                # Write preserved extra links (e.g., context links added by UI)
+                if extra_links:
+                    f.write("\n")
+                    for link in extra_links:
+                        f.write(f"{link}\n")
 
                 # Flush to ensure immediate file visibility
                 f.flush()
