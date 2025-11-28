@@ -13,7 +13,7 @@
 
 import type { Graph, GraphNode, NodeIdAndFilePath, Position } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
-import { findFirstParentNode } from '@/pure/graph/graph-operations /findFirstParentNode'
+import { findFirstParentNode } from '@/pure/graph/graph-operations/findFirstParentNode'
 import { calculateInitialPositionForChild } from './calculateInitialPosition'
 
 const GHOST_ROOT_ID: NodeIdAndFilePath = '__GHOST_ROOT__'

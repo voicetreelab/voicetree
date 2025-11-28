@@ -26,13 +26,24 @@ export type RecentNodeHistory = readonly RecentNodeEntry[]
 /**
  * Extract recently added/modified node entries from a GraphDelta
  *
- * Filters for UpsertNode actions and converts them to RecentNodeEntry format.
- * Returns entries in the same order as they appear in the delta.
+ * Filters for UpsertNode actions that represent meaningful changes:
+ * - New nodes (previousNode === undefined)
+ * - Content-modified nodes (content actually changed)
+ *
+ * Edge-only changes (same content, different edges) are filtered out
+ * to avoid cluttering the recent tabs with non-meaningful updates.
  */
 export function extractRecentNodesFromDelta(delta: GraphDelta): readonly RecentNodeEntry[] {
     const timestamp = Date.now()
     return delta
         .filter(action => action.type === 'UpsertNode')
+        .filter(action => {
+            if (action.type !== 'UpsertNode') return false
+            // New node: always show
+            if (action.previousNode === undefined) return true
+            // Update: only show if content actually changed
+            return action.previousNode.contentWithoutYamlOrLinks !== action.nodeToUpsert.contentWithoutYamlOrLinks
+        })
         .map(action => {
             if (action.type !== 'UpsertNode') throw new Error('Unexpected action type')
             return {

@@ -12,7 +12,7 @@ import {getWatchStatus, loadPreviousFolder, startFileWatching, stopFileWatching}
 import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/state/app-electron-state";
 import {createContextNode} from "@/shell/edge/main/graph/createContextNode";
 import {saveNodePositions} from "@/shell/edge/main/saveNodePositions";
-import {performUndo, performRedo, canUndo, canRedo} from './graph/undoOperations'
+import {performUndo, performRedo} from './graph/undoOperations'
 
 // eslint-disable-next-line @typescript-eslint/typedef
 export const mainAPI = {
@@ -49,6 +49,4 @@ export const mainAPI = {
   // Undo/Redo operations
   performUndo,
   performRedo,
-  canUndo,
-  canRedo,
 }

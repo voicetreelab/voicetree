@@ -1,5 +1,5 @@
 import { applyGraphDeltaToDBThroughMem } from './writePath/applyGraphDeltaToDBThroughMem'
-import { popUndoDelta, popRedoDelta, canUndo, canRedo } from '@/shell/edge/main/state/undo-store'
+import { popUndoDelta, popRedoDelta } from '@/shell/edge/main/state/undo-store'
 
 /**
  * Performs undo operation by reversing the last user action.
@@ -28,6 +28,3 @@ export async function performRedo(): Promise<boolean> {
     await applyGraphDeltaToDBThroughMem(deltaToApply, false)
     return true
 }
-
-// Re-export convenience getters
-export { canUndo, canRedo }

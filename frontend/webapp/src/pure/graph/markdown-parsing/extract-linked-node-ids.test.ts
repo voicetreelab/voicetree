@@ -302,10 +302,28 @@ Line 3 with [[3]]`
 
       const result: readonly Edge[] = extractEdges(content, nodes)
 
-      // When multiple nodes match the same filename, returns the first matching node found
-      // In this case 'docs/README.md' matches the filename 'README.md'
-      expect(result).toEqual([{ targetId: 'docs/README.md', label: 'Link to' }])
+      // When multiple nodes match the same filename with equal scores, prefer shorter paths
+      // 'README.md' is shorter than 'docs/README.md' and 'src/README.md'
+      expect(result).toEqual([{ targetId: 'README.md', label: 'Link to' }])
     })
+  })
+
+  it('should match subfolder path link to subfolder node', () => {
+    // This is the exact case from the failing e2e test:
+    // File: 2025-09-30/14_1_Victor_Append_Agent.md links to [[2025-09-30/14_Assign_Agent.md]]
+    // Node: 2025-09-30/14_Assign_Agent.md
+    const content: string = `- is_progress_of [[2025-09-30/14_Assign_Agent_to_Identify_Boundaries.md]]`
+
+    const nodes: Record<string, GraphNode> = {
+      '2025-09-30/14_Assign_Agent_to_Identify_Boundaries.md': createNode('2025-09-30/14_Assign_Agent_to_Identify_Boundaries.md')
+    }
+
+    const result: readonly Edge[] = extractEdges(content, nodes)
+
+    // Should match the full path
+    expect(result).toEqual([
+      { targetId: '2025-09-30/14_Assign_Agent_to_Identify_Boundaries.md', label: 'is_progress_of' }
+    ])
   })
 
   it('should extract label from user markdown format with Parent: section', () => {

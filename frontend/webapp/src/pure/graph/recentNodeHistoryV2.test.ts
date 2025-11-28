@@ -25,10 +25,11 @@ function createTestNode(id: string, title: string): GraphNode {
     }
 }
 
-function createUpsertAction(id: string, title: string): UpsertNodeAction {
+function createUpsertAction(id: string, title: string, previousNode?: GraphNode): UpsertNodeAction {
     return {
         type: 'UpsertNode',
-        nodeToUpsert: createTestNode(id, title)
+        nodeToUpsert: createTestNode(id, title),
+        previousNode
     }
 }
 
@@ -89,6 +90,62 @@ describe('recentNodeHistoryV2', () => {
 
             const entries = extractRecentNodesFromDelta(delta)
             expect(entries).toEqual([])
+        })
+
+        it('includes new nodes (previousNode undefined)', () => {
+            const delta: GraphDelta = [
+                createUpsertAction('new.md', 'New Node', undefined)
+            ]
+
+            const entries = extractRecentNodesFromDelta(delta)
+            expect(entries).toHaveLength(1)
+            expect(entries[0].nodeId).toBe('new.md')
+        })
+
+        it('includes nodes with content changes', () => {
+            const previousNode = createTestNode('edit.md', 'Old Title')
+            const delta: GraphDelta = [
+                createUpsertAction('edit.md', 'New Title', previousNode)
+            ]
+
+            const entries = extractRecentNodesFromDelta(delta)
+            expect(entries).toHaveLength(1)
+            expect(entries[0].nodeId).toBe('edit.md')
+            expect(entries[0].label).toBe('New Title')
+        })
+
+        it('excludes edge-only changes (same content)', () => {
+            const previousNode = createTestNode('edge-only.md', 'Same Title')
+            // Create action with same content as previousNode
+            const action: UpsertNodeAction = {
+                type: 'UpsertNode',
+                nodeToUpsert: createTestNode('edge-only.md', 'Same Title'),
+                previousNode
+            }
+            const delta: GraphDelta = [action]
+
+            const entries = extractRecentNodesFromDelta(delta)
+            expect(entries).toHaveLength(0)
+        })
+
+        it('filters mixed delta correctly', () => {
+            const previousNodeWithChange = createTestNode('changed.md', 'Old Content')
+            const previousNodeWithoutChange = createTestNode('unchanged.md', 'Same')
+
+            const delta: GraphDelta = [
+                createUpsertAction('new.md', 'New Node', undefined),
+                createUpsertAction('changed.md', 'New Content', previousNodeWithChange),
+                {
+                    type: 'UpsertNode',
+                    nodeToUpsert: createTestNode('unchanged.md', 'Same'),
+                    previousNode: previousNodeWithoutChange
+                },
+                createDeleteAction('deleted.md')
+            ]
+
+            const entries = extractRecentNodesFromDelta(delta)
+            expect(entries).toHaveLength(2)
+            expect(entries.map(e => e.nodeId)).toEqual(['new.md', 'changed.md'])
         })
     })
 
