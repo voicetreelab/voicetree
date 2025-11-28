@@ -14,4 +14,4 @@ source .env
 
 # Substitute environment variables in the prompt file and pass to gemini
 promptstr=$(envsubst < VoiceTree/tools/prompts/prompt_main.md )
-gemini -y -i "$promptstr" --model "gemini-2.5-pro"
+gemini -y -i "$initial_content" --model "gemini-2.5-pro"
