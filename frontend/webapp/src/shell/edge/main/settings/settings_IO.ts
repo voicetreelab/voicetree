@@ -13,7 +13,9 @@ export async function loadSettings(): Promise<VTSettings> {
   console.log(`Loading Settings from Path: ${settingsPath}`);
   try {
     const data: string = await fs.readFile(settingsPath, 'utf-8');
-    return JSON.parse(data) as VTSettings;
+    const userSettings: Partial<VTSettings> = JSON.parse(data) as Partial<VTSettings>;
+    // Merge: user settings override defaults, missing keys come from defaults
+    return { ...DEFAULT_SETTINGS, ...userSettings };
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       await saveSettings(DEFAULT_SETTINGS);

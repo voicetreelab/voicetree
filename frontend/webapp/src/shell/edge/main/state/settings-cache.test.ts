@@ -14,7 +14,7 @@ describe('settings-cache', () => {
     // Can set settings
     const mockSettings: VTSettings = {
       terminalSpawnPathRelativeToWatchedDirectory: '/test/path',
-      agentCommand: 'test-command.sh',
+      agents: [{ name: 'Test Agent', command: 'test-command.sh' }],
       shiftEnterSendsOptionEnter: true
     };
     setCachedSettings(mockSettings);
