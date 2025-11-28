@@ -39,7 +39,7 @@ export function useTranscriptionSender({
   };
 
   // Core sending function
-  const sendToBackend: (text: string, skipDuplicateCheck?: boolean) => Promise<void> = useCallback(async (text: string, skipDuplicateCheck: boolean = false): Promise<void> => {
+  const sendToBackend: (text: string, skipDuplicateCheck?: boolean, forceFlush?: boolean) => Promise<void> = useCallback(async (text: string, skipDuplicateCheck: boolean = false, forceFlush: boolean = false): Promise<void> => {
     if (!text.trim()) return;
 
     // Avoid sending the same text twice (only for manual text)
@@ -56,7 +56,7 @@ export function useTranscriptionSender({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, force_flush: forceFlush }),
       });
 
       if (response.ok) {
@@ -116,11 +116,14 @@ export function useTranscriptionSender({
   }, [sendToBackend]);
 
   // Send manual text (doesn't use token tracking)
+  // Uses force_flush=true to trigger immediate processing (Enter key behavior)
   const sendManualText: (text: string) => Promise<void> = useCallback(async (text: string): Promise<void> => {
     if (!text.trim()) return;
 
     try {
-      await sendToBackend(text);
+      // Pass forceFlush=true for manual text submission (Enter key)
+      // This bypasses the buffer threshold on the server
+      await sendToBackend(text, false, true);
     } catch (err) {
       console.error('Failed to send manual text:', err);
     }

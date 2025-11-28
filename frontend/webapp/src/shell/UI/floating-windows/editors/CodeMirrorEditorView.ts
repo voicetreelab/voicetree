@@ -14,6 +14,7 @@ import { javascript } from '@codemirror/lang-javascript';
 import { python } from '@codemirror/lang-python';
 import { json } from '@codemirror/lang-json';
 import { java } from '@codemirror/lang-java';
+import { oneDark } from '@codemirror/theme-one-dark';
 import tagParser from 'codemirror-rich-markdoc/src/tagParser';
 
 // Combined highlight style: copied from codemirror-rich-markdoc/src/highlightStyle.ts
@@ -186,6 +187,9 @@ export class CodeMirrorEditorView extends Disposable {
       return foldRange;
     });
 
+    // Check if dark mode is active (either via option or from document class)
+    const isDarkMode: boolean = this.options.darkMode ?? document.documentElement.classList.contains('dark');
+
     const extensions: Extension[] = [
       basicSetup,
       richMarkdocPlugin, // Rich markdown editing (provides markdown, decorations, and syntax highlighting)
@@ -197,8 +201,9 @@ export class CodeMirrorEditorView extends Disposable {
       this.setupUpdateListener()
     ];
 
-    // Add dark mode theme if specified
-    if (this.options.darkMode) {
+    // Add dark mode theme if active
+    if (isDarkMode) {
+      extensions.push(oneDark);
       this.container.setAttribute('data-color-mode', 'dark');
     }
 
@@ -209,6 +214,9 @@ export class CodeMirrorEditorView extends Disposable {
    * Create simplified extensions for JSON editing mode
    */
   private createJsonExtensions(): Extension[] {
+    // Check if dark mode is active (either via option or from document class)
+    const isDarkMode: boolean = this.options.darkMode ?? document.documentElement.classList.contains('dark');
+
     const extensions: Extension[] = [
       basicSetup,
       json(), // JSON language support with syntax highlighting
@@ -217,8 +225,9 @@ export class CodeMirrorEditorView extends Disposable {
       this.setupUpdateListener()
     ];
 
-    // Add dark mode theme if specified
-    if (this.options.darkMode) {
+    // Add dark mode theme if active
+    if (isDarkMode) {
+      extensions.push(oneDark);
       this.container.setAttribute('data-color-mode', 'dark');
     }
 

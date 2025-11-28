@@ -48,7 +48,7 @@ export async function spawnBackupTerminal(cy: Core): Promise<void> {
         title: `Backup ${vaultName}`,
         anchoredToNodeId: undefined, // Not anchored to a node
         initialCommand: backupCommand,
-        executeCommand: true,
+        executeCommand: false,
         initialSpawnDirectory: undefined,
         initialEnvVars: {},
     });
