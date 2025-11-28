@@ -1,7 +1,9 @@
 import type { Graph, GraphDelta, GraphNode, NodeIdAndFilePath } from '@/pure/graph'
 import { getIncomingEdgesToSubgraph } from './getIncomingEdgesToSubgraph'
-import { createRepresentativeNode } from './createRepresentativeNode'
+import { createRepresentativeNode, type MergeTitleInfo } from './createRepresentativeNode'
 import { redirectEdgeTarget } from './redirectEdgeTarget'
+import { findRepresentativeNode } from './findRepresentativeNode'
+import { getNodeTitle } from '@/pure/graph/markdown-parsing'
 
 /**
  * Generates a unique ID for a merged node based on timestamp and random suffix.
@@ -21,7 +23,7 @@ function generateMergedNodeId(): NodeIdAndFilePath {
  * 3. Deletes all original nodes in the selection
  *
  * Internal edges (between selected nodes) are discarded.
- * Outgoing edges from the subgraph are discarded.
+ * Outgoing edges to external nodes are preserved on the representative node.
  *
  * @param selectedNodeIds - Array of node IDs to merge (must have at least 2)
  * @param graph - The current graph state
@@ -35,40 +37,57 @@ export function computeMergeGraphDelta(
         return []
     }
 
-    const newNodeId: NodeIdAndFilePath = generateMergedNodeId()
+    // Get non-context nodes only (context nodes are derived and should not be merged)
+    const nonContextNodeIds: readonly NodeIdAndFilePath[] = selectedNodeIds.filter((id) => {
+        const node: GraphNode | undefined = graph.nodes[id]
+        return node !== undefined && !node.nodeUIMetadata.isContextNode
+    })
 
-    // Get the nodes to merge
-    const nodesToMerge: readonly GraphNode[] = selectedNodeIds
-        .map((id) => graph.nodes[id])
-        .filter((node): node is GraphNode => node !== undefined)
-
-    if (nodesToMerge.length < 2) {
+    if (nonContextNodeIds.length < 2) {
         return []
     }
 
-    // 1. Create the representative node
-    const representativeNode: GraphNode = createRepresentativeNode(nodesToMerge, newNodeId)
+    const newNodeId: NodeIdAndFilePath = generateMergedNodeId()
 
-    // 2. Find all incoming edges from external nodes
+    // Get the nodes to merge (already filtered for non-context)
+    const nodesToMerge: readonly GraphNode[] = nonContextNodeIds.map(
+        (id) => graph.nodes[id] as GraphNode
+    )
+
+    // 1. Find the representative node (the one with most reachable nodes inside the subgraph)
+    const representativeNodeId: NodeIdAndFilePath | undefined = findRepresentativeNode(nonContextNodeIds, graph)
+
+    // 2. Build merge title info using the representative node's title
+    const mergeTitleInfo: MergeTitleInfo | undefined = representativeNodeId !== undefined
+        ? {
+            representativeTitle: getNodeTitle(graph.nodes[representativeNodeId]),
+            otherNodesCount: nodesToMerge.length - 1
+        }
+        : undefined
+
+    // 3. Create the representative node with the dynamic title
+    const representativeNode: GraphNode = createRepresentativeNode(nodesToMerge, newNodeId, mergeTitleInfo)
+
+    // 4. Find all incoming edges from external nodes (only to non-context nodes)
     const incomingEdges: readonly { readonly sourceNodeId: NodeIdAndFilePath; readonly edge: { readonly targetId: NodeIdAndFilePath; readonly label: string } }[] =
-        getIncomingEdgesToSubgraph(selectedNodeIds, graph)
+        getIncomingEdgesToSubgraph(nonContextNodeIds, graph)
 
-    // 3. Group incoming edges by source node to avoid duplicate updates
+    // 5. Group incoming edges by source node to avoid duplicate updates
     const sourceNodeIdsWithIncomingEdges: readonly NodeIdAndFilePath[] = [
         ...new Set(incomingEdges.map((e) => e.sourceNodeId))
     ]
 
-    // 4. For each external source node, redirect all its edges that point into the subgraph
+    // 6. For each external source node, redirect all its edges that point into the subgraph
     const updatedExternalNodes: readonly GraphNode[] = sourceNodeIdsWithIncomingEdges.map((sourceNodeId) => {
-        // Use reduce to redirect each edge that points to a selected node
-        const updatedNode: GraphNode = selectedNodeIds.reduce(
+        // Use reduce to redirect each edge that points to a non-context node
+        const updatedNode: GraphNode = nonContextNodeIds.reduce(
             (node, selectedId) => redirectEdgeTarget(node, selectedId, newNodeId),
             graph.nodes[sourceNodeId]
         )
         return updatedNode
     })
 
-    // 5. Build the GraphDelta
+    // 7. Build the GraphDelta
     const delta: GraphDelta = [
         // First, upsert the new representative node
         {
@@ -80,8 +99,8 @@ export function computeMergeGraphDelta(
             type: 'UpsertNode' as const,
             nodeToUpsert: node
         })),
-        // Finally, delete all the original selected nodes
-        ...selectedNodeIds.map((nodeId) => ({
+        // Finally, delete only the non-context nodes (context nodes are preserved)
+        ...nonContextNodeIds.map((nodeId) => ({
             type: 'DeleteNode' as const,
             nodeId
         }))

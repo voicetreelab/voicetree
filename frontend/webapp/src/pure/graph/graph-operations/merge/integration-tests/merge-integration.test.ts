@@ -17,7 +17,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { computeMergeGraphDelta } from '@/pure/graph/graph-operations /merge/computeMergeGraphDelta'
+import { computeMergeGraphDelta } from '@/pure/graph/graph-operations/merge/computeMergeGraphDelta'
 import { applyGraphDeltaToGraph } from '@/pure/graph'
 import type { Graph, GraphNode, Edge, GraphDelta } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
@@ -85,8 +85,11 @@ describe('Merge Selected Nodes - Integration Tests', () => {
             const mergedNodeId: string = mergedNodeIds[0]
             const mergedNode: GraphNode = resultGraph.nodes[mergedNodeId]
 
-            // AND: Merged node should have combined content with ASCII tree and all original content
-            expect(mergedNode.contentWithoutYamlOrLinks).toContain('# Merged Node')
+            // AND: Merged node title should be based on representative node from within the subgraph
+            // internal1 can reach 1 node in subgraph (internal2), internal2 can reach 0
+            // So internal1 is chosen as representative
+            // Format: "{RepresentativeTitle} + {N} other node(s)"
+            expect(mergedNode.contentWithoutYamlOrLinks).toContain('# Internal 1 + 1 other node')
             expect(mergedNode.contentWithoutYamlOrLinks).toContain('# Internal 1')
             expect(mergedNode.contentWithoutYamlOrLinks).toContain('# Internal 2')
 

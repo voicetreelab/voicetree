@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getSubgraphByDistance } from '@/pure/graph/graph-operations /traversal/getSubgraphByDistance'
+import { getSubgraphByDistance } from '@/pure/graph/graph-operations/traversal/getSubgraphByDistance'
 import type { Graph, GraphNode, Edge } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
 

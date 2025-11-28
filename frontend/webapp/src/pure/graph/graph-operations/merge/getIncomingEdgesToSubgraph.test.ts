@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getIncomingEdgesToSubgraph } from '@/pure/graph/graph-operations /merge/getIncomingEdgesToSubgraph'
+import { getIncomingEdgesToSubgraph } from '@/pure/graph/graph-operations/merge/getIncomingEdgesToSubgraph'
 import type { Graph, NodeIdAndFilePath, GraphNode, Edge } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
 

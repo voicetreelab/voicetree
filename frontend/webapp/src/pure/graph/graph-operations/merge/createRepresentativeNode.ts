@@ -3,6 +3,16 @@ import type { Edge, Graph, GraphNode, NodeIdAndFilePath, Position } from '@/pure
 import { graphToAscii } from '@/pure/graph'
 
 /**
+ * Information for generating the merge node title.
+ * If provided, uses "{representativeTitle} + {otherNodesCount} other nodes" format.
+ * If not provided, falls back to "Merged Node".
+ */
+export interface MergeTitleInfo {
+    readonly representativeTitle: string
+    readonly otherNodesCount: number
+}
+
+/**
  * Calculates the centroid position from nodes that have positions.
  * Returns O.none if no nodes have positions.
  */
@@ -15,13 +25,12 @@ function calculateCentroid(nodes: readonly GraphNode[]): O.Option<Position> {
 
     const sum: { readonly x: number; readonly y: number } = nodesWithPositions.reduce(
         (acc, node) => {
-            if (O.isSome(node.nodeUIMetadata.position)) {
-                return {
-                    x: acc.x + node.nodeUIMetadata.position.value.x,
-                    y: acc.y + node.nodeUIMetadata.position.value.y
-                }
+            // We know position exists because we filtered for it
+            const pos = (node.nodeUIMetadata.position as O.Some<Position>).value
+            return {
+                x: acc.x + pos.x,
+                y: acc.y + pos.y
             }
-            return acc
         },
         { x: 0, y: 0 }
     )
@@ -83,6 +92,26 @@ function getExternalOutgoingEdges(
 }
 
 /**
+ * Generates the title for the merged node.
+ * If mergeTitleInfo is provided, uses "{representativeTitle} + N other nodes" format.
+ * Otherwise falls back to "Merged Node".
+ */
+function generateMergeTitle(mergeTitleInfo: MergeTitleInfo | undefined): string {
+    if (mergeTitleInfo === undefined) {
+        return 'Merged Node'
+    }
+
+    const { representativeTitle, otherNodesCount } = mergeTitleInfo
+
+    if (otherNodesCount === 0) {
+        return representativeTitle
+    }
+
+    const nodeWord = otherNodesCount === 1 ? 'node' : 'nodes'
+    return `${representativeTitle} + ${otherNodesCount} other ${nodeWord}`
+}
+
+/**
  * Creates a new representative node from merged nodes.
  *
  * The representative node:
@@ -92,10 +121,16 @@ function getExternalOutgoingEdges(
  * - Preserves outgoing edges to external nodes (outside the subgraph)
  * - Uses the first node's color if available, otherwise O.none
  * - Has isContextNode set to false and containedNodeIds as undefined
+ *
+ * @param nodesToMerge - The nodes being merged
+ * @param newNodeId - The ID for the new merged node
+ * @param mergeTitleInfo - Optional info for generating the title. If provided, uses
+ *                         "{representativeTitle} + N other nodes" format.
  */
 export function createRepresentativeNode(
     nodesToMerge: readonly GraphNode[],
-    newNodeId: NodeIdAndFilePath
+    newNodeId: NodeIdAndFilePath,
+    mergeTitleInfo?: MergeTitleInfo
 ): GraphNode {
     // Build subgraph for ASCII visualization
     const subgraph: Graph = buildSubgraphFromNodes(nodesToMerge)
@@ -106,8 +141,11 @@ export function createRepresentativeNode(
         .map(node => node.contentWithoutYamlOrLinks)
         .join('\n\n---\n\n')
 
+    // Generate the title based on representative parent (if available)
+    const title: string = generateMergeTitle(mergeTitleInfo)
+
     // Build merged content with ASCII tree header and accumulated content
-    const content: string = `# Merged Node
+    const content: string = `# ${title}
 
 \`\`\`
 ${asciiTree}

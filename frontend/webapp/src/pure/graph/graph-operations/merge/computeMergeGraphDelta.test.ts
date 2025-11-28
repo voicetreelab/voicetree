@@ -209,4 +209,81 @@ describe('computeMergeGraphDelta', () => {
             expect(result[0].nodeToUpsert.outgoingEdges).toHaveLength(0)
         }
     })
+
+    it('should skip context nodes when merging (context nodes are derived)', () => {
+        const graph: Graph = {
+            nodes: {
+                'node1.md': createNode('node1.md', [], { x: 0, y: 0 }, '# Regular Node 1'),
+                'node2.md': createNode('node2.md', [], { x: 100, y: 100 }, '# Regular Node 2'),
+                'context.md': {
+                    relativeFilePathIsID: 'context.md',
+                    outgoingEdges: [],
+                    contentWithoutYamlOrLinks: '# Context Node',
+                    nodeUIMetadata: {
+                        color: O.none,
+                        position: O.some({ x: 50, y: 50 }),
+                        additionalYAMLProps: new Map(),
+                        isContextNode: true
+                    }
+                }
+            }
+        }
+
+        const result: GraphDelta = computeMergeGraphDelta(['node1.md', 'node2.md', 'context.md'], graph)
+
+        // Should have 3 deltas: 1 UpsertNode for representative, 2 DeleteNode for regular nodes
+        // Context node should NOT be deleted or included in merge
+        expect(result).toHaveLength(3)
+
+        // First should be UpsertNode for representative
+        expect(result[0].type).toBe('UpsertNode')
+        if (result[0].type === 'UpsertNode') {
+            // Content should only include non-context nodes
+            expect(result[0].nodeToUpsert.contentWithoutYamlOrLinks).toContain('# Regular Node 1')
+            expect(result[0].nodeToUpsert.contentWithoutYamlOrLinks).toContain('# Regular Node 2')
+            expect(result[0].nodeToUpsert.contentWithoutYamlOrLinks).not.toContain('# Context Node')
+        }
+
+        // Only regular nodes should be deleted
+        const deleteActions = result.filter((d) => d.type === 'DeleteNode')
+        expect(deleteActions).toHaveLength(2)
+        const deletedIds = deleteActions.map((d) => d.type === 'DeleteNode' ? d.nodeId : '')
+        expect(deletedIds).toContain('node1.md')
+        expect(deletedIds).toContain('node2.md')
+        expect(deletedIds).not.toContain('context.md')
+    })
+
+    it('should return empty delta when only context nodes are selected', () => {
+        const graph: Graph = {
+            nodes: {
+                'context1.md': {
+                    relativeFilePathIsID: 'context1.md',
+                    outgoingEdges: [],
+                    contentWithoutYamlOrLinks: '# Context 1',
+                    nodeUIMetadata: {
+                        color: O.none,
+                        position: O.some({ x: 0, y: 0 }),
+                        additionalYAMLProps: new Map(),
+                        isContextNode: true
+                    }
+                },
+                'context2.md': {
+                    relativeFilePathIsID: 'context2.md',
+                    outgoingEdges: [],
+                    contentWithoutYamlOrLinks: '# Context 2',
+                    nodeUIMetadata: {
+                        color: O.none,
+                        position: O.some({ x: 100, y: 100 }),
+                        additionalYAMLProps: new Map(),
+                        isContextNode: true
+                    }
+                }
+            }
+        }
+
+        const result: GraphDelta = computeMergeGraphDelta(['context1.md', 'context2.md'], graph)
+
+        // Should return empty delta since all selected nodes are context nodes
+        expect(result).toEqual([])
+    })
 })
