@@ -143,6 +143,24 @@ export class HotkeyManager {
       modifiers: ['Meta'],
       onPress: callbacks.runTerminal
     });
+
+    // Command + Z: Undo (no callback needed - calls main process directly)
+    this.registerHotkey({
+      key: 'z',
+      modifiers: ['Meta'],
+      onPress: async () => {
+        await window.electronAPI?.main.performUndo()
+      }
+    });
+
+    // Command + Shift + Z: Redo (no callback needed - calls main process directly)
+    this.registerHotkey({
+      key: 'z',
+      modifiers: ['Meta', 'Shift'],
+      onPress: async () => {
+        await window.electronAPI?.main.performRedo()
+      }
+    });
   }
 
   /**
