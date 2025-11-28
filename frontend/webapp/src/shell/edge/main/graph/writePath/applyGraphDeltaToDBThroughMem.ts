@@ -4,6 +4,7 @@ import {pipe} from 'fp-ts/lib/function.js'
 import {applyGraphDeltaToGraph, type Env, type GraphDelta} from '@/pure/graph'
 import {apply_graph_deltas_to_db} from '@/shell/edge/main/graph/graphActionsToDBEffects'
 import {getGraph, getVaultPath, setGraph} from '@/shell/edge/main/state/graph-store'
+import {recordUserAction} from '@/shell/edge/main/state/undo-store'
 import type {Either} from "fp-ts/es6/Either";
 
 /**
@@ -19,7 +20,15 @@ import type {Either} from "fp-ts/es6/Either";
  * Per architecture: Pure core returns effects, impure shell executes them.
  * We update the UI immediately to avoid waiting for file watcher events.
  */
-export async function applyGraphDeltaToDBThroughMem(delta: GraphDelta): Promise<void> {
+export async function applyGraphDeltaToDBThroughMem(
+    delta: GraphDelta,
+    recordForUndo: boolean = true
+): Promise<void> {
+    // Record for undo BEFORE applying (so we can reverse from current state)
+    if (recordForUndo) {
+        recordUserAction(delta)
+    }
+
     // DO NOT Notify UI of the change here (fs events will do it)
     // and most paths would have done optimistic ui updates already.
     // it would cause bugs to send a graph-state change, as we haven't yet made it idempotent for markdown editors

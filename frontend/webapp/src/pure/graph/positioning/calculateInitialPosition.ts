@@ -6,7 +6,7 @@ import {
     polarToCartesian,
     SPAWN_RADIUS
 } from "@/pure/graph/positioning/angularPositionSeeding";
-import {findFirstParentNode} from "@/pure/graph/graph-operations /findFirstParentNode";
+import {findFirstParentNode} from "@/pure/graph/graph-operations/findFirstParentNode";
 
 /**
  * Calculate initial position for a new child node (pure function)

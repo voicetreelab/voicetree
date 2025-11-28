@@ -3,12 +3,12 @@ import * as RTE from 'fp-ts/lib/ReaderTaskEither.js'
 import { applyGraphDeltaToGraph } from './graphDelta/applyGraphDeltaToGraph'
 import { mapNewGraphToDelta } from './graphDelta/mapNewGraphtoDelta'
 import { stripDeltaForReplay } from './graphDelta/stripDeltaForReplay'
-import { setOutgoingEdges } from './graph-operations /graph-edge-operations'
-import { reverseGraphEdges } from './graph-operations /graph-transformations'
-import { prettyPrintGraphDelta } from './graph-operations /prettyPrint'
+import { setOutgoingEdges } from './graph-operations/graph-edge-operations'
+import { reverseGraphEdges } from './graph-operations/graph-transformations'
+import { prettyPrintGraphDelta } from './graph-operations/prettyPrint'
 import { graphToAscii } from './markdown-writing/graphToAscii'
-import { getSubgraphByDistance } from './graph-operations /traversal/getSubgraphByDistance'
-import { getNodeIdsInTraversalOrder } from './graph-operations /traversal/getNodeIdsInTraversalOrder'
+import { getSubgraphByDistance } from './graph-operations/traversal/getSubgraphByDistance'
+import { getNodeIdsInTraversalOrder } from './graph-operations/traversal/getNodeIdsInTraversalOrder'
 import { mapFSEventsToGraphDelta } from './mapFSEventsToGraphDelta'
 
 
@@ -107,11 +107,13 @@ export type NodeDelta = UpsertNodeAction | DeleteNode
 export interface UpsertNodeAction {
     readonly type: 'UpsertNode'
     readonly nodeToUpsert: GraphNode
+    readonly previousNode?: GraphNode  // undefined = new node, defined = update
 }
 
 export interface DeleteNode {
     readonly type: 'DeleteNode'
     readonly nodeId: NodeIdAndFilePath
+    readonly deletedNode?: GraphNode   // For undo - full node that was deleted
 }
 
 
@@ -195,20 +197,20 @@ void (stripDeltaForReplay satisfies StripDeltaForReplay)
 export { mapFSEventsToGraphDelta } from './mapFSEventsToGraphDelta'
 void (mapFSEventsToGraphDelta satisfies MapFSEventsToGraphDelta)
 
-export { setOutgoingEdges } from './graph-operations /graph-edge-operations'
+export { setOutgoingEdges } from './graph-operations/graph-edge-operations'
 void (setOutgoingEdges satisfies SetOutgoingEdges)
 
-export { reverseGraphEdges } from './graph-operations /graph-transformations'
+export { reverseGraphEdges } from './graph-operations/graph-transformations'
 void (reverseGraphEdges satisfies ReverseGraphEdges)
 
-export { getSubgraphByDistance } from './graph-operations /traversal/getSubgraphByDistance'
+export { getSubgraphByDistance } from './graph-operations/traversal/getSubgraphByDistance'
 void (getSubgraphByDistance satisfies GetSubgraphByDistance)
 
 export { graphToAscii } from './markdown-writing/graphToAscii'
 void (graphToAscii satisfies GraphToAscii)
 
-export { getNodeIdsInTraversalOrder } from './graph-operations /traversal/getNodeIdsInTraversalOrder'
+export { getNodeIdsInTraversalOrder } from './graph-operations/traversal/getNodeIdsInTraversalOrder'
 void (getNodeIdsInTraversalOrder satisfies GetNodeIdsInTraversalOrder)
 
-export { prettyPrintGraphDelta } from './graph-operations /prettyPrint'
+export { prettyPrintGraphDelta } from './graph-operations/prettyPrint'
 void (prettyPrintGraphDelta satisfies PrettyPrintGraphDelta)
