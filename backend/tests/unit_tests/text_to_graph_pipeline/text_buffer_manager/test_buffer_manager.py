@@ -174,3 +174,37 @@ should work for one word at start / middle / end of buffer. Should work for sent
         assert "The dog sat on the mat." in remaining  # Last sentence should remain
         assert "The cat sits on the mat." not in remaining  # Middle should be removed
 
+    def test_force_flush_returns_buffer_below_threshold(self):
+        """Test that forceFlush returns buffer content even when below threshold"""
+        buffer_manager = TextBufferManager()
+        buffer_manager.init(bufferFlushLength=100)  # High threshold
+
+        # Add text below threshold
+        buffer_manager.addText("Short text")  # Only 10 chars, way below 100
+
+        # Normal getBufferTextWhichShouldBeProcessed should return empty
+        assert buffer_manager.getBufferTextWhichShouldBeProcessed() == ""
+
+        # But forceFlush should return the content
+        result = buffer_manager.forceFlush()
+        assert result == "Short text"
+
+    def test_force_flush_returns_empty_for_empty_buffer(self):
+        """Test that forceFlush returns empty string when buffer is empty"""
+        buffer_manager = TextBufferManager()
+        buffer_manager.init(bufferFlushLength=100)
+
+        # Empty buffer
+        result = buffer_manager.forceFlush()
+        assert result == ""
+
+    def test_force_flush_returns_empty_for_whitespace_only_buffer(self):
+        """Test that forceFlush returns empty string when buffer is whitespace only"""
+        buffer_manager = TextBufferManager()
+        buffer_manager.init(bufferFlushLength=100)
+
+        buffer_manager.addText("   ")  # Whitespace only
+
+        result = buffer_manager.forceFlush()
+        assert result == ""
+
