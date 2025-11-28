@@ -194,3 +194,125 @@ button.graph-button:hover > svg > path {
 button.graph-button:disabled > svg > path {
     opacity: 0.3;
 }
+
+/* ============================================================================
+ * macOS Title Bar Drag Region
+ * When titleBarStyle: 'hiddenInset' is enabled, web content extends into the
+ * title bar. This region allows window dragging via double-click to maximize.
+ * ============================================================================ */
+
+.title-bar-drag-region {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 38px; /* macOS title bar height */
+    -webkit-app-region: drag; /* Make this region draggable */
+    z-index: 1099; /* Above floating windows (1000) but below tabs */
+    pointer-events: auto;
+}
+
+/* ============================================================================
+ * Recent Node Tabs Bar - Title bar area tabs for quick navigation
+ * ============================================================================ */
+
+.recent-tabs-bar {
+    position: absolute;
+    top: 8px;
+    left: 80px; /* Offset for macOS window controls (close/minimize/maximize) */
+    display: flex;
+    align-items: center;
+    z-index: 1100; /* Above floating windows (1000) so tabs aren't obscured */
+    height: 28px;
+    max-width: calc(100% - 200px); /* Leave space for window controls and other UI */
+    pointer-events: auto;
+    -webkit-app-region: no-drag; /* Allow clicking tabs instead of dragging window */
+}
+
+.recent-tabs-scroll {
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: var(--background-modifier-border, #444) transparent;
+    -webkit-overflow-scrolling: touch;
+    padding: 2px 4px 2px 24px; /* Extra left padding for leftmost tab */
+}
+
+/* Webkit scrollbar styling */
+.recent-tabs-scroll::-webkit-scrollbar {
+    height: 4px;
+}
+
+.recent-tabs-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.recent-tabs-scroll::-webkit-scrollbar-thumb {
+    background: var(--background-modifier-border, #444);
+    border-radius: 2px;
+}
+
+.recent-tabs-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted, #666);
+}
+
+/* Individual tab button */
+.recent-tab {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: 120px;
+    min-width: 120px;
+    max-width: 120px;
+    height: 24px;
+    padding: 0 8px;
+    background: var(--background-secondary, #2a2a2a);
+    border: 1px solid var(--background-modifier-border, #333);
+    border-radius: 4px;
+    cursor: pointer;
+    overflow: hidden;
+    flex-shrink: 0;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.recent-tab:hover {
+    background: var(--background-modifier-hover, #3a3a3a);
+    border-color: var(--text-muted, #666);
+}
+
+.recent-tab:active {
+    background: var(--background-modifier-active, #4a4a4a);
+}
+
+/* Tab text - horizontally scrollable within fixed width */
+.recent-tab-text {
+    display: block;
+    white-space: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none; /* Firefox */
+    font-size: 12px;
+    color: var(--text-normal, #ddd);
+    line-height: 1.2;
+}
+
+.recent-tab-text::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+}
+
+/* Light mode overrides */
+:root:not(.dark) .recent-tab {
+    background: var(--background-secondary, #f5f5f5);
+    border-color: var(--background-modifier-border, #ddd);
+}
+
+:root:not(.dark) .recent-tab:hover {
+    background: var(--background-modifier-hover, #eee);
+}
+
+:root:not(.dark) .recent-tab-text {
+    color: var(--text-normal, #333);
+}
