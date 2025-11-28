@@ -1,7 +1,7 @@
 /**
  * Setup cytoscape layout, event handlers, context menu, and test helpers
  */
-import type {Core, NodeSingular} from 'cytoscape';
+import type {Core, NodeSingular, NodeDefinition} from 'cytoscape';
 import type {Graph, NodeIdAndFilePath} from '@/pure/graph';
 import {HorizontalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService';
 import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService';
@@ -40,7 +40,8 @@ export function setupCytoscape(params: SetupCytoscapeParams): {
     // Listen to layout completion
     cy.on('layoutstop', () => {
         console.log('[VoiceTreeGraphView] Layout stopped, saving positions...');
-        // saveNodePositions();
+        // Note: @types/cytoscape incorrectly types jsons() as string[] - it actually returns NodeDefinition[]
+        void window.electronAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);
         onLayoutComplete();
     });
 
