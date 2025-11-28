@@ -16,7 +16,6 @@ export interface TerminalData {
     initial_spawn_directory?: string;
     initialCommand?: string;
     executeCommand?: boolean;
-    floatingWindow?: FloatingWindowData;
 }
 export type TerminalId = string;
 
