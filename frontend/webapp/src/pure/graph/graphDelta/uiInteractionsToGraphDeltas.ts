@@ -1,6 +1,6 @@
 import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath, Position} from '@/pure/graph'
 import {calculateInitialPositionForChild} from "@/pure/graph/positioning/calculateInitialPosition";
-import {addOutgoingEdge} from "@/pure/graph/graph-operations /graph-edge-operations";
+import {addOutgoingEdge} from "@/pure/graph/graph-operations/graph-edge-operations";
 import * as O from "fp-ts/lib/Option.js";
 import {parseMarkdownToGraphNode} from "@/pure/graph/markdown-parsing/parse-markdown-to-node";
 
@@ -47,11 +47,13 @@ export function fromCreateChildToUpsertNode(
     return [
         {
             type: 'UpsertNode',
-            nodeToUpsert: newNode
+            nodeToUpsert: newNode,
+            previousNode: undefined  // New node - no previous state
         },
         {
             type: 'UpsertNode',
-            nodeToUpsert: updatedParentNode
+            nodeToUpsert: updatedParentNode,
+            previousNode: parentNode  // Capture parent's state before edge was added
         }
     ]
 }
@@ -62,13 +64,16 @@ export function fromContentChangeToGraphDelta(
     content: string,
     graph: Graph,
 ): GraphDelta {
+    // Look up current state from graph for previousNode
+    const previousNode: GraphNode | undefined = graph.nodes[node.relativeFilePathIsID]
     // Extract wikilinks from new content and update outgoingEdges
     // This ensures markdown is the source of truth for edges
     const nodeUpdated: GraphNode = parseMarkdownToGraphNode(content, node.relativeFilePathIsID, graph)
     // todo review if this new logic works
     return [{
         type: 'UpsertNode',
-        nodeToUpsert: nodeUpdated
+        nodeToUpsert: nodeUpdated,
+        previousNode  // Capture what it was before
     }]
 }
 
@@ -76,12 +81,14 @@ export function fromContentChangeToGraphDelta(
  * Creates a DeleteNode action.
  *
  * @param nodeId - ID of the node to delete
+ * @param deletedNode - Optional: the node being deleted (for undo support)
  * @returns A GraphDelta with the DeleteNode action
  */
-export function createDeleteNodeAction(nodeId: string): GraphDelta {
+export function createDeleteNodeAction(nodeId: string, deletedNode?: GraphNode): GraphDelta {
     return [{
         type: 'DeleteNode',
-        nodeId
+        nodeId,
+        deletedNode  // Capture the node for potential undo
     }]
 }
 
@@ -111,7 +118,8 @@ export function createNewNodeNoParent(pos: Position): { readonly newNode: GraphN
     const graphDelta: GraphDelta = [
         {
             type: 'UpsertNode',
-            nodeToUpsert: newNode
+            nodeToUpsert: newNode,
+            previousNode: undefined  // New node - no previous state
         },
     ]
     return {newNode, graphDelta};
