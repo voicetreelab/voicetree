@@ -11,14 +11,21 @@ export function stripDeltaForReplay(delta: GraphDelta): GraphDelta {
 
 function stripNodeDelta(nodeDelta: NodeDelta): NodeDelta {
     if (nodeDelta.type === 'DeleteNode') {
-        // DeleteNode only has nodeId, nothing to strip
-        return nodeDelta
+        // DeleteNode - strip deletedNode (contains full content)
+        return {
+            type: 'DeleteNode',
+            nodeId: nodeDelta.nodeId
+            // deletedNode intentionally omitted for privacy
+        }
     }
 
-    // UpsertNode - strip content from the node
+    // UpsertNode - strip content from the node and previousNode
     return {
         type: 'UpsertNode',
-        nodeToUpsert: stripGraphNodeContent(nodeDelta.nodeToUpsert)
+        nodeToUpsert: stripGraphNodeContent(nodeDelta.nodeToUpsert),
+        previousNode: nodeDelta.previousNode !== undefined
+            ? stripGraphNodeContent(nodeDelta.previousNode)
+            : undefined
     }
 }
 

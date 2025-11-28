@@ -2,11 +2,16 @@ import type {FSUpdate, Graph, GraphDelta, GraphNode, NodeIdAndFilePath, UpsertNo
 import path from 'path'
 import {parseMarkdownToGraphNode} from '@/pure/graph/markdown-parsing/parse-markdown-to-node'
 import {linkMatchScore, findBestMatchingNode} from '@/pure/graph/markdown-parsing/extract-edges'
-import {setOutgoingEdges} from '@/pure/graph/graph-operations /graph-edge-operations'
+import {setOutgoingEdges} from '@/pure/graph/graph-operations/graph-edge-operations'
 import {filenameToNodeId} from '@/pure/graph/markdown-parsing/filename-utils'
 
-function healNodeEdges(affectedNodeIds: readonly NodeIdAndFilePath[], currentGraph: Graph, graphWithNewNode: Graph): readonly GraphNode[] {
-    const healedNodes: readonly GraphNode[] = affectedNodeIds.map((affectedNodeId) => {
+interface HealedNodeWithPrevious { //todo unnecessary
+    readonly healedNode: GraphNode
+    readonly previousNode: GraphNode
+}
+
+function healNodeEdges(affectedNodeIds: readonly NodeIdAndFilePath[], currentGraph: Graph, graphWithNewNode: Graph): readonly HealedNodeWithPrevious[] {
+    const healedNodes: readonly HealedNodeWithPrevious[] = affectedNodeIds.map((affectedNodeId) => {
         const affectedNode: GraphNode = currentGraph.nodes[affectedNodeId]
 
         // Re-resolve the existing edges against the updated graph
@@ -19,7 +24,10 @@ function healNodeEdges(affectedNodeIds: readonly NodeIdAndFilePath[], currentGra
             }
         })
 
-        return setOutgoingEdges(affectedNode, healedEdges)
+        return {
+            healedNode: setOutgoingEdges(affectedNode, healedEdges),
+            previousNode: affectedNode  // Capture previous state before edge healing
+        } // todo do we really need to return here? can we not in whoever calls this function return the old as well?
     })
     return healedNodes;
 }
@@ -70,6 +78,9 @@ export function addNodeToGraph(
     const absoluteFilePathMadeRelativeToVault: string = extractNodeIdFromPath(fsEvent.absolutePath, vaultPath)
     const newNode: GraphNode = parseMarkdownToGraphNode(fsEvent.content, absoluteFilePathMadeRelativeToVault, currentGraph) // todo this should take graph
 
+    // Check if this is a new node or an update to an existing node
+    const previousNode: GraphNode | undefined = currentGraph.nodes[absoluteFilePathMadeRelativeToVault]
+
     const affectedNodeIds: readonly string[] = findNodesWithPotentialEdgesToNode(newNode, currentGraph)
 
     // Step 6: Create temporary graph with new node for edge re-validation
@@ -83,14 +94,15 @@ export function addNodeToGraph(
     // Step 7: Re-validate edges for each affected node (healing)
     // Nodes already have edges with raw targetIds from parseMarkdownToGraphNode
     // We just need to re-resolve those raw targetIds against the updated graph
-    const healedNodes: readonly GraphNode[] = healNodeEdges(affectedNodeIds, currentGraph, graphWithNewNode);
+    const healedNodesWithPrevious: readonly HealedNodeWithPrevious[] = healNodeEdges(affectedNodeIds, currentGraph, graphWithNewNode);
 
     // Step 8: Return GraphDelta with new node + all healed nodes
     const upsertActions: readonly UpsertNodeAction[] = [
-        {type: 'UpsertNode', nodeToUpsert: newNode},
-        ...healedNodes.map((healedNode) => ({
+        {type: 'UpsertNode', nodeToUpsert: newNode, previousNode},
+        ...healedNodesWithPrevious.map(({healedNode, previousNode}) => ({
             type: 'UpsertNode' as const,
-            nodeToUpsert: healedNode
+            nodeToUpsert: healedNode,
+            previousNode
         }))
     ]
 

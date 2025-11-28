@@ -1,5 +1,5 @@
 import type {Graph, GraphDelta, GraphNode} from '@/pure/graph'
-import {removeOutgoingEdge} from '@/pure/graph/graph-operations /graph-edge-operations'
+import {removeOutgoingEdge} from '@/pure/graph/graph-operations/graph-edge-operations'
 
 /**
  * Apply a GraphDelta to a Graph, producing a new Graph.
