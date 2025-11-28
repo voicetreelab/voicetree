@@ -121,12 +121,16 @@ export class GraphNavigationService {
       // Use 9% of viewport for search results (was 125px on 1440p)
       cy.fit(node, getResponsivePadding(cy, 9));
 
+      // Select the node (deselect others first for clean single-selection)
+      cy.$(':selected').unselect();
+      node.select();
+
       // Flash the node to indicate selection
       node.addClass('highlighted');
       setTimeout(() => {
         node.removeClass('highlighted');
       }, 1000);
-      console.log('[GraphNavigationService] GraphNode fitted and highlighted');
+      console.log('[GraphNavigationService] GraphNode fitted, selected, and highlighted');
     } else {
       console.warn('[GraphNavigationService] GraphNode not found for relativeFilePathIsID:', nodeId);
     }
