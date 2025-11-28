@@ -301,7 +301,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             onToggleDarkMode: () => this.toggleDarkMode(),
             onBackup: () => { void spawnBackupTerminal(this.cy); },
             onSettings: () => void createSettingsEditor(this.cy),
-            onAbout: () => console.log('[SpeedDial] About clicked'),
+            onAbout: () => window.open('https://voicetree.io', '_blank'),
             isDarkMode: this._isDarkMode,
         });
 
