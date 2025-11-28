@@ -52,7 +52,8 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
             settingsJson,
             {
                 autosaveDelay: 300,
-                darkMode: document.documentElement.classList.contains('dark')
+                darkMode: document.documentElement.classList.contains('dark'),
+                language: 'json'
             }
         );
 
@@ -80,14 +81,17 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
         const vanillaInstances: Map<string, { dispose: () => void; }> = new Map<string, { dispose: () => void }>();
         vanillaInstances.set(settingsId, editor);
 
-        // Position window in center of current viewport (same as backup terminal)
+        // Position window in center of current viewport
+        // Scale dimensions inversely with zoom so editor appears same size on screen
         const pan: Position = cy.pan();
         const zoom: number = cy.zoom();
         const centerX: number = (cy.width() / 2 - pan.x) / zoom;
         const centerY: number = (cy.height() / 2 - pan.y) / zoom;
 
-        const windowWidth: 600 = 600 as const;
-        const windowHeight: 400 = 400 as const;
+        const baseWidth: number = 600;
+        const baseHeight: number = 400;
+        const windowWidth: number = baseWidth / zoom;
+        const windowHeight: number = baseHeight / zoom;
         windowElement.style.left = `${centerX - windowWidth / 2}px`;
         windowElement.style.top = `${centerY - windowHeight / 2}px`;
         windowElement.style.width = `${windowWidth}px`;

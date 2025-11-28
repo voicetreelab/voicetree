@@ -502,3 +502,37 @@ But it is not at the start`;
     });
   });
 });
+
+describe('JSON language mode', () => {
+  let container: HTMLElement;
+  let editor: CodeMirrorEditorView;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+  });
+
+  afterEach(() => {
+    if (editor && !editor.isDisposed) {
+      editor.dispose();
+    }
+    if (container.parentNode) {
+      document.body.removeChild(container);
+    }
+  });
+
+  it('should create editor in JSON mode and handle content correctly', async () => {
+    const jsonContent: string = '{"key": "value", "number": 42}';
+
+    editor = new CodeMirrorEditorView(container, jsonContent, { language: 'json' });
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    expect(editor.getValue()).toBe(jsonContent);
+
+    // Verify setValue works
+    const newJson: string = '{"updated": true}';
+    editor.setValue(newJson);
+    expect(editor.getValue()).toBe(newJson);
+  });
+});

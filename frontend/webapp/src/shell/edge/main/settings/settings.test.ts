@@ -42,7 +42,7 @@ describe('settings', () => {
 
     const customSettings: VTSettings = {
       terminalSpawnPathRelativeToWatchedDirectory: '/custom/path',
-      agentCommand: 'custom-command.sh',
+      agents: [{ name: 'Custom Agent', command: 'custom-command.sh' }],
       shiftEnterSendsOptionEnter: false
     };
 
@@ -55,7 +55,7 @@ describe('settings', () => {
   it('should persist data correctly', async () => {
     const customSettings: VTSettings = {
       terminalSpawnPathRelativeToWatchedDirectory: '/test/path',
-      agentCommand: 'test.sh',
+      agents: [{ name: 'Test Agent', command: 'test.sh' }],
       shiftEnterSendsOptionEnter: true
     };
 
@@ -72,7 +72,7 @@ describe('settings', () => {
 
     const settings: VTSettings = {
       terminalSpawnPathRelativeToWatchedDirectory: '/another/path',
-      agentCommand: 'another.sh',
+      agents: [{ name: 'Another Agent', command: 'another.sh' }],
       shiftEnterSendsOptionEnter: true
     };
 

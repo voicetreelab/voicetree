@@ -45,6 +45,8 @@ export interface CodeMirrorEditorOptions {
   previewMode?: 'edit' | 'live' | 'preview';
   darkMode?: boolean;
   autosaveDelay?: number;
+  /** Language mode: 'markdown' (default) for rich markdown editing, 'json' for JSON syntax highlighting */
+  language?: 'markdown' | 'json';
 }
 
 /**
@@ -104,8 +106,10 @@ export class CodeMirrorEditorView extends Disposable {
       parent: container
     });
 
-    // Auto-fold frontmatter on initialization
-    this.autoFoldFrontmatter();
+    // Auto-fold frontmatter on initialization (only for markdown mode)
+    if (this.options.language !== 'json') {
+      this.autoFoldFrontmatter();
+    }
 
     // Setup dark mode observer if needed
     this.setupDarkModeObserver();
@@ -115,6 +119,11 @@ export class CodeMirrorEditorView extends Disposable {
    * Create CodeMirror extensions array
    */
   private createExtensions(): Extension[] {
+    // For JSON mode, use a simpler set of extensions
+    if (this.options.language === 'json') {
+      return this.createJsonExtensions();
+    }
+
     // Manually compose rich-markdoc extensions with yamlFrontmatter support
     // We can't use the richEditor() function because it always calls markdown() internally
     // Instead, we need to build the extensions ourselves:
@@ -184,6 +193,26 @@ export class CodeMirrorEditorView extends Disposable {
       mermaidRender(), // Render Mermaid diagrams in live preview
       frontmatterFoldService, // Custom fold service for frontmatter
       foldGutter(), // Add fold gutter for collapsing sections
+      EditorView.lineWrapping, // Enable text wrapping
+      this.setupUpdateListener()
+    ];
+
+    // Add dark mode theme if specified
+    if (this.options.darkMode) {
+      this.container.setAttribute('data-color-mode', 'dark');
+    }
+
+    return extensions;
+  }
+
+  /**
+   * Create simplified extensions for JSON editing mode
+   */
+  private createJsonExtensions(): Extension[] {
+    const extensions: Extension[] = [
+      basicSetup,
+      json(), // JSON language support with syntax highlighting
+      syntaxHighlighting(defaultHighlightStyle), // Code coloring
       EditorView.lineWrapping, // Enable text wrapping
       this.setupUpdateListener()
     ];
@@ -296,13 +325,12 @@ export class CodeMirrorEditorView extends Disposable {
 
   /**
    * Set editor content programmatically
-   * @param content - New markdown content
+   * @param content - New content
    */
   setValue(content: string): void {
-    // Check if current content has frontmatter
-    const oldContent: string = this.view.state.doc.toString();
-    const oldHasFrontmatter: boolean = this.hasFrontmatter(oldContent);
-    const newHasFrontmatter: boolean = this.hasFrontmatter(content);
+    // Check if current content has frontmatter (only for markdown mode)
+    const oldHasFrontmatter: boolean = this.options.language !== 'json' && this.hasFrontmatter(this.view.state.doc.toString());
+    const newHasFrontmatter: boolean = this.options.language !== 'json' && this.hasFrontmatter(content);
 
     const doc: Text = this.view.state.doc;
     this.view.dispatch({
@@ -313,7 +341,7 @@ export class CodeMirrorEditorView extends Disposable {
       }
     });
 
-    // Only auto-fold if this is NEW frontmatter (wasn't there before)
+    // Only auto-fold if this is NEW frontmatter (wasn't there before) - markdown mode only
     if (!oldHasFrontmatter && newHasFrontmatter) {
       this.autoFoldFrontmatter();
     }
