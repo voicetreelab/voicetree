@@ -44,6 +44,17 @@ import {
 import {HotkeyManager} from './HotkeyManager';
 import {SearchService} from './SearchService';
 import {GraphNavigationService} from './GraphNavigationService';
+// V2 recent node tabs - tracks recently added/modified nodes (not visited)
+import {
+    createRecentNodeTabsBarV2,
+    disposeRecentNodeTabsBarV2,
+    renderRecentNodeTabsV2
+} from './RecentNodeTabsBarV2';
+import {
+    updateHistoryFromDelta,
+    createEmptyHistory,
+    type RecentNodeHistory
+} from '@/pure/graph/recentNodeHistoryV2';
 import {createNewNodeAction, runTerminalAction} from '@/shell/UI/cytoscape-graph-ui/actions/graphActions';
 import {getResponsivePadding} from '@/utils/responsivePadding';
 import {SpeedDialSideGraphFloatingMenuView} from './SpeedDialSideGraphFloatingMenuView';
@@ -84,6 +95,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // State
     private _isDarkMode = false;
     private currentGraphState: Graph = {nodes: {}};
+    private recentNodeHistory: RecentNodeHistory = createEmptyHistory();
 
     // Graph subscription cleanup
     private cleanupGraphSubscription: (() => void) | null = null;
@@ -126,8 +138,12 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         this.navigationService = new GraphNavigationService(this.cy);
         this.searchService = new SearchService(
             this.cy,
-            (nodeId) => this.navigationService.handleSearchSelect(nodeId)
+            (nodeId) => this.navigateToNodeAndTrack(nodeId)
         );
+
+        // Initialize recent tabs bar V2 in title bar area
+        // V2 tracks recently added/modified nodes (not visited nodes)
+        createRecentNodeTabsBarV2(this.container);
 
         // Initialize Cytoscape
         this.setupCytoscape();
@@ -183,6 +199,12 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             // Update navigator visibility based on node count
             this.updateNavigatorVisibility();
 
+            // Update recent node history from delta and re-render tabs
+            this.recentNodeHistory = updateHistoryFromDelta(this.recentNodeHistory, delta);
+            renderRecentNodeTabsV2(
+                this.recentNodeHistory,
+                (nodeId) => this.navigationService.handleSearchSelect(nodeId)
+            );
         };
 
         const handleGraphClear: () => void = (): void => {
@@ -191,6 +213,13 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
             // Close all open floating editors
             closeAllEditors(this.cy);
+
+            // Clear recent node history and re-render (empty) tabs
+            this.recentNodeHistory = createEmptyHistory();
+            renderRecentNodeTabsV2(
+                this.recentNodeHistory,
+                (nodeId) => this.navigationService.handleSearchSelect(nodeId)
+            );
 
             if (this.emptyStateOverlay) {
                 this.emptyStateOverlay.style.display = 'flex';
@@ -261,6 +290,11 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         this.container.className = 'h-full w-full bg-background overflow-hidden relative';
         // Allow container to receive keyboard events
         this.container.setAttribute('tabindex', '0');
+
+        // Create title bar drag region for macOS (allows window dragging when titleBarStyle: 'hiddenInset')
+        const titleBarDragRegion = document.createElement('div');
+        titleBarDragRegion.className = 'title-bar-drag-region';
+        this.container.appendChild(titleBarDragRegion);
 
         // Create speed dial menu
         this.speedDialMenu = new SpeedDialSideGraphFloatingMenuView(this.container, {
@@ -533,6 +567,14 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         }
     }
 
+    /**
+     * Navigate to a node (used by search)
+     * V2: No longer tracks "visited" nodes - recent tabs now show recently added/modified nodes
+     */
+    navigateToNodeAndTrack(nodeId: string): void {
+        this.navigationService.handleSearchSelect(nodeId);
+    }
+
     getSelectedNodes(): string[] {
         const cy: cytoscape.Core = this.cy;
         return cy.$(':selected')
@@ -658,6 +700,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         this.hotkeyManager.dispose();
         disposeEditorManager(this.cy);
         this.searchService.dispose();
+        disposeRecentNodeTabsBarV2();
 
         // Dispose menu services
         if (this.horizontalMenuService) {
