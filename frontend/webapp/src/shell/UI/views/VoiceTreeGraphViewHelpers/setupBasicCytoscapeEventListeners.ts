@@ -13,11 +13,22 @@ export function setupBasicCytoscapeEventListeners(
   styleService: StyleService,
   container: HTMLElement
 ): void {
-  // Basic hover effects
+  // Basic hover effects with toggle selection
   cy.on('mouseover', 'node', (e) => {
     if (!e.target) return;
 
     const node: NodeSingular = e.target;
+
+    // Skip shadow nodes (floating windows) for selection toggle
+    if (!node.data('isShadowNode')) { // todo temp, this shouldn't be necessary, since shadow nodes have no display
+      // Toggle selection: if selected, deselect; if not selected, select
+      if (node.selected()) {
+        node.unselect();
+      } else {
+        node.select();
+      }
+    }
+
     cy.elements()
       .difference(node.closedNeighborhood())
       .addClass(CLASS_UNHOVER);
