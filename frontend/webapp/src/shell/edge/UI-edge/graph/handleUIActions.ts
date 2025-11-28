@@ -1,3 +1,5 @@
+// Import for global Window.electronAPI type declaration
+import type {} from '@/shell/electron';
 import type {
     Graph,
     GraphDelta,
@@ -7,7 +9,6 @@ import type {
     Position,
     UpsertNodeAction
 } from "@/pure/graph";
-// Import for global Window.electronAPI type declaration (prefixed to satisfy unused-vars rule)
 import {
     createDeleteNodeAction,
     createNewNodeNoParent,
@@ -16,7 +17,6 @@ import {
 } from "@/pure/graph/graphDelta/uiInteractionsToGraphDeltas";
 import type {Core} from 'cytoscape';
 import {applyGraphDeltaToUI} from "./applyGraphDeltaToUI";
-import {parseMarkdownToGraphNode} from "@/pure/graph/markdown-parsing";
 import {getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
 import * as O from 'fp-ts/lib/Option.js';
 

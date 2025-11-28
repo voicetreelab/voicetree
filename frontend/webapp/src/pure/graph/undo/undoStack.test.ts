@@ -5,8 +5,7 @@ import {
     pushUndo,
     popUndo,
     popRedo,
-    MAX_UNDO_SIZE,
-    type UndoState
+    MAX_UNDO_SIZE
 } from './undoStack'
 import type { GraphDelta, GraphNode } from '@/pure/graph'
 
@@ -98,12 +97,12 @@ describe('undoStack', () => {
 
             // Most recent (last pushed) should be first
             const mostRecentDelta = state.undoStack[0]
-            expect((mostRecentDelta[0] as { nodeToUpsert: GraphNode }).nodeToUpsert.relativeFilePathIsID)
+            expect((mostRecentDelta[0] as { readonly nodeToUpsert: GraphNode }).nodeToUpsert.relativeFilePathIsID)
                 .toBe(`node${MAX_UNDO_SIZE}.md`)
 
             // Oldest (first pushed, node0) should have been dropped
             const allNodeIds = state.undoStack.map(d =>
-                (d[0] as { nodeToUpsert: GraphNode }).nodeToUpsert.relativeFilePathIsID
+                (d[0] as { readonly nodeToUpsert: GraphNode }).nodeToUpsert.relativeFilePathIsID
             )
             expect(allNodeIds).not.toContain('node0.md')
         })
@@ -173,7 +172,7 @@ describe('undoStack', () => {
 
         it('removes and returns most recent delta from redo stack', () => {
             const delta = createTestDelta('test.md')
-            let state = pushUndo(createEmptyUndoState(), delta)
+            const state = pushUndo(createEmptyUndoState(), delta)
             const { newState: stateAfterUndo } = popUndo(state)
 
             const { newState, deltaToApply } = popRedo(stateAfterUndo)
@@ -184,7 +183,7 @@ describe('undoStack', () => {
 
         it('pushes redone delta back to undo stack', () => {
             const delta = createTestDelta('test.md')
-            let state = pushUndo(createEmptyUndoState(), delta)
+            const state = pushUndo(createEmptyUndoState(), delta)
             const { newState: stateAfterUndo } = popUndo(state)
             expect(stateAfterUndo.undoStack).toHaveLength(0)
 

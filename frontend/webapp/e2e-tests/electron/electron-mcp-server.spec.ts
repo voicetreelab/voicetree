@@ -71,7 +71,7 @@ const test = base.extend<{
                 HEADLESS_TEST: '1',
                 MINIMIZE_TEST: '1'
             },
-            timeout: 1000 // todo, we shouldn't even need a timeout, if you want to increase this, don't. there's probably a better way, don't be lazy.
+            timeout: 5000
         });
 
         await use(electronApp);

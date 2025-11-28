@@ -108,6 +108,8 @@ describe('Node Positioning Spacing - Integration', () => {
     expect(overlapPercentage).toBeLessThan(10)
   })
 
+  // KNOWN BUG: Child nodes spawn relative to stale graph model position instead of current Cytoscape position.
+  // This test documents the bug - enable once fromCreateChildToUpsertNode uses Cytoscape position.
   it('should investigate child node position: simulates bug where cytoscape position diverges from graph model', async () => {
     // GIVEN: Load example_real_large folder
     const exampleFolderPath: string = path.resolve(process.cwd(), 'example_folder_fixtures', 'example_real_large')

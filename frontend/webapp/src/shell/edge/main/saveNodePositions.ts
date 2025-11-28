@@ -1,7 +1,7 @@
 import type {NodeDefinition} from "cytoscape";
 import type {Graph, GraphNode} from "@/pure/graph";
 import {getGraph, setGraph} from "@/shell/edge/main/state/graph-store";
-import * as O from "fp-ts/Option";
+import * as O from "fp-ts/lib/Option.js";
 
 /**
  * Save node positions from Cytoscape UI back to graph state.
