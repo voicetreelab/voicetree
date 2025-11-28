@@ -32,6 +32,8 @@ autoUpdater.logger = log;
 if (autoUpdater.logger && 'transports' in autoUpdater.logger) {
   (autoUpdater.logger as typeof log).transports.file.level = 'info';
 }
+// Ensure updates are installed when the app quits naturally
+autoUpdater.autoInstallOnAppQuit = true;
 
 // Send update status messages to renderer process
 function sendUpdateStatusToWindow(text: string): void {
@@ -81,7 +83,14 @@ autoUpdater.on('update-downloaded', (info) => {
     }).then((result) => {
       if (result.response === 0) {
         // User chose "Restart Now"
-        autoUpdater.quitAndInstall();
+        // Use setImmediate to ensure dialog is fully released before quit
+        // Remove window-all-closed listeners to prevent them blocking the quit
+        // See: https://github.com/electron-userland/electron-builder/issues/1604
+        setImmediate(() => {
+          app.removeAllListeners('window-all-closed');
+          mainWindow.close();
+          autoUpdater.quitAndInstall(false, true); // (isSilent=false, isForceRunAfter=true)
+        });
       }
       // If user chose "Later", update will install on next natural app restart
     });
@@ -128,7 +137,9 @@ function createWindow(): void {
     height: 800,
     show: false,
     ...(process.platform !== 'darwin' && { icon: iconPath }),
-    // titleBarStyle: 'hiddenInset', //todo enable this later, but we need soemthing to be able to drag the window by and double click to maximize.
+    // macOS: extend web content into title bar (traffic lights remain visible)
+    // Requires -webkit-app-region: drag in CSS for draggable areas
+    ...(process.platform === 'darwin' && { titleBarStyle: 'hiddenInset' }),
     ...(process.env.MINIMIZE_TEST === '1' && {
       focusable: false,
       skipTaskbar: true
