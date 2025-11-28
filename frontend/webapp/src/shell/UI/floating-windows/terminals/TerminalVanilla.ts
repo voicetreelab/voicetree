@@ -5,7 +5,7 @@ import { ClipboardAddon } from '@xterm/addon-clipboard';
 import { SearchAddon } from '@xterm/addon-search';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import '@xterm/xterm/css/xterm.css';
-import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/types';
+import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/types-v2';
 import { FloatingWindowFullscreen } from '@/shell/UI/floating-windows/FloatingWindowFullscreen';
 import type { VTSettings } from '@/pure/settings';
 
