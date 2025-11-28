@@ -78,13 +78,14 @@ export function computeMergeGraphDelta(
     ]
 
     // 6. For each external source node, redirect all its edges that point into the subgraph
-    const updatedExternalNodes: readonly GraphNode[] = sourceNodeIdsWithIncomingEdges.map((sourceNodeId) => {
+    const updatedExternalNodesWithPrevious: readonly { readonly updatedNode: GraphNode; readonly previousNode: GraphNode }[] = sourceNodeIdsWithIncomingEdges.map((sourceNodeId) => {
+        const previousNode: GraphNode = graph.nodes[sourceNodeId]
         // Use reduce to redirect each edge that points to a non-context node
         const updatedNode: GraphNode = nonContextNodeIds.reduce(
             (node, selectedId) => redirectEdgeTarget(node, selectedId, newNodeId),
-            graph.nodes[sourceNodeId]
+            previousNode
         )
-        return updatedNode
+        return { updatedNode, previousNode }
     })
 
     // 7. Build the GraphDelta
@@ -92,17 +93,20 @@ export function computeMergeGraphDelta(
         // First, upsert the new representative node
         {
             type: 'UpsertNode',
-            nodeToUpsert: representativeNode
+            nodeToUpsert: representativeNode,
+            previousNode: undefined  // New node - no previous state
         },
         // Then, upsert all updated external nodes with redirected edges
-        ...updatedExternalNodes.map((node) => ({
+        ...updatedExternalNodesWithPrevious.map(({ updatedNode, previousNode }) => ({
             type: 'UpsertNode' as const,
-            nodeToUpsert: node
+            nodeToUpsert: updatedNode,
+            previousNode  // Capture previous state for undo
         })),
         // Finally, delete only the non-context nodes (context nodes are preserved)
         ...nonContextNodeIds.map((nodeId) => ({
             type: 'DeleteNode' as const,
-            nodeId
+            nodeId,
+            deletedNode: graph.nodes[nodeId]  // Capture for undo support
         }))
     ]
 
