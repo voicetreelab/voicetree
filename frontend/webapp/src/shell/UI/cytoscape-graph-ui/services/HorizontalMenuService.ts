@@ -7,6 +7,7 @@ import {
 import {getFilePathForNode, getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
 import {Plus, Play, Trash2, Pencil, Clipboard, MoreHorizontal, createElement, type IconNode} from 'lucide';
 import {getOrCreateOverlay} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows-v2";
+import type {AgentConfig} from "@/pure/settings";
 
 /** Menu item interface for the custom horizontal menu */
 interface HorizontalMenuItem {
@@ -149,17 +150,21 @@ export class HorizontalMenuService {
             // Use graph position (not rendered position) since menu is in the overlay
             const position: Position = node.position();
 
-            this.showMenu(node, position);
+            void this.showMenu(node, position);
         });
     }
 
-    private showMenu(node: NodeSingular, position: {x: number; y: number}): void {
+    private async showMenu(node: NodeSingular, position: {x: number; y: number}): Promise<void> {
         if (!this.cy || !this.deps) return;
 
         // Close any existing menu
         this.hideMenu();
 
-        const menuItems: HorizontalMenuItem[] = this.getNodeMenuItems(node);
+        // Load settings to get agents list
+        const settings: { agents?: AgentConfig[] } | null = await window.electronAPI.main.loadSettings();
+        const agents: AgentConfig[] = settings?.agents ?? [];
+
+        const menuItems: HorizontalMenuItem[] = this.getNodeMenuItems(node, agents);
         const overlay: HTMLElement = getOrCreateOverlay(this.cy);
 
         // Create menu container
@@ -234,7 +239,7 @@ export class HorizontalMenuService {
         }
     }
 
-    private getNodeMenuItems(node: NodeSingular): HorizontalMenuItem[] {
+    private getNodeMenuItems(node: NodeSingular, agents: AgentConfig[]): HorizontalMenuItem[] {
         if (!this.cy || !this.deps) return [];
 
         const menuItems: HorizontalMenuItem[] = [];
@@ -283,7 +288,7 @@ export class HorizontalMenuService {
             },
         });
 
-        // Expandable "more" menu with Edit and Copy
+        // Expandable "more" menu with Edit, Copy, and additional agents
         const moreSubMenu: HorizontalMenuItem[] = [
             {
                 icon: Pencil,
@@ -301,6 +306,18 @@ export class HorizontalMenuService {
                 },
             },
         ];
+
+        // Add non-default agents (skip first which is default, used by Run button)
+        for (const agent of agents.slice(1)) {
+            moreSubMenu.push({
+                icon: Play,
+                label: agent.name,
+                color: '#6366f1', // indigo to distinguish from default Run
+                action: async () => {
+                    await spawnTerminalWithNewContextNode(nodeId, this.cy!, agent.command);
+                },
+            });
+        }
         menuItems.push({
             icon: MoreHorizontal,
             label: 'More',

@@ -47,19 +47,27 @@ import type { VTSettings } from "@/pure/settings";
  *
  * @param parentNodeId - The parent node to create context for
  * @param cy - Cytoscape instance
+ * @param agentCommand - Optional agent command. If not provided, uses the default (first) agent from settings.
  */
 export async function spawnTerminalWithNewContextNode(
     parentNodeId: NodeIdAndFilePath,
     cy: Core,
+    agentCommand?: string,
 ): Promise<void> {
     const terminalsMap: Map<TerminalId, TerminalData> = getTerminals();
 
-    // Load settings to get the agentCommand
+    // Load settings to get agents
     const settings: VTSettings = await window.electronAPI.main.loadSettings();
     if (!settings) {
         throw Error(`Failed to load settings for ${parentNodeId}`);
     }
-    const agentCommand: string = settings.agentCommand;
+
+    // Use provided command or default to first agent
+    const agents: readonly { readonly name: string; readonly command: string }[] = settings.agents ?? [];
+    const command: string = agentCommand ?? agents[0]?.command ?? '';
+    if (!command) {
+        throw Error('No agent command available - settings.agents is empty or undefined');
+    }
 
     // Check if the parent node is already a context node - if so, reuse it
     const parentNode: GraphNode = await getNodeFromMainToUI(parentNodeId);
@@ -111,13 +119,13 @@ export async function spawnTerminalWithNewContextNode(
         terminalCount: terminalCount,
         title: title,
         anchoredToNodeId: contextNodeId, // Will be wrapped in O.some by factory
-        initialCommand: agentCommand,
+        initialCommand: command,
         executeCommand: true,
         initialSpawnDirectory: initialSpawnDirectory,
         initialEnvVars: {
             VOICETREE_APP_SUPPORT: appSupportPath ?? '',
             CONTEXT_NODE_PATH: await getFilePathForNode(contextNodeId) ?? contextNodeId,
-            context_node_content: contextContent,
+            CONTEXT_NODE_CONTENT: contextContent,
         },
     });
 
@@ -213,13 +221,6 @@ export function createFloatingTerminalWindow(
         executeCommand: terminalData.executeCommand,
         initial_spawn_directory: terminalData.initialSpawnDirectory,
         initialEnvVars: terminalData.initialEnvVars,
-        floatingWindow: {
-            anchoredToNodeId: O.isSome(terminalData.anchoredToNodeId) ? terminalData.anchoredToNodeId.value : undefined,
-            associatedTerminalOrEditorID: terminalId,
-            component: 'Terminal',
-            title: terminalData.title,
-            resizable: terminalData.resizable,
-        }
     };
 
     const terminal: TerminalVanilla = new TerminalVanilla({
