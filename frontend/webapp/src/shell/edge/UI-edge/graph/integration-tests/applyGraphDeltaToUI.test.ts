@@ -12,8 +12,17 @@ import type {Core} from 'cytoscape';
 import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
-import type { GraphDelta, GraphNode } from '@/pure/graph'
+import type { GraphDelta, GraphNode, UpsertNodeDelta, DeleteNode } from '@/pure/graph'
 import { BreathingAnimationService, AnimationType } from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService'
+
+// Helper functions to create delta actions with required Option fields
+function upsert(node: GraphNode): UpsertNodeDelta {
+    return { type: 'UpsertNode', nodeToUpsert: node, previousNode: O.none }
+}
+
+function del(nodeId: string): DeleteNode {
+    return { type: 'DeleteNode', nodeId, deletedNode: O.none }
+}
 
 describe('applyGraphDeltaToUI - Integration', () => {
     let cy: Core
@@ -52,7 +61,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
             const parentDelta: GraphDelta = [
                 {
                     type: 'UpsertNode',
-                    nodeToUpsert: parentNode
+                    nodeToUpsert: parentNode,
+                    previousNode: O.none
                 }
             ]
 
@@ -79,14 +89,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const childDelta: GraphDelta = [
-                {
-                    type: 'UpsertNode',
-                    nodeToUpsert: childNode
-                },
-                {
-                    type: 'UpsertNode',
-                    nodeToUpsert: parentWithEdge
-                }
+                upsert(childNode),
+                upsert(parentWithEdge)
             ]
 
             // WHEN: Applying the delta
@@ -301,9 +305,9 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const bulkDelta: GraphDelta = [
-                { type: 'UpsertNode', nodeToUpsert: node1 },
-                { type: 'UpsertNode', nodeToUpsert: node2 },
-                { type: 'UpsertNode', nodeToUpsert: node3 }
+                upsert(node1),
+                upsert(node2),
+                upsert(node3)
             ]
 
             applyGraphDeltaToUI(cy, bulkDelta)
@@ -350,8 +354,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const setupDelta: GraphDelta = [
-                { type: 'UpsertNode', nodeToUpsert: existingNode },
-                { type: 'UpsertNode', nodeToUpsert: nodeToDelete }
+                upsert(existingNode),
+                upsert(nodeToDelete)
             ]
 
             applyGraphDeltaToUI(cy, setupDelta)
@@ -385,9 +389,9 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const mixedDelta: GraphDelta = [
-                { type: 'UpsertNode', nodeToUpsert: newNode },
-                { type: 'UpsertNode', nodeToUpsert: updatedExisting },
-                { type: 'DeleteNode', nodeId: 'to-delete' }
+                upsert(newNode),
+                upsert(updatedExisting),
+                del('to-delete')
             ]
 
             applyGraphDeltaToUI(cy, mixedDelta)
@@ -439,8 +443,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const delta1: GraphDelta = [
-                { type: 'UpsertNode', nodeToUpsert: parent },
-                { type: 'UpsertNode', nodeToUpsert: child }
+                upsert(parent),
+                upsert(child)
             ]
 
             applyGraphDeltaToUI(cy, delta1)
@@ -488,9 +492,9 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             // WHEN: Same parent node appears twice in the same delta (simulates healing scenario)
             const deltaWithDuplicateNode: GraphDelta = [
-                { type: 'UpsertNode', nodeToUpsert: child },
-                { type: 'UpsertNode', nodeToUpsert: parent },
-                { type: 'UpsertNode', nodeToUpsert: parent }  // Parent appears again (healed)
+                upsert(child),
+                upsert(parent),
+                upsert(parent)  // Parent appears again (healed)
             ]
 
             // THEN: Should not throw "Can not create second element with ID" error
@@ -533,14 +537,14 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             // Delta 1: Child arrives with parent (healed) included
             const delta1: GraphDelta = [
-                { type: 'UpsertNode', nodeToUpsert: child },
-                { type: 'UpsertNode', nodeToUpsert: parent }
+                upsert(child),
+                upsert(parent)
             ]
             applyGraphDeltaToUI(cy, delta1)
 
             // Delta 2: Parent file change causes parent to be re-sent
             const delta2: GraphDelta = [
-                { type: 'UpsertNode', nodeToUpsert: parent }
+                upsert(parent)
             ]
 
             // THEN: Should not throw "Can not create second element with ID" error
@@ -580,8 +584,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const delta: GraphDelta = [
-                { type: 'UpsertNode', nodeToUpsert: parent },
-                { type: 'UpsertNode', nodeToUpsert: child }
+                upsert(parent),
+                upsert(child)
             ]
 
             // WHEN: Creating nodes with labeled edge
@@ -622,8 +626,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const delta: GraphDelta = [
-                { type: 'UpsertNode', nodeToUpsert: parent },
-                { type: 'UpsertNode', nodeToUpsert: child }
+                upsert(parent),
+                upsert(child)
             ]
 
             // WHEN: Creating nodes with empty label edge
@@ -664,8 +668,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const delta: GraphDelta = [
-                { type: 'UpsertNode', nodeToUpsert: parent },
-                { type: 'UpsertNode', nodeToUpsert: child }
+                upsert(parent),
+                upsert(child)
             ]
 
             // WHEN: Creating edge with underscores in label
@@ -706,8 +710,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const delta: GraphDelta = [
-                { type: 'UpsertNode', nodeToUpsert: parent },
-                { type: 'UpsertNode', nodeToUpsert: child }
+                upsert(parent),
+                upsert(child)
             ]
 
             // WHEN: Creating edge with multiple underscores
@@ -748,8 +752,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const delta: GraphDelta = [
-                { type: 'UpsertNode', nodeToUpsert: parent },
-                { type: 'UpsertNode', nodeToUpsert: child }
+                upsert(parent),
+                upsert(child)
             ]
 
             // WHEN: Creating edge without underscores
@@ -780,7 +784,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 }
             }
 
-            applyGraphDeltaToUI(cy, [{ type: 'UpsertNode', nodeToUpsert: parent }])
+            applyGraphDeltaToUI(cy, [upsert(parent)])
 
             // AND: A shadow node (floating window anchor) with edge from parent
             // This simulates what anchorToNode() creates for terminals/editors
@@ -808,7 +812,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             // WHEN: Parent is updated (e.g., file changed on disk)
             // The graph model knows nothing about shadow nodes, so outgoingEdges is empty
-            applyGraphDeltaToUI(cy, [{ type: 'UpsertNode', nodeToUpsert: parent }])
+            applyGraphDeltaToUI(cy, [upsert(parent)])
 
             // THEN: Edge to shadow node should be preserved (not removed)
             expect(cy.edges().length).toBe(1)
@@ -934,7 +938,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const createDelta: GraphDelta = [
-                { type: 'UpsertNode', nodeToUpsert: originalNode }
+                upsert(originalNode)
             ]
 
             applyGraphDeltaToUI(cy, createDelta)
@@ -955,7 +959,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const updateDelta: GraphDelta = [
-                { type: 'UpsertNode', nodeToUpsert: updatedNode }
+                upsert(updatedNode)
             ]
 
             applyGraphDeltaToUI(cy, updateDelta)
@@ -987,7 +991,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const createDelta: GraphDelta = [
-                { type: 'UpsertNode', nodeToUpsert: originalNode }
+                upsert(originalNode)
             ]
 
             applyGraphDeltaToUI(cy, createDelta)
@@ -1018,7 +1022,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const updateDelta: GraphDelta = [
-                { type: 'UpsertNode', nodeToUpsert: updatedNode }
+                upsert(updatedNode)
             ]
 
             applyGraphDeltaToUI(cy, updateDelta)

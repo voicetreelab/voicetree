@@ -28,14 +28,15 @@ function createUpsertAction(id: string, title: string, previousNode?: GraphNode)
     return {
         type: 'UpsertNode',
         nodeToUpsert: createTestNode(id, title),
-        previousNode
+        previousNode: O.fromNullable(previousNode)
     }
 }
 
 function createDeleteAction(id: string): DeleteNode {
     return {
         type: 'DeleteNode',
-        nodeId: id
+        nodeId: id,
+        deletedNode: O.none
     }
 }
 
@@ -111,7 +112,7 @@ describe('recentNodeHistoryV2', () => {
             const delta: GraphDelta = [{
                 type: 'UpsertNode',
                 nodeToUpsert: createTestNode('edit.md', 'New Title', extraContent),
-                previousNode
+                previousNode: O.some(previousNode)
             }]
 
             const entries: readonly UpsertNodeDelta[] = extractRecentNodesFromDelta(delta)
@@ -125,7 +126,7 @@ describe('recentNodeHistoryV2', () => {
             const action: UpsertNodeDelta = {
                 type: 'UpsertNode',
                 nodeToUpsert: createTestNode('edge-only.md', 'Same Title'),
-                previousNode
+                previousNode: O.some(previousNode)
             }
             const delta: GraphDelta = [action]
 
@@ -143,12 +144,12 @@ describe('recentNodeHistoryV2', () => {
                 {
                     type: 'UpsertNode',
                     nodeToUpsert: createTestNode('changed.md', 'New Content', extraContent),
-                    previousNode: previousNodeWithChange
+                    previousNode: O.some(previousNodeWithChange)
                 },
                 {
                     type: 'UpsertNode',
                     nodeToUpsert: createTestNode('unchanged.md', 'Same'),
-                    previousNode: previousNodeWithoutChange
+                    previousNode: O.some(previousNodeWithoutChange)
                 },
                 createDeleteAction('deleted.md')
             ]

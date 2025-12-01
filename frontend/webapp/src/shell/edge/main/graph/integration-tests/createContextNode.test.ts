@@ -19,7 +19,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { createContextNode } from '@/shell/edge/main/graph/createContextNode'
+import { createContextNode } from '@/shell/edge/main/graph/context-nodes/createContextNode'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk'
 
 import { setGraph, setVaultPath, getVaultPath } from '@/shell/edge/main/state/graph-store'

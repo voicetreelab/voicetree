@@ -20,67 +20,68 @@ function createTestNode(id: string, content: string = '# Test'): GraphNode {
 describe('reverseDelta', () => {
     describe('UpsertNode reversal', () => {
         it('reverses CREATE (no previousNode) to DELETE', () => {
-            const newNode = createTestNode('new.md', '# New Node')
+            const newNode: GraphNode = createTestNode('new.md', '# New Node')
             const delta: GraphDelta = [{
                 type: 'UpsertNode',
                 nodeToUpsert: newNode,
-                previousNode: undefined
+                previousNode: O.none
             }]
 
-            const reversed = reverseDelta(delta)
+            const reversed: GraphDelta = reverseDelta(delta)
 
             expect(reversed).toHaveLength(1)
             expect(reversed[0].type).toBe('DeleteNode')
-            const deleteAction = reversed[0] as DeleteNode
+            const deleteAction: DeleteNode = reversed[0] as DeleteNode
             expect(deleteAction.nodeId).toBe('new.md')
-            expect(deleteAction.deletedNode).toEqual(newNode) // Saved for re-redo
+            expect(O.isSome(deleteAction.deletedNode)).toBe(true)
+            expect(O.toUndefined(deleteAction.deletedNode)).toEqual(newNode) // Saved for re-redo
         })
 
         it('reverses UPDATE (has previousNode) to restore previous state', () => {
-            const previousNode = createTestNode('edit.md', '# Old Content')
-            const updatedNode = createTestNode('edit.md', '# New Content')
+            const previousNode: GraphNode = createTestNode('edit.md', '# Old Content')
+            const updatedNode: GraphNode = createTestNode('edit.md', '# New Content')
             const delta: GraphDelta = [{
                 type: 'UpsertNode',
                 nodeToUpsert: updatedNode,
-                previousNode: previousNode
+                previousNode: O.some(previousNode)
             }]
 
-            const reversed = reverseDelta(delta)
+            const reversed: GraphDelta = reverseDelta(delta)
 
             expect(reversed).toHaveLength(1)
             expect(reversed[0].type).toBe('UpsertNode')
-            const upsertAction = reversed[0] as UpsertNodeDelta
+            const upsertAction: UpsertNodeDelta = reversed[0] as UpsertNodeDelta
             expect(upsertAction.nodeToUpsert).toEqual(previousNode) // Restore old state
-            expect(upsertAction.previousNode).toEqual(updatedNode) // Swap: new becomes previous
+            expect(O.toUndefined(upsertAction.previousNode)).toEqual(updatedNode) // Swap: new becomes previous
         })
     })
 
     describe('DeleteNode reversal', () => {
         it('reverses DELETE (has deletedNode) to CREATE', () => {
-            const deletedNode = createTestNode('deleted.md', '# Deleted Content')
+            const deletedNode: GraphNode = createTestNode('deleted.md', '# Deleted Content')
             const delta: GraphDelta = [{
                 type: 'DeleteNode',
                 nodeId: 'deleted.md',
-                deletedNode: deletedNode
+                deletedNode: O.some(deletedNode)
             }]
 
-            const reversed = reverseDelta(delta)
+            const reversed: GraphDelta = reverseDelta(delta)
 
             expect(reversed).toHaveLength(1)
             expect(reversed[0].type).toBe('UpsertNode')
-            const upsertAction = reversed[0] as UpsertNodeDelta
+            const upsertAction: UpsertNodeDelta = reversed[0] as UpsertNodeDelta
             expect(upsertAction.nodeToUpsert).toEqual(deletedNode) // Recreate node
-            expect(upsertAction.previousNode).toBeUndefined() // It's new again
+            expect(O.isNone(upsertAction.previousNode)).toBe(true) // It's new again
         })
 
         it('returns empty for DELETE without deletedNode (cannot reverse)', () => {
             const delta: GraphDelta = [{
                 type: 'DeleteNode',
                 nodeId: 'unknown.md',
-                deletedNode: undefined
+                deletedNode: O.none
             }]
 
-            const reversed = reverseDelta(delta)
+            const reversed: GraphDelta = reverseDelta(delta)
 
             expect(reversed).toHaveLength(0)
         })
@@ -88,14 +89,14 @@ describe('reverseDelta', () => {
 
     describe('multi-action delta reversal', () => {
         it('reverses actions in reverse order', () => {
-            const nodeA = createTestNode('a.md', '# A')
-            const nodeB = createTestNode('b.md', '# B')
+            const nodeA: GraphNode = createTestNode('a.md', '# A')
+            const nodeB: GraphNode = createTestNode('b.md', '# B')
             const delta: GraphDelta = [
-                { type: 'UpsertNode', nodeToUpsert: nodeA, previousNode: undefined },
-                { type: 'UpsertNode', nodeToUpsert: nodeB, previousNode: undefined }
+                { type: 'UpsertNode', nodeToUpsert: nodeA, previousNode: O.none },
+                { type: 'UpsertNode', nodeToUpsert: nodeB, previousNode: O.none }
             ]
 
-            const reversed = reverseDelta(delta)
+            const reversed: GraphDelta = reverseDelta(delta)
 
             expect(reversed).toHaveLength(2)
             // Should be reversed: B first, then A
@@ -104,19 +105,19 @@ describe('reverseDelta', () => {
         })
 
         it('reverses create child + update parent correctly', () => {
-            const parentBefore = createTestNode('parent.md', '# Parent')
-            const parentAfter = {
+            const parentBefore: GraphNode = createTestNode('parent.md', '# Parent')
+            const parentAfter: GraphNode = {
                 ...parentBefore,
                 outgoingEdges: [{ targetId: 'child.md', label: '' }]
             }
-            const child = createTestNode('child.md', '# Child')
+            const child: GraphNode = createTestNode('child.md', '# Child')
 
             const delta: GraphDelta = [
-                { type: 'UpsertNode', nodeToUpsert: child, previousNode: undefined },
-                { type: 'UpsertNode', nodeToUpsert: parentAfter, previousNode: parentBefore }
+                { type: 'UpsertNode', nodeToUpsert: child, previousNode: O.none },
+                { type: 'UpsertNode', nodeToUpsert: parentAfter, previousNode: O.some(parentBefore) }
             ]
 
-            const reversed = reverseDelta(delta)
+            const reversed: GraphDelta = reverseDelta(delta)
 
             expect(reversed).toHaveLength(2)
             // Parent restore comes first (was second in original, reversed order)
@@ -130,13 +131,12 @@ describe('reverseDelta', () => {
 
     describe('edge cases', () => {
         it('returns empty array for empty delta', () => {
-            const reversed = reverseDelta([])
+            const reversed: GraphDelta = reverseDelta([])
             expect(reversed).toEqual([])
         })
 
         it('preserves node metadata during reversal', () => {
-            const nodeWithMetadata = createTestNode('meta.md', '# With Metadata')
-            nodeWithMetadata.nodeUIMetadata.color
+            const nodeWithMetadata: GraphNode = createTestNode('meta.md', '# With Metadata')
             const nodeWithColor: GraphNode = {
                 ...nodeWithMetadata,
                 nodeUIMetadata: {
@@ -149,14 +149,16 @@ describe('reverseDelta', () => {
             const delta: GraphDelta = [{
                 type: 'UpsertNode',
                 nodeToUpsert: nodeWithColor,
-                previousNode: undefined
+                previousNode: O.none
             }]
 
-            const reversed = reverseDelta(delta)
-            const deleteAction = reversed[0] as DeleteNode
+            const reversed: GraphDelta = reverseDelta(delta)
+            const deleteAction: DeleteNode = reversed[0] as DeleteNode
 
-            expect(deleteAction.deletedNode).toEqual(nodeWithColor)
-            expect(O.isSome(deleteAction.deletedNode!.nodeUIMetadata.color)).toBe(true)
+            expect(O.isSome(deleteAction.deletedNode)).toBe(true)
+            const deletedNode: GraphNode = O.toUndefined(deleteAction.deletedNode)!
+            expect(deletedNode).toEqual(nodeWithColor)
+            expect(O.isSome(deletedNode.nodeUIMetadata.color)).toBe(true)
         })
     })
 })

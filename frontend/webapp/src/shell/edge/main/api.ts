@@ -10,7 +10,7 @@ import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {loadSettings, saveSettings as saveSettings} from './settings/settings_IO'
 import {getWatchStatus, loadPreviousFolder, startFileWatching, stopFileWatching} from './graph/watchFolder'
 import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/state/app-electron-state";
-import {createContextNode} from "@/shell/edge/main/graph/createContextNode";
+import {createContextNode} from "@/shell/edge/main/graph/context-nodes/createContextNode";
 import {saveNodePositions} from "@/shell/edge/main/saveNodePositions";
 import {performUndo, performRedo} from './graph/undoOperations'
 

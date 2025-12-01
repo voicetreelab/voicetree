@@ -1,4 +1,5 @@
 import type {FSUpdate, Graph, GraphDelta, GraphNode, NodeIdAndFilePath, UpsertNodeDelta} from '@/pure/graph'
+import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'
 import {parseMarkdownToGraphNode} from '@/pure/graph/markdown-parsing/parse-markdown-to-node'
 import {linkMatchScore, findBestMatchingNode} from '@/pure/graph/markdown-parsing/extract-edges'
@@ -7,7 +8,7 @@ import {filenameToNodeId} from '@/pure/graph/markdown-parsing/filename-utils'
 
 interface HealedNodeWithPrevious { //todo unnecessary
     readonly healedNode: GraphNode
-    readonly previousNode: GraphNode
+    readonly previousNode: O.Option<GraphNode>
 }
 
 function healNodeEdges(affectedNodeIds: readonly NodeIdAndFilePath[], currentGraph: Graph, graphWithNewNode: Graph): readonly HealedNodeWithPrevious[] {
@@ -26,7 +27,7 @@ function healNodeEdges(affectedNodeIds: readonly NodeIdAndFilePath[], currentGra
 
         return {
             healedNode: setOutgoingEdges(affectedNode, healedEdges),
-            previousNode: affectedNode  // Capture previous state before edge healing
+            previousNode: O.some(affectedNode)  // Capture previous state before edge healing
         } // todo do we really need to return here? can we not in whoever calls this function return the old as well?
     })
     return healedNodes;
@@ -79,7 +80,7 @@ export function addNodeToGraph(
     const newNode: GraphNode = parseMarkdownToGraphNode(fsEvent.content, absoluteFilePathMadeRelativeToVault, currentGraph) // todo this should take graph
 
     // Check if this is a new node or an update to an existing node
-    const previousNode: GraphNode | undefined = currentGraph.nodes[absoluteFilePathMadeRelativeToVault]
+    const previousNode: O.Option<GraphNode> = O.fromNullable(currentGraph.nodes[absoluteFilePathMadeRelativeToVault])
 
     const affectedNodeIds: readonly string[] = findNodesWithPotentialEdgesToNode(newNode, currentGraph)
 

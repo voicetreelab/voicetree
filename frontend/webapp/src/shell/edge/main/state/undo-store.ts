@@ -14,7 +14,7 @@ let undoState: UndoState = createEmptyUndoState()
 // Getter for current undo state (primarily for debugging/testing)
 export const getUndoState = (): UndoState => undoState
 
-// Reset undo state (e.g., when changing vaults)
+// Reset undo state (e.g., when changing vaults) todo
 export const resetUndoState = (): void => {
     undoState = createEmptyUndoState()
 }
@@ -23,7 +23,7 @@ export const resetUndoState = (): void => {
  * Records a user action for undo support.
  * Call this BEFORE applying the delta to the graph.
  */
-export const recordUserAction = (delta: GraphDelta): void => {
+export const recordUserActionAndSetDeltaHistoryState = (delta: GraphDelta): void => {
     undoState = pushUndo(undoState, delta)
 }
 

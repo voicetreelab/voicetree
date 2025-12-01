@@ -4,7 +4,7 @@ import {pipe} from 'fp-ts/lib/function.js'
 import {applyGraphDeltaToGraph, type Env, type GraphDelta} from '@/pure/graph'
 import {apply_graph_deltas_to_db} from '@/shell/edge/main/graph/graphActionsToDBEffects'
 import {getGraph, getVaultPath, setGraph} from '@/shell/edge/main/state/graph-store'
-import {recordUserAction} from '@/shell/edge/main/state/undo-store'
+import {recordUserActionAndSetDeltaHistoryState} from '@/shell/edge/main/state/undo-store'
 import type {Either} from "fp-ts/es6/Either";
 
 /**
@@ -26,7 +26,7 @@ export async function applyGraphDeltaToDBThroughMem(
 ): Promise<void> {
     // Record for undo BEFORE applying (so we can reverse from current state)
     if (recordForUndo) {
-        recordUserAction(delta)
+        recordUserActionAndSetDeltaHistoryState(delta)
     }
 
     // DO NOT Notify UI of the change here (fs events will do it)
@@ -34,7 +34,14 @@ export async function applyGraphDeltaToDBThroughMem(
     // it would cause bugs to send a graph-state change, as we haven't yet made it idempotent for markdown editors
 
     // However, do update in-memory state (purposefully unnecessary, fs events do the same, but latency)
-    setGraph(applyGraphDeltaToGraph(getGraph(), delta))
+    // setGraph(applyGraphDeltaToGraph(getGraph(), delta))
+    // todo, disabling this because it can introduce bugs and complexity
+    // for example, if a new node is created from ui, optimistic ui, and gets written to mem
+    // then, when fs event comes thru it won't be a new node delta (already exists)
+    // but the original new node delta, was never extracted from recent deltas
+    // bc the original delta was in th
+    // etc etc...
+    // just ensure one path...
 
     // Extract vault path (fail fast at edge)
     const vaultPath: string = pipe(

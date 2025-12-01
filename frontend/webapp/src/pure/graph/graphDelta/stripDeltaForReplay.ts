@@ -1,4 +1,5 @@
 import type { GraphDelta, NodeDelta, GraphNode } from '@/pure/graph'
+import * as O from 'fp-ts/lib/Option.js'
 
 /**
  * Strips sensitive content from GraphDelta for analytics/replay
@@ -14,8 +15,8 @@ function stripNodeDelta(nodeDelta: NodeDelta): NodeDelta {
         // DeleteNode - strip deletedNode (contains full content)
         return {
             type: 'DeleteNode',
-            nodeId: nodeDelta.nodeId
-            // deletedNode intentionally omitted for privacy
+            nodeId: nodeDelta.nodeId,
+            deletedNode: O.none  // Intentionally stripped for privacy
         }
     }
 
@@ -23,9 +24,7 @@ function stripNodeDelta(nodeDelta: NodeDelta): NodeDelta {
     return {
         type: 'UpsertNode',
         nodeToUpsert: stripGraphNodeContent(nodeDelta.nodeToUpsert),
-        previousNode: nodeDelta.previousNode !== undefined
-            ? stripGraphNodeContent(nodeDelta.previousNode)
-            : undefined
+        previousNode: O.map(stripGraphNodeContent)(nodeDelta.previousNode)
     }
 }
 

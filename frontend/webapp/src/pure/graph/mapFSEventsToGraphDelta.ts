@@ -1,4 +1,5 @@
-import type {FSEvent, GraphDelta, DeleteNode, NodeIdAndFilePath, FSUpdate, Graph, GraphNode} from '@/pure/graph/index'
+import type {FSEvent, GraphDelta, DeleteNode, NodeIdAndFilePath, FSUpdate, Graph} from '@/pure/graph/index'
+import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'
 import { filenameToNodeId } from '@/pure/graph/markdown-parsing/filename-utils'
 import { addNodeToGraph } from '@/pure/graph/graphDelta/addNodeToGraph'
@@ -32,11 +33,10 @@ export function mapFSEventsToGraphDelta(fsEvent: FSEvent, vaultPath: string, cur
     // This is FSDelete
     const nodeId: string = extractNodeIdFromPath(fsEvent.absolutePath, vaultPath)
     // Capture the deleted node for potential undo
-    const deletedNode: GraphNode | undefined = currentGraph.nodes[nodeId]
     const deleteAction: DeleteNode = {
       type: 'DeleteNode',
       nodeId,
-      deletedNode  // Include full node for undo support
+      deletedNode: O.fromNullable(currentGraph.nodes[nodeId])  // Include full node for undo support
     }
     return [deleteAction]
   } else {
