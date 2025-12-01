@@ -1,0 +1,54 @@
+.status-panel {
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: var(--background);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.status-panel-header {
+    padding: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    background: var(--muted);
+}
+
+.status-panel-events {
+    flex: 1;
+    overflow-y: auto;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-family: monospace;
+    font-size: 0.7rem;
+}
+
+.event-item {
+    padding: 0.25rem 0.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 0.5rem;
+    align-items: baseline;
+}
+
+.event-time {
+    color: var(--muted-foreground);
+    flex-shrink: 0;
+}
+
+.event-message {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Event type colors */
+.event-phase_started { color: #3b82f6; }
+.event-phase_complete { color: #22c55e; }
+.event-agent_error, .event-workflow_failed { color: #ef4444; }
+.event-rate_limit_error { color: #f59e0b; }
+.event-workflow_complete { color: #22c55e; font-weight: bold; }
