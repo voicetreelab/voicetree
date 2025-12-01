@@ -127,6 +127,11 @@ async def buffer_processing_loop():
             asyncio.run(processor.process_new_text_and_update_markdown(text_to_process, force_flush))
         except Exception as exc:
             logger.error(f"Error in LLM processing thread: {exc}", exc_info=True)
+            # Emit SSE error event so frontend is notified
+            sse_event_queue.put_nowait({
+                "event": SSEEventType.WORKFLOW_FAILED.value,
+                "data": {"error": str(exc)}
+            })
 
     last_sync_time = time.time()
 
@@ -137,6 +142,7 @@ async def buffer_processing_loop():
                 if processor is None:
                     logger.error("Skipping buffer processing - no directory loaded yet")
                     await asyncio.sleep(1.0)
+                    continue
 
                 if len(simple_buffer) > 0:
 

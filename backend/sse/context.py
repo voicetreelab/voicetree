@@ -19,5 +19,4 @@ def set_emitter(emitter: SSEEventEmitter) -> Token:
 
 async def emit_event(event_type: SSEEventType, data: dict[str, Any]) -> None:
     emitter = get_emitter()
-    if emitter:
-        await emitter.emit(event_type, data)
+    await emitter.emit(event_type, data)
