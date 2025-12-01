@@ -296,8 +296,8 @@ export async function startFileWatching(directoryPath?: string): Promise<{ reado
     console.log('[watchFolder] Selected directory:', selectedDirectory);
 
     if (!selectedDirectory) {
-        console.log('[watchFolder] No directory selected, returning error');
-        return { success: false, error: 'No directory selected' };
+        console.log('[watchFolder] No directory selected in picker, keeping same');
+        return { success: false, error: 'No new directory selected' };
     }
 
     // FAIL FAST: Validate directory exists before proceeding

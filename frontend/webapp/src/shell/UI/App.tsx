@@ -49,8 +49,8 @@ function App(): JSX.Element {
                 {watchDirectory && (
                     <div className="mt-1">
                         {/*<span className="font-medium">Directory:</span>*/}
-                        <span className="text-xs text-gray-600 ml-1 font-mono">
-              {watchDirectory} // todo, is there a way to have this scrollable  (overflow: scroll) BUT have scrollbar hidden, and default to being scrolled all the way to the  right?
+                        <span className="text-xs text-gray-600 ml-1 font-mono break-all">
+              {watchDirectory}
             </span>
                     </div>
                 )}
@@ -150,7 +150,7 @@ function App(): JSX.Element {
             </div>
 
             {/* Bottom: Server Activity Panel - window-width horizontal bar */}
-            <div id="status-panel-mount" className="flex-shrink-0 w-full mr-[140px]" />
+            <div id="status-panel-mount" className="flex-shrink-0 mr-[140px] relative z-[1050]" />
         </div>
     );
 }

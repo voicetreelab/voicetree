@@ -27,13 +27,13 @@ import type { BuildConfig } from '@/shell/edge/main/electron/build-config';
 
 describe('build-config', () => {
   const mockUserDataPath: "/Users/test/Library/Application Support/Electron" = '/Users/test/Library/Application Support/Electron';
-  const mockAppPath: "/Users/test/repos/VoiceTree/frontend/webapp" = '/Users/test/repos/VoiceTree/frontend/webapp';
-  const repoRoot: string = path.resolve(mockAppPath, '../..');
+  // Note: production code uses process.cwd() not app.getAppPath(), so repoRoot is derived from actual cwd
+  const repoRoot: string = path.resolve(process.cwd(), '../..');
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockApp.isPackaged = false;
-    mockApp.getAppPath.mockReturnValue(mockAppPath);
+    mockApp.getAppPath.mockReturnValue(process.cwd());
     mockApp.getPath.mockReturnValue(mockUserDataPath);
 
     // Reset environment
@@ -60,11 +60,12 @@ describe('build-config', () => {
       expect(config.backendDest).toBe(path.join(mockUserDataPath, 'backend'));
     });
 
-    it('should configure Python to run directly from source', () => {
+    it('should configure Python to run via uv from source', () => {
       const config: BuildConfig = getBuildConfig();
 
-      expect(config.pythonCommand).toBe('python');
-      expect(config.pythonArgs).toEqual(['server.py']);
+      // Dev mode uses uv to handle venv automatically
+      expect(config.pythonCommand).toBe('uv');
+      expect(config.pythonArgs).toEqual(['run', 'python', 'server.py']);
       expect(config.shouldCompilePython).toBe(false);
       expect(config.serverBinaryPath).toBeNull();
     });

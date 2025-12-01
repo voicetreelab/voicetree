@@ -41,8 +41,8 @@ export function extractRecentNodesFromDelta(delta: GraphDelta): readonly RecentN
             if (action.type !== 'UpsertNode') return false
             // New node: always show
             if (action.previousNode === undefined) return true
-            // Update: only show if content actually changed
-            return action.previousNode.contentWithoutYamlOrLinks !== action.nodeToUpsert.contentWithoutYamlOrLinks
+            // Update: only show if content changed significantly (150 chars)
+            return action.previousNode.contentWithoutYamlOrLinks.length + 150 <  action.nodeToUpsert.contentWithoutYamlOrLinks.length
         })
         .map(action => {
             if (action.type !== 'UpsertNode') throw new Error('Unexpected action type')
@@ -118,7 +118,7 @@ export function updateHistoryFromDelta(
         updatedHistory = removeNodeFromHistory(updatedHistory, nodeId)
     }
 
-    // Then, add upserted nodes
+    // Then, add new nodes
     const newEntries = extractRecentNodesFromDelta(delta)
     return addEntriesToHistory(updatedHistory, newEntries)
 }
