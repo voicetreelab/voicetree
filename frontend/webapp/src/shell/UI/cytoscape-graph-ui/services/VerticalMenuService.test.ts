@@ -92,7 +92,16 @@ describe('VerticalMenuService', () => {
       /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       cy.emit('cxttap', { target: cy, position: { x: 300, y: 300 }, renderedPosition: { x: 300, y: 300 } } as any);
       const menuItems: MenuItem[] = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
-      const addNodeItem: MenuItem | undefined = menuItems.find((item) => 'text' in item && item.text === 'Add Node Here');
+      // Production uses html property with span containing "Add Node Here"
+      const addNodeItem: MenuItem | undefined = menuItems.find((item) => {
+        if ('html' in item && typeof item.html === 'string') {
+          return item.html.includes('Add Node Here');
+        }
+        if ('text' in item && typeof item.text === 'string') {
+          return item.text === 'Add Node Here';
+        }
+        return false;
+      });
       expect(addNodeItem).toBeDefined();
     });
 
@@ -104,10 +113,16 @@ describe('VerticalMenuService', () => {
       /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       cy.emit('cxttap', { target: cy, position: { x: 300, y: 300 }, renderedPosition: { x: 300, y: 300 } } as any);
       const menuItems: MenuItem[] = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
+      // Production uses html property with "Delete Selected (N)" format
       const deleteItem: MenuItem | undefined = menuItems.find((item) => {
-        if (!('text' in item)) return false;
-        const text: string = typeof item.text === 'function' ? item.text() : item.text;
-        return text.startsWith('Delete Selected');
+        if ('html' in item && typeof item.html === 'string') {
+          return item.html.includes('Delete Selected');
+        }
+        if ('text' in item) {
+          const text: string = typeof item.text === 'function' ? item.text() : item.text;
+          return text.includes('Delete Selected');
+        }
+        return false;
       });
       expect(deleteItem).toBeDefined();
       expect(hasDisabled(deleteItem!) && deleteItem.disabled).toBeFalsy();
@@ -119,10 +134,16 @@ describe('VerticalMenuService', () => {
       /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       cy.emit('cxttap', { target: cy, position: { x: 300, y: 300 }, renderedPosition: { x: 300, y: 300 } } as any);
       const menuItems: MenuItem[] = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
+      // Production uses html property with "Delete (0 nodes selected)" format
       const deleteItem: MenuItem | undefined = menuItems.find((item) => {
-        if (!('text' in item)) return false;
-        const text: string = typeof item.text === 'function' ? item.text() : item.text;
-        return text.includes('Delete') && text.includes('0 nodes selected');
+        if ('html' in item && typeof item.html === 'string') {
+          return item.html.includes('Delete') && item.html.includes('0 nodes selected');
+        }
+        if ('text' in item) {
+          const text: string = typeof item.text === 'function' ? item.text() : item.text;
+          return text.includes('Delete') && text.includes('0 nodes selected');
+        }
+        return false;
       });
       expect(deleteItem).toBeDefined();
       expect(hasDisabled(deleteItem!) && deleteItem.disabled).toBe(true);

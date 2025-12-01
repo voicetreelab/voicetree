@@ -3,10 +3,9 @@ import { type RecorderState } from "@soniox/speech-to-text-web";
 
 interface StatusDisplayProps {
   state: RecorderState;
-  port?: number;
 }
 
-export default function StatusDisplay({ state, port }: StatusDisplayProps): JSX.Element {
+export default function StatusDisplay({ state }: StatusDisplayProps): JSX.Element {
   return (
     <div className="flex items-center gap-2">
       <div
@@ -21,11 +20,6 @@ export default function StatusDisplay({ state, port }: StatusDisplayProps): JSX.
         }`}
       ></div>
       <span className="text-sm text-gray-600">{state}</span>
-      {port && (
-        <span className="text-xs text-muted-foreground font-mono">
-          :{port}
-        </span>
-      )}
     </div>
   );
 }

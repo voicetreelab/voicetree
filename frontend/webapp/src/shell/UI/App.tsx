@@ -27,7 +27,7 @@ function App(): JSX.Element {
 
     // File Watching Control Panel Component
     const FileWatchingPanel: () => JSX.Element = () => (
-        <div className="border rounded-lg p-2 mt-2 bg-white shadow-sm">
+        <div className="border rounded-lg p-2 bg-white shadow-sm">
 
             {/* Status Display */}
             <div className="mb-2 text-sm">
@@ -50,7 +50,7 @@ function App(): JSX.Element {
                     <div className="mt-1">
                         {/*<span className="font-medium">Directory:</span>*/}
                         <span className="text-xs text-gray-600 ml-1 font-mono">
-              {watchDirectory}
+              {watchDirectory} // todo, is there a way to have this scrollable  (overflow: scroll) BUT have scrollbar hidden, and default to being scrolled all the way to the  right?
             </span>
                     </div>
                 )}
@@ -127,7 +127,7 @@ function App(): JSX.Element {
     // Always render the full app UI-edge - no conditional rendering
     return (
         <div className="h-screen flex flex-col overflow-hidden bg-background">
-            {/* Bottom Section: Graph (fills remaining space) */}
+            {/* Graph Section (fills remaining space) */}
             <div className="flex-1 min-h-0 border-r pr-4">
                 {/* Relative positioning context for floating windows */}
                 <div className="h-full w-full relative">
@@ -137,22 +137,20 @@ function App(): JSX.Element {
             {/* Top Section: Transcribe UI-edge (auto height) - z-index above floating windows (1000) */}
             <div className="flex-shrink-0 py-2 px-4" style={{ position: 'relative', zIndex: 1050 }}>
                 <div className="flex gap-4">
-                    {/* Left Column: File Watching Panel + Status Panel */}
+                    {/* Left Column: File Watching Panel */}
                     <div className="w-1/4 flex flex-col gap-2">
                         <FileWatchingPanel/>
-                        {/* Status Panel - compact fixed height matching file panel */}
-                        <div id="status-panel-mount" className="h-[120px]" />
                     </div>
 
                     {/* Voice Transcribe Component - reduced width to leave room for minimap */}
                     <div className="flex-1 mr-[140px]">
                         <VoiceTreeTranscribe/>
-                        {/*//            <VoiceInputViewWrapper /> broken*/}
                     </div>
                 </div>
             </div>
 
-
+            {/* Bottom: Server Activity Panel - window-width horizontal bar */}
+            <div id="status-panel-mount" className="flex-shrink-0 w-full mr-[140px]" />
         </div>
     );
 }
