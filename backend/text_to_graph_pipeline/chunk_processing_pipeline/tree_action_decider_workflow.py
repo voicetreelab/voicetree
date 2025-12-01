@@ -266,7 +266,7 @@ class TreeActionDeciderWorkflow:
             # This ensures manual edits to markdown files are preserved
             if nodes_to_sync_before_phase1:
                 logging.info(f"Syncing {len(nodes_to_sync_before_phase1)} nodes from markdown BEFORE Phase 1 actions")
-                sync_nodes_from_markdown(self.decision_tree, nodes_to_sync_before_phase1)
+                sync_nodes_from_markdown(self.decision_tree, nodes_to_sync_before_phase1) # todo this should no longer be necessary right?
 
             # --- First Side Effect: Apply Placement ---
             modified_or_new_nodes = tree_action_applier.apply(actions_to_apply)
@@ -283,7 +283,7 @@ class TreeActionDeciderWorkflow:
                     # We need to find it by matching the node name
                     for node_id in modified_or_new_nodes:
                         if self.decision_tree is not None and node_id in self.decision_tree.tree and self.decision_tree.tree[node_id].title == action.new_node_name:
-                            newly_created_nodes.add(node_id)
+                            newly_created_nodes.add(node_id) # todo, this is broken
                             # Check if this was a merged orphan
                             if action in self.merged_orphan_actions:
                                 merged_orphan_node_ids.add(node_id)
@@ -294,6 +294,7 @@ class TreeActionDeciderWorkflow:
                         modified_nodes.add(action.target_node_id)
 
             logging.info(f"Phase 1 Complete. Newly created nodes: {newly_created_nodes}, Modified nodes: {modified_nodes}, Merged orphan nodes: {merged_orphan_node_ids}")
+            # todo for some reason, newly created nodes broken, it's empty
 
             await emit_event(SSEEventType.PHASE_COMPLETE, {
                 "phase": "placement",
@@ -430,7 +431,7 @@ class TreeActionDeciderWorkflow:
 
             # Workflow complete
             await emit_event(SSEEventType.WORKFLOW_COMPLETE, {
-                "total_nodes": len(newly_created_nodes),
+                "total_nodes": len(modified_or_new_nodes),
                 "phases_completed": 3
             })
 
