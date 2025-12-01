@@ -8,8 +8,13 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.responses import StreamingResponse
 import json
 import time
+from typing import Any
+
+from backend.sse.event_emitter import SSEEventEmitter, SSEEventType
+from backend.sse.context import set_emitter
 
 from backend.logging_config import setup_logging
 from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import (
@@ -33,6 +38,7 @@ logger = setup_logging('voicetree_server.log', console_level=logging.INFO)
 # Create temp directory for workflow state
 temp_dir = tempfile.mkdtemp()
 
+
 def initialize_tree_state(directory_path: str) -> tuple:
     """
     Initialize or load a markdown tree from the specified directory.
@@ -45,7 +51,7 @@ def initialize_tree_state(directory_path: str) -> tuple:
     """
     if os.path.exists(directory_path):
         logger.info(f"Loading existing markdown tree from {directory_path}")
-        tree = load_markdown_tree(directory_path) # todo shouldn't branch here, load dir should just load if exists, new graph if not
+        tree = load_markdown_tree(directory_path)  # todo shouldn't branch here, load dir should just load if exists, new graph if not
     else:
         logger.info(f"Creating new empty tree for {directory_path}")
         os.makedirs(directory_path, exist_ok=True)
@@ -59,6 +65,7 @@ def initialize_tree_state(directory_path: str) -> tuple:
 
     return tree, converter, processor, directory_path
 
+
 # Initialize decision tree - will be set when /load-directory is called
 decision_tree = None
 converter = None
@@ -68,19 +75,29 @@ markdown_dir = None
 # Clear debug logs at startup
 clear_debug_logs()
 
+# todo, this whole thing needs to be rewritten. so messy.
+
 # TODO: simple_buffer is unnecessary indirection. Text could go directly to buffer_manager
-# in the /send-text endpoint, and the loop could check buffer_manager.getBuffer() directly.
-# The only benefit is decoupling HTTP requests from the processing thread.
+# The benefit is decoupling HTTP requests from the processing thread.
+# THE problem with removing it is we need to be able to accept /send-text requests
+# but not add to the processing buffer before current processing completes
+# wait actually thatt's not true, we could probs add the text straight to the actual buffer
+# or buffer removing logic is robust (no order expectation)
+
 simple_buffer = ""
 last_text_received_time: float = 0.0  # Track when text was last received for auto-flush
-pending_force_flush: bool = False  # Flag to trigger force flush on next processing loop
+force_flush_next_processing_iteration: bool = False  # Flag to trigger force flush on next processing loop
 AUTO_FLUSH_INACTIVITY_SECONDS = 2.0  # Flush buffer after this many seconds of inactivity
 
 # FastAPI app setup
 app = FastAPI(title="VoiceTree Server", description="API for processing text into VoiceTree")
 
+# SSE event queue for streaming progress updates
+sse_event_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+
 # Auto-sync interval: reload markdown files from disk when idle
 AUTO_SYNC_INTERVAL_SECONDS = 5.0
+
 
 # Background processing task (like main.py's llm_processing_loop)
 async def buffer_processing_loop():
@@ -96,7 +113,7 @@ async def buffer_processing_loop():
     - Time-based: Flush buffer after 2s of inactivity (no new text received)
     - Force flush: Process immediately when pending_force_flush is set (Enter key)
     """
-    global simple_buffer, decision_tree, converter, processor, pending_force_flush, last_text_received_time
+    global simple_buffer, decision_tree, converter, processor, force_flush_next_processing_iteration, last_text_received_time
     logger.info("Starting buffer processing loop...")
 
     # Dedicated executor so we never block the FastAPI event loop with LLM calls.
@@ -105,23 +122,9 @@ async def buffer_processing_loop():
     def run_llm_in_thread(text_to_process: str) -> None:
         """Run the async processor inside the worker thread (normal flow)."""
         try:
-            asyncio.run(processor.process_new_text_and_update_markdown(text_to_process))
+            asyncio.run(processor.process_new_text_and_update_markdown(text_to_process, force_flush_next_processing_iteration))
         except Exception as exc:
             logger.error(f"Error in LLM processing thread: {exc}", exc_info=True)
-
-    def run_force_flush_in_thread() -> None:
-        """Force flush the buffer_manager regardless of threshold."""
-        try:
-            buffer_text = processor.buffer_manager.forceFlush()
-            if buffer_text:
-                logger.info(f"Force flushing buffer_manager with {len(buffer_text)} chars")
-                asyncio.run(processor.workflow.process_text_chunk(
-                    text_chunk=buffer_text,
-                    tree_action_applier=processor.tree_action_applier,
-                    buffer_manager=processor.buffer_manager
-                ))
-        except Exception as exc:
-            logger.error(f"Error in force flush thread: {exc}", exc_info=True)
 
     last_sync_time = time.time()
 
@@ -129,47 +132,27 @@ async def buffer_processing_loop():
         loop = asyncio.get_running_loop()
         while True:
             try:
-                # Step 1: Move any text from simple_buffer to buffer_manager (normal flow)
-                # This happens every 100ms regardless of threshold
-                if len(simple_buffer) > 0 and processor is not None:
+                if processor is None:
+                    logger.error("Skipping buffer processing - no directory loaded yet. Text will be lost.")
+
+                if len(simple_buffer) > 0:
                     text_to_move = simple_buffer
                     simple_buffer = ""
                     logger.debug(f"Moving {len(text_to_move)} chars from simple_buffer to buffer_manager")
-                    await loop.run_in_executor(executor, run_llm_in_thread, text_to_move)
+                    loop.run_in_executor(executor, run_llm_in_thread, text_to_move)  # todo, await?
+                    if force_flush_next_processing_iteration:
+                        force_flush_next_processing_iteration = False
 
                 # Step 2: Check if we need to force flush buffer_manager
                 # (either from Enter key or 2s inactivity)
-                should_force_flush = False
-                buffer_manager_has_content = (
-                    processor is not None and
-                    len(processor.buffer_manager.getBuffer()) > 0
-                )
-
-                if pending_force_flush and buffer_manager_has_content:
-                    # Force flush from Enter key submission
-                    should_force_flush = True
-                    pending_force_flush = False
-                    logger.info("Force flush triggered (Enter key)")
-                elif (buffer_manager_has_content and
-                      last_text_received_time > 0 and
-                      time.time() - last_text_received_time >= AUTO_FLUSH_INACTIVITY_SECONDS):
-                    # Time-based auto-flush after 2s inactivity
-                    should_force_flush = True
-                    logger.info(f"Auto-flush after {AUTO_FLUSH_INACTIVITY_SECONDS}s inactivity")
-
-                if should_force_flush and processor is not None:
-                    buffer_len = len(processor.buffer_manager.getBuffer())
-                    print(f"Force flushing buffer_manager: {buffer_len} chars")
-                    await loop.run_in_executor(executor, run_force_flush_in_thread)
-                    logger.info("Force flush completed")
                 else:
                     # Idle - auto-sync: reload markdown files from disk to pick up external changes
                     # Only reload when BOTH buffers are empty to avoid losing unprocessed text
                     processor_buffer_empty = (processor is None or
                                               len(processor.buffer_manager.getBuffer()) == 0)
                     if (markdown_dir and
-                        processor_buffer_empty and
-                        time.time() - last_sync_time > AUTO_SYNC_INTERVAL_SECONDS):
+                            processor_buffer_empty and
+                            time.time() - last_sync_time > AUTO_SYNC_INTERVAL_SECONDS):
                         try:
                             decision_tree, converter, processor, _ = initialize_tree_state(markdown_dir)
                             last_sync_time = time.time()
@@ -190,6 +173,7 @@ async def buffer_processing_loop():
     finally:
         executor.shutdown(wait=True)
 
+
 # Start the background loop when the app starts
 @app.on_event("startup")
 async def startup_event():
@@ -197,6 +181,7 @@ async def startup_event():
     asyncio.create_task(buffer_processing_loop())
     logger.info("VoiceTree server started with background processing")
     print("VoiceTree server started - background processing loop is running")
+
 
 # Add CORS middleware for web frontend
 app.add_middleware(
@@ -206,6 +191,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # Add middleware to log all requests
 @app.middleware("http")
@@ -228,10 +214,12 @@ async def log_requests(request: Request, call_next):
 
     return response
 
+
 # Request models
 class TextRequest(BaseModel):
     text: str
     force_flush: bool = False  # When True, bypass buffer threshold and process immediately
+
 
 class LoadDirectoryRequest(BaseModel):
     directory_path: str
@@ -248,7 +236,7 @@ async def send_text(request: TextRequest):
         request.force_flush: If True, trigger immediate processing regardless of buffer threshold
                             (used when user presses Enter to submit text)
     """
-    global simple_buffer, last_text_received_time, pending_force_flush
+    global simple_buffer, last_text_received_time, force_flush_next_processing_iteration
     try:
         if not request.text.strip():
             raise HTTPException(status_code=400, detail="Text cannot be empty")
@@ -262,13 +250,20 @@ async def send_text(request: TextRequest):
         # Add to buffer
         simple_buffer += request.text
 
-        # Update last text received time for auto-flush tracking
-        last_text_received_time = time.time()
 
         # Set force flush flag if requested (for Enter key submissions)
         if request.force_flush:
-            pending_force_flush = True
+            force_flush_next_processing_iteration = True
             logger.info("[FORCE_FLUSH] Flag set - buffer will be processed immediately")
+
+        # Time-based auto-flush after 2s inactivity
+        if (last_text_received_time > 0 and
+                time.time() - last_text_received_time >= AUTO_FLUSH_INACTIVITY_SECONDS):
+            force_flush_next_processing_iteration = True
+
+        last_text_received_time = time.time()
+
+        # we also buffer length based flushing deeper downstream
 
         # Get current buffer state
         buffer_length = len(simple_buffer)
@@ -284,11 +279,13 @@ async def send_text(request: TextRequest):
         logger.error(f"Error processing text: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error processing text: {str(e)}")
 
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
     node_count = len(decision_tree.tree) if decision_tree else 0
     return {"status": "healthy", "nodes": node_count}
+
 
 @app.get("/buffer-status")
 async def buffer_status():
@@ -296,6 +293,32 @@ async def buffer_status():
     global simple_buffer
     buffer_length = len(simple_buffer)
     return {"buffer_length": buffer_length}
+
+
+@app.get("/stream-progress")
+async def stream_progress():
+    """
+    SSE endpoint for streaming progress updates from the workflow processing.
+
+    Returns:
+        StreamingResponse: Server-Sent Events stream with workflow progress
+    """
+
+    async def event_generator():
+        while True:
+            event = await sse_event_queue.get()
+            yield f"event: {event['event']}\ndata: {json.dumps(event['data'])}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"  # Disable nginx buffering
+        }
+    )
+
 
 @app.post("/load-directory")
 async def load_directory(request: LoadDirectoryRequest):
