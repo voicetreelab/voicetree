@@ -74,48 +74,25 @@ class ChunkProcessor:
         """Backward compatibility property for buffer size threshold"""
         return self.buffer_manager.bufferFlushLength
 
-    async def process_new_text_and_update_markdown(self, text: str):
-        """
-        Process transcribed text and convert to markdown (main entry point)
-
-        Args:
-            text: The transcribed text to process
-        """
-        try:
-            # logging.info(f"Processing transcribed text: {text}")
-            text = text.replace("Thank you.", "")  # todo, whisper keeps on hallucinating thank you
-            text = text.replace("voistree", "VoiceTree")  #
-            start_time = time.time()
-
-            # logging.info(f"ChunkProcessor.process_and_convert calling process_new_text with: '{text}'")
-            await self.process_new_text(text)
-
-            # Markdown writing now happens automatically in DecisionTree methods
-            # No need to manually call converter.convert_node anymore
-
-            time.time() - start_time
-            # logging.info(f"Processing transcribed text took: {elapsed_time:.4f} seconds")
-
-        except Exception as e:
-            logging.error(
-                f"Error in process_and_convert: {e} "
-                f"- Type: {type(e)} - Traceback: {traceback.format_exc()}")
-
-    async def process_new_text(self, transcribed_text: str):
+    async def process_new_text_and_update_markdown(self, text: str, forceFlush : bool):
         """
         Process incoming voice input using unified buffer management
 
         Args:
-            transcribed_text: The transcribed text from voice recognition
+            text: The transcribed text from voice recognition
         """
         # logging.info(f"process_new_text called with text: '{transcribed_text}'")
         # logging.info(f"process_new_text called from: {inspect.stack()[1].function}")
 
         # Add text to buffer - incomplete text is maintained internally
-        self.buffer_manager.addText(transcribed_text)
+        self.buffer_manager.addText(text)
 
         # Check if buffer is ready to be processed
-        text_to_process = self.buffer_manager.getBufferTextWhichShouldBeProcessed()
+        if forceFlush:
+            text_to_process = self.buffer_manager.get_buffer()
+        else:
+            text_to_process = self.buffer_manager.getBufferTextWhichShouldBeProcessed()
+
         if text_to_process:
             # Process the text chunk (workflow now manages its own history)
             updated_nodes = await self.workflow.process_text_chunk(
