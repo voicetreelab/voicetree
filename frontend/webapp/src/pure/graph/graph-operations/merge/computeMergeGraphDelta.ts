@@ -37,14 +37,31 @@ export function computeMergeGraphDelta(
         return []
     }
 
-    // Get non-context nodes only (context nodes are derived and should not be merged)
-    const nonContextNodeIds: readonly NodeIdAndFilePath[] = selectedNodeIds.filter((id) => {
-        const node: GraphNode | undefined = graph.nodes[id]
-        return node !== undefined && !node.nodeUIMetadata.isContextNode
+    // Separate context nodes from regular nodes
+    const validSelectedNodeIds: readonly NodeIdAndFilePath[] = selectedNodeIds.filter((id) => {
+        return graph.nodes[id] !== undefined
     })
 
+    const nonContextNodeIds: readonly NodeIdAndFilePath[] = validSelectedNodeIds.filter((id) => {
+        const node: GraphNode = graph.nodes[id] as GraphNode
+        return !node.nodeUIMetadata.isContextNode
+    })
+
+    const contextNodeIds: readonly NodeIdAndFilePath[] = validSelectedNodeIds.filter((id) => {
+        const node: GraphNode = graph.nodes[id] as GraphNode
+        return node.nodeUIMetadata.isContextNode === true
+    })
+
+    // Context nodes are always deleted when selected (they're derived/temporary)
+    const contextNodeDeletions: GraphDelta = contextNodeIds.map((nodeId) => ({
+        type: 'DeleteNode' as const,
+        nodeId,
+        deletedNode: graph.nodes[nodeId]
+    }))
+
+    // Need at least 2 non-context nodes to create a merge
     if (nonContextNodeIds.length < 2) {
-        return []
+        return contextNodeDeletions
     }
 
     const newNodeId: NodeIdAndFilePath = generateMergedNodeId()
@@ -102,12 +119,14 @@ export function computeMergeGraphDelta(
             nodeToUpsert: updatedNode,
             previousNode  // Capture previous state for undo
         })),
-        // Finally, delete only the non-context nodes (context nodes are preserved)
+        // Delete non-context nodes (their content is merged into representative)
         ...nonContextNodeIds.map((nodeId) => ({
             type: 'DeleteNode' as const,
             nodeId,
             deletedNode: graph.nodes[nodeId]  // Capture for undo support
-        }))
+        })),
+        // Delete context nodes (not merged, but removed from graph)
+        ...contextNodeDeletions
     ]
 
     return delta
