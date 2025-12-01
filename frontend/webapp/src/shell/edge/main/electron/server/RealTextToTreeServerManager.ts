@@ -190,14 +190,21 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
    * Build environment variables for the server process
    */
   private buildServerEnvironment(serverDir: string): NodeJS.ProcessEnv {
+    // Always ensure homebrew and local bin paths are available
+    // This is critical for finding uv/python in different environments
+    // todo we shouldn't be doing this for prod.
+    const existingPath: string = process.env.PATH ?? '/usr/bin:/bin:/usr/sbin:/sbin';
+    const requiredPaths: string[] = ['/opt/homebrew/bin', '/usr/local/bin'];
+    const pathsToAdd: string[] = requiredPaths.filter(p => !existingPath.includes(p));
+    const enhancedPath: string = pathsToAdd.length > 0
+      ? `${pathsToAdd.join(':')}:${existingPath}`
+      : existingPath;
+
     return {
       ...process.env,
       // Ensure the server knows where to create files
       VOICETREE_DATA_DIR: serverDir,
-      // Add minimal PATH if it's missing critical directories
-      PATH: process.env.PATH?.includes('/usr/local/bin')
-        ? process.env.PATH
-        : `/usr/local/bin:/opt/homebrew/bin:${process.env.PATH ?? '/usr/bin:/bin:/usr/sbin:/sbin'}`
+      PATH: enhancedPath
     };
   }
 

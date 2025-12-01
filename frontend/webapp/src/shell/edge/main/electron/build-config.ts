@@ -50,10 +50,12 @@ export type BuildConfig = {
 /**
  * Compute all build configuration from current environment
  * Reads from app/process to determine dev vs prod configuration
+ * USE_REAL_SERVER=1 forces development config (runs python server.py directly)
  */
 export function getBuildConfig(): BuildConfig {
   const commonEnv: CommonEnv = getCommonEnv();
-  return commonEnv.nodeEnv === 'development'
+  const useRealServer = process.env.USE_REAL_SERVER === '1';
+  return (commonEnv.nodeEnv === 'development' || useRealServer)
     ? getBuildConfigDev(commonEnv)
     : getBuildConfigProd(commonEnv);
 }
@@ -79,14 +81,17 @@ function getCommonEnv(): CommonEnv {
  * Development configuration - run Python directly from source
  */
 function getBuildConfigDev(commonEnv: CommonEnv): BuildConfig {
-  // In dev: appPath = /path/to/VoiceTree/frontend/webapp
-  const appPath: string = app.getAppPath();
-  const rootDir: string = path.resolve(appPath, '../..');
+  // Use process.cwd() which is /path/to/VoiceTree/frontend/webapp
+  // Go up 2 levels to get VoiceTree root (where server.py lives)
+  // Note: app.getAppPath() returns dist-electron/main when running built version,
+  // which would require going up 4 levels. Using cwd is more reliable.
+  const rootDir: string = path.resolve(process.cwd(), '../..');
 
   return {
-    // Python: Run directly from source
-    pythonCommand: 'python',
-    pythonArgs: ['server.py'],
+    // Python: Run directly from source via uv (handles venv automatically)
+    // uv is found via PATH (enhanced in RealTextToTreeServerManager.buildServerEnvironment)
+    pythonCommand: 'uv',
+    pythonArgs: ['run', 'python', 'server.py'],
     pythonCwd: rootDir,
     shouldCompilePython: false,
     serverBinaryPath: null,

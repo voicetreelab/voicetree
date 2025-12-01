@@ -6,6 +6,8 @@ import {VoiceTreeGraphView} from "@/shell/UI/views/VoiceTreeGraphView";
 import {useEffect, useRef} from "react";
 import type { JSX } from "react/jsx-runtime";
 import type { RefObject } from "react";
+import "@/shell/UI/status-panel/status-panel.css";
+import type {} from "@/shell/electron";
 
 function App(): JSX.Element {
     // Use the folder watcher hook for file watching
@@ -21,6 +23,7 @@ function App(): JSX.Element {
 
     // Ref for graph container
     const graphContainerRef: RefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);
+
 
     // File Watching Control Panel Component
     const FileWatchingPanel: () => JSX.Element = () => (
@@ -120,6 +123,7 @@ function App(): JSX.Element {
         };
     }, []); // Empty deps - only run once on mount
 
+
     // Always render the full app UI-edge - no conditional rendering
     return (
         <div className="h-screen flex flex-col overflow-hidden bg-background">
@@ -133,9 +137,11 @@ function App(): JSX.Element {
             {/* Top Section: Transcribe UI-edge (auto height) - z-index above floating windows (1000) */}
             <div className="flex-shrink-0 py-2 px-4" style={{ position: 'relative', zIndex: 1050 }}>
                 <div className="flex gap-4">
-                    {/* File Watching Panel - 1/6 width */}
-                    <div className="w-1/6">
+                    {/* Left Column: File Watching Panel + Status Panel - 1/6 width */}
+                    <div className="w-1/6 flex flex-col gap-2">
                         <FileWatchingPanel/>
+                        {/* Status Panel - compact fixed height matching file panel */}
+                        <div id="status-panel-mount" className="h-[120px]" />
                     </div>
 
                     {/* Voice Transcribe Component - reduced width to leave room for minimap */}

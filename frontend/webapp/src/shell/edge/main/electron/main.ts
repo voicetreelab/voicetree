@@ -113,9 +113,12 @@ if (process.env.MINIMIZE_TEST === '1') {
 // Global manager instances
 // TextToTreeServer: Converts text input (voice/typed) to markdown tree structure
 // Select implementation based on environment (no fallbacks)
-const textToTreeServerManager: StubTextToTreeServerManager | RealTextToTreeServerManager = (process.env.NODE_ENV === 'test' || process.env.HEADLESS_TEST === '1')
-  ? new StubTextToTreeServerManager()
-  : new RealTextToTreeServerManager();
+// USE_REAL_SERVER=1 forces real Python server even in test mode (for SSE E2E tests)
+const useRealServer : boolean = process.env.USE_REAL_SERVER === '1';
+const textToTreeServerManager: StubTextToTreeServerManager | RealTextToTreeServerManager =
+  ((process.env.NODE_ENV === 'test' || process.env.HEADLESS_TEST === '1') && !useRealServer)
+    ? new StubTextToTreeServerManager()
+    : new RealTextToTreeServerManager();
 const terminalManager: TerminalManager = new TerminalManager();
 
 // Store the TextToTreeServer port (set during app startup)
