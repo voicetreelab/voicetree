@@ -87,7 +87,7 @@ clear_debug_logs()
 simple_buffer = ""
 last_text_received_time: float = 0.0  # Track when text was last received for auto-flush
 force_flush_next_processing_iteration: bool = False  # Flag to trigger force flush on next processing loop
-AUTO_FLUSH_INACTIVITY_SECONDS = 2.0  # Flush buffer after this many seconds of inactivity
+AUTO_FLUSH_INACTIVITY_SECONDS = 5.0  # Flush buffer after this many seconds of inactivity
 
 # FastAPI app setup
 app = FastAPI(title="VoiceTree Server", description="API for processing text into VoiceTree")
@@ -150,12 +150,12 @@ async def buffer_processing_loop():
                     if (last_text_received_time > 0 and
                             time.time() - last_text_received_time >= AUTO_FLUSH_INACTIVITY_SECONDS or force_flush_next_processing_iteration):
                         logger.debug(f"Forcing (due to timie) {len(simple_buffer)} chars from simple_buffer to buffer_manager")
-                        loop.run_in_executor(executor, run_llm_in_thread, simple_buffer, True)  # todo, await?
+                        await loop.run_in_executor(executor, run_llm_in_thread, simple_buffer, True)  # todo, await?
                         if force_flush_next_processing_iteration:
                             force_flush_next_processing_iteration = False
                     else:
                         logger.debug(f"Moving {len(simple_buffer)} chars from simple_buffer to buffer_manager")
-                        loop.run_in_executor(executor, run_llm_in_thread, simple_buffer, False)
+                        await loop.run_in_executor(executor, run_llm_in_thread, simple_buffer, False)
                     simple_buffer = ""
 
 

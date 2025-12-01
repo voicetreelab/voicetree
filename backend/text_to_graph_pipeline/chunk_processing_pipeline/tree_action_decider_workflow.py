@@ -3,7 +3,7 @@ TreeActionDeciderWorkflow - Orchestrates the two-step tree update pipeline with 
 
 Combines the functionality of TreeActionDecider and WorkflowAdapter into a single cohesive class.
 """
-
+import asyncio
 import logging
 from dataclasses import dataclass
 from itertools import groupby
@@ -313,66 +313,10 @@ class TreeActionDeciderWorkflow:
             logging.info(f"Optimizing {len(modified_nodes)} modified nodes and {len(merged_orphan_node_ids)} merged orphan nodes")
 
             # Run optimizer on both modified nodes and merged orphan nodes
-            all_optimization_modified_nodes: set[int] = set()
-            for node_id in nodes_to_optimize:
-                node_type = "merged orphan" if node_id in merged_orphan_node_ids else "modified"
-                logging.info(f"Optimizing {node_type} node {node_id}...")
-
-                # Get neighbors, remove 'id' key, and format as a string for the agent
-                if self.decision_tree is None:
-                    raise ValueError("Decision tree is not initialized")
-                neighbours_context = self.decision_tree.get_neighbors(node_id, max_neighbours=30)
-                formatted_neighbours_context = str([
-                    {key: value for key, value in neighbour.items() if key != 'id'}
-                    for neighbour in neighbours_context
-                ]) #todo, ugly. This is just to remove IDs.
-
-                # The optimizer runs on the tree which has ALREADY been mutated by Phase 1.
-                optimization_actions: list[BaseTreeAction] = await self.optimizer_agent.run(
-                    node=self.decision_tree.tree[node_id],
-                    neighbours_context=formatted_neighbours_context
-                )
-
-                if optimization_actions:
-                    logging.info(f"Optimizer generated {len(optimization_actions)} actions for node {node_id}. Applying them now.")
-
-                    # Log each optimization action
-                    for opt_action in optimization_actions:
-                        if isinstance(opt_action, UpdateAction):
-                            update_log = f"OPTIMIZER: UPDATING node:{opt_action.node_id} "
-                            # if len(opt_action.new_content) > 10:
-                            #     update_log += f"with new content: {opt_action.new_content[0:10]}...{opt_action.new_content[-10:]} "
-                            print(update_log)
-                            logging.info(update_log)
-
-                        elif isinstance(opt_action, CreateAction):
-                            create_log = f"OPTIMIZER: CREATING child node:'{opt_action.new_node_name}' under parent:{opt_action.parent_node_id} "
-                            # if len(opt_action.content) > 10:
-                            #     create_log += f"with content: {opt_action.content[0:10]}...{opt_action.content[-10:]} "
-                            print(colored(create_log, 'green'))
-                            logging.info(create_log)
-
-                        elif isinstance(opt_action, AppendAction):
-                            append_log = f"OPTIMIZER: APPENDING to node:{opt_action.target_node_id} "
-                            # if len(opt_action.content) > 10:
-                            #     append_log += f"with content: {opt_action.content[0:10]}...{opt_action.content[-10:]} "
-                            print(colored(append_log, 'cyan'))
-                            logging.info(append_log)
-
-                        else:
-                            logging.warning(f"Unknown optimization action type: {type(opt_action)}")
-
-                    # --- Second Side Effect: Apply Optimization ---
-                    # Apply these actions immediately.
-                    optimization_modified_nodes: set[int] = tree_action_applier.apply(optimization_actions)
-                    all_optimization_modified_nodes.update(optimization_modified_nodes)
-
-                    # Collect optimization actions for test compatibility
-                    if hasattr(self, 'optimization_actions_for_tests'):
-                        self.optimization_actions_for_tests.extend(optimization_actions)
-
-                else:
-                    logging.info(f"Optimizer had no changes for node {node_id}.")
+            all_optimization_modified_nodes = await asyncio.gather(
+                *[self.optimize_upserted_node(merged_orphan_node_ids ,node_id, tree_action_applier) for node_id in nodes_to_optimize],
+                return_exceptions=True  # Don't fail all if one fails
+            )
 
             await emit_event(SSEEventType.PHASE_COMPLETE, {
                 "phase": "optimization",
@@ -387,11 +331,11 @@ class TreeActionDeciderWorkflow:
             # ======================================================================
             # PHASE 3: CONNECT ORPHANS (Every N nodes)
             # ======================================================================
-            if self.decision_tree is None:
-                raise ValueError("Decision tree is not initialized")
-            current_node_count = len(self.decision_tree.tree)
-            nodes_added_since_last_check = current_node_count - self._last_orphan_check_node_count
-
+            # if self.decision_tree is None:
+            #     raise ValueError("Decision tree is not initialized")
+            # current_node_count = len(self.decision_tree.tree)
+            # nodes_added_since_last_check = current_node_count - self._last_orphan_check_node_count
+            #
 
             # todo, orphan conn disbaled for now, it was just annoying
             # if nodes_added_since_last_check >= self._orphan_check_interval:
@@ -445,6 +389,66 @@ class TreeActionDeciderWorkflow:
                 "phase": current_phase
             })
             raise
+
+    async def optimize_upserted_node(self, merged_orphan_node_ids, node_id, tree_action_applier):
+        all_optimization_modified_nodes = []
+        node_type = "merged orphan" if node_id in merged_orphan_node_ids else "modified"
+        logging.info(f"Optimizing {node_type} node {node_id}...")
+        # Get neighbors, remove 'id' key, and format as a string for the agent
+        if self.decision_tree is None:
+            raise ValueError("Decision tree is not initialized")
+        neighbours_context = self.decision_tree.get_neighbors(node_id, max_neighbours=30)
+        formatted_neighbours_context = str([
+            {key: value for key, value in neighbour.items() if key != 'id'}
+            for neighbour in neighbours_context
+        ])  # todo, ugly. This is just to remove IDs.
+        # The optimizer runs on the tree which has ALREADY been mutated by Phase 1.
+        optimization_actions: list[BaseTreeAction] = await self.optimizer_agent.run(
+            node=self.decision_tree.tree[node_id],
+            neighbours_context=formatted_neighbours_context
+        )
+        if optimization_actions:
+            logging.info(f"Optimizer generated {len(optimization_actions)} actions for node {node_id}. Applying them now.")
+
+            # Log each optimization action
+            for opt_action in optimization_actions:
+                if isinstance(opt_action, UpdateAction):
+                    update_log = f"OPTIMIZER: UPDATING node:{opt_action.node_id} "
+                    # if len(opt_action.new_content) > 10:
+                    #     update_log += f"with new content: {opt_action.new_content[0:10]}...{opt_action.new_content[-10:]} "
+                    print(update_log)
+                    logging.info(update_log)
+
+                elif isinstance(opt_action, CreateAction):
+                    create_log = f"OPTIMIZER: CREATING child node:'{opt_action.new_node_name}' under parent:{opt_action.parent_node_id} "
+                    # if len(opt_action.content) > 10:
+                    #     create_log += f"with content: {opt_action.content[0:10]}...{opt_action.content[-10:]} "
+                    print(colored(create_log, 'green'))
+                    logging.info(create_log)
+
+                elif isinstance(opt_action, AppendAction):
+                    append_log = f"OPTIMIZER: APPENDING to node:{opt_action.target_node_id} "
+                    # if len(opt_action.content) > 10:
+                    #     append_log += f"with content: {opt_action.content[0:10]}...{opt_action.content[-10:]} "
+                    print(colored(append_log, 'cyan'))
+                    logging.info(append_log)
+
+                else:
+                    logging.warning(f"Unknown optimization action type: {type(opt_action)}")
+
+            # --- Second Side Effect: Apply Optimization ---
+            # Apply these actions immediately.
+            optimization_modified_nodes: set[int] = tree_action_applier.apply(optimization_actions)
+            all_optimization_modified_nodes.update(optimization_modified_nodes)
+
+            # Collect optimization actions for test compatibility
+            if hasattr(self, 'optimization_actions_for_tests'):
+                self.optimization_actions_for_tests.extend(optimization_actions)
+
+        else:
+            logging.info(f"Optimizer had no changes for node {node_id}.")
+
+        return optimization_modified_nodes
 
     async def group_orphans_by_name(self, actions_to_apply, append_or_create_actions):
         orphan_creates: list[CreateAction] = [
