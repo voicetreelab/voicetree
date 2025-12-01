@@ -78,18 +78,18 @@ export function fromContentChangeToGraphDelta(
 }
 
 /**
- * Creates a DeleteNode action.
+ * Creates DeleteNode actions for multiple nodes in a single delta.
+ * This enables atomic undo for batch deletions.
  *
- * @param nodeId - ID of the node to delete
- * @param deletedNode - Optional: the node being deleted (for undo support)
- * @returns A GraphDelta with the DeleteNode action
+ * @param nodesToDelete - Array of {nodeId, deletedNode} pairs
+ * @returns A single GraphDelta containing all delete actions
  */
-export function createDeleteNodeAction(nodeId: string, deletedNode?: GraphNode): GraphDelta {
-    return [{
-        type: 'DeleteNode',
+export function createDeleteNodesAction(nodesToDelete: ReadonlyArray<{nodeId: string; deletedNode?: GraphNode}>): GraphDelta {
+    return nodesToDelete.map(({nodeId, deletedNode}) => ({
+        type: 'DeleteNode' as const,
         nodeId,
-        deletedNode  // Capture the node for potential undo
-    }]
+        deletedNode
+    }))
 }
 
 //todo switch between the three (?)

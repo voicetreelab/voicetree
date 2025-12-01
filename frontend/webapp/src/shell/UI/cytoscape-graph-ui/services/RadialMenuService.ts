@@ -2,7 +2,7 @@ import type {Core, NodeSingular} from 'cytoscape';
 // @ts-expect-error - cytoscape-cxtmenu doesn't have proper TypeScript definitions
 import cxtmenu from 'cytoscape-cxtmenu';
 import cytoscape from 'cytoscape';
-import {createNewChildNodeFromUI, deleteNodeFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions";
+import {createNewChildNodeFromUI, deleteNodesFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions";
 import type {NodeIdAndFilePath} from "@/pure/graph";
 import {
     spawnTerminalWithNewContextNode
@@ -177,10 +177,7 @@ export class RadialMenuService {
                     ? selectedNodeIds
                     : [nodeId];
 
-                // Delete all nodes
-                for (const id of nodesToDelete) {
-                    await deleteNodeFromUI(id, this.cy!);
-                }
+                await deleteNodesFromUI(nodesToDelete, this.cy!);
             } catch (error) {
                 console.error('[RadialMenuService] Error deleting node:', error);
                 alert(`Error deleting node: ${error}`);

@@ -12,6 +12,7 @@ import {
 import {
     createAnchoredFloatingEditor,
 } from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorManager-v2';
+import {deleteNodesFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions";
 
 /**
  * Get currently selected graph nodes (excluding floating windows)
@@ -77,4 +78,21 @@ export const runTerminalAction: (cy: Core) => () => void = (
       cy
     );
   })();
+};
+
+/**
+ * Delete selected nodes action handler
+ * Deletes all selected graph nodes in a single delta (atomic undo)
+ */
+export const deleteSelectedNodesAction: (cy: Core) => () => void = (
+  cy: Core,
+) => (): void => {
+  const selectedNodes: string[] = getSelectedGraphNodes(cy);
+
+  if (selectedNodes.length === 0) {
+    console.log('[graphActions] No nodes selected for deletion');
+    return;
+  }
+
+  void deleteNodesFromUI(selectedNodes, cy);
 };

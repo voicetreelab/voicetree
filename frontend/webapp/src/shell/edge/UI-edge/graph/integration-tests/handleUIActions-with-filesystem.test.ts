@@ -21,7 +21,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type {Core} from 'cytoscape';
 import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
-import { createNewChildNodeFromUI, deleteNodeFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions'
+import { createNewChildNodeFromUI, deleteNodesFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions'
 import type { Graph } from '@/pure/graph'
 import * as fs from 'fs/promises'
 import * as path from 'path'
@@ -275,7 +275,7 @@ Child content`
     })
 })
 
-describe('deleteNodeFromUI - Integration with Filesystem', () => {
+describe('deleteNodesFromUI - Integration with Filesystem', () => {
     let cy: Core
     let mockGraph: Graph
 
@@ -393,7 +393,7 @@ Child content`
         expect(cy.getElementById('child1.md').length).toBe(1)
 
         // WHEN: Deleting child1 node
-        await deleteNodeFromUI('child1.md', cy)
+        await deleteNodesFromUI(['child1.md'], cy)
 
         // THEN: Node should be removed from cytoscape immediately
         expect(cy.nodes()).toHaveLength(1)
@@ -408,7 +408,7 @@ Child content`
         expect(initialExists).toBe(true)
 
         // WHEN: Deleting child1 node
-        await deleteNodeFromUI('child1.md', cy)
+        await deleteNodesFromUI(['child1.md'], cy)
 
         // THEN: File should be deleted from disk
         const fileExists: boolean = await fs.access(child1Path).then(() => true).catch(() => false)
@@ -421,7 +421,7 @@ Child content`
         expect(cy.getElementById('parent.md-child1.md').length).toBe(1)
 
         // WHEN: Deleting child1 node
-        await deleteNodeFromUI('child1.md', cy)
+        await deleteNodesFromUI(['child1.md'], cy)
 
         // THEN: Edge should be removed automatically (cytoscape removes edges when node is removed)
         expect(cy.edges()).toHaveLength(0)

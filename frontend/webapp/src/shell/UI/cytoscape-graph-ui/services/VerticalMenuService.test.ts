@@ -10,7 +10,6 @@ function hasDisabled(item: MenuItem): item is MenuItem & { disabled?: boolean } 
   return 'disabled' in item;
 }
 import type { MenuConfig } from '@/shell/UI/lib/ctxmenu';
-import type { NodeIdAndFilePath } from '@/pure/graph/index';
 
 // Mock ctxmenu
 vi.mock('@/shell/UI/lib/ctxmenu.js', () => ({
@@ -20,17 +19,10 @@ vi.mock('@/shell/UI/lib/ctxmenu.js', () => ({
   },
 }));
 
-// Mock deleteNodeFromUI
-vi.mock('@/shell/edge/UI-edge/graph/handleUIActions', () => ({
-  deleteNodeFromUI: vi.fn().mockResolvedValue(undefined),
-}));
-
 // Import mocked modules to access their mocks
 import ctxmenu from '@/shell/UI/lib/ctxmenu.js';
-import { deleteNodeFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions';
 
 const mockCtxmenuShow: MockedFunction<(menuItems: MenuItem[], eventOrElement: MouseEvent | Element, config?: MenuConfig) => void> = vi.mocked(ctxmenu.show);
-const mockDeleteNodeFromUI: MockedFunction<(nodeId: NodeIdAndFilePath, cy: Core) => Promise<void>> = vi.mocked(deleteNodeFromUI);
 
 describe('VerticalMenuService', () => {
   let cy: Core;
@@ -40,7 +32,6 @@ describe('VerticalMenuService', () => {
 
   beforeEach(() => {
     mockCtxmenuShow.mockClear();
-    mockDeleteNodeFromUI.mockClear();
 
     container = document.createElement('div');
     container.style.width = '800px';
