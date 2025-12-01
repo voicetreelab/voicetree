@@ -107,13 +107,13 @@ export type NodeDelta = UpsertNodeDelta | DeleteNode
 export interface UpsertNodeDelta {
     readonly type: 'UpsertNode'
     readonly nodeToUpsert: GraphNode
-    readonly previousNode?: GraphNode  // undefined = new node, defined = update
+    readonly previousNode: O.Option<GraphNode>  // None = new node, Some = update
 }
 
 export interface DeleteNode {
     readonly type: 'DeleteNode'
     readonly nodeId: NodeIdAndFilePath
-    readonly deletedNode?: GraphNode   // For undo - full node that was deleted
+    readonly deletedNode: O.Option<GraphNode>   // For undo - full node that was deleted
 }
 
 

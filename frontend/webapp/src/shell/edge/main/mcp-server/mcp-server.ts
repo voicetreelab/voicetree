@@ -22,7 +22,7 @@ import {addNodeToGraph} from '@/pure/graph/graphDelta/addNodeToGraph'
 import {getNodeTitle} from '@/pure/graph/markdown-parsing'
 import {getGraph, getVaultPath, setVaultPath} from '@/shell/edge/main/state/graph-store'
 import {applyGraphDeltaToDBThroughMem} from '@/shell/edge/main/graph/writePath/applyGraphDeltaToDBThroughMem'
-import {getUnseenNodesAroundContextNode, type UnseenNode} from '@/shell/edge/main/graph/getUnseenNodesAroundContextNode'
+import {getUnseenNodesAroundContextNode, type UnseenNode} from '@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode'
 
 const MCP_PORT: 3001 = 3001 as const
 

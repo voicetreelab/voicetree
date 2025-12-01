@@ -1,4 +1,5 @@
 import type {Graph, GraphDelta, UpsertNodeDelta} from '@/pure/graph'
+import * as O from 'fp-ts/lib/Option.js'
 
 /**
  * Convert a whole Graph to a GraphDelta.
@@ -24,7 +25,7 @@ export function mapNewGraphToDelta(graph: Graph): GraphDelta {
     const nodeDeltas: readonly UpsertNodeDelta[] = Object.values(graph.nodes).map(node => ({
         type: 'UpsertNode' as const,
         nodeToUpsert: node,
-        previousNode: undefined  // All nodes are new during initial load
+        previousNode: O.none  // All nodes are new during initial load
     }))
 
     return nodeDeltas

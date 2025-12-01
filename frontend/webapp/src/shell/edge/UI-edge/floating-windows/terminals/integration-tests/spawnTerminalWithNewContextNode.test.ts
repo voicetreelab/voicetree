@@ -32,7 +32,7 @@ import type { NodeIdAndFilePath, Graph } from '@/pure/graph'
 import cytoscape from 'cytoscape'
 import type { Core } from 'cytoscape'
 import { getTerminals, clearTerminals } from '@/shell/edge/UI-edge/state/UIAppState'
-import { createContextNode } from '@/shell/edge/main/graph/createContextNode'
+import { createContextNode } from '@/shell/edge/main/graph/context-nodes/createContextNode'
 import type { TerminalData } from '@/shell/electron'
 
 // SKIP: These tests require DOM/browser environment for createFloatingTerminalWindow.

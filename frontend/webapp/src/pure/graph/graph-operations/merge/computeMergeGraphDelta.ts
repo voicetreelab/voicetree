@@ -1,4 +1,5 @@
 import type { Graph, GraphDelta, GraphNode, NodeIdAndFilePath } from '@/pure/graph'
+import * as O from 'fp-ts/lib/Option.js'
 import { getIncomingEdgesToSubgraph } from './getIncomingEdgesToSubgraph'
 import { createRepresentativeNode, type MergeTitleInfo } from './createRepresentativeNode'
 import { redirectEdgeTarget } from './redirectEdgeTarget'
@@ -56,7 +57,7 @@ export function computeMergeGraphDelta(
     const contextNodeDeletions: GraphDelta = contextNodeIds.map((nodeId) => ({
         type: 'DeleteNode' as const,
         nodeId,
-        deletedNode: graph.nodes[nodeId]
+        deletedNode: O.fromNullable(graph.nodes[nodeId])
     }))
 
     // Need at least 2 non-context nodes to create a merge
@@ -95,14 +96,14 @@ export function computeMergeGraphDelta(
     ]
 
     // 6. For each external source node, redirect all its edges that point into the subgraph
-    const updatedExternalNodesWithPrevious: readonly { readonly updatedNode: GraphNode; readonly previousNode: GraphNode }[] = sourceNodeIdsWithIncomingEdges.map((sourceNodeId) => {
-        const previousNode: GraphNode = graph.nodes[sourceNodeId]
+    const updatedExternalNodesWithPrevious: readonly { readonly updatedNode: GraphNode; readonly previousNode: O.Option<GraphNode> }[] = sourceNodeIdsWithIncomingEdges.map((sourceNodeId) => {
+        const previousNodeRaw: GraphNode = graph.nodes[sourceNodeId]
         // Use reduce to redirect each edge that points to a non-context node
         const updatedNode: GraphNode = nonContextNodeIds.reduce(
             (node, selectedId) => redirectEdgeTarget(node, selectedId, newNodeId),
-            previousNode
+            previousNodeRaw
         )
-        return { updatedNode, previousNode }
+        return { updatedNode, previousNode: O.some(previousNodeRaw) }
     })
 
     // 7. Build the GraphDelta
@@ -111,7 +112,7 @@ export function computeMergeGraphDelta(
         {
             type: 'UpsertNode',
             nodeToUpsert: representativeNode,
-            previousNode: undefined  // New node - no previous state
+            previousNode: O.none  // New node - no previous state
         },
         // Then, upsert all updated external nodes with redirected edges
         ...updatedExternalNodesWithPrevious.map(({ updatedNode, previousNode }) => ({
@@ -123,7 +124,7 @@ export function computeMergeGraphDelta(
         ...nonContextNodeIds.map((nodeId) => ({
             type: 'DeleteNode' as const,
             nodeId,
-            deletedNode: graph.nodes[nodeId]  // Capture for undo support
+            deletedNode: O.some(graph.nodes[nodeId])  // Capture for undo support
         })),
         // Delete context nodes (not merged, but removed from graph)
         ...contextNodeDeletions

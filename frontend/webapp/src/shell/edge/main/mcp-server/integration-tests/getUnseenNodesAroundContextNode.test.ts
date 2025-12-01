@@ -15,8 +15,8 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { createContextNode } from '@/shell/edge/main/graph/createContextNode'
-import { getUnseenNodesAroundContextNode, type UnseenNode } from '@/shell/edge/main/graph/getUnseenNodesAroundContextNode'
+import { createContextNode } from '@/shell/edge/main/graph/context-nodes/createContextNode'
+import { getUnseenNodesAroundContextNode, type UnseenNode } from '@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk'
 import { setGraph, setVaultPath, getVaultPath, getGraph } from '@/shell/edge/main/state/graph-store'
 import { applyGraphDeltaToDBThroughMem } from '@/shell/edge/main/graph/writePath/applyGraphDeltaToDBThroughMem'

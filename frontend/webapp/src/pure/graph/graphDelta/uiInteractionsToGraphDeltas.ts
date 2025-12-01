@@ -48,12 +48,12 @@ export function fromCreateChildToUpsertNode(
         {
             type: 'UpsertNode',
             nodeToUpsert: newNode,
-            previousNode: undefined  // New node - no previous state
+            previousNode: O.none  // New node - no previous state
         },
         {
             type: 'UpsertNode',
             nodeToUpsert: updatedParentNode,
-            previousNode: parentNode  // Capture parent's state before edge was added
+            previousNode: O.some(parentNode)  // Capture parent's state before edge was added
         }
     ]
 }
@@ -65,7 +65,7 @@ export function fromContentChangeToGraphDelta(
     graph: Graph,
 ): GraphDelta {
     // Look up current state from graph for previousNode
-    const previousNode: GraphNode | undefined = graph.nodes[node.relativeFilePathIsID]
+    const previousNode: O.Option<GraphNode> = O.fromNullable(graph.nodes[node.relativeFilePathIsID])
     // Extract wikilinks from new content and update outgoingEdges
     // This ensures markdown is the source of truth for edges
     const nodeUpdated: GraphNode = parseMarkdownToGraphNode(content, node.relativeFilePathIsID, graph)
@@ -88,7 +88,7 @@ export function createDeleteNodesAction(nodesToDelete: ReadonlyArray<{nodeId: st
     return nodesToDelete.map(({nodeId, deletedNode}) => ({
         type: 'DeleteNode' as const,
         nodeId,
-        deletedNode
+        deletedNode: O.fromNullable(deletedNode)
     }))
 }
 
@@ -119,7 +119,7 @@ export function createNewNodeNoParent(pos: Position): { readonly newNode: GraphN
         {
             type: 'UpsertNode',
             nodeToUpsert: newNode,
-            previousNode: undefined  // New node - no previous state
+            previousNode: O.none  // New node - no previous state
         },
     ]
     return {newNode, graphDelta};

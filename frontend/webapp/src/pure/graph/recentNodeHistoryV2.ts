@@ -12,6 +12,8 @@
  */
 
 import type { GraphDelta, UpsertNodeDelta, DeleteNode } from '@/pure/graph'
+import * as O from 'fp-ts/lib/Option.js'
+import { pipe } from 'fp-ts/lib/function.js'
 
 const MAX_RECENT_NODES: number = 5
 
@@ -21,7 +23,7 @@ export type RecentNodeHistory = readonly UpsertNodeDelta[]
  * Extract recently added/modified node entries from a GraphDelta
  *
  * Filters for UpsertNode actions that represent meaningful changes:
- * - New nodes (previousNode === undefined)
+ * - New nodes (previousNode is None)
  * - Content-modified nodes (content actually changed significantly)
  *
  * Edge-only changes (same content, different edges) are filtered out
@@ -31,9 +33,13 @@ export function extractRecentNodesFromDelta(delta: GraphDelta): readonly UpsertN
     return delta.filter((action): action is UpsertNodeDelta => {
         if (action.type !== 'UpsertNode') return false
         // New node: always show
-        if (action.previousNode === undefined) return true
+        if (O.isNone(action.previousNode)) return true
         // Update: only show if content changed significantly (150 chars)
-        return action.previousNode.contentWithoutYamlOrLinks.length + 150 < action.nodeToUpsert.contentWithoutYamlOrLinks.length
+        return pipe(
+            action.previousNode,
+            O.map(prev => prev.contentWithoutYamlOrLinks.length + 75 < action.nodeToUpsert.contentWithoutYamlOrLinks.length),
+            O.getOrElse(() => false)
+        )
     })
 }
 
@@ -81,6 +87,7 @@ export function removeNodeFromHistory(
  *
  * Also handles deletion: removes any nodes from history that were deleted in the delta.
  */
+// todo use the state of deltas
 export function updateHistoryFromDelta(
     history: RecentNodeHistory,
     delta: GraphDelta

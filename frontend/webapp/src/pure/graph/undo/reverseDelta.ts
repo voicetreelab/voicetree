@@ -1,4 +1,5 @@
 import type { GraphDelta, NodeDelta, UpsertNodeDelta, DeleteNode } from '@/pure/graph'
+import * as O from 'fp-ts/lib/Option.js'
 
 /**
  * Computes the reverse of a GraphDelta for undo functionality.
@@ -25,27 +26,26 @@ function reverseAction(action: NodeDelta): GraphDelta {
 }
 
 function reverseUpsertNode(action: UpsertNodeDelta): GraphDelta {
-    if (action.previousNode === undefined) {
-        // Was a CREATE → reverse is DELETE
+    if (O.isNone(action.previousNode)) {
+        // Was a CREATE (no previousNode) → reverse is DELETE
         const deleteAction: DeleteNode = {
             type: 'DeleteNode',
             nodeId: action.nodeToUpsert.relativeFilePathIsID,
-            deletedNode: action.nodeToUpsert  // Save for potential re-redo
+            deletedNode: O.some(action.nodeToUpsert)  // Save for potential re-redo
         }
         return [deleteAction]
-    } else {
-        // Was an UPDATE → reverse is restore previous
-        const restoreAction: UpsertNodeDelta = {
-            type: 'UpsertNode',
-            nodeToUpsert: action.previousNode,
-            previousNode: action.nodeToUpsert  // Swap old/new for redo chain
-        }
-        return [restoreAction]
     }
+    // Was an UPDATE → reverse is restore previous
+    const restoreAction: UpsertNodeDelta = {
+        type: 'UpsertNode',
+        nodeToUpsert: action.previousNode.value,
+        previousNode: O.some(action.nodeToUpsert)  // Swap old/new for redo chain
+    }
+    return [restoreAction]
 }
 
 function reverseDeleteNode(action: DeleteNode): GraphDelta {
-    if (action.deletedNode === undefined) {
+    if (O.isNone(action.deletedNode)) {
         // Cannot reverse without knowing what was deleted
         console.warn('Cannot undo delete: missing deletedNode for', action.nodeId)
         return []
@@ -53,8 +53,8 @@ function reverseDeleteNode(action: DeleteNode): GraphDelta {
     // Was a DELETE → reverse is CREATE
     const recreateAction: UpsertNodeDelta = {
         type: 'UpsertNode',
-        nodeToUpsert: action.deletedNode,
-        previousNode: undefined  // It's a 'new' node again
+        nodeToUpsert: action.deletedNode.value,
+        previousNode: O.none  // It's a 'new' node again
     }
     return [recreateAction]
 }
