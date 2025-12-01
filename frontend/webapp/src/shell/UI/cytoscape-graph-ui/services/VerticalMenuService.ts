@@ -93,7 +93,7 @@ export class VerticalMenuService {
 
         if (this.deps) {
             menuItems.push({
-                text: 'Add Node Here',
+                html: '<span style="display: flex; justify-content: space-between; align-items: center; gap: 16px; white-space: nowrap;">Add Node Here <span style="font-size: 10px; color: #888; opacity: 0.7;">⌘N</span></span>',
                 action: async () => {
                     console.log('[VerticalMenuService] Creating node at position:', position);
                     await this.deps!.handleAddNodeAtPosition(position);
@@ -105,8 +105,9 @@ export class VerticalMenuService {
         const selectedCount: number = this.cy!.$(':selected').nodes().size();
         const noNodesSelected: boolean = selectedCount === 0;
 
+        const deleteText: string = noNodesSelected ? 'Delete (0 nodes selected)' : `Delete Selected (${selectedCount})`;
         menuItems.push({
-            text: noNodesSelected ? 'Delete (0 nodes selected)' : `Delete Selected (${selectedCount})`,
+            html: `<span style="display: flex; justify-content: space-between; align-items: center; gap: 16px; white-space: nowrap;">${deleteText} <span style="font-size: 10px; color: #888; opacity: 0.7;">⌘⌫</span></span>`,
             disabled: noNodesSelected,
             action: async () => {
                 if (noNodesSelected) return;

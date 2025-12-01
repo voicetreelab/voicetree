@@ -93,6 +93,7 @@ export class HotkeyManager {
     cycleTerminal: (direction: 1 | -1) => void;
     createNewNode: () => void;
     runTerminal: () => void;
+    deleteSelectedNodes: () => void;
   }): void {
     // Space: Fit to last created node (repeatable while held)
     this.registerHotkey({
@@ -160,6 +161,13 @@ export class HotkeyManager {
       onPress: async () => {
         await window.electronAPI?.main.performRedo()
       }
+    });
+
+    // Command + Backspace: Delete selected nodes
+    this.registerHotkey({
+      key: 'Backspace',
+      modifiers: ['Meta'],
+      onPress: callbacks.deleteSelectedNodes
     });
   }
 

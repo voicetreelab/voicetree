@@ -70,6 +70,34 @@ div.cxtmenu-item {
     opacity: 0.8;
 }
 
+/* Dark mode overrides for ctxmenu library (overrides injected inline styles) */
+.dark ul.ctxmenu {
+    background: var(--card) !important;
+    border-color: var(--border) !important;
+    color: var(--foreground) !important;
+    box-shadow: rgba(0, 0, 0, 0.3) 3px 3px 6px !important;
+}
+
+.dark ul.ctxmenu li.disabled {
+    color: var(--muted-foreground) !important;
+}
+
+.dark ul.ctxmenu li.divider {
+    border-bottom-color: var(--border) !important;
+}
+
+.dark ul.ctxmenu li.interactive:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.dark ul.ctxmenu li.submenu::after {
+    border-color: var(--foreground) !important;
+}
+
+.dark ul.ctxmenu li.submenu.disabled::after {
+    border-color: var(--muted-foreground) !important;
+}
+
 /* Horizontal context menu (ctxmenu library) - use !important to override injected styles */
 ul.ctxmenu.horizontal {
     display: flex !important;
@@ -103,9 +131,9 @@ ul.ctxmenu.horizontal > li > span {
 ul.ctxmenu.horizontal ul.ctxmenu {
     flex-direction: column !important;
     display: block !important;
-    background: #fff !important;
-    border: 1px solid #999 !important;
-    box-shadow: #aaa 3px 3px 3px !important;
+    background: var(--card) !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: rgba(0, 0, 0, 0.15) 3px 3px 6px !important;
     padding: 2px 0 !important;
     transform: none !important;
 }
