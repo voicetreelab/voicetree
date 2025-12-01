@@ -25,6 +25,10 @@ declare module './index.css' {
   const content: string;
   export default content;
 }
+declare module '@/shell/UI/status-panel/status-panel.css' {
+  const content: string;
+  export default content;
+}
 
 // Web Speech API type definitions - declare at top level for global scope
 interface SpeechRecognition extends EventTarget {

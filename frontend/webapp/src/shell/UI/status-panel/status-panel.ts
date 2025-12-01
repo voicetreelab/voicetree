@@ -1,4 +1,5 @@
 import { createSSEConnection } from './sse-consumer';
+import type {} from '@/shell/electron';
 
 export interface SSEEvent {
     type: string;
@@ -6,28 +7,26 @@ export interface SSEEvent {
     timestamp: number;
 }
 
-const STATUS_PANEL_MOUNT_ID = 'status-panel-mount';
+const STATUS_PANEL_MOUNT_ID: string = 'status-panel-mount';
 
+/**
+ * Server Activity Panel - horizontal bar at bottom of app.
+ * Displays server events as horizontal cards, FIFO (newest on left).
+ */
 export class StatusPanel {
     private container: HTMLElement;
-    private eventList: HTMLElement;
-    private maxEvents = 50;
+    private eventsContainer: HTMLElement;
+    private maxEvents = 20; // Fewer events since horizontal takes more space
     private disconnectSSE: (() => void) | null = null;
 
     private constructor(mountPoint: HTMLElement) {
         this.container = document.createElement('div');
-        this.container.className = 'status-panel';
+        this.container.className = 'server-activity-panel';
 
-        // Header
-        const header: HTMLDivElement = document.createElement('div');
-        header.className = 'status-panel-header';
-        header.textContent = 'Server Activity';
-        this.container.appendChild(header);
-
-        // Event list (scrollable)
-        this.eventList = document.createElement('ul');
-        this.eventList.className = 'status-panel-events';
-        this.container.appendChild(this.eventList);
+        // Horizontal scrollable events container
+        this.eventsContainer = document.createElement('div');
+        this.eventsContainer.className = 'server-activity-events';
+        this.container.appendChild(this.eventsContainer);
 
         mountPoint.appendChild(this.container);
 
@@ -37,7 +36,7 @@ export class StatusPanel {
 
     /** Initialize StatusPanel by finding mount point in DOM, waiting if necessary */
     static init(): void {
-        const mountPoint = document.getElementById(STATUS_PANEL_MOUNT_ID);
+        const mountPoint: HTMLElement | null = document.getElementById(STATUS_PANEL_MOUNT_ID);
         if (mountPoint) {
             console.log('[StatusPanel] Initializing');
             new StatusPanel(mountPoint);
@@ -45,8 +44,8 @@ export class StatusPanel {
         }
 
         // Mount point not ready yet - watch for it
-        const observer = new MutationObserver((_, obs) => {
-            const el = document.getElementById(STATUS_PANEL_MOUNT_ID);
+        const observer: MutationObserver = new MutationObserver((_, obs) => {
+            const el: HTMLElement | null = document.getElementById(STATUS_PANEL_MOUNT_ID);
             if (el) {
                 obs.disconnect();
                 console.log('[StatusPanel] Initializing (after DOM ready)');
@@ -66,18 +65,29 @@ export class StatusPanel {
     }
 
     addEvent(event: SSEEvent): void {
-        const li: HTMLLIElement = document.createElement('li');
-        li.className = `event-item event-${event.type}`;
-        li.innerHTML = this.formatEvent(event);
-        this.eventList.prepend(li);  // newest at top
+        const card: HTMLDivElement = document.createElement('div');
+        card.className = `server-activity-card event-${event.type}`;
+        card.innerHTML = this.formatEventCard(event);
+
+        // Prepend: newest on left (FIFO)
+        this.eventsContainer.prepend(card);
         this.trimOldEvents();
     }
 
-    private formatEvent(event: SSEEvent): string {
-        const time: string = new Date(event.timestamp).toLocaleTimeString();
+    private formatEventCard(event: SSEEvent): string {
+        const time: string = new Date(event.timestamp).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
         const icon: string = this.getEventIcon(event.type);
         const message: string = this.getEventMessage(event);
-        return `<span class="event-time">${time}</span> ${icon} <span class="event-message">${message}</span>`;
+
+        return `
+            <span class="activity-icon">${icon}</span>
+            <span class="activity-message">${message}</span>
+            <span class="activity-time">${time}</span>
+        `;
     }
 
     private getEventIcon(type: string): string {
@@ -96,26 +106,27 @@ export class StatusPanel {
     }
 
     private getEventMessage(event: SSEEvent): string {
-        // Format based on event type
         switch (event.type) {
             case 'phase_started':
-                return `Phase: ${event.data.phase} started`;
+                return `${event.data.phase}`;
             case 'phase_complete':
-                return `Phase: ${event.data.phase} complete`;
+                return `${event.data.phase} ✓`;
             case 'rate_limit_error':
-                return `Rate limited (retry in ${event.data.retry_after_ms}ms)`;
+                return `Rate limit`;
             case 'workflow_complete':
-                return `Workflow complete (${event.data.total_nodes} nodes)`;
+                return `Done (${event.data.total_nodes} nodes)`;
             case 'connection_open':
-                return 'Connected to server';
+                return 'Connected';
+            case 'connection_error':
+                return 'Disconnected';
             default:
                 return event.type.replace(/_/g, ' ');
         }
     }
 
     private trimOldEvents(): void {
-        while (this.eventList.children.length > this.maxEvents) {
-            this.eventList.removeChild(this.eventList.lastChild!);
+        while (this.eventsContainer.children.length > this.maxEvents) {
+            this.eventsContainer.removeChild(this.eventsContainer.lastChild!);
         }
     }
 
