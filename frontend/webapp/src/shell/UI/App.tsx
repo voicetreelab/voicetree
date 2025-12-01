@@ -137,8 +137,8 @@ function App(): JSX.Element {
             {/* Top Section: Transcribe UI-edge (auto height) - z-index above floating windows (1000) */}
             <div className="flex-shrink-0 py-2 px-4" style={{ position: 'relative', zIndex: 1050 }}>
                 <div className="flex gap-4">
-                    {/* Left Column: File Watching Panel + Status Panel - 1/6 width */}
-                    <div className="w-1/6 flex flex-col gap-2">
+                    {/* Left Column: File Watching Panel + Status Panel */}
+                    <div className="w-1/4 flex flex-col gap-2">
                         <FileWatchingPanel/>
                         {/* Status Panel - compact fixed height matching file panel */}
                         <div id="status-panel-mount" className="h-[120px]" />
