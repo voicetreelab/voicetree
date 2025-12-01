@@ -28,7 +28,5 @@ createRoot(document.getElementById('root')!).render(
     <App/>
 );
 
-// Initialize StatusPanel after React has rendered the mount point
-requestAnimationFrame(() => {
-  StatusPanel.init();
-});
+// Initialize StatusPanel (waits for mount point via MutationObserver if needed)
+StatusPanel.init();

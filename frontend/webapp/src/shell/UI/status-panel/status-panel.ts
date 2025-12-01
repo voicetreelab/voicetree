@@ -35,15 +35,25 @@ export class StatusPanel {
         this.initSSEConnection();
     }
 
-    /** Initialize StatusPanel by finding mount point in DOM */
-    static init(): StatusPanel | null {
+    /** Initialize StatusPanel by finding mount point in DOM, waiting if necessary */
+    static init(): void {
         const mountPoint = document.getElementById(STATUS_PANEL_MOUNT_ID);
-        if (!mountPoint) {
-            console.error(`[StatusPanel] Mount point #${STATUS_PANEL_MOUNT_ID} not found`);
-            return null;
+        if (mountPoint) {
+            console.log('[StatusPanel] Initializing');
+            new StatusPanel(mountPoint);
+            return;
         }
-        console.log('[StatusPanel] Initializing');
-        return new StatusPanel(mountPoint);
+
+        // Mount point not ready yet - watch for it
+        const observer = new MutationObserver((_, obs) => {
+            const el = document.getElementById(STATUS_PANEL_MOUNT_ID);
+            if (el) {
+                obs.disconnect();
+                console.log('[StatusPanel] Initializing (after DOM ready)');
+                new StatusPanel(el);
+            }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
     }
 
     private initSSEConnection(): void {
