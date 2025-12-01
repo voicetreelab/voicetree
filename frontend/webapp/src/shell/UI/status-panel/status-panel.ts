@@ -1,15 +1,20 @@
+import { createSSEConnection } from './sse-consumer';
+
 export interface SSEEvent {
     type: string;
     data: Record<string, unknown>;
     timestamp: number;
 }
 
+const STATUS_PANEL_MOUNT_ID = 'status-panel-mount';
+
 export class StatusPanel {
     private container: HTMLElement;
     private eventList: HTMLElement;
     private maxEvents = 50;
+    private disconnectSSE: (() => void) | null = null;
 
-    constructor(mountPoint: HTMLElement) {
+    private constructor(mountPoint: HTMLElement) {
         this.container = document.createElement('div');
         this.container.className = 'status-panel';
 
@@ -25,6 +30,29 @@ export class StatusPanel {
         this.container.appendChild(this.eventList);
 
         mountPoint.appendChild(this.container);
+
+        // Initialize SSE connection
+        this.initSSEConnection();
+    }
+
+    /** Initialize StatusPanel by finding mount point in DOM */
+    static init(): StatusPanel | null {
+        const mountPoint = document.getElementById(STATUS_PANEL_MOUNT_ID);
+        if (!mountPoint) {
+            console.error(`[StatusPanel] Mount point #${STATUS_PANEL_MOUNT_ID} not found`);
+            return null;
+        }
+        console.log('[StatusPanel] Initializing');
+        return new StatusPanel(mountPoint);
+    }
+
+    private initSSEConnection(): void {
+        window.electronAPI?.main.getBackendPort().then((port: number | null) => {
+            if (port) {
+                console.log('[StatusPanel] Creating SSE connection on port', port);
+                this.disconnectSSE = createSSEConnection(port, event => this.addEvent(event));
+            }
+        }).catch(() => console.error('[StatusPanel] Failed to get backend port'));
     }
 
     addEvent(event: SSEEvent): void {
@@ -82,6 +110,10 @@ export class StatusPanel {
     }
 
     dispose(): void {
+        if (this.disconnectSSE) {
+            console.log('[StatusPanel] Disconnecting SSE');
+            this.disconnectSSE();
+        }
         this.container.remove();
     }
 }
