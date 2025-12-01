@@ -12,6 +12,9 @@ from typing import Optional
 
 from termcolor import colored
 
+from backend.sse.context import emit_event
+from backend.sse.event_emitter import SSEEventType
+
 from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import (
     _format_nodes_for_prompt,
 )
@@ -162,46 +165,6 @@ class TreeActionDeciderWorkflow:
         """Get transcript history with optional length limit"""
         return self._history_manager.get(max_length)
 
-    async def run(
-        self,
-        transcript_text: str,
-        decision_tree: MarkdownTree,
-        transcript_history: str = ""
-    ) -> list[BaseTreeAction]:
-        # TODO WE SHOULD REMOVE THIS, WE SHOULD NEVER HAVE BACKWARDS COMPATABILITY
-        """
-        Wrapper method for backwards compatibility with tests.
-        Runs the workflow and returns all optimization actions.
-
-        Args:
-            transcript_text: The text to process
-            decision_tree: The decision tree to update
-            transcript_history: Historical context
-
-        Returns:
-            List of optimization actions that were applied
-        """
-        # Set the decision tree
-        self.decision_tree = decision_tree
-
-        # Create temporary instances for the wrapper
-        from backend.text_to_graph_pipeline.text_buffer_manager import TextBufferManager
-        buffer_manager = TextBufferManager()
-        tree_action_applier = TreeActionApplier(decision_tree)
-
-        # Store optimization actions for test compatibility
-        self.optimization_actions_for_tests: list[BaseTreeAction] = []
-
-        # Process the chunk
-        await self.process_text_chunk(
-            text_chunk=transcript_text,
-            tree_action_applier=tree_action_applier,
-            buffer_manager=buffer_manager
-        )
-
-        # Return the optimization actions for test compatibility
-        return self.optimization_actions_for_tests
-
     async def process_text_chunk(
         self,
         text_chunk: str,
@@ -229,217 +192,258 @@ class TreeActionDeciderWorkflow:
         # Track merged orphan actions
         self.merged_orphan_actions: list[CreateAction] = []
 
-        # ======================================================================
-        # PHASE 1: PLACEMENT (APPEND/CREATE)
-        # ======================================================================
-        logging.info("Running Phase 1: Placement Agent...")
+        # Track current phase for error reporting
+        current_phase = "initialization"
 
-        # Get the most relevant nodes for the agent to consider
-        if self.decision_tree is None:
-            raise ValueError("Decision tree is not initialized")
-        relevant_nodes = get_most_relevant_nodes(self.decision_tree, MAX_NODES_FOR_LLM_CONTEXT, query=text_chunk)
-        relevant_nodes_formatted = _format_nodes_for_prompt(relevant_nodes, self.decision_tree.tree)
+        try:
+            # ======================================================================
+            # PHASE 1: PLACEMENT (APPEND/CREATE)
+            # ======================================================================
+            current_phase = "placement"
+            await emit_event(SSEEventType.PHASE_STARTED, {"phase": "placement"})
+            logging.info("Running Phase 1: Placement Agent...")
 
-        # Get transcript history from our own history manager
-        transcript_history = self.get_transcript_history()
-
-        logging.info(f"rec history of len {len(transcript_history)}")
-        if len(transcript_history) > 50:
-            logging.info(f"last n {transcript_history[-50:]}")
-
-        # The append_agent now returns both actions and segment information
-        append_agent_result: AppendAgentResult = await self.append_agent.run(
-            transcript_text=text_chunk,
-            existing_nodes_formatted=relevant_nodes_formatted,
-            transcript_history=transcript_history
-        )
-        logging.info(f"append_agent_results, {len(append_agent_result.actions)} "
-                     f"actions: {append_agent_result}")
-
-        append_or_create_actions: list[AppendAction | CreateAction] = append_agent_result.actions
-
-        # FOR EACH COMPLETED SEGMENT, REMOVE FROM BUFFER AND UPDATE HISTORY
-        # note, you ABSOLUTELY HAVE TO do this per segment, not all at once for all completed text.
-        max_history = buffer_manager.bufferFlushLength * TRANSCRIPT_HISTORY_MULTIPLIER
-        for segment in append_agent_result.segments:
-            if segment.is_routable:
-                buffer_manager.flushCompletelyProcessedText(segment.raw_text)
-                # Update history with the routed segment
-                self._history_manager.append(segment.raw_text, max_history)
-
-        # to avoid possible bugs with stuck text (never gets processed)
-        await self.clear_text_that_has_been_not_cleared_for_multiple_iterations(buffer_manager)
-
-        # --- Orphan Merging ---
-        # This logic is necessary before the first apply.
-        # Merge all create actions into a single node,
-        # ONLY FOR THE NODES THAT HAVE THE SAME TOPIC NAME
-        # so that they can be seperated by optimizer.
-        # Process actions based on orphan merge logic
-        actions_to_apply: list[BaseTreeAction] = append_or_create_actions
-
-        # todo, we should move this logic into append_agent
-        actions_to_apply = await self.group_orphans_by_name(actions_to_apply, append_or_create_actions)
-
-        # Log actions AFTER orphan merging to avoid duplicates
-        await log_tree_actions(actions_to_apply)
-
-        # --- SYNC MARKDOWN BEFORE APPLYING ACTIONS ---
-        # Identify which nodes will be modified by Phase 1 actions
-        nodes_to_sync_before_phase1: set[int] = set()
-        for action in actions_to_apply:
-            if isinstance(action, (AppendAction, UpdateAction)):
-                # These actions modify existing nodes
-                node_id = action.target_node_id if isinstance(action, AppendAction) else action.node_id
-                nodes_to_sync_before_phase1.add(node_id)
-
-        # Sync markdown content back to tree BEFORE applying Phase 1 actions
-        # This ensures manual edits to markdown files are preserved
-        if nodes_to_sync_before_phase1:
-            logging.info(f"Syncing {len(nodes_to_sync_before_phase1)} nodes from markdown BEFORE Phase 1 actions")
-            sync_nodes_from_markdown(self.decision_tree, nodes_to_sync_before_phase1)
-
-        # --- First Side Effect: Apply Placement ---
-        modified_or_new_nodes = tree_action_applier.apply(actions_to_apply)
-        logging.info(f"Phase 1 Complete. Nodes affected: {modified_or_new_nodes}")
-
-        # Separate newly created nodes from modified nodes
-        newly_created_nodes: set[int] = set()
-        modified_nodes: set[int] = set()
-        merged_orphan_node_ids: set[int] = set()
-
-        for action in actions_to_apply:
-            if isinstance(action, CreateAction):
-                # The created node ID will be in modified_or_new_nodes
-                # We need to find it by matching the node name
-                for node_id in modified_or_new_nodes:
-                    if self.decision_tree is not None and node_id in self.decision_tree.tree and self.decision_tree.tree[node_id].title == action.new_node_name:
-                        newly_created_nodes.add(node_id)
-                        # Check if this was a merged orphan
-                        if action in self.merged_orphan_actions:
-                            merged_orphan_node_ids.add(node_id)
-                        break
-            elif isinstance(action, AppendAction):
-                # AppendAction modifies existing nodes
-                if action.target_node_id in modified_or_new_nodes:
-                    modified_nodes.add(action.target_node_id)
-
-        logging.info(f"Phase 1 Complete. Newly created nodes: {newly_created_nodes}, Modified nodes: {modified_nodes}, Merged orphan nodes: {merged_orphan_node_ids}")
-
-        # ======================================================================
-        # PHASE 2: OPTIMIZATION
-        # ======================================================================
-        logging.info("Running Phase 2: Optimization Agent...")
-
-        # Combine modified nodes and merged orphan nodes for optimization
-        nodes_to_optimize = modified_nodes.union(merged_orphan_node_ids)
-        logging.info(f"Optimizing {len(modified_nodes)} modified nodes and {len(merged_orphan_node_ids)} merged orphan nodes")
-
-        # Run optimizer on both modified nodes and merged orphan nodes
-        all_optimization_modified_nodes: set[int] = set()
-        for node_id in nodes_to_optimize:
-            node_type = "merged orphan" if node_id in merged_orphan_node_ids else "modified"
-            logging.info(f"Optimizing {node_type} node {node_id}...")
-
-            # Get neighbors, remove 'id' key, and format as a string for the agent
+            # Get the most relevant nodes for the agent to consider
             if self.decision_tree is None:
                 raise ValueError("Decision tree is not initialized")
-            neighbours_context = self.decision_tree.get_neighbors(node_id, max_neighbours=30)
-            formatted_neighbours_context = str([
-                {key: value for key, value in neighbour.items() if key != 'id'}
-                for neighbour in neighbours_context
-            ]) #todo, ugly. This is just to remove IDs.
+            relevant_nodes = get_most_relevant_nodes(self.decision_tree, MAX_NODES_FOR_LLM_CONTEXT, query=text_chunk)
+            relevant_nodes_formatted = _format_nodes_for_prompt(relevant_nodes, self.decision_tree.tree)
 
-            # The optimizer runs on the tree which has ALREADY been mutated by Phase 1.
-            optimization_actions: list[BaseTreeAction] = await self.optimizer_agent.run(
-                node=self.decision_tree.tree[node_id],
-                neighbours_context=formatted_neighbours_context
+            # Get transcript history from our own history manager
+            transcript_history = self.get_transcript_history()
+
+            logging.info(f"rec history of len {len(transcript_history)}")
+            if len(transcript_history) > 50:
+                logging.info(f"last n {transcript_history[-50:]}")
+
+            # The append_agent now returns both actions and segment information
+            append_agent_result: AppendAgentResult = await self.append_agent.run(
+                transcript_text=text_chunk,
+                existing_nodes_formatted=relevant_nodes_formatted,
+                transcript_history=transcript_history
             )
+            logging.info(f"append_agent_results, {len(append_agent_result.actions)} "
+                         f"actions: {append_agent_result}")
 
-            if optimization_actions:
-                logging.info(f"Optimizer generated {len(optimization_actions)} actions for node {node_id}. Applying them now.")
+            append_or_create_actions: list[AppendAction | CreateAction] = append_agent_result.actions
 
-                # Log each optimization action
-                for opt_action in optimization_actions:
-                    if isinstance(opt_action, UpdateAction):
-                        update_log = f"OPTIMIZER: UPDATING node:{opt_action.node_id} "
-                        # if len(opt_action.new_content) > 10:
-                        #     update_log += f"with new content: {opt_action.new_content[0:10]}...{opt_action.new_content[-10:]} "
-                        print(update_log)
-                        logging.info(update_log)
+            # FOR EACH COMPLETED SEGMENT, REMOVE FROM BUFFER AND UPDATE HISTORY
+            # note, you ABSOLUTELY HAVE TO do this per segment, not all at once for all completed text.
+            max_history = buffer_manager.bufferFlushLength * TRANSCRIPT_HISTORY_MULTIPLIER
+            for segment in append_agent_result.segments:
+                if segment.is_routable:
+                    buffer_manager.flushCompletelyProcessedText(segment.raw_text)
+                    # Update history with the routed segment
+                    self._history_manager.append(segment.raw_text, max_history)
 
-                    elif isinstance(opt_action, CreateAction):
-                        create_log = f"OPTIMIZER: CREATING child node:'{opt_action.new_node_name}' under parent:{opt_action.parent_node_id} "
-                        # if len(opt_action.content) > 10:
-                        #     create_log += f"with content: {opt_action.content[0:10]}...{opt_action.content[-10:]} "
-                        print(colored(create_log, 'green'))
-                        logging.info(create_log)
+            # to avoid possible bugs with stuck text (never gets processed)
+            await self.clear_text_that_has_been_not_cleared_for_multiple_iterations(buffer_manager)
 
-                    elif isinstance(opt_action, AppendAction):
-                        append_log = f"OPTIMIZER: APPENDING to node:{opt_action.target_node_id} "
-                        # if len(opt_action.content) > 10:
-                        #     append_log += f"with content: {opt_action.content[0:10]}...{opt_action.content[-10:]} "
-                        print(colored(append_log, 'cyan'))
-                        logging.info(append_log)
+            # --- Orphan Merging ---
+            # This logic is necessary before the first apply.
+            # Merge all create actions into a single node,
+            # ONLY FOR THE NODES THAT HAVE THE SAME TOPIC NAME
+            # so that they can be seperated by optimizer.
+            # Process actions based on orphan merge logic
+            actions_to_apply: list[BaseTreeAction] = append_or_create_actions
 
-                    else:
-                        logging.warning(f"Unknown optimization action type: {type(opt_action)}")
+            # todo, we should move this logic into append_agent
+            actions_to_apply = await self.group_orphans_by_name(actions_to_apply, append_or_create_actions)
 
-                # --- Second Side Effect: Apply Optimization ---
-                # Apply these actions immediately.
-                optimization_modified_nodes: set[int] = tree_action_applier.apply(optimization_actions)
-                all_optimization_modified_nodes.update(optimization_modified_nodes)
+            # Log actions AFTER orphan merging to avoid duplicates
+            await log_tree_actions(actions_to_apply)
 
-                # Collect optimization actions for test compatibility
-                if hasattr(self, 'optimization_actions_for_tests'):
-                    self.optimization_actions_for_tests.extend(optimization_actions)
+            # --- SYNC MARKDOWN BEFORE APPLYING ACTIONS ---
+            # Identify which nodes will be modified by Phase 1 actions
+            nodes_to_sync_before_phase1: set[int] = set()
+            for action in actions_to_apply:
+                if isinstance(action, (AppendAction, UpdateAction)):
+                    # These actions modify existing nodes
+                    node_id = action.target_node_id if isinstance(action, AppendAction) else action.node_id
+                    nodes_to_sync_before_phase1.add(node_id)
 
-            else:
-                logging.info(f"Optimizer had no changes for node {node_id}.")
+            # Sync markdown content back to tree BEFORE applying Phase 1 actions
+            # This ensures manual edits to markdown files are preserved
+            if nodes_to_sync_before_phase1:
+                logging.info(f"Syncing {len(nodes_to_sync_before_phase1)} nodes from markdown BEFORE Phase 1 actions")
+                sync_nodes_from_markdown(self.decision_tree, nodes_to_sync_before_phase1)
 
-        # Always store current buffer state for next processing to detect stuck text
-        self._prev_buffer_remainder = buffer_manager.getBuffer() #todo what's this for?
+            # --- First Side Effect: Apply Placement ---
+            modified_or_new_nodes = tree_action_applier.apply(actions_to_apply)
+            logging.info(f"Phase 1 Complete. Nodes affected: {modified_or_new_nodes}")
 
+            # Separate newly created nodes from modified nodes
+            newly_created_nodes: set[int] = set()
+            modified_nodes: set[int] = set()
+            merged_orphan_node_ids: set[int] = set()
 
-        # todo, new code, haven't extensively tested this yet
-        # ======================================================================
-        # PHASE 3: CONNECT ORPHANS (Every N nodes)
-        # ======================================================================
-        if self.decision_tree is None:
-            raise ValueError("Decision tree is not initialized")
-        current_node_count = len(self.decision_tree.tree)
-        nodes_added_since_last_check = current_node_count - self._last_orphan_check_node_count
+            for action in actions_to_apply:
+                if isinstance(action, CreateAction):
+                    # The created node ID will be in modified_or_new_nodes
+                    # We need to find it by matching the node name
+                    for node_id in modified_or_new_nodes:
+                        if self.decision_tree is not None and node_id in self.decision_tree.tree and self.decision_tree.tree[node_id].title == action.new_node_name:
+                            newly_created_nodes.add(node_id)
+                            # Check if this was a merged orphan
+                            if action in self.merged_orphan_actions:
+                                merged_orphan_node_ids.add(node_id)
+                            break
+                elif isinstance(action, AppendAction):
+                    # AppendAction modifies existing nodes
+                    if action.target_node_id in modified_or_new_nodes:
+                        modified_nodes.add(action.target_node_id)
 
-        if nodes_added_since_last_check >= self._orphan_check_interval:
-            logging.info(f"Running Phase 3: Connect Orphans Agent (tree has {current_node_count} nodes)...")
+            logging.info(f"Phase 1 Complete. Newly created nodes: {newly_created_nodes}, Modified nodes: {modified_nodes}, Merged orphan nodes: {merged_orphan_node_ids}")
 
-            try:
-                # Run the connection agent to group orphan nodes
-                connection_actions = await self.connect_orphans_agent.run(
-                    tree=self.decision_tree,
-                    max_roots_to_process=20
+            await emit_event(SSEEventType.PHASE_COMPLETE, {
+                "phase": "placement",
+                "actions_count": len(actions_to_apply)
+            })
+
+            # ======================================================================
+            # PHASE 2: OPTIMIZATION
+            # ======================================================================
+            current_phase = "optimization"
+            await emit_event(SSEEventType.PHASE_STARTED, {"phase": "optimization"})
+            logging.info("Running Phase 2: Optimization Agent...")
+
+            # Combine modified nodes and merged orphan nodes for optimization
+            nodes_to_optimize = modified_nodes.union(merged_orphan_node_ids)
+            logging.info(f"Optimizing {len(modified_nodes)} modified nodes and {len(merged_orphan_node_ids)} merged orphan nodes")
+
+            # Run optimizer on both modified nodes and merged orphan nodes
+            all_optimization_modified_nodes: set[int] = set()
+            for node_id in nodes_to_optimize:
+                node_type = "merged orphan" if node_id in merged_orphan_node_ids else "modified"
+                logging.info(f"Optimizing {node_type} node {node_id}...")
+
+                # Get neighbors, remove 'id' key, and format as a string for the agent
+                if self.decision_tree is None:
+                    raise ValueError("Decision tree is not initialized")
+                neighbours_context = self.decision_tree.get_neighbors(node_id, max_neighbours=30)
+                formatted_neighbours_context = str([
+                    {key: value for key, value in neighbour.items() if key != 'id'}
+                    for neighbour in neighbours_context
+                ]) #todo, ugly. This is just to remove IDs.
+
+                # The optimizer runs on the tree which has ALREADY been mutated by Phase 1.
+                optimization_actions: list[BaseTreeAction] = await self.optimizer_agent.run(
+                    node=self.decision_tree.tree[node_id],
+                    neighbours_context=formatted_neighbours_context
                 )
 
-                if connection_actions:
-                    logging.info(f"Connect Orphans Agent created {len(connection_actions)} parent nodes")
+                if optimization_actions:
+                    logging.info(f"Optimizer generated {len(optimization_actions)} actions for node {node_id}. Applying them now.")
 
-                    # Apply the connection actions (children will be linked automatically via children_to_link)
-                    connection_modified_nodes = tree_action_applier.apply(connection_actions)
-                    all_optimization_modified_nodes.update(connection_modified_nodes)
+                    # Log each optimization action
+                    for opt_action in optimization_actions:
+                        if isinstance(opt_action, UpdateAction):
+                            update_log = f"OPTIMIZER: UPDATING node:{opt_action.node_id} "
+                            # if len(opt_action.new_content) > 10:
+                            #     update_log += f"with new content: {opt_action.new_content[0:10]}...{opt_action.new_content[-10:]} "
+                            print(update_log)
+                            logging.info(update_log)
 
-                    logging.info(f"Connected orphan subtrees with new parent nodes: {connection_modified_nodes}")
+                        elif isinstance(opt_action, CreateAction):
+                            create_log = f"OPTIMIZER: CREATING child node:'{opt_action.new_node_name}' under parent:{opt_action.parent_node_id} "
+                            # if len(opt_action.content) > 10:
+                            #     create_log += f"with content: {opt_action.content[0:10]}...{opt_action.content[-10:]} "
+                            print(colored(create_log, 'green'))
+                            logging.info(create_log)
+
+                        elif isinstance(opt_action, AppendAction):
+                            append_log = f"OPTIMIZER: APPENDING to node:{opt_action.target_node_id} "
+                            # if len(opt_action.content) > 10:
+                            #     append_log += f"with content: {opt_action.content[0:10]}...{opt_action.content[-10:]} "
+                            print(colored(append_log, 'cyan'))
+                            logging.info(append_log)
+
+                        else:
+                            logging.warning(f"Unknown optimization action type: {type(opt_action)}")
+
+                    # --- Second Side Effect: Apply Optimization ---
+                    # Apply these actions immediately.
+                    optimization_modified_nodes: set[int] = tree_action_applier.apply(optimization_actions)
+                    all_optimization_modified_nodes.update(optimization_modified_nodes)
+
+                    # Collect optimization actions for test compatibility
+                    if hasattr(self, 'optimization_actions_for_tests'):
+                        self.optimization_actions_for_tests.extend(optimization_actions)
+
                 else:
-                    logging.info("No obvious groupings found among orphan nodes")
+                    logging.info(f"Optimizer had no changes for node {node_id}.")
 
-                # Update the last check count
-                self._last_orphan_check_node_count = current_node_count
+            await emit_event(SSEEventType.PHASE_COMPLETE, {
+                "phase": "optimization",
+                "nodes_optimized": len(nodes_to_optimize)
+            })
 
-            except Exception as e:
-                logging.error(f"Error in Connect Orphans phase: {e}")
-                # Don't fail the whole workflow, just log the error
+            # Always store current buffer state for next processing to detect stuck text
+            self._prev_buffer_remainder = buffer_manager.getBuffer() #todo what's this for?
 
-        # Return the set of all affected nodes (new + modified + optimization-modified)
-        return modified_or_new_nodes.union(all_optimization_modified_nodes)
+
+            # todo, new code, haven't extensively tested this yet
+            # ======================================================================
+            # PHASE 3: CONNECT ORPHANS (Every N nodes)
+            # ======================================================================
+            if self.decision_tree is None:
+                raise ValueError("Decision tree is not initialized")
+            current_node_count = len(self.decision_tree.tree)
+            nodes_added_since_last_check = current_node_count - self._last_orphan_check_node_count
+
+
+            # todo, orphan conn disbaled for now, it was just annoying
+            # if nodes_added_since_last_check >= self._orphan_check_interval:
+            #     current_phase = "connect_orphans"
+            #     await emit_event(SSEEventType.PHASE_STARTED, {"phase": "connect_orphans"})
+            #     logging.info(f"Running Phase 3: Connect Orphans Agent (tree has {current_node_count} nodes)...")
+            #
+            #     try:
+            #         # Run the connection agent to group orphan nodes
+            #         connection_actions = await self.connect_orphans_agent.run(
+            #             tree=self.decision_tree,
+            #             max_roots_to_process=20
+            #         )
+            #
+            #         if connection_actions:
+            #             logging.info(f"Connect Orphans Agent created {len(connection_actions)} parent nodes")
+            #
+            #             # Apply the connection actions (children will be linked automatically via children_to_link)
+            #             connection_modified_nodes = tree_action_applier.apply(connection_actions)
+            #             all_optimization_modified_nodes.update(connection_modified_nodes)
+            #
+            #             logging.info(f"Connected orphan subtrees with new parent nodes: {connection_modified_nodes}")
+            #         else:
+            #             logging.info("No obvious groupings found among orphan nodes")
+            #
+            #         await emit_event(SSEEventType.PHASE_COMPLETE, {
+            #             "phase": "connect_orphans",
+            #             "groups_created": len(connection_actions) if connection_actions else 0
+            #         })
+            #
+            #         # Update the last check count
+            #         self._last_orphan_check_node_count = current_node_count
+            #
+            #     except Exception as e:
+            #         logging.error(f"Error in Connect Orphans phase: {e}")
+            #         # Don't fail the whole workflow, just log the error
+
+            # Workflow complete
+            await emit_event(SSEEventType.WORKFLOW_COMPLETE, {
+                "total_nodes": len(newly_created_nodes),
+                "phases_completed": 3
+            })
+
+            # Return the set of all affected nodes (new + modified + optimization-modified)
+            return modified_or_new_nodes.union(all_optimization_modified_nodes)
+
+        except Exception as e:
+            # Workflow failed
+            await emit_event(SSEEventType.WORKFLOW_FAILED, {
+                "error": str(e),
+                "phase": current_phase
+            })
+            raise
 
     async def group_orphans_by_name(self, actions_to_apply, append_or_create_actions):
         orphan_creates: list[CreateAction] = [
