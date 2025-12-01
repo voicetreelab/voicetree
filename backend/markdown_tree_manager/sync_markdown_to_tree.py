@@ -42,6 +42,10 @@ class MarkdownToTreeSynchronizer:
             logging.warning(f"Node {node_id} not found in tree, cannot sync")
             return False
 
+        # Cannot sync if no output directory is configured THROW HARD ERROR IN THIS CASE DON"T CATCH OR RETURN
+        # if self.decision_tree.output_dir is None:
+        #     error(f"Skipping sync for node {node_id}: no output directory configured")
+
         node = self.decision_tree.tree[node_id]
 
         # Get the markdown file path

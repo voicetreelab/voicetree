@@ -84,11 +84,10 @@ class TreeToMarkdownConverter:
     def convert_nodes(self, output_dir: str, nodes_to_update: Optional[set[int]] = None) -> None:
         """Converts the specified nodes to Markdown files."""
         logging.info(f"TreeToMarkdownConverter.convert_nodes called with output_dir='{output_dir}' (absolute: {os.path.abspath(output_dir)})")
-        print(f"DEBUG: TreeToMarkdownConverter.convert_nodes called with output_dir='{output_dir}' (absolute: {os.path.abspath(output_dir)})")
 
         os.makedirs(output_dir, exist_ok=True)
         os.makedirs(os.path.join(output_dir, "VT"), exist_ok=True)  # Ensure VT subdirectory exists
-        if (len(nodes_to_update)> 0):
+        if nodes_to_update and len(nodes_to_update) > 0:
             logging.info(f"updating/writing markdown for nodes {nodes_to_update}")
 
         if nodes_to_update:
@@ -116,10 +115,13 @@ class TreeToMarkdownConverter:
                     hashtags = ' '.join(f"#{tag}" for tag in node_data.tags)
                     f.write(f"{hashtags}\n")
 
-                # Write YAML frontmatter (node_id only, title goes in markdown heading)
+                # Write YAML frontmatter with timestamps, read back at parse_markdown_file_complete
                 frontmatter = insert_yaml_frontmatter({
+                    "created_at": node_data.created_at.isoformat(),
+                    "modified_at": node_data.modified_at.isoformat(),
                     "node_id": node_id,
                 })
+
 
                 f.write(frontmatter)
 

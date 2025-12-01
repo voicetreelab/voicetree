@@ -57,7 +57,8 @@ class MarkdownTree:
         # This ensures that any files written to this directory (like transcript_history.txt)
         # will have a valid directory to write to
         import os
-        os.makedirs(self.output_dir, exist_ok=True)
+        if self.output_dir is not None:
+            os.makedirs(self.output_dir, exist_ok=True)
 
         # ThreadPool for async embedding updates
         self._embedding_executor = ThreadPoolExecutor(
@@ -175,16 +176,18 @@ class MarkdownTree:
 
     def _write_markdown_for_nodes(self, node_ids: list[int]) -> None:
         """Write markdown files for the specified nodes"""
-        if node_ids:
-            try:
-                logging.info(f"MarkdownTree._write_markdown_for_nodes: self.output_dir='{self.output_dir}' (absolute: {os.path.abspath(self.output_dir)})")
-                self.markdown_converter.convert_nodes(
-                    output_dir=self.output_dir,
-                    nodes_to_update=set(node_ids)
-                )
-                logging.info(f"Wrote markdown for nodes: {node_ids}")
-            except Exception as e:
-                logging.error(f"Failed to write markdown for nodes {node_ids}: {e}")
+        if not node_ids or self.output_dir is None:
+            return
+
+        try:
+            logging.info(f"MarkdownTree._write_markdown_for_nodes: self.output_dir='{self.output_dir}' (absolute: {os.path.abspath(self.output_dir)})")
+            self.markdown_converter.convert_nodes(
+                output_dir=self.output_dir,
+                nodes_to_update=set(node_ids)
+            )
+            logging.info(f"Wrote markdown for nodes: {node_ids}")
+        except Exception as e:
+            logging.error(f"Failed to write markdown for nodes {node_ids}: {e}")
 
     def create_new_node(self, name: str, parent_node_id: Optional[int], content: str, summary : str, relationship_to_parent: str = "child of") -> int:
         if parent_node_id is not None and parent_node_id not in self.tree:
