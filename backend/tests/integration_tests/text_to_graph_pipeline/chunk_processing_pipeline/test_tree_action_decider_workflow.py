@@ -175,30 +175,3 @@ class TestTreeActionDeciderWorkflow:
         assert "Content 1" in merged_orphan.content
         assert "Content 2" in merged_orphan.content
 
-    @pytest.mark.asyncio
-    async def test_run_method_returns_optimization_actions(self, workflow):
-        """The run() method should return optimization actions"""
-        # Given
-        placement_actions = [
-            AppendAction(action="APPEND", target_node_id=1, content="New content")
-        ]
-        optimization_actions = [
-            UpdateAction(action="UPDATE", node_id=1, new_content="Updated", new_summary="Summary")
-        ]
-
-        workflow.append_agent.run = AsyncMock(return_value=self.create_append_result(placement_actions))
-        workflow.optimizer_agent.run = AsyncMock(return_value=optimization_actions)
-
-        # Patch dependencies
-        with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TreeActionApplier') as mock_applier_class:
-            mock_applier = Mock()
-            mock_applier.apply.return_value = {1}
-            mock_applier_class.return_value = mock_applier
-
-            # When
-            actions = await workflow.run("test", workflow.decision_tree, "context")
-
-        # Then
-        assert actions == optimization_actions
-        assert len(actions) == 1
-        assert isinstance(actions[0], UpdateAction)

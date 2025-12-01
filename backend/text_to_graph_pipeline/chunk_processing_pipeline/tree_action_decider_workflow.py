@@ -380,7 +380,15 @@ class TreeActionDeciderWorkflow:
             })
 
             # Return the set of all affected nodes (new + modified + optimization-modified)
-            return modified_or_new_nodes.union(all_optimization_modified_nodes)
+            # Flatten results from gather into a single set
+            combined_optimization_nodes: set[int] = set()
+            for result in all_optimization_modified_nodes:
+                if isinstance(result, Exception):
+                    logging.error(f"Optimization failed: {result}")
+                elif isinstance(result, set):
+                    combined_optimization_nodes.update(result)
+
+            return modified_or_new_nodes.union(combined_optimization_nodes)
 
         except Exception as e:
             # Workflow failed
@@ -391,12 +399,16 @@ class TreeActionDeciderWorkflow:
             raise
 
     async def optimize_upserted_node(self, merged_orphan_node_ids, node_id, tree_action_applier):
-        all_optimization_modified_nodes = []
         node_type = "merged orphan" if node_id in merged_orphan_node_ids else "modified"
-        logging.info(f"Optimizing {node_type} node {node_id}...")
-        # Get neighbors, remove 'id' key, and format as a string for the agent
+
         if self.decision_tree is None:
             raise ValueError("Decision tree is not initialized")
+
+        if len(self.decision_tree.tree[node_id].content) > 1500:
+            logging.info(f"Skipping optimization for node {node_id} due to too much content")
+            return set()
+
+        logging.info(f"Optimizing {node_type} node {node_id}...")
         neighbours_context = self.decision_tree.get_neighbors(node_id, max_neighbours=30)
         formatted_neighbours_context = str([
             {key: value for key, value in neighbour.items() if key != 'id'}
@@ -439,7 +451,6 @@ class TreeActionDeciderWorkflow:
             # --- Second Side Effect: Apply Optimization ---
             # Apply these actions immediately.
             optimization_modified_nodes: set[int] = tree_action_applier.apply(optimization_actions)
-            all_optimization_modified_nodes.update(optimization_modified_nodes)
 
             # Collect optimization actions for test compatibility
             if hasattr(self, 'optimization_actions_for_tests'):
@@ -447,6 +458,7 @@ class TreeActionDeciderWorkflow:
 
         else:
             logging.info(f"Optimizer had no changes for node {node_id}.")
+            optimization_modified_nodes = set()
 
         return optimization_modified_nodes
 

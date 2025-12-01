@@ -218,8 +218,10 @@ class TestPipelineE2EWithDI:
             "This should definitely trigger the workflow processing."
         ]
 
-        for text in test_texts:
-            await chunk_processor.process_new_text_and_update_markdown(text)
+        for i, text in enumerate(test_texts):
+            # Force flush on the last text to ensure all buffered content is processed
+            force_flush = (i == len(test_texts) - 1)
+            await chunk_processor.process_new_text_and_update_markdown(text, forceFlush=force_flush)
 
         # Wait for async operations
         await asyncio.sleep(0.1)
@@ -253,8 +255,9 @@ class TestPipelineE2EWithDI:
         assert len(workflow_history) <= max_expected, \
             f"History length {len(workflow_history)} should be bounded by {max_expected}"
 
-        # Verify markdown files were created
-        md_files = glob.glob(os.path.join(self.output_dir, "*.md"))
+        # Verify markdown files were created (check both root and VT subdirectory)
+        md_files = glob.glob(os.path.join(self.output_dir, "*.md")) + \
+                   glob.glob(os.path.join(self.output_dir, "VT", "*.md"))
         assert len(md_files) > 0, "Markdown files should be created"
 
         # Verify content appears in files
@@ -298,7 +301,7 @@ class TestPipelineE2EWithDI:
         # Send text through pipeline - needs to be >183 chars to trigger buffer
         test_text = ("The quick brown fox jumps over the lazy dog. " * 5 +
                      "This is a test of text preservation in the chunk processing pipeline.")
-        await chunk_processor.process_new_text_and_update_markdown(test_text)
+        await chunk_processor.process_new_text_and_update_markdown(test_text, forceFlush=False)
 
         await asyncio.sleep(0.1)
 
@@ -330,8 +333,11 @@ class TestPipelineE2EWithDI:
 
         # Process multiple texts
         for i in range(5):
+            # Force flush on the last iteration to ensure all content is processed
+            force_flush = (i == 4)
             await chunk_processor.process_new_text_and_update_markdown(
-                f"Text chunk number {i} with some content."
+                f"Text chunk number {i} with some content.",
+                forceFlush=force_flush
             )
 
         await asyncio.sleep(0.1)
@@ -349,8 +355,9 @@ class TestPipelineE2EWithDI:
                 assert node_id in parent.children, \
                     f"Child {node_id} should be in parent's children list"
 
-        # Verify markdown files reflect structure
-        md_files = glob.glob(os.path.join(self.output_dir, "*.md"))
+        # Verify markdown files reflect structure (check both root and VT subdirectory)
+        md_files = glob.glob(os.path.join(self.output_dir, "*.md")) + \
+                   glob.glob(os.path.join(self.output_dir, "VT", "*.md"))
         assert len(md_files) == len([n for n in decision_tree.tree.values()
                                      if hasattr(n, 'title')]), \
             "Should have one markdown file per non-root node"
@@ -374,7 +381,7 @@ class TestPipelineE2EWithDI:
         for i in range(101):
             sentence = generate_random_sentence(1, 110)
             all_input_text.append(sentence)
-            await chunk_processor.process_new_text_and_update_markdown(sentence)
+            await chunk_processor.process_new_text_and_update_markdown(sentence, forceFlush=False)
 
         # Wait for all processing to complete
         await asyncio.sleep(1.0)
@@ -392,8 +399,9 @@ class TestPipelineE2EWithDI:
             if hasattr(node, 'content') and node.content:
                 all_node_content.append(node.content)
 
-        # Also check markdown files
-        md_files = glob.glob(os.path.join(self.output_dir, "*.md"))
+        # Also check markdown files (check both root and VT subdirectory)
+        md_files = glob.glob(os.path.join(self.output_dir, "*.md")) + \
+                   glob.glob(os.path.join(self.output_dir, "VT", "*.md"))
         all_markdown_content = ""
         for md_file in md_files:
             with open(md_file) as f:
@@ -453,7 +461,7 @@ async def test_empty_text_handling():
         )
 
         # Process empty text
-        await chunk_processor.process_new_text_and_update_markdown("")
+        await chunk_processor.process_new_text_and_update_markdown("", forceFlush=False)
 
         # Agent might not be called for empty text
         # This is expected behavior - buffer manager filters it out

@@ -64,7 +64,7 @@ class TestChunkProcessorWithNewActions:
         chunk_processor_with_mocks.buffer_manager.get_transcript_history = Mock(return_value="history")
 
         # When
-        await chunk_processor_with_mocks.process_new_text("test chunk")
+        await chunk_processor_with_mocks.process_new_text_and_update_markdown("test chunk", forceFlush=False)
 
         # Then
         mock_workflow.process_text_chunk.assert_called_once_with(
@@ -86,7 +86,7 @@ class TestChunkProcessorWithNewActions:
         chunk_processor_with_mocks.buffer_manager.get_transcript_history = Mock(return_value="history")
 
         # When
-        await chunk_processor_with_mocks.process_new_text("test")
+        await chunk_processor_with_mocks.process_new_text_and_update_markdown("test", forceFlush=False)
 
         # Then
         assert chunk_processor_with_mocks.nodes_to_update == modified_nodes
@@ -103,7 +103,7 @@ class TestChunkProcessorWithNewActions:
         chunk_processor_with_mocks.buffer_manager.get_transcript_history = Mock(return_value="history")
 
         # When
-        await chunk_processor_with_mocks.process_new_text("test")
+        await chunk_processor_with_mocks.process_new_text_and_update_markdown("test", forceFlush=False)
 
         # Then
         assert len(chunk_processor_with_mocks.nodes_to_update) == 0
@@ -120,7 +120,7 @@ class TestChunkProcessorWithNewActions:
         chunk_processor_with_mocks.buffer_manager = mock_buffer_manager
 
         # When
-        await chunk_processor_with_mocks.process_new_text("test")
+        await chunk_processor_with_mocks.process_new_text_and_update_markdown("test", forceFlush=False)
 
         # Then
         # Verify workflow was called with buffer manager
@@ -141,7 +141,7 @@ class TestChunkProcessorWithNewActions:
 
         # When/Then - should raise exception
         with pytest.raises(Exception, match="Workflow failed"):
-            await chunk_processor_with_mocks.process_new_text("test")
+            await chunk_processor_with_mocks.process_new_text_and_update_markdown("test", forceFlush=False)
 
         # nodes_to_update should remain unchanged
         assert len(chunk_processor_with_mocks.nodes_to_update) == 0
