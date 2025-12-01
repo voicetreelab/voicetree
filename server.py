@@ -119,29 +119,39 @@ async def buffer_processing_loop():
     # Dedicated executor so we never block the FastAPI event loop with LLM calls.
     executor = ThreadPoolExecutor(max_workers=1)
 
-    def run_llm_in_thread(text_to_process: str) -> None:
+    def run_llm_in_thread(text_to_process: str, force_flush: bool) -> None:
         """Run the async processor inside the worker thread (normal flow)."""
         try:
-            asyncio.run(processor.process_new_text_and_update_markdown(text_to_process, force_flush_next_processing_iteration))
+            # Set up SSE emitter so workflow events are sent to the frontend
+            set_emitter(SSEEventEmitter(sse_event_queue))
+            asyncio.run(processor.process_new_text_and_update_markdown(text_to_process, force_flush))
         except Exception as exc:
             logger.error(f"Error in LLM processing thread: {exc}", exc_info=True)
 
     last_sync_time = time.time()
 
-    try:
+    try: # we should make this end after 1 minute of inactivity, and start it on any /send-text
         loop = asyncio.get_running_loop()
         while True:
             try:
                 if processor is None:
-                    logger.error("Skipping buffer processing - no directory loaded yet. Text will be lost.")
+                    logger.error("Skipping buffer processing - no directory loaded yet")
+                    await asyncio.sleep(1.0)
 
                 if len(simple_buffer) > 0:
-                    text_to_move = simple_buffer
+
+                     # Time-based auto-flush after 2s inactivity
+                    if (last_text_received_time > 0 and
+                            time.time() - last_text_received_time >= AUTO_FLUSH_INACTIVITY_SECONDS or force_flush_next_processing_iteration):
+                        logger.debug(f"Forcing (due to timie) {len(simple_buffer)} chars from simple_buffer to buffer_manager")
+                        loop.run_in_executor(executor, run_llm_in_thread, simple_buffer, True)  # todo, await?
+                        if force_flush_next_processing_iteration:
+                            force_flush_next_processing_iteration = False
+                    else:
+                        logger.debug(f"Moving {len(simple_buffer)} chars from simple_buffer to buffer_manager")
+                        loop.run_in_executor(executor, run_llm_in_thread, simple_buffer, False)
                     simple_buffer = ""
-                    logger.debug(f"Moving {len(text_to_move)} chars from simple_buffer to buffer_manager")
-                    loop.run_in_executor(executor, run_llm_in_thread, text_to_move)  # todo, await?
-                    if force_flush_next_processing_iteration:
-                        force_flush_next_processing_iteration = False
+
 
                 # Step 2: Check if we need to force flush buffer_manager
                 # (either from Enter key or 2s inactivity)
@@ -255,11 +265,6 @@ async def send_text(request: TextRequest):
         if request.force_flush:
             force_flush_next_processing_iteration = True
             logger.info("[FORCE_FLUSH] Flag set - buffer will be processed immediately")
-
-        # Time-based auto-flush after 2s inactivity
-        if (last_text_received_time > 0 and
-                time.time() - last_text_received_time >= AUTO_FLUSH_INACTIVITY_SECONDS):
-            force_flush_next_processing_iteration = True
 
         last_text_received_time = time.time()
 

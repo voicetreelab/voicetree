@@ -164,13 +164,3 @@ class TextBufferManager:
     def get_buffer(self) -> str:
         """Compatibility method for old API - delegates to getBuffer()"""
         return self.getBuffer()
-
-    def forceFlush(self) -> str:
-        """
-        Force flush the buffer regardless of threshold.
-        Returns the buffer content and marks it ready for processing.
-        Used for: Enter key submission, inactivity timeout flush.
-        """
-        if not self._buffer or not self._buffer.strip():
-            return ""
-        return self._buffer
