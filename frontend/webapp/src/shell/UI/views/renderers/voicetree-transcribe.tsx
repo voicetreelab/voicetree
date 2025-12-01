@@ -210,8 +210,9 @@ export default function VoiceTreeTranscribe(): JSX.Element {
       >
         <Renderer
           tokens={allTokens}
-          placeholder="Click here to begin transcribing for VoiceTree"
+          placeholder="Click here to record speech into the concept graph"
           onPlaceholderClick={() => void startTranscription()}
+          isRecording={state === 'Running'}
         />
       </div>
 
@@ -259,7 +260,7 @@ export default function VoiceTreeTranscribe(): JSX.Element {
               value={textInput}
               onChange={(e) => setTextInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder={state === 'Running' ? "Type text while recording..." : "Or type text here and press Enter..."}
+              placeholder={state === 'Running' ? "Type text to add it to the graph" : "Type text to add it to the graph"}
               className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               disabled={isProcessing}
             />

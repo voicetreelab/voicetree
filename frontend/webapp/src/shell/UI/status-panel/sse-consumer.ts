@@ -1,6 +1,6 @@
 import type { SSEEvent } from './status-panel';
 
-const SSE_EVENT_TYPES = [
+const SSE_EVENT_TYPES: readonly string[] = [
     'phase_started', 'phase_complete',
     'action_applied', 'agent_error',
     'rate_limit_error', 'workflow_complete', 'workflow_failed'
@@ -11,12 +11,12 @@ const SSE_EVENT_TYPES = [
  * Returns a disconnect function for cleanup.
  */
 export function createSSEConnection(backendPort: number, onEvent: (event: SSEEvent) => void): () => void {
-    const url = `http://localhost:${backendPort}/stream-progress`;
-    const eventSource = new EventSource(url);
+    const url: string = `http://localhost:${backendPort}/stream-progress`;
+    const eventSource: EventSource = new EventSource(url);
 
     SSE_EVENT_TYPES.forEach(type => {
         eventSource.addEventListener(type, (e: MessageEvent) => {
-            const data = JSON.parse(e.data) as Record<string, unknown>;
+            const data: Record<string, unknown> = JSON.parse(e.data) as Record<string, unknown>;
             onEvent({ type, data, timestamp: Date.now() });
         });
     });
@@ -32,7 +32,7 @@ export function createSSEConnection(backendPort: number, onEvent: (event: SSEEve
     eventSource.onopen = () => {
         onEvent({
             type: 'connection_open',
-            data: { message: 'Connected to backend' },
+            data: { message: 'Connected to backend', port: backendPort },
             timestamp: Date.now()
         });
     };

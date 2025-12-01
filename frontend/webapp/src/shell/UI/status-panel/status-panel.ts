@@ -116,7 +116,7 @@ export class StatusPanel {
             case 'workflow_complete':
                 return `Done (${event.data.total_nodes} nodes)`;
             case 'connection_open':
-                return 'Connected';
+                return `Connected :${event.data.port}`;
             case 'connection_error':
                 return 'Disconnected';
             default:
