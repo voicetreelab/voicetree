@@ -1,6 +1,6 @@
 import type {Core, NodeSingular, Position} from 'cytoscape';
 import type {NodeIdAndFilePath, GraphNode} from "@/pure/graph";
-import {createNewChildNodeFromUI, deleteNodeFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions";
+import {createNewChildNodeFromUI, deleteNodesFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions";
 import {
     spawnTerminalWithNewContextNode
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI-v2";
@@ -301,7 +301,7 @@ export class HorizontalMenuService {
             label: 'Delete',
             hotkey: '⌘⌫',
             action: async () => {
-                await deleteNodeFromUI(nodeId, this.cy!);
+                await deleteNodesFromUI([nodeId], this.cy!);
             },
         });
 

@@ -10,7 +10,7 @@ import type {
     UpsertNodeAction
 } from "@/pure/graph";
 import {
-    createDeleteNodeAction,
+    createDeleteNodesAction,
     createNewNodeNoParent,
     fromCreateChildToUpsertNode,
     fromContentChangeToGraphDelta
@@ -117,17 +117,25 @@ export async function modifyNodeContentFromUI(
     await window.electronAPI?.main.applyGraphDeltaToDBThroughMem(graphDelta);
 }
 
-export async function deleteNodeFromUI(
-    nodeId: NodeIdAndFilePath,
+/**
+ * Deletes multiple nodes in a single delta for atomic undo.
+ */
+export async function deleteNodesFromUI(
+    nodeIds: ReadonlyArray<NodeIdAndFilePath>,
     cy: Core
 ): Promise<void> {
-    // Get the node before deletion for undo support
-    const nodeToDelete: GraphNode = await getNodeFromMainToUI(nodeId);
+    // Fetch all nodes in parallel for undo support
+    const nodesToDelete: Array<{nodeId: string; deletedNode: GraphNode}> = await Promise.all(
+        nodeIds.map(async (nodeId) => ({
+            nodeId,
+            deletedNode: await getNodeFromMainToUI(nodeId)
+        }))
+    );
 
-    // Create GraphDelta for deletion with the node data for undo
-    const graphDelta: GraphDelta = createDeleteNodeAction(nodeId, nodeToDelete);
+    // Create single GraphDelta for all deletions
+    const graphDelta: GraphDelta = createDeleteNodesAction(nodesToDelete);
 
-    // Optimistic UI-edge update: immediately remove node from cytoscape
+    // Optimistic UI-edge update: immediately remove nodes from cytoscape
     applyGraphDeltaToUI(cy, graphDelta);
 
     await window.electronAPI?.main.applyGraphDeltaToDBThroughMem(graphDelta);

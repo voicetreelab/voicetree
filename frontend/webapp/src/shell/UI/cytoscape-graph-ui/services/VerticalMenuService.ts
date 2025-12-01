@@ -1,7 +1,7 @@
 import type {Core, Position as CyPosition} from 'cytoscape';
 import ctxmenu from '@/shell/UI/lib/ctxmenu.js';
-import {deleteNodeFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions";
 import {mergeSelectedNodesFromUI} from "@/shell/edge/UI-edge/graph/mergeSelectedNodesFromUI";
+import {deleteSelectedNodesAction} from "@/shell/UI/cytoscape-graph-ui/actions/graphActions";
 
 export interface Position {
     x: number;
@@ -109,13 +109,7 @@ export class VerticalMenuService {
         menuItems.push({
             html: `<span style="display: flex; justify-content: space-between; align-items: center; gap: 16px; white-space: nowrap;">${deleteText} <span style="font-size: 10px; color: #888; opacity: 0.7;">⌘⌫</span></span>`,
             disabled: noNodesSelected,
-            action: async () => {
-                if (noNodesSelected) return;
-                const selectedNodeIds: string[] = this.cy!.$(':selected').nodes().map(n => n.id());
-                for (const id of selectedNodeIds) {
-                    await deleteNodeFromUI(id, this.cy!);
-                }
-            },
+            action: deleteSelectedNodesAction(this.cy!),
         });
 
         // Merge selected nodes - always show but disable when less than 2 nodes selected
