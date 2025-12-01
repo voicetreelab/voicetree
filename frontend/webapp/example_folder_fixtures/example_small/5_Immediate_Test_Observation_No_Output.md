@@ -14,3 +14,7 @@ All right, so I'm testing 'one, two, three'. I don't see anything. All right, so
 _Links:_
 Parent:
 - is_an_immediate_observation_during [[4_Test_Outcome_No_Output.md]]
+
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output.md_context_1764570013191.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output.md_context_1764570416884.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output.md_context_1764570574712.md]]

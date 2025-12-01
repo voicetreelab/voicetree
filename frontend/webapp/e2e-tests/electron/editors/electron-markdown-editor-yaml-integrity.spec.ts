@@ -66,7 +66,7 @@ const test = base.extend<{
     }
   },
 
-  electronApp: async ({ testVaultPath: _testVaultPath }, use) => {
+  electronApp: [async ({ testVaultPath: _testVaultPath }, use) => {
     // Create a temporary userData directory for test isolation
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-yaml-integrity-userdata-'));
 
@@ -104,9 +104,9 @@ const test = base.extend<{
 
     // Cleanup temp directory
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
-  },
+  }, { timeout: 45000 }],
 
-  appWindow: async ({ electronApp, testVaultPath: _testVaultPath }, use) => {
+  appWindow: [async ({ electronApp, testVaultPath: _testVaultPath }, use) => {
     const page = await electronApp.firstWindow();
 
     // Log console messages
@@ -142,7 +142,7 @@ const test = base.extend<{
     await page.waitForTimeout(100);
 
     await use(page);
-  }
+  }, { timeout: 30000 }]
 });
 
 test.describe('Markdown Editor YAML Integrity', () => {

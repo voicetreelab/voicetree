@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { apply_graph_deltas_to_db } from '@/shell/edge/main/graph/graphActionsToDBEffects'
-import type { DeleteNode, Env, UpsertNodeAction, GraphNode, FSWriteEffect, GraphDelta, Graph } from '@/pure/graph/index'
+import type { DeleteNode, Env, UpsertNodeDelta, GraphNode, FSWriteEffect, GraphDelta, Graph } from '@/pure/graph/index'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 import { tmpdir } from 'os'
@@ -46,7 +46,7 @@ describe('apply_graph_deltas_to_db', () => {
   describe('UpsertNode (Create)', () => {
     it('should create a new node file on disk', async () => {
       const newNode: GraphNode = createTestNode('node-1', '# New Node\n\nThis is content')
-      const action: UpsertNodeAction = {
+      const action: UpsertNodeDelta = {
         type: 'UpsertNode',
         nodeToUpsert: newNode
       }
@@ -81,7 +81,7 @@ describe('apply_graph_deltas_to_db', () => {
 
     it('should extract title from markdown header', async () => {
       const newNode: GraphNode = createTestNode('node-2', '# My Title\n\nContent here')
-      const action: UpsertNodeAction = {
+      const action: UpsertNodeDelta = {
         type: 'UpsertNode',
         nodeToUpsert: newNode
       }
@@ -104,7 +104,7 @@ describe('apply_graph_deltas_to_db', () => {
 
     it('should use filename-based title when content is empty', async () => {
       const newNode: GraphNode = createTestNode('node-3', '') // Empty content triggers filename fallback
-      const action: UpsertNodeAction = {
+      const action: UpsertNodeDelta = {
         type: 'UpsertNode',
         nodeToUpsert: newNode
       }
@@ -131,7 +131,7 @@ describe('apply_graph_deltas_to_db', () => {
 
     it('should return the deltas that were applied', async () => {
       const newNode: GraphNode = createTestNode('node-4', '# Test')
-      const action: UpsertNodeAction = {
+      const action: UpsertNodeDelta = {
         type: 'UpsertNode',
         nodeToUpsert: newNode
       }
@@ -151,7 +151,7 @@ describe('apply_graph_deltas_to_db', () => {
     it('should update an existing node file on disk', async () => {
       // First create a file
       const initialNode: GraphNode = createTestNode('node-update-1', '# Old Title\n\nOld content')
-      const createAction: UpsertNodeAction = {
+      const createAction: UpsertNodeDelta = {
         type: 'UpsertNode',
         nodeToUpsert: initialNode
       }
@@ -159,7 +159,7 @@ describe('apply_graph_deltas_to_db', () => {
 
       // Then update it
       const updatedNode: GraphNode = createTestNode('node-update-1', '# Updated Title\n\nNew content')
-      const updateAction: UpsertNodeAction = {
+      const updateAction: UpsertNodeDelta = {
         type: 'UpsertNode',
         nodeToUpsert: updatedNode
       }
@@ -197,7 +197,7 @@ describe('apply_graph_deltas_to_db', () => {
 
       // Then update it
       const updatedNode: GraphNode = createTestNode('node-update-2', '# Updated')
-      const updateAction: UpsertNodeAction = {
+      const updateAction: UpsertNodeDelta = {
         type: 'UpsertNode',
         nodeToUpsert: updatedNode
       }
@@ -299,7 +299,7 @@ describe('apply_graph_deltas_to_db', () => {
   describe('Function signature and structure', () => {
     it('should return FSWriteEffect (ReaderTaskEither)', () => {
       const newNode: GraphNode = createTestNode('test', '# Test')
-      const action: UpsertNodeAction = {
+      const action: UpsertNodeDelta = {
         type: 'UpsertNode',
         nodeToUpsert: newNode
       }
@@ -311,7 +311,7 @@ describe('apply_graph_deltas_to_db', () => {
     })
 
     it('should handle both action types', () => {
-      const upsertAction: UpsertNodeAction = {
+      const upsertAction: UpsertNodeDelta = {
         type: 'UpsertNode',
         nodeToUpsert: createTestNode('node-2', '# New')
       }
@@ -343,7 +343,7 @@ describe('apply_graph_deltas_to_db', () => {
       }
 
       const newNode: GraphNode = createTestNode('test', '# Test')
-      const action: UpsertNodeAction = {
+      const action: UpsertNodeDelta = {
         type: 'UpsertNode',
         nodeToUpsert: newNode
       }

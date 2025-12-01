@@ -1272,28 +1272,26 @@ Check out [[17_Create_G_Cloud_Configuration]], [[16_Resolve_G_Cloud_CLI_MFA_Bloc
       await appWindow.waitForTimeout(200);
 
       console.log(`  Step ${i + 1}.4: Select result with Enter`);
-      const stateBefore = await appWindow.evaluate(() => {
-        const cy = (window as ExtendedWindow).cytoscapeInstance;
-        if (!cy) throw new Error('Cytoscape not initialized');
-        return { zoom: cy.zoom(), pan: cy.pan() };
-      });
-
       await appWindow.keyboard.press('Enter');
       await appWindow.waitForTimeout(1000); // Wait for fit animation to complete
 
-      console.log(`  Step ${i + 1}.5: Verify navigation occurred`);
-      const stateAfter = await appWindow.evaluate(() => {
+      console.log(`  Step ${i + 1}.5: Verify correct node was selected`);
+      const selectedNode = await appWindow.evaluate((expectedId) => {
         const cy = (window as ExtendedWindow).cytoscapeInstance;
         if (!cy) throw new Error('Cytoscape not initialized');
-        return { zoom: cy.zoom(), pan: cy.pan() };
-      });
+        const selected = cy.$('node:selected');
+        if (selected.length === 0) return null;
+        const node = selected.first();
+        return {
+          id: node.id(),
+          label: node.data('label') ?? node.id(),
+          isExpected: node.id() === expectedId
+        };
+      }, targetNode.id);
 
-      const zoomChanged = Math.abs(stateAfter.zoom - stateBefore.zoom) > 0.01;
-      const panChanged = Math.abs(stateAfter.pan.x - stateBefore.pan.x) > 1 ||
-                         Math.abs(stateAfter.pan.y - stateBefore.pan.y) > 1;
-
-      expect(zoomChanged || panChanged).toBe(true);
-      console.log(`  ✓ Navigation successful on iteration ${i + 1}`);
+      expect(selectedNode).not.toBeNull();
+      expect(selectedNode!.id).toBe(targetNode.id);
+      console.log(`  ✓ Correct node selected on iteration ${i + 1}: ${selectedNode!.label}`);
 
       console.log(`  Step ${i + 1}.6: Verify modal closed`);
       const modalClosed = await appWindow.evaluate(() => {

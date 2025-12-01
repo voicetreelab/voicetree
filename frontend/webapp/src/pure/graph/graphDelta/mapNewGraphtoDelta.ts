@@ -1,4 +1,4 @@
-import type {Graph, GraphDelta, UpsertNodeAction} from '@/pure/graph'
+import type {Graph, GraphDelta, UpsertNodeDelta} from '@/pure/graph'
 
 /**
  * Convert a whole Graph to a GraphDelta.
@@ -21,7 +21,7 @@ import type {Graph, GraphDelta, UpsertNodeAction} from '@/pure/graph'
 export function mapNewGraphToDelta(graph: Graph): GraphDelta {
     // Convert each node to an UpsertNode action
     // All nodes are new during initial load, so previousNode is undefined
-    const nodeDeltas: readonly UpsertNodeAction[] = Object.values(graph.nodes).map(node => ({
+    const nodeDeltas: readonly UpsertNodeDelta[] = Object.values(graph.nodes).map(node => ({
         type: 'UpsertNode' as const,
         nodeToUpsert: node,
         previousNode: undefined  // All nodes are new during initial load

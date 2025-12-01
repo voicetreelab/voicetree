@@ -53,7 +53,7 @@ import {
 import {
     updateHistoryFromDelta,
     createEmptyHistory,
-    type RecentNodeHistory
+    type RecentNodeHistory, extractRecentNodesFromDelta
 } from '@/pure/graph/recentNodeHistoryV2';
 import {createNewNodeAction, runTerminalAction, deleteSelectedNodesAction} from '@/shell/UI/cytoscape-graph-ui/actions/graphActions';
 import {getResponsivePadding} from '@/utils/responsivePadding';
@@ -65,7 +65,7 @@ import {applyGraphDeltaToUI} from '@/shell/edge/UI-edge/graph/applyGraphDeltaToU
 import {clearCytoscapeState} from '@/shell/edge/UI-edge/graph/clearCytoscapeState';
 import {createSettingsEditor} from "@/shell/edge/UI-edge/settings/createSettingsEditor";
 import type {ElectronAPI} from '@/shell/electron';
-import type {UpsertNodeAction} from '@/pure/graph';
+import type {UpsertNodeDelta} from '@/pure/graph';
 
 import {
     spawnBackupTerminal
@@ -182,8 +182,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             applyGraphDeltaToUI(this.cy, delta);
 
             // Track last created node for "fit to last node" hotkey (Space)
-            const lastUpsertedNode: UpsertNodeAction | undefined = delta.filter(d => d.type === 'UpsertNode').pop();
-            if (lastUpsertedNode && lastUpsertedNode.type === 'UpsertNode') {
+            const lastUpsertedNode : UpsertNodeDelta = extractRecentNodesFromDelta(delta)[0];
+            if (lastUpsertedNode) {
                 this.navigationService.setLastCreatedNodeId(lastUpsertedNode.nodeToUpsert.relativeFilePathIsID);
             }
 

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import { reverseDelta } from './reverseDelta'
-import type { GraphDelta, GraphNode, UpsertNodeAction, DeleteNode } from '@/pure/graph'
+import type { GraphDelta, GraphNode, UpsertNodeDelta, DeleteNode } from '@/pure/graph'
 
 // Helper to create a minimal GraphNode for testing
 function createTestNode(id: string, content: string = '# Test'): GraphNode {
@@ -49,7 +49,7 @@ describe('reverseDelta', () => {
 
             expect(reversed).toHaveLength(1)
             expect(reversed[0].type).toBe('UpsertNode')
-            const upsertAction = reversed[0] as UpsertNodeAction
+            const upsertAction = reversed[0] as UpsertNodeDelta
             expect(upsertAction.nodeToUpsert).toEqual(previousNode) // Restore old state
             expect(upsertAction.previousNode).toEqual(updatedNode) // Swap: new becomes previous
         })
@@ -68,7 +68,7 @@ describe('reverseDelta', () => {
 
             expect(reversed).toHaveLength(1)
             expect(reversed[0].type).toBe('UpsertNode')
-            const upsertAction = reversed[0] as UpsertNodeAction
+            const upsertAction = reversed[0] as UpsertNodeDelta
             expect(upsertAction.nodeToUpsert).toEqual(deletedNode) // Recreate node
             expect(upsertAction.previousNode).toBeUndefined() // It's new again
         })
@@ -121,7 +121,7 @@ describe('reverseDelta', () => {
             expect(reversed).toHaveLength(2)
             // Parent restore comes first (was second in original, reversed order)
             expect(reversed[0].type).toBe('UpsertNode')
-            expect((reversed[0] as UpsertNodeAction).nodeToUpsert).toEqual(parentBefore)
+            expect((reversed[0] as UpsertNodeDelta).nodeToUpsert).toEqual(parentBefore)
             // Child delete comes second
             expect(reversed[1].type).toBe('DeleteNode')
             expect((reversed[1] as DeleteNode).nodeId).toBe('child.md')
