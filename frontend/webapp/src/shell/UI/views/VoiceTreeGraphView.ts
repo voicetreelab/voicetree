@@ -55,7 +55,7 @@ import {
     createEmptyHistory,
     type RecentNodeHistory
 } from '@/pure/graph/recentNodeHistoryV2';
-import {createNewNodeAction, runTerminalAction} from '@/shell/UI/cytoscape-graph-ui/actions/graphActions';
+import {createNewNodeAction, runTerminalAction, deleteSelectedNodesAction} from '@/shell/UI/cytoscape-graph-ui/actions/graphActions';
 import {getResponsivePadding} from '@/utils/responsivePadding';
 import {SpeedDialSideGraphFloatingMenuView} from './SpeedDialSideGraphFloatingMenuView';
 import type {Graph, GraphDelta} from '@/pure/graph';
@@ -474,7 +474,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             fitToLastNode: () => this.navigationService.fitToLastNode(),
             cycleTerminal: (direction) => this.navigationService.cycleTerminal(direction),
             createNewNode: createNewNodeAction(this.cy),
-            runTerminal: runTerminalAction(this.cy)
+            runTerminal: runTerminalAction(this.cy),
+            deleteSelectedNodes: deleteSelectedNodesAction(this.cy)
         });
 
         // Register cmd-f for search

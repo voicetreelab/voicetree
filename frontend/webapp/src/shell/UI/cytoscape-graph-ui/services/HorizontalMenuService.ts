@@ -16,6 +16,7 @@ interface HorizontalMenuItem {
     color?: string;
     action: () => void | Promise<void>;
     subMenu?: HorizontalMenuItem[];
+    hotkey?: string; // e.g., "⌘⏎" for cmd+enter
 }
 
 /** Render a Lucide icon to SVG element with optional color */
@@ -48,11 +49,32 @@ function createMenuItemElement(item: HorizontalMenuItem, onClose: () => void): H
     iconWrapper.appendChild(createIconElement(item.icon, item.color));
     button.appendChild(iconWrapper);
 
-    // Add label
-    const label: HTMLSpanElement = document.createElement('span');
-    label.style.fontSize = '13px';
-    label.textContent = item.label;
-    button.appendChild(label);
+    // Add label container with text and optional hotkey hint
+    const labelContainer: HTMLSpanElement = document.createElement('span');
+    labelContainer.style.cssText = `
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    `;
+
+    const labelText: HTMLSpanElement = document.createElement('span');
+    labelText.style.fontSize = '13px';
+    labelText.textContent = item.label;
+    labelContainer.appendChild(labelText);
+
+    // Add hotkey hint if provided
+    if (item.hotkey) {
+        const hotkeyHint: HTMLSpanElement = document.createElement('span');
+        hotkeyHint.style.cssText = `
+            font-size: 10px;
+            color: #888;
+            opacity: 0.7;
+        `;
+        hotkeyHint.textContent = item.hotkey;
+        labelContainer.appendChild(hotkeyHint);
+    }
+
+    button.appendChild(labelContainer);
 
     // Hover effect
     button.addEventListener('mouseenter', () => {
@@ -257,6 +279,7 @@ export class HorizontalMenuService {
         menuItems.push({
             icon: Plus,
             label: 'Add',
+            hotkey: '⌘N',
             action: async () => {
                 const childId: NodeIdAndFilePath = await createNewChildNodeFromUI(nodeId, this.cy!);
                 await this.deps!.createAnchoredFloatingEditor(childId);
@@ -267,24 +290,18 @@ export class HorizontalMenuService {
             icon: Play,
             label: 'Run',
             color: '#22c55e', // green
+            hotkey: '⌘⏎',
             action: async () => {
                 await spawnTerminalWithNewContextNode(nodeId, this.cy!);
             },
         });
 
-        const selectedCount: number = this.cy.$(':selected').nodes().size();
-        const deleteLabel: string = selectedCount > 1 ? `Delete (${selectedCount})` : 'Delete';
         menuItems.push({
             icon: Trash2,
-            label: deleteLabel,
+            label: 'Delete',
+            hotkey: '⌘⌫',
             action: async () => {
-                const selectedNodeIds: string[] = this.cy!.$(':selected').nodes().map((n) => n.id());
-                const nodesToDelete: string[] = selectedNodeIds.includes(nodeId) && selectedNodeIds.length > 1
-                    ? selectedNodeIds
-                    : [nodeId];
-                for (const id of nodesToDelete) {
-                    await deleteNodeFromUI(id, this.cy!);
-                }
+                await deleteNodeFromUI(nodeId, this.cy!);
             },
         });
 
