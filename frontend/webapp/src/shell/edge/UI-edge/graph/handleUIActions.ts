@@ -7,7 +7,7 @@ import type {
     NodeIdAndFilePath,
     NodeUIMetadata,
     Position,
-    UpsertNodeAction
+    UpsertNodeDelta
 } from "@/pure/graph";
 import {
     createDeleteNodesAction,
@@ -54,7 +54,7 @@ export async function createNewChildNodeFromUI(
 
     // Create GraphDelta (contains both child and updated parent with edge)
     const graphDelta: GraphDelta = fromCreateChildToUpsertNode(currentGraph, parentNode); //todo this only actually needs parent and grandparent, maybe we can have derived backlinks
-    const newNode: GraphNode = (graphDelta[0] as UpsertNodeAction).nodeToUpsert;
+    const newNode: GraphNode = (graphDelta[0] as UpsertNodeDelta).nodeToUpsert;
 
     // Optimistic UI-edge update: immediately add node + edge to cytoscape
     applyGraphDeltaToUI(cy, graphDelta);

@@ -23,7 +23,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { loadFolder, stopFileWatching, isWatching } from '@/shell/edge/main/graph/watchFolder'
 import { getGraph, setGraph, setVaultPath } from '@/shell/edge/main/state/graph-store'
-import type { GraphDelta, Graph, UpsertNodeAction, DeleteNode, GraphNode, Edge } from '@/pure/graph'
+import type { GraphDelta, Graph, UpsertNodeDelta, DeleteNode, GraphNode, Edge } from '@/pure/graph'
 import { getNodeTitle } from '@/pure/graph/markdown-parsing'
 import path from 'path'
 import { promises as fs } from 'fs'
@@ -383,7 +383,7 @@ describe('Folder Loading - Integration Tests', () => {
       expect(broadcastCalls[0].channel).toBe('graph:stateChanged')
 
       // Verify the delta contains UpsertNode action
-      const addDelta: UpsertNodeAction | undefined = broadcastCalls[0].delta.find(d => d.type === 'UpsertNode')
+      const addDelta: UpsertNodeDelta | undefined = broadcastCalls[0].delta.find(d => d.type === 'UpsertNode')
       expect(addDelta).toBeDefined()
 
       // WHEN: Delete the file

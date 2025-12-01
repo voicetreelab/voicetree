@@ -1,4 +1,4 @@
-import type { GraphDelta, NodeDelta, UpsertNodeAction, DeleteNode } from '@/pure/graph'
+import type { GraphDelta, NodeDelta, UpsertNodeDelta, DeleteNode } from '@/pure/graph'
 
 /**
  * Computes the reverse of a GraphDelta for undo functionality.
@@ -24,7 +24,7 @@ function reverseAction(action: NodeDelta): GraphDelta {
     }
 }
 
-function reverseUpsertNode(action: UpsertNodeAction): GraphDelta {
+function reverseUpsertNode(action: UpsertNodeDelta): GraphDelta {
     if (action.previousNode === undefined) {
         // Was a CREATE → reverse is DELETE
         const deleteAction: DeleteNode = {
@@ -35,7 +35,7 @@ function reverseUpsertNode(action: UpsertNodeAction): GraphDelta {
         return [deleteAction]
     } else {
         // Was an UPDATE → reverse is restore previous
-        const restoreAction: UpsertNodeAction = {
+        const restoreAction: UpsertNodeDelta = {
             type: 'UpsertNode',
             nodeToUpsert: action.previousNode,
             previousNode: action.nodeToUpsert  // Swap old/new for redo chain
@@ -51,7 +51,7 @@ function reverseDeleteNode(action: DeleteNode): GraphDelta {
         return []
     }
     // Was a DELETE → reverse is CREATE
-    const recreateAction: UpsertNodeAction = {
+    const recreateAction: UpsertNodeDelta = {
         type: 'UpsertNode',
         nodeToUpsert: action.deletedNode,
         previousNode: undefined  // It's a 'new' node again

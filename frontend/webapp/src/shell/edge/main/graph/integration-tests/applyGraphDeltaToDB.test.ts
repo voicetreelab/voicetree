@@ -23,7 +23,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { applyGraphDeltaToDBThroughMem } from '@/shell/edge/main/graph/writePath/applyGraphDeltaToDBThroughMem'
 import { setGraph, setVaultPath, clearVaultPath } from '@/shell/edge/main/state/graph-store'
-import type { GraphDelta, UpsertNodeAction, DeleteNode, GraphNode } from '@/pure/graph'
+import type { GraphDelta, UpsertNodeDelta, DeleteNode, GraphNode } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'
 import { promises as fs } from 'fs'
@@ -62,7 +62,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
         }
       }
 
-      const upsertAction: UpsertNodeAction = {
+      const upsertAction: UpsertNodeDelta = {
         type: 'UpsertNode',
         nodeToUpsert: testNode
       }

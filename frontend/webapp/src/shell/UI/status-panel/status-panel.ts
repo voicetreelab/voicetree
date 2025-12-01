@@ -16,7 +16,7 @@ const STATUS_PANEL_MOUNT_ID: string = 'status-panel-mount';
 export class StatusPanel {
     private container: HTMLElement;
     private eventsContainer: HTMLElement;
-    private maxEvents = 20; // Fewer events since horizontal takes more space
+    private maxEvents = 2000;
     private disconnectSSE: (() => void) | null = null;
 
     private constructor(mountPoint: HTMLElement) {

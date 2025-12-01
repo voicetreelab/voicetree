@@ -8,57 +8,40 @@
  * - Pure functions only, no side effects
  * - No localStorage persistence (session-only)
  * - State management happens at the shell edge
+ * - Stores UpsertNodeDelta directly (FIFO queue, array order = recency)
  */
 
-import type { GraphDelta } from '@/pure/graph'
-import { getNodeTitle } from '@/pure/graph/markdown-parsing'
+import type { GraphDelta, UpsertNodeDelta, DeleteNode } from '@/pure/graph'
 
-const MAX_RECENT_NODES = 5
+const MAX_RECENT_NODES: number = 5
 
-export interface RecentNodeEntry {
-    readonly nodeId: string
-    readonly label: string
-    readonly timestamp: number
-}
-
-export type RecentNodeHistory = readonly RecentNodeEntry[]
+export type RecentNodeHistory = readonly UpsertNodeDelta[]
 
 /**
  * Extract recently added/modified node entries from a GraphDelta
  *
  * Filters for UpsertNode actions that represent meaningful changes:
  * - New nodes (previousNode === undefined)
- * - Content-modified nodes (content actually changed)
+ * - Content-modified nodes (content actually changed significantly)
  *
  * Edge-only changes (same content, different edges) are filtered out
  * to avoid cluttering the recent tabs with non-meaningful updates.
  */
-export function extractRecentNodesFromDelta(delta: GraphDelta): readonly RecentNodeEntry[] {
-    const timestamp = Date.now()
-    return delta
-        .filter(action => action.type === 'UpsertNode')
-        .filter(action => {
-            if (action.type !== 'UpsertNode') return false
-            // New node: always show
-            if (action.previousNode === undefined) return true
-            // Update: only show if content changed significantly (150 chars)
-            return action.previousNode.contentWithoutYamlOrLinks.length + 150 <  action.nodeToUpsert.contentWithoutYamlOrLinks.length
-        })
-        .map(action => {
-            if (action.type !== 'UpsertNode') throw new Error('Unexpected action type')
-            return {
-                nodeId: action.nodeToUpsert.relativeFilePathIsID,
-                label: getNodeTitle(action.nodeToUpsert),
-                timestamp
-            }
-        })
+export function extractRecentNodesFromDelta(delta: GraphDelta): readonly UpsertNodeDelta[] {
+    return delta.filter((action): action is UpsertNodeDelta => {
+        if (action.type !== 'UpsertNode') return false
+        // New node: always show
+        if (action.previousNode === undefined) return true
+        // Update: only show if content changed significantly (150 chars)
+        return action.previousNode.contentWithoutYamlOrLinks.length + 150 < action.nodeToUpsert.contentWithoutYamlOrLinks.length
+    })
 }
 
 /**
  * Add new entries to history, maintaining max size and removing duplicates
  *
  * New entries are added to the front. If a node already exists in history,
- * it's moved to the front with updated label/timestamp.
+ * it's moved to the front with updated data.
  *
  * @param history - Current history state
  * @param newEntries - New entries to add (will be added in order, last entry ends up at front)
@@ -66,24 +49,21 @@ export function extractRecentNodesFromDelta(delta: GraphDelta): readonly RecentN
  */
 export function addEntriesToHistory(
     history: RecentNodeHistory,
-    newEntries: readonly RecentNodeEntry[]
+    newEntries: readonly UpsertNodeDelta[]
 ): RecentNodeHistory {
-    // Process entries in order, each one gets added to front
-    let result = history
+    const result: RecentNodeHistory = newEntries.reduce(
+        (acc: RecentNodeHistory, entry: UpsertNodeDelta) => {
+            const filtered: RecentNodeHistory = acc.filter(
+                e => e.nodeToUpsert.relativeFilePathIsID !== entry.nodeToUpsert.relativeFilePathIsID
+            )
+            return [entry, ...filtered]
+        },
+        history
+    )
 
-    for (const entry of newEntries) {
-        // Remove existing entry with same nodeId (to move to front)
-        const filtered = result.filter(e => e.nodeId !== entry.nodeId)
-        // Add to front
-        result = [entry, ...filtered]
-    }
-
-    // Trim to max size
-    if (result.length > MAX_RECENT_NODES) {
-        result = result.slice(0, MAX_RECENT_NODES)
-    }
-
-    return result
+    return result.length > MAX_RECENT_NODES
+        ? result.slice(0, MAX_RECENT_NODES)
+        : result
 }
 
 /**
@@ -93,7 +73,7 @@ export function removeNodeFromHistory(
     history: RecentNodeHistory,
     nodeId: string
 ): RecentNodeHistory {
-    return history.filter(e => e.nodeId !== nodeId)
+    return history.filter(e => e.nodeToUpsert.relativeFilePathIsID !== nodeId)
 }
 
 /**
@@ -106,21 +86,18 @@ export function updateHistoryFromDelta(
     delta: GraphDelta
 ): RecentNodeHistory {
     // First, remove any deleted nodes from history
-    const deletedNodeIds = delta
-        .filter(action => action.type === 'DeleteNode')
-        .map(action => {
-            if (action.type !== 'DeleteNode') throw new Error('Unexpected action type')
-            return action.nodeId
-        })
+    const deletedNodeIds: readonly string[] = delta
+        .filter((action): action is DeleteNode => action.type === 'DeleteNode')
+        .map(action => action.nodeId)
 
-    let updatedHistory = history
-    for (const nodeId of deletedNodeIds) {
-        updatedHistory = removeNodeFromHistory(updatedHistory, nodeId)
-    }
+    const historyWithDeletions: RecentNodeHistory = deletedNodeIds.reduce(
+        (acc: RecentNodeHistory, nodeId: string) => removeNodeFromHistory(acc, nodeId),
+        history
+    )
 
     // Then, add new nodes
-    const newEntries = extractRecentNodesFromDelta(delta)
-    return addEntriesToHistory(updatedHistory, newEntries)
+    const newEntries: readonly UpsertNodeDelta[] = extractRecentNodesFromDelta(delta)
+    return addEntriesToHistory(historyWithDeletions, newEntries)
 }
 
 /**

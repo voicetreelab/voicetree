@@ -102,9 +102,9 @@ export const NODE_UI_METADATA_YAML_KEYS: ReadonlySet<string> = new Set([
 
 export type GraphDelta = readonly NodeDelta[];
 
-export type NodeDelta = UpsertNodeAction | DeleteNode
+export type NodeDelta = UpsertNodeDelta | DeleteNode
 
-export interface UpsertNodeAction {
+export interface UpsertNodeDelta {
     readonly type: 'UpsertNode'
     readonly nodeToUpsert: GraphNode
     readonly previousNode?: GraphNode  // undefined = new node, defined = update

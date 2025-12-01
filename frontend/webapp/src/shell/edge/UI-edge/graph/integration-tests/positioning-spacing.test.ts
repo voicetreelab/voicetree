@@ -17,7 +17,7 @@ import * as E from 'fp-ts/lib/Either.js'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk'
 import type { FileLimitExceededError } from '@/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
-import type { Graph, GraphDelta, GraphNode, UpsertNodeAction } from '@/pure/graph'
+import type { Graph, GraphDelta, GraphNode, UpsertNodeDelta } from '@/pure/graph'
 import { mapNewGraphToDelta } from '@/pure/graph'
 import { fromCreateChildToUpsertNode } from '@/pure/graph/graphDelta/uiInteractionsToGraphDeltas'
 import path from 'path'
@@ -149,7 +149,7 @@ describe('Node Positioning Spacing - Integration', () => {
 
     // Create a child node using the STALE graph model's parent position
     const childDelta: GraphDelta = fromCreateChildToUpsertNode(graph, parentNode)
-    const childNode: GraphNode = (childDelta[0] as UpsertNodeAction).nodeToUpsert
+    const childNode: GraphNode = (childDelta[0] as UpsertNodeDelta).nodeToUpsert
     const childPosition: Position | undefined = O.isSome(childNode.nodeUIMetadata.position)
       ? childNode.nodeUIMetadata.position.value
       : undefined

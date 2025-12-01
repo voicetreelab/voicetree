@@ -1,4 +1,4 @@
-import type {FSUpdate, Graph, GraphDelta, GraphNode, NodeIdAndFilePath, UpsertNodeAction} from '@/pure/graph'
+import type {FSUpdate, Graph, GraphDelta, GraphNode, NodeIdAndFilePath, UpsertNodeDelta} from '@/pure/graph'
 import path from 'path'
 import {parseMarkdownToGraphNode} from '@/pure/graph/markdown-parsing/parse-markdown-to-node'
 import {linkMatchScore, findBestMatchingNode} from '@/pure/graph/markdown-parsing/extract-edges'
@@ -97,7 +97,7 @@ export function addNodeToGraph(
     const healedNodesWithPrevious: readonly HealedNodeWithPrevious[] = healNodeEdges(affectedNodeIds, currentGraph, graphWithNewNode);
 
     // Step 8: Return GraphDelta with new node + all healed nodes
-    const upsertActions: readonly UpsertNodeAction[] = [
+    const upsertActions: readonly UpsertNodeDelta[] = [
         {type: 'UpsertNode', nodeToUpsert: newNode, previousNode},
         ...healedNodesWithPrevious.map(({healedNode, previousNode}) => ({
             type: 'UpsertNode' as const,

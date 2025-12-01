@@ -12,9 +12,11 @@
  * - Clicking a tab navigates to that node
  */
 
-import type { RecentNodeHistory, RecentNodeEntry } from '@/pure/graph/recentNodeHistoryV2'
+import type { RecentNodeHistory } from '@/pure/graph/recentNodeHistoryV2'
+import type { UpsertNodeDelta } from '@/pure/graph'
+import { getNodeTitle } from '@/pure/graph/markdown-parsing'
 
-const TAB_WIDTH = 120
+const TAB_WIDTH: number = 120
 
 interface RecentNodeTabsBarV2State {
     container: HTMLElement | null
@@ -78,7 +80,7 @@ export function renderRecentNodeTabsV2(
 
     // Create tab for each recent node
     for (const entry of history) {
-        const tab = createTab(entry, onNavigate)
+        const tab: HTMLElement = createTab(entry, onNavigate)
         state.tabsContainer.appendChild(tab)
     }
 
@@ -90,25 +92,28 @@ export function renderRecentNodeTabsV2(
  * Create a single tab element
  */
 function createTab(
-    entry: RecentNodeEntry,
+    entry: UpsertNodeDelta,
     onNavigate: (nodeId: string) => void
 ): HTMLElement {
-    const tab = document.createElement('button')
+    const nodeId: string = entry.nodeToUpsert.relativeFilePathIsID
+    const label: string = getNodeTitle(entry.nodeToUpsert)
+
+    const tab: HTMLButtonElement = document.createElement('button')
     tab.className = 'recent-tab'
-    tab.setAttribute('data-node-id', entry.nodeId)
-    tab.title = entry.label // Full title on hover
+    tab.setAttribute('data-node-id', nodeId)
+    tab.title = label // Full title on hover
     tab.style.width = `${TAB_WIDTH}px`
 
     // Create text span for horizontal scrolling within tab
-    const textSpan = document.createElement('span')
+    const textSpan: HTMLSpanElement = document.createElement('span')
     textSpan.className = 'recent-tab-text'
-    textSpan.textContent = entry.label
+    textSpan.textContent = label
 
     tab.appendChild(textSpan)
 
     // Click handler - navigate to node
     tab.addEventListener('click', () => {
-        onNavigate(entry.nodeId)
+        onNavigate(nodeId)
     })
 
     return tab
