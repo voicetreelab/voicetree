@@ -94,7 +94,8 @@ test.describe('Floating Anchored Editor (Browser)', () => {
             additionalYAMLProps: new Map(),
             isContextNode: false
           }
-        }
+        },
+        previousNode: { _tag: 'None' } as const
       }
     ];
     await sendGraphDelta(page, graphDelta);

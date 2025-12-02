@@ -146,9 +146,13 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
             }
         });
     });
-    if (newNodeCount >= 2) { // if not just one node + incoming changing, probs a bulk load.
+
+    if (newNodeCount>=1 && cy.nodes().length <= 4){
+        cy.fit() // fit when a new node comes in for the first few nodes.
+    }
+    else if (newNodeCount >= 2) { // if not just one node + incoming changing, probs a bulk load.
         cy.fit()
-        // setTimeout(() =>  cy.fit(), 800) // cy.fit  after layout would have finished. UNNECESSARY IF WE HAVE POSITIONS DERIVED FROM ANGULAR
+        // setTimeout(() =>  cy.fit(), 800) // cy.fit  after layout would have finished. UNNECESSARY WE HAVE POSITIONS DERIVED FROM ANGULAR
     }
     //analytics
     const anonGraphDelta: GraphDelta = stripDeltaForReplay(delta);

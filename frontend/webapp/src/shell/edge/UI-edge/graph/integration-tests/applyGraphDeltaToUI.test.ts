@@ -135,7 +135,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
             const delta: GraphDelta = [
                 {
                     type: 'UpsertNode',
-                    nodeToUpsert: orphanNode
+                    nodeToUpsert: orphanNode,
+                    previousNode: O.none
                 }
             ]
 
@@ -168,7 +169,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
             const addDelta: GraphDelta = [
                 {
                     type: 'UpsertNode',
-                    nodeToUpsert: node
+                    nodeToUpsert: node,
+                    previousNode: O.none
                 }
             ]
 
@@ -179,7 +181,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
             const deleteDelta: GraphDelta = [
                 {
                     type: 'DeleteNode',
-                    nodeId: 'to-delete'
+                    nodeId: 'to-delete',
+                    deletedNode: O.none
                 }
             ]
 
@@ -209,7 +212,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
             const addDelta: GraphDelta = [
                 {
                     type: 'UpsertNode',
-                    nodeToUpsert: originalNode
+                    nodeToUpsert: originalNode,
+                    previousNode: O.none
                 }
             ]
 
@@ -236,7 +240,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
             const updateDelta: GraphDelta = [
                 {
                     type: 'UpsertNode',
-                    nodeToUpsert: updatedNode
+                    nodeToUpsert: updatedNode,
+                    previousNode: O.none
                 }
             ]
 
@@ -830,23 +835,23 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             // CASE 1: Edge created when child arrives in same delta as parent update (race condition fix)
             // Simulates: parent delta arrived first (edge skipped), now child delta includes parent
-            applyGraphDeltaToUI(cy, [{ type: 'UpsertNode', nodeToUpsert: makeNode('parent', [{ targetId: 'child', label: '' }]) }])
+            applyGraphDeltaToUI(cy, [{ type: 'UpsertNode', nodeToUpsert: makeNode('parent', [{ targetId: 'child', label: '' }]), previousNode: O.none }])
             expect(cy.edges().length).toBe(0) // Edge skipped - child doesn't exist yet
 
             applyGraphDeltaToUI(cy, [
-                { type: 'UpsertNode', nodeToUpsert: makeNode('child') },
-                { type: 'UpsertNode', nodeToUpsert: makeNode('parent', [{ targetId: 'child', label: '' }]) } // Parent re-sent with child
+                { type: 'UpsertNode', nodeToUpsert: makeNode('child'), previousNode: O.none },
+                { type: 'UpsertNode', nodeToUpsert: makeNode('parent', [{ targetId: 'child', label: '' }]), previousNode: O.none } // Parent re-sent with child
             ])
             expect(cy.edges().length).toBe(1) // Edge now created
             expect(cy.getElementById('parent->child').length).toBe(1)
 
             // CASE 2: Edge persists when node updated but link remains (what old "race condition protection" tried to cover)
-            applyGraphDeltaToUI(cy, [{ type: 'UpsertNode', nodeToUpsert: { ...makeNode('parent', [{ targetId: 'child', label: '' }]), contentWithoutYamlOrLinks: '# Parent Updated' } }])
+            applyGraphDeltaToUI(cy, [{ type: 'UpsertNode', nodeToUpsert: { ...makeNode('parent', [{ targetId: 'child', label: '' }]), contentWithoutYamlOrLinks: '# Parent Updated' }, previousNode: O.none }])
             expect(cy.edges().length).toBe(1) // Edge still exists
             expect(cy.getElementById('parent').data('label')).toBe('Parent Updated') // Label derived from updated content
 
             // CASE 3: Edge removed when wikilink deleted from markdown
-            applyGraphDeltaToUI(cy, [{ type: 'UpsertNode', nodeToUpsert: makeNode('parent', []) }]) // No more edges
+            applyGraphDeltaToUI(cy, [{ type: 'UpsertNode', nodeToUpsert: makeNode('parent', []), previousNode: O.none }]) // No more edges
             expect(cy.edges().length).toBe(0) // Edge removed
             expect(cy.getElementById('parent').length).toBe(1) // Parent still exists
             expect(cy.getElementById('child').length).toBe(1) // Child still exists
@@ -876,7 +881,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             const delta: GraphDelta = nodes.map(node => ({
                 type: 'UpsertNode' as const,
-                nodeToUpsert: node
+                nodeToUpsert: node,
+                previousNode: O.none
             }))
 
             applyGraphDeltaToUI(cy, delta)
@@ -910,7 +916,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             const delta: GraphDelta = nodes.map(node => ({
                 type: 'UpsertNode' as const,
-                nodeToUpsert: node
+                nodeToUpsert: node,
+                previousNode: O.none
             }))
 
             applyGraphDeltaToUI(cy, delta)

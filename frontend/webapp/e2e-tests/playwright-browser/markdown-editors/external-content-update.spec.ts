@@ -9,7 +9,7 @@ import {
   sendGraphDelta,
   waitForCytoscapeReady,
   type ExtendedWindow
-} from '@test/playwright-browser/graph-delta-test-utils.ts';
+} from '@e2e/playwright-browser/graph-delta-test-utils';
 import type { GraphDelta } from '@/pure/graph';
 
 // Custom fixture to capture console logs and only show on failure
@@ -91,11 +91,13 @@ test.describe('External Content Update (Browser)', () => {
           contentWithoutYamlOrLinks: initialContent,
           outgoingEdges: [],
           nodeUIMetadata: {
-            title: 'Test Node',
             color: { _tag: 'None' } as const,
-            position: { _tag: 'Some', value: { x: 300, y: 300 } } as const
+            position: { _tag: 'Some', value: { x: 300, y: 300 } } as const,
+            additionalYAMLProps: new Map(),
+            isContextNode: false
           }
-        }
+        },
+        previousNode: { _tag: 'None' } as const
       }
     ];
     await sendGraphDelta(page, initialGraphDelta);
@@ -160,11 +162,23 @@ test.describe('External Content Update (Browser)', () => {
           contentWithoutYamlOrLinks: updatedContent,
           outgoingEdges: [],
           nodeUIMetadata: {
-            title: 'Test Node',
             color: { _tag: 'None' } as const,
-            position: { _tag: 'Some', value: { x: 300, y: 300 } } as const
+            position: { _tag: 'Some', value: { x: 300, y: 300 } } as const,
+            additionalYAMLProps: new Map(),
+            isContextNode: false
           }
-        }
+        },
+        previousNode: { _tag: 'Some', value: {
+          relativeFilePathIsID: 'test-node.md',
+          contentWithoutYamlOrLinks: initialContent,
+          outgoingEdges: [],
+          nodeUIMetadata: {
+            color: { _tag: 'None' } as const,
+            position: { _tag: 'Some', value: { x: 300, y: 300 } } as const,
+            additionalYAMLProps: new Map(),
+            isContextNode: false
+          }
+        }} as const
       }
     ];
     await sendGraphDelta(page, updateGraphDelta);

@@ -41,13 +41,13 @@ test.describe('Editor Cmd+Enter Hotkey (Browser)', () => {
           contentWithoutYamlOrLinks: 'Test content\n\nPress Cmd+Enter to run terminal',
           outgoingEdges: [],
           nodeUIMetadata: {
-            title: 'Test Node',
             color: { _tag: 'None' } as const,
             position: { _tag: 'Some', value: { x: 300, y: 300 } } as const,
             additionalYAMLProps: new Map(),
             isContextNode: false
           }
-        }
+        },
+        previousNode: { _tag: 'None' } as const
       }
     ];
     await sendGraphDelta(page, graphDelta);
@@ -123,13 +123,13 @@ test.describe('Editor Cmd+Enter Hotkey (Browser)', () => {
           contentWithoutYamlOrLinks: 'Node A content',
           outgoingEdges: [],
           nodeUIMetadata: {
-            title: 'Node A',
             color: { _tag: 'None' } as const,
             position: { _tag: 'Some', value: { x: 200, y: 300 } } as const,
             additionalYAMLProps: new Map(),
             isContextNode: false
           }
-        }
+        },
+        previousNode: { _tag: 'None' } as const
       },
       {
         type: 'UpsertNode' as const,
@@ -138,13 +138,13 @@ test.describe('Editor Cmd+Enter Hotkey (Browser)', () => {
           contentWithoutYamlOrLinks: 'Node B content',
           outgoingEdges: [],
           nodeUIMetadata: {
-            title: 'Node B',
             color: { _tag: 'None' } as const,
             position: { _tag: 'Some', value: { x: 500, y: 300 } } as const,
             additionalYAMLProps: new Map(),
             isContextNode: false
           }
-        }
+        },
+        previousNode: { _tag: 'None' } as const
       }
     ];
     await sendGraphDelta(page, graphDelta);

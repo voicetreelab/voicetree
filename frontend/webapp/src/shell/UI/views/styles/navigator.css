@@ -54,3 +54,8 @@
 .cytoscape-navigator > img {
   border-radius: 0.5rem;
 }
+
+/* Hide broken image icon when src is missing (empty graph state) */
+.cytoscape-navigator > img:not([src]) {
+  display: none;
+}

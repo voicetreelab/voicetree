@@ -135,7 +135,8 @@ export function createTestGraphDelta(): GraphDelta {
           additionalYAMLProps: new Map(),
           isContextNode: false
         }
-      }
+      },
+      previousNode: { _tag: 'None' } as const
     },
     {
       type: 'UpsertNode' as const,
@@ -149,7 +150,8 @@ export function createTestGraphDelta(): GraphDelta {
           additionalYAMLProps: new Map(),
           isContextNode: false
         }
-      }
+      },
+      previousNode: { _tag: 'None' } as const
     },
     {
       type: 'UpsertNode' as const,
@@ -163,7 +165,8 @@ export function createTestGraphDelta(): GraphDelta {
           additionalYAMLProps: new Map(),
           isContextNode: false
         }
-      }
+      },
+      previousNode: { _tag: 'None' } as const
     },
     {
       type: 'UpsertNode' as const,
@@ -177,7 +180,8 @@ export function createTestGraphDelta(): GraphDelta {
           additionalYAMLProps: new Map(),
           isContextNode: false
         }
-      }
+      },
+      previousNode: { _tag: 'None' } as const
     },
     {
       type: 'UpsertNode' as const,
@@ -191,7 +195,8 @@ export function createTestGraphDelta(): GraphDelta {
           additionalYAMLProps: new Map(),
           isContextNode: false
         }
-      }
+      },
+      previousNode: { _tag: 'None' } as const
     }
   ];
 }

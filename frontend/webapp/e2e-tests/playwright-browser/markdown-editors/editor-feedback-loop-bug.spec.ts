@@ -23,7 +23,7 @@ import {
   sendGraphDelta,
   waitForCytoscapeReady,
   type ExtendedWindow
-} from '@e2e/playwright-browser/graph-delta-test-utils.ts';
+} from '@e2e/playwright-browser/graph-delta-test-utils';
 import type { Page } from '@playwright/test';
 import type { GraphDelta, GraphNode } from '@/pure/graph';
 import type { EditorView } from '@codemirror/view';
@@ -181,7 +181,8 @@ async function setupMockWithFilesystemFeedback(page: Page): Promise<void> {
             const feedbackDelta: GraphDelta = [
               {
                 type: 'UpsertNode',
-                nodeToUpsert: graphState.nodes[nodeId!]
+                nodeToUpsert: graphState.nodes[nodeId!],
+                previousNode: { _tag: 'Some', value: graphState.nodes[nodeId!] } as const
               }
             ];
             console.log('[Mock] Triggering filesystem feedback for node:', nodeId);
@@ -226,11 +227,13 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
           contentWithoutYamlOrLinks: initialContent,
           outgoingEdges: [],
           nodeUIMetadata: {
-            title: 'Test Feedback Loop',
             color: { _tag: 'None' } as const,
-            position: { _tag: 'Some', value: { x: 400, y: 400 } } as const
+            position: { _tag: 'Some', value: { x: 400, y: 400 } } as const,
+            additionalYAMLProps: new Map(),
+            isContextNode: false
           }
-        }
+        },
+        previousNode: { _tag: 'None' } as const
       }
     ];
     await sendGraphDelta(page, graphDelta);
@@ -320,11 +323,13 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
           contentWithoutYamlOrLinks: initialContent,
           outgoingEdges: [],
           nodeUIMetadata: {
-            title: 'Rapid Edits Test',
             color: { _tag: 'None' } as const,
-            position: { _tag: 'Some', value: { x: 400, y: 400 } } as const
+            position: { _tag: 'Some', value: { x: 400, y: 400 } } as const,
+            additionalYAMLProps: new Map(),
+            isContextNode: false
           }
-        }
+        },
+        previousNode: { _tag: 'None' } as const
       }
     ];
     await sendGraphDelta(page, graphDelta);

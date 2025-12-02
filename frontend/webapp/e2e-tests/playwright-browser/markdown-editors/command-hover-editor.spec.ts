@@ -9,7 +9,7 @@ import {
   sendGraphDelta,
   waitForCytoscapeReady,
   type ExtendedWindow
-} from '@e2e/playwright-browser/graph-delta-test-utils.ts';
+} from '@e2e/playwright-browser/graph-delta-test-utils';
 import type { GraphDelta } from '@/pure/graph';
 
 // Custom fixture to capture console logs and only show on failure
@@ -89,13 +89,13 @@ test.describe('Hover Editor (Browser)', () => {
           contentWithoutYamlOrLinks: testContent,
           outgoingEdges: [],
           nodeUIMetadata: {
-            title: 'Hover Test',
             color: { _tag: 'None' } as const,
             position: { _tag: 'Some', value: { x: 500, y: 500 } } as const,
             additionalYAMLProps: new Map(),
             isContextNode: false
           }
-        }
+        },
+        previousNode: { _tag: 'None' } as const
       }
     ];
     await sendGraphDelta(page, graphDelta);
@@ -201,8 +201,9 @@ test.describe('Hover Editor (Browser)', () => {
           relativeFilePathIsID: 'node-a.md',
           contentWithoutYamlOrLinks: '# Node A\nContent for node A.',
           outgoingEdges: [],
-          nodeUIMetadata: { title: 'Node A', color: { _tag: 'None' } as const, position: { _tag: 'Some', value: { x: 200, y: 200 } } as const, additionalYAMLProps: new Map(), isContextNode: false }
-        }
+          nodeUIMetadata: { color: { _tag: 'None' } as const, position: { _tag: 'Some', value: { x: 200, y: 200 } } as const, additionalYAMLProps: new Map(), isContextNode: false }
+        },
+        previousNode: { _tag: 'None' } as const
       },
       {
         type: 'UpsertNode' as const,
@@ -210,8 +211,9 @@ test.describe('Hover Editor (Browser)', () => {
           relativeFilePathIsID: 'node-b.md',
           contentWithoutYamlOrLinks: '# Node B\nContent for node B.',
           outgoingEdges: [],
-          nodeUIMetadata: { title: 'Node B', color: { _tag: 'None' } as const, position: { _tag: 'Some', value: { x: 400, y: 200 } } as const, additionalYAMLProps: new Map(), isContextNode: false }
-        }
+          nodeUIMetadata: { color: { _tag: 'None' } as const, position: { _tag: 'Some', value: { x: 400, y: 200 } } as const, additionalYAMLProps: new Map(), isContextNode: false }
+        },
+        previousNode: { _tag: 'None' } as const
       }
     ];
     await sendGraphDelta(page, graphDelta);

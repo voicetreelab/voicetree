@@ -75,13 +75,13 @@ test.describe('Context Menu Close on Mouseout (Browser)', () => {
           contentWithoutYamlOrLinks: '# Context Menu Test\nThis node tests context menu behavior.',
           outgoingEdges: [],
           nodeUIMetadata: {
-            title: 'Context Menu Test',
             color: { _tag: 'None' } as const,
             position: { _tag: 'Some', value: { x: 400, y: 300 } } as const,
             additionalYAMLProps: new Map(),
             isContextNode: false
           }
-        }
+        },
+        previousNode: { _tag: 'None' } as const
       }
     ];
     await sendGraphDelta(page, graphDelta);

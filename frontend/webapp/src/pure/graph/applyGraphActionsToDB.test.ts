@@ -48,7 +48,8 @@ describe('apply_graph_deltas_to_db', () => {
       const newNode: GraphNode = createTestNode('node-1', '# New Node\n\nThis is content')
       const action: UpsertNodeDelta = {
         type: 'UpsertNode',
-        nodeToUpsert: newNode
+        nodeToUpsert: newNode,
+        previousNode: O.none
       }
 
       // Create effect (pure - no execution)
@@ -83,7 +84,8 @@ describe('apply_graph_deltas_to_db', () => {
       const newNode: GraphNode = createTestNode('node-2', '# My Title\n\nContent here')
       const action: UpsertNodeDelta = {
         type: 'UpsertNode',
-        nodeToUpsert: newNode
+        nodeToUpsert: newNode,
+        previousNode: O.none
       }
 
       const effect: FSWriteEffect<GraphDelta> = apply_graph_deltas_to_db([action])
@@ -106,7 +108,8 @@ describe('apply_graph_deltas_to_db', () => {
       const newNode: GraphNode = createTestNode('node-3', '') // Empty content triggers filename fallback
       const action: UpsertNodeDelta = {
         type: 'UpsertNode',
-        nodeToUpsert: newNode
+        nodeToUpsert: newNode,
+        previousNode: O.none
       }
 
       const effect: FSWriteEffect<GraphDelta> = apply_graph_deltas_to_db([action])
@@ -133,7 +136,8 @@ describe('apply_graph_deltas_to_db', () => {
       const newNode: GraphNode = createTestNode('node-4', '# Test')
       const action: UpsertNodeDelta = {
         type: 'UpsertNode',
-        nodeToUpsert: newNode
+        nodeToUpsert: newNode,
+        previousNode: O.none
       }
 
       const effect: FSWriteEffect<GraphDelta> = apply_graph_deltas_to_db([action])
@@ -153,7 +157,8 @@ describe('apply_graph_deltas_to_db', () => {
       const initialNode: GraphNode = createTestNode('node-update-1', '# Old Title\n\nOld content')
       const createAction: UpsertNodeDelta = {
         type: 'UpsertNode',
-        nodeToUpsert: initialNode
+        nodeToUpsert: initialNode,
+        previousNode: O.none
       }
       await apply_graph_deltas_to_db([createAction])(testEnv)()
 
@@ -161,7 +166,8 @@ describe('apply_graph_deltas_to_db', () => {
       const updatedNode: GraphNode = createTestNode('node-update-1', '# Updated Title\n\nNew content')
       const updateAction: UpsertNodeDelta = {
         type: 'UpsertNode',
-        nodeToUpsert: updatedNode
+        nodeToUpsert: updatedNode,
+        previousNode: O.none
       }
 
       const effect: FSWriteEffect<GraphDelta> = apply_graph_deltas_to_db([updateAction])
@@ -192,14 +198,16 @@ describe('apply_graph_deltas_to_db', () => {
       const initialNode: GraphNode = createTestNode('node-update-2', '# Original')
       await apply_graph_deltas_to_db([{
         type: 'UpsertNode',
-        nodeToUpsert: initialNode
+        nodeToUpsert: initialNode,
+        previousNode: O.none
       }])(testEnv)()
 
       // Then update it
       const updatedNode: GraphNode = createTestNode('node-update-2', '# Updated')
       const updateAction: UpsertNodeDelta = {
         type: 'UpsertNode',
-        nodeToUpsert: updatedNode
+        nodeToUpsert: updatedNode,
+        previousNode: O.none
       }
 
       const effect: FSWriteEffect<GraphDelta> = apply_graph_deltas_to_db([updateAction])
@@ -223,7 +231,8 @@ describe('apply_graph_deltas_to_db', () => {
       const node: GraphNode = createTestNode('node-delete-1', '# Test')
       await apply_graph_deltas_to_db([{
         type: 'UpsertNode',
-        nodeToUpsert: node
+        nodeToUpsert: node,
+        previousNode: O.none
       }])(testEnv)()
 
       // Verify it exists
@@ -234,7 +243,8 @@ describe('apply_graph_deltas_to_db', () => {
       // Delete it
       const action: DeleteNode = {
         type: 'DeleteNode',
-        nodeId: 'node-delete-1'
+        nodeId: 'node-delete-1',
+        deletedNode: O.none
       }
 
       const effect: FSWriteEffect<GraphDelta> = apply_graph_deltas_to_db([action])
@@ -258,7 +268,8 @@ describe('apply_graph_deltas_to_db', () => {
     it('should fail when deleting non-existent file (fail fast)', async () => {
       const action: DeleteNode = {
         type: 'DeleteNode',
-        nodeId: 'non-existent'
+        nodeId: 'non-existent',
+        deletedNode: O.none
       }
 
       const effect: FSWriteEffect<GraphDelta> = apply_graph_deltas_to_db([action])
@@ -276,13 +287,15 @@ describe('apply_graph_deltas_to_db', () => {
       const node: GraphNode = createTestNode('node-delete-2', '# Test')
       await apply_graph_deltas_to_db([{
         type: 'UpsertNode',
-        nodeToUpsert: node
+        nodeToUpsert: node,
+        previousNode: O.none
       }])(testEnv)()
 
       // Delete it
       const action: DeleteNode = {
         type: 'DeleteNode',
-        nodeId: 'node-delete-2'
+        nodeId: 'node-delete-2',
+        deletedNode: O.none
       }
 
       const effect: FSWriteEffect<GraphDelta> = apply_graph_deltas_to_db([action])
@@ -301,7 +314,8 @@ describe('apply_graph_deltas_to_db', () => {
       const newNode: GraphNode = createTestNode('test', '# Test')
       const action: UpsertNodeDelta = {
         type: 'UpsertNode',
-        nodeToUpsert: newNode
+        nodeToUpsert: newNode,
+        previousNode: O.none
       }
 
       const effect: FSWriteEffect<GraphDelta> = apply_graph_deltas_to_db([action])
@@ -313,12 +327,14 @@ describe('apply_graph_deltas_to_db', () => {
     it('should handle both action types', () => {
       const upsertAction: UpsertNodeDelta = {
         type: 'UpsertNode',
-        nodeToUpsert: createTestNode('node-2', '# New')
+        nodeToUpsert: createTestNode('node-2', '# New'),
+        previousNode: O.none
       }
 
       const deleteAction: DeleteNode = {
         type: 'DeleteNode',
-        nodeId: 'node-1'
+        nodeId: 'node-1',
+        deletedNode: O.none
       }
 
       // Both should return valid effects without throwing
@@ -345,7 +361,8 @@ describe('apply_graph_deltas_to_db', () => {
       const newNode: GraphNode = createTestNode('test', '# Test')
       const action: UpsertNodeDelta = {
         type: 'UpsertNode',
-        nodeToUpsert: newNode
+        nodeToUpsert: newNode,
+        previousNode: O.none
       }
 
       // Same effect, different environments

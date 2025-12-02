@@ -10,7 +10,7 @@ import {
   waitForCytoscapeReady,
   getNodeCount,
   type ExtendedWindow
-} from '@e2e/playwright-browser/graph-delta-test-utils.ts';
+} from '@e2e/playwright-browser/graph-delta-test-utils';
 import type { GraphDelta } from '@/pure/graph';
 
 // Custom fixture to capture console logs and only show on failure
@@ -92,11 +92,13 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
           contentWithoutYamlOrLinks: '---\ncolor: red\n---\n# Red Node\n\nThis node should be red.',
           outgoingEdges: [],
           nodeUIMetadata: {
-            title: 'Red Node',
             color: { _tag: 'Some', value: 'red' } as const,
-            position: { _tag: 'Some', value: { x: 100, y: 100 } } as const
+            position: { _tag: 'Some', value: { x: 100, y: 100 } } as const,
+            additionalYAMLProps: new Map(),
+            isContextNode: false
           }
-        }
+        },
+        previousNode: { _tag: 'None' } as const
       },
       {
         type: 'UpsertNode' as const,
@@ -105,11 +107,13 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
           contentWithoutYamlOrLinks: '---\ncolor: cyan\n---\n# Cyan Node\n\nThis node should be cyan.',
           outgoingEdges: [],
           nodeUIMetadata: {
-            title: 'Cyan Node',
             color: { _tag: 'Some', value: 'cyan' } as const,
-            position: { _tag: 'Some', value: { x: 300, y: 150 } } as const
+            position: { _tag: 'Some', value: { x: 300, y: 150 } } as const,
+            additionalYAMLProps: new Map(),
+            isContextNode: false
           }
-        }
+        },
+        previousNode: { _tag: 'None' } as const
       },
       {
         type: 'UpsertNode' as const,
@@ -118,11 +122,13 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
           contentWithoutYamlOrLinks: '---\ncolor: "#FF5733"\n---\n# Hex Color Node\n\nThis node should have hex color #FF5733.',
           outgoingEdges: [],
           nodeUIMetadata: {
-            title: 'Hex Color Node',
             color: { _tag: 'Some', value: '#FF5733' } as const,
-            position: { _tag: 'Some', value: { x: 500, y: 200 } } as const
+            position: { _tag: 'Some', value: { x: 500, y: 200 } } as const,
+            additionalYAMLProps: new Map(),
+            isContextNode: false
           }
-        }
+        },
+        previousNode: { _tag: 'None' } as const
       },
       {
         type: 'UpsertNode' as const,
@@ -131,11 +137,13 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
           contentWithoutYamlOrLinks: '# No Color Node\n\nThis node has no color specified.',
           outgoingEdges: [],
           nodeUIMetadata: {
-            title: 'No Color Node',
             color: { _tag: 'None' } as const,
-            position: { _tag: 'Some', value: { x: 700, y: 250 } } as const
+            position: { _tag: 'Some', value: { x: 700, y: 250 } } as const,
+            additionalYAMLProps: new Map(),
+            isContextNode: false
           }
-        }
+        },
+        previousNode: { _tag: 'None' } as const
       }
     ];
 
@@ -214,11 +222,23 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
           contentWithoutYamlOrLinks: '---\ncolor: green\n---\n# Updated Color Node\n\nThis node now has green color.',
           outgoingEdges: [],
           nodeUIMetadata: {
-            title: 'Updated Color Node',
             color: { _tag: 'Some', value: 'green' } as const,
-            position: { _tag: 'Some', value: { x: 700, y: 250 } } as const
+            position: { _tag: 'Some', value: { x: 700, y: 250 } } as const,
+            additionalYAMLProps: new Map(),
+            isContextNode: false
           }
-        }
+        },
+        previousNode: { _tag: 'Some', value: {
+          relativeFilePathIsID: 'no-color-node',
+          contentWithoutYamlOrLinks: '# No Color Node\n\nThis node has no color specified.',
+          outgoingEdges: [],
+          nodeUIMetadata: {
+            color: { _tag: 'None' } as const,
+            position: { _tag: 'Some', value: { x: 700, y: 250 } } as const,
+            additionalYAMLProps: new Map(),
+            isContextNode: false
+          }
+        }} as const
       }
     ];
 
@@ -265,11 +285,13 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
           contentWithoutYamlOrLinks: '# Invalid 1',
           outgoingEdges: [],
           nodeUIMetadata: {
-            title: 'Invalid 1',
             color: { _tag: 'Some', value: 'cyancyan' } as const,
-            position: { _tag: 'Some', value: { x: 100, y: 100 } } as const
+            position: { _tag: 'Some', value: { x: 100, y: 100 } } as const,
+            additionalYAMLProps: new Map(),
+            isContextNode: false
           }
-        }
+        },
+        previousNode: { _tag: 'None' } as const
       },
       {
         type: 'UpsertNode' as const,
@@ -278,11 +300,13 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
           contentWithoutYamlOrLinks: '# Invalid 2',
           outgoingEdges: [],
           nodeUIMetadata: {
-            title: 'Invalid 2',
             color: { _tag: 'Some', value: 'notacolor' } as const,
-            position: { _tag: 'Some', value: { x: 200, y: 100 } } as const
+            position: { _tag: 'Some', value: { x: 200, y: 100 } } as const,
+            additionalYAMLProps: new Map(),
+            isContextNode: false
           }
-        }
+        },
+        previousNode: { _tag: 'None' } as const
       },
       {
         type: 'UpsertNode' as const,
@@ -291,11 +315,13 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
           contentWithoutYamlOrLinks: '# Invalid 3',
           outgoingEdges: [],
           nodeUIMetadata: {
-            title: 'Invalid 3',
             color: { _tag: 'Some', value: '###' } as const,
-            position: { _tag: 'Some', value: { x: 300, y: 100 } } as const
+            position: { _tag: 'Some', value: { x: 300, y: 100 } } as const,
+            additionalYAMLProps: new Map(),
+            isContextNode: false
           }
-        }
+        },
+        previousNode: { _tag: 'None' } as const
       }
     ];
 
@@ -328,11 +354,13 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
           contentWithoutYamlOrLinks: '# Update Test',
           outgoingEdges: [],
           nodeUIMetadata: {
-            title: 'Update Test',
             color: { _tag: 'Some', value: '#ff0000' } as const,
-            position: { _tag: 'Some', value: { x: 400, y: 100 } } as const
+            position: { _tag: 'Some', value: { x: 400, y: 100 } } as const,
+            additionalYAMLProps: new Map(),
+            isContextNode: false
           }
-        }
+        },
+        previousNode: { _tag: 'None' } as const
       }
     ];
     await sendGraphDelta(page, validDelta);
@@ -354,11 +382,23 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
           contentWithoutYamlOrLinks: '# Update Test - Invalid',
           outgoingEdges: [],
           nodeUIMetadata: {
-            title: 'Update Test - Invalid',
             color: { _tag: 'Some', value: 'cyancyan' } as const,
-            position: { _tag: 'Some', value: { x: 400, y: 100 } } as const
+            position: { _tag: 'Some', value: { x: 400, y: 100 } } as const,
+            additionalYAMLProps: new Map(),
+            isContextNode: false
           }
-        }
+        },
+        previousNode: { _tag: 'Some', value: {
+          relativeFilePathIsID: 'update-test',
+          contentWithoutYamlOrLinks: '# Update Test',
+          outgoingEdges: [],
+          nodeUIMetadata: {
+            color: { _tag: 'Some', value: '#ff0000' } as const,
+            position: { _tag: 'Some', value: { x: 400, y: 100 } } as const,
+            additionalYAMLProps: new Map(),
+            isContextNode: false
+          }
+        }} as const
       }
     ];
     await sendGraphDelta(page, invalidUpdateDelta);
