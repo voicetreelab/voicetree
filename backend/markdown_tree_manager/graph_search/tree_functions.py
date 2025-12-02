@@ -151,6 +151,9 @@ def get_most_relevant_nodes(decision_tree: Any, limit: int, query: Optional[str]
             break
         selected.add(node_id)
 
+    node_id, node = all_nodes_by_recency[0]
+    logging.info("MOST RECENT NODE IS id=%s title='%s' filename='%s'", node_id, node.title, node.filename)
+
     # Fill remaining slots based on query
     remaining_slots = limit - len(selected)
     if remaining_slots > 0:

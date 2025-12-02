@@ -11,6 +11,8 @@ import logging
 import os
 from typing import Optional
 
+from backend.settings import TRANSCRIPT_HISTORY_MULTIPLIER, TEXT_BUFFER_SIZE_THRESHOLD
+
 
 class HistoryManager:
     """Tracks processed transcript history with simple spacing and trimming."""
@@ -75,7 +77,7 @@ class HistoryManager:
         if self._file_path:
             self.save_to_file(self._file_path, text)
 
-    def get(self, max_length: Optional[int] = None) -> str:
+    def get(self, max_length: Optional[int] = TRANSCRIPT_HISTORY_MULTIPLIER*TEXT_BUFFER_SIZE_THRESHOLD) -> str:
         """
         Return the most recent history, optionally capped to the provided length.
 
@@ -84,7 +86,7 @@ class HistoryManager:
                        Negative values are treated as 0 (returns empty string).
         """
         if max_length is None:
-            return self._history
+            max_length = TRANSCRIPT_HISTORY_MULTIPLIER*TEXT_BUFFER_SIZE_THRESHOLD # todo, i know duped
 
         if max_length <= 0:
             return ""
