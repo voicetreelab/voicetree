@@ -59,7 +59,21 @@
     display: none;
 }
 
-.server-activity-card:hover .activity-time {
+.activity-node-titles {
+    color: var(--muted-foreground);
+    font-size: 0.7rem;
+    flex-shrink: 0;
+    display: none;
+    margin-left: 4px;
+}
+
+.activity-text-rest {
+    display: none;
+}
+
+.server-activity-card:hover .activity-time,
+.server-activity-card:hover .activity-node-titles,
+.server-activity-card:hover .activity-text-rest {
     display: inline;
 }
 
