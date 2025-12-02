@@ -64,7 +64,8 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
 
       const upsertAction: UpsertNodeDelta = {
         type: 'UpsertNode',
-        nodeToUpsert: testNode
+        nodeToUpsert: testNode,
+        previousNode: O.none
       }
 
       const delta: GraphDelta = [upsertAction]
@@ -105,7 +106,8 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
 
       const delta: GraphDelta = [{
         type: 'UpsertNode',
-        nodeToUpsert: testNode
+        nodeToUpsert: testNode,
+        previousNode: O.none
       }]
 
       // WHEN: Apply the delta
@@ -143,7 +145,8 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
 
       const createDelta: GraphDelta = [{
         type: 'UpsertNode',
-        nodeToUpsert: testNode
+        nodeToUpsert: testNode,
+        previousNode: O.none
       }]
 
       await applyGraphDeltaToDBThroughMem(createDelta)
@@ -157,7 +160,8 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       // WHEN: Apply DeleteNode delta
       const deleteAction: DeleteNode = {
         type: 'DeleteNode',
-        nodeId: TEST_NODE_ID
+        nodeId: TEST_NODE_ID,
+        deletedNode: O.none
       }
 
       const deleteDelta: GraphDelta = [deleteAction]
@@ -190,7 +194,8 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
 
       await applyGraphDeltaToDBThroughMem([{
         type: 'UpsertNode',
-        nodeToUpsert: createNode
+        nodeToUpsert: createNode,
+        previousNode: O.none
       }])
 
       let fileContent: string = await fs.readFile(TEST_FILE_PATH, 'utf-8')
@@ -211,7 +216,8 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
 
       await applyGraphDeltaToDBThroughMem([{
         type: 'UpsertNode',
-        nodeToUpsert: updateNode
+        nodeToUpsert: updateNode,
+        previousNode: O.none
       }])
 
       fileContent = await fs.readFile(TEST_FILE_PATH, 'utf-8')
@@ -221,7 +227,8 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       // STEP 3: Delete node
       await applyGraphDeltaToDBThroughMem([{
         type: 'DeleteNode',
-        nodeId: TEST_NODE_ID
+        nodeId: TEST_NODE_ID,
+        deletedNode: O.none
       }])
 
       const fileExists: boolean = await fs.access(TEST_FILE_PATH)
@@ -249,7 +256,8 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
             additionalYAMLProps: new Map(),
             isContextNode: false
           }
-        }
+        },
+        previousNode: O.none
       }]
 
       // WHEN/THEN: Should throw error about vault path

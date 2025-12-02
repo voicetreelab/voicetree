@@ -27,7 +27,7 @@ function createTestDelta(nodeId: string): GraphDelta {
     return [{
         type: 'UpsertNode',
         nodeToUpsert: createTestNode(nodeId),
-        previousNode: undefined
+        previousNode: O.none
     }]
 }
 
