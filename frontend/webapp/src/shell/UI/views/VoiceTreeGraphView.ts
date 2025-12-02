@@ -197,6 +197,11 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
             // Update recent node history from delta and re-render tabs
             this.recentNodeHistory = updateHistoryFromDelta(this.recentNodeHistory, delta);
+            // todo, don't store this.recentNodeHistory here, instead make it a state in the graph store
+            // src/shell/edge/main/state which stores the past 50 deltas
+            // and then add a pure function which maps delta history, to recent node history (only deleted nodes, and new nodes, or nodes with signfificant char change)
+
+
             renderRecentNodeTabsV2(
                 this.recentNodeHistory,
                 (nodeId) => this.navigationService.handleSearchSelect(nodeId)
