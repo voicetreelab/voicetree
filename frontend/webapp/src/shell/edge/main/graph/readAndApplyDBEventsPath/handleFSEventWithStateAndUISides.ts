@@ -1,7 +1,7 @@
 import type {FSEvent, GraphDelta, Graph} from "@/pure/graph";
 import {mapFSEventsToGraphDelta} from "@/pure/graph";
 import type {BrowserWindow} from "electron";
-import {applyGraphDeltaToMemStateAndUI} from "@/shell/edge/main/graph/readAndDBEventsPath/applyGraphDeltaToMemStateAndUI";
+import {applyGraphDeltaToMemStateAndUI} from "@/shell/edge/main/graph/readAndApplyDBEventsPath/applyGraphDeltaToMemStateAndUI";
 import {getGraph} from "@/shell/edge/main/state/graph-store";
 
 /**

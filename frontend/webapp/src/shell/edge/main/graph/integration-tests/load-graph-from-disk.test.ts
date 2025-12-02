@@ -15,9 +15,9 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk'
+import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndApplyDBEventsPath/loadGraphFromDisk'
 import type { Edge, Graph, GraphNode } from '@/pure/graph'
-import type { FileLimitExceededError } from '@/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce'
+import type { FileLimitExceededError } from '@/shell/edge/main/graph/readAndApplyDBEventsPath/fileLimitEnforce'
 
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'

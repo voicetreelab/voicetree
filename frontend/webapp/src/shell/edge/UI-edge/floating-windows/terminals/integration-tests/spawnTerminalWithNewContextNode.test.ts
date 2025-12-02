@@ -20,8 +20,8 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { spawnTerminalWithNewContextNode } from '@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI-v2'
-import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk'
-import type { FileLimitExceededError } from '@/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce'
+import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndApplyDBEventsPath/loadGraphFromDisk'
+import type { FileLimitExceededError } from '@/shell/edge/main/graph/readAndApplyDBEventsPath/fileLimitEnforce'
 import { setGraph, setVaultPath, getVaultPath, getGraph } from '@/shell/edge/main/state/graph-store'
 import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths'
 import * as O from 'fp-ts/lib/Option.js'

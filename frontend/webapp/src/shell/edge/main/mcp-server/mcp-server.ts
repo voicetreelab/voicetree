@@ -18,7 +18,7 @@ import express, {type Express} from 'express'
 import * as O from 'fp-ts/lib/Option.js'
 
 import type {FSUpdate, Graph, GraphDelta} from '@/pure/graph'
-import {addNodeToGraph} from '@/pure/graph/graphDelta/addNodeToGraph'
+import {addNodeToGraphWithEdgeHealingFromFSEvent} from '@/pure/graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent'
 import {getNodeTitle} from '@/pure/graph/markdown-parsing'
 import {getGraph, getVaultPath, setVaultPath} from '@/shell/edge/main/state/graph-store'
 import {applyGraphDeltaToDBThroughMem} from '@/shell/edge/main/graph/writePath/applyGraphDeltaToDBThroughMem'
@@ -99,7 +99,7 @@ export function createMcpServer(): McpServer {
 
             // Apply to graph using pure function
             const currentGraph: Graph = getGraph()
-            const delta: GraphDelta = addNodeToGraph(fsEvent, vaultPath, currentGraph)
+            const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, vaultPath, currentGraph)
 
             // Persist to filesystem
             await applyGraphDeltaToDBThroughMem(delta)

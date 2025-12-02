@@ -6,7 +6,7 @@ import type { Graph, FSUpdate, GraphDelta } from '@/pure/graph'
 import type { Dirent } from 'fs'
 import { enforceFileLimit, type FileLimitExceededError } from './fileLimitEnforce'
 import { applyPositions } from '@/pure/graph/positioning'
-import { addNodeToGraph } from '@/pure/graph/graphDelta/addNodeToGraph'
+import { addNodeToGraphWithEdgeHealingFromFSEvent } from '@/pure/graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent'
 import { applyGraphDeltaToGraph } from '@/pure/graph/graphDelta/applyGraphDeltaToGraph'
 
 /**
@@ -62,7 +62,7 @@ export async function loadGraphFromDisk(vaultPath: O.Option<string>): Promise<E.
             }
 
             // Use unified function (same as incremental!)
-            const delta: GraphDelta = addNodeToGraph(fsEvent, vaultPath.value, currentGraph)
+            const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, vaultPath.value, currentGraph)
             return applyGraphDeltaToGraph(currentGraph, delta)
         },
         Promise.resolve({ nodes: {} } as Graph)
