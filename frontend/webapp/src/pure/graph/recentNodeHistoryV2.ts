@@ -12,6 +12,7 @@
  */
 
 import type { GraphDelta, UpsertNodeDelta, DeleteNode } from '@/pure/graph'
+import { getNodeTitle } from '@/pure/graph/markdown-parsing'
 import * as O from 'fp-ts/lib/Option.js'
 import { pipe } from 'fp-ts/lib/function.js'
 
@@ -37,7 +38,7 @@ export function extractRecentNodesFromDelta(delta: GraphDelta): readonly UpsertN
         // Update: only show if content changed significantly (150 chars)
         return pipe(
             action.previousNode,
-            O.map(prev => prev.contentWithoutYamlOrLinks.length + 75 < action.nodeToUpsert.contentWithoutYamlOrLinks.length),
+            O.map(prev => prev.contentWithoutYamlOrLinks.length + 125 < action.nodeToUpsert.contentWithoutYamlOrLinks.length),
             O.getOrElse(() => false)
         )
     })
@@ -102,9 +103,21 @@ export function updateHistoryFromDelta(
         history
     )
 
+    // Update existing nodes if title changed
+    const upsertByNodeId: Map<string, UpsertNodeDelta> = new Map(
+        delta
+            .filter((a): a is UpsertNodeDelta => a.type === 'UpsertNode')
+            .map(a => [a.nodeToUpsert.relativeFilePathIsID, a])
+    )
+    const historyWithTitleChanges: RecentNodeHistory = historyWithDeletions.map(entry => {
+        const updated: UpsertNodeDelta | undefined = upsertByNodeId.get(entry.nodeToUpsert.relativeFilePathIsID)
+        if (!updated) return entry
+        return getNodeTitle(entry.nodeToUpsert) !== getNodeTitle(updated.nodeToUpsert) ? updated : entry
+    })
+
     // Then, add new nodes
     const newEntries: readonly UpsertNodeDelta[] = extractRecentNodesFromDelta(delta)
-    return addEntriesToHistory(historyWithDeletions, newEntries)
+    return addEntriesToHistory(historyWithTitleChanges, newEntries)
 }
 
 /**

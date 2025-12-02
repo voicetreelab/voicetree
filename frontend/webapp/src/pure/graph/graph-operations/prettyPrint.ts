@@ -58,8 +58,11 @@ export function prettyPrintGraphDelta(delta: GraphDelta): string {
       const node: GraphNode = nodeDelta.nodeToUpsert;
       const content: string = node.contentWithoutYamlOrLinks || '';
       const contentPreview: string = content.substring(0, 50).replace(/\n/g, ' ');
+      const prevNodeStr: string = O.isSome(nodeDelta.previousNode)
+        ? `update from "${nodeDelta.previousNode.value.relativeFilePathIsID}"`
+        : 'new node';
       return [
-        `  ${index + 1}. UpsertNode: ${node.relativeFilePathIsID}`,
+        `  ${index + 1}. UpsertNode: ${node.relativeFilePathIsID} (${prevNodeStr})`,
         `     Content: "${contentPreview}${content.length > 50 ? '...' : ''}"`,
         `     Edges: [${node.outgoingEdges.join(', ')}]`
       ];
