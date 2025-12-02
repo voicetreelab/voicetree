@@ -2,7 +2,7 @@ import type {FSEvent, GraphDelta, DeleteNode, NodeIdAndFilePath, FSUpdate, Graph
 import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'
 import { filenameToNodeId } from '@/pure/graph/markdown-parsing/filename-utils'
-import { addNodeToGraph } from '@/pure/graph/graphDelta/addNodeToGraph'
+import { addNodeToGraphWithEdgeHealingFromFSEvent } from '@/pure/graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent'
 
 /**
  * Maps filesystem events to graph deltas.
@@ -52,7 +52,7 @@ export function mapFSEventsToGraphDelta(fsEvent: FSEvent, vaultPath: string, cur
  */
 function handleUpsert(fsUpdate: FSUpdate, vaultPath: string, currentGraph: Graph): GraphDelta {
   // Use unified function - handles both outgoing and incoming edge validation
-  return addNodeToGraph(fsUpdate, vaultPath, currentGraph)
+  return addNodeToGraphWithEdgeHealingFromFSEvent(fsUpdate, vaultPath, currentGraph)
 }
 
 /**

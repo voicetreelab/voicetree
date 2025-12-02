@@ -4,8 +4,8 @@ import type { Graph, GraphNode } from '@/pure/graph'
 import { getNodeTitle } from '@/pure/graph/markdown-parsing'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
-import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk'
-import type { FileLimitExceededError } from '@/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce'
+import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndApplyDBEventsPath/loadGraphFromDisk'
+import type { FileLimitExceededError } from '@/shell/edge/main/graph/readAndApplyDBEventsPath/fileLimitEnforce'
 
 import { EXAMPLE_SMALL_PATH, EXAMPLE_LARGE_PATH } from '@/utils/test-utils/fixture-paths'
 

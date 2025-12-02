@@ -71,7 +71,7 @@ function healNodeEdges(affectedNodeIds: readonly NodeIdAndFilePath[], currentGra
  * ]
  * ```
  */
-export function addNodeToGraph(
+export function addNodeToGraphWithEdgeHealingFromFSEvent(
     fsEvent: FSUpdate,
     vaultPath: string,
     currentGraph: Graph
@@ -80,7 +80,8 @@ export function addNodeToGraph(
     const newNode: GraphNode = parseMarkdownToGraphNode(fsEvent.content, absoluteFilePathMadeRelativeToVault, currentGraph) // todo this should take graph
 
     // Check if this is a new node or an update to an existing node
-    const previousNode: O.Option<GraphNode> = O.fromNullable(currentGraph.nodes[absoluteFilePathMadeRelativeToVault])
+    console.log(`abs, ${absoluteFilePathMadeRelativeToVault} rel ${newNode.relativeFilePathIsID}`)
+    const previousNode: O.Option<GraphNode> = O.fromNullable(currentGraph.nodes[newNode.relativeFilePathIsID])
 
     const affectedNodeIds: readonly string[] = findNodesWithPotentialEdgesToNode(newNode, currentGraph)
 
