@@ -200,13 +200,16 @@ class TreeActionDeciderWorkflow:
             # PHASE 1: PLACEMENT (APPEND/CREATE)
             # ======================================================================
             current_phase = "placement"
-            await emit_event(SSEEventType.PHASE_STARTED, {"phase": "placement"})
+            await emit_event(SSEEventType.PHASE_STARTED, {"phase": "placement", "text_chunk": text_chunk})
             logging.info("Running Phase 1: Placement Agent...")
 
             # Get the most relevant nodes for the agent to consider
             if self.decision_tree is None:
                 raise ValueError("Decision tree is not initialized")
             relevant_nodes = get_most_relevant_nodes(self.decision_tree, MAX_NODES_FOR_LLM_CONTEXT, query=text_chunk)
+            relevant_node_titles = [node.title for node in relevant_nodes]
+            logging.info(f"Relevant nodes for LLM context: {relevant_node_titles}")
+
             relevant_nodes_formatted = _format_nodes_for_prompt(relevant_nodes, self.decision_tree.tree)
 
             # Get transcript history from our own history manager
@@ -373,10 +376,16 @@ class TreeActionDeciderWorkflow:
             #         logging.error(f"Error in Connect Orphans phase: {e}")
             #         # Don't fail the whole workflow, just log the error
 
-            # Workflow complete
+            # Workflow complete - include node titles for frontend display
+            node_titles = [
+                self.decision_tree.tree[node_id].title
+                for node_id in modified_or_new_nodes
+                if self.decision_tree is not None and node_id in self.decision_tree.tree
+            ]
             await emit_event(SSEEventType.WORKFLOW_COMPLETE, {
                 "total_nodes": len(modified_or_new_nodes),
-                "phases_completed": 3
+                "phases_completed": 3,
+                "node_titles": node_titles
             })
 
             # Return the set of all affected nodes (new + modified + optimization-modified)
