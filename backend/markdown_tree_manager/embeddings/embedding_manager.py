@@ -98,19 +98,32 @@ class EmbeddingManager:
     def sync_all_embeddings(self) -> None:
         """
         Synchronize all embeddings with current tree state.
-        Useful for initial setup or recovery.
+        Reconciles by deleting stale vectors and adding missing ones.
         """
         if not self.enabled or not self.vector_store:
             return
 
-        # Get all nodes from tree
-        all_nodes = self.tree.tree.copy()
+        # Get current tree node IDs
+        tree_node_ids = set(self.tree.tree.keys())
 
-        if all_nodes:
-            self.vector_store.add_nodes(all_nodes)
-            logger.info(f"Synced all {len(all_nodes)} nodes to embeddings")
-        else:
-            logger.warning("No nodes to sync to embeddings")
+        # Get all vector IDs from ChromaDB
+        vector_node_ids = self.vector_store.get_all_node_ids()
+
+        # Find stale vectors (in ChromaDB but not in tree) - DELETE these
+        stale_node_ids = vector_node_ids - tree_node_ids
+        if stale_node_ids:
+            self.vector_store.delete_nodes(list(stale_node_ids))
+            logger.info(f"Deleted {len(stale_node_ids)} stale vectors from ChromaDB: {stale_node_ids}")
+
+        # Find missing vectors (in tree but not in ChromaDB) - ADD these
+        missing_node_ids = tree_node_ids - vector_node_ids
+        if missing_node_ids:
+            missing_nodes = {nid: self.tree.tree[nid] for nid in missing_node_ids}
+            self.vector_store.add_nodes(missing_nodes)
+            logger.info(f"Added {len(missing_node_ids)} missing nodes to embeddings: {missing_node_ids}")
+
+        if not stale_node_ids and not missing_node_ids:
+            logger.info("Embeddings already in sync with tree")
 
     def search(
         self,
