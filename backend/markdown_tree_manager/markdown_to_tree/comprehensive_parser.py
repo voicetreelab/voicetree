@@ -78,9 +78,13 @@ def parse_markdown_file_complete(filepath: Path) -> Optional[ParsedNode]:
     # Title comes from first heading (#), summary from second heading (###)
     title, summary, main_content = extract_title_summary_and_content(content_after_frontmatter)
 
-    # Extract datetime fields
-    created_at = metadata.get('created_at', datetime.now().isoformat())
-    modified_at = metadata.get('modified_at', datetime.now().isoformat())
+    # Extract datetime fields - use file mtime as fallback when not in YAML
+    file_stat = filepath.stat()
+    file_mtime = datetime.fromtimestamp(file_stat.st_mtime)
+    file_ctime = datetime.fromtimestamp(file_stat.st_ctime)
+
+    created_at = metadata.get('created_at', file_ctime.isoformat())
+    modified_at = metadata.get('modified_at', file_mtime.isoformat())
 
     # Convert ISO strings to datetime if needed
     if isinstance(created_at, str):
