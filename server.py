@@ -145,23 +145,26 @@ async def buffer_processing_loop():
                     continue
 
                 if len(simple_buffer) > 0:
-
-                     # Time-based auto-flush after 2s inactivity
-                    if (last_text_received_time > 0 and
-                            time.time() - last_text_received_time >= AUTO_FLUSH_INACTIVITY_SECONDS or force_flush_next_processing_iteration):
-                        logger.debug(f"Forcing (due to timie) {len(simple_buffer)} chars from simple_buffer to buffer_manager")
+                     # Time-based auto-flush after ns inactivity
+                    if force_flush_next_processing_iteration:
+                        logger.info(f"Forcing (forced) {len(simple_buffer)} chars from simple_buffer to buffer_manager")
                         await loop.run_in_executor(executor, run_llm_in_thread, simple_buffer, True)  # todo, await?
-                        if force_flush_next_processing_iteration:
-                            force_flush_next_processing_iteration = False
+                        force_flush_next_processing_iteration = False
+
                     else:
-                        logger.debug(f"Moving {len(simple_buffer)} chars from simple_buffer to buffer_manager")
+                        logger.info(f"Moving {len(simple_buffer)} chars from simple_buffer to buffer_manager")
                         await loop.run_in_executor(executor, run_llm_in_thread, simple_buffer, False)
                     simple_buffer = ""
 
 
-                # Step 2: Check if we need to force flush buffer_manager
-                # (either from Enter key or 2s inactivity)
                 else:
+                    # Time-based force flush when simple_buffer is empty but buffer_manager has content
+                    if (last_text_received_time > 0 and
+                            time.time() - last_text_received_time >= AUTO_FLUSH_INACTIVITY_SECONDS):
+                        logger.info(f"Time-based force flush of buffer_manager after {AUTO_FLUSH_INACTIVITY_SECONDS}s inactivity")
+                        await loop.run_in_executor(executor, run_llm_in_thread, "", True)
+                        last_text_received_time = 0  # Prevent repeated flushes
+
                     # Idle - auto-sync: reload markdown files from disk to pick up external changes
                     # Only reload when BOTH buffers are empty to avoid losing unprocessed text
                     processor_buffer_empty = (processor is None or
