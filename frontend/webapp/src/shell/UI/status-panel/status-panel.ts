@@ -82,12 +82,20 @@ export class StatusPanel {
         });
         const icon: string = this.getEventIcon(event.type);
         const message: string = this.getEventMessage(event);
+        const nodeTitles: string = this.getNodeTitlesHtml(event);
 
         return `
             <span class="activity-icon">${icon}</span>
-            <span class="activity-message">${message}</span>
+            <span class="activity-message">${message}</span>${nodeTitles}
             <span class="activity-time">${time}</span>
         `;
+    }
+
+    private getNodeTitlesHtml(event: SSEEvent): string {
+        if (event.type !== 'workflow_complete') return '';
+        const titles = event.data.node_titles as string[] | undefined;
+        if (!titles || titles.length === 0) return '';
+        return `<span class="activity-node-titles">${titles.join(', ')}</span>`;
     }
 
     private getEventIcon(type: string): string {
@@ -107,8 +115,16 @@ export class StatusPanel {
 
     private getEventMessage(event: SSEEvent): string {
         switch (event.type) {
-            case 'phase_started':
-                return `${event.data.phase}`;
+            case 'phase_started': {
+                const phase = event.data.phase as string;
+                if (phase === 'placement' && event.data.text_chunk) {
+                    const text = event.data.text_chunk as string;
+                    const first30 = text.slice(0, 30);
+                    const rest = text.length > 30 ? `<span class="activity-text-rest">${text.slice(30)}</span>` : '';
+                    return `${phase}: ${first30}${rest}`;
+                }
+                return `${phase}`;
+            }
             case 'phase_complete':
                 return `${event.data.phase} ✓`;
             case 'rate_limit_error':
