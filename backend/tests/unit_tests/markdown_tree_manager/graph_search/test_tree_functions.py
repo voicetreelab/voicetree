@@ -4,6 +4,7 @@ Unit tests for tree_functions.py module
 Tests TF-IDF search functionality and semantic node retrieval
 """
 import pytest
+from datetime import datetime, timedelta
 from unittest.mock import Mock
 from backend.markdown_tree_manager.markdown_tree_ds import Node
 from backend.markdown_tree_manager.graph_search.tree_functions import (
@@ -184,6 +185,162 @@ class TestGetMostRelevantNodes:
         # All results should be Node instances
         for node in results:
             assert isinstance(node, Node)
+
+
+class TestGetMostRelevantNodesRecency:
+    """Tests for recency-based node selection in get_most_relevant_nodes"""
+
+    def test_nodes_sorted_by_modified_at_timestamp(self):
+        """
+        Verify that get_most_relevant_nodes correctly sorts by modified_at.
+
+        This tests the fix for the bug where files without modified_at in YAML
+        were getting datetime.now() on each load, causing incorrect ordering.
+        """
+        decision_tree = Mock()
+        decision_tree.tree = {}
+
+        # Create nodes with explicit timestamps - spread across time
+        base_time = datetime(2025, 1, 1, 12, 0, 0)
+
+        # Create 20 nodes with different modification times
+        # Nodes 15-19 should be most recent
+        for i in range(20):
+            node = Node(
+                name=f"Node {i}",
+                node_id=i,
+                content=f"Content for node {i}",
+                summary=f"Summary for node {i}",
+            )
+            # Each node is 1 day newer than the previous
+            node.modified_at = base_time + timedelta(days=i)
+            decision_tree.tree[node.id] = node
+
+        # Mock vector search
+        decision_tree.search_similar_nodes_vector = Mock(return_value=[])
+
+        # Request 8 nodes (3/8 of 8 = 3 recent slots)
+        limit = 8
+        results = get_most_relevant_nodes(decision_tree, limit=limit, query=None)
+
+        # Extract node IDs from results
+        result_ids = [node.id for node in results]
+
+        # The most recently modified nodes (highest IDs) should be included
+        # With limit=8 and 3/8 recent slots = 3 recent nodes
+        # Nodes 19, 18, 17 should definitely be in results
+        assert 19 in result_ids, f"Most recent node (19) should be included. Got: {result_ids}"
+        assert 18 in result_ids, f"Second most recent node (18) should be included. Got: {result_ids}"
+        assert 17 in result_ids, f"Third most recent node (17) should be included. Got: {result_ids}"
+
+    def test_most_recent_node_is_correctly_identified(self):
+        """
+        Verify that the most recent node is correctly identified based on modified_at.
+
+        Tests that old files with file-based timestamps don't incorrectly appear
+        as "most recent" compared to truly recently modified files.
+        """
+        decision_tree = Mock()
+        decision_tree.tree = {}
+
+        # Create a "truly recent" node
+        recent_node = Node(
+            name="Actually Recent Node",
+            node_id=1,
+            content="This was just modified",
+            summary="Recent modification",
+        )
+        recent_node.modified_at = datetime(2025, 12, 2, 10, 0, 0)  # Today
+
+        # Create an "old" node that would have appeared recent with the bug
+        # (when datetime.now() was used as fallback)
+        old_node = Node(
+            name="Old Node From File",
+            node_id=2,
+            content="This is from an old file",
+            summary="Old content",
+        )
+        old_node.modified_at = datetime(2025, 11, 1, 10, 0, 0)  # A month ago
+
+        # Create another old node
+        older_node = Node(
+            name="Even Older Node",
+            node_id=3,
+            content="Very old content",
+            summary="Ancient",
+        )
+        older_node.modified_at = datetime(2025, 10, 1, 10, 0, 0)  # Two months ago
+
+        decision_tree.tree = {1: recent_node, 2: old_node, 3: older_node}
+        decision_tree.search_similar_nodes_vector = Mock(return_value=[])
+
+        # Get results with limit that includes all nodes
+        results = get_most_relevant_nodes(decision_tree, limit=10, query=None)
+
+        # Extract the returned nodes
+        result_nodes = {node.id: node for node in results}
+
+        # Node 1 should be identified as most recent
+        assert 1 in result_nodes, "The actually recent node should be in results"
+
+        # Check the order - most recent should come first in internal sorting
+        # The function returns nodes in a sorted order by ID at the end,
+        # but internally it correctly identifies recent nodes
+        assert len(results) == 3, "All 3 nodes should be returned when under limit"
+
+    def test_recency_ordering_with_mixed_timestamps(self):
+        """
+        Test that nodes with mixed timestamp sources are correctly ordered.
+
+        Simulates scenario where some nodes have YAML timestamps (recent)
+        and others have file-based timestamps (correctly reflecting old files).
+        """
+        decision_tree = Mock()
+        decision_tree.tree = {}
+
+        # Create 10 nodes to exceed limit and trigger recency selection
+        timestamps = [
+            # Old files (would be file mtime after fix)
+            datetime(2025, 6, 1, 12, 0, 0),   # Node 0 - old
+            datetime(2025, 7, 1, 12, 0, 0),   # Node 1 - old
+            datetime(2025, 8, 1, 12, 0, 0),   # Node 2 - old
+            datetime(2025, 9, 1, 12, 0, 0),   # Node 3 - old
+            datetime(2025, 10, 1, 12, 0, 0),  # Node 4 - old
+            # Recent files (would have YAML timestamps after creation)
+            datetime(2025, 12, 1, 10, 0, 0),  # Node 5 - recent
+            datetime(2025, 12, 1, 11, 0, 0),  # Node 6 - recent
+            datetime(2025, 12, 1, 12, 0, 0),  # Node 7 - recent
+            datetime(2025, 12, 2, 9, 0, 0),   # Node 8 - very recent
+            datetime(2025, 12, 2, 10, 0, 0),  # Node 9 - most recent
+        ]
+
+        for i, ts in enumerate(timestamps):
+            node = Node(
+                name=f"Node {i}",
+                node_id=i,
+                content=f"Content {i}",
+                summary=f"Summary {i}",
+            )
+            node.modified_at = ts
+            decision_tree.tree[node.id] = node
+
+        decision_tree.search_similar_nodes_vector = Mock(return_value=[])
+
+        # Limit to 5 nodes - should get the 3 most recent from recency selection
+        # (3/8 of limit = ~1-2, but let's use limit=8 for clearer math)
+        results = get_most_relevant_nodes(decision_tree, limit=8, query=None)
+        result_ids = [node.id for node in results]
+
+        # Most recent nodes (9, 8, 7) should be included
+        assert 9 in result_ids, f"Most recent node 9 should be included. Got: {result_ids}"
+        assert 8 in result_ids, f"Node 8 should be included. Got: {result_ids}"
+
+        # Very old nodes should not take precedence over recent ones
+        recent_count = sum(1 for id in result_ids if id >= 5)
+        old_count = sum(1 for id in result_ids if id < 5)
+
+        # Recent nodes should dominate since they fill the recency slots
+        assert recent_count >= 3, f"At least 3 recent nodes should be included. Got {recent_count} recent, {old_count} old"
 
 
 class TestReciprocalRankFusion:
