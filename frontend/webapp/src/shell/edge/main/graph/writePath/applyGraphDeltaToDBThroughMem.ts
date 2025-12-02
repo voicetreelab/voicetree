@@ -35,6 +35,7 @@ export async function applyGraphDeltaToDBThroughMem(
 
     // However, do update in-memory state (purposefully unnecessary, fs events do the same, but latency)
     // setGraph(applyGraphDeltaToGraph(getGraph(), delta))
+    // todo, i undisabled this, bc it broke spawnTerminalWithCommandFromUI which assumed node already in mem ( no wait req'd)
     // todo, disabling this because it can introduce bugs and complexity
     // for example, if a new node is created from ui, optimistic ui, and gets written to mem
     // then, when fs event comes thru it won't be a new node delta (already exists)

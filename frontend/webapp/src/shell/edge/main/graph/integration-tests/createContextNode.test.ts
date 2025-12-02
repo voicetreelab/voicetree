@@ -20,7 +20,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createContextNode } from '@/shell/edge/main/graph/context-nodes/createContextNode'
-import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk'
+import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndApplyDBEventsPath/loadGraphFromDisk'
 
 import { setGraph, setVaultPath, getVaultPath } from '@/shell/edge/main/state/graph-store'
 import { EXAMPLE_SMALL_PATH, EXAMPLE_LARGE_PATH } from '@/utils/test-utils/fixture-paths'
@@ -29,7 +29,7 @@ import * as E from 'fp-ts/lib/Either.js'
 import { promises as fs } from 'fs'
 import path from 'path'
 import type { NodeIdAndFilePath, Edge, GraphNode, Graph } from '@/pure/graph'
-import type { FileLimitExceededError } from '@/shell/edge/main/graph/readAndDBEventsPath/fileLimitEnforce'
+import type { FileLimitExceededError } from '@/shell/edge/main/graph/readAndApplyDBEventsPath/fileLimitEnforce'
 
 describe('createContextNode - Integration Tests', () => {
   let createdContextNodeId: NodeIdAndFilePath | null = null
