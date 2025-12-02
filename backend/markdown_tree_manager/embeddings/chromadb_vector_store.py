@@ -349,6 +349,33 @@ class ChromaDBVectorStore:
             logger.error(f"Failed to get collection stats: {e}")
             return {}
 
+    def get_all_node_ids(self) -> set[int]:
+        """
+        Get all node IDs currently stored in ChromaDB.
+
+        Returns:
+            Set of node IDs in the vector store
+        """
+        try:
+            # Get all document IDs from the collection
+            result = self.collection.get(include=[])
+            if not result['ids']:
+                return set()
+
+            # Extract node IDs from the ID strings (format: "node_123")
+            node_ids = set()
+            for id_str in result['ids']:
+                try:
+                    node_id = int(id_str.replace('node_', ''))
+                    node_ids.add(node_id)
+                except ValueError:
+                    logger.warning(f"Could not parse node ID from: {id_str}")
+
+            return node_ids
+        except Exception as e:
+            logger.error(f"Failed to get all node IDs: {e}")
+            return set()
+
 
 # Convenience function for backward compatibility
 def find_relevant_nodes_with_chroma(
