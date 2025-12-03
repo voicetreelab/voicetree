@@ -19,7 +19,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { spawnTerminalWithNewContextNode } from '@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI-v2'
+import { spawnTerminalWithNewContextNode } from '@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndApplyDBEventsPath/loadGraphFromDisk'
 import type { FileLimitExceededError } from '@/shell/edge/main/graph/readAndApplyDBEventsPath/fileLimitEnforce'
 import { setGraph, setVaultPath, getVaultPath, getGraph } from '@/shell/edge/main/state/graph-store'
@@ -31,9 +31,9 @@ import path from 'path'
 import type { NodeIdAndFilePath, Graph } from '@/pure/graph'
 import cytoscape from 'cytoscape'
 import type { Core } from 'cytoscape'
-import { getTerminals, clearTerminals } from '@/shell/edge/UI-edge/state/UIAppState'
 import { createContextNode } from '@/shell/edge/main/graph/context-nodes/createContextNode'
 import type { TerminalData } from '@/shell/electron'
+import {clearTerminals, getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
 
 // SKIP: These tests require DOM/browser environment for createFloatingTerminalWindow.
 // They should be moved to e2e tests or run with jsdom/happy-dom environment with proper mocking.
