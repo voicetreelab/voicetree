@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from '@/shell/UI/App'
 import posthog from 'posthog-js'
-import { StatusPanel } from '@/shell/UI/status-panel'
+import { SseStatusPanel } from '@/shell/UI/sse-status-panel'
 
 // Initialize PostHog
 const posthogKey: string | undefined = import.meta.env.VITE_POSTHOG_API_KEY
@@ -28,5 +28,5 @@ createRoot(document.getElementById('root')!).render(
     <App/>
 );
 
-// Initialize StatusPanel (waits for mount point via MutationObserver if needed)
-StatusPanel.init();
+// Initialize SseStatusPanel (waits for mount point via MutationObserver if needed)
+SseStatusPanel.init();
