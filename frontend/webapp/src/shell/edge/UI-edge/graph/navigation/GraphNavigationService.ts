@@ -56,12 +56,34 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
   }
 
   /**
+   * Fit viewport to a terminal and its surrounding context (context node + d=1 neighbors)
+   */
+  fitToTerminal(terminal: TerminalData): void {
+    const cy: Core = this.cy;
+    const terminalId: TerminalId = getTerminalId(terminal);
+    const shadowNodeId: string = getShadowNodeId(terminalId);
+
+    // Get the shadow node from cy for viewport fitting
+    const terminalShadowNode: CollectionReturnValue = cy.getElementById(shadowNodeId);
+
+    // Get context node (attachedToNodeId) and its neighborhood
+    const contextNodeId: string = terminal.attachedToNodeId;
+    const contextNode: CollectionReturnValue = cy.getElementById(contextNodeId);
+
+    // closedNeighborhood includes the node itself plus all directly connected nodes (d=1)
+    // Union with terminal shadow node to ensure terminal is always in viewport
+    const nodesToFit: CollectionReturnValue = contextNode.length > 0
+      ? contextNode.closedNeighborhood().nodes().union(terminalShadowNode)
+      : cy.collection().union(terminalShadowNode);
+
+    cy.fit(nodesToFit, getResponsivePadding(cy, 1));
+  }
+
+  /**
    * Cycle through terminal windows
    * @param direction 1 for next, -1 for previous
    */
   cycleTerminal(direction: 1 | -1): void {
-    const cy: Core = this.cy;
-
     // Get terminals from TerminalStore (source of truth)
     const terminalsMap: Map<TerminalId, TerminalData> = getTerminals();
     const terminals: TerminalData[] = Array.from(terminalsMap.values());
@@ -90,26 +112,12 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
     }
 
     const targetTerminal: TerminalData = sortedTerminals[this.currentTerminalIndex];
-    const terminalId: TerminalId = getTerminalId(targetTerminal);
-    const shadowNodeId: string = getShadowNodeId(terminalId);
 
-    // Get the shadow node from cy for viewport fitting
-    const terminalShadowNode: CollectionReturnValue = cy.getElementById(shadowNodeId);
-
-    // Get context node (attachedToNodeId) and its neighborhood
-    const contextNodeId: string = targetTerminal.attachedToNodeId;
-    const contextNode: CollectionReturnValue = cy.getElementById(contextNodeId);
-
-    // closedNeighborhood includes the node itself plus all directly connected nodes (d=1)
-    // Union with terminal shadow node to ensure terminal is always in viewport
-    const nodesToFit: CollectionReturnValue = contextNode.length > 0
-      ? contextNode.closedNeighborhood().nodes().union(terminalShadowNode)
-      : cy.collection().union(terminalShadowNode);
-
-    // Use 7% of viewport for terminal cycling
-    cy.fit(nodesToFit, getResponsivePadding(cy, 7));
+    // Fit viewport to terminal + surrounding context
+    this.fitToTerminal(targetTerminal);
 
     // Focus the terminal so keyboard input goes directly to it
+    const shadowNodeId: string = getShadowNodeId(getTerminalId(targetTerminal));
     const vanillaInstance: { dispose: () => void; focus?: () => void } | undefined = vanillaFloatingWindowInstances.get(shadowNodeId);
     if (vanillaInstance?.focus) {
       vanillaInstance.focus();
