@@ -4,7 +4,7 @@ import type { GraphDelta } from '@/pure/graph';
 import type { mainAPI } from '@/shell/edge/main/api';
 
 // Re-export TerminalData for use in terminal API
-export type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/types-v2';
+export type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/types';
 
 // Utility type to transform all functions in an object to return Promises
 // Uses Awaited<R> to handle both sync and async functions correctly:

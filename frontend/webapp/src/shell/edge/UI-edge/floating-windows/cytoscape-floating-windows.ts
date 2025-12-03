@@ -1,7 +1,7 @@
 /**
  * Cytoscape Floating Window Extension - V2
  *
- * Rewritten to use types-v2.ts with flat types and derived IDs.
+ * Rewritten to use types.ts with flat types and derived IDs.
  * Windows are anchored to invisible shadow nodes and move with graph transformations.
  */
 
@@ -21,7 +21,7 @@ import {
     getShadowNodeId,
     isEditorData,
     isTerminalData,
-} from '@/shell/edge/UI-edge/floating-windows/types-v2';
+} from '@/shell/edge/UI-edge/floating-windows/types';
 import {removeTerminal} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {removeEditor} from "@/shell/edge/UI-edge/state/EditorStore";
 

@@ -14,7 +14,7 @@ import type { Core, CollectionReturnValue } from 'cytoscape';
 import { getResponsivePadding } from '@/utils/responsivePadding';
 import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
 import { getTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
-import { getTerminalId, getShadowNodeId, type TerminalData, type TerminalId } from '@/shell/edge/UI-edge/floating-windows/types-v2';
+import { getTerminalId, getShadowNodeId, type TerminalData, type TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 
 /**
  * Manages all user-triggered navigation actions for the graph

@@ -1,7 +1,7 @@
 /**
  * Terminal Flow - V2
  *
- * Rewritten to use types-v2.ts with flat TerminalData type.
+ * Rewritten to use types.ts with flat TerminalData type.
  * - IDs are derived, not stored
  * - ui field is populated after DOM creation
  * - No stored callbacks - use disposeFloatingWindow()
@@ -15,7 +15,7 @@ import {
     anchorToNode,
     disposeFloatingWindow,
     getOrCreateOverlay,
-} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows-v2";
+} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import { TerminalVanilla } from "@/shell/UI/floating-windows/terminals/TerminalVanilla";
 import posthog from "posthog-js";
 import {
@@ -24,7 +24,7 @@ import {
     type TerminalData,
     type TerminalId,
     type FloatingWindowUIData,
-} from "@/shell/edge/UI-edge/floating-windows/types-v2";
+} from "@/shell/edge/UI-edge/floating-windows/types";
 import {
     vanillaFloatingWindowInstances,
 } from "@/shell/edge/UI-edge/state/UIAppState";
@@ -47,6 +47,9 @@ async function launchTerminalOntoUI(cy: cytoscape.Core, contextNodeId: string, t
     // Store terminal in state (with ui populated)
     if (terminalWithUI) {
         addTerminal(terminalWithUI);
+    }
+    else {
+        console.error("ERROR CREATING FLOATING TERMINAL")
     }
 }
 
@@ -274,7 +277,7 @@ export function closeTerminal(terminal: TerminalData, cy: Core): void {
         vanillaFloatingWindowInstances.delete(terminalId);
     }
 
-    // Use disposeFloatingWindow from cytoscape-floating-windows-v2.ts
+    // Use disposeFloatingWindow from cytoscape-floating-windows.ts
     // This removes shadow node, DOM elements, and from state
     disposeFloatingWindow(cy, terminal);
 }

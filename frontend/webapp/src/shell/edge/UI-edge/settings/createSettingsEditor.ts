@@ -5,10 +5,10 @@
 
 import type {} from '@/shell/electron';
 import type {Core, Position} from 'cytoscape';
-import {createWindowChrome, getOrCreateOverlay} from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows-v2';
+import {createWindowChrome, getOrCreateOverlay} from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 import type {VTSettings} from '@/pure/settings/types';
 import {CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
-import type {FloatingWindowFields, EditorId} from '@/shell/edge/UI-edge/floating-windows/types-v2';
+import type {FloatingWindowFields, EditorId} from '@/shell/edge/UI-edge/floating-windows/types';
 import * as O from 'fp-ts/lib/Option.js';
 
 export async function createSettingsEditor(cy: Core): Promise<void> {

@@ -4,7 +4,7 @@ import cytoscape, { type Core, type Collection } from 'cytoscape';
 import '@/shell/UI/cytoscape-graph-ui'; // Import to trigger extension registration
 import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
 import { addTerminal, clearTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
-import { createTerminalData, getShadowNodeId, getTerminalId } from '@/shell/edge/UI-edge/floating-windows/types-v2';
+import { createTerminalData, getShadowNodeId, getTerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import type { NodeIdAndFilePath } from '@/pure/graph';
 
 describe('GraphNavigationService', () => {
