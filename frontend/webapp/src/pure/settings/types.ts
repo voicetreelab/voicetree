@@ -7,26 +7,9 @@ export type EnvVarValue = string | readonly string[];
 
 export interface VTSettings {
   readonly terminalSpawnPathRelativeToWatchedDirectory: string;
-  readonly agents: AgentConfig[];
+  readonly agents: readonly AgentConfig[];
   readonly shiftEnterSendsOptionEnter: boolean;
   readonly INJECT_ENV_VARS: Record<string, EnvVarValue>;
-}
-
-/**
- * Resolve env var definitions to concrete string values.
- * For arrays, randomly selects one element.
- */
-export function resolveEnvVars(envVarDefs: Record<string, EnvVarValue>): Record<string, string> {
-  const resolved: Record<string, string> = {};
-  for (const [key, value] of Object.entries(envVarDefs)) {
-    if (Array.isArray(value)) {
-      const randomIndex = Math.floor(Math.random() * value.length);
-      resolved[key] = value[randomIndex];
-    } else {
-      resolved[key] = value;
-    }
-  }
-  return resolved;
 }
 
 export const DEFAULT_SETTINGS: VTSettings = {

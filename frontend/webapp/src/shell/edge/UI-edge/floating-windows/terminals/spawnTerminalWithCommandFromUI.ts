@@ -31,7 +31,7 @@ import {
 import { getFilePathForNode, getNodeFromMainToUI } from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
 import { getNodeTitle } from "@/pure/graph/markdown-parsing";
 import type { VTSettings } from "@/pure/settings";
-import { resolveEnvVars } from "@/pure/settings";
+import { resolveEnvVars, expandEnvVarsInValues } from "@/pure/settings";
 import {addTerminal, getNextTerminalCount, getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
 
 
@@ -84,6 +84,15 @@ async function prepareTerminalData(parentNode: GraphNode, contextNodeId: string,
     // Get app support path for VOICETREE_APP_SUPPORT env var
     const appSupportPath: string = await window.electronAPI?.main.getAppSupportPath();
 
+    // Build env vars then expand $VAR_NAME references within values
+    const unexpandedEnvVars: Record<string, string> = {
+        VOICETREE_APP_SUPPORT: appSupportPath ?? '',
+        CONTEXT_NODE_PATH: await getFilePathForNode(contextNodeId) ?? contextNodeId,
+        CONTEXT_NODE_CONTENT: contextContent,
+        ...resolvedEnvVars,
+    };
+    const expandedEnvVars: Record<string, string> = expandEnvVarsInValues(unexpandedEnvVars);
+
     // Create TerminalData using the factory function (flat type, no nested floatingWindow)
     const terminalData: TerminalData = createTerminalData({
         attachedToNodeId: contextNodeId,
@@ -93,12 +102,7 @@ async function prepareTerminalData(parentNode: GraphNode, contextNodeId: string,
         initialCommand: command,
         executeCommand: true,
         initialSpawnDirectory: initialSpawnDirectory,
-        initialEnvVars: {
-            VOICETREE_APP_SUPPORT: appSupportPath ?? '',
-            CONTEXT_NODE_PATH: await getFilePathForNode(contextNodeId) ?? contextNodeId,
-            CONTEXT_NODE_CONTENT: contextContent,
-            ...resolvedEnvVars,
-        },
+        initialEnvVars: expandedEnvVars,
     });
     return terminalData;
 }
