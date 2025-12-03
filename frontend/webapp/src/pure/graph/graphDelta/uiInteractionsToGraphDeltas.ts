@@ -34,7 +34,7 @@ export function fromCreateChildToUpsertNode(
         nodeUIMetadata: {
             ...parsedNode.nodeUIMetadata,
             // Use calculated position (not specified by content)
-            position: calculateInitialPositionForChild(parentNode, graph, undefined, 200),
+            position: calculateInitialPositionForChild(parentNode, graph, undefined, 100),
         },
     }
 
