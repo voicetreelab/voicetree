@@ -112,9 +112,9 @@ def addNewNode(parent_file, name, markdown_content, relationship_to, color_overr
     # Create the new node content with frontmatter
     # Include agent name in title if it's an agent-created node
     if agent_name and agent_name != 'default':
-        title_with_agent = f"({agent_name}) {name} ({new_node_id})"
+        title_with_agent = f"{agent_name}: {name}"
     else:
-        title_with_agent = f"{name} ({new_node_id})"
+        title_with_agent = f"{name}"
     
     # Escape single quotes in title for YAML safety (double them)
 
