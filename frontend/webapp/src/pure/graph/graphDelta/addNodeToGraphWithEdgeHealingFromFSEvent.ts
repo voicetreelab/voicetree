@@ -1,14 +1,48 @@
-import type {FSUpdate, Graph, GraphDelta, GraphNode, NodeIdAndFilePath, UpsertNodeDelta} from '@/pure/graph'
+import type {FSUpdate, Graph, GraphDelta, GraphNode, NodeIdAndFilePath, Position, UpsertNodeDelta} from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'
 import {parseMarkdownToGraphNode} from '@/pure/graph/markdown-parsing/parse-markdown-to-node'
 import {linkMatchScore, findBestMatchingNode} from '@/pure/graph/markdown-parsing/extract-edges'
 import {setOutgoingEdges} from '@/pure/graph/graph-operations/graph-edge-operations'
 import {filenameToNodeId} from '@/pure/graph/markdown-parsing/filename-utils'
+import {calculateInitialPositionForChild} from "@/pure/graph/positioning/calculateInitialPosition";
 
 interface HealedNodeWithPrevious { //todo unnecessary
     readonly healedNode: GraphNode
     readonly previousNode: O.Option<GraphNode>
+}
+
+/**
+ * Resolve position for a node based on priority:
+ * 1. previousNode's Graph position (most current, synced from UI)
+ * 2. parsedNode's YAML position (initial seed for new nodes)
+ * 3. calculated from first parent (if any parent exists)
+ * 4. none (defaults to 0,0 in UI)
+ */
+function resolveNodePosition(
+    parsedNode: GraphNode,
+    previousNode: O.Option<GraphNode>,
+    affectedNodeIds: readonly string[],
+    currentGraph: Graph
+): O.Option<Position> {
+    // Priority 1: Use previous node's position from Graph (most current, synced from UI)
+    if (O.isSome(previousNode) && O.isSome(previousNode.value.nodeUIMetadata.position)) {
+        return previousNode.value.nodeUIMetadata.position
+    }
+
+    // Priority 2: Use YAML position if present
+    if (O.isSome(parsedNode.nodeUIMetadata.position)) {
+        return parsedNode.nodeUIMetadata.position
+    }
+
+    // Priority 3: Calculate from first parent if any exists
+    if (affectedNodeIds.length >= 1) {
+        const parent: GraphNode = currentGraph.nodes[affectedNodeIds[0]]
+        return calculateInitialPositionForChild(parent, currentGraph)
+    }
+
+    // Priority 4: No position (defaults to 0,0 in UI layer)
+    return O.none
 }
 
 function healNodeEdges(affectedNodeIds: readonly NodeIdAndFilePath[], currentGraph: Graph, graphWithNewNode: Graph): readonly HealedNodeWithPrevious[] {
@@ -16,7 +50,10 @@ function healNodeEdges(affectedNodeIds: readonly NodeIdAndFilePath[], currentGra
         const affectedNode: GraphNode = currentGraph.nodes[affectedNodeId]
 
         // Re-resolve the existing edges against the updated graph
-        const healedEdges: readonly { readonly targetId: string; readonly label: string; }[] = affectedNode.outgoingEdges.map((edge) => {
+        const healedEdges: readonly {
+            readonly targetId: string;
+            readonly label: string;
+        }[] = affectedNode.outgoingEdges.map((edge) => {
             // Try to resolve the raw targetId to an actual node using linkMatchScore-based matching
             const resolvedTargetId: string | undefined = findBestMatchingNode(edge.targetId, graphWithNewNode.nodes)
             return {
@@ -77,13 +114,24 @@ export function addNodeToGraphWithEdgeHealingFromFSEvent(
     currentGraph: Graph
 ): GraphDelta {
     const absoluteFilePathMadeRelativeToVault: string = extractNodeIdFromPath(fsEvent.absolutePath, vaultPath)
-    const newNode: GraphNode = parseMarkdownToGraphNode(fsEvent.content, absoluteFilePathMadeRelativeToVault, currentGraph) // todo this should take graph
+    const parsedNode: GraphNode = parseMarkdownToGraphNode(fsEvent.content, absoluteFilePathMadeRelativeToVault, currentGraph)
 
     // Check if this is a new node or an update to an existing node
-    console.log(`abs, ${absoluteFilePathMadeRelativeToVault} rel ${newNode.relativeFilePathIsID}`)
-    const previousNode: O.Option<GraphNode> = O.fromNullable(currentGraph.nodes[newNode.relativeFilePathIsID])
+    console.log(`abs, ${absoluteFilePathMadeRelativeToVault} rel ${parsedNode.relativeFilePathIsID}`)
+    const previousNode: O.Option<GraphNode> = O.fromNullable(currentGraph.nodes[parsedNode.relativeFilePathIsID])
 
-    const affectedNodeIds: readonly string[] = findNodesWithPotentialEdgesToNode(newNode, currentGraph)
+    const affectedNodeIds: readonly string[] = findNodesWithPotentialEdgesToNode(parsedNode, currentGraph)
+
+    // Position resolution priority:
+    // 1. previousNode's Graph position (most current, synced from UI)
+    // 2. newNode's YAML position (initial seed for new nodes)
+    // 3. calculated from first parent (if any parent exists)
+    // 4. none (defaults to 0,0 in UI)
+    const resolvedPosition: O.Option<Position> = resolveNodePosition(parsedNode, previousNode, affectedNodeIds, currentGraph)
+
+    const newNode: GraphNode = resolvedPosition !== parsedNode.nodeUIMetadata.position
+        ? { ...parsedNode, nodeUIMetadata: { ...parsedNode.nodeUIMetadata, position: resolvedPosition } }
+        : parsedNode
 
     // Step 6: Create temporary graph with new node for edge re-validation
     const graphWithNewNode: Graph = {
@@ -92,6 +140,7 @@ export function addNodeToGraphWithEdgeHealingFromFSEvent(
             [newNode.relativeFilePathIsID]: newNode
         }
     }
+
 
     // Step 7: Re-validate edges for each affected node (healing)
     // Nodes already have edges with raw targetIds from parseMarkdownToGraphNode
