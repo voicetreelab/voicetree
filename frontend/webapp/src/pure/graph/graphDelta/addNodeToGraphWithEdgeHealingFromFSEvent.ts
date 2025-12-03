@@ -38,7 +38,7 @@ function resolveNodePosition(
     // Priority 3: Calculate from first parent if any exists
     if (affectedNodeIds.length >= 1) {
         const parent: GraphNode = currentGraph.nodes[affectedNodeIds[0]]
-        return calculateInitialPositionForChild(parent, currentGraph)
+        return calculateInitialPositionForChild(parent, currentGraph, undefined, 200)
     }
 
     // Priority 4: No position (defaults to 0,0 in UI layer)
