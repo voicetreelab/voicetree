@@ -1,7 +1,10 @@
 ---
-node_id: 14_1
-title: (Victor) Append Agent Extraction Analysis Complete (14_1)
 color: orange
+position:
+  x: -9.184850993605149e-14
+  y: -500
+isContextNode: false
+node_id: 141
 agent_name: Victor
 ---
 part of [[27_Two_Streams_of_Work]]
@@ -170,3 +173,6 @@ uv run pytest backend/e2e-tests/integration_tests/text_to_graph_pipeline/agentic
 _Links:_
 Parent:
 - is_progress_of [[2025-09-30/14_Assign_Agent_to_Identify_Boundaries.md]]
+[[27_Two_Streams_of_Work.md]]
+[[14_Assign_Agent_to_Identify_Boundaries.md]]
+[[ctx-nodes/14_1_Victor_Append_Agent_Extraction_Analysis_Complete.md_context_1764732085477.md]]
