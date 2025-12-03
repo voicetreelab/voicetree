@@ -183,8 +183,8 @@ export class HorizontalMenuService {
         this.hideMenu();
 
         // Load settings to get agents list
-        const settings: { agents?: AgentConfig[] } | null = await window.electronAPI.main.loadSettings();
-        const agents: AgentConfig[] = settings?.agents ?? [];
+        const settings: { agents?: readonly AgentConfig[] } | null = await window.electronAPI.main.loadSettings();
+        const agents: readonly AgentConfig[] = settings?.agents ?? [];
 
         const menuItems: HorizontalMenuItem[] = this.getNodeMenuItems(node, agents);
         const overlay: HTMLElement = getOrCreateOverlay(this.cy);
@@ -261,7 +261,7 @@ export class HorizontalMenuService {
         }
     }
 
-    private getNodeMenuItems(node: NodeSingular, agents: AgentConfig[]): HorizontalMenuItem[] {
+    private getNodeMenuItems(node: NodeSingular, agents: readonly AgentConfig[]): HorizontalMenuItem[] {
         if (!this.cy || !this.deps) return [];
 
         const menuItems: HorizontalMenuItem[] = [];

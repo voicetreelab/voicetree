@@ -69,7 +69,7 @@ import type {UpsertNodeDelta} from '@/pure/graph';
 import {
     spawnBackupTerminal
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnBackupTerminal";
-import type {GraphNavigationService} from "@/shell/edge/UI-edge/graph/navigation/GraphNavigationService";
+import {GraphNavigationService} from "@/shell/edge/UI-edge/graph/navigation/GraphNavigationService";
 
 /**
  * Main VoiceTreeGraphView implementation
@@ -293,7 +293,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         this.container.setAttribute('tabindex', '0');
 
         // Create title bar drag region for macOS (allows window dragging when titleBarStyle: 'hiddenInset')
-        const titleBarDragRegion = document.createElement('div');
+        const titleBarDragRegion: HTMLDivElement = document.createElement('div');
         titleBarDragRegion.className = 'title-bar-drag-region';
         this.container.appendChild(titleBarDragRegion);
 
@@ -384,8 +384,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // Expose cytoscape instance to window for testing
         (window as unknown as { cytoscapeInstance: unknown }).cytoscapeInstance = this.cy;
 
-        // Expose navigationService to window for testing
-        (window as unknown as { navigationService: unknown }).navigationService = this.navigationService;
+        // Note: navigationService is exposed in constructor AFTER it's initialized
+        // (window as unknown as { navigationService: unknown }).navigationService = this.navigationService;
 
         // Expose voiceTreeGraphView to window for testing
         (window as unknown as { voiceTreeGraphView: VoiceTreeGraphView }).voiceTreeGraphView = this;

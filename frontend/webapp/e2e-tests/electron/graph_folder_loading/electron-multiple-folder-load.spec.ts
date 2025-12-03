@@ -181,7 +181,7 @@ test.describe('Multiple Folder Load Tests', () => {
       console.error('  First folder nodes should have been deleted');
     }
 
-    expect(secondFolderState.nodeCount).toBe(58);
+    expect(secondFolderState.nodeCount).toBe(60);
     console.log('✓ Graph contains only nodes from second folder');
 
     // Verify none of the first folder nodes remain

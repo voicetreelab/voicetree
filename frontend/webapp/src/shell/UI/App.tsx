@@ -150,7 +150,7 @@ function App(): JSX.Element {
             </div>
 
             {/* Bottom: Server Activity Panel - window-width horizontal bar */}
-            <div id="status-panel-mount" className="flex-shrink-0 mr-[140px] relative z-[1050]" />
+            <div id="sse-status-panel-mount" className="flex-shrink-0 mr-[140px] relative z-[1050]" />
         </div>
     );
 }

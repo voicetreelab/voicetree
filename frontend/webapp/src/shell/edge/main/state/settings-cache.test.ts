@@ -15,7 +15,8 @@ describe('settings-cache', () => {
     const mockSettings: VTSettings = {
       terminalSpawnPathRelativeToWatchedDirectory: '/test/path',
       agents: [{ name: 'Test Agent', command: 'test-command.sh' }],
-      shiftEnterSendsOptionEnter: true
+      shiftEnterSendsOptionEnter: true,
+      INJECT_ENV_VARS: {}
     };
     setCachedSettings(mockSettings);
     expect(getCachedSettings()).toEqual(mockSettings);
