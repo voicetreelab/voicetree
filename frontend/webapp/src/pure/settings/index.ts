@@ -1,2 +1,2 @@
-export type { VTSettings, AgentConfig } from './types';
-export { DEFAULT_SETTINGS } from './types';
+export type { VTSettings, AgentConfig, EnvVarValue } from './types';
+export { DEFAULT_SETTINGS, resolveEnvVars } from './types';
