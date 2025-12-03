@@ -5,6 +5,7 @@ import './index.css'
 import App from '@/shell/UI/App'
 import posthog from 'posthog-js'
 import { SseStatusPanel } from '@/shell/UI/sse-status-panel'
+import { setupUIRpcHandler } from '@/shell/edge/UI-edge/ui-rpc-handler'
 
 // Initialize PostHog
 const posthogKey: string | undefined = import.meta.env.VITE_POSTHOG_API_KEY
@@ -22,6 +23,9 @@ if (posthogKey) {
     }
   })
 }
+
+// Initialize UI RPC handler for main→UI function calls
+setupUIRpcHandler()
 
 // Render app immediately - backend connection will be initialized lazily when needed
 createRoot(document.getElementById('root')!).render(
