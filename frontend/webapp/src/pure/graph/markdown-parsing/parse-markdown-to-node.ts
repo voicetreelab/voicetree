@@ -125,17 +125,16 @@ export function parseMarkdownToGraphNode(content: string, filename: string, grap
     // Note: title is NOT read from YAML - Markdown is the single source of truth for titles
     const color: string | undefined = normalizeToString(parsed.data.color)
     const position: { readonly x: number; readonly y: number; } | undefined = parsePosition(parsed.data.position)
+    // NOTE: title is NOT stored in nodeUIMetadata - use getNodeTitle(node) to derive it when needed
+    // Read isContextNode from frontmatter (explicit, not derived)
+    const isContextNode: boolean = parsed.data.isContextNode === true
+
 
     // Extract edges from original content (before stripping wikilinks)
     const edges: readonly Edge[] = extractEdges(content, graph.nodes)
 
     // Replace [[link]] with [link]* (strip wikilink syntax)
     const contentWithoutYamlOrLinks: string = contentWithoutFrontmatter.replace(/\[\[([^\]]+)\]\]/g, '[$1]*')
-
-    // NOTE: title is NOT stored in nodeUIMetadata - use getNodeTitle(node) to derive it when needed
-
-    // Read isContextNode from frontmatter (explicit, not derived)
-    const isContextNode: boolean = parsed.data.isContextNode === true
 
     // Read containedNodeIds from frontmatter (array of node IDs whose content is in this context node)
     const containedNodeIds: readonly string[] | undefined = Array.isArray(parsed.data.containedNodeIds)

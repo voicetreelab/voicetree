@@ -127,7 +127,8 @@ function traverseAndPosition(
 }
 
 /**
- * Position a node based on its parent's position and child index
+ * Position a node based on its parent's position and child index.
+ * Respects existing YAML positions - only calculates if node has no position.
  */
 function positionNodeIfNeeded(
     node: GraphNode,
@@ -135,6 +136,11 @@ function positionNodeIfNeeded(
     tree: Graph,
     childIndexInParent: number | undefined
 ): Graph {
+    // If node already has a position (from YAML), keep it
+    if (O.isSome(node.nodeUIMetadata.position)) {
+        return tree
+    }
+
     const parentNode: GraphNode | undefined = findFirstParentNode(node, tree)
 
     if (!parentNode || childIndexInParent === undefined) {
