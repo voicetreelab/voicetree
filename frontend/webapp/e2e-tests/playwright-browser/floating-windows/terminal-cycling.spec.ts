@@ -82,13 +82,23 @@ test.describe('Terminal Cycling (Browser)', () => {
     await page.waitForTimeout(50);
 
     console.log('=== Step 5: Create mock terminal nodes (mimicking real terminal structure) ===');
-    // Real terminals create shadow nodes with specific properties
-    // The ID pattern is: shadow-child-${parentNodeId}
-    // They have: isFloatingWindow: true, isShadowNode: true, windowType: 'terminal'
+    // Real terminals are registered in TerminalStore AND have shadow nodes in cy
+    // We need to do both for cycling to work
 
     const terminalInfo = await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
+
+      // Get TerminalStore API exposed by VoiceTreeGraphView
+      const terminalStoreAPI = (window as ExtendedWindow & {
+        terminalStoreAPI?: {
+          addTerminal: (data: unknown) => void;
+          createTerminalData: (params: { attachedToNodeId: string; terminalCount: number; title: string }) => unknown;
+          getTerminalId: (data: unknown) => string;
+          getShadowNodeId: (id: string) => string;
+        };
+      }).terminalStoreAPI;
+      if (!terminalStoreAPI) throw new Error('TerminalStore API not exposed');
 
       // Get some existing nodes to use as parents
       const nodes = cy.nodes();
@@ -98,12 +108,25 @@ test.describe('Terminal Cycling (Browser)', () => {
       const parent2 = nodes[1].id();
       const parent3 = nodes[2].id();
 
-      // Create shadow nodes for terminals (mimicking anchorToNode behavior)
+      // Create terminals in TerminalStore
+      const terminal1 = terminalStoreAPI.createTerminalData({ attachedToNodeId: parent1, terminalCount: 0, title: 'Terminal 1' });
+      const terminal2 = terminalStoreAPI.createTerminalData({ attachedToNodeId: parent2, terminalCount: 0, title: 'Terminal 2' });
+      const terminal3 = terminalStoreAPI.createTerminalData({ attachedToNodeId: parent3, terminalCount: 0, title: 'Terminal 3' });
+
+      terminalStoreAPI.addTerminal(terminal1);
+      terminalStoreAPI.addTerminal(terminal2);
+      terminalStoreAPI.addTerminal(terminal3);
+
+      const shadowId1 = terminalStoreAPI.getShadowNodeId(terminalStoreAPI.getTerminalId(terminal1));
+      const shadowId2 = terminalStoreAPI.getShadowNodeId(terminalStoreAPI.getTerminalId(terminal2));
+      const shadowId3 = terminalStoreAPI.getShadowNodeId(terminalStoreAPI.getTerminalId(terminal3));
+
+      // Create shadow nodes in cytoscape
       cy.add([
         {
           group: 'nodes',
           data: {
-            id: `shadow-child-${parent1}`,
+            id: shadowId1,
             parentId: parent1,
             parentNodeId: parent1,
             isFloatingWindow: true,
@@ -116,7 +139,7 @@ test.describe('Terminal Cycling (Browser)', () => {
         {
           group: 'nodes',
           data: {
-            id: `shadow-child-${parent2}`,
+            id: shadowId2,
             parentId: parent2,
             parentNodeId: parent2,
             isFloatingWindow: true,
@@ -129,7 +152,7 @@ test.describe('Terminal Cycling (Browser)', () => {
         {
           group: 'nodes',
           data: {
-            id: `shadow-child-${parent3}`,
+            id: shadowId3,
             parentId: parent3,
             parentNodeId: parent3,
             isFloatingWindow: true,
@@ -145,11 +168,7 @@ test.describe('Terminal Cycling (Browser)', () => {
         parent1,
         parent2,
         parent3,
-        shadowIds: [
-          `shadow-child-${parent1}`,
-          `shadow-child-${parent2}`,
-          `shadow-child-${parent3}`
-        ]
+        shadowIds: [shadowId1, shadowId2, shadowId3]
       };
     });
 

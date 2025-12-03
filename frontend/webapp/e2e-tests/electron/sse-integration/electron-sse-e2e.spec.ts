@@ -167,7 +167,7 @@ test.describe('SSE End-to-End Integration', () => {
 
     console.log('=== STEP 3: Wait for status panel to be visible ===');
     // Wait for status panel to be rendered
-    await appWindow.waitForSelector('.status-panel', { timeout: 10000 });
+    await appWindow.waitForSelector('.sse-status-panel', { timeout: 10000 });
     console.log('✓ Status panel is visible');
 
     console.log('=== STEP 4: Find text input field and type test text ===');
@@ -186,12 +186,12 @@ test.describe('SSE End-to-End Integration', () => {
     console.log('=== STEP 6: Wait for SSE events to appear in status panel ===');
     // Wait for at least one event to appear in the status panel
     // Even if LLM fails, we should see phase_started or agent_error events
-    await appWindow.waitForSelector('.status-panel .event-item', { timeout: 30000 });
+    await appWindow.waitForSelector('.sse-status-panel .event-item', { timeout: 30000 });
     console.log('✓ SSE event detected in status panel');
 
     // Get all events from the panel
     const events = await appWindow.evaluate(() => {
-      const eventItems = document.querySelectorAll('.status-panel .event-item');
+      const eventItems = document.querySelectorAll('.sse-status-panel .event-item');
       return Array.from(eventItems).map(item => {
         const messageEl = item.querySelector('.event-message');
         const timeEl = item.querySelector('.event-time');
@@ -276,7 +276,7 @@ test.describe('SSE End-to-End Integration', () => {
     expect(isHealthy).toBe(true);
 
     // Wait for status panel
-    await appWindow.waitForSelector('.status-panel', { timeout: 10000 });
+    await appWindow.waitForSelector('.sse-status-panel', { timeout: 10000 });
 
     // Send first message
     const textInput = await appWindow.locator('input[type="text"]').first();
@@ -287,12 +287,12 @@ test.describe('SSE End-to-End Integration', () => {
     console.log('✓ Sent first message');
 
     // Wait for first batch of events
-    await appWindow.waitForSelector('.status-panel .event-item', { timeout: 30000 });
+    await appWindow.waitForSelector('.sse-status-panel .event-item', { timeout: 30000 });
     await appWindow.waitForTimeout(2000); // Wait for processing
 
     // Get event count after first message
     const firstEventCount = await appWindow.evaluate(() => {
-      return document.querySelectorAll('.status-panel .event-item').length;
+      return document.querySelectorAll('.sse-status-panel .event-item').length;
     });
 
     console.log(`✓ First message generated ${firstEventCount} event(s)`);
@@ -307,7 +307,7 @@ test.describe('SSE End-to-End Integration', () => {
 
     // Get final event count
     const finalEventCount = await appWindow.evaluate(() => {
-      return document.querySelectorAll('.status-panel .event-item').length;
+      return document.querySelectorAll('.sse-status-panel .event-item').length;
     });
 
     console.log(`✓ Second message generated additional events (total: ${finalEventCount})`);

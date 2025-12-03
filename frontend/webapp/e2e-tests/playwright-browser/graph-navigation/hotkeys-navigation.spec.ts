@@ -173,35 +173,69 @@ test.describe('Hotkey Navigation (Browser)', () => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
 
-      // Add three terminal shadow nodes (mimicking real terminal structure)
+      // Get TerminalStore API exposed by VoiceTreeGraphView
+      const terminalStoreAPI = (window as ExtendedWindow & {
+        terminalStoreAPI?: {
+          addTerminal: (data: unknown) => void;
+          createTerminalData: (params: { attachedToNodeId: string; terminalCount: number; title: string }) => unknown;
+          getTerminalId: (data: unknown) => string;
+          getShadowNodeId: (id: string) => string;
+        };
+      }).terminalStoreAPI;
+      if (!terminalStoreAPI) throw new Error('TerminalStore API not exposed');
+
+      // Get existing nodes as parents
+      const nodes = cy.nodes();
+      if (nodes.length < 3) throw new Error('Need at least 3 nodes');
+      const parent1 = nodes[0].id();
+      const parent2 = nodes[1].id();
+      const parent3 = nodes[2].id();
+
+      // Create terminals in TerminalStore
+      const terminal1 = terminalStoreAPI.createTerminalData({ attachedToNodeId: parent1, terminalCount: 0, title: 'Terminal 1' });
+      const terminal2 = terminalStoreAPI.createTerminalData({ attachedToNodeId: parent2, terminalCount: 0, title: 'Terminal 2' });
+      const terminal3 = terminalStoreAPI.createTerminalData({ attachedToNodeId: parent3, terminalCount: 0, title: 'Terminal 3' });
+
+      terminalStoreAPI.addTerminal(terminal1);
+      terminalStoreAPI.addTerminal(terminal2);
+      terminalStoreAPI.addTerminal(terminal3);
+
+      const shadowId1 = terminalStoreAPI.getShadowNodeId(terminalStoreAPI.getTerminalId(terminal1));
+      const shadowId2 = terminalStoreAPI.getShadowNodeId(terminalStoreAPI.getTerminalId(terminal2));
+      const shadowId3 = terminalStoreAPI.getShadowNodeId(terminalStoreAPI.getTerminalId(terminal3));
+
+      // Add terminal shadow nodes in cytoscape
       cy.add([
         {
           group: 'nodes',
           data: {
-            id: 'shadow-child-terminal-1',
+            id: shadowId1,
             label: 'Terminal 1',
             isShadowNode: true,
-            windowType: 'Terminal'
+            windowType: 'Terminal',
+            parentNodeId: parent1
           },
           position: { x: 100, y: 100 }
         },
         {
           group: 'nodes',
           data: {
-            id: 'shadow-child-terminal-2',
+            id: shadowId2,
             label: 'Terminal 2',
             isShadowNode: true,
-            windowType: 'Terminal'
+            windowType: 'Terminal',
+            parentNodeId: parent2
           },
           position: { x: 300, y: 100 }
         },
         {
           group: 'nodes',
           data: {
-            id: 'shadow-child-terminal-3',
+            id: shadowId3,
             label: 'Terminal 3',
             isShadowNode: true,
-            windowType: 'Terminal'
+            windowType: 'Terminal',
+            parentNodeId: parent3
           },
           position: { x: 500, y: 100 }
         }
