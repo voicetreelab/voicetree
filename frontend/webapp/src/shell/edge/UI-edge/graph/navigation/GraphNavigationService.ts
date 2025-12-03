@@ -10,14 +10,16 @@
  * This class owns all user-triggered navigation state and operations.
  */
 
-import type { Core, CollectionReturnValue, SingularElementArgument } from 'cytoscape';
+import type { Core, CollectionReturnValue } from 'cytoscape';
 import { getResponsivePadding } from '@/utils/responsivePadding';
 import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
+import { getTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
+import { getTerminalId, getShadowNodeId, type TerminalData, type TerminalId } from '@/shell/edge/UI-edge/floating-windows/types-v2';
 
 /**
  * Manages all user-triggered navigation actions for the graph
  */
-export class GraphNavigationService {
+export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
   private cy: Core;
 
   // Navigation state
@@ -59,31 +61,25 @@ export class GraphNavigationService {
    */
   cycleTerminal(direction: 1 | -1): void {
     const cy: Core = this.cy;
-    const terminalNodes: CollectionReturnValue = cy.nodes().filter(
-      (node) =>
-        node.data('windowType') === 'Terminal' &&
-        node.data('isShadowNode') === true
-    );
+
+    // Get terminals from TerminalStore (source of truth)
+    const terminalsMap: Map<TerminalId, TerminalData> = getTerminals();
+    const terminals: TerminalData[] = Array.from(terminalsMap.values());
 
     console.log('[GraphNavigationService] cycleTerminal called:', {
       direction,
-      totalNodes: cy.nodes().length,
-      terminalNodesFound: terminalNodes.length,
-      allNodeIds: cy.nodes().map((n) => ({
-        id: n.id(),
-        isShadowNode: n.data('isShadowNode'),
-        windowType: n.data('windowType')
-      }))
+      terminalsFromStore: terminals.length,
+      terminalIds: terminals.map(t => getTerminalId(t))
     });
 
-    if (terminalNodes.length === 0) {
-      console.warn('[GraphNavigationService] No terminal nodes found. Create a terminal first!');
+    if (terminals.length === 0) {
+      console.warn('[GraphNavigationService] No terminals found. Create a terminal first!');
       return;
     }
 
-    // Sort terminals
-    const sortedTerminals: SingularElementArgument[] = terminalNodes.toArray().sort((a, b) =>
-      a.id().localeCompare(b.id())
+    // Sort terminals by ID for consistent ordering
+    const sortedTerminals: TerminalData[] = terminals.sort((a, b) =>
+      getTerminalId(a).localeCompare(getTerminalId(b))
     );
 
     // Calculate next/previous index
@@ -93,14 +89,28 @@ export class GraphNavigationService {
       this.currentTerminalIndex = (this.currentTerminalIndex - 1 + sortedTerminals.length) % sortedTerminals.length;
     }
 
-    // Fit to terminal with reasonable padding
-    const targetTerminal: SingularElementArgument = sortedTerminals[this.currentTerminalIndex];
-    // Use 14% of viewport for terminal cycling (was 200px on 1440p)
-    cy.fit(targetTerminal, getResponsivePadding(cy, 14));
+    const targetTerminal: TerminalData = sortedTerminals[this.currentTerminalIndex];
+    const terminalId: TerminalId = getTerminalId(targetTerminal);
+    const shadowNodeId: string = getShadowNodeId(terminalId);
+
+    // Get the shadow node from cy for viewport fitting
+    const terminalShadowNode: CollectionReturnValue = cy.getElementById(shadowNodeId);
+
+    // Get context node (attachedToNodeId) and its neighborhood
+    const contextNodeId: string = targetTerminal.attachedToNodeId;
+    const contextNode: CollectionReturnValue = cy.getElementById(contextNodeId);
+
+    // closedNeighborhood includes the node itself plus all directly connected nodes (d=1)
+    // Union with terminal shadow node to ensure terminal is always in viewport
+    const nodesToFit: CollectionReturnValue = contextNode.length > 0
+      ? contextNode.closedNeighborhood().nodes().union(terminalShadowNode)
+      : cy.collection().union(terminalShadowNode);
+
+    // Use 7% of viewport for terminal cycling
+    cy.fit(nodesToFit, getResponsivePadding(cy, 7));
 
     // Focus the terminal so keyboard input goes directly to it
-    const terminalId: string = targetTerminal.id();
-    const vanillaInstance: { dispose: () => void; focus?: () => void } | undefined = vanillaFloatingWindowInstances.get(terminalId);
+    const vanillaInstance: { dispose: () => void; focus?: () => void } | undefined = vanillaFloatingWindowInstances.get(shadowNodeId);
     if (vanillaInstance?.focus) {
       vanillaInstance.focus();
     }
