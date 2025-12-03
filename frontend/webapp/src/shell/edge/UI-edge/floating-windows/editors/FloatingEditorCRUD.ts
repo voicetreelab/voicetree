@@ -2,8 +2,8 @@
  * FloatingEditorManager V2 - Fully Functional (No Classes)
  *
  * Uses:
- * - EditorData from types-v2.ts (flat type with derived IDs)
- * - createWindowChrome, anchorToNode, disposeFloatingWindow from cytoscape-floating-windows-v2.ts
+ * - EditorData from types.ts (flat type with derived IDs)
+ * - createWindowChrome, anchorToNode, disposeFloatingWindow from cytoscape-floating-windows.ts
  * - addEditor, removeEditor, getEditorByNodeId, getHoverEditor from UIAppState.ts
  *
  * Keeps battle-tested save logic:
@@ -24,7 +24,7 @@ import {
     type EditorData,
     type EditorId,
     type FloatingWindowUIData,
-} from '@/shell/edge/UI-edge/floating-windows/types-v2';
+} from '@/shell/edge/UI-edge/floating-windows/types';
 
 import {
     createWindowChrome,
@@ -33,7 +33,7 @@ import {
     attachCloseHandler,
     getOrCreateOverlay,
     getDefaultDimensions,
-} from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows-v2';
+} from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 
 import {
     vanillaFloatingWindowInstances,

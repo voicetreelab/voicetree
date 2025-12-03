@@ -9,7 +9,7 @@ import {enableAutoLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/au
 import {
     createAnchoredFloatingEditor,
     handleAddNodeAtPosition,
-} from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorManager-v2';
+} from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
 
 export interface SetupCytoscapeParams {
     cy: Core;

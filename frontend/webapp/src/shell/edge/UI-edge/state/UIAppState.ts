@@ -1,5 +1,5 @@
 // Re-export types for consumers (Phase 5 complete - all types from types-v2)
-export type { EditorData, EditorId, TerminalData, TerminalId } from "@/shell/edge/UI-edge/floating-windows/types-v2";
+export type { EditorData, EditorId, TerminalData, TerminalId } from "@/shell/edge/UI-edge/floating-windows/types";
 
 // =============================================================================
 // Editors State (NEW - uses types-v2)

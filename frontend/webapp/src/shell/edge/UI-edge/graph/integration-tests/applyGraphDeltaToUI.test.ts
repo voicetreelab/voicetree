@@ -976,6 +976,88 @@ describe('applyGraphDeltaToUI - Integration', () => {
         })
     })
 
+    describe('Scientific notation position parsing', () => {
+        it('should correctly position node with scientific notation coordinates from real example file', () => {
+            // GIVEN: Empty graph
+            expect(cy.nodes()).toHaveLength(0)
+
+            // WHEN: Adding a node with scientific notation position (from real example file)
+            // Content modeled after: example_folder_fixtures/example_real_large/2025-09-30/14_1_Victor_Append_Agent_Extraction_Analysis_Complete.md
+            const nodeWithScientificNotation: GraphNode = {
+                relativeFilePathIsID: '14_1_Victor_Append_Agent_Extraction_Analysis_Complete.md',
+                contentWithoutYamlOrLinks: '# Victor Append Agent Extraction Analysis Complete',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.some('orange'),
+                    position: O.some({ x: -9.184850993605149e-14, y: -500 }),
+                    additionalYAMLProps: new Map([['agent_name', 'Victor'], ['node_id', '141']]),
+                    isContextNode: false
+                }
+            }
+
+            const delta: GraphDelta = [upsert(nodeWithScientificNotation)]
+            applyGraphDeltaToUI(cy, delta)
+
+            // THEN: Node should exist
+            const node: cytoscape.CollectionReturnValue = cy.getElementById('14_1_Victor_Append_Agent_Extraction_Analysis_Complete.md')
+            expect(node.length).toBe(1)
+
+            // AND: Position should be correctly parsed (scientific notation ~= 0)
+            const pos: cytoscape.Position = node.position()
+            expect(pos.x).toBeCloseTo(0, 10) // -9.18e-14 is effectively 0
+            expect(pos.y).toBe(-500)
+
+            // AND: Color should be set
+            expect(node.data('color')).toBe('orange')
+        })
+
+        it('should correctly position node with small positive scientific notation', () => {
+            // Content modeled after: example_folder_fixtures/example_small/5_Immediate_Test_Observation_No_Output.md
+            const nodeWithSmallScientificNotation: GraphNode = {
+                relativeFilePathIsID: '5_Immediate_Test_Observation_No_Output.md',
+                contentWithoutYamlOrLinks: '# Speaker observes no output',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 3.061616997868383e-14, y: 500 }),
+                    additionalYAMLProps: new Map([['node_id', '5']]),
+                    isContextNode: false
+                }
+            }
+
+            const delta: GraphDelta = [upsert(nodeWithSmallScientificNotation)]
+            applyGraphDeltaToUI(cy, delta)
+
+            // THEN: Position should be correctly parsed
+            const node: cytoscape.CollectionReturnValue = cy.getElementById('5_Immediate_Test_Observation_No_Output.md')
+            const pos: cytoscape.Position = node.position()
+            expect(pos.x).toBeCloseTo(0, 10) // 3.06e-14 is effectively 0
+            expect(pos.y).toBe(500)
+        })
+
+        it('should handle very large scientific notation values', () => {
+            const nodeWithLargeNotation: GraphNode = {
+                relativeFilePathIsID: 'large-notation.md',
+                contentWithoutYamlOrLinks: '# Large Notation',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 1.5e6, y: -2.5e5 }), // 1,500,000 and -250,000
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            }
+
+            const delta: GraphDelta = [upsert(nodeWithLargeNotation)]
+            applyGraphDeltaToUI(cy, delta)
+
+            const node: cytoscape.CollectionReturnValue = cy.getElementById('large-notation.md')
+            const pos: cytoscape.Position = node.position()
+            expect(pos.x).toBe(1500000)
+            expect(pos.y).toBe(-250000)
+        })
+    })
+
     describe('Append animation behavior', () => {
         it.skip('should trigger append animation when updating an existing node and stop after timeout', () => {
             vi.useFakeTimers()

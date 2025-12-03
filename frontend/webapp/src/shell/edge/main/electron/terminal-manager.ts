@@ -2,8 +2,8 @@ import path from 'path';
 import { promises as fs } from 'fs';
 import pty, { type IPty } from 'node-pty';
 import type { WebContents } from 'electron';
-import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/types-v2";
-import {getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types-v2";
+import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/types";
+import {getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 
 export interface TerminalSpawnResult {
   success: boolean;

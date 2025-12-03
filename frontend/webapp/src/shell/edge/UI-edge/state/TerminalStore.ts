@@ -1,4 +1,4 @@
-import {getTerminalId, type TerminalId, type TerminalData} from "@/shell/edge/UI-edge/floating-windows/types-v2";
+import {getTerminalId, type TerminalId, type TerminalData} from "@/shell/edge/UI-edge/floating-windows/types";
 import type {NodeIdAndFilePath} from "@/pure/graph";
 import * as O from "fp-ts/Option";
 import {type Option} from "fp-ts/Option";

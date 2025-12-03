@@ -66,7 +66,7 @@ export class SseStatusPanel {
     addEvent(event: SSEEvent): void {
 
         if (!this.getEventMessage(event)){
-            return; // to allow ignoring certain sse events 
+            return; // to allow ignoring certain sse events
         }
 
         const card: HTMLDivElement = document.createElement('div');

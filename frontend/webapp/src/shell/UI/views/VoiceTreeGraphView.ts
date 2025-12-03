@@ -40,7 +40,7 @@ import {
     updateFloatingEditors,
     closeAllEditors,
     disposeEditorManager,
-} from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorManager-v2';
+} from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
 import {HotkeyManager} from './HotkeyManager';
 import {SearchService} from './SearchService';
 // V2 recent node tabs - tracks recently added/modified nodes (not visited)

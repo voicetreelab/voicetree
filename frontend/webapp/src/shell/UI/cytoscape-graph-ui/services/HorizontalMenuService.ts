@@ -6,7 +6,7 @@ import {
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
 import {getFilePathForNode, getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
 import {Plus, Play, Trash2, Pencil, Clipboard, MoreHorizontal, createElement, type IconNode} from 'lucide';
-import {getOrCreateOverlay} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows-v2";
+import {getOrCreateOverlay} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import type {AgentConfig} from "@/pure/settings";
 
 /** Menu item interface for the custom horizontal menu */

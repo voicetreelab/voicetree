@@ -7,7 +7,7 @@ import {
     getTerminalId,
     type TerminalData,
     type TerminalId,
-} from "@/shell/edge/UI-edge/floating-windows/types-v2";
+} from "@/shell/edge/UI-edge/floating-windows/types";
 import {
     createFloatingTerminal
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
