@@ -14,9 +14,24 @@
 import type { GraphDelta, UpsertNodeDelta, DeleteNode } from '@/pure/graph'
 import { getNodeTitle } from '@/pure/graph/markdown-parsing'
 import * as O from 'fp-ts/lib/Option.js'
-import { pipe } from 'fp-ts/lib/function.js'
 
 const MAX_RECENT_NODES: number = 5
+
+/**
+ * Strip all content within square brackets (including the brackets).
+ * Removes links like [path.md], [text]*, [[wikilinks]], etc.
+ */
+function stripBracketedContent(content: string): string {
+    return content.replace(/\[[^\]]*\]/g, '')
+}
+
+/**
+ * Check if actual content changed, ignoring changes only within square brackets.
+ * Returns true if non-bracket content differs.
+ */
+function hasActualContentChanged(prev: string, next: string): boolean {
+    return stripBracketedContent(prev) !== stripBracketedContent(next) // todo, ensure length diff more than 5 chars as well
+}
 
 export type RecentNodeHistory = readonly UpsertNodeDelta[]
 
@@ -35,14 +50,15 @@ export function extractRecentNodesFromDelta(delta: GraphDelta): readonly UpsertN
         if (action.type !== 'UpsertNode') return false
         // New node: always show
         if (O.isNone(action.previousNode)) return true
-        // Update: only show if content changed significantly (150 chars)
-        return pipe(
-            action.previousNode,
-            O.map(prev => prev.contentWithoutYamlOrLinks.length + 125 < action.nodeToUpsert.contentWithoutYamlOrLinks.length),
-            O.getOrElse(() => false)
+        // Update: only show if actual content changed (not just links in brackets)
+        return O.isSome(action.previousNode) && hasActualContentChanged(
+            action.previousNode.value.contentWithoutYamlOrLinks,
+            action.nodeToUpsert.contentWithoutYamlOrLinks
         )
     })
 }
+
+
 
 /**
  * Add new entries to history, maintaining max size and removing duplicates
