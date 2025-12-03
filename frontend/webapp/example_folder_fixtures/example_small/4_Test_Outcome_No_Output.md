@@ -1,6 +1,9 @@
 ---
+position:
+  x: 353.55339059327383
+  y: 853.5533905932737
+isContextNode: false
 node_id: 4
-title: 'Test Outcome: No Output (4)'
 ---
 ### Multiple tests, including specific instances, are yielding no visible output.
 

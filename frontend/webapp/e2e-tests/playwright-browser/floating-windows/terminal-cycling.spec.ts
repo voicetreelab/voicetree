@@ -11,6 +11,7 @@ import {
   createTestGraphDelta,
   sendGraphDelta,
   waitForCytoscapeReady,
+  exposeTerminalStoreAPI,
   type ExtendedWindow
 } from '@e2e/playwright-browser/graph-delta-test-utils';
 
@@ -76,12 +77,15 @@ test.describe('Terminal Cycling (Browser)', () => {
     console.log('=== Step 3: Wait for Cytoscape ===');
     await waitForCytoscapeReady(page);
 
-    console.log('=== Step 4: Create base graph with nodes ===');
+    console.log('=== Step 4: Expose TerminalStore API ===');
+    await exposeTerminalStoreAPI(page);
+
+    console.log('=== Step 5: Create base graph with nodes ===');
     const graphDelta = createTestGraphDelta();
     await sendGraphDelta(page, graphDelta);
     await page.waitForTimeout(50);
 
-    console.log('=== Step 5: Create mock terminal nodes (mimicking real terminal structure) ===');
+    console.log('=== Step 6: Create mock terminal nodes (mimicking real terminal structure) ===');
     // Real terminals are registered in TerminalStore AND have shadow nodes in cy
     // We need to do both for cycling to work
 
@@ -174,7 +178,7 @@ test.describe('Terminal Cycling (Browser)', () => {
 
     console.log('✓ Created 3 mock terminal shadow nodes:', terminalInfo.shadowIds);
 
-    console.log('=== Step 6: Fit to all nodes ===');
+    console.log('=== Step 7: Fit to all nodes ===');
     await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
@@ -189,7 +193,7 @@ test.describe('Terminal Cycling (Browser)', () => {
     });
     console.log(`Initial zoom: ${initialState.zoom}, pan: (${initialState.pan.x}, ${initialState.pan.y})`);
 
-    console.log('=== Step 7: Press Cmd+] (next terminal) ===');
+    console.log('=== Step 8: Press Cmd+] (next terminal) ===');
     await page.keyboard.press('Meta+BracketRight');
     await page.waitForTimeout(50);
 
@@ -209,7 +213,7 @@ test.describe('Terminal Cycling (Browser)', () => {
     expect(zoomChanged || panChanged).toBe(true);
     console.log('✓ Cmd+] successfully cycled to terminal');
 
-    console.log('=== Step 8: Press Cmd+[ (previous terminal) ===');
+    console.log('=== Step 9: Press Cmd+[ (previous terminal) ===');
     await page.keyboard.press('Meta+BracketLeft');
     await page.waitForTimeout(50);
 

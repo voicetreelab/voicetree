@@ -12,6 +12,17 @@ export interface ExtendedWindow extends Window {
       _updateCallback?: (delta: GraphDelta) => void;
     };
   };
+  terminalStoreAPI?: {
+    addTerminal: (data: unknown) => void;
+    createTerminalData: (params: { attachedToNodeId: string; terminalCount: number; title: string }) => unknown;
+    getTerminalId: (data: unknown) => string;
+    getShadowNodeId: (id: string) => string;
+  };
+  voiceTreeGraphView?: {
+    navigationService?: {
+      setLastCreatedNodeId: (id: string) => void;
+    };
+  };
 }
 
 /**
@@ -58,6 +69,7 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
 
         // Backend server configuration
         getBackendPort: async () => 5001,
+
       },
 
       // File watching event listeners (no-op callbacks)
@@ -91,7 +103,7 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         _graphState: { nodes: {}, edges: [] } as any,
         applyGraphDelta: async () => ({ success: true }),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         getState: async () => mockElectronAPI.graph._graphState,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onGraphUpdate: (callback: (delta: any) => void) => {
@@ -115,6 +127,50 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
 
     (window as unknown as { electronAPI: typeof mockElectronAPI }).electronAPI = mockElectronAPI;
   });
+}
+
+/**
+ * Expose TerminalStore API to window after page has loaded
+ * Must be called AFTER page.goto() and AFTER app modules have loaded
+ */
+export async function exposeTerminalStoreAPI(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    // Import the actual modules now that Vite has loaded them
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const terminalStore = await import('/src/shell/edge/UI-edge/state/TerminalStore.ts' as any);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const types = await import('/src/shell/edge/UI-edge/floating-windows/types.ts' as any);
+
+    (window as unknown as {
+      terminalStoreAPI: {
+        addTerminal: (data: unknown) => void;
+        createTerminalData: (params: { attachedToNodeId: string; terminalCount: number; title: string }) => unknown;
+        getTerminalId: (data: unknown) => string;
+        getShadowNodeId: (id: string) => string;
+      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    }).terminalStoreAPI = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      addTerminal: (data: unknown) => terminalStore.addTerminal(data as any),
+      createTerminalData: types.createTerminalData,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      getTerminalId: (data: unknown) => types.getTerminalId(data as any),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      getShadowNodeId: (id: string) => types.getShadowNodeId(id as any)
+    };
+    console.log('[Mock] TerminalStore API exposed for browser tests');
+  });
+}
+
+/**
+ * Waits for the terminalStoreAPI to be available on the window object.
+ * The API is exposed asynchronously after page loads.
+ */
+export async function waitForTerminalStoreAPI(page: Page, timeout = 5000): Promise<void> {
+  await page.waitForFunction(
+    () => (window as unknown as ExtendedWindow).terminalStoreAPI !== undefined,
+    { timeout }
+  );
 }
 
 /**

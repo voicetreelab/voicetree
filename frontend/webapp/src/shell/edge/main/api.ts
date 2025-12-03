@@ -13,6 +13,7 @@ import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/state/app-ele
 import {createContextNode} from "@/shell/edge/main/graph/context-nodes/createContextNode";
 import {saveNodePositions} from "@/shell/edge/main/saveNodePositions";
 import {performUndo, performRedo} from './graph/undoOperations'
+import {spawnTerminalWithContextNode} from './terminals/spawnTerminalWithContextNode'
 
 // eslint-disable-next-line @typescript-eslint/typedef
 export const mainAPI = {
@@ -49,4 +50,7 @@ export const mainAPI = {
   // Undo/Redo operations
   performUndo,
   performRedo,
+
+  // Terminal spawning
+  spawnTerminalWithContextNode,
 }

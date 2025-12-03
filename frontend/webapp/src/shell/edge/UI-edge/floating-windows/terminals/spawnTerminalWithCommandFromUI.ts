@@ -7,9 +7,11 @@
  * - No stored callbacks - use disposeFloatingWindow()
  */
 
-import type { GraphNode, NodeIdAndFilePath, Position } from "@/pure/graph";
-import type { Core, CollectionReturnValue, NodeCollection, Position as CyPosition } from "cytoscape";
+import type { NodeIdAndFilePath, Position } from "@/pure/graph";
+import type { Core, CollectionReturnValue, NodeCollection } from "cytoscape";
 import * as O from 'fp-ts/lib/Option.js';
+// Import for global Window.electronAPI type augmentation
+import '@/shell/electron.d.ts';
 import {
     createWindowChrome,
     anchorToNode,
@@ -19,7 +21,6 @@ import {
 import { TerminalVanilla } from "@/shell/UI/floating-windows/terminals/TerminalVanilla";
 import posthog from "posthog-js";
 import {
-    createTerminalData,
     getTerminalId,
     type TerminalData,
     type TerminalId,
@@ -28,147 +29,33 @@ import {
 import {
     vanillaFloatingWindowInstances,
 } from "@/shell/edge/UI-edge/state/UIAppState";
-import { getFilePathForNode, getNodeFromMainToUI } from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
-import { getNodeTitle } from "@/pure/graph/markdown-parsing";
-import type { VTSettings } from "@/pure/settings";
-import { resolveEnvVars, expandEnvVarsInValues } from "@/pure/settings";
-import {addTerminal, getNextTerminalCount, getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
-
-
-async function launchTerminalOntoUI(cy: cytoscape.Core, contextNodeId: string, terminalData: TerminalData): Promise<void> {
-    const targetNode: CollectionReturnValue = cy.getElementById(contextNodeId);
-
-    const nodePos: CyPosition = targetNode.position();
-    const terminalId: TerminalId = getTerminalId(terminalData);
-    console.log("spawn terminal: " + terminalId);
-    const terminalWithUI: TerminalData | undefined = await createFloatingTerminal(cy, contextNodeId, terminalData, nodePos);
-    console.log("spawned terminal: " + terminalId);
-
-    // Store terminal in state (with ui populated)
-    if (terminalWithUI) {
-        addTerminal(terminalWithUI);
-    }
-    else {
-        console.error("ERROR CREATING FLOATING TERMINAL")
-    }
-}
-
-async function prepareTerminalData(parentNode: GraphNode, contextNodeId: string, terminalsMap: Map<TerminalId, TerminalData>, settings: VTSettings, command: string) : Promise<TerminalData> {
-    const contextNode: GraphNode = parentNode.nodeUIMetadata.isContextNode
-        ? parentNode
-        : await getNodeFromMainToUI(contextNodeId);
-    const contextContent: string = contextNode.contentWithoutYamlOrLinks;
-
-    // Get next terminal count for the context node
-    const terminalCount: number = getNextTerminalCount(terminalsMap, contextNodeId);
-
-    // Resolve env vars (including random AGENT_NAME selection)
-    const resolvedEnvVars: Record<string, string> = resolveEnvVars(settings.INJECT_ENV_VARS);
-
-    // Build terminal title: "<AGENT_NAME>: <context_node_name_without_prefix>"
-    const contextNodeTitle: string = getNodeTitle(contextNode);
-    const strippedTitle: string = contextNodeTitle.replace(/^CONTEXT for:\s*/i, '');
-    const agentName: string = resolvedEnvVars['AGENT_NAME'] ?? '';
-    const title: string = agentName ? `${agentName}: ${strippedTitle}` : strippedTitle;
-
-    // Compute initial_spawn_directory from watch directory + relative path setting
-    let initialSpawnDirectory: string | undefined;
-    const watchStatus: {
-        readonly isWatching: boolean;
-        readonly directory: string | undefined;
-    } = await window.electronAPI?.main.getWatchStatus();
-    if (watchStatus?.directory && settings.terminalSpawnPathRelativeToWatchedDirectory) {
-        // Simple path join: remove trailing slash from directory, remove leading ./ from relative path
-        const baseDir: string = watchStatus.directory.replace(/\/$/, '');
-        const relativePath: string = settings.terminalSpawnPathRelativeToWatchedDirectory.replace(/^\.\//, '');
-        initialSpawnDirectory = `${baseDir}/${relativePath}`;
-    }
-
-    // Get app support path for VOICETREE_APP_SUPPORT env var
-    const appSupportPath: string = await window.electronAPI?.main.getAppSupportPath();
-
-    // Build env vars then expand $VAR_NAME references within values
-    const unexpandedEnvVars: Record<string, string> = {
-        VOICETREE_APP_SUPPORT: appSupportPath ?? '',
-        CONTEXT_NODE_PATH: await getFilePathForNode(contextNodeId) ?? contextNodeId,
-        CONTEXT_NODE_CONTENT: contextContent,
-        ...resolvedEnvVars,
-    };
-    const expandedEnvVars: Record<string, string> = expandEnvVarsInValues(unexpandedEnvVars);
-
-    // Create TerminalData using the factory function (flat type, no nested floatingWindow)
-    const terminalData: TerminalData = createTerminalData({
-        attachedToNodeId: contextNodeId,
-        terminalCount: terminalCount,
-        title: title,
-        anchoredToNodeId: contextNodeId, // Will be wrapped in O.some by factory
-        initialCommand: command,
-        executeCommand: true,
-        initialSpawnDirectory: initialSpawnDirectory,
-        initialEnvVars: expandedEnvVars,
-    });
-    return terminalData;
-}
+import { getNextTerminalCount, getTerminals } from "@/shell/edge/UI-edge/state/TerminalStore";
 
 /**
  * Spawn a terminal with a new context node
- * Creates a context node for the parent, then spawns a terminal attached to that context node
- * with the context node content as an environment variable (initial_content)
  *
- * If the parent node is already a context node, reuses it instead of creating a new one.
+ * This function now simply delegates to the main process, which orchestrates
+ * the entire flow without needing setTimeout hacks. The main process has
+ * immediate access to the graph after createContextNode completes.
  *
  * @param parentNodeId - The parent node to create context for
- * @param cy - Cytoscape instance
+ * @param _cy - Cytoscape instance (unused, kept for backward compatibility)
  * @param agentCommand - Optional agent command. If not provided, uses the default (first) agent from settings.
  */
 export async function spawnTerminalWithNewContextNode(
     parentNodeId: NodeIdAndFilePath,
-    cy: Core,
+    _cy: Core,
     agentCommand?: string,
 ): Promise<void> {
     const terminalsMap: Map<TerminalId, TerminalData> = getTerminals();
+    const terminalCount: number = getNextTerminalCount(terminalsMap, parentNodeId);
 
-    // Load settings to get agents
-    const settings: VTSettings = await window.electronAPI.main.loadSettings();
-    if (!settings) {
-        throw Error(`Failed to load settings for ${parentNodeId}`);
-    }
-
-    // Use provided command or default to first agent
-    const agents: readonly { readonly name: string; readonly command: string }[] = settings.agents ?? [];
-    const command: string = agentCommand ?? agents[0]?.command ?? '';
-    if (!command) {
-        throw Error('No agent command available - settings.agents is empty or undefined');
-    }
-
-    // Check if the parent node is already a context node - if so, reuse it
-    const parentNode: GraphNode = await getNodeFromMainToUI(parentNodeId);
-    if (!parentNode) {
-        throw Error(`Node ${parentNodeId} not found in graph`);
-    }
-    let contextNodeId: NodeIdAndFilePath;
-
-    if (parentNode.nodeUIMetadata.isContextNode) {
-        // Reuse existing context node
-        contextNodeId = parentNodeId;
-    } else {
-        // Create context node for the parent
-        const createdContextNodeId: string = await window.electronAPI?.main.createContextNode(parentNodeId);
-        if (!createdContextNodeId) {
-            throw Error(`Failed to create contextNodeId ${createdContextNodeId}`);
-        }
-        contextNodeId = createdContextNodeId;
-    }
-
-    // Get the context node to read its content
-    // Position the terminal near the context node
-    setTimeout(() => {
-        void (async () => {
-            const terminalData : TerminalData = await prepareTerminalData(parentNode, contextNodeId, terminalsMap, settings, command);
-            await launchTerminalOntoUI(cy, contextNodeId, terminalData);
-        })();
-    }, 1000); // todo remove this hack, need to actually notify on ready? push all into main?
-    // will need to contextNode is ready....
+    // Delegate to main process which has immediate graph access
+    await window.electronAPI.main.spawnTerminalWithContextNode(
+        parentNodeId,
+        agentCommand,
+        terminalCount
+    );
 }
 
 /**

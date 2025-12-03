@@ -1,6 +1,9 @@
 ---
+position:
+  x: 853.5533905932737
+  y: -353.55339059327383
+isContextNode: false
 node_id: 1
-title: VoiceTree Website Development and GraphNode Display Bug (1)
 ---
 ### Ongoing development for the VoiceTree website.
 

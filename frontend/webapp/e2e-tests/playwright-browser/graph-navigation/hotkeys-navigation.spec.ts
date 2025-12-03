@@ -11,6 +11,7 @@ import {
   createTestGraphDelta,
   sendGraphDelta,
   waitForCytoscapeReady,
+  exposeTerminalStoreAPI,
   getNodeCount,
   type ExtendedWindow
 } from '@e2e/playwright-browser/graph-delta-test-utils';
@@ -102,9 +103,9 @@ test.describe('Hotkey Navigation (Browser)', () => {
       });
 
       // Update navigation service's last created node
-      const navService = (window as ExtendedWindow & { navigationService?: { setLastCreatedNodeId: (id: string) => void } }).navigationService;
-      if (navService) {
-        navService.setLastCreatedNodeId('last-created-node.md');
+      const voiceTreeGraphView = (window as ExtendedWindow).voiceTreeGraphView;
+      if (voiceTreeGraphView?.navigationService) {
+        voiceTreeGraphView.navigationService.setLastCreatedNodeId('last-created-node.md');
       }
     });
 
@@ -164,11 +165,14 @@ test.describe('Hotkey Navigation (Browser)', () => {
     console.log('=== Step 3: Wait for Cytoscape ===');
     await waitForCytoscapeReady(page);
 
-    console.log('=== Step 4: Setup test graph ===');
+    console.log('=== Step 4: Expose TerminalStore API ===');
+    await exposeTerminalStoreAPI(page);
+
+    console.log('=== Step 5: Setup test graph ===');
     const graphDelta = createTestGraphDelta();
     await sendGraphDelta(page, graphDelta);
 
-    console.log('=== Step 5: Add terminal nodes ===');
+    console.log('=== Step 6: Add terminal nodes ===');
     await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
@@ -244,7 +248,7 @@ test.describe('Hotkey Navigation (Browser)', () => {
 
     console.log('✓ Added 3 terminal nodes');
 
-    console.log('=== Step 6: Fit to all nodes ===');
+    console.log('=== Step 7: Fit to all nodes ===');
     await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
@@ -260,7 +264,7 @@ test.describe('Hotkey Navigation (Browser)', () => {
     });
     console.log(`Initial zoom: ${initialState.zoom}, pan: (${initialState.pan.x}, ${initialState.pan.y})`);
 
-    console.log('=== Step 7: Press Cmd+] (next terminal) ===');
+    console.log('=== Step 8: Press Cmd+] (next terminal) ===');
     await page.keyboard.press('Meta+BracketRight');
 
     await page.waitForTimeout(50);
@@ -281,7 +285,7 @@ test.describe('Hotkey Navigation (Browser)', () => {
     expect(zoomChanged || panChanged).toBe(true);
     console.log('✓ Cmd+] successfully cycled to next terminal');
 
-    console.log('=== Step 8: Press Cmd+[ (previous terminal) ===');
+    console.log('=== Step 9: Press Cmd+[ (previous terminal) ===');
     await page.keyboard.press('Meta+BracketLeft');
 
     await page.waitForTimeout(50);

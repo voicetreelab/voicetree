@@ -1,6 +1,9 @@
 ---
+position:
+  x: 500
+  y: 0
+isContextNode: false
 node_id: 2
-title: VoiceTree GraphNode ID Duplication Bug (2)
 ---
 ### A bug where VoiceTree nodes display duplicated names or IDs needs to be fixed during website development.
 
