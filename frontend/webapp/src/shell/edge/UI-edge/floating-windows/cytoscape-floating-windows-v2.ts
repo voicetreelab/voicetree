@@ -22,7 +22,8 @@ import {
     isEditorData,
     isTerminalData,
 } from '@/shell/edge/UI-edge/floating-windows/types-v2';
-import { removeEditor, removeTerminal } from "@/shell/edge/UI-edge/state/UIAppState";
+import {removeTerminal} from "@/shell/edge/UI-edge/state/TerminalStore";
+import {removeEditor} from "@/shell/edge/UI-edge/state/EditorStore";
 
 // =============================================================================
 // Cleanup Registry (WeakMap keyed by windowElement)

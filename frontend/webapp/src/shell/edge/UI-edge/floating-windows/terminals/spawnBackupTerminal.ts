@@ -2,7 +2,6 @@ import type {} from '@/shell/electron';
 import type {Core} from "cytoscape";
 import type { Position as CyPosition, CollectionReturnValue } from "cytoscape";
 import type {Position} from "@/pure/graph";
-import {addTerminal, getNextTerminalCount, getTerminals} from "@/shell/edge/UI-edge/state/UIAppState";
 import {
     createTerminalData,
     getTerminalId,
@@ -11,7 +10,8 @@ import {
 } from "@/shell/edge/UI-edge/floating-windows/types-v2";
 import {
     createFloatingTerminal
-} from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI-v2";
+} from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
+import {addTerminal, getNextTerminalCount, getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
 
 export async function spawnBackupTerminal(cy: Core): Promise<void> {
     // Get watch directory from IPC

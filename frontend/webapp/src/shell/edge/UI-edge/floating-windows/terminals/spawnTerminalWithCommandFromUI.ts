@@ -23,28 +23,19 @@ import {
     getTerminalId,
     type TerminalData,
     type TerminalId,
-    type FloatingWindowUIData, type FloatingWindowFields,
+    type FloatingWindowUIData,
 } from "@/shell/edge/UI-edge/floating-windows/types-v2";
 import {
-    addTerminal,
-    getNextTerminalCount,
-    getTerminals,
     vanillaFloatingWindowInstances,
 } from "@/shell/edge/UI-edge/state/UIAppState";
 import { getFilePathForNode, getNodeFromMainToUI } from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
 import { getNodeTitle } from "@/pure/graph/markdown-parsing";
 import type { VTSettings } from "@/pure/settings";
+import { resolveEnvVars } from "@/pure/settings";
+import {addTerminal, getNextTerminalCount, getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
 
 
-async function launchTerminalOntoUI(cy: cytoscape.Core, contextNodeId: string, terminalData: FloatingWindowFields & {
-    readonly type: "Terminal";
-    readonly attachedToNodeId: NodeIdAndFilePath;
-    readonly terminalCount: number;
-    readonly initialEnvVars?: Record<string, string>;
-    readonly initialSpawnDirectory?: string;
-    readonly initialCommand?: string;
-    readonly executeCommand?: boolean
-}) : Promise<void> {
+async function launchTerminalOntoUI(cy: cytoscape.Core, contextNodeId: string, terminalData: TerminalData): Promise<void> {
     const targetNode: CollectionReturnValue = cy.getElementById(contextNodeId);
 
     const nodePos: CyPosition = targetNode.position();
@@ -68,8 +59,14 @@ async function prepareTerminalData(parentNode: GraphNode, contextNodeId: string,
     // Get next terminal count for the context node
     const terminalCount: number = getNextTerminalCount(terminalsMap, contextNodeId);
 
-    // Get context node title for the terminal window
-    const title: string = getNodeTitle(contextNode);
+    // Resolve env vars (including random AGENT_NAME selection)
+    const resolvedEnvVars: Record<string, string> = resolveEnvVars(settings.INJECT_ENV_VARS);
+
+    // Build terminal title: "<AGENT_NAME>: <context_node_name_without_prefix>"
+    const contextNodeTitle: string = getNodeTitle(contextNode);
+    const strippedTitle: string = contextNodeTitle.replace(/^CONTEXT for:\s*/i, '');
+    const agentName: string = resolvedEnvVars['AGENT_NAME'] ?? '';
+    const title: string = agentName ? `${agentName}: ${strippedTitle}` : strippedTitle;
 
     // Compute initial_spawn_directory from watch directory + relative path setting
     let initialSpawnDirectory: string | undefined;
@@ -100,6 +97,7 @@ async function prepareTerminalData(parentNode: GraphNode, contextNodeId: string,
             VOICETREE_APP_SUPPORT: appSupportPath ?? '',
             CONTEXT_NODE_PATH: await getFilePathForNode(contextNodeId) ?? contextNodeId,
             CONTEXT_NODE_CONTENT: contextContent,
+            ...resolvedEnvVars,
         },
     });
     return terminalData;

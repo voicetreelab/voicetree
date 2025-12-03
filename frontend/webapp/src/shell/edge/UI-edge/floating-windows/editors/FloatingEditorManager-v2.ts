@@ -36,14 +36,9 @@ import {
 } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows-v2';
 
 import {
-    addEditor,
-    getEditorByNodeId,
-    getEditors,
-    getHoverEditor,
     vanillaFloatingWindowInstances,
-    getAwaitingContent,
-    setAwaitingUISavedContent,
-    deleteAwaitingContent,
+
+
 } from '@/shell/edge/UI-edge/state/UIAppState';
 
 import { CodeMirrorEditorView } from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
@@ -51,6 +46,12 @@ import { createNewEmptyOrphanNodeFromUI, modifyNodeContentFromUI } from '@/shell
 import { getNodeFromMainToUI } from '@/shell/edge/UI-edge/graph/getNodeFromMainToUI';
 import { fromNodeToContentWithWikilinks } from '@/pure/graph/markdown-writing/node_to_markdown';
 import { getNodeTitle } from '@/pure/graph/markdown-parsing';
+import {
+    addEditor,
+    deleteAwaitingContent,
+    getAwaitingContent, getEditorByNodeId, getEditors, getHoverEditor,
+    setAwaitingUISavedContent
+} from "@/shell/edge/UI-edge/state/EditorStore";
 
 // =============================================================================
 // Create Floating Editor
