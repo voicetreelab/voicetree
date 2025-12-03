@@ -6,7 +6,7 @@ import {VoiceTreeGraphView} from "@/shell/UI/views/VoiceTreeGraphView";
 import {useEffect, useRef} from "react";
 import type { JSX } from "react/jsx-runtime";
 import type { RefObject } from "react";
-import "@/shell/UI/status-panel/status-panel.css";
+import "@/shell/UI/sse-status-panel/status-panel.css";
 import type {} from "@/shell/electron";
 
 function App(): JSX.Element {

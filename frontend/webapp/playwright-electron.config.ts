@@ -11,7 +11,7 @@ export default defineConfig({
   fullyParallel: false, // Run e2e-tests sequentially for Electron
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: 4, // Serial execution (workers=1) should not be required - Electron tests can share resources and succeed with parallelism if done correctly
+  workers: 1, // Electron tests require serial execution - parallel tests cause fixture teardown timeouts, todo, invesitgate this at some point Serial execution (workers=1) should not be required - Electron tests can share resources and succeed with parallelism if done correctly
   // Suppress noisy internal warnings
   quiet: process.env.PLAYWRIGHT_QUIET !== 'false',
   reporter: [

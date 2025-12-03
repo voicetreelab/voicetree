@@ -25,7 +25,7 @@ declare module './index.css' {
   const content: string;
   export default content;
 }
-declare module '@/shell/UI/status-panel/status-panel.css' {
+declare module '@/shell/UI/sse-status-panel/status-panel.css' {
   const content: string;
   export default content;
 }
