@@ -43,13 +43,12 @@ import {
 } from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorManager-v2';
 import {HotkeyManager} from './HotkeyManager';
 import {SearchService} from './SearchService';
-import {GraphNavigationService} from './GraphNavigationService';
 // V2 recent node tabs - tracks recently added/modified nodes (not visited)
 import {
-    createRecentNodeTabsBarV2,
-    disposeRecentNodeTabsBarV2,
+    createRecentNodeTabsBar,
+    disposeRecentNodeTabsBar,
     renderRecentNodeTabsV2
-} from './RecentNodeTabsBarV2';
+} from './RecentNodeTabsBar';
 import {
     updateHistoryFromDelta,
     createEmptyHistory,
@@ -70,6 +69,7 @@ import type {UpsertNodeDelta} from '@/pure/graph';
 import {
     spawnBackupTerminal
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnBackupTerminal";
+import type {GraphNavigationService} from "@/shell/edge/UI-edge/graph/navigation/GraphNavigationService";
 
 /**
  * Main VoiceTreeGraphView implementation
@@ -143,7 +143,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
         // Initialize recent tabs bar V2 in title bar area
         // V2 tracks recently added/modified nodes (not visited nodes)
-        createRecentNodeTabsBarV2(this.container);
+        createRecentNodeTabsBar(this.container);
 
         // Initialize Cytoscape
         this.setupCytoscape();
@@ -702,7 +702,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         this.hotkeyManager.dispose();
         disposeEditorManager(this.cy);
         this.searchService.dispose();
-        disposeRecentNodeTabsBarV2();
+        disposeRecentNodeTabsBar();
 
         // Dispose menu services
         if (this.horizontalMenuService) {

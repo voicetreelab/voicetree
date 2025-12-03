@@ -6,7 +6,7 @@ import {createNewChildNodeFromUI, deleteNodesFromUI} from "@/shell/edge/UI-edge/
 import type {NodeIdAndFilePath} from "@/pure/graph";
 import {
     spawnTerminalWithNewContextNode
-} from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI-v2";
+} from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
 import {getFilePathForNode} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
 
 // Register the extension with cytoscape

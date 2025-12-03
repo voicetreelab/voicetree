@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useTranscriptionSender } from '@/shell/UI/views/hooks/useTranscriptionSender';
+import { useTranscriptionSender } from '@/shell/edge/UI-edge/text_to_tree_server_communication/useTranscriptionSender';
 import { type Token } from '@soniox/speech-to-text-web';
 
 describe('useTranscriptionSender - Behavioral Tests', () => {

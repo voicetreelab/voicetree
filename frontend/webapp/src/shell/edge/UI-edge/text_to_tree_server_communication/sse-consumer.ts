@@ -1,4 +1,4 @@
-import type { SSEEvent } from './status-panel';
+import type { SSEEvent } from '../../../UI/sse-status-panel/sse-status-panel';
 
 const SSE_EVENT_TYPES: readonly string[] = [
     'phase_started', 'phase_complete',

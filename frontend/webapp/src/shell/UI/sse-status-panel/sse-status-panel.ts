@@ -1,4 +1,4 @@
-import { createSSEConnection } from './sse-consumer';
+import { createSSEConnection } from '../../edge/UI-edge/text_to_tree_server_communication/sse-consumer';
 import type {} from '@/shell/electron';
 
 export interface SSEEvent {
@@ -7,13 +7,13 @@ export interface SSEEvent {
     timestamp: number;
 }
 
-const STATUS_PANEL_MOUNT_ID: string = 'status-panel-mount';
+const STATUS_PANEL_MOUNT_ID: string = 'sse-status-panel-mount';
 
 /**
  * Server Activity Panel - horizontal bar at bottom of app.
  * Displays server events as horizontal cards, FIFO (newest on left).
  */
-export class StatusPanel {
+export class SseStatusPanel {
     private container: HTMLElement;
     private eventsContainer: HTMLElement;
     private maxEvents = 2000;
@@ -34,12 +34,12 @@ export class StatusPanel {
         this.initSSEConnection();
     }
 
-    /** Initialize StatusPanel by finding mount point in DOM, waiting if necessary */
+    /** Initialize SseStatusPanel by finding mount point in DOM, waiting if necessary */
     static init(): void {
         const mountPoint: HTMLElement | null = document.getElementById(STATUS_PANEL_MOUNT_ID);
         if (mountPoint) {
-            console.log('[StatusPanel] Initializing');
-            new StatusPanel(mountPoint);
+            console.log('[SseStatusPanel] Initializing');
+            new SseStatusPanel(mountPoint);
             return;
         }
 
@@ -48,8 +48,8 @@ export class StatusPanel {
             const el: HTMLElement | null = document.getElementById(STATUS_PANEL_MOUNT_ID);
             if (el) {
                 obs.disconnect();
-                console.log('[StatusPanel] Initializing (after DOM ready)');
-                new StatusPanel(el);
+                console.log('[SseStatusPanel] Initializing (after DOM ready)');
+                new SseStatusPanel(el);
             }
         });
         observer.observe(document.body, { childList: true, subtree: true });
@@ -58,10 +58,10 @@ export class StatusPanel {
     private initSSEConnection(): void {
         window.electronAPI?.main.getBackendPort().then((port: number | null) => {
             if (port) {
-                console.log('[StatusPanel] Creating SSE connection on port', port);
+                console.log('[SseStatusPanel] Creating SSE connection on port', port);
                 this.disconnectSSE = createSSEConnection(port, event => this.addEvent(event));
             }
-        }).catch(() => console.error('[StatusPanel] Failed to get backend port'));
+        }).catch(() => console.error('[SseStatusPanel] Failed to get backend port'));
     }
 
     addEvent(event: SSEEvent): void {
@@ -126,7 +126,7 @@ export class StatusPanel {
                 return `${phase}`;
             }
             case 'phase_complete':
-                return `${event.data.phase} ✓`;
+                return `${event.data.phase}`;
             case 'rate_limit_error':
                 return `Rate limit`;
             case 'workflow_complete':
@@ -135,6 +135,12 @@ export class StatusPanel {
                 return `Connected :${event.data.port}`;
             case 'connection_error':
                 return 'Disconnected';
+            case 'workflow_failed': {
+                const error = (event.data.error as string) || 'Unknown error';
+                const first50 = error.slice(0, 50);
+                const rest = error.length > 50 ? `<span class="activity-text-rest">${error.slice(50)}</span>` : '';
+                return `${first50}${rest}`;
+            }
             default:
                 return event.type.replace(/_/g, ' ');
         }
@@ -148,7 +154,7 @@ export class StatusPanel {
 
     dispose(): void {
         if (this.disconnectSSE) {
-            console.log('[StatusPanel] Disconnecting SSE');
+            console.log('[SseStatusPanel] Disconnecting SSE');
             this.disconnectSSE();
         }
         this.container.remove();

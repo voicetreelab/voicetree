@@ -8,7 +8,7 @@
 import type {Core, Position} from 'cytoscape';
 import {
     spawnTerminalWithNewContextNode
-} from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI-v2";
+} from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
 import {
     createAnchoredFloatingEditor,
 } from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorManager-v2';

@@ -35,9 +35,9 @@ const state: RecentNodeTabsBarV2State = {
  * @param parentContainer - The container to mount the tabs bar into
  * @returns cleanup function to dispose the tabs bar
  */
-export function createRecentNodeTabsBarV2(parentContainer: HTMLElement): () => void {
+export function createRecentNodeTabsBar(parentContainer: HTMLElement): () => void {
     // Clean up any existing instance
-    disposeRecentNodeTabsBarV2()
+    disposeRecentNodeTabsBar()
 
     // Create main container (positioned in title bar area)
     state.container = document.createElement('div')
@@ -54,7 +54,7 @@ export function createRecentNodeTabsBarV2(parentContainer: HTMLElement): () => v
     // Initially hidden until we have data
     state.container.style.display = 'none'
 
-    return disposeRecentNodeTabsBarV2
+    return disposeRecentNodeTabsBar
 }
 
 /**
@@ -122,7 +122,7 @@ function createTab(
 /**
  * Clean up the tabs bar
  */
-export function disposeRecentNodeTabsBarV2(): void {
+export function disposeRecentNodeTabsBar(): void {
     if (state.container && state.container.parentNode) {
         state.container.parentNode.removeChild(state.container)
     }

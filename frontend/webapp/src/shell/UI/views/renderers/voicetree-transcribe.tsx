@@ -5,7 +5,7 @@ import { cn } from "@/utils/lib/utils";
 import AnimatedMicIcon from "@/shell/UI/views/components/animated-mic-icon";
 import StatusDisplay from "@/shell/UI/views/components/status-display";
 import useVoiceTreeClient from "@/shell/UI/views/hooks/useVoiceTreeClient";
-import { useTranscriptionSender } from "@/shell/UI/views/hooks/useTranscriptionSender";
+import { useTranscriptionSender } from "@/shell/edge/UI-edge/text_to_tree_server_communication/useTranscriptionSender";
 import getAPIKey from "@/utils/get-api-key";
 import Renderer from "./renderer";
 import useAutoScroll from "@/shell/UI/views/hooks/useAutoScroll";
