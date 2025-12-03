@@ -399,4 +399,103 @@ containedNodeIds: []
       expect(result.nodeUIMetadata.containedNodeIds).toEqual([])
     })
   })
+
+  describe('real example file parsing', () => {
+    it('should parse real example file with color, position (scientific notation), isContextNode, and agent_name', () => {
+      // Content from example_folder_fixtures/example_real_large/2025-09-30/14_1_Victor_Append_Agent_Extraction_Analysis_Complete.md
+      const content: string = `---
+color: orange
+position:
+  x: -9.184850993605149e-14
+  y: -500
+isContextNode: false
+node_id: 141
+agent_name: Victor
+---
+part of [[27_Two_Streams_of_Work]]
+
+** Summary**
+Analyzed the AppendToRelevantNodeAgent for Cloud Run Function extraction. The agent is **already stateless and well-architected** for serverless deployment - no refactoring required, only packaging needed.
+
+** Technical Details**
+
+** Files Analyzed**
+- **Workflow File**: \`backend/text_to_graph_pipeline/chunk_processing_pipeline/tree_action_decider_workflow.py:198\`
+
+-----------------
+_Links:_
+Parent:
+- is_progress_of [[2025-09-30/14_Assign_Agent_to_Identify_Boundaries.md]]
+[[27_Two_Streams_of_Work.md]]`
+
+      const result: GraphNode = parseMarkdownToGraphNode(content, '14_1_Victor_Append_Agent_Extraction_Analysis_Complete.md', emptyGraph)
+
+      // Check color is parsed correctly
+      expect(O.isSome(result.nodeUIMetadata.color)).toBe(true)
+      expect(O.getOrElse(() => '')(result.nodeUIMetadata.color)).toBe('orange')
+
+      // Check position with scientific notation is parsed correctly
+      expect(O.isSome(result.nodeUIMetadata.position)).toBe(true)
+      const position: { readonly x: number; readonly y: number } = O.getOrElse(() => ({ x: 999, y: 999 }))(result.nodeUIMetadata.position)
+      expect(position.x).toBeCloseTo(-9.184850993605149e-14, 20)
+      expect(position.y).toBe(-500)
+
+      // Check isContextNode is parsed correctly
+      expect(result.nodeUIMetadata.isContextNode).toBe(false)
+
+      // Check agent_name is in additionalYAMLProps (not an explicit field)
+      expect(result.nodeUIMetadata.additionalYAMLProps.get('agent_name')).toBe('Victor')
+      // node_id should also be in additionalYAMLProps (legacy field, not an explicit typed field)
+      expect(result.nodeUIMetadata.additionalYAMLProps.get('node_id')).toBe('141')
+
+      // Check wikilinks are replaced with [link]* notation
+      expect(result.contentWithoutYamlOrLinks).toContain('[27_Two_Streams_of_Work]*')
+      expect(result.contentWithoutYamlOrLinks).toContain('[2025-09-30/14_Assign_Agent_to_Identify_Boundaries.md]*')
+      expect(result.contentWithoutYamlOrLinks).toContain('[27_Two_Streams_of_Work.md]*')
+
+      // Check edges are extracted
+      expect(result.outgoingEdges.length).toBe(3)
+    })
+
+    it('should parse real example file with position in scientific notation and isContextNode', () => {
+      // Content from example_folder_fixtures/example_small/5_Immediate_Test_Observation_No_Output.md
+      const content: string = `---
+position:
+  x: 3.061616997868383e-14
+  y: 500
+isContextNode: false
+node_id: 5
+---
+### Speaker observes no output despite repeated speech input during an immediate test.
+
+All right, so I'm testing 'one, two, three'. I don't see anything.
+
+-----------------
+_Links:_
+Parent:
+- is_an_immediate_observation_during [[4_Test_Outcome_No_Output.md]]
+
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output.md_context_1764570013191.md]]`
+
+      const result: GraphNode = parseMarkdownToGraphNode(content, '5_Immediate_Test_Observation_No_Output.md', emptyGraph)
+
+      // Check position with small scientific notation is parsed correctly
+      expect(O.isSome(result.nodeUIMetadata.position)).toBe(true)
+      const position: { readonly x: number; readonly y: number } = O.getOrElse(() => ({ x: 999, y: 999 }))(result.nodeUIMetadata.position)
+      expect(position.x).toBeCloseTo(3.061616997868383e-14, 20)
+      expect(position.y).toBe(500)
+
+      // Check isContextNode
+      expect(result.nodeUIMetadata.isContextNode).toBe(false)
+
+      // Check color is None (not in this file)
+      expect(O.isNone(result.nodeUIMetadata.color)).toBe(true)
+
+      // Check node_id is in additionalYAMLProps
+      expect(result.nodeUIMetadata.additionalYAMLProps.get('node_id')).toBe('5')
+
+      // Check edges are extracted
+      expect(result.outgoingEdges.length).toBe(2)
+    })
+  })
 })
