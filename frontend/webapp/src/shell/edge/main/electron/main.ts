@@ -14,6 +14,9 @@ import {setBackendPort, setMainWindow} from '@/shell/edge/main/state/app-electro
 import { registerTerminalIpcHandlers } from '@/shell/edge/main/ipc-terminal-handlers';
 import { setupRPCHandlers } from '@/shell/edge/main/edge-auto-rpc/rpc-handler';
 import { startMcpServer } from '@/shell/edge/main/mcp-server/mcp-server';
+import { writeAllPositionsSync } from '@/shell/edge/main/graph/writeAllPositionsOnExit';
+import { getGraph, getVaultPath } from '@/shell/edge/main/state/graph-store';
+import * as O from 'fp-ts/lib/Option.js';
 
 
 // Fix PATH for macOS/Linux GUI apps
@@ -265,6 +268,13 @@ void app.whenReady().then(async () => {
 // IMPORTANT: before-quit fires on hot reload, window-all-closed does not
 app.on('before-quit', () => {
   console.log('[App] before-quit event - cleaning up resources...');
+
+  // Persist node positions to disk before exit
+  const vaultPath: O.Option<string> = getVaultPath();
+  if (O.isSome(vaultPath)) {
+    console.log('[App] Saving node positions to disk...');
+    writeAllPositionsSync(getGraph(), vaultPath.value);
+  }
 
   // Clean up server process
   textToTreeServerManager.stop();
