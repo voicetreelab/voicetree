@@ -1,12 +1,4 @@
-// Import new types (Phase 5 complete - all types from types-v2)
-import {
-    type EditorData,
-    type EditorId,
-    type TerminalData,
-    type TerminalId,
-} from "@/shell/edge/UI-edge/floating-windows/types-v2";
-
-// Re-export types for consumers
+// Re-export types for consumers (Phase 5 complete - all types from types-v2)
 export type { EditorData, EditorId, TerminalData, TerminalId } from "@/shell/edge/UI-edge/floating-windows/types-v2";
 
 // =============================================================================

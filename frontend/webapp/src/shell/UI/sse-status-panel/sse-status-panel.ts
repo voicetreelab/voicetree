@@ -1,5 +1,4 @@
-import { createSSEConnection } from '../../edge/UI-edge/text_to_tree_server_communication/sse-consumer';
-import type {} from '@/shell/electron';
+import {createSSEConnection} from "@/shell/edge/UI-edge/text_to_tree_server_communication/sse-consumer";
 
 export interface SSEEvent {
     type: string;
@@ -65,6 +64,11 @@ export class SseStatusPanel {
     }
 
     addEvent(event: SSEEvent): void {
+
+        if (!this.getEventMessage(event)){
+            return; // to allow ignoring certain sse events 
+        }
+
         const card: HTMLDivElement = document.createElement('div');
         card.className = `server-activity-card event-${event.type}`;
         card.innerHTML = this.formatEventCard(event);
@@ -126,7 +130,7 @@ export class SseStatusPanel {
                 return `${phase}`;
             }
             case 'phase_complete':
-                return `${event.data.phase}`;
+                return ""; // ignore phase_complete for now.
             case 'rate_limit_error':
                 return `Rate limit`;
             case 'workflow_complete':
@@ -137,8 +141,8 @@ export class SseStatusPanel {
                 return 'Disconnected';
             case 'workflow_failed': {
                 const error = (event.data.error as string) || 'Unknown error';
-                const first50 = error.slice(0, 50);
-                const rest = error.length > 50 ? `<span class="activity-text-rest">${error.slice(50)}</span>` : '';
+                const first50 = error.slice(0, 35);
+                const rest = error.length > 35 ? `<span class="activity-text-rest">${error.slice(35)}</span>` : '';
                 return `${first50}${rest}`;
             }
             default:
