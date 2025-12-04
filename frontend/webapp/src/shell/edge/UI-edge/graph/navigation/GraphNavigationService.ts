@@ -90,12 +90,16 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
   }
 
   /**
-   * Fit viewport to a terminal and its surrounding context (context node + d=1 neighbors)
+   * Fit viewport to a terminal and its surrounding context (context node + d=1 neighbors),
+   * update active terminal state, focus the terminal, and notify listeners.
    */
   fitToTerminal(terminal: TerminalData): void {
     const cy: Core = this.cy;
     const terminalId: TerminalId = getTerminalId(terminal);
     const shadowNodeId: string = getShadowNodeId(terminalId);
+
+    // Update active terminal state
+    this.activeTerminalId = terminalId;
 
     // Get the shadow node from cy for viewport fitting
     const terminalShadowNode: CollectionReturnValue = cy.getElementById(shadowNodeId);
@@ -111,6 +115,16 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
       : cy.collection().union(terminalShadowNode);
 
     cy.fit(nodesToFit, getResponsivePadding(cy, 1));
+
+    // Focus the terminal so keyboard input goes directly to it
+    // Note: terminals are stored in vanillaFloatingWindowInstances with terminalId as key (not shadowNodeId)
+    const vanillaInstance: { dispose: () => void; focus?: () => void } | undefined = vanillaFloatingWindowInstances.get(terminalId);
+    if (vanillaInstance?.focus) {
+      vanillaInstance.focus();
+    }
+
+    // Notify listeners of active terminal change
+    this.notifyTerminalChange();
   }
 
   /**
@@ -146,54 +160,9 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
     }
 
     const targetTerminal: TerminalData = sortedTerminals[this.currentTerminalIndex];
-    this.activeTerminalId = getTerminalId(targetTerminal);
 
-    // Fit viewport to terminal + surrounding context
+    // fitToTerminal handles state update, viewport fit, focus, and notification
     this.fitToTerminal(targetTerminal);
-
-    // Focus the terminal so keyboard input goes directly to it
-    // Note: terminals are stored in vanillaFloatingWindowInstances with terminalId as key (not shadowNodeId)
-    const vanillaInstance: { dispose: () => void; focus?: () => void } | undefined = vanillaFloatingWindowInstances.get(this.activeTerminalId);
-    if (vanillaInstance?.focus) {
-      vanillaInstance.focus();
-    }
-
-    // Notify listeners of active terminal change
-    this.notifyTerminalChange();
-  }
-
-  /**
-   * Navigate to a specific terminal (used by AgentTabsBar click)
-   */
-  navigateToTerminal(terminal: TerminalData): void {
-    const terminalsMap: Map<TerminalId, TerminalData> = getTerminals();
-    const terminals: TerminalData[] = Array.from(terminalsMap.values());
-
-    // Sort terminals by ID for consistent ordering (same as cycleTerminal)
-    const sortedTerminals: TerminalData[] = terminals.sort((a, b) =>
-      getTerminalId(a).localeCompare(getTerminalId(b))
-    );
-
-    // Find index of target terminal
-    const targetId: TerminalId = getTerminalId(terminal);
-    const index: number = sortedTerminals.findIndex(t => getTerminalId(t) === targetId);
-
-    if (index >= 0) {
-      this.currentTerminalIndex = index;
-      this.activeTerminalId = targetId;
-
-      // Fit viewport to terminal + surrounding context
-      this.fitToTerminal(terminal);
-
-      // Focus the terminal (terminals are stored with terminalId as key, not shadowNodeId)
-      const vanillaInstance: { dispose: () => void; focus?: () => void } | undefined = vanillaFloatingWindowInstances.get(targetId);
-      if (vanillaInstance?.focus) {
-        vanillaInstance.focus();
-      }
-
-      // Notify listeners of active terminal change
-      this.notifyTerminalChange();
-    }
   }
 
   /**

@@ -132,16 +132,39 @@ export interface HorizontalMenuDependencies {
     createAnchoredFloatingEditor: (nodeId: NodeIdAndFilePath) => Promise<void>;
 }
 
+// Module-level reference for access from FloatingEditorCRUD
+let horizontalMenuServiceInstance: HorizontalMenuService | null = null;
+
+function setHorizontalMenuServiceInstance(instance: HorizontalMenuService): void {
+    horizontalMenuServiceInstance = instance;
+}
+
+/**
+ * Get the current HorizontalMenuService instance.
+ * Used by FloatingEditorCRUD to show/hide persistent menus.
+ */
+export function getHorizontalMenuService(): HorizontalMenuService | null {
+    return horizontalMenuServiceInstance;
+}
+
 export class HorizontalMenuService {
     private cy: Core | null = null;
     private deps: HorizontalMenuDependencies | null = null;
+
+    // Hover menu state (single menu, existing behavior)
     private currentMenu: HTMLElement | null = null;
+    private currentMenuNodeId: string | null = null;
     private clickOutsideHandler: ((e: MouseEvent) => void) | null = null;
+
+    // Persistent menus for anchored editors (separate, independent)
+    private persistentMenus: Map<string, HTMLElement> = new Map();
 
     initialize(cy: Core, deps: HorizontalMenuDependencies): void {
         this.cy = cy;
         this.deps = deps;
         this.setupNodeHoverMenu();
+        // Register this instance for access from FloatingEditorCRUD
+        setHorizontalMenuServiceInstance(this);
     }
 
     private setupNodeHoverMenu(): void {
@@ -169,18 +192,64 @@ export class HorizontalMenuService {
                 return;
             }
 
+            // Skip hover menu if this node already has a persistent menu (from anchored editor)
+            if (this.persistentMenus.has(nodeId)) {
+                return;
+            }
+
             // Use graph position (not rendered position) since menu is in the overlay
             const position: Position = node.position();
 
-            void this.showMenu(node, position);
+            void this.showHoverMenu(node, position);
         });
     }
 
-    private async showMenu(node: NodeSingular, position: {x: number; y: number}): Promise<void> {
+    /**
+     * Show a persistent menu for a node (won't close on click-outside).
+     * Called by FloatingEditorCRUD when an anchored editor is created.
+     */
+    showPersistentMenu(nodeId: string): void {
         if (!this.cy || !this.deps) return;
 
-        // Close any existing menu
-        this.hideMenu();
+        // Already has a persistent menu for this node
+        if (this.persistentMenus.has(nodeId)) {
+            return;
+        }
+
+        const node: NodeSingular | undefined = this.cy.$id(nodeId);
+        if (!node || node.length === 0) {
+            console.log('[HorizontalMenuService] Cannot show persistent menu - node not found:', nodeId);
+            return;
+        }
+
+        // Close hover menu if it's for this node (persistent menu replaces it)
+        if (this.currentMenuNodeId === nodeId) {
+            this.hideHoverMenu();
+        }
+
+        const position: Position = node.position();
+        void this.createPersistentMenuElement(node, position);
+    }
+
+    /**
+     * Hide the persistent menu for a node.
+     * Called by FloatingEditorCRUD when an anchored editor is closed.
+     */
+    hidePersistentMenu(nodeId: string): void {
+        const menu: HTMLElement | undefined = this.persistentMenus.get(nodeId);
+        if (menu) {
+            menu.remove();
+            this.persistentMenus.delete(nodeId);
+        }
+    }
+
+    /**
+     * Create a persistent menu element for an anchored editor.
+     */
+    private async createPersistentMenuElement(node: NodeSingular, position: {x: number; y: number}): Promise<void> {
+        if (!this.cy || !this.deps) return;
+
+        const nodeId: string = node.id();
 
         // Load settings to get agents list
         const settings: { agents?: readonly AgentConfig[] } | null = await window.electronAPI.main.loadSettings();
@@ -189,7 +258,64 @@ export class HorizontalMenuService {
         const menuItems: HorizontalMenuItem[] = this.getNodeMenuItems(node, agents);
         const overlay: HTMLElement = getOrCreateOverlay(this.cy);
 
-        // Create menu container
+        const menu: HTMLDivElement = this.createMenuElement(position, menuItems, () => {
+            // Persistent menus don't close on item click
+        });
+
+        overlay.appendChild(menu);
+        this.persistentMenus.set(nodeId, menu);
+    }
+
+    /**
+     * Show hover menu for a node (closes on click-outside or hover away).
+     */
+    private async showHoverMenu(node: NodeSingular, position: {x: number; y: number}): Promise<void> {
+        if (!this.cy || !this.deps) return;
+
+        const nodeId: string = node.id();
+
+        // If already showing hover menu for this node, do nothing
+        if (this.currentMenu && this.currentMenuNodeId === nodeId) {
+            return;
+        }
+
+        // Close any existing hover menu
+        this.hideHoverMenu();
+
+        // Load settings to get agents list
+        const settings: { agents?: readonly AgentConfig[] } | null = await window.electronAPI.main.loadSettings();
+        const agents: readonly AgentConfig[] = settings?.agents ?? [];
+
+        const menuItems: HorizontalMenuItem[] = this.getNodeMenuItems(node, agents);
+        const overlay: HTMLElement = getOrCreateOverlay(this.cy);
+
+        const menu: HTMLDivElement = this.createMenuElement(position, menuItems, () => {
+            this.hideHoverMenu();
+        });
+
+        overlay.appendChild(menu);
+        this.currentMenu = menu;
+        this.currentMenuNodeId = nodeId;
+
+        // Setup click-outside handler for hover menu
+        setTimeout(() => {
+            this.clickOutsideHandler = (e: MouseEvent): void => {
+                if (this.currentMenu && !this.currentMenu.contains(e.target as Node)) {
+                    this.hideHoverMenu();
+                }
+            };
+            document.addEventListener('mousedown', this.clickOutsideHandler);
+        }, 100);
+    }
+
+    /**
+     * Create a menu DOM element with the given items.
+     */
+    private createMenuElement(
+        position: {x: number; y: number},
+        menuItems: HorizontalMenuItem[],
+        onClose: () => void
+    ): HTMLDivElement {
         const menu: HTMLDivElement = document.createElement('div');
         menu.className = 'cy-horizontal-context-menu';
         menu.style.cssText = `
@@ -203,24 +329,21 @@ export class HorizontalMenuService {
         `;
 
         // Position above the node (in graph coordinates)
-        // Center horizontally, place above with some offset
         menu.style.left = `${position.x}px`;
         menu.style.top = `${position.y - 60}px`;
         menu.style.transform = 'translateX(-50%)';
-
-        const closeMenu: () => void = () => this.hideMenu();
 
         // Create menu items
         for (const item of menuItems) {
             const itemContainer: HTMLDivElement = document.createElement('div');
             itemContainer.style.position = 'relative';
 
-            const menuItemEl: HTMLElement = createMenuItemElement(item, closeMenu);
+            const menuItemEl: HTMLElement = createMenuItemElement(item, onClose);
             itemContainer.appendChild(menuItemEl);
 
             // Handle submenu
             if (item.subMenu) {
-                const submenu: HTMLElement = createSubMenuElement(item.subMenu, closeMenu);
+                const submenu: HTMLElement = createSubMenuElement(item.subMenu, onClose);
                 itemContainer.appendChild(submenu);
 
                 // Show/hide submenu on hover
@@ -235,26 +358,15 @@ export class HorizontalMenuService {
             menu.appendChild(itemContainer);
         }
 
-        overlay.appendChild(menu);
-        this.currentMenu = menu;
-
-        // Setup click-outside handler (same logic as hover editors)
-        // Add listener after a short delay to prevent immediate closure
-        setTimeout(() => {
-            this.clickOutsideHandler = (e: MouseEvent) => {
-                if (this.currentMenu && !this.currentMenu.contains(e.target as Node)) {
-                    this.hideMenu();
-                }
-            };
-            document.addEventListener('mousedown', this.clickOutsideHandler);
-        }, 100);
+        return menu;
     }
 
-    private hideMenu(): void {
+    private hideHoverMenu(): void {
         if (this.currentMenu) {
             this.currentMenu.remove();
             this.currentMenu = null;
         }
+        this.currentMenuNodeId = null;
         if (this.clickOutsideHandler) {
             document.removeEventListener('mousedown', this.clickOutsideHandler);
             this.clickOutsideHandler = null;
@@ -346,7 +458,13 @@ export class HorizontalMenuService {
     }
 
     destroy(): void {
-        this.hideMenu();
+        this.hideHoverMenu();
+
+        // Clean up all persistent menus
+        for (const menu of this.persistentMenus.values()) {
+            menu.remove();
+        }
+        this.persistentMenus.clear();
 
         if (this.cy) {
             this.cy.removeListener('mouseover', 'node');

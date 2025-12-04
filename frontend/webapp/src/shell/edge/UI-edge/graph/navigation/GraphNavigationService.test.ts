@@ -153,9 +153,9 @@ describe('GraphNavigationService', () => {
         { data: { id: 'edge-2-3', source: 'node2', target: 'node3' } }
       ]);
 
-      // Register mock terminal instance with focus (use shadow node ID)
+      // Register mock terminal instance with focus (use terminalId, not shadowNodeId)
       mockFocus.mockClear();
-      vanillaFloatingWindowInstances.set(terminal2.shadowNodeId, { dispose: vi.fn(), focus: mockFocus as unknown as () => void });
+      vanillaFloatingWindowInstances.set(getTerminalId(terminal2.terminalData), { dispose: vi.fn(), focus: mockFocus as unknown as () => void });
     });
 
     afterEach(() => {

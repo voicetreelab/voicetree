@@ -52,6 +52,7 @@ import {
     getAwaitingContent, getEditorByNodeId, getEditors, getHoverEditor,
     setAwaitingUISavedContent
 } from "@/shell/edge/UI-edge/state/EditorStore";
+import { getHorizontalMenuService, type HorizontalMenuService } from "@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService";
 
 // =============================================================================
 // Create Floating Editor
@@ -144,6 +145,13 @@ export async function createFloatingEditor(
             vanillaInstance.dispose();
             vanillaFloatingWindowInstances.delete(editorId);
         }
+        // Hide persistent horizontal menu if this was an anchored editor
+        if (O.isSome(editorWithUI.anchoredToNodeId)) {
+            const menuService: HorizontalMenuService | null = getHorizontalMenuService();
+            if (menuService) {
+                menuService.hidePersistentMenu(editorWithUI.contentLinkedToNodeId);
+            }
+        }
     });
 
     // Setup fullscreen button handler
@@ -179,6 +187,14 @@ export function closeEditor(cy: Core, editor: EditorData): void {
     if (vanillaInstance) {
         vanillaInstance.dispose();
         vanillaFloatingWindowInstances.delete(editorId);
+    }
+
+    // Hide persistent horizontal menu if this was an anchored editor
+    if (O.isSome(editor.anchoredToNodeId)) {
+        const menuService: HorizontalMenuService | null = getHorizontalMenuService();
+        if (menuService) {
+            menuService.hidePersistentMenu(editor.contentLinkedToNodeId);
+        }
     }
 
     // Dispose floating window (removes DOM and shadow node)
@@ -319,6 +335,12 @@ export async function createAnchoredFloatingEditor(
 
         // Anchor to node using v2 function
         anchorToNode(cy, editor);
+
+        // Show persistent horizontal menu for this node
+        const menuService: HorizontalMenuService | null = getHorizontalMenuService();
+        if (menuService) {
+            menuService.showPersistentMenu(nodeId);
+        }
 
     } catch (error) {
         console.error('[FloatingEditorManager-v2] Error creating floating editor:', error);
