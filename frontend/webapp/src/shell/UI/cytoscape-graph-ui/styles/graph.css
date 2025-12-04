@@ -251,7 +251,7 @@ button.graph-button:disabled > svg > path {
     display: flex;
     align-items: center;
     z-index: 1100; /* Above floating windows (1000) so tabs aren't obscured */
-    height: 28px;
+    height: 20px;
     max-width: calc(100% - 200px); /* Leave space for window controls and other UI */
     pointer-events: auto;
     -webkit-app-region: no-drag; /* Allow clicking tabs instead of dragging window */
@@ -292,11 +292,11 @@ button.graph-button:disabled > svg > path {
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    width: 120px;
-    min-width: 120px;
-    max-width: 120px;
-    height: 24px;
-    padding: 0 8px;
+    width: 70px;
+    min-width: 70px;
+    max-width: 70px;
+    height: 16px;
+    padding: 0 4px;
     background: var(--background-secondary, #2a2a2a);
     border: 1px solid var(--background-modifier-border, #333);
     border-radius: 4px;
@@ -322,7 +322,7 @@ button.graph-button:disabled > svg > path {
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none; /* Firefox */
-    font-size: 12px;
+    font-size: 9px;
     color: var(--text-normal, #ddd);
     line-height: 1.2;
 }
@@ -357,7 +357,7 @@ button.graph-button:disabled > svg > path {
     display: flex;
     align-items: center;
     z-index: 1100; /* Above floating windows (1000) so tabs aren't obscured */
-    height: 28px;
+    height: 20px;
     max-width: calc(50% - 100px); /* Don't overlap with recent nodes tabs */
     pointer-events: auto;
     -webkit-app-region: no-drag; /* Allow clicking tabs instead of dragging window */
@@ -398,11 +398,11 @@ button.graph-button:disabled > svg > path {
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    width: 120px;
-    min-width: 120px;
-    max-width: 120px;
-    height: 24px;
-    padding: 0 8px;
+    width: 70px;
+    min-width: 70px;
+    max-width: 70px;
+    height: 16px;
+    padding: 0 4px;
     background: #1a1a1a;
     border: 1px solid #333;
     border-radius: 4px;
@@ -439,7 +439,7 @@ button.graph-button:disabled > svg > path {
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none; /* Firefox */
-    font-size: 12px;
+    font-size: 9px;
     color: var(--text-normal, #ddd);
     line-height: 1.2;
 }
@@ -468,10 +468,10 @@ button.graph-button:disabled > svg > path {
 /* Activity dot indicator for agent tabs (shown when terminal produces a node) */
 .agent-tab-activity-dot {
     position: absolute;
-    bottom: -10px;
-    left: 8px;
-    width: 10px;
-    height: 10px;
+    bottom: -6px;
+    left: 4px;
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
     background: #7c3aed;
     pointer-events: none;
