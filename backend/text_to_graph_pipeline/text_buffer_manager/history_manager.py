@@ -134,7 +134,7 @@ class HistoryManager:
             with open(file_path, 'r', encoding='utf-8') as f:
                 self._history = f.read()
 
-            logging.info(f"[TRANSCRIPT_HISTORY] Loaded {len(self._history)} chars from {file_path}")
+            # logging.info(f"[TRANSCRIPT_HISTORY] Loaded {len(self._history)} chars from {file_path}")
             return True
 
         except Exception as e:

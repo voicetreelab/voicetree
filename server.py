@@ -39,23 +39,24 @@ logger = setup_logging('voicetree_server.log', console_level=logging.INFO)
 temp_dir = tempfile.mkdtemp()
 
 
-def initialize_tree_state(directory_path: str) -> tuple:
+def initialize_tree_state(directory_path: str, embedding_manager: Any = None) -> tuple:
     """
     Initialize or load a markdown tree from the specified directory.
 
     Args:
         directory_path: Path to the markdown tree directory
+        embedding_manager: Optional existing embedding manager to reuse (avoids ChromaDB lock conflicts)
 
     Returns:
         Tuple of (decision_tree, converter, processor, markdown_dir)
     """
     if os.path.exists(directory_path):
-        logger.info(f"Loading existing markdown tree from {directory_path}")
-        tree = load_markdown_tree(directory_path)  # todo shouldn't branch here, load dir should just load if exists, new graph if not
+        logger.debug(f"Loading existing markdown tree from {directory_path}")
+        tree = load_markdown_tree(directory_path, embedding_manager=embedding_manager)
     else:
         logger.info(f"Creating new empty tree for {directory_path}")
         os.makedirs(directory_path, exist_ok=True)
-        tree = MarkdownTree(output_dir=directory_path)
+        tree = MarkdownTree(output_dir=directory_path, embedding_manager=embedding_manager)
 
     # Voice-to-text files go to VT/voice subdirectory
     os.makedirs(directory_path + "/VT", exist_ok=True)
@@ -173,7 +174,8 @@ async def buffer_processing_loop():
                             processor_buffer_empty and
                             time.time() - last_sync_time > AUTO_SYNC_INTERVAL_SECONDS):
                         try:
-                            decision_tree, converter, processor, _ = initialize_tree_state(markdown_dir)
+                            existing_embedding_manager = decision_tree._embedding_manager if decision_tree else None
+                            decision_tree, converter, processor, _ = initialize_tree_state(markdown_dir, embedding_manager=existing_embedding_manager)
                             last_sync_time = time.time()
                             logger.debug(f"Auto-sync complete: reloaded {len(decision_tree.tree)} nodes from {markdown_dir}")
                         except Exception as e:

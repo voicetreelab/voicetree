@@ -57,7 +57,7 @@ class TextBufferManager:
     def init(self, bufferFlushLength: int) -> None:
         """Initialize with a specific buffer flush length"""
         self.bufferFlushLength = bufferFlushLength
-        logging.info(f"TextBufferManager initialized with threshold: {self.bufferFlushLength}")
+        logging.debug(f"TextBufferManager initialized with threshold: {self.bufferFlushLength}")
 
     def addText(self, text: str) -> None:
         if not text or text.strip() == "":
