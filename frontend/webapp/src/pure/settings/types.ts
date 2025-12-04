@@ -21,7 +21,7 @@ export const DEFAULT_SETTINGS: VTSettings = {
     },
     {
       name: 'Gemini',
-      command: `gemini -y -i "$AGENT_PROMPT" --model "gemini-2.5-pro"`,
+      command: `gemini -y -i "$AGENT_PROMPT"`,
     },
     {
       name: 'Codex',
