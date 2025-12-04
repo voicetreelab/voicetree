@@ -38,12 +38,11 @@ export function setupCytoscape(params: SetupCytoscapeParams): {
     console.log('[VoiceTreeGraphView] Auto-layout enabled with Cola');
 
     // Listen to layout completion
-    cy.on('layoutstop', () => {
-        console.log('[VoiceTreeGraphView] Layout stopped, saving positions...');
-        // Note: @types/cytoscape incorrectly types jsons() as string[] - it actually returns NodeDefinition[]
-        void window.electronAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);
-        onLayoutComplete();
-    });
+    // cy.on('layoutstop', () => { # todo, this doesn't fire.
+    //     console.log('[VoiceTreeGraphView] Layout stopped, saving positions...');
+    //     // Note: @types/cytoscape incorrectly types jsons() as string[] - it actually returns NodeDefinition[]
+    //     onLayoutComplete();
+    // });
 
     // Setup tap handler for nodes
     console.log('[VoiceTreeGraphView] Registering tap handler for floating windows');
