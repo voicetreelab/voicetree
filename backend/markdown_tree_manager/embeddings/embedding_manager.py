@@ -123,7 +123,7 @@ class EmbeddingManager:
             logger.info(f"Added {len(missing_node_ids)} missing nodes to embeddings: {missing_node_ids}")
 
         if not stale_node_ids and not missing_node_ids:
-            logger.info("Embeddings already in sync with tree")
+            logger.debug("Embeddings already in sync with tree")
 
     def search(
         self,
