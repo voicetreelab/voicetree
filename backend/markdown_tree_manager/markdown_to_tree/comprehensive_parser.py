@@ -70,9 +70,7 @@ def parse_markdown_file_complete(filepath: Path) -> Optional[ParsedNode]:
             node_id = node_id_str
     else:
         node_id_from_meta = metadata.get('node_id')
-        if node_id_from_meta is None:
-            return None
-        node_id = node_id_from_meta
+        node_id = node_id_from_meta  # May be None - caller will assign an integer ID
 
     # Extract title, summary, and parse content
     # Title comes from first heading (#), summary from second heading (###)

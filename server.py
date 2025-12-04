@@ -146,24 +146,25 @@ async def buffer_processing_loop():
                     continue
 
                 if len(simple_buffer) > 0:
-                     # Time-based auto-flush after ns inactivity
+                    text_to_send = simple_buffer # IMPORTANT FOR NO ASYNC RACE CONDITIONS
+                    simple_buffer = ""
                     if force_flush_next_processing_iteration:
                         logger.info(f"Forcing (forced) {len(simple_buffer)} chars from simple_buffer to buffer_manager")
-                        await loop.run_in_executor(executor, run_llm_in_thread, simple_buffer, True)  # todo, await?
+                        await loop.run_in_executor(executor, run_llm_in_thread, text_to_send, True)  # todo, await?
                         force_flush_next_processing_iteration = False
 
                     else:
                         logger.info(f"Moving {len(simple_buffer)} chars from simple_buffer to buffer_manager")
-                        await loop.run_in_executor(executor, run_llm_in_thread, simple_buffer, False)
-                    simple_buffer = ""
+                        await loop.run_in_executor(executor, run_llm_in_thread, text_to_send, False)
 
 
                 else:
+                    # Time-based auto-flush after ns inactivity
                     # Time-based force flush when simple_buffer is empty but buffer_manager has content
                     if (last_text_received_time > 0 and
                             time.time() - last_text_received_time >= AUTO_FLUSH_INACTIVITY_SECONDS):
                         logger.info(f"Time-based force flush of buffer_manager after {AUTO_FLUSH_INACTIVITY_SECONDS}s inactivity")
-                        await loop.run_in_executor(executor, run_llm_in_thread, "", True)
+                        await loop.run_in_executor(executor, run_llm_in_thread, simple_buffer, True)
                         last_text_received_time = 0  # Prevent repeated flushes
 
                     # Idle - auto-sync: reload markdown files from disk to pick up external changes

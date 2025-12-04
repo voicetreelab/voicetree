@@ -55,7 +55,7 @@ if os.path.exists(markdown_dir):
             # Update next_node_id to be higher than any existing node ID
             if loaded_tree.tree:
                 decision_tree.next_node_id = max(loaded_tree.tree.keys()) + 1
-            logger.info(f"Loaded {len(loaded_tree.tree)} nodes from markdown")
+            # logger.info(f"Loaded {len(loaded_tree.tree)} nodes from markdown")
         except Exception as e:
             logger.info(f"Failed to load tree from markdown: {e}")
             logger.info("Starting with empty tree")

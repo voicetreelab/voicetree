@@ -1,7 +1,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from backend.markdown_tree_manager.markdown_to_tree.comprehensive_parser import (
     parse_markdown_file_complete,
@@ -59,7 +59,7 @@ class MarkdownToTreeConverter:
         Returns:
             Dictionary mapping node_id to Node objects
         """
-        logging.info(f"Loading tree from markdown directory: {markdown_dir}")
+        # logging.info(f"Loading tree from markdown directory: {markdown_dir}")
 
         if not os.path.exists(markdown_dir):
             raise ValueError(f"Markdown directory does not exist: {markdown_dir}")
@@ -70,12 +70,21 @@ class MarkdownToTreeConverter:
         # Filter out excluded directories
         markdown_files = [f for f in all_md_files if not self._should_exclude_path(f, markdown_dir_path)]
 
+        next_generated_id = 1
         for filepath in markdown_files:
             # Use relative path from markdown_dir as the filename
             relative_path = str(filepath.relative_to(markdown_dir_path))
             try:
                 node = self._parse_markdown_file(str(filepath), relative_path)
                 if node:
+                    # Assign integer ID if node has None ID (no node_id in frontmatter)
+                    if node.id is None:
+                        node.id = next_generated_id
+                        next_generated_id += 1
+                    elif isinstance(node.id, int):
+                        # Track max to avoid collisions with generated IDs
+                        next_generated_id = max(next_generated_id, node.id + 1)
+
                     self.tree_data[node.id] = node
                     self.filename_to_node_id[relative_path] = node.id
                     # Also index by basename for link resolution
@@ -93,7 +102,7 @@ class MarkdownToTreeConverter:
             except Exception as e:
                 logging.error(f"Error parsing relationships in {relative_path}: {e}")
 
-        logging.info(f"Loaded {len(self.tree_data)} nodes from markdown")
+        # logging.info(f"Loaded {len(self.tree_data)} nodes from markdown")
         return self.tree_data
 
     def _parse_markdown_file(self, filepath: str, filename: str) -> Optional[Node]:
@@ -196,12 +205,13 @@ class MarkdownToTreeConverter:
                     child_node.relationships[node_id] = relationship_type
 
 
-def load_markdown_tree(markdown_dir: str) -> MarkdownTree:
+def load_markdown_tree(markdown_dir: str, embedding_manager: Any = None) -> MarkdownTree:
     """
     Convenience function to load a tree from markdown files
 
     Args:
         markdown_dir: Directory containing markdown files
+        embedding_manager: Optional existing embedding manager to reuse
 
     Returns:
         MarkdownTree object with loaded nodes
@@ -210,7 +220,7 @@ def load_markdown_tree(markdown_dir: str) -> MarkdownTree:
     tree_dict = converter.load_tree_from_markdown(markdown_dir)
 
     # Create MarkdownTree object with the loaded data
-    markdown_tree = MarkdownTree(output_dir=markdown_dir)
+    markdown_tree = MarkdownTree(output_dir=markdown_dir, embedding_manager=embedding_manager)
     markdown_tree.tree = tree_dict
 
     # Set the next_node_id based on the highest existing ID
@@ -230,7 +240,7 @@ def load_markdown_tree(markdown_dir: str) -> MarkdownTree:
 
     # Sync loaded nodes to embeddings
     if markdown_tree._embedding_manager and markdown_tree.tree:
-        logging.info(f"Syncing {len(markdown_tree.tree)} loaded nodes to embeddings...")
+        # logging.info(f"Syncing {len(markdown_tree.tree)} loaded nodes to embeddings...")
         markdown_tree._embedding_manager.sync_all_embeddings()
         logging.info("Embedding sync complete")
 
