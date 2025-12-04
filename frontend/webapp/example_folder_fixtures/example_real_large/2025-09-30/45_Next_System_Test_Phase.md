@@ -1,6 +1,9 @@
 ---
+position:
+  x: 353.55339059327366
+  y: -353.55339059327383
+isContextNode: false
 node_id: 45
-title: Next System Test Phase (45)
 ---
 ### Refers to the subsequent phase following the current system test completion.
 

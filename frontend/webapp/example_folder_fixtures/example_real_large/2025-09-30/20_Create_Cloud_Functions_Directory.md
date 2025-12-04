@@ -1,6 +1,9 @@
 ---
+position:
+  x: -353.55339059327366
+  y: 853.5533905932738
+isContextNode: false
 node_id: 20
-title: Create Cloud Functions Directory (20)
 ---
 ### Create the Cloud Functions directory to provide a good structure for the agent.
 

@@ -1,6 +1,9 @@
 ---
+position:
+  x: -9.184850993605149e-14
+  y: -500
+isContextNode: false
 node_id: 30
-title: Cloud Function Isolation Test (30)
 ---
 ### A specific test file, 'test_append_relevant_node_agent', is used to test the cloud function in isolation.
 

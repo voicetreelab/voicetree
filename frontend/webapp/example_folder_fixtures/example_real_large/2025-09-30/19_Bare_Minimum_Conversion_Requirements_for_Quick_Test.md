@@ -1,6 +1,9 @@
 ---
+position:
+  x: 500
+  y: 0
+isContextNode: false
 node_id: 19
-title: Bare Minimum Conversion Requirements for Quick Test (19)
 ---
 ### Define the absolute bare minimum requirements to convert the append agent to a Google Cloud Function for a quick test, simplifying the plan to essential steps.
 

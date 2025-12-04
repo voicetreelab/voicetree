@@ -1,6 +1,9 @@
 ---
+position:
+  x: 353.5533905932737
+  y: 53.55339059327372
+isContextNode: false
 node_id: 1
-title: Relationship between Target GraphNode and Append Agent (1)
 ---
 ### The Append Agent finds the Target GraphNode, essentially being the same concept.
 

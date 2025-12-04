@@ -1,6 +1,9 @@
 ---
+position:
+  x: 3.061616997868383e-14
+  y: 500
+isContextNode: false
 node_id: 33
-title: Agent Clarification Request (33)
 ---
 ### Requests the agent to ask for any necessary clarifications.
 

@@ -1,6 +1,9 @@
 ---
+position:
+  x: 353.5533905932738
+  y: 353.5533905932737
+isContextNode: false
 node_id: 28
-title: Google Cloud Setup for Testing (28)
 ---
 ### Google Cloud has been set up as a prerequisite for testing.
 

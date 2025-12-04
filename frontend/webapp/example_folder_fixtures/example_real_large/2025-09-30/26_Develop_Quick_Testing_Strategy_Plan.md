@@ -1,6 +1,9 @@
 ---
+position:
+  x: -641.4213562373096
+  y: -641.4213562373094
+isContextNode: false
 node_id: 26
-title: Develop Quick Testing Strategy Plan (26)
 ---
 ### Create a detailed, step-by-step task tree plan for the quick testing strategy, emphasizing isolated testing leading to the append agent.
 

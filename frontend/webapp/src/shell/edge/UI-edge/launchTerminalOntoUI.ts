@@ -12,6 +12,7 @@ export async function launchTerminalOntoUI(
     contextNodeId: string,
     terminalData: TerminalData
 ): Promise<void> {
+    console.log("BEFORE LAUNCH UI")
     const cy: Core = getCyInstance();
     const targetNode: CollectionReturnValue = cy.getElementById(contextNodeId);
 

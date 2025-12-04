@@ -1,6 +1,9 @@
 ---
+position:
+  x: 353.55339059327366
+  y: -353.55339059327383
+isContextNode: false
 node_id: 17
-title: Create G Cloud Configuration (17)
 ---
 ### Request to create a new G Cloud configuration due to an email issue.
 

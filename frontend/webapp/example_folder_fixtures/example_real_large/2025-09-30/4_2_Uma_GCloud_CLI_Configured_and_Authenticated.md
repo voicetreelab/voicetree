@@ -1,7 +1,10 @@
 ---
-node_id: 4_2
-title: (Uma) GCloud CLI Configured and Authenticated (4_2)
 color: cyan
+position:
+  x: -353.5533905932737
+  y: 353.5533905932738
+isContextNode: false
+node_id: 42
 agent_name: Uma
 ---
 ** Summary**
@@ -48,3 +51,4 @@ flowchart LR
 _Links:_
 Parent:
 - completes [[2025-09-30/4_Setup_G_Cloud_CLI.md]]
+[[4_Setup_G_Cloud_CLI.md]]

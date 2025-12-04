@@ -1,6 +1,9 @@
 ---
+position:
+  x: 500
+  y: 0
+isContextNode: false
 node_id: 31
-title: Tree Action Set End-to-End Test (31)
 ---
 ### An end-to-end test for the 'tree action set' workflow, running the entire system pipeline and checking lambda functionality.
 

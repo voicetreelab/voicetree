@@ -1,6 +1,9 @@
 ---
+position:
+  x: -9.184850993605149e-14
+  y: -500
+isContextNode: false
 node_id: 51
-title: Agent Online Status (51)
 ---
 ### The agent is online after successfully passing a complex test.
 

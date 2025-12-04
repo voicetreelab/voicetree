@@ -1,6 +1,9 @@
 ---
+position:
+  x: -500
+  y: 6.123233995736766e-14
+isContextNode: false
 node_id: 50
-title: Real Example Test Instruction (50)
 ---
 ### Instruction to test using a real example.
 

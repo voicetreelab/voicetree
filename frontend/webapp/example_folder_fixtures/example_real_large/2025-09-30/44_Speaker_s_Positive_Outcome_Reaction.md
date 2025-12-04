@@ -1,6 +1,9 @@
 ---
+position:
+  x: -500
+  y: 6.123233995736766e-14
+isContextNode: false
 node_id: 44
-title: Speaker's Positive Outcome Reaction (44)
 ---
 ### Speaker expresses initial frustration, followed by intense surprise, satisfaction, and triumph after an unexpected positive outcome.
 

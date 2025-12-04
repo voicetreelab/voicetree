@@ -1,7 +1,10 @@
 ---
-node_id: 4_3
-title: (Uma) Google Cloud APIs Enabled for Australia Region (4_3)
 color: cyan
+position:
+  x: -9.184850993605149e-14
+  y: -500
+isContextNode: false
+node_id: 43
 agent_name: Uma
 ---
 ** Summary**
@@ -52,3 +55,5 @@ flowchart TD
 _Links:_
 Parent:
 - completes_setup_for [[2025-09-30/4_Setup_G_Cloud_CLI.md]]
+[[4_Setup_G_Cloud_CLI.md]]
+[[ctx-nodes/4_3_Uma_Google_Cloud_APIs_Enabled_for_Australia_Region.md_context_1764808911787.md]]

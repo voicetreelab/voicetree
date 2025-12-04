@@ -1,6 +1,9 @@
 ---
+position:
+  x: -353.5533905932737
+  y: 353.5533905932738
+isContextNode: false
 node_id: 22
-title: Copy Contents to Cloud Functions Directory (22)
 ---
 ### Copy all necessary contents into the newly created Cloud Functions directory.
 

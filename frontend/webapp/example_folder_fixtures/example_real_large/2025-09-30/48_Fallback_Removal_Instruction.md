@@ -1,9 +1,9 @@
 ---
-node_id: 48
-title: Fallback Removal Instruction (48)
 position:
   x: -961.9397662556433
   y: 191.341716182545
+isContextNode: false
+node_id: 48
 ---
 ### Instruction to remove a 'fallback' mechanism, possibly related to a numerical state of 4.5, indicating a critical phase.
 

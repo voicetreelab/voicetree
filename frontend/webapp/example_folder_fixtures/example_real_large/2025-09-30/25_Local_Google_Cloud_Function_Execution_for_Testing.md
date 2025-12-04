@@ -1,6 +1,9 @@
 ---
+position:
+  x: 353.55339059327366
+  y: -353.55339059327383
+isContextNode: false
 node_id: 25
-title: Local Google Cloud Function Execution for Testing (25)
 ---
 ### Advocates for local execution of the Google Cloud Function to enable a quick development loop for testing.
 
