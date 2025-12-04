@@ -19,8 +19,11 @@ export function setupRPCHandlers(): void {
 
     const result: unknown = (fn as (...args: readonly unknown[]) => unknown)(...args)
     return Promise.resolve(result)
-      .catch((error: unknown) => ({
-        error: `RPC call failed: ${error instanceof Error ? error.message : String(error)}`,
-      }))
+      .catch((error: unknown) => {
+        console.error(`[RPC Error] ${fnName}:`, error)
+        return {
+          error: `RPC call failed: ${error instanceof Error ? error.message : String(error)}`,
+        }
+      })
   })
 }

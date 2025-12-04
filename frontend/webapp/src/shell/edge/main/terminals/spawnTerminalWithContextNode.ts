@@ -136,10 +136,15 @@ async function prepareTerminalDataInMain(
     // Get app support path for VOICETREE_APP_SUPPORT env var
     const appSupportPath: string = getAppSupportPath();
 
+    // Build absolute path for context node
+    const contextNodeAbsolutePath: string = watchStatus?.directory
+        ? `${watchStatus.directory.replace(/\/$/, '')}/${contextNodeId}`
+        : contextNodeId;
+
     // Build env vars then expand $VAR_NAME references within values
     const unexpandedEnvVars: Record<string, string> = {
         VOICETREE_APP_SUPPORT: appSupportPath ?? '',
-        CONTEXT_NODE_PATH: contextNodeId, // In main process, we use nodeId directly (it's the file path)
+        CONTEXT_NODE_PATH: contextNodeAbsolutePath,
         CONTEXT_NODE_CONTENT: contextContent,
         ...resolvedEnvVars,
     };
