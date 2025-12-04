@@ -100,6 +100,8 @@ sse_event_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
 AUTO_SYNC_INTERVAL_SECONDS = 5.0
 
 
+last_sync_time = time.time()
+
 # Background processing task (like main.py's llm_processing_loop)
 async def buffer_processing_loop():
     """
@@ -134,8 +136,6 @@ async def buffer_processing_loop():
                 "data": {"error": str(exc)}
             })
 
-    last_sync_time = time.time()
-
     try: # we should make this end after 1 minute of inactivity, and start it on any /send-text
         loop = asyncio.get_running_loop()
         while True:
@@ -169,20 +169,7 @@ async def buffer_processing_loop():
                         last_text_received_time = 0  # Prevent repeated flushes
                         await loop.run_in_executor(executor, run_llm_in_thread, "", True)
 
-                    # Idle - auto-sync: reload markdown files from disk to pick up external changes
-                    # Only reload when BOTH buffers are empty to avoid losing unprocessed text
-                    processor_buffer_empty = (processor is None or
-                                              len(processor.buffer_manager.getBuffer()) == 0)
-                    if (markdown_dir and
-                            processor_buffer_empty and
-                            time.time() - last_sync_time > AUTO_SYNC_INTERVAL_SECONDS):
-                        try:
-                            existing_embedding_manager = decision_tree._embedding_manager if decision_tree else None
-                            decision_tree, converter, processor, _ = initialize_tree_state(markdown_dir, embedding_manager=existing_embedding_manager)
-                            last_sync_time = time.time()
-                            logger.debug(f"Auto-sync complete: reloaded {len(decision_tree.tree)} nodes from {markdown_dir}")
-                        except Exception as e:
-                            logger.error(f"Auto-sync failed: {e}", exc_info=True)
+
 
                 # Small delay to prevent CPU spinning
                 await asyncio.sleep(0.1)
@@ -260,7 +247,7 @@ async def send_text(request: TextRequest):
         request.force_flush: If True, trigger immediate processing regardless of buffer threshold
                             (used when user presses Enter to submit text)
     """
-    global simple_buffer, last_text_received_time, force_flush_next_processing_iteration
+    global simple_buffer, last_text_received_time, force_flush_next_processing_iteration, last_sync_time, decision_tree, processor
     try:
         if not request.text.strip():
             raise HTTPException(status_code=400, detail="Text cannot be empty")
@@ -273,6 +260,21 @@ async def send_text(request: TextRequest):
 
         # Add to buffer
         simple_buffer += request.text
+
+        # Idle - auto-sync: reload markdown files from disk to pick up external changes
+        # Only reload when BOTH buffers are empty to avoid losing unprocessed text
+        processor_buffer_empty = (processor is None or
+                                  len(processor.buffer_manager.getBuffer()) == 0)
+        if (markdown_dir and
+                processor_buffer_empty and
+                time.time() - last_sync_time > AUTO_SYNC_INTERVAL_SECONDS):
+            try:
+                existing_embedding_manager = decision_tree._embedding_manager if decision_tree else None
+                decision_tree, converter, processor, _ = initialize_tree_state(markdown_dir, embedding_manager=existing_embedding_manager)
+                last_sync_time = time.time()
+                logger.debug(f"Auto-sync complete: reloaded {len(decision_tree.tree)} nodes from {markdown_dir}")
+            except Exception as e:
+                logger.error(f"Auto-sync failed: {e}", exc_info=True)
 
 
         # Set force flush flag if requested (for Enter key submissions)
