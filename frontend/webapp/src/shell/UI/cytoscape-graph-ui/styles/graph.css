@@ -344,3 +344,135 @@ button.graph-button:disabled > svg > path {
 :root:not(.dark) .recent-tab-text {
     color: var(--text-normal, #333);
 }
+
+/* ============================================================================
+ * Agent Tabs Bar - Title bar area tabs for terminal/agent navigation (right side)
+ * Mirrors RecentNodeTabsBar but positioned on the right
+ * ============================================================================ */
+
+.agent-tabs-bar {
+    position: absolute;
+    top: 8px;
+    right: 80px; /* Offset to leave space for potential UI elements */
+    display: flex;
+    align-items: center;
+    z-index: 1100; /* Above floating windows (1000) so tabs aren't obscured */
+    height: 28px;
+    max-width: calc(50% - 100px); /* Don't overlap with recent nodes tabs */
+    pointer-events: auto;
+    -webkit-app-region: no-drag; /* Allow clicking tabs instead of dragging window */
+}
+
+.agent-tabs-scroll {
+    display: flex;
+    flex-direction: row-reverse; /* Stack from right to left */
+    gap: 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: var(--background-modifier-border, #444) transparent;
+    -webkit-overflow-scrolling: touch;
+    padding: 2px 24px 2px 4px; /* Extra right padding for rightmost tab */
+}
+
+/* Webkit scrollbar styling */
+.agent-tabs-scroll::-webkit-scrollbar {
+    height: 4px;
+}
+
+.agent-tabs-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.agent-tabs-scroll::-webkit-scrollbar-thumb {
+    background: var(--background-modifier-border, #444);
+    border-radius: 2px;
+}
+
+.agent-tabs-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted, #666);
+}
+
+/* Individual agent tab button - inverted colors (dark bg, light text) like terminals */
+.agent-tab {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: 120px;
+    min-width: 120px;
+    max-width: 120px;
+    height: 24px;
+    padding: 0 8px;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 4px;
+    cursor: pointer;
+    overflow: hidden;
+    flex-shrink: 0;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+    color: #e0e0e0;
+}
+
+.agent-tab:hover {
+    background: #2a2a2a;
+    border-color: #555;
+}
+
+.agent-tab:active {
+    background: #333;
+}
+
+/* Active terminal highlight */
+.agent-tab-active {
+    border-color: #7c3aed;
+    background: #252525;
+}
+
+.agent-tab-active:hover {
+    border-color: #8b5cf6;
+}
+
+/* Agent tab text - horizontally scrollable within fixed width */
+.agent-tab-text {
+    display: block;
+    white-space: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none; /* Firefox */
+    font-size: 12px;
+    color: var(--text-normal, #ddd);
+    line-height: 1.2;
+}
+
+.agent-tab-text::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+}
+
+/* Tooltip for keyboard shortcut hint */
+.agent-tab-tooltip {
+    position: absolute;
+    background: var(--background-primary, #1e1e1e);
+    border: 1px solid var(--background-modifier-border, #333);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 11px;
+    color: var(--text-muted, #999);
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 1101;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Agent tabs stay dark in all themes (like terminals) - no light mode overrides */
+
+/* Activity dot indicator for agent tabs (shown when terminal produces a node) */
+.agent-tab-activity-dot {
+    position: absolute;
+    bottom: -10px;
+    left: 8px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #7c3aed;
+    pointer-events: none;
+}

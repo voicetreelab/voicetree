@@ -5,7 +5,7 @@
  * No state tracking, no complexity - just re-layout the whole graph each time.
  */
 
-import type { Core, EdgeSingular } from 'cytoscape';
+import type {Core, EdgeSingular, NodeDefinition} from 'cytoscape';
 import ColaLayout from './cola';
 
 export interface AutoLayoutOptions {
@@ -94,6 +94,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
 
     layout.one('layoutstop', () => {
       console.log('[AutoLayout] Cola layout complete');
+      void window.electronAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);
       layoutRunning = false;
 
       // If another layout was queued, run it now
@@ -102,7 +103,6 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
         runLayout();
       }
     });
-
     layout.run();
   };
 
