@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, type RefObject } from 'react';
 import { type Token } from '@soniox/speech-to-text-web';
+import {routeSpeechToFocused} from "@/shell/edge/UI-edge/floating-windows/speech-to-focused";
 
 interface UseTranscriptionSenderOptions {
   endpoint: string;
@@ -47,11 +48,14 @@ export function useTranscriptionSender({
       return;
     }
 
+    // send in parallel to any focussed text inputs
+    routeSpeechToFocused(text);
+
     setIsProcessing(true);
 
     try {
 
-      const response: Response = await fetch(endpoint, {
+        const response: Response = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
