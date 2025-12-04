@@ -214,6 +214,7 @@ def format_nodes_for_prompt(nodes: list[Node], tree: Optional[dict[int, Node]] =
             node_entry.append(f"Content: {node.content}")
         elif node.summary:
             node_entry.append(f"Summary: {node.summary}")
+            node_entry.append(f"Content: {node.content[:1000]}")
         else:
             node_entry.append(f"Summary: {node.content[:1000]}")
 
