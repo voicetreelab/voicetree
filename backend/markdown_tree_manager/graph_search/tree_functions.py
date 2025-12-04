@@ -103,8 +103,7 @@ def get_most_relevant_nodes(decision_tree: Any, limit: int, query: Optional[str]
     Select most relevant nodes when tree exceeds limit
 
     Strategy:
-    1. Include root nodes (up to 25% of limit)
-    2. Include recently modified nodes (up to 50% of limit)
+    2. Include recently modified nodes (up to % of limit)
     3. Fill remaining slots with:
        - If query provided: nodes matching query keywords
        - Otherwise: nodes sorted by branching factor
