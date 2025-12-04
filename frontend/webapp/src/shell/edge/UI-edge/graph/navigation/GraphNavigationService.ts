@@ -16,6 +16,9 @@ import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIApp
 import { getTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
 import { getTerminalId, getShadowNodeId, type TerminalData, type TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 
+// Callback type for terminal change notifications
+type TerminalChangeCallback = (terminalId: TerminalId | null) => void;
+
 /**
  * Manages all user-triggered navigation actions for the graph
  */
@@ -25,9 +28,40 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
   // Navigation state
   private lastCreatedNodeId: string | null = null;
   private currentTerminalIndex = 0;
+  private activeTerminalId: TerminalId | null = null;
+
+  // Callbacks for terminal change notifications
+  private terminalChangeCallbacks: Set<TerminalChangeCallback> = new Set();
 
   constructor(cy: Core) {
     this.cy = cy;
+  }
+
+  /**
+   * Subscribe to active terminal changes
+   * @returns unsubscribe function
+   */
+  onActiveTerminalChange(callback: TerminalChangeCallback): () => void {
+    this.terminalChangeCallbacks.add(callback);
+    return () => {
+      this.terminalChangeCallbacks.delete(callback);
+    };
+  }
+
+  /**
+   * Get the currently active terminal ID
+   */
+  getActiveTerminalId(): TerminalId | null {
+    return this.activeTerminalId;
+  }
+
+  /**
+   * Notify all callbacks of terminal change
+   */
+  private notifyTerminalChange(): void {
+    for (const callback of this.terminalChangeCallbacks) {
+      callback(this.activeTerminalId);
+    }
   }
 
   // ============================================================================
@@ -112,15 +146,53 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
     }
 
     const targetTerminal: TerminalData = sortedTerminals[this.currentTerminalIndex];
+    this.activeTerminalId = getTerminalId(targetTerminal);
 
     // Fit viewport to terminal + surrounding context
     this.fitToTerminal(targetTerminal);
 
     // Focus the terminal so keyboard input goes directly to it
-    const shadowNodeId: string = getShadowNodeId(getTerminalId(targetTerminal));
-    const vanillaInstance: { dispose: () => void; focus?: () => void } | undefined = vanillaFloatingWindowInstances.get(shadowNodeId);
+    // Note: terminals are stored in vanillaFloatingWindowInstances with terminalId as key (not shadowNodeId)
+    const vanillaInstance: { dispose: () => void; focus?: () => void } | undefined = vanillaFloatingWindowInstances.get(this.activeTerminalId);
     if (vanillaInstance?.focus) {
       vanillaInstance.focus();
+    }
+
+    // Notify listeners of active terminal change
+    this.notifyTerminalChange();
+  }
+
+  /**
+   * Navigate to a specific terminal (used by AgentTabsBar click)
+   */
+  navigateToTerminal(terminal: TerminalData): void {
+    const terminalsMap: Map<TerminalId, TerminalData> = getTerminals();
+    const terminals: TerminalData[] = Array.from(terminalsMap.values());
+
+    // Sort terminals by ID for consistent ordering (same as cycleTerminal)
+    const sortedTerminals: TerminalData[] = terminals.sort((a, b) =>
+      getTerminalId(a).localeCompare(getTerminalId(b))
+    );
+
+    // Find index of target terminal
+    const targetId: TerminalId = getTerminalId(terminal);
+    const index: number = sortedTerminals.findIndex(t => getTerminalId(t) === targetId);
+
+    if (index >= 0) {
+      this.currentTerminalIndex = index;
+      this.activeTerminalId = targetId;
+
+      // Fit viewport to terminal + surrounding context
+      this.fitToTerminal(terminal);
+
+      // Focus the terminal (terminals are stored with terminalId as key, not shadowNodeId)
+      const vanillaInstance: { dispose: () => void; focus?: () => void } | undefined = vanillaFloatingWindowInstances.get(targetId);
+      if (vanillaInstance?.focus) {
+        vanillaInstance.focus();
+      }
+
+      // Notify listeners of active terminal change
+      this.notifyTerminalChange();
     }
   }
 

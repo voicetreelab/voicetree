@@ -5,12 +5,38 @@ import {type Option} from "fp-ts/Option";
 
 const terminals: Map<TerminalId, TerminalData> = new Map<TerminalId, TerminalData>();
 
+// Subscription callbacks for terminal changes
+type TerminalChangeCallback = (terminals: TerminalData[]) => void;
+const subscribers: Set<TerminalChangeCallback> = new Set();
+
+/**
+ * Subscribe to terminal changes (add/remove)
+ * @returns unsubscribe function
+ */
+export function subscribeToTerminalChanges(callback: TerminalChangeCallback): () => void {
+    subscribers.add(callback);
+    return () => {
+        subscribers.delete(callback);
+    };
+}
+
+/**
+ * Notify all subscribers of terminal changes
+ */
+function notifySubscribers(): void {
+    const terminalList: TerminalData[] = Array.from(terminals.values());
+    for (const callback of subscribers) {
+        callback(terminalList);
+    }
+}
+
 export function getTerminals(): Map<TerminalId, TerminalData> {
     return terminals;
 }
 
 export function addTerminal(terminal: TerminalData): void {
     terminals.set(getTerminalId(terminal), terminal);
+    notifySubscribers();
 }
 
 export function getTerminal(terminalId: TerminalId): Option<TerminalData> {
@@ -29,10 +55,12 @@ export function getTerminalByNodeId(nodeId: NodeIdAndFilePath): Option<TerminalD
 
 export function removeTerminal(terminalId: TerminalId): void {
     terminals.delete(terminalId);
+    notifySubscribers();
 }
 
 export function removeTerminalByData(terminal: TerminalData): void {
     terminals.delete(getTerminalId(terminal));
+    notifySubscribers();
 }
 
 /**
@@ -67,4 +95,5 @@ export function getNextTerminalCount(
  */
 export function clearTerminals(): void {
     terminals.clear();
+    notifySubscribers();
 }
