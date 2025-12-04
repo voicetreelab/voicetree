@@ -67,7 +67,7 @@ class ChunkProcessor:
             decision_tree=decision_tree
         )
 
-        logging.info("ChunkProcessor initialized with adaptive buffering and agentic workflow")
+        # logging.info("ChunkProcessor initialized with adaptive buffering and agentic workflow")
 
     @property
     def text_buffer_size_threshold(self) -> int:
