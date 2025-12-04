@@ -126,7 +126,7 @@ class MarkdownToTreeConverter:
         # Create Node object from parsed data
         node = Node(
             name=parsed_data[ParsedNodeKeys.TITLE],
-            # node_id=parsed_data[ParsedNodeKeys.NODE_ID],
+            node_id=parsed_data[ParsedNodeKeys.NODE_ID], # tdoo, we actually moved this upstream
             content=parsed_data[ParsedNodeKeys.CONTENT],
             summary=parsed_data[ParsedNodeKeys.SUMMARY]
         )
@@ -242,7 +242,7 @@ def load_markdown_tree(markdown_dir: str, embedding_manager: Any = None) -> Mark
     if markdown_tree._embedding_manager and markdown_tree.tree:
         # logging.info(f"Syncing {len(markdown_tree.tree)} loaded nodes to embeddings...")
         markdown_tree._embedding_manager.sync_all_embeddings()
-        logging.info("Embedding sync complete")
+        # logging.info("Embedding sync complete")
 
     return markdown_tree
 
