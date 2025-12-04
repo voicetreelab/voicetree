@@ -13,14 +13,14 @@ import type { TerminalData, TerminalId } from '@/shell/edge/UI-edge/floating-win
 import { getTerminalId } from '@/shell/edge/UI-edge/floating-windows/types'
 import { getTerminals } from '@/shell/edge/UI-edge/state/TerminalStore'
 
-const TAB_WIDTH: number = 120
+const TAB_WIDTH: number = 70
 
 interface AgentTabsBarState {
     container: HTMLElement | null
     tabsContainer: HTMLElement | null
     tooltip: HTMLElement | null
     activeTerminalId: TerminalId | null
-    // Track count of unacknowledged activity per terminal (each new node adds a dot)
+    // Track count of activity per terminal (each new node adds a dot, dots persist)
     terminalActivityCount: Map<TerminalId, number>
 }
 
@@ -135,8 +135,8 @@ function createTab(
 ): HTMLElement {
     const terminalId: TerminalId = getTerminalId(terminal)
     const fullTitle: string = terminal.title
-    // Truncate to ~30 chars to match recent nodes behavior (120px width / ~4px per char)
-    const displayTitle: string = fullTitle.length > 25 ? fullTitle.slice(0, 25) + '…' : fullTitle
+    // Truncate to ~15 chars for 70px width at 9px font
+    const displayTitle: string = fullTitle.length > 15 ? fullTitle.slice(0, 15) + '…' : fullTitle
 
     const tab: HTMLButtonElement = document.createElement('button')
     tab.className = 'agent-tab'
@@ -159,13 +159,12 @@ function createTab(
     for (let i: number = 0; i < activityCount; i++) {
         const dot: HTMLSpanElement = document.createElement('span')
         dot.className = 'agent-tab-activity-dot'
-        dot.style.left = `${8 + i * 14}px` // Offset each dot horizontally
+        dot.style.left = `${4 + i * 8}px` // Offset each dot horizontally (scaled for smaller tabs)
         tab.appendChild(dot)
     }
 
-    // Click handler - navigate to terminal and clear activity
+    // Click handler - navigate to terminal (dots persist, not cleared on click)
     tab.addEventListener('click', () => {
-        clearTerminalActivity(terminalId)
         onSelect(terminal)
     })
 
@@ -245,21 +244,6 @@ export function markTerminalActivityForContextNode(contextNodeId: string): void 
             return
         }
     }
-}
-
-/**
- * Clear activity indicator for a terminal (called when user clicks the tab)
- */
-export function clearTerminalActivity(terminalId: TerminalId): void {
-    state.terminalActivityCount.delete(terminalId)
-    updateActivityDots(terminalId)
-}
-
-/**
- * Check if a terminal has unacknowledged activity
- */
-export function hasTerminalActivity(terminalId: TerminalId): boolean {
-    return (state.terminalActivityCount.get(terminalId) ?? 0) > 0
 }
 
 /**
