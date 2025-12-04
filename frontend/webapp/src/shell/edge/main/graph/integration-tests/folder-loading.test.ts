@@ -39,7 +39,7 @@ interface BroadcastCall {
 // Expected counts (based on actual example_folder_fixtures)
 // Note: ctx-nodes subdirectory is cleaned up in beforeEach, so count excludes those
 const EXPECTED_SMALL_NODE_COUNT: 10 = 10 as const  // 7 root files + 3 in VT/ subfolder
-const EXPECTED_LARGE_NODE_COUNT: 95 = 95 as const
+const EXPECTED_LARGE_NODE_COUNT: 101 = 101 as const
 
 // State for mocks
 let broadcastCalls: Array<BroadcastCall> = []
