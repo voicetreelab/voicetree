@@ -15,7 +15,7 @@ import * as path from 'path'
  */
 export function writeAllPositionsSync(graph: Graph, vaultPath: FilePath): void {
     const nodes: readonly import('@/pure/graph').GraphNode[] = Object.values(graph.nodes)
-
+    console.log('Writing node pos on close');
     for (const node of nodes) {
         const markdown: string = fromNodeToMarkdownContent(node)
         const filename: string = nodeIdToFilePathWithExtension(node.relativeFilePathIsID)
@@ -24,9 +24,9 @@ export function writeAllPositionsSync(graph: Graph, vaultPath: FilePath): void {
         // Ensure parent directory exists
         const dir: string = path.dirname(fullPath)
         if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true })
+            console.error("DIR DOESNT EXIST< SOMETHING IS WRONG")
+            // fs.mkdirSync(dir, { recursive: true })
         }
-
         fs.writeFileSync(fullPath, markdown, 'utf-8')
     }
 }

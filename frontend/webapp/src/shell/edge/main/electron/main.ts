@@ -214,6 +214,12 @@ function createWindow(): void {
   // Clean up terminals when window closes
   mainWindow.on('closed', () => {
     terminalManager.cleanupForWindow(windowId);
+      // Persist node positions to disk before exit
+      const vaultPath: O.Option<string> = getVaultPath();
+      if (O.isSome(vaultPath)) {
+          console.log('[App] Saving node positions to disk...');
+          writeAllPositionsSync(getGraph(), vaultPath.value);
+      }
   });
 }
 
@@ -268,13 +274,6 @@ void app.whenReady().then(async () => {
 // IMPORTANT: before-quit fires on hot reload, window-all-closed does not
 app.on('before-quit', () => {
   console.log('[App] before-quit event - cleaning up resources...');
-
-  // Persist node positions to disk before exit
-  const vaultPath: O.Option<string> = getVaultPath();
-  if (O.isSome(vaultPath)) {
-    console.log('[App] Saving node positions to disk...');
-    writeAllPositionsSync(getGraph(), vaultPath.value);
-  }
 
   // Clean up server process
   textToTreeServerManager.stop();
