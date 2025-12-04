@@ -526,6 +526,18 @@ Check out [[17_Create_G_Cloud_Configuration]], [[16_Resolve_G_Cloud_CLI_MFA_Bloc
   test('should bulk load then incrementally add nodes with proper layout', async ({ appWindow }) => {
     console.log('=== Testing Bulk Load + Incremental Layout (Production Flow) ===');
 
+    // Clean up any leftover test files from previous runs
+    const testFileNames = ['incremental-test-1.md', 'incremental-test-2.md', 'incremental-test-3.md'];
+    for (const fileName of testFileNames) {
+      const filePath = path.join(FIXTURE_VAULT_PATH, fileName);
+      try {
+        await fs.unlink(filePath);
+        console.log(`Cleaned up leftover file: ${fileName}`);
+      } catch {
+        // File doesn't exist, which is fine
+      }
+    }
+
     // Start watching the fixture vault
     await appWindow.evaluate(async (vaultPath) => {
       const api = (window as ExtendedWindow).electronAPI;
