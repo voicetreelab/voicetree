@@ -21,7 +21,7 @@ def extract_title_from_md(node_content: str) -> str:
 class Node:
     def __init__(self, name : str, node_id: int, content: str, summary: str = "", parent_id: Optional[int] = None):
         self.transcript_history = ""
-        self.id: int = node_id
+        self.id: int = node_id or -1
         self.content: str = content
         self.parent_id: Optional[int] = parent_id
         self.children: list[int] = []
