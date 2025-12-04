@@ -166,7 +166,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             renderAgentTabs(
                 terminals,
                 this.navigationService.getActiveTerminalId(),
-                (terminal: TerminalData) => this.navigationService.navigateToTerminal(terminal)
+                (terminal: TerminalData) => this.navigationService.fitToTerminal(terminal)
             );
         });
 
