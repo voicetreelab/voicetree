@@ -78,12 +78,12 @@ class MarkdownToTreeConverter:
                 node = self._parse_markdown_file(str(filepath), relative_path)
                 if node:
                     # Assign integer ID if node has None ID (no node_id in frontmatter)
-                    if node.id is None:
-                        node.id = next_generated_id
-                        next_generated_id += 1
-                    elif isinstance(node.id, int):
-                        # Track max to avoid collisions with generated IDs
-                        next_generated_id = max(next_generated_id, node.id + 1)
+                    # if node.id is None:
+                    node.id = next_generated_id
+                    next_generated_id += 1
+                    # elif isinstance(node.id, int):
+                    #     Track max to avoid collisions with generated IDs
+                        # next_generated_id = max(next_generated_id, node.id + 1)
 
                     self.tree_data[node.id] = node
                     self.filename_to_node_id[relative_path] = node.id
@@ -126,7 +126,7 @@ class MarkdownToTreeConverter:
         # Create Node object from parsed data
         node = Node(
             name=parsed_data[ParsedNodeKeys.TITLE],
-            node_id=parsed_data[ParsedNodeKeys.NODE_ID],
+            # node_id=parsed_data[ParsedNodeKeys.NODE_ID],
             content=parsed_data[ParsedNodeKeys.CONTENT],
             summary=parsed_data[ParsedNodeKeys.SUMMARY]
         )
