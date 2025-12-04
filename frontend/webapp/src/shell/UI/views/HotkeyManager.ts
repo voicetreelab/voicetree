@@ -9,6 +9,9 @@
  * - Clean registration/cleanup API
  */
 
+// Import to make Window.electronAPI type available
+import type {} from '@/shell/electron';
+
 export type Modifier = 'Meta' | 'Control' | 'Alt' | 'Shift';
 
 export interface HotkeyConfig {
@@ -149,8 +152,8 @@ export class HotkeyManager {
     this.registerHotkey({
       key: 'z',
       modifiers: ['Meta'],
-      onPress: async () => {
-        await window.electronAPI?.main.performUndo()
+      onPress: () => {
+        void window.electronAPI?.main.performUndo();
       }
     });
 
@@ -158,8 +161,8 @@ export class HotkeyManager {
     this.registerHotkey({
       key: 'z',
       modifiers: ['Meta', 'Shift'],
-      onPress: async () => {
-        await window.electronAPI?.main.performRedo()
+      onPress: () => {
+        void window.electronAPI?.main.performRedo();
       }
     });
 
@@ -262,6 +265,10 @@ export class HotkeyManager {
         const shouldFire: boolean = !hotkey.isPressed || !e.repeat;
 
         if (shouldFire) {
+          // Prevent default to stop the key from being handled by the focused element
+          // (e.g., prevents Cmd+Enter from inserting a newline in CodeMirror editors)
+          e.preventDefault();
+
           // Fire onPress
           hotkey.config.onPress();
 

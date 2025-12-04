@@ -49,6 +49,15 @@ import {
     disposeRecentNodeTabsBar,
     renderRecentNodeTabsV2
 } from './RecentNodeTabsBar';
+// Agent tabs - shows open terminals in top-right
+import {
+    createAgentTabsBar,
+    disposeAgentTabsBar,
+    renderAgentTabs,
+    setActiveTerminal
+} from './AgentTabsBar';
+import { subscribeToTerminalChanges } from '@/shell/edge/UI-edge/state/TerminalStore';
+import type { TerminalData, TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import {
     updateHistoryFromDelta,
     createEmptyHistory,
@@ -100,6 +109,10 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // Graph subscription cleanup
     private cleanupGraphSubscription: (() => void) | null = null;
 
+    // Terminal subscription cleanup
+    private cleanupTerminalSubscription: (() => void) | null = null;
+    private cleanupActiveTerminalSubscription: (() => void) | null = null;
+
     // DOM elements
     private statsOverlay: HTMLElement | null = null;
     private loadingOverlay: HTMLElement | null = null;
@@ -144,6 +157,25 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // Initialize recent tabs bar V2 in title bar area
         // V2 tracks recently added/modified nodes (not visited nodes)
         createRecentNodeTabsBar(this.container);
+
+        // Initialize agent tabs bar in title bar area (right side)
+        createAgentTabsBar(this.container);
+
+        // Subscribe to terminal changes to update agent tabs
+        this.cleanupTerminalSubscription = subscribeToTerminalChanges((terminals: TerminalData[]) => {
+            renderAgentTabs(
+                terminals,
+                this.navigationService.getActiveTerminalId(),
+                (terminal: TerminalData) => this.navigationService.navigateToTerminal(terminal)
+            );
+        });
+
+        // Subscribe to active terminal changes to highlight the active tab
+        this.cleanupActiveTerminalSubscription = this.navigationService.onActiveTerminalChange(
+            (terminalId: TerminalId | null) => {
+                setActiveTerminal(terminalId);
+            }
+        );
 
         // Initialize Cytoscape
         this.setupCytoscape();
@@ -700,11 +732,22 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             this.cleanupGraphSubscription = null;
         }
 
+        // Cleanup terminal subscriptions
+        if (this.cleanupTerminalSubscription) {
+            this.cleanupTerminalSubscription();
+            this.cleanupTerminalSubscription = null;
+        }
+        if (this.cleanupActiveTerminalSubscription) {
+            this.cleanupActiveTerminalSubscription();
+            this.cleanupActiveTerminalSubscription = null;
+        }
+
         // Dispose managers
         this.hotkeyManager.dispose();
         disposeEditorManager(this.cy);
         this.searchService.dispose();
         disposeRecentNodeTabsBar();
+        disposeAgentTabsBar();
 
         // Dispose menu services
         if (this.horizontalMenuService) {
