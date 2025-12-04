@@ -1,6 +1,9 @@
 ---
+position:
+  x: 353.55339059327355
+  y: -853.5533905932739
+isContextNode: false
 node_id: 43
-title: Ping Test Result for Australia Southeast 1 (43)
 ---
 ### Successfully pinged and received a response from Australia Southeast 1 Voice 3 Alpha Cloud Functions Append Agent.
 

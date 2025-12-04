@@ -1,6 +1,9 @@
 ---
+position:
+  x: 500
+  y: 200
+isContextNode: false
 node_id: 8
-title: Quick Testing Strategy for Lambda Conversion (8)
 ---
 ### Develop a quick testing strategy for the converted append agent lambda, leveraging existing and integration tests.
 

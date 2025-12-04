@@ -1,6 +1,9 @@
 ---
+position:
+  x: 353.55339059327383
+  y: 853.5533905932737
+isContextNode: false
 node_id: 32
-title: Agent Task Initiation and Clarification (32)
 ---
 ### Initiates the launch of an agent for a stream run using the absolutePath `traction set a workflow agent dot run` and only the HTTP Client.
 

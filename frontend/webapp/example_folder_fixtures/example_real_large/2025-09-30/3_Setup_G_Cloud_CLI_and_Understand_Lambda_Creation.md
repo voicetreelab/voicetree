@@ -1,6 +1,9 @@
 ---
+position:
+  x: 1995.7819157813599
+  y: -1115.3550716504108
+isContextNode: false
 node_id: 3
-title: Setup G Cloud CLI and Understand Lambda Creation (3)
 ---
 ### Initial steps for append agent conversion, including G Cloud CLI setup and understanding Lambda creation, are underway to enable focused work.
 

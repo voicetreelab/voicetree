@@ -1,9 +1,9 @@
 import * as E from 'fp-ts/lib/Either.js'
 import * as O from 'fp-ts/lib/Option.js'
 import {pipe} from 'fp-ts/lib/function.js'
-import {type Env, type GraphDelta} from '@/pure/graph'
+import {applyGraphDeltaToGraph, type Env, type GraphDelta} from '@/pure/graph'
 import {apply_graph_deltas_to_db} from '@/shell/edge/main/graph/graphActionsToDBEffects'
-import {getVaultPath} from '@/shell/edge/main/state/graph-store'
+import {getGraph, getVaultPath, setGraph} from '@/shell/edge/main/state/graph-store'
 import {recordUserActionAndSetDeltaHistoryState} from '@/shell/edge/main/state/undo-store'
 import type {Either} from "fp-ts/es6/Either";
 
@@ -34,7 +34,7 @@ export async function applyGraphDeltaToDBThroughMem(
     // it would cause bugs to send a graph-state change, as we haven't yet made it idempotent for markdown editors
 
     // However, do update in-memory state (purposefully unnecessary, fs events do the same, but latency)
-    // setGraph(applyGraphDeltaToGraph(getGraph(), delta))
+    setGraph(applyGraphDeltaToGraph(getGraph(), delta))
     // todo, i undisabled this, bc it broke spawnTerminalWithCommandFromUI which assumed node already in mem ( no wait req'd)
     // todo, disabling this because it can introduce bugs and complexity
     // for example, if a new node is created from ui, optimistic ui, and gets written to mem

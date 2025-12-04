@@ -1,9 +1,9 @@
 ---
-node_id: 40
-title: Time Remaining Inquiry and Response (40)
 position:
   x: -853.5533905932737
   y: 353.55339059327383
+isContextNode: false
+node_id: 40
 ---
 ### A speaker inquires about the remaining time for others and receives a response of 20 minutes.
 

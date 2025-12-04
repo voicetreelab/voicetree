@@ -1,6 +1,9 @@
 ---
+position:
+  x: 853.5533905932738
+  y: 353.5533905932737
+isContextNode: false
 node_id: 23
-title: Integration Test for Append Relative GraphNode Agent (23)
 ---
 ### Initial integration test for Append Relative GraphNode Agent, running with local lambda, is the first step in the testing strategy, leveraging identified boundaries and specific test files.
 

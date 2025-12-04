@@ -1,6 +1,9 @@
 ---
+position:
+  x: -353.55339059327383
+  y: -353.5533905932737
+isContextNode: false
 node_id: 9
-title: Local Lambda Execution for Testing (9)
 ---
 ### Investigate running lambda functions locally, potentially via CLI, to facilitate a local development workflow and quick testing.
 

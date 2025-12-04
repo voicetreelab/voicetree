@@ -24,8 +24,8 @@ if (posthogKey) {
   })
 }
 
-// Initialize UI RPC handler for main→UI function calls
-setupUIRpcHandler()
+// Setup UI RPC handler for main→UI IPC calls (must be before render so it's ready for early calls)
+setupUIRpcHandler();
 
 // Render app immediately - backend connection will be initialized lazily when needed
 createRoot(document.getElementById('root')!).render(

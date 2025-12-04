@@ -1,9 +1,9 @@
 ---
-node_id: 47
-title: Addressing Technical Debt (47)
 position:
   x: -500.0000000000001
   y: -499.99999999999994
+isContextNode: false
+node_id: 47
 ---
 ### Speaker expresses an intention to clean up technical debt.
 

@@ -1,6 +1,9 @@
 ---
+position:
+  x: 3.061616997868383e-14
+  y: 500
+isContextNode: false
 node_id: 5
-title: Understand Google Cloud Lambda Creation (5)
 ---
 ### Understand the process of creating a Google Cloud Lambda function.
 

@@ -1,7 +1,10 @@
 ---
-node_id: 4_1
-title: (Uma) GCloud CLI Successfully Installed (4_1)
 color: cyan
+position:
+  x: 353.5533905932738
+  y: 353.5533905932737
+isContextNode: false
+node_id: 41
 agent_name: Uma
 ---
 ** Summary**
@@ -48,3 +51,4 @@ Ready for authentication and project configuration when you're ready to proceed.
 _Links:_
 Parent:
 - is_progress_of [[2025-09-30/4_Setup_G_Cloud_CLI.md]]
+[[4_Setup_G_Cloud_CLI.md]]

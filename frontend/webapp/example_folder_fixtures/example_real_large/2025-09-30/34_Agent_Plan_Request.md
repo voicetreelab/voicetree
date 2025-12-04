@@ -1,6 +1,9 @@
 ---
+position:
+  x: -353.55339059327383
+  y: -353.5533905932737
+isContextNode: false
 node_id: 34
-title: Agent Plan Request (34)
 ---
 ### Asks the agent to provide a high-level understanding of its plan and steps.
 

@@ -1,6 +1,9 @@
 ---
+position:
+  x: -353.55339059327383
+  y: -353.5533905932737
+isContextNode: false
 node_id: 16
-title: Resolve G Cloud CLI MFA Block (16)
 ---
 ### Currently blocked by two-step multifactor verification during G Cloud CLI setup.
 

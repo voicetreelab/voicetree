@@ -1,9 +1,9 @@
 ---
-node_id: 4
-title: Setup G Cloud CLI (4)
 position:
   x: 1707.1067811865473
   y: -707.1067811865477
+isContextNode: false
+node_id: 4
 ---
 ### Initial setup involves downloading the Google Cloud package for G Cloud CLI.
 

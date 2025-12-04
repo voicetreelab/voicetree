@@ -1,6 +1,9 @@
 ---
+position:
+  x: 500
+  y: 0
+isContextNode: false
 node_id: 49
-title: Verification Inquiry (49)
 ---
 ### Speaker makes an inquiry to verify or locate something.
 

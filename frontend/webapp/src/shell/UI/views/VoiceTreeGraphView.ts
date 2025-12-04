@@ -70,6 +70,7 @@ import {
     spawnBackupTerminal
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnBackupTerminal";
 import {GraphNavigationService} from "@/shell/edge/UI-edge/graph/navigation/GraphNavigationService";
+import {setupUIRpcHandler} from "@/shell/edge/UI-edge/ui-rpc-handler";
 
 /**
  * Main VoiceTreeGraphView implementation
@@ -236,6 +237,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             cleanupUpdate();
             cleanupClear?.();
         };
+
+
 
         // Auto-load previous folder if available
     }

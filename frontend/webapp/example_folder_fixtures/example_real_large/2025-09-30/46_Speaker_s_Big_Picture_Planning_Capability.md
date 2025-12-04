@@ -1,9 +1,9 @@
 ---
-node_id: 46
-title: Speaker's Big Picture Planning Capability (46)
 position:
   x: 853.5533905932738
   y: 353.5533905932737
+isContextNode: false
+node_id: 46
 ---
 ### Speaker indicates an ability to engage in big picture planning.
 

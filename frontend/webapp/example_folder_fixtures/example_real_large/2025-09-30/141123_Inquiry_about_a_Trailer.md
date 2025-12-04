@@ -1,9 +1,9 @@
 ---
-node_id: 141123
-title: Inquiry about a Trailer (141123)
 position:
   x: 353.5533905932738
   y: 353.5533905932737
+isContextNode: false
+node_id: 141123
 ---
 ### So, you haven't got a, um, what do you call it, a trailer? L...
 

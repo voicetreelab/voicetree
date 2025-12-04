@@ -1,6 +1,9 @@
 ---
+position:
+  x: -353.55339059327383
+  y: -353.5533905932737
+isContextNode: false
 node_id: 24
-title: Google Cloud Function Compatibility Testing (24)
 ---
 ### Ensures the converted lambda functions correctly with the Google Cloud Function.
 

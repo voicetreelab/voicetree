@@ -1,6 +1,9 @@
 ---
+position:
+  x: -9.184850993605149e-14
+  y: -500
+isContextNode: false
 node_id: 18
-title: 'Observation: Plan Complexity for Agent Conversion (18)'
 ---
 ### The plan for converting the append agent to a function might be too complex, but the full plan may be necessary to avoid technical debt.
 

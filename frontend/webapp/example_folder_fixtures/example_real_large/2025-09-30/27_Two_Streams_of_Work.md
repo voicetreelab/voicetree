@@ -1,6 +1,9 @@
 ---
+position:
+  x: -141.42135623730962
+  y: -641.4213562373095
+isContextNode: false
 node_id: 27
-title: Two Streams of Work (27)
 ---
 ### There are currently two active streams of work in progress.
 

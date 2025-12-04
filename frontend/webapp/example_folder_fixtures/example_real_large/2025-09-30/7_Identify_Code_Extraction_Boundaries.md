@@ -2,6 +2,7 @@
 position:
   x: 1207.1067811865476
   y: 707.1067811865474
+isContextNode: false
 node_id: 7
 ---
 ### Identify clean code extraction boundaries for lambda migration, including folder structure, hierarchy, function extractability criteria (statelessness, GCF compatibility), and required research and planning details without code modification.

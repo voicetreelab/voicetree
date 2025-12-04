@@ -1,6 +1,9 @@
 ---
+position:
+  x: -7.960204194457796e-14
+  y: -300
+isContextNode: false
 node_id: 2
-title: Convert Append Agent to Google Cloud Lambda (2)
 ---
 ### Main task to convert the append agent into a Google Cloud Run Function, clarifying terminology.
 

@@ -1,6 +1,9 @@
 ---
+position:
+  x: -1044.8951067758185
+  y: 815.4931568489171
+isContextNode: false
 node_id: 39
-title: Speaker's Self-Correction/Informal Remarks (39)
 ---
 ### Speaker makes self-corrections and expresses informal, fragmented remarks.
 
