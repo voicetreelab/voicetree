@@ -188,7 +188,7 @@ invalid_yaml: [unclosed bracket
         assert len(tree_data) == 0
 
     def test_missing_node_id(self, temp_dir):
-        """Test handling of files without node_id"""
+        """Test handling of files without node_id - should auto-generate integer ID"""
         no_id_content = """---
 title: No ID Node
 created_at: '2025-07-28T10:00:00.000000'
@@ -201,8 +201,11 @@ created_at: '2025-07-28T10:00:00.000000'
         converter = MarkdownToTreeConverter()
         tree_data = converter.load_tree_from_markdown(temp_dir)
 
-        # Should skip files without node_id
-        assert len(tree_data) == 0
+        # Should auto-generate an integer ID for files without node_id
+        assert len(tree_data) == 1
+        node = list(tree_data.values())[0]
+        assert isinstance(node.id, int)
+        assert node.id == 1
 
     def test_convenience_function(self, sample_markdown_files):
         """Test the convenience function load_markdown_tree"""
