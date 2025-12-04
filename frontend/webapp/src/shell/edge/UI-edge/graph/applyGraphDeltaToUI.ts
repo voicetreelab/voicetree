@@ -5,6 +5,7 @@ import * as O from 'fp-ts/lib/Option.js';
 import {prettyPrintGraphDelta, stripDeltaForReplay} from "@/pure/graph";
 import {getNodeTitle} from "@/pure/graph/markdown-parsing";
 import posthog from "posthog-js";
+import {markTerminalActivityForContextNode} from "@/shell/UI/views/AgentTabsBar";
 
 /**
  * Validates if a color value is a valid CSS color using the browser's CSS.supports API
@@ -138,6 +139,12 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                                     label: edge.label ? edge.label.replace(/_/g, ' ') : undefined
                                 }
                             });
+                            // If source is a context node, mark associated terminal as having activity
+                            console.log(`[applyGraphDeltaToUI] Checking isContextNode for ${nodeId}:`, node.nodeUIMetadata.isContextNode);
+                            if (node.nodeUIMetadata.isContextNode === true) {
+                                console.log(`[applyGraphDeltaToUI] Context node ${nodeId} got new edge, marking terminal activity`);
+                                markTerminalActivityForContextNode(nodeId);
+                            }
                         } else {
                             console.warn(`[applyGraphDeltaToUI] Skipping edge ${nodeId}->${edge.targetId}: target node does not exist`);
                         }
