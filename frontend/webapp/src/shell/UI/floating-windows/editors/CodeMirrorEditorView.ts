@@ -18,12 +18,12 @@ import { oneDark } from '@codemirror/theme-one-dark';
 import tagParser from 'codemirror-rich-markdoc/src/tagParser';
 
 // Combined highlight style: copied from codemirror-rich-markdoc/src/highlightStyle.ts
-// with h1 modified (32px -> 18px, added underline)
+// Heading sizes: h1 > h2 > h3 > h4 (largest to smallest)
 const markdownHighlightStyle: HighlightStyle = HighlightStyle.define([
-  { tag: t.heading1, fontWeight: 'bold', fontFamily: 'sans-serif', fontSize: '18px', textDecoration: 'underline' },
-  { tag: t.heading2, fontWeight: 'bold', fontFamily: 'sans-serif', fontSize: '28px', textDecoration: 'none' },
-  { tag: t.heading3, fontWeight: 'bold', fontFamily: 'sans-serif', fontSize: '24px', textDecoration: 'none' },
-  { tag: t.heading4, fontWeight: 'bold', fontFamily: 'sans-serif', fontSize: '22px', textDecoration: 'none' },
+  { tag: t.heading1, fontWeight: 'bold', fontFamily: 'sans-serif', fontSize: '24px', textDecoration: 'underline' },
+  { tag: t.heading2, fontWeight: 'bold', fontFamily: 'sans-serif', fontSize: '21px', textDecoration: 'none' },
+  { tag: t.heading3, fontWeight: 'bold', fontFamily: 'sans-serif', fontSize: '18px', textDecoration: 'none' },
+  { tag: t.heading4, fontWeight: 'bold', fontFamily: 'sans-serif', fontSize: '16px', textDecoration: 'none' },
   { tag: t.link, fontFamily: 'sans-serif', textDecoration: 'underline', color: 'blue' },
   { tag: t.emphasis, fontFamily: 'sans-serif', fontStyle: 'italic' },
   { tag: t.strong, fontFamily: 'sans-serif', fontWeight: 'bold' },
