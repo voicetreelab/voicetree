@@ -222,7 +222,8 @@ export class HorizontalMenuService {
         const menuItems: HorizontalMenuItem[] = this.getNodeMenuItems(node, agents);
         const overlay: HTMLElement = getOrCreateOverlay(this.cy);
 
-        // Create menu container
+        // Create menu container (transparent, just for positioning)
+        // pointer-events: none so the gap in the middle allows clicking the node
         const menu: HTMLDivElement = document.createElement('div');
         menu.className = 'cy-horizontal-context-menu';
         menu.style.cssText = `
@@ -231,22 +232,31 @@ export class HorizontalMenuService {
             flex-direction: row;
             align-items: center;
             background: transparent;
-            pointer-events: auto;
+            pointer-events: none;
             z-index: 10000;
         `;
 
         // Position centered on the node (in graph coordinates)
-        // Layout: <Pin> <Copy> <Add> <SPACER> <Run> <Delete> <More>
-        // 3 buttons on each side, spacer centered over node icon
+        // Layout: [<Pin> <Copy> <Add>] <SPACER> [<Run> <Delete> <More>]
+        // Two pill backgrounds with gap in middle for node circle
         menu.style.left = `${position.x}px`;
         menu.style.top = `${position.y}px`;
         menu.style.transform = 'translate(-50%, -50%)';
 
         const closeMenu: () => void = () => this.hideMenu();
 
-        // Create menu items with spacer after index 2 (after "Add", before "Run")
-        // Layout: <Pin> <Copy> <Add> <SPACER> <Run> <Delete> <More>
-        const SPACER_AFTER_INDEX: number = 2;
+        // Create left group (first 3 buttons: Pin, Copy, Add)
+        // Uses .horizontal-menu-pill CSS class for styling (supports dark mode)
+        const leftGroup: HTMLDivElement = document.createElement('div');
+        leftGroup.className = 'horizontal-menu-pill horizontal-menu-left-group';
+
+        // Create right group (last 3 buttons: Run, Delete, More)
+        const rightGroup: HTMLDivElement = document.createElement('div');
+        rightGroup.className = 'horizontal-menu-pill horizontal-menu-right-group';
+
+        // Split point: first 3 items go left, rest go right
+        const SPLIT_INDEX: number = 3;
+
         for (let i: number = 0; i < menuItems.length; i++) {
             const item: HorizontalMenuItem = menuItems[i];
             const itemContainer: HTMLDivElement = document.createElement('div');
@@ -269,20 +279,28 @@ export class HorizontalMenuService {
                 });
             }
 
-            menu.appendChild(itemContainer);
-
-            // Add spacer after the specified index (to avoid covering node icon)
-            if (i === SPACER_AFTER_INDEX) {
-                const spacer: HTMLDivElement = document.createElement('div');
-                spacer.className = 'horizontal-menu-spacer';
-                spacer.style.cssText = `
-                    width: 50px;
-                    height: 1px;
-                    pointer-events: none;
-                `;
-                menu.appendChild(spacer);
+            // Add to left or right group
+            if (i < SPLIT_INDEX) {
+                leftGroup.appendChild(itemContainer);
+            } else {
+                rightGroup.appendChild(itemContainer);
             }
         }
+
+        // Assemble: left group, spacer, right group
+        menu.appendChild(leftGroup);
+
+        // Spacer in middle (gap for node circle, no background)
+        const spacer: HTMLDivElement = document.createElement('div');
+        spacer.className = 'horizontal-menu-spacer';
+        spacer.style.cssText = `
+            width: 50px;
+            height: 1px;
+            pointer-events: none;
+        `;
+        menu.appendChild(spacer);
+
+        menu.appendChild(rightGroup);
 
         overlay.appendChild(menu);
         this.currentMenu = menu;
