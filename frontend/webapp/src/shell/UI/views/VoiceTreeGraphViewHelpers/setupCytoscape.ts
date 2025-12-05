@@ -1,7 +1,7 @@
 /**
  * Setup cytoscape layout, event handlers, context menu, and test helpers
  */
-import type {Core, NodeSingular, NodeDefinition} from 'cytoscape';
+import type {Core, NodeSingular} from 'cytoscape';
 import type {Graph, NodeIdAndFilePath} from '@/pure/graph';
 import {HorizontalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService';
 import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService';
@@ -29,7 +29,6 @@ export function setupCytoscape(params: SetupCytoscapeParams): {
 } {
     const {
         cy,
-        onLayoutComplete,
         onNodeSelected,
     } = params;
 

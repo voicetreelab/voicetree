@@ -1,8 +1,9 @@
-import { app, BrowserWindow, nativeImage, dialog } from 'electron';
+import { app, BrowserWindow, nativeImage, dialog, Menu, type MenuItemConstructorOptions } from 'electron';
 import path from 'path';
 import fixPath from 'fix-path';
 import electronUpdater from 'electron-updater';
 import log from 'electron-log';
+import { startFileWatching } from '@/shell/edge/main/graph/watchFolder';
 
 const { autoUpdater } = electronUpdater;
 import { StubTextToTreeServerManager } from './server/StubTextToTreeServerManager';
@@ -131,6 +132,80 @@ let textToTreeServerPort: number | null = null;
 // Functional Graph Architecture
 // ============================================================================
 
+/**
+ * Setup native macOS application menu with File > Open
+ */
+function setupApplicationMenu(): void {
+  const template: MenuItemConstructorOptions[] = [
+    {
+      label: app.name,
+      submenu: [
+        { role: 'about' },
+        { type: 'separator' },
+        { role: 'services' },
+        { type: 'separator' },
+        { role: 'hide' },
+        { role: 'hideOthers' },
+        { role: 'unhide' },
+        { type: 'separator' },
+        { role: 'quit' }
+      ]
+    },
+    {
+      label: 'File',
+      submenu: [
+        {
+          label: 'Open Folder...',
+          accelerator: 'CmdOrCtrl+O',
+          click: () => {
+            void startFileWatching();
+          }
+        },
+        { type: 'separator' },
+        { role: 'close' }
+      ]
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectAll' }
+      ]
+    },
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' },
+        { role: 'forceReload' },
+        { role: 'toggleDevTools' },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' }
+      ]
+    },
+    {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' },
+        { role: 'zoom' },
+        { type: 'separator' },
+        { role: 'front' }
+      ]
+    }
+  ];
+
+  const menu: Menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
+}
+
 function createWindow(): void {
   // Note: BrowserWindow icon property only works on Windows/Linux
   // macOS uses app.dock.setIcon() instead
@@ -232,6 +307,7 @@ registerTerminalIpcHandlers(
 // App event handlers
 void app.whenReady().then(async () => {
   setupRPCHandlers();
+  setupApplicationMenu();
 
   // Start MCP server in-process (shares graph state with Electron)
   void startMcpServer();
