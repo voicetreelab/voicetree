@@ -249,10 +249,10 @@ export class StyleService {
       {
         selector: 'node:selected',
         style: {
-          'underlay-color': '#00cc66',
-          'underlay-padding': 10,
-          'underlay-opacity': 1,
-          'underlay-shape': 'round-rectangle',
+            'outline-width': 2,
+            'outline-color': '#00cc66',
+            'outline-offset': 10,
+            'outline-opacity': 1
         }
       },
 
