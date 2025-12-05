@@ -33,28 +33,38 @@ function createMenuItemElement(item: HorizontalMenuItem, onClose: () => void): H
     const button: HTMLButtonElement = document.createElement('button');
     button.className = 'horizontal-menu-item';
     button.style.cssText = `
+        position: relative;
         display: inline-flex;
         flex-direction: column;
         align-items: center;
-        gap: 4px;
-        padding: 6px 14px;
+        padding: 6px 20px;
+        margin: 0 4px;
         border: none;
         background: transparent;
         cursor: pointer;
         color: inherit;
     `;
 
-    // Add icon
+    // Add icon (fixed position, doesn't move on hover)
     const iconWrapper: HTMLSpanElement = document.createElement('span');
     iconWrapper.appendChild(createIconElement(item.icon, item.color));
     button.appendChild(iconWrapper);
 
-    // Add label container with text and optional hotkey hint
+    // Add label container positioned absolutely below icon (doesn't affect layout)
     const labelContainer: HTMLSpanElement = document.createElement('span');
+    labelContainer.className = 'horizontal-menu-label';
     labelContainer.style.cssText = `
-        display: inline-flex;
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
         align-items: center;
         gap: 4px;
+        white-space: nowrap;
+        visibility: hidden;
+        opacity: 0;
+        transition: opacity 0.1s ease;
     `;
 
     const labelText: HTMLSpanElement = document.createElement('span');
@@ -76,12 +86,16 @@ function createMenuItemElement(item: HorizontalMenuItem, onClose: () => void): H
 
     button.appendChild(labelContainer);
 
-    // Hover effect
+    // Hover effect - show label and background on hover (icon stays in place)
     button.addEventListener('mouseenter', () => {
         button.style.background = 'rgba(0,0,0,0.1)';
+        labelContainer.style.visibility = 'visible';
+        labelContainer.style.opacity = '1';
     });
     button.addEventListener('mouseleave', () => {
         button.style.background = 'transparent';
+        labelContainer.style.visibility = 'hidden';
+        labelContainer.style.opacity = '0';
     });
 
     // Click handler
@@ -203,15 +217,21 @@ export class HorizontalMenuService {
         `;
 
         // Position above the node (in graph coordinates)
-        // Center horizontally, place above with some offset
-        menu.style.left = `${position.x}px`;
+        // Offset so the spacer (between Add and Run) is centered over the node icon
+        // Layout: <Copy Path> <Add> <SPACER> <Run> <Delete> <More>
+        // We shift right to center the spacer over the node (2 buttons on left, 3 on right)
+        const MENU_CENTER_OFFSET: number = 30; // pixels to shift menu right
+        menu.style.left = `${position.x + MENU_CENTER_OFFSET}px`;
         menu.style.top = `${position.y - 60}px`;
         menu.style.transform = 'translateX(-50%)';
 
         const closeMenu: () => void = () => this.hideMenu();
 
-        // Create menu items
-        for (const item of menuItems) {
+        // Create menu items with spacer after index 1 (after "Add", before "Run")
+        // Layout: <Copy Path> <Add> <EMPTY SPACE> <Run> <Delete> <More>
+        const SPACER_AFTER_INDEX: number = 1;
+        for (let i: number = 0; i < menuItems.length; i++) {
+            const item: HorizontalMenuItem = menuItems[i];
             const itemContainer: HTMLDivElement = document.createElement('div');
             itemContainer.style.position = 'relative';
 
@@ -233,6 +253,18 @@ export class HorizontalMenuService {
             }
 
             menu.appendChild(itemContainer);
+
+            // Add spacer after the specified index (to avoid covering node icon)
+            if (i === SPACER_AFTER_INDEX) {
+                const spacer: HTMLDivElement = document.createElement('div');
+                spacer.className = 'horizontal-menu-spacer';
+                spacer.style.cssText = `
+                    width: 50px;
+                    height: 1px;
+                    pointer-events: none;
+                `;
+                menu.appendChild(spacer);
+            }
         }
 
         overlay.appendChild(menu);
