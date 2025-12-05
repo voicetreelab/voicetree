@@ -625,35 +625,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         cy.fit(undefined, getResponsivePadding(cy, paddingPercentage));
     }
 
-    refreshLayout(): void {
-        // Re-run the Cola layout algorithm
-        const cy: cytoscape.Core = this.cy;
 
-        // Skip if no nodes
-        if (cy.nodes().length === 0) {
-            return;
-        }
-
-        // Use the same approach as autoLayout.ts
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const ColaLayout: any = (cy as any).constructor.layouts.cola;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const layout: any = new ColaLayout({
-            cy: cy,
-            eles: cy.elements(),
-            animate: true,
-            randomize: false,
-            avoidOverlap: true,
-            handleDisconnected: true,
-            maxSimulationTime: 2000,
-            nodeSpacing: 20,
-            edgeLength: 200,
-            fit: false,
-            nodeDimensionsIncludeLabels: true
-        });
-
-        layout.run();
-    }
 
     toggleDarkMode(): void {
         this._isDarkMode = !this._isDarkMode;

@@ -2,7 +2,7 @@
  * AgentTabsBar - Renders open terminal/agent tabs in top-right of title bar
  *
  * Features:
- * - Fixed width tabs that expand on hover to show full title
+ * - Fixed width tabs with truncated titles
  * - Positioned in macOS title bar area (right: 80px, mirroring RecentNodeTabsBar)
  * - Clicking a tab navigates to and focuses that terminal
  * - Highlights currently active terminal
@@ -155,19 +155,6 @@ function createTab(
     // Click handler - navigate to terminal (dots persist, not cleared on click)
     tab.addEventListener('click', () => {
         onSelect(terminal)
-    })
-
-    // Hover handlers - expand tab to show full title
-    tab.addEventListener('mouseenter', () => {
-        tab.style.width = 'auto'
-        tab.style.maxWidth = '300px'
-        textSpan.textContent = fullTitle
-    })
-
-    tab.addEventListener('mouseleave', () => {
-        tab.style.width = `${TAB_WIDTH}px`
-        tab.style.maxWidth = `${TAB_WIDTH}px`
-        textSpan.textContent = displayTitle
     })
 
     return tab

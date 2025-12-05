@@ -40,7 +40,7 @@
   width: 100%;
 }
 
-/* Title bar - compact, just enough height for icons */
+/* Title bar - compact for editors, standard for terminals */
 .cy-floating-window-title {
   padding: 4px 8px;
   background-color: var(--muted);
@@ -54,13 +54,28 @@
   cursor: move;
 }
 
+/* Terminal title bar - standard height with title visible */
+.cy-floating-window-terminal .cy-floating-window-title {
+  padding: 8px 12px;
+  justify-content: space-between;
+}
+
 .cy-floating-window-title.dragging {
   cursor: grabbing;
 }
 
-/* Title text - hidden for compact bar */
+/* Title text - hidden for editors (compact bar) */
 .cy-floating-window-title-text {
   display: none;
+}
+
+/* Terminal title text - visible */
+.cy-floating-window-terminal .cy-floating-window-title-text {
+  display: block;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Fullscreen button */

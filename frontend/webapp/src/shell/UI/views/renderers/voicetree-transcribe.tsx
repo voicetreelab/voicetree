@@ -194,20 +194,46 @@ export default function VoiceTreeTranscribe(): JSX.Element {
       <div className="border-t bg-background/95 backdrop-blur-sm relative z-20">
         <div className="max-w-4xl mx-auto relative">
           {/* Transcription Display - positioned absolutely above input, aligned to input width */}
+          {/* Container with blur gradient background */}
           <div
-            ref={autoScrollRef}
-            className="absolute bottom-full left-0 right-0 h-20 overflow-y-auto mb-2"
-            style={{
-              maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,1) 100%)',
-              WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,1) 100%)',
-            }}
+            className="absolute bottom-full left-0 right-0 mb-2"
+            style={{ height: '68px' }} // 15% shorter than 80px (h-20)
           >
-            <Renderer
-              tokens={allTokens}
-              placeholder=""
-              onPlaceholderClick={() => void startTranscription()}
-              isRecording={state === 'Running'}
-            />
+            {/* Blur gradient layer - multiple stacked blur regions */}
+            <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+              {/* Bottom section - strongest blur */}
+              <div
+                className="absolute bottom-0 left-0 right-0 h-1/3"
+                style={{ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
+              />
+              {/* Middle section - medium blur */}
+              <div
+                className="absolute bottom-1/3 left-0 right-0 h-1/3"
+                style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
+              />
+              {/* Top section - light blur */}
+              <div
+                className="absolute top-0 left-0 right-0 h-1/3"
+                style={{ backdropFilter: 'blur(1px)', WebkitBackdropFilter: 'blur(1px)' }}
+              />
+            </div>
+            {/* Scrollable text content with opacity gradient */}
+            <div
+              ref={autoScrollRef}
+              className="absolute inset-0 overflow-y-auto"
+              style={{
+                maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,1) 100%)',
+                WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,1) 100%)',
+                zIndex: 1,
+              }}
+            >
+              <Renderer
+                tokens={allTokens}
+                placeholder=""
+                onPlaceholderClick={() => void startTranscription()}
+                isRecording={state === 'Running'}
+              />
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
