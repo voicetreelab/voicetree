@@ -196,7 +196,7 @@ export default function VoiceTreeTranscribe(): JSX.Element {
           {/* Transcription Display - positioned absolutely above input, aligned to input width */}
           <div
             ref={autoScrollRef}
-            className="absolute bottom-full left-0 right-0 h-20 overflow-y-auto mb-2 pointer-events-none"
+            className="absolute bottom-full left-0 right-0 h-20 overflow-y-auto mb-2"
             style={{
               maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,1) 100%)',
               WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,1) 100%)',
