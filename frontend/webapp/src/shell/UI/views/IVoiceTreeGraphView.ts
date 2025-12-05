@@ -130,7 +130,6 @@ export interface IVoiceTreeGraphView {
    * @example
    * graphView.refreshLayout();
    */
-  refreshLayout(): void;
 
   /**
    * Fit the viewport to show all nodes
