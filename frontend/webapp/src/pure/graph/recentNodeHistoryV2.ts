@@ -13,25 +13,10 @@
 
 import type { GraphDelta, UpsertNodeDelta, DeleteNode } from '@/pure/graph'
 import { getNodeTitle } from '@/pure/graph/markdown-parsing'
+import { hasActualContentChanged } from '@/pure/graph/contentChangeDetection'
 import * as O from 'fp-ts/lib/Option.js'
 
 const MAX_RECENT_NODES: number = 5
-
-/**
- * Strip all content within square brackets (including the brackets).
- * Removes links like [path.md], [text]*, [[wikilinks]], etc.
- */
-function stripBracketedContent(content: string): string {
-    return content.replace(/\[[^\]]*\]/g, '')
-}
-
-/**
- * Check if actual content changed, ignoring changes only within square brackets.
- * Returns true if non-bracket content differs.
- */
-function hasActualContentChanged(prev: string, next: string): boolean {
-    return stripBracketedContent(prev) !== stripBracketedContent(next) // todo, ensure length diff more than 5 chars as well
-}
 
 export type RecentNodeHistory = readonly UpsertNodeDelta[]
 

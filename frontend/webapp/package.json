@@ -63,6 +63,7 @@
     "cytoscape": "^3.33.1",
     "cytoscape-cola": "^2.5.1",
     "cytoscape-cxtmenu": "^3.5.0",
+    "cytoscape-layout-utilities": "^1.1.1",
     "cytoscape-navigator": "^2.0.2",
     "electron-log": "^5.4.3",
     "electron-updater": "^6.6.2",
@@ -163,7 +164,10 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["arm64", "x64"]
+          "arch": [
+            "arm64",
+            "x64"
+          ]
         }
       ],
       "category": "public.app-category.productivity",
