@@ -4,8 +4,11 @@ import type {GraphDelta, GraphNode} from "@/pure/graph";
 import * as O from 'fp-ts/lib/Option.js';
 import {prettyPrintGraphDelta, stripDeltaForReplay} from "@/pure/graph";
 import {getNodeTitle} from "@/pure/graph/markdown-parsing";
+import {hasActualContentChanged} from "@/pure/graph/contentChangeDetection";
 import posthog from "posthog-js";
 import {markTerminalActivityForContextNode} from "@/shell/UI/views/AgentTabsBar";
+import type {} from '@/utils/types/cytoscape-layout-utilities';
+import 'cytoscape-layout-utilities';
 
 /**
  * Validates if a color value is a valid CSS color using the browser's CSS.supports API
@@ -28,6 +31,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
     console.log("applyGraphDeltaToUI", delta.length);
     console.log('[applyGraphDeltaToUI] Starting\n' + prettyPrintGraphDelta(delta));
     let newNodeCount: number = 0;
+    const nodesWithoutPositions: string[] = [];
     cy.batch(() => {
         // PASS 1: Create/update all nodes and handle deletions
         delta.forEach((nodeDelta) => {
@@ -39,7 +43,8 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
 
                 if (isNewNode) {
                     newNodeCount++;
-                    // Add new node with position (or default to origin if none)
+                    const hasPosition: boolean = O.isSome(node.nodeUIMetadata.position);
+                    // Use saved position or temporary (0,0) - placeNewNodes will fix nodes without positions
                     const pos: { x: number; y: number; } = O.getOrElse(() => ({x: 0, y: 0}))(node.nodeUIMetadata.position);
                     const colorValue: string | undefined = O.isSome(node.nodeUIMetadata.color) && isValidCSSColor(node.nodeUIMetadata.color.value)
                         ? node.nodeUIMetadata.color.value
@@ -62,6 +67,10 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                             y: pos.y
                         }
                     });
+
+                    if (!hasPosition) {
+                        nodesWithoutPositions.push(nodeId);
+                    }
                 } else {
                     // Update existing node metadata (but NOT position)
                     existingNode.data('label', getNodeTitle(node));
@@ -76,7 +85,14 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                         existingNode.data('color', color);
                     }
                     existingNode.data('isContextNode', node.nodeUIMetadata.isContextNode === true);
-                    existingNode.emit('content-changed'); //todo, this event system, should we use this or hook into FS at breathing animation? same for markdown editor updates...
+                    // Only emit content-changed (blue animation) if actual content changed, not just links
+                    if (O.isSome(nodeDelta.previousNode) &&
+                        hasActualContentChanged(
+                            nodeDelta.previousNode.value.contentWithoutYamlOrLinks,
+                            node.contentWithoutYamlOrLinks
+                        )) {
+                        existingNode.emit('content-changed');
+                    }
                 }
             } else if (nodeDelta.type === 'DeleteNode') {
                 const nodeId: string = nodeDelta.nodeId;
@@ -156,12 +172,22 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
         });
     });
 
+    // Place nodes that don't have saved positions near their neighbors
+    if (nodesWithoutPositions.length > 0) {
+        let nodesCollection: ReturnType<Core['collection']> = cy.collection();
+        nodesWithoutPositions.forEach((nodeId: string) => {
+            nodesCollection = nodesCollection.merge(cy.getElementById(nodeId));
+        });
+        console.log('[applyGraphDeltaToUI] Placing', nodesWithoutPositions.length, 'nodes without positions');
+        const layoutUtils: ReturnType<Core['layoutUtilities']> = cy.layoutUtilities({ idealEdgeLength: 200, offset: 50 });
+        layoutUtils.placeNewNodes(nodesCollection);
+    }
+
     if (newNodeCount>=1 && cy.nodes().length <= 4){
         setTimeout(() => cy.fit(), 150); // fit when a new node comes in for the first few nodes.
     }
     else if (newNodeCount >= 2) { // if not just one node + incoming changing, probs a bulk load.
         setTimeout(() => cy.fit(), 150);
-        // setTimeout(() =>  cy.fit(), 800) // cy.fit  after layout would have finished. UNNECESSARY WE HAVE POSITIONS DERIVED FROM ANGULAR
     }
     //analytics
     const anonGraphDelta: GraphDelta = stripDeltaForReplay(delta);
