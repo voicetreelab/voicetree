@@ -4,7 +4,7 @@
   "description": "Transform voice into navigable concept graphs",
   "author": "Manu Masson",
   "private": true,
-  "version": "1.4.28",
+  "version": "1.4.29",
   "type": "module",
   "main": "dist-electron/main/index.js",
   "scripts": {
@@ -160,6 +160,12 @@
       }
     ],
     "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["arm64", "x64"]
+        }
+      ],
       "category": "public.app-category.productivity",
       "icon": "build/icon.icns",
       "hardenedRuntime": true,

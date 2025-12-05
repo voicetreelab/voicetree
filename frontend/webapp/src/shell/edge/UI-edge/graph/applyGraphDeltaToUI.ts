@@ -139,11 +139,14 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                                     label: edge.label ? edge.label.replace(/_/g, ' ') : undefined
                                 }
                             });
-                            // If source is a context node, mark associated terminal as having activity
+                            // If source or target is a context node, mark associated terminal as having activity
                             console.log(`[applyGraphDeltaToUI] Checking isContextNode for ${nodeId}:`, node.nodeUIMetadata.isContextNode);
                             if (node.nodeUIMetadata.isContextNode === true) {
                                 console.log(`[applyGraphDeltaToUI] Context node ${nodeId} got new edge, marking terminal activity`);
                                 markTerminalActivityForContextNode(nodeId);
+                            }
+                            if (targetNode.data('isContextNode') === true) {// todo don't rely on targetNode.data
+                                markTerminalActivityForContextNode(edge.targetId);
                             }
                         } else {
                             console.warn(`[applyGraphDeltaToUI] Skipping edge ${nodeId}->${edge.targetId}: target node does not exist`);
@@ -155,10 +158,10 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
     });
 
     if (newNodeCount>=1 && cy.nodes().length <= 4){
-        cy.fit() // fit when a new node comes in for the first few nodes.
+        setTimeout(() => cy.fit(), 150); // fit when a new node comes in for the first few nodes.
     }
     else if (newNodeCount >= 2) { // if not just one node + incoming changing, probs a bulk load.
-        cy.fit()
+        setTimeout(() => cy.fit(), 150);
         // setTimeout(() =>  cy.fit(), 800) // cy.fit  after layout would have finished. UNNECESSARY WE HAVE POSITIONS DERIVED FROM ANGULAR
     }
     //analytics

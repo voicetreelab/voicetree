@@ -1,7 +1,7 @@
 import VoiceTreeTranscribe from "@/shell/UI/views/renderers/voicetree-transcribe";
 import {useFolderWatcher} from "@/shell/UI/views/hooks/useFolderWatcher";
-import {Button} from "@/shell/UI/views/components/ui/button";
 import {Alert, AlertDescription} from "@/shell/UI/views/components/ui/alert";
+import {Button} from "@/shell/UI/views/components/ui/button";
 import {VoiceTreeGraphView} from "@/shell/UI/views/VoiceTreeGraphView";
 import {useEffect, useRef} from "react";
 import type { JSX } from "react/jsx-runtime";
@@ -16,9 +16,7 @@ function App(): JSX.Element {
         isLoading,
         watchDirectory,
         error,
-        startWatching,
         clearError,
-        isElectron
     } = useFolderWatcher();
 
     // Ref for graph container
@@ -48,33 +46,18 @@ function App(): JSX.Element {
 
                 {watchDirectory && (
                     <div className="mt-1">
-                        {/*<span className="font-medium">Directory:</span>*/}
-                        <span className="text-xs text-gray-600 ml-1 font-mono break-all">
-              {watchDirectory}
-            </span>
+                        <span
+                            className="text-xs text-gray-600 ml-1 font-mono cursor-default"
+                            title={watchDirectory}
+                        >
+                            {watchDirectory.split('/').pop()}
+                        </span>
                     </div>
                 )}
 
                 {/* Graph data display removed - not available from useFolderWatcher */}
             </div>
 
-            {/* Control Button */}
-            <div className="flex gap-2 mb-2">
-                {isElectron ? (
-                    <Button
-                        onClick={() => void startWatching()}
-                        disabled={isLoading}
-                        size="sm"
-                        variant="default"
-                    >
-                        {isLoading ? 'Opening...' : 'Open New Folder'}
-                    </Button>
-                ) : (
-                    <div className="text-xs text-gray-500">
-                        File watching available in Electron app only
-                    </div>
-                )}
-            </div>
 
             {/* Error Display */}
             {error && (

@@ -13,7 +13,7 @@ import type { TerminalData, TerminalId } from '@/shell/edge/UI-edge/floating-win
 import { getTerminalId } from '@/shell/edge/UI-edge/floating-windows/types'
 import { getTerminals } from '@/shell/edge/UI-edge/state/TerminalStore'
 
-const TAB_WIDTH: number = 70
+const TAB_WIDTH: number = 90
 
 interface AgentTabsBarState {
     container: HTMLElement | null

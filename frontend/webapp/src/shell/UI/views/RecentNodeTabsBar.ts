@@ -16,7 +16,7 @@ import type { RecentNodeHistory } from '@/pure/graph/recentNodeHistoryV2'
 import type { UpsertNodeDelta } from '@/pure/graph'
 import { getNodeTitle } from '@/pure/graph/markdown-parsing'
 
-const TAB_WIDTH: number = 70
+const TAB_WIDTH: number = 90
 
 interface RecentNodeTabsBarV2State {
     container: HTMLElement | null
