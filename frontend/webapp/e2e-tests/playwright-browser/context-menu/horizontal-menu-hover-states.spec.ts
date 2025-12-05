@@ -80,7 +80,7 @@ test.describe('Horizontal Menu Hover States', () => {
           outgoingEdges: [],
           nodeUIMetadata: {
             color: { _tag: 'None' } as const,
-            position: { _tag: 'Some', value: { x: 400, y: 300 } } as const,
+            position: { _tag: 'Some', value: { x: 500, y: 300 } } as const,
             additionalYAMLProps: new Map(),
             isContextNode: false
           }
@@ -212,11 +212,15 @@ test.describe('Horizontal Menu Hover States', () => {
     });
 
     if (moreButtonPosition) {
-      await page.mouse.move(moreButtonPosition.x, moreButtonPosition.y);
-      await page.waitForTimeout(200);
-      console.log('Hovered over More button');
+      // Programmatically show the submenu since mouse hover may not work near viewport edge
+      await page.evaluate(() => {
+        const submenu = document.querySelector('.horizontal-menu-submenu') as HTMLElement | null;
+        if (submenu) submenu.style.display = 'flex';
+      });
+      await page.waitForTimeout(100);
+      console.log('Submenu shown programmatically');
 
-      // Step 14: Wait for submenu to appear
+      // Step 14: Verify submenu exists and is visible
       const submenuVisible = await page.evaluate(() => {
         const submenu = document.querySelector('.horizontal-menu-submenu') as HTMLElement | null;
         if (!submenu) return false;

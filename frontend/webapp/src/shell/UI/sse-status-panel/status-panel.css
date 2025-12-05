@@ -1,10 +1,12 @@
 /* Server Activity Panel - horizontal bar at bottom of app */
 .server-activity-panel {
-    /* Leave space for minimap (110px) + its right margin (1rem) + buffer */
-    width: calc(100% - 140px);
+    /* Fill available width from parent (parent already has mr-[140px] for minimap) */
+    width: 100%;
+    min-width: 0; /* Allow flex child to shrink below content size */
     background: var(--background);
     border-top: 1px solid var(--border);
     padding: 4px 8px;
+    overflow: hidden; /* Contain the scrollable events container */
 }
 
 /* Horizontal scrollable events container */

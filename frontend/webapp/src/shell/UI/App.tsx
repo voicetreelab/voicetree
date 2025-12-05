@@ -81,7 +81,7 @@ function App(): JSX.Element {
             {/* Bottom: File Watching Panel + Server Activity Panel */}
             <div className="flex-shrink-0 flex items-center gap-2 px-2 py-1 mr-[140px] relative z-[1050]">
                 <FileWatchingPanel/>
-                <div id="sse-status-panel-mount" className="flex-1" />
+                <div id="sse-status-panel-mount" className="flex-1 min-w-0 overflow-hidden" />
             </div>
         </div>
     );
