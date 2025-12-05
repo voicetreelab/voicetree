@@ -1,6 +1,7 @@
 /* Server Activity Panel - horizontal bar at bottom of app */
 .server-activity-panel {
-    width: 100%;
+    /* Leave space for minimap (110px) + its right margin (1rem) + buffer */
+    width: calc(100% - 140px);
     background: var(--background);
     border-top: 1px solid var(--border);
     padding: 4px 8px;

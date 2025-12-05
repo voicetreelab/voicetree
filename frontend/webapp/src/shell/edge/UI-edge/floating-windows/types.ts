@@ -114,7 +114,7 @@ export function createEditorData(params: CreateEditorDataParams): EditorData {
         anchoredToNodeId: params.anchoredToNodeId ? O.some(params.anchoredToNodeId) : O.none,
         initialContent: params.initialContent,
         resizable: params.resizable ?? true,
-        shadowNodeDimensions: params.shadowNodeDimensions ?? { width: 400, height: 400 }, // matches getDefaultDimensions('MarkdownEditor')
+        shadowNodeDimensions: params.shadowNodeDimensions ?? { width: 480, height: 400 }, // matches getDefaultDimensions('MarkdownEditor')
     };
 }
 

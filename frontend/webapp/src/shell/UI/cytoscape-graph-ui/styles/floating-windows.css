@@ -40,15 +40,15 @@
   width: 100%;
 }
 
-/* Title bar */
+/* Title bar - compact, just enough height for icons */
 .cy-floating-window-title {
-  padding: 8px 12px;
+  padding: 4px 8px;
   background-color: var(--muted);
   border-bottom: 1px solid var(--border);
   border-top-left-radius: 8px;
   border-top-right-radius: 8px;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   user-select: none;
   cursor: move;
@@ -58,12 +58,9 @@
   cursor: grabbing;
 }
 
-/* Title text */
+/* Title text - hidden for compact bar */
 .cy-floating-window-title-text {
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  display: none;
 }
 
 /* Fullscreen button */

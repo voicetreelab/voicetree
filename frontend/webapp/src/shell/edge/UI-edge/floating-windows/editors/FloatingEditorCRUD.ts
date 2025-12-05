@@ -32,7 +32,6 @@ import {
     disposeFloatingWindow,
     attachCloseHandler,
     getOrCreateOverlay,
-    getDefaultDimensions,
 } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 
 import {
@@ -196,6 +195,10 @@ export function closeHoverEditor(cy: Core): void {
     const hoverEditorOption: O.Option<EditorData> = getHoverEditor();
     if (O.isNone(hoverEditorOption)) return;
 
+    // Restore the node's Cytoscape label
+    const nodeId: string = hoverEditorOption.value.contentLinkedToNodeId;
+    cy.getElementById(nodeId).removeClass('hover-editor-open');
+
     console.log('[FloatingEditorManager-v2] Closing command-hover editor');
     closeEditor(cy, hoverEditorOption.value);
 }
@@ -238,9 +241,15 @@ async function openHoverEditor(
         }
 
         // Set position manually (no shadow node to sync with)
-        const dimensions: { width: number; height: number } = getDefaultDimensions('Editor');
-        editor.ui.windowElement.style.left = `${nodePos.x - dimensions.width / 2}px`;
-        editor.ui.windowElement.style.top = `${nodePos.y + 10}px`;
+        // Position editor below the node, clearing the node circle icon
+        // Use translateX(-50%) for proper horizontal centering regardless of actual width
+        const HOVER_EDITOR_VERTICAL_OFFSET: number = 25;
+        editor.ui.windowElement.style.left = `${nodePos.x}px`;
+        editor.ui.windowElement.style.top = `${nodePos.y + HOVER_EDITOR_VERTICAL_OFFSET}px`;
+        editor.ui.windowElement.style.transform = 'translateX(-50%)';
+
+        // Hide the node's Cytoscape label (editor title bar shows the name)
+        cy.getElementById(nodeId).addClass('hover-editor-open');
 
         // Close on click outside
         const handleClickOutside: (e: MouseEvent) => void = (e: MouseEvent): void => {

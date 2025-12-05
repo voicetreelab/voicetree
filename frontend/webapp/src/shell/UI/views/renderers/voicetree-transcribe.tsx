@@ -189,59 +189,47 @@ export default function VoiceTreeTranscribe(): JSX.Element {
 
 
   return (
-    <div className="flex flex-col bg-background relative">
-      {/*/!* Background Wave Visualizer - Always visible *!/*/}
-      {/*<div className="absolute inset-0 pointer-events-none z-10 opacity-20">*/}
-      {/*  <SoundWaveVisualizer*/}
-      {/*    isActive={true}*/}
-      {/*    fallbackAnimation={true}*/}
-      {/*    barCount={40}*/}
-      {/*    barColor="rgb(59, 130, 246)"*/}
-      {/*    className="w-full h-full"*/}
-      {/*  />*/}
-      {/*</div>*/}
-
-
-
-      {/* Transcription Display - Always visible */}
-      <div
-        ref={autoScrollRef}
-        className="h-20 overflow-y-auto border rounded-lg bg-white/95 backdrop-blur-sm mb-2 relative z-20"
-      >
-        <Renderer
-          tokens={allTokens}
-          placeholder="Click here to record speech into the concept graph"
-          onPlaceholderClick={() => void startTranscription()}
-          isRecording={state === 'Running'}
-        />
-      </div>
-
-      {/* Input Section - at bottom */}
+    <div className="flex flex-col relative">
+      {/* Input Section - at bottom with solid background */}
       <div className="border-t bg-background/95 backdrop-blur-sm relative z-20">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-4xl mx-auto relative">
+          {/* Transcription Display - positioned absolutely above input, aligned to input width */}
+          <div
+            ref={autoScrollRef}
+            className="absolute bottom-full left-0 right-0 h-20 overflow-y-auto mb-2 pointer-events-none"
+            style={{
+              maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,1) 100%)',
+              WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,1) 100%)',
+            }}
+          >
+            <Renderer
+              tokens={allTokens}
+              placeholder=""
+              onPlaceholderClick={() => void startTranscription()}
+              isRecording={state === 'Running'}
+            />
+          </div>
+
           <div className="flex items-center gap-2">
-            {/* Mic Button */}
-              {/* Header with Status Bar */}
-              <div className="border-b bg-background/95 backdrop-blur-sm relative z-20">
-                  {/* Status Bar */}
-                  <div className="flex items-center justify-between px-4 py-1 text-xs bg-muted/30">
-                      <div className="flex items-center gap-4">
-                          <StatusDisplay state={state} />
-                          {isProcessing && (
-                              <span className="text-amber-600 flex items-center gap-1">
-                <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
-                </svg>
-                Processing
-              </span>
-                          )}
-                          {connectionError && (
-                              <span className="text-destructive text-xs">⚠️ Server Offline</span>
-                          )}
-                      </div>
-                  </div>
-              </div>
+            {/* Status Bar - inline */}
+            <div className="flex items-center gap-2 text-xs">
+              <StatusDisplay state={state} />
+              {isProcessing && (
+                <span className="text-amber-600 flex items-center gap-1">
+                  <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                  </svg>
+                </span>
+              )}
+              {connectionError && (
+                <span className="text-destructive text-xs">Server Offline</span>
+              )}
+            </div>
+
+            <span className="text-sm text-muted-foreground min-w-[80px]">
+              {state === 'Running' ? 'Recording' : 'Record speech'}
+            </span>
             <button
               onClick={() => state === 'Running' ? stopTranscription() : void startTranscription()}
               className={cn(

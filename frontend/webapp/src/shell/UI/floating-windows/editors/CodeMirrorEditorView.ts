@@ -19,8 +19,10 @@ import tagParser from 'codemirror-rich-markdoc/src/tagParser';
 
 // Combined highlight style: copied from codemirror-rich-markdoc/src/highlightStyle.ts
 // Heading sizes: h1 > h2 > h3 > h4 (largest to smallest)
+// Note: t.heading (base tag) must have textDecoration: 'none' to override defaultHighlightStyle's underline
 const markdownHighlightStyle: HighlightStyle = HighlightStyle.define([
-  { tag: t.heading1, fontWeight: 'bold', fontFamily: 'sans-serif', fontSize: '24px', textDecoration: 'underline' },
+  { tag: t.heading, fontWeight: 'bold', fontFamily: 'sans-serif', textDecoration: 'none' },
+  { tag: t.heading1, fontWeight: 'bold', fontFamily: 'sans-serif', fontSize: '24px', textDecoration: 'none' },
   { tag: t.heading2, fontWeight: 'bold', fontFamily: 'sans-serif', fontSize: '21px', textDecoration: 'none' },
   { tag: t.heading3, fontWeight: 'bold', fontFamily: 'sans-serif', fontSize: '18px', textDecoration: 'none' },
   { tag: t.heading4, fontWeight: 'bold', fontFamily: 'sans-serif', fontSize: '16px', textDecoration: 'none' },
@@ -153,8 +155,7 @@ export class CodeMirrorEditorView extends Disposable {
       decorations: v => v.decorations,
       provide: () => [
         markdownWithFrontmatter, // Provide markdown with frontmatter support
-        renderBlock({}), // Markdoc config
-        syntaxHighlighting(markdownHighlightStyle) // Rich-markdoc styles with custom h1 (smaller)
+        renderBlock({}) // Markdoc config
       ],
       eventHandlers: {
         mousedown({ target }, view) {
@@ -191,9 +192,9 @@ export class CodeMirrorEditorView extends Disposable {
     const isDarkMode: boolean = this.options.darkMode ?? document.documentElement.classList.contains('dark');
 
     const extensions: Extension[] = [
-      basicSetup,
+      basicSetup, // Already includes syntaxHighlighting(defaultHighlightStyle, { fallback: true })
       richMarkdocPlugin, // Rich markdown editing (provides markdown, decorations, and syntax highlighting)
-      syntaxHighlighting(defaultHighlightStyle), // Code block syntax highlighting
+      syntaxHighlighting(markdownHighlightStyle), // Custom heading styles - overrides defaultHighlightStyle's underline on headings
       mermaidRender(), // Render Mermaid diagrams in live preview
       frontmatterFoldService, // Custom fold service for frontmatter
       foldGutter(), // Add fold gutter for collapsing sections

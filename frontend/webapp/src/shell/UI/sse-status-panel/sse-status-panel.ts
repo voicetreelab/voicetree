@@ -1,4 +1,5 @@
 import {createSSEConnection} from "@/shell/edge/UI-edge/text_to_tree_server_communication/sse-consumer";
+import type {} from "@/shell/electron"; // Side-effect import for global Window.electronAPI type
 
 export interface SSEEvent {
     type: string;
@@ -10,7 +11,7 @@ const STATUS_PANEL_MOUNT_ID: string = 'sse-status-panel-mount';
 
 /**
  * Server Activity Panel - horizontal bar at bottom of app.
- * Displays server events as horizontal cards, FIFO (newest on left).
+ * Displays server events as horizontal cards, newest on right with autoscroll.
  */
 export class SseStatusPanel {
     private container: HTMLElement;
@@ -73,9 +74,10 @@ export class SseStatusPanel {
         card.className = `server-activity-card event-${event.type}`;
         card.innerHTML = this.formatEventCard(event);
 
-        // Prepend: newest on left (FIFO)
-        this.eventsContainer.prepend(card);
+        // Append: newest on right, then autoscroll
+        this.eventsContainer.appendChild(card);
         this.trimOldEvents();
+        this.scrollToNewest();
     }
 
     private formatEventCard(event: SSEEvent): string {
@@ -97,7 +99,7 @@ export class SseStatusPanel {
 
     private getNodeTitlesHtml(event: SSEEvent): string {
         if (event.type !== 'workflow_complete') return '';
-        const titles = event.data.node_titles as string[] | undefined;
+        const titles: string[] | undefined = event.data.node_titles as string[] | undefined;
         if (!titles || titles.length === 0) return '';
         return `<span class="activity-node-titles">${titles.join(', ')}</span>`;
     }
@@ -120,11 +122,11 @@ export class SseStatusPanel {
     private getEventMessage(event: SSEEvent): string {
         switch (event.type) {
             case 'phase_started': {
-                const phase = event.data.phase as string;
+                const phase: string = event.data.phase as string;
                 if (phase === 'placement' && event.data.text_chunk) {
-                    const text = event.data.text_chunk as string;
-                    const first30 = text.slice(0, 30);
-                    const rest = text.length > 30 ? `<span class="activity-text-rest">${text.slice(30)}</span>` : '';
+                    const text: string = event.data.text_chunk as string;
+                    const first30: string = text.slice(0, 30);
+                    const rest: string = text.length > 30 ? `<span class="activity-text-rest">${text.slice(30)}</span>` : '';
                     return `${phase}: ${first30}${rest}`;
                 }
                 return `${phase}`;
@@ -140,9 +142,9 @@ export class SseStatusPanel {
             case 'connection_error':
                 return 'Disconnected';
             case 'workflow_failed': {
-                const error = (event.data.error as string) || 'Unknown error';
-                const first50 = error.slice(0, 35);
-                const rest = error.length > 35 ? `<span class="activity-text-rest">${error.slice(35)}</span>` : '';
+                const error: string = (event.data.error as string) || 'Unknown error';
+                const first50: string = error.slice(0, 35);
+                const rest: string = error.length > 35 ? `<span class="activity-text-rest">${error.slice(35)}</span>` : '';
                 return `${first50}${rest}`;
             }
             default:
@@ -152,8 +154,13 @@ export class SseStatusPanel {
 
     private trimOldEvents(): void {
         while (this.eventsContainer.children.length > this.maxEvents) {
-            this.eventsContainer.removeChild(this.eventsContainer.lastChild!);
+            // Remove oldest (first child) since newest is on right
+            this.eventsContainer.removeChild(this.eventsContainer.firstChild!);
         }
+    }
+
+    private scrollToNewest(): void {
+        this.eventsContainer.scrollLeft = this.eventsContainer.scrollWidth;
     }
 
     dispose(): void {
