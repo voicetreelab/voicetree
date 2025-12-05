@@ -224,7 +224,9 @@ export function createWindowChrome(
     // Create main window container
     const windowElement: HTMLDivElement = document.createElement('div');
     windowElement.id = `window-${id}`;
-    windowElement.className = 'cy-floating-window';
+    // Add type-specific class (terminal vs editor) for differentiated styling
+    const typeClass: string = 'type' in fw ? `cy-floating-window-${fw.type.toLowerCase()}` : '';
+    windowElement.className = `cy-floating-window ${typeClass}`.trim();
     windowElement.setAttribute('data-floating-window-id', id);
 
     windowElement.style.width = `${dimensions.width}px`;

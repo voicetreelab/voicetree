@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, type RefObject } from 'react';
 import { type Token } from '@soniox/speech-to-text-web';
-import {routeSpeechToFocused} from "@/shell/edge/UI-edge/floating-windows/speech-to-focused";
+import {routeSpeechToFocused, getFocusedFloatingWindow} from "@/shell/edge/UI-edge/floating-windows/speech-to-focused";
 
 interface UseTranscriptionSenderOptions {
   endpoint: string;
@@ -49,7 +49,16 @@ export function useTranscriptionSender({
     }
 
     // send in parallel to any focussed text inputs
+    const focusedWindow: { type: 'editor' | 'terminal'; id: string } | null = getFocusedFloatingWindow();
     routeSpeechToFocused(text);
+
+    // Skip text-to-tree server if sending to an editor (but still send for terminals)
+    const windowType: string = focusedWindow?.type ?? 'none';
+    const sendToServer: boolean = focusedWindow?.type !== 'editor';
+    console.log(`[TranscriptionSender] focused: ${windowType}, sendToTreeServer: ${sendToServer}`);
+    if (!sendToServer) {
+      return;
+    }
 
     setIsProcessing(true);
 
