@@ -243,7 +243,7 @@ async function openHoverEditor(
         // Set position manually (no shadow node to sync with)
         // Position editor below the node, clearing the node circle icon
         // Use translateX(-50%) for proper horizontal centering regardless of actual width
-        const HOVER_EDITOR_VERTICAL_OFFSET: number = 25;
+        const HOVER_EDITOR_VERTICAL_OFFSET: number = 18;
         editor.ui.windowElement.style.left = `${nodePos.x}px`;
         editor.ui.windowElement.style.top = `${nodePos.y + HOVER_EDITOR_VERTICAL_OFFSET}px`;
         editor.ui.windowElement.style.transform = 'translateX(-50%)';

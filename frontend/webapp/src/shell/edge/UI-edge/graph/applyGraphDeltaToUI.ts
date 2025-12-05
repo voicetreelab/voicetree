@@ -145,9 +145,8 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                                 console.log(`[applyGraphDeltaToUI] Context node ${nodeId} got new edge, marking terminal activity`);
                                 markTerminalActivityForContextNode(nodeId);
                             }
-                            if (targetNode.data('isContextNode') === true) {// todo don't rely on targetNode.data
-                                markTerminalActivityForContextNode(edge.targetId);
-                            }
+                            // Always try to mark activity - markTerminalActivityForContextNode handles non-context nodes gracefully
+                            markTerminalActivityForContextNode(edge.targetId);
                         } else {
                             console.warn(`[applyGraphDeltaToUI] Skipping edge ${nodeId}->${edge.targetId}: target node does not exist`);
                         }
