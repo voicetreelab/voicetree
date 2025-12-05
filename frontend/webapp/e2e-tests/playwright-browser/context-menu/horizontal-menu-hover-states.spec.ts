@@ -1,6 +1,10 @@
 /**
  * Browser-based test for horizontal menu hover states
- * Tests that button labels only appear on hover and that the spacer is present
+ * Tests that:
+ * - Button labels only appear on hover (horizontal menu)
+ * - Pin Editor is the first button
+ * - Vertical submenu labels are always visible
+ * - Spacer is present to avoid covering node icon
  */
 
 import { test as base, expect } from '@playwright/test';
@@ -56,7 +60,7 @@ const test = base.extend<{ consoleCapture: ConsoleCapture }>({
 });
 
 test.describe('Horizontal Menu Hover States', () => {
-  test('should show labels only on button hover and have spacer', async ({ page, consoleCapture: _consoleCapture }) => {
+  test('should show labels only on button hover, have Pin first, and vertical submenu labels always visible', async ({ page, consoleCapture: _consoleCapture }) => {
     console.log('\n=== Starting horizontal menu hover states test ===');
 
     // Step 1: Setup
@@ -110,16 +114,30 @@ test.describe('Horizontal Menu Hover States', () => {
     expect(menuVisible).toBe(true);
     console.log('Menu is visible');
 
-    // Step 6: Take screenshot of menu with no button hovered (labels should be hidden)
+    // Step 6: Verify first button is Pin Editor (check for pin icon SVG)
+    const firstButtonIsPin = await page.evaluate(() => {
+      const firstButton = document.querySelector('.cy-horizontal-context-menu .horizontal-menu-item') as HTMLElement | null;
+      if (!firstButton) return { isPin: false, label: 'no button found' };
+      const label = firstButton.querySelector('.horizontal-menu-label span')?.textContent ?? '';
+      // Lucide pin icon has a specific path - just verify label text
+      return { isPin: label === 'Pin Editor', label };
+    });
+    expect(firstButtonIsPin.isPin).toBe(true);
+    console.log(`First button is Pin Editor: ${firstButtonIsPin.label}`);
+
+    // Step 7: Take screenshot of menu with no button hovered (labels should be hidden)
     await page.screenshot({
       path: 'e2e-tests/screenshots/horizontal-menu-no-hover.png',
       fullPage: true
     });
     console.log('Screenshot taken: horizontal-menu-no-hover.png');
 
-    // Step 7: Verify labels are hidden by default (using visibility, not display)
+    // Step 8: Verify horizontal menu labels are hidden by default (using visibility, not display)
     const labelsHiddenByDefault = await page.evaluate(() => {
-      const labels = document.querySelectorAll('.horizontal-menu-label');
+      // Only check labels in the horizontal menu, not submenu
+      const menu = document.querySelector('.cy-horizontal-context-menu');
+      if (!menu) return true;
+      const labels = menu.querySelectorAll(':scope > div > .horizontal-menu-item > .horizontal-menu-label');
       let allHidden = true;
       labels.forEach(label => {
         const computed = window.getComputedStyle(label as HTMLElement);
@@ -130,9 +148,9 @@ test.describe('Horizontal Menu Hover States', () => {
       return allHidden;
     });
     expect(labelsHiddenByDefault).toBe(true);
-    console.log('Labels are hidden by default');
+    console.log('Horizontal menu labels are hidden by default');
 
-    // Step 8: Verify spacer is present
+    // Step 9: Verify spacer is present
     const spacerPresent = await page.evaluate(() => {
       const spacer = document.querySelector('.horizontal-menu-spacer');
       return spacer !== null;
@@ -140,8 +158,7 @@ test.describe('Horizontal Menu Hover States', () => {
     expect(spacerPresent).toBe(true);
     console.log('Spacer is present');
 
-    // Step 9: Hover over a menu button to show label
-    // Get the position of the first menu button
+    // Step 10: Hover over first button (Pin Editor) to show label
     const buttonPosition = await page.evaluate(() => {
       const button = document.querySelector('.horizontal-menu-item') as HTMLElement | null;
       if (!button) return null;
@@ -152,20 +169,19 @@ test.describe('Horizontal Menu Hover States', () => {
     if (buttonPosition) {
       await page.mouse.move(buttonPosition.x, buttonPosition.y);
       await page.waitForTimeout(100);
-      console.log('Hovered over menu button');
+      console.log('Hovered over Pin Editor button');
 
-      // Step 10: Take screenshot with button hovered (label should be visible)
+      // Step 11: Take screenshot with button hovered (label should be visible)
       await page.screenshot({
         path: 'e2e-tests/screenshots/horizontal-menu-button-hovered.png',
         fullPage: true
       });
       console.log('Screenshot taken: horizontal-menu-button-hovered.png');
 
-      // Step 11: Verify the hovered button's label is visible (using visibility, not display)
+      // Step 12: Verify the hovered button's label is visible
       const hoveredLabelVisible = await page.evaluate(() => {
         const button = document.querySelector('.horizontal-menu-item:hover') as HTMLElement | null;
         if (!button) {
-          // Fallback: check if any label is visible
           const labels = document.querySelectorAll('.horizontal-menu-label');
           let anyVisible = false;
           labels.forEach(label => {
@@ -185,9 +201,57 @@ test.describe('Horizontal Menu Hover States', () => {
       console.log('Hovered button label is visible');
     }
 
-    // Step 12: Move mouse away from buttons but keep menu open
-    // Note: Playwright's mouse.move() doesn't properly trigger mouseleave events,
-    // so we use dispatchEvent to simulate the real browser behavior
+    // Step 13: Hover over "More" button to open vertical submenu
+    const moreButtonPosition = await page.evaluate(() => {
+      // More button is the last button in the menu
+      const buttons = document.querySelectorAll('.cy-horizontal-context-menu > div > .horizontal-menu-item');
+      const moreButton = buttons[buttons.length - 1] as HTMLElement | null;
+      if (!moreButton) return null;
+      const rect = moreButton.getBoundingClientRect();
+      return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+    });
+
+    if (moreButtonPosition) {
+      await page.mouse.move(moreButtonPosition.x, moreButtonPosition.y);
+      await page.waitForTimeout(200);
+      console.log('Hovered over More button');
+
+      // Step 14: Wait for submenu to appear
+      const submenuVisible = await page.evaluate(() => {
+        const submenu = document.querySelector('.horizontal-menu-submenu') as HTMLElement | null;
+        if (!submenu) return false;
+        return window.getComputedStyle(submenu).display === 'flex';
+      });
+      expect(submenuVisible).toBe(true);
+      console.log('Submenu is visible');
+
+      // Step 15: Take screenshot of vertical submenu (labels should be visible)
+      await page.screenshot({
+        path: 'e2e-tests/screenshots/horizontal-menu-vertical-submenu.png',
+        fullPage: true
+      });
+      console.log('Screenshot taken: horizontal-menu-vertical-submenu.png');
+
+      // Step 16: Verify vertical submenu labels are ALWAYS visible (not hidden)
+      const submenuLabelsVisible = await page.evaluate(() => {
+        const submenu = document.querySelector('.horizontal-menu-submenu');
+        if (!submenu) return false;
+        const labels = submenu.querySelectorAll('.horizontal-menu-label');
+        let allVisible = true;
+        labels.forEach(label => {
+          const computed = window.getComputedStyle(label as HTMLElement);
+          // For always-visible labels, visibility is not set to hidden
+          if (computed.visibility === 'hidden') {
+            allVisible = false;
+          }
+        });
+        return allVisible && labels.length > 0;
+      });
+      expect(submenuLabelsVisible).toBe(true);
+      console.log('Vertical submenu labels are always visible');
+    }
+
+    // Step 17: Move mouse away from buttons but keep menu open
     await page.evaluate(() => {
       const buttons = document.querySelectorAll('.horizontal-menu-item');
       buttons.forEach(button => {
@@ -197,16 +261,18 @@ test.describe('Horizontal Menu Hover States', () => {
     await page.waitForTimeout(100);
     console.log('Mouse leave events dispatched');
 
-    // Step 13: Take screenshot with menu still open but no hover
+    // Step 18: Take screenshot with menu still open but no hover
     await page.screenshot({
       path: 'e2e-tests/screenshots/horizontal-menu-mouse-away.png',
       fullPage: true
     });
     console.log('Screenshot taken: horizontal-menu-mouse-away.png');
 
-    // Step 14: Verify labels are hidden again after mouse leaves (using visibility, not display)
+    // Step 19: Verify horizontal menu labels are hidden again after mouse leaves
     const labelsHiddenAfterLeave = await page.evaluate(() => {
-      const labels = document.querySelectorAll('.horizontal-menu-label');
+      const menu = document.querySelector('.cy-horizontal-context-menu');
+      if (!menu) return true;
+      const labels = menu.querySelectorAll(':scope > div > .horizontal-menu-item > .horizontal-menu-label');
       let allHidden = true;
       labels.forEach(label => {
         const computed = window.getComputedStyle(label as HTMLElement);
@@ -217,8 +283,8 @@ test.describe('Horizontal Menu Hover States', () => {
       return allHidden;
     });
     expect(labelsHiddenAfterLeave).toBe(true);
-    console.log('Labels are hidden again after mouse leaves');
+    console.log('Horizontal menu labels are hidden again after mouse leaves');
 
-    console.log('Test completed successfully - horizontal menu hover states work correctly');
+    console.log('Test completed successfully - horizontal menu UI fixups verified');
   });
 });

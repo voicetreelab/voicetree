@@ -292,7 +292,7 @@ button.graph-button:disabled > svg > path {
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    width: 70`px;
+    width: 70px;
     min-width: 90px;
     max-width: 90px;
     height: 16px;
@@ -322,7 +322,7 @@ button.graph-button:disabled > svg > path {
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none; /* Firefox */
-    font-size: 9px;
+    font-size: 12px;
     color: var(--text-normal, #ddd);
     line-height: 1.2;
 }

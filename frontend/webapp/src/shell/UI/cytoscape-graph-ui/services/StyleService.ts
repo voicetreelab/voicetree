@@ -105,7 +105,7 @@ export class StyleService {
           'font-weight': 'bold',
           'text-valign': 'bottom',
           'text-halign': 'center',
-          'text-margin-y': 3,
+          'text-margin-y': 8,
           'shape': 'ellipse',
           'border-width': 1,
           'border-color': '#666',
@@ -245,14 +245,22 @@ export class StyleService {
         }
       },
 
-      // Selected nodes - green outline offset by 5px
+      // Hide label when hover editor is open (editor shows the title)
+      {
+        selector: 'node.hover-editor-open',
+        style: {
+          'text-opacity': 0,
+        }
+      },
+
+      // Selected nodes - green rounded rectangle underlay
       {
         selector: 'node:selected',
         style: {
-          'outline-width': 2,
-          'outline-color': '#00cc66',
-          'outline-offset': 5,
-          'outline-opacity': 1,
+          'underlay-color': '#00cc66',
+          'underlay-padding': 10,
+          'underlay-opacity': 1,
+          'underlay-shape': 'round-rectangle',
         }
       },
 

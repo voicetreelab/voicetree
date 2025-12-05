@@ -5,7 +5,7 @@ import {
     spawnTerminalWithNewContextNode
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
 import {getFilePathForNode, getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
-import {Plus, Play, Trash2, Pencil, Clipboard, MoreHorizontal, createElement, type IconNode} from 'lucide';
+import {Plus, Play, Trash2, Clipboard, MoreHorizontal, Pin, createElement, type IconNode} from 'lucide';
 import {getOrCreateOverlay} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import type {AgentConfig} from "@/pure/settings";
 
@@ -28,8 +28,10 @@ function createIconElement(icon: IconNode, color?: string): SVGElement {
     return svgElement;
 }
 
-/** Create a menu item button element */
-function createMenuItemElement(item: HorizontalMenuItem, onClose: () => void): HTMLElement {
+/** Create a menu item button element
+ * @param alwaysShowLabel - if true, label is always visible (for vertical submenus)
+ */
+function createMenuItemElement(item: HorizontalMenuItem, onClose: () => void, alwaysShowLabel: boolean = false): HTMLElement {
     const button: HTMLButtonElement = document.createElement('button');
     button.className = 'horizontal-menu-item';
     button.style.cssText = `
@@ -50,22 +52,34 @@ function createMenuItemElement(item: HorizontalMenuItem, onClose: () => void): H
     iconWrapper.appendChild(createIconElement(item.icon, item.color));
     button.appendChild(iconWrapper);
 
-    // Add label container positioned absolutely below icon (doesn't affect layout)
+    // Add label container - position depends on whether label is always shown
     const labelContainer: HTMLSpanElement = document.createElement('span');
     labelContainer.className = 'horizontal-menu-label';
-    labelContainer.style.cssText = `
-        position: absolute;
-        top: 100%;
-        left: 50%;
-        transform: translateX(-50%);
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        white-space: nowrap;
-        visibility: hidden;
-        opacity: 0;
-        transition: opacity 0.1s ease;
-    `;
+
+    if (alwaysShowLabel) {
+        // For vertical submenus: inline label, always visible
+        labelContainer.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+        `;
+    } else {
+        // For horizontal menu: positioned absolutely below icon, hidden until hover
+        labelContainer.style.cssText = `
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.1s ease;
+        `;
+    }
 
     const labelText: HTMLSpanElement = document.createElement('span');
     labelText.style.fontSize = '13px';
@@ -86,16 +100,20 @@ function createMenuItemElement(item: HorizontalMenuItem, onClose: () => void): H
 
     button.appendChild(labelContainer);
 
-    // Hover effect - show label and background on hover (icon stays in place)
+    // Hover effect - for horizontal menu, show label; for vertical, just highlight
     button.addEventListener('mouseenter', () => {
         button.style.background = 'rgba(0,0,0,0.1)';
-        labelContainer.style.visibility = 'visible';
-        labelContainer.style.opacity = '1';
+        if (!alwaysShowLabel) {
+            labelContainer.style.visibility = 'visible';
+            labelContainer.style.opacity = '1';
+        }
     });
     button.addEventListener('mouseleave', () => {
         button.style.background = 'transparent';
-        labelContainer.style.visibility = 'hidden';
-        labelContainer.style.opacity = '0';
+        if (!alwaysShowLabel) {
+            labelContainer.style.visibility = 'hidden';
+            labelContainer.style.opacity = '0';
+        }
     });
 
     // Click handler
@@ -110,7 +128,7 @@ function createMenuItemElement(item: HorizontalMenuItem, onClose: () => void): H
     return button;
 }
 
-/** Create submenu container */
+/** Create submenu container (vertical dropdown) */
 function createSubMenuElement(items: HorizontalMenuItem[], onClose: () => void): HTMLElement {
     const submenu: HTMLDivElement = document.createElement('div');
     submenu.className = 'horizontal-menu-submenu';
@@ -130,7 +148,8 @@ function createSubMenuElement(items: HorizontalMenuItem[], onClose: () => void):
     `;
 
     for (const item of items) {
-        const menuItem: HTMLElement = createMenuItemElement(item, onClose);
+        // Pass alwaysShowLabel=true for vertical submenu items
+        const menuItem: HTMLElement = createMenuItemElement(item, onClose, true);
         menuItem.style.flexDirection = 'row';
         menuItem.style.justifyContent = 'flex-start';
         menuItem.style.gap = '8px';
@@ -216,20 +235,18 @@ export class HorizontalMenuService {
             z-index: 10000;
         `;
 
-        // Position above the node (in graph coordinates)
-        // Offset so the spacer (between Add and Run) is centered over the node icon
-        // Layout: <Copy Path> <Add> <SPACER> <Run> <Delete> <More>
-        // We shift right to center the spacer over the node (2 buttons on left, 3 on right)
-        const MENU_CENTER_OFFSET: number = 30; // pixels to shift menu right
-        menu.style.left = `${position.x + MENU_CENTER_OFFSET}px`;
-        menu.style.top = `${position.y - 60}px`;
-        menu.style.transform = 'translateX(-50%)';
+        // Position centered on the node (in graph coordinates)
+        // Layout: <Pin> <Copy> <Add> <SPACER> <Run> <Delete> <More>
+        // 3 buttons on each side, spacer centered over node icon
+        menu.style.left = `${position.x}px`;
+        menu.style.top = `${position.y}px`;
+        menu.style.transform = 'translate(-50%, -50%)';
 
         const closeMenu: () => void = () => this.hideMenu();
 
-        // Create menu items with spacer after index 1 (after "Add", before "Run")
-        // Layout: <Copy Path> <Add> <EMPTY SPACE> <Run> <Delete> <More>
-        const SPACER_AFTER_INDEX: number = 1;
+        // Create menu items with spacer after index 2 (after "Add", before "Run")
+        // Layout: <Pin> <Copy> <Add> <SPACER> <Run> <Delete> <More>
+        const SPACER_AFTER_INDEX: number = 2;
         for (let i: number = 0; i < menuItems.length; i++) {
             const item: HorizontalMenuItem = menuItems[i];
             const itemContainer: HTMLDivElement = document.createElement('div');
@@ -299,6 +316,15 @@ export class HorizontalMenuService {
         const menuItems: HorizontalMenuItem[] = [];
         const nodeId: string = node.id();
 
+        // LEFT SIDE: Pin, Copy, Add (3 buttons)
+        menuItems.push({
+            icon: Pin,
+            label: 'Pin Editor',
+            action: async () => {
+                await this.deps!.createAnchoredFloatingEditor(nodeId);
+            },
+        });
+
         menuItems.push({
             icon: Clipboard,
             label: 'Copy Path',
@@ -318,6 +344,7 @@ export class HorizontalMenuService {
             },
         });
 
+        // RIGHT SIDE: Run, Delete, More (3 buttons)
         menuItems.push({
             icon: Play,
             label: 'Run',
@@ -337,15 +364,8 @@ export class HorizontalMenuService {
             },
         });
 
-        // Expandable "more" menu with Edit, Copy, and additional agents
+        // Expandable "more" menu with Copy Content and additional agents
         const moreSubMenu: HorizontalMenuItem[] = [
-            {
-                icon: Pencil,
-                label: 'Pin Editor',
-                action: async () => {
-                    await this.deps!.createAnchoredFloatingEditor(nodeId);
-                },
-            },
             {
                 icon: Clipboard,
                 label: 'Copy Content',

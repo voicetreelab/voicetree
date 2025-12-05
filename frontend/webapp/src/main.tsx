@@ -2,6 +2,7 @@
 // import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
+import '@/shell/UI/sse-status-panel/status-panel.css'
 import App from '@/shell/UI/App'
 import posthog from 'posthog-js'
 import { SseStatusPanel } from '@/shell/UI/sse-status-panel'

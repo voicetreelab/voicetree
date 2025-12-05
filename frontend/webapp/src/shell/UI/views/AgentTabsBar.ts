@@ -2,10 +2,9 @@
  * AgentTabsBar - Renders open terminal/agent tabs in top-right of title bar
  *
  * Features:
- * - Fixed width tabs with horizontally scrollable text
+ * - Fixed width tabs that expand on hover to show full title
  * - Positioned in macOS title bar area (right: 80px, mirroring RecentNodeTabsBar)
  * - Clicking a tab navigates to and focuses that terminal
- * - Tooltip on hover shows "⌘[ / ⌘] to cycle"
  * - Highlights currently active terminal
  */
 
@@ -18,7 +17,6 @@ const TAB_WIDTH: number = 90
 interface AgentTabsBarState {
     container: HTMLElement | null
     tabsContainer: HTMLElement | null
-    tooltip: HTMLElement | null
     activeTerminalId: TerminalId | null
     // Track count of activity per terminal (each new node adds a dot, dots persist)
     terminalActivityCount: Map<TerminalId, number>
@@ -28,7 +26,6 @@ interface AgentTabsBarState {
 const state: AgentTabsBarState = {
     container: null,
     tabsContainer: null,
-    tooltip: null,
     activeTerminalId: null,
     terminalActivityCount: new Map()
 }
@@ -52,14 +49,7 @@ export function createAgentTabsBar(parentContainer: HTMLElement): () => void {
     state.tabsContainer = document.createElement('div')
     state.tabsContainer.className = 'agent-tabs-scroll'
 
-    // Create shared tooltip element
-    state.tooltip = document.createElement('div')
-    state.tooltip.className = 'agent-tab-tooltip'
-    state.tooltip.textContent = '⌘[ or ⌘] to cycle'
-    state.tooltip.style.display = 'none'
-
     state.container.appendChild(state.tabsContainer)
-    state.container.appendChild(state.tooltip)
     parentContainer.appendChild(state.container)
 
     // Initially hidden until we have terminals
@@ -144,7 +134,6 @@ function createTab(
         tab.classList.add('agent-tab-active')
     }
     tab.setAttribute('data-terminal-id', terminalId)
-    tab.title = fullTitle // Full title on hover (native tooltip)
     tab.style.width = `${TAB_WIDTH}px`
 
     // Create text span for horizontal scrolling within tab
@@ -168,40 +157,20 @@ function createTab(
         onSelect(terminal)
     })
 
-    // Hover handlers for tooltip
-    tab.addEventListener('mouseenter', (e: MouseEvent) => {
-        showTooltip(e.currentTarget as HTMLElement)
+    // Hover handlers - expand tab to show full title
+    tab.addEventListener('mouseenter', () => {
+        tab.style.width = 'auto'
+        tab.style.maxWidth = '300px'
+        textSpan.textContent = fullTitle
     })
 
     tab.addEventListener('mouseleave', () => {
-        hideTooltip()
+        tab.style.width = `${TAB_WIDTH}px`
+        tab.style.maxWidth = `${TAB_WIDTH}px`
+        textSpan.textContent = displayTitle
     })
 
     return tab
-}
-
-/**
- * Show tooltip near the hovered tab
- */
-function showTooltip(tabElement: HTMLElement): void {
-    if (!state.tooltip || !state.container) return
-
-    const tabRect: DOMRect = tabElement.getBoundingClientRect()
-    const containerRect: DOMRect = state.container.getBoundingClientRect()
-
-    // Position tooltip below the tab
-    state.tooltip.style.display = 'block'
-    state.tooltip.style.left = `${tabRect.left - containerRect.left + tabRect.width / 2}px`
-    state.tooltip.style.top = `${tabRect.height + 4}px`
-    state.tooltip.style.transform = 'translateX(-50%)'
-}
-
-/**
- * Hide the tooltip
- */
-function hideTooltip(): void {
-    if (!state.tooltip) return
-    state.tooltip.style.display = 'none'
 }
 
 /**
@@ -214,7 +183,6 @@ export function disposeAgentTabsBar(): void {
 
     state.container = null
     state.tabsContainer = null
-    state.tooltip = null
     state.activeTerminalId = null
     state.terminalActivityCount.clear()
 }
