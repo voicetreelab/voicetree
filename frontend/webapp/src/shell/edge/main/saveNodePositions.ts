@@ -11,6 +11,7 @@ import * as O from "fp-ts/lib/Option.js";
  * @param cyNodes - Result of cy.nodes().jsons() (note: @types/cytoscape incorrectly types this as string[])
  */
 export function saveNodePositions(cyNodes: readonly NodeDefinition[]): void {
+    console.log("Saving node positions to graph");
     const graph: Graph = getGraph();
 
     // Build lookup from cytoscape node JSON
@@ -40,7 +41,7 @@ export function saveNodePositions(cyNodes: readonly NodeDefinition[]): void {
         {}
     );
 
-    console.log("Saving node positions to graph");
+    console.log("Saved node positions to graph");
 
     setGraph({nodes: updatedNodes});
 }
