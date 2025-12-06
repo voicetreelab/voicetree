@@ -1,7 +1,7 @@
 import {loadGraphFromDisk} from "@/shell/edge/main/graph/readAndApplyDBEventsPath/loadGraphFromDisk";
 import type {FilePath, Graph, GraphDelta, FSDelete} from "@/pure/graph";
 import type {FileLimitExceededError} from "@/shell/edge/main/graph/readAndApplyDBEventsPath/fileLimitEnforce";
-import {setGraph, setVaultPath} from "@/shell/edge/main/state/graph-store";
+import {setGraph} from "@/shell/edge/main/state/graph-store";
 import {app, dialog} from "electron";
 import path from "path";
 import * as O from "fp-ts/lib/Option.js";
@@ -24,12 +24,12 @@ import {getOnboardingDirectory} from "@/shell/edge/main/electron/onboarding-setu
 // setting up file watchers
 // closing old watchers
 
-export const VOICETREE_MARKDOWN_FILES_READ_WRITE_PREFIX : string = "voicetree";
-// IMPORTANT ^^^
+export const DEFAULT_VAULT_SUFFIX: string = "voicetree";
 
 let watcher: FSWatcher | null = null;
 
 let watchedDirectory: FilePath | null = null;
+let currentVaultSuffix: string = DEFAULT_VAULT_SUFFIX;
 
 //todo move this state to src/functional/shell/state/app-electron-state.ts
 
@@ -65,17 +65,51 @@ async function getLastDirectory(): Promise<O.Option<FilePath>> {
         });
 }
 
-// Save last watched directory to config
-async function saveLastDirectory(directoryPath: string): Promise<void> {
-    const configPath: string = getConfigPath();
-    const config: { lastDirectory: string; } = { lastDirectory: directoryPath };
-    return fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf8')
-        .catch((error) => {
-            console.error('Failed to save last directory:', error);
-        });
+// Config structure: { lastDirectory: string, suffixes: { [folderPath: string]: string } }
+interface VoiceTreeConfig {
+    lastDirectory?: string;
+    suffixes?: { [folderPath: string]: string };
 }
 
-export async function loadFolder(watchedFolderPath: FilePath): Promise<void>  {
+async function loadConfig(): Promise<VoiceTreeConfig> {
+    const configPath: string = getConfigPath();
+    try {
+        const data: string = await fs.readFile(configPath, 'utf8');
+        return JSON.parse(data) as VoiceTreeConfig;
+    } catch {
+        return {};
+    }
+}
+
+async function saveConfig(config: VoiceTreeConfig): Promise<void> {
+    const configPath: string = getConfigPath();
+    await fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf8').catch((error) => {
+        console.error('Failed to save config:', error);
+    });
+}
+
+// Save last watched directory to config
+async function saveLastDirectory(directoryPath: string): Promise<void> {
+    const config: VoiceTreeConfig = await loadConfig();
+    config.lastDirectory = directoryPath;
+    await saveConfig(config);
+}
+
+// Get suffix for a specific directory (returns default if not set)
+async function getSuffixForDirectory(directoryPath: string): Promise<string> {
+    const config: VoiceTreeConfig = await loadConfig();
+    return config.suffixes?.[directoryPath] ?? DEFAULT_VAULT_SUFFIX;
+}
+
+// Save suffix for a specific directory
+async function saveSuffixForDirectory(directoryPath: string, suffix: string): Promise<void> {
+    const config: VoiceTreeConfig = await loadConfig();
+    config.suffixes ??= {};
+    config.suffixes[directoryPath] = suffix;
+    await saveConfig(config);
+}
+
+export async function loadFolder(watchedFolderPath: FilePath, suffixOverride?: string): Promise<void>  {
     // IMPORTANT,  watchedFolderPath is the folder the human chooses for proj
 
     // but we only read and write files to the vaultPAth, which is watchedFolderPath/readWriteDir
@@ -94,7 +128,12 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<void>  {
         mainWindow.webContents.send('graph:clear');
     }
 
-    const vaultPath : string = watchedFolderPath + "/" + VOICETREE_MARKDOWN_FILES_READ_WRITE_PREFIX
+    // Get suffix: use override if provided (including empty string), otherwise load from config
+    const suffix: string = suffixOverride ?? await getSuffixForDirectory(watchedFolderPath);
+    currentVaultSuffix = suffix;
+
+    // If suffix is empty, use the watched folder directly; otherwise append suffix
+    const vaultPath: string = suffix ? `${watchedFolderPath}/${suffix}` : watchedFolderPath;
 
     // Ensure vaultPath directory exists (creates if missing)
     await fs.mkdir(vaultPath, { recursive: true });
@@ -111,8 +150,7 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<void>  {
     const currentGraph: Graph = loadResult.right;
     console.log('[loadFolder] Graph loaded from disk, node count:', Object.keys(currentGraph.nodes).length);
 
-    // Update graph store
-    setVaultPath(vaultPath);
+    // Update graph store (vault path is derived from watchedDirectory + currentVaultSuffix)
     setGraph(currentGraph);
 
     // let backend know, call /load-directory non blocking
@@ -204,7 +242,8 @@ async function setupWatcher(vaultPath: FilePath): Promise<void> {
     // Notify UI that watching has started
     const mainWindow: Electron.CrossProcessExports.BrowserWindow = getMainWindow()!;
     mainWindow.webContents.send('watching-started', {
-        directory: vaultPath,
+        directory: watchedDirectory,  // The user-selected folder, not the vaultPath
+        vaultSuffix: currentVaultSuffix,
         timestamp: new Date().toISOString()
     });
 }
@@ -342,13 +381,61 @@ export async function stopFileWatching(): Promise<{ readonly success: boolean; r
     return { success: true };
 }
 
-export function getWatchStatus(): { readonly isWatching: boolean; readonly directory: string | undefined } {
-    const status: { isWatching: boolean; directory: string | undefined; } = {
+export function getWatchStatus(): { readonly isWatching: boolean; readonly directory: string | undefined; readonly vaultSuffix: string } {
+    const status: { isWatching: boolean; directory: string | undefined; vaultSuffix: string } = {
         isWatching: isWatching(),
-        directory: getWatchedDirectory() ?? undefined
+        directory: getWatchedDirectory() ?? undefined,
+        vaultSuffix: currentVaultSuffix
     };
     console.log('Watch status:', status);
     return status;
+}
+
+export function getVaultSuffix(): string {
+    return currentVaultSuffix;
+}
+
+// Vault path functions - single source of truth, derived from watchedDirectory + currentVaultSuffix
+export function getVaultPath(): O.Option<FilePath> {
+    if (!watchedDirectory) return O.none;
+    return O.some(currentVaultSuffix ? `${watchedDirectory}/${currentVaultSuffix}` : watchedDirectory);
+}
+
+// For external callers (MCP) - sets the full vault path directly by setting directory and clearing suffix
+export function setVaultPath(path: FilePath): void {
+    watchedDirectory = path;
+    currentVaultSuffix = '';
+}
+
+export function clearVaultPath(): void {
+    watchedDirectory = null;
+    currentVaultSuffix = DEFAULT_VAULT_SUFFIX;
+}
+
+export async function setVaultSuffix(suffix: string): Promise<{ readonly success: boolean; readonly error?: string }> {
+    const dir: FilePath | null = getWatchedDirectory();
+    if (!dir) {
+        return { success: false, error: 'No directory is being watched' };
+    }
+
+    // Validate suffix: can be empty (uses directory directly) or valid folder name
+    const trimmedSuffix: string = suffix.trim();
+    if (trimmedSuffix.includes('/') || trimmedSuffix.includes('\\')) {
+        return { success: false, error: 'Suffix cannot contain path separators' };
+    }
+
+    // Skip reload if suffix hasn't changed
+    if (trimmedSuffix === currentVaultSuffix) {
+        return { success: true };
+    }
+
+    // Save the new suffix for this directory
+    await saveSuffixForDirectory(dir, trimmedSuffix);
+
+    // Reload the folder with new suffix
+    await loadFolder(dir, trimmedSuffix);
+
+    return { success: true };
 }
 
 export async function loadPreviousFolder(): Promise<{ readonly success: boolean; readonly directory?: string; readonly error?: string }> {
