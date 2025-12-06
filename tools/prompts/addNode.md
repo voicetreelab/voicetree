@@ -1,8 +1,13 @@
 As you make progress on the task, create detailed visual updates by adding nodes to our markdown tree using:
 
 ```bash
-python3 "$VOICETREE_APP_SUPPORT"/tools/add_new_node.py "$CONTEXT_NODE_PATH" "Progress Name" "What you accomplished with detailed technical context and visual diagram" is_progress_of
+python3 "$VOICETREE_APP_SUPPORT"/tools/add_new_node.py "Progress Name" "<markdown content...>" [relationship] [--parent <parent_file_path>]
 ```
+**CLI Syntax:**
+- `name` - Name/title of the new node
+- `markdown_content` - Markdown Content for the node's markdown file
+- `relationship` - Optional. Relationship type (e.g., `is_progress_of`). Omit for plain link.
+- `--parent <file>` - Optional. Defaults to `$CONTEXT_NODE_PATH` env var if not provided
 
 When creating nodes, your content should:
 
@@ -56,4 +61,4 @@ This tool will automatically:
 - Add correct YAML frontmatter
 - Create parent-child links
 
-IMPORTANT: DO NOT manually write markdown files. ALWAYS use add_new_node.py with rich, detailed content including Mermaid diagrams.
+If the python tool is broken, you may write the markdown file manually to the vault directory: `$OBSIDIAN_VAULT_PATH`, with a wikilink included in the body to [[$CONTEXT_NODE_PATH]]
