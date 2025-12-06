@@ -285,7 +285,7 @@ def generate_filename_from_keywords(node_title: str, max_keywords: int = 3) -> s
     if not file_name:
         file_name = "untitled"
 
-    return "VT/" + file_name + ".md" # PREPEND VT TO PUT INTO /VT FOLDER RELATIVE TO WATCHED DIR
+    return "voice/" + file_name + ".md"
 
 
 def slugify(text: str) -> str:
