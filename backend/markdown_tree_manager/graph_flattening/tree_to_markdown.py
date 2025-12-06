@@ -86,7 +86,7 @@ class TreeToMarkdownConverter:
         logging.info(f"TreeToMarkdownConverter.convert_nodes called with output_dir='{output_dir}' (absolute: {os.path.abspath(output_dir)})")
 
         os.makedirs(output_dir, exist_ok=True)
-        os.makedirs(os.path.join(output_dir, "VT"), exist_ok=True)  # Ensure VT subdirectory exists
+        os.makedirs(os.path.join(output_dir, "voice"), exist_ok=True)  # Ensure voice subdirectory exists
         if nodes_to_update and len(nodes_to_update) > 0:
             logging.info(f"updating/writing markdown for nodes {nodes_to_update}")
 

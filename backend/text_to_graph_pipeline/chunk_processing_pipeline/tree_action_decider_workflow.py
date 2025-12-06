@@ -376,16 +376,20 @@ class TreeActionDeciderWorkflow:
             #         logging.error(f"Error in Connect Orphans phase: {e}")
             #         # Don't fail the whole workflow, just log the error
 
-            # Workflow complete - include node titles for frontend display
-            node_titles = [
-                self.decision_tree.tree[node_id].title
-                for node_id in modified_or_new_nodes
-                if self.decision_tree is not None and node_id in self.decision_tree.tree
-            ]
+            # Workflow complete - include detailed node info for frontend display
+            nodes_info = []
+            for node_id in modified_or_new_nodes:
+                if self.decision_tree is not None and node_id in self.decision_tree.tree:
+                    node = self.decision_tree.tree[node_id]
+                    nodes_info.append({
+                        "title": node.title,
+                        "filename": node.filename,
+                        "is_new": node_id in newly_created_nodes
+                    })
             await emit_event(SSEEventType.WORKFLOW_COMPLETE, {
                 "total_nodes": len(modified_or_new_nodes),
                 "phases_completed": 3,
-                "node_titles": node_titles
+                "nodes": nodes_info
             })
 
             # Return the set of all affected nodes (new + modified + optimization-modified)
