@@ -19,8 +19,7 @@ export function fromCreateChildToUpsertNode(
     graph: Graph,
     parentNode: GraphNode,
     newNodeContent: string = "# new",
-    // todo, stripExtension(parentNode.relativeFilePathIsID) so there's no double .md
-    newFilePathIsID: NodeIdAndFilePath = parentNode.relativeFilePathIsID + '_' + parentNode.outgoingEdges.length + ".md", //todo doesn't guarantee uniqueness, but tis good enough
+    newFilePathIsID: NodeIdAndFilePath = parentNode.relativeFilePathIsID.replace(/\.md$/, '') + '_' + parentNode.outgoingEdges.length + ".md", //todo doesn't guarantee uniqueness, but tis good enough
 ): GraphDelta {
 
     // Parse the content to extract metadata (including isContextNode from frontmatter)
