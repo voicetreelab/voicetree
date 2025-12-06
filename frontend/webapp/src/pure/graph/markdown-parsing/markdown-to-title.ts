@@ -57,8 +57,8 @@ export function markdownToTitle(content: string, filePath: FilePath): string {
         .find(line => line.length > 0);
 
     if (firstNonEmptyLine) {
-        if (firstNonEmptyLine.length > 200) {
-            return firstNonEmptyLine.slice(0, 200) + '...';
+        if (firstNonEmptyLine.length > 100) {
+            return firstNonEmptyLine.slice(0, 100) + '...';
         }
         return firstNonEmptyLine;
     }
