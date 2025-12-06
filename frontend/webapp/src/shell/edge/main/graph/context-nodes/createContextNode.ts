@@ -60,7 +60,8 @@ export async function createContextNode(
 
     // 4. EDGE: Generate unique context node ID
     const timestamp: number = Date.now()
-    const contextNodeId: string = `${CONTEXT_NODES_FOLDER}/${parentNodeId}_context_${timestamp}.md`
+    const parentIdWithoutExtension: string = parentNodeId.replace(/\.md$/, '')
+    const contextNodeId: string = `${CONTEXT_NODES_FOLDER}/${parentIdWithoutExtension}_context_${timestamp}.md`
     console.log("[createContextNode] Generated contextNodeId:", contextNodeId)
 
     // 5. EDGE: Get parent node info for context

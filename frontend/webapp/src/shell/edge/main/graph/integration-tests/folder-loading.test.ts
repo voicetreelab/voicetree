@@ -22,7 +22,8 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { loadFolder, stopFileWatching, isWatching } from '@/shell/edge/main/graph/watchFolder'
-import { getGraph, setGraph, setVaultPath } from '@/shell/edge/main/state/graph-store'
+import { getGraph, setGraph } from '@/shell/edge/main/state/graph-store'
+import { setVaultPath } from '@/shell/edge/main/graph/watchFolder'
 import type { GraphDelta, Graph, UpsertNodeDelta, DeleteNode, GraphNode, Edge } from '@/pure/graph'
 import { getNodeTitle } from '@/pure/graph/markdown-parsing'
 import path from 'path'

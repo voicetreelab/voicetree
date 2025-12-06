@@ -426,12 +426,14 @@ button.graph-button:disabled > svg > path {
 
 /* Active terminal highlight */
 .agent-tab-active {
-    border-color: #7c3aed;
+    border: 3px solid #7c3aed;
+    border-radius: 3px;
     background: #252525;
 }
 
 .agent-tab-active:hover {
-    border-color: #8b5cf6;
+    border: 3px solid #8b5cf6;
+    border-radius: 3px;
 }
 
 /* Agent tab text - horizontally scrollable within fixed width */

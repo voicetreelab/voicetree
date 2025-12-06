@@ -17,7 +17,8 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { loadFolder, stopFileWatching, isWatching } from '@/shell/edge/main/graph/watchFolder'
-import { getGraph, setGraph, setVaultPath } from '@/shell/edge/main/state/graph-store'
+import { getGraph, setGraph } from '@/shell/edge/main/state/graph-store'
+import { setVaultPath } from '@/shell/edge/main/graph/watchFolder'
 import type { GraphDelta, Graph, GraphNode } from '@/pure/graph'
 import path from 'path'
 import { promises as fs } from 'fs'

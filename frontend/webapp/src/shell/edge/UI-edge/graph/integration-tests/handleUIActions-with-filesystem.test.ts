@@ -25,7 +25,8 @@ import { createNewChildNodeFromUI, deleteNodesFromUI } from '@/shell/edge/UI-edg
 import type { Graph } from '@/pure/graph'
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import { setVaultPath, setGraph } from '@/shell/edge/main/state/graph-store'
+import { setGraph } from '@/shell/edge/main/state/graph-store'
+import { setVaultPath } from '@/shell/edge/main/graph/watchFolder'
 
 // State managed by mocked globals - using module-level state that the mock functions will access
 let currentGraph: Graph | null = null
@@ -55,8 +56,8 @@ vi.mock('electron', () => ({
     }
 }))
 
-// Mock graph store - properly intercept vault path
-vi.mock('@/functional/shell/state/graph-store', () => {
+// Mock graph store
+vi.mock('@/shell/edge/main/state/graph-store', () => {
     return {
         getGraph: () => {
             if (!currentGraph) {
@@ -66,7 +67,13 @@ vi.mock('@/functional/shell/state/graph-store', () => {
         },
         setGraph: (graph: Graph) => {
             currentGraph = graph
-        },
+        }
+    }
+})
+
+// Mock watchFolder for vault path functions
+vi.mock('@/shell/edge/main/graph/watchFolder', () => {
+    return {
         getVaultPath: () => {
             return tempVault ? O.of(tempVault) : O.none
         },

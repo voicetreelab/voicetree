@@ -264,4 +264,139 @@ test.describe('Search Navigation (Browser)', () => {
 
     console.log('✓ ninja-keys search navigation test completed (with second search)');
   });
+
+  test('should find node by content keyword (not just title)', async ({ page, consoleCapture: _consoleCapture }) => {
+    console.log('\n=== Starting content keyword search test ===');
+
+    // Step 1: Setup
+    await setupMockElectronAPI(page);
+    await page.goto('/');
+    await page.waitForSelector('#root', { timeout: 5000 });
+    await page.waitForTimeout(50);
+    await waitForCytoscapeReady(page);
+
+    // Step 2: Send test graph
+    const graphDelta = createTestGraphDelta();
+    await sendGraphDelta(page, graphDelta);
+
+    const nodeCount = await getNodeCount(page);
+    expect(nodeCount).toBe(5);
+    console.log(`✓ Test graph setup with ${nodeCount} nodes`);
+
+    // Step 3: Verify the test node has content with "system" keyword
+    // test-node-5.md has title "Testing Guide" and content "How to test the system."
+    // We'll search for "system" which only appears in content, not title
+    const targetNodeInfo = await page.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+      const node = cy.getElementById('test-node-5.md');
+      return {
+        id: node.id(),
+        label: node.data('label') as string,
+        content: node.data('content') as string
+      };
+    });
+
+    console.log(`  Target node - label: "${targetNodeInfo.label}", content: "${targetNodeInfo.content}"`);
+    expect(targetNodeInfo.content).toContain('system');
+    expect(targetNodeInfo.label).not.toContain('system');
+    console.log('✓ Verified "system" is in content but not in title');
+
+    // Step 4: Open search and type "system"
+    await page.keyboard.press(process.platform === 'darwin' ? 'Meta+f' : 'Control+f');
+    await page.waitForTimeout(30);
+
+    await page.keyboard.type('system');
+    await page.waitForTimeout(30);
+    console.log('  Typed search query: "system"');
+
+    // Step 5: Press Enter to select the result
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(100);
+
+    // Step 6: Verify the correct node was selected
+    const selectedNodeId = await page.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+      const selected = cy.$(':selected').nodes();
+      return selected.length > 0 ? selected[0].id() : null;
+    });
+
+    console.log(`  Selected node: ${selectedNodeId}`);
+    expect(selectedNodeId).toBe('test-node-5.md');
+    console.log('✓ Content keyword search found correct node');
+  });
+
+  test('should order search results by recently visited nodes', async ({ page, consoleCapture: _consoleCapture }) => {
+    console.log('\n=== Starting recently visited ordering test ===');
+
+    // Step 1: Setup
+    await setupMockElectronAPI(page);
+    await page.goto('/');
+    await page.waitForSelector('#root', { timeout: 5000 });
+    await page.waitForTimeout(50);
+    await waitForCytoscapeReady(page);
+
+    // Step 2: Send test graph
+    const graphDelta = createTestGraphDelta();
+    await sendGraphDelta(page, graphDelta);
+
+    const nodeCount = await getNodeCount(page);
+    expect(nodeCount).toBe(5);
+    console.log(`✓ Test graph setup with ${nodeCount} nodes`);
+
+    // Step 3: Hover over nodes in a specific order: node-1, node-3, node-2
+    // This should make node-2 most recent, then node-3, then node-1
+    const hoverOrder = ['test-node-1.md', 'test-node-3.md', 'test-node-2.md'];
+
+    for (const nodeId of hoverOrder) {
+      // Get node position and hover over it
+      const nodePosition = await page.evaluate((id: string) => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        if (!cy) throw new Error('Cytoscape not initialized');
+        const node = cy.getElementById(id);
+        if (node.empty()) throw new Error(`Node ${id} not found`);
+        const pos = node.renderedPosition();
+        const container = cy.container();
+        if (!container) throw new Error('Container not found');
+        const rect = container.getBoundingClientRect();
+        return { x: rect.left + pos.x, y: rect.top + pos.y };
+      }, nodeId);
+
+      await page.mouse.move(nodePosition.x, nodePosition.y);
+      await page.waitForTimeout(50); // Allow hover event to register
+      console.log(`  Hovered over ${nodeId}`);
+    }
+
+    // Step 4: Open command palette
+    await page.keyboard.press(process.platform === 'darwin' ? 'Meta+f' : 'Control+f');
+    await page.waitForTimeout(50);
+    console.log('✓ Opened command palette');
+
+    // Step 5: Get the order of items in ninja-keys
+    const searchOrder = await page.evaluate(() => {
+      const ninjaKeys = document.querySelector('ninja-keys');
+      if (!ninjaKeys) throw new Error('ninja-keys not found');
+      // Access the data property which contains NinjaAction[]
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = (ninjaKeys as any).data as Array<{ id: string; title: string }>;
+      // Return first 3 items (should be recently visited in order)
+      return data.slice(0, 3).map(item => ({ id: item.id, title: item.title }));
+    });
+
+    console.log('  Search order (first 3):', searchOrder.map(s => s.id));
+
+    // Step 6: Verify order - most recent (node-2) should be first
+    // node-2 was hovered last, so it should be "1. Architecture"
+    // node-3 was hovered second-to-last, so it should be "2. Core Principles"
+    // node-1 was hovered first, so it should be "3. Introduction"
+    expect(searchOrder[0].id).toBe('test-node-2.md');
+    expect(searchOrder[0].title).toMatch(/^1\./); // Should have "1." prefix
+    expect(searchOrder[1].id).toBe('test-node-3.md');
+    expect(searchOrder[1].title).toMatch(/^2\./); // Should have "2." prefix
+    expect(searchOrder[2].id).toBe('test-node-1.md');
+    expect(searchOrder[2].title).toMatch(/^3\./); // Should have "3." prefix
+
+    console.log('✓ Recently visited nodes appear first in correct order');
+  });
 });

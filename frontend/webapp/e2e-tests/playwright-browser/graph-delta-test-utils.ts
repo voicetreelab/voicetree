@@ -183,7 +183,7 @@ export function createTestGraphDelta(): GraphDelta {
       type: 'UpsertNode' as const,
       nodeToUpsert: {
         relativeFilePathIsID: 'test-node-1.md',
-        contentWithoutYamlOrLinks: '# Introduction\\nThis is the introduction node.',
+        contentWithoutYamlOrLinks: '# Introduction\nThis is the introduction node.',
         outgoingEdges: [{ targetId: 'test-node-2.md', label: '' }],
         nodeUIMetadata: {
           color: { _tag: 'None' } as const,
@@ -198,7 +198,7 @@ export function createTestGraphDelta(): GraphDelta {
       type: 'UpsertNode' as const,
       nodeToUpsert: {
         relativeFilePathIsID: 'test-node-2.md',
-        contentWithoutYamlOrLinks: '# Architecture\\nArchitecture documentation.',
+        contentWithoutYamlOrLinks: '# Architecture\nArchitecture documentation.',
         outgoingEdges: [{ targetId: 'test-node-3.md', label: '' }],
         nodeUIMetadata: {
           color: { _tag: 'None' } as const,
@@ -213,7 +213,7 @@ export function createTestGraphDelta(): GraphDelta {
       type: 'UpsertNode' as const,
       nodeToUpsert: {
         relativeFilePathIsID: 'test-node-3.md',
-        contentWithoutYamlOrLinks: '# Core Principles\\nCore principles guide.',
+        contentWithoutYamlOrLinks: '# Core Principles\nCore principles guide.',
         outgoingEdges: [],
         nodeUIMetadata: {
           color: { _tag: 'None' } as const,
@@ -228,7 +228,7 @@ export function createTestGraphDelta(): GraphDelta {
       type: 'UpsertNode' as const,
       nodeToUpsert: {
         relativeFilePathIsID: 'test-node-4.md',
-        contentWithoutYamlOrLinks: '# API Design\\nAPI design patterns.',
+        contentWithoutYamlOrLinks: '# API Design\nAPI design patterns.',
         outgoingEdges: [],
         nodeUIMetadata: {
           color: { _tag: 'None' } as const,
@@ -243,7 +243,7 @@ export function createTestGraphDelta(): GraphDelta {
       type: 'UpsertNode' as const,
       nodeToUpsert: {
         relativeFilePathIsID: 'test-node-5.md',
-        contentWithoutYamlOrLinks: '# Testing Guide\\nHow to test the system.',
+        contentWithoutYamlOrLinks: '# Testing Guide\nHow to test the system.',
         outgoingEdges: [],
         nodeUIMetadata: {
           color: { _tag: 'None' } as const,
