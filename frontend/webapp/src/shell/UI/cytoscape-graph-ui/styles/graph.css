@@ -395,6 +395,7 @@ button.graph-button:disabled > svg > path {
 
 /* Individual agent tab button - inverted colors (dark bg, light text) like terminals */
 .agent-tab {
+    position: relative; /* Required for absolute positioning of activity dots */
     display: flex;
     align-items: center;
     justify-content: flex-start;
@@ -470,9 +471,9 @@ button.graph-button:disabled > svg > path {
     position: absolute;
     bottom: -6px;
     left: 4px;
-    width: 6px;
-    height: 6px;
+    width: 9px;
+    height: 9px;
     border-radius: 50%;
-    background: #7c3aed;
+    background: #3b82f6;
     pointer-events: none;
 }
