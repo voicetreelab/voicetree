@@ -13,7 +13,7 @@ export interface VTSettings {
 }
 
 export const DEFAULT_SETTINGS: VTSettings = {
-  terminalSpawnPathRelativeToWatchedDirectory: '../',
+  terminalSpawnPathRelativeToWatchedDirectory: '/',
   agents: [
     {
       name: 'Claude',
@@ -27,6 +27,10 @@ export const DEFAULT_SETTINGS: VTSettings = {
       name: 'Codex',
       command: `codex "$AGENT_PROMPT"`,
     },
+      {
+          name: 'Rovodev',
+          command: `acli rovodev run "$AGENT_PROMPT"`,
+      }
   ],
   shiftEnterSendsOptionEnter: true,
   INJECT_ENV_VARS: {
