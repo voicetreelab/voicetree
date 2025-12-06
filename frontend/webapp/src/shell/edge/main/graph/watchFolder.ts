@@ -24,6 +24,9 @@ import {getOnboardingDirectory} from "@/shell/edge/main/electron/onboarding-setu
 // setting up file watchers
 // closing old watchers
 
+export const VOICETREE_MARKDOWN_FILES_READ_WRITE_PREFIX : string = "voicetree";
+// IMPORTANT ^^^
+
 let watcher: FSWatcher | null = null;
 
 let watchedDirectory: FilePath | null = null;
@@ -72,8 +75,12 @@ async function saveLastDirectory(directoryPath: string): Promise<void> {
         });
 }
 
-export async function loadFolder(vaultPath: FilePath): Promise<void>  {
-    console.log('[loadFolder] Starting for path:', vaultPath);
+export async function loadFolder(watchedFolderPath: FilePath): Promise<void>  {
+    // IMPORTANT,  watchedFolderPath is the folder the human chooses for proj
+
+    // but we only read and write files to the vaultPAth, which is watchedFolderPath/readWriteDir
+
+    console.log('[loadFolder] Starting for path:', watchedFolderPath);
 
     const mainWindow: Electron.CrossProcessExports.BrowserWindow | null = getMainWindow();
     if (!mainWindow) {
@@ -86,6 +93,8 @@ export async function loadFolder(vaultPath: FilePath): Promise<void>  {
         console.log('[loadFolder] Sending graph:clear event to UI-edge');
         mainWindow.webContents.send('graph:clear');
     }
+
+    const vaultPath : string = watchedFolderPath + "/" + VOICETREE_MARKDOWN_FILES_READ_WRITE_PREFIX
 
     // Load graph from disk (IO operation)
     const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(vaultPath));
@@ -118,8 +127,7 @@ export async function loadFolder(vaultPath: FilePath): Promise<void>  {
     console.log('[loadFolder] File watcher setup complete');
 
     // Save as last directory for auto-start on next launch
-    await saveLastDirectory(vaultPath);
-
+    await saveLastDirectory(watchedFolderPath);
 }
 
 /**
@@ -156,8 +164,8 @@ async function setupWatcher(vaultPath: FilePath): Promise<void> {
         watcher = null;
     }
 
-    // Set the watched directory
-    watchedDirectory = vaultPath;
+    // remember vaultPAth isi {loaded_dir}/voicetree
+    //
 
     // Create new watcher
     watcher = chokidar.watch(vaultPath, {
