@@ -76,7 +76,18 @@ test.describe('Markdown Heading Styles Screenshot', () => {
 
 Regular paragraph text for comparison.
 
-**Bold text** and *italic text* for reference.`;
+**Bold text** and *italic text* for reference.
+
+\`\`\`typescript
+interface User {
+  name: string;
+  age: number;
+}
+
+const greet = (user: User): string => {
+  return \`Hello, \${user.name}!\`;
+};
+\`\`\``;
 
     const graphDelta: GraphDelta = [
       {
@@ -113,7 +124,7 @@ Regular paragraph text for comparison.
     const editorSelector = '#window-heading-styles-test\\.md-editor';
     await page.waitForSelector(editorSelector, { timeout: 5000 });
     await page.waitForSelector(`${editorSelector} .cm-content`, { timeout: 3000 });
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(2000); // Wait for lazy-loaded language to be applied
 
     // Take screenshot of just the editor
     const editor = page.locator(editorSelector);
