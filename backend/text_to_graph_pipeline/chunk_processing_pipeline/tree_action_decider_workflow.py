@@ -308,7 +308,7 @@ class TreeActionDeciderWorkflow:
             # PHASE 2: OPTIMIZATION
             # ======================================================================
             current_phase = "optimization"
-            await emit_event(SSEEventType.PHASE_STARTED, {"phase": "optimization"})
+            # await emit_event(SSEEventType.PHASE_STARTED, {"phase": "optimization"}) disabled, no need.
             logging.info("Running Phase 2: Optimization Agent...")
 
             # Combine modified nodes and merged orphan nodes for optimization

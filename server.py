@@ -58,8 +58,8 @@ def initialize_tree_state(directory_path: str, embedding_manager: Any = None) ->
         os.makedirs(directory_path, exist_ok=True)
         tree = MarkdownTree(output_dir=directory_path, embedding_manager=embedding_manager)
 
-    # Voice-to-text files go to VT/voice subdirectory
-    os.makedirs(directory_path + "/VT", exist_ok=True)
+    # Voice-to-text files go to /voice subdirectory
+    os.makedirs(directory_path + "/voice", exist_ok=True)
 
     converter = TreeToMarkdownConverter(tree.tree)
     processor = ChunkProcessor(tree, converter=converter)
