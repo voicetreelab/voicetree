@@ -17,7 +17,7 @@ def addNewNode(parent_file=None, name=None, markdown_content=None, relationship_
 
     Args:
         parent_file (str, optional): Path to the parent markdown file (relative to vault or absolute).
-                                     If not provided, uses OBSIDIAN_SOURCE_NOTE env var.
+                                     If not provided, uses CONTEXT_NODE_PATH env var.
         name (str): Name/title of the new node
         markdown_content (str): Content for the new node's markdown file
         relationship_to (str, optional): Relationship type to parent (e.g., "is_a_component_of", "is_a_feature_of").
@@ -43,11 +43,11 @@ def addNewNode(parent_file=None, name=None, markdown_content=None, relationship_
     # Get vault path from environment variable
     vault_path_env = os.environ.get('OBSIDIAN_VAULT_PATH')
 
-    # If parent_file not provided, use OBSIDIAN_SOURCE_NOTE from environment
+    # If parent_file not provided, use CONTEXT_NODE_PATH from environment
     if parent_file is None:
-        source_note = os.environ.get('OBSIDIAN_SOURCE_NOTE')
+        source_note = os.environ.get('CONTEXT_NODE_PATH')
         if not source_note or not vault_path_env:
-            raise ValueError("parent_file not provided and OBSIDIAN_VAULT_PATH/OBSIDIAN_SOURCE_NOTE not set")
+            raise ValueError("parent_file not provided and OBSIDIAN_VAULT_PATH/CONTEXT_NODE_PATH not set")
         parent_file = source_note
 
     # Convert parent_file to Path
@@ -59,10 +59,8 @@ def addNewNode(parent_file=None, name=None, markdown_content=None, relationship_
         full_parent_path = parent_path
         # Find vault directory by traversing up to find a directory containing .md files
         # or use parent's parent if it looks like a vault subdirectory
-        if parent_path.parent.name.startswith("20"):  # Date-based folder like "2025-08-08"
-            vault_dir = parent_path.parent.parent
-        else:
-            vault_dir = parent_path.parent
+        vault_dir = parent_path.parent
+
     else:
         # Use OBSIDIAN_VAULT_PATH for relative paths
         if not vault_path_env:
@@ -222,7 +220,7 @@ Examples:
   python3 add_new_node.py "Bob Subtask" "Implement feature X" is_subtask_of --parent parent.md --color green --agent-name Bob
 
 Note: Color/name taken from AGENT_COLOR/AGENT_NAME env vars unless overridden.
-      Vault path from OBSIDIAN_VAULT_PATH, parent defaults to OBSIDIAN_SOURCE_NOTE.
+      Vault path from OBSIDIAN_VAULT_PATH, parent defaults to CONTEXT_NODE_PATH.
         """
     )
 
@@ -230,7 +228,7 @@ Note: Color/name taken from AGENT_COLOR/AGENT_NAME env vars unless overridden.
     parser.add_argument("markdown_content", help="Content for the new node's markdown file")
     # TODO: consider using quoted strings with spaces for relationships (e.g., "is progress of") for more natural markdown output
     parser.add_argument("relationship_to", nargs='?', default=None, help="Relationship type to parent (e.g., is_a_component_of). Optional - omit for plain link.")
-    parser.add_argument("--parent", dest="parent_file", help="Path to the parent markdown file (defaults to OBSIDIAN_SOURCE_NOTE)")
+    parser.add_argument("--parent", dest="parent_file", help="Path to the parent markdown file (defaults to CONTEXT_NODE_PATH)")
     parser.add_argument("--color", dest="color_override", help="Override color (for orchestrator agents creating subtasks)")
     parser.add_argument("--agent-name", dest="agent_name_override", help="Override agent name (for orchestrator agents creating subtasks)")
 
