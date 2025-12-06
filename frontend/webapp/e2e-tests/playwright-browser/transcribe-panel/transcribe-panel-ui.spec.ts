@@ -36,13 +36,15 @@ test.describe('Transcribe Panel UI', () => {
     // or by directly updating the DOM with mock content
 
     // Wait for the transcribe panel to be rendered
-    await page.waitForSelector('.flex.flex-col.bg-background', { timeout: 5000 });
+    await page.waitForSelector('.flex.flex-col.relative', { timeout: 5000 });
 
     // Inject mock transcribed text by modifying the Renderer's DOM
     // The Renderer component displays tokens - we'll add mock token spans
+    // The reverted code uses a 68px height container with overflow-y-auto and mask gradient
     await page.evaluate(() => {
-      // Find the transcription display container (the auto-scroll div)
-      const transcriptionDisplay = document.querySelector('.h-20.overflow-y-auto');
+      // Find the transcription display container (the auto-scroll div with mask gradient)
+      // It's inside the absolute positioned container with height 68px
+      const transcriptionDisplay = document.querySelector('.overflow-y-auto.absolute.inset-0');
       if (!transcriptionDisplay) {
         console.error('Could not find transcription display');
         return;
@@ -76,8 +78,8 @@ test.describe('Transcribe Panel UI', () => {
     console.log('✓ "Record speech" label is visible');
 
     console.log('=== Step 6: Take screenshot of transcribe panel ===');
-    // Take a screenshot of just the transcribe section
-    const transcribeSection = page.locator('.flex-shrink-0.py-2.px-4').first();
+    // Take a screenshot of just the transcribe section (the main container with the input and transcription display)
+    const transcribeSection = page.locator('.flex.flex-col.relative').first();
     await transcribeSection.screenshot({
       path: 'e2e-tests/screenshots/transcribe-panel-with-text.png',
     });
@@ -91,7 +93,7 @@ test.describe('Transcribe Panel UI', () => {
 
     console.log('=== Step 7: Verify transparency and fade styles ===');
     const maskStyle = await page.evaluate(() => {
-      const container = document.querySelector('.h-20.overflow-y-auto');
+      const container = document.querySelector('.overflow-y-auto.absolute.inset-0');
       if (!container) return null;
       const style = window.getComputedStyle(container as Element);
       return {
@@ -102,11 +104,11 @@ test.describe('Transcribe Panel UI', () => {
     });
 
     console.log('  Container styles:', maskStyle);
-    // Verify mask-image is applied (for fade effect) - top is 50% faded, bottom is full opacity
+    // Verify mask-image is applied (for fade effect) - top is 30% opacity, bottom is full opacity
     expect(maskStyle?.maskImage).toContain('gradient');
-    expect(maskStyle?.maskImage).toContain('rgba(0, 0, 0, 0.5)'); // 50% at top
+    expect(maskStyle?.maskImage).toContain('rgba(0, 0, 0, 0.3)'); // 30% at top
     expect(maskStyle?.maskImage).toContain('rgb(0, 0, 0)'); // full opacity at bottom
-    console.log('✓ Fade mask gradient is applied (50% top, full opacity bottom)');
+    console.log('✓ Fade mask gradient is applied (30% top, full opacity bottom)');
 
     console.log('\n✅ Transcribe panel UI test PASSED!');
   });

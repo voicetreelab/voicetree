@@ -1,12 +1,65 @@
 /* Server Activity Panel - horizontal bar at bottom of app */
 .server-activity-panel {
-    /* Fill available width from parent (parent already has mr-[140px] for minimap) */
+    /* Fill available width from parent */
     width: 100%;
     min-width: 0; /* Allow flex child to shrink below content size */
     background: var(--background);
     border-top: 1px solid var(--border);
     padding: 4px 8px;
-    overflow: hidden; /* Contain the scrollable events container */
+    overflow: visible; /* Allow overlay to extend above */
+    position: relative; /* For absolute positioning of overlay */
+}
+
+/* Expanded overlay - shown on hover */
+.server-activity-overlay {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    width: max-content;
+    max-width: 80vw;
+    height: 400px;
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: 8px 8px 0 0;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    z-index: 1100;
+    overflow: hidden;
+}
+
+.server-activity-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Events container inside overlay - horizontal wrapping layout */
+.server-activity-overlay-events {
+    display: flex;
+    flex-wrap: wrap;
+    flex-direction: row;
+    align-content: flex-start;
+    gap: 8px;
+    padding: 12px;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: var(--muted) transparent;
+}
+
+.server-activity-overlay-events::-webkit-scrollbar {
+    width: 6px;
+}
+
+.server-activity-overlay-events::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.server-activity-overlay-events::-webkit-scrollbar-thumb {
+    background: var(--muted);
+    border-radius: 3px;
 }
 
 /* Horizontal scrollable events container */
@@ -16,6 +69,7 @@
     gap: 8px;
     overflow-x: auto;
     overflow-y: hidden;
+    max-width: 100%; /* Constrain to parent width */
     scrollbar-width: thin;
     scrollbar-color: var(--muted) transparent;
 }
@@ -120,4 +174,28 @@
 .event-connection_error {
     color: #ef4444;
     background: rgba(239, 68, 68, 0.1);
+}
+
+/* Node cards - new (green) and modified (blue) */
+.server-activity-card.node-new {
+    color: #22c55e;
+    background: rgba(34, 197, 94, 0.2);
+    border-left: 3px solid #22c55e;
+}
+
+.server-activity-card.node-modified {
+    color: #3b82f6;
+    background: rgba(59, 130, 246, 0.2);
+    border-left: 3px solid #3b82f6;
+}
+
+.server-activity-card.node-new:hover,
+.server-activity-card.node-modified:hover {
+    filter: brightness(1.1);
+}
+
+.activity-node-title {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }

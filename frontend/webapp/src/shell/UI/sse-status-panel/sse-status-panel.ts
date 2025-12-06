@@ -7,15 +7,24 @@ export interface SSEEvent {
     timestamp: number;
 }
 
+interface NodeInfo {
+    title: string;
+    filename: string;
+    is_new: boolean;
+}
+
 const STATUS_PANEL_MOUNT_ID: string = 'sse-status-panel-mount';
 
 /**
  * Server Activity Panel - horizontal bar at bottom of app.
  * Displays server events as horizontal cards, newest on right with autoscroll.
+ * On hover, expands to show 400px overlay with all activity history.
  */
 export class SseStatusPanel {
     private container: HTMLElement;
     private eventsContainer: HTMLElement;
+    private expandedOverlay: HTMLElement;
+    private expandedEventsContainer: HTMLElement;
     private maxEvents = 2000;
     private disconnectSSE: (() => void) | null = null;
 
@@ -23,15 +32,49 @@ export class SseStatusPanel {
         this.container = document.createElement('div');
         this.container.className = 'server-activity-panel';
 
-        // Horizontal scrollable events container
+        // Horizontal scrollable events container (compact view)
         this.eventsContainer = document.createElement('div');
         this.eventsContainer.className = 'server-activity-events';
         this.container.appendChild(this.eventsContainer);
+
+        // Expanded overlay (shown on hover)
+        this.expandedOverlay = document.createElement('div');
+        this.expandedOverlay.className = 'server-activity-overlay';
+        this.expandedEventsContainer = document.createElement('div');
+        this.expandedEventsContainer.className = 'server-activity-overlay-events';
+        this.expandedOverlay.appendChild(this.expandedEventsContainer);
+        this.container.appendChild(this.expandedOverlay);
+
+        // Show overlay on hover
+        this.container.addEventListener('mouseenter', () => {
+            this.expandedOverlay.classList.add('visible');
+            this.syncExpandedView();
+            this.scrollExpandedToNewest();
+        });
+        this.container.addEventListener('mouseleave', () => {
+            this.expandedOverlay.classList.remove('visible');
+        });
 
         mountPoint.appendChild(this.container);
 
         // Initialize SSE connection
         this.initSSEConnection();
+    }
+
+    /** Sync the expanded view with all events from compact view */
+    private syncExpandedView(): void {
+        // Clone all events to expanded view
+        this.expandedEventsContainer.innerHTML = '';
+        const events: HTMLCollection = this.eventsContainer.children;
+        for (let i: number = 0; i < events.length; i++) {
+            const clone: Node = events[i].cloneNode(true);
+            this.expandedEventsContainer.appendChild(clone);
+        }
+    }
+
+    /** Scroll expanded view to show newest (rightmost) events */
+    private scrollExpandedToNewest(): void {
+        this.expandedEventsContainer.scrollLeft = this.expandedEventsContainer.scrollWidth;
     }
 
     /** Initialize SseStatusPanel by finding mount point in DOM, waiting if necessary */
@@ -65,6 +108,16 @@ export class SseStatusPanel {
     }
 
     addEvent(event: SSEEvent): void {
+        // Handle workflow_complete with individual node cards
+        if (event.type === 'workflow_complete') {
+            const nodes: NodeInfo[] | undefined = event.data.nodes as NodeInfo[] | undefined;
+            if (nodes && nodes.length > 0) {
+                for (const node of nodes) {
+                    this.addNodeCard(node, event.timestamp);
+                }
+                return;
+            }
+        }
 
         if (!this.getEventMessage(event)){
             return; // to allow ignoring certain sse events
@@ -78,6 +131,48 @@ export class SseStatusPanel {
         this.eventsContainer.appendChild(card);
         this.trimOldEvents();
         this.scrollToNewest();
+    }
+
+    /** Add a clickable node card for workflow_complete events */
+    private addNodeCard(node: NodeInfo, timestamp: number): void {
+        const card: HTMLDivElement = document.createElement('div');
+        const colorClass: string = node.is_new ? 'node-new' : 'node-modified';
+        card.className = `server-activity-card ${colorClass}`;
+
+        // Truncate title to 30 chars
+        const truncatedTitle: string = node.title.length > 30
+            ? node.title.slice(0, 30) + '…'
+            : node.title;
+
+        const icon: string = node.is_new ? '+' : '~';
+        const time: string = new Date(timestamp).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+
+        card.innerHTML = `
+            <span class="activity-icon">${icon}</span>
+            <span class="activity-node-title">${truncatedTitle}</span>
+            <span class="activity-time">${time}</span>
+        `;
+
+        // Click to navigate
+        card.style.cursor = 'pointer';
+        card.addEventListener('click', () => {
+            this.navigateToNode(node.filename);
+        });
+
+        this.eventsContainer.appendChild(card);
+        this.trimOldEvents();
+        this.scrollToNewest();
+    }
+
+    /** Dispatch navigation event for VoiceTreeGraphView to handle */
+    private navigateToNode(filename: string): void {
+        window.dispatchEvent(new CustomEvent('voicetree-navigate', {
+            detail: { nodeId: filename }
+        }));
     }
 
     private formatEventCard(event: SSEEvent): string {

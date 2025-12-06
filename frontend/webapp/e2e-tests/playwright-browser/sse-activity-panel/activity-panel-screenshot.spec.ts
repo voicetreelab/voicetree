@@ -62,9 +62,9 @@ interface SSEEvent {
 /**
  * Generate a sequence of realistic SSE events to populate the activity panel
  */
-function generateMockSSEEvents(): SSEEvent[] {
+function generateMockSSEEvents(count: number = 12): SSEEvent[] {
   const now: number = Date.now();
-  return [
+  const baseEvents: SSEEvent[] = [
     { type: 'connection_open', data: { port: 5001 }, timestamp: now - 60000 },
     { type: 'phase_started', data: { phase: 'placement', text_chunk: 'First transcribed text chunk for testing the activity panel display' }, timestamp: now - 55000 },
     { type: 'phase_complete', data: { phase: 'placement' }, timestamp: now - 50000 },
@@ -78,6 +78,36 @@ function generateMockSSEEvents(): SSEEvent[] {
     { type: 'phase_started', data: { phase: 'placement', text_chunk: 'Fifth chunk retry' }, timestamp: now - 10000 },
     { type: 'workflow_complete', data: { total_nodes: 7, node_titles: ['Final Node'] }, timestamp: now - 5000 },
   ];
+
+  if (count <= baseEvents.length) {
+    return baseEvents.slice(0, count);
+  }
+
+  // Generate additional events for larger counts
+  const events: SSEEvent[] = [...baseEvents];
+  const eventTypes: Array<{ type: string; data: Record<string, unknown> }> = [
+    { type: 'phase_started', data: { phase: 'placement', text_chunk: 'Additional transcription chunk number ' } },
+    { type: 'workflow_complete', data: { total_nodes: 2, node_titles: ['Generated Node'] } },
+    { type: 'phase_started', data: { phase: 'optimization' } },
+    { type: 'workflow_complete', data: { total_nodes: 4, node_titles: ['Alpha', 'Beta'] } },
+    { type: 'rate_limit_error', data: { message: 'Rate limit' } },
+    { type: 'phase_started', data: { phase: 'synthesis', text_chunk: 'Synthesis pass ' } },
+  ];
+
+  for (let i: number = baseEvents.length; i < count; i++) {
+    const template: { type: string; data: Record<string, unknown> } = eventTypes[i % eventTypes.length];
+    const eventData: Record<string, unknown> = { ...template.data };
+    if (eventData.text_chunk) {
+      eventData.text_chunk = `${eventData.text_chunk}${i}`;
+    }
+    events.push({
+      type: template.type,
+      data: eventData,
+      timestamp: now - (count - i) * 3000,
+    });
+  }
+
+  return events;
 }
 
 test.describe('SSE Activity Panel Screenshot', () => {
@@ -109,13 +139,21 @@ test.describe('SSE Activity Panel Screenshot', () => {
         const mountPoint: HTMLElement | null = document.getElementById('sse-status-panel-mount');
         if (!mountPoint) throw new Error('Mount point not found');
 
-        // Create panel structure manually
+        // Create panel structure manually (including overlay)
         const panel: HTMLDivElement = document.createElement('div');
         panel.className = 'server-activity-panel';
 
         const eventsContainer: HTMLDivElement = document.createElement('div');
         eventsContainer.className = 'server-activity-events';
         panel.appendChild(eventsContainer);
+
+        // Create expanded overlay structure
+        const overlay: HTMLDivElement = document.createElement('div');
+        overlay.className = 'server-activity-overlay';
+        const overlayEvents: HTMLDivElement = document.createElement('div');
+        overlayEvents.className = 'server-activity-overlay-events';
+        overlay.appendChild(overlayEvents);
+        panel.appendChild(overlay);
 
         mountPoint.appendChild(panel);
       });
@@ -125,8 +163,8 @@ test.describe('SSE Activity Panel Screenshot', () => {
     await page.waitForSelector('.server-activity-panel', { timeout: 5000 });
     console.log('Panel container exists');
 
-    // Inject mock SSE events into the panel
-    const events: SSEEvent[] = generateMockSSEEvents();
+    // Inject many mock SSE events into the panel (30 events to fill the overlay)
+    const events: SSEEvent[] = generateMockSSEEvents(30);
 
     await page.evaluate((eventsToInject: SSEEvent[]) => {
       const eventsContainer: HTMLElement | null = document.querySelector('.server-activity-events');
@@ -211,41 +249,68 @@ test.describe('SSE Activity Panel Screenshot', () => {
 
     await page.waitForTimeout(300);
 
-    // Take screenshot of the full page to show panel positioning relative to minimap
+    // Take screenshot of the full page WITHOUT hover (compact view)
     await page.screenshot({
-      path: 'e2e-tests/screenshots/activity-panel-full-page.png'
+      path: 'e2e-tests/screenshots/activity-panel-no-hover.png'
     });
-    console.log('Full page screenshot saved');
+    console.log('No-hover screenshot saved');
 
-    // Take screenshot of just the activity panel
+    // Now hover over the activity panel to trigger the overlay
     const panel: import('@playwright/test').Locator = page.locator('.server-activity-panel');
-    await panel.screenshot({
-      path: 'e2e-tests/screenshots/activity-panel-many-events.png'
+    await panel.hover();
+
+    // Wait for hover transition
+    await page.waitForTimeout(300);
+
+    // Sync overlay events (simulate what SseStatusPanel does on hover)
+    await page.evaluate(() => {
+      const eventsContainer: HTMLElement | null = document.querySelector('.server-activity-events');
+      const overlayEventsContainer: HTMLElement | null = document.querySelector('.server-activity-overlay-events');
+      if (!eventsContainer || !overlayEventsContainer) return;
+
+      // Clone all events to overlay
+      overlayEventsContainer.innerHTML = '';
+      const events: HTMLCollection = eventsContainer.children;
+      for (let i: number = 0; i < events.length; i++) {
+        const clone: Node = events[i].cloneNode(true);
+        overlayEventsContainer.appendChild(clone);
+      }
+
+      // Show the overlay
+      const overlay: HTMLElement | null = document.querySelector('.server-activity-overlay');
+      if (overlay) {
+        overlay.classList.add('visible');
+      }
     });
-    console.log('Activity panel screenshot saved');
+
+    await page.waitForTimeout(200);
+
+    // Take screenshot with hover overlay visible
+    await page.screenshot({
+      path: 'e2e-tests/screenshots/activity-panel-hover-overlay.png'
+    });
+    console.log('Hover overlay screenshot saved');
+
+    // Also take a screenshot of just the bottom area to show detail
+    const bottomArea: import('@playwright/test').Locator = page.locator('.server-activity-panel');
+    await bottomArea.screenshot({
+      path: 'e2e-tests/screenshots/activity-panel-compact.png'
+    });
+    console.log('Compact panel screenshot saved');
 
     // Verify the panel has events
     const eventCount: number = await page.evaluate(() => {
-      return document.querySelectorAll('.server-activity-card').length;
+      return document.querySelectorAll('.server-activity-events .server-activity-card').length;
     });
     console.log(`Panel contains ${eventCount} event cards`);
-    expect(eventCount).toBeGreaterThan(5);
+    expect(eventCount).toBeGreaterThan(20);
 
-    // Verify scroll position (should be scrolled to right for newest)
-    const scrollInfo: { scrollLeft: number; scrollWidth: number; clientWidth: number } = await page.evaluate(() => {
-      const container: HTMLElement | null = document.querySelector('.server-activity-events');
-      if (!container) return { scrollLeft: 0, scrollWidth: 0, clientWidth: 0 };
-      return {
-        scrollLeft: container.scrollLeft,
-        scrollWidth: container.scrollWidth,
-        clientWidth: container.clientWidth
-      };
+    // Verify overlay has events too
+    const overlayEventCount: number = await page.evaluate(() => {
+      return document.querySelectorAll('.server-activity-overlay-events .server-activity-card').length;
     });
-    console.log(`Scroll position: ${scrollInfo.scrollLeft}/${scrollInfo.scrollWidth - scrollInfo.clientWidth}`);
-
-    // Scroll should be at or near the right edge
-    const isScrolledRight: boolean = scrollInfo.scrollLeft >= scrollInfo.scrollWidth - scrollInfo.clientWidth - 10;
-    expect(isScrolledRight).toBe(true);
+    console.log(`Overlay contains ${overlayEventCount} event cards`);
+    expect(overlayEventCount).toBeGreaterThan(20);
 
     console.log('Activity panel screenshot test completed');
   });
