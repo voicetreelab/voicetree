@@ -6,6 +6,7 @@ import type { Core, NodeSingular, EdgeSingular, CollectionReturnValue, NodeColle
 import type { BreathingAnimationService } from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService';
 import type { StyleService } from '@/shell/UI/cytoscape-graph-ui/services/StyleService';
 import { CLASS_HOVER, CLASS_UNHOVER, CLASS_CONNECTED_HOVER } from '@/shell/UI/cytoscape-graph-ui/constants';
+import { addRecentlyVisited } from '@/shell/edge/UI-edge/state/RecentlyVisitedStore';
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
 
@@ -33,6 +34,8 @@ export function setupBasicCytoscapeEventListeners(
         // Deselect all other nodes and select the hovered node
         selectedNodes.not(node).unselect();
         node.select();
+        // Track as recently visited for command palette ordering
+        addRecentlyVisited(node.id());
       }
     }
 

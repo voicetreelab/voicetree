@@ -529,9 +529,14 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             deleteSelectedNodes: deleteSelectedNodesAction(this.cy)
         });
 
-        // Register cmd-f for search
+        // Register cmd-f and cmd-e for search
         this.hotkeyManager.registerHotkey({
             key: 'f',
+            modifiers: ['Meta'],
+            onPress: () => this.searchService.open()
+        });
+        this.hotkeyManager.registerHotkey({
+            key: 'e',
             modifiers: ['Meta'],
             onPress: () => this.searchService.open()
         });

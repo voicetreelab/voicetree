@@ -20,6 +20,8 @@ interface AgentTabsBarState {
     activeTerminalId: TerminalId | null
     // Track count of activity per terminal (each new node adds a dot, dots persist)
     terminalActivityCount: Map<TerminalId, number>
+    // Tooltip element for keyboard shortcut hint
+    tooltip: HTMLElement | null
 }
 
 // Module state for the single instance
@@ -27,7 +29,8 @@ const state: AgentTabsBarState = {
     container: null,
     tabsContainer: null,
     activeTerminalId: null,
-    terminalActivityCount: new Map()
+    terminalActivityCount: new Map(),
+    tooltip: null
 }
 
 /**
@@ -49,7 +52,14 @@ export function createAgentTabsBar(parentContainer: HTMLElement): () => void {
     state.tabsContainer = document.createElement('div')
     state.tabsContainer.className = 'agent-tabs-scroll'
 
+    // Create shared tooltip element
+    state.tooltip = document.createElement('div')
+    state.tooltip.className = 'agent-tab-tooltip'
+    state.tooltip.textContent = '⌘[ or ⌘] to cycle'
+    state.tooltip.style.display = 'none'
+
     state.container.appendChild(state.tabsContainer)
+    state.container.appendChild(state.tooltip)
     parentContainer.appendChild(state.container)
 
     // Initially hidden until we have terminals
@@ -152,12 +162,45 @@ function createTab(
         tab.appendChild(dot)
     }
 
-    // Click handler - navigate to terminal (dots persist, not cleared on click)
+    // Click handler - navigate to terminal and clear activity dots for this terminal
     tab.addEventListener('click', () => {
+        clearActivityForTerminal(terminalId)
         onSelect(terminal)
     })
 
+    // Hover handlers - show/hide keyboard shortcut tooltip
+    tab.addEventListener('mouseenter', (e: MouseEvent) => {
+        showTooltip(e.currentTarget as HTMLElement)
+    })
+    tab.addEventListener('mouseleave', () => {
+        hideTooltip()
+    })
+
     return tab
+}
+
+/**
+ * Show tooltip near the hovered tab
+ */
+function showTooltip(tabElement: HTMLElement): void {
+    if (!state.tooltip || !state.container) return
+
+    const tabRect: DOMRect = tabElement.getBoundingClientRect()
+    const containerRect: DOMRect = state.container.getBoundingClientRect()
+
+    // Position tooltip below the tab, centered
+    state.tooltip.style.display = 'block'
+    state.tooltip.style.left = `${tabRect.left - containerRect.left + tabRect.width / 2}px`
+    state.tooltip.style.top = `${tabRect.height + 4}px`
+    state.tooltip.style.transform = 'translateX(-50%)'
+}
+
+/**
+ * Hide the tooltip
+ */
+function hideTooltip(): void {
+    if (!state.tooltip) return
+    state.tooltip.style.display = 'none'
 }
 
 /**
@@ -170,6 +213,7 @@ export function disposeAgentTabsBar(): void {
 
     state.container = null
     state.tabsContainer = null
+    state.tooltip = null
     state.activeTerminalId = null
     state.terminalActivityCount.clear()
 }
@@ -222,4 +266,12 @@ function updateActivityDots(terminalId: TerminalId): void {
         dot.style.left = `${4 + i * 12}px`
         tab.appendChild(dot)
     }
+}
+
+/**
+ * Clear activity dots for a specific terminal (called when user clicks the tab)
+ */
+function clearActivityForTerminal(terminalId: TerminalId): void {
+    state.terminalActivityCount.set(terminalId, 0)
+    updateActivityDots(terminalId)
 }

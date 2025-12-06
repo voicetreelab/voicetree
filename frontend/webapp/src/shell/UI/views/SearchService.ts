@@ -8,14 +8,17 @@
  * - Updates search data when nodes change
  */
 
-import type { Core, NodeCollection } from 'cytoscape';
+import type { Core, NodeCollection, NodeSingular } from 'cytoscape';
 import 'ninja-keys';
+import { getRecentlyVisited } from '@/shell/edge/UI-edge/state/RecentlyVisitedStore';
+import type { GraphDelta, NodeDelta } from '@/pure/graph';
 
 // Extend HTMLElement for ninja-keys custom element
 interface NinjaAction {
   id: string;
   title: string;
   description?: string;
+  keywords?: string;
   handler?: () => void | { keepOpen: boolean };
 }
 
@@ -61,7 +64,51 @@ export class SearchService {
    * Open the search modal
    */
   open(): void {
+    this.reorderByRecency();
     this.ninjaKeys.open();
+  }
+
+  /**
+   * Re-sort existing search data by recency.
+   * O(N log N) sort on existing data - no Cytoscape queries.
+   * Called on open() to reflect latest recently visited state.
+   */
+  private reorderByRecency(): void {
+    const currentData: NinjaAction[] = this.ninjaKeys.data;
+    if (currentData.length === 0) return;
+
+    const recentlyVisited: string[] = getRecentlyVisited();
+    const recentSet: Set<string> = new Set(recentlyVisited);
+
+    // Strip existing recency prefixes (e.g., "1. ", "2. ") before re-sorting
+    const strippedData: NinjaAction[] = currentData.map((action: NinjaAction) => {
+      const match: RegExpMatchArray | null = action.title.match(/^\d+\.\s+(.*)$/);
+      return match ? { ...action, title: match[1] } : action;
+    });
+
+    // Sort by recency
+    const sorted: NinjaAction[] = strippedData.sort((a: NinjaAction, b: NinjaAction) => {
+      const aRecent: boolean = recentSet.has(a.id);
+      const bRecent: boolean = recentSet.has(b.id);
+
+      if (aRecent && !bRecent) return -1;
+      if (!aRecent && bRecent) return 1;
+      if (aRecent && bRecent) {
+        return recentlyVisited.indexOf(a.id) - recentlyVisited.indexOf(b.id);
+      }
+      return 0;
+    });
+
+    // Re-add recency prefixes
+    const prefixed: NinjaAction[] = sorted.map((action: NinjaAction) => {
+      const recentIndex: number = recentlyVisited.indexOf(action.id);
+      if (recentIndex >= 0) {
+        return { ...action, title: `${recentIndex + 1}. ${action.title}` };
+      }
+      return action;
+    });
+
+    this.ninjaKeys.data = prefixed;
   }
 
   /**
@@ -78,7 +125,10 @@ export class SearchService {
       // todo, make this take a Graph object instead.
     const nodes: NodeCollection = this.cy.nodes();
 
-    const searchData: NinjaAction[] = nodes.map((node) => {
+    // Filter out shadow nodes (internal UI nodes for editors/terminals)
+    const visibleNodes: NodeCollection = nodes.filter((node) => !node.data('isShadowNode'));
+
+    const searchData: NinjaAction[] = visibleNodes.map((node) => {
       const nodeId: string = node.id();
       const label: string = node.data('label') as string ?? nodeId;
       const content: string = node.data('content') as string ?? ''; //todo are we setting content in node?
@@ -93,6 +143,7 @@ export class SearchService {
         id: nodeId,
         title: label,
         description: description ?? undefined,
+        keywords: content.substring(0, 500),
         handler: () => {
           console.log('[SearchService] Handler called for nodeId:', nodeId);
           this.onNodeSelect(nodeId);
@@ -100,9 +151,91 @@ export class SearchService {
       };
     });
 
-    this.ninjaKeys.data = searchData;
+    // Sort by recency: recently visited nodes appear first
+    const recentlyVisited: string[] = getRecentlyVisited();
+    const recentSet: Set<string> = new Set(recentlyVisited);
+
+    const sortedSearchData: NinjaAction[] = searchData.sort((a: NinjaAction, b: NinjaAction) => {
+      const aRecent: boolean = recentSet.has(a.id);
+      const bRecent: boolean = recentSet.has(b.id);
+
+      if (aRecent && !bRecent) return -1;
+      if (!aRecent && bRecent) return 1;
+      if (aRecent && bRecent) {
+        // Both recent: order by recency (earlier in array = more recent)
+        return recentlyVisited.indexOf(a.id) - recentlyVisited.indexOf(b.id);
+      }
+      // Neither recent: keep original order
+      return 0;
+    });
+
+    // Prefix recently visited nodes with their position (1, 2, 3, ...)
+    const prefixedSearchData: NinjaAction[] = sortedSearchData.map((action: NinjaAction) => {
+      const recentIndex: number = recentlyVisited.indexOf(action.id);
+      if (recentIndex >= 0) {
+        return { ...action, title: `${recentIndex + 1}. ${action.title}` };
+      }
+      return action;
+    });
+
+    this.ninjaKeys.data = prefixedSearchData;
 
     console.log(`[SearchService] Updated search data: ${searchData.length} nodes`);
+  }
+
+  /**
+   * Incrementally update search data based on a graph delta.
+   * O(D) where D is the number of deltas, instead of O(N) for all nodes.
+   * Only updates/adds/removes the specific nodes affected by the delta.
+   */
+  updateSearchDataIncremental(delta: GraphDelta): void {
+    if (delta.length === 0) return;
+
+    const currentData: NinjaAction[] = [...this.ninjaKeys.data];
+
+    for (const nodeDelta of delta) {
+      if (nodeDelta.type === 'UpsertNode') {
+        const node: NodeSingular | undefined = this.cy.getElementById(nodeDelta.nodeToUpsert.relativeFilePathIsID);
+        if (!node || node.empty() || node.data('isShadowNode')) continue;
+
+        const nodeId: string = node.id();
+        const label: string = node.data('label') as string ?? nodeId;
+        const content: string = node.data('content') as string ?? '';
+
+        const firstLine: string = content.split('\n')[0].trim();
+        const description: string = firstLine.length > 300
+          ? firstLine.substring(0, 300) + '...'
+          : firstLine;
+
+        const newAction: NinjaAction = {
+          id: nodeId,
+          title: label,
+          description: description ?? undefined,
+          keywords: content.substring(0, 500),
+          handler: () => {
+            console.log('[SearchService] Handler called for nodeId:', nodeId);
+            this.onNodeSelect(nodeId);
+          }
+        };
+
+        // Find existing item by id and update, or append
+        const existingIndex: number = currentData.findIndex((action: NinjaAction) => action.id === nodeId);
+        if (existingIndex >= 0) {
+          currentData[existingIndex] = newAction;
+        } else {
+          currentData.push(newAction);
+        }
+      } else if (nodeDelta.type === 'DeleteNode') {
+        // Remove the deleted node from the data
+        const deleteIndex: number = currentData.findIndex((action: NinjaAction) => action.id === nodeDelta.nodeId);
+        if (deleteIndex >= 0) {
+          currentData.splice(deleteIndex, 1);
+        }
+      }
+    }
+
+    this.ninjaKeys.data = currentData;
+    console.log(`[SearchService] Incremental update: ${delta.length} deltas processed`);
   }
 
   /**
