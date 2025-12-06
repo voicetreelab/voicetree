@@ -3,7 +3,7 @@ import path from 'path';
 import fixPath from 'fix-path';
 import electronUpdater from 'electron-updater';
 import log from 'electron-log';
-import { startFileWatching } from '@/shell/edge/main/graph/watchFolder';
+import { startFileWatching, getVaultPath } from '@/shell/edge/main/graph/watchFolder';
 
 const { autoUpdater } = electronUpdater;
 import { StubTextToTreeServerManager } from './server/StubTextToTreeServerManager';
@@ -16,7 +16,7 @@ import { registerTerminalIpcHandlers } from '@/shell/edge/main/ipc-terminal-hand
 import { setupRPCHandlers } from '@/shell/edge/main/edge-auto-rpc/rpc-handler';
 import { startMcpServer } from '@/shell/edge/main/mcp-server/mcp-server';
 import { writeAllPositionsSync } from '@/shell/edge/main/graph/writeAllPositionsOnExit';
-import { getGraph, getVaultPath } from '@/shell/edge/main/state/graph-store';
+import { getGraph } from '@/shell/edge/main/state/graph-store';
 import * as O from 'fp-ts/lib/Option.js';
 
 
