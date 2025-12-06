@@ -170,6 +170,13 @@ export async function loadFolder(watchedFolderPath: FilePath, suffixOverride?: s
     // Save as last directory for auto-start on next launch
     await saveLastDirectory(watchedFolderPath);
     watchedDirectory = watchedFolderPath;
+
+    // Notify UI that watching has started
+    mainWindow.webContents.send('watching-started', {
+        directory: watchedDirectory,  // The user-selected folder, not the vaultPath
+        vaultSuffix: currentVaultSuffix,
+        timestamp: new Date().toISOString()
+    });
 }
 
 /**
@@ -239,13 +246,7 @@ async function setupWatcher(vaultPath: FilePath): Promise<void> {
     // Setup event handlers for file changes
     setupWatcherListeners(vaultPath);
 
-    // Notify UI that watching has started
-    const mainWindow: Electron.CrossProcessExports.BrowserWindow = getMainWindow()!;
-    mainWindow.webContents.send('watching-started', {
-        directory: watchedDirectory,  // The user-selected folder, not the vaultPath
-        vaultSuffix: currentVaultSuffix,
-        timestamp: new Date().toISOString()
-    });
+
 }
 
 function setupWatcherListeners(vaultPath: FilePath): void {

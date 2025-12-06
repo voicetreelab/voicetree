@@ -16,6 +16,7 @@ export function createSSEConnection(backendPort: number, onEvent: (event: SSEEve
 
     SSE_EVENT_TYPES.forEach(type => {
         eventSource.addEventListener(type, (e: MessageEvent) => {
+            console.log('[SSE-Consumer] Raw event received:', type, e.data);
             const data: Record<string, unknown> = JSON.parse(e.data) as Record<string, unknown>;
             onEvent({ type, data, timestamp: Date.now() });
         });

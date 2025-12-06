@@ -235,7 +235,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
                 this.navigationService.setLastCreatedNodeId(lastUpsertedNode.nodeToUpsert.relativeFilePathIsID);
             }
 
-            this.searchService.updateSearchData();
+            this.searchService.updateSearchDataIncremental(delta);
 
             // Update floating editor windows with new content from external changes
             updateFloatingEditors(this.cy, delta);

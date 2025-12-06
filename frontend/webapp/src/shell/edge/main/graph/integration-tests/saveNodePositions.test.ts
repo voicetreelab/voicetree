@@ -15,7 +15,8 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { saveNodePositions } from '@/shell/edge/main/saveNodePositions'
-import { getGraph, setGraph, setVaultPath, clearVaultPath } from '@/shell/edge/main/state/graph-store'
+import { getGraph, setGraph } from '@/shell/edge/main/state/graph-store'
+import { setVaultPath, clearVaultPath } from '@/shell/edge/main/graph/watchFolder'
 import { applyGraphDeltaToDBThroughMem } from '@/shell/edge/main/graph/writePath/applyGraphDeltaToDBThroughMem'
 import { loadFolder, stopFileWatching, isWatching } from '@/shell/edge/main/graph/watchFolder'
 import type { GraphNode, Graph, GraphDelta } from '@/pure/graph'

@@ -3,36 +3,46 @@ import { EditorState, type Extension } from '@codemirror/state';
 import type { Text, Line } from '@codemirror/state';
 import { EditorView, ViewUpdate, ViewPlugin } from '@codemirror/view';
 import { basicSetup } from 'codemirror';
-import { foldGutter, syntaxHighlighting, foldEffect, foldable, foldService, LanguageDescription, defaultHighlightStyle, HighlightStyle } from '@codemirror/language';
+import { foldGutter, syntaxHighlighting, foldEffect, foldable, foldService, HighlightStyle } from '@codemirror/language';
 import type { LanguageSupport } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
 import type { Tree } from '@lezer/common';
 import { syntaxTree } from '@codemirror/language';
 import { markdown } from '@codemirror/lang-markdown';
 import { yamlFrontmatter } from '@codemirror/lang-yaml';
-import { javascript } from '@codemirror/lang-javascript';
-import { python } from '@codemirror/lang-python';
 import { json } from '@codemirror/lang-json';
-import { java } from '@codemirror/lang-java';
+import { languages } from '@codemirror/language-data';
 import { oneDark } from '@codemirror/theme-one-dark';
 import tagParser from 'codemirror-rich-markdoc/src/tagParser';
 
-// Combined highlight style: copied from codemirror-rich-markdoc/src/highlightStyle.ts
-// Heading sizes: h1 > h2 > h3 > h4 (largest to smallest)
-// Note: t.heading (base tag) must have textDecoration: 'none' to override defaultHighlightStyle's underline
-const markdownHighlightStyle: HighlightStyle = HighlightStyle.define([
+// Combined highlight style: code syntax colors from defaultHighlightStyle + custom heading styles (no underlines)
+// We can't use defaultHighlightStyle directly because it has heading underlines we don't want
+const combinedHighlightStyle: HighlightStyle = HighlightStyle.define([
+  // Heading styles (no underlines, proper size hierarchy)
   { tag: t.heading, fontWeight: 'bold', fontFamily: 'sans-serif', textDecoration: 'none' },
   { tag: t.heading1, fontWeight: 'bold', fontFamily: 'sans-serif', fontSize: '24px', textDecoration: 'none' },
   { tag: t.heading2, fontWeight: 'bold', fontFamily: 'sans-serif', fontSize: '21px', textDecoration: 'none' },
   { tag: t.heading3, fontWeight: 'bold', fontFamily: 'sans-serif', fontSize: '18px', textDecoration: 'none' },
   { tag: t.heading4, fontWeight: 'bold', fontFamily: 'sans-serif', fontSize: '16px', textDecoration: 'none' },
-  { tag: t.link, fontFamily: 'sans-serif', textDecoration: 'underline', color: 'blue' },
-  { tag: t.emphasis, fontFamily: 'sans-serif', fontStyle: 'italic' },
-  { tag: t.strong, fontFamily: 'sans-serif', fontWeight: 'bold' },
-  { tag: t.monospace, fontFamily: 'monospace' },
-  { tag: t.content, fontFamily: 'sans-serif' },
-  { tag: t.meta, color: 'darkgrey' },
-  { tag: t.strikethrough, color: 'darkgrey', textDecoration: 'line-through' },
+  // Code syntax highlighting (from defaultHighlightStyle)
+  { tag: t.meta, color: '#404740' },
+  { tag: t.link, textDecoration: 'underline' },
+  { tag: t.emphasis, fontStyle: 'italic' },
+  { tag: t.strong, fontWeight: 'bold' },
+  { tag: t.strikethrough, textDecoration: 'line-through' },
+  { tag: t.keyword, color: '#708' },
+  { tag: [t.atom, t.bool, t.url, t.contentSeparator, t.labelName], color: '#219' },
+  { tag: [t.literal, t.inserted], color: '#164' },
+  { tag: [t.string, t.deleted], color: '#a11' },
+  { tag: [t.regexp, t.escape, t.special(t.string)], color: '#e40' },
+  { tag: t.definition(t.variableName), color: '#00f' },
+  { tag: t.local(t.variableName), color: '#30a' },
+  { tag: [t.typeName, t.namespace], color: '#085' },
+  { tag: t.className, color: '#167' },
+  { tag: [t.special(t.variableName), t.macroName], color: '#256' },
+  { tag: t.definition(t.propertyName), color: '#00c' },
+  { tag: t.comment, color: '#940' },
+  { tag: t.invalid, color: '#f00' },
 ]);
 import RichEditPlugin from 'codemirror-rich-markdoc/src/richEdit';
 import renderBlock from 'codemirror-rich-markdoc/src/renderBlock';
@@ -127,35 +137,27 @@ export class CodeMirrorEditorView extends Disposable {
       return this.createJsonExtensions();
     }
 
-    // Manually compose rich-markdoc extensions with yamlFrontmatter support
-    // We can't use the richEditor() function because it always calls markdown() internally
-    // Instead, we need to build the extensions ourselves:
-
-    // 1. Create markdown config with tagParser extension (for Markdoc {% %} tags)
+    // Build markdown config with tagParser extension (for Markdoc {% %} tags)
     // and codeLanguages for syntax highlighting in code blocks
     const markdownConfig: Parameters<typeof markdown>[0] = {
       extensions: [tagParser],
-      codeLanguages: [
-        LanguageDescription.of({ name: 'javascript', alias: ['js'], support: javascript() }),
-        LanguageDescription.of({ name: 'typescript', alias: ['ts'], support: javascript({ typescript: true }) }),
-        LanguageDescription.of({ name: 'python', alias: ['py'], support: python() }),
-        LanguageDescription.of({ name: 'json', alias: [], support: json() }),
-        LanguageDescription.of({ name: 'java', alias: [], support: java() })
-      ]
+      codeLanguages: languages
     };
 
-    // 2. Wrap markdown with yamlFrontmatter support
+    // Wrap markdown with yamlFrontmatter support
     const markdownWithFrontmatter: LanguageSupport = yamlFrontmatter({
       content: markdown(markdownConfig)
     });
 
-    // 3. Build the rich-markdoc plugin manually
-    // IMPORTANT: The markdown language must be provided BY the plugin, not as a separate extension
-    const richMarkdocPlugin: ViewPlugin<RichEditPlugin, undefined> = ViewPlugin.fromClass(RichEditPlugin, {
+    // Manually compose rich-markdoc plugin with syntaxHighlighting INSIDE provide()
+    // This is required for code block syntax coloring to work correctly
+    // (richEditor() includes syntaxHighlighting in provide, we do the same)
+    const richMarkdocPlugin: Extension = ViewPlugin.fromClass(RichEditPlugin, {
       decorations: v => v.decorations,
       provide: () => [
-        markdownWithFrontmatter, // Provide markdown with frontmatter support
-        renderBlock({}) // Markdoc config
+        markdownWithFrontmatter,
+        renderBlock({}),
+        syntaxHighlighting(combinedHighlightStyle),  // Combined: heading styles (no underlines) + code syntax colors
       ],
       eventHandlers: {
         mousedown({ target }, view) {
@@ -192,9 +194,8 @@ export class CodeMirrorEditorView extends Disposable {
     const isDarkMode: boolean = this.options.darkMode ?? document.documentElement.classList.contains('dark');
 
     const extensions: Extension[] = [
-      basicSetup, // Already includes syntaxHighlighting(defaultHighlightStyle, { fallback: true })
-      richMarkdocPlugin, // Rich markdown editing (provides markdown, decorations, and syntax highlighting)
-      syntaxHighlighting(markdownHighlightStyle), // Custom heading styles - overrides defaultHighlightStyle's underline on headings
+      basicSetup,
+      richMarkdocPlugin, // Rich markdown editing (provides markdown, decorations, and syntax highlighting inside provide())
       mermaidRender(), // Render Mermaid diagrams in live preview
       frontmatterFoldService, // Custom fold service for frontmatter
       foldGutter(), // Add fold gutter for collapsing sections

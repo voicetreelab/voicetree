@@ -19,6 +19,7 @@ export type Promisify<T> = {
 export interface WatchStatus {
   isWatching: boolean;
   directory?: string;
+  vaultSuffix?: string;
 }
 
 
