@@ -96,6 +96,9 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<void>  {
 
     const vaultPath : string = watchedFolderPath + "/" + VOICETREE_MARKDOWN_FILES_READ_WRITE_PREFIX
 
+    // Ensure vaultPath directory exists (creates if missing)
+    await fs.mkdir(vaultPath, { recursive: true });
+
     // Load graph from disk (IO operation)
     const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(vaultPath));
 
@@ -128,6 +131,7 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<void>  {
 
     // Save as last directory for auto-start on next launch
     await saveLastDirectory(watchedFolderPath);
+    watchedDirectory = watchedFolderPath;
 }
 
 /**
