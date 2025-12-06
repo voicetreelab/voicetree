@@ -11,18 +11,20 @@ import sys
 from pathlib import Path
 
 
-def addNewNode(parent_file, name, markdown_content, relationship_to, color_override=None, agent_name_override=None):
+def addNewNode(parent_file=None, name=None, markdown_content=None, relationship_to=None, color_override=None, agent_name_override=None):
     """
     Add a new node to the VoiceTree structure.
-    
+
     Args:
-        parent_file (str): Path to the parent markdown file (relative to markdownTreeVault or absolute)
+        parent_file (str, optional): Path to the parent markdown file (relative to vault or absolute).
+                                     If not provided, uses OBSIDIAN_SOURCE_NOTE env var.
         name (str): Name/title of the new node
         markdown_content (str): Content for the new node's markdown file
-        relationship_to (str): Relationship type to parent (e.g., "is_a_component_of", "is_a_feature_of")
+        relationship_to (str, optional): Relationship type to parent (e.g., "is_a_component_of", "is_a_feature_of").
+                                         If not provided, creates a plain link without relationship label.
         color_override (str, optional): Override color instead of using AGENT_COLOR env var
         agent_name_override (str, optional): Override agent name instead of using AGENT_NAME env var
-    
+
     Returns:
         str: Path to the newly created file
     """
@@ -37,7 +39,17 @@ def addNewNode(parent_file, name, markdown_content, relationship_to, color_overr
         agent_name = agent_name_override
     else:
         agent_name = os.environ.get('AGENT_NAME', 'default')
-    
+
+    # Get vault path from environment variable
+    vault_path_env = os.environ.get('OBSIDIAN_VAULT_PATH')
+
+    # If parent_file not provided, use OBSIDIAN_SOURCE_NOTE from environment
+    if parent_file is None:
+        source_note = os.environ.get('OBSIDIAN_SOURCE_NOTE')
+        if not source_note or not vault_path_env:
+            raise ValueError("parent_file not provided and OBSIDIAN_VAULT_PATH/OBSIDIAN_SOURCE_NOTE not set")
+        parent_file = source_note
+
     # Convert parent_file to Path
     parent_path = Path(parent_file)
 
@@ -52,9 +64,10 @@ def addNewNode(parent_file, name, markdown_content, relationship_to, color_overr
         else:
             vault_dir = parent_path.parent
     else:
-        # Use default vault directory for relative paths
-        script_dir = Path(__file__).parent.parent  # Go up from tools/ to VoiceTree/
-        vault_dir = script_dir / "markdownTreeVault"
+        # Use OBSIDIAN_VAULT_PATH for relative paths
+        if not vault_path_env:
+            raise ValueError("OBSIDIAN_VAULT_PATH environment variable must be set for relative paths")
+        vault_dir = Path(vault_path_env)
         full_parent_path = vault_dir / parent_path
     
     # Get parent directory and parent filename
@@ -132,7 +145,10 @@ def addNewNode(parent_file, name, markdown_content, relationship_to, color_overr
     
     # Calculate relative path from vault root for the parent link
     relative_parent_dir = parent_dir.relative_to(vault_dir)
-    new_content = "\n".join(frontmatter_lines) + f"\n{sanitized_content}\n\n-----------------\n_Links:_\nParent:\n- {relationship_to} [[{relative_parent_dir}/{parent_filename}]]"
+    parent_link = f"[[{relative_parent_dir}/{parent_filename}]]"
+    if relationship_to:
+        parent_link = f"{relationship_to} {parent_link}"
+    new_content = "\n".join(frontmatter_lines) + f"\n{sanitized_content}\n\n-----------------\n_Links:_\nParent:\n- {parent_link}"
     
     # Write the new file
     with open(new_file_path, 'w', encoding='utf-8') as f:
@@ -181,10 +197,10 @@ def addNewNode(parent_file, name, markdown_content, relationship_to, color_overr
     # with open(parent_file, 'w', encoding='utf-8') as f:
     #     f.write(parent_content)
     
-    print(f"Created new node: {new_file_path}")
-    print(f"Updated parent: {full_parent_path}")
-    
-    return str(new_file_path)
+    absolute_path = str(new_file_path.resolve())
+    print(f"Created new node at: {absolute_path}")
+
+    return absolute_path
 
 
 if __name__ == "__main__":
@@ -193,27 +209,35 @@ if __name__ == "__main__":
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Regular agent use (color and name from env vars):
-  python3 add_new_node.py parent.md "Task Manager" "Manages tasks" is_a_component_of
-  
+  # Plain link (no relationship):
+  python3 add_new_node.py "Task Manager" "Manages tasks"
+
+  # With relationship type:
+  python3 add_new_node.py "Task Manager" "Manages tasks" is_a_component_of
+
+  # With explicit parent file:
+  python3 add_new_node.py "Task Manager" "Manages tasks" is_a_component_of --parent parent.md
+
   # Orchestrator creating subtask with specific color and name:
-  python3 add_new_node.py parent.md "Bob Subtask" "Implement feature X" is_subtask_of --color green --agent-name Bob
-  
-Note: Color/name taken from AGENT_COLOR/AGENT_NAME env vars unless overridden
+  python3 add_new_node.py "Bob Subtask" "Implement feature X" is_subtask_of --parent parent.md --color green --agent-name Bob
+
+Note: Color/name taken from AGENT_COLOR/AGENT_NAME env vars unless overridden.
+      Vault path from OBSIDIAN_VAULT_PATH, parent defaults to OBSIDIAN_SOURCE_NOTE.
         """
     )
-    
-    parser.add_argument("parent_file", help="Path to the parent markdown file")
+
     parser.add_argument("name", help="Name/title of the new node")
     parser.add_argument("markdown_content", help="Content for the new node's markdown file")
-    parser.add_argument("relationship_to", help="Relationship type to parent (e.g., is_a_component_of, is_a_feature_of)")
+    # TODO: consider using quoted strings with spaces for relationships (e.g., "is progress of") for more natural markdown output
+    parser.add_argument("relationship_to", nargs='?', default=None, help="Relationship type to parent (e.g., is_a_component_of). Optional - omit for plain link.")
+    parser.add_argument("--parent", dest="parent_file", help="Path to the parent markdown file (defaults to OBSIDIAN_SOURCE_NOTE)")
     parser.add_argument("--color", dest="color_override", help="Override color (for orchestrator agents creating subtasks)")
     parser.add_argument("--agent-name", dest="agent_name_override", help="Override agent name (for orchestrator agents creating subtasks)")
-    
+
     args = parser.parse_args()
-    
+
     try:
-        new_file = addNewNode(
+        addNewNode(
             args.parent_file,
             args.name,
             args.markdown_content,
@@ -221,7 +245,6 @@ Note: Color/name taken from AGENT_COLOR/AGENT_NAME env vars unless overridden
             args.color_override,
             args.agent_name_override
         )
-        print(f"\nSuccess! New node created at: {new_file}")
     except Exception as e:
-        print(f"\nError: {e}", file=sys.stderr)
+        print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
