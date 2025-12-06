@@ -126,6 +126,8 @@ async function prepareTerminalDataInMain(
         readonly directory: string | undefined;
     } = getWatchStatus();
 
+    initialSpawnDirectory = watchStatus.directory;
+
     if (watchStatus?.directory && settings.terminalSpawnPathRelativeToWatchedDirectory) {
         // Simple path join: remove trailing slash from directory, remove leading ./ from relative path
         const baseDir: string = watchStatus.directory.replace(/\/$/, '');
