@@ -104,7 +104,7 @@ function randomChars(number: number): string {
 
 export function createNewNodeNoParent(pos: Position): { readonly newNode: GraphNode; readonly graphDelta: GraphDelta; } {
     const newNode: GraphNode = {
-        relativeFilePathIsID: 'VT/' + Date.now().toString() + randomChars(3) + ".md", // file with current date time + 3 random characters , //todo doesn't guarantee uniqueness, but tis good enough
+        relativeFilePathIsID: Date.now().toString() + randomChars(3) + ".md", // file with current date time + 3 random characters , //todo doesn't guarantee uniqueness, but tis good enough
         outgoingEdges: [],
         contentWithoutYamlOrLinks: '# New',
         nodeUIMetadata: {

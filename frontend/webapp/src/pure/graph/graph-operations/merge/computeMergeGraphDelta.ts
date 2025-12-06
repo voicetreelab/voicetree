@@ -12,7 +12,7 @@ import { getNodeTitle } from '@/pure/graph/markdown-parsing'
 function generateMergedNodeId(): NodeIdAndFilePath {
     const timestamp: number = Date.now()
     const randomSuffix: string = Math.random().toString(36).substring(2, 5)
-    return `VT/merged_${timestamp}_${randomSuffix}.md`
+    return `merged_${timestamp}_${randomSuffix}.md`
 }
 
 /**
