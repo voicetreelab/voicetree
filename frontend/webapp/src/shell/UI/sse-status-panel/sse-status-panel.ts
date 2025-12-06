@@ -108,6 +108,8 @@ export class SseStatusPanel {
     }
 
     addEvent(event: SSEEvent): void {
+        console.log('[SSE] Received event:', event.type, event.data);
+
         // Handle workflow_complete with individual node cards
         if (event.type === 'workflow_complete') {
             const nodes: NodeInfo[] | undefined = event.data.nodes as NodeInfo[] | undefined;
@@ -119,10 +121,14 @@ export class SseStatusPanel {
             }
         }
 
-        if (!this.getEventMessage(event)){
+        const message = this.getEventMessage(event);
+        console.log('[SSE] getEventMessage returned:', JSON.stringify(message), 'for event type:', event.type);
+        if (!message){
+            console.log('[SSE] FILTERED OUT:', event.type);
             return; // to allow ignoring certain sse events
         }
 
+        console.log('[SSE] Creating card for:', event.type);
         const card: HTMLDivElement = document.createElement('div');
         card.className = `server-activity-card event-${event.type}`;
         card.innerHTML = this.formatEventCard(event);
