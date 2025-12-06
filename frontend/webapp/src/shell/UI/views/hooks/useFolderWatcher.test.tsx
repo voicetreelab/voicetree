@@ -6,14 +6,15 @@ import { useFolderWatcher } from './useFolderWatcher';
 const eventListeners: Record<string, ((data?: unknown) => void)[]> = {};
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockMainAPI: { startFileWatching: Mock<(...args: any[]) => any>; stopFileWatching: Mock<(...args: any[]) => any>; getWatchStatus: Mock<(...args: any[]) => any>; } = {
+const mockMainAPI: { startFileWatching: Mock<(...args: any[]) => any>; stopFileWatching: Mock<(...args: any[]) => any>; getWatchStatus: Mock<(...args: any[]) => any>; setVaultSuffix: Mock<(...args: any[]) => any>; } = {
   startFileWatching: vi.fn(),
   stopFileWatching: vi.fn(),
   getWatchStatus: vi.fn(),
+  setVaultSuffix: vi.fn(),
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockElectronAPI: { main: { startFileWatching: Mock<(...args: any[]) => any>; stopFileWatching: Mock<(...args: any[]) => any>; getWatchStatus: Mock<(...args: any[]) => any>; }; onWatchingStarted: Mock<(callback: any) => void>; onFileWatchingStopped: Mock<(callback: any) => void>; removeAllListeners: Mock<(eventName: string) => void>; } = {
+const mockElectronAPI: { main: { startFileWatching: Mock<(...args: any[]) => any>; stopFileWatching: Mock<(...args: any[]) => any>; getWatchStatus: Mock<(...args: any[]) => any>; setVaultSuffix: Mock<(...args: any[]) => any>; }; onWatchingStarted: Mock<(callback: any) => void>; onFileWatchingStopped: Mock<(callback: any) => void>; removeAllListeners: Mock<(eventName: string) => void>; } = {
   main: mockMainAPI,
   onWatchingStarted: vi.fn((callback) => {
     if (!eventListeners['watching-started']) {
@@ -53,9 +54,10 @@ describe('useFolderWatcher (Electron version)', () => {
     });
 
     // Reset default mock implementations
-    mockMainAPI.getWatchStatus.mockResolvedValue({ isWatching: false });
+    mockMainAPI.getWatchStatus.mockResolvedValue({ isWatching: false, vaultSuffix: 'voicetree' });
     mockMainAPI.startFileWatching.mockResolvedValue({ success: true, directory: '/test/directory' });
     mockMainAPI.stopFileWatching.mockResolvedValue({ success: true });
+    mockMainAPI.setVaultSuffix.mockResolvedValue({ success: true });
   });
 
   it('should initialize with default state', async () => {
@@ -193,6 +195,83 @@ describe('useFolderWatcher (Electron version)', () => {
     });
 
     expect(result.current.error).toBe('Failed to stop file watching');
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it('should expose vaultSuffix from initial status', async () => {
+    mockMainAPI.getWatchStatus.mockResolvedValue({
+      isWatching: true,
+      directory: '/test/dir',
+      vaultSuffix: 'my_notes'
+    });
+
+    const { result } = renderHook(() => useFolderWatcher());
+
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    expect(result.current.vaultSuffix).toBe('my_notes');
+    expect(result.current.watchDirectory).toBe('/test/dir');
+  });
+
+  it('should call setVaultSuffix and update state on success', async () => {
+    const { result } = renderHook(() => useFolderWatcher());
+
+    // Wait for initialization
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    // Set a new vault suffix
+    await act(async () => {
+      await result.current.setVaultSuffix('new_folder');
+    });
+
+    expect(mockMainAPI.setVaultSuffix).toHaveBeenCalledWith('new_folder');
+    expect(result.current.vaultSuffix).toBe('new_folder');
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.error).toBe(null);
+  });
+
+  it('should handle setVaultSuffix errors gracefully', async () => {
+    const { result } = renderHook(() => useFolderWatcher());
+
+    // Wait for initialization
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    // Mock setVaultSuffix to fail
+    mockMainAPI.setVaultSuffix.mockResolvedValue({
+      success: false,
+      error: 'Suffix cannot be empty'
+    });
+
+    await act(async () => {
+      await result.current.setVaultSuffix('');
+    });
+
+    expect(result.current.error).toBe('Suffix cannot be empty');
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it('should handle setVaultSuffix exception gracefully', async () => {
+    const { result } = renderHook(() => useFolderWatcher());
+
+    // Wait for initialization
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    // Mock setVaultSuffix to throw
+    mockMainAPI.setVaultSuffix.mockRejectedValue(new Error('Connection failed'));
+
+    await act(async () => {
+      await result.current.setVaultSuffix('new_folder');
+    });
+
+    expect(result.current.error).toBe('Failed to set vault suffix');
     expect(result.current.isLoading).toBe(false);
   });
 });
