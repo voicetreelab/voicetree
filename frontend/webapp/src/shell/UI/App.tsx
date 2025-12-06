@@ -71,17 +71,17 @@ function App(): JSX.Element {
                 <div className="h-full w-full relative">
                     <div ref={graphContainerRef} className="h-full w-full"/>
                 </div>
-
-                {/* Transcribe UI overlaid at bottom of graph - z-index above floating windows (1000) */}
-                <div className="absolute bottom-0 left-0 right-0 mr-[140px] px-4 pb-2" style={{ zIndex: 1050 }}>
-                    <VoiceTreeTranscribe/>
-                </div>
             </div>
 
-            {/* Bottom: File Watching Panel + Server Activity Panel */}
-            <div className="flex-shrink-0 flex items-center gap-2 px-2 py-1 mr-[140px] relative z-[1050]">
+            {/* Bottom bar: Folder selector | Activity Log (narrow) | Transcription Panel */}
+            <div className="flex-shrink-0 flex items-center gap-3 px-2 py-1 mr-[140px] relative z-[1050]">
                 <FileWatchingPanel/>
-                <div id="sse-status-panel-mount" className="flex-1 min-w-0 overflow-hidden" />
+                {/* Activity log - width for ~4 items, expands on hover via CSS */}
+                <div id="sse-status-panel-mount" className="w-[420px] shrink-0 overflow-visible" />
+                {/* Transcription panel - takes remaining space */}
+                <div className="flex-1 min-w-0">
+                    <VoiceTreeTranscribe/>
+                </div>
             </div>
         </div>
     );

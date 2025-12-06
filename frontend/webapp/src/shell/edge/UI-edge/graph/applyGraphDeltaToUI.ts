@@ -8,7 +8,6 @@ import {hasActualContentChanged} from "@/pure/graph/contentChangeDetection";
 import posthog from "posthog-js";
 import {markTerminalActivityForContextNode} from "@/shell/UI/views/AgentTabsBar";
 import type {} from '@/utils/types/cytoscape-layout-utilities';
-import 'cytoscape-layout-utilities';
 
 /**
  * Validates if a color value is a valid CSS color using the browser's CSS.supports API

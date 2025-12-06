@@ -24,13 +24,16 @@ import type {
 import cytoscape, {type Core, type CytoscapeOptions} from 'cytoscape';
 // @ts-expect-error - cytoscape-navigator doesn't have proper TypeScript definitions
 import navigator from 'cytoscape-navigator';
+// @ts-expect-error - cytoscape-layout-utilities doesn't have proper TypeScript definitions
+import layoutUtilities from 'cytoscape-layout-utilities';
 import 'cytoscape-navigator/cytoscape.js-navigator.css'; // Import navigator CSS
 import '@/shell/UI/views/styles/navigator.css'; // Custom navigator styling
 import '@/shell/UI/cytoscape-graph-ui/styles/graph.css'; // Custom navigator styling
 import '@/shell/UI/cytoscape-graph-ui'; // Import to trigger extension registration
 
-// Register cytoscape-navigator extension
+// Register cytoscape extensions
 cytoscape.use(navigator);
+cytoscape.use(layoutUtilities);
 import {StyleService} from '@/shell/UI/cytoscape-graph-ui/services/StyleService';
 import {BreathingAnimationService} from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService';
 import {HorizontalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService';
@@ -113,6 +116,9 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     private cleanupTerminalSubscription: (() => void) | null = null;
     private cleanupActiveTerminalSubscription: (() => void) | null = null;
 
+    // Navigation event listener cleanup
+    private cleanupNavigationListener: (() => void) | null = null;
+
     // DOM elements
     private statsOverlay: HTMLElement | null = null;
     private loadingOverlay: HTMLElement | null = null;
@@ -176,6 +182,16 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
                 setActiveTerminal(terminalId);
             }
         );
+
+        // Listen for navigation events from SSE activity panel
+        const handleNavigateEvent: (event: Event) => void = (event: Event): void => {
+            const customEvent: CustomEvent<{ nodeId: string }> = event as CustomEvent<{ nodeId: string }>;
+            this.navigationService.handleSearchSelect(customEvent.detail.nodeId);
+        };
+        window.addEventListener('voicetree-navigate', handleNavigateEvent);
+        this.cleanupNavigationListener = (): void => {
+            window.removeEventListener('voicetree-navigate', handleNavigateEvent);
+        };
 
         // Initialize Cytoscape
         this.setupCytoscape();
@@ -712,6 +728,12 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         if (this.cleanupActiveTerminalSubscription) {
             this.cleanupActiveTerminalSubscription();
             this.cleanupActiveTerminalSubscription = null;
+        }
+
+        // Cleanup navigation event listener
+        if (this.cleanupNavigationListener) {
+            this.cleanupNavigationListener();
+            this.cleanupNavigationListener = null;
         }
 
         // Dispose managers

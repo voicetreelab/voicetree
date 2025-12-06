@@ -8,6 +8,7 @@ import useVoiceTreeClient from "@/shell/UI/views/hooks/useVoiceTreeClient";
 import { useTranscriptionSender } from "@/shell/edge/UI-edge/text_to_tree_server_communication/useTranscriptionSender";
 import getAPIKey from "@/utils/get-api-key";
 import Renderer from "./renderer";
+import useAutoScroll from "@/shell/UI/views/hooks/useAutoScroll";
 import { type Token } from "@soniox/speech-to-text-web";
 import type {} from "@/shell/electron";
 
@@ -71,6 +72,7 @@ export default function VoiceTreeTranscribe(): JSX.Element {
 
   // Combine all tokens for display
   const allTokens: Token[] = [...allFinalTokens, ...nonFinalTokens];
+  const autoScrollRef: RefObject<HTMLDivElement | null> = useAutoScroll(allTokens);
 
   // Show error popup when Soniox fails
   useEffect(() => {
@@ -187,72 +189,123 @@ export default function VoiceTreeTranscribe(): JSX.Element {
 
 
   return (
-    <div className="flex items-center gap-2 relative">
-      {/* Recording label + mic button */}
-      <span className="text-xs text-muted-foreground whitespace-nowrap">
-        {state === 'Running' ? 'Recording' : 'Recording'}
-      </span>
-      <button
-        onClick={() => state === 'Running' ? stopTranscription() : void startTranscription()}
-        className={cn(
-          "p-1 rounded-lg transition-all cursor-pointer shrink-0",
-          state === 'Running'
-            ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            : "bg-primary text-primary-foreground hover:bg-primary/90"
-        )}
-      >
-        <AnimatedMicIcon isRecording={state === 'Running'} size={20} />
-      </button>
-
-      {/* Status indicator */}
-      <div className="flex items-center gap-1 text-xs shrink-0">
-        <StatusDisplay state={state} />
-        {isProcessing && (
-          <svg className="animate-spin h-3 w-3 text-amber-600" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
-          </svg>
-        )}
-        {connectionError && (
-          <span className="text-destructive text-xs">Offline</span>
-        )}
-      </div>
-
-      {/* Text Input - takes remaining space */}
-      <input
-        type="text"
-        value={textInput}
-        onChange={(e) => setTextInput(e.target.value)}
-        onKeyPress={handleKeyPress}
-        placeholder="Type text to add it to the graph"
-        className="flex-1 min-w-0 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        disabled={isProcessing}
-      />
-
-      {/* Send Button */}
-      <button
-        onClick={() => void handleTextSubmit()}
-        disabled={isProcessing || !textInput.trim()}
-        className="px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
-      >↑
-      </button>
-
-      {/* Transcription display - visible overlay above the input when there are tokens */}
-      {allTokens.length > 0 && (
-        <div
-          className="absolute bottom-full left-0 right-0 mb-2"
-          style={{ zIndex: 1100 }}
-        >
-          <div className="bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg p-3 max-h-[200px] overflow-y-auto">
-            <Renderer
-              tokens={allTokens}
-              placeholder=""
-              onPlaceholderClick={() => void startTranscription()}
-              isRecording={state === 'Running'}
-            />
+    <div className="flex flex-col relative">
+      {/* Input Section - at bottom with solid background */}
+      <div className="border-t bg-background/95 backdrop-blur-sm relative z-20">
+        <div className="max-w-4xl mx-auto relative">
+          {/* Transcription Display - positioned absolutely above input, aligned to input width */}
+          {/* Container with blur gradient background */}
+          <div
+            className="absolute bottom-full left-0 right-0 mb-2"
+            style={{ height: '68px' }} // 15% shorter than 80px (h-20)
+          >
+            {/* Blur gradient layer - multiple stacked blur regions */}
+            <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+              {/* Bottom section - strongest blur */}
+              <div
+                className="absolute bottom-0 left-0 right-0 h-1/3"
+                style={{ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
+              />
+              {/* Middle section - medium blur */}
+              <div
+                className="absolute bottom-1/3 left-0 right-0 h-1/3"
+                style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
+              />
+              {/* Top section - light blur */}
+              <div
+                className="absolute top-0 left-0 right-0 h-1/3"
+                style={{ backdropFilter: 'blur(1px)', WebkitBackdropFilter: 'blur(1px)' }}
+              />
+            </div>
+            {/* Scrollable text content with opacity gradient */}
+            <div
+              ref={autoScrollRef}
+              className="absolute inset-0 overflow-y-auto"
+              style={{
+                maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,1) 100%)',
+                WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,1) 100%)',
+                zIndex: 1,
+              }}
+            >
+              <Renderer
+                tokens={allTokens}
+                placeholder=""
+                onPlaceholderClick={() => void startTranscription()}
+                isRecording={state === 'Running'}
+              />
+            </div>
           </div>
+
+          <div className="flex items-center gap-2">
+            {/* Status Bar - inline */}
+            <div className="flex items-center gap-2 text-xs">
+              <StatusDisplay state={state} />
+              {isProcessing && (
+                <span className="text-amber-600 flex items-center gap-1">
+                  <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                  </svg>
+                </span>
+              )}
+              {connectionError && (
+                <span className="text-destructive text-xs">Server Offline</span>
+              )}
+            </div>
+
+            <span className="text-sm text-muted-foreground min-w-[80px]">
+              {state === 'Running' ? 'Recording' : 'Record speech'}
+            </span>
+            <button
+              onClick={() => state === 'Running' ? stopTranscription() : void startTranscription()}
+              className={cn(
+                "p-1 rounded-lg transition-all cursor-pointer",
+                state === 'Running'
+                  ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  : "bg-primary text-primary-foreground hover:bg-primary/90"
+              )}
+            >
+              <AnimatedMicIcon isRecording={state === 'Running'} size={28} />
+            </button>
+
+            {/* Text Input */}
+            <input
+              type="text"
+              value={textInput}
+              onChange={(e) => setTextInput(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder={state === 'Running' ? "Type text to add it to the graph" : "Type text to add it to the graph"}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={isProcessing}
+            />
+
+            {/* Send Button - always visible */}
+            <button
+              onClick={() => void handleTextSubmit()}
+              disabled={isProcessing || !textInput.trim()}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Send
+            </button>
+          </div>
+
+          {/* Error Messages */}
+          {(error ?? connectionError) && (
+            <div className="mt-3">
+              {connectionError && (
+                <div className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/30 rounded px-3 py-2">
+                  {connectionError} - Transcription continues offline
+                </div>
+              )}
+              {error && (
+                <div className="text-xs text-destructive bg-destructive/10 rounded px-3 py-2 mt-2">
+                  {error.message}
+                </div>
+              )}
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
