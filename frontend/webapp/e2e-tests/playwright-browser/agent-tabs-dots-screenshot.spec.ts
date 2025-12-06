@@ -35,7 +35,7 @@ test('screenshot agent tabs with activity dots', async ({ page }) => {
             for (let i = 0; i < dotCount; i++) {
                 const dot = document.createElement('span');
                 dot.className = 'agent-tab-activity-dot';
-                dot.style.left = `${4 + i * 14}px`;
+                dot.style.left = `${4 + i * 12}px`;
                 tab.appendChild(dot);
             }
 

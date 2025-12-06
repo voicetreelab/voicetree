@@ -148,7 +148,7 @@ function createTab(
     for (let i: number = 0; i < activityCount; i++) {
         const dot: HTMLSpanElement = document.createElement('span')
         dot.className = 'agent-tab-activity-dot'
-        dot.style.left = `${4 + i * 14}px` // Offset each dot horizontally
+        dot.style.left = `${4 + i * 12}px` // Offset each dot horizontally
         tab.appendChild(dot)
     }
 
@@ -219,7 +219,7 @@ function updateActivityDots(terminalId: TerminalId): void {
     for (let i: number = 0; i < count; i++) {
         const dot: HTMLSpanElement = document.createElement('span')
         dot.className = 'agent-tab-activity-dot'
-        dot.style.left = `${4 + i * 14}px`
+        dot.style.left = `${4 + i * 12}px`
         tab.appendChild(dot)
     }
 }

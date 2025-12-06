@@ -361,6 +361,7 @@ button.graph-button:disabled > svg > path {
     max-width: calc(50% - 100px); /* Don't overlap with recent nodes tabs */
     pointer-events: auto;
     -webkit-app-region: no-drag; /* Allow clicking tabs instead of dragging window */
+    overflow: visible; /* Allow activity dots to extend below */
 }
 
 .agent-tabs-scroll {
@@ -368,11 +369,11 @@ button.graph-button:disabled > svg > path {
     flex-direction: row-reverse; /* Stack from right to left */
     gap: 4px;
     overflow-x: auto;
-    overflow-y: hidden;
+    overflow-y: visible; /* Allow activity dots to extend below */
     scrollbar-width: thin;
     scrollbar-color: var(--background-modifier-border, #444) transparent;
     -webkit-overflow-scrolling: touch;
-    padding: 2px 24px 2px 4px; /* Extra right padding for rightmost tab */
+    padding: 2px 24px 12px 4px; /* Extra bottom padding for activity dots, right padding for rightmost tab */
 }
 
 /* Webkit scrollbar styling */
@@ -469,10 +470,10 @@ button.graph-button:disabled > svg > path {
 /* Activity dot indicator for agent tabs (shown when terminal produces a node) */
 .agent-tab-activity-dot {
     position: absolute;
-    bottom: -6px;
+    bottom: -11px; /* Position clearly below the tab with 2px gap */
     left: 4px;
-    width: 9px;
-    height: 9px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     background: #3b82f6;
     pointer-events: none;
