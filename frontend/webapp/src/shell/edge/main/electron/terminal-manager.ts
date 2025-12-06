@@ -4,6 +4,7 @@ import pty, { type IPty } from 'node-pty';
 import type { WebContents } from 'electron';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/types";
 import {getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
+import {getVaultSuffix} from "@/shell/edge/main/graph/watchFolder";
 
 export interface TerminalSpawnResult {
   success: boolean;
@@ -279,33 +280,32 @@ export default class TerminalManager {
     terminalData: TerminalData,
     getWatchedDirectory: () => string | null
   ): NodeJS.ProcessEnv {
-    console.log(`[TerminalManager] process.env.OBSIDIAN_VAULT_PATH BEFORE copy: ${process.env.OBSIDIAN_VAULT_PATH}`);
-    const customEnv: { [key: string]: string | undefined; TZ?: string; } = { ...process.env };
+      console.log(`[TerminalManager] process.env.OBSIDIAN_VAULT_PATH BEFORE copy: ${process.env.OBSIDIAN_VAULT_PATH}`);
+      const customEnv: { [key: string]: string | undefined; TZ?: string; } = {...process.env};
 
-    // Extra env vars (e.g., agent info)
-    if (terminalData.initialEnvVars) {
-      console.log(`[TerminalManager] initialEnvVars:`, terminalData.initialEnvVars);
-      if (terminalData.initialEnvVars.OBSIDIAN_VAULT_PATH) {
-        console.log(`[TerminalManager] WARNING: initialEnvVars contains OBSIDIAN_VAULT_PATH: ${terminalData.initialEnvVars.OBSIDIAN_VAULT_PATH}`);
+      // Extra env vars (e.g., agent info)
+      if (terminalData.initialEnvVars) {
+          console.log(`[TerminalManager] initialEnvVars:`, terminalData.initialEnvVars);
+          if (terminalData.initialEnvVars.OBSIDIAN_VAULT_PATH) {
+              console.log(`[TerminalManager] WARNING: initialEnvVars contains OBSIDIAN_VAULT_PATH: ${terminalData.initialEnvVars.OBSIDIAN_VAULT_PATH}`);
+          }
+          Object.assign(customEnv, terminalData.initialEnvVars);
       }
-      Object.assign(customEnv, terminalData.initialEnvVars);
-    }
 
-    // Always set vault absolutePath from watched directory
-    const watchedDir: string | null = getWatchedDirectory();
-    const vaultPath: string = watchedDir ?? process.cwd();
-    console.log(`[TerminalManager] getWatchedDirectory() returned: ${watchedDir}`);
-    console.log(`[TerminalManager] Using vault path: ${vaultPath}`);
-    customEnv.OBSIDIAN_VAULT_PATH = vaultPath;
+      // Always set vault absolutePath from watched directory
+      const watchedDir: string | null = getWatchedDirectory();
+      const vaultPath: string = watchedDir + "/" + getVaultSuffix();
+      console.log(`[TerminalManager] getWatchedDirectory() returned: ${watchedDir}`);
+      console.log(`[TerminalManager] Using vault path: ${vaultPath}`);
+      customEnv.OBSIDIAN_VAULT_PATH = vaultPath;
 
-    // Set node-based environment variables from attachedToNodeId
-    const filePath: string = terminalData.attachedToNodeId;
-    if (filePath) {
+      // Set node-based environment variables from attachedToNodeId
+      const filePath: string = terminalData.attachedToNodeId;
       // Convert absolute absolutePath to relative absolutePath from vault root if needed
       let relativePath: string = filePath;
       if (path.isAbsolute(filePath)) {
-        // If filePath is absolute, make it relative to vault absolutePath
-        relativePath = path.relative(vaultPath, filePath);
+          // If filePath is absolute, make it relative to vault absolutePath
+          relativePath = path.relative(vaultPath, filePath);
       }
 
       // OBSIDIAN_SOURCE_NOTE is the relative absolutePath from vault root (e.g., "2025-10-03/23_Commitment.md" or "14_File.md")
@@ -320,8 +320,8 @@ export default class TerminalManager {
       // OBSIDIAN_SOURCE_BASENAME is filename without extension (e.g., "23_Commitment")
       const ext: string = path.extname(relativePath);
       customEnv.OBSIDIAN_SOURCE_BASENAME = path.basename(relativePath, ext);
-    }
 
-    return customEnv;
+      return customEnv;
   }
+
 }
