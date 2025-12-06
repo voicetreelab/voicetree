@@ -12,6 +12,7 @@
 
 import type { Core, CollectionReturnValue } from 'cytoscape';
 import { getResponsivePadding } from '@/utils/responsivePadding';
+import { addRecentlyVisited } from '@/shell/edge/UI-edge/state/RecentlyVisitedStore';
 import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
 import { getTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
 import { getTerminalId, getShadowNodeId, type TerminalData, type TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
@@ -175,6 +176,9 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
     console.log('[GraphNavigationService] Found node:', node.length > 0, node);
 
     if (node.length > 0) {
+      // Track as recently visited for command palette ordering
+      addRecentlyVisited(nodeId);
+
       // Fit to node with padding
       console.log('[GraphNavigationService] Calling cy.fit on node');
       // Use 9% of viewport for search results (was 125px on 1440p)
