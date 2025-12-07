@@ -6,8 +6,8 @@ python3 "$VOICETREE_APP_SUPPORT"/tools/add_new_node.py "Progress Name" "<markdow
 **CLI Syntax:**
 - `name` - Name/title of the new node
 - `markdown_content` - Markdown Content for the node's markdown file
-- `relationship` - Optional. Relationship type (e.g., `is_progress_of`). Omit for plain link.
-- `--parent <file>` - Optional. Defaults to `$CONTEXT_NODE_PATH` env var if not provided
+- Optional: `relationship` - Optional. Relationship type (e.g., `solves_the_problem`). Omit unless the relationship is speciific and meaningful.
+- Optional: `--parent <file>` - Omit. Only use to override the default parent (`$CONTEXT_NODE_PATH`)
 
 When creating nodes, your content should:
 
