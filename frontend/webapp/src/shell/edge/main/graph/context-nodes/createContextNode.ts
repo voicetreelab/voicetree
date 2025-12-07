@@ -13,7 +13,7 @@ function truncateToFiveWords(title: string): string {
 }
 
 import {getGraph} from '@/shell/edge/main/state/graph-store'
-import {applyGraphDeltaToDBThroughMem} from '@/shell/edge/main/graph/writePath/applyGraphDeltaToDBThroughMem'
+import {applyGraphDeltaToDBThroughMem} from '@/shell/edge/main/graph/markdownReadWritePaths/writePath/applyGraphDeltaToDBThroughMem'
 import {fromCreateChildToUpsertNode} from '@/pure/graph/graphDelta/uiInteractionsToGraphDeltas'
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy'
 
@@ -91,7 +91,7 @@ export async function createContextNode(
 
     // 8a. Notify UI immediately (before DB write, ensures node exists in Cytoscape for terminal anchoring)
     console.log("[createContextNode] BEFORE UIAPI")
-    void uiAPI.applyGraphDeltaToUI(contextNodeDelta)
+    // void uiAPI.applyGraphDeltaToUI(contextNodeDelta) TODO
 
     // 8b. EDGE: Apply via GraphDelta pipeline (writes to disk)
     console.log("[createContextNode] BEFORE applyGraphDeltaToDBThroughMem")

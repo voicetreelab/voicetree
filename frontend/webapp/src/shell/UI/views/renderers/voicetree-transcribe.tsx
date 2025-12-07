@@ -11,11 +11,13 @@ import Renderer from "./renderer";
 import useAutoScroll from "@/shell/UI/views/hooks/useAutoScroll";
 import { type Token } from "@soniox/speech-to-text-web";
 import type {} from "@/shell/electron";
+import { ChevronDown } from "lucide-react";
 
 export default function VoiceTreeTranscribe(): JSX.Element {
   const [textInput, setTextInput] = useState("");
   const [allFinalTokens, setAllFinalTokens] = useState<Token[]>([]);
   const [backendPort, setBackendPort] = useState<number | undefined>(undefined);
+  const [isTranscriptionExpanded, setIsTranscriptionExpanded] = useState(true);
 
   const {
     state,
@@ -194,10 +196,9 @@ export default function VoiceTreeTranscribe(): JSX.Element {
       <div className="border-t bg-background/95 backdrop-blur-sm relative z-20">
         <div className="max-w-4xl mx-auto relative">
           {/* Transcription Display - positioned absolutely above input, aligned to input width */}
-          {/* Container with blur gradient background */}
           <div
-            className="absolute bottom-full left-0 right-0 mb-2"
-            style={{ height: '68px' }} // 15% shorter than 80px (h-20)
+            className="absolute bottom-full left-0 right-0 mb-2 transition-all duration-200"
+            style={{ height: isTranscriptionExpanded ? '68px' : '0px', overflow: 'hidden' }}
           >
             {/* Blur gradient layer - multiple stacked blur regions */}
             <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
@@ -235,6 +236,21 @@ export default function VoiceTreeTranscribe(): JSX.Element {
               />
             </div>
           </div>
+          {/* Expand/Collapse toggle button - positioned just above input row */}
+          <button
+            onClick={() => setIsTranscriptionExpanded(!isTranscriptionExpanded)}
+            className="absolute right-0 p-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            style={{ zIndex: 2, bottom: '100%', marginBottom: '4px' }}
+            title={isTranscriptionExpanded ? "Collapse transcription" : "Expand transcription"}
+          >
+            <ChevronDown
+              size={16}
+              className={cn(
+                "transition-transform duration-200",
+                isTranscriptionExpanded ? "" : "rotate-180"
+              )}
+            />
+          </button>
 
           <div className="flex items-center gap-2">
             {/* Status Bar - inline */}
@@ -285,7 +301,7 @@ export default function VoiceTreeTranscribe(): JSX.Element {
               disabled={isProcessing || !textInput.trim()}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              Send
+                ↑
             </button>
           </div>
 

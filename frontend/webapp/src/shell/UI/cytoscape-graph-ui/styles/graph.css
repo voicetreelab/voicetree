@@ -452,21 +452,6 @@ button.graph-button:disabled > svg > path {
     display: none; /* Chrome/Safari */
 }
 
-/* Tooltip for keyboard shortcut hint */
-.agent-tab-tooltip {
-    position: absolute;
-    background: var(--background-primary, #1e1e1e);
-    border: 1px solid var(--background-modifier-border, #333);
-    border-radius: 4px;
-    padding: 4px 8px;
-    font-size: 11px;
-    color: var(--text-muted, #999);
-    white-space: nowrap;
-    pointer-events: none;
-    z-index: 1101;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
 /* Agent tabs stay dark in all themes (like terminals) - no light mode overrides */
 
 /* Activity dot indicator for agent tabs (shown when terminal produces a node) */

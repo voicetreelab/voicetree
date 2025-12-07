@@ -11,7 +11,7 @@
 import type { Core, NodeCollection, NodeSingular } from 'cytoscape';
 import 'ninja-keys';
 import { getRecentlyVisited } from '@/shell/edge/UI-edge/state/RecentlyVisitedStore';
-import type { GraphDelta, NodeDelta } from '@/pure/graph';
+import type { GraphDelta } from '@/pure/graph';
 
 // Extend HTMLElement for ninja-keys custom element
 interface NinjaAction {

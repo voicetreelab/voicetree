@@ -1,7 +1,7 @@
 import type {FSEvent, GraphDelta, Graph} from "@/pure/graph";
 import {mapFSEventsToGraphDelta} from "@/pure/graph";
 import type {BrowserWindow} from "electron";
-import {applyGraphDeltaToMemStateAndUI} from "@/shell/edge/main/graph/readAndApplyDBEventsPath/applyGraphDeltaToMemStateAndUI";
+import {applyGraphDeltaToMemStateAndUI} from "@/shell/edge/main/graph/markdownReadWritePaths/applyGraphDeltaToMemStateAndUI";
 import {getGraph} from "@/shell/edge/main/state/graph-store";
 
 /**
@@ -29,5 +29,5 @@ export function handleFSEventWithStateAndUISides(
     // 2. Map filesystem event to graph delta (pure)
     const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, vaultPath, currentGraph);
 
-    applyGraphDeltaToMemStateAndUI(delta, mainWindow);
+    applyGraphDeltaToMemStateAndUI(delta);
 }

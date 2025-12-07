@@ -5,7 +5,7 @@
  * Each function should be defined in its own module.
  */
 
-import {applyGraphDeltaToDBThroughMem} from './graph/writePath/applyGraphDeltaToDBThroughMem'
+import {applyGraphDeltaToDBThroughMem} from '@/shell/edge/main/graph/markdownReadWritePaths/writePath/applyGraphDeltaToDBThroughMem'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {loadSettings, saveSettings as saveSettings} from './settings/settings_IO'
 import {getWatchStatus, loadPreviousFolder, startFileWatching, stopFileWatching, setVaultSuffix} from './graph/watchFolder'

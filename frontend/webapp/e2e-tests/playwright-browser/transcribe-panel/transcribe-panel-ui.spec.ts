@@ -77,19 +77,46 @@ test.describe('Transcribe Panel UI', () => {
     await expect(recordLabel).toBeVisible();
     console.log('✓ "Record speech" label is visible');
 
-    console.log('=== Step 6: Take screenshot of transcribe panel ===');
-    // Take a screenshot of just the transcribe section (the main container with the input and transcription display)
-    const transcribeSection = page.locator('.flex.flex-col.relative').first();
-    await transcribeSection.screenshot({
+    console.log('=== Step 6: Take screenshot of transcribe panel (expanded) ===');
+    // Take full page screenshot to capture the transcription panel (which is absolutely positioned)
+    await page.screenshot({
       path: 'e2e-tests/screenshots/transcribe-panel-with-text.png',
     });
     console.log('✓ Screenshot saved to e2e-tests/screenshots/transcribe-panel-with-text.png');
 
-    // Also take full page screenshot for context
+    console.log('=== Step 6b: Take screenshot of expanded state ===');
     await page.screenshot({
-      path: 'e2e-tests/screenshots/transcribe-panel-full-page.png',
+      path: 'e2e-tests/screenshots/transcribe-panel-expanded.png',
     });
-    console.log('✓ Full page screenshot saved');
+    console.log('✓ Screenshot saved to e2e-tests/screenshots/transcribe-panel-expanded.png');
+
+    console.log('=== Step 6c: Click toggle button to collapse ===');
+    // Find and click the collapse toggle button (ChevronDown icon above input row)
+    const toggleButton = page.locator('button[title="Collapse transcription"]');
+    await expect(toggleButton).toBeVisible();
+    await toggleButton.click();
+    // Wait for collapse animation
+    await page.waitForTimeout(250);
+    console.log('✓ Clicked collapse toggle button');
+
+    console.log('=== Step 6d: Take screenshot of collapsed state ===');
+    await page.screenshot({
+      path: 'e2e-tests/screenshots/transcribe-panel-collapsed.png',
+    });
+    console.log('✓ Screenshot saved to e2e-tests/screenshots/transcribe-panel-collapsed.png');
+
+    console.log('=== Step 6e: Click toggle button to expand again ===');
+    const expandButton = page.locator('button[title="Expand transcription"]');
+    await expect(expandButton).toBeVisible();
+    await expandButton.click();
+    // Wait for expand animation
+    await page.waitForTimeout(250);
+    console.log('✓ Clicked expand toggle button');
+
+    // Verify it's expanded again
+    const collapseButtonAgain = page.locator('button[title="Collapse transcription"]');
+    await expect(collapseButtonAgain).toBeVisible();
+    console.log('✓ Panel expanded again, toggle works both ways');
 
     console.log('=== Step 7: Verify transparency and fade styles ===');
     const maskStyle = await page.evaluate(() => {

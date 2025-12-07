@@ -22,7 +22,7 @@ import {addNodeToGraphWithEdgeHealingFromFSEvent} from '@/pure/graph/graphDelta/
 import {getNodeTitle} from '@/pure/graph/markdown-parsing'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getVaultPath, setVaultPath} from '@/shell/edge/main/graph/watchFolder'
-import {applyGraphDeltaToDBThroughMem} from '@/shell/edge/main/graph/writePath/applyGraphDeltaToDBThroughMem'
+import {applyGraphDeltaToDBThroughMem} from '@/shell/edge/main/graph/markdownReadWritePaths/writePath/applyGraphDeltaToDBThroughMem'
 import {getUnseenNodesAroundContextNode, type UnseenNode} from '@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode'
 
 const MCP_PORT: 3001 = 3001 as const
