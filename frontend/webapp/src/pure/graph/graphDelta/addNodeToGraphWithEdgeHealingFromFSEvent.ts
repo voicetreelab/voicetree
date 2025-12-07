@@ -7,11 +7,6 @@ import {setOutgoingEdges} from '@/pure/graph/graph-operations/graph-edge-operati
 import {filenameToNodeId} from '@/pure/graph/markdown-parsing/filename-utils'
 import {calculateInitialPositionForChild} from "@/pure/graph/positioning/calculateInitialPosition";
 
-interface HealedNodeWithPrevious { //todo unnecessary
-    readonly healedNode: GraphNode
-    readonly previousNode: O.Option<GraphNode>
-}
-
 /**
  * Resolve position for a node based on priority:
  * 1. previousNode's Graph position (most current, synced from UI)
@@ -45,8 +40,8 @@ function resolveNodePosition(
     return O.none
 }
 
-function healNodeEdges(affectedNodeIds: readonly NodeIdAndFilePath[], currentGraph: Graph, graphWithNewNode: Graph): readonly HealedNodeWithPrevious[] {
-    const healedNodes: readonly HealedNodeWithPrevious[] = affectedNodeIds.map((affectedNodeId) => {
+function healNodeEdges(affectedNodeIds: readonly NodeIdAndFilePath[], currentGraph: Graph, graphWithNewNode: Graph): readonly UpsertNodeDelta[] {
+    return affectedNodeIds.flatMap((affectedNodeId): readonly UpsertNodeDelta[] => {
         const affectedNode: GraphNode = currentGraph.nodes[affectedNodeId]
 
         // Re-resolve the existing edges against the updated graph
@@ -62,12 +57,21 @@ function healNodeEdges(affectedNodeIds: readonly NodeIdAndFilePath[], currentGra
             }
         })
 
-        return {
-            healedNode: setOutgoingEdges(affectedNode, healedEdges),
-            previousNode: O.some(affectedNode)  // Capture previous state before edge healing
-        } // todo do we really need to return here? can we not in whoever calls this function return the old as well?
+        // Only include in delta if edges actually changed
+        const edgesChanged: boolean = healedEdges.some((healedEdge, i) =>
+            healedEdge.targetId !== affectedNode.outgoingEdges[i].targetId
+        )
+
+        if (!edgesChanged) {
+            return []
+        }
+
+        return [{
+            type: 'UpsertNode' as const,
+            nodeToUpsert: setOutgoingEdges(affectedNode, healedEdges),
+            previousNode: O.some(affectedNode)
+        }]
     })
-    return healedNodes;
 }
 
 /**
@@ -145,19 +149,14 @@ export function addNodeToGraphWithEdgeHealingFromFSEvent(
     // Step 7: Re-validate edges for each affected node (healing)
     // Nodes already have edges with raw targetIds from parseMarkdownToGraphNode
     // We just need to re-resolve those raw targetIds against the updated graph
-    const healedNodesWithPrevious: readonly HealedNodeWithPrevious[] = healNodeEdges(affectedNodeIds, currentGraph, graphWithNewNode);
+    // Only nodes with actually changed edges are included
+    const healedNodes: readonly UpsertNodeDelta[] = healNodeEdges(affectedNodeIds, currentGraph, graphWithNewNode);
 
     // Step 8: Return GraphDelta with new node + all healed nodes
-    const upsertActions: readonly UpsertNodeDelta[] = [
+    return [
         {type: 'UpsertNode', nodeToUpsert: newNode, previousNode},
-        ...healedNodesWithPrevious.map(({healedNode, previousNode}) => ({
-            type: 'UpsertNode' as const,
-            nodeToUpsert: healedNode,
-            previousNode
-        }))
+        ...healedNodes
     ]
-
-    return upsertActions
 }
 
 /**

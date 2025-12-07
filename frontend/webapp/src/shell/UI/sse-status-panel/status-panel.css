@@ -1,80 +1,55 @@
 /* Server Activity Panel - horizontal bar at bottom of app */
 .server-activity-panel {
     /* Fill available width from parent */
+    position: relative;
     width: 100%;
     min-width: 0; /* Allow flex child to shrink below content size */
     background: var(--background);
     border-top: 1px solid var(--border);
     padding: 4px 8px;
-    overflow: visible; /* Allow overlay to extend above */
-    position: relative; /* For absolute positioning of overlay */
-}
-
-/* Expanded overlay - shown on hover */
-.server-activity-overlay {
-    position: absolute;
-    bottom: 100%;
-    left: 0;
-    width: min(27vw, 450px); /* 1.5x the compact panel width */
-    height: 200px;
-    background: var(--background);
-    border: 1px solid var(--border);
-    border-radius: 8px 8px 0 0;
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.2s ease, visibility 0.2s ease;
-    z-index: 1100;
-    overflow: hidden;
-}
-
-.server-activity-overlay.visible {
-    opacity: 1;
-    visibility: visible;
-}
-
-/* Events container inside overlay - horizontal wrapping layout */
-.server-activity-overlay-events {
-    display: flex;
-    flex-wrap: wrap;
-    flex-direction: row;
-    align-content: flex-start;
-    gap: 8px;
-    padding: 12px;
-    height: 100%;
-    overflow-y: auto;
-    overflow-x: hidden;
-    scrollbar-width: thin;
-    scrollbar-color: var(--muted) transparent;
-}
-
-.server-activity-overlay-events::-webkit-scrollbar {
-    width: 6px;
-}
-
-.server-activity-overlay-events::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.server-activity-overlay-events::-webkit-scrollbar-thumb {
-    background: var(--muted);
-    border-radius: 3px;
+    overflow: visible; /* Allow events to overflow upward on hover */
+    height: 28px; /* Fixed height for compact state */
 }
 
 /* Horizontal scrollable events container */
 .server-activity-events {
     display: flex;
     flex-direction: row;
+    flex-wrap: nowrap;
     gap: 8px;
     overflow-x: auto;
     overflow-y: hidden;
     max-width: 100%; /* Constrain to parent width */
+    max-height: 20px; /* Single row height */
     scrollbar-width: thin;
     scrollbar-color: var(--muted) transparent;
+    transition: all 0.2s ease;
+}
+
+/* On hover: expand UPWARD and LEFTWARD with wrapped cards, keeping last item in place */
+.server-activity-panel:hover .server-activity-events {
+    position: absolute;
+    bottom: 4px; /* Match compact events' bottom position (panel's bottom padding) */
+    right: 0; /* Anchor right edge - expand leftward so rightmost items stay in place */
+    width: min(50vw, 600px);
+    max-width: none; /* Override compact constraint */
+    max-height: 250px;
+    flex-wrap: wrap;
+    align-content: flex-end; /* Stack rows from bottom up */
+    overflow-x: hidden;
+    overflow-y: auto;
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-bottom: none; /* Seamless connection with compact panel */
+    border-radius: 8px 8px 0 0;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
+    padding: 8px 8px 0 8px; /* No bottom padding - cards sit at exact bottom */
+    z-index: 1000;
 }
 
 .server-activity-events::-webkit-scrollbar {
     height: 4px;
+    width: 6px;
 }
 
 .server-activity-events::-webkit-scrollbar-track {
@@ -83,7 +58,7 @@
 
 .server-activity-events::-webkit-scrollbar-thumb {
     background: var(--muted);
-    border-radius: 2px;
+    border-radius: 3px;
 }
 
 /* Event cards - horizontal items */
