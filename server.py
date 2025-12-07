@@ -88,7 +88,7 @@ clear_debug_logs()
 simple_buffer = ""
 last_text_received_time: float = 0.0  # Track when text was last received for auto-flush
 force_flush_next_processing_iteration: bool = False  # Flag to trigger force flush on next processing loop
-AUTO_FLUSH_INACTIVITY_SECONDS = 5.0  # Flush buffer after this many seconds of inactivity
+AUTO_FLUSH_INACTIVITY_SECONDS = 15.0  # Flush buffer after this many seconds of inactivity
 
 # FastAPI app setup
 app = FastAPI(title="VoiceTree Server", description="API for processing text into VoiceTree")
@@ -101,6 +101,7 @@ AUTO_SYNC_INTERVAL_SECONDS = 5.0
 
 
 last_sync_time = time.time()
+reload_next_processing_iteration = False
 
 # Background processing task (like main.py's llm_processing_loop)
 async def buffer_processing_loop():
@@ -116,7 +117,7 @@ async def buffer_processing_loop():
     - Time-based: Flush buffer after 2s of inactivity (no new text received)
     - Force flush: Process immediately when pending_force_flush is set (Enter key)
     """
-    global simple_buffer, decision_tree, converter, processor, force_flush_next_processing_iteration, last_text_received_time
+    global simple_buffer, decision_tree, converter, processor, force_flush_next_processing_iteration, last_text_received_time, reload_next_processing_iteration
     logger.info("Starting buffer processing loop...")
 
     # Dedicated executor so we never block the FastAPI event loop with LLM calls.
@@ -140,9 +141,18 @@ async def buffer_processing_loop():
         loop = asyncio.get_running_loop()
         while True:
             try:
+                if reload_next_processing_iteration:
+                    try:
+                        existing_embedding_manager = decision_tree._embedding_manager if decision_tree else None
+                        decision_tree, converter, processor, _ = initialize_tree_state(markdown_dir, embedding_manager=existing_embedding_manager)
+                        logger.debug(f"Auto-sync complete: reloaded {len(decision_tree.tree)} nodes from {markdown_dir}")
+                        reload_next_processing_iteration = False
+                    except Exception as e:
+                        logger.error(f"Auto-sync failed: {e}", exc_info=True)
+
                 if processor is None:
                     logger.error("Skipping buffer processing - no directory loaded yet")
-                    await asyncio.sleep(1.0)
+                    await asyncio.sleep(5.0)
                     continue
 
                 if len(simple_buffer) > 0:
@@ -247,7 +257,7 @@ async def send_text(request: TextRequest):
         request.force_flush: If True, trigger immediate processing regardless of buffer threshold
                             (used when user presses Enter to submit text)
     """
-    global simple_buffer, last_text_received_time, force_flush_next_processing_iteration, last_sync_time, decision_tree, processor
+    global simple_buffer, last_text_received_time, force_flush_next_processing_iteration, last_sync_time, decision_tree, processor, reload_next_processing_iteration
     try:
         if not request.text.strip():
             raise HTTPException(status_code=400, detail="Text cannot be empty")
@@ -268,13 +278,8 @@ async def send_text(request: TextRequest):
         if (markdown_dir and
                 processor_buffer_empty and
                 time.time() - last_sync_time > AUTO_SYNC_INTERVAL_SECONDS):
-            try:
-                existing_embedding_manager = decision_tree._embedding_manager if decision_tree else None
-                decision_tree, converter, processor, _ = initialize_tree_state(markdown_dir, embedding_manager=existing_embedding_manager)
-                last_sync_time = time.time()
-                logger.debug(f"Auto-sync complete: reloaded {len(decision_tree.tree)} nodes from {markdown_dir}")
-            except Exception as e:
-                logger.error(f"Auto-sync failed: {e}", exc_info=True)
+            reload_next_processing_iteration = True
+            last_sync_time = time.time()
 
 
         # Set force flush flag if requested (for Enter key submissions)
