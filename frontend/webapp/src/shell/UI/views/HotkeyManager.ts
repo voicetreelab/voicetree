@@ -250,11 +250,19 @@ export class HotkeyManager {
 
       // Ignore hotkeys when typing in input elements
       // BUT allow hotkeys with modifiers (Command+[, etc.) to work everywhere
+      // EXCEPT for undo/redo (Cmd+Z, Cmd+Shift+Z) which should be handled by the editor itself
       if (this.isInputElement(e.target as HTMLElement)) {
         // Allow hotkeys that have modifiers (Meta, Control, Alt)
         const hasModifier: boolean = e.metaKey || e.ctrlKey || e.altKey;
         if (!hasModifier) {
           return; // Block plain keys like Space when in input elements
+        }
+
+        // When in an editor, let the editor handle its own undo/redo
+        // Don't fire graph undo/redo when CodeMirror/terminal should handle it
+        const isUndoRedo: boolean = e.key.toLowerCase() === 'z' && (e.metaKey || e.ctrlKey);
+        if (isUndoRedo) {
+          return; // Let the editor handle undo/redo natively
         }
       }
 

@@ -3,7 +3,7 @@ import { EditorState, type Extension } from '@codemirror/state';
 import type { Text, Line } from '@codemirror/state';
 import { EditorView, ViewUpdate, ViewPlugin } from '@codemirror/view';
 import { basicSetup } from 'codemirror';
-import { foldGutter, syntaxHighlighting, foldEffect, foldable, foldService, HighlightStyle } from '@codemirror/language';
+import { foldGutter, syntaxHighlighting, foldEffect, foldable, foldService, HighlightStyle, defaultHighlightStyle } from '@codemirror/language';
 import type { LanguageSupport } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
 import type { Tree } from '@lezer/common';

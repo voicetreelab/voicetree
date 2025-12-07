@@ -57,7 +57,7 @@ export async function createNewChildNodeFromUI(
     const newNode: GraphNode = (graphDelta[0] as UpsertNodeDelta).nodeToUpsert;
 
     // Optimistic UI-edge update: immediately add node + edge to cytoscape
-    applyGraphDeltaToUI(cy, graphDelta);
+    // applyGraphDeltaToUI(cy, graphDelta);
 
     await window.electronAPI?.main.applyGraphDeltaToDBThroughMem(graphDelta);
     return newNode.relativeFilePathIsID;
@@ -69,7 +69,7 @@ export async function createNewEmptyOrphanNodeFromUI(
 ): Promise<NodeIdAndFilePath> {
     const {newNode, graphDelta} = createNewNodeNoParent(pos);
     // Optimistic UI-edge update: immediately add node + edge to cytoscape
-    applyGraphDeltaToUI(cy, graphDelta);
+    // applyGraphDeltaToUI(cy, graphDelta);
 
     await window.electronAPI?.main.applyGraphDeltaToDBThroughMem(graphDelta);
 
@@ -112,7 +112,7 @@ export async function modifyNodeContentFromUI(
     }];
 
     // Optimistic UI-edge update for edge changes
-    applyGraphDeltaToUI(cy, graphDelta);
+    // applyGraphDeltaToUI(cy, graphDelta);
 
     await window.electronAPI?.main.applyGraphDeltaToDBThroughMem(graphDelta);
 }
@@ -136,7 +136,7 @@ export async function deleteNodesFromUI(
     const graphDelta: GraphDelta = createDeleteNodesAction(nodesToDelete);
 
     // Optimistic UI-edge update: immediately remove nodes from cytoscape
-    applyGraphDeltaToUI(cy, graphDelta);
+    // applyGraphDeltaToUI(cy, graphDelta);
 
     await window.electronAPI?.main.applyGraphDeltaToDBThroughMem(graphDelta);
 }

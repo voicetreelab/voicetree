@@ -17,10 +17,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createContextNode } from '@/shell/edge/main/graph/context-nodes/createContextNode'
 import { getUnseenNodesAroundContextNode, type UnseenNode } from '@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode'
-import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndApplyDBEventsPath/loadGraphFromDisk'
+import { loadGraphFromDisk } from '@/shell/edge/main/graph/markdownReadWritePaths/readAndApplyDBEventsPath/loadGraphFromDisk'
 import { setGraph, getGraph } from '@/shell/edge/main/state/graph-store'
 import { setVaultPath, getVaultPath } from '@/shell/edge/main/graph/watchFolder'
-import { applyGraphDeltaToDBThroughMem } from '@/shell/edge/main/graph/writePath/applyGraphDeltaToDBThroughMem'
+import { applyGraphDeltaToDBThroughMem } from '@/shell/edge/main/graph/markdownReadWritePaths/writePath/applyGraphDeltaToDBThroughMem'
 import { addNodeToGraphWithEdgeHealingFromFSEvent } from '@/pure/graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent'
 import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths'
 import * as O from 'fp-ts/lib/Option.js'
@@ -40,7 +40,7 @@ describe('getUnseenNodesAroundContextNode - Integration Tests', () => {
 
         // Load the graph from disk
         const loadResult: E.Either<
-            import('@/shell/edge/main/graph/readAndApplyDBEventsPath/fileLimitEnforce').FileLimitExceededError,
+            import('@/shell/edge/main/graph/markdownReadWritePaths/readAndApplyDBEventsPath/fileLimitEnforce').FileLimitExceededError,
             Graph
         > = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH))
         if (E.isLeft(loadResult)) throw new Error('Expected Right')
@@ -148,7 +148,7 @@ describe('getUnseenNodesAroundContextNode - Integration Tests', () => {
 
             // Reload graph to include the context node
             const loadResult1: E.Either<
-                import('@/shell/edge/main/graph/readAndApplyDBEventsPath/fileLimitEnforce').FileLimitExceededError,
+                import('@/shell/edge/main/graph/markdownReadWritePaths/readAndApplyDBEventsPath/fileLimitEnforce').FileLimitExceededError,
                 Graph
             > = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH))
             if (E.isLeft(loadResult1)) throw new Error('Expected Right')
@@ -164,7 +164,7 @@ describe('getUnseenNodesAroundContextNode - Integration Tests', () => {
 
             // Reload graph to include the new node
             const loadResult2: E.Either<
-                import('@/shell/edge/main/graph/readAndApplyDBEventsPath/fileLimitEnforce').FileLimitExceededError,
+                import('@/shell/edge/main/graph/markdownReadWritePaths/readAndApplyDBEventsPath/fileLimitEnforce').FileLimitExceededError,
                 Graph
             > = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH))
             if (E.isLeft(loadResult2)) throw new Error('Expected Right')
@@ -191,7 +191,7 @@ describe('getUnseenNodesAroundContextNode - Integration Tests', () => {
 
             // Reload graph to include the context node
             const loadResult: E.Either<
-                import('@/shell/edge/main/graph/readAndApplyDBEventsPath/fileLimitEnforce').FileLimitExceededError,
+                import('@/shell/edge/main/graph/markdownReadWritePaths/readAndApplyDBEventsPath/fileLimitEnforce').FileLimitExceededError,
                 Graph
             > = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH))
             if (E.isLeft(loadResult)) throw new Error('Expected Right')
@@ -241,7 +241,7 @@ describe('getUnseenNodesAroundContextNode - Integration Tests', () => {
 
             // Reload graph
             const loadResult1: E.Either<
-                import('@/shell/edge/main/graph/readAndApplyDBEventsPath/fileLimitEnforce').FileLimitExceededError,
+                import('@/shell/edge/main/graph/markdownReadWritePaths/readAndApplyDBEventsPath/fileLimitEnforce').FileLimitExceededError,
                 Graph
             > = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH))
             if (E.isLeft(loadResult1)) throw new Error('Expected Right')
@@ -265,7 +265,7 @@ This is the actual content without frontmatter.`
 
             // Reload graph
             const loadResult2: E.Either<
-                import('@/shell/edge/main/graph/readAndApplyDBEventsPath/fileLimitEnforce').FileLimitExceededError,
+                import('@/shell/edge/main/graph/markdownReadWritePaths/readAndApplyDBEventsPath/fileLimitEnforce').FileLimitExceededError,
                 Graph
             > = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH))
             if (E.isLeft(loadResult2)) throw new Error('Expected Right')

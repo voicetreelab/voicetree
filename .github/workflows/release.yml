@@ -1,0 +1,79 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-mac:
+    strategy:
+      matrix:
+        include:
+          - os: macos-14
+            arch: arm64
+          - os: macos-13
+            arch: x64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/webapp/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build Python server
+        run: ./build_server.sh
+
+      - name: Copy tools and backend modules
+        run: |
+          mkdir -p ./dist/resources/tools
+          cp -r ./tools/* ./dist/resources/tools/
+
+          mkdir -p ./dist/resources/backend
+          cp -r ./backend/context_retrieval ./dist/resources/backend/
+          cp -r ./backend/markdown_tree_manager ./dist/resources/backend/
+          cp ./backend/__init__.py ./dist/resources/backend/
+          cp ./backend/types.py ./dist/resources/backend/
+          cp ./backend/settings.py ./dist/resources/backend/
+          cp ./backend/logging_config.py ./dist/resources/backend/
+
+      - name: Install frontend dependencies
+        working-directory: frontend/webapp
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend/webapp
+        run: npm run build:test
+
+      - name: Update file timestamps for codesign
+        run: find dist/resources -type f -exec touch {} +
+
+      - name: Build & Publish Electron app
+        working-directory: frontend/webapp
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+        run: |
+          npx electron-vite build
+          npx electron-builder --mac --${{ matrix.arch }} --publish=always

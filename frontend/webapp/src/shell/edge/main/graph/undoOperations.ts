@@ -1,4 +1,4 @@
-import { applyGraphDeltaToDBThroughMem } from './writePath/applyGraphDeltaToDBThroughMem'
+import { applyGraphDeltaToDBThroughMem } from '@/shell/edge/main/graph/markdownReadWritePaths/writePath/applyGraphDeltaToDBThroughMem'
 import { popUndoDelta, popRedoDelta } from '@/shell/edge/main/state/undo-store'
 
 /**

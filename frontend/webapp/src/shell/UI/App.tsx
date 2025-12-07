@@ -136,10 +136,10 @@ function App(): JSX.Element {
             </div>
 
             {/* Bottom bar: Folder selector | Activity Log (narrow) | Transcription Panel */}
-            <div className="flex-shrink-0 flex items-center gap-3 px-2 py-1 mr-[140px] relative z-[1050]">
+            <div className="flex-shrink-0 flex items-center gap-3 px-2 py-1 mr-[min(calc(10vw+30px),180px)] relative z-[1050]">
                 <FileWatchingPanel/>
                 {/* Activity log - width for ~4 items, expands on hover via CSS */}
-                <div id="sse-status-panel-mount" className="w-[420px] shrink-0 overflow-visible" />
+                <div id="sse-status-panel-mount" className="w-[min(18vw,300px)] shrink-0 overflow-visible" />
                 {/* Transcription panel - takes remaining space */}
                 <div className="flex-1 min-w-0">
                     <VoiceTreeTranscribe/>

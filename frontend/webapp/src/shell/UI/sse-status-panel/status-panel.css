@@ -15,7 +15,7 @@
     position: absolute;
     bottom: 100%;
     left: 0;
-    width: 100%;
+    width: min(27vw, 450px); /* 1.5x the compact panel width */
     height: 200px;
     background: var(--background);
     border: 1px solid var(--border);

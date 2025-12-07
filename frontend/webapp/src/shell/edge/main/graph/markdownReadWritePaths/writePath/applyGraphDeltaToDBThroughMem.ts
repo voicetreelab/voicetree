@@ -7,6 +7,9 @@ import {getGraph, setGraph} from '@/shell/edge/main/state/graph-store'
 import {getVaultPath} from '@/shell/edge/main/graph/watchFolder'
 import {recordUserActionAndSetDeltaHistoryState} from '@/shell/edge/main/state/undo-store'
 import type {Either} from "fp-ts/es6/Either";
+import {
+    applyGraphDeltaToMemStateAndUI
+} from "@/shell/edge/main/graph/markdownReadWritePaths/applyGraphDeltaToMemStateAndUI";
 
 /**
  * Shell-level function to apply graph deltas to the database.
@@ -35,7 +38,7 @@ export async function applyGraphDeltaToDBThroughMem(
     // it would cause bugs to send a graph-state change, as we haven't yet made it idempotent for markdown editors
 
     // However, do update in-memory state (purposefully unnecessary, fs events do the same, but latency)
-    setGraph(applyGraphDeltaToGraph(getGraph(), delta))
+    // setGraph(applyGraphDeltaToGraph(getGraph(), delta))
     // todo, i undisabled this, bc it broke spawnTerminalWithCommandFromUI which assumed node already in mem ( no wait req'd)
     // todo, disabling this because it can introduce bugs and complexity
     // for example, if a new node is created from ui, optimistic ui, and gets written to mem
@@ -44,6 +47,8 @@ export async function applyGraphDeltaToDBThroughMem(
     // bc the original delta was in th
     // etc etc...
     // just ensure one path...
+
+    applyGraphDeltaToMemStateAndUI(delta)
 
     // Extract vault path (fail fast at edge)
     const vaultPath: string = pipe(

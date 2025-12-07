@@ -8,9 +8,9 @@
   bottom: 1rem !important;
   right: 1rem !important;
 
-  /* Compact but usable size */
-  width: 110px !important;
-  height: 110px !important;
+  /* Responsive size: 10% of viewport width, max 150px */
+  width: min(10vw, 150px) !important;
+  height: min(10vw, 150px) !important;
 
   /* VoiceTree UI-edge styling */
   border: 1px solid oklch(0.922 0 0) !important; /* --border */

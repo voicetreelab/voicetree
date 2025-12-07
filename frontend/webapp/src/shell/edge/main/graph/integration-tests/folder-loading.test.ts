@@ -364,7 +364,7 @@ describe('Folder Loading - Integration Tests', () => {
       await fs.writeFile(newFilePath, newFileContent, 'utf-8')
 
       // Import and call the FS event handler directly to simulate watcher detection
-      const { handleFSEventWithStateAndUISides } = await import('@/shell/edge/main/graph/readAndApplyDBEventsPath/handleFSEventWithStateAndUISides')
+      const { handleFSEventWithStateAndUISides } = await import('@/shell/edge/main/graph/markdownReadWritePaths/readAndApplyDBEventsPath/handleFSEventWithStateAndUISides')
 
       const addEvent: { absolutePath: string; content: string; eventType: "Added"; } = {
         absolutePath: newFilePath,

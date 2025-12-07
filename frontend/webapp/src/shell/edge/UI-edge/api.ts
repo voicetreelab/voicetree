@@ -11,25 +11,25 @@
  */
 
 import {launchTerminalOntoUI} from "@/shell/edge/UI-edge/launchTerminalOntoUI";
-import {applyGraphDeltaToUI as applyGraphDeltaToUICore} from "@/shell/edge/UI-edge/graph/applyGraphDeltaToUI";
-import {getCyInstance} from "@/shell/edge/UI-edge/state/cytoscape-state";
-import type {GraphDelta} from "@/pure/graph";
-import type {Core} from "cytoscape";
+// import {applyGraphDeltaToUI as applyGraphDeltaToUICore} from "@/shell/edge/UI-edge/graph/applyGraphDeltaToUI";
+// import {getCyInstance} from "@/shell/edge/UI-edge/state/cytoscape-state";
+// import type {GraphDelta} from "@/pure/graph";
+// import type {Core} from "cytoscape";
 
 /**
  * Apply a graph delta to the UI (Cytoscape)
  * Wrapper that gets cy instance and calls the core function
  */
-function applyGraphDeltaToUI(delta: GraphDelta): void {
-    const cy: Core = getCyInstance();
-    applyGraphDeltaToUICore(cy, delta);
-}
+// function applyGraphDeltaToUI(delta: GraphDelta): void {
+//     const cy: Core = getCyInstance();
+//     applyGraphDeltaToUICore(cy, delta);
+// }
 
 // Export as object (like mainAPI)
 // eslint-disable-next-line @typescript-eslint/typedef
 export const uiAPI = {
     launchTerminalOntoUI,
-    applyGraphDeltaToUI,
+    // applyGraphDeltaToUI,
 };
 
 export type UIAPIType = typeof uiAPI;

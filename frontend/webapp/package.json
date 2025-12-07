@@ -4,13 +4,13 @@
   "description": "Transform voice into navigable concept graphs",
   "author": "Manu Masson",
   "private": true,
-  "version": "1.4.29",
+  "version": "1.5.0",
   "type": "module",
   "main": "dist-electron/main/index.js",
   "scripts": {
     "lint": "eslint .",
     "check": "eslint . && tsc --noEmit",
-    "postinstall": "node scripts/apply-patches.cjs && electron-builder install-app-deps",
+    "postinstall": "electron-builder install-app-deps",
     "test": "vitest run ; npm run test:smoke ; npm run test:browser",
     "test:listen": "vitest",
     "test:smoke": "electron-vite build && playwright test --config=playwright-electron.config.ts e2e-tests/electron/electron-smoke-test.spec.ts",
@@ -161,15 +161,7 @@
       }
     ],
     "mac": {
-      "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "arm64",
-            "x64"
-          ]
-        }
-      ],
+      "target": "dmg",
       "category": "public.app-category.productivity",
       "icon": "build/icon.icns",
       "hardenedRuntime": true,

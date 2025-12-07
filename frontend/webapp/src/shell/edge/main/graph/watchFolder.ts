@@ -1,6 +1,6 @@
-import {loadGraphFromDisk} from "@/shell/edge/main/graph/readAndApplyDBEventsPath/loadGraphFromDisk";
+import {loadGraphFromDisk} from "@/shell/edge/main/graph/markdownReadWritePaths/readAndApplyDBEventsPath/loadGraphFromDisk";
 import type {FilePath, Graph, GraphDelta, FSDelete} from "@/pure/graph";
-import type {FileLimitExceededError} from "@/shell/edge/main/graph/readAndApplyDBEventsPath/fileLimitEnforce";
+import type {FileLimitExceededError} from "@/shell/edge/main/graph/markdownReadWritePaths/readAndApplyDBEventsPath/fileLimitEnforce";
 import {setGraph} from "@/shell/edge/main/state/graph-store";
 import {app, dialog} from "electron";
 import path from "path";
@@ -11,11 +11,11 @@ import fsSync from "fs";
 import chokidar, {type FSWatcher} from "chokidar";
 import type {FSUpdate} from "@/pure/graph";
 import type {Stats} from "fs";
-import {handleFSEventWithStateAndUISides} from "@/shell/edge/main/graph/readAndApplyDBEventsPath/handleFSEventWithStateAndUISides";
+import {handleFSEventWithStateAndUISides} from "@/shell/edge/main/graph/markdownReadWritePaths/readAndApplyDBEventsPath/handleFSEventWithStateAndUISides";
 import {mapNewGraphToDelta} from "@/pure/graph";
-import {applyGraphDeltaToMemStateAndUI} from "@/shell/edge/main/graph/readAndApplyDBEventsPath/applyGraphDeltaToMemStateAndUI";
+import {applyGraphDeltaToMemStateAndUI} from "@/shell/edge/main/graph/markdownReadWritePaths/applyGraphDeltaToMemStateAndUI";
 import {getMainWindow} from "@/shell/edge/main/state/app-electron-state";
-import {notifyTextToTreeServerOfDirectory} from "@/shell/edge/main/graph/readAndApplyDBEventsPath/notifyTextToTreeServerOfDirectory";
+import {notifyTextToTreeServerOfDirectory} from "@/shell/edge/main/graph/markdownReadWritePaths/readAndApplyDBEventsPath/notifyTextToTreeServerOfDirectory";
 import {getOnboardingDirectory} from "@/shell/edge/main/electron/onboarding-setup";
 
 // THIS FUNCTION takes absolutePath
@@ -160,7 +160,7 @@ export async function loadFolder(watchedFolderPath: FilePath, suffixOverride?: s
     const graphDelta : GraphDelta = mapNewGraphToDelta(currentGraph)
     console.log('[loadFolder] Created graph delta, length:', graphDelta.length);
 
-    applyGraphDeltaToMemStateAndUI(graphDelta, mainWindow)
+    applyGraphDeltaToMemStateAndUI(graphDelta)
     console.log('[loadFolder] Graph delta broadcast to UI-edge');
 
     // Setup file watcher
