@@ -10,6 +10,8 @@ import type {Either} from "fp-ts/es6/Either";
 import {
     applyGraphDeltaToMemStateAndUI
 } from "@/shell/edge/main/graph/markdownReadWritePaths/applyGraphDeltaToMemStateAndUI";
+import {hashGraphDelta} from "@/pure/graph/deltaHashing";
+import {addUnacknowledgedDelta} from "@/shell/edge/main/state/unacknowledged-deltas-store";
 
 /**
  * Shell-level function to apply graph deltas to the database.
@@ -49,6 +51,9 @@ export async function applyGraphDeltaToDBThroughMem(
     // just ensure one path...
 
     applyGraphDeltaToMemStateAndUI(delta)
+
+    // Track this delta so the FS event handler will skip it (already applied)
+    addUnacknowledgedDelta(hashGraphDelta(delta), delta)
 
     // Extract vault path (fail fast at edge)
     const vaultPath: string = pipe(

@@ -18,13 +18,11 @@ const STATUS_PANEL_MOUNT_ID: string = 'sse-status-panel-mount';
 /**
  * Server Activity Panel - horizontal bar at bottom of app.
  * Displays server events as horizontal cards, newest on right with autoscroll.
- * On hover, expands to show 400px overlay with all activity history.
+ * On hover, panel height expands and cards wrap into multiple rows.
  */
 export class SseStatusPanel {
     private container: HTMLElement;
     private eventsContainer: HTMLElement;
-    private expandedOverlay: HTMLElement;
-    private expandedEventsContainer: HTMLElement;
     private maxEvents = 2000;
     private disconnectSSE: (() => void) | null = null;
 
@@ -32,49 +30,20 @@ export class SseStatusPanel {
         this.container = document.createElement('div');
         this.container.className = 'server-activity-panel';
 
-        // Horizontal scrollable events container (compact view)
+        // Horizontal scrollable events container (expands to wrap on hover via CSS)
         this.eventsContainer = document.createElement('div');
         this.eventsContainer.className = 'server-activity-events';
         this.container.appendChild(this.eventsContainer);
 
-        // Expanded overlay (shown on hover)
-        this.expandedOverlay = document.createElement('div');
-        this.expandedOverlay.className = 'server-activity-overlay';
-        this.expandedEventsContainer = document.createElement('div');
-        this.expandedEventsContainer.className = 'server-activity-overlay-events';
-        this.expandedOverlay.appendChild(this.expandedEventsContainer);
-        this.container.appendChild(this.expandedOverlay);
-
-        // Show overlay on hover
+        // Reset horizontal scroll on hover so all events are visible when expanded vertically
         this.container.addEventListener('mouseenter', () => {
-            this.expandedOverlay.classList.add('visible');
-            this.syncExpandedView();
-            this.scrollExpandedToNewest();
-        });
-        this.container.addEventListener('mouseleave', () => {
-            this.expandedOverlay.classList.remove('visible');
+            this.eventsContainer.scrollLeft = 0;
         });
 
         mountPoint.appendChild(this.container);
 
         // Initialize SSE connection
         this.initSSEConnection();
-    }
-
-    /** Sync the expanded view with all events from compact view */
-    private syncExpandedView(): void {
-        // Clone all events to expanded view
-        this.expandedEventsContainer.innerHTML = '';
-        const events: HTMLCollection = this.eventsContainer.children;
-        for (let i: number = 0; i < events.length; i++) {
-            const clone: Node = events[i].cloneNode(true);
-            this.expandedEventsContainer.appendChild(clone);
-        }
-    }
-
-    /** Scroll expanded view to show newest (rightmost) events */
-    private scrollExpandedToNewest(): void {
-        this.expandedEventsContainer.scrollLeft = this.expandedEventsContainer.scrollWidth;
     }
 
     /** Initialize SseStatusPanel by finding mount point in DOM, waiting if necessary */
@@ -121,7 +90,7 @@ export class SseStatusPanel {
             }
         }
 
-        const message = this.getEventMessage(event);
+        const message: string = this.getEventMessage(event);
         console.log('[SSE] getEventMessage returned:', JSON.stringify(message), 'for event type:', event.type);
         if (!message){
             console.log('[SSE] FILTERED OUT:', event.type);

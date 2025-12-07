@@ -259,8 +259,8 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       }
     })
 
-    it('should include parent in delta when adding child that parent already points to (UI edge race condition fix)', () => {
-      // Setup: Parent exists with edge pointing to exact child ID (created before child existed)
+    it('should NOT include parent in delta when edges already point to correct ID (no unnecessary healing)', () => {
+      // Setup: Parent exists with edge already pointing to exact child ID (already healed)
       const currentGraph: Graph = {
         nodes: {
           'parent.md': {
@@ -276,9 +276,12 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       const fsEvent: FSUpdate = { absolutePath: path.join(testVaultPath, 'child.md'), content: '# Child', eventType: 'Added' }
       const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, testVaultPath, currentGraph)
 
-      // Parent must be in delta so UI gets second chance to create edge (fixes race condition)
-      expect(delta).toHaveLength(2)
-      expect(delta.some(d => d.type === 'UpsertNode' && d.nodeToUpsert.relativeFilePathIsID === 'parent.md')).toBe(true)
+      // Parent should NOT be in delta since edges haven't changed (already pointing to correct ID)
+      expect(delta).toHaveLength(1)
+      expect(delta[0].type).toBe('UpsertNode')
+      if (delta[0].type === 'UpsertNode') {
+        expect(delta[0].nodeToUpsert.relativeFilePathIsID).toBe('child.md')
+      }
     })
   })
 
