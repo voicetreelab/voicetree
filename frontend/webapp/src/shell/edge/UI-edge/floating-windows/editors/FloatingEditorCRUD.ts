@@ -116,17 +116,18 @@ export async function createFloatingEditor(
     // Setup auto-save with modifyNodeContentFromUI (keep battle-tested save logic)
     editor.onChange((newContent: string): void => {
         void (async (): Promise<void> => {
-            // Skip if this onChange wasn't by the user, but rather an externalChange, so fs would already have it
+            // Skip if this onChange was triggered by setValue (not user typing)
+            // This happens when updateFloatingEditors updates editor from external/UI changes
             if (getAwaitingContent(nodeId) === newContent) {
                 deleteAwaitingContent(nodeId);
                 return;
             }
             // IMPORTANT THE TWO PATHS WE ARE TAKING CARE OF HERE ARE
-            // 1. external fs change -> updateFloatingEditors (set awaiting) -> onChange DONT SAVE, clear awaiting
-            // 2. our change (from ui editor) -> onChange -> set awaiting -> fs -> updateFloatingEditors DONT SET, clear awaiting
+            // 1. external/UI change -> updateFloatingEditors (set awaiting) -> onChange DONT SAVE, clear awaiting
+            // 2. our change (from ui editor typing) -> onChange -> set awaiting -> fs -> updateFloatingEditors DONT SET, clear awaiting
 
             console.log('[createFloatingEditor-v2] Saving editor content for node:', nodeId);
-            // Track this content so we can ignore it when it comes back from filesystem
+            // Track this content so we can ignore updateFloatingEditors for our own typed content
             setAwaitingUISavedContent(nodeId, newContent);
             await modifyNodeContentFromUI(nodeId, newContent, cy);
         })();
@@ -371,19 +372,18 @@ export function updateFloatingEditors(cy: Core, delta: GraphDelta): void {
                 const editor: EditorData = editorOption.value;
                 const editorId: EditorId = getEditorId(editor);
 
-                // Check if this is our own save coming back from the filesystem
+                // Check if this is our own typed content coming back - skip to avoid cursor jumps
                 const awaiting: string | undefined = getAwaitingContent(nodeId);
+                if (awaiting === newContent) {
+                    // Exact match - this is our own typed content, skip update
+                    console.log('[FloatingEditorManager-v2] Skipping update for our own typed content:', nodeId);
+                    deleteAwaitingContent(nodeId);
+                    continue;
+                }
                 if (awaiting) {
-                    console.log('[FloatingEditorManager-v2] Ignoring our own save for node:', nodeId);
-                    if (awaiting === newContent) {
-                        // Handle multiple saves in a row from UI, awaiting A, awaiting AB, awaiting ABC
-                        // They are debounced 400ms, but in case they come out of order we don't want to throw away ABC when we process A
-                        deleteAwaitingContent(nodeId);
-                    } else {
-                        // But we also don't want to never register external changes again! So always clear at some point
-                        setTimeout((): void => { deleteAwaitingContent(nodeId); }, 1000);
-                    }
-                    continue; // ignore this change, we already have it in editor state
+                    // Content differs (e.g., wikilink added by UI action) - clear stale awaiting
+                    // and proceed to update editor with new content
+                    deleteAwaitingContent(nodeId);
                 }
 
                 // Get the editor instance from vanillaFloatingWindowInstances
@@ -396,7 +396,7 @@ export function updateFloatingEditors(cy: Core, delta: GraphDelta): void {
                     // Only update if content has changed to avoid cursor jumps
                     if (cmEditor.getValue() !== newContent) {
                         console.log('[FloatingEditorManager-v2] Updating editor content for node:', nodeId);
-                        // VERY IMPORTANT: we now register this save, so we don't infinite loop by calling onChange -> fs
+                        // Register this content so onChange handler knows it came from setValue, not user typing
                         setAwaitingUISavedContent(nodeId, newContent);
                         cmEditor.setValue(newContent);
                     }

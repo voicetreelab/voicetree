@@ -10,10 +10,13 @@ export interface VTSettings {
   readonly agents: readonly AgentConfig[];
   readonly shiftEnterSendsOptionEnter: boolean;
   readonly INJECT_ENV_VARS: Record<string, EnvVarValue>;
+  /** Maximum traversal distance when creating context nodes */
+  readonly contextNodeMaxDistance: number;
 }
 
 export const DEFAULT_SETTINGS: VTSettings = {
   terminalSpawnPathRelativeToWatchedDirectory: '/',
+  contextNodeMaxDistance: 7,
   agents: [
     {
       name: 'Claude',

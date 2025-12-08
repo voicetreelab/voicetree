@@ -12,6 +12,7 @@ import { promises as fs } from 'fs'
 import path from 'path'
 import { fromNodeToMarkdownContent } from '@/pure/graph/markdown-writing/node_to_markdown'
 import { nodeIdToFilePathWithExtension } from '@/pure/graph/markdown-parsing/filename-utils'
+import { markFileWritten, markFileDeleted } from '@/shell/edge/main/state/recent-writes-store'
 
 /**
  * Helper to convert unknown errors to Error type
@@ -66,6 +67,9 @@ function writeNodeToFile(node: GraphNode): FSWriteEffect<void> {
             // Ensure parent directory exists
             await fs.mkdir(path.dirname(fullPath), { recursive: true })
             await fs.writeFile(fullPath, markdown, 'utf-8')
+
+            // Track this write for FS event acknowledgement
+            markFileWritten(fullPath, markdown)
         },
         toError
     )
@@ -80,6 +84,9 @@ function deleteNodeFile(nodeId: NodeIdAndFilePath): FSWriteEffect<void> {
             const filename: string = nodeIdToFilePathWithExtension(nodeId)
             const fullPath: string = path.join(env.vaultPath, filename)
             await fs.unlink(fullPath)
+
+            // Track this delete for FS event acknowledgement
+            markFileDeleted(fullPath)
         },
         toError
     )

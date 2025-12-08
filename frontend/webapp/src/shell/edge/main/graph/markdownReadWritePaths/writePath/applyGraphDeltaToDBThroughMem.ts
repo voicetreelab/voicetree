@@ -1,17 +1,14 @@
 import * as E from 'fp-ts/lib/Either.js'
 import * as O from 'fp-ts/lib/Option.js'
 import {pipe} from 'fp-ts/lib/function.js'
-import {applyGraphDeltaToGraph, type Env, type GraphDelta} from '@/pure/graph'
+import {type Env, type GraphDelta} from '@/pure/graph'
 import {apply_graph_deltas_to_db} from '@/shell/edge/main/graph/graphActionsToDBEffects'
-import {getGraph, setGraph} from '@/shell/edge/main/state/graph-store'
 import {getVaultPath} from '@/shell/edge/main/graph/watchFolder'
 import {recordUserActionAndSetDeltaHistoryState} from '@/shell/edge/main/state/undo-store'
 import type {Either} from "fp-ts/es6/Either";
 import {
     applyGraphDeltaToMemStateAndUI
 } from "@/shell/edge/main/graph/markdownReadWritePaths/applyGraphDeltaToMemStateAndUI";
-import {hashGraphDelta} from "@/pure/graph/deltaHashing";
-import {addUnacknowledgedDelta} from "@/shell/edge/main/state/unacknowledged-deltas-store";
 
 /**
  * Shell-level function to apply graph deltas to the database.
@@ -52,8 +49,8 @@ export async function applyGraphDeltaToDBThroughMem(
 
     applyGraphDeltaToMemStateAndUI(delta)
 
-    // Track this delta so the FS event handler will skip it (already applied)
-    addUnacknowledgedDelta(hashGraphDelta(delta), delta)
+    // Note: FS event acknowledgement is now handled per-file in graphActionsToDBEffects.ts
+    // using content hash matching instead of delta hash matching
 
     // Extract vault path (fail fast at edge)
     const vaultPath: string = pipe(

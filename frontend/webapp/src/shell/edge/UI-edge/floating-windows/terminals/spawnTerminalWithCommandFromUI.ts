@@ -141,6 +141,14 @@ export function createFloatingTerminalWindow(
         });
     }
 
+    // Attach fullscreen button handler
+    const fullscreenButton: HTMLButtonElement | null = ui.titleBar.querySelector('.cy-floating-window-fullscreen');
+    if (fullscreenButton) {
+        fullscreenButton.addEventListener('click', () => {
+            void terminal.toggleFullscreen();
+        });
+    }
+
     // Add to overlay
     overlay.appendChild(ui.windowElement);
 

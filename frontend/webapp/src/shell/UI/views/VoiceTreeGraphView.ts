@@ -40,9 +40,9 @@ import {HorizontalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/Hori
 import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService';
 import {
     setupCommandHover,
-    updateFloatingEditors,
     closeAllEditors,
     disposeEditorManager,
+    updateFloatingEditors,
 } from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
 import {HotkeyManager} from './HotkeyManager';
 import {SearchService} from './SearchService';
@@ -229,6 +229,10 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             }
             applyGraphDeltaToUI(this.cy, delta);
 
+            // Update floating editors for ALL deltas (UI actions + external FS changes)
+            // The awaiting mechanism in FloatingEditorCRUD prevents loops when editor saves its own typed content
+            updateFloatingEditors(this.cy, delta);
+
             // Track last created node for "fit to last node" hotkey (Space)
             const lastUpsertedNode : UpsertNodeDelta = extractRecentNodesFromDelta(delta)[0];
             if (lastUpsertedNode) {
@@ -236,9 +240,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             }
 
             this.searchService.updateSearchDataIncremental(delta);
-
-            // Update floating editor windows with new content from external changes
-            updateFloatingEditors(this.cy, delta);
 
             // Update navigator visibility based on node count
             this.updateNavigatorVisibility();

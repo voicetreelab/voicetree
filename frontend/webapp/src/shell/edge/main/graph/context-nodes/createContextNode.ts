@@ -13,9 +13,11 @@ function truncateToFiveWords(title: string): string {
 }
 
 import {getGraph} from '@/shell/edge/main/state/graph-store'
+import {getCachedSettings} from '@/shell/edge/main/state/settings-cache'
+import {DEFAULT_SETTINGS, type VTSettings} from '@/pure/settings/types'
 import {applyGraphDeltaToDBThroughMem} from '@/shell/edge/main/graph/markdownReadWritePaths/writePath/applyGraphDeltaToDBThroughMem'
 import {fromCreateChildToUpsertNode} from '@/pure/graph/graphDelta/uiInteractionsToGraphDeltas'
-import {uiAPI} from '@/shell/edge/main/ui-api-proxy'
+import {uiAPI as _uiAPI} from '@/shell/edge/main/ui-api-proxy'
 
 /**
  * Creates a context node for a given parent node.
@@ -45,7 +47,8 @@ export async function createContextNode(
 
     // 2. PURE: Extract subgraph within distance
     console.log("[createContextNode] Extracting subgraph...")
-    const maxDistance: number = 7 as const
+    const settings: VTSettings = getCachedSettings() ?? DEFAULT_SETTINGS
+    const maxDistance: number = settings.contextNodeMaxDistance
     const subgraph: Graph = getSubgraphByDistance(
         currentGraph,
         parentNodeId,

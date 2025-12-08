@@ -1,4 +1,4 @@
-import type { Graph, NodeIdAndFilePath } from '@/pure/graph'
+import type { Graph, GraphNode, NodeIdAndFilePath } from '@/pure/graph'
 
 /**
  * Counts the number of reachable nodes (descendants) from this node within the subgraph.
@@ -10,7 +10,7 @@ function countReachableNodesInSubgraph(
     graph: Graph,
     subgraphNodeIds: ReadonlySet<NodeIdAndFilePath>
 ): number {
-    const node = graph.nodes[nodeId]
+    const node: GraphNode | undefined = graph.nodes[nodeId]
     if (!node) return 0
 
     // BFS to find all reachable nodes within the subgraph
@@ -19,8 +19,8 @@ function countReachableNodesInSubgraph(
     visited.add(nodeId)
 
     while (queue.length > 0) {
-        const current = queue.shift()!
-        const currentNode = graph.nodes[current]
+        const current: NodeIdAndFilePath = queue.shift()!
+        const currentNode: GraphNode | undefined = graph.nodes[current]
         if (!currentNode) continue
 
         for (const edge of currentNode.outgoingEdges) {
@@ -60,7 +60,7 @@ export function findRepresentativeNode(
     const subgraphSet: ReadonlySet<NodeIdAndFilePath> = new Set(subgraphNodeIds)
 
     // For each node in the subgraph, count its reachable nodes within the subgraph
-    const nodeWithReachableCount: readonly { nodeId: NodeIdAndFilePath; reachableCount: number }[] =
+    const nodeWithReachableCount: readonly { readonly nodeId: NodeIdAndFilePath; readonly reachableCount: number }[] =
         subgraphNodeIds
             .filter(nodeId => graph.nodes[nodeId] !== undefined)
             .map(nodeId => ({
@@ -73,7 +73,7 @@ export function findRepresentativeNode(
     }
 
     // Sort by reachable count (descending), then by nodeId (ascending for stability)
-    const sorted = [...nodeWithReachableCount].sort((a, b) => {
+    const sorted: readonly { readonly nodeId: NodeIdAndFilePath; readonly reachableCount: number }[] = [...nodeWithReachableCount].sort((a, b) => {
         if (b.reachableCount !== a.reachableCount) {
             return b.reachableCount - a.reachableCount
         }
@@ -82,3 +82,4 @@ export function findRepresentativeNode(
 
     return sorted[0].nodeId
 }
+

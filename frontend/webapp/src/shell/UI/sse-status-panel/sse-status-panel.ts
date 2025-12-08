@@ -30,15 +30,23 @@ export class SseStatusPanel {
         this.container = document.createElement('div');
         this.container.className = 'server-activity-panel';
 
-        // Horizontal scrollable events container (expands to wrap on hover via CSS)
+        // Expand/collapse arrow button above the panel
+        const expandArrow: HTMLButtonElement = document.createElement('button');
+        expandArrow.className = 'server-activity-expand-arrow';
+        expandArrow.innerHTML = '<span class="arrow-icon">▲</span>';
+        expandArrow.title = 'Expand/collapse activity panel';
+        expandArrow.addEventListener('click', () => {
+            const isExpanded: boolean = this.container.classList.toggle('expanded');
+            if (isExpanded) {
+                this.eventsContainer.scrollLeft = 0;
+            }
+        });
+        this.container.appendChild(expandArrow);
+
+        // Horizontal scrollable events container (expands via .expanded class on click)
         this.eventsContainer = document.createElement('div');
         this.eventsContainer.className = 'server-activity-events';
         this.container.appendChild(this.eventsContainer);
-
-        // Reset horizontal scroll on hover so all events are visible when expanded vertically
-        this.container.addEventListener('mouseenter', () => {
-            this.eventsContainer.scrollLeft = 0;
-        });
 
         mountPoint.appendChild(this.container);
 

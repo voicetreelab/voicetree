@@ -7,7 +7,7 @@ import * as O from 'fp-ts/lib/Option.js'
 function createNode(
     id: string,
     outgoingEdges: readonly Edge[] = [],
-    position?: { x: number; y: number },
+    position?: Readonly<{ x: number; y: number }>,
     content = '# Node'
 ): GraphNode {
     return {
@@ -176,7 +176,7 @@ describe('computeMergeGraphDelta', () => {
         // Find the updated external node
         const updatedExternal: GraphDelta[number] | undefined = result.find(
             (d) => d.type === 'UpsertNode' &&
-                   (d as { nodeToUpsert: GraphNode }).nodeToUpsert.relativeFilePathIsID === 'external.md'
+                   (d as Readonly<{ nodeToUpsert: GraphNode }>).nodeToUpsert.relativeFilePathIsID === 'external.md'
         )
 
         expect(updatedExternal).toBeDefined()
@@ -245,9 +245,9 @@ describe('computeMergeGraphDelta', () => {
         }
 
         // All selected nodes should be deleted (including context node)
-        const deleteActions = result.filter((d) => d.type === 'DeleteNode')
+        const deleteActions: GraphDelta = result.filter((d) => d.type === 'DeleteNode')
         expect(deleteActions).toHaveLength(3)
-        const deletedIds = deleteActions.map((d) => d.type === 'DeleteNode' ? d.nodeId : '')
+        const deletedIds: readonly string[] = deleteActions.map((d) => d.type === 'DeleteNode' ? d.nodeId : '')
         expect(deletedIds).toContain('node1.md')
         expect(deletedIds).toContain('node2.md')
         expect(deletedIds).toContain('context.md')

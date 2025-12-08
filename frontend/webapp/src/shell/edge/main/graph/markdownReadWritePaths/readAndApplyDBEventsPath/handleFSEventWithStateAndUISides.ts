@@ -3,14 +3,14 @@ import {mapFSEventsToGraphDelta} from "@/pure/graph";
 import type {BrowserWindow} from "electron";
 import {applyGraphDeltaToMemStateAndUI} from "@/shell/edge/main/graph/markdownReadWritePaths/applyGraphDeltaToMemStateAndUI";
 import {getGraph} from "@/shell/edge/main/state/graph-store";
-import {hashGraphDelta, compareDeltasForDebugging} from "@/pure/graph/deltaHashing";
-import {acknowledgeIfPresent, getUnacknowledgedDeltas} from "@/shell/edge/main/state/unacknowledged-deltas-store";
+import {isOurRecentWrite} from "@/shell/edge/main/state/recent-writes-store";
+import {uiAPI} from "@/shell/edge/main/ui-api-proxy";
 
 /**
  * Handle filesystem events by:
- * 1. Computing the GraphDelta from the filesystem event
- * 2. Applying delta to graph state
- * 3. Broadcasting delta to UI-edge
+ * 1. Checking if this is our own recent write (skip if so)
+ * 2. Computing the GraphDelta from the filesystem event
+ * 3. Applying delta to graph state and UI
  *
  * This is the central handler that connects:
  * - Pure layer: mapFSEventsToGraphDelta
@@ -18,39 +18,29 @@ import {acknowledgeIfPresent, getUnacknowledgedDeltas} from "@/shell/edge/main/s
  *
  * @param fsEvent - Filesystem event (add, change, or delete)
  * @param vaultPath - Absolute path to vault
- * @param mainWindow - Electron window to send updates to
+ * @param _mainWindow - Electron window (unused, kept for API compatibility)
  */
 export function handleFSEventWithStateAndUISides(
     fsEvent: FSEvent,
     vaultPath: string,
-    mainWindow: BrowserWindow
+    _mainWindow: BrowserWindow
 ): void {
-    // 1. Get current graph state to resolve wikilinks
-    const currentGraph: Graph = getGraph();
-
-    // 2. Map filesystem event to graph delta (pure)
-    const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, vaultPath, currentGraph);
-
-    // 3. Skip if this delta was already applied by write path (acknowledge and return)
-    const deltaHash = hashGraphDelta(delta)
-    if (acknowledgeIfPresent(deltaHash)) {
-        console.log("[handleFSEvent] Acknowledged own delta, skipping")
-        return;
+    // 1. Check if this is our own recent write - skip if so
+    const content: string | undefined = 'content' in fsEvent ? fsEvent.content : undefined
+    if (isOurRecentWrite(fsEvent.absolutePath, content)) {
+        console.log("[handleFSEvent] Skipping our own recent write:", fsEvent.absolutePath)
+        return
     }
 
-    // Debug: If not acknowledged but we have pending deltas, log comparison
-    const pendingDeltas = getUnacknowledgedDeltas()
-    if (pendingDeltas.length > 0) {
-        console.log(`[handleFSEvent] Delta NOT acknowledged. Hash: ${deltaHash}`)
-        console.log(`[handleFSEvent] ${pendingDeltas.length} pending delta(s):`)
-        for (const [pendingHash, pendingDelta] of pendingDeltas) {
-            console.log(`  - Pending hash: ${pendingHash}`)
-            const comparison = compareDeltasForDebugging(pendingDelta, delta)
-            if (!comparison.matching) {
-                console.log(`  - Differences:`, comparison.differences)
-            }
-        }
-    }
+    // 2. Get current graph state to resolve wikilinks
+    const currentGraph: Graph = getGraph()
 
-    applyGraphDeltaToMemStateAndUI(delta);
+    // 3. Map filesystem event to graph delta (pure)
+    const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, vaultPath, currentGraph)
+
+    // 4. Apply delta to memory state and broadcast to UI
+    applyGraphDeltaToMemStateAndUI(delta)
+
+    // 5. Update floating editors (READ PATH ONLY - external FS changes)
+    uiAPI.updateFloatingEditorsFromExternal(delta)
 }

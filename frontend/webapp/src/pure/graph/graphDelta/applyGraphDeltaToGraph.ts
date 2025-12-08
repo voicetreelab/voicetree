@@ -1,5 +1,5 @@
-import type {Graph, GraphDelta, GraphNode} from '@/pure/graph'
-import {removeOutgoingEdge} from '@/pure/graph/graph-operations/graph-edge-operations'
+import type {Graph, GraphDelta, GraphNode, Edge} from '@/pure/graph'
+import {addOutgoingEdge} from '@/pure/graph/graph-operations/graph-edge-operations'
 import * as O from 'fp-ts/lib/Option.js'
 
 /**
@@ -9,7 +9,7 @@ import * as O from 'fp-ts/lib/Option.js'
  *
  * Handles:
  * - UpsertNode: Creates new node or updates existing node
- * - DeleteNode: Removes node and cleans up edges pointing to it
+ * - DeleteNode: Removes node, preserves connectivity by connecting parents to children
  *
  * @param graph - The current graph state
  * @param delta - The delta to apply
@@ -45,22 +45,53 @@ export function applyGraphDeltaToGraph(graph: Graph, delta: GraphDelta): Graph {
                 }
             }
         } else if (nodeDelta.type === 'DeleteNode') {
-            // Delete node: remove from nodes and clean up edges
-            const remainingNodes: { readonly [k: string]: GraphNode; } = Object.fromEntries(
+            // Get the deleted node to access its outgoing edges
+            // Prefer deletedNode from delta, fallback to current graph
+            const deletedNode: GraphNode | undefined = O.isSome(nodeDelta.deletedNode)
+                ? nodeDelta.deletedNode.value
+                : currentGraph.nodes[nodeDelta.nodeId]
+
+            const deletedNodeChildren: readonly Edge[] = deletedNode?.outgoingEdges ?? []
+
+            // Remove the deleted node from the graph
+            const remainingNodes: { readonly [k: string]: GraphNode } = Object.fromEntries(
                 Object.entries(currentGraph.nodes).filter(([nodeId]) => nodeId !== nodeDelta.nodeId)
             )
 
-            // Remove any edges pointing to the deleted node from remaining nodes
-            const nodesWithCleanedEdges: { readonly [k: string]: GraphNode; } = Object.fromEntries(
+            // For each remaining node, handle edge preservation:
+            // 1. If node has edge to deleted node, remove it and add edges to deleted node's children
+            // 2. Use the parent's original label for new edges
+            const nodesWithPreservedEdges: { readonly [k: string]: GraphNode } = Object.fromEntries(
                 Object.entries(remainingNodes).map(([nodeId, node]) => {
-                    // Filter out edges pointing to deleted node
-                    const cleanedNode: GraphNode = removeOutgoingEdge(node, nodeDelta.nodeId)
-                    return [nodeId, cleanedNode]
+                    // Find the edge to the deleted node (if any)
+                    const edgeToDeletedNode: Edge | undefined = node.outgoingEdges.find(
+                        e => e.targetId === nodeDelta.nodeId
+                    )
+
+                    if (!edgeToDeletedNode) {
+                        // No edge to deleted node, keep node unchanged
+                        return [nodeId, node]
+                    }
+
+                    // Remove the edge to deleted node
+                    const nodeWithoutDeletedEdge: GraphNode = {
+                        ...node,
+                        outgoingEdges: node.outgoingEdges.filter(e => e.targetId !== nodeDelta.nodeId)
+                    }
+
+                    // Add edges to all children of deleted node, using parent's label
+                    // addOutgoingEdge handles duplicate prevention
+                    const nodeWithPreservedEdges: GraphNode = deletedNodeChildren.reduce(
+                        (accNode, childEdge) => addOutgoingEdge(accNode, childEdge.targetId, edgeToDeletedNode.label),
+                        nodeWithoutDeletedEdge
+                    )
+
+                    return [nodeId, nodeWithPreservedEdges]
                 })
             )
 
             return {
-                nodes: nodesWithCleanedEdges
+                nodes: nodesWithPreservedEdges
             }
         }
 
