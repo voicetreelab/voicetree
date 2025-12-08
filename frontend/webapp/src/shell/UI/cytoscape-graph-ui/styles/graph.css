@@ -366,7 +366,7 @@ button.graph-button:disabled > svg > path {
 
 .agent-tabs-scroll {
     display: flex;
-    flex-direction: row-reverse; /* Stack from right to left */
+    flex-direction: row; /* Left to right, matching keyboard navigation order */
     gap: 4px;
     overflow-x: auto;
     overflow-y: visible; /* Allow activity dots to extend below */

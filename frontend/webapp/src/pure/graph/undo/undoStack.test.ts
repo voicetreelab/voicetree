@@ -5,7 +5,8 @@ import {
     pushUndo,
     popUndo,
     popRedo,
-    MAX_UNDO_SIZE
+    MAX_UNDO_SIZE,
+    UndoState
 } from './undoStack'
 import type { GraphDelta, GraphNode } from '@/pure/graph'
 
@@ -34,7 +35,7 @@ function createTestDelta(nodeId: string): GraphDelta {
 describe('undoStack', () => {
     describe('createEmptyUndoState', () => {
         it('returns empty undo and redo stacks', () => {
-            const state = createEmptyUndoState()
+            const state: UndoState = createEmptyUndoState()
             expect(state.undoStack).toEqual([])
             expect(state.redoStack).toEqual([])
         })
@@ -42,66 +43,64 @@ describe('undoStack', () => {
 
     describe('pushUndo', () => {
         it('adds delta to front of undo stack', () => {
-            const delta = createTestDelta('new.md')
-            const state = pushUndo(createEmptyUndoState(), delta)
+            const delta: GraphDelta = createTestDelta('new.md')
+            const state: UndoState = pushUndo(createEmptyUndoState(), delta)
 
             expect(state.undoStack).toHaveLength(1)
             expect(state.undoStack[0]).toBe(delta)
         })
 
         it('preserves existing undo stack items', () => {
-            const delta1 = createTestDelta('first.md')
-            const delta2 = createTestDelta('second.md')
+            const delta1: GraphDelta = createTestDelta('first.md')
+            const delta2: GraphDelta = createTestDelta('second.md')
 
-            let state = pushUndo(createEmptyUndoState(), delta1)
-            state = pushUndo(state, delta2)
+            const state1: UndoState = pushUndo(createEmptyUndoState(), delta1)
+            const state2: UndoState = pushUndo(state1, delta2)
 
-            expect(state.undoStack).toHaveLength(2)
-            expect(state.undoStack[0]).toBe(delta2) // Most recent first
-            expect(state.undoStack[1]).toBe(delta1)
+            expect(state2.undoStack).toHaveLength(2)
+            expect(state2.undoStack[0]).toBe(delta2) // Most recent first
+            expect(state2.undoStack[1]).toBe(delta1)
         })
 
         it('clears redo stack on new action', () => {
-            const delta1 = createTestDelta('first.md')
-            const delta2 = createTestDelta('second.md')
+            const delta1: GraphDelta = createTestDelta('first.md')
+            const delta2: GraphDelta = createTestDelta('second.md')
 
             // Build up undo stack
-            let state = pushUndo(createEmptyUndoState(), delta1)
+            const state1: UndoState = pushUndo(createEmptyUndoState(), delta1)
             // Simulate undo to populate redo stack
-            const { newState: stateAfterUndo } = popUndo(state)
+            const { newState: stateAfterUndo } = popUndo(state1)
             expect(stateAfterUndo.redoStack).toHaveLength(1)
 
             // New action should clear redo
-            state = pushUndo(stateAfterUndo, delta2)
-            expect(state.redoStack).toEqual([])
+            const state2: UndoState = pushUndo(stateAfterUndo, delta2)
+            expect(state2.redoStack).toEqual([])
         })
 
         it('limits undo stack to MAX_UNDO_SIZE', () => {
-            let state = createEmptyUndoState()
+            const finalState: UndoState = Array.from({ length: MAX_UNDO_SIZE + 10 }).reduce(
+                (state: UndoState, _, i: number) =>
+                    pushUndo(state, createTestDelta(`node${i}.md`)),
+                createEmptyUndoState()
+            )
 
-            // Push more than MAX_UNDO_SIZE items
-            for (let i = 0; i < MAX_UNDO_SIZE + 10; i++) {
-                state = pushUndo(state, createTestDelta(`node${i}.md`))
-            }
-
-            expect(state.undoStack).toHaveLength(MAX_UNDO_SIZE)
+            expect(finalState.undoStack).toHaveLength(MAX_UNDO_SIZE)
         })
 
         it('keeps most recent items when stack overflows', () => {
-            let state = createEmptyUndoState()
-
-            // Push exactly MAX_UNDO_SIZE + 1 items
-            for (let i = 0; i <= MAX_UNDO_SIZE; i++) {
-                state = pushUndo(state, createTestDelta(`node${i}.md`))
-            }
+            const finalState: UndoState = Array.from({ length: MAX_UNDO_SIZE + 1 }).reduce(
+                (state: UndoState, _, i: number) =>
+                    pushUndo(state, createTestDelta(`node${i}.md`)),
+                createEmptyUndoState()
+            )
 
             // Most recent (last pushed) should be first
-            const mostRecentDelta = state.undoStack[0]
+            const mostRecentDelta: GraphDelta = finalState.undoStack[0]
             expect((mostRecentDelta[0] as { readonly nodeToUpsert: GraphNode }).nodeToUpsert.relativeFilePathIsID)
                 .toBe(`node${MAX_UNDO_SIZE}.md`)
 
             // Oldest (first pushed, node0) should have been dropped
-            const allNodeIds = state.undoStack.map(d =>
+            const allNodeIds: readonly string[] = finalState.undoStack.map(d =>
                 (d[0] as { readonly nodeToUpsert: GraphNode }).nodeToUpsert.relativeFilePathIsID
             )
             expect(allNodeIds).not.toContain('node0.md')
@@ -118,13 +117,13 @@ describe('undoStack', () => {
         })
 
         it('removes and returns most recent delta from undo stack', () => {
-            const delta1 = createTestDelta('first.md')
-            const delta2 = createTestDelta('second.md')
+            const delta1: GraphDelta = createTestDelta('first.md')
+            const delta2: GraphDelta = createTestDelta('second.md')
 
-            let state = pushUndo(createEmptyUndoState(), delta1)
-            state = pushUndo(state, delta2)
+            const state1: UndoState = pushUndo(createEmptyUndoState(), delta1)
+            const state2: UndoState = pushUndo(state1, delta2)
 
-            const { newState, deltaToReverse } = popUndo(state)
+            const { newState, deltaToReverse } = popUndo(state2)
 
             expect(deltaToReverse).toBe(delta2)
             expect(newState.undoStack).toHaveLength(1)
@@ -132,8 +131,8 @@ describe('undoStack', () => {
         })
 
         it('pushes popped delta to redo stack', () => {
-            const delta = createTestDelta('test.md')
-            const state = pushUndo(createEmptyUndoState(), delta)
+            const delta: GraphDelta = createTestDelta('test.md')
+            const state: UndoState = pushUndo(createEmptyUndoState(), delta)
 
             const { newState } = popUndo(state)
 
@@ -142,22 +141,22 @@ describe('undoStack', () => {
         })
 
         it('accumulates multiple undos in redo stack', () => {
-            const delta1 = createTestDelta('first.md')
-            const delta2 = createTestDelta('second.md')
+            const delta1: GraphDelta = createTestDelta('first.md')
+            const delta2: GraphDelta = createTestDelta('second.md')
 
-            let state = pushUndo(createEmptyUndoState(), delta1)
-            state = pushUndo(state, delta2)
+            const state1: UndoState = pushUndo(createEmptyUndoState(), delta1)
+            const state2: UndoState = pushUndo(state1, delta2)
 
-            let result = popUndo(state)
-            state = result.newState
-            result = popUndo(state)
-            state = result.newState
+            const result1: { newState: UndoState; deltaToReverse: GraphDelta | undefined; } = popUndo(state2)
+            const state3: UndoState = result1.newState
+            const result2: { newState: UndoState; deltaToReverse: GraphDelta | undefined; } = popUndo(state3)
+            const state4: UndoState = result2.newState
 
-            expect(state.undoStack).toHaveLength(0)
-            expect(state.redoStack).toHaveLength(2)
+            expect(state4.undoStack).toHaveLength(0)
+            expect(state4.redoStack).toHaveLength(2)
             // Redo stack should be in reverse order (most recent undo first)
-            expect(state.redoStack[0]).toBe(delta1)
-            expect(state.redoStack[1]).toBe(delta2)
+            expect(state4.redoStack[0]).toBe(delta1)
+            expect(state4.redoStack[1]).toBe(delta2)
         })
     })
 
@@ -171,8 +170,8 @@ describe('undoStack', () => {
         })
 
         it('removes and returns most recent delta from redo stack', () => {
-            const delta = createTestDelta('test.md')
-            const state = pushUndo(createEmptyUndoState(), delta)
+            const delta: GraphDelta = createTestDelta('test.md')
+            const state: UndoState = pushUndo(createEmptyUndoState(), delta)
             const { newState: stateAfterUndo } = popUndo(state)
 
             const { newState, deltaToApply } = popRedo(stateAfterUndo)
@@ -182,8 +181,8 @@ describe('undoStack', () => {
         })
 
         it('pushes redone delta back to undo stack', () => {
-            const delta = createTestDelta('test.md')
-            const state = pushUndo(createEmptyUndoState(), delta)
+            const delta: GraphDelta = createTestDelta('test.md')
+            const state: UndoState = pushUndo(createEmptyUndoState(), delta)
             const { newState: stateAfterUndo } = popUndo(state)
             expect(stateAfterUndo.undoStack).toHaveLength(0)
 
@@ -196,8 +195,8 @@ describe('undoStack', () => {
 
     describe('undo/redo cycle', () => {
         it('undo -> redo returns to same state', () => {
-            const delta = createTestDelta('test.md')
-            const initialState = pushUndo(createEmptyUndoState(), delta)
+            const delta: GraphDelta = createTestDelta('test.md')
+            const initialState: UndoState = pushUndo(createEmptyUndoState(), delta)
 
             const { newState: afterUndo, deltaToReverse } = popUndo(initialState)
             expect(deltaToReverse).toBe(delta)
@@ -212,18 +211,18 @@ describe('undoStack', () => {
         })
 
         it('new action after undo clears redo', () => {
-            const delta1 = createTestDelta('first.md')
-            const delta2 = createTestDelta('second.md')
+            const delta1: GraphDelta = createTestDelta('first.md')
+            const delta2: GraphDelta = createTestDelta('second.md')
 
-            let state = pushUndo(createEmptyUndoState(), delta1)
-            const { newState: afterUndo } = popUndo(state)
+            const state1: UndoState = pushUndo(createEmptyUndoState(), delta1)
+            const { newState: afterUndo } = popUndo(state1)
             expect(afterUndo.redoStack).toHaveLength(1)
 
             // New action should clear redo
-            state = pushUndo(afterUndo, delta2)
-            expect(state.redoStack).toHaveLength(0)
-            expect(state.undoStack).toHaveLength(1)
-            expect(state.undoStack[0]).toBe(delta2)
+            const state2: UndoState = pushUndo(afterUndo, delta2)
+            expect(state2.redoStack).toHaveLength(0)
+            expect(state2.undoStack).toHaveLength(1)
+            expect(state2.undoStack[0]).toBe(delta2)
         })
     })
 })

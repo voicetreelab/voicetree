@@ -9,7 +9,7 @@ export interface UndoState {
     readonly redoStack: readonly GraphDelta[]
 }
 
-export const MAX_UNDO_SIZE = 50
+export const MAX_UNDO_SIZE: number = 50
 
 /**
  * Creates an empty undo state with no history.
@@ -25,7 +25,7 @@ export function createEmptyUndoState(): UndoState {
  * - Limits stack size to MAX_UNDO_SIZE
  */
 export function pushUndo(state: UndoState, delta: GraphDelta): UndoState {
-    const newUndoStack = [delta, ...state.undoStack].slice(0, MAX_UNDO_SIZE)
+    const newUndoStack: readonly GraphDelta[] = [delta, ...state.undoStack].slice(0, MAX_UNDO_SIZE)
     return {
         undoStack: newUndoStack,
         redoStack: []  // Clear redo on new action

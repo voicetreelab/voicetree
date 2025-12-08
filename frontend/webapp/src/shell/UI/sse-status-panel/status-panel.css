@@ -26,13 +26,47 @@
     transition: all 0.2s ease;
 }
 
-/* On hover: expand UPWARD and LEFTWARD with wrapped cards, keeping last item in place */
-.server-activity-panel:hover .server-activity-events {
+/* Expand arrow button - positioned above panel on the left */
+.server-activity-expand-arrow {
+    position: absolute;
+    top: -20px;
+    left: 8px;
+    width: 32px;
+    height: 16px;
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: var(--muted-foreground);
+    transition: background 0.15s ease, color 0.15s ease;
+    z-index: 1001;
+}
+
+.server-activity-expand-arrow:hover {
+    background: var(--muted);
+    color: var(--foreground);
+}
+
+/* Arrow icon rotation when expanded */
+.server-activity-expand-arrow .arrow-icon {
+    transition: transform 0.2s ease;
+}
+
+.server-activity-panel.expanded .server-activity-expand-arrow .arrow-icon {
+    transform: rotate(180deg);
+}
+
+/* Expanded state - triggered by .expanded class (click), not hover */
+.server-activity-panel.expanded .server-activity-events {
     position: absolute;
     bottom: 4px; /* Match compact events' bottom position (panel's bottom padding) */
     right: 0; /* Anchor right edge - expand leftward so rightmost items stay in place */
-    width: min(50vw, 600px);
-    max-width: none; /* Override compact constraint */
+    width: min(27vw, 450px); /* 1.5x the compact panel width - break out of parent constraint */
     max-height: 250px;
     flex-wrap: wrap;
     align-content: flex-end; /* Stack rows from bottom up */

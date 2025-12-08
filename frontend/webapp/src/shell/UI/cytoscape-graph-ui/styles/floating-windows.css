@@ -119,6 +119,11 @@
   overflow: auto;
 }
 
+/* Fullscreen mode - ensure proper background in light mode */
+.cy-floating-window-content:fullscreen {
+  background-color: var(--background, white);
+}
+
 /* Resizable windows */
 .cy-floating-window.resizable {
   resize: both;

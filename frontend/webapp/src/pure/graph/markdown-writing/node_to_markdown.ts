@@ -6,8 +6,8 @@ import * as E from 'fp-ts/lib/Either.js'
  * Converts node content (without YAML) back to markdown with wikilinks restored.
  * Used for displaying in editors where YAML should NOT be shown.
  *
- * @param node - GraphNode containing contentWithoutYamlOrLinks
- * @returns Content with [link]* converted back to [[link]] wikilinks
+ * @param node - GraphNode containing contentWithoutYamlOrLinks and outgoingEdges
+ * @returns Content with [link]* converted back to [[link]] wikilinks, plus wikilinks from outgoingEdges
  */
 export function fromNodeToContentWithWikilinks(node: GraphNode): string {
     // Handle case where content might be undefined (new nodes)
@@ -15,7 +15,17 @@ export function fromNodeToContentWithWikilinks(node: GraphNode): string {
         return '';
     }
     // Convert [link]* placeholders back to [[link]] wikilinks
-    return node.contentWithoutYamlOrLinks.replace(/\[([^\]]+)\]\*/g, '[[$1]]');
+    const contentWithWikilinks: string = node.contentWithoutYamlOrLinks.replace(/\[([^\]]+)\]\*/g, '[[$1]]');
+
+    // Append outgoing edges as wikilinks (only if not already in content)
+    const wikilinks: string = node.outgoingEdges
+        .filter(edge => !contentWithWikilinks.includes(`[[${edge.targetId}]]`))
+        .map(edge => (`[[${edge.targetId}]]`))
+        .join('\n');
+
+    const wikilinksSuffix: string = wikilinks.length > 0 ? '\n' + wikilinks : '';
+
+    return `${contentWithWikilinks}${wikilinksSuffix}`;
 }
 
 /**

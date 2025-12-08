@@ -1,9 +1,8 @@
 import type { Graph, NodeIdAndFilePath, GraphNode } from '@/pure/graph'
 import { getSubgraphByDistance } from '@/pure/graph'
 import { getGraph } from '@/shell/edge/main/state/graph-store'
-
-/** Maximum traversal distance - matches createContextNode */
-const MAX_TRAVERSAL_DISTANCE: 5 = 5 as const
+import { getCachedSettings } from '@/shell/edge/main/state/settings-cache'
+import { DEFAULT_SETTINGS, type VTSettings } from '@/pure/settings/types'
 
 /**
  * Result type for unseen nodes
@@ -19,7 +18,7 @@ export interface UnseenNode {
  * This function:
  * 1. Reads the context node's containedNodeIds from its metadata
  * 2. Uses the first containedNodeId as the starting point (the parent node)
- * 3. Re-runs the same graph traversal (getSubgraphByDistance with distance 5)
+ * 3. Re-runs the same graph traversal (getSubgraphByDistance with contextNodeMaxDistance from settings)
  * 4. Returns nodes that are in the new traversal but NOT in containedNodeIds
  *
  * @param contextNodeId - The ID of the context node
@@ -46,10 +45,11 @@ export function getUnseenNodesAroundContextNode(
     const parentNodeId: NodeIdAndFilePath = containedNodeIds[0]
 
     // 4. Re-run the graph traversal from the parent node
+    const settings: VTSettings = getCachedSettings() ?? DEFAULT_SETTINGS
     const subgraph: Graph = getSubgraphByDistance(
         currentGraph,
         parentNodeId,
-        MAX_TRAVERSAL_DISTANCE
+        settings.contextNodeMaxDistance
     )
 
     // 5. Create a Set from containedNodeIds for O(1) lookup

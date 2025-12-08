@@ -124,6 +124,29 @@ test.describe('SSE Activity Panel Screenshot', () => {
     await page.waitForSelector('#sse-status-panel-mount', { timeout: 5000 });
     console.log('SSE status panel mount point found');
 
+    // Add mock FileWatchingPanel to the left of activity panel (simulates real layout)
+    await page.evaluate(() => {
+      const mountPoint: HTMLElement | null = document.getElementById('sse-status-panel-mount');
+      if (!mountPoint || !mountPoint.parentElement) return;
+
+      // Create mock FileWatchingPanel
+      const mockFilePanel: HTMLDivElement = document.createElement('div');
+      mockFilePanel.className = 'flex items-center gap-1 font-mono text-xs shrink-0';
+      mockFilePanel.innerHTML = `
+        <button class="text-gray-600 px-1.5 py-1 rounded bg-gray-100" style="font-size: 12px;">
+          my-project
+          <span style="font-size: 10px; margin-left: 4px;">▼</span>
+        </button>
+        <span class="text-gray-400">/</span>
+        <button class="text-gray-600 px-1.5 py-1 rounded bg-gray-100" style="font-size: 12px;">
+          vault
+        </button>
+      `;
+
+      // Insert before the mount point
+      mountPoint.parentElement.insertBefore(mockFilePanel, mountPoint);
+    });
+
     // Wait a bit for SseStatusPanel to initialize
     await page.waitForTimeout(300);
 
@@ -139,21 +162,22 @@ test.describe('SSE Activity Panel Screenshot', () => {
         const mountPoint: HTMLElement | null = document.getElementById('sse-status-panel-mount');
         if (!mountPoint) throw new Error('Mount point not found');
 
-        // Create panel structure manually (including overlay)
+        // Create panel structure manually
         const panel: HTMLDivElement = document.createElement('div');
         panel.className = 'server-activity-panel';
+
+        // Create expand/collapse arrow button
+        const expandArrow: HTMLButtonElement = document.createElement('button');
+        expandArrow.className = 'server-activity-expand-arrow';
+        expandArrow.innerHTML = '<span class="arrow-icon">▲</span>';
+        expandArrow.addEventListener('click', () => {
+          panel.classList.toggle('expanded');
+        });
+        panel.appendChild(expandArrow);
 
         const eventsContainer: HTMLDivElement = document.createElement('div');
         eventsContainer.className = 'server-activity-events';
         panel.appendChild(eventsContainer);
-
-        // Create expanded overlay structure
-        const overlay: HTMLDivElement = document.createElement('div');
-        overlay.className = 'server-activity-overlay';
-        const overlayEvents: HTMLDivElement = document.createElement('div');
-        overlayEvents.className = 'server-activity-overlay-events';
-        overlay.appendChild(overlayEvents);
-        panel.appendChild(overlay);
 
         mountPoint.appendChild(panel);
       });
@@ -249,47 +273,24 @@ test.describe('SSE Activity Panel Screenshot', () => {
 
     await page.waitForTimeout(300);
 
-    // Take screenshot of the full page WITHOUT hover (compact view)
+    // Take screenshot of the full page in compact (collapsed) view
     await page.screenshot({
       path: 'e2e-tests/screenshots/activity-panel-no-hover.png'
     });
-    console.log('No-hover screenshot saved');
+    console.log('Compact (collapsed) screenshot saved');
 
-    // Now hover over the activity panel to trigger the overlay
-    const panel: import('@playwright/test').Locator = page.locator('.server-activity-panel');
-    await panel.hover();
+    // Click the expand arrow to toggle expanded state
+    const expandArrow: import('@playwright/test').Locator = page.locator('.server-activity-expand-arrow');
+    await expandArrow.click();
 
-    // Wait for hover transition
+    // Wait for expansion transition
     await page.waitForTimeout(300);
 
-    // Sync overlay events (simulate what SseStatusPanel does on hover)
-    await page.evaluate(() => {
-      const eventsContainer: HTMLElement | null = document.querySelector('.server-activity-events');
-      const overlayEventsContainer: HTMLElement | null = document.querySelector('.server-activity-overlay-events');
-      if (!eventsContainer || !overlayEventsContainer) return;
-
-      // Clone all events to overlay
-      overlayEventsContainer.innerHTML = '';
-      const events: HTMLCollection = eventsContainer.children;
-      for (let i: number = 0; i < events.length; i++) {
-        const clone: Node = events[i].cloneNode(true);
-        overlayEventsContainer.appendChild(clone);
-      }
-
-      // Show the overlay
-      const overlay: HTMLElement | null = document.querySelector('.server-activity-overlay');
-      if (overlay) {
-        overlay.classList.add('visible');
-      }
-    });
-
-    await page.waitForTimeout(200);
-
-    // Take screenshot with hover overlay visible
+    // Take screenshot with expanded panel visible
     await page.screenshot({
       path: 'e2e-tests/screenshots/activity-panel-hover-overlay.png'
     });
-    console.log('Hover overlay screenshot saved');
+    console.log('Expanded panel screenshot saved');
 
     // Also take a screenshot of just the bottom area to show detail
     const bottomArea: import('@playwright/test').Locator = page.locator('.server-activity-panel');
@@ -305,12 +306,12 @@ test.describe('SSE Activity Panel Screenshot', () => {
     console.log(`Panel contains ${eventCount} event cards`);
     expect(eventCount).toBeGreaterThan(20);
 
-    // Verify overlay has events too
-    const overlayEventCount: number = await page.evaluate(() => {
-      return document.querySelectorAll('.server-activity-overlay-events .server-activity-card').length;
+    // Verify panel is in expanded state
+    const isExpanded: boolean = await page.evaluate(() => {
+      return document.querySelector('.server-activity-panel')?.classList.contains('expanded') ?? false;
     });
-    console.log(`Overlay contains ${overlayEventCount} event cards`);
-    expect(overlayEventCount).toBeGreaterThan(20);
+    expect(isExpanded).toBe(true);
+    console.log('Panel is expanded after clicking arrow');
 
     console.log('Activity panel screenshot test completed');
   });

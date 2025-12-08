@@ -11,6 +11,8 @@ export interface ExtendedWindow extends Window {
     graph?: {
       _updateCallback?: (delta: GraphDelta) => void;
     };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    _triggerIpc?: (channel: string, ...args: any[]) => void;
   };
   terminalStoreAPI?: {
     addTerminal: (data: unknown) => void;
@@ -121,8 +123,30 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
 
       // General IPC communication methods
       invoke: async () => {},
-      on: () => {},
-      off: () => {}
+      // Store callbacks for IPC events (e.g., 'ui:call')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      _ipcListeners: {} as Record<string, ((event: unknown, ...args: any[]) => void)[]>,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      on: (channel: string, callback: (event: unknown, ...args: any[]) => void) => {
+        if (!mockElectronAPI._ipcListeners[channel]) {
+          mockElectronAPI._ipcListeners[channel] = [];
+        }
+        mockElectronAPI._ipcListeners[channel].push(callback);
+        console.log(`[Mock] IPC listener registered for channel: ${channel}`);
+        return () => {
+          const idx = mockElectronAPI._ipcListeners[channel]?.indexOf(callback);
+          if (idx !== undefined && idx >= 0) {
+            mockElectronAPI._ipcListeners[channel].splice(idx, 1);
+          }
+        };
+      },
+      off: () => {},
+      // Helper to trigger IPC events for testing
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      _triggerIpc: (channel: string, ...args: any[]) => {
+        const listeners = mockElectronAPI._ipcListeners[channel] || [];
+        listeners.forEach(cb => cb(null, ...args));
+      }
     };
 
     (window as unknown as { electronAPI: typeof mockElectronAPI }).electronAPI = mockElectronAPI;
@@ -330,6 +354,14 @@ export async function sendGraphDelta(page: Page, graphDelta: GraphDelta): Promis
       console.log('[Test] Triggered graph update via electronAPI callback');
     } else {
       console.error('[Test] No graph update callback registered!');
+    }
+
+    // Also trigger ui:call for updateFloatingEditorsFromExternal
+    // This simulates what main process does after external FS events
+    const triggerIpc = (electronAPI as unknown as { _triggerIpc?: (channel: string, ...args: unknown[]) => void })._triggerIpc;
+    if (triggerIpc) {
+      triggerIpc('ui:call', 'updateFloatingEditorsFromExternal', [reconstructedDelta]);
+      console.log('[Test] Triggered ui:call for updateFloatingEditorsFromExternal');
     }
   }, serializableDelta);
 }
