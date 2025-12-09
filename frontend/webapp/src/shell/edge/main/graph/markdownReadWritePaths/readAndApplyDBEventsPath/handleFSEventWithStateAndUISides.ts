@@ -15,12 +15,12 @@ import {isOurRecentWrite} from "@/shell/edge/main/state/recent-writes-store";
  * FS Event Path: FS → MEM + GraphUI + Editors
  *
  * @param fsEvent - Filesystem event (add, change, or delete)
- * @param vaultPath - Absolute path to vault
+ * @param watchedDirectory - Absolute path to watched directory
  * @param _mainWindow - Electron window (unused, kept for API compatibility)
  */
 export function handleFSEventWithStateAndUISides(
     fsEvent: FSEvent,
-    vaultPath: string,
+    watchedDirectory: string,
     _mainWindow: BrowserWindow
 ): void {
     // 1. Check if this is our own recent write - skip if so
@@ -34,7 +34,7 @@ export function handleFSEventWithStateAndUISides(
     const currentGraph: Graph = getGraph()
 
     // 3. Map filesystem event to graph delta (pure)
-    const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, vaultPath, currentGraph)
+    const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, watchedDirectory, currentGraph)
 
     // 4. Apply delta to memory state
     applyGraphDeltaToMemState(delta)

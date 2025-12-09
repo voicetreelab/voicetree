@@ -261,10 +261,10 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
         previousNode: O.none
       }]
 
-      // WHEN/THEN: Should throw error about vault path
+      // WHEN/THEN: Should throw error about watched directory
       await expect(applyGraphDeltaToDBThroughMem(delta))
         .rejects
-        .toThrow('Vault path not initialized')
+        .toThrow('Watched directory not initialized')
     })
   })
 })

@@ -123,7 +123,7 @@ export interface DeleteNode {
 
 
 export interface Env {
-    readonly vaultPath: string
+    readonly watchedDirectory: string
 }
 export type FilePath = string // todo enforce only / and chars
 

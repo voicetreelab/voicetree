@@ -68,7 +68,7 @@ Setup instructions.`
     console.log('✓ Step 1: Created markdown files on disk')
 
     // STEP 2: Load graph from disk
-    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(tempDir))
+    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(tempDir), O.some(tempDir))
     if (E.isLeft(loadResult)) throw new Error('Expected Right')
     const graph: Graph = loadResult.right
 
@@ -150,7 +150,7 @@ _Links:_
     await fs.writeFile(path.join(tempDir, 'node-b.md'), '# Node B', 'utf-8')
     await fs.writeFile(path.join(tempDir, 'node-c.md'), '# Node C', 'utf-8')
 
-    const loadResult2: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(tempDir))
+    const loadResult2: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(tempDir), O.some(tempDir))
     if (E.isLeft(loadResult2)) throw new Error('Expected Right')
     const graph: Graph = loadResult2.right
     const delta: GraphDelta = mapNewGraphToDelta(graph)
