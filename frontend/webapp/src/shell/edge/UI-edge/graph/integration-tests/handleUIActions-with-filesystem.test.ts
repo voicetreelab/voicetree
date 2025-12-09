@@ -22,11 +22,12 @@ import type {Core} from 'cytoscape';
 import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
 import { createNewChildNodeFromUI, deleteNodesFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions'
-import type { Graph } from '@/pure/graph'
+import type { Graph, GraphDelta } from '@/pure/graph'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import { setGraph } from '@/shell/edge/main/state/graph-store'
 import { setVaultPath } from '@/shell/edge/main/graph/watchFolder'
+import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
 
 // State managed by mocked globals - using module-level state that the mock functions will access
 let currentGraph: Graph | null = null
@@ -56,6 +57,19 @@ vi.mock('electron', () => ({
     }
 }))
 
+// Mock posthog
+vi.mock('posthog-js', () => ({
+    default: {
+        capture: vi.fn(),
+        get_distinct_id: vi.fn(() => 'test-user-id')
+    }
+}))
+
+// Mock AgentTabsBar
+vi.mock('@/shell/UI/views/AgentTabsBar', () => ({
+    markTerminalActivityForContextNode: vi.fn()
+}))
+
 // Mock graph store
 vi.mock('@/shell/edge/main/state/graph-store', () => {
     return {
@@ -82,7 +96,17 @@ vi.mock('@/shell/edge/main/graph/watchFolder', () => {
         },
         clearVaultPath: () => {
             tempVault = ''
-        }
+        },
+        startFileWatching: vi.fn().mockResolvedValue({ success: true }),
+        stopFileWatching: vi.fn().mockResolvedValue({ success: true }),
+        initialLoad: vi.fn().mockResolvedValue(undefined),
+        getWatchStatus: vi.fn(() => ({ isWatching: false, directory: undefined, vaultSuffix: 'voicetree' })),
+        loadPreviousFolder: vi.fn().mockResolvedValue({ success: false }),
+        isWatching: vi.fn(() => false),
+        getWatchedDirectory: vi.fn(() => null),
+        getVaultSuffix: vi.fn(() => 'voicetree'),
+        setVaultSuffix: vi.fn().mockResolvedValue({ success: true }),
+        loadFolder: vi.fn().mockResolvedValue(undefined)
     }
 })
 
@@ -191,12 +215,17 @@ Child content`
         })
 
         // Setup window.electronAPI to call through main API directly (new RPC pattern)
+        // Wrap applyGraphDeltaToDBThroughMem to also update cytoscape UI
         const { mainAPI } = await import('@/shell/edge/main/api')
         global.window = {
             electronAPI: {
                 main: {
                     getGraph: mainAPI.getGraph,
-                    applyGraphDeltaToDBThroughMem: mainAPI.applyGraphDeltaToDBThroughMem
+                    applyGraphDeltaToDBThroughMem: async (delta: GraphDelta) => {
+                        await mainAPI.applyGraphDeltaToDBThroughMem(delta)
+                        // Also update cytoscape UI since file watching is mocked
+                        applyGraphDeltaToUI(cy, delta)
+                    }
                 }
             }
         } as any
@@ -224,13 +253,13 @@ Child content`
         // AND: Should have 2 edges
         expect(cy.edges()).toHaveLength(2)
 
-        // AND: The new node should exist in cytoscape (parent has 1 outgoing edge, so new child is _1)
-        const newNodeId: "parent.md_1.md" = 'parent.md_1.md'
+        // AND: The new node should exist in cytoscape (parent.md -> parent_1.md by stripping .md and adding _1.md)
+        const newNodeId: string = 'parent_1.md'
         const newNode: cytoscape.CollectionReturnValue = cy.getElementById(newNodeId)
         expect(newNode.length).toBe(1)
 
         // AND: File should be created on disk
-        const newFilePath: string = path.join(tempVault, `${newNodeId}`)
+        const newFilePath: string = path.join(tempVault, newNodeId)
         const fileExists: boolean = await fs.access(newFilePath).then(() => true).catch(() => false)
         expect(fileExists).toBe(true)
 
@@ -250,9 +279,9 @@ Child content`
         const files: string[] = await fs.readdir(tempVault)
         expect(files).toHaveLength(initialFileCount + 1)
 
-        // AND: New file should exist with expected name (parent has 1 outgoing edge, so new child is _1)
-        const newNodeId: "parent.md_1.md" = 'parent.md_1.md'
-        expect(files).toContain(`${newNodeId}`)
+        // AND: New file should exist with expected name (parent.md -> parent_1.md by stripping .md and adding _1.md)
+        const newNodeId: string = 'parent_1.md'
+        expect(files).toContain(newNodeId)
 
         // AND: File should be readable and parseable
         const newFilePath: string = path.join(tempVault, `${newNodeId}`)
@@ -268,7 +297,7 @@ Child content`
 
         // Verify parent initially has only child1
         expect(initialParentContent).toContain('[[child1.md]]')
-        expect(initialParentContent).not.toContain('[[parent.md_1.md]]')
+        expect(initialParentContent).not.toContain('[[parent_1.md]]')
 
         // WHEN: Creating a new child node
         await createNewChildNodeFromUI('parent.md', cy)
@@ -278,7 +307,7 @@ Child content`
 
         // Parent should now have both edges (wikilinks include node IDs with .md extension)
         expect(updatedParentContent).toContain('[[child1.md]]')
-        expect(updatedParentContent).toContain('[[parent.md_1.md]]')
+        expect(updatedParentContent).toContain('[[parent_1.md]]')
     })
 })
 
@@ -374,12 +403,17 @@ Child content`
         })
 
         // Setup window.electronAPI to call through main API directly (new RPC pattern)
+        // Wrap applyGraphDeltaToDBThroughMem to also update cytoscape UI
         const { mainAPI } = await import('@/shell/edge/main/api')
         global.window = {
             electronAPI: {
                 main: {
                     getGraph: mainAPI.getGraph,
-                    applyGraphDeltaToDBThroughMem: mainAPI.applyGraphDeltaToDBThroughMem
+                    applyGraphDeltaToDBThroughMem: async (delta: GraphDelta) => {
+                        await mainAPI.applyGraphDeltaToDBThroughMem(delta)
+                        // Also update cytoscape UI since file watching is mocked
+                        applyGraphDeltaToUI(cy, delta)
+                    }
                 }
             }
         } as any

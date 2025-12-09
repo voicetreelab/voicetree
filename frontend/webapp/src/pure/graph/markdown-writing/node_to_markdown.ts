@@ -1,6 +1,7 @@
 import type {GraphNode, NodeUIMetadata} from "@/pure/graph";
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
+import { linkMatchScore } from '@/pure/graph/markdown-parsing/extract-edges'
 
 /**
  * Converts node content (without YAML) back to markdown with wikilinks restored.
@@ -18,8 +19,10 @@ export function fromNodeToContentWithWikilinks(node: GraphNode): string {
     const contentWithWikilinks: string = node.contentWithoutYamlOrLinks.replace(/\[([^\]]+)\]\*/g, '[[$1]]');
 
     // Append outgoing edges as wikilinks (only if not already in content)
+    // Use linkMatchScore for smart path matching (handles extension normalization, suffix matching)
+    const existingWikilinks: readonly string[] = [...contentWithWikilinks.matchAll(/\[\[([^\]]+)\]\]/g)].map(m => m[1])
     const wikilinks: string = node.outgoingEdges
-        .filter(edge => !contentWithWikilinks.includes(`[[${edge.targetId}]]`))
+        .filter(edge => !existingWikilinks.some(linkText => linkMatchScore(linkText, edge.targetId) > 0))
         .map(edge => (`[[${edge.targetId}]]`))
         .join('\n');
 
@@ -50,9 +53,10 @@ export function fromNodeToMarkdownContent(node: GraphNode): string {
     const contentWithWikilinks: string = node.contentWithoutYamlOrLinks.replace(/\[([^\]]+)\]\*/g, '[[$1]]');
 
     // 3. Append outgoing edges as wikilinks (only if not already in content)
-    // After restoring wikilinks, check if the edge is already present
+    // Use linkMatchScore for smart path matching (handles extension normalization, suffix matching)
+    const existingWikilinks: readonly string[] = [...contentWithWikilinks.matchAll(/\[\[([^\]]+)\]\]/g)].map(m => m[1])
     const wikilinks: string = node.outgoingEdges
-        .filter(edge => !contentWithWikilinks.includes(`[[${edge.targetId}]]`))
+        .filter(edge => !existingWikilinks.some(linkText => linkMatchScore(linkText, edge.targetId) > 0))
         .map(edge => (`[[${edge.targetId}]]`))
         .join('\n');
 

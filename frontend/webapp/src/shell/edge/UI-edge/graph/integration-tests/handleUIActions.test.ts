@@ -14,8 +14,31 @@ import type {Core} from 'cytoscape';
 import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
 import { createNewChildNodeFromUI, modifyNodeContentFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions'
-import type { Graph, GraphNode } from '@/pure/graph'
+import type { Graph, GraphNode, GraphDelta } from '@/pure/graph'
 import { getNodeTitle } from '@/pure/graph/markdown-parsing'
+import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
+
+// Mock posthog
+vi.mock('posthog-js', () => ({
+    default: {
+        capture: vi.fn(),
+        get_distinct_id: vi.fn(() => 'test-user-id')
+    }
+}))
+
+// Mock AgentTabsBar
+vi.mock('@/shell/UI/views/AgentTabsBar', () => ({
+    markTerminalActivityForContextNode: vi.fn()
+}))
+
+// Mock FloatingEditorCRUD
+vi.mock('@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD', async () => {
+    const actual: typeof import('@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD') = await vi.importActual('@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD')
+    return {
+        ...actual,
+        updateFloatingEditors: vi.fn()
+    }
+})
 
 describe('createNewChildNodeFromUI - Integration', () => {
     let cy: Core
@@ -74,14 +97,24 @@ describe('createNewChildNodeFromUI - Integration', () => {
         })
 
         // Mock window.electronAPI
-        global.window = {
-            electronAPI: {
-                main: {
-                    getGraph: vi.fn().mockReturnValue(mockGraph),
-                    applyGraphDeltaToDBThroughMem: vi.fn().mockResolvedValue(undefined)
-                }
+        // Mock applyGraphDeltaToDBThroughMem to also update the cytoscape UI
+        const mockApplyDelta: (delta: GraphDelta) => Promise<void> = vi.fn().mockImplementation(async (delta: GraphDelta) => {
+            // Apply the delta to the cytoscape instance to simulate the UI update
+            applyGraphDeltaToUI(cy, delta)
+            return undefined
+        })
+
+        // Ensure window is defined
+        if (!global.window) {
+            global.window = {} as Window & typeof globalThis
+        }
+
+        global.window.electronAPI = {
+            main: {
+                getGraph: vi.fn(() => mockGraph),
+                applyGraphDeltaToDBThroughMem: mockApplyDelta
             }
-        } as unknown as Window & typeof globalThis
+        } as unknown as typeof global.window.electronAPI
     })
 
     afterEach(() => {
@@ -99,7 +132,13 @@ describe('createNewChildNodeFromUI - Integration', () => {
         expect(cy.getElementById('child1.md').data('label')).toBe('Child 1')
 
         // WHEN: Creating a new child node from the parent
-        await createNewChildNodeFromUI('parent.md', cy)
+        const result: string = await createNewChildNodeFromUI('parent.md', cy)
+
+        // THEN: Should return the new node ID (parent.md -> parent_1.md by stripping .md and adding _1.md)
+        expect(result).toBe('parent_1.md')
+
+        // THEN: applyGraphDeltaToDBThroughMem should have been called
+        expect(global.window.electronAPI.main.applyGraphDeltaToDBThroughMem).toHaveBeenCalledTimes(1)
 
         // THEN: Cytoscape should now have 3 nodes
         expect(cy.nodes()).toHaveLength(3)
@@ -108,7 +147,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
         expect(cy.edges()).toHaveLength(2)
 
         // AND: The new node should exist with correct label derived via getNodeTitle
-        const newNodeId: "parent.md_1.md" = 'parent.md_1.md' // Based on naming convention in fromUICreateChildToUpsertNode
+        const newNodeId: string = result // Use the actual returned ID
         const newNode: cytoscape.CollectionReturnValue = cy.getElementById(newNodeId)
         expect(newNode.length).toBe(1)
         // Label comes from parsing "# new" content via markdownToTitle, extracting title "new"
@@ -143,10 +182,9 @@ describe('createNewChildNodeFromUI - Integration', () => {
         expect(cy.nodes()).toHaveLength(2)
 
         // WHEN: Creating second child
-        await createNewChildNodeFromUI('parent.md', cy)
+        const newNodeId: string = await createNewChildNodeFromUI('parent.md', cy)
 
         // THEN: New node should be positioned relative to parent
-        const newNodeId: "parent.md_1.md" = 'parent.md_1.md'
         const newNode: cytoscape.CollectionReturnValue = cy.getElementById(newNodeId)
         const newPos: cytoscape.Position = newNode.position()
         const parentPos: cytoscape.Position = cy.getElementById('parent.md').position()
@@ -216,7 +254,11 @@ describe('modifyNodeContentFromUI - Integration', () => {
             electronAPI: {
                 main: {
                     getGraph: vi.fn().mockReturnValue(mockGraph),
-                    applyGraphDeltaToDBThroughMem: vi.fn().mockResolvedValue(undefined),
+                    applyGraphDeltaToDBThroughMem: vi.fn().mockImplementation(async (delta: GraphDelta) => {
+                        // Apply the delta to the cytoscape instance to simulate the UI update
+                        applyGraphDeltaToUI(cy, delta)
+                        return undefined
+                    }),
                     getNode: vi.fn().mockImplementation((nodeId: string) => mockGraph.nodes[nodeId])
                 }
             }

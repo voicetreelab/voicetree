@@ -256,6 +256,72 @@ describe('fromNodeToMarkdownContent', () => {
       const child1Count: number = (result.match(/\[\[child1\.md\]\]/g) ?? []).length
       expect(child1Count).toBe(1)
     })
+
+    /**
+     * BUG: Edge Duplication on Add in WikiLink Editor
+     *
+     * When user types a relative link (e.g., [[linked-node]]) but the edge is stored
+     * with the full path (e.g., "linked-node.md"), the deduplication check fails
+     * because it does literal string matching instead of using linkMatchScore().
+     *
+     * This causes duplicate links: both [[linked-node]] (user's original) and
+     * [[linked-node.md]] (appended from edge) appear in the output.
+     */
+    it('BUG: should not duplicate wikilinks when link format differs from edge targetId', () => {
+      // Scenario: User typed [[linked-node]] (no .md extension)
+      // Edge was created with targetId: "linked-node.md" (with extension)
+      // These refer to the same node but deduplication fails due to literal string match
+      const node: GraphNode = {
+        relativeFilePathIsID: 'test.md',
+        contentWithoutYamlOrLinks: '# Test\n\nSee [linked-node]* for details.',
+        outgoingEdges: [{ targetId: 'linked-node.md', label: '' }],
+        nodeUIMetadata: {
+          color: O.none,
+          position: O.none,
+          additionalYAMLProps: new Map(),
+          isContextNode: false
+        }
+      }
+
+      const result: string = fromNodeToMarkdownContent(node)
+
+      // After restoration: [[linked-node]] is in content
+      // Edge has targetId: "linked-node.md"
+      // BUG: Current code appends [[linked-node.md]] because string match fails
+      // EXPECTED: Should recognize these refer to same node and NOT append
+
+      // Count all wikilinks that resolve to the same node
+      const linkedNodeCount: number = (result.match(/\[\[linked-node(\.md)?\]\]/g) ?? []).length
+      expect(linkedNodeCount).toBe(1)  // Should only have ONE link, not two
+    })
+
+    it('BUG: should not duplicate wikilinks when relative vs absolute path differs', () => {
+      // Scenario: User typed [[foo]] but node is in subfolder "subfolder/foo.md"
+      // Edge targetId has full path, content has short relative form
+      const node: GraphNode = {
+        relativeFilePathIsID: 'test.md',
+        contentWithoutYamlOrLinks: '# Test\n\nSee [foo]* for details.',
+        outgoingEdges: [{ targetId: 'subfolder/foo.md', label: '' }],
+        nodeUIMetadata: {
+          color: O.none,
+          position: O.none,
+          additionalYAMLProps: new Map(),
+          isContextNode: false
+        }
+      }
+
+      const result: string = fromNodeToMarkdownContent(node)
+
+      // BUG: Appends [[subfolder/foo.md]] even though [[foo]] already links to that node
+      // This happens because literal string match fails
+
+      // Should not have both [[foo]] AND [[subfolder/foo.md]]
+      const hasFooShort: boolean = result.includes('[[foo]]')
+      const hasFooLong: boolean = result.includes('[[subfolder/foo.md]]')
+
+      // EXPECTED: Only one of them, not both
+      expect(hasFooShort && hasFooLong).toBe(false)
+    })
   })
 
   describe('additionalYAMLProps', () => {

@@ -7,7 +7,7 @@ import * as O from 'fp-ts/lib/Option.js'
 function createNode(
     id: string,
     outgoingEdges: readonly Edge[] = [],
-    position?: Readonly<{ x: number; y: number }>,
+    position?: Readonly<{ readonly x: number; readonly y: number }>,
     content = '# Node'
 ): GraphNode {
     return {
@@ -113,8 +113,8 @@ describe('computeMergeGraphDelta', () => {
         if (result[1].type === 'UpsertNode') {
             expect(result[1].nodeToUpsert.relativeFilePathIsID).toBe('external.md')
             expect(result[1].nodeToUpsert.outgoingEdges).toHaveLength(1)
-            // Edge should now point to the new representative (starts with VT/merged_)
-            expect(result[1].nodeToUpsert.outgoingEdges[0].targetId).toMatch(/^VT\/merged_/)
+            // Edge should now point to the new representative (starts with merged_)
+            expect(result[1].nodeToUpsert.outgoingEdges[0].targetId).toMatch(/^merged_/)
             expect(result[1].nodeToUpsert.outgoingEdges[0].label).toBe('link to internal1')
         }
     })
@@ -135,11 +135,11 @@ describe('computeMergeGraphDelta', () => {
         expect(result).toHaveLength(5)
 
         // Count UpsertNode operations (should be 3: representative + 2 externals)
-        const upserts: readonly { type: string }[] = result.filter((d) => d.type === 'UpsertNode')
+        const upserts: readonly { readonly type: string }[] = result.filter((d) => d.type === 'UpsertNode')
         expect(upserts).toHaveLength(3)
 
         // Count DeleteNode operations (should be 2)
-        const deletes: readonly { type: string }[] = result.filter((d) => d.type === 'DeleteNode')
+        const deletes: readonly { readonly type: string }[] = result.filter((d) => d.type === 'DeleteNode')
         expect(deletes).toHaveLength(2)
     })
 
@@ -176,7 +176,7 @@ describe('computeMergeGraphDelta', () => {
         // Find the updated external node
         const updatedExternal: GraphDelta[number] | undefined = result.find(
             (d) => d.type === 'UpsertNode' &&
-                   (d as Readonly<{ nodeToUpsert: GraphNode }>).nodeToUpsert.relativeFilePathIsID === 'external.md'
+                   (d as Readonly<{ readonly nodeToUpsert: GraphNode }>).nodeToUpsert.relativeFilePathIsID === 'external.md'
         )
 
         expect(updatedExternal).toBeDefined()
@@ -185,7 +185,7 @@ describe('computeMergeGraphDelta', () => {
             expect(updatedExternal.nodeToUpsert.outgoingEdges).toHaveLength(2)
             const targets: readonly string[] = updatedExternal.nodeToUpsert.outgoingEdges.map((e) => e.targetId)
             // Both should point to the same merged node
-            expect(targets[0]).toMatch(/^VT\/merged_/)
+            expect(targets[0]).toMatch(/^merged_/)
             expect(targets[0]).toBe(targets[1])
         }
     })
@@ -314,7 +314,7 @@ describe('computeMergeGraphDelta', () => {
         // Should only have DeleteNode actions for the context nodes, no merge node created
         expect(result).toHaveLength(2)
         expect(result.every((d) => d.type === 'DeleteNode')).toBe(true)
-        const deletedIds = result.map((d) => d.type === 'DeleteNode' ? d.nodeId : '')
+        const deletedIds: readonly string[] = result.map((d) => d.type === 'DeleteNode' ? d.nodeId : '')
         expect(deletedIds).toContain('context1.md')
         expect(deletedIds).toContain('context2.md')
     })

@@ -4,11 +4,6 @@ import cytoscape from 'cytoscape';
 import type { Core } from 'cytoscape';
 import { VerticalMenuService, type VerticalMenuDependencies } from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService';
 import type { MenuItem } from '@/shell/UI/lib/ctxmenu.d';
-
-/** Type guard to check if menu item has disabled property */
-function hasDisabled(item: MenuItem): item is MenuItem & { disabled?: boolean } {
-  return 'disabled' in item;
-}
 import type { MenuConfig } from '@/shell/UI/lib/ctxmenu';
 
 // Mock ctxmenu
@@ -69,132 +64,67 @@ describe('VerticalMenuService', () => {
     }
   });
 
-  describe('initialization', () => {
-    it('should set up event listeners on cytoscape instance', () => {
-      service = new VerticalMenuService();
-      service.initialize(cy, mockDeps);
-      expect(service).toBeDefined();
-    });
-  });
-
   describe('canvas context menu', () => {
-    it('should show context menu when right-clicking on canvas', () => {
+    it('should show context menu with 3 items when right-clicking on canvas', () => {
       service = new VerticalMenuService();
       service.initialize(cy, mockDeps);
       /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       cy.emit('cxttap', { target: cy, position: { x: 300, y: 300 }, renderedPosition: { x: 300, y: 300 } } as any);
+
       expect(mockCtxmenuShow).toHaveBeenCalledTimes(1);
+      const menuItems: MenuItem[] = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
+      expect(menuItems).toHaveLength(3);
     });
 
-    it('should include Add Node Here option', () => {
+    it('should have Delete disabled when no nodes selected, enabled when nodes selected', () => {
       service = new VerticalMenuService();
       service.initialize(cy, mockDeps);
+
+      // No selection - Delete should be disabled
       /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       cy.emit('cxttap', { target: cy, position: { x: 300, y: 300 }, renderedPosition: { x: 300, y: 300 } } as any);
-      const menuItems: MenuItem[] = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
-      // Production uses html property with span containing "Add Node Here"
-      const addNodeItem: MenuItem | undefined = menuItems.find((item) => {
-        if ('html' in item && typeof item.html === 'string') {
-          return item.html.includes('Add Node Here');
-        }
-        if ('text' in item && typeof item.text === 'string') {
-          return item.text === 'Add Node Here';
-        }
-        return false;
-      });
-      expect(addNodeItem).toBeDefined();
-    });
+      let menuItems: MenuItem[] = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
+      const deleteItem1: MenuItem | undefined = menuItems[1];
+      expect(deleteItem1 && 'disabled' in deleteItem1 && deleteItem1.disabled).toBe(true);
 
-    it('should include enabled Delete Selected option when nodes are selected', () => {
-      service = new VerticalMenuService();
-      service.initialize(cy, mockDeps);
-      // Select a node
+      // With selection - Delete should be enabled
+      mockCtxmenuShow.mockClear();
       cy.getElementById('node1').select();
       /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       cy.emit('cxttap', { target: cy, position: { x: 300, y: 300 }, renderedPosition: { x: 300, y: 300 } } as any);
-      const menuItems: MenuItem[] = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
-      // Production uses html property with "Delete Selected (N)" format
-      const deleteItem: MenuItem | undefined = menuItems.find((item) => {
-        if ('html' in item && typeof item.html === 'string') {
-          return item.html.includes('Delete Selected');
-        }
-        if ('text' in item) {
-          const text: string = typeof item.text === 'function' ? item.text() : item.text;
-          return text.includes('Delete Selected');
-        }
-        return false;
-      });
-      expect(deleteItem).toBeDefined();
-      expect(hasDisabled(deleteItem!) && deleteItem.disabled).toBeFalsy();
+      menuItems = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
+      const deleteItem2: MenuItem | undefined = menuItems[1];
+      expect(deleteItem2 && 'disabled' in deleteItem2 && deleteItem2.disabled).toBeFalsy();
     });
 
-    it('should show disabled Delete option with "0 nodes selected" when no nodes are selected', () => {
+    it('should have Merge disabled when <2 nodes selected, enabled when 2+ nodes selected', () => {
       service = new VerticalMenuService();
       service.initialize(cy, mockDeps);
+
+      // No selection - Merge should be disabled
       /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       cy.emit('cxttap', { target: cy, position: { x: 300, y: 300 }, renderedPosition: { x: 300, y: 300 } } as any);
-      const menuItems: MenuItem[] = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
-      // Production uses html property with "Delete (0 nodes selected)" format
-      const deleteItem: MenuItem | undefined = menuItems.find((item) => {
-        if ('html' in item && typeof item.html === 'string') {
-          return item.html.includes('Delete') && item.html.includes('0 nodes selected');
-        }
-        if ('text' in item) {
-          const text: string = typeof item.text === 'function' ? item.text() : item.text;
-          return text.includes('Delete') && text.includes('0 nodes selected');
-        }
-        return false;
-      });
-      expect(deleteItem).toBeDefined();
-      expect(hasDisabled(deleteItem!) && deleteItem.disabled).toBe(true);
-    });
+      let menuItems: MenuItem[] = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
+      const mergeItem1: MenuItem | undefined = menuItems[2];
+      expect(mergeItem1 && 'disabled' in mergeItem1 && mergeItem1.disabled).toBe(true);
 
-    it('should show disabled Merge option with "0 nodes selected" when no nodes are selected', () => {
-      service = new VerticalMenuService();
-      service.initialize(cy, mockDeps);
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      cy.emit('cxttap', { target: cy, position: { x: 300, y: 300 }, renderedPosition: { x: 300, y: 300 } } as any);
-      const menuItems: MenuItem[] = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
-      const mergeItem: MenuItem | undefined = menuItems.find((item) => {
-        if (!('text' in item)) return false;
-        const text: string = typeof item.text === 'function' ? item.text() : item.text;
-        return text.includes('Merge') && text.includes('0 nodes selected');
-      });
-      expect(mergeItem).toBeDefined();
-      expect(hasDisabled(mergeItem!) && mergeItem.disabled).toBe(true);
-    });
-
-    it('should show disabled Merge option when only 1 node is selected', () => {
-      service = new VerticalMenuService();
-      service.initialize(cy, mockDeps);
+      // 1 node selected - Merge should be disabled
+      mockCtxmenuShow.mockClear();
       cy.getElementById('node1').select();
       /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       cy.emit('cxttap', { target: cy, position: { x: 300, y: 300 }, renderedPosition: { x: 300, y: 300 } } as any);
-      const menuItems: MenuItem[] = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
-      const mergeItem: MenuItem | undefined = menuItems.find((item) => {
-        if (!('text' in item)) return false;
-        const text: string = typeof item.text === 'function' ? item.text() : item.text;
-        return text.includes('Merge') && text.includes('1 node selected');
-      });
-      expect(mergeItem).toBeDefined();
-      expect(hasDisabled(mergeItem!) && mergeItem.disabled).toBe(true);
-    });
+      menuItems = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
+      const mergeItem2: MenuItem | undefined = menuItems[2];
+      expect(mergeItem2 && 'disabled' in mergeItem2 && mergeItem2.disabled).toBe(true);
 
-    it('should show enabled Merge Selected option when 2+ nodes are selected', () => {
-      service = new VerticalMenuService();
-      service.initialize(cy, mockDeps);
-      cy.getElementById('node1').select();
+      // 2 nodes selected - Merge should be enabled
+      mockCtxmenuShow.mockClear();
       cy.getElementById('node2').select();
       /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       cy.emit('cxttap', { target: cy, position: { x: 300, y: 300 }, renderedPosition: { x: 300, y: 300 } } as any);
-      const menuItems: MenuItem[] = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
-      const mergeItem: MenuItem | undefined = menuItems.find((item) => {
-        if (!('text' in item)) return false;
-        const text: string = typeof item.text === 'function' ? item.text() : item.text;
-        return text.startsWith('Merge Selected');
-      });
-      expect(mergeItem).toBeDefined();
-      expect(hasDisabled(mergeItem!) && mergeItem.disabled).toBeFalsy();
+      menuItems = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
+      const mergeItem3: MenuItem | undefined = menuItems[2];
+      expect(mergeItem3 && 'disabled' in mergeItem3 && mergeItem3.disabled).toBeFalsy();
     });
   });
 

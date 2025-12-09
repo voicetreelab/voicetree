@@ -79,8 +79,8 @@ describe('Merge Selected Nodes - Integration Tests', () => {
             expect(resultGraph.nodes['internal1.md']).toBeUndefined()
             expect(resultGraph.nodes['internal2.md']).toBeUndefined()
 
-            // AND: A new merged node should exist (ID starts with VT/merged_)
-            const mergedNodeIds: readonly string[] = Object.keys(resultGraph.nodes).filter(id => id.startsWith('VT/merged_'))
+            // AND: A new merged node should exist (ID starts with merged_)
+            const mergedNodeIds: readonly string[] = Object.keys(resultGraph.nodes).filter(id => id.startsWith('merged_'))
             expect(mergedNodeIds).toHaveLength(1)
             const mergedNodeId: string = mergedNodeIds[0]
             const mergedNode: GraphNode = resultGraph.nodes[mergedNodeId]
@@ -140,7 +140,7 @@ describe('Merge Selected Nodes - Integration Tests', () => {
             // THEN: Only the merged node should remain
             expect(Object.keys(resultGraph.nodes)).toHaveLength(1)
             const mergedNode: GraphNode = Object.values(resultGraph.nodes)[0]
-            expect(mergedNode.relativeFilePathIsID).toMatch(/^VT\/merged_/)
+            expect(mergedNode.relativeFilePathIsID).toMatch(/^merged_/)
         })
     })
 
@@ -194,7 +194,7 @@ describe('Merge Selected Nodes - Integration Tests', () => {
             expect(hubEdges).toHaveLength(3)
 
             // Find the merged node ID
-            const mergedNodeId: string = Object.keys(resultGraph.nodes).find(id => id.startsWith('VT/merged_'))!
+            const mergedNodeId: string = Object.keys(resultGraph.nodes).find(id => id.startsWith('merged_'))!
 
             // All edges should point to the same merged node
             expect(hubEdges[0].targetId).toBe(mergedNodeId)
