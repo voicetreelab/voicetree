@@ -183,10 +183,10 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
     }
 
     if (newNodeCount>=1 && cy.nodes().length <= 4){
-        setTimeout(() => cy.fit(), 150); // fit when a new node comes in for the first few nodes.
+        setTimeout(() => { if (!cy.destroyed()) cy.fit(); }, 150); // fit when a new node comes in for the first few nodes.
     }
     else if (newNodeCount >= 2) { // if not just one node + incoming changing, probs a bulk load.
-        setTimeout(() => cy.fit(), 150);
+        setTimeout(() => { if (!cy.destroyed()) cy.fit(); }, 150);
     }
     //analytics
     const anonGraphDelta: GraphDelta = stripDeltaForReplay(delta);
