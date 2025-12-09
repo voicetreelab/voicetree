@@ -4,7 +4,7 @@ import type {BrowserWindow} from "electron";
 import {applyGraphDeltaToMemStateAndUI} from "@/shell/edge/main/graph/markdownReadWritePaths/applyGraphDeltaToMemStateAndUI";
 import {getGraph} from "@/shell/edge/main/state/graph-store";
 import {isOurRecentWrite} from "@/shell/edge/main/state/recent-writes-store";
-import {uiAPI} from "@/shell/edge/main/ui-api-proxy";
+// import {uiAPI} from "@/shell/edge/main/ui-api-proxy"; // DISABLED: see comment at bottom of file
 
 /**
  * Handle filesystem events by:
@@ -39,8 +39,11 @@ export function handleFSEventWithStateAndUISides(
     const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, vaultPath, currentGraph)
 
     // 4. Apply delta to memory state and broadcast to UI
+    // This broadcasts graph:stateChanged which triggers updateFloatingEditors in VoiceTreeGraphView.ts:234
     applyGraphDeltaToMemStateAndUI(delta)
 
-    // 5. Update floating editors (READ PATH ONLY - external FS changes)
-    uiAPI.updateFloatingEditorsFromExternal(delta)
+    // 5. Direct editor update - DISABLED: redundant with graph:stateChanged broadcast above
+    // The broadcast already triggers updateFloatingEditors via VoiceTreeGraphView's handleGraphDelta
+    // Keeping both would cause double updates (though deduplication prevents double setValue)
+    // uiAPI.updateFloatingEditorsFromExternal(delta)
 }

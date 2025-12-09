@@ -25,7 +25,8 @@ import {
  */
 export async function applyGraphDeltaToDBThroughMem(
     delta: GraphDelta,
-    recordForUndo: boolean = true
+    recordForUndo: boolean = true,
+    deltaSourceFromEditor: boolean = false
 ): Promise<void> {
     // Record for undo BEFORE applying (so we can reverse from current state)
     if (recordForUndo) {
@@ -47,7 +48,7 @@ export async function applyGraphDeltaToDBThroughMem(
     // etc etc...
     // just ensure one path...
 
-    applyGraphDeltaToMemStateAndUI(delta)
+    applyGraphDeltaToMemStateAndUI(delta, deltaSourceFromEditor)
 
     // Note: FS event acknowledgement is now handled per-file in graphActionsToDBEffects.ts
     // using content hash matching instead of delta hash matching

@@ -273,6 +273,102 @@ describe('getSubgraphByDistance', () => {
     })
   })
 
+  describe('context node filtering', () => {
+    const createContextNode: (id: string, edges?: readonly string[]) => GraphNode = (id: string, edges: readonly string[] = []): GraphNode => ({
+      relativeFilePathIsID: id,
+      outgoingEdges: edges.map(targetId => ({ targetId, label: '' })),
+      contentWithoutYamlOrLinks: `content of ${id}`,
+      nodeUIMetadata: {
+        color: O.none,
+        position: O.none,
+        additionalYAMLProps: new Map(),
+        isContextNode: true
+      }
+    })
+
+    it('should skip context nodes during DFS traversal', () => {
+      // A -> ContextNode -> B
+      // Start from A, should NOT include ContextNode or B (since we don't traverse through it)
+      const graph: Graph = {
+        nodes: {
+          'A': createTestNode('A', ['ContextNode']),
+          'ContextNode': createContextNode('ContextNode', ['B']),
+          'B': createTestNode('B', [])
+        }
+      }
+
+      const result: Graph = getSubgraphByDistance(graph, 'A', 7)
+
+      expect(Object.keys(result.nodes).sort()).toEqual(['A'])
+    })
+
+    it('should skip context nodes as parents during DFS traversal', () => {
+      // ContextNode -> A -> B
+      // Start from A, should include A and B, but NOT ContextNode parent
+      const graph: Graph = {
+        nodes: {
+          'ContextNode': createContextNode('ContextNode', ['A']),
+          'A': createTestNode('A', ['B']),
+          'B': createTestNode('B', [])
+        }
+      }
+
+      const result: Graph = getSubgraphByDistance(graph, 'A', 7)
+
+      expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B'])
+    })
+
+    it('should traverse around context nodes to reach regular nodes', () => {
+      // A -> ContextNode -> C
+      // A -> B -> C
+      // Start from A, should reach C through B, but not through ContextNode
+      const graph: Graph = {
+        nodes: {
+          'A': createTestNode('A', ['ContextNode', 'B']),
+          'ContextNode': createContextNode('ContextNode', ['C']),
+          'B': createTestNode('B', ['C']),
+          'C': createTestNode('C', [])
+        }
+      }
+
+      const result: Graph = getSubgraphByDistance(graph, 'A', 7)
+
+      expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B', 'C'])
+    })
+
+    it('should not include context nodes even if they are within distance threshold', () => {
+      // A -> B (regular), A -> C (context node)
+      // Both should be at the same distance, but C should be excluded
+      const graph: Graph = {
+        nodes: {
+          'A': createTestNode('A', ['B', 'C']),
+          'B': createTestNode('B', []),
+          'C': createContextNode('C', [])
+        }
+      }
+
+      const result: Graph = getSubgraphByDistance(graph, 'A', 7)
+
+      expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B'])
+    })
+
+    it('should filter edges pointing to context nodes', () => {
+      // A -> B (regular), A -> C (context node)
+      // Edge A->C should be filtered out since C is not in result
+      const graph: Graph = {
+        nodes: {
+          'A': createTestNode('A', ['B', 'C']),
+          'B': createTestNode('B', []),
+          'C': createContextNode('C', [])
+        }
+      }
+
+      const result: Graph = getSubgraphByDistance(graph, 'A', 7)
+
+      expect(result.nodes['A'].outgoingEdges).toEqual(toEdges(['B']))
+    })
+  })
+
   describe('edge cases', () => {
     it('should handle empty graph', () => {
       const graph: Graph = {
