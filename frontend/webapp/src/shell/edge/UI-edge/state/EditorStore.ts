@@ -42,59 +42,34 @@ export function getHoverEditor(): Option<EditorData> {
 }
 
 /**
- * Tracks content that we're saving from the UI-edge to prevent feedback loop.
- * Uses the shared createRecentActionStore factory with built-in normalization
- * (strips brackets + whitespace) for consistent comparison with FS events.
+ * Tracks content set by updateFloatingEditors before calling setValue.
+ * This prevents the onChange handler from re-saving content that came from external updates.
  *
- * Now includes TTL cleanup (300ms window) for automatic stale entry removal.
+ * Flow: External change -> updateFloatingEditors(set awaiting) -> setValue -> onChange(skip save, clear awaiting)
  *
- * Flow 1 (external fs change): fs -> updateFloatingEditors (set awaiting) -> onChange DONT SAVE, clear awaiting
- * Flow 2 (our UI change): onChange -> set awaiting -> fs -> updateFloatingEditors DONT SET, clear awaiting
+ * Note: Editor write path no longer uses awaiting - modifyNodeContentFromUI passes
+ * deltaSourceFromEditor=true which skips broadcasting back to UI entirely.
  */
 const editorAwaitingStore: RecentActionStore = createRecentActionStore();
-
-export function getAwaitingUISavedContent(): Map<NodeIdAndFilePath, string> {
-    // Legacy API - return a snapshot for debugging only
-    // Note: This doesn't reflect TTL-expired entries
-    const result: Map<NodeIdAndFilePath, string> = new Map<NodeIdAndFilePath, string>();
-    // Can't easily reconstruct the full map from the store,
-    // keeping this for backwards compatibility with any debug code
-    return result;
-}
 
 export function setAwaitingUISavedContent(nodeId: NodeIdAndFilePath, content: string): void {
     editorAwaitingStore.mark(nodeId, content);
 }
 
 export function getAwaitingContent(nodeId: NodeIdAndFilePath): string | undefined {
-    // Legacy API: returns the content if it exists and is recent
-    // This is used for exact comparison in FloatingEditorCRUD
     const entries: readonly { timestamp: number; content: string }[] | undefined =
         editorAwaitingStore.getEntriesForKey(nodeId);
     if (!entries || entries.length === 0) return undefined;
 
-    // Return the most recent entry's content if within TTL
+    // Return the most recent entry's content if within TTL (300ms)
     const now: number = Date.now();
     const validEntries: { timestamp: number; content: string }[] =
         entries.filter(e => now - e.timestamp <= 300);
     if (validEntries.length === 0) return undefined;
 
-    // Return the latest entry's content
     return validEntries[validEntries.length - 1].content;
-}
-
-/**
- * Check if content matches what we're awaiting (exact match).
- * New API using the store's isRecent method.
- */
-export function isAwaitingContent(nodeId: NodeIdAndFilePath, content: string): boolean {
-    return editorAwaitingStore.isRecent(nodeId, content);
 }
 
 export function deleteAwaitingContent(nodeId: NodeIdAndFilePath): void {
     editorAwaitingStore.deleteKey(nodeId);
-}
-
-export function clearAwaitingUISavedContent(): void {
-    editorAwaitingStore.clear();
 }

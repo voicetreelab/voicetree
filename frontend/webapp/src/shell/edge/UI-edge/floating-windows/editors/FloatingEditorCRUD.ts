@@ -6,9 +6,11 @@
  * - createWindowChrome, anchorToNode, disposeFloatingWindow from cytoscape-floating-windows.ts
  * - addEditor, removeEditor, getEditorByNodeId, getHoverEditor from UIAppState.ts
  *
- * Keeps battle-tested save logic:
- * - awaitingUISavedContent pattern for race condition handling
- * - onChange handler feedback loop prevention
+ * Feedback loop prevention:
+ * - Editor write path (user typing): modifyNodeContentFromUI passes deltaSourceFromEditor=true,
+ *   which skips broadcasting back to UI, so updateFloatingEditors is never called for our own changes
+ * - External update path (FS/UI changes): updateFloatingEditors sets awaiting before setValue,
+ *   onChange checks awaiting to skip re-saving content that came from setValue
  */
 
 import type cytoscape from 'cytoscape';
@@ -48,7 +50,10 @@ import { getNodeTitle } from '@/pure/graph/markdown-parsing';
 import {
     addEditor,
     deleteAwaitingContent,
-    getAwaitingContent, getEditorByNodeId, getEditors, getHoverEditor,
+    getAwaitingContent,
+    getEditorByNodeId,
+    getEditors,
+    getHoverEditor,
     setAwaitingUISavedContent
 } from "@/shell/edge/UI-edge/state/EditorStore";
 
@@ -113,22 +118,18 @@ export async function createFloatingEditor(
         }
     );
 
-    // Setup auto-save with modifyNodeContentFromUI (keep battle-tested save logic)
+    // Setup auto-save with modifyNodeContentFromUI
     editor.onChange((newContent: string): void => {
         void (async (): Promise<void> => {
-            // Skip if this onChange was triggered by setValue (not user typing)
-            // This happens when updateFloatingEditors updates editor from external/UI changes
+            // Skip if this onChange was triggered by setValue from updateFloatingEditors (external change)
+            // updateFloatingEditors sets awaiting before calling setValue
             if (getAwaitingContent(nodeId) === newContent) {
                 deleteAwaitingContent(nodeId);
                 return;
             }
-            // IMPORTANT THE TWO PATHS WE ARE TAKING CARE OF HERE ARE
-            // 1. external/UI change -> updateFloatingEditors (set awaiting) -> onChange DONT SAVE, clear awaiting
-            // 2. our change (from ui editor typing) -> onChange -> set awaiting -> fs -> updateFloatingEditors DONT SET, clear awaiting
 
             console.log('[createFloatingEditor-v2] Saving editor content for node:', nodeId);
-            // Track this content so we can ignore updateFloatingEditors for our own typed content
-            setAwaitingUISavedContent(nodeId, newContent);
+            // modifyNodeContentFromUI passes deltaSourceFromEditor=true, so no broadcast back to us
             await modifyNodeContentFromUI(nodeId, newContent, cy);
         })();
     });
@@ -371,20 +372,6 @@ export function updateFloatingEditors(cy: Core, delta: GraphDelta): void {
             if (O.isSome(editorOption)) {
                 const editor: EditorData = editorOption.value;
                 const editorId: EditorId = getEditorId(editor);
-
-                // Check if this is our own typed content coming back - skip to avoid cursor jumps
-                const awaiting: string | undefined = getAwaitingContent(nodeId);
-                if (awaiting === newContent) {
-                    // Exact match - this is our own typed content, skip update
-                    console.log('[FloatingEditorManager-v2] Skipping update for our own typed content:', nodeId);
-                    deleteAwaitingContent(nodeId);
-                    continue;
-                }
-                if (awaiting) {
-                    // Content differs (e.g., wikilink added by UI action) - clear stale awaiting
-                    // and proceed to update editor with new content
-                    deleteAwaitingContent(nodeId);
-                }
 
                 // Get the editor instance from vanillaFloatingWindowInstances
                 const editorInstance: { dispose: () => void; focus?: () => void } | undefined =
