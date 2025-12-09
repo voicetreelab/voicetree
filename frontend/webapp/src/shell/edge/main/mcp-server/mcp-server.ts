@@ -21,7 +21,7 @@ import type {FSUpdate, Graph, GraphDelta} from '@/pure/graph'
 import {addNodeToGraphWithEdgeHealingFromFSEvent} from '@/pure/graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent'
 import {getNodeTitle} from '@/pure/graph/markdown-parsing'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
-import {getVaultPath, setVaultPath} from '@/shell/edge/main/graph/watchFolder'
+import {getVaultPath, setVaultPath, getWatchedDirectory} from '@/shell/edge/main/graph/watchFolder'
 import {applyGraphDeltaToDBThroughMem} from '@/shell/edge/main/graph/markdownReadWritePaths/writePath/applyGraphDeltaToDBThroughMem'
 import {getUnseenNodesAroundContextNode, type UnseenNode} from '@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode'
 
@@ -84,6 +84,22 @@ export function createMcpServer(): McpServer {
             }
             const vaultPath: string = vaultPathOpt.value
 
+            // Get watched directory (base for node ID computation)
+            const watchedDirectory: string | null = getWatchedDirectory()
+            if (!watchedDirectory) {
+                return {
+                    content: [{
+                        type: 'text',
+                        text: JSON.stringify({
+                            success: false,
+                            nodeId,
+                            message: 'Watched directory not set.'
+                        })
+                    }],
+                    isError: true
+                }
+            }
+
             // Build markdown content with optional parent link
             let markdownContent: string = content
             if (parentNodeId) {
@@ -98,9 +114,10 @@ export function createMcpServer(): McpServer {
                 eventType: 'Added'
             }
 
-            // Apply to graph using pure function - pass vaultPath for node ID computation
+            // Apply to graph using pure function - pass watchedDirectory for node ID computation
+            // Node IDs must be relative to watchedDirectory so paths reconstruct correctly
             const currentGraph: Graph = getGraph()
-            const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, vaultPath, currentGraph)
+            const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, watchedDirectory, currentGraph)
 
             // Persist to filesystem
             await applyGraphDeltaToDBThroughMem(delta)

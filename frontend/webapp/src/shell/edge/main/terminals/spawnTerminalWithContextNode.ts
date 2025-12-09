@@ -15,8 +15,7 @@
 import { createContextNode } from '@/shell/edge/main/graph/context-nodes/createContextNode';
 import { getGraph } from '@/shell/edge/main/state/graph-store';
 import { loadSettings } from '@/shell/edge/main/settings/settings_IO';
-import { getWatchStatus, getVaultPath } from '@/shell/edge/main/graph/watchFolder';
-import * as O from 'fp-ts/lib/Option.js';
+import { getWatchStatus, getWatchedDirectory } from '@/shell/edge/main/graph/watchFolder';
 import { getAppSupportPath } from '@/shell/edge/main/state/app-electron-state';
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/types';
@@ -139,10 +138,10 @@ async function prepareTerminalDataInMain(
     // Get app support path for VOICETREE_APP_SUPPORT env var
     const appSupportPath: string = getAppSupportPath();
 
-    // Build absolute path for context node (using vault path, not watched directory)
-    const vaultPathOpt: O.Option<string> = getVaultPath();
-    const contextNodeAbsolutePath: string = O.isSome(vaultPathOpt)
-        ? `${vaultPathOpt.value.replace(/\/$/, '')}/${contextNodeId}`
+    // Build absolute path for context node (using watched directory, since nodeId is relative to it)
+    const watchedDir: string | null = getWatchedDirectory();
+    const contextNodeAbsolutePath: string = watchedDir
+        ? `${watchedDir.replace(/\/$/, '')}/${contextNodeId}`
         : contextNodeId;
 
     // Build env vars then expand $VAR_NAME references within values

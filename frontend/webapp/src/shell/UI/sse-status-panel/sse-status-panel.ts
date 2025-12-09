@@ -153,9 +153,14 @@ export class SseStatusPanel {
 
     /** Dispatch navigation event for VoiceTreeGraphView to handle */
     private navigateToNode(filename: string): void {
-        window.dispatchEvent(new CustomEvent('voicetree-navigate', {
-            detail: { nodeId: filename }
-        }));
+        // Get vaultSuffix to construct full nodeId (nodeIds are relative to watchedDirectory, not vaultPath)
+        void window.electronAPI?.main.getWatchStatus().then((status: { vaultSuffix?: string }) => {
+            const vaultSuffix: string = status?.vaultSuffix ?? '';
+            const nodeId: string = vaultSuffix ? `${vaultSuffix}/${filename}` : filename;
+            window.dispatchEvent(new CustomEvent('voicetree-navigate', {
+                detail: { nodeId }
+            }));
+        });
     }
 
     private formatEventCard(event: SSEEvent): string {
