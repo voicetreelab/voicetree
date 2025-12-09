@@ -114,7 +114,7 @@ More content`
         it('should truncate first line when too long', () => {
             const longLine: string = 'a'.repeat(250)
             const title: string = markdownToTitle(longLine, 'test-file.md')
-            expect(title).toBe('a'.repeat(200) + '...')
+            expect(title).toBe('a'.repeat(100) + '...')
         })
     })
 

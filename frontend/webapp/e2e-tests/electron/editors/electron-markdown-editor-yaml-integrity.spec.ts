@@ -50,25 +50,71 @@ const test = base.extend<{
   appWindow: Page;
   testVaultPath: string;
 }>({
-  testVaultPath: async ({}, use) => {
-    // Create a temporary directory for this test
-    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-yaml-integrity-test-'));
-    console.log('[Test] Created test vault at:', tmpDir);
+  // Create temp userData directory with embedded vault + config
+  // The config auto-loads the vault during app initialization
+  // IMPORTANT: Files must be in {watchedFolder}/voicetree/ due to default vaultSuffix
+  electronApp: [async ({}, use, testInfo) => {
+    // Create temp userData directory
+    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-yaml-integrity-test-'));
 
-    await use(tmpDir);
+    // Create the watched folder (what config points to)
+    const watchedFolder = path.join(tempUserDataPath, 'test-vault');
+    await fs.mkdir(watchedFolder, { recursive: true });
 
-    // Cleanup
-    try {
-      await fs.rm(tmpDir, { recursive: true, force: true });
-      console.log('[Test] Cleaned up test vault');
-    } catch (error) {
-      console.log('Cleanup error:', error);
-    }
-  },
+    // Create the actual vault path with default suffix 'voicetree'
+    // The app looks for .md files in {watchedFolder}/voicetree/
+    const vaultPath = path.join(watchedFolder, 'voicetree');
+    await fs.mkdir(vaultPath, { recursive: true });
 
-  electronApp: [async ({ testVaultPath: _testVaultPath }, use) => {
-    // Create a temporary userData directory for test isolation
-    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-yaml-integrity-userdata-'));
+    // Create test files for both tests
+    const testNodeId = 'test-yaml-node.md';
+    const testNodeId2 = 'test-yaml-preservation.md';
+
+    const initialContent = `---
+title: My Important Node Title
+node_id: 42
+color: "#FF5733"
+tags:
+  - important
+  - test
+customField: some value
+---
+# My Important Node Title
+
+This is the content of my node.
+
+Some additional text here.`;
+
+    const initialContent2 = `---
+title: Preserved Title
+node_id: 123
+color: "#00FF00"
+position:
+  x: 100
+  y: 200
+isContextNode: true
+customArray:
+  - item1
+  - item2
+customObject:
+  key1: value1
+  key2: value2
+---
+# Preserved Title
+
+Original content here.`;
+
+    await fs.writeFile(path.join(vaultPath, testNodeId), initialContent, 'utf-8');
+    await fs.writeFile(path.join(vaultPath, testNodeId2), initialContent2, 'utf-8');
+
+    // Write config to auto-load the watched folder (vault = watchedFolder + 'voicetree')
+    const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
+    await fs.writeFile(configPath, JSON.stringify({ lastDirectory: watchedFolder }, null, 2), 'utf8');
+    console.log('[Test] Watched folder:', watchedFolder);
+    console.log('[Test] Vault path (with suffix):', vaultPath);
+
+    // Store vaultPath for test access via testInfo (the actual path where .md files live)
+    (testInfo as unknown as { vaultPath: string }).vaultPath = vaultPath;
 
     const electronApp = await electron.launch({
       args: [
@@ -102,9 +148,16 @@ const test = base.extend<{
 
     await electronApp.close();
 
-    // Cleanup temp directory
+    // Cleanup entire temp directory (includes vault)
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
+    console.log('[Test] Cleaned up temp directory');
   }, { timeout: 45000 }],
+
+  // Get vault path from testInfo (set by electronApp fixture)
+  testVaultPath: async ({}, use, testInfo) => {
+    // Wait for electronApp fixture to set vaultPath
+    await use((testInfo as unknown as { vaultPath: string }).vaultPath);
+  },
 
   appWindow: [async ({ electronApp, testVaultPath: _testVaultPath }, use) => {
     const page = await electronApp.firstWindow();
@@ -139,7 +192,7 @@ const test = base.extend<{
     }
 
     await page.waitForFunction(() => (window as ExtendedWindow).cytoscapeInstance, { timeout: 20000 });
-    await page.waitForTimeout(100);
+    await page.waitForTimeout(500); // Give extra time for auto-load to complete
 
     await use(page);
   }, { timeout: 30000 }]
@@ -149,44 +202,27 @@ test.describe('Markdown Editor YAML Integrity', () => {
   test('should NOT corrupt YAML frontmatter when editing markdown in floating editor', async ({ appWindow, testVaultPath }) => {
     // NO! test.setTimeout(...); // DO NOT RANDOMLY INTRODUCE HUGE TIMEOUTS INTO OUR TESTS
     console.log('=== Testing YAML integrity during markdown editing ===');
+    console.log('[Test] Vault path:', testVaultPath);
 
-    // 1. Create a test markdown file with rich YAML frontmatter
+    // Files are already created in electronApp fixture
     const testNodeId = 'test-yaml-node.md';
-
-    const initialContent = `---
-title: My Important Node Title
-node_id: 42
-color: "#FF5733"
-tags:
-  - important
-  - test
-customField: some value
----
-# My Important Node Title
-
-This is the content of my node.
-
-Some additional text here.`;
-
     const testFilePath = path.join(testVaultPath, testNodeId);
-    await fs.writeFile(testFilePath, initialContent, 'utf-8');
-    console.log('✓ Created test file with YAML frontmatter');
-    console.log('Initial content:');
-    console.log('---START---');
-    console.log(initialContent);
-    console.log('---END---');
 
-    // 2. Start watching the vault
-    await appWindow.evaluate(async (vaultPath) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
-      return await api.main.startFileWatching(vaultPath);
-    }, testVaultPath);
+    // Vault is auto-loaded via config - wait for graph to have nodes
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return 0;
+        return cy.nodes().length;
+      });
+    }, {
+      message: 'Waiting for graph to load nodes (auto-loaded via config)',
+      timeout: 15000
+    }).toBeGreaterThan(0);
 
-    await appWindow.waitForTimeout(1000);
-    console.log('✓ Started file watching');
+    console.log('✓ Graph loaded with nodes');
 
-    // 3. Wait for node to load in graph
+    // Wait for specific node to load in graph
     await expect.poll(async () => {
       return appWindow.evaluate((nId) => {
         const cy = (window as ExtendedWindow).cytoscapeInstance;
@@ -198,7 +234,7 @@ Some additional text here.`;
       timeout: 10000
     }).toBe(true);
 
-    console.log('✓ Node loaded in graph');
+    console.log('✓ Test node loaded in graph');
 
     // Wait for node to exist in main process graph
     await expect.poll(async () => {
@@ -369,43 +405,27 @@ Some additional text here.`;
   test('should preserve all YAML properties after multiple edit cycles', async ({ appWindow, testVaultPath }) => {
     test.setTimeout(60000); // Increase timeout to 60s for this test
     console.log('=== Testing YAML property preservation through edit cycles ===');
+    console.log('[Test] Vault path:', testVaultPath);
 
-    // 1. Create file with comprehensive YAML
+    // Files are already created in electronApp fixture
     const testNodeId = 'test-yaml-preservation.md';
-
-    const initialContent = `---
-title: Preserved Title
-node_id: 123
-color: "#00FF00"
-position:
-  x: 100
-  y: 200
-isContextNode: true
-customArray:
-  - item1
-  - item2
-customObject:
-  key1: value1
-  key2: value2
----
-# Preserved Title
-
-Original content here.`;
-
     const testFilePath = path.join(testVaultPath, testNodeId);
-    await fs.writeFile(testFilePath, initialContent, 'utf-8');
-    console.log('✓ Created test file with comprehensive YAML');
 
-    // 2. Start watching
-    await appWindow.evaluate(async (vaultPath) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
-      return await api.main.startFileWatching(vaultPath);
-    }, testVaultPath);
+    // Vault is auto-loaded via config - wait for graph to have nodes
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return 0;
+        return cy.nodes().length;
+      });
+    }, {
+      message: 'Waiting for graph to load nodes (auto-loaded via config)',
+      timeout: 15000
+    }).toBeGreaterThan(0);
 
-    await appWindow.waitForTimeout(1000);
+    console.log('✓ Graph loaded with nodes');
 
-    // 3. Wait for node to load
+    // Wait for specific node to load in graph
     await expect.poll(async () => {
       return appWindow.evaluate((nId) => {
         const cy = (window as ExtendedWindow).cytoscapeInstance;

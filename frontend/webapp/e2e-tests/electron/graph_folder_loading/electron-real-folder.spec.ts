@@ -14,6 +14,7 @@ import { test as base, expect, _electron as electron } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
+import * as os from 'os';
 import type { Core as CytoscapeCore, NodeSingular, EdgeSingular } from 'cytoscape';
 import type { ElectronAPI } from '@/shell/electron';
 
@@ -48,15 +49,32 @@ const test = base.extend<{
   // Set up Electron application
 
   electronApp: async ({}, use) => {
+    // Create a temporary userData directory for this test (like smoke test does)
+    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-real-folder-test-'));
+
+    // Write the config file to auto-load the test vault (like smoke test does)
+    // IMPORTANT: Set empty suffix so it uses the directory directly, not directory/voicetree
+    const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
+    await fs.writeFile(configPath, JSON.stringify({
+      lastDirectory: FIXTURE_VAULT_PATH,
+      suffixes: {
+        [FIXTURE_VAULT_PATH]: '' // Empty suffix means use directory directly
+      }
+    }, null, 2), 'utf8');
+    console.log('[Real Folder Test] Created config file to auto-load:', FIXTURE_VAULT_PATH);
+
     const electronApp = await electron.launch({
-      args: [path.join(PROJECT_ROOT, 'dist-electron/main/index.js')],
+      args: [
+        path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
+        `--user-data-dir=${tempUserDataPath}` // Use temp userData to isolate test config
+      ],
       env: {
         ...process.env,
         NODE_ENV: 'test',
         HEADLESS_TEST: '1',
         MINIMIZE_TEST: '1' // Minimize window to avoid dialog popups
       },
-      timeout: 60000 // Increase timeout to 60s for slower systems
+      timeout: 10000 // Standard timeout for app launch
     });
 
     await use(electronApp);
@@ -79,11 +97,15 @@ const test = base.extend<{
     }
 
     await electronApp.close();
+    console.log('[Real Folder Test] Electron app closed');
+
+    // Cleanup temp directory
+    await fs.rm(tempUserDataPath, { recursive: true, force: true });
   },
 
   // Get the main window
   appWindow: async ({ electronApp }, use) => {
-    const window = await electronApp.firstWindow({ timeout: 60000 });
+    const window = await electronApp.firstWindow({ timeout: 10000 });
 
     // Log console messages for debugging
     window.on('console', msg => {
@@ -115,7 +137,9 @@ const test = base.extend<{
       console.error('Pre-initialization errors:', hasErrors);
     }
 
-    await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 30000 });
+    await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
+
+    // Wait a bit longer to ensure graph is ready
     await window.waitForTimeout(1000);
 
     await use(window);
@@ -167,24 +191,24 @@ test.describe('Real Folder E2E Tests', () => {
     expect(appReady).toBe(true);
     console.log('✓ App loaded successfully');
 
-    console.log('=== STEP 2: Load the test vault directly (bypass file picker) ===');
-    console.log(`Loading vault from: ${FIXTURE_VAULT_PATH}`);
+    console.log('=== STEP 2: Wait for auto-load from config (no manual startFileWatching needed) ===');
+    console.log(`Vault should auto-load from config: ${FIXTURE_VAULT_PATH}`);
 
-    // Start watching the fixture vault directly - this bypasses the dialog
-    const watchResult = await appWindow.evaluate(async (vaultPath) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+    // Wait for auto-load to complete and nodes to appear in graph
+    // The app auto-loads from config (like smoke test), so nodes should appear automatically
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return 0;
+        return cy.nodes().length;
+      });
+    }, {
+      message: 'Waiting for graph to load nodes',
+      timeout: 15000,
+      intervals: [500, 1000, 1000]
+    }).toBeGreaterThan(0);
 
-      // Pass the folder absolutePath directly to bypass the dialog
-      return await api.main.startFileWatching(vaultPath);
-    }, FIXTURE_VAULT_PATH);
-
-    expect(watchResult.success).toBe(true);
-    expect(watchResult.directory).toBe(FIXTURE_VAULT_PATH);
-    console.log('✓ File watching started successfully');
-
-    // Wait for initial scan to complete
-    await appWindow.waitForTimeout(3000);
+    console.log('✓ Graph auto-loaded from config');
 
     console.log('=== STEP 3: Verify initial graph state ===');
 
@@ -431,14 +455,18 @@ It demonstrates that the file watcher detects new files in real-time.`);
   test('should handle complex wiki-link patterns', async ({ appWindow }) => {
     console.log('=== Testing complex wiki-link patterns ===');
 
-    // Start watching the fixture vault
-    await appWindow.evaluate(async (vaultPath) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
-      return await api.main.startFileWatching(vaultPath);
-    }, FIXTURE_VAULT_PATH);
-
-    await appWindow.waitForTimeout(3000); // Wait for initial scan
+    // Wait for auto-load to complete (vault loads from config automatically)
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return 0;
+        return cy.nodes().length;
+      });
+    }, {
+      message: 'Waiting for graph to load nodes',
+      timeout: 15000,
+      intervals: [500, 1000, 1000]
+    }).toBeGreaterThan(0);
 
     // Create a file with various wiki-link formats (linking to actual fixture files)
     const complexLinkFile = path.join(FIXTURE_VAULT_PATH, 'complex-links.md');
@@ -538,18 +566,21 @@ Check out [[17_Create_G_Cloud_Configuration]], [[16_Resolve_G_Cloud_CLI_MFA_Bloc
       }
     }
 
-    // Start watching the fixture vault
-    await appWindow.evaluate(async (vaultPath) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
-      return await api.main.startFileWatching(vaultPath);
-    }, FIXTURE_VAULT_PATH);
-
-    // Wait for bulk load to complete
-    await appWindow.waitForTimeout(3000);
+    // Wait for auto-load to complete (vault loads from config automatically)
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return 0;
+        return cy.nodes().length;
+      });
+    }, {
+      message: 'Waiting for bulk load to complete',
+      timeout: 15000,
+      intervals: [500, 1000, 1000]
+    }).toBeGreaterThan(0);
 
     // Wait for layout to be applied (auto-layout has 300ms debounce + layout time)
-    await appWindow.waitForTimeout(1000);
+    await appWindow.waitForTimeout(2000);
 
     console.log('=== PHASE 1: Verify Bulk Load Layout Quality ===');
 
@@ -733,18 +764,18 @@ Check out [[17_Create_G_Cloud_Configuration]], [[16_Resolve_G_Cloud_CLI_MFA_Bloc
     expect(appReady).toBe(true);
     console.log('✓ App loaded successfully');
 
-    // Start watching the fixture vault
-    const watchResult = await appWindow.evaluate(async (vaultPath) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
-      return await api.main.startFileWatching(vaultPath);
-    }, FIXTURE_VAULT_PATH);
-
-    expect(watchResult.success).toBe(true);
-    console.log('✓ File watching started successfully');
-
-    // Wait for initial scan to complete
-    await appWindow.waitForTimeout(3000);
+    // Wait for auto-load to complete (vault loads from config automatically)
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return 0;
+        return cy.nodes().length;
+      });
+    }, {
+      message: 'Waiting for graph to load nodes',
+      timeout: 15000,
+      intervals: [500, 1000, 1000]
+    }).toBeGreaterThan(0);
 
     // Get nodes with their degrees and dimensions
     // Note: manually calculate degree if not set by updateNodeDegrees()
@@ -821,14 +852,18 @@ Check out [[17_Create_G_Cloud_Configuration]], [[16_Resolve_G_Cloud_CLI_MFA_Bloc
   test('should select multiple nodes via box selection', async ({ appWindow }) => {
     console.log('=== Testing box selection ===');
 
-    // Start watching the fixture vault
-    await appWindow.evaluate(async (vaultPath) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
-      return await api.main.startFileWatching(vaultPath);
-    }, FIXTURE_VAULT_PATH);
-
-    await appWindow.waitForTimeout(3000); // Wait for initial scan
+    // Wait for auto-load to complete (vault loads from config automatically)
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return 0;
+        return cy.nodes().length;
+      });
+    }, {
+      message: 'Waiting for graph to load nodes',
+      timeout: 15000,
+      intervals: [500, 1000, 1000]
+    }).toBeGreaterThan(0);
 
     // Test box selection by programmatically selecting nodes
     // This e2e-tests that boxSelectionEnabled is set and the boxend event fires
@@ -889,14 +924,18 @@ Check out [[17_Create_G_Cloud_Configuration]], [[16_Resolve_G_Cloud_CLI_MFA_Bloc
     console.log('=== Testing Right-Click Add GraphNode with Editor and File Sync (BEHAVIORAL TEST) ===');
     console.log('This test simulates the full right-click workflow: node creation + positioning + editor opening + file sync');
 
-    // Start watching the fixture vault
-    await appWindow.evaluate(async (vaultPath) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
-      return await api.main.startFileWatching(vaultPath);
-    }, FIXTURE_VAULT_PATH);
-
-    await appWindow.waitForTimeout(3000); // Wait for initial scan
+    // Wait for auto-load to complete (vault loads from config automatically)
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return 0;
+        return cy.nodes().length;
+      });
+    }, {
+      message: 'Waiting for graph to load nodes',
+      timeout: 15000,
+      intervals: [500, 1000, 1000]
+    }).toBeGreaterThan(0);
 
     console.log('=== Step 1: Get initial node count ===');
     const initialCount = await appWindow.evaluate(() => {
@@ -1100,18 +1139,19 @@ Check out [[17_Create_G_Cloud_Configuration]], [[16_Resolve_G_Cloud_CLI_MFA_Bloc
   test('should open search with cmd-f and navigate to selected node', async ({ appWindow }) => {
     console.log('\n=== Starting ninja-keys search navigation test ===');
 
-    console.log('=== Step 1: Start watching the fixture vault ===');
-    const watchResult = await appWindow.evaluate(async (vaultPath) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
-      return await api.main.startFileWatching(vaultPath);
-    }, FIXTURE_VAULT_PATH);
-
-    expect(watchResult.success).toBe(true);
-    console.log(`✓ Started watching: ${watchResult.directory}`);
-
-    console.log('=== Step 2: Wait for graph to load ===');
-    await appWindow.waitForTimeout(2000);
+    console.log('=== Step 1: Wait for auto-load to complete ===');
+    // Wait for auto-load to complete (vault loads from config automatically)
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return 0;
+        return cy.nodes().length;
+      });
+    }, {
+      message: 'Waiting for graph to load nodes',
+      timeout: 15000,
+      intervals: [500, 1000, 1000]
+    }).toBeGreaterThan(0);
 
     const graphState = await appWindow.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
@@ -1126,7 +1166,7 @@ Check out [[17_Create_G_Cloud_Configuration]], [[16_Resolve_G_Cloud_CLI_MFA_Bloc
     console.log(`✓ Graph loaded with ${graphState.nodeCount} nodes`);
     console.log(`  Sample nodes: ${graphState.nodeLabels.join(', ')}`);
 
-    console.log('=== Step 3: Get initial zoom/pan state ===');
+    console.log('=== Step 2: Get initial zoom/pan state ===');
     const initialState = await appWindow.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
@@ -1136,7 +1176,7 @@ Check out [[17_Create_G_Cloud_Configuration]], [[16_Resolve_G_Cloud_CLI_MFA_Bloc
     });
     console.log(`  Initial zoom: ${initialState.zoom}, pan: (${initialState.pan.x}, ${initialState.pan.y})`);
 
-    console.log('=== Step 4: Open ninja-keys search with keyboard shortcut ===');
+    console.log('=== Step 3: Open ninja-keys search with keyboard shortcut ===');
     // Simulate cmd-f (Meta+f on Mac, Ctrl+f elsewhere)
     await appWindow.keyboard.press(process.platform === 'darwin' ? 'Meta+f' : 'Control+f');
 
@@ -1156,7 +1196,7 @@ Check out [[17_Create_G_Cloud_Configuration]], [[16_Resolve_G_Cloud_CLI_MFA_Bloc
     expect(ninjaKeysVisible).toBe(true);
     console.log('✓ ninja-keys search modal opened');
 
-    console.log('=== Step 5: Get a target node to search for ===');
+    console.log('=== Step 4: Get a target node to search for ===');
     const targetNode = await appWindow.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
@@ -1172,7 +1212,7 @@ Check out [[17_Create_G_Cloud_Configuration]], [[16_Resolve_G_Cloud_CLI_MFA_Bloc
 
     console.log(`  Target node: ${targetNode.label} (${targetNode.id})`);
 
-    console.log('=== Step 6: Type search query into ninja-keys ===');
+    console.log('=== Step 5: Type search query into ninja-keys ===');
     // Type a few characters from the node label
     const searchQuery = targetNode.label.substring(0, Math.min(5, targetNode.label.length));
     await appWindow.keyboard.type(searchQuery);
@@ -1181,13 +1221,13 @@ Check out [[17_Create_G_Cloud_Configuration]], [[16_Resolve_G_Cloud_CLI_MFA_Bloc
     await appWindow.waitForTimeout(300);
     console.log(`  Typed search query: "${searchQuery}"`);
 
-    console.log('=== Step 7: Select first result with Enter ===');
+    console.log('=== Step 6: Select first result with Enter ===');
     await appWindow.keyboard.press('Enter');
 
     // Wait for navigation animation and fit to complete
     await appWindow.waitForTimeout(1000);
 
-    console.log('=== Step 8: Verify zoom/pan changed (node was fitted) ===');
+    console.log('=== Step 7: Verify zoom/pan changed (node was fitted) ===');
     const finalState = await appWindow.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
@@ -1206,7 +1246,7 @@ Check out [[17_Create_G_Cloud_Configuration]], [[16_Resolve_G_Cloud_CLI_MFA_Bloc
     expect(zoomChanged || panChanged).toBe(true);
     console.log('✓ Graph viewport changed - node was fitted');
 
-    console.log('=== Step 9: Verify ninja-keys modal closed ===');
+    console.log('=== Step 8: Verify ninja-keys modal closed ===');
     const ninjaKeysClosed = await appWindow.evaluate(() => {
       const ninjaKeys = document.querySelector('ninja-keys');
       if (!ninjaKeys) return true; // Not found means closed
@@ -1229,20 +1269,21 @@ Check out [[17_Create_G_Cloud_Configuration]], [[16_Resolve_G_Cloud_CLI_MFA_Bloc
   test('should handle multiple consecutive cmd-f searches without focus issues', async ({ appWindow }) => {
     console.log('\n=== Starting multiple consecutive search test ===');
 
-    console.log('=== Step 1: Start watching the fixture vault ===');
-    const watchResult = await appWindow.evaluate(async (vaultPath) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
-      return await api.main.startFileWatching(vaultPath);
-    }, FIXTURE_VAULT_PATH);
+    console.log('=== Step 1: Wait for auto-load to complete ===');
+    // Wait for auto-load to complete (vault loads from config automatically)
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return 0;
+        return cy.nodes().length;
+      });
+    }, {
+      message: 'Waiting for graph to load nodes',
+      timeout: 15000,
+      intervals: [500, 1000, 1000]
+    }).toBeGreaterThan(0);
 
-    expect(watchResult.success).toBe(true);
-    console.log(`✓ Started watching: ${watchResult.directory}`);
-
-    console.log('=== Step 2: Wait for graph to load ===');
-    await appWindow.waitForTimeout(2000);
-
-    console.log('=== Step 3: Get three different search queries ===');
+    console.log('=== Step 2: Get three different search queries ===');
     // Use simple search terms that will match nodes in the fixture
     // The test verifies that consecutive searches work, not that specific nodes are found
     const searchQueries = ['Agent', 'Test', 'Cloud'];

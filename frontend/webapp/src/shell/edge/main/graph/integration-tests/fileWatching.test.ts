@@ -105,7 +105,7 @@ describe('File Watching - Edge Management Tests', () => {
   describe('BEHAVIOR: Wikilink edge creation and deletion', () => {
     it('should create edge when appending wikilink WITH .md extension', async () => {
       // GIVEN: Load folder and create a new file
-      await loadFolder(EXAMPLE_SMALL_PATH)
+      await loadFolder(EXAMPLE_SMALL_PATH, '')
       expect(isWatching()).toBe(true)
 
       await waitForWatcherReady()
@@ -152,7 +152,7 @@ describe('File Watching - Edge Management Tests', () => {
 
     it('should create edge when appending wikilink WITHOUT .md extension', async () => {
       // GIVEN: Load folder and create a new file
-      await loadFolder(EXAMPLE_SMALL_PATH)
+      await loadFolder(EXAMPLE_SMALL_PATH, '')
       expect(isWatching()).toBe(true)
 
       await waitForWatcherReady()
@@ -198,7 +198,7 @@ describe('File Watching - Edge Management Tests', () => {
 
     it('should remove edge when wikilink is removed from file content', async () => {
       // GIVEN: Load folder and create a new file with a wikilink
-      await loadFolder(EXAMPLE_SMALL_PATH)
+      await loadFolder(EXAMPLE_SMALL_PATH, '')
       expect(isWatching()).toBe(true)
 
       await waitForWatcherReady()
@@ -277,7 +277,7 @@ Parent:
   describe('BEHAVIOR: Frontmatter color parsing from filesystem events', () => {
     it('should parse color from frontmatter when file is added via filesystem event', async () => {
       // GIVEN: Load folder
-      await loadFolder(EXAMPLE_SMALL_PATH)
+      await loadFolder(EXAMPLE_SMALL_PATH, '')
       expect(isWatching()).toBe(true)
 
       await waitForWatcherReady()

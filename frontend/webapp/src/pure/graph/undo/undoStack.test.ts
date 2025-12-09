@@ -5,9 +5,9 @@ import {
     pushUndo,
     popUndo,
     popRedo,
-    MAX_UNDO_SIZE,
-    UndoState
+    MAX_UNDO_SIZE
 } from './undoStack'
+import type { UndoState } from './undoStack'
 import type { GraphDelta, GraphNode } from '@/pure/graph'
 
 // Helper to create a minimal GraphNode for testing

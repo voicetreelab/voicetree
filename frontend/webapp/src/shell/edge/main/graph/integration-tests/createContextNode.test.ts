@@ -51,6 +51,9 @@ describe('createContextNode - Integration Tests', () => {
   })
 
   afterEach(async () => {
+    // Wait for any pending timeouts from applyGraphDeltaToUI
+    await new Promise(resolve => setTimeout(resolve, 200))
+
     const vaultPath: O.Option<string> = getVaultPath()
 
     // Clean up created context node file if it exists
@@ -102,7 +105,9 @@ describe('createContextNode - Integration Tests', () => {
 
       // THEN: Context node ID should be in ctx-nodes directory
       expect(contextNodeId).toContain('ctx-nodes/')
-      expect(contextNodeId).toContain(parentNodeId)
+      // Context node filename contains the parent node ID without the .md extension
+      const parentNodeIdWithoutExtension: string = parentNodeId.replace('.md', '')
+      expect(contextNodeId).toContain(parentNodeIdWithoutExtension)
       expect(contextNodeId).toMatch(/_context_\d+\.md$/)
 
       // AND: File should exist on disk

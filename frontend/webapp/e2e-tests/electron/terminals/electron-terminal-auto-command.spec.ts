@@ -10,6 +10,8 @@
 import { test as base, expect, _electron as electron } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
+import * as fs from 'fs/promises';
+import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
 import type { ElectronAPI } from '@/shell/electron';
 
@@ -32,14 +34,31 @@ const test = base.extend<{
   appWindow: Page;
 }>({
   electronApp: async ({}, use) => {
+    // Create a temporary userData directory for this test
+    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-auto-cmd-test-'));
+
+    // Write the config file to auto-load the test vault
+    const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
+    await fs.writeFile(configPath, JSON.stringify({
+      lastDirectory: FIXTURE_VAULT_PATH,
+      suffixes: {
+        [FIXTURE_VAULT_PATH]: '' // Empty suffix means use directory directly
+      }
+    }, null, 2), 'utf8');
+    console.log('[Test] Created config file to auto-load:', FIXTURE_VAULT_PATH);
+
     const electronApp = await electron.launch({
-      args: [path.join(PROJECT_ROOT, 'dist-electron/main/index.js')],
+      args: [
+        path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
+        `--user-data-dir=${tempUserDataPath}` // Use temp userData to isolate test config
+      ],
       env: {
         ...process.env,
         NODE_ENV: 'test',
         HEADLESS_TEST: '1',
         MINIMIZE_TEST: '1'
-      }
+      },
+      timeout: 10000
     });
 
     await use(electronApp);
@@ -59,10 +78,13 @@ const test = base.extend<{
     }
 
     await electronApp.close();
+
+    // Cleanup temp directory
+    await fs.rm(tempUserDataPath, { recursive: true, force: true });
   },
 
   appWindow: async ({ electronApp }, use) => {
-    const window = await electronApp.firstWindow();
+    const window = await electronApp.firstWindow({ timeout: 15000});
 
     // Log console messages for debugging
     window.on('console', msg => {
@@ -75,7 +97,15 @@ const test = base.extend<{
     });
 
     await window.waitForLoadState('domcontentloaded');
-    await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
+
+    // Wait for cytoscape instance with retry logic
+    try {
+      await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
+    } catch (error) {
+      console.error('Failed to initialize cytoscape instance:', error);
+      throw error;
+    }
+
     await window.waitForTimeout(1000);
 
     await use(window);
@@ -84,19 +114,23 @@ const test = base.extend<{
 
 test.describe('Terminal Auto-Command Execution E2E', () => {
   test('should automatically execute command when terminal is created from context menu', async ({ appWindow }) => {
-    console.log('=== STEP 1: Load the test vault ===');
+    test.setTimeout(60000); // Increase timeout for large graph loading
 
-    const watchResult = await appWindow.evaluate(async (vaultPath) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
-      return await api.main.startFileWatching(vaultPath);
-    }, FIXTURE_VAULT_PATH);
+    console.log('=== STEP 1: Wait for auto-load to complete ===');
+    // The app auto-loads from config file on startup, wait for nodes to appear
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return 0;
+        return cy.nodes().length;
+      });
+    }, {
+      message: 'Waiting for graph to auto-load nodes',
+      timeout: 20000,
+      intervals: [500, 1000, 1000, 2000]
+    }).toBeGreaterThan(0);
 
-    expect(watchResult.success).toBe(true);
-    console.log('✓ File watching started');
-
-    // Wait for initial scan
-    await appWindow.waitForTimeout(3000);
+    console.log('✓ Graph auto-loaded with nodes');
 
     console.log('=== STEP 2: Get a node to create terminal from ===');
     const targetNodeId = await appWindow.evaluate(() => {
@@ -171,15 +205,20 @@ test.describe('Terminal Auto-Command Execution E2E', () => {
           const node = cy.getElementById(nodeId);
           if (node.length === 0) throw new Error('Node not found');
 
-          const nodeMetadata = {
-            id: nodeId,
-            name: nodeId.replace(/_/g, ' '),
-            filePath: undefined,
+          // TerminalData requires the full type structure per types.ts
+          const terminalData = {
+            type: 'Terminal' as const,
+            attachedToNodeId: nodeId,
+            terminalCount: 0,
+            title: nodeId.replace(/_/g, ' '),
+            anchoredToNodeId: { _tag: 'None' } as { _tag: 'None' }, // fp-ts Option.none
+            shadowNodeDimensions: { width: 600, height: 400 },
+            resizable: true,
             initialCommand: 'for i in {1..10}; do echo $i; done',
             executeCommand: true
           };
 
-          const result = await api.terminal.spawn(nodeMetadata);
+          const result = await api.terminal.spawn(terminalData);
           console.log('[Test] Terminal spawn result:', result);
 
           if (!result.success) {

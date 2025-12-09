@@ -44,7 +44,8 @@ describe('settings', () => {
       terminalSpawnPathRelativeToWatchedDirectory: '/custom/path',
       INJECT_ENV_VARS: { CUSTOM_VAR: 'custom_value' },
       agents: [{ name: 'Custom Agent', command: 'custom-command.sh' }],
-      shiftEnterSendsOptionEnter: false
+      shiftEnterSendsOptionEnter: false,
+      contextNodeMaxDistance: 7
     };
 
     await saveSettings(customSettings);
@@ -58,7 +59,8 @@ describe('settings', () => {
       terminalSpawnPathRelativeToWatchedDirectory: '/test/path',
       INJECT_ENV_VARS: { TEST_VAR: 'test_value' },
       agents: [{ name: 'Test Agent', command: 'test.sh' }],
-      shiftEnterSendsOptionEnter: true
+      shiftEnterSendsOptionEnter: true,
+      contextNodeMaxDistance: 7
     };
 
     await saveSettings(customSettings);
@@ -76,7 +78,8 @@ describe('settings', () => {
       terminalSpawnPathRelativeToWatchedDirectory: '/another/path',
       INJECT_ENV_VARS: { ANOTHER_VAR: 'another_value' },
       agents: [{ name: 'Another Agent', command: 'another.sh' }],
-      shiftEnterSendsOptionEnter: true
+      shiftEnterSendsOptionEnter: true,
+      contextNodeMaxDistance: 7
     };
 
     await saveSettings(settings);

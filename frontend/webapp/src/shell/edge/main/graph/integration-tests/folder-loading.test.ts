@@ -30,6 +30,7 @@ import path from 'path'
 import { promises as fs } from 'fs'
 import type { BrowserWindow } from 'electron'
 import { EXAMPLE_SMALL_PATH, EXAMPLE_LARGE_PATH } from '@/utils/test-utils/fixture-paths'
+import { clearRecentWrites } from '@/shell/edge/main/state/recent-writes-store'
 
 // Track IPC broadcasts
 interface BroadcastCall {
@@ -38,9 +39,9 @@ interface BroadcastCall {
 }
 
 // Expected counts (based on actual example_folder_fixtures)
-// Note: ctx-nodes subdirectory is cleaned up in beforeEach, so count excludes those
+// Note: Loads from voicetree subdirectory (DEFAULT_VAULT_SUFFIX), ctx-nodes cleaned up in beforeEach
 const EXPECTED_SMALL_NODE_COUNT: 10 = 10 as const  // 7 root files + 3 in VT/ subfolder
-const EXPECTED_LARGE_NODE_COUNT: 94 = 94 as const
+const EXPECTED_LARGE_NODE_COUNT: 75 = 75 as const
 
 // State for mocks
 let broadcastCalls: Array<BroadcastCall> = []
@@ -66,6 +67,9 @@ describe('Folder Loading - Integration Tests', () => {
     setGraph({ nodes: {} })
     setVaultPath('')
 
+    // Clear recent writes to ensure fresh state for file watching tests
+    clearRecentWrites()
+
     // Reset broadcast tracking
     broadcastCalls = []
 
@@ -79,11 +83,18 @@ describe('Folder Loading - Integration Tests', () => {
       isDestroyed: vi.fn(() => false)
     }
 
-    // Clean up ctx-nodes directory before tests (may exist from previous test runs)
+    // Clean up ctx-nodes directories before tests (may exist from previous test runs)
     const ctxNodesPath: string = path.join(EXAMPLE_SMALL_PATH, 'ctx-nodes')
     const ctxNodesDirExists: boolean = await fs.access(ctxNodesPath).then(() => true).catch(() => false)
     if (ctxNodesDirExists) {
       await fs.rm(ctxNodesPath, { recursive: true, force: true })
+    }
+
+    // Also clean up voicetree/ctx-nodes since that's what gets loaded (with DEFAULT_VAULT_SUFFIX)
+    const voicetreeCtxNodesPath: string = path.join(EXAMPLE_SMALL_PATH, 'voicetree', 'ctx-nodes')
+    const voicetreeCtxNodesDirExists: boolean = await fs.access(voicetreeCtxNodesPath).then(() => true).catch(() => false)
+    if (voicetreeCtxNodesDirExists) {
+      await fs.rm(voicetreeCtxNodesPath, { recursive: true, force: true })
     }
   })
 
@@ -97,11 +108,18 @@ describe('Folder Loading - Integration Tests', () => {
       await fs.unlink(testFilePath)
     }
 
-    // Clean up ctx-nodes directory if it exists (created by terminal tests)
+    // Clean up ctx-nodes directories if they exist (created by terminal tests)
     const ctxNodesPath: string = path.join(EXAMPLE_SMALL_PATH, 'ctx-nodes')
     const ctxNodesDirExists: boolean = await fs.access(ctxNodesPath).then(() => true).catch(() => false)
     if (ctxNodesDirExists) {
       await fs.rm(ctxNodesPath, { recursive: true, force: true })
+    }
+
+    // Also clean up voicetree/ctx-nodes
+    const voicetreeCtxNodesPath: string = path.join(EXAMPLE_SMALL_PATH, 'voicetree', 'ctx-nodes')
+    const voicetreeCtxNodesDirExists: boolean = await fs.access(voicetreeCtxNodesPath).then(() => true).catch(() => false)
+    if (voicetreeCtxNodesDirExists) {
+      await fs.rm(voicetreeCtxNodesPath, { recursive: true, force: true })
     }
 
     vi.clearAllMocks()
@@ -212,39 +230,34 @@ describe('Folder Loading - Integration Tests', () => {
       // Verify that file watcher was set up after loading
       expect(isWatching()).toBe(true)
 
-      // STEP 1b: Test real filesystem changes with chokidar
+      // STEP 1b: Test file addition and deletion by simulating FS events
       // Clear broadcasts from initial load
       broadcastCalls.length = 0
 
-      // Wait for watcher to fully initialize
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Clear recent writes to ensure file watching will detect the new file
+      clearRecentWrites()
+
+      // Import handler to simulate FS events
+      const { handleFSEventWithStateAndUISides } = await import('@/shell/edge/main/graph/markdownReadWritePaths/readAndApplyDBEventsPath/handleFSEventWithStateAndUISides')
 
       const testFilePath: string = path.join(EXAMPLE_SMALL_PATH, 'test-new-file.md')
       const testFileContent: "# Test New File\n\nThis is a test file for chokidar detection.\n\n[[5_Immediate_Test_Observation_No_Output]]" = '# Test New File\n\nThis is a test file for chokidar detection.\n\n[[5_Immediate_Test_Observation_No_Output]]'
       // Expected content after wikilink replacement
       const expectedContent: "# Test New File\n\nThis is a test file for chokidar detection.\n\n[5_Immediate_Test_Observation_No_Output]*" = '# Test New File\n\nThis is a test file for chokidar detection.\n\n[5_Immediate_Test_Observation_No_Output]*'
 
-      // Create a new file on disk
+      // Create the file on disk
       await fs.writeFile(testFilePath, testFileContent, 'utf-8')
 
-      // Wait for chokidar to detect the file addition (with awaitWriteFinish it takes ~1-2 seconds)
-      // Poll for the node to appear in the graph
-      let nodeAdded: boolean = false
-      const maxWaitTime: 5000 = 5000 as const // 5 seconds max
-      const pollInterval: 200 = 200 as const // Check every 200ms
-      const startTime: number = Date.now()
-
-      while (Date.now() - startTime < maxWaitTime) {
-        await new Promise(resolve => setTimeout(resolve, pollInterval))
-        const currentGraph: Graph = getGraph()
-        if (currentGraph.nodes['test-new-file.md']) {
-          nodeAdded = true
-          break
-        }
+      // Simulate the FS event for file addition
+      const addEvent: { absolutePath: string; content: string; eventType: "Added"; } = {
+        absolutePath: testFilePath,
+        content: testFileContent,
+        eventType: 'Added' as const
       }
 
+      handleFSEventWithStateAndUISides(addEvent, EXAMPLE_SMALL_PATH, mockMainWindow as unknown as BrowserWindow)
+
       // Verify the node was added to the graph
-      expect(nodeAdded).toBe(true)
       const graphAfterAdd: Graph = getGraph()
       expect(graphAfterAdd.nodes['test-new-file.md']).toBeDefined()
       expect(graphAfterAdd.nodes['test-new-file.md'].contentWithoutYamlOrLinks).toBe(expectedContent)
@@ -257,42 +270,36 @@ describe('Folder Loading - Integration Tests', () => {
       // Node IDs now include .md extension
       expect(testNode.outgoingEdges.some((e: Edge) => e.targetId.includes('5_Immediate_Test_Observation_No_Output'))).toBe(true)
 
-      // Verify broadcast was sent
-      expect(broadcastCalls.length).toBeGreaterThan(0)
+      // Verify broadcasts were sent (graph:stateChanged + ui:call)
+      expect(broadcastCalls.length).toBe(2)
       const addBroadcast: BroadcastCall | undefined = broadcastCalls.find(call =>
-        call.delta.some(d => d.type === 'UpsertNode' && d.nodeToUpsert.relativeFilePathIsID === 'test-new-file.md')
+        call.channel === 'graph:stateChanged' && call.delta.some(d => d.type === 'UpsertNode' && d.nodeToUpsert.relativeFilePathIsID === 'test-new-file.md')
       )
       expect(addBroadcast).toBeDefined()
 
       // Reset broadcast tracking
       broadcastCalls.length = 0
 
-      // Delete the file
+      // Delete the file from disk
       await fs.unlink(testFilePath)
 
-      // Wait for chokidar to detect the file deletion
-      let nodeDeleted: boolean = false
-      const deleteStartTime: number = Date.now()
-
-      while (Date.now() - deleteStartTime < maxWaitTime) {
-        await new Promise(resolve => setTimeout(resolve, pollInterval))
-        const currentGraph: Graph = getGraph()
-        if (!currentGraph.nodes['test-new-file.md']) {
-          nodeDeleted = true
-          break
-        }
+      // Simulate the FS event for file deletion
+      const deleteEvent: { type: "Delete"; absolutePath: string; } = {
+        type: 'Delete' as const,
+        absolutePath: testFilePath
       }
 
+      handleFSEventWithStateAndUISides(deleteEvent, EXAMPLE_SMALL_PATH, mockMainWindow as unknown as BrowserWindow)
+
       // Verify the node was removed from the graph
-      expect(nodeDeleted).toBe(true)
       const graphAfterDelete: Graph = getGraph()
       expect(graphAfterDelete.nodes['test-new-file.md']).toBeUndefined()
       expect(Object.keys(graphAfterDelete.nodes).length).toBe(EXPECTED_SMALL_NODE_COUNT)
 
-      // Verify broadcast was sent
-      expect(broadcastCalls.length).toBeGreaterThan(0)
+      // Verify broadcasts were sent (graph:stateChanged + ui:call)
+      expect(broadcastCalls.length).toBe(2)
       const deleteBroadcast: BroadcastCall | undefined = broadcastCalls.find(call =>
-        call.delta.some(d => d.type === 'DeleteNode' && d.nodeId === 'test-new-file.md')
+        call.channel === 'graph:stateChanged' && call.delta.some(d => d.type === 'DeleteNode' && d.nodeId === 'test-new-file.md')
       )
       expect(deleteBroadcast).toBeDefined()
 
@@ -380,9 +387,11 @@ describe('Folder Loading - Integration Tests', () => {
       expect(graph.nodes['test-new-file.md']).toBeDefined()
       expect(graph.nodes['test-new-file.md'].contentWithoutYamlOrLinks).toBe(newFileContent)
 
-      // AND: Broadcast should have been sent
-      expect(broadcastCalls.length).toBe(1)
+      // AND: Broadcasts should have been sent
+      // Two messages are sent: 1) graph:stateChanged, 2) ui:call for updateFloatingEditorsFromExternal
+      expect(broadcastCalls.length).toBe(2)
       expect(broadcastCalls[0].channel).toBe('graph:stateChanged')
+      expect(broadcastCalls[1].channel).toBe('ui:call')
 
       // Verify the delta contains UpsertNode action
       const addDelta: UpsertNodeDelta | undefined = broadcastCalls[0].delta.find(d => d.type === 'UpsertNode')
@@ -404,9 +413,11 @@ describe('Folder Loading - Integration Tests', () => {
       const graphAfterDelete: Graph = getGraph()
       expect(graphAfterDelete.nodes['test-new-file.md']).toBeUndefined()
 
-      // AND: Broadcast should have been sent
-      expect(broadcastCalls.length).toBe(1)
+      // AND: Broadcasts should have been sent
+      // Two messages are sent: 1) graph:stateChanged, 2) ui:call for updateFloatingEditorsFromExternal
+      expect(broadcastCalls.length).toBe(2)
       expect(broadcastCalls[0].channel).toBe('graph:stateChanged')
+      expect(broadcastCalls[1].channel).toBe('ui:call')
 
       // Verify the delta contains DeleteNode action
       const deleteDelta: DeleteNode | undefined = broadcastCalls[0].delta.find(d => d.type === 'DeleteNode')

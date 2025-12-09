@@ -100,8 +100,8 @@ test.describe('Cmd+N and Cmd+Enter Hotkeys (Browser)', () => {
     console.log('=== Step 6: Press Cmd+N ===');
     await page.keyboard.press('Meta+n');
 
-    // Wait for node creation
-    await page.waitForTimeout(100);
+    // Wait for node creation - increased timeout to allow for async operations
+    await page.waitForTimeout(200);
 
     console.log('=== Step 7: Verify new node was created ===');
     const finalNodeCount = await page.evaluate(() => {
@@ -164,8 +164,8 @@ test.describe('Cmd+N and Cmd+Enter Hotkeys (Browser)', () => {
     console.log('=== Step 6: Press Cmd+N ===');
     await page.keyboard.press('Meta+n');
 
-    // Wait for node creation
-    await page.waitForTimeout(100);
+    // Wait for node creation - increased timeout to allow for async operations
+    await page.waitForTimeout(200);
 
     console.log('=== Step 7: Verify new node was created ===');
     const finalNodeCount = await page.evaluate(() => {

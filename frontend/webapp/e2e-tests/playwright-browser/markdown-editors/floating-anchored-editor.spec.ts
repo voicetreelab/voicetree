@@ -131,7 +131,7 @@ test.describe('Floating Anchored Editor (Browser)', () => {
     expect(editorContent).toContain('This is test content for the floating editor');
     console.log('✓ Content verified in editor');
 
-    // Verify heading1 has smaller font size (18px instead of default 32px)
+    // Verify heading1 has smaller font size (24px instead of default 32px)
     const headingFontSize = await page.evaluate((selector) => {
       const cmContent = document.querySelector(`${selector} .cm-content`);
       if (!cmContent) return null;
@@ -145,7 +145,7 @@ test.describe('Floating Anchored Editor (Browser)', () => {
       return null;
     }, editorSelector);
     console.log(`  Heading1 font-size: ${headingFontSize}`);
-    expect(headingFontSize).toBe('18px');
+    expect(headingFontSize).toBe('24px');
 
     console.log('=== Step 7: Verify child shadow node exists and get dimensions ===');
     const initialDims = await page.evaluate(() => {

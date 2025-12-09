@@ -1,7 +1,9 @@
 import type {Graph, GraphDelta, NodeIdAndFilePath} from "@/pure/graph";
 import type {Core} from "cytoscape";
 import {computeMergeGraphDelta} from "@/pure/graph/graph-operations/merge/computeMergeGraphDelta";
-import {applyGraphDeltaToUI} from "@/shell/edge/UI-edge/graph/applyGraphDeltaToUI";
+
+// Import ElectronAPI type for window.electronAPI access
+import type {} from "@/shell/electron";
 
 /**
  * Merge selected nodes into a single representative node.
@@ -11,7 +13,7 @@ import {applyGraphDeltaToUI} from "@/shell/edge/UI-edge/graph/applyGraphDeltaToU
  */
 export async function mergeSelectedNodesFromUI(
     selectedNodeIds: readonly NodeIdAndFilePath[],
-    cy: Core
+    _cy: Core
 ): Promise<void> {
     if (selectedNodeIds.length < 2) {
         console.log('[mergeSelectedNodesFromUI] Need at least 2 nodes to merge');

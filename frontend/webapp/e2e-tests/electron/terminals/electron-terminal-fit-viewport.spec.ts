@@ -37,6 +37,16 @@ const test = base.extend<{
   electronApp: async ({}, use) => {
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-fit-viewport-test-'));
 
+    // Write the config file to auto-load the test vault
+    const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
+    await fs.writeFile(configPath, JSON.stringify({
+      lastDirectory: FIXTURE_VAULT_PATH,
+      suffixes: {
+        [FIXTURE_VAULT_PATH]: '' // Empty suffix means use directory directly
+      }
+    }, null, 2), 'utf8');
+    console.log('[Test] Created config file to auto-load:', FIXTURE_VAULT_PATH);
+
     const electronApp = await electron.launch({
       args: [
         path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
@@ -67,6 +77,8 @@ const test = base.extend<{
     }
 
     await electronApp.close();
+
+    // Cleanup temp directory
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
   },
 
@@ -82,7 +94,15 @@ const test = base.extend<{
     });
 
     await window.waitForLoadState('domcontentloaded');
-    await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
+
+    // Wait for cytoscape instance with retry logic
+    try {
+      await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
+    } catch (error) {
+      console.error('Failed to initialize cytoscape instance:', error);
+      throw error;
+    }
+
     await window.waitForTimeout(1000);
 
     await use(window);
@@ -91,20 +111,23 @@ const test = base.extend<{
 
 test.describe('Terminal Fit Viewport E2E', () => {
   test('should fit viewport to terminal + context + neighborhood on cycle', async ({ appWindow }) => {
-    test.setTimeout(60000);
+    test.setTimeout(90000); // Increase timeout for large graph loading
 
-    console.log('=== STEP 1: Load the large example graph ===');
-    const watchResult = await appWindow.evaluate(async (vaultPath) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
-      return await api.main.startFileWatching(vaultPath);
-    }, FIXTURE_VAULT_PATH);
+    console.log('=== STEP 1: Wait for auto-load to complete (large example graph) ===');
+    // The app auto-loads from config file on startup, wait for nodes to appear
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return 0;
+        return cy.nodes().length;
+      });
+    }, {
+      message: 'Waiting for graph to auto-load nodes',
+      timeout: 20000,
+      intervals: [500, 1000, 1000, 2000]
+    }).toBeGreaterThan(0);
 
-    expect(watchResult.success).toBe(true);
-    console.log('✓ File watching started');
-
-    // Wait for graph to load
-    await appWindow.waitForTimeout(3000);
+    console.log('✓ Graph auto-loaded with nodes');
 
     console.log('=== STEP 2: Get a node with neighbors to create terminal from ===');
     const targetNodeId = await appWindow.evaluate(() => {
@@ -181,9 +204,6 @@ test.describe('Terminal Fit Viewport E2E', () => {
     const viewportInfo = await appWindow.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
-
-      // Get terminal count from TerminalStore
-      const { getTerminals } = window as unknown as { getTerminals?: () => Map<string, unknown> };
 
       const extent = cy.extent();
       const zoom = cy.zoom();

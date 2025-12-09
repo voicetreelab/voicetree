@@ -9,7 +9,7 @@
  * This test catches positioning bugs where nodes overlap or are too close together.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type { Core, Position, NodeCollection, CollectionReturnValue, NodeSingular } from 'cytoscape'
 import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
@@ -31,9 +31,16 @@ describe('Node Positioning Spacing - Integration', () => {
       headless: true,
       elements: []
     })
+
+    // Mock layoutUtilities for positioning tests
+    cy.layoutUtilities = vi.fn(() => ({
+      placeNewNodes: vi.fn()
+    })) as unknown as typeof cy.layoutUtilities
   })
 
-  afterEach(() => {
+  afterEach(async () => {
+    // Wait for any pending timeouts from applyGraphDeltaToUI
+    await new Promise(resolve => setTimeout(resolve, 200))
     cy.destroy()
   })
 

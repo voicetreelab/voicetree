@@ -4,10 +4,10 @@
  *
  * This test verifies the COMPLETE flow:
  * 0. Original settings are saved for restoration at the end
- * 1. Settings are reset to defaults for testing (agentLaunchPath='../', agentCommand='./Claude.sh')
- * 2. Test vault is loaded
+ * 1. Settings are loaded and modified for testing (terminalSpawnPath='../', add test agent)
+ * 2. Test vault is auto-loaded on startup via config file
  * 3. Settings editor is opened via SpeedDialMenu settings button click (bottom-right corner)
- * 4. Settings are edited in the floating window CodeMirror editor
+ * 4. Settings are edited in the floating window CodeMirror editor (adds test agent to agents array)
  * 5. Settings are saved (auto-save triggers on content change)
  * 6. ContextMenuService integration is verified (it reads settings when spawning terminals)
  * 7. Original settings are restored at the end
@@ -35,7 +35,7 @@ import type { VTSettings } from '@/pure/settings';
 
 // Use absolute paths for example_folder_fixtures
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_real_large', '2025-09-30');
+const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 
 // Type definitions
 interface ExtendedWindow {
@@ -56,6 +56,11 @@ const test = base.extend<{
   electronApp: async ({}, use) => {
     // Create a temporary userData directory for this test
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-settings-test-'));
+
+    // Write the config file to auto-load the test vault on startup
+    const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
+    await fs.writeFile(configPath, JSON.stringify({ lastDirectory: FIXTURE_VAULT_PATH }, null, 2), 'utf8');
+    console.log('[Settings Test] Created config file to auto-load:', FIXTURE_VAULT_PATH);
 
     const electronApp = await electron.launch({
       args: [
@@ -94,7 +99,7 @@ const test = base.extend<{
   },
 
   appWindow: async ({ electronApp }, use) => {
-    const window = await electronApp.firstWindow({ timeout: 15000 });
+    const window = await electronApp.firstWindow({ timeout: 10000 });
 
     // Log console messages for debugging
     window.on('console', msg => {
@@ -104,10 +109,31 @@ const test = base.extend<{
     // Capture page errors
     window.on('pageerror', error => {
       console.error('PAGE ERROR:', error.message);
+      console.error('Stack:', error.stack);
     });
 
     await window.waitForLoadState('domcontentloaded');
+
+    // Check for errors before waiting for cytoscapeInstance
+    const hasErrors = await window.evaluate(() => {
+      const errors: string[] = [];
+      // Check if React rendered
+      if (!document.querySelector('#root')) errors.push('No #root element');
+      // Check if any error boundaries triggered
+      const errorText = document.body.textContent;
+      if (errorText?.includes('Error') || errorText?.includes('error')) {
+        errors.push(`Page contains error text: ${errorText.substring(0, 200)}`);
+      }
+      return errors;
+    });
+
+    if (hasErrors.length > 0) {
+      console.error('Pre-initialization errors:', hasErrors);
+    }
+
     await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
+
+    // Wait a bit longer to ensure graph is ready
     await window.waitForTimeout(1000);
 
     await use(window);
@@ -118,6 +144,9 @@ test.describe('Settings Integration E2E', () => {
   test('should read defaults, edit via UI-edge, save, and use new command in terminal spawn', async ({ appWindow }) => {
     test.setTimeout(30000); // 30 second timeout for this complex workflow
 
+    // Wait for auto-load to complete before accessing settings
+    await appWindow.waitForTimeout(500);
+
     console.log('=== STEP 0: Save original settings for later restoration ===');
     const originalSettings = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
@@ -127,31 +156,33 @@ test.describe('Settings Integration E2E', () => {
     });
     console.log('✓ Original settings saved:', originalSettings);
 
-    console.log('=== STEP 1: Reset settings to defaults for test ===');
+    console.log('=== STEP 1: Load and modify settings for test ===');
+    // Modify settings in the browser context to avoid serialization issues with readonly fields
     await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      // Reset to default settings
-      const defaultSettings = {
-        terminalSpawnPathRelativeToWatchedDirectory: '../',
-        agentCommand: './Claude.sh'
-      };
-      await api.main.saveSettings(defaultSettings);
+      // Load current settings
+      const currentSettings = await api.main.loadSettings();
+      // Create modified settings with known test values
+      const testSettings = JSON.parse(JSON.stringify(currentSettings)); // Deep copy to remove readonly
+      testSettings.terminalSpawnPathRelativeToWatchedDirectory = '../';
+      await api.main.saveSettings(testSettings);
     });
-    console.log('✓ Settings reset to defaults for test');
+    console.log('✓ Settings modified for test');
 
-    console.log('=== STEP 2: Load the test vault ===');
-    const watchResult = await appWindow.evaluate(async (vaultPath) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
-      return await api.main.startFileWatching(vaultPath);
-    }, FIXTURE_VAULT_PATH);
+    console.log('=== STEP 2: Wait for auto-loaded vault nodes to render ===');
+    // The vault is auto-loaded on startup via config file
+    // Wait for nodes to load with polling
+    await appWindow.waitForFunction(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return false;
+      const nodes = cy.nodes();
+      return nodes.length >= 2; // Wait for at least 2 nodes to ensure folder loaded
+    }, { timeout: 10000 });
 
-    expect(watchResult.success).toBe(true);
-    console.log('✓ File watching started');
-    await appWindow.waitForTimeout(2000);
+    console.log('✓ Nodes loaded successfully from auto-loaded vault');
 
-    console.log('=== STEP 3: Verify initial default settings ===');
+    console.log('=== STEP 3: Verify initial test settings ===');
     const initialSettings = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
@@ -160,8 +191,9 @@ test.describe('Settings Integration E2E', () => {
 
     console.log('Initial settings:', initialSettings);
     expect(initialSettings.terminalSpawnPathRelativeToWatchedDirectory).toBe('../');
-    expect(initialSettings.agentCommand).toBe('./Claude.sh');
-    console.log('✓ Default settings verified');
+    expect(initialSettings.agents).toBeDefined();
+    expect(initialSettings.agents.length).toBeGreaterThan(0);
+    console.log('✓ Test settings verified');
 
     console.log('=== STEP 4: Click Settings button in SpeedDialMenu ===');
     // Click the settings button in the speed dial menu (bottom-right corner)
@@ -182,14 +214,15 @@ test.describe('Settings Integration E2E', () => {
     console.log('✓ Settings editor window opened');
 
     console.log('=== STEP 6: Edit settings in the CodeMirror editor ===');
-    const newCommand = './test-agent.sh';
+    const newAgentName = 'TestAgent';
+    const newAgentCommand = './test-agent.sh';
     const newLaunchPath = '/test/path';
 
     // Wait for CodeMirror to fully render
     await appWindow.waitForSelector('#window-settings-editor .cm-content', { timeout: 5000 });
 
     // Edit the JSON in CodeMirror using the same pattern as markdown editor tests
-    const editResult = await appWindow.evaluate(({ cmd, launchPath }) => {
+    const editResult = await appWindow.evaluate(({ agentName, agentCmd, launchPath }) => {
       // Access the CodeMirror content element (not .cm-editor)
       const editorElement = document.querySelector('#window-settings-editor .cm-content') as HTMLElement | null;
       if (!editorElement) throw new Error('Editor content element not found');
@@ -205,8 +238,11 @@ test.describe('Settings Integration E2E', () => {
       // Parse current settings
       const currentSettings = JSON.parse(currentValue);
 
-      // Modify settings
-      currentSettings.agentCommand = cmd;
+      // Modify settings - add a new test agent to the agents array
+      currentSettings.agents = [
+        { name: agentName, command: agentCmd },
+        ...currentSettings.agents
+      ];
       currentSettings.terminalSpawnPathRelativeToWatchedDirectory = launchPath;
 
       const newValue = JSON.stringify(currentSettings, null, 2);
@@ -222,7 +258,7 @@ test.describe('Settings Integration E2E', () => {
       });
       console.log('[Test] Dispatched changes to CodeMirror');
       return { success: true };
-    }, { cmd: newCommand, launchPath: newLaunchPath });
+    }, { agentName: newAgentName, agentCmd: newAgentCommand, launchPath: newLaunchPath });
 
     expect(editResult.success).toBe(true);
     console.log('✓ Settings edited in CodeMirror');
@@ -239,7 +275,8 @@ test.describe('Settings Integration E2E', () => {
     }) as VTSettings;
 
     console.log('Saved settings:', savedSettings);
-    expect(savedSettings.agentCommand).toBe(newCommand);
+    expect(savedSettings.agents[0].name).toBe(newAgentName);
+    expect(savedSettings.agents[0].command).toBe(newAgentCommand);
     expect(savedSettings.terminalSpawnPathRelativeToWatchedDirectory).toBe(newLaunchPath);
     console.log('✓ Settings saved successfully');
 
@@ -268,7 +305,8 @@ test.describe('Settings Integration E2E', () => {
 
       // Verify we get the updated settings
       return {
-        agentCommand: settings.agentCommand,
+        firstAgentName: settings.agents[0].name,
+        firstAgentCommand: settings.agents[0].command,
         terminalSpawnPathRelativeToWatchedDirectory: settings.terminalSpawnPathRelativeToWatchedDirectory,
         settingsLoaded: true
       };
@@ -276,7 +314,8 @@ test.describe('Settings Integration E2E', () => {
 
     console.log('Settings integration check:', settingsIntegrationTest);
     expect(settingsIntegrationTest.settingsLoaded).toBe(true);
-    expect(settingsIntegrationTest.agentCommand).toBe(newCommand);
+    expect(settingsIntegrationTest.firstAgentName).toBe(newAgentName);
+    expect(settingsIntegrationTest.firstAgentCommand).toBe(newAgentCommand);
     expect(settingsIntegrationTest.terminalSpawnPathRelativeToWatchedDirectory).toBe(newLaunchPath);
     console.log('✓ ContextMenuService will use new settings when spawning terminals');
 
@@ -311,7 +350,7 @@ test.describe('Settings Integration E2E', () => {
     console.log('✓ Context menu reads settings when spawning terminal');
     console.log('✓ Original settings restored at end');
     console.log('');
-    console.log(`✅ INTEGRATION COMPLETE: Context menu now uses settings.agentCommand (${newCommand})`);
+    console.log(`✅ INTEGRATION COMPLETE: Context menu now uses settings.agents (${newAgentName}: ${newAgentCommand})`);
     console.log('✅ TEST IS NON-DESTRUCTIVE: Original settings were restored');
   });
 });

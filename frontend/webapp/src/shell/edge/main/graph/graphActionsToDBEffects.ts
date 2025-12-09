@@ -66,10 +66,12 @@ function writeNodeToFile(node: GraphNode): FSWriteEffect<void> {
 
             // Ensure parent directory exists
             await fs.mkdir(path.dirname(fullPath), { recursive: true })
-            await fs.writeFile(fullPath, markdown, 'utf-8')
 
-            // Track this write for FS event acknowledgement
+            // Track this write BEFORE fs.writeFile to prevent race condition:
+            // chokidar callback can run at yield points, so FS event could arrive
+            // between writeFile completing and markFileWritten being called
             markFileWritten(fullPath, markdown)
+            await fs.writeFile(fullPath, markdown, 'utf-8')
         },
         toError
     )
@@ -83,10 +85,10 @@ function deleteNodeFile(nodeId: NodeIdAndFilePath): FSWriteEffect<void> {
         async () => {
             const filename: string = nodeIdToFilePathWithExtension(nodeId)
             const fullPath: string = path.join(env.vaultPath, filename)
-            await fs.unlink(fullPath)
 
-            // Track this delete for FS event acknowledgement
+            // Track this delete BEFORE fs.unlink to prevent race condition
             markFileDeleted(fullPath)
+            await fs.unlink(fullPath)
         },
         toError
     )

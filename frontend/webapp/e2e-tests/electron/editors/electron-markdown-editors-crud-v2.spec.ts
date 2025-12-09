@@ -17,7 +17,8 @@ import type { EditorView } from '@codemirror/view';
 
 // Use absolute paths
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_real_large', '2025-09-30');
+// Note: The app will look for files in FIXTURE_VAULT_PATH/voicetree/ due to default vaultSuffix
+const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_real_large');
 
 // Type definitions
 interface ExtendedWindow {
@@ -46,6 +47,12 @@ const test = base.extend<{
   electronApp: [async ({}, use) => {
     // Create a temporary userData directory for test isolation
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-editor-test-'));
+
+    // Write the config file to auto-load the test vault
+    // This is critical - without it, the graph never loads into memory
+    const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
+    await fs.writeFile(configPath, JSON.stringify({ lastDirectory: FIXTURE_VAULT_PATH }, null, 2), 'utf8');
+    console.log('[Test] Created config file to auto-load:', FIXTURE_VAULT_PATH);
 
     const electronApp = await electron.launch({
       args: [
@@ -120,7 +127,8 @@ const test = base.extend<{
     }
 
     await page.waitForFunction(() => (window as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
-    await page.waitForTimeout(100);
+    // Wait for auto-load to complete (vault is loaded during app initialization)
+    await page.waitForTimeout(500);
 
     await use(page);
   }, { timeout: 30000 }]
@@ -148,18 +156,8 @@ test.describe('Markdown Editor CRUD Tests', () => {
     test.setTimeout(60000); // Increase timeout to 60s for this complex test
     console.log('=== Testing markdown file saving in subfolders ===');
 
-    // Start watching the fixture vault
-    const watchResult = await appWindow.evaluate(async (vaultPath) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
-      return await api.main.startFileWatching(vaultPath);
-    }, FIXTURE_VAULT_PATH);
-
-    expect(watchResult.success).toBe(true);
-    expect(watchResult.directory).toBe(FIXTURE_VAULT_PATH);
-    console.log('✓ File watching started successfully');
-
-    // Wait for initial scan to complete and graph to have nodes
+    // Vault is auto-loaded via config - wait for graph to have nodes
+    // The appWindow fixture already waits for cytoscapeInstance, but we need nodes loaded too
     await expect.poll(async () => {
       return appWindow.evaluate(() => {
         const cy = (window as ExtendedWindow).cytoscapeInstance;
@@ -206,10 +204,11 @@ test.describe('Markdown Editor CRUD Tests', () => {
     console.log(`✓ Found node with ID: ${nodeId}`);
 
     // Read original file content for restoration later
-    // Note: nodeId might already include .md extension
+    // Note: nodeId might already include .md extension and path (e.g., "2025-09-30/file.md")
+    // Files are in FIXTURE_VAULT_PATH/voicetree/ due to default vaultSuffix
     const testFilePath = nodeId.endsWith('.md')
-      ? path.join(FIXTURE_VAULT_PATH, nodeId)
-      : path.join(FIXTURE_VAULT_PATH, `${nodeId}.md`);
+      ? path.join(FIXTURE_VAULT_PATH, 'voicetree', nodeId)
+      : path.join(FIXTURE_VAULT_PATH, 'voicetree', `${nodeId}.md`);
     const originalContent = await fs.readFile(testFilePath, 'utf-8');
     console.log('Original file content length:', originalContent.length);
 
@@ -241,16 +240,17 @@ test.describe('Markdown Editor CRUD Tests', () => {
     console.log('✓ Editor window opened');
 
     // Wait for CodeMirror editor to render
-    // Note: Need to escape dots in the selector if nodeId contains .md
-    const escapedEditorWindowId = editorWindowId.replace(/\./g, '\\.');
+    // Note: Need to escape special chars (dots, slashes) in the selector for CSS
+    // CSS.escape would be ideal but it's not available in Node.js, so we manually escape
+    const escapedEditorWindowId = editorWindowId.replace(/[./]/g, '\\$&');
     await appWindow.waitForSelector(`#${escapedEditorWindowId} .cm-editor`, { timeout: 5000 });
 
     // Modify content in the editor using direct CodeMirror DOM access
     const testContent = '# Setting up Agent in Feedback Loop\n\nTEST MODIFICATION - This content was changed by the e2e test.\n\nThis is a test to verify file sync works correctly.';
 
     await appWindow.evaluate(({ windowId, newContent }: { windowId: string; newContent: string }) => {
-      // Escape dots in windowId for querySelector
-      const escapedWindowId = windowId.replace(/\./g, '\\.');
+      // Escape special chars (dots, slashes) in windowId for querySelector
+      const escapedWindowId = CSS.escape(windowId);
       const editorElement = document.querySelector(`#${escapedWindowId} .cm-content`) as HTMLElement | null;
       if (!editorElement) throw new Error('Editor content element not found');
 
@@ -283,7 +283,7 @@ test.describe('Markdown Editor CRUD Tests', () => {
     console.log('Clicking close button...');
     await appWindow.evaluate((winId) => {
       // Escape dots in winId for querySelector
-      const escapedWinId = winId.replace(/\./g, '\\.');
+      const escapedWinId = CSS.escape(winId);
       const closeButton = document.querySelector(`#${escapedWinId} .cy-floating-window-close`) as HTMLButtonElement | null;
       if (!closeButton) throw new Error('Close button not found!');
       closeButton.click();
@@ -326,7 +326,7 @@ test.describe('Markdown Editor CRUD Tests', () => {
     // Verify the editor shows the saved content using direct DOM access
     const editorContent = await appWindow.evaluate((winId) => {
       // Escape dots in winId for querySelector
-      const escapedWinId = winId.replace(/\./g, '\\.');
+      const escapedWinId = CSS.escape(winId);
       const editorElement = document.querySelector(`#${escapedWinId} .cm-content`) as HTMLElement | null;
       if (!editorElement) return null;
 
@@ -342,7 +342,7 @@ test.describe('Markdown Editor CRUD Tests', () => {
 
     // Close the editor before restoring file (to prevent auto-save from overwriting)
     await appWindow.evaluate((winId) => {
-      const escapedWinId = winId.replace(/\./g, '\\.');
+      const escapedWinId = CSS.escape(winId);
       const closeButton = document.querySelector(`#${escapedWinId} .cy-floating-window-close`) as HTMLButtonElement | null;
       if (closeButton) closeButton.click();
     }, editorWindowId);
@@ -363,26 +363,26 @@ test.describe('Markdown Editor CRUD Tests', () => {
     // which prevents the editor from opening. This appears to be an application bug, not a test issue.
     console.log('=== Testing graph update when adding wikilink ===');
 
-    // Start watching the fixture vault
-    const watchResult = await appWindow.evaluate(async (vaultPath) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
-      return await api.main.startFileWatching(vaultPath);
-    }, FIXTURE_VAULT_PATH);
-
-    expect(watchResult.success).toBe(true);
-    expect(watchResult.directory).toBe(FIXTURE_VAULT_PATH);
-    console.log('✓ File watching started successfully');
-
-    // Wait for initial scan to complete
-    await appWindow.waitForTimeout(3000);
+    // Vault is auto-loaded via config - wait for graph to have nodes
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return 0;
+        return cy.nodes().length;
+      });
+    }, {
+      message: 'Waiting for graph to load nodes',
+      timeout: 15000
+    }).toBeGreaterThan(0);
+    console.log('✓ Graph loaded with nodes');
 
     const nodeId = 'introduction';
     // Read original file content for restoration
-    // Note: nodeId might already include .md extension
+    // Note: nodeId might already include .md extension and path (e.g., "2025-09-30/file.md")
+    // Files are in FIXTURE_VAULT_PATH/voicetree/ due to default vaultSuffix
     const testFilePath = nodeId.endsWith('.md')
-      ? path.join(FIXTURE_VAULT_PATH, nodeId)
-      : path.join(FIXTURE_VAULT_PATH, `${nodeId}.md`);
+      ? path.join(FIXTURE_VAULT_PATH, 'voicetree', nodeId)
+      : path.join(FIXTURE_VAULT_PATH, 'voicetree', `${nodeId}.md`);
     const originalContent = await fs.readFile(testFilePath, 'utf-8');
 
     // Get initial edge count for node
@@ -431,8 +431,9 @@ test.describe('Markdown Editor CRUD Tests', () => {
     console.log('✓ Editor opened');
 
     // Wait for CodeMirror editor to render
-    // Note: Need to escape dots in the selector if nodeId contains .md
-    const escapedEditorWindowId = editorWindowId.replace(/\./g, '\\.');
+    // Note: Need to escape special chars (dots, slashes) in the selector for CSS
+    // CSS.escape would be ideal but it's not available in Node.js, so we manually escape
+    const escapedEditorWindowId = editorWindowId.replace(/[./]/g, '\\$&');
     await appWindow.waitForSelector(`#${escapedEditorWindowId} .cm-editor`, { timeout: 5000 });
 
     // Add a new wikilink to the content
@@ -440,7 +441,7 @@ test.describe('Markdown Editor CRUD Tests', () => {
 
     await appWindow.evaluate(({ windowId, content }: { windowId: string; content: string }) => {
       // Escape dots in windowId for querySelector
-      const escapedWindowId = windowId.replace(/\./g, '\\.');
+      const escapedWindowId = CSS.escape(windowId);
       const editorElement = document.querySelector(`#${escapedWindowId} .cm-content`) as HTMLElement | null;
       if (!editorElement) throw new Error('Editor content element not found');
 
@@ -506,18 +507,8 @@ test.describe('Markdown Editor CRUD Tests', () => {
     test.setTimeout(60000); // Increase timeout to 60s for this complex test
     console.log('=== Testing bidirectional sync: external changes -> open editor ===');
 
-    // Start watching the fixture vault
-    const watchResult = await appWindow.evaluate(async (vaultPath) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
-      return await api.main.startFileWatching(vaultPath);
-    }, FIXTURE_VAULT_PATH);
-
-    expect(watchResult.success).toBe(true);
-    expect(watchResult.directory).toBe(FIXTURE_VAULT_PATH);
-    console.log('✓ File watching started successfully');
-
-    // Wait for initial scan to complete and graph to have nodes
+    // Vault is auto-loaded via config - wait for graph to have nodes
+    // The appWindow fixture already waits for cytoscapeInstance, but we need nodes loaded too
     await expect.poll(async () => {
       return appWindow.evaluate(() => {
         const cy = (window as ExtendedWindow).cytoscapeInstance;
@@ -564,10 +555,11 @@ test.describe('Markdown Editor CRUD Tests', () => {
     console.log(`✓ Found node with ID: ${nodeId}`);
 
     // Read original file content for restoration
-    // Note: nodeId might already include .md extension
+    // Note: nodeId might already include .md extension and path (e.g., "2025-09-30/file.md")
+    // Files are in FIXTURE_VAULT_PATH/voicetree/ due to default vaultSuffix
     const testFilePath = nodeId.endsWith('.md')
-      ? path.join(FIXTURE_VAULT_PATH, nodeId)
-      : path.join(FIXTURE_VAULT_PATH, `${nodeId}.md`);
+      ? path.join(FIXTURE_VAULT_PATH, 'voicetree', nodeId)
+      : path.join(FIXTURE_VAULT_PATH, 'voicetree', `${nodeId}.md`);
     const originalContent = await fs.readFile(testFilePath, 'utf-8');
     console.log('Original file content:', originalContent.substring(0, 50) + '...');
 
@@ -596,14 +588,15 @@ test.describe('Markdown Editor CRUD Tests', () => {
     console.log('✓ Editor opened');
 
     // Wait for CodeMirror editor to render
-    // Note: Need to escape dots in the selector if nodeId contains .md
-    const escapedEditorWindowId = editorWindowId.replace(/\./g, '\\.');
+    // Note: Need to escape special chars (dots, slashes) in the selector for CSS
+    // CSS.escape would be ideal but it's not available in Node.js, so we manually escape
+    const escapedEditorWindowId = editorWindowId.replace(/[./]/g, '\\$&');
     await appWindow.waitForSelector(`#${escapedEditorWindowId} .cm-editor`, { timeout: 5000 });
 
     // Get initial editor content using direct DOM access
     const initialEditorContent = await appWindow.evaluate((winId) => {
       // Escape dots in winId for querySelector
-      const escapedWinId = winId.replace(/\./g, '\\.');
+      const escapedWinId = CSS.escape(winId);
       const editorElement = document.querySelector(`#${escapedWinId} .cm-content`) as HTMLElement | null;
       if (!editorElement) return null;
 
@@ -630,7 +623,7 @@ test.describe('Markdown Editor CRUD Tests', () => {
     // Check if editor content was updated to match the external change
     const updatedEditorContent = await appWindow.evaluate((winId) => {
       // Escape dots in winId for querySelector
-      const escapedWinId = winId.replace(/\./g, '\\.');
+      const escapedWinId = CSS.escape(winId);
       const editorElement = document.querySelector(`#${escapedWinId} .cm-content`) as HTMLElement | null;
       if (!editorElement) return null;
 
@@ -650,7 +643,7 @@ test.describe('Markdown Editor CRUD Tests', () => {
 
     // Close the editor before restoring file (to prevent auto-save from overwriting)
     await appWindow.evaluate((winId) => {
-      const escapedWinId = winId.replace(/\./g, '\\.');
+      const escapedWinId = CSS.escape(winId);
       const closeButton = document.querySelector(`#${escapedWinId} .cy-floating-window-close`) as HTMLButtonElement | null;
       if (closeButton) closeButton.click();
     }, editorWindowId);

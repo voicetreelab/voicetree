@@ -26,9 +26,13 @@ import path from 'path'
 import { promises as fs } from 'fs'
 import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths'
 import { waitForFSEvent, waitForWatcherReady, waitForCondition } from '@/utils/test-utils/waitForCondition'
+import { clearRecentWrites } from '@/shell/edge/main/state/recent-writes-store'
 
 const TEST_NODE_ID: string = 'test-position-node.md'
 const TEST_FILE_PATH: string = path.join(EXAMPLE_SMALL_PATH, TEST_NODE_ID)
+
+// State for mocks
+let mockMainWindow: { readonly webContents: { readonly send: (channel: string, data: GraphDelta) => void }, readonly isDestroyed: () => boolean }
 
 // Mock electron app for settings path
 vi.mock('electron', () => ({
@@ -39,12 +43,7 @@ vi.mock('electron', () => ({
 
 // Mock app-electron-state
 vi.mock('@/shell/edge/main/state/app-electron-state', () => ({
-    getMainWindow: vi.fn(() => ({
-        webContents: {
-            send: vi.fn()
-        },
-        isDestroyed: vi.fn(() => false)
-    })),
+    getMainWindow: vi.fn(() => mockMainWindow),
     setMainWindow: vi.fn()
 }))
 
@@ -53,6 +52,15 @@ describe('saveNodePositions - Integration Tests', () => {
         // Initialize state with empty graph and example_small vault path
         setGraph({ nodes: {} })
         setVaultPath(EXAMPLE_SMALL_PATH)
+        clearRecentWrites()
+
+        // Create mock BrowserWindow
+        mockMainWindow = {
+            webContents: {
+                send: vi.fn()
+            },
+            isDestroyed: vi.fn(() => false)
+        }
     })
 
     afterEach(async () => {
@@ -200,7 +208,7 @@ describe('saveNodePositions - Integration Tests', () => {
     describe('BEHAVIOR: Position preservation when FS event reloads node', () => {
         it('should PRESERVE in-memory position when file is modified externally (no position in YAML)', async () => {
             // GIVEN: Load folder with file watcher
-            await loadFolder(EXAMPLE_SMALL_PATH)
+            await loadFolder(EXAMPLE_SMALL_PATH, '')
             expect(isWatching()).toBe(true)
             await waitForWatcherReady()
 
@@ -265,7 +273,7 @@ Content here. Updated externally.`
 
         it('should PRESERVE position when file has position in YAML frontmatter', async () => {
             // GIVEN: Load folder with file watcher
-            await loadFolder(EXAMPLE_SMALL_PATH)
+            await loadFolder(EXAMPLE_SMALL_PATH, '')
             expect(isWatching()).toBe(true)
             await waitForWatcherReady()
 

@@ -59,25 +59,58 @@ const test = base.extend<{
   appWindow: Page;
   testVaultPath: string;
 }>({
-  testVaultPath: async ({}, use) => {
-    // Create a temporary directory for this test
-    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-link-bug-test-'));
-    console.log('[Test] Created test vault at:', tmpDir);
-
-    await use(tmpDir);
-
-    // Cleanup
-    try {
-      await fs.rm(tmpDir, { recursive: true, force: true });
-      console.log('[Test] Cleaned up test vault');
-    } catch (error) {
-      console.log('Cleanup error:', error);
-    }
-  },
-
-  electronApp: [async ({ testVaultPath: _testVaultPath }, use) => {
-    // Create a temporary userData directory for test isolation
+  // Create temp userData directory with embedded vault + config
+  // The config auto-loads the vault during app initialization
+  // IMPORTANT: Files must be in {watchedFolder}/voicetree/ due to default vaultSuffix
+  electronApp: [async ({}, use, testInfo) => {
+    // Create temp userData directory
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-link-bug-test-'));
+
+    // Create the watched folder (what config points to)
+    const watchedFolder = path.join(tempUserDataPath, 'test-vault');
+    await fs.mkdir(watchedFolder, { recursive: true });
+
+    // Create the actual vault path with default suffix 'voicetree'
+    // The app looks for .md files in {watchedFolder}/voicetree/
+    const vaultPath = path.join(watchedFolder, 'voicetree');
+    await fs.mkdir(vaultPath, { recursive: true });
+
+    // Create test files that will be used by the tests
+    // Each test will create additional files as needed
+    const testNodeId = 'test-node-with-link.md';
+    const linkedNodeId = 'linked-node.md';
+    const testNodeId2 = 'test-node-remove-link.md';
+    const linkedNodeId2 = 'target-node.md';
+
+    const initialContent = `---
+---
+# Test Node
+
+This is a test node with a link to [[${linkedNodeId}]].
+
+Some more content here.`;
+
+    const initialContent2 = `---
+---
+# Test Node
+
+This node has a link: [[${linkedNodeId2}]]
+
+End of content.`;
+
+    await fs.writeFile(path.join(vaultPath, testNodeId), initialContent, 'utf-8');
+    await fs.writeFile(path.join(vaultPath, linkedNodeId), '---\n---\n# Linked Node\n\nThis is the linked node.', 'utf-8');
+    await fs.writeFile(path.join(vaultPath, testNodeId2), initialContent2, 'utf-8');
+    await fs.writeFile(path.join(vaultPath, linkedNodeId2), '---\n---\n# Target Node\n\nTarget.', 'utf-8');
+
+    // Write config to auto-load the watched folder (vault = watchedFolder + 'voicetree')
+    const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
+    await fs.writeFile(configPath, JSON.stringify({ lastDirectory: watchedFolder }, null, 2), 'utf8');
+    console.log('[Test] Watched folder:', watchedFolder);
+    console.log('[Test] Vault path (with suffix):', vaultPath);
+
+    // Store vaultPath for test access via testInfo (the actual path where .md files live)
+    (testInfo as unknown as { vaultPath: string }).vaultPath = vaultPath;
 
     const electronApp = await electron.launch({
       args: [
@@ -112,9 +145,16 @@ const test = base.extend<{
 
     await electronApp.close();
 
-    // Cleanup temp directory
+    // Cleanup entire temp directory (includes vault)
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
+    console.log('[Test] Cleaned up temp directory');
   }, { timeout: 45000 }],
+
+  // Get vault path from testInfo (set by electronApp fixture)
+  testVaultPath: async ({}, use, testInfo) => {
+    // Wait for electronApp fixture to set vaultPath
+    await use((testInfo as unknown as { vaultPath: string }).vaultPath);
+  },
 
   appWindow: [async ({ electronApp, testVaultPath: _testVaultPath }, use) => {
     const page = await electronApp.firstWindow();
@@ -152,7 +192,7 @@ const test = base.extend<{
 
     // Wait for electronAPI to be available
     await page.waitForFunction(() => (window as ExtendedWindow).electronAPI?.main, { timeout: 30000 });
-    await page.waitForTimeout(100);
+    await page.waitForTimeout(500); // Give extra time for auto-load to complete
 
     await use(page);
   }, { timeout: 30000 }]
@@ -162,39 +202,28 @@ test.describe('Link Duplication Bug', () => {
   test('should NOT duplicate links when editing markdown in floating editor', async ({ appWindow, testVaultPath }) => {
     test.setTimeout(60000); // Increase timeout to 60s for this test (has 5s wait)
     console.log('=== Testing link duplication bug ===');
+    console.log('[Test] Vault path:', testVaultPath);
 
-    // 1. Create a test markdown file with a link
+    // Files are already created in electronApp fixture
     const testNodeId = 'test-node-with-link.md';
     const linkedNodeId = 'linked-node.md';
-
-    const initialContent = `---
----
-# Test Node
-
-This is a test node with a link to [[${linkedNodeId}]].
-
-Some more content here.`;
-
     const testFilePath = path.join(testVaultPath, testNodeId);
-    await fs.writeFile(testFilePath, initialContent, 'utf-8');
-    console.log('✓ Created test file with link');
 
-    // Create the linked node too (so the link is valid)
-    const linkedFilePath = path.join(testVaultPath, linkedNodeId);
-    await fs.writeFile(linkedFilePath, '---\n---\n# Linked Node\n\nThis is the linked node.', 'utf-8');
-    console.log('✓ Created linked node file');
+    // Vault is auto-loaded via config - wait for graph to have nodes
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return 0;
+        return cy.nodes().length;
+      });
+    }, {
+      message: 'Waiting for graph to load nodes (auto-loaded via config)',
+      timeout: 15000
+    }).toBeGreaterThan(0);
 
-    // 2. Start watching the vault
-    await appWindow.evaluate(async (vaultPath) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
-      return await api.main.startFileWatching(vaultPath);
-    }, testVaultPath);
+    console.log('✓ Graph loaded with nodes');
 
-    await appWindow.waitForTimeout(1000);
-    console.log('✓ Started file watching');
-
-    // 3. Wait for node to load in graph
+    // Wait for specific node to load in graph
     await expect.poll(async () => {
       return appWindow.evaluate((nId) => {
         const cy = (window as ExtendedWindow).cytoscapeInstance;
@@ -206,7 +235,7 @@ Some more content here.`;
       timeout: 10000
     }).toBe(true);
 
-    console.log('✓ Node loaded in graph');
+    console.log('✓ Test node loaded in graph');
 
     // Wait for node to exist in main process graph (not just cytoscape UI)
     await expect.poll(async () => {
@@ -313,39 +342,28 @@ Some more content here.`;
   test('should remove link from markdown file and graph when deleted in editor', async ({ appWindow, testVaultPath }) => {
     test.setTimeout(60000); // Increase timeout to 60s for this test (has 5s wait)
     console.log('=== Testing link removal behavior ===');
+    console.log('[Test] Vault path:', testVaultPath);
 
-    // 1. Create a test markdown file with a link
+    // Files are already created in electronApp fixture
     const testNodeId = 'test-node-remove-link.md';
     const linkedNodeId = 'target-node.md';
-
-    const initialContent = `---
----
-# Test Node
-
-This node has a link: [[${linkedNodeId}]]
-
-End of content.`;
-
     const testFilePath = path.join(testVaultPath, testNodeId);
-    await fs.writeFile(testFilePath, initialContent, 'utf-8');
-    console.log('✓ Created test file with link');
 
-    // Create the linked node too
-    const linkedFilePath = path.join(testVaultPath, linkedNodeId);
-    await fs.writeFile(linkedFilePath, '---\n---\n# Target Node\n\nTarget.', 'utf-8');
-    console.log('✓ Created target node file');
+    // Vault is auto-loaded via config - wait for graph to have nodes
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return 0;
+        return cy.nodes().length;
+      });
+    }, {
+      message: 'Waiting for graph to load nodes (auto-loaded via config)',
+      timeout: 15000
+    }).toBeGreaterThan(0);
 
-    // 2. Start watching the vault
-    await appWindow.evaluate(async (vaultPath) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
-      return await api.main.startFileWatching(vaultPath);
-    }, testVaultPath);
+    console.log('✓ Graph loaded with nodes');
 
-    await appWindow.waitForTimeout(1000);
-    console.log('✓ Started file watching');
-
-    // 3. Wait for node to load in graph
+    // Wait for specific node to load in graph
     await expect.poll(async () => {
       return appWindow.evaluate((nId) => {
         const cy = (window as ExtendedWindow).cytoscapeInstance;
@@ -357,7 +375,7 @@ End of content.`;
       timeout: 10000
     }).toBe(true);
 
-    console.log('✓ Node loaded in graph');
+    console.log('✓ Test node loaded in graph');
 
     // Wait for node to exist in main process graph (not just cytoscape UI)
     await expect.poll(async () => {

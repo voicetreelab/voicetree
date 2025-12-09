@@ -41,6 +41,27 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
       main: {
         // Graph operations
         applyGraphDeltaToDBAndMem: async () => ({ success: true }),
+        applyGraphDeltaToDBThroughMem: async (delta: GraphDelta) => {
+          // Simulate what the real implementation does: write to DB, then trigger graph update via file watcher
+          // Update mock graph state
+          delta.forEach((nodeDelta) => {
+            if (nodeDelta.type === 'UpsertNode') {
+              const node = nodeDelta.nodeToUpsert;
+              mockElectronAPI.graph._graphState.nodes[node.relativeFilePathIsID] = node;
+            } else if (nodeDelta.type === 'DeleteNode') {
+              delete mockElectronAPI.graph._graphState.nodes[nodeDelta.nodeId];
+            }
+          });
+
+          // Trigger graph update callback (simulating file watcher event)
+          if (mockElectronAPI.graph._updateCallback) {
+            // Use setTimeout to simulate async file system operation
+            setTimeout(() => {
+              mockElectronAPI.graph._updateCallback?.(delta);
+            }, 10);
+          }
+          return { success: true };
+        },
         getGraph: async () => {
           // Return the current graph state that's updated by sendGraphDelta
           return mockElectronAPI.graph._graphState;
@@ -56,6 +77,9 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
           shiftEnterSendsOptionEnter: true
         }),
         saveSettings: async () => ({ success: true }),
+
+        // Node position saving
+        saveNodePositions: async () => ({ success: true }),
 
         // File watching controls
         startFileWatching: async (dir: string) => {
@@ -172,7 +196,7 @@ export async function exposeTerminalStoreAPI(page: Page): Promise<void> {
         getTerminalId: (data: unknown) => string;
         getShadowNodeId: (id: string) => string;
       };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
     }).terminalStoreAPI = {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       addTerminal: (data: unknown) => terminalStore.addTerminal(data as any),

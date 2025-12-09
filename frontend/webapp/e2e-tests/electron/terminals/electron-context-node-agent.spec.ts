@@ -51,6 +51,17 @@ const test = base.extend<{
     // Create a temporary userData directory for this test
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-ctx-agent-test-'));
 
+    // Write the config file to auto-load the test vault
+    // Set empty suffix to use directory directly (without /voicetree subfolder)
+    const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
+    await fs.writeFile(configPath, JSON.stringify({
+      lastDirectory: FIXTURE_VAULT_PATH,
+      suffixes: {
+        [FIXTURE_VAULT_PATH]: '' // Empty suffix means use directory directly
+      }
+    }, null, 2), 'utf8');
+    console.log('[Test] Created config file to auto-load:', FIXTURE_VAULT_PATH);
+
     const electronApp = await electron.launch({
       args: [
         path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
@@ -101,7 +112,15 @@ const test = base.extend<{
     });
 
     await window.waitForLoadState('domcontentloaded');
-    await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
+
+    // Wait for cytoscape instance with retry logic
+    try {
+      await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
+    } catch (error) {
+      console.error('Failed to initialize cytoscape instance:', error);
+      throw error;
+    }
+
     await window.waitForTimeout(1000);
 
     await use(window);
@@ -116,42 +135,53 @@ test.describe('Context Node Agent Terminal E2E', () => {
     // Define the agent command - uses -p flag to output to stdout
     const agentCommand = 'claude --dangerously-skip-permissions -p --append-system-prompt-file "$CONTEXT_NODE_PATH" "Search your context for \'SECRET_E2E_NEEDLE:\'. Return ONLY the value after the colon, nothing else."';
 
-    await appWindow.evaluate(async (cmd) => {
+    await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
 
-      // Save settings (for completeness, though we pass command directly to spawn)
-      const settings = {
-        agentCommand: cmd,
+      // Get current settings and update them
+      const currentSettings = await api.main.loadSettings();
+      const updatedSettings = {
+        ...currentSettings,
         terminalSpawnPathRelativeToWatchedDirectory: '../' // Launch from parent of watched directory
       };
-      await api.main.saveSettings(settings);
-    }, agentCommand);
+      await api.main.saveSettings(updatedSettings);
+    });
     console.log('✓ Agent command configured:', agentCommand);
 
-    console.log('=== STEP 2: Load the test vault (example_small) ===');
-    const watchResult = await appWindow.evaluate(async (vaultPath) => {
+    console.log('=== STEP 2: Wait for auto-load to complete (test vault: example_small) ===');
+    // The app auto-loads from config file on startup, wait for nodes to appear
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return 0;
+        return cy.nodes().length;
+      });
+    }, {
+      message: 'Waiting for graph to auto-load nodes',
+      timeout: 15000,
+      intervals: [500, 1000, 1000]
+    }).toBeGreaterThan(0);
+
+    console.log('✓ Graph auto-loaded with nodes');
+
+    console.log('=== STEP 2b: Wait for auto-load to fully complete ===');
+    // Give the auto-load process extra time to finish (like smoke test does)
+    await appWindow.waitForTimeout(1000);
+
+    console.log('=== STEP 2c: Verify graph loaded in main process state ===');
+    const graphInMainProcess = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.main.startFileWatching(vaultPath);
-    }, FIXTURE_VAULT_PATH);
-
-    expect(watchResult.success).toBe(true);
-    console.log('✓ File watching started');
-
-    // Wait for initial scan
-    await appWindow.waitForTimeout(3000);
-
-    console.log('=== STEP 3: Get watch status to determine context node path ===');
-    const watchStatus = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
-      return await api.main.getWatchStatus();
+      return await api.main.getGraph();
     });
 
-    expect(watchStatus.isWatching).toBe(true);
-    expect(watchStatus.directory).toBeTruthy();
-    const watchDir = watchStatus.directory!;
+    const mainProcessNodeCount = Object.keys(graphInMainProcess.nodes).length;
+    console.log(`✓ Main process graph has ${mainProcessNodeCount} nodes`);
+    expect(mainProcessNodeCount).toBeGreaterThan(0);
+
+    console.log('=== STEP 3: Verify watch directory (auto-loaded from config) ===');
+    const watchDir = FIXTURE_VAULT_PATH;
     console.log(`✓ Watch directory: ${watchDir}`);
 
     console.log('=== STEP 4: Create context node from Node 5 ===');
@@ -171,7 +201,35 @@ test.describe('Context Node Agent Terminal E2E', () => {
     console.log('=== STEP 4b: Verify context node file contains needle from ancestor ===');
     // This verifies the context aggregation logic works - Node 3 content should be included
     const contextFilePath = path.join(watchDir, contextNodeId);
-    const contextFileContent = await fs.readFile(contextFilePath, 'utf-8');
+
+    // Wait for context node file to be written (with retry)
+    // The file write happens asynchronously after createContextNode returns
+    let contextFileContent = '';
+    let attempts = 0;
+    const maxAttempts = 20; // Increased from 10
+    while (attempts < maxAttempts) {
+      try {
+        contextFileContent = await fs.readFile(contextFilePath, 'utf-8');
+        console.log(`✓ Context node file found (attempt ${attempts + 1})`);
+        break;
+      } catch (_error) {
+        attempts++;
+        if (attempts >= maxAttempts) {
+          // Log directory contents to help debug
+          const ctxNodesDir = path.join(watchDir, 'ctx-nodes');
+          try {
+            const files = await fs.readdir(ctxNodesDir);
+            console.log(`Files in ctx-nodes directory: ${files.join(', ')}`);
+          } catch {
+            console.log('ctx-nodes directory does not exist');
+          }
+          throw new Error(`Context node file not created after ${maxAttempts} attempts (${maxAttempts * 500}ms): ${contextFilePath}`);
+        }
+        console.log(`Waiting for context node file (attempt ${attempts}/${maxAttempts})...`);
+        await appWindow.waitForTimeout(500);
+      }
+    }
+
     expect(contextFileContent).toContain('SECRET_E2E_NEEDLE: VOICETREE_CTX_12345');
     console.log('✓ Verified context node file contains needle from Node 3 ancestor');
 
@@ -241,12 +299,18 @@ test.describe('Context Node Agent Terminal E2E', () => {
           try {
             console.log(`[Test] Context node absolute path: ${ctxNodePath}`);
 
+            // TerminalData requires the full type structure per types.ts
             const spawnResult = await api.terminal.spawn({
+              type: 'Terminal' as const,
               attachedToNodeId: ctxNodeId,
               terminalCount: 0,
+              title: 'Agent Terminal',
+              anchoredToNodeId: { _tag: 'None' } as { _tag: 'None' }, // fp-ts Option.none
+              shadowNodeDimensions: { width: 600, height: 400 },
+              resizable: true,
               initialCommand: command,
               executeCommand: true,
-              initial_spawn_directory: spawnDir,
+              initialSpawnDirectory: spawnDir, // Correct field name (camelCase)
               initialEnvVars: {
                 CONTEXT_NODE_PATH: ctxNodePath
               }

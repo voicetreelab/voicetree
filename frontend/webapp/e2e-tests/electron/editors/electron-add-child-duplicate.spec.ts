@@ -25,32 +25,36 @@ const test = base.extend<{
   appWindow: Page;
   testVaultPath: string;
 }>({
-  testVaultPath: async ({}, use) => {
-    // Create a temporary directory for this test
-    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-test-'));
+  // Create temp userData directory with embedded vault + config
+  // The config auto-loads the vault during app initialization
+  // IMPORTANT: Files must be in {watchedFolder}/voicetree/ due to default vaultSuffix
+  electronApp: async ({}, use, testInfo) => {
+    const PROJECT_ROOT = path.resolve(process.cwd());
+
+    // Create temp userData directory
+    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-add-child-test-'));
+
+    // Create the watched folder (what config points to)
+    const watchedFolder = path.join(tempUserDataPath, 'test-vault');
+    await fs.mkdir(watchedFolder, { recursive: true });
+
+    // Create the actual vault path with default suffix 'voicetree'
+    // The app looks for .md files in {watchedFolder}/voicetree/
+    const vaultPath = path.join(watchedFolder, 'voicetree');
+    await fs.mkdir(vaultPath, { recursive: true });
 
     // Create a simple parent node
     const parentContent = '# Parent GraphNode\n\nThis is the parent.';
-    await fs.writeFile(path.join(tmpDir, 'parent.md'), parentContent, 'utf-8');
+    await fs.writeFile(path.join(vaultPath, 'parent.md'), parentContent, 'utf-8');
 
-    console.log('[Test] Created test vault at:', tmpDir);
+    // Write config to auto-load the watched folder (vault = watchedFolder + 'voicetree')
+    const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
+    await fs.writeFile(configPath, JSON.stringify({ lastDirectory: watchedFolder }, null, 2), 'utf8');
+    console.log('[Test] Watched folder:', watchedFolder);
+    console.log('[Test] Vault path (with suffix):', vaultPath);
 
-    await use(tmpDir);
-
-    // Cleanup
-    try {
-      await fs.rm(tmpDir, { recursive: true, force: true });
-      console.log('[Test] Cleaned up test vault');
-    } catch (error) {
-      console.error('[Test] Failed to cleanup test vault:', error);
-    }
-  },
-
-  electronApp: async ({ testVaultPath: _testVaultPath }, use) => {
-    const PROJECT_ROOT = path.resolve(process.cwd());
-
-    // Create a temporary userData directory for test isolation
-    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-add-child-test-'));
+    // Store vaultPath for test access via testInfo (the actual path where .md files live)
+    (testInfo as unknown as { vaultPath: string }).vaultPath = vaultPath;
 
     const electronApp = await electron.launch({
       args: [
@@ -85,8 +89,15 @@ const test = base.extend<{
     await electronApp.close();
     console.log('[Test] Electron app closed');
 
-    // Cleanup temp directory
+    // Cleanup entire temp directory (includes vault)
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
+    console.log('[Test] Cleaned up temp directory');
+  },
+
+  // Get vault path from testInfo (set by electronApp fixture)
+  testVaultPath: async ({}, use, testInfo) => {
+    // Wait for electronApp fixture to set vaultPath
+    await use((testInfo as unknown as { vaultPath: string }).vaultPath);
   },
 
   appWindow: async ({ electronApp }, use) => {
@@ -121,7 +132,7 @@ const test = base.extend<{
     }
 
     await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 20000 });
-    await window.waitForTimeout(100);
+    await window.waitForTimeout(500); // Give extra time for auto-load to complete
 
     await use(window);
   }
@@ -131,19 +142,22 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
   test('should only create ONE node when adding child via context menu', async ({ appWindow, testVaultPath }) => {
     test.setTimeout(90000);
     console.log('=== Testing add child node duplicate bug ===');
+    console.log('[Test] Vault path:', testVaultPath);
 
-    // Start watching the test vault
-    const watchResult = await appWindow.evaluate(async (vaultPath) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
-      return await api.main.startFileWatching(vaultPath);
-    }, testVaultPath);
+    // Vault is auto-loaded via config - wait for graph to have nodes
+    // The appWindow fixture already waits for cytoscapeInstance, but we need nodes loaded too
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return 0;
+        return cy.nodes().length;
+      });
+    }, {
+      message: 'Waiting for graph to load nodes (auto-loaded via config)',
+      timeout: 15000
+    }).toBeGreaterThan(0);
 
-    expect(watchResult.success).toBe(true);
-    console.log('[Test] File watching started successfully');
-
-    // Wait for files to load
-    await appWindow.waitForTimeout(1000);
+    console.log('[Test] Graph loaded with nodes');
 
     // Get initial state
     const initialState = await appWindow.evaluate(() => {
@@ -223,11 +237,13 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
       const graphDelta = [
         {
           type: 'UpsertNode' as const,
-          nodeToUpsert: newNode
+          nodeToUpsert: newNode,
+          previousNode: { _tag: 'None' } as const
         },
         {
           type: 'UpsertNode' as const,
-          nodeToUpsert: updatedParent
+          nodeToUpsert: updatedParent,
+          previousNode: { _tag: 'Some', value: parentNode } as const
         }
       ];
 

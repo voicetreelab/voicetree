@@ -170,7 +170,8 @@ test.describe('Editor Cmd+Enter Hotkey (Browser)', () => {
     // Now we have two editors - click in the first one (node A)
     const editors = page.locator('.cy-floating-window');
     const firstEditor = editors.first();
-    await firstEditor.click();
+    const firstEditorContent = firstEditor.locator('.cm-content');
+    await firstEditorContent.click();
     await page.waitForTimeout(100);
 
     // Verify node A is selected
@@ -185,7 +186,8 @@ test.describe('Editor Cmd+Enter Hotkey (Browser)', () => {
 
     // Click in the second editor (node B)
     const secondEditor = editors.last();
-    await secondEditor.click();
+    const secondEditorContent = secondEditor.locator('.cm-content');
+    await secondEditorContent.click();
     await page.waitForTimeout(100);
 
     // Verify node B is now selected (and A is not)
