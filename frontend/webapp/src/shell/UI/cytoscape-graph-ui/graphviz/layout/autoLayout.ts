@@ -33,7 +33,8 @@ function capturePositions(cy: Core): PositionMap {
 }
 
 /**
- * Finds the top N nodes with highest displacement between two position snapshots
+ * Finds the top N nodes with highest displacement between two position snapshots.
+ * Complexity: O(N log N) due to sorting. Could be optimized to O(N) using quickselect.
  */
 function findTopNDisplaced(
   before: PositionMap,
@@ -65,6 +66,7 @@ function findTopNDisplaced(
 /**
  * Finds the closest N nodes to any of the seed nodes by Euclidean distance.
  * This catches nearby disconnected components that BFS would miss.
+ * Complexity: O(N log N) due to sorting. Could be optimized to O(N) using quickselect.
  */
 function getClosestNodesByEuclidean(
   cy: Core,
@@ -161,7 +163,7 @@ const DEFAULT_OPTIONS: AutoLayoutOptions = {
   avoidOverlap: true,
   nodeSpacing: 20,
   handleDisconnected: true,
-  convergenceThreshold: 10,
+  convergenceThreshold: 1,
   // These are now overridden per-phase in the two-phase algorithm
   unconstrIter: TWO_PHASE_CONFIG.phase1.unconstrIter,
   userConstIter: TWO_PHASE_CONFIG.phase1.userConstIter,
@@ -262,8 +264,8 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
           )
         : 0;
 
-      // Skip Phase 2 if displacement is below threshold or graph is too small
-      if (maxDisplacement < TWO_PHASE_CONFIG.minDisplacementThreshold || nodeCount <= TWO_PHASE_CONFIG.neighborhoodSize) {
+      // Skip Phase 2 if displacement is below threshold
+      if (maxDisplacement < TWO_PHASE_CONFIG.minDisplacementThreshold) {
         console.log('[AutoLayout] Phase 1 sufficient (displacement:', maxDisplacement.toFixed(1), 'px)');
         finishLayout();
         return;

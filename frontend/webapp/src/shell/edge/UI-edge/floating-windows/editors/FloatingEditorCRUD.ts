@@ -7,8 +7,8 @@
  * - addEditor, removeEditor, getEditorByNodeId, getHoverEditor from UIAppState.ts
  *
  * Feedback loop prevention:
- * - Editor write path (user typing): modifyNodeContentFromUI passes deltaSourceFromEditor=true,
- *   which skips broadcasting back to UI, so updateFloatingEditors is never called for our own changes
+ * - Editor write path (user typing): broadcasts delta for graph UI (edges), but
+ *   updateFloatingEditors uses awaiting store to skip re-saving own content
  * - External update path (FS/UI changes): updateFloatingEditors sets awaiting before setValue,
  *   onChange checks awaiting to skip re-saving content that came from setValue
  */
@@ -129,7 +129,8 @@ export async function createFloatingEditor(
             }
 
             console.log('[createFloatingEditor-v2] Saving editor content for node:', nodeId);
-            // modifyNodeContentFromUI passes deltaSourceFromEditor=true, so no broadcast back to us
+            // Mark this content as awaiting to prevent feedback loop when broadcast comes back
+            setAwaitingUISavedContent(nodeId, newContent);
             await modifyNodeContentFromUI(nodeId, newContent, cy);
         })();
     });

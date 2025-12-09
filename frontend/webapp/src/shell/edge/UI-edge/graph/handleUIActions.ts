@@ -110,8 +110,8 @@ export async function modifyNodeContentFromUI(
         previousNode: upsertAction.previousNode  // Preserve previousNode from the delta
     }];
 
-    // deltaSourceFromEditor=true prevents feedback loop back to the editor that made this change
-    await window.electronAPI?.main.applyGraphDeltaToDBThroughMem(graphDelta, true, true);
+    // Editor path: MEM + GraphUI + FS, editors updated via broadcast but deduplication prevents loop
+    await window.electronAPI?.main.applyGraphDeltaToDBThroughMem(graphDelta);
 }
 
 /**

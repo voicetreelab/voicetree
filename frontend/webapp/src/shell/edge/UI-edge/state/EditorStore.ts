@@ -42,13 +42,21 @@ export function getHoverEditor(): Option<EditorData> {
 }
 
 /**
- * Tracks content set by updateFloatingEditors before calling setValue.
- * This prevents the onChange handler from re-saving content that came from external updates.
+ * Tracks content that the editor is expecting to receive back via broadcast.
+ * This prevents feedback loops when editor changes are broadcast back.
  *
- * Flow: External change -> updateFloatingEditors(set awaiting) -> setValue -> onChange(skip save, clear awaiting)
+ * Editor write path flow:
+ *   1. User types -> onChange fires
+ *   2. setAwaitingUISavedContent(content) - mark what we're about to save
+ *   3. modifyNodeContentFromUI -> broadcasts delta
+ *   4. Delta comes back -> updateFloatingEditors called
+ *   5. getAwaitingContent matches -> skip setValue, clear awaiting
  *
- * Note: Editor write path no longer uses awaiting - modifyNodeContentFromUI passes
- * deltaSourceFromEditor=true which skips broadcasting back to UI entirely.
+ * External update flow:
+ *   1. FS/UI change -> delta broadcast
+ *   2. updateFloatingEditors -> setAwaitingUISavedContent (before setValue)
+ *   3. setValue -> onChange fires
+ *   4. getAwaitingContent matches -> skip re-save, clear awaiting
  */
 const editorAwaitingStore: RecentActionStore = createRecentActionStore();
 
