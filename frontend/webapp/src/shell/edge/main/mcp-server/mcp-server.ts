@@ -67,7 +67,7 @@ export function createMcpServer(): McpServer {
             }
         },
         async ({nodeId, content, parentNodeId}) => {
-            // Get vault path
+            // Get vault path (where files are stored)
             const vaultPathOpt: O.Option<string> = getVaultPath()
             if (O.isNone(vaultPathOpt)) {
                 return {
@@ -90,7 +90,7 @@ export function createMcpServer(): McpServer {
                 markdownContent = `${content}\n\n-----------------\n_Links:_\nParent:\n- child_of [[${parentNodeId}]]\n`
             }
 
-            // Create FSUpdate event
+            // Create FSUpdate event - absolutePath uses vaultPath
             const absolutePath: string = `${vaultPath}/${nodeId}.md`
             const fsEvent: FSUpdate = {
                 absolutePath,
@@ -98,7 +98,7 @@ export function createMcpServer(): McpServer {
                 eventType: 'Added'
             }
 
-            // Apply to graph using pure function
+            // Apply to graph using pure function - pass vaultPath for node ID computation
             const currentGraph: Graph = getGraph()
             const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, vaultPath, currentGraph)
 

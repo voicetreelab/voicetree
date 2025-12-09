@@ -15,7 +15,7 @@ describe('apply_graph_deltas_to_db', () => {
 
   // Mock environment for testing
   const testEnv: Env = {
-    vaultPath: testVaultPath
+    watchedDirectory: testVaultPath
   }
 
   // Create test vault directory before all tests
@@ -70,7 +70,7 @@ describe('apply_graph_deltas_to_db', () => {
       expect(fileContent).toBe('---\nisContextNode: false\n---\n# New Node\n\nThis is content')
 
       // Verify we can load it back from disk
-      const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(testVaultPath))
+      const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(testVaultPath), O.none)
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(loadResult)) throw new Error('Expected Right')
       const graph: Graph = loadResult.right
@@ -94,7 +94,7 @@ describe('apply_graph_deltas_to_db', () => {
       expect(E.isRight(result)).toBe(true)
 
       // Load from disk and verify title
-      const loadResult2: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(testVaultPath))
+      const loadResult2: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(testVaultPath), O.none)
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(loadResult2)) throw new Error('Expected Right')
       const graph: Graph = loadResult2.right
@@ -118,7 +118,7 @@ describe('apply_graph_deltas_to_db', () => {
       expect(E.isRight(result)).toBe(true)
 
       // Load from disk and verify title
-      const loadResult3: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(testVaultPath))
+      const loadResult3: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(testVaultPath), O.none)
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(loadResult3)) throw new Error('Expected Right')
       const graph: Graph = loadResult3.right
@@ -181,7 +181,7 @@ describe('apply_graph_deltas_to_db', () => {
       expect(fileContent).toBe('---\nisContextNode: false\n---\n# Updated Title\n\nNew content')
 
       // Load from disk and verify
-      const loadResult4: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(testVaultPath))
+      const loadResult4: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(testVaultPath), O.none)
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(loadResult4)) throw new Error('Expected Right')
       const graph: Graph = loadResult4.right
@@ -216,7 +216,7 @@ describe('apply_graph_deltas_to_db', () => {
       expect(E.isRight(result)).toBe(true)
 
       // Load from disk and verify ID is preserved
-      const loadResult5: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(testVaultPath))
+      const loadResult5: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(testVaultPath), O.none)
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(loadResult5)) throw new Error('Expected Right')
       const graph: Graph = loadResult5.right
@@ -257,7 +257,7 @@ describe('apply_graph_deltas_to_db', () => {
       expect(existsAfter).toBe(false)
 
       // Verify it's not in the graph when loaded from disk
-      const loadResult6: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(testVaultPath))
+      const loadResult6: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(testVaultPath), O.none)
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(loadResult6)) throw new Error('Expected Right')
       const graph: Graph = loadResult6.right
@@ -351,11 +351,11 @@ describe('apply_graph_deltas_to_db', () => {
 
       // Test with different environments
       const env1: Env = {
-        vaultPath: vault1Path
+        watchedDirectory: vault1Path
       }
 
       const env2: Env = {
-        vaultPath: vault2Path
+        watchedDirectory: vault2Path
       }
 
       const newNode: GraphNode = createTestNode('test', '# Test')

@@ -270,8 +270,8 @@ describe('Folder Loading - Integration Tests', () => {
       // Node IDs now include .md extension
       expect(testNode.outgoingEdges.some((e: Edge) => e.targetId.includes('5_Immediate_Test_Observation_No_Output'))).toBe(true)
 
-      // Verify broadcasts were sent (graph:stateChanged + ui:call)
-      expect(broadcastCalls.length).toBe(2)
+      // Verify broadcast was sent (graph:stateChanged)
+      expect(broadcastCalls.length).toBe(1)
       const addBroadcast: BroadcastCall | undefined = broadcastCalls.find(call =>
         call.channel === 'graph:stateChanged' && call.delta.some(d => d.type === 'UpsertNode' && d.nodeToUpsert.relativeFilePathIsID === 'test-new-file.md')
       )
@@ -296,8 +296,8 @@ describe('Folder Loading - Integration Tests', () => {
       expect(graphAfterDelete.nodes['test-new-file.md']).toBeUndefined()
       expect(Object.keys(graphAfterDelete.nodes).length).toBe(EXPECTED_SMALL_NODE_COUNT)
 
-      // Verify broadcasts were sent (graph:stateChanged + ui:call)
-      expect(broadcastCalls.length).toBe(2)
+      // Verify broadcast was sent (graph:stateChanged)
+      expect(broadcastCalls.length).toBe(1)
       const deleteBroadcast: BroadcastCall | undefined = broadcastCalls.find(call =>
         call.channel === 'graph:stateChanged' && call.delta.some(d => d.type === 'DeleteNode' && d.nodeId === 'test-new-file.md')
       )
@@ -387,11 +387,9 @@ describe('Folder Loading - Integration Tests', () => {
       expect(graph.nodes['test-new-file.md']).toBeDefined()
       expect(graph.nodes['test-new-file.md'].contentWithoutYamlOrLinks).toBe(newFileContent)
 
-      // AND: Broadcasts should have been sent
-      // Two messages are sent: 1) graph:stateChanged, 2) ui:call for updateFloatingEditorsFromExternal
-      expect(broadcastCalls.length).toBe(2)
+      // AND: Broadcast should have been sent (graph:stateChanged)
+      expect(broadcastCalls.length).toBe(1)
       expect(broadcastCalls[0].channel).toBe('graph:stateChanged')
-      expect(broadcastCalls[1].channel).toBe('ui:call')
 
       // Verify the delta contains UpsertNode action
       const addDelta: UpsertNodeDelta | undefined = broadcastCalls[0].delta.find(d => d.type === 'UpsertNode')
@@ -406,18 +404,16 @@ describe('Folder Loading - Integration Tests', () => {
         absolutePath: newFilePath
       }
 
-       
+
       handleFSEventWithStateAndUISides(deleteEvent, EXAMPLE_SMALL_PATH, mockMainWindow as unknown as BrowserWindow)
 
       // THEN: GraphNode should be removed from graph
       const graphAfterDelete: Graph = getGraph()
       expect(graphAfterDelete.nodes['test-new-file.md']).toBeUndefined()
 
-      // AND: Broadcasts should have been sent
-      // Two messages are sent: 1) graph:stateChanged, 2) ui:call for updateFloatingEditorsFromExternal
-      expect(broadcastCalls.length).toBe(2)
+      // AND: Broadcast should have been sent (graph:stateChanged)
+      expect(broadcastCalls.length).toBe(1)
       expect(broadcastCalls[0].channel).toBe('graph:stateChanged')
-      expect(broadcastCalls[1].channel).toBe('ui:call')
 
       // Verify the delta contains DeleteNode action
       const deleteDelta: DeleteNode | undefined = broadcastCalls[0].delta.find(d => d.type === 'DeleteNode')
@@ -522,7 +518,8 @@ describe('Folder Loading - Integration Tests', () => {
       expect(Object.keys(graph.nodes).length).toBe(EXPECTED_SMALL_NODE_COUNT)
 
       // AND: The bad YAML file should be present
-      const badYamlNode: GraphNode = graph.nodes['7_Bad_YAML_Frontmatter_Test.md']
+      // Node IDs are now relative to watchedDirectory (EXAMPLE_SMALL_PATH), so include voicetree/ prefix
+      const badYamlNode: GraphNode = graph.nodes['voicetree/7_Bad_YAML_Frontmatter_Test.md']
       expect(badYamlNode).toBeDefined()
 
       // AND: Should have content (not skipped due to parse error)

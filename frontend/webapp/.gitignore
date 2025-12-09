@@ -12,3 +12,5 @@ src/fixtures/example_real_large/**/*
 .env.local
 /backups/**/*
 /SSE/**/*
+/feature_editor_race/**/*
+/monday/**/*

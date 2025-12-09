@@ -62,7 +62,7 @@ function writeNodeToFile(node: GraphNode): FSWriteEffect<void> {
         async () => {
             const markdown: string = fromNodeToMarkdownContent(node)
             const filename: string = nodeIdToFilePathWithExtension(node.relativeFilePathIsID)
-            const fullPath: string = path.join(env.vaultPath, filename)
+            const fullPath: string = path.join(env.watchedDirectory, filename)
 
             // Ensure parent directory exists
             await fs.mkdir(path.dirname(fullPath), { recursive: true })
@@ -84,7 +84,7 @@ function deleteNodeFile(nodeId: NodeIdAndFilePath): FSWriteEffect<void> {
     return (env: Env) => TE.tryCatch(
         async () => {
             const filename: string = nodeIdToFilePathWithExtension(nodeId)
-            const fullPath: string = path.join(env.vaultPath, filename)
+            const fullPath: string = path.join(env.watchedDirectory, filename)
 
             // Track this delete BEFORE fs.unlink to prevent race condition
             markFileDeleted(fullPath)

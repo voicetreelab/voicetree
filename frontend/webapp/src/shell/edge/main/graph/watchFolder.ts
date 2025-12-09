@@ -139,7 +139,8 @@ export async function loadFolder(watchedFolderPath: FilePath, suffixOverride?: s
     await fs.mkdir(vaultPath, { recursive: true });
 
     // Load graph from disk (IO operation)
-    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(vaultPath));
+    // Pass both vaultPath (where to scan) and watchedFolderPath (base for node IDs)
+    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(vaultPath), O.some(watchedFolderPath));
 
     // Exit early if file limit exceeded
     if (E.isLeft(loadResult)) {
@@ -165,8 +166,8 @@ export async function loadFolder(watchedFolderPath: FilePath, suffixOverride?: s
     broadcastGraphDelta(graphDelta)
     console.log('[loadFolder] Graph delta broadcast to UI-edge');
 
-    // Setup file watcher
-    await setupWatcher(vaultPath);
+    // Setup file watcher - pass both vaultPath (what to watch) and watchedFolderPath (base for node IDs)
+    await setupWatcher(vaultPath, watchedFolderPath);
     console.log('[loadFolder] File watcher setup complete');
 
     // Save as last directory for auto-start on next launch
@@ -208,15 +209,15 @@ async function readFileWithRetry(filePath: string, maxRetries = 3, delay = 100):
     return attemptRead(1);
 }
 
-async function setupWatcher(vaultPath: FilePath): Promise<void> {
+async function setupWatcher(vaultPath: FilePath, watchedDir: FilePath): Promise<void> {
     // Close old watcher if it exists
     if (watcher) {
         await watcher.close();
         watcher = null;
     }
 
-    // remember vaultPAth isi {loaded_dir}/voicetree
-    //
+    // vaultPath is {loaded_dir}/voicetree (where files are)
+    // watchedDir is {loaded_dir} (base for node IDs)
 
     // Create new watcher
     watcher = chokidar.watch(vaultPath, {
@@ -246,12 +247,10 @@ async function setupWatcher(vaultPath: FilePath): Promise<void> {
     });
 
     // Setup event handlers for file changes
-    setupWatcherListeners(vaultPath);
-
-
+    setupWatcherListeners(watchedDir);
 }
 
-function setupWatcherListeners(vaultPath: FilePath): void {
+function setupWatcherListeners(watchedDir: FilePath): void {
     if (!watcher) return;
 
     const mainWindow: Electron.CrossProcessExports.BrowserWindow | null = getMainWindow();
@@ -268,7 +267,8 @@ function setupWatcherListeners(vaultPath: FilePath): void {
                 };
 
                 // Handle FS event: compute delta, update state, broadcast to UI-edge
-                handleFSEventWithStateAndUISides(fsUpdate, vaultPath, mainWindow);
+                // Pass watchedDir so node IDs are relative to watched directory
+                handleFSEventWithStateAndUISides(fsUpdate, watchedDir, mainWindow);
             })
             .catch(error => {
                 console.error(`Error handling file add ${filePath}:`, error);
@@ -286,7 +286,7 @@ function setupWatcherListeners(vaultPath: FilePath): void {
                 };
 
                 // Handle FS event: compute delta, update state, broadcast to UI-edge
-                handleFSEventWithStateAndUISides(fsUpdate, vaultPath, mainWindow);
+                handleFSEventWithStateAndUISides(fsUpdate, watchedDir, mainWindow);
             })
             .catch(error => {
                 console.error(`Error handling file change ${filePath}:`, error);
@@ -301,7 +301,7 @@ function setupWatcherListeners(vaultPath: FilePath): void {
         };
 
         // Handle FS event: compute delta, update state, broadcast to UI-edge
-        handleFSEventWithStateAndUISides(fsDelete, vaultPath, mainWindow);
+        handleFSEventWithStateAndUISides(fsDelete, watchedDir, mainWindow);
     });
 
     // Watch error

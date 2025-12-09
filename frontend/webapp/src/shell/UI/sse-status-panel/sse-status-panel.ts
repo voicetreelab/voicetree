@@ -238,7 +238,10 @@ export class SseStatusPanel {
     }
 
     private scrollToNewest(): void {
-        this.eventsContainer.scrollLeft = this.eventsContainer.scrollWidth;
+        // Defer scroll until after layout calculation is complete
+        requestAnimationFrame(() => {
+            this.eventsContainer.scrollLeft = this.eventsContainer.scrollWidth;
+        });
     }
 
     dispose(): void {

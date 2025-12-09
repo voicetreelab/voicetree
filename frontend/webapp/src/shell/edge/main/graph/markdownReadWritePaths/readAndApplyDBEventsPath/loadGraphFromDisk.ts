@@ -24,19 +24,26 @@ import { applyGraphDeltaToGraph } from '@/pure/graph/graphDelta/applyGraphDeltaT
  *
  * Key property: Loading [A,B,C] produces same result as [C,B,A] (order-independent)
  *
- * @param vaultPath - Absolute path to the vault directory containing markdown files
+ * @param vaultPath - Absolute path to the vault directory containing markdown files (used for scanning)
+ * @param watchedDirectory - Absolute path used as base for computing node IDs. If None, falls back to vaultPath.
  * @returns Promise that resolves to a Graph
  *
  * @example
  * ```typescript
- * const graph = await loadGraphFromDisk(O.some('/path/to/vault'))
+ * const graph = await loadGraphFromDisk(O.some('/path/to/vault'), O.some('/path/to'))
  * console.log(`Loaded ${Object.keys(graph.nodes).length} nodes`)
  * ```
  */
-export async function loadGraphFromDisk(vaultPath: O.Option<string>): Promise<E.Either<FileLimitExceededError, Graph>> {
+export async function loadGraphFromDisk(
+    vaultPath: O.Option<string>,
+    watchedDirectory: O.Option<string>
+): Promise<E.Either<FileLimitExceededError, Graph>> {
     if (O.isNone(vaultPath)) {
         return E.right({ nodes: {} });
     }
+
+    // Determine base directory for node ID computation (fall back to vaultPath if watchedDirectory is None)
+    const basePathForNodeIds: string = O.isSome(watchedDirectory) ? watchedDirectory.value : vaultPath.value
 
     // Step 1: Scan directory for markdown files
     const files: readonly string[] = await scanMarkdownFiles(vaultPath.value)
@@ -62,7 +69,7 @@ export async function loadGraphFromDisk(vaultPath: O.Option<string>): Promise<E.
             }
 
             // Use unified function (same as incremental!)
-            const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, vaultPath.value, currentGraph)
+            const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, basePathForNodeIds, currentGraph)
             return applyGraphDeltaToGraph(currentGraph, delta)
         },
         Promise.resolve({ nodes: {} } as Graph)
