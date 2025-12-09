@@ -7,7 +7,8 @@ import {getVaultPath} from '@/shell/edge/main/graph/watchFolder'
 import {recordUserActionAndSetDeltaHistoryState} from '@/shell/edge/main/state/undo-store'
 import type {Either} from "fp-ts/es6/Either";
 import {
-    applyGraphDeltaToMemStateAndUI
+    applyGraphDeltaToMemState,
+    broadcastGraphDelta
 } from "@/shell/edge/main/graph/markdownReadWritePaths/applyGraphDeltaToMemStateAndUI";
 
 /**
@@ -18,37 +19,31 @@ import {
  * 2. Constructs the Env
  * 3. Executes the pure core effect
  * 4. Unwraps the Either result (fail fast)
- * 5. Updates in-memory state and notifies UI
+ * 5. Updates in-memory state and broadcasts to UI
  *
  * Per architecture: Pure core returns effects, impure shell executes them.
- * We update the UI immediately to avoid waiting for file watcher events.
+ * We update MEM + broadcast immediately to avoid waiting for file watcher events.
  */
 export async function applyGraphDeltaToDBThroughMem(
     delta: GraphDelta,
-    recordForUndo: boolean = true,
-    deltaSourceFromEditor: boolean = false
+    recordForUndo: boolean = true
 ): Promise<void> {
     // Record for undo BEFORE applying (so we can reverse from current state)
     if (recordForUndo) {
         recordUserActionAndSetDeltaHistoryState(delta)
     }
 
-    // DO NOT Notify UI of the change here (fs events will do it)
-    // and most paths would have done optimistic ui updates already.
-    // it would cause bugs to send a graph-state change, as we haven't yet made it idempotent for markdown editors
+    // Update in-memory state
+    applyGraphDeltaToMemState(delta)
 
-    // However, do update in-memory state (purposefully unnecessary, fs events do the same, but latency)
-    // setGraph(applyGraphDeltaToGraph(getGraph(), delta))
-    // todo, i undisabled this, bc it broke spawnTerminalWithCommandFromUI which assumed node already in mem ( no wait req'd)
-    // todo, disabling this because it can introduce bugs and complexity
-    // for example, if a new node is created from ui, optimistic ui, and gets written to mem
-    // then, when fs event comes thru it won't be a new node delta (already exists)
-    // but the original new node delta, was never extracted from recent deltas
-    // bc the original delta was in th
-    // etc etc...
-    // just ensure one path...
-
-    applyGraphDeltaToMemStateAndUI(delta, deltaSourceFromEditor)
+    // Broadcast to UI - this triggers graph UI updates (cytoscape nodes/edges)
+    // The renderer's VoiceTreeGraphView.handleGraphDelta calls both:
+    // - applyGraphDeltaToUI (cytoscape updates)
+    // - updateFloatingEditors (editor content sync)
+    //
+    // For editor-originated changes, the editor deduplication mechanism
+    // (awaitingUISavedContent) prevents feedback loops to the same editor.
+    broadcastGraphDelta(delta)
 
     // Note: FS event acknowledgement is now handled per-file in graphActionsToDBEffects.ts
     // using content hash matching instead of delta hash matching

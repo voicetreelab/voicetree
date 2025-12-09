@@ -1,20 +1,18 @@
 import type {FSEvent, GraphDelta, Graph} from "@/pure/graph";
 import {mapFSEventsToGraphDelta} from "@/pure/graph";
 import type {BrowserWindow} from "electron";
-import {applyGraphDeltaToMemStateAndUI} from "@/shell/edge/main/graph/markdownReadWritePaths/applyGraphDeltaToMemStateAndUI";
+import {applyGraphDeltaToMemState, broadcastGraphDelta} from "@/shell/edge/main/graph/markdownReadWritePaths/applyGraphDeltaToMemStateAndUI";
 import {getGraph} from "@/shell/edge/main/state/graph-store";
 import {isOurRecentWrite} from "@/shell/edge/main/state/recent-writes-store";
-// import {uiAPI} from "@/shell/edge/main/ui-api-proxy"; // DISABLED: see comment at bottom of file
 
 /**
  * Handle filesystem events by:
  * 1. Checking if this is our own recent write (skip if so)
  * 2. Computing the GraphDelta from the filesystem event
- * 3. Applying delta to graph state and UI
+ * 3. Applying delta to graph state
+ * 4. Broadcasting to UI (graph UI + floating editors)
  *
- * This is the central handler that connects:
- * - Pure layer: mapFSEventsToGraphDelta
- * - State + UI-edge layer: applyGraphDeltaToMemStateAndUI
+ * FS Event Path: FS → MEM + GraphUI + Editors
  *
  * @param fsEvent - Filesystem event (add, change, or delete)
  * @param vaultPath - Absolute path to vault
@@ -38,12 +36,9 @@ export function handleFSEventWithStateAndUISides(
     // 3. Map filesystem event to graph delta (pure)
     const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, vaultPath, currentGraph)
 
-    // 4. Apply delta to memory state and broadcast to UI
-    // This broadcasts graph:stateChanged which triggers updateFloatingEditors in VoiceTreeGraphView.ts:234
-    applyGraphDeltaToMemStateAndUI(delta)
+    // 4. Apply delta to memory state
+    applyGraphDeltaToMemState(delta)
 
-    // 5. Direct editor update - DISABLED: redundant with graph:stateChanged broadcast above
-    // The broadcast already triggers updateFloatingEditors via VoiceTreeGraphView's handleGraphDelta
-    // Keeping both would cause double updates (though deduplication prevents double setValue)
-    // uiAPI.updateFloatingEditorsFromExternal(delta)
+    // 5. Broadcast to UI - triggers both applyGraphDeltaToUI (cytoscape) and updateFloatingEditors
+    broadcastGraphDelta(delta)
 }

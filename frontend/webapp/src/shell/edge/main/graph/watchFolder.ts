@@ -13,7 +13,7 @@ import type {FSUpdate} from "@/pure/graph";
 import type {Stats} from "fs";
 import {handleFSEventWithStateAndUISides} from "@/shell/edge/main/graph/markdownReadWritePaths/readAndApplyDBEventsPath/handleFSEventWithStateAndUISides";
 import {mapNewGraphToDelta} from "@/pure/graph";
-import {applyGraphDeltaToMemStateAndUI} from "@/shell/edge/main/graph/markdownReadWritePaths/applyGraphDeltaToMemStateAndUI";
+import {applyGraphDeltaToMemState, broadcastGraphDelta} from "@/shell/edge/main/graph/markdownReadWritePaths/applyGraphDeltaToMemStateAndUI";
 import {getMainWindow} from "@/shell/edge/main/state/app-electron-state";
 import {notifyTextToTreeServerOfDirectory} from "@/shell/edge/main/graph/markdownReadWritePaths/readAndApplyDBEventsPath/notifyTextToTreeServerOfDirectory";
 import {getOnboardingDirectory} from "@/shell/edge/main/electron/onboarding-setup";
@@ -160,7 +160,9 @@ export async function loadFolder(watchedFolderPath: FilePath, suffixOverride?: s
     const graphDelta : GraphDelta = mapNewGraphToDelta(currentGraph)
     console.log('[loadFolder] Created graph delta, length:', graphDelta.length);
 
-    applyGraphDeltaToMemStateAndUI(graphDelta)
+    // Initial load: apply to memory and broadcast to UI
+    applyGraphDeltaToMemState(graphDelta)
+    broadcastGraphDelta(graphDelta)
     console.log('[loadFolder] Graph delta broadcast to UI-edge');
 
     // Setup file watcher
