@@ -68,7 +68,11 @@ export async function createNewEmptyOrphanNodeFromUI(
     pos: Position,
     _cy: Core
 ): Promise<NodeIdAndFilePath> {
-    const {newNode, graphDelta} = createNewNodeNoParent(pos);
+    // Get vault suffix so node ID includes correct path prefix
+    const watchStatus: { isWatching: boolean; directory?: string; vaultSuffix?: string } | undefined = await window.electronAPI?.main.getWatchStatus();
+    const vaultSuffix: string = watchStatus?.vaultSuffix ?? '';
+
+    const {newNode, graphDelta} = createNewNodeNoParent(pos, vaultSuffix);
 
     await window.electronAPI?.main.applyGraphDeltaToDBThroughMem(graphDelta);
 

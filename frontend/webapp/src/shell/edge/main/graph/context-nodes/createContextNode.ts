@@ -13,6 +13,7 @@ function truncateToFiveWords(title: string): string {
 }
 
 import {getGraph} from '@/shell/edge/main/state/graph-store'
+import {getWatchStatus} from '@/shell/edge/main/graph/watchFolder'
 import {getCachedSettings} from '@/shell/edge/main/state/settings-cache'
 import {DEFAULT_SETTINGS, type VTSettings} from '@/pure/settings/types'
 import {applyGraphDeltaToDBThroughMem} from '@/shell/edge/main/graph/markdownReadWritePaths/writePath/applyGraphDeltaToDBThroughMem'
@@ -64,7 +65,19 @@ export async function createContextNode(
     // 4. EDGE: Generate unique context node ID
     const timestamp: number = Date.now()
     const parentIdWithoutExtension: string = parentNodeId.replace(/\.md$/, '')
-    const contextNodeId: string = `${CONTEXT_NODES_FOLDER}/${parentIdWithoutExtension}_context_${timestamp}.md`
+    // Don't prepend ctx-nodes/ if the parent path already contains it (prevents infinite nesting)
+    // Note: nodeIds are now relative to watchedDirectory (e.g., "monday/ctx-nodes/...") not vaultPath
+    const alreadyInContextFolder: boolean = parentIdWithoutExtension.includes(`/${CONTEXT_NODES_FOLDER}/`)
+        || parentIdWithoutExtension.startsWith(`${CONTEXT_NODES_FOLDER}/`)
+
+    // Get vault suffix to properly construct context node path
+    // e.g., for parent "monday/some_node", context should be "monday/ctx-nodes/some_node_context_123.md"
+    const vaultSuffix: string = getWatchStatus().vaultSuffix
+    const contextNodeId: string = alreadyInContextFolder
+        ? `${parentIdWithoutExtension}_context_${timestamp}.md`
+        : vaultSuffix
+            ? `${vaultSuffix}/${CONTEXT_NODES_FOLDER}/${parentIdWithoutExtension.replace(`${vaultSuffix}/`, '')}_context_${timestamp}.md`
+            : `${CONTEXT_NODES_FOLDER}/${parentIdWithoutExtension}_context_${timestamp}.md`
     console.log("[createContextNode] Generated contextNodeId:", contextNodeId)
 
     // 5. EDGE: Get parent node info for context
