@@ -1,9 +1,13 @@
 import type {FSEvent, GraphDelta, Graph} from "@/pure/graph";
 import {mapFSEventsToGraphDelta} from "@/pure/graph";
 import type {BrowserWindow} from "electron";
-import {applyGraphDeltaToMemState, broadcastGraphDelta} from "@/shell/edge/main/graph/markdownReadWritePaths/applyGraphDeltaToMemStateAndUI";
 import {getGraph} from "@/shell/edge/main/state/graph-store";
 import {isOurRecentWrite} from "@/shell/edge/main/state/recent-writes-store";
+import {uiAPI} from "@/shell/edge/UI-edge/api";
+import {
+    applyGraphDeltaToMemState,
+    broadcastGraphDeltaToUI
+} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI";
 
 /**
  * Handle filesystem events by:
@@ -40,5 +44,8 @@ export function handleFSEventWithStateAndUISides(
     applyGraphDeltaToMemState(delta)
 
     // 5. Broadcast to UI - triggers both applyGraphDeltaToUI (cytoscape) and updateFloatingEditors
-    broadcastGraphDelta(delta)
+    broadcastGraphDeltaToUI(delta)
+
+    // broadcast to floating editor state
+    uiAPI.updateFloatingEditorsFromExternal(delta)
 }

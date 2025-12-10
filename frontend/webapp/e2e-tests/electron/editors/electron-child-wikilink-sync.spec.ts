@@ -252,7 +252,7 @@ test.describe('Child Node Wikilink Sync', () => {
       // This should trigger GRAPH UI CHANGE path:
       // 1. updateFloatingEditors (update parent editor with wikilink)
       // 2. applyGraphDeltaToDBThroughMem (write to FS)
-      await api.main.applyGraphDeltaToDBThroughMem(graphDelta);
+      await api.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed(graphDelta);
 
       return childId;
     });

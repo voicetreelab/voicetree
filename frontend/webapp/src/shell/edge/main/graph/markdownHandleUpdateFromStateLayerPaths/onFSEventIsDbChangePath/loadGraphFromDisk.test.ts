@@ -4,10 +4,10 @@ import * as path from 'path'
 import * as os from 'os'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
-import { loadGraphFromDisk } from '@/shell/edge/main/graph/markdownReadWritePaths/readAndApplyDBEventsPath/loadGraphFromDisk'
+import { loadGraphFromDisk } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk'
 import type { Graph, GraphNode } from '@/pure/graph'
 import { getNodeTitle } from '@/pure/graph/markdown-parsing'
-import type { FileLimitExceededError } from '@/shell/edge/main/graph/markdownReadWritePaths/readAndApplyDBEventsPath/fileLimitEnforce'
+import type { FileLimitExceededError } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce'
 
 describe('loadGraphFromDisk', () => {
   const testVaultPaths: { testVault: string; emptyVault: string; } = {

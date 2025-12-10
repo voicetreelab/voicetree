@@ -229,9 +229,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             }
             applyGraphDeltaToUI(this.cy, delta);
 
-            // Update floating editors for ALL deltas (UI actions + external FS changes)
-            // The awaiting mechanism in FloatingEditorCRUD prevents loops when editor saves its own typed content
-            updateFloatingEditors(this.cy, delta);
+            // DO NOT SEND TO EDITORS FROM HERE TO AVOID FEEDBACK LOOP
 
             // Track last created node for "fit to last node" hotkey (Space)
             const lastUpsertedNode : UpsertNodeDelta = extractRecentNodesFromDelta(delta)[0];

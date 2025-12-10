@@ -1,6 +1,6 @@
-import {loadGraphFromDisk} from "@/shell/edge/main/graph/markdownReadWritePaths/readAndApplyDBEventsPath/loadGraphFromDisk";
+import {loadGraphFromDisk} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk";
 import type {FilePath, Graph, GraphDelta, FSDelete} from "@/pure/graph";
-import type {FileLimitExceededError} from "@/shell/edge/main/graph/markdownReadWritePaths/readAndApplyDBEventsPath/fileLimitEnforce";
+import type {FileLimitExceededError} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce";
 import {setGraph} from "@/shell/edge/main/state/graph-store";
 import {app, dialog} from "electron";
 import path from "path";
@@ -11,12 +11,15 @@ import fsSync from "fs";
 import chokidar, {type FSWatcher} from "chokidar";
 import type {FSUpdate} from "@/pure/graph";
 import type {Stats} from "fs";
-import {handleFSEventWithStateAndUISides} from "@/shell/edge/main/graph/markdownReadWritePaths/readAndApplyDBEventsPath/handleFSEventWithStateAndUISides";
+import {handleFSEventWithStateAndUISides} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/handleFSEventWithStateAndUISides";
 import {mapNewGraphToDelta} from "@/pure/graph";
-import {applyGraphDeltaToMemState, broadcastGraphDelta} from "@/shell/edge/main/graph/markdownReadWritePaths/applyGraphDeltaToMemStateAndUI";
 import {getMainWindow} from "@/shell/edge/main/state/app-electron-state";
-import {notifyTextToTreeServerOfDirectory} from "@/shell/edge/main/graph/markdownReadWritePaths/readAndApplyDBEventsPath/notifyTextToTreeServerOfDirectory";
+import {notifyTextToTreeServerOfDirectory} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/notifyTextToTreeServerOfDirectory";
 import {getOnboardingDirectory} from "@/shell/edge/main/electron/onboarding-setup";
+import {
+    applyGraphDeltaToMemState,
+    broadcastGraphDeltaToUI
+} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI";
 
 // THIS FUNCTION takes absolutePath
 // returns graph
@@ -163,7 +166,7 @@ export async function loadFolder(watchedFolderPath: FilePath, suffixOverride?: s
 
     // Initial load: apply to memory and broadcast to UI
     applyGraphDeltaToMemState(graphDelta)
-    broadcastGraphDelta(graphDelta)
+    broadcastGraphDeltaToUI(graphDelta)
     console.log('[loadFolder] Graph delta broadcast to UI-edge');
 
     // Setup file watcher - pass both vaultPath (what to watch) and watchedFolderPath (base for node IDs)

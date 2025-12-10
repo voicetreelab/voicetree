@@ -39,5 +39,5 @@ export async function mergeSelectedNodesFromUI(
     // applyGraphDeltaToUI(cy, graphDelta);
 
     // Persist to backend
-    await window.electronAPI?.main.applyGraphDeltaToDBThroughMem(graphDelta);
+    await window.electronAPI?.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed(graphDelta);
 }

@@ -22,8 +22,10 @@ import {addNodeToGraphWithEdgeHealingFromFSEvent} from '@/pure/graph/graphDelta/
 import {getNodeTitle} from '@/pure/graph/markdown-parsing'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getVaultPath, setVaultPath, getWatchedDirectory} from '@/shell/edge/main/graph/watchFolder'
-import {applyGraphDeltaToDBThroughMem} from '@/shell/edge/main/graph/markdownReadWritePaths/writePath/applyGraphDeltaToDBThroughMem'
 import {getUnseenNodesAroundContextNode, type UnseenNode} from '@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode'
+import {
+    applyGraphDeltaToDBThroughMemAndUIAndEditors
+} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange";
 
 const MCP_PORT: 3001 = 3001 as const
 
@@ -120,7 +122,7 @@ export function createMcpServer(): McpServer {
             const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, watchedDirectory, currentGraph)
 
             // Persist to filesystem
-            await applyGraphDeltaToDBThroughMem(delta)
+            await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta)
 
             return {
                 content: [{

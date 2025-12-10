@@ -43,19 +43,17 @@ import {
 } from '@/shell/edge/UI-edge/state/UIAppState';
 
 import { CodeMirrorEditorView } from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
-import { createNewEmptyOrphanNodeFromUI, modifyNodeContentFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions';
+import { createNewEmptyOrphanNodeFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions';
 import { getNodeFromMainToUI } from '@/shell/edge/UI-edge/graph/getNodeFromMainToUI';
 import { fromNodeToContentWithWikilinks } from '@/pure/graph/markdown-writing/node_to_markdown';
 import { getNodeTitle } from '@/pure/graph/markdown-parsing';
 import {
     addEditor,
-    deleteAwaitingContent,
-    getAwaitingContent,
     getEditorByNodeId,
     getEditors,
     getHoverEditor,
-    setAwaitingUISavedContent
 } from "@/shell/edge/UI-edge/state/EditorStore";
+import {modifyNodeContentFromUI} from "@/shell/edge/UI-edge/floating-windows/editors/modifyNodeContentFromFloatingEditor";
 
 // =============================================================================
 // Create Floating Editor
@@ -119,18 +117,11 @@ export async function createFloatingEditor(
     );
 
     // Setup auto-save with modifyNodeContentFromUI
+    // Note: onChange only fires for user input (typing, paste, etc.) - NOT for programmatic setValue() calls
+    // This is handled by CodeMirrorEditorView using CM6's isUserEvent("input") check
     editor.onChange((newContent: string): void => {
         void (async (): Promise<void> => {
-            // Skip if this onChange was triggered by setValue from updateFloatingEditors (external change)
-            // updateFloatingEditors sets awaiting before calling setValue
-            if (getAwaitingContent(nodeId) === newContent) {
-                deleteAwaitingContent(nodeId);
-                return;
-            }
-
             console.log('[createFloatingEditor-v2] Saving editor content for node:', nodeId);
-            // Mark this content as awaiting to prevent feedback loop when broadcast comes back
-            setAwaitingUISavedContent(nodeId, newContent);
             await modifyNodeContentFromUI(nodeId, newContent, cy);
         })();
     });
@@ -382,10 +373,9 @@ export function updateFloatingEditors(cy: Core, delta: GraphDelta): void {
                     const cmEditor: CodeMirrorEditorView = editorInstance as CodeMirrorEditorView;
 
                     // Only update if content has changed to avoid cursor jumps
+                    // Note: setValue() won't trigger onChange - CM6 isUserEvent check filters out programmatic changes
                     if (cmEditor.getValue() !== newContent) {
                         console.log('[FloatingEditorManager-v2] Updating editor content for node:', nodeId);
-                        // Register this content so onChange handler knows it came from setValue, not user typing
-                        setAwaitingUISavedContent(nodeId, newContent);
                         cmEditor.setValue(newContent);
                     }
                 }

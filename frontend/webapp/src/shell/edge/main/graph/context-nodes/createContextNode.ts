@@ -16,9 +16,11 @@ import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getWatchStatus} from '@/shell/edge/main/graph/watchFolder'
 import {getCachedSettings} from '@/shell/edge/main/state/settings-cache'
 import {DEFAULT_SETTINGS, type VTSettings} from '@/pure/settings/types'
-import {applyGraphDeltaToDBThroughMem} from '@/shell/edge/main/graph/markdownReadWritePaths/writePath/applyGraphDeltaToDBThroughMem'
 import {fromCreateChildToUpsertNode} from '@/pure/graph/graphDelta/uiInteractionsToGraphDeltas'
 import {uiAPI as _uiAPI} from '@/shell/edge/main/ui-api-proxy'
+import {
+    applyGraphDeltaToDBThroughMemAndUIAndEditors
+} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange";
 
 /**
  * Creates a context node for a given parent node.
@@ -111,7 +113,7 @@ export async function createContextNode(
 
     // 8b. EDGE: Apply via GraphDelta pipeline (writes to disk)
     console.log("[createContextNode] BEFORE applyGraphDeltaToDBThroughMem")
-    await applyGraphDeltaToDBThroughMem(contextNodeDelta)
+    await applyGraphDeltaToDBThroughMemAndUIAndEditors(contextNodeDelta)
     console.log("[createContextNode] AFTER applyGraphDeltaToDBThroughMem")
 
     // 9. Return the created node ID
