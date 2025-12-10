@@ -13,7 +13,7 @@
 import type { NodeDelta, GraphDelta, NodeIdAndFilePath } from '@/pure/graph'
 import { stripBracketedContent } from '@/pure/graph/contentChangeDetection'
 
-const DEFAULT_TTL_MS: number = 300
+const DEFAULT_TTL_MS: number = 900
 
 interface RecentDeltaEntry {
     readonly delta: NodeDelta

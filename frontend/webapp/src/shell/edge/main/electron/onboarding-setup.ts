@@ -10,16 +10,16 @@ import type { Dirent } from 'fs';
  * Returns the user-writable location where onboarding files are stored
  */
 export function getOnboardingDirectory(): string {
-  return path.join(app.getPath('userData'), 'onboarding_tree');
+  return path.join(app.getPath('userData'), 'onboarding');
 }
 
 /**
  * Get the onboarding source directory path
  * Returns the bundled source location of onboarding files
  *
- * IMPORTANT: For production builds, onboarding_tree must be in package.json extraResources!
+ * IMPORTANT: For production builds, onboarding must be in package.json extraResources!
  * Without it, new users get an empty onboarding folder (only chromadb_data appears).
- * See package.json extraResources: {"from": "public/onboarding_tree", "to": "onboarding_tree"}
+ * See package.json extraResources: {"from": "public/onboarding", "to": "onboarding"}
  */
 function getOnboardingSource(): string {
   const appPath: string = app.getAppPath();
@@ -27,9 +27,9 @@ function getOnboardingSource(): string {
   // In production (packaged): use resources path
   // In development: use public folder relative to app path
   if (app.isPackaged) {
-    return path.join(process.resourcesPath, 'onboarding_tree');
+    return path.join(process.resourcesPath, 'onboarding');
   } else {
-    return path.join(appPath, 'public', 'onboarding_tree');
+    return path.join(appPath, 'public', 'onboarding');
   }
 }
 

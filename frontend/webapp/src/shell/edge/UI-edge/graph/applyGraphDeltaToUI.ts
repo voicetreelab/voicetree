@@ -9,6 +9,8 @@ import posthog from "posthog-js";
 import {markTerminalActivityForContextNode} from "@/shell/UI/views/AgentTabsBar";
 import type {} from '@/utils/types/cytoscape-layout-utilities';
 
+const MAX_EDGES = 150;
+
 /**
  * Validates if a color value is a valid CSS color using the browser's CSS.supports API
  */
@@ -30,6 +32,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
     console.log("applyGraphDeltaToUI", delta.length);
     console.log('[applyGraphDeltaToUI] Starting\n' + prettyPrintGraphDelta(delta));
     let newNodeCount: number = 0;
+    let edgeLimitAlertShown: boolean = false;
     const nodesWithoutPositions: string[] = [];
     cy.batch(() => {
         // PASS 1: Create/update all nodes and handle deletions
@@ -143,6 +146,13 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                         if (existingEdge.length > 0) {
                             // Edge already exists (race condition or duplicate in delta)
                             console.log(`[applyGraphDeltaToUI] Edge ${edgeId} already exists, skipping`);
+                        } else if (cy.edges().length >= MAX_EDGES) {
+                            // Edge limit reached - only show alert once per delta application
+                            if (!edgeLimitAlertShown) {
+                                alert(`There is a limit of ${MAX_EDGES} edges at once, contact manu@voicetree.io to increase this`);
+                                edgeLimitAlertShown = true;
+                            }
+                            console.warn(`[applyGraphDeltaToUI] Edge limit reached (${MAX_EDGES}), not adding edge ${edgeId}`);
                         } else if (targetNode.length > 0) {
                             console.log(`[applyGraphDeltaToUI] Adding new edge: ${edgeId} with label ${edge.label}`);
                             cy.add({
