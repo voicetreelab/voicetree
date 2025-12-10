@@ -171,7 +171,15 @@ test.describe('SSE Activity Panel Screenshot', () => {
         expandArrow.className = 'server-activity-expand-arrow';
         expandArrow.innerHTML = '<span class="arrow-icon">▲</span>';
         expandArrow.addEventListener('click', () => {
-          panel.classList.toggle('expanded');
+          const isExpanded: boolean = panel.classList.toggle('expanded');
+          if (isExpanded) {
+            eventsContainer.scrollLeft = 0;
+          } else {
+            // Scroll to rightmost (newest) item when collapsing
+            requestAnimationFrame(() => {
+              eventsContainer.scrollLeft = eventsContainer.scrollWidth;
+            });
+          }
         });
         panel.appendChild(expandArrow);
 
@@ -312,6 +320,25 @@ test.describe('SSE Activity Panel Screenshot', () => {
     });
     expect(isExpanded).toBe(true);
     console.log('Panel is expanded after clicking arrow');
+
+    // Click the expand arrow again to collapse
+    await expandArrow.click();
+
+    // Wait for collapse transition
+    await page.waitForTimeout(300);
+
+    // Take screenshot after collapsing (should show rightmost items due to auto-scroll)
+    await page.screenshot({
+      path: 'e2e-tests/screenshots/activity-panel-after-collapse.png'
+    });
+    console.log('After collapse screenshot saved');
+
+    // Verify panel is collapsed
+    const isCollapsed: boolean = await page.evaluate(() => {
+      return !document.querySelector('.server-activity-panel')?.classList.contains('expanded');
+    });
+    expect(isCollapsed).toBe(true);
+    console.log('Panel is collapsed after clicking arrow again');
 
     console.log('Activity panel screenshot test completed');
   });

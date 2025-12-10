@@ -1,4 +1,5 @@
 import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath, Position} from '@/pure/graph'
+import {CONTEXT_NODES_FOLDER} from '@/pure/graph'
 import {calculateInitialPositionForChild} from "@/pure/graph/positioning/calculateInitialPosition";
 import {addOutgoingEdge} from "@/pure/graph/graph-operations/graph-edge-operations";
 import * as O from "fp-ts/lib/Option.js";
@@ -13,13 +14,41 @@ import {parseMarkdownToGraphNode} from "@/pure/graph/markdown-parsing/parse-mark
  * They create well-formed action objects that can be sent to the main process.
  */
 
+/**
+ * Generates a child node ID from the parent node's path.
+ * Strips ctx-nodes/ folder from the path so children of context nodes
+ * are placed in the regular folder structure, not in ctx-nodes/.
+ *
+ * @example
+ * // Regular node - child stays in same folder
+ * generateChildNodeId({ relativeFilePathIsID: 'tuesday/node.md', outgoingEdges: [] })
+ * // => 'tuesday/node_0.md'
+ *
+ * @example
+ * // Context node - child is placed OUTSIDE ctx-nodes/
+ * generateChildNodeId({ relativeFilePathIsID: 'tuesday/ctx-nodes/context.md', outgoingEdges: [] })
+ * // => 'tuesday/context_0.md'
+ *
+ * @example
+ * // Root-level ctx-nodes - child goes to root
+ * generateChildNodeId({ relativeFilePathIsID: 'ctx-nodes/context.md', outgoingEdges: [] })
+ * // => 'context_0.md'
+ */
+export function generateChildNodeId(parentNode: GraphNode): NodeIdAndFilePath {
+    // Strip ctx-nodes/ from path so children of context nodes don't end up in ctx-nodes/
+    // Matches both "ctx-nodes/..." and ".../ctx-nodes/..."
+    const ctxNodesFolderPattern: RegExp = new RegExp(`(^|/)${CONTEXT_NODES_FOLDER}/`, 'g')
+    const parentPathWithoutCtxNodes: string = parentNode.relativeFilePathIsID.replace(ctxNodesFolderPattern, '$1')
+    return parentPathWithoutCtxNodes.replace(/\.md$/, '') + '_' + parentNode.outgoingEdges.length + ".md"
+}
+
 // human
 // Creates a new child node and returns deltas for both the child and updated parent
 export function fromCreateChildToUpsertNode(
     graph: Graph,
     parentNode: GraphNode,
     newNodeContent: string = "# new",
-    newFilePathIsID: NodeIdAndFilePath = parentNode.relativeFilePathIsID.replace(/\.md$/, '') + '_' + parentNode.outgoingEdges.length + ".md", //todo doesn't guarantee uniqueness, but tis good enough
+    newFilePathIsID: NodeIdAndFilePath = generateChildNodeId(parentNode),
 ): GraphDelta {
 
     // Parse the content to extract metadata (including isContextNode from frontmatter)

@@ -1,9 +1,6 @@
 import type {Graph, GraphDelta, NodeIdAndFilePath, GraphNode} from '@/pure/graph'
-import {getSubgraphByDistance, graphToAscii, getNodeIdsInTraversalOrder} from '@/pure/graph'
+import {getSubgraphByDistance, graphToAscii, getNodeIdsInTraversalOrder, CONTEXT_NODES_FOLDER} from '@/pure/graph'
 import {getNodeTitle} from '@/pure/graph/markdown-parsing'
-
-/** Folder where context nodes are stored */
-export const CONTEXT_NODES_FOLDER: "ctx-nodes" = 'ctx-nodes'
 
 /** Truncate a title to at most 5 words to prevent excessively long context node names */
 function truncateToFiveWords(title: string): string {
