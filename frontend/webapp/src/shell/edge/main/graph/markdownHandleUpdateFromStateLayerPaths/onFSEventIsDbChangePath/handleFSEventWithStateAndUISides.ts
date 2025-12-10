@@ -8,6 +8,7 @@ import {
     applyGraphDeltaToMemState,
     broadcastGraphDeltaToUI
 } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI";
+import {isOurRecentDelta} from "@/shell/edge/main/state/recent-deltas-store";
 
 /**
  * Handle filesystem events by:
@@ -28,11 +29,11 @@ export function handleFSEventWithStateAndUISides(
     _mainWindow: BrowserWindow
 ): void {
     // 1. Check if this is our own recent write - skip if so
-    const content: string | undefined = 'content' in fsEvent ? fsEvent.content : undefined
-    if (isOurRecentWrite(fsEvent.absolutePath, content)) {
-        console.log("[handleFSEvent] Skipping our own recent write:", fsEvent.absolutePath)
+    if (isOurRecentDelta(fsEvent, watchedDirectory)) {
+        console.log("[handleFSEvent] Skipping our own recent write: ", fsEvent.absolutePath)
         return
     }
+    console.log("[handleFSEvent] external write from: ", fsEvent.absolutePath)
 
     // 2. Get current graph state to resolve wikilinks
     const currentGraph: Graph = getGraph()
