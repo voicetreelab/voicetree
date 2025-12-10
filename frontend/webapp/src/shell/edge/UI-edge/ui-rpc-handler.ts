@@ -5,11 +5,11 @@
  * to the appropriate function in uiAPI.
  */
 
-import { uiAPI } from '@/shell/edge/UI-edge/api';
+import { uiAPIHandler } from '@/shell/edge/UI-edge/api';
 import type { ElectronAPI } from '@/shell/electron';
 
-type UIAPIKey = keyof typeof uiAPI;
-type UIAPIFunction = (typeof uiAPI)[UIAPIKey];
+type UIAPIKey = keyof typeof uiAPIHandler;
+type UIAPIFunction = (typeof uiAPIHandler)[UIAPIKey];
 
 /**
  * Setup the UI RPC handler to listen for calls from main process
@@ -27,7 +27,7 @@ export function setupUIRpcHandler(): void {
         const fnName: string = funcName as string;
         const fnArgs: unknown[] = args as unknown[];
 
-        const fn: UIAPIFunction | undefined = uiAPI[fnName as UIAPIKey];
+        const fn: UIAPIFunction | undefined = uiAPIHandler[fnName as UIAPIKey];
 
         if (typeof fn !== 'function') {
             console.error(`[UI RPC] Unknown UI function: ${fnName}`);

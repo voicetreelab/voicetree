@@ -30,7 +30,7 @@ import path from 'path'
 import { promises as fs } from 'fs'
 import type { BrowserWindow } from 'electron'
 import { EXAMPLE_SMALL_PATH, EXAMPLE_LARGE_PATH } from '@/utils/test-utils/fixture-paths'
-import { clearRecentWrites } from '@/shell/edge/main/state/recent-writes-store'
+import { clearRecentDeltas } from '@/shell/edge/main/state/recent-deltas-store'
 
 // Track IPC broadcasts
 interface BroadcastCall {
@@ -68,7 +68,7 @@ describe('Folder Loading - Integration Tests', () => {
     setVaultPath('')
 
     // Clear recent writes to ensure fresh state for file watching tests
-    clearRecentWrites()
+    clearRecentDeltas()
 
     // Reset broadcast tracking
     broadcastCalls = []
@@ -235,7 +235,7 @@ describe('Folder Loading - Integration Tests', () => {
       broadcastCalls.length = 0
 
       // Clear recent writes to ensure file watching will detect the new file
-      clearRecentWrites()
+      clearRecentDeltas()
 
       // Import handler to simulate FS events
       const { handleFSEventWithStateAndUISides } = await import('@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/handleFSEventWithStateAndUISides')

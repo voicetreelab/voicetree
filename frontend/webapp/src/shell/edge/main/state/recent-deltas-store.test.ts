@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import * as O from 'fp-ts/Option'
+import * as O from 'fp-ts/lib/Option.js'
 import type { NodeDelta, FSEvent, GraphNode, NodeUIMetadata } from '@/pure/graph'
 import {
     markRecentDelta,

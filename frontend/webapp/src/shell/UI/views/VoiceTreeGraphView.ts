@@ -41,8 +41,7 @@ import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/Vertic
 import {
     setupCommandHover,
     closeAllEditors,
-    disposeEditorManager,
-    updateFloatingEditors,
+    disposeEditorManager
 } from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
 import {HotkeyManager} from './HotkeyManager';
 import {SearchService} from './SearchService';

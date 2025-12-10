@@ -1,5 +1,5 @@
 import type {GraphDelta} from "@/pure/graph";
-import {uiAPI} from "@/shell/edge/UI-edge/api";
+import {uiAPI} from "@/shell/edge/main/ui-api-proxy";
 import {
     applyGraphDeltaToDBThroughMemAndUI
 } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI";

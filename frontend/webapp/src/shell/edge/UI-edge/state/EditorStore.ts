@@ -1,6 +1,6 @@
 import type {NodeIdAndFilePath} from "@/pure/graph";
-import * as O from "fp-ts/Option";
-import {type Option} from "fp-ts/Option";
+import * as O from "fp-ts/lib/Option.js";
+import {type Option} from "fp-ts/lib/Option.js";
 import {getEditorId, type EditorId, type EditorData} from "@/shell/edge/UI-edge/floating-windows/types";
 
 const editors: Map<EditorId, EditorData> = new Map<EditorId, EditorData>();

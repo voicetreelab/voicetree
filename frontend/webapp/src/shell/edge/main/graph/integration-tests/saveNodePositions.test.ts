@@ -25,7 +25,7 @@ import path from 'path'
 import { promises as fs } from 'fs'
 import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths'
 import { waitForFSEvent, waitForWatcherReady, waitForCondition } from '@/utils/test-utils/waitForCondition'
-import { clearRecentWrites } from '@/shell/edge/main/state/recent-writes-store'
+import { clearRecentDeltas } from '@/shell/edge/main/state/recent-deltas-store'
 import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange";
@@ -54,7 +54,7 @@ describe('saveNodePositions - Integration Tests', () => {
         // Initialize state with empty graph and example_small vault path
         setGraph({ nodes: {} })
         setVaultPath(EXAMPLE_SMALL_PATH)
-        clearRecentWrites()
+        clearRecentDeltas()
 
         // Create mock BrowserWindow
         mockMainWindow = {

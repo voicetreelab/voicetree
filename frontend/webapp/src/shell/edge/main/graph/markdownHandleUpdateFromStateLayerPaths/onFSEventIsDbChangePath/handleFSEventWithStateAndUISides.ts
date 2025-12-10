@@ -2,8 +2,7 @@ import type {FSEvent, GraphDelta, Graph} from "@/pure/graph";
 import {mapFSEventsToGraphDelta} from "@/pure/graph";
 import type {BrowserWindow} from "electron";
 import {getGraph} from "@/shell/edge/main/state/graph-store";
-import {isOurRecentWrite} from "@/shell/edge/main/state/recent-writes-store";
-import {uiAPI} from "@/shell/edge/UI-edge/api";
+import {uiAPI} from "@/shell/edge/main/ui-api-proxy";
 import {
     applyGraphDeltaToMemState,
     broadcastGraphDeltaToUI
