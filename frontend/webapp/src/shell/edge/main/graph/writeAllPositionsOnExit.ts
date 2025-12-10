@@ -12,14 +12,19 @@ import * as path from 'path'
  * Currently ignored since the app is exiting anyway - the watcher
  * should be torn down shortly after. If this causes issues,
  * consider pausing the watcher before calling this function.
+ *
+ * @param graph - The graph containing nodes to persist
+ * @param watchedFolderRoot - The root directory being watched (NOT the vault path).
+ *   Node IDs include the vault suffix as part of their relative path, so we join
+ *   with the watched folder root to get the correct absolute path.
  */
-export function writeAllPositionsSync(graph: Graph, vaultPath: FilePath): void {
+export function writeAllPositionsSync(graph: Graph, watchedFolderRoot: FilePath): void {
     const nodes: readonly import('@/pure/graph').GraphNode[] = Object.values(graph.nodes)
     console.log('Writing node pos on close');
     for (const node of nodes) {
         const markdown: string = fromNodeToMarkdownContent(node)
         const filename: string = nodeIdToFilePathWithExtension(node.relativeFilePathIsID)
-        const fullPath: string = path.join(vaultPath, filename)
+        const fullPath: string = path.join(watchedFolderRoot, filename)
 
         // Ensure parent directory exists
         const dir: string = path.dirname(fullPath)

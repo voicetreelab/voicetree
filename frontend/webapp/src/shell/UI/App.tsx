@@ -69,7 +69,7 @@ function App(): JSX.Element {
                         {watchDirectory.split('/').pop()}
                         <span className="text-[10px] ml-1">▼</span>
                     </button>
-                    {(vaultSuffix || isEditingSuffix) && <span className="text-gray-400">/</span>}
+                    {(vaultSuffix ?? isEditingSuffix) && <span className="text-gray-400">/</span>}
                     {isEditingSuffix ? (
                         <input
                             type="text"
@@ -87,7 +87,7 @@ function App(): JSX.Element {
                             className="text-gray-600 px-1.5 py-1 rounded bg-gray-100 hover:bg-gray-200 transition-colors"
                             title="Vault – .md file storage for graph nodes"
                         >
-                            {vaultSuffix || <span className="text-gray-400 italic">(edit)</span>}
+                            {vaultSuffix ?? <span className="text-gray-400 italic">(edit)</span>}
                         </button>
                     )}
                 </>
@@ -136,7 +136,7 @@ function App(): JSX.Element {
             </div>
 
             {/* Bottom bar: Folder selector | Activity Log (narrow) | Transcription Panel */}
-            <div className="flex-shrink-0 flex items-center gap-3 px-2 py-1 mr-[min(calc(10vw+30px),180px)] relative z-[1050]">
+            <div className="flex-shrink-0 flex items-center gap-3 px-2 py-1 mr-[min(calc(10vw+30px),180px)] relative z-[1050] bg-background">
                 <FileWatchingPanel/>
                 {/* Activity log - width for ~4 items, expands on hover via CSS */}
                 <div id="sse-status-panel-mount" className="w-[min(18vw,300px)] shrink-0 overflow-visible" />

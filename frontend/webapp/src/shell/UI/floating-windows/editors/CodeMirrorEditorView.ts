@@ -246,17 +246,16 @@ export class CodeMirrorEditorView extends Disposable {
   private setupUpdateListener(): Extension {
     return EditorView.updateListener.of((viewUpdate: ViewUpdate) => {
       if (viewUpdate.docChanged) {
-        // Only emit for user-initiated changes (typing, paste, cut, etc.)
-        // Programmatic changes via setValue() won't have userEvent annotation
-        const isUserInput: boolean = viewUpdate.transactions.some(
-          tr => tr.isUserEvent("input")
+        // Only emit for user-initiated changes - not programmatic setValue() calls
+        // User events: input (typing/paste), delete (backspace/del), undo, redo
+        const isUserChange: boolean = viewUpdate.transactions.some(
+          tr => tr.isUserEvent("input") || tr.isUserEvent("delete") || tr.isUserEvent("undo") || tr.isUserEvent("redo")
         );
 
-        if (!isUserInput) {
+        if (!isUserChange) {
           return; // Skip programmatic changes
         }
 
-        const content: string = viewUpdate.state.doc.toString();
         const delay: number = this.options.autosaveDelay ?? 300;
 
         // Clear existing timeout
@@ -265,8 +264,10 @@ export class CodeMirrorEditorView extends Disposable {
         }
 
         // Set new timeout to emit after delay
+        // Read current content at fire time, not captured content at debounce start
+        // This ensures external changes (e.g., appended links) are included in the save
         this.debounceTimeout = setTimeout(() => {
-          this.changeEmitter.emit(content);
+          this.changeEmitter.emit(this.view.state.doc.toString());
           this.debounceTimeout = null;
         }, delay);
       }

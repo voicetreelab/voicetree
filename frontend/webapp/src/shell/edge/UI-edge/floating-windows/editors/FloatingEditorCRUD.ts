@@ -54,6 +54,7 @@ import {
     getHoverEditor,
 } from "@/shell/edge/UI-edge/state/EditorStore";
 import {modifyNodeContentFromUI} from "@/shell/edge/UI-edge/floating-windows/editors/modifyNodeContentFromFloatingEditor";
+import {isAppendOnly, getAppendedSuffix} from "@/pure/graph/contentChangeDetection";
 
 // =============================================================================
 // Create Floating Editor
@@ -371,10 +372,23 @@ export function updateFloatingEditors(cy: Core, delta: GraphDelta): void {
 
                 if (editorInstance && 'setValue' in editorInstance && 'getValue' in editorInstance) {
                     const cmEditor: CodeMirrorEditorView = editorInstance as CodeMirrorEditorView;
+                    const currentEditorContent: string = cmEditor.getValue();
 
                     // Only update if content has changed to avoid cursor jumps
                     // Note: setValue() won't trigger onChange - CM6 isUserEvent check filters out programmatic changes
-                    if (cmEditor.getValue() !== newContent) {
+                    if (currentEditorContent !== newContent) {
+                        // Check if this is an append-only change (e.g., link addition)
+                        // If so, append to current editor content to preserve unsaved user edits
+                        if (O.isSome(nodeDelta.previousNode)) {
+                            const prevContent: string = fromNodeToContentWithWikilinks(nodeDelta.previousNode.value);
+                            if (isAppendOnly(prevContent, newContent)) {
+                                const suffix: string = getAppendedSuffix(prevContent, newContent);
+                                console.log('[FloatingEditorManager-v2] Appending to editor for node:', nodeId, 'suffix:', suffix);
+                                cmEditor.setValue(currentEditorContent + suffix);
+                                continue;
+                            }
+                        }
+                        // Full replacement for non-append changes
                         console.log('[FloatingEditorManager-v2] Updating editor content for node:', nodeId);
                         cmEditor.setValue(newContent);
                     }
