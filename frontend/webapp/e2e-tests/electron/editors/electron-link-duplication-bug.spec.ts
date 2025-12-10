@@ -76,17 +76,18 @@ const test = base.extend<{
     await fs.mkdir(vaultPath, { recursive: true });
 
     // Create test files that will be used by the tests
-    // Each test will create additional files as needed
-    const testNodeId = 'test-node-with-link.md';
-    const linkedNodeId = 'linked-node.md';
-    const testNodeId2 = 'test-node-remove-link.md';
-    const linkedNodeId2 = 'target-node.md';
+    // File names without vault prefix for filesystem operations
+    // (Node IDs in the graph will have 'voicetree/' prefix)
+    const testNodeFilename = 'test-node-with-link.md';
+    const linkedNodeFilename = 'linked-node.md';
+    const testNodeFilename2 = 'test-node-remove-link.md';
+    const linkedNodeFilename2 = 'target-node.md';
 
     const initialContent = `---
 ---
 # Test Node
 
-This is a test node with a link to [[${linkedNodeId}]].
+This is a test node with a link to [[${linkedNodeFilename}]].
 
 Some more content here.`;
 
@@ -94,14 +95,14 @@ Some more content here.`;
 ---
 # Test Node
 
-This node has a link: [[${linkedNodeId2}]]
+This node has a link: [[${linkedNodeFilename2}]]
 
 End of content.`;
 
-    await fs.writeFile(path.join(vaultPath, testNodeId), initialContent, 'utf-8');
-    await fs.writeFile(path.join(vaultPath, linkedNodeId), '---\n---\n# Linked Node\n\nThis is the linked node.', 'utf-8');
-    await fs.writeFile(path.join(vaultPath, testNodeId2), initialContent2, 'utf-8');
-    await fs.writeFile(path.join(vaultPath, linkedNodeId2), '---\n---\n# Target Node\n\nTarget.', 'utf-8');
+    await fs.writeFile(path.join(vaultPath, testNodeFilename), initialContent, 'utf-8');
+    await fs.writeFile(path.join(vaultPath, linkedNodeFilename), '---\n---\n# Linked Node\n\nThis is the linked node.', 'utf-8');
+    await fs.writeFile(path.join(vaultPath, testNodeFilename2), initialContent2, 'utf-8');
+    await fs.writeFile(path.join(vaultPath, linkedNodeFilename2), '---\n---\n# Target Node\n\nTarget.', 'utf-8');
 
     // Write config to auto-load the watched folder (vault = watchedFolder + 'voicetree')
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
@@ -205,9 +206,9 @@ test.describe('Link Duplication Bug', () => {
     console.log('[Test] Vault path:', testVaultPath);
 
     // Files are already created in electronApp fixture
-    const testNodeId = 'test-node-with-link.md';
-    const linkedNodeId = 'linked-node.md';
-    const testFilePath = path.join(testVaultPath, testNodeId);
+    // Node IDs include vaultSuffix prefix (e.g., 'voicetree/filename.md')
+    const testNodeId = 'voicetree/test-node-with-link.md';
+    const testFilePath = path.join(testVaultPath, 'test-node-with-link.md');
 
     // Vault is auto-loaded via config - wait for graph to have nodes
     await expect.poll(async () => {
@@ -277,20 +278,21 @@ test.describe('Link Duplication Bug', () => {
     console.log('✓ Editor window opened');
 
     // Wait for CodeMirror to render
-    const escapedEditorWindowId = editorWindowId.replace(/\./g, '\\.');
+    const escapedEditorWindowId = editorWindowId.replace(/\./g, '\\.').replace(/\//g, '\\/');
     await appWindow.waitForSelector(`#${escapedEditorWindowId} .cm-editor`, { timeout: 5000 });
     console.log('✓ CodeMirror editor rendered');
 
     // 5. Read current file content to count initial link occurrences
     const contentBeforeEdit = await fs.readFile(testFilePath, 'utf-8');
-    const linkPattern = new RegExp(`\\[\\[${linkedNodeId}\\]\\]`, 'g');
+    // Wikilinks use filename only, not the full node ID with vault prefix
+    const linkPattern = new RegExp(`\\[\\[linked-node\\.md\\]\\]`, 'g');
     const initialLinkCount = (contentBeforeEdit.match(linkPattern) ?? []).length;
     console.log(`✓ Initial link count in file: ${initialLinkCount}`);
 
     // 6. Make a small edit (add text that doesn't touch the link)
     await appWindow.evaluate(({ windowId, insertText }: { windowId: string; insertText: string }) => {
-      // Escape dots in windowId for querySelector
-      const escapedWindowId = windowId.replace(/\./g, '\\.');
+      // Use CSS.escape to properly escape window ID for querySelector
+      const escapedWindowId = CSS.escape(windowId);
       const editorElement = document.querySelector(`#${escapedWindowId} .cm-content`) as HTMLElement | null;
       if (!editorElement) throw new Error('Editor content element not found');
 
@@ -328,7 +330,7 @@ test.describe('Link Duplication Bug', () => {
     // THE KEY ASSERTION: Link count should NOT have increased
     if (finalLinkCount > initialLinkCount) {
       console.error(`❌ BUG REPRODUCED: Link was duplicated ${finalLinkCount - initialLinkCount} time(s)!`);
-      console.error(`Expected ${initialLinkCount} occurrences of [[${linkedNodeId}]], but found ${finalLinkCount}`);
+      console.error(`Expected ${initialLinkCount} occurrences of [[linked-node.md]], but found ${finalLinkCount}`);
     } else {
       console.log(`✅ No link duplication detected (count stayed at ${initialLinkCount})`);
     }
@@ -345,9 +347,10 @@ test.describe('Link Duplication Bug', () => {
     console.log('[Test] Vault path:', testVaultPath);
 
     // Files are already created in electronApp fixture
-    const testNodeId = 'test-node-remove-link.md';
-    const linkedNodeId = 'target-node.md';
-    const testFilePath = path.join(testVaultPath, testNodeId);
+    // Node IDs include vaultSuffix prefix (e.g., 'voicetree/filename.md')
+    const testNodeId = 'voicetree/test-node-remove-link.md';
+    const linkedNodeId = 'voicetree/target-node.md';
+    const testFilePath = path.join(testVaultPath, 'test-node-remove-link.md');
 
     // Vault is auto-loaded via config - wait for graph to have nodes
     await expect.poll(async () => {
@@ -427,14 +430,14 @@ test.describe('Link Duplication Bug', () => {
     console.log('✓ Editor window opened');
 
     // Wait for CodeMirror to render
-    const escapedEditorWindowId = editorWindowId.replace(/\./g, '\\.');
+    const escapedEditorWindowId = editorWindowId.replace(/\./g, '\\.').replace(/\//g, '\\/');
     await appWindow.waitForSelector(`#${escapedEditorWindowId} .cm-editor`, { timeout: 5000 });
     console.log('✓ CodeMirror editor rendered');
 
     // 5. REMOVE the wikilink from the content
-    await appWindow.evaluate(({ windowId, linkedId }: { windowId: string; linkedId: string }) => {
-      // Escape dots in windowId for querySelector
-      const escapedWindowId = windowId.replace(/\./g, '\\.');
+    await appWindow.evaluate(({ windowId }: { windowId: string }) => {
+      // Use CSS.escape to properly escape window ID for querySelector
+      const escapedWindowId = CSS.escape(windowId);
       const editorElement = document.querySelector(`#${escapedWindowId} .cm-content`) as HTMLElement | null;
       if (!editorElement) throw new Error('Editor content element not found');
 
@@ -444,8 +447,8 @@ test.describe('Link Duplication Bug', () => {
       // Get current content
       const currentContent = cmView.state.doc.toString();
 
-      // Remove the wikilink
-      const linkPattern = `[[${linkedId}]]`;
+      // Remove the wikilink (use filename only, not full node ID)
+      const linkPattern = '[[target-node.md]]';
       const newContent = currentContent.replace(linkPattern, '');
 
       // Replace entire document
@@ -454,7 +457,7 @@ test.describe('Link Duplication Bug', () => {
       });
 
       console.log('Removed wikilink from editor');
-    }, { windowId: editorWindowId, linkedId: linkedNodeId });
+    }, { windowId: editorWindowId });
 
     console.log('✓ Removed wikilink from content in editor');
 
@@ -468,7 +471,8 @@ test.describe('Link Duplication Bug', () => {
 
     // 8. Read file content and verify link is GONE (not restored)
     const contentAfterEdit = await fs.readFile(testFilePath, 'utf-8');
-    const linkPattern = new RegExp(`\\[\\[${linkedNodeId}\\]\\]`, 'g');
+    // Wikilinks use filename only, not the full node ID with vault prefix
+    const linkPattern = new RegExp(`\\[\\[target-node\\.md\\]\\]`, 'g');
     const finalLinkCount = (contentAfterEdit.match(linkPattern) ?? []).length;
 
     console.log('\nFile content after link removal:');

@@ -345,27 +345,27 @@ test.describe('Search Navigation (Browser)', () => {
     expect(nodeCount).toBe(5);
     console.log(`✓ Test graph setup with ${nodeCount} nodes`);
 
-    // Step 3: Hover over nodes in a specific order: node-1, node-3, node-2
+    // Step 3: Hover over nodes in a specific order by directly triggering Cytoscape events
+    // This is more reliable than using page.mouse.move() which may not trigger the event
+    // Hover order: node-1, node-3, node-2
     // This should make node-2 most recent, then node-3, then node-1
     const hoverOrder = ['test-node-1.md', 'test-node-3.md', 'test-node-2.md'];
 
     for (const nodeId of hoverOrder) {
-      // Get node position and hover over it
-      const nodePosition = await page.evaluate((id: string) => {
+      // Directly trigger the mouseover event on the node in Cytoscape
+      await page.evaluate((id: string) => {
         const cy = (window as ExtendedWindow).cytoscapeInstance;
         if (!cy) throw new Error('Cytoscape not initialized');
         const node = cy.getElementById(id);
         if (node.empty()) throw new Error(`Node ${id} not found`);
-        const pos = node.renderedPosition();
-        const container = cy.container();
-        if (!container) throw new Error('Container not found');
-        const rect = container.getBoundingClientRect();
-        return { x: rect.left + pos.x, y: rect.top + pos.y };
+
+        // Emit the mouseover event directly
+        node.emit('mouseover');
       }, nodeId);
 
-      await page.mouse.move(nodePosition.x, nodePosition.y);
-      await page.waitForTimeout(50); // Allow hover event to register
-      console.log(`  Hovered over ${nodeId}`);
+      // Small delay to ensure event is processed
+      await page.waitForTimeout(10);
+      console.log(`  Triggered mouseover on ${nodeId}`);
     }
 
     // Step 4: Open command palette

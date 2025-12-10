@@ -163,7 +163,9 @@ test.describe('Child Node Wikilink Sync', () => {
     });
 
     console.log('[Test] Initial state:', JSON.stringify(initialState, null, 2));
-    expect(initialState.nodes.some(n => n.id === 'parent.md')).toBe(true);
+    // Node IDs are relative to watchedFolder, not vaultPath
+    // Since file is at {watchedFolder}/voicetree/parent.md, node ID is voicetree/parent.md
+    expect(initialState.nodes.some(n => n.id === 'voicetree/parent.md')).toBe(true);
 
     // Screenshot 1: Initial graph state
     await appWindow.screenshot({ path: path.join(screenshotsDir, '1-initial-graph.png') });
@@ -173,14 +175,14 @@ test.describe('Child Node Wikilink Sync', () => {
     await appWindow.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
-      const node = cy.getElementById('parent.md');
+      const node = cy.getElementById('voicetree/parent.md');
       if (node.length === 0) throw new Error('Parent node not found');
       node.trigger('tap');
     });
 
     // Wait for editor to open
-    const editorWindowId = 'window-parent.md-editor';
-    const escapedEditorWindowId = editorWindowId.replace(/\./g, '\\.');
+    const editorWindowId = 'window-voicetree/parent.md-editor';
+    const escapedEditorWindowId = editorWindowId.replace(/\./g, '\\.').replace(/\//g, '\\/');
 
     await expect.poll(async () => {
       return appWindow.evaluate((winId) => {
@@ -197,7 +199,7 @@ test.describe('Child Node Wikilink Sync', () => {
 
     // Get editor content before creating child
     const contentBeforeChild = await appWindow.evaluate((winId) => {
-      const escapedWinId = winId.replace(/\./g, '\\.');
+      const escapedWinId = CSS.escape(winId);
       const editorElement = document.querySelector(`#${escapedWinId} .cm-content`) as CodeMirrorElement | null;
       if (!editorElement) return null;
       const cmView = editorElement.cmView?.view;
@@ -220,11 +222,11 @@ test.describe('Child Node Wikilink Sync', () => {
       const currentGraph = await api.main.getGraph();
       if (!currentGraph) throw new Error('No graph state');
 
-      const parentNode = currentGraph.nodes['parent.md'];
+      const parentNode = currentGraph.nodes['voicetree/parent.md'];
       if (!parentNode) throw new Error('Parent node not found in graph');
 
       // Create child node
-      const childId = 'parent.md_0.md';
+      const childId = 'voicetree/parent.md_0.md';
       const newNode = {
         relativeFilePathIsID: childId,
         outgoingEdges: [] as const,
@@ -266,7 +268,7 @@ test.describe('Child Node Wikilink Sync', () => {
 
     // CRITICAL: Check if editor now has the wikilink
     const contentAfterChild = await appWindow.evaluate((winId) => {
-      const escapedWinId = winId.replace(/\./g, '\\.');
+      const escapedWinId = CSS.escape(winId);
       const editorElement = document.querySelector(`#${escapedWinId} .cm-content`) as CodeMirrorElement | null;
       if (!editorElement) return null;
       const cmView = editorElement.cmView?.view;
@@ -277,7 +279,7 @@ test.describe('Child Node Wikilink Sync', () => {
     console.log('[Test] Editor content after child:', contentAfterChild);
 
     // THE KEY ASSERTION: Editor should now contain the wikilink to child
-    expect(contentAfterChild).toContain('[[parent.md_0.md]]');
+    expect(contentAfterChild).toContain('[[voicetree/parent.md_0.md]]');
     console.log('[Test] PASS: Editor shows wikilink to child!');
 
     // Screenshot 4: Close-up of editor content
@@ -290,7 +292,7 @@ test.describe('Child Node Wikilink Sync', () => {
     // Now test that editing preserves the wikilink
     console.log('[Test] Adding text to editor...');
     await appWindow.evaluate((winId) => {
-      const escapedWinId = winId.replace(/\./g, '\\.');
+      const escapedWinId = CSS.escape(winId);
       const editorElement = document.querySelector(`#${escapedWinId} .cm-content`) as CodeMirrorElement | null;
       if (!editorElement) throw new Error('Editor not found');
       const cmView = editorElement.cmView?.view;
@@ -312,7 +314,7 @@ test.describe('Child Node Wikilink Sync', () => {
 
     // Verify wikilink is still present in editor
     const contentAfterEdit = await appWindow.evaluate((winId) => {
-      const escapedWinId = winId.replace(/\./g, '\\.');
+      const escapedWinId = CSS.escape(winId);
       const editorElement = document.querySelector(`#${escapedWinId} .cm-content`) as CodeMirrorElement | null;
       if (!editorElement) return null;
       const cmView = editorElement.cmView?.view;
@@ -321,19 +323,22 @@ test.describe('Child Node Wikilink Sync', () => {
     }, editorWindowId);
 
     console.log('[Test] Editor content after edit:', contentAfterEdit);
-    expect(contentAfterEdit).toContain('[[parent.md_0.md]]');
+    expect(contentAfterEdit).toContain('[[voicetree/parent.md_0.md]]');
     expect(contentAfterEdit).toContain('User added this text.');
     console.log('[Test] PASS: Wikilink preserved after edit!');
 
     // Verify file on disk also has the wikilink
     const fileContent = await fs.readFile(path.join(testVaultPath, 'parent.md'), 'utf-8');
     console.log('[Test] File content on disk:', fileContent);
-    expect(fileContent).toContain('[[parent.md_0.md]]');
+    expect(fileContent).toContain('[[voicetree/parent.md_0.md]]');
     expect(fileContent).toContain('User added this text.');
     console.log('[Test] PASS: File on disk has wikilink and user edit!');
 
     // Verify child file was created
-    const childFileContent = await fs.readFile(path.join(testVaultPath, childNodeId), 'utf-8');
+    // childNodeId is voicetree/parent.md_0.md, but testVaultPath already includes voicetree/
+    // So we need to strip the voicetree/ prefix
+    const childFilename = childNodeId.replace(/^voicetree\//, '');
+    const childFileContent = await fs.readFile(path.join(testVaultPath, childFilename), 'utf-8');
     expect(childFileContent).toContain('# Child Node');
     console.log('[Test] PASS: Child file created on disk!');
 

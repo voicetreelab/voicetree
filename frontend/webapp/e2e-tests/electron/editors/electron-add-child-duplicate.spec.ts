@@ -183,8 +183,8 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
     console.log('  Nodes:', JSON.stringify(initialState.nodes, null, 2));
     console.log('=====================================');
 
-    // Find the parent node (node ID is the filename including .md extension)
-    const parentNodeExists = initialState.nodes.some(n => n.id === 'parent.md');
+    // Find the parent node (node ID includes the vault subdirectory path)
+    const parentNodeExists = initialState.nodes.some(n => n.id === 'voicetree/parent.md');
     expect(parentNodeExists).toBe(true);
 
     // Manually replicate the createNewChildNodeFromUI logic
@@ -209,8 +209,8 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
       const currentGraph = await api.main.getGraph();
       if (!currentGraph) throw new Error('No graph state');
 
-      // Get parent node (node ID includes .md extension)
-      const parentNode = currentGraph.nodes['parent.md'];
+      // Get parent node (node ID includes the vault subdirectory path)
+      const parentNode = currentGraph.nodes['voicetree/parent.md'];
       if (!parentNode) throw new Error('Parent node not found');
 
       // Create child node (replicating fromUICreateChildToUpsertNode logic)
@@ -370,9 +370,11 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
     const files = await fs.readdir(testVaultPath);
     console.log('[Test] Files in vault:', files);
 
-    // The file should be created with the child node ID (which may or may not have .md depending on nodeIdToFilePathWithExtension)
-    // Since childNodeId is "parent.md_0" which contains ".md", nodeIdToFilePathWithExtension returns it as-is
-    expect(files).toContain(childNodeId);
+    // The child node ID includes the voicetree/ prefix (e.g., "voicetree/parent.md_0.md")
+    // But readdir returns just filenames without directory prefixes
+    // Extract just the filename from the child node ID
+    const childFileName = childNodeId.replace('voicetree/', '');
+    expect(files).toContain(childFileName);
 
     // ASSERTION: Should only have ONE child node in CYTOSCAPE
     console.log('\n[Test] CHECKING FOR DUPLICATES IN CYTOSCAPE:');

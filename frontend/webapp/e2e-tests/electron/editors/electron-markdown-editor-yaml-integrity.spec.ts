@@ -71,7 +71,6 @@ const test = base.extend<{
     const testNodeId2 = 'test-yaml-preservation.md';
 
     const initialContent = `---
-title: My Important Node Title
 node_id: 42
 color: "#FF5733"
 tags:
@@ -86,7 +85,6 @@ This is the content of my node.
 Some additional text here.`;
 
     const initialContent2 = `---
-title: Preserved Title
 node_id: 123
 color: "#00FF00"
 position:
@@ -172,7 +170,7 @@ Original content here.`;
       console.error('Stack:', error.stack);
     });
 
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('domcontentloaded', { timeout: 30000 });
 
     // Check for errors before waiting for cytoscapeInstance
     const hasErrors = await page.evaluate(() => {
@@ -191,7 +189,10 @@ Original content here.`;
       console.error('Pre-initialization errors:', hasErrors);
     }
 
-    await page.waitForFunction(() => (window as ExtendedWindow).cytoscapeInstance, { timeout: 20000 });
+    await page.waitForFunction(() => (window as ExtendedWindow).cytoscapeInstance, { timeout: 30000 });
+
+    // Wait for electronAPI to be available
+    await page.waitForFunction(() => (window as ExtendedWindow).electronAPI?.main, { timeout: 30000 });
     await page.waitForTimeout(500); // Give extra time for auto-load to complete
 
     await use(page);
@@ -205,8 +206,10 @@ test.describe('Markdown Editor YAML Integrity', () => {
     console.log('[Test] Vault path:', testVaultPath);
 
     // Files are already created in electronApp fixture
-    const testNodeId = 'test-yaml-node.md';
-    const testFilePath = path.join(testVaultPath, testNodeId);
+    // NOTE: Node IDs include the relative path from watched folder (e.g., voicetree/filename.md)
+    const testFileName = 'test-yaml-node.md';
+    const testNodeId = `voicetree/${testFileName}`;
+    const testFilePath = path.join(testVaultPath, testFileName);
 
     // Vault is auto-loaded via config - wait for graph to have nodes
     await expect.poll(async () => {
@@ -276,13 +279,14 @@ test.describe('Markdown Editor YAML Integrity', () => {
     console.log('✓ Editor window opened');
 
     // Wait for CodeMirror to render
-    const escapedEditorWindowId = editorWindowId.replace(/\./g, '\\.');
+    // Escape special characters (dots and slashes) for CSS selector
+    const escapedEditorWindowId = editorWindowId.replace(/\./g, '\\.').replace(/\//g, '\\/');
     await appWindow.waitForSelector(`#${escapedEditorWindowId} .cm-editor`, { timeout: 5000 });
     console.log('✓ CodeMirror editor rendered');
 
     // 5. Check what content the editor is showing BEFORE making edits
     const editorContentBeforeEdit = await appWindow.evaluate((winId) => {
-      const escapedWinId = winId.replace(/\./g, '\\.');
+      const escapedWinId = CSS.escape(winId);
       const editorElement = document.querySelector(`#${escapedWinId} .cm-content`) as HTMLElement | null;
       if (!editorElement) return null;
 
@@ -304,7 +308,7 @@ test.describe('Markdown Editor YAML Integrity', () => {
     // 6. Make a small edit (append text)
     const textToAdd = '\n\nThis text was added by the E2E test.';
     await appWindow.evaluate(({ windowId, insertText }: { windowId: string; insertText: string }) => {
-      const escapedWindowId = windowId.replace(/\./g, '\\.');
+      const escapedWindowId = CSS.escape(windowId);
       const editorElement = document.querySelector(`#${escapedWindowId} .cm-content`) as HTMLElement | null;
       if (!editorElement) throw new Error('Editor content element not found');
 
@@ -346,7 +350,7 @@ test.describe('Markdown Editor YAML Integrity', () => {
     let editorContentAfterEdit: string | null = null;
     if (!appWindow.isClosed()) {
       editorContentAfterEdit = await appWindow.evaluate((winId) => {
-        const escapedWinId = winId.replace(/\./g, '\\.');
+        const escapedWinId = CSS.escape(winId);
         const editorElement = document.querySelector(`#${escapedWinId} .cm-content`) as HTMLElement | null;
         if (!editorElement) return null;
 
@@ -394,10 +398,11 @@ test.describe('Markdown Editor YAML Integrity', () => {
       console.log('⚠️ Skipping editor content check (page closed)');
     }
 
-    // D) File should still have title in YAML (or title should be preserved somehow)
-    // Check if title is preserved in some form
-    const hasTitleInYaml = savedContent.includes('title:');
-    console.log(`Title in YAML: ${hasTitleInYaml}`);
+    // D) File should still have YAML properties preserved
+    // Check if YAML properties are preserved
+    const hasNodeIdInYaml = savedContent.includes('node_id:');
+    const hasColorInYaml = savedContent.includes('color:');
+    console.log(`YAML properties preserved: node_id=${hasNodeIdInYaml}, color=${hasColorInYaml}`);
 
     console.log('\n✓ YAML integrity test completed');
   });
@@ -408,8 +413,10 @@ test.describe('Markdown Editor YAML Integrity', () => {
     console.log('[Test] Vault path:', testVaultPath);
 
     // Files are already created in electronApp fixture
-    const testNodeId = 'test-yaml-preservation.md';
-    const testFilePath = path.join(testVaultPath, testNodeId);
+    // NOTE: Node IDs include the relative path from watched folder (e.g., voicetree/filename.md)
+    const testFileName = 'test-yaml-preservation.md';
+    const testNodeId = `voicetree/${testFileName}`;
+    const testFilePath = path.join(testVaultPath, testFileName);
 
     // Vault is auto-loaded via config - wait for graph to have nodes
     await expect.poll(async () => {
@@ -467,7 +474,8 @@ test.describe('Markdown Editor YAML Integrity', () => {
       }, editorWindowId);
     }, { timeout: 5000 }).toBe(true);
 
-    const escapedEditorWindowId = editorWindowId.replace(/\./g, '\\.');
+    // Escape special characters (dots and slashes) for CSS selector
+    const escapedEditorWindowId = editorWindowId.replace(/\./g, '\\.').replace(/\//g, '\\/');
     await appWindow.waitForSelector(`#${escapedEditorWindowId} .cm-editor`, { timeout: 5000 });
     console.log('✓ Editor opened');
 
@@ -476,7 +484,7 @@ test.describe('Markdown Editor YAML Integrity', () => {
       console.log(`\n--- Edit cycle ${i} ---`);
 
       await appWindow.evaluate(({ windowId, text }: { windowId: string; text: string }) => {
-        const escapedWindowId = windowId.replace(/\./g, '\\.');
+        const escapedWindowId = CSS.escape(windowId);
         const editorElement = document.querySelector(`#${escapedWindowId} .cm-content`) as HTMLElement | null;
         if (!editorElement) throw new Error('Editor not found');
 

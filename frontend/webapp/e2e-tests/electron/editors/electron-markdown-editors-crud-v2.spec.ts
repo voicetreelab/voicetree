@@ -17,7 +17,8 @@ import type { EditorView } from '@codemirror/view';
 
 // Use absolute paths
 const PROJECT_ROOT = path.resolve(process.cwd());
-// Note: The app will look for files in FIXTURE_VAULT_PATH/voicetree/ due to default vaultSuffix
+// Note: FIXTURE_VAULT_PATH is the watched directory. The app uses a default vaultSuffix of 'voicetree'
+// so files are in FIXTURE_VAULT_PATH/voicetree/, and node IDs include this prefix (e.g., "voicetree/2025-09-30/file.md")
 const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_real_large');
 
 // Type definitions
@@ -204,11 +205,11 @@ test.describe('Markdown Editor CRUD Tests', () => {
     console.log(`✓ Found node with ID: ${nodeId}`);
 
     // Read original file content for restoration later
-    // Note: nodeId might already include .md extension and path (e.g., "2025-09-30/file.md")
-    // Files are in FIXTURE_VAULT_PATH/voicetree/ due to default vaultSuffix
+    // Note: nodeId is relative to watched directory and already includes vault suffix (e.g., "voicetree/2025-09-30/file.md")
+    // So we join directly with FIXTURE_VAULT_PATH (the watched directory)
     const testFilePath = nodeId.endsWith('.md')
-      ? path.join(FIXTURE_VAULT_PATH, 'voicetree', nodeId)
-      : path.join(FIXTURE_VAULT_PATH, 'voicetree', `${nodeId}.md`);
+      ? path.join(FIXTURE_VAULT_PATH, nodeId)
+      : path.join(FIXTURE_VAULT_PATH, `${nodeId}.md`);
     const originalContent = await fs.readFile(testFilePath, 'utf-8');
     console.log('Original file content length:', originalContent.length);
 
@@ -378,11 +379,11 @@ test.describe('Markdown Editor CRUD Tests', () => {
 
     const nodeId = 'introduction';
     // Read original file content for restoration
-    // Note: nodeId might already include .md extension and path (e.g., "2025-09-30/file.md")
-    // Files are in FIXTURE_VAULT_PATH/voicetree/ due to default vaultSuffix
+    // Note: nodeId is relative to watched directory and already includes vault suffix (e.g., "voicetree/file.md")
+    // So we join directly with FIXTURE_VAULT_PATH (the watched directory)
     const testFilePath = nodeId.endsWith('.md')
-      ? path.join(FIXTURE_VAULT_PATH, 'voicetree', nodeId)
-      : path.join(FIXTURE_VAULT_PATH, 'voicetree', `${nodeId}.md`);
+      ? path.join(FIXTURE_VAULT_PATH, nodeId)
+      : path.join(FIXTURE_VAULT_PATH, `${nodeId}.md`);
     const originalContent = await fs.readFile(testFilePath, 'utf-8');
 
     // Get initial edge count for node
@@ -555,11 +556,11 @@ test.describe('Markdown Editor CRUD Tests', () => {
     console.log(`✓ Found node with ID: ${nodeId}`);
 
     // Read original file content for restoration
-    // Note: nodeId might already include .md extension and path (e.g., "2025-09-30/file.md")
-    // Files are in FIXTURE_VAULT_PATH/voicetree/ due to default vaultSuffix
+    // Note: nodeId is relative to watched directory and already includes vault suffix (e.g., "voicetree/2025-09-30/file.md")
+    // So we join directly with FIXTURE_VAULT_PATH (the watched directory)
     const testFilePath = nodeId.endsWith('.md')
-      ? path.join(FIXTURE_VAULT_PATH, 'voicetree', nodeId)
-      : path.join(FIXTURE_VAULT_PATH, 'voicetree', `${nodeId}.md`);
+      ? path.join(FIXTURE_VAULT_PATH, nodeId)
+      : path.join(FIXTURE_VAULT_PATH, `${nodeId}.md`);
     const originalContent = await fs.readFile(testFilePath, 'utf-8');
     console.log('Original file content:', originalContent.substring(0, 50) + '...');
 
