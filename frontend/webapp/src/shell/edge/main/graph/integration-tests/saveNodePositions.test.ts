@@ -17,7 +17,6 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { saveNodePositions } from '@/shell/edge/main/saveNodePositions'
 import { getGraph, setGraph } from '@/shell/edge/main/state/graph-store'
 import { setVaultPath, clearVaultPath } from '@/shell/edge/main/graph/watchFolder'
-import { applyGraphDeltaToDBThroughMem } from '@/shell/edge/main/graph/markdownReadWritePaths/writePath/applyGraphDeltaToDBThroughMem'
 import { loadFolder, stopFileWatching, isWatching } from '@/shell/edge/main/graph/watchFolder'
 import type { GraphNode, Graph, GraphDelta } from '@/pure/graph'
 import type { NodeDefinition } from 'cytoscape'
@@ -27,6 +26,9 @@ import { promises as fs } from 'fs'
 import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths'
 import { waitForFSEvent, waitForWatcherReady, waitForCondition } from '@/utils/test-utils/waitForCondition'
 import { clearRecentWrites } from '@/shell/edge/main/state/recent-writes-store'
+import {
+    applyGraphDeltaToDBThroughMemAndUIAndEditors
+} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange";
 
 const TEST_NODE_ID: string = 'test-position-node.md'
 const TEST_FILE_PATH: string = path.join(EXAMPLE_SMALL_PATH, TEST_NODE_ID)
@@ -194,7 +196,7 @@ describe('saveNodePositions - Integration Tests', () => {
             }]
 
             // WHEN: Apply delta to write node to disk
-            await applyGraphDeltaToDBThroughMem(delta, false)
+            await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta, false)
 
             // THEN: File should contain position in YAML frontmatter
             const fileContent: string = await fs.readFile(TEST_FILE_PATH, 'utf-8')

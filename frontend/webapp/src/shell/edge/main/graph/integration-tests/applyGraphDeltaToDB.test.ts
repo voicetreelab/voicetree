@@ -21,7 +21,6 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { applyGraphDeltaToDBThroughMem } from '@/shell/edge/main/graph/markdownReadWritePaths/writePath/applyGraphDeltaToDBThroughMem'
 import { setGraph } from '@/shell/edge/main/state/graph-store'
 import { setVaultPath, clearVaultPath } from '@/shell/edge/main/graph/watchFolder'
 import type { GraphDelta, UpsertNodeDelta, DeleteNode, GraphNode } from '@/pure/graph'
@@ -29,6 +28,9 @@ import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'
 import { promises as fs } from 'fs'
 import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths'
+import {
+    applyGraphDeltaToDBThroughMemAndUIAndEditors
+} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange";
 
 const TEST_NODE_ID: "test-integration-node" = 'test-integration-node'
 const TEST_FILE_PATH: string = path.join(EXAMPLE_SMALL_PATH, `${TEST_NODE_ID}.md`)
@@ -72,7 +74,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       const delta: GraphDelta = [upsertAction]
 
       // WHEN: Apply the delta to DB
-      await applyGraphDeltaToDBThroughMem(delta)
+      await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta)
 
       // THEN: File should exist on disk
       const fileExists: boolean = await fs.access(TEST_FILE_PATH)
@@ -112,7 +114,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       }]
 
       // WHEN: Apply the delta
-      await applyGraphDeltaToDBThroughMem(delta)
+      await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta)
 
       // THEN: File should exist with markdown links
       const fileContent: string = await fs.readFile(TEST_FILE_PATH, 'utf-8')
@@ -150,7 +152,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
         previousNode: O.none
       }]
 
-      await applyGraphDeltaToDBThroughMem(createDelta)
+      await applyGraphDeltaToDBThroughMemAndUIAndEditors(createDelta)
 
       // Verify file exists
       const fileExistsBeforeDelete: boolean = await fs.access(TEST_FILE_PATH)
@@ -166,7 +168,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       }
 
       const deleteDelta: GraphDelta = [deleteAction]
-      await applyGraphDeltaToDBThroughMem(deleteDelta)
+      await applyGraphDeltaToDBThroughMemAndUIAndEditors(deleteDelta)
 
       // THEN: File should no longer exist
       const fileExistsAfterDelete: boolean = await fs.access(TEST_FILE_PATH)
@@ -193,7 +195,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
         }
       }
 
-      await applyGraphDeltaToDBThroughMem([{
+      await applyGraphDeltaToDBThroughMemAndUIAndEditors([{
         type: 'UpsertNode',
         nodeToUpsert: createNode,
         previousNode: O.none
@@ -215,7 +217,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
         }
       }
 
-      await applyGraphDeltaToDBThroughMem([{
+      await applyGraphDeltaToDBThroughMemAndUIAndEditors([{
         type: 'UpsertNode',
         nodeToUpsert: updateNode,
         previousNode: O.none
@@ -226,7 +228,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       expect(fileContent).toContain('This content has been updated.')
 
       // STEP 3: Delete node
-      await applyGraphDeltaToDBThroughMem([{
+      await applyGraphDeltaToDBThroughMemAndUIAndEditors([{
         type: 'DeleteNode',
         nodeId: TEST_NODE_ID,
         deletedNode: O.none
@@ -262,7 +264,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       }]
 
       // WHEN/THEN: Should throw error about watched directory
-      await expect(applyGraphDeltaToDBThroughMem(delta))
+      await expect(applyGraphDeltaToDBThroughMemAndUIAndEditors(delta))
         .rejects
         .toThrow('Watched directory not initialized')
     })

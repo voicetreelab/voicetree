@@ -239,10 +239,23 @@ export class CodeMirrorEditorView extends Disposable {
   /**
    * Setup update listener to detect content changes
    * Debounces emissions based on autosaveDelay option (default: 300ms)
+   *
+   * Only emits for user input (typing, paste, etc.) - NOT for programmatic setValue() calls.
+   * This prevents feedback loops without needing an external awaiting store.
    */
   private setupUpdateListener(): Extension {
     return EditorView.updateListener.of((viewUpdate: ViewUpdate) => {
       if (viewUpdate.docChanged) {
+        // Only emit for user-initiated changes (typing, paste, cut, etc.)
+        // Programmatic changes via setValue() won't have userEvent annotation
+        const isUserInput: boolean = viewUpdate.transactions.some(
+          tr => tr.isUserEvent("input")
+        );
+
+        if (!isUserInput) {
+          return; // Skip programmatic changes
+        }
+
         const content: string = viewUpdate.state.doc.toString();
         const delay: number = this.options.autosaveDelay ?? 300;
 

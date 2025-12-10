@@ -5,7 +5,9 @@
  * Each function should be defined in its own module.
  */
 
-import {applyGraphDeltaToDBThroughMem} from '@/shell/edge/main/graph/markdownReadWritePaths/writePath/applyGraphDeltaToDBThroughMem'
+import {
+    applyGraphDeltaToDBThroughMemAndUI
+} from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {loadSettings, saveSettings as saveSettings} from './settings/settings_IO'
 import {getWatchStatus, loadPreviousFolder, startFileWatching, stopFileWatching, setVaultSuffix} from './graph/watchFolder'
@@ -14,11 +16,16 @@ import {createContextNode} from "@/shell/edge/main/graph/context-nodes/createCon
 import {saveNodePositions} from "@/shell/edge/main/saveNodePositions";
 import {performUndo, performRedo} from './graph/undoOperations'
 import {spawnTerminalWithContextNode} from './terminals/spawnTerminalWithContextNode'
+import {
+    applyGraphDeltaToDBThroughMemAndUIAndEditors
+} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange";
 
 // eslint-disable-next-line @typescript-eslint/typedef
 export const mainAPI = {
   // Graph operations - renderer-friendly wrappers
-  applyGraphDeltaToDBThroughMem,
+  applyGraphDeltaToDBThroughMemUIAndEditorExposed: applyGraphDeltaToDBThroughMemAndUIAndEditors,
+
+    applyGraphDeltaToDBThroughMemAndUIExposed: applyGraphDeltaToDBThroughMemAndUI,
 
   getGraph,
 

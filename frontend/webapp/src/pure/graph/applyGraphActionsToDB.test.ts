@@ -7,8 +7,8 @@ import { tmpdir } from 'os'
 import path from 'path'
 import { promises as fs } from 'fs'
 import { markdownToTitle } from '@/pure/graph/markdown-parsing/markdown-to-title'
-import { loadGraphFromDisk } from '@/shell/edge/main/graph/markdownReadWritePaths/readAndApplyDBEventsPath/loadGraphFromDisk'
-import type { FileLimitExceededError } from '@/shell/edge/main/graph/markdownReadWritePaths/readAndApplyDBEventsPath/fileLimitEnforce'
+import { loadGraphFromDisk } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk'
+import type { FileLimitExceededError } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce'
 
 describe('apply_graph_deltas_to_db', () => {
   const testVaultPath: string = path.join(tmpdir(), 'test-vault-apply-deltas-to-db')

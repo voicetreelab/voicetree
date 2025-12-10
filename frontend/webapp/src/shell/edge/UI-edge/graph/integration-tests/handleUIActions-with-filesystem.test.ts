@@ -221,8 +221,8 @@ Child content`
             electronAPI: {
                 main: {
                     getGraph: mainAPI.getGraph,
-                    applyGraphDeltaToDBThroughMem: async (delta: GraphDelta) => {
-                        await mainAPI.applyGraphDeltaToDBThroughMem(delta)
+                    applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
+                        await mainAPI.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta)
                         // Also update cytoscape UI since file watching is mocked
                         applyGraphDeltaToUI(cy, delta)
                     }
@@ -409,8 +409,8 @@ Child content`
             electronAPI: {
                 main: {
                     getGraph: mainAPI.getGraph,
-                    applyGraphDeltaToDBThroughMem: async (delta: GraphDelta) => {
-                        await mainAPI.applyGraphDeltaToDBThroughMem(delta)
+                    applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
+                        await mainAPI.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta)
                         // Also update cytoscape UI since file watching is mocked
                         applyGraphDeltaToUI(cy, delta)
                     }

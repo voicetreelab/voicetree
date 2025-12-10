@@ -68,6 +68,7 @@ export const isOurRecentWrite: (filePath: string, currentContent: string | undef
             if (!entries) return false
 
             // If only delete markers exist, don't match content
+            // todo, have no clue what this is doing, seems harmless tho
             const now: number = Date.now()
             const hasNonDeleteEntry: boolean = entries.some(e =>
                 now - e.timestamp <= 300 && e.content !== DELETED_MARKER

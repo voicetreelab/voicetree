@@ -1,5 +1,7 @@
-import { applyGraphDeltaToDBThroughMem } from '@/shell/edge/main/graph/markdownReadWritePaths/writePath/applyGraphDeltaToDBThroughMem'
 import { popUndoDelta, popRedoDelta } from '@/shell/edge/main/state/undo-store'
+import {
+    applyGraphDeltaToDBThroughMemAndUIAndEditors
+} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange";
 
 /**
  * Performs undo operation by reversing the last user action.
@@ -11,7 +13,7 @@ export async function performUndo(): Promise<boolean> {
         return false
     }
     // Apply reverse delta WITHOUT recording for undo (would create infinite loop)
-    await applyGraphDeltaToDBThroughMem(reverseDelta, false)
+    await applyGraphDeltaToDBThroughMemAndUIAndEditors(reverseDelta, false)
     return true
 }
 
@@ -25,6 +27,6 @@ export async function performRedo(): Promise<boolean> {
         return false
     }
     // Apply delta WITHOUT recording for undo (it's already in the stack)
-    await applyGraphDeltaToDBThroughMem(deltaToApply, false)
+    await applyGraphDeltaToDBThroughMemAndUIAndEditors(deltaToApply, false)
     return true
 }
