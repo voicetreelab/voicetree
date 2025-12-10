@@ -113,6 +113,7 @@ async function saveSuffixForDirectory(directoryPath: string, suffix: string): Pr
 }
 
 export async function loadFolder(watchedFolderPath: FilePath, suffixOverride?: string): Promise<void>  {
+    // TODO: Save current graph positions before switching folders (writeAllPositionsSync)
     // IMPORTANT,  watchedFolderPath is the folder the human chooses for proj
 
     // but we only read and write files to the vaultPAth, which is watchedFolderPath/readWriteDir

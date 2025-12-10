@@ -39,6 +39,11 @@ export class SseStatusPanel {
             const isExpanded: boolean = this.container.classList.toggle('expanded');
             if (isExpanded) {
                 this.eventsContainer.scrollLeft = 0;
+            } else {
+                // Scroll to rightmost (newest) item when collapsing
+                requestAnimationFrame(() => {
+                    this.eventsContainer.scrollLeft = this.eventsContainer.scrollWidth;
+                });
             }
         });
         this.container.appendChild(expandArrow);

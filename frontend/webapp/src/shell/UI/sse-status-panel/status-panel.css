@@ -71,7 +71,7 @@
     flex-wrap: wrap;
     align-content: flex-end; /* Stack rows from bottom up */
     overflow-x: hidden;
-    overflow-y: auto;
+    overflow-y: scroll;
     background: var(--background);
     border: 1px solid var(--border);
     border-bottom: none; /* Seamless connection with compact panel */

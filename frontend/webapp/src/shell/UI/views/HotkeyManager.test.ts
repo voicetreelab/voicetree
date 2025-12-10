@@ -1,0 +1,159 @@
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
+import { HotkeyManager } from './HotkeyManager';
+
+describe('HotkeyManager', () => {
+  let hotkeyManager: HotkeyManager;
+
+  beforeEach(() => {
+    hotkeyManager = new HotkeyManager();
+  });
+
+  afterEach(() => {
+    hotkeyManager.dispose();
+  });
+
+  describe('isInputElement detection via composedPath', () => {
+    it('should block plain Space key when focus is on INPUT element', () => {
+      const input: HTMLInputElement = document.createElement('input');
+      document.body.appendChild(input);
+      input.focus();
+
+      const pressHandler: Mock = vi.fn();
+      hotkeyManager.registerHotkey({
+        key: ' ',
+        onPress: pressHandler
+      });
+
+      // Simulate space key press with input as target
+      const event: KeyboardEvent = new KeyboardEvent('keydown', {
+        key: ' ',
+        bubbles: true,
+        composed: true
+      });
+      input.dispatchEvent(event);
+
+      // Handler should NOT be called because we're in an input element
+      expect(pressHandler).not.toHaveBeenCalled();
+
+      document.body.removeChild(input);
+    });
+
+    it('should allow Space key when focus is on non-input element', () => {
+      const div: HTMLDivElement = document.createElement('div');
+      document.body.appendChild(div);
+      div.focus();
+
+      const pressHandler: Mock = vi.fn();
+      hotkeyManager.registerHotkey({
+        key: ' ',
+        onPress: pressHandler
+      });
+
+      // Simulate space key press with div as target
+      const event: KeyboardEvent = new KeyboardEvent('keydown', {
+        key: ' ',
+        bubbles: true,
+        composed: true
+      });
+      div.dispatchEvent(event);
+
+      expect(pressHandler).toHaveBeenCalled();
+
+      document.body.removeChild(div);
+    });
+
+    it('should detect INPUT inside shadow DOM via composedPath', () => {
+      // Create a custom element with shadow DOM containing an input
+      class TestShadowElement extends HTMLElement {
+        constructor() {
+          super();
+          const shadow: ShadowRoot = this.attachShadow({ mode: 'open' });
+          const input: HTMLInputElement = document.createElement('input');
+          input.id = 'shadow-input';
+          shadow.appendChild(input);
+        }
+      }
+      customElements.define('test-shadow-element', TestShadowElement);
+
+      const shadowHost: TestShadowElement = document.createElement('test-shadow-element') as TestShadowElement;
+      document.body.appendChild(shadowHost);
+
+      const shadowInput: HTMLInputElement = shadowHost.shadowRoot?.getElementById('shadow-input') as HTMLInputElement;
+      shadowInput.focus();
+
+      const pressHandler: Mock = vi.fn();
+      hotkeyManager.registerHotkey({
+        key: ' ',
+        onPress: pressHandler
+      });
+
+      // Create a keyboard event and dispatch from the shadow input
+      // The event.target will be the shadow host, but composedPath() includes the actual input
+      const event: KeyboardEvent = new KeyboardEvent('keydown', {
+        key: ' ',
+        bubbles: true,
+        composed: true
+      });
+      shadowInput.dispatchEvent(event);
+
+      // Handler should NOT be called because we detect the input via composedPath
+      expect(pressHandler).not.toHaveBeenCalled();
+
+      document.body.removeChild(shadowHost);
+    });
+
+    it('should allow modifier keys (Meta) even when in input element', () => {
+      const input: HTMLInputElement = document.createElement('input');
+      document.body.appendChild(input);
+      input.focus();
+
+      const pressHandler: Mock = vi.fn();
+      hotkeyManager.registerHotkey({
+        key: 'k',
+        modifiers: ['Meta'],
+        onPress: pressHandler
+      });
+
+      // Simulate Cmd+K key press with input as target
+      const event: KeyboardEvent = new KeyboardEvent('keydown', {
+        key: 'k',
+        metaKey: true,
+        bubbles: true,
+        composed: true
+      });
+      input.dispatchEvent(event);
+
+      // Handler SHOULD be called because it has a modifier
+      expect(pressHandler).toHaveBeenCalled();
+
+      document.body.removeChild(input);
+    });
+
+    it('should NOT allow undo/redo hotkey when in input element', () => {
+      const input: HTMLInputElement = document.createElement('input');
+      document.body.appendChild(input);
+      input.focus();
+
+      const pressHandler: Mock = vi.fn();
+      hotkeyManager.registerHotkey({
+        key: 'z',
+        modifiers: ['Meta'],
+        onPress: pressHandler
+      });
+
+      // Simulate Cmd+Z key press with input as target
+      const event: KeyboardEvent = new KeyboardEvent('keydown', {
+        key: 'z',
+        metaKey: true,
+        bubbles: true,
+        composed: true
+      });
+      input.dispatchEvent(event);
+
+      // Handler should NOT be called because undo/redo should be handled by the input natively
+      expect(pressHandler).not.toHaveBeenCalled();
+
+      document.body.removeChild(input);
+    });
+  });
+});

@@ -127,6 +127,9 @@ export interface Env {
 }
 export type FilePath = string // todo enforce only / and chars
 
+/** Folder where context nodes are stored - used to exclude from child node ID generation */
+export const CONTEXT_NODES_FOLDER: "ctx-nodes" = 'ctx-nodes'
+
 export type NodeIdAndFilePath = FilePath
 
 export interface Position {
