@@ -3,6 +3,7 @@ import {CONTEXT_NODES_FOLDER} from '@/pure/graph'
 import {calculateInitialPositionForChild} from "@/pure/graph/positioning/calculateInitialPosition";
 import {addOutgoingEdge} from "@/pure/graph/graph-operations/graph-edge-operations";
 import * as O from "fp-ts/lib/Option.js";
+// TODO: parseMarkdownToGraphNode uses gray-matter which requires Node.js Buffer - move parsing to main process
 import {parseMarkdownToGraphNode} from "@/pure/graph/markdown-parsing/parse-markdown-to-node";
 
 /**

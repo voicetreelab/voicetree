@@ -31,6 +31,8 @@ import {
 } from "@/shell/edge/UI-edge/state/UIAppState";
 import { getNextTerminalCount, getTerminals } from "@/shell/edge/UI-edge/state/TerminalStore";
 
+const MAX_TERMINALS = 7;
+
 /**
  * Spawn a terminal with a new context node
  *
@@ -48,6 +50,13 @@ export async function spawnTerminalWithNewContextNode(
     agentCommand?: string,
 ): Promise<void> {
     const terminalsMap: Map<TerminalId, TerminalData> = getTerminals();
+
+    // Check terminal limit
+    if (terminalsMap.size >= MAX_TERMINALS) {
+        alert(`There is a limit of ${MAX_TERMINALS} open terminals at once, contact manu@voicetree.io to increase this`);
+        return;
+    }
+
     const terminalCount: number = getNextTerminalCount(terminalsMap, parentNodeId);
 
     // Delegate to main process which has immediate graph access

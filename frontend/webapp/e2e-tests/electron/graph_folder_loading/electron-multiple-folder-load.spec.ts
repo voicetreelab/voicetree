@@ -21,7 +21,7 @@ import type { Core as CytoscapeCore, NodeSingular } from 'cytoscape';
 // Use absolute paths
 const PROJECT_ROOT = path.resolve(process.cwd());
 const FIXTURE_SMALL = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
-const FIXTURE_ONBOARDING = path.join(PROJECT_ROOT, 'public', 'onboarding_tree');
+const FIXTURE_ONBOARDING = path.join(PROJECT_ROOT, 'public', 'onboarding');
 
 // Type definitions
 interface ExtendedWindow {

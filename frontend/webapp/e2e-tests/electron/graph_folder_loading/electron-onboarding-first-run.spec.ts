@@ -6,7 +6,7 @@
  * 1. App can successfully load the onboarding directory from Application Support
  * 2. The onboarding directory contains 5-10 markdown files (varies based on fixture updates)
  * 3. All nodes are correctly displayed in the graph with proper labels
- * 4. The watched directory path contains "onboarding_tree"
+ * 4. The watched directory path contains "onboarding"
  * 5. Expected onboarding nodes are present: Welcome, Just Start Talking,
  *    Open Your Project Folder, Right-Click to Open Terminal, Command Palette
  *
@@ -28,7 +28,7 @@ import type { ElectronAPI } from '@/shell/electron';
 // Use absolute paths
 const PROJECT_ROOT: string = path.resolve(process.cwd());
 // Source onboarding files (in dev mode this is in public/)
-const ONBOARDING_SOURCE: string = path.join(PROJECT_ROOT, 'public', 'onboarding_tree');
+const ONBOARDING_SOURCE: string = path.join(PROJECT_ROOT, 'public', 'onboarding');
 
 // Type definitions (already uses ElectronAPI from types)
 interface ExtendedWindow {
@@ -87,11 +87,11 @@ const test: ReturnType<typeof base.extend<TestFixtures>> = base.extend<TestFixtu
     // Create a temporary userData directory for this test (isolated from other tests)
     const tempPath: string = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-onboarding-test-'));
 
-    // Copy onboarding_tree into the temp userData directory
+    // Copy onboarding into the temp userData directory
     // This simulates the first-run setup without running the actual setup code
-    const onboardingDest: string = path.join(tempPath, 'onboarding_tree');
+    const onboardingDest: string = path.join(tempPath, 'onboarding');
     await copyDir(ONBOARDING_SOURCE, onboardingDest);
-    console.log('[Onboarding Test] Copied onboarding_tree to temp userData:', onboardingDest);
+    console.log('[Onboarding Test] Copied onboarding to temp userData:', onboardingDest);
 
     // DO NOT create voicetree-config.json - this simulates first run
 
@@ -170,7 +170,7 @@ test.describe('Onboarding First Run', () => {
     console.log('✓ App loaded successfully');
 
     // Step 2: Get the expected onboarding directory path
-    const onboardingPath: string = path.join(tempUserDataPath, 'onboarding_tree');
+    const onboardingPath: string = path.join(tempUserDataPath, 'onboarding');
     console.log('✓ Expected onboarding directory path:', onboardingPath);
 
     // Step 3: Trigger initialLoad to load the onboarding directory automatically
@@ -196,7 +196,7 @@ test.describe('Onboarding First Run', () => {
 
     expect(watchStatus.isWatching).toBe(true);
     expect(watchStatus.directory).toBeDefined();
-    expect(watchStatus.directory).toContain('onboarding_tree');
+    expect(watchStatus.directory).toContain('onboarding');
     console.log('✓ Onboarding directory is being watched:', watchStatus.directory);
 
     // Step 6: Verify graph state contains exactly 5 nodes
@@ -253,7 +253,7 @@ test.describe('Onboarding First Run', () => {
     console.log('✓ Onboarding directory loaded successfully');
     console.log(`✓ ${nodeCount} onboarding nodes displayed in graph`);
     console.log('✓ All expected onboarding files present with correct labels');
-    console.log('✓ Directory watch confirmed on onboarding_tree');
+    console.log('✓ Directory watch confirmed on onboarding');
     console.log('');
     console.log('✅ ONBOARDING DIRECTORY TEST PASSED!');
   });
