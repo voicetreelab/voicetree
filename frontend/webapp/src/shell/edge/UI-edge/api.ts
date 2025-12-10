@@ -27,9 +27,9 @@ function updateFloatingEditorsFromExternal(delta: GraphDelta): void {
 
 // Export as object (like mainAPI)
 // eslint-disable-next-line @typescript-eslint/typedef
-export const uiAPI = {
+export const uiAPIHandler = {
     launchTerminalOntoUI,
     updateFloatingEditorsFromExternal,
 };
 
-export type UIAPIType = typeof uiAPI;
+export type UIAPIType = typeof uiAPIHandler;

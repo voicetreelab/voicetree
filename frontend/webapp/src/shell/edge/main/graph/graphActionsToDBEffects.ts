@@ -12,7 +12,7 @@ import { promises as fs } from 'fs'
 import path from 'path'
 import { fromNodeToMarkdownContent } from '@/pure/graph/markdown-writing/node_to_markdown'
 import { nodeIdToFilePathWithExtension } from '@/pure/graph/markdown-parsing/filename-utils'
-import { markFileWritten, markFileDeleted } from '@/shell/edge/main/state/recent-writes-store'
+import {markRecentDelta} from "@/shell/edge/main/state/recent-deltas-store";
 
 /**
  * Helper to convert unknown errors to Error type
@@ -34,6 +34,8 @@ const toError: (reason: unknown) => Error = (reason: unknown): Error =>
 export function apply_graph_deltas_to_db(
   deltas: GraphDelta
 ): FSWriteEffect<GraphDelta> {
+    deltas.map( d =>  markRecentDelta(d))
+
     // Map each delta to a file write effect
     const writeEffects: readonly FSWriteEffect<void>[] = deltas.map(delta => {
         switch (delta.type) {
@@ -67,10 +69,6 @@ function writeNodeToFile(node: GraphNode): FSWriteEffect<void> {
             // Ensure parent directory exists
             await fs.mkdir(path.dirname(fullPath), { recursive: true })
 
-            // Track this write BEFORE fs.writeFile to prevent race condition:
-            // chokidar callback can run at yield points, so FS event could arrive
-            // between writeFile completing and markFileWritten being called
-            markFileWritten(fullPath, markdown)
             await fs.writeFile(fullPath, markdown, 'utf-8')
         },
         toError
@@ -86,8 +84,6 @@ function deleteNodeFile(nodeId: NodeIdAndFilePath): FSWriteEffect<void> {
             const filename: string = nodeIdToFilePathWithExtension(nodeId)
             const fullPath: string = path.join(env.watchedDirectory, filename)
 
-            // Track this delete BEFORE fs.unlink to prevent race condition
-            markFileDeleted(fullPath)
             await fs.unlink(fullPath)
         },
         toError
