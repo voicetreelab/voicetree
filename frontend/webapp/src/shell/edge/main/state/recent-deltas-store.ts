@@ -5,21 +5,18 @@
  * We need to ignore these "echo" events to prevent feedback loops.
  *
  * Architecture: Simple module-level state with pure functions.
- * Stores the actual NodeDelta objects (no separate content strings or magic markers).
+ * Stores only the NodeDelta objects. Comparison uses delta.nodeToUpsert.contentWithoutYamlOrLinks.
  *
  * TTL: Entries auto-expire after 300ms (macOS FSEvents typically arrive within 100ms).
  */
 
-import type { NodeDelta, FSEvent, NodeIdAndFilePath } from '@/pure/graph'
+import type { NodeDelta, GraphDelta, NodeIdAndFilePath } from '@/pure/graph'
 import { stripBracketedContent } from '@/pure/graph/contentChangeDetection'
-import { fromNodeToMarkdownContent } from '@/pure/graph/markdown-writing/node_to_markdown'
-import path from 'path'
 
 const DEFAULT_TTL_MS: number = 300
 
 interface RecentDeltaEntry {
     readonly delta: NodeDelta
-    readonly markdownContent: string | null  // null for deletes, full markdown for upserts
     readonly timestamp: number
 }
 
@@ -30,17 +27,17 @@ const recentDeltas: Map<NodeIdAndFilePath, RecentDeltaEntry[]> = new Map()
  * Normalize content for comparison by stripping brackets and whitespace.
  * Handles cases where links may resolve differently between write and read paths.
  */
-function normalizeContentRemovingContentInsideWikilinks(content: string): string {
+function normalizeContent(content: string): string {
     return stripBracketedContent(content).replace(/\s+/g, '')
 }
 
 /**
- * Extract nodeId from an FSEvent's absolute path.
+ * Get nodeId from a NodeDelta.
  */
-function fsEventToNodeId(fsEvent: FSEvent, watchedDirectory: string): NodeIdAndFilePath {
-    const relativePath: string = path.relative(watchedDirectory, fsEvent.absolutePath)
-    // Remove .md extension to get nodeId
-    return relativePath.replace(/\.md$/, '')
+function getNodeIdFromDelta(delta: NodeDelta): NodeIdAndFilePath {
+    return delta.type === 'UpsertNode'
+        ? delta.nodeToUpsert.relativeFilePathIsID
+        : delta.nodeId
 }
 
 /**
@@ -48,15 +45,7 @@ function fsEventToNodeId(fsEvent: FSEvent, watchedDirectory: string): NodeIdAndF
  * Call this BEFORE writing to filesystem to prevent race conditions.
  */
 export function markRecentDelta(delta: NodeDelta): void {
-    const nodeId: NodeIdAndFilePath = delta.type === 'UpsertNode'
-        ? delta.nodeToUpsert.relativeFilePathIsID
-        : delta.nodeId
-
-    // Compute markdown content for upserts (same as what gets written to disk)
-    const markdownContent: string | null = delta.type === 'UpsertNode'
-        ? fromNodeToMarkdownContent(delta.nodeToUpsert)
-        : null
-
+    const nodeId: NodeIdAndFilePath = getNodeIdFromDelta(delta)
     const now: number = Date.now()
 
     // Clean up all expired entries across all nodeIds
@@ -71,14 +60,14 @@ export function markRecentDelta(delta: NodeDelta): void {
 
     // Add new entry for this nodeId
     const existing: RecentDeltaEntry[] = recentDeltas.get(nodeId) ?? []
-    existing.push({ delta, markdownContent, timestamp: now })
+    existing.push({ delta, timestamp: now })
     recentDeltas.set(nodeId, existing)
 }
 
 /**
- * Check if an FS event corresponds to our own recent write.
+ * Check if an incoming GraphDelta matches our own recent write.
  *
- * For upserts: Compares normalized content (strips brackets + whitespace).
+ * For upserts: Compares normalized contentWithoutYamlOrLinks (strips brackets + whitespace).
  * For deletes: Checks if we have a recent DeleteNode delta for this path.
  *
  * Does NOT consume entries on match - allows multiple FSEvents to match same write
@@ -86,35 +75,42 @@ export function markRecentDelta(delta: NodeDelta): void {
  *
  * Pure query - does not mutate state. Cleanup happens on write path.
  */
-export function isOurRecentDelta(fsEvent: FSEvent, watchedDirectory: string): boolean {
-    const nodeId: NodeIdAndFilePath = fsEventToNodeId(fsEvent, watchedDirectory)
-    const entries: RecentDeltaEntry[] | undefined = recentDeltas.get(nodeId)
-
-    if (!entries || entries.length === 0) return false
-
+export function isOurRecentDelta(incomingDelta: GraphDelta): boolean {
     const now: number = Date.now()
 
-    // Filter to only valid (non-expired) entries
-    const validEntries: RecentDeltaEntry[] = entries.filter(e => now - e.timestamp <= DEFAULT_TTL_MS)
-    if (validEntries.length === 0) return false
+    // Check each NodeDelta in the incoming GraphDelta
+    for (const nodeDelta of incomingDelta) {
+        const nodeId: NodeIdAndFilePath = getNodeIdFromDelta(nodeDelta)
+        const entries: RecentDeltaEntry[] | undefined = recentDeltas.get(nodeId)
 
-    // Check if this is a delete event
-    const isDeleteEvent: boolean = 'type' in fsEvent && fsEvent.type === 'Delete'
+        if (!entries || entries.length === 0) {
+            // No recent delta for this node - this is an external change
+            return false
+        }
 
-    if (isDeleteEvent) {
-        // For delete events, check if ANY valid entry is a DeleteNode
-        return validEntries.some(e => e.delta.type === 'DeleteNode')
-    } else {
-        // For upsert events, compare normalized content (full markdown)
-        const fsContent: string = 'content' in fsEvent ? fsEvent.content : ''
-        const normalizedFsContent: string = normalizeContentRemovingContentInsideWikilinks(fsContent)
+        // Filter to only valid (non-expired) entries
+        const validEntries: RecentDeltaEntry[] = entries.filter(e => now - e.timestamp <= DEFAULT_TTL_MS)
+        if (validEntries.length === 0) return false
 
-        return validEntries.some(e => {
-            if (e.delta.type !== 'UpsertNode' || e.markdownContent === null) return false
-            // Compare the stored markdown content to the FS content
-            return normalizeContentRemovingContentInsideWikilinks(e.markdownContent) === normalizedFsContent
-        })
+        if (nodeDelta.type === 'DeleteNode') {
+            // For delete, check if ANY valid entry is a DeleteNode for this nodeId
+            const hasMatchingDelete: boolean = validEntries.some(e => e.delta.type === 'DeleteNode')
+            if (!hasMatchingDelete) return false
+        } else {
+            // For upsert, compare normalized contentWithoutYamlOrLinks
+            const incomingContent: string = normalizeContent(nodeDelta.nodeToUpsert.contentWithoutYamlOrLinks)
+
+            const hasMatchingUpsert: boolean = validEntries.some(e => {
+                if (e.delta.type !== 'UpsertNode') return false
+                const storedContent: string = normalizeContent(e.delta.nodeToUpsert.contentWithoutYamlOrLinks)
+                return storedContent === incomingContent
+            })
+            if (!hasMatchingUpsert) return false
+        }
     }
+
+    // All deltas in incoming GraphDelta matched our recent writes
+    return true
 }
 
 /**

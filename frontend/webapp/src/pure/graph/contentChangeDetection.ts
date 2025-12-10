@@ -7,11 +7,12 @@
  */
 
 /**
- * Strip all content within square brackets (including the brackets).
- * Removes links like [path.md], [text]*, [[wikilinks]], etc.
+ * Strip wikilinks [[...]] and regular links [...] including the brackets.
  */
 export function stripBracketedContent(content: string): string {
-    return content.replace(/\[[^\]]*\]/g, '')
+    const withoutWikilinks: string = content.replace(/\[\[[^\]]*\]\]/g, '')
+    const withoutLinks: string = withoutWikilinks.replace(/\[[^\]]*\]/g, '')
+    return withoutLinks
 }
 
 /**
@@ -20,4 +21,19 @@ export function stripBracketedContent(content: string): string {
  */
 export function hasActualContentChanged(prev: string, next: string): boolean {
     return stripBracketedContent(prev) !== stripBracketedContent(next)
+}
+
+/**
+ * Check if newContent is just prevContent with something appended.
+ * Used to detect link-only additions that can be merged with unsaved editor changes.
+ */
+export function isAppendOnly(prev: string, next: string): boolean {
+    return next.startsWith(prev) && next.length > prev.length
+}
+
+/**
+ * Get the appended suffix when isAppendOnly returns true.
+ */
+export function getAppendedSuffix(prev: string, next: string): string {
+    return next.slice(prev.length)
 }

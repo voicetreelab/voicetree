@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
-import type { NodeDelta, FSEvent, GraphNode, NodeUIMetadata } from '@/pure/graph'
+import type { NodeDelta, GraphDelta, GraphNode, NodeUIMetadata } from '@/pure/graph'
 import {
     markRecentDelta,
     isOurRecentDelta,
@@ -32,21 +32,8 @@ const makeDeleteDelta: (nodeId: string) => NodeDelta = (nodeId) => ({
     deletedNode: O.none
 })
 
-const makeUpsertFSEvent: (absolutePath: string, content: string) => FSEvent = (absolutePath, content) => ({
-    absolutePath,
-    content,
-    eventType: 'Changed'
-})
-
-const makeDeleteFSEvent: (absolutePath: string) => FSEvent = (absolutePath) => ({
-    type: 'Delete',
-    absolutePath
-})
-
-const WATCHED_DIR: string = '/vault'
-
-// Helper to wrap content with empty frontmatter (matches what fromNodeToMarkdownContent produces)
-const withFrontmatter: (content: string) => string = (content) => `---\n---\n${content}`
+// Helper to create a GraphDelta from a single NodeDelta
+const toGraphDelta: (delta: NodeDelta) => GraphDelta = (delta) => [delta]
 
 describe('recent-deltas-store', () => {
     beforeEach(() => {
@@ -58,22 +45,22 @@ describe('recent-deltas-store', () => {
             const delta: NodeDelta = makeUpsertDelta('test-node', 'hello world')
             markRecentDelta(delta)
 
-            // FS event content includes frontmatter (like real markdown files)
-            const fsEvent: FSEvent = makeUpsertFSEvent('/vault/test-node.md', withFrontmatter('hello world'))
-            expect(isOurRecentDelta(fsEvent, WATCHED_DIR)).toBe(true)
+            // Incoming delta with same content
+            const incomingDelta: GraphDelta = toGraphDelta(makeUpsertDelta('test-node', 'hello world'))
+            expect(isOurRecentDelta(incomingDelta)).toBe(true)
         })
 
         it('should return false for different content', () => {
             const delta: NodeDelta = makeUpsertDelta('test-node', 'hello world')
             markRecentDelta(delta)
 
-            const fsEvent: FSEvent = makeUpsertFSEvent('/vault/test-node.md', withFrontmatter('different content'))
-            expect(isOurRecentDelta(fsEvent, WATCHED_DIR)).toBe(false)
+            const incomingDelta: GraphDelta = toGraphDelta(makeUpsertDelta('test-node', 'different content'))
+            expect(isOurRecentDelta(incomingDelta)).toBe(false)
         })
 
         it('should return false for unknown nodeId', () => {
-            const fsEvent: FSEvent = makeUpsertFSEvent('/vault/unknown.md', withFrontmatter('content'))
-            expect(isOurRecentDelta(fsEvent, WATCHED_DIR)).toBe(false)
+            const incomingDelta: GraphDelta = toGraphDelta(makeUpsertDelta('unknown', 'content'))
+            expect(isOurRecentDelta(incomingDelta)).toBe(false)
         })
     })
 
@@ -82,24 +69,24 @@ describe('recent-deltas-store', () => {
             const delta: NodeDelta = makeDeleteDelta('test-node')
             markRecentDelta(delta)
 
-            const fsEvent: FSEvent = makeDeleteFSEvent('/vault/test-node.md')
-            expect(isOurRecentDelta(fsEvent, WATCHED_DIR)).toBe(true)
+            const incomingDelta: GraphDelta = toGraphDelta(makeDeleteDelta('test-node'))
+            expect(isOurRecentDelta(incomingDelta)).toBe(true)
         })
 
         it('should return false for delete event when only upsert was marked', () => {
             const delta: NodeDelta = makeUpsertDelta('test-node', 'content')
             markRecentDelta(delta)
 
-            const fsEvent: FSEvent = makeDeleteFSEvent('/vault/test-node.md')
-            expect(isOurRecentDelta(fsEvent, WATCHED_DIR)).toBe(false)
+            const incomingDelta: GraphDelta = toGraphDelta(makeDeleteDelta('test-node'))
+            expect(isOurRecentDelta(incomingDelta)).toBe(false)
         })
 
         it('should return false for upsert event when only delete was marked', () => {
             const delta: NodeDelta = makeDeleteDelta('test-node')
             markRecentDelta(delta)
 
-            const fsEvent: FSEvent = makeUpsertFSEvent('/vault/test-node.md', withFrontmatter('content'))
-            expect(isOurRecentDelta(fsEvent, WATCHED_DIR)).toBe(false)
+            const incomingDelta: GraphDelta = toGraphDelta(makeUpsertDelta('test-node', 'content'))
+            expect(isOurRecentDelta(incomingDelta)).toBe(false)
         })
     })
 
@@ -109,13 +96,11 @@ describe('recent-deltas-store', () => {
             markRecentDelta(delta)
 
             expect(isOurRecentDelta(
-                makeUpsertFSEvent('/vault/test-node.md', withFrontmatter('hello  world')),
-                WATCHED_DIR
+                toGraphDelta(makeUpsertDelta('test-node', 'hello  world'))
             )).toBe(true)
 
             expect(isOurRecentDelta(
-                makeUpsertFSEvent('/vault/test-node.md', withFrontmatter('helloworld')),
-                WATCHED_DIR
+                toGraphDelta(makeUpsertDelta('test-node', 'helloworld'))
             )).toBe(true)
         })
 
@@ -124,8 +109,7 @@ describe('recent-deltas-store', () => {
             markRecentDelta(delta)
 
             expect(isOurRecentDelta(
-                makeUpsertFSEvent('/vault/test-node.md', withFrontmatter('text [link.md] more')),
-                WATCHED_DIR
+                toGraphDelta(makeUpsertDelta('test-node', 'text [link.md] more'))
             )).toBe(true)
         })
     })
@@ -137,8 +121,8 @@ describe('recent-deltas-store', () => {
 
             await new Promise(r => setTimeout(r, 350))
 
-            const fsEvent: FSEvent = makeUpsertFSEvent('/vault/test-node.md', withFrontmatter('content'))
-            expect(isOurRecentDelta(fsEvent, WATCHED_DIR)).toBe(false)
+            const incomingDelta: GraphDelta = toGraphDelta(makeUpsertDelta('test-node', 'content'))
+            expect(isOurRecentDelta(incomingDelta)).toBe(false)
         })
 
         it('should return true within TTL window', async () => {
@@ -147,8 +131,8 @@ describe('recent-deltas-store', () => {
 
             await new Promise(r => setTimeout(r, 50))
 
-            const fsEvent: FSEvent = makeUpsertFSEvent('/vault/test-node.md', withFrontmatter('content'))
-            expect(isOurRecentDelta(fsEvent, WATCHED_DIR)).toBe(true)
+            const incomingDelta: GraphDelta = toGraphDelta(makeUpsertDelta('test-node', 'content'))
+            expect(isOurRecentDelta(incomingDelta)).toBe(true)
         })
     })
 
@@ -157,10 +141,10 @@ describe('recent-deltas-store', () => {
             const delta: NodeDelta = makeUpsertDelta('test-node', 'content')
             markRecentDelta(delta)
 
-            const fsEvent: FSEvent = makeUpsertFSEvent('/vault/test-node.md', withFrontmatter('content'))
-            expect(isOurRecentDelta(fsEvent, WATCHED_DIR)).toBe(true)
-            expect(isOurRecentDelta(fsEvent, WATCHED_DIR)).toBe(true)
-            expect(isOurRecentDelta(fsEvent, WATCHED_DIR)).toBe(true)
+            const incomingDelta: GraphDelta = toGraphDelta(makeUpsertDelta('test-node', 'content'))
+            expect(isOurRecentDelta(incomingDelta)).toBe(true)
+            expect(isOurRecentDelta(incomingDelta)).toBe(true)
+            expect(isOurRecentDelta(incomingDelta)).toBe(true)
         })
     })
 
@@ -172,13 +156,11 @@ describe('recent-deltas-store', () => {
             markRecentDelta(delta2)
 
             expect(isOurRecentDelta(
-                makeUpsertFSEvent('/vault/test-node.md', withFrontmatter('first')),
-                WATCHED_DIR
+                toGraphDelta(makeUpsertDelta('test-node', 'first'))
             )).toBe(true)
 
             expect(isOurRecentDelta(
-                makeUpsertFSEvent('/vault/test-node.md', withFrontmatter('second')),
-                WATCHED_DIR
+                toGraphDelta(makeUpsertDelta('test-node', 'second'))
             )).toBe(true)
         })
     })
@@ -189,13 +171,11 @@ describe('recent-deltas-store', () => {
             markRecentDelta(makeUpsertDelta('node2', 'content2'))
 
             expect(isOurRecentDelta(
-                makeUpsertFSEvent('/vault/node1.md', withFrontmatter('content1')),
-                WATCHED_DIR
+                toGraphDelta(makeUpsertDelta('node1', 'content1'))
             )).toBe(true)
 
             expect(isOurRecentDelta(
-                makeUpsertFSEvent('/vault/node2.md', withFrontmatter('content2')),
-                WATCHED_DIR
+                toGraphDelta(makeUpsertDelta('node2', 'content2'))
             )).toBe(true)
         })
 
@@ -203,9 +183,38 @@ describe('recent-deltas-store', () => {
             markRecentDelta(makeUpsertDelta('node1', 'content'))
 
             expect(isOurRecentDelta(
-                makeUpsertFSEvent('/vault/node2.md', withFrontmatter('content')),
-                WATCHED_DIR
+                toGraphDelta(makeUpsertDelta('node2', 'content'))
             )).toBe(false)
+        })
+    })
+
+    describe('GraphDelta with multiple NodeDeltas', () => {
+        it('should return true only if ALL deltas match our recent writes', () => {
+            markRecentDelta(makeUpsertDelta('node1', 'content1'))
+            markRecentDelta(makeUpsertDelta('node2', 'content2'))
+
+            // Both match
+            const bothMatch: GraphDelta = [
+                makeUpsertDelta('node1', 'content1'),
+                makeUpsertDelta('node2', 'content2')
+            ]
+            expect(isOurRecentDelta(bothMatch)).toBe(true)
+        })
+
+        it('should return false if any delta does not match', () => {
+            markRecentDelta(makeUpsertDelta('node1', 'content1'))
+
+            // First matches, second doesn't exist
+            const partialMatch: GraphDelta = [
+                makeUpsertDelta('node1', 'content1'),
+                makeUpsertDelta('node2', 'content2')
+            ]
+            expect(isOurRecentDelta(partialMatch)).toBe(false)
+        })
+
+        it('should return true for empty GraphDelta', () => {
+            const emptyDelta: GraphDelta = []
+            expect(isOurRecentDelta(emptyDelta)).toBe(true)
         })
     })
 
@@ -216,13 +225,11 @@ describe('recent-deltas-store', () => {
             clearRecentDeltas()
 
             expect(isOurRecentDelta(
-                makeUpsertFSEvent('/vault/node1.md', withFrontmatter('content1')),
-                WATCHED_DIR
+                toGraphDelta(makeUpsertDelta('node1', 'content1'))
             )).toBe(false)
 
             expect(isOurRecentDelta(
-                makeUpsertFSEvent('/vault/node2.md', withFrontmatter('content2')),
-                WATCHED_DIR
+                toGraphDelta(makeUpsertDelta('node2', 'content2'))
             )).toBe(false)
         })
     })
@@ -240,7 +247,7 @@ describe('recent-deltas-store', () => {
             markRecentDelta(makeUpsertDelta('node1', 'content1'))
             markRecentDelta(makeUpsertDelta('node1', 'content2'))
 
-            const entries: readonly { readonly delta: NodeDelta; readonly markdownContent: string | null; readonly timestamp: number }[] | undefined = getRecentDeltasForNodeId('node1')
+            const entries: readonly { readonly delta: NodeDelta; readonly timestamp: number }[] | undefined = getRecentDeltasForNodeId('node1')
             expect(entries).toHaveLength(2)
             expect(entries?.[0].delta.type).toBe('UpsertNode')
             expect(entries?.[1].delta.type).toBe('UpsertNode')

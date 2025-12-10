@@ -27,11 +27,6 @@ export function handleFSEventWithStateAndUISides(
     watchedDirectory: string,
     _mainWindow: BrowserWindow
 ): void {
-    // 1. Check if this is our own recent write - skip if so
-    if (isOurRecentDelta(fsEvent, watchedDirectory)) {
-        console.log("[handleFSEvent] Skipping our own recent write: ", fsEvent.absolutePath)
-        return
-    }
     console.log("[handleFSEvent] external write from: ", fsEvent.absolutePath)
 
     // 2. Get current graph state to resolve wikilinks
@@ -39,6 +34,12 @@ export function handleFSEventWithStateAndUISides(
 
     // 3. Map filesystem event to graph delta (pure)
     const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, watchedDirectory, currentGraph)
+
+    //  Check if this is our own recent write - skip if so
+    if (isOurRecentDelta(delta)) {
+        console.log("[handleFSEvent] Skipping our own recent write: ", fsEvent.absolutePath)
+        return
+    }
 
     // 4. Apply delta to memory state
     applyGraphDeltaToMemState(delta)

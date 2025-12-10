@@ -3,7 +3,7 @@ import path from 'path';
 import fixPath from 'fix-path';
 import electronUpdater, {type UpdateCheckResult} from 'electron-updater';
 import log from 'electron-log';
-import {startFileWatching, getVaultPath} from '@/shell/edge/main/graph/watchFolder';
+import {startFileWatching, getWatchedDirectory} from '@/shell/edge/main/graph/watchFolder';
 
 const {autoUpdater} = electronUpdater;
 import {StubTextToTreeServerManager} from './server/StubTextToTreeServerManager';
@@ -16,7 +16,6 @@ import {registerTerminalIpcHandlers} from '@/shell/edge/main/ipc-terminal-handle
 import {setupRPCHandlers} from '@/shell/edge/main/edge-auto-rpc/rpc-handler';
 import {writeAllPositionsSync} from '@/shell/edge/main/graph/writeAllPositionsOnExit';
 import {getGraph} from '@/shell/edge/main/state/graph-store';
-import * as O from 'fp-ts/lib/Option.js';
 
 
 // Fix PATH for macOS/Linux GUI apps
@@ -280,10 +279,11 @@ function createWindow(): void {
     mainWindow.on('closed', () => {
         terminalManager.cleanupForWindow(windowId);
         // Persist node positions to disk before exit
-        const vaultPath: O.Option<string> = getVaultPath();
-        if (O.isSome(vaultPath)) {
+        // Use watchedDirectory (not vaultPath) because node IDs include the vault suffix
+        const watchedDir: string | null = getWatchedDirectory();
+        if (watchedDir !== null) {
             console.log('[App] Saving node positions to disk...');
-            writeAllPositionsSync(getGraph(), vaultPath.value);
+            writeAllPositionsSync(getGraph(), watchedDir);
         }
     });
 }
