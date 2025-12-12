@@ -286,9 +286,9 @@ describe('getSubgraphByDistance', () => {
       }
     })
 
-    it('should skip context nodes during DFS traversal', () => {
+    it('should traverse through context nodes without including them', () => {
       // A -> ContextNode -> B
-      // Start from A, should NOT include ContextNode or B (since we don't traverse through it)
+      // Start from A, should include A and B but NOT ContextNode (traverses through it)
       const graph: Graph = {
         nodes: {
           'A': createTestNode('A', ['ContextNode']),
@@ -299,7 +299,7 @@ describe('getSubgraphByDistance', () => {
 
       const result: Graph = getSubgraphByDistance(graph, 'A', 7)
 
-      expect(Object.keys(result.nodes).sort()).toEqual(['A'])
+      expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B'])
     })
 
     it('should skip context nodes as parents during DFS traversal', () => {
@@ -366,6 +366,50 @@ describe('getSubgraphByDistance', () => {
       const result: Graph = getSubgraphByDistance(graph, 'A', 7)
 
       expect(result.nodes['A'].outgoingEdges).toEqual(toEdges(['B']))
+    })
+
+    it('should not add distance when traversing through context nodes', () => {
+      // A -> ContextNode -> B -> C -> D -> E
+      // Without context node distance: A(0) -> B(1.5) -> C(3.0) -> D(4.5) -> E(6.0)
+      // With maxDistance=5, should include A, B, C, D (E at 6.0 >= 5 excluded)
+      // Context node should NOT add to distance
+      const graph: Graph = {
+        nodes: {
+          'A': createTestNode('A', ['ContextNode']),
+          'ContextNode': createContextNode('ContextNode', ['B']),
+          'B': createTestNode('B', ['C']),
+          'C': createTestNode('C', ['D']),
+          'D': createTestNode('D', ['E']),
+          'E': createTestNode('E', [])
+        }
+      }
+
+      const result: Graph = getSubgraphByDistance(graph, 'A', 5)
+
+      // A(0), B(1.5), C(3.0), D(4.5) should be included
+      // E(6.0) should be excluded (distance >= 5)
+      // ContextNode should NOT be included
+      expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B', 'C', 'D'])
+    })
+
+    it('should not add distance for context node parents', () => {
+      // D -> C -> B -> ContextNode -> A (start from A)
+      // Parent costs: ContextNode(0, skipped), B(1.0), C(2.0), D(3.0)
+      const graph: Graph = {
+        nodes: {
+          'D': createTestNode('D', ['C']),
+          'C': createTestNode('C', ['B']),
+          'B': createTestNode('B', ['ContextNode']),
+          'ContextNode': createContextNode('ContextNode', ['A']),
+          'A': createTestNode('A', [])
+        }
+      }
+
+      const result: Graph = getSubgraphByDistance(graph, 'A', 4)
+
+      // A(0), B(1.0), C(2.0), D(3.0) should be included
+      // ContextNode should NOT be included
+      expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B', 'C', 'D'])
     })
   })
 
