@@ -38,16 +38,10 @@ const DEFAULT_OPTIONS: AutoLayoutOptions = {
   avoidOverlap: true,
   nodeSpacing: 20,
   handleDisconnected: true, // handles disconnected components
-  // High threshold = stop early. Cola starts at alpha ~1200 even for laid-out graphs
-  // because it computes ideal distances from shortest paths, not current positions.
-  // Setting this high makes it converge faster with less visual disruption.
-  convergenceThreshold: 1,
-  // Iteration phases: unconstrIter runs WITHOUT constraints (no edgeLength enforcement),
-  // which causes visible graph shrinkage. Keep this low to minimize shrink-then-expand effect.
-  // TODO SOMETHINIG ABOUT THIS IS VERY IMPORTANT LAYOUT BREAK WITHOUT
-  unconstrIter: 5,
-  userConstIter: 5,
-  allConstIter: 10,
+  convergenceThreshold: 0.5,
+  unconstrIter: 10, // TODO SOMETHINIG ABOUT THIS IS VERY IMPORTANT LAYOUT BREAK WITHOUT
+  userConstIter: 10,
+  allConstIter: 20,
   edgeLength: 200,
   // edgeSymDiffLength: undefined,
   // edgeJaccardLength: undefined

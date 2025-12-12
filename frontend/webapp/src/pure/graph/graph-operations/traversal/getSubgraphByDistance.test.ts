@@ -411,6 +411,34 @@ describe('getSubgraphByDistance', () => {
       // ContextNode should NOT be included
       expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B', 'C', 'D'])
     })
+
+    // REGRESSION: Previously, the traversal would stop entirely at context nodes,
+    // causing all descendants behind a context node to be lost. This test ensures
+    // that deep subtrees behind context nodes are still reachable.
+    it('regression: should find entire subtree behind a context node', () => {
+      // A -> ContextNode -> B -> C -> D
+      //                         |
+      //                         v
+      //                         E -> F
+      // All of B, C, D, E, F are ONLY reachable through ContextNode
+      // The bug would return only [A], losing the entire subtree
+      const graph: Graph = {
+        nodes: {
+          'A': createTestNode('A', ['ContextNode']),
+          'ContextNode': createContextNode('ContextNode', ['B']),
+          'B': createTestNode('B', ['C']),
+          'C': createTestNode('C', ['D', 'E']),
+          'D': createTestNode('D', []),
+          'E': createTestNode('E', ['F']),
+          'F': createTestNode('F', [])
+        }
+      }
+
+      const result: Graph = getSubgraphByDistance(graph, 'A', 10)
+
+      // Should find ALL nodes except ContextNode
+      expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B', 'C', 'D', 'E', 'F'])
+    })
   })
 
   describe('edge cases', () => {
