@@ -31,41 +31,51 @@ export function getSubgraphByDistance(
   startNodeId: NodeIdAndFilePath,
   maxDistance: number
 ): Graph {
+  // Track which nodes we've processed to avoid cycles (separate from result set)
+  const processed: Set<NodeIdAndFilePath> = new Set()
+
   // Recursive DFS implementation
   const dfsVisit: (nodeId: NodeIdAndFilePath, distance: number, visited: ReadonlySet<NodeIdAndFilePath>) => ReadonlySet<NodeIdAndFilePath> = (
     nodeId: NodeIdAndFilePath,
     distance: number,
     visited: ReadonlySet<NodeIdAndFilePath>
   ): ReadonlySet<NodeIdAndFilePath> => {
-    // Base cases: stop if already visited or node doesn't exist
-    if (visited.has(nodeId) || !graph.nodes[nodeId]) {
+    // Base cases: stop if already processed or node doesn't exist
+    if (processed.has(nodeId) || !graph.nodes[nodeId]) {
       return visited
     }
+
+    // Mark as processed to avoid cycles
+    processed.add(nodeId)
 
     const node: GraphNode = graph.nodes[nodeId]
 
-    // Skip context nodes - don't include them and don't traverse through them
-    if (node.nodeUIMetadata.isContextNode) {
-      return visited
-    }
+    // Context nodes: traverse through them but don't include in result or add distance
+    const isContextNode: boolean = node.nodeUIMetadata.isContextNode
 
-    // Add current node to visited set
-    const newVisited: ReadonlySet<string> = new Set([...visited, nodeId])
+    // Only add non-context nodes to visited set
+    const newVisited: ReadonlySet<string> = isContextNode
+      ? visited
+      : new Set([...visited, nodeId])
 
-    // Explore outgoing edges (children, cost 1.5) - only if within distance threshold
+    // For context nodes, don't add distance cost (pretend they don't exist)
+    const childDistanceCost: number = isContextNode ? 0 : 1.5
+    const parentDistanceCost: number = isContextNode ? 0 : 1.0
+
+    // Explore outgoing edges (children) - only if within distance threshold
     const afterChildren: ReadonlySet<string> = node.outgoingEdges
-      .filter(_edge => distance + 1.5 < maxDistance)
+      .filter(_edge => distance + childDistanceCost < maxDistance || isContextNode)
       .reduce<ReadonlySet<NodeIdAndFilePath>>(
-        (acc, edge) => dfsVisit(edge.targetId, distance + 1.5, acc),
+        (acc, edge) => dfsVisit(edge.targetId, distance + childDistanceCost, acc),
         newVisited
       )
 
-    // Explore incoming edges (parents, cost 1.0) - only if within distance threshold
+    // Explore incoming edges (parents) - only if within distance threshold
     const incomingNodes: readonly GraphNode[] = getIncomingNodes(node, graph)
     const afterParents: ReadonlySet<string> = incomingNodes
-      .filter(() => distance + 1.0 < maxDistance)
+      .filter(() => distance + parentDistanceCost < maxDistance || isContextNode)
       .reduce<ReadonlySet<NodeIdAndFilePath>>(
-        (acc, parentNode) => dfsVisit(parentNode.relativeFilePathIsID, distance + 1.0, acc),
+        (acc, parentNode) => dfsVisit(parentNode.relativeFilePathIsID, distance + parentDistanceCost, acc),
         afterChildren
       )
 
