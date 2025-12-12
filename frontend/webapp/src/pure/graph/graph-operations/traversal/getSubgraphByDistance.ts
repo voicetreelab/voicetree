@@ -51,7 +51,7 @@ export function getSubgraphByDistance(
     const node: GraphNode = graph.nodes[nodeId]
 
     // Context nodes: traverse through them but don't include in result or add distance
-    const isContextNode: boolean = node.nodeUIMetadata.isContextNode
+    const isContextNode: boolean | undefined = node.nodeUIMetadata.isContextNode
 
     // Only add non-context nodes to visited set
     const newVisited: ReadonlySet<string> = isContextNode
