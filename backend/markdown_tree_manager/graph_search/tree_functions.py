@@ -375,6 +375,117 @@ def reciprocal_rank_fusion(
     return [doc_id for doc_id, score in sorted_docs]
 
 
+class HybridSearchDiagnostics:
+    """Diagnostics for hybrid search to help debug vector/BM25 issues."""
+    def __init__(
+        self,
+        vector_candidates: int,
+        vector_filtered: int,
+        bm25_candidates: int,
+        bm25_filtered: int
+    ):
+        self.vector_candidates = vector_candidates
+        self.vector_filtered = vector_filtered
+        self.bm25_candidates = bm25_candidates
+        self.bm25_filtered = bm25_filtered
+
+    def to_dict(self) -> dict[str, int]:
+        return {
+            "vector_candidates": self.vector_candidates,
+            "vector_filtered": self.vector_filtered,
+            "bm25_candidates": self.bm25_candidates,
+            "bm25_filtered": self.bm25_filtered
+        }
+
+
+def hybrid_search_for_relevant_nodes_with_diagnostics(
+    decision_tree: Any,
+    query: str,
+    max_return_nodes: int = 10,
+    already_selected: Optional[set[Any]] = None,
+    vector_score_threshold: float = 0.5,
+    bm25_score_threshold: float = 0.5
+) -> tuple[list[int], dict[str, int]]:
+    """
+    Hybrid search with diagnostics for debugging.
+
+    Returns:
+        Tuple of (node_ids, diagnostics_dict)
+    """
+    if already_selected is None:
+        already_selected = set()
+
+    retrieval_multiplier = 5
+    candidate_count = max_return_nodes * retrieval_multiplier
+
+    # 1. Dense vector search (semantic)
+    vector_results_raw: list[tuple[int, float]] = []
+    if hasattr(decision_tree, 'search_similar_nodes_vector'):
+        try:
+            vector_results_raw = decision_tree.search_similar_nodes_vector(
+                query,
+                top_k=candidate_count
+            )
+            logging.info(f"Vector search retrieved {len(vector_results_raw)} candidates")
+        except Exception as e:
+            logging.error(f"Vector search failed: {e}")
+
+    # 2. BM25 sparse search (keyword)
+    bm25_results_raw = search_similar_nodes_bm25(
+        decision_tree,
+        query,
+        top_k=candidate_count,
+        already_selected=already_selected
+    )
+    logging.info(f"BM25 search retrieved {len(bm25_results_raw)} candidates")
+
+    # 3. Quality filtering
+    vector_filtered = [
+        node_id for node_id, score in vector_results_raw
+        if score >= vector_score_threshold and node_id not in already_selected
+    ]
+    bm25_filtered = [
+        node_id for node_id, score in bm25_results_raw
+        if score >= bm25_score_threshold
+    ]
+
+    diagnostics = HybridSearchDiagnostics(
+        vector_candidates=len(vector_results_raw),
+        vector_filtered=len(vector_filtered),
+        bm25_candidates=len(bm25_results_raw),
+        bm25_filtered=len(bm25_filtered)
+    )
+
+    logging.info(
+        f"After filtering: {len(vector_filtered)} vector results, "
+        f"{len(bm25_filtered)} BM25 results"
+    )
+
+    # 4. RRF fusion
+    vector_ranked = vector_filtered[:max_return_nodes]
+    bm25_ranked = bm25_filtered[:max_return_nodes]
+
+    if not vector_ranked and not bm25_ranked:
+        logging.warning("No results passed quality thresholds")
+        return [], diagnostics.to_dict()
+
+    combined = reciprocal_rank_fusion(vector_ranked, bm25_ranked, k=60)
+
+    # 5. Validate results exist in tree
+    valid_results = [
+        node_id for node_id in combined
+        if node_id in decision_tree.tree
+    ]
+
+    final_results = valid_results[:max_return_nodes]
+
+    logging.info(
+        f"Hybrid search (RRF) returned {len(final_results)} nodes for query: '{query[:50]}...'"
+    )
+
+    return final_results, diagnostics.to_dict()
+
+
 def hybrid_search_for_relevant_nodes(
     decision_tree: Any,
     query: str,
@@ -414,75 +525,15 @@ def hybrid_search_for_relevant_nodes(
         ...     max_return_nodes=10
         ... )
     """
-    if already_selected is None:
-        already_selected = set()
-
-    # Retrieve candidates (more than needed for quality filtering)
-    retrieval_multiplier = 5
-    candidate_count = max_return_nodes * retrieval_multiplier
-
-    # 1. Dense vector search (semantic)
-    vector_results_raw = []
-    if hasattr(decision_tree, 'search_similar_nodes_vector'):
-        try:
-            vector_results_raw = decision_tree.search_similar_nodes_vector(
-                query,
-                top_k=candidate_count
-            )
-            logging.info(f"Vector search retrieved {len(vector_results_raw)} candidates")
-        except Exception as e:
-            logging.error(f"Vector search failed: {e}")
-
-    # 2. BM25 sparse search (keyword)
-    bm25_results_raw = search_similar_nodes_bm25(
+    node_ids, _ = hybrid_search_for_relevant_nodes_with_diagnostics(
         decision_tree,
         query,
-        top_k=candidate_count,
-        already_selected=already_selected
+        max_return_nodes,
+        already_selected,
+        vector_score_threshold,
+        bm25_score_threshold
     )
-    logging.info(f"BM25 search retrieved {len(bm25_results_raw)} candidates")
-
-    # 3. Quality filtering: Only keep results above thresholds
-    vector_filtered = [
-        node_id for node_id, score in vector_results_raw
-        if score >= vector_score_threshold and node_id not in already_selected
-    ]
-
-    bm25_filtered = [
-        node_id for node_id, score in bm25_results_raw
-        if score >= bm25_score_threshold
-    ]
-
-    logging.info(
-        f"After filtering: {len(vector_filtered)} vector results, "
-        f"{len(bm25_filtered)} BM25 results"
-    )
-
-    # 4. Reciprocal Rank Fusion: Combine the filtered rankings
-    # Limit each method to max_return_nodes to keep fusion balanced
-    vector_ranked = vector_filtered[:max_return_nodes]
-    bm25_ranked = bm25_filtered[:max_return_nodes]
-
-    if not vector_ranked and not bm25_ranked:
-        logging.warning("No results passed quality thresholds")
-        return []
-
-    combined = reciprocal_rank_fusion(vector_ranked, bm25_ranked, k=60)
-
-    # 5. Validate results exist in tree
-    valid_results = [
-        node_id for node_id in combined
-        if node_id in decision_tree.tree
-    ]
-
-    # Return top N results
-    final_results = valid_results[:max_return_nodes]
-
-    logging.info(
-        f"Hybrid search (RRF) returned {len(final_results)} nodes for query: '{query[:50]}...'"
-    )
-
-    return final_results
+    return node_ids
 
 
 def _get_semantically_related_nodes(decision_tree: Any, query: str, remaining_slots_count: int, already_selected: set[Any]) -> list[int]:

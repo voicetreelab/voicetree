@@ -41,6 +41,7 @@ def _configure_gemini() -> None:
         _gemini_configured = True
         logging.info("Configured Gemini API for embeddings")
 
+# TODO IMPORTANT THIS IS THE UNUSED ONE
 def get_node_embeddings(nodes: dict[int, Any]) -> dict[int, NDArray[np.float64]]:
     """
     Get embeddings for all nodes in the tree using Google Gemini.

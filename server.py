@@ -246,6 +246,11 @@ class LoadDirectoryRequest(BaseModel):
     directory_path: str
 
 
+class AskQueryRequest(BaseModel):
+    query: str
+    top_k: int = 10
+
+
 # API endpoint
 @app.post("/send-text")
 async def send_text(request: TextRequest):
@@ -390,6 +395,43 @@ async def load_directory(request: LoadDirectoryRequest):
     except Exception as e:
         logger.error(f"Error loading directory: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error loading directory: {str(e)}")
+
+
+@app.post("/ask")
+async def ask_query(request: AskQueryRequest):
+    """
+    Hybrid search (BM25 + vector) for Ask Mode.
+    Returns relevant nodes for frontend context creation.
+    """
+    if decision_tree is None:
+        raise HTTPException(status_code=400, detail="No directory loaded")
+
+    from backend.markdown_tree_manager.graph_search.tree_functions import (
+        hybrid_search_for_relevant_nodes_with_diagnostics
+    )
+
+    node_ids, diagnostics = hybrid_search_for_relevant_nodes_with_diagnostics(
+        decision_tree,
+        request.query,
+        max_return_nodes=request.top_k,
+        vector_score_threshold=0.3,
+        bm25_score_threshold=0.3
+    )
+
+    results = []
+    for node_id in node_ids:
+        if node_id in decision_tree.tree:
+            node = decision_tree.tree[node_id]
+            results.append({
+                "node_path": node.filename,
+                "score": 1.0,
+                "title": node.title
+            })
+
+    return {
+        "relevant_nodes": results,
+        "diagnostics": diagnostics
+    }
 
 
 if __name__ == "__main__":
