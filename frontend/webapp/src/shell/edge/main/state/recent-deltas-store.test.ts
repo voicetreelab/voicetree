@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import type { NodeDelta, GraphDelta, GraphNode, NodeUIMetadata } from '@/pure/graph'
 import {
@@ -38,6 +38,10 @@ const toGraphDelta: (delta: NodeDelta) => GraphDelta = (delta) => [delta]
 describe('recent-deltas-store', () => {
     beforeEach(() => {
         clearRecentDeltas()
+    })
+
+    afterEach(() => {
+        vi.useRealTimers()
     })
 
     describe('markRecentDelta + isOurRecentDelta for upserts', () => {
@@ -115,21 +119,25 @@ describe('recent-deltas-store', () => {
     })
 
     describe('TTL expiration', () => {
-        it('should return false after TTL expires', async () => {
+        it('should return false after TTL expires', () => {
+            vi.useFakeTimers()
             const delta: NodeDelta = makeUpsertDelta('test-node', 'content')
             markRecentDelta(delta)
 
-            await new Promise(r => setTimeout(r, 350))
+            // Advance time past the 900ms TTL
+            vi.advanceTimersByTime(901)
 
             const incomingDelta: GraphDelta = toGraphDelta(makeUpsertDelta('test-node', 'content'))
             expect(isOurRecentDelta(incomingDelta)).toBe(false)
         })
 
-        it('should return true within TTL window', async () => {
+        it('should return true within TTL window', () => {
+            vi.useFakeTimers()
             const delta: NodeDelta = makeUpsertDelta('test-node', 'content')
             markRecentDelta(delta)
 
-            await new Promise(r => setTimeout(r, 50))
+            // Advance time within the 900ms TTL window
+            vi.advanceTimersByTime(50)
 
             const incomingDelta: GraphDelta = toGraphDelta(makeUpsertDelta('test-node', 'content'))
             expect(isOurRecentDelta(incomingDelta)).toBe(true)
