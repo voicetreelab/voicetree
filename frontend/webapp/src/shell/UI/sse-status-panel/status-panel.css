@@ -5,7 +5,7 @@
     width: 100%;
     min-width: 0; /* Allow flex child to shrink below content size */
     background: var(--background);
-    border-top: 1px solid var(--border);
+    border-top: none;
     padding: 4px 8px;
     overflow: visible; /* Allow events to overflow upward on hover */
     height: 28px; /* Fixed height for compact state */
@@ -142,15 +142,15 @@
     display: inline;
 }
 
-/* Event type colors */
+/* Event type colors - use theme variables for consistency */
 .event-phase_started {
-    color: #3b82f6;
-    background: rgba(59, 130, 246, 0.1);
+    color: var(--muted-foreground);
+    background: var(--muted);
 }
 
 .event-phase_complete {
-    color: #22c55e;
-    background: rgba(34, 197, 94, 0.1);
+    color: var(--muted-foreground);
+    background: var(--muted);
 }
 
 .event-action_applied {
@@ -159,29 +159,29 @@
 
 .event-agent_error,
 .event-workflow_failed {
-    color: #ef4444;
-    background: rgba(239, 68, 68, 0.1);
+    color: var(--destructive);
+    background: var(--muted);
 }
 
 .event-rate_limit_error {
-    color: #f59e0b;
-    background: rgba(245, 158, 11, 0.1);
+    color: var(--muted-foreground);
+    background: var(--muted);
 }
 
 .event-workflow_complete {
-    color: #22c55e;
-    background: rgba(34, 197, 94, 0.15);
+    color: var(--foreground);
+    background: var(--muted);
     font-weight: bold;
 }
 
 .event-connection_open {
-    color: #22c55e;
-    background: rgba(34, 197, 94, 0.1);
+    color: var(--muted-foreground);
+    background: var(--muted);
 }
 
 .event-connection_error {
-    color: #ef4444;
-    background: rgba(239, 68, 68, 0.1);
+    color: var(--destructive);
+    background: var(--muted);
 }
 
 /* Node cards - new (green) and modified (blue) */

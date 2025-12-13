@@ -19,7 +19,9 @@ export default function StatusDisplay({ state }: StatusDisplayProps): JSX.Elemen
             : "bg-gray-400"
         }`}
       ></div>
-      <span className="text-sm text-gray-600">{state}</span>
+      {state !== "Finished" && state !== "Init" && state !== "Running" && (
+        <span className="text-sm text-muted-foreground">{state}</span>
+      )}
     </div>
   );
 }
