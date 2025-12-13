@@ -225,3 +225,35 @@
 /*    font-size: 18px !important;*/
 /*    text-decoration: underline !important;*/
 /*}*/
+
+/* Transcription Preview Chip - floating confirmation UI for speech-to-text */
+.transcription-preview-chip {
+  position: fixed;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  backdrop-filter: blur(8px);
+  z-index: 10000;
+  max-width: 400px;
+  font-size: 14px;
+  pointer-events: auto;
+}
+
+.transcription-preview-chip .preview-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--foreground);
+}
+
+.transcription-preview-chip .preview-hints {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  white-space: nowrap;
+}

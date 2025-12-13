@@ -249,7 +249,7 @@ button.graph-button:disabled > svg > path {
     top: 8px;
     left: 80px; /* Offset for macOS window controls (close/minimize/maximize) */
     display: flex;
-    align-items: center;
+    align-items: flex-start; /* Align to top for consistent vertical positioning */
     z-index: 1100; /* Above floating windows (1000) so tabs aren't obscured */
     height: 20px;
     max-width: calc(100% - 200px); /* Leave space for window controls and other UI */
@@ -365,9 +365,9 @@ button.graph-button:disabled > svg > path {
 .agent-tabs-bar {
     position: absolute;
     top: 8px;
-    right: 80px; /* Offset to leave space for potential UI elements */
+    right: 12px; /* Minimal spacing from window edge */
     display: flex;
-    align-items: center;
+    align-items: flex-start; /* Align to top to match recent-tabs-bar vertical position */
     z-index: 1100; /* Above floating windows (1000) so tabs aren't obscured */
     height: 20px;
     max-width: calc(50% - 100px); /* Don't overlap with recent nodes tabs */

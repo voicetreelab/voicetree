@@ -252,6 +252,7 @@ export default function VoiceTreeTranscribe(): JSX.Element {
                 zIndex: 0,
                 backdropFilter: 'blur(8px)',
                 WebkitBackdropFilter: 'blur(8px)',
+                borderRadius: '12px',
                 maskImage: 'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0.2) 70%, rgba(0,0,0,0) 100%)',
                 WebkitMaskImage: 'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0.2) 70%, rgba(0,0,0,0) 100%)',
               }}
@@ -278,7 +279,7 @@ export default function VoiceTreeTranscribe(): JSX.Element {
           <button
             onClick={() => setIsTranscriptionExpanded(!isTranscriptionExpanded)}
             className="absolute right-0 p-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-            style={{ zIndex: 2, bottom: '100%', marginBottom: '4px' }}
+            style={{ zIndex: 2, bottom: '100%', marginBottom: '-17px' }}
             title={isTranscriptionExpanded ? "Collapse transcription" : "Expand transcription"}
           >
             <ChevronDown

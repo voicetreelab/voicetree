@@ -30,10 +30,11 @@ export class SseStatusPanel {
         this.container = document.createElement('div');
         this.container.className = 'server-activity-panel';
 
-        // Expand/collapse arrow button above the panel
+        // Expand/collapse arrow button above the panel - minimal chevron style matching transcribe panel
         const expandArrow: HTMLButtonElement = document.createElement('button');
         expandArrow.className = 'server-activity-expand-arrow';
-        expandArrow.innerHTML = '<span class="arrow-icon">▲</span>';
+        // SVG matches lucide-react ChevronDown at size 16
+        expandArrow.innerHTML = `<svg class="arrow-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;
         expandArrow.title = 'Expand/collapse activity panel';
         expandArrow.addEventListener('click', () => {
             const isExpanded: boolean = this.container.classList.toggle('expanded');

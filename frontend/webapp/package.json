@@ -4,7 +4,7 @@
   "description": "Transform voice into navigable concept graphs",
   "author": "Manu Masson",
   "private": true,
-  "version": "1.6.2",
+  "version": "1.6.5",
   "type": "module",
   "main": "dist-electron/main/index.js",
   "scripts": {
@@ -14,7 +14,7 @@
     "test": "vitest run ; npm run test:smoke ; npm run test:browser",
     "test:listen": "vitest",
     "test:smoke": "electron-vite build && playwright test --config=playwright-electron.config.ts e2e-tests/electron/electron-smoke-test.spec.ts",
-    "test:e2e": "electron-vite build && playwright test --config=playwright-electron.config.ts",
+    "test:e2e": "electron-vite build && playwright test --config=playwright-electron.config.ts e2e-tests/electron/text_to_tree_server_integration/electron-text-to-tree-e2e.spec.ts",
     "test:electron": "electron-vite build --logLevel silent && playwright test --config=playwright-electron.config.ts",
     "test:browser": "playwright test e2e-tests/playwright-browser",
     "dev": "vite",

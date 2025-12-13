@@ -13,7 +13,9 @@ describe('settings-cache', () => {
       agents: [{ name: 'Test Agent', command: 'test-command.sh' }],
       shiftEnterSendsOptionEnter: true,
       INJECT_ENV_VARS: {},
-      contextNodeMaxDistance: 7
+      contextNodeMaxDistance: 7,
+      askModeContextDistance: 4,
+      defaultInputMode: 'add'
     };
     setCachedSettings(mockSettings);
     expect(getCachedSettings()).toEqual(mockSettings);
