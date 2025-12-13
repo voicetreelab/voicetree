@@ -7,7 +7,7 @@ import { setOutgoingEdges } from './graph-operations/graph-edge-operations'
 import { reverseGraphEdges } from './graph-operations/graph-transformations'
 import { prettyPrintGraphDelta } from './graph-operations/prettyPrint'
 import { graphToAscii } from './markdown-writing/graphToAscii'
-import { getSubgraphByDistance } from './graph-operations/traversal/getSubgraphByDistance'
+import { getSubgraphByDistance, getUnionSubgraphByDistance } from './graph-operations/traversal/getSubgraphByDistance'
 import { getNodeIdsInTraversalOrder } from './graph-operations/traversal/getNodeIdsInTraversalOrder'
 import { mapFSEventsToGraphDelta } from './mapFSEventsToGraphDelta'
 
@@ -180,6 +180,8 @@ export type ReverseGraphEdges = (graph: Graph) => Graph
 
 export type GetSubgraphByDistance = (graph: Graph, startNodeId: NodeIdAndFilePath, maxDistance: number) => Graph
 
+export type GetUnionSubgraphByDistance = (graph: Graph, startNodeIds: readonly NodeIdAndFilePath[], maxDistance: number) => Graph
+
 export type GraphToAscii = (graph: Graph) => string
 
 export type GetNodeIdsInTraversalOrder = (graph: Graph) => readonly NodeIdAndFilePath[]
@@ -209,6 +211,9 @@ void (reverseGraphEdges satisfies ReverseGraphEdges)
 export { getSubgraphByDistance } from './graph-operations/traversal/getSubgraphByDistance'
 void (getSubgraphByDistance satisfies GetSubgraphByDistance)
 
+export { getUnionSubgraphByDistance } from './graph-operations/traversal/getSubgraphByDistance'
+void (getUnionSubgraphByDistance satisfies GetUnionSubgraphByDistance)
+
 export { graphToAscii } from './markdown-writing/graphToAscii'
 void (graphToAscii satisfies GraphToAscii)
 
@@ -217,3 +222,7 @@ void (getNodeIdsInTraversalOrder satisfies GetNodeIdsInTraversalOrder)
 
 export { prettyPrintGraphDelta } from './graph-operations/prettyPrint'
 void (prettyPrintGraphDelta satisfies PrettyPrintGraphDelta)
+
+// === GRAPH TRANSFORMATION UTILITIES ===
+export { removeNodeMaintainingTransitiveEdges } from './graph-operations/removeNodeMaintainingTransitiveEdges'
+export { removeContextNodes } from './graph-operations/removeContextNodes'

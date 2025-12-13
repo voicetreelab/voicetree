@@ -6,6 +6,7 @@
 import type { Graph, NodeIdAndFilePath, GraphNode, Edge } from '@/pure/graph'
 import { getIncomingNodes } from '@/pure/graph/graph-operations/getIncomingNodes'
 import { setOutgoingEdges } from '@/pure/graph/graph-operations/graph-edge-operations'
+import { removeContextNodes } from '@/pure/graph/graph-operations/removeContextNodes'
 
 /**
  * Performs weighted DFS to find all nodes within maxDistance from startNodeId.
@@ -13,6 +14,10 @@ import { setOutgoingEdges } from '@/pure/graph/graph-operations/graph-edge-opera
  * Distance costs:
  * - Outgoing edges (following children): 1.5
  * - Incoming edges (following parents): 1.0
+ *
+ * Context nodes are pre-transformed out of the graph before traversal:
+ * - Context nodes are removed while preserving transitive edges
+ * - A -> ContextNode -> B becomes A -> B
  *
  * Returns a new graph containing only the nodes and edges within the distance threshold.
  * Edges are filtered so both source and target must be in the result set.
@@ -31,70 +36,130 @@ export function getSubgraphByDistance(
   startNodeId: NodeIdAndFilePath,
   maxDistance: number
 ): Graph {
-  // Track which nodes we've processed to avoid cycles (separate from result set)
+  // Step 1: Pre-transform - remove all context nodes with transitive edge preservation
+  const cleanGraph: Graph = removeContextNodes(graph)
+
+  // If start node was a context node, it won't be in cleanGraph
+  if (!cleanGraph.nodes[startNodeId]) {
+    // Try to find children of the original start node if it was a context node
+    const originalNode: GraphNode | undefined = graph.nodes[startNodeId]
+    if (!originalNode) {
+      return { nodes: {} }
+    }
+    // If start was a context node, traverse from its non-context children
+    if (originalNode.nodeUIMetadata.isContextNode) {
+      const childResults: Graph[] = originalNode.outgoingEdges
+        .filter(edge => cleanGraph.nodes[edge.targetId])
+        .map(edge => getSubgraphByDistance(graph, edge.targetId, maxDistance))
+      return mergeGraphs(childResults)
+    }
+    return { nodes: {} }
+  }
+
+  // Step 2: Simple DFS on the clean graph (no context node logic needed)
+  const visited: ReadonlySet<NodeIdAndFilePath> = dfsTraversal(cleanGraph, startNodeId, maxDistance)
+
+  // Step 3: Build result graph with filtered edges
+  const filteredNodes: { readonly [k: string]: GraphNode } = Object.fromEntries(
+    Array.from(visited)
+      .filter(id => cleanGraph.nodes[id])
+      .map(id => {
+        const node: GraphNode = cleanGraph.nodes[id]
+        const filteredEdges: readonly Edge[] = node.outgoingEdges.filter(
+          edge => visited.has(edge.targetId)
+        )
+        return [id, setOutgoingEdges(node, filteredEdges)]
+      })
+  )
+
+  return { nodes: filteredNodes }
+}
+
+/**
+ * Pure DFS traversal without context node handling.
+ */
+function dfsTraversal(
+  graph: Graph,
+  startNodeId: NodeIdAndFilePath,
+  maxDistance: number
+): ReadonlySet<NodeIdAndFilePath> {
   const processed: Set<NodeIdAndFilePath> = new Set()
 
-  // Recursive DFS implementation
-  const dfsVisit: (nodeId: NodeIdAndFilePath, distance: number, visited: ReadonlySet<NodeIdAndFilePath>) => ReadonlySet<NodeIdAndFilePath> = (
+  const dfsVisit = (
     nodeId: NodeIdAndFilePath,
     distance: number,
     visited: ReadonlySet<NodeIdAndFilePath>
   ): ReadonlySet<NodeIdAndFilePath> => {
-    // Base cases: stop if already processed or node doesn't exist
     if (processed.has(nodeId) || !graph.nodes[nodeId]) {
       return visited
     }
 
-    // Mark as processed to avoid cycles
     processed.add(nodeId)
-
     const node: GraphNode = graph.nodes[nodeId]
+    const newVisited: ReadonlySet<NodeIdAndFilePath> = new Set([...visited, nodeId])
 
-    // Context nodes: traverse through them but don't include in result or add distance
-    const isContextNode: boolean | undefined = node.nodeUIMetadata.isContextNode
-
-    // Only add non-context nodes to visited set
-    const newVisited: ReadonlySet<string> = isContextNode
-      ? visited
-      : new Set([...visited, nodeId])
-
-    // For context nodes, don't add distance cost (pretend they don't exist)
-    const childDistanceCost: number = isContextNode ? 0 : 1.5
-    const parentDistanceCost: number = isContextNode ? 0 : 1.0
-
-    // Explore outgoing edges (children) - only if within distance threshold
-    const afterChildren: ReadonlySet<string> = node.outgoingEdges
-      .filter(_edge => distance + childDistanceCost < maxDistance || isContextNode)
+    // Explore outgoing edges (children) with cost 1.5
+    const afterChildren: ReadonlySet<NodeIdAndFilePath> = node.outgoingEdges
+      .filter(() => distance + 1.5 < maxDistance)
       .reduce<ReadonlySet<NodeIdAndFilePath>>(
-        (acc, edge) => dfsVisit(edge.targetId, distance + childDistanceCost, acc),
+        (acc, edge) => dfsVisit(edge.targetId, distance + 1.5, acc),
         newVisited
       )
 
-    // Explore incoming edges (parents) - only if within distance threshold
+    // Explore incoming edges (parents) with cost 1.0
     const incomingNodes: readonly GraphNode[] = getIncomingNodes(node, graph)
-    const afterParents: ReadonlySet<string> = incomingNodes
-      .filter(() => distance + parentDistanceCost < maxDistance || isContextNode)
+    const afterParents: ReadonlySet<NodeIdAndFilePath> = incomingNodes
+      .filter(() => distance + 1.0 < maxDistance)
       .reduce<ReadonlySet<NodeIdAndFilePath>>(
-        (acc, parentNode) => dfsVisit(parentNode.relativeFilePathIsID, distance + parentDistanceCost, acc),
+        (acc, parentNode) => dfsVisit(parentNode.relativeFilePathIsID, distance + 1.0, acc),
         afterChildren
       )
 
     return afterParents
   }
 
-  const visited: ReadonlySet<string> = dfsVisit(startNodeId, 0, new Set())
+  return dfsVisit(startNodeId, 0, new Set())
+}
 
-  // Filter graph to only visited nodes, and filter edges to only include
-  // edges where both source and target are in the visited set
-  const filteredNodes: { readonly [k: string]: GraphNode } = Object.fromEntries(
-    Array.from(visited)
-      .filter(id => graph.nodes[id])
-      .map(id => {
-        const node: GraphNode = graph.nodes[id]
-        const filteredEdges: readonly Edge[] = node.outgoingEdges.filter(edge => visited.has(edge.targetId))
-        return [id, setOutgoingEdges(node, filteredEdges)]
-      })
+/**
+ * Merge multiple graphs into one, preserving all edges.
+ */
+function mergeGraphs(graphs: readonly Graph[]): Graph {
+  const allNodeIds: Set<NodeIdAndFilePath> = new Set()
+  graphs.forEach(g => Object.keys(g.nodes).forEach(id => allNodeIds.add(id)))
+
+  const mergedNodes: { readonly [k: string]: GraphNode } = Object.fromEntries(
+    Array.from(allNodeIds).map(id => {
+      // Find the first graph that has this node
+      const sourceGraph: Graph = graphs.find(g => g.nodes[id])!
+      const node: GraphNode = sourceGraph.nodes[id]
+      const filteredEdges: readonly Edge[] = node.outgoingEdges.filter(
+        edge => allNodeIds.has(edge.targetId)
+      )
+      return [id, setOutgoingEdges(node, filteredEdges)]
+    })
   )
 
-  return { nodes: filteredNodes }
+  return { nodes: mergedNodes }
+}
+
+/**
+ * Get union of subgraphs from multiple starting nodes.
+ * Used for Ask Mode to gather context from all relevant search results.
+ *
+ * @param graph - The complete graph to search
+ * @param startNodeIds - Array of node IDs to start traversal from
+ * @param maxDistance - Maximum distance threshold for each traversal
+ * @returns Merged graph containing nodes within distance of any starting node
+ */
+export function getUnionSubgraphByDistance(
+  graph: Graph,
+  startNodeIds: readonly NodeIdAndFilePath[],
+  maxDistance: number
+): Graph {
+  const subgraphs: Graph[] = startNodeIds
+    .filter(id => graph.nodes[id])
+    .map(id => getSubgraphByDistance(graph, id, maxDistance))
+
+  return mergeGraphs(subgraphs)
 }

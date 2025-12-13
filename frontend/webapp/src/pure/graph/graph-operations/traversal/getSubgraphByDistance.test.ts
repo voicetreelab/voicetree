@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getSubgraphByDistance } from '@/pure/graph/graph-operations/traversal/getSubgraphByDistance'
+import { getSubgraphByDistance, getUnionSubgraphByDistance } from '@/pure/graph/graph-operations/traversal/getSubgraphByDistance'
 import type { Graph, GraphNode, Edge } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
 
@@ -302,6 +302,61 @@ describe('getSubgraphByDistance', () => {
       expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B'])
     })
 
+    it('should reconnect edges when traversing through context nodes', () => {
+      // A -> ContextNode -> B
+      // When ContextNode is excluded, A should have a direct edge to B
+      // to preserve the tree structure in graphToAscii
+      const graph: Graph = {
+        nodes: {
+          'A': createTestNode('A', ['ContextNode']),
+          'ContextNode': createContextNode('ContextNode', ['B']),
+          'B': createTestNode('B', [])
+        }
+      }
+
+      const result: Graph = getSubgraphByDistance(graph, 'A', 7)
+
+      // A should have edge to B (bridged through context node)
+      expect(result.nodes['A'].outgoingEdges).toEqual(toEdges(['B']))
+    })
+
+    it('should reconnect edges through multiple chained context nodes', () => {
+      // A -> Ctx1 -> Ctx2 -> B
+      // A should have direct edge to B even through 2 context nodes
+      const graph: Graph = {
+        nodes: {
+          'A': createTestNode('A', ['Ctx1']),
+          'Ctx1': createContextNode('Ctx1', ['Ctx2']),
+          'Ctx2': createContextNode('Ctx2', ['B']),
+          'B': createTestNode('B', [])
+        }
+      }
+
+      const result: Graph = getSubgraphByDistance(graph, 'A', 7)
+
+      expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B'])
+      expect(result.nodes['A'].outgoingEdges).toEqual(toEdges(['B']))
+    })
+
+    it('should reconnect edges to multiple children through context node', () => {
+      // A -> ContextNode -> B, C, D
+      // A should have edges to B, C, D
+      const graph: Graph = {
+        nodes: {
+          'A': createTestNode('A', ['ContextNode']),
+          'ContextNode': createContextNode('ContextNode', ['B', 'C', 'D']),
+          'B': createTestNode('B', []),
+          'C': createTestNode('C', []),
+          'D': createTestNode('D', [])
+        }
+      }
+
+      const result: Graph = getSubgraphByDistance(graph, 'A', 7)
+
+      expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B', 'C', 'D'])
+      expect(result.nodes['A'].outgoingEdges.map(e => e.targetId).sort()).toEqual(['B', 'C', 'D'])
+    })
+
     it('should skip context nodes as parents during DFS traversal', () => {
       // ContextNode -> A -> B
       // Start from A, should include A and B, but NOT ContextNode parent
@@ -509,5 +564,283 @@ describe('getSubgraphByDistance', () => {
       expect(result.nodes['A'].contentWithoutYamlOrLinks).toBe('content of A')
       expect(result.nodes['A'].nodeUIMetadata).toEqual(graph.nodes['A'].nodeUIMetadata)
     })
+  })
+
+  describe('bridging edge edge cases', () => {
+    const createContextNode: (id: string, edges?: readonly string[]) => GraphNode = (id: string, edges: readonly string[] = []): GraphNode => ({
+      relativeFilePathIsID: id,
+      outgoingEdges: edges.map(targetId => ({ targetId, label: '' })),
+      contentWithoutYamlOrLinks: `content of ${id}`,
+      nodeUIMetadata: {
+        color: O.none,
+        position: O.none,
+        additionalYAMLProps: new Map(),
+        isContextNode: true
+      }
+    })
+
+    const toEdges: (ids: readonly string[]) => readonly { readonly targetId: string; readonly label: string; }[] = (ids: readonly string[]) => ids.map(targetId => ({ targetId, label: '' }))
+
+    it('should handle starting from a context node (no bridges created)', () => {
+      // ContextNode -> A -> B
+      // Starting from ContextNode, there's no lastNonContextAncestor to bridge from
+      // Should still include A and B, just no bridging
+      const graph: Graph = {
+        nodes: {
+          'ContextNode': createContextNode('ContextNode', ['A']),
+          'A': createTestNode('A', ['B']),
+          'B': createTestNode('B', [])
+        }
+      }
+
+      const result: Graph = getSubgraphByDistance(graph, 'ContextNode', 7)
+
+      // Context node is excluded, but A and B should be reachable
+      expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B'])
+      expect(result.nodes['A'].outgoingEdges).toEqual(toEdges(['B']))
+    })
+
+    it('should handle multiple parents through the same context node', () => {
+      // P1 -> ContextNode -> C
+      // P2 -> ContextNode
+      // Start from P1: P1 should have bridge to C
+      const graph: Graph = {
+        nodes: {
+          'P1': createTestNode('P1', ['ContextNode']),
+          'P2': createTestNode('P2', ['ContextNode']),
+          'ContextNode': createContextNode('ContextNode', ['C']),
+          'C': createTestNode('C', [])
+        }
+      }
+
+      const result: Graph = getSubgraphByDistance(graph, 'P1', 7)
+
+      expect(Object.keys(result.nodes).sort()).toEqual(['C', 'P1', 'P2'])
+      // P1 should have bridged edge to C
+      expect(result.nodes['P1'].outgoingEdges).toEqual(toEdges(['C']))
+    })
+
+    it('should handle diamond topology with context node in one path', () => {
+      // A -> ContextNode -> C
+      // A -> B -> C
+      // A should have edges to both B (direct) and C (bridged through ContextNode)
+      const graph: Graph = {
+        nodes: {
+          'A': createTestNode('A', ['ContextNode', 'B']),
+          'ContextNode': createContextNode('ContextNode', ['C']),
+          'B': createTestNode('B', ['C']),
+          'C': createTestNode('C', [])
+        }
+      }
+
+      const result: Graph = getSubgraphByDistance(graph, 'A', 7)
+
+      expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B', 'C'])
+      // A should have edges to both B and C
+      expect(result.nodes['A'].outgoingEdges.map(e => e.targetId).sort()).toEqual(['B', 'C'])
+      // B should still have edge to C
+      expect(result.nodes['B'].outgoingEdges).toEqual(toEdges(['C']))
+    })
+
+    it('should handle orphan context subtree (only context nodes as ancestors)', () => {
+      // Ctx1 -> Ctx2 -> A -> B
+      // Start from A: context node ancestors are removed, no bridges needed
+      const graph: Graph = {
+        nodes: {
+          'Ctx1': createContextNode('Ctx1', ['Ctx2']),
+          'Ctx2': createContextNode('Ctx2', ['A']),
+          'A': createTestNode('A', ['B']),
+          'B': createTestNode('B', [])
+        }
+      }
+
+      const result: Graph = getSubgraphByDistance(graph, 'A', 7)
+
+      expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B'])
+      // A should only have edge to B (no self-referential edge)
+      expect(result.nodes['A'].outgoingEdges.map(e => e.targetId).sort()).toEqual(['B'])
+    })
+
+    it('should handle context node with both context and non-context children', () => {
+      // A -> ContextNode -> B (regular)
+      //                  -> Ctx2 (context) -> C
+      // A should have bridged edges to both B and C
+      const graph: Graph = {
+        nodes: {
+          'A': createTestNode('A', ['ContextNode']),
+          'ContextNode': createContextNode('ContextNode', ['B', 'Ctx2']),
+          'B': createTestNode('B', []),
+          'Ctx2': createContextNode('Ctx2', ['C']),
+          'C': createTestNode('C', [])
+        }
+      }
+
+      const result: Graph = getSubgraphByDistance(graph, 'A', 7)
+
+      expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B', 'C'])
+      expect(result.nodes['A'].outgoingEdges.map(e => e.targetId).sort()).toEqual(['B', 'C'])
+    })
+
+    it('should not duplicate edges when bridged target already has direct edge', () => {
+      // A -> ContextNode -> B
+      // A -> B (direct edge)
+      // A should have only one edge to B, not two
+      const graph: Graph = {
+        nodes: {
+          'A': createTestNode('A', ['ContextNode', 'B']),
+          'ContextNode': createContextNode('ContextNode', ['B']),
+          'B': createTestNode('B', [])
+        }
+      }
+
+      const result: Graph = getSubgraphByDistance(graph, 'A', 7)
+
+      expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B'])
+      // Should have exactly one edge to B, not duplicated
+      expect(result.nodes['A'].outgoingEdges).toEqual(toEdges(['B']))
+    })
+
+    it('should handle long chain with alternating context and regular nodes', () => {
+      // A -> Ctx1 -> B -> Ctx2 -> C -> Ctx3 -> D
+      // A should have edge to B
+      // B should have edge to C
+      // C should have edge to D
+      const graph: Graph = {
+        nodes: {
+          'A': createTestNode('A', ['Ctx1']),
+          'Ctx1': createContextNode('Ctx1', ['B']),
+          'B': createTestNode('B', ['Ctx2']),
+          'Ctx2': createContextNode('Ctx2', ['C']),
+          'C': createTestNode('C', ['Ctx3']),
+          'Ctx3': createContextNode('Ctx3', ['D']),
+          'D': createTestNode('D', [])
+        }
+      }
+
+      const result: Graph = getSubgraphByDistance(graph, 'A', 15)
+
+      expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B', 'C', 'D'])
+      expect(result.nodes['A'].outgoingEdges).toEqual(toEdges(['B']))
+      expect(result.nodes['B'].outgoingEdges).toEqual(toEdges(['C']))
+      expect(result.nodes['C'].outgoingEdges).toEqual(toEdges(['D']))
+    })
+
+    it('should handle context node with no children (leaf context node)', () => {
+      // A -> ContextNode (leaf)
+      // No bridging needed, A should have no outgoing edges in result
+      const graph: Graph = {
+        nodes: {
+          'A': createTestNode('A', ['ContextNode']),
+          'ContextNode': createContextNode('ContextNode', [])
+        }
+      }
+
+      const result: Graph = getSubgraphByDistance(graph, 'A', 7)
+
+      expect(Object.keys(result.nodes).sort()).toEqual(['A'])
+      expect(result.nodes['A'].outgoingEdges).toEqual(toEdges([]))
+    })
+
+    it('should handle graph with only context nodes (empty result)', () => {
+      // Ctx1 -> Ctx2 -> Ctx3
+      const graph: Graph = {
+        nodes: {
+          'Ctx1': createContextNode('Ctx1', ['Ctx2']),
+          'Ctx2': createContextNode('Ctx2', ['Ctx3']),
+          'Ctx3': createContextNode('Ctx3', [])
+        }
+      }
+
+      const result: Graph = getSubgraphByDistance(graph, 'Ctx1', 7)
+
+      expect(Object.keys(result.nodes)).toEqual([])
+    })
+  })
+})
+
+describe('getUnionSubgraphByDistance', () => {
+  const createTestNode: (id: string, edges?: readonly string[]) => GraphNode = (id: string, edges: readonly string[] = []): GraphNode => ({
+    relativeFilePathIsID: id,
+    outgoingEdges: edges.map(targetId => ({ targetId, label: '' })),
+    contentWithoutYamlOrLinks: `content of ${id}`,
+    nodeUIMetadata: {
+      color: O.none,
+      position: O.none,
+      additionalYAMLProps: new Map(),
+      isContextNode: false
+    }
+  })
+
+  const createContextNode: (id: string, edges?: readonly string[]) => GraphNode = (id: string, edges: readonly string[] = []): GraphNode => ({
+    relativeFilePathIsID: id,
+    outgoingEdges: edges.map(targetId => ({ targetId, label: '' })),
+    contentWithoutYamlOrLinks: `content of ${id}`,
+    nodeUIMetadata: {
+      color: O.none,
+      position: O.none,
+      additionalYAMLProps: new Map(),
+      isContextNode: true
+    }
+  })
+
+  const toEdges: (ids: readonly string[]) => readonly { readonly targetId: string; readonly label: string; }[] = (ids: readonly string[]) => ids.map(targetId => ({ targetId, label: '' }))
+
+  it('should merge subgraphs from multiple starting nodes', () => {
+    // A -> B, C -> D (disconnected)
+    const graph: Graph = {
+      nodes: {
+        'A': createTestNode('A', ['B']),
+        'B': createTestNode('B', []),
+        'C': createTestNode('C', ['D']),
+        'D': createTestNode('D', [])
+      }
+    }
+
+    const result: Graph = getUnionSubgraphByDistance(graph, ['A', 'C'], 7)
+
+    expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B', 'C', 'D'])
+  })
+
+  it('should preserve bridging edges when merging subgraphs', () => {
+    // A -> ContextNode -> B
+    // Start from A, should have bridged edge A -> B in the union result
+    const graph: Graph = {
+      nodes: {
+        'A': createTestNode('A', ['ContextNode']),
+        'ContextNode': createContextNode('ContextNode', ['B']),
+        'B': createTestNode('B', [])
+      }
+    }
+
+    const result: Graph = getUnionSubgraphByDistance(graph, ['A'], 7)
+
+    expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B'])
+    // With pre-transformation approach, bridging edges are correctly preserved
+    expect(result.nodes['A'].outgoingEdges).toEqual(toEdges(['B']))
+  })
+
+  it('should handle empty start node list', () => {
+    const graph: Graph = {
+      nodes: {
+        'A': createTestNode('A', [])
+      }
+    }
+
+    const result: Graph = getUnionSubgraphByDistance(graph, [], 7)
+
+    expect(Object.keys(result.nodes)).toEqual([])
+  })
+
+  it('should skip non-existent start nodes', () => {
+    const graph: Graph = {
+      nodes: {
+        'A': createTestNode('A', ['B']),
+        'B': createTestNode('B', [])
+      }
+    }
+
+    const result: Graph = getUnionSubgraphByDistance(graph, ['NonExistent', 'A'], 7)
+
+    expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B'])
   })
 })

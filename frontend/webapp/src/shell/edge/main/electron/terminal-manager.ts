@@ -298,6 +298,7 @@ export default class TerminalManager {
       console.log(`[TerminalManager] getWatchedDirectory() returned: ${watchedDir}`);
       console.log(`[TerminalManager] Using vault path: ${vaultPath}`);
       customEnv.OBSIDIAN_VAULT_PATH = vaultPath;
+      customEnv.WATCHED_FOLDER = watchedDir;
 
       // Set node-based environment variables from attachedToNodeId
       const filePath: string = terminalData.attachedToNodeId;

@@ -110,12 +110,12 @@ describe('createNewChildNodeFromUI - Integration', () => {
             global.window = {} as Window & typeof globalThis
         }
 
-        global.window.electronAPI = {
+        (global.window as any).electronAPI = {
             main: {
                 getGraph: vi.fn(() => mockGraph),
                 applyGraphDeltaToDBThroughMemUIAndEditorExposed: mockApplyDelta
             }
-        } as unknown as typeof global.window.electronAPI
+        }
     })
 
     afterEach(() => {
@@ -139,7 +139,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
         expect(result).toBe('parent_1.md')
 
         // THEN: applyGraphDeltaToDBThroughMem should have been called
-        expect(global.window.electronAPI.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed).toHaveBeenCalledTimes(1)
+        expect((global.window as any).electronAPI.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed).toHaveBeenCalledTimes(1)
 
         // THEN: Cytoscape should now have 3 nodes
         expect(cy.nodes()).toHaveLength(3)
@@ -260,6 +260,11 @@ describe('modifyNodeContentFromUI - Integration', () => {
                         applyGraphDeltaToUI(cy, delta)
                         return undefined
                     }),
+                    applyGraphDeltaToDBThroughMemAndUIExposed: vi.fn().mockImplementation(async (delta: GraphDelta) => {
+                        // Apply the delta to the cytoscape instance to simulate the UI update
+                        applyGraphDeltaToUI(cy, delta)
+                        return undefined
+                    }),
                     getNode: vi.fn().mockImplementation((nodeId: string) => mockGraph.nodes[nodeId])
                 }
             }
@@ -291,7 +296,7 @@ describe('modifyNodeContentFromUI - Integration', () => {
         await modifyNodeContentFromUI('test.md', newContent, cy)
 
         // THEN: GraphDelta should contain node with preserved position from old metadata
-        const graphDeltaCall: any[] = (window as any).electronAPI!.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed.mock.calls[0]?.[0] as any[]
+        const graphDeltaCall: any[] = (window as any).electronAPI!.main.applyGraphDeltaToDBThroughMemAndUIExposed.mock.calls[0]?.[0] as any[]
         const upsertedNode: GraphNode = graphDeltaCall[0].nodeToUpsert as GraphNode
 
         // Position should be preserved from old metadata (O.some({x: 100, y: 100}))
@@ -311,7 +316,7 @@ describe('modifyNodeContentFromUI - Integration', () => {
         await modifyNodeContentFromUI('test.md', newContent, cy)
 
         // THEN: GraphDelta should contain node with content that derives the new title
-        const graphDeltaCall: any[] = (window as any).electronAPI!.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed.mock.calls[0]?.[0] as any[]
+        const graphDeltaCall: any[] = (window as any).electronAPI!.main.applyGraphDeltaToDBThroughMemAndUIExposed.mock.calls[0]?.[0] as any[]
         expect(graphDeltaCall).toHaveLength(1)
         expect(graphDeltaCall[0].type).toBe('UpsertNode')
 

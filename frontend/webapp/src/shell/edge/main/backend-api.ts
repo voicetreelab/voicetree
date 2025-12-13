@@ -92,3 +92,40 @@ export async function checkBackendHealth(): Promise<boolean> {
     return false;
   }
 }
+
+export interface SearchSimilarResult {
+  node_path: string;  // NodeIdAndFilePath format ("voice/Some_Title.md")
+  score: number;
+  title: string;
+}
+
+export interface AskQueryResponse {
+  relevant_nodes: SearchSimilarResult[];
+}
+
+/**
+ * Query the graph using hybrid search (BM25 + vector).
+ * Returns relevant nodes for context creation in Ask mode.
+ *
+ * @param query - The question to search for
+ * @param topK - Number of results to return (default 10)
+ * @returns Response with array of relevant nodes
+ */
+export async function askQuery(
+  query: string,
+  topK: number = 10
+): Promise<AskQueryResponse> {
+  const baseUrl: string = await getBackendBaseUrl();
+  const response: Response = await fetch(`${baseUrl}/ask`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, top_k: topK })
+  });
+
+  if (!response.ok) {
+    const error: BackendApiError = await response.json() as BackendApiError;
+    throw new Error(`Ask query failed: ${error.detail}`);
+  }
+
+  return response.json() as Promise<AskQueryResponse>;
+}

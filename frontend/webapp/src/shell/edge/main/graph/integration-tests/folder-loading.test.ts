@@ -271,9 +271,13 @@ describe('Folder Loading - Integration Tests', () => {
       expect(testNode.outgoingEdges.some((e: Edge) => e.targetId.includes('5_Immediate_Test_Observation_No_Output'))).toBe(true)
 
       // Verify broadcast was sent (graph:stateChanged)
-      expect(broadcastCalls.length).toBe(1)
-      const addBroadcast: BroadcastCall | undefined = broadcastCalls.find(call =>
-        call.channel === 'graph:stateChanged' && call.delta.some(d => d.type === 'UpsertNode' && d.nodeToUpsert.relativeFilePathIsID === 'test-new-file.md')
+      // Note: handleFSEventWithStateAndUISides sends 2 broadcasts:
+      // 1. graph:stateChanged (for cytoscape UI)
+      // 2. ui:call (for floating editors)
+      const graphStateChangedBroadcasts: BroadcastCall[] = broadcastCalls.filter(call => call.channel === 'graph:stateChanged')
+      expect(graphStateChangedBroadcasts.length).toBe(1)
+      const addBroadcast: BroadcastCall | undefined = graphStateChangedBroadcasts.find(call =>
+        call.delta.some(d => d.type === 'UpsertNode' && d.nodeToUpsert.relativeFilePathIsID === 'test-new-file.md')
       )
       expect(addBroadcast).toBeDefined()
 
@@ -297,9 +301,13 @@ describe('Folder Loading - Integration Tests', () => {
       expect(Object.keys(graphAfterDelete.nodes).length).toBe(EXPECTED_SMALL_NODE_COUNT)
 
       // Verify broadcast was sent (graph:stateChanged)
-      expect(broadcastCalls.length).toBe(1)
-      const deleteBroadcast: BroadcastCall | undefined = broadcastCalls.find(call =>
-        call.channel === 'graph:stateChanged' && call.delta.some(d => d.type === 'DeleteNode' && d.nodeId === 'test-new-file.md')
+      // Note: handleFSEventWithStateAndUISides sends 2 broadcasts:
+      // 1. graph:stateChanged (for cytoscape UI)
+      // 2. ui:call (for floating editors)
+      const deleteGraphStateChangedBroadcasts: BroadcastCall[] = broadcastCalls.filter(call => call.channel === 'graph:stateChanged')
+      expect(deleteGraphStateChangedBroadcasts.length).toBe(1)
+      const deleteBroadcast: BroadcastCall | undefined = deleteGraphStateChangedBroadcasts.find(call =>
+        call.delta.some(d => d.type === 'DeleteNode' && d.nodeId === 'test-new-file.md')
       )
       expect(deleteBroadcast).toBeDefined()
 
@@ -388,11 +396,15 @@ describe('Folder Loading - Integration Tests', () => {
       expect(graph.nodes['test-new-file.md'].contentWithoutYamlOrLinks).toBe(newFileContent)
 
       // AND: Broadcast should have been sent (graph:stateChanged)
-      expect(broadcastCalls.length).toBe(1)
-      expect(broadcastCalls[0].channel).toBe('graph:stateChanged')
+      // Note: handleFSEventWithStateAndUISides sends 2 broadcasts:
+      // 1. graph:stateChanged (for cytoscape UI)
+      // 2. ui:call (for floating editors)
+      const stateChangedBroadcasts: BroadcastCall[] = broadcastCalls.filter(call => call.channel === 'graph:stateChanged')
+      expect(stateChangedBroadcasts.length).toBe(1)
+      expect(stateChangedBroadcasts[0].channel).toBe('graph:stateChanged')
 
       // Verify the delta contains UpsertNode action
-      const addDelta: UpsertNodeDelta | undefined = broadcastCalls[0].delta.find(d => d.type === 'UpsertNode')
+      const addDelta: UpsertNodeDelta | undefined = stateChangedBroadcasts[0].delta.find(d => d.type === 'UpsertNode')
       expect(addDelta).toBeDefined()
 
       // WHEN: Delete the file
@@ -412,11 +424,15 @@ describe('Folder Loading - Integration Tests', () => {
       expect(graphAfterDelete.nodes['test-new-file.md']).toBeUndefined()
 
       // AND: Broadcast should have been sent (graph:stateChanged)
-      expect(broadcastCalls.length).toBe(1)
-      expect(broadcastCalls[0].channel).toBe('graph:stateChanged')
+      // Note: handleFSEventWithStateAndUISides sends 2 broadcasts:
+      // 1. graph:stateChanged (for cytoscape UI)
+      // 2. ui:call (for floating editors)
+      const deleteStateChangedBroadcasts: BroadcastCall[] = broadcastCalls.filter(call => call.channel === 'graph:stateChanged')
+      expect(deleteStateChangedBroadcasts.length).toBe(1)
+      expect(deleteStateChangedBroadcasts[0].channel).toBe('graph:stateChanged')
 
       // Verify the delta contains DeleteNode action
-      const deleteDelta: DeleteNode | undefined = broadcastCalls[0].delta.find(d => d.type === 'DeleteNode')
+      const deleteDelta: DeleteNode | undefined = deleteStateChangedBroadcasts[0].delta.find(d => d.type === 'DeleteNode')
       expect(deleteDelta).toBeDefined()
     })
   })
