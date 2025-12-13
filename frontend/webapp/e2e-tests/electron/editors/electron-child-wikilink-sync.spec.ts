@@ -301,12 +301,13 @@ test.describe('Child Node Wikilink Sync', () => {
       // Add text at the end (simulating user typing)
       const doc = cmView.state.doc;
       cmView.dispatch({
-        changes: { from: doc.length, insert: '\n\nUser added this text.' }
+        changes: { from: doc.length, insert: '\n\nUser added this text.' },
+        userEvent: 'input' // Mark as user input to trigger autosave
       });
     }, editorWindowId);
 
-    // Wait for autosave
-    await appWindow.waitForTimeout(500);
+    // Wait for autosave (300ms default + buffer)
+    await appWindow.waitForTimeout(800);
 
     // Screenshot 5: After editing
     await appWindow.screenshot({ path: path.join(screenshotsDir, '5-after-editing.png') });

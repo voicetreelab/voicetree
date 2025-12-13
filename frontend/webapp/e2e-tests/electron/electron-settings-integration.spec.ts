@@ -248,15 +248,18 @@ test.describe('Settings Integration E2E', () => {
       const newValue = JSON.stringify(currentSettings, null, 2);
       console.log('[Test] New value to set:', newValue);
 
-      // Set new value using CodeMirror dispatch
+      // Set new value using CodeMirror dispatch with userEvent annotation
+      // This is required to trigger the onChange handler in CodeMirrorEditorView
+      // which only fires for user-initiated changes (input, delete, undo, redo)
       cmView.dispatch({
         changes: {
           from: 0,
           to: cmView.state.doc.length,
           insert: newValue
-        }
+        },
+        userEvent: 'input'
       });
-      console.log('[Test] Dispatched changes to CodeMirror');
+      console.log('[Test] Dispatched changes to CodeMirror with userEvent annotation');
       return { success: true };
     }, { agentName: newAgentName, agentCmd: newAgentCommand, launchPath: newLaunchPath });
 

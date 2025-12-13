@@ -315,6 +315,18 @@ button.graph-button:disabled > svg > path {
     background: var(--background-modifier-active, #4a4a4a);
 }
 
+/* Recency gradient - most recent (leftmost) is fully opaque, fading toward older tabs */
+.recent-tabs-scroll .recent-tab:nth-child(1) { opacity: 1.0; }
+.recent-tabs-scroll .recent-tab:nth-child(2) { opacity: 0.85; }
+.recent-tabs-scroll .recent-tab:nth-child(3) { opacity: 0.70; }
+.recent-tabs-scroll .recent-tab:nth-child(4) { opacity: 0.58; }
+.recent-tabs-scroll .recent-tab:nth-child(5) { opacity: 0.48; }
+
+/* Restore full opacity on hover for better interaction */
+.recent-tabs-scroll .recent-tab:hover {
+    opacity: 1.0;
+}
+
 /* Tab text - horizontally scrollable within fixed width */
 .recent-tab-text {
     display: block;

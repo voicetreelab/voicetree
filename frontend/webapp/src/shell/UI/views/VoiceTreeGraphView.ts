@@ -743,7 +743,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         this.hotkeyManager.dispose();
         disposeEditorManager(this.cy);
         this.searchService.dispose();
-        disposeRecentNodeTabsBar();
+        // TODO: Recent tabs temporarily disabled until better UX is designed
+        // disposeRecentNodeTabsBar();
         disposeAgentTabsBar();
 
         // Dispose menu services

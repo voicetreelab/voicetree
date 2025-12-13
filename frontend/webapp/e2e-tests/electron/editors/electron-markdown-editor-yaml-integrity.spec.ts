@@ -316,9 +316,11 @@ test.describe('Markdown Editor YAML Integrity', () => {
       if (!cmView) throw new Error('CodeMirror view not found');
 
       // Insert text at the end of the document
+      // Mark as user event so autosave triggers
       const docLength = cmView.state.doc.length;
       cmView.dispatch({
-        changes: { from: docLength, insert: insertText }
+        changes: { from: docLength, insert: insertText },
+        userEvent: 'input.type'
       });
     }, { windowId: editorWindowId, insertText: textToAdd });
 
@@ -491,9 +493,11 @@ test.describe('Markdown Editor YAML Integrity', () => {
         const cmView = (editorElement as CodeMirrorElement).cmView?.view;
         if (!cmView) throw new Error('CodeMirror view not found');
 
+        // Mark as user event so autosave triggers
         const docLength = cmView.state.doc.length;
         cmView.dispatch({
-          changes: { from: docLength, insert: text }
+          changes: { from: docLength, insert: text },
+          userEvent: 'input.type'
         });
       }, { windowId: editorWindowId, text: `\n\nEdit ${i} added.` });
 

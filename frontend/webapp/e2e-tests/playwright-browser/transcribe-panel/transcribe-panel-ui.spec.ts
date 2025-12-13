@@ -1,23 +1,150 @@
 /**
  * Browser-based test for transcribe panel UI
  * Takes a screenshot of the transcribe panel with mock transcribed text
+ * Shows full UI state including: folder path (bottom-left), transcribe panel (center), minimap (bottom-right)
  */
 
 import { test as base, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
   waitForCytoscapeReady,
+  sendGraphDelta,
+  createTestGraphDelta,
 } from '@e2e/playwright-browser/graph-delta-test-utils';
 
 const test = base.extend({});
+
+/**
+ * Sets up the mock to include watched directory info for full UI state
+ */
+async function setupMockWithWatchedDirectory(page: import('@playwright/test').Page): Promise<void> {
+  await page.addInitScript(() => {
+    // Store callback for watching-started event
+    let watchingStartedCallback: ((data: { directory: string; vaultSuffix: string }) => void) | null = null;
+
+    // Create a comprehensive mock of the Electron API
+    const mockElectronAPI = {
+      main: {
+        applyGraphDeltaToDBAndMem: async () => ({ success: true }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        applyGraphDeltaToDBThroughMem: async (delta: any) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          delta.forEach((nodeDelta: any) => {
+            if (nodeDelta.type === 'UpsertNode') {
+              const node = nodeDelta.nodeToUpsert;
+              mockElectronAPI.graph._graphState.nodes[node.relativeFilePathIsID] = node;
+            } else if (nodeDelta.type === 'DeleteNode') {
+              delete mockElectronAPI.graph._graphState.nodes[nodeDelta.nodeId];
+            }
+          });
+          if (mockElectronAPI.graph._updateCallback) {
+            setTimeout(() => {
+              mockElectronAPI.graph._updateCallback?.(delta);
+            }, 10);
+          }
+          return { success: true };
+        },
+        getGraph: async () => mockElectronAPI.graph._graphState,
+        loadSettings: async () => ({
+          terminalSpawnPathRelativeToWatchedDirectory: '../',
+          agents: [{ name: 'Claude', command: './claude.sh' }],
+          shiftEnterSendsOptionEnter: true
+        }),
+        saveSettings: async () => ({ success: true }),
+        saveNodePositions: async () => ({ success: true }),
+        startFileWatching: async (dir: string) => {
+          console.log('[Mock] startFileWatching called with:', dir);
+          return { success: true, directory: dir };
+        },
+        stopFileWatching: async () => ({ success: true }),
+        getWatchStatus: async () => ({ isWatching: true, directory: '/Users/demo/projects/my-notes' }),
+        loadPreviousFolder: async () => ({ success: false }),
+        getBackendPort: async () => 5001,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: any) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          delta.forEach((nodeDelta: any) => {
+            if (nodeDelta.type === 'UpsertNode') {
+              const node = nodeDelta.nodeToUpsert;
+              mockElectronAPI.graph._graphState.nodes[node.relativeFilePathIsID] = node;
+            } else if (nodeDelta.type === 'DeleteNode') {
+              delete mockElectronAPI.graph._graphState.nodes[nodeDelta.nodeId];
+            }
+          });
+          if (mockElectronAPI.graph._updateCallback) {
+            setTimeout(() => {
+              mockElectronAPI.graph._updateCallback?.(delta);
+            }, 10);
+          }
+          return { success: true };
+        },
+      },
+      onWatchingStarted: (callback: (data: { directory: string; vaultSuffix: string }) => void) => {
+        watchingStartedCallback = callback;
+        // Immediately trigger with mock data to show folder in UI
+        setTimeout(() => {
+          callback({ directory: '/Users/demo/projects/my-notes', vaultSuffix: 'voicetree' });
+        }, 50);
+      },
+      onFileWatchingStopped: () => {},
+      removeAllListeners: () => {},
+      terminal: {
+        spawn: async () => ({ success: false }),
+        write: async () => {},
+        resize: async () => {},
+        kill: async () => {},
+        onData: () => {},
+        onExit: () => {}
+      },
+      positions: {
+        save: async () => ({ success: true }),
+        load: async () => ({ success: false, positions: {} })
+      },
+      onBackendLog: () => {},
+      graph: {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        _graphState: { nodes: {}, edges: [] } as any,
+        applyGraphDelta: async () => ({ success: true }),
+        getState: async () => mockElectronAPI.graph._graphState,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onGraphUpdate: (callback: (delta: any) => void) => {
+          mockElectronAPI.graph._updateCallback = callback;
+          return () => {};
+        },
+        onGraphClear: () => () => {},
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        _updateCallback: undefined as ((delta: any) => void) | undefined
+      },
+      invoke: async () => {},
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      _ipcListeners: {} as Record<string, ((event: unknown, ...args: any[]) => void)[]>,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      on: (channel: string, callback: (event: unknown, ...args: any[]) => void) => {
+        if (!mockElectronAPI._ipcListeners[channel]) {
+          mockElectronAPI._ipcListeners[channel] = [];
+        }
+        mockElectronAPI._ipcListeners[channel].push(callback);
+        return () => {};
+      },
+      off: () => {},
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      _triggerIpc: (channel: string, ...args: any[]) => {
+        const listeners = mockElectronAPI._ipcListeners[channel] || [];
+        listeners.forEach(cb => cb(null, ...args));
+      }
+    };
+
+    (window as unknown as { electronAPI: typeof mockElectronAPI }).electronAPI = mockElectronAPI;
+  });
+}
 
 test.describe('Transcribe Panel UI', () => {
   test('should display transcribed text with transparent fade effect', async ({ page }) => {
     console.log('\n=== Starting transcribe panel UI test ===');
 
-    console.log('=== Step 1: Setup mock Electron API ===');
-    await setupMockElectronAPI(page);
-    console.log('✓ Electron API mock prepared');
+    console.log('=== Step 1: Setup mock Electron API with watched directory ===');
+    await setupMockWithWatchedDirectory(page);
+    console.log('✓ Electron API mock prepared with watched directory');
 
     console.log('=== Step 2: Navigate to app ===');
     await page.goto('/');
@@ -29,6 +156,12 @@ test.describe('Transcribe Panel UI', () => {
     console.log('=== Step 3: Wait for Cytoscape ===');
     await waitForCytoscapeReady(page);
     console.log('✓ Cytoscape initialized');
+
+    console.log('=== Step 3b: Add nodes for minimap ===');
+    // Add test nodes so the minimap appears (requires 2+ nodes)
+    await sendGraphDelta(page, createTestGraphDelta());
+    await page.waitForTimeout(200); // Wait for graph to render
+    console.log('✓ Test nodes added for minimap');
 
     console.log('=== Step 4: Inject mock transcription tokens ===');
     // We need to inject mock tokens into the VoiceTreeTranscribe component
@@ -72,10 +205,11 @@ test.describe('Transcribe Panel UI', () => {
     });
     console.log('✓ Mock transcription tokens injected');
 
-    console.log('=== Step 5: Verify the Record speech label is visible ===');
-    const recordLabel = await page.locator('span:has-text("Record speech")').first();
-    await expect(recordLabel).toBeVisible();
-    console.log('✓ "Record speech" label is visible');
+    console.log('=== Step 5: Verify the mic button is visible ===');
+    // The mic button contains an animated mic icon (circle with mic inside when not recording)
+    const micButton = page.locator('button.rounded-lg').first();
+    await expect(micButton).toBeVisible();
+    console.log('✓ Mic button is visible');
 
     console.log('=== Step 6: Take screenshot of transcribe panel (expanded) ===');
     // Take full page screenshot to capture the transcription panel (which is absolutely positioned)
@@ -143,25 +277,30 @@ test.describe('Transcribe Panel UI', () => {
   test('should show "Recording" label when recording', async ({ page }) => {
     console.log('\n=== Starting recording state test ===');
 
-    await setupMockElectronAPI(page);
+    await setupMockWithWatchedDirectory(page);
     await page.goto('/');
     await page.waitForSelector('#root', { timeout: 5000 });
     await waitForCytoscapeReady(page);
+    await page.waitForTimeout(100);
 
-    // Initially should show "Record speech"
-    const recordLabel = await page.locator('span:has-text("Record speech")').first();
-    await expect(recordLabel).toBeVisible();
-    console.log('✓ Initial "Record speech" label visible');
+    // Add test nodes for minimap
+    await sendGraphDelta(page, createTestGraphDelta());
+    await page.waitForTimeout(300); // Wait for graph to render
 
-    // Click the mic button to start recording
-    // Note: This will likely fail since Soniox API won't be available in test,
-    // but we can verify the button is clickable
-    const micButton = page.locator('button').filter({ has: page.locator('svg') }).first();
+    // Find the mic button (inside the rounded-lg button with AnimatedMicIcon)
+    // The mic button shows a circle with mic icon inside when not recording
+    const micButton = page.locator('button.rounded-lg').first();
 
-    // For a proper test, we'd need to mock the Soniox client state
-    // For now, just verify the UI elements exist
+    // Verify the UI elements exist
     await expect(micButton).toBeVisible();
     console.log('✓ Mic button is visible');
+
+    // Verify Add/Ask pill is visible
+    const addButton = page.locator('button:has-text("Add")').first();
+    const askButton = page.locator('button:has-text("Ask")').first();
+    await expect(addButton).toBeVisible();
+    await expect(askButton).toBeVisible();
+    console.log('✓ Add/Ask pill is visible');
 
     // Take screenshot of initial state
     await page.screenshot({

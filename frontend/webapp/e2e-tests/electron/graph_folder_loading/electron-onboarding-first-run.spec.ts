@@ -4,7 +4,7 @@
  *
  * This test verifies:
  * 1. App can successfully load the onboarding directory from Application Support
- * 2. The onboarding directory contains 5-10 markdown files (varies based on fixture updates)
+ * 2. The onboarding directory contains 5-11 markdown files (varies based on fixture updates)
  * 3. All nodes are correctly displayed in the graph with proper labels
  * 4. The watched directory path contains "onboarding"
  * 5. Expected onboarding nodes are present: Welcome, Just Start Talking,
@@ -210,10 +210,10 @@ test.describe('Onboarding First Run', () => {
     const nodeCount: number = Object.keys(graphState.nodes).length;
     console.log(`✓ Graph loaded with ${nodeCount} nodes`);
 
-    // Verify the expected number of onboarding nodes (8 files as of test time)
-    // Allow range 5-10 to accommodate fixture changes
+    // Verify the expected number of onboarding nodes (11 files as of test time)
+    // Allow range 5-11 to accommodate fixture changes
     expect(nodeCount).toBeGreaterThanOrEqual(5);
-    expect(nodeCount).toBeLessThanOrEqual(10);
+    expect(nodeCount).toBeLessThanOrEqual(11);
 
     // Step 7: Verify Cytoscape UI has rendered the nodes
     const cytoscapeState: CytoscapeState = await appWindow.evaluate(() => {
@@ -228,15 +228,15 @@ test.describe('Onboarding First Run', () => {
     console.log('✓ Cytoscape rendered nodes:', cytoscapeState.nodeCount);
     console.log('  Node labels:', cytoscapeState.nodeLabels.join(', '));
 
-    // Verify Cytoscape has 5-10 nodes rendered (may vary based on fixture state)
+    // Verify Cytoscape has 5-11 nodes rendered (may vary based on fixture state)
     expect(cytoscapeState.nodeCount).toBeGreaterThanOrEqual(5);
-    expect(cytoscapeState.nodeCount).toBeLessThanOrEqual(10);
+    expect(cytoscapeState.nodeCount).toBeLessThanOrEqual(11);
 
     // Step 8: Verify key onboarding node labels are present
     // Note: Labels are extracted from frontmatter or filename and may be title-cased
     // The onboarding content may change over time, so we check for a few key nodes
     const expectedLabels: string[] = [
-      'Welcome to VoiceTree',
+      'VOICETREE',
       'Open Your Project Folder'
     ];
 

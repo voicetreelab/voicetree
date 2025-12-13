@@ -146,6 +146,9 @@ End of content.`;
 
     await electronApp.close();
 
+    // Wait for Electron process to fully terminate before next test
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     // Cleanup entire temp directory (includes vault)
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
     console.log('[Test] Cleaned up temp directory');
@@ -302,7 +305,8 @@ test.describe('Link Duplication Bug', () => {
       // Insert text at the end of the document
       const docLength = cmView.state.doc.length;
       cmView.dispatch({
-        changes: { from: docLength, insert: `\n\n${insertText}` }
+        changes: { from: docLength, insert: `\n\n${insertText}` },
+        userEvent: 'input'  // Mark as user event to trigger auto-save
       });
     }, { windowId: editorWindowId, insertText: 'This is an edit that should not duplicate the link.' });
 
@@ -451,9 +455,10 @@ test.describe('Link Duplication Bug', () => {
       const linkPattern = '[[target-node.md]]';
       const newContent = currentContent.replace(linkPattern, '');
 
-      // Replace entire document
+      // Replace entire document with userEvent to trigger auto-save
       cmView.dispatch({
-        changes: { from: 0, to: cmView.state.doc.length, insert: newContent }
+        changes: { from: 0, to: cmView.state.doc.length, insert: newContent },
+        userEvent: 'input'  // Mark as user event to trigger auto-save
       });
 
       console.log('Removed wikilink from editor');

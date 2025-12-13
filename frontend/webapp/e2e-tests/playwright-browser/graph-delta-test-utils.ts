@@ -96,6 +96,29 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
         // Backend server configuration
         getBackendPort: async () => 5001,
 
+        // UI-edge graph delta operations (used by handleUIActions.ts)
+        applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
+          // Simulate what the real implementation does: write to DB, then trigger graph update via file watcher
+          // Update mock graph state
+          delta.forEach((nodeDelta) => {
+            if (nodeDelta.type === 'UpsertNode') {
+              const node = nodeDelta.nodeToUpsert;
+              mockElectronAPI.graph._graphState.nodes[node.relativeFilePathIsID] = node;
+            } else if (nodeDelta.type === 'DeleteNode') {
+              delete mockElectronAPI.graph._graphState.nodes[nodeDelta.nodeId];
+            }
+          });
+
+          // Trigger graph update callback (simulating file watcher event)
+          if (mockElectronAPI.graph._updateCallback) {
+            // Use setTimeout to simulate async file system operation
+            setTimeout(() => {
+              mockElectronAPI.graph._updateCallback?.(delta);
+            }, 10);
+          }
+          return { success: true };
+        },
+
       },
 
       // File watching event listeners (no-op callbacks)

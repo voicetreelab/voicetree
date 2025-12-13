@@ -13,11 +13,28 @@ import { type Token } from "@soniox/speech-to-text-web";
 import type {} from "@/shell/electron";
 import { ChevronDown } from "lucide-react";
 
+type InputMode = 'add' | 'ask' | null;
+
 export default function VoiceTreeTranscribe(): JSX.Element {
   const [textInput, setTextInput] = useState("");
   const [allFinalTokens, setAllFinalTokens] = useState<Token[]>([]);
   const [backendPort, setBackendPort] = useState<number | undefined>(undefined);
   const [isTranscriptionExpanded, setIsTranscriptionExpanded] = useState(true);
+  const [inputMode, setInputMode] = useState<InputMode>(() => {
+    const stored: string | null = localStorage.getItem('voicetree-input-mode');
+    if (stored === 'ask') return 'ask';
+    if (stored === 'add') return 'add';
+    return null;
+  });
+
+  // Persist mode changes
+  useEffect(() => {
+    if (inputMode === null) {
+      localStorage.removeItem('voicetree-input-mode');
+    } else {
+      localStorage.setItem('voicetree-input-mode', inputMode);
+    }
+  }, [inputMode]);
 
   const {
     state,
@@ -116,39 +133,67 @@ export default function VoiceTreeTranscribe(): JSX.Element {
     }
   }, [finalTokens, sendIncrementalTokens]);
 
-  // Handle manual text submission
-  const handleTextSubmit: () => Promise<void> = async () => {
-    if (textInput.trim()) {
-      // Send the manual text
-      await sendManualText(textInput);
+  // Handle Ask mode submission
+  const handleAskSubmit: (question: string) => Promise<void> = async (question: string) => {
+    try {
+      // 1. Get relevant nodes from backend via IPC
+      const response: { relevant_nodes: Array<{ node_path: string; score: number; title: string }> } | null =
+        await window.electronAPI?.main.askQuery(question, 10);
 
-      // Create tokens from the manual text input
-      const tokensToAdd: Token[] = [];
-
-      // Add a newline token if there are existing tokens
-      if (allFinalTokens.length > 0) {
-        tokensToAdd.push({
-          text: "\n",
-          is_final: true,
-          speaker: undefined,
-          language: undefined,
-          confidence: 1.0,
-        });
+      if (!response || response.relevant_nodes.length === 0) {
+        alert('No relevant nodes found for your question');
+        return;
       }
 
-      // Add the actual text token
+      const nodePaths: string[] = response.relevant_nodes.map(r => r.node_path);
+
+      // 2. Create context node and spawn terminal via IPC
+      await window.electronAPI?.main.askModeCreateAndSpawn(nodePaths, question);
+    } catch (err) {
+      console.error('Ask mode failed:', err);
+      alert(`Ask failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
+  // Handle manual text submission
+  const handleTextSubmit: () => Promise<void> = async () => {
+    if (!textInput.trim()) return;
+
+    if (inputMode === 'ask') {
+      await handleAskSubmit(textInput);
+      setTextInput("");
+      return;
+    }
+
+    // Add mode - existing behavior
+    await sendManualText(textInput);
+
+    // Create tokens from the manual text input
+    const tokensToAdd: Token[] = [];
+
+    // Add a newline token if there are existing tokens
+    if (allFinalTokens.length > 0) {
       tokensToAdd.push({
-        text: textInput,
+        text: "\n",
         is_final: true,
         speaker: undefined,
         language: undefined,
         confidence: 1.0,
       });
-
-      // Append to final tokens
-      setAllFinalTokens(prev => [...prev, ...tokensToAdd]);
-      setTextInput("");
     }
+
+    // Add the actual text token
+    tokensToAdd.push({
+      text: textInput,
+      is_final: true,
+      speaker: undefined,
+      language: undefined,
+      confidence: 1.0,
+    });
+
+    // Append to final tokens
+    setAllFinalTokens(prev => [...prev, ...tokensToAdd]);
+    setTextInput("");
   };
 
   // Check microphone permissions on mount
@@ -193,31 +238,24 @@ export default function VoiceTreeTranscribe(): JSX.Element {
   return (
     <div className="flex flex-col relative">
       {/* Input Section - at bottom with solid background */}
-      <div className="border-t bg-background/95 backdrop-blur-sm relative z-20">
+      <div className="bg-background relative z-20">
         <div className="max-w-4xl mx-auto relative">
           {/* Transcription Display - positioned absolutely above input, aligned to input width */}
           <div
-            className="absolute bottom-full left-0 right-0 mb-2 transition-all duration-200"
+            className="absolute bottom-full left-0 right-0 transition-all duration-200"
             style={{ height: isTranscriptionExpanded ? '68px' : '0px', overflow: 'hidden' }}
           >
-            {/* Blur gradient layer - multiple stacked blur regions */}
-            <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
-              {/* Bottom section - strongest blur */}
-              <div
-                className="absolute bottom-0 left-0 right-0 h-1/3"
-                style={{ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
-              />
-              {/* Middle section - medium blur */}
-              <div
-                className="absolute bottom-1/3 left-0 right-0 h-1/3"
-                style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
-              />
-              {/* Top section - light blur */}
-              <div
-                className="absolute top-0 left-0 right-0 h-1/3"
-                style={{ backdropFilter: 'blur(1px)', WebkitBackdropFilter: 'blur(1px)' }}
-              />
-            </div>
+            {/* Smooth gradient blur layer - single element with gradient mask */}
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                zIndex: 0,
+                backdropFilter: 'blur(8px)',
+                WebkitBackdropFilter: 'blur(8px)',
+                maskImage: 'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0.2) 70%, rgba(0,0,0,0) 100%)',
+                WebkitMaskImage: 'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0.2) 70%, rgba(0,0,0,0) 100%)',
+              }}
+            />
             {/* Scrollable text content with opacity gradient */}
             <div
               ref={autoScrollRef}
@@ -252,8 +290,10 @@ export default function VoiceTreeTranscribe(): JSX.Element {
             />
           </button>
 
-          <div className="flex items-center gap-2">
-            {/* Status Bar - inline */}
+
+          {/* Offset left by half minimap width to center controls relative to full viewport */}
+          <div className="flex items-center justify-center gap-3 py-2 mr-[min(calc(3vw+10px),80px)]">
+            {/* Status Section */}
             <div className="flex items-center gap-2 text-xs">
               <StatusDisplay state={state} />
               {isProcessing && (
@@ -269,9 +309,8 @@ export default function VoiceTreeTranscribe(): JSX.Element {
               )}
             </div>
 
-            <span className="text-sm text-muted-foreground min-w-[80px]">
-              {state === 'Running' ? 'Recording' : 'Record speech'}
-            </span>
+
+            {/* Mic Button */}
             <button
               onClick={() => state === 'Running' ? stopTranscription() : void startTranscription()}
               className={cn(
@@ -284,25 +323,69 @@ export default function VoiceTreeTranscribe(): JSX.Element {
               <AnimatedMicIcon isRecording={state === 'Running'} size={28} />
             </button>
 
-            {/* Text Input */}
-            <input
-              type="text"
-              value={textInput}
-              onChange={(e) => setTextInput(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder={state === 'Running' ? "Type text to add it to the graph" : "Type text to add it to the graph"}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              disabled={isProcessing}
-            />
+            {/* Divider */}
+            <div className="h-6 w-px bg-border" />
 
-            {/* Send Button - always visible */}
-            <button
-              onClick={() => void handleTextSubmit()}
-              disabled={isProcessing || !textInput.trim()}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-                ↑
-            </button>
+            {/* Input Pill - Unified rounded container that expands */}
+            <div className={cn(
+              "flex items-center border border-input bg-background rounded-full overflow-hidden shadow-sm transition-all",
+              inputMode !== null && "min-w-[320px]"
+            )}>
+              {/* Add Button */}
+              <button
+                onClick={() => setInputMode(inputMode === 'add' ? null : 'add')}
+                className={cn(
+                  'px-2 py-0.5 text-xs transition-colors cursor-pointer m-1',
+                  inputMode === 'add'
+                    ? 'bg-blue-600 text-white rounded-full'
+                    : 'text-muted-foreground hover:bg-accent rounded-full'
+                )}
+              >
+                Add
+              </button>
+
+              {/* Separator between Add/Ask */}
+              <div className="h-4 w-px bg-border" />
+
+              {/* Ask Button */}
+              <button
+                onClick={() => setInputMode(inputMode === 'ask' ? null : 'ask')}
+                className={cn(
+                  'px-2 py-0.5 text-xs transition-colors cursor-pointer m-1',
+                  inputMode === 'ask'
+                    ? 'bg-purple-600 text-white rounded-full'
+                    : 'text-muted-foreground hover:bg-accent rounded-full'
+                )}
+              >
+                Ask
+              </button>
+
+              {/* Expanded: Input + Send */}
+              {inputMode !== null && (
+                <>
+                  <div className="h-4 w-px bg-border" />
+                  <input
+                    type="text"
+                    value={textInput}
+                    onChange={(e) => setTextInput(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder={inputMode === 'ask'
+                      ? "Ask a question..."
+                      : "Type to add..."}
+                    className="flex-1 px-3 py-1.5 bg-transparent focus:outline-none text-sm min-w-[180px]"
+                    disabled={isProcessing}
+                    autoFocus
+                  />
+                  <button
+                    onClick={() => void handleTextSubmit()}
+                    disabled={isProcessing || !textInput.trim()}
+                    className="px-3 py-1.5 text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    ↑
+                  </button>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Error Messages */}
