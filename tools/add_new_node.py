@@ -62,11 +62,37 @@ def addNewNode(parent_file=None, name=None, markdown_content=None, relationship_
         vault_dir = parent_path.parent
 
     else:
-        # Use OBSIDIAN_VAULT_PATH for relative paths
-        if not vault_path_env:
-            raise ValueError("OBSIDIAN_VAULT_PATH environment variable must be set for relative paths")
-        vault_dir = Path(vault_path_env)
-        full_parent_path = vault_dir / parent_path
+        # For relative paths, try WATCHED_FOLDER first (default), fallback to OBSIDIAN_VAULT_PATH
+        watched_folder_env = os.environ.get('WATCHED_FOLDER')
+
+        # Default approach: WATCHED_FOLDER + parent_path directly
+        if watched_folder_env:
+            watched_folder = Path(watched_folder_env)
+            full_parent_path = watched_folder / parent_path
+
+            # If this path exists, use watched_folder as vault_dir
+            if full_parent_path.exists():
+                vault_dir = watched_folder
+            # Fallback: try OBSIDIAN_VAULT_PATH with strip-prefix logic
+            elif vault_path_env:
+                vault_dir = Path(vault_path_env)
+                adjusted_path = parent_path
+                vault_name = vault_dir.name
+                if adjusted_path.parts and adjusted_path.parts[0] == vault_name:
+                    adjusted_path = Path(*adjusted_path.parts[1:])
+                full_parent_path = vault_dir / adjusted_path
+            else:
+                # Keep the WATCHED_FOLDER path even if it doesn't exist (will fail later with clear error)
+                vault_dir = watched_folder
+        elif vault_path_env:
+            # Legacy fallback: use OBSIDIAN_VAULT_PATH with strip-prefix logic
+            vault_dir = Path(vault_path_env)
+            vault_name = vault_dir.name
+            if parent_path.parts and parent_path.parts[0] == vault_name:
+                parent_path = Path(*parent_path.parts[1:])
+            full_parent_path = vault_dir / parent_path
+        else:
+            raise ValueError("WATCHED_FOLDER or OBSIDIAN_VAULT_PATH environment variable must be set for relative paths")
     
     # Get parent directory and parent filename
     parent_dir = full_parent_path.parent

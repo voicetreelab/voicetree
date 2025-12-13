@@ -4,11 +4,13 @@ Logs input/output variables to individual files for each stage
 """
 
 import json
-import sys
 import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from backend.paths import get_app_data_dir
+
 
 def get_debug_directory() -> Path:
     """Get the debug directory from environment or use sensible defaults."""
@@ -16,23 +18,20 @@ def get_debug_directory() -> Path:
     if debug_dir := os.environ.get('VOICETREE_DEBUG_DIR'):
         return Path(debug_dir)
 
-    # For PyInstaller bundles, use a subdirectory next to the executable
-    if getattr(sys, 'frozen', False):
-        # sys.executable in frozen mode points to the actual executable
-        # Put logs in a 'debug_logs' folder next to the executable
-        exe_dir = Path(sys.executable).parent
-        return exe_dir / "debug_logs"
-
-    # For development, use local directory
-    return Path(__file__).parent.parent / "debug_logs"
+    # Use system app data directory (writable location)
+    return get_app_data_dir() / "debug_logs"
 
 # Lazy initialization - don't create directory on import
 DEBUG_DIR = get_debug_directory()
 
-def ensure_debug_dir_exists():
-    """Create debug directory only when needed."""
-    if not DEBUG_DIR.exists():
-        DEBUG_DIR.mkdir(parents=True, exist_ok=True)
+def ensure_debug_dir_exists() -> bool:
+    """Create debug directory only when needed. Returns True if writable."""
+    try:
+        if not DEBUG_DIR.exists():
+            DEBUG_DIR.mkdir(parents=True, exist_ok=True)
+        return True
+    except (PermissionError, OSError):
+        return False
 
 def clear_debug_logs() -> None:
     """
@@ -41,10 +40,13 @@ def clear_debug_logs() -> None:
     Note: This should only be called manually when starting a new benchmarker session.
     Individual transcript runs will append to existing logs to preserve the full history.
     """
-    if DEBUG_DIR.exists():
-        for file in DEBUG_DIR.glob("*.txt"):
-            file.unlink()
-    print(f"🗑️ Cleared debug logs in {DEBUG_DIR}")
+    try:
+        if DEBUG_DIR.exists():
+            for file in DEBUG_DIR.glob("*.txt"):
+                file.unlink()
+        print(f"Cleared debug logs in {DEBUG_DIR}")
+    except (PermissionError, OSError):
+        pass
 
 def log_stage_input_output(stage_name: str, inputs: dict[str, Any], outputs: dict[str, Any]) -> None:
     """
@@ -55,12 +57,15 @@ def log_stage_input_output(stage_name: str, inputs: dict[str, Any], outputs: dic
         inputs: State dictionary before the stage executes
         outputs: State dictionary after the stage executes
     """
-    ensure_debug_dir_exists()
-    timestamp = datetime.now().strftime("%H:%M:%S")
-    log_file = DEBUG_DIR / f"{stage_name}_debug.txt"
+    if not ensure_debug_dir_exists():
+        return
 
-    # Format the log entry
-    log_entry = f"""
+    try:
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        log_file = DEBUG_DIR / f"{stage_name}_debug.txt"
+
+        # Format the log entry
+        log_entry = f"""
 ==========================================
 {stage_name.upper()} STAGE DEBUG - {timestamp}
 ==========================================
@@ -75,9 +80,11 @@ STATE AFTER:
 
 """
 
-    # Append to the stage's debug file
-    with open(log_file, "a", encoding="utf-8") as f:
-        f.write(log_entry)
+        # Append to the stage's debug file
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(log_entry)
+    except (PermissionError, OSError):
+        pass
 
 
 def format_variables(variables: dict[str, Any]) -> str:
@@ -168,13 +175,15 @@ def log_transcript_processing(transcript_text: str, file_source: str = "unknown"
         transcript_text: The transcript text
         file_source: Source file path or description
     """
-    # Don't clear logs automatically - preserve all executions during benchmarker runs
-    ensure_debug_dir_exists()
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    log_file = DEBUG_DIR / "00_transcript_input.txt"
+    if not ensure_debug_dir_exists():
+        return
 
-    # Add a separator for new execution without clearing previous logs
-    separator = f"""
+    try:
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        log_file = DEBUG_DIR / "00_transcript_input.txt"
+
+        # Add a separator for new execution without clearing previous logs
+        separator = f"""
 
 ##########################################################
 # NEW TRANSCRIPT EXECUTION - {timestamp}
@@ -182,7 +191,7 @@ def log_transcript_processing(transcript_text: str, file_source: str = "unknown"
 
 """
 
-    log_entry = f"""
+        log_entry = f"""
 ==========================================
 TRANSCRIPT INPUT - {timestamp}
 ==========================================
@@ -198,10 +207,12 @@ CONTENT:
 
 """
 
-    # Append to file instead of overwriting
-    with open(log_file, "a", encoding="utf-8") as f:
-        f.write(separator)
-        f.write(log_entry)
+        # Append to file instead of overwriting
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(separator)
+            f.write(log_entry)
+    except (PermissionError, OSError):
+        pass
 
 
 def log_llm_io(stage_name: str, prompt: str, response: Any, model_name: str = "unknown") -> None:
@@ -214,20 +225,23 @@ def log_llm_io(stage_name: str, prompt: str, response: Any, model_name: str = "u
         response: The LLM response (can be string or structured object)
         model_name: The model that was used
     """
-    ensure_debug_dir_exists()
-    timestamp = datetime.now().strftime("%H:%M:%S")
-    log_file = DEBUG_DIR / f"{stage_name}_llm_io.txt"
+    if not ensure_debug_dir_exists():
+        return
 
-    # Format response based on type
-    if hasattr(response, 'model_dump'):
-        # Pydantic model
-        response_str = json.dumps(response.model_dump(), indent=2)
-    elif isinstance(response, dict):
-        response_str = json.dumps(response, indent=2)
-    else:
-        response_str = str(response)
+    try:
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        log_file = DEBUG_DIR / f"{stage_name}_llm_io.txt"
 
-    log_entry = f"""
+        # Format response based on type
+        if hasattr(response, 'model_dump'):
+            # Pydantic model
+            response_str = json.dumps(response.model_dump(), indent=2)
+        elif isinstance(response, dict):
+            response_str = json.dumps(response, indent=2)
+        else:
+            response_str = str(response)
+
+        log_entry = f"""
 ==========================================
 {stage_name.upper()} LLM I/O - {timestamp}
 ==========================================
@@ -248,9 +262,11 @@ LLM RESPONSE:
 
 """
 
-    # Append to the stage's LLM I/O debug file
-    with open(log_file, "a", encoding="utf-8") as f:
-        f.write(log_entry)
+        # Append to the stage's LLM I/O debug file
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(log_entry)
+    except (PermissionError, OSError):
+        pass
 
 
 def create_debug_summary() -> None:
