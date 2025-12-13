@@ -45,7 +45,9 @@ describe('settings', () => {
       INJECT_ENV_VARS: { CUSTOM_VAR: 'custom_value' },
       agents: [{ name: 'Custom Agent', command: 'custom-command.sh' }],
       shiftEnterSendsOptionEnter: false,
-      contextNodeMaxDistance: 7
+      contextNodeMaxDistance: 7,
+      askModeContextDistance: 4,
+      defaultInputMode: 'add'
     };
 
     await saveSettings(customSettings);
@@ -60,7 +62,9 @@ describe('settings', () => {
       INJECT_ENV_VARS: { TEST_VAR: 'test_value' },
       agents: [{ name: 'Test Agent', command: 'test.sh' }],
       shiftEnterSendsOptionEnter: true,
-      contextNodeMaxDistance: 7
+      contextNodeMaxDistance: 7,
+      askModeContextDistance: 4,
+      defaultInputMode: 'add'
     };
 
     await saveSettings(customSettings);
@@ -79,7 +83,9 @@ describe('settings', () => {
       INJECT_ENV_VARS: { ANOTHER_VAR: 'another_value' },
       agents: [{ name: 'Another Agent', command: 'another.sh' }],
       shiftEnterSendsOptionEnter: true,
-      contextNodeMaxDistance: 7
+      contextNodeMaxDistance: 7,
+      askModeContextDistance: 4,
+      defaultInputMode: 'add'
     };
 
     await saveSettings(settings);

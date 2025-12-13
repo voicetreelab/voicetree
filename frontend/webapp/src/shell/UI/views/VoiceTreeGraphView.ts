@@ -48,7 +48,6 @@ import {SearchService} from './SearchService';
 // V2 recent node tabs - tracks recently added/modified nodes (not visited)
 import {
     createRecentNodeTabsBar,
-    disposeRecentNodeTabsBar,
     renderRecentNodeTabsV2
 } from './RecentNodeTabsBar';
 // Agent tabs - shows open terminals in top-right

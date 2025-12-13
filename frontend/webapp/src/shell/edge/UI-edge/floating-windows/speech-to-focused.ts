@@ -13,6 +13,9 @@ type FocusedWindow = {
   id: string;
 };
 
+// State for active transcription preview chip
+let activePreview: { element: HTMLElement; cleanup: () => void } | null = null;
+
 /**
  * Detect which floating window (editor or terminal) currently has focus.
  * Uses document.activeElement and DOM traversal.
@@ -89,4 +92,181 @@ export function routeSpeechToFocused(text: string): boolean {
   }
 
   return false;
+}
+
+/**
+ * Escape HTML special characters to prevent XSS
+ */
+function escapeHtml(text: string): string {
+  const div: HTMLDivElement = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+/**
+ * Truncate text with ellipsis if longer than maxLength
+ */
+function truncate(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  return text.slice(0, maxLength) + '...';
+}
+
+/**
+ * Get cursor position coordinates for editor or terminal
+ */
+function getCursorPosition(target: { type: 'editor'; view: EditorView } | { type: 'terminal'; id: string }): { x: number; y: number } | null {
+  if (target.type === 'editor') {
+    const coords = target.view.coordsAtPos(target.view.state.selection.main.head);
+    if (coords) {
+      return { x: coords.left, y: coords.top };
+    }
+  } else {
+    // Terminal: position above the terminal input area (bottom of terminal)
+    const terminalElement: Element | null = document.querySelector(`[data-floating-window-id="${target.id}"] .xterm`);
+    if (terminalElement) {
+      const rect: DOMRect = terminalElement.getBoundingClientRect();
+      return { x: rect.left + rect.width / 2, y: rect.bottom - 30 };
+    }
+  }
+  return null;
+}
+
+/**
+ * Dismiss any active transcription preview
+ */
+export function dismissTranscriptionPreview(): void {
+  if (activePreview) {
+    activePreview.cleanup();
+    activePreview.element.remove();
+    activePreview = null;
+  }
+}
+
+/**
+ * Show transcription preview chip above cursor.
+ * Returns promise that resolves to true (inserted) or false (dismissed).
+ */
+export function showTranscriptionPreview(
+  text: string,
+  target: { type: 'editor'; view: EditorView } | { type: 'terminal'; id: string }
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    // 1. Dismiss any existing preview
+    dismissTranscriptionPreview();
+
+    // 2. Get position
+    const position = getCursorPosition(target);
+    if (!position) {
+      resolve(false);
+      return;
+    }
+
+    // 3. Create chip element
+    const chip: HTMLDivElement = document.createElement('div');
+    chip.className = 'transcription-preview-chip';
+    chip.innerHTML = `
+      <span class="preview-text" title="${escapeHtml(text)}">${escapeHtml(truncate(text, 50))}</span>
+      <span class="preview-hints">↵ · Esc</span>
+    `;
+
+    // 4. Position above cursor/input
+    chip.style.left = `${position.x}px`;
+    chip.style.top = `${position.y - 40}px`;
+    chip.style.transform = 'translateX(-50%)';
+
+    // 5. Add to document.body
+    document.body.appendChild(chip);
+
+    // Ensure chip stays in viewport
+    const chipRect: DOMRect = chip.getBoundingClientRect();
+    if (chipRect.left < 0) {
+      chip.style.left = `${chipRect.width / 2 + 10}px`;
+    } else if (chipRect.right > window.innerWidth) {
+      chip.style.left = `${window.innerWidth - chipRect.width / 2 - 10}px`;
+    }
+    if (chipRect.top < 0) {
+      chip.style.top = `${position.y + 30}px`;
+    }
+
+    let resolved = false;
+    const finishWith = (inserted: boolean): void => {
+      if (resolved) return;
+      resolved = true;
+      dismissTranscriptionPreview();
+      resolve(inserted);
+    };
+
+    // 6. Insert text based on target type
+    const insertText = (): void => {
+      if (target.type === 'editor') {
+        insertTextAtCursor(target.view, text);
+      } else {
+        const electronAPI: ElectronAPI | undefined = window.electronAPI;
+        if (electronAPI) {
+          void electronAPI.terminal.write(target.id, text);
+        }
+      }
+    };
+
+    // 7. Setup keyboard listener
+    const handleKeydown = (e: KeyboardEvent): void => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
+        insertText();
+        finishWith(true);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        finishWith(false);
+      } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        // User started typing - dismiss without inserting
+        finishWith(false);
+      }
+    };
+
+    // 8. Setup click-outside listener
+    const handleClickOutside = (e: MouseEvent): void => {
+      if (!chip.contains(e.target as Node)) {
+        finishWith(false);
+      }
+    };
+
+    // 9. Setup timeout (10s)
+    const timeoutId: ReturnType<typeof setTimeout> = setTimeout(() => {
+      finishWith(false);
+    }, 10000);
+
+    // Add listeners
+    document.addEventListener('keydown', handleKeydown, true);
+    document.addEventListener('mousedown', handleClickOutside, true);
+
+    // Store cleanup
+    const cleanup = (): void => {
+      document.removeEventListener('keydown', handleKeydown, true);
+      document.removeEventListener('mousedown', handleClickOutside, true);
+      clearTimeout(timeoutId);
+    };
+
+    activePreview = { element: chip, cleanup };
+  });
+}
+
+/**
+ * Get target info for the currently focused window (for use with showTranscriptionPreview)
+ */
+export function getFocusedTarget(): { type: 'editor'; view: EditorView } | { type: 'terminal'; id: string } | null {
+  const focused: FocusedWindow | null = getFocusedFloatingWindow();
+  if (!focused) return null;
+
+  if (focused.type === 'editor') {
+    const view: EditorView | null = getEditorViewFromDOM();
+    if (view) {
+      return { type: 'editor', view };
+    }
+  } else if (focused.type === 'terminal') {
+    return { type: 'terminal', id: focused.id };
+  }
+
+  return null;
 }

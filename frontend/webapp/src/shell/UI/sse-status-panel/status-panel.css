@@ -26,39 +26,35 @@
     transition: all 0.2s ease;
 }
 
-/* Expand arrow button - positioned above panel on the left */
+/* Expand arrow button - minimal floating style matching transcribe panel */
 .server-activity-expand-arrow {
     position: absolute;
     top: -20px;
     left: 8px;
-    width: 32px;
-    height: 16px;
-    background: var(--background);
-    border: 1px solid var(--border);
-    border-bottom: none;
-    border-radius: 8px 8px 0 0;
+    padding: 4px;
+    background: transparent;
+    border: none;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 10px;
     color: var(--muted-foreground);
-    transition: background 0.15s ease, color 0.15s ease;
+    transition: color 0.15s ease;
     z-index: 1001;
 }
 
 .server-activity-expand-arrow:hover {
-    background: var(--muted);
     color: var(--foreground);
 }
 
-/* Arrow icon rotation when expanded */
+/* Arrow icon rotation - matches transcribe panel behavior */
 .server-activity-expand-arrow .arrow-icon {
     transition: transform 0.2s ease;
+    transform: rotate(180deg); /* Default: points up when collapsed */
 }
 
 .server-activity-panel.expanded .server-activity-expand-arrow .arrow-icon {
-    transform: rotate(180deg);
+    transform: rotate(0deg); /* Points down when expanded */
 }
 
 /* Expanded state - triggered by .expanded class (click), not hover */

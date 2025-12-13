@@ -38,7 +38,7 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
         const status: { readonly isWatching: boolean; readonly directory: string | undefined; readonly vaultSuffix: string } = await window.electronAPI!.main.getWatchStatus();
         console.log('[DEBUG] Initial watch status from electronAPI:', status);
         // Convert null to undefined to match WatchStatus type
-        setWatchStatus({ isWatching: status.isWatching, directory: status.directory ?? undefined, vaultSuffix: status.vaultSuffix });
+        setWatchStatus({ isWatching: status.isWatching, directory: status.directory ?? undefined, vaultSuffix: status.vaultSuffix || undefined });
       } catch (err) {
         console.error('Failed to get watch status:', err);
         setError('Failed to get watch status');
@@ -54,7 +54,7 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
 
     const handleWatchingStarted: (data: { directory: string; vaultSuffix?: string; timestamp: string; }) => void = (data: { directory: string; vaultSuffix?: string; timestamp: string }) => {
       console.log('[useFolderWatcher] watching-started event received:', data.directory, 'suffix:', data.vaultSuffix);
-      setWatchStatus({ isWatching: true, directory: data.directory, vaultSuffix: data.vaultSuffix });
+      setWatchStatus({ isWatching: true, directory: data.directory, vaultSuffix: data.vaultSuffix || undefined });
       setIsLoading(false);
       setError(null);
     };
@@ -157,7 +157,7 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
       console.log('[useFolderWatcher] setVaultSuffix result:', result);
       if (result.success) {
         // Update local state - the watching-started event will also sync this
-        setWatchStatus(prev => ({ ...prev, vaultSuffix: suffix }));
+        setWatchStatus(prev => ({ ...prev, vaultSuffix: suffix || undefined }));
         setIsLoading(false);
       } else {
         setError(result.error ?? 'Failed to set vault suffix');
