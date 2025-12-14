@@ -1,4 +1,4 @@
-import type { Core, CollectionReturnValue } from 'cytoscape';
+import type { Core, CollectionReturnValue, NodeCollection } from 'cytoscape';
 
 /**
  * Calculate responsive padding for cy.fit() based on viewport dimensions
@@ -39,7 +39,7 @@ export function cyFitWithRelativeZoom(
 ): void {
   if (eles.length === 0) return;
 
-  const bb = eles.boundingBox();
+  const bb: { w: number; h: number } = eles.boundingBox();
   if (bb.w === 0 || bb.h === 0) return;
 
   // Calculate zoom level so element takes up targetFraction of viewport
@@ -75,18 +75,18 @@ export function cyFitWithRelativeZoom(
  */
 export function cyFitCollectionByAverageNodeSize(
   cy: Core,
-  eles: CollectionReturnValue,
+  eles: CollectionReturnValue | NodeCollection,
   targetFraction: number,
   duration: number = 300
 ): void {
-  const nodes = eles.nodes();
+  const nodes: NodeCollection = eles.nodes();
   if (nodes.length === 0) return;
 
   // Calculate average node dimensions
-  let totalWidth = 0;
-  let totalHeight = 0;
+  let totalWidth: number = 0;
+  let totalHeight: number = 0;
   nodes.forEach(node => {
-    const bb = node.boundingBox();
+    const bb: { w: number; h: number } = node.boundingBox();
     totalWidth += bb.w;
     totalHeight += bb.h;
   });

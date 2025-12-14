@@ -3,7 +3,7 @@ import path from 'path';
 import fixPath from 'fix-path';
 import electronUpdater, {type UpdateCheckResult} from 'electron-updater';
 import log from 'electron-log';
-import {startFileWatching, getWatchedDirectory} from '@/shell/edge/main/graph/watchFolder';
+import {startFileWatching, getWatchedDirectory, setStartupFolderOverride} from '@/shell/edge/main/graph/watchFolder';
 
 const {autoUpdater} = electronUpdater;
 import {StubTextToTreeServerManager} from './server/StubTextToTreeServerManager';
@@ -11,6 +11,7 @@ import {RealTextToTreeServerManager} from './server/RealTextToTreeServerManager'
 import TerminalManager from './terminal-manager';
 import {setupToolsDirectory, getToolsDirectory} from './tools-setup';
 import {setupOnboardingDirectory} from './onboarding-setup';
+import {startNotificationScheduler, stopNotificationScheduler, recordAppUsage} from './notification-scheduler';
 import {setBackendPort, setMainWindow} from '@/shell/edge/main/state/app-electron-state';
 import {registerTerminalIpcHandlers} from '@/shell/edge/main/ipc-terminal-handlers';
 import {setupRPCHandlers} from '@/shell/edge/main/edge-auto-rpc/rpc-handler';
@@ -25,6 +26,12 @@ fixPath();
 
 // Set app name (shows in macOS menu bar, taskbar, etc.)
 app.setName('VoiceTree');
+
+// Parse CLI arguments for --open-folder (used by "Open Folder in New Instance")
+const openFolderIndex: number = process.argv.indexOf('--open-folder');
+if (openFolderIndex !== -1 && process.argv[openFolderIndex + 1]) {
+    setStartupFolderOverride(process.argv[openFolderIndex + 1]);
+}
 
 // ============================================================================
 // Auto-Update Configuration
@@ -152,6 +159,32 @@ function setupApplicationMenu(): void {
                     click: () => {
                         void startFileWatching();
                     }
+                },
+                {
+                    label: 'Open Folder in New Instance...',
+                    accelerator: 'CmdOrCtrl+Shift+N',
+                    click: () => {
+                        void (async () => {
+                            const result: Electron.OpenDialogReturnValue = await dialog.showOpenDialog({
+                                properties: ['openDirectory', 'createDirectory'],
+                                title: 'Select Directory to Open in New Instance',
+                                buttonLabel: 'Open in New Instance'
+                            });
+                            if (!result.canceled && result.filePaths.length > 0) {
+                                const folderPath: string = result.filePaths[0];
+                                const appPath: string = app.getPath('exe');
+                                const {spawn} = await import('child_process');
+                                if (process.platform === 'darwin') {
+                                    // macOS: use 'open -n' to launch new instance
+                                    const appBundlePath: string = appPath.replace(/\/Contents\/MacOS\/.*$/, '');
+                                    spawn('open', ['-n', appBundlePath, '--args', '--open-folder', folderPath], {detached: true});
+                                } else {
+                                    // Windows/Linux: just run the executable again
+                                    spawn(appPath, ['--open-folder', folderPath], {detached: true});
+                                }
+                            }
+                        })();
+                    }
                 }
             ]
         },
@@ -275,6 +308,21 @@ function createWindow(): void {
         }
     });
 
+    // Track user activity for re-engagement notifications
+    mainWindow.on('focus', () => {
+        void recordAppUsage();
+    });
+
+    // macOS: Hide window instead of destroying on close (red X button)
+    // This preserves state (terminals, editors, graph) for quick reopen from dock
+    // Cmd+Q or menu Quit will still fully quit the app via before-quit event
+    mainWindow.on('close', (event) => {
+        if (process.platform === 'darwin' && !isQuitting) {
+            event.preventDefault();
+            mainWindow.hide();
+        }
+    });
+
     // Clean up terminals when window closes
     mainWindow.on('closed', () => {
         terminalManager.cleanupForWindow(windowId);
@@ -330,6 +378,9 @@ void app.whenReady().then(async () => {
 
     createWindow();
 
+    // Start re-engagement notification scheduler
+    startNotificationScheduler();
+
     console.log(`[AutoUpdate] CL Check`);
     log.info(`[AutoUpdate] Check)`);
     // Check for updates
@@ -347,9 +398,13 @@ void app.whenReady().then(async () => {
         });
 });
 
+// Track if app is truly quitting (vs window close on macOS)
+let isQuitting: boolean = false;
+
 // Handle hot reload and app quit scenarios
 // IMPORTANT: before-quit fires on hot reload, window-all-closed does not
 app.on('before-quit', () => {
+    isQuitting = true;
     console.log('[App] before-quit event - cleaning up resources...');
 
     // Clean up server process
@@ -357,6 +412,9 @@ app.on('before-quit', () => {
 
     // Clean up all terminals
     terminalManager.cleanup();
+
+    // Stop notification scheduler
+    stopNotificationScheduler();
 });
 
 app.on('window-all-closed', () => {
@@ -375,7 +433,8 @@ app.on('window-all-closed', () => {
 
 app.on('activate', () => {
     void (async () => {
-        if (BrowserWindow.getAllWindows().length === 0) {
+        const windows: BrowserWindow[] = BrowserWindow.getAllWindows();
+        if (windows.length === 0) {
             // Restart server if it's not running (macOS dock click after window close)
             if (!textToTreeServerManager.isRunning()) {
                 console.log('[App] Reactivating - restarting server...');
@@ -385,6 +444,9 @@ app.on('activate', () => {
                 setBackendPort(textToTreeServerPort);
             }
             createWindow();
+        } else {
+            // Show the hidden window (macOS hide-on-close behavior)
+            windows[0].show();
         }
     })();
 });

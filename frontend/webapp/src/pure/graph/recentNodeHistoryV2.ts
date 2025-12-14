@@ -16,7 +16,7 @@ import { getNodeTitle } from '@/pure/graph/markdown-parsing'
 import { hasActualContentChanged } from '@/pure/graph/contentChangeDetection'
 import * as O from 'fp-ts/lib/Option.js'
 
-const MAX_RECENT_NODES: number = 5
+export const MAX_RECENT_NODES: number = 5
 
 export type RecentNodeHistory = readonly UpsertNodeDelta[]
 

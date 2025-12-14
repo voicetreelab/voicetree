@@ -34,9 +34,20 @@ let watcher: FSWatcher | null = null;
 let watchedDirectory: FilePath | null = null;
 let currentVaultSuffix: string = DEFAULT_VAULT_SUFFIX;
 
-//todo move this state to src/functional/shell/state/app-electron-state.ts
+// CLI argument override for opening a specific folder on startup (used by "Open Folder in New Instance")
+let startupFolderOverride: string | null = null;
+
+export function setStartupFolderOverride(folderPath: string): void {
+    startupFolderOverride = folderPath;
+}
 
 export async function initialLoad(): Promise<void>  {
+    // Check for CLI-specified folder first (from "Open Folder in New Instance")
+    if (startupFolderOverride !== null) {
+        await loadFolder(startupFolderOverride);
+        return;
+    }
+
     const lastDirectory: O.Option<string> = await getLastDirectory();
     if (O.isSome(lastDirectory)) {
         await loadFolder(lastDirectory.value)
@@ -112,6 +123,18 @@ async function saveSuffixForDirectory(directoryPath: string, suffix: string): Pr
     await saveConfig(config);
 }
 
+// Check if directory has an explicitly stored suffix (vs using default)
+async function hasStoredSuffix(directoryPath: string): Promise<boolean> {
+    const config: VoiceTreeConfig = await loadConfig();
+    return config.suffixes?.[directoryPath] !== undefined;
+}
+
+// Generate date-based suffix: voicetree-{day}-{month}
+function generateDateSuffix(): string {
+    const now: Date = new Date();
+    return `voicetree-${now.getDate()}-${now.getMonth() + 1}`;
+}
+
 export async function loadFolder(watchedFolderPath: FilePath, suffixOverride?: string): Promise<void>  {
     // TODO: Save current graph positions before switching folders (writeAllPositionsSync)
     // IMPORTANT,  watchedFolderPath is the folder the human chooses for proj
@@ -124,6 +147,16 @@ export async function loadFolder(watchedFolderPath: FilePath, suffixOverride?: s
     if (!mainWindow) {
         console.error('No main window available');
         return;
+    }
+
+    // Update watchedDirectory FIRST so suffix setting targets the correct folder
+    // even if file limit check fails later
+    watchedDirectory = watchedFolderPath;
+
+    // Close old watcher before attempting to load new folder
+    if (watcher) {
+        await watcher.close();
+        watcher = null;
     }
 
     // Clear existing graph state in UI-edge before loading new folder
@@ -146,9 +179,35 @@ export async function loadFolder(watchedFolderPath: FilePath, suffixOverride?: s
     // Pass both vaultPath (where to scan) and watchedFolderPath (base for node IDs)
     const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(vaultPath), O.some(watchedFolderPath));
 
-    // Exit early if file limit exceeded
+    // Handle file limit exceeded
     if (E.isLeft(loadResult)) {
-        console.log('[loadFolder] File limit exceeded, not setting up watcher');
+        const fileCount: number = loadResult.left.fileCount;
+        console.log('[loadFolder] File limit exceeded:', fileCount, 'files');
+
+        // If no suffix explicitly configured for this folder, auto-create a date-based one
+        const hasSuffix: boolean = await hasStoredSuffix(watchedFolderPath);
+        if (!hasSuffix) {
+            const dateSuffix: string = generateDateSuffix();
+            console.log('[loadFolder] Auto-creating suffix:', dateSuffix);
+
+            await saveSuffixForDirectory(watchedFolderPath, dateSuffix);
+
+            // Show info dialog (non-blocking)
+            void dialog.showMessageBox(mainWindow, {
+                type: 'info',
+                title: 'New Workspace Created',
+                message: `This folder has ${fileCount} markdown files.\n\nCreated new workspace:\n${watchedFolderPath}/${dateSuffix}`,
+                buttons: ['OK']
+            });
+
+            // Retry with the new suffix
+            return loadFolder(watchedFolderPath, dateSuffix);
+        }
+
+        // Has explicit suffix but still too many files - notify UI and exit
+        if (!mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('file-watching-stopped');
+        }
         return;
     }
 
@@ -176,7 +235,7 @@ export async function loadFolder(watchedFolderPath: FilePath, suffixOverride?: s
 
     // Save as last directory for auto-start on next launch
     await saveLastDirectory(watchedFolderPath);
-    watchedDirectory = watchedFolderPath;
+    // Note: watchedDirectory already set at start of function
 
     // Notify UI that watching has started
     mainWindow.webContents.send('watching-started', {
@@ -214,11 +273,7 @@ async function readFileWithRetry(filePath: string, maxRetries = 3, delay = 100):
 }
 
 async function setupWatcher(vaultPath: FilePath, watchedDir: FilePath): Promise<void> {
-    // Close old watcher if it exists
-    if (watcher) {
-        await watcher.close();
-        watcher = null;
-    }
+    // Note: watcher is already closed in loadFolder before this is called
 
     // vaultPath is {loaded_dir}/voicetree (where files are)
     // watchedDir is {loaded_dir} (base for node IDs)

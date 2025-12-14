@@ -31,7 +31,7 @@ import {
 } from "@/shell/edge/UI-edge/state/UIAppState";
 import { getNextTerminalCount, getTerminals } from "@/shell/edge/UI-edge/state/TerminalStore";
 
-const MAX_TERMINALS = 7;
+const MAX_TERMINALS: number = 6;
 
 /**
  * Spawn a terminal with a new context node
@@ -53,7 +53,7 @@ export async function spawnTerminalWithNewContextNode(
 
     // Check terminal limit
     if (terminalsMap.size >= MAX_TERMINALS) {
-        alert(`There is a limit of ${MAX_TERMINALS} open terminals at once, contact manu@voicetree.io to increase this`);
+        alert(`Glad you are trying to power use VT! Limit of ${MAX_TERMINALS} agents at once for now but send over an email 1manumasson@gmail.com if you want to alpha-test higher limits`);
         return;
     }
 

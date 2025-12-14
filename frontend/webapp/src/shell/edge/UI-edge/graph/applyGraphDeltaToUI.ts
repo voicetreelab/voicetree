@@ -10,7 +10,31 @@ import {markTerminalActivityForContextNode} from "@/shell/UI/views/AgentTabsBar"
 import type {} from '@/utils/types/cytoscape-layout-utilities';
 import {cyFitCollectionByAverageNodeSize} from "@/utils/responsivePadding";
 
-const MAX_EDGES = 150;
+const MAX_EDGES: number = 150;
+const FEEDBACK_NODE_THRESHOLD: number = 20;
+
+// Session-level state for tracking total nodes created
+let sessionNodeCount: number = 0;
+let feedbackAlertShown: boolean = false;
+
+/**
+ * Show feedback request alert after user creates enough nodes in a session.
+ * Only shows once per session.
+ */
+function maybeShowFeedbackAlert(newNodesInDelta: number): void {
+    if (feedbackAlertShown) return;
+
+    sessionNodeCount += newNodesInDelta;
+
+    if (sessionNodeCount >= FEEDBACK_NODE_THRESHOLD) {
+        feedbackAlertShown = true;
+        alert(
+            "Hey I'm Manu who built this, glad to see you are using this! " +
+            "It would mean a lot to me if you email any feedback to 1manumasson@gmail.com\n\n" +
+            "Hope VoiceTree is useful for you!"
+        );
+    }
+}
 
 /**
  * Validates if a color value is a valid CSS color using the browser's CSS.supports API
@@ -207,4 +231,9 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
     const userId: string = posthog.get_distinct_id()
     console.log("UUID", userId);
     console.log('[applyGraphDeltaToUI] Complete. Total nodes:', cy.nodes().length, 'Total edges:', cy.edges().length);
+
+    // Show feedback request after enough nodes created in session
+    if (newNodeCount > 0) {
+        maybeShowFeedbackAlert(newNodeCount);
+    }
 }

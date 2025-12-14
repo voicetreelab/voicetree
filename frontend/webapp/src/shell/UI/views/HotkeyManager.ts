@@ -11,6 +11,7 @@
 
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
+import { MAX_RECENT_NODES } from '@/pure/graph/recentNodeHistoryV2';
 
 export type Modifier = 'Meta' | 'Control' | 'Alt' | 'Shift';
 
@@ -21,6 +22,8 @@ export interface HotkeyConfig {
   onRelease?: () => void;
   repeatable?: boolean;
   repeatDelay?: number; // milliseconds between repeats (default 150)
+  /** If true, this hotkey won't fire when focus is in an editor/input (default: false) */
+  disabledInEditors?: boolean;
 }
 
 interface RegisteredHotkey {
@@ -150,18 +153,22 @@ export class HotkeyManager {
     });
 
     // Command + Z: Undo (no callback needed - calls main process directly)
+    // Disabled in editors so CodeMirror/terminals handle their own undo
     this.registerHotkey({
       key: 'z',
       modifiers: ['Meta'],
+      disabledInEditors: true,
       onPress: () => {
         void window.electronAPI?.main.performUndo();
       }
     });
 
     // Command + Shift + Z: Redo (no callback needed - calls main process directly)
+    // Disabled in editors so CodeMirror/terminals handle their own redo
     this.registerHotkey({
       key: 'z',
       modifiers: ['Meta', 'Shift'],
+      disabledInEditors: true,
       onPress: () => {
         void window.electronAPI?.main.performRedo();
       }
@@ -174,8 +181,8 @@ export class HotkeyManager {
       onPress: callbacks.deleteSelectedNodes
     });
 
-    // Command + 1-5: Navigate to recent node tabs
-    for (let i = 1; i <= 5; i++) {
+    // Command + 1-N: Navigate to recent node tabs (where N = MAX_RECENT_NODES)
+    for (let i: number = 1; i <= MAX_RECENT_NODES; i++) {
       this.registerHotkey({
         key: String(i),
         modifiers: ['Meta'],
@@ -259,20 +266,18 @@ export class HotkeyManager {
       const hotkey: RegisteredHotkey | undefined = this.hotkeys.get(hotkeyKey);
 
       // Ignore hotkeys when typing in input elements
-      // BUT allow hotkeys with modifiers (Command+[, etc.) to work everywhere
-      // EXCEPT for undo/redo (Cmd+Z, Cmd+Shift+Z) which should be handled by the editor itself
+      // Only intercept if we have a registered hotkey that's allowed in editors
+      // This allows standard edit commands (Cmd+A, Cmd+C, Cmd+V, Cmd+Z, etc.) to pass through
       if (this.isInputElement(e.target as HTMLElement, e)) {
-        // Allow hotkeys that have modifiers (Meta, Control, Alt)
         const hasModifier: boolean = e.metaKey || e.ctrlKey || e.altKey;
         if (!hasModifier) {
           return; // Block plain keys like Space when in input elements
         }
 
-        // When in an editor, let the editor handle its own undo/redo
-        // Don't fire graph undo/redo when CodeMirror/terminal should handle it
-        const isUndoRedo: boolean = e.key.toLowerCase() === 'z' && (e.metaKey || e.ctrlKey);
-        if (isUndoRedo) {
-          return; // Let the editor handle undo/redo natively
+        // Only intercept modifier combos that we've explicitly registered AND allowed in editors
+        // Let everything else pass through to the editor
+        if (!hotkey || hotkey.config.disabledInEditors) {
+          return;
         }
       }
 
