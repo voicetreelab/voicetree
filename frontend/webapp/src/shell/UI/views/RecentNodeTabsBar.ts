@@ -79,8 +79,9 @@ export function renderRecentNodeTabsV2(
     state.tabsContainer.innerHTML = ''
 
     // Create tab for each recent node
-    for (const entry of history) {
-        const tab: HTMLElement = createTab(entry, onNavigate)
+    for (let index = 0; index < history.length; index++) {
+        const entry = history[index]
+        const tab: HTMLElement = createTab(entry, onNavigate, index)
         state.tabsContainer.appendChild(tab)
     }
 
@@ -93,10 +94,16 @@ export function renderRecentNodeTabsV2(
  */
 function createTab(
     entry: UpsertNodeDelta,
-    onNavigate: (nodeId: string) => void
+    onNavigate: (nodeId: string) => void,
+    index: number
 ): HTMLElement {
     const nodeId: string = entry.nodeToUpsert.relativeFilePathIsID
     const label: string = getNodeTitle(entry.nodeToUpsert)
+    const shortcutNumber: number = index + 1
+
+    // Create wrapper container for tab + hint
+    const wrapper: HTMLDivElement = document.createElement('div')
+    wrapper.className = 'recent-tab-wrapper'
 
     const tab: HTMLButtonElement = document.createElement('button')
     tab.className = 'recent-tab'
@@ -111,12 +118,20 @@ function createTab(
 
     tab.appendChild(textSpan)
 
+    // Create shortcut hint element (shown on hover)
+    const shortcutHint: HTMLSpanElement = document.createElement('span')
+    shortcutHint.className = 'recent-tab-shortcut-hint'
+    shortcutHint.innerHTML = `⌘${shortcutNumber}`
+
+    wrapper.appendChild(tab)
+    wrapper.appendChild(shortcutHint)
+
     // Click handler - navigate to node
     tab.addEventListener('click', () => {
         onNavigate(nodeId)
     })
 
-    return tab
+    return wrapper
 }
 
 /**

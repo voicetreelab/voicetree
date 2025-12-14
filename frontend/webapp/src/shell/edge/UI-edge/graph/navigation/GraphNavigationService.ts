@@ -11,11 +11,12 @@
  */
 
 import type { Core, CollectionReturnValue } from 'cytoscape';
-import { getResponsivePadding } from '@/utils/responsivePadding';
+import { cyFitWithRelativeZoom } from '@/utils/responsivePadding';
 import { addRecentlyVisited } from '@/shell/edge/UI-edge/state/RecentlyVisitedStore';
 import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
 import { getTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
 import { getTerminalId, getShadowNodeId, type TerminalData, type TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
+import { getDisplayOrder } from '@/shell/UI/views/AgentTabsBar';
 
 // Callback type for terminal change notifications
 type TerminalChangeCallback = (terminalId: TerminalId | null) => void;
@@ -84,8 +85,8 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
       const cy: Core = this.cy;
       const node: CollectionReturnValue = cy.getElementById(this.lastCreatedNodeId);
       if (node.length > 0) {
-        // Use 19% of viewport for comfortable zoom on new nodes (was 275px on 1440p)
-        cy.fit(node, getResponsivePadding(cy, 19));
+        // Node takes ~60% of viewport (comfortable zoom on new nodes)
+        cyFitWithRelativeZoom(cy, node, 0.6);
       }
     }
   }
@@ -115,7 +116,8 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
       ? contextNode.closedNeighborhood().nodes().union(terminalShadowNode)
       : cy.collection().union(terminalShadowNode);
 
-    cy.fit(nodesToFit, getResponsivePadding(cy, 1));
+    // Collection takes 90% of viewport (show context with minimal padding)
+    cyFitWithRelativeZoom(cy, nodesToFit, 0.9);
 
     // Focus the terminal so keyboard input goes directly to it
     // Note: terminals are stored in vanillaFloatingWindowInstances with terminalId as key (not shadowNodeId)
@@ -148,19 +150,23 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
       return;
     }
 
-    // Sort terminals by ID for consistent ordering
-    const sortedTerminals: TerminalData[] = terminals.sort((a, b) =>
-      getTerminalId(a).localeCompare(getTerminalId(b))
-    );
+    // Use display order from AgentTabsBar (respects user's drag-drop ordering)
+    // Falls back to ID sort if AgentTabsBar not initialized
+    const displayOrder: TerminalId[] = getDisplayOrder();
+    const orderedTerminals: TerminalData[] = displayOrder.length > 0
+      ? displayOrder
+          .map(id => terminals.find(t => getTerminalId(t) === id))
+          .filter((t): t is TerminalData => t !== undefined)
+      : terminals.sort((a, b) => getTerminalId(a).localeCompare(getTerminalId(b)));
 
     // Calculate next/previous index
     if (direction === 1) {
-      this.currentTerminalIndex = (this.currentTerminalIndex + 1) % sortedTerminals.length;
+      this.currentTerminalIndex = (this.currentTerminalIndex + 1) % orderedTerminals.length;
     } else {
-      this.currentTerminalIndex = (this.currentTerminalIndex - 1 + sortedTerminals.length) % sortedTerminals.length;
+      this.currentTerminalIndex = (this.currentTerminalIndex - 1 + orderedTerminals.length) % orderedTerminals.length;
     }
 
-    const targetTerminal: TerminalData = sortedTerminals[this.currentTerminalIndex];
+    const targetTerminal: TerminalData = orderedTerminals[this.currentTerminalIndex];
 
     // fitToTerminal handles state update, viewport fit, focus, and notification
     this.fitToTerminal(targetTerminal);
@@ -179,10 +185,9 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
       // Track as recently visited for command palette ordering
       addRecentlyVisited(nodeId);
 
-      // Fit to node with padding
-      console.log('[GraphNavigationService] Calling cy.fit on node');
-      // Use 9% of viewport for search results (was 125px on 1440p)
-      cy.fit(node, getResponsivePadding(cy, 9));
+      // Animate to node - node takes 10% of viewport (comfortable with lots of context)
+      console.log('[GraphNavigationService] Calling cyFitWithRelativeZoom on node');
+      cyFitWithRelativeZoom(cy, node, 0.1);
 
       // Select the node (deselect others first for clean single-selection)
       cy.$(':selected').unselect();

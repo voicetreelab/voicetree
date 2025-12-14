@@ -8,6 +8,7 @@ import {hasActualContentChanged} from "@/pure/graph/contentChangeDetection";
 import posthog from "posthog-js";
 import {markTerminalActivityForContextNode} from "@/shell/UI/views/AgentTabsBar";
 import type {} from '@/utils/types/cytoscape-layout-utilities';
+import {cyFitCollectionByAverageNodeSize} from "@/utils/responsivePadding";
 
 const MAX_EDGES = 150;
 
@@ -193,10 +194,12 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
     }
 
     if (newNodeCount>=1 && cy.nodes().length <= 4){
-        setTimeout(() => { if (!cy.destroyed()) cy.fit(); }, 150); // fit when a new node comes in for the first few nodes.
+        // Fit so average node takes 10% of viewport for comfortable initial view
+        setTimeout(() => { if (!cy.destroyed()) cyFitCollectionByAverageNodeSize(cy, cy.nodes(), 0.1); }, 150);
     }
     else if (newNodeCount >= 2) { // if not just one node + incoming changing, probs a bulk load.
-        setTimeout(() => { if (!cy.destroyed()) cy.fit(); }, 150);
+        // Fit so average node takes 10% of viewport for comfortable bulk load view
+        setTimeout(() => { if (!cy.destroyed()) cyFitCollectionByAverageNodeSize(cy, cy.nodes(), 0.1); }, 150);
     }
     //analytics
     const anonGraphDelta: GraphDelta = stripDeltaForReplay(delta);

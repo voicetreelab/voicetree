@@ -14,7 +14,13 @@ type FocusedWindow = {
 };
 
 // State for active transcription preview chip
-let activePreview: { element: HTMLElement; cleanup: () => void } | null = null;
+let activePreview: {
+  element: HTMLElement;
+  cleanup: () => void;
+  resolve: (inserted: boolean) => void;
+  target: { type: 'editor'; view: EditorView } | { type: 'terminal'; id: string };
+  currentText: string;
+} | null = null;
 
 /**
  * Detect which floating window (editor or terminal) currently has focus.
@@ -132,27 +138,96 @@ function getCursorPosition(target: { type: 'editor'; view: EditorView } | { type
 }
 
 /**
- * Dismiss any active transcription preview
+ * Dismiss any active transcription preview without resolving (for cleanup)
  */
-export function dismissTranscriptionPreview(): void {
+function cleanupActivePreview(): void {
   if (activePreview) {
     activePreview.cleanup();
     activePreview.element.remove();
-    activePreview = null;
   }
+}
+
+/**
+ * Dismiss any active transcription preview, resolving with false (cancelled)
+ */
+export function dismissTranscriptionPreview(): void {
+  if (activePreview) {
+    const preview = activePreview;
+    activePreview = null;
+    preview.cleanup();
+    preview.element.remove();
+    preview.resolve(false);
+  }
+}
+
+/**
+ * Update the text in an active transcription preview chip.
+ * Returns true if chip was updated, false if no active chip exists.
+ */
+export function updateTranscriptionPreview(newText: string): boolean {
+  if (!activePreview) return false;
+
+  activePreview.currentText = newText;
+
+  // Update the displayed text
+  const textSpan: Element | null = activePreview.element.querySelector('.preview-text');
+  if (textSpan) {
+    textSpan.textContent = truncate(newText, 50);
+    textSpan.setAttribute('title', newText);
+  }
+
+  return true;
+}
+
+/**
+ * Check if there's an active transcription preview
+ */
+export function hasActiveTranscriptionPreview(): boolean {
+  return activePreview !== null;
+}
+
+/**
+ * Confirm the active transcription preview (insert text).
+ * Returns true if confirmed, false if no active preview.
+ */
+export function confirmTranscriptionPreview(): boolean {
+  if (!activePreview) return false;
+
+  const preview = activePreview;
+  activePreview = null;
+
+  // Insert the current text
+  if (preview.target.type === 'editor') {
+    insertTextAtCursor(preview.target.view, preview.currentText);
+  } else {
+    const electronAPI: ElectronAPI | undefined = window.electronAPI;
+    if (electronAPI) {
+      void electronAPI.terminal.write(preview.target.id, preview.currentText);
+    }
+  }
+
+  preview.cleanup();
+  preview.element.remove();
+  preview.resolve(true);
+
+  return true;
 }
 
 /**
  * Show transcription preview chip above cursor.
  * Returns promise that resolves to true (inserted) or false (dismissed).
+ *
+ * The chip can be updated with new text via updateTranscriptionPreview().
+ * The promise resolves when the user confirms (Enter) or dismisses (Escape/click/timeout).
  */
 export function showTranscriptionPreview(
   text: string,
   target: { type: 'editor'; view: EditorView } | { type: 'terminal'; id: string }
 ): Promise<boolean> {
   return new Promise((resolve) => {
-    // 1. Dismiss any existing preview
-    dismissTranscriptionPreview();
+    // 1. Clean up any existing preview (but don't resolve its promise - we're replacing it)
+    cleanupActivePreview();
+    activePreview = null;
 
     // 2. Get position
     const position = getCursorPosition(target);
@@ -188,53 +263,34 @@ export function showTranscriptionPreview(
       chip.style.top = `${position.y + 30}px`;
     }
 
-    let resolved = false;
-    const finishWith = (inserted: boolean): void => {
-      if (resolved) return;
-      resolved = true;
-      dismissTranscriptionPreview();
-      resolve(inserted);
-    };
-
-    // 6. Insert text based on target type
-    const insertText = (): void => {
-      if (target.type === 'editor') {
-        insertTextAtCursor(target.view, text);
-      } else {
-        const electronAPI: ElectronAPI | undefined = window.electronAPI;
-        if (electronAPI) {
-          void electronAPI.terminal.write(target.id, text);
-        }
-      }
-    };
-
     // 7. Setup keyboard listener
     const handleKeydown = (e: KeyboardEvent): void => {
+      if (!activePreview) return;
+
       if (e.key === 'Enter') {
         e.preventDefault();
         e.stopPropagation();
-        insertText();
-        finishWith(true);
+        confirmTranscriptionPreview();
       } else if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
-        finishWith(false);
+        dismissTranscriptionPreview();
       } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
         // User started typing - dismiss without inserting
-        finishWith(false);
+        dismissTranscriptionPreview();
       }
     };
 
     // 8. Setup click-outside listener
     const handleClickOutside = (e: MouseEvent): void => {
-      if (!chip.contains(e.target as Node)) {
-        finishWith(false);
+      if (activePreview && !chip.contains(e.target as Node)) {
+        dismissTranscriptionPreview();
       }
     };
 
     // 9. Setup timeout (10s)
     const timeoutId: ReturnType<typeof setTimeout> = setTimeout(() => {
-      finishWith(false);
+      dismissTranscriptionPreview();
     }, 10000);
 
     // Add listeners
@@ -248,7 +304,7 @@ export function showTranscriptionPreview(
       clearTimeout(timeoutId);
     };
 
-    activePreview = { element: chip, cleanup };
+    activePreview = { element: chip, cleanup, resolve, target, currentText: text };
   });
 }
 

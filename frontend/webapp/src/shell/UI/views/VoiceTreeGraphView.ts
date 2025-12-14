@@ -523,7 +523,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             cycleTerminal: (direction) => this.navigationService.cycleTerminal(direction),
             createNewNode: createNewNodeAction(this.cy),
             runTerminal: runTerminalAction(this.cy),
-            deleteSelectedNodes: deleteSelectedNodesAction(this.cy)
+            deleteSelectedNodes: deleteSelectedNodesAction(this.cy),
+            navigateToRecentNode: (index) => this.navigateToRecentNodeByIndex(index)
         });
 
         // Register cmd-f and cmd-e for search
@@ -627,6 +628,16 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
      */
     navigateToNodeAndTrack(nodeId: string): void {
         this.navigationService.handleSearchSelect(nodeId);
+    }
+
+    /**
+     * Navigate to a recent node by index (0-4, for Cmd+1 through Cmd+5)
+     */
+    private navigateToRecentNodeByIndex(index: number): void {
+        if (index >= 0 && index < this.recentNodeHistory.length) {
+            const nodeId: string = this.recentNodeHistory[index].nodeToUpsert.relativeFilePathIsID;
+            this.navigationService.handleSearchSelect(nodeId);
+        }
     }
 
     getSelectedNodes(): string[] {
