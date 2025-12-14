@@ -262,11 +262,11 @@ button.graph-button:disabled > svg > path {
     flex-direction: row;
     gap: 4px;
     overflow-x: auto;
-    overflow-y: hidden;
+    overflow-y: visible; /* Allow shortcut hints to appear below tabs */
     scrollbar-width: thin;
     scrollbar-color: var(--background-modifier-border, #444) transparent;
     -webkit-overflow-scrolling: touch;
-    padding: 2px 4px 2px 24px; /* Extra left padding for leftmost tab */
+    padding: 2px 4px 20px 24px; /* Extra bottom padding for shortcut hints, left padding for leftmost tab */
 }
 
 /* Webkit scrollbar styling */
@@ -316,14 +316,14 @@ button.graph-button:disabled > svg > path {
 }
 
 /* Recency gradient - most recent (leftmost) is fully opaque, fading toward older tabs */
-.recent-tabs-scroll .recent-tab:nth-child(1) { opacity: 1.0; }
-.recent-tabs-scroll .recent-tab:nth-child(2) { opacity: 0.85; }
-.recent-tabs-scroll .recent-tab:nth-child(3) { opacity: 0.70; }
-.recent-tabs-scroll .recent-tab:nth-child(4) { opacity: 0.58; }
-.recent-tabs-scroll .recent-tab:nth-child(5) { opacity: 0.48; }
+.recent-tabs-scroll .recent-tab-wrapper:nth-child(1) .recent-tab { opacity: 1.0; }
+.recent-tabs-scroll .recent-tab-wrapper:nth-child(2) .recent-tab { opacity: 0.85; }
+.recent-tabs-scroll .recent-tab-wrapper:nth-child(3) .recent-tab { opacity: 0.70; }
+.recent-tabs-scroll .recent-tab-wrapper:nth-child(4) .recent-tab { opacity: 0.58; }
+.recent-tabs-scroll .recent-tab-wrapper:nth-child(5) .recent-tab { opacity: 0.48; }
 
 /* Restore full opacity on hover for better interaction */
-.recent-tabs-scroll .recent-tab:hover {
+.recent-tabs-scroll .recent-tab-wrapper:hover .recent-tab {
     opacity: 1.0;
 }
 
@@ -355,6 +355,38 @@ button.graph-button:disabled > svg > path {
 
 :root:not(.dark) .recent-tab-text {
     color: var(--text-normal, #333);
+}
+
+/* Tab wrapper - positions tab and hint together */
+.recent-tab-wrapper {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+/* Shortcut hint - shown below tab on hover */
+.recent-tab-shortcut-hint {
+    position: absolute;
+    bottom: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    color: var(--text-faint, #666);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.recent-tab-wrapper:hover .recent-tab-shortcut-hint {
+    opacity: 1;
+}
+
+/* Light mode override for shortcut hint */
+:root:not(.dark) .recent-tab-shortcut-hint {
+    color: var(--text-faint, #aaa);
 }
 
 /* ============================================================================
@@ -420,7 +452,7 @@ button.graph-button:disabled > svg > path {
     background: #1a1a1a;
     border: 1px solid #333;
     border-radius: 4px;
-    cursor: pointer;
+    cursor: grab;
     overflow: visible; /* Allow activity dots to show below tab */
     flex-shrink: 0;
     transition: background-color 0.15s ease, border-color 0.15s ease;
@@ -476,4 +508,23 @@ button.graph-button:disabled > svg > path {
     border-radius: 50%;
     background: #3b82f6;
     pointer-events: none;
+}
+
+/* Drag-and-drop states for agent tab reordering */
+.agent-tab-dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+}
+
+/* Ghost tab outline showing drop position during drag */
+.agent-tab-ghost {
+    width: 90px;
+    min-width: 90px;
+    max-width: 90px;
+    height: 16px;
+    border: 2px dashed #7c3aed;
+    border-radius: 4px;
+    background: rgba(124, 58, 237, 0.1);
+    flex-shrink: 0;
+    box-sizing: border-box;
 }

@@ -70,8 +70,7 @@ export default function VoiceTreeTranscribe(): JSX.Element {
 
   // Track how many voice tokens we've seen to append new ones only
   const voiceTokenCountRef: RefObject<number> = useRef(0);
-  // Track if we're currently sending to prevent duplicate sends
-  const isSendingRef: RefObject<boolean> = useRef(false);
+  // Track last sent count to avoid duplicate sends
   const lastSentCountRef: RefObject<number> = useRef(0);
 
   // Append new voice final tokens to our combined list
@@ -109,27 +108,11 @@ export default function VoiceTreeTranscribe(): JSX.Element {
   }, [error]);
 
   // Send incremental FINAL tokens to server (only new ones)
+  // sendIncrementalTokens is non-blocking - it updates preview chip live
   useEffect(() => {
     if (finalTokens.length > 0 && finalTokens.length > lastSentCountRef.current) {
-      // Only proceed if we have new tokens and not already sending
-      if (isSendingRef.current) {
-        console.log('Skipping send - already in progress');
-        return;
-      }
-
-      isSendingRef.current = true;
-
-      // Use async function to handle  send
-      const doSend: () => Promise<void> = async () => {
-        try {
-          await sendIncrementalTokens(finalTokens);
-          lastSentCountRef.current = finalTokens.length;
-        } finally {
-          isSendingRef.current = false;
-        }
-      };
-
-      void doSend();
+      void sendIncrementalTokens(finalTokens);
+      lastSentCountRef.current = finalTokens.length;
     }
   }, [finalTokens, sendIncrementalTokens]);
 
@@ -279,7 +262,7 @@ export default function VoiceTreeTranscribe(): JSX.Element {
           <button
             onClick={() => setIsTranscriptionExpanded(!isTranscriptionExpanded)}
             className="absolute right-0 p-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-            style={{ zIndex: 2, bottom: '100%', marginBottom: '-17px' }}
+            style={{ zIndex: 2, bottom: '100%', marginBottom: '-14px' }}
             title={isTranscriptionExpanded ? "Collapse transcription" : "Expand transcription"}
           >
             <ChevronDown
@@ -371,8 +354,8 @@ export default function VoiceTreeTranscribe(): JSX.Element {
                     onChange={(e) => setTextInput(e.target.value)}
                     onKeyPress={handleKeyPress}
                     placeholder={inputMode === 'ask'
-                      ? "Ask a question..."
-                      : "Type to add..."}
+                      ? "Query for relevant context"
+                      : "Add to graph"}
                     className="flex-1 px-3 py-1.5 bg-transparent focus:outline-none text-sm min-w-[180px]"
                     disabled={isProcessing}
                     autoFocus

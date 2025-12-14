@@ -20,6 +20,17 @@ interface AgentTabsBarState {
     activeTerminalId: TerminalId | null
     // Track count of activity per terminal (each new node adds a dot, dots persist)
     terminalActivityCount: Map<TerminalId, number>
+    // User-defined display order (for drag-and-drop reordering)
+    displayOrder: TerminalId[]
+    // Cached for re-render after drag-drop
+    lastTerminals: TerminalData[]
+    lastOnSelect: ((terminal: TerminalData) => void) | null
+    // Ghost element shown during drag to preview drop position
+    ghostElement: HTMLElement | null
+    // Index of tab currently being dragged (for self-hover detection)
+    draggingFromIndex: number | null
+    // Target index where ghost is positioned (where dragged tab will be inserted)
+    ghostTargetIndex: number | null
 }
 
 // Module state for the single instance
@@ -27,7 +38,73 @@ const state: AgentTabsBarState = {
     container: null,
     tabsContainer: null,
     activeTerminalId: null,
-    terminalActivityCount: new Map()
+    terminalActivityCount: new Map(),
+    displayOrder: [],
+    lastTerminals: [],
+    lastOnSelect: null,
+    ghostElement: null,
+    draggingFromIndex: null,
+    ghostTargetIndex: null
+}
+
+/**
+ * Sync displayOrder with actual terminals (handle add/remove)
+ * Preserves existing order, removes stale IDs, appends new terminals at end
+ */
+function syncDisplayOrder(terminals: TerminalData[]): TerminalId[] {
+    const terminalIds: Set<TerminalId> = new Set(terminals.map(t => getTerminalId(t)))
+
+    // Remove stale IDs (terminals that no longer exist)
+    const filtered: TerminalId[] = state.displayOrder.filter(id => terminalIds.has(id))
+
+    // Append new terminals at end
+    for (const t of terminals) {
+        const id: TerminalId = getTerminalId(t)
+        if (!filtered.includes(id)) {
+            filtered.push(id)
+        }
+    }
+    return filtered
+}
+
+/**
+ * Reorder terminal after drag-drop and trigger re-render
+ */
+function reorderTerminal(fromIndex: number, toIndex: number): void {
+    const [moved] = state.displayOrder.splice(fromIndex, 1)
+    state.displayOrder.splice(toIndex, 0, moved)
+
+    // Re-render with cached data
+    if (state.lastOnSelect) {
+        renderAgentTabs(state.lastTerminals, state.activeTerminalId, state.lastOnSelect)
+    }
+}
+
+/**
+ * Get the current display order (for GraphNavigationService cycling)
+ */
+export function getDisplayOrder(): TerminalId[] {
+    return [...state.displayOrder]
+}
+
+/**
+ * Create a ghost element to show drop preview position
+ */
+function createGhostElement(): HTMLElement {
+    const ghost: HTMLElement = document.createElement('div')
+    ghost.className = 'agent-tab-ghost'
+    return ghost
+}
+
+/**
+ * Remove the ghost element from DOM and reset target index
+ */
+function removeGhostElement(): void {
+    if (state.ghostElement && state.ghostElement.parentNode) {
+        state.ghostElement.parentNode.removeChild(state.ghostElement)
+    }
+    state.ghostElement = null
+    state.ghostTargetIndex = null
 }
 
 /**
@@ -48,6 +125,41 @@ export function createAgentTabsBar(parentContainer: HTMLElement): () => void {
     // Create scrollable tabs container
     state.tabsContainer = document.createElement('div')
     state.tabsContainer.className = 'agent-tabs-scroll'
+
+    // Container-level drag handlers for dropping at the end of the list
+    state.tabsContainer.addEventListener('dragover', (e: DragEvent) => {
+        e.preventDefault()
+        if (e.dataTransfer) {
+            e.dataTransfer.dropEffect = 'move'
+        }
+        // Only show ghost at end if mouse is past all tabs (in empty space)
+        if (state.ghostElement && state.tabsContainer && state.draggingFromIndex !== null) {
+            const tabs: HTMLCollectionOf<Element> = state.tabsContainer.getElementsByClassName('agent-tab')
+            if (tabs.length > 0) {
+                const lastTab: Element = tabs[tabs.length - 1]
+                const lastTabRect: DOMRect = lastTab.getBoundingClientRect()
+                // If mouse is past the right edge of the last tab, show ghost at end
+                if (e.clientX > lastTabRect.right) {
+                    state.tabsContainer.appendChild(state.ghostElement)
+                    state.ghostTargetIndex = state.displayOrder.length
+                }
+            }
+        }
+    })
+
+    state.tabsContainer.addEventListener('drop', (e: DragEvent) => {
+        e.preventDefault()
+        const fromIndex: number = parseInt(e.dataTransfer?.getData('text/plain') ?? '-1')
+        const targetIndex: number | null = state.ghostTargetIndex
+        removeGhostElement()
+        state.draggingFromIndex = null
+
+        if (fromIndex >= 0 && targetIndex !== null && fromIndex !== targetIndex) {
+            // Calculate the actual insertion index after removal
+            const adjustedTarget: number = fromIndex < targetIndex ? targetIndex - 1 : targetIndex
+            reorderTerminal(fromIndex, adjustedTarget)
+        }
+    })
 
     state.container.appendChild(state.tabsContainer)
     parentContainer.appendChild(state.container)
@@ -76,18 +188,25 @@ export function renderAgentTabs(
     }
 
     state.activeTerminalId = activeTerminalId
+    // Cache for re-render after drag-drop
+    state.lastTerminals = terminals
+    state.lastOnSelect = onSelect
 
     // Clear existing tabs
     state.tabsContainer.innerHTML = ''
 
-    // Sort terminals by ID for consistent ordering (same as GraphNavigationService)
-    const sortedTerminals: TerminalData[] = [...terminals].sort((a, b) =>
-        getTerminalId(a).localeCompare(getTerminalId(b))
-    )
+    // Sync display order with actual terminals (preserves user ordering)
+    state.displayOrder = syncDisplayOrder(terminals)
+
+    // Map display order to terminal data
+    const orderedTerminals: TerminalData[] = state.displayOrder
+        .map(id => terminals.find(t => getTerminalId(t) === id))
+        .filter((t): t is TerminalData => t !== undefined)
 
     // Create tab for each terminal
-    for (const terminal of sortedTerminals) {
-        const tab: HTMLElement = createTab(terminal, activeTerminalId, onSelect)
+    for (let i = 0; i < orderedTerminals.length; i++) {
+        const terminal: TerminalData = orderedTerminals[i]
+        const tab: HTMLElement = createTab(terminal, activeTerminalId, onSelect, i)
         state.tabsContainer.appendChild(tab)
     }
 
@@ -116,12 +235,13 @@ export function setActiveTerminal(terminalId: TerminalId | null): void {
 }
 
 /**
- * Create a single tab element
+ * Create a single tab element with drag-and-drop support
  */
 function createTab(
     terminal: TerminalData,
     activeTerminalId: TerminalId | null,
-    onSelect: (terminal: TerminalData) => void
+    onSelect: (terminal: TerminalData) => void,
+    index: number
 ): HTMLElement {
     const terminalId: TerminalId = getTerminalId(terminal)
     const fullTitle: string = terminal.title
@@ -134,6 +254,7 @@ function createTab(
         tab.classList.add('agent-tab-active')
     }
     tab.setAttribute('data-terminal-id', terminalId)
+    tab.setAttribute('data-index', String(index))
     tab.style.width = `${TAB_WIDTH}px`
 
     // Create text span for horizontal scrolling within tab
@@ -158,8 +279,90 @@ function createTab(
         onSelect(terminal)
     })
 
+    // Drag-and-drop for reordering
+    tab.draggable = true
+
+    // Prevent graph from capturing mousedown (which would start panning)
+    tab.addEventListener('mousedown', (e: MouseEvent) => {
+        e.stopPropagation()
+    })
+
+    tab.addEventListener('dragstart', (e: DragEvent) => {
+        e.stopPropagation()
+        tab.classList.add('agent-tab-dragging')
+        e.dataTransfer?.setData('text/plain', String(index))
+        // Set effectAllowed to 'move' to prevent browser showing copy icon (green +)
+        if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = 'move'
+        }
+        // Track source index and create ghost element for drop preview
+        state.draggingFromIndex = index
+        state.ghostElement = createGhostElement()
+    })
+
+    tab.addEventListener('dragend', (e: DragEvent) => {
+        e.stopPropagation()
+        tab.classList.remove('agent-tab-dragging')
+        removeGhostElement()
+        state.draggingFromIndex = null
+    })
+
+    tab.addEventListener('dragover', (e: DragEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+        // Set dropEffect to match effectAllowed
+        if (e.dataTransfer) {
+            e.dataTransfer.dropEffect = 'move'
+        }
+        // Skip ghost insertion when hovering over the source tab
+        if (state.draggingFromIndex === index) {
+            return
+        }
+        // Detect which half of tab mouse is over and position ghost accordingly
+        if (state.ghostElement && state.tabsContainer) {
+            const rect: DOMRect = tab.getBoundingClientRect()
+            const midpoint: number = rect.left + rect.width / 2
+            const isRightHalf: boolean = e.clientX > midpoint
+
+            if (isRightHalf) {
+                // Insert ghost AFTER this tab
+                const nextSibling: Element | null = tab.nextElementSibling
+                if (nextSibling && !nextSibling.classList.contains('agent-tab-ghost')) {
+                    state.tabsContainer.insertBefore(state.ghostElement, nextSibling)
+                } else if (!nextSibling) {
+                    state.tabsContainer.appendChild(state.ghostElement)
+                }
+                state.ghostTargetIndex = index + 1
+            } else {
+                // Insert ghost BEFORE this tab (left half)
+                state.tabsContainer.insertBefore(state.ghostElement, tab)
+                state.ghostTargetIndex = index
+            }
+        }
+    })
+
+    tab.addEventListener('dragleave', (e: DragEvent) => {
+        e.stopPropagation()
+    })
+
+    tab.addEventListener('drop', (e: DragEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+        const fromIndex: number = parseInt(e.dataTransfer?.getData('text/plain') ?? '-1')
+        const targetIndex: number | null = state.ghostTargetIndex
+        removeGhostElement()
+        state.draggingFromIndex = null
+
+        if (fromIndex >= 0 && targetIndex !== null && fromIndex !== targetIndex) {
+            // Calculate the actual insertion index after removal
+            // If dragging from before the target, the target shifts down by 1 after removal
+            const adjustedTarget: number = fromIndex < targetIndex ? targetIndex - 1 : targetIndex
+            reorderTerminal(fromIndex, adjustedTarget)
+        }
+    })
+
     // Native tooltip for keyboard shortcut hint (appears after ~500ms delay)
-    tab.title = '⌘[ or ⌘] to cycle'
+    tab.title = '⌘[ or ⌘] to cycle • Drag to reorder'
 
     return tab
 }
@@ -168,6 +371,8 @@ function createTab(
  * Clean up the tabs bar
  */
 export function disposeAgentTabsBar(): void {
+    removeGhostElement()
+
     if (state.container && state.container.parentNode) {
         state.container.parentNode.removeChild(state.container)
     }
@@ -176,6 +381,11 @@ export function disposeAgentTabsBar(): void {
     state.tabsContainer = null
     state.activeTerminalId = null
     state.terminalActivityCount.clear()
+    state.displayOrder = []
+    state.lastTerminals = []
+    state.lastOnSelect = null
+    state.draggingFromIndex = null
+    state.ghostTargetIndex = null
 }
 
 /**

@@ -40,50 +40,52 @@ describe('GraphNavigationService', () => {
   });
 
   describe('fitToLastNode', () => {
-    it('should fit viewport to last created node when one is set', () => {
-      const fitSpy: MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
+    it('should animate viewport to last created node when one is set', () => {
+      const animateSpy = vi.spyOn(cy, 'animate');
 
       service.setLastCreatedNodeId('node2');
       service.fitToLastNode();
 
-      // Should have called fit with the node
-      expect(fitSpy).toHaveBeenCalled();
-      const callArgs: [eles?: string | cytoscape.CollectionArgument | undefined, padding?: number | undefined] = fitSpy.mock.calls[0];
-      expect(((callArgs?.[0] as Collection).first()?.id() ?? "")).toBe('node2');
-      // Should have padding argument (number, even if 0 in headless mode)
-      expect(typeof callArgs[1]).toBe('number');
+      // Should have called animate with center on the node
+      expect(animateSpy).toHaveBeenCalled();
+      const animateArgs = animateSpy.mock.calls[0][0] as { center: { eles: Collection }, zoom: number, duration: number };
+      expect((animateArgs.center.eles.first()?.id() ?? "")).toBe('node2');
+      expect(typeof animateArgs.zoom).toBe('number');
+      expect(typeof animateArgs.duration).toBe('number');
     });
 
     it('should do nothing when no last node is set', () => {
-      const fitSpy: MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
+      const animateSpy = vi.spyOn(cy, 'animate');
 
       service.fitToLastNode();
 
-      expect(fitSpy).not.toHaveBeenCalled();
+      expect(animateSpy).not.toHaveBeenCalled();
     });
 
     it('should handle non-existent node gracefully', () => {
-      const fitSpy: MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
+      const animateSpy = vi.spyOn(cy, 'animate');
 
       service.setLastCreatedNodeId('nonexistent-node');
       service.fitToLastNode();
 
-      // Should not call fit for non-existent nodes
-      expect(fitSpy).not.toHaveBeenCalled();
+      // Should not call animate for non-existent nodes
+      expect(animateSpy).not.toHaveBeenCalled();
     });
 
     it('should update to new node when setLastCreatedNodeId is called multiple times', () => {
-      const fitSpy: MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
+      const animateSpy = vi.spyOn(cy, 'animate');
 
       service.setLastCreatedNodeId('node1');
       service.fitToLastNode();
 
-      expect(((fitSpy.mock.calls[0]?.[0] as Collection).first()?.id() ?? "")).toBe('node1');
+      const firstCall = animateSpy.mock.calls[0][0] as { center: { eles: Collection } };
+      expect((firstCall.center.eles.first()?.id() ?? "")).toBe('node1');
 
       service.setLastCreatedNodeId('node3');
       service.fitToLastNode();
 
-      expect(((fitSpy.mock.calls[1]?.[0] as Collection).first()?.id() ?? "")).toBe('node3');
+      const secondCall = animateSpy.mock.calls[1][0] as { center: { eles: Collection } };
+      expect((secondCall.center.eles.first()?.id() ?? "")).toBe('node3');
     });
   });
 
@@ -170,15 +172,15 @@ describe('GraphNavigationService', () => {
     };
 
     it('should cycle to next terminal in forward direction', () => {
-      const fitSpy: MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
+      const animateSpy = vi.spyOn(cy, 'animate');
 
       service.cycleTerminal(1);
 
       // Increments from 0 to 1, sorted alphabetically by terminal ID
       // node1-terminal-0 < node2-terminal-0 < node3-terminal-0, so index 1 = node2
-      expect(fitSpy).toHaveBeenCalled();
-      const fittedNodes: cytoscape.Collection<cytoscape.SingularElementReturnValue, cytoscape.SingularElementArgument> = fitSpy.mock.calls[0]?.[0] as Collection;
-      const fittedIds: string[] = fittedNodes.map((n) => n.id());
+      expect(animateSpy).toHaveBeenCalled();
+      const animateArgs = animateSpy.mock.calls[0][0] as { center: { eles: Collection } };
+      const fittedIds: string[] = animateArgs.center.eles.map((n) => n.id());
       // Should include terminal shadow node and its context node's neighborhood (node2's neighbors: node1, node3)
       expect(fittedIds).toContain(getShadowNodeIdForContext('node2'));
       expect(fittedIds).toContain('node2'); // context node
@@ -188,26 +190,30 @@ describe('GraphNavigationService', () => {
     });
 
     it('should cycle through all terminals in forward direction', () => {
-      const fitSpy: MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
+      const animateSpy = vi.spyOn(cy, 'animate');
 
       // Helper to check if collection includes terminal shadow node
+      const getAnimatedEles = (callIndex: number): Collection =>
+        (animateSpy.mock.calls[callIndex][0] as { center: { eles: Collection } }).center.eles;
       const collectionIncludesTerminal = (collection: Collection, shadowNodeId: string): boolean =>
         collection.map((n) => n.id()).includes(shadowNodeId);
 
       // Terminals sorted alphabetically: node1-terminal-0 < node2-terminal-0 < node3-terminal-0
       service.cycleTerminal(1); // 0->1: node2
-      expect(collectionIncludesTerminal(fitSpy.mock.calls[0]?.[0] as Collection, getShadowNodeIdForContext('node2'))).toBe(true);
+      expect(collectionIncludesTerminal(getAnimatedEles(0), getShadowNodeIdForContext('node2'))).toBe(true);
 
       service.cycleTerminal(1); // 1->2: node3
-      expect(collectionIncludesTerminal(fitSpy.mock.calls[1]?.[0] as Collection, getShadowNodeIdForContext('node3'))).toBe(true);
+      expect(collectionIncludesTerminal(getAnimatedEles(1), getShadowNodeIdForContext('node3'))).toBe(true);
 
       service.cycleTerminal(1); // 2->0: node1 (wrap)
-      expect(collectionIncludesTerminal(fitSpy.mock.calls[2]?.[0] as Collection, getShadowNodeIdForContext('node1'))).toBe(true);
+      expect(collectionIncludesTerminal(getAnimatedEles(2), getShadowNodeIdForContext('node1'))).toBe(true);
     });
 
     it('should wrap around to first terminal after last one in forward direction', () => {
-      const fitSpy: MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
+      const animateSpy = vi.spyOn(cy, 'animate');
 
+      const getAnimatedEles = (callIndex: number): Collection =>
+        (animateSpy.mock.calls[callIndex][0] as { center: { eles: Collection } }).center.eles;
       const collectionIncludesTerminal = (collection: Collection, shadowNodeId: string): boolean =>
         collection.map((n) => n.id()).includes(shadowNodeId);
 
@@ -215,70 +221,74 @@ describe('GraphNavigationService', () => {
       service.cycleTerminal(1); // 0->1: node2
       service.cycleTerminal(1); // 1->2: node3
       service.cycleTerminal(1); // 2->0: node1
-      expect(collectionIncludesTerminal(fitSpy.mock.calls[2]?.[0] as Collection, getShadowNodeIdForContext('node1'))).toBe(true);
+      expect(collectionIncludesTerminal(getAnimatedEles(2), getShadowNodeIdForContext('node1'))).toBe(true);
 
       // Next cycle should wrap to second terminal
       service.cycleTerminal(1); // 0->1: node2
-      expect(collectionIncludesTerminal(fitSpy.mock.calls[3]?.[0] as Collection, getShadowNodeIdForContext('node2'))).toBe(true);
+      expect(collectionIncludesTerminal(getAnimatedEles(3), getShadowNodeIdForContext('node2'))).toBe(true);
     });
 
     it('should cycle to previous terminal in backward direction', () => {
-      const fitSpy: MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
+      const animateSpy = vi.spyOn(cy, 'animate');
 
       // Backward from initial position (0) wraps to last terminal (node3)
       service.cycleTerminal(-1);
 
-      expect(fitSpy).toHaveBeenCalled();
-      const fittedNodes: cytoscape.Collection<cytoscape.SingularElementReturnValue, cytoscape.SingularElementArgument> = (fitSpy.mock.calls[0]?.[0] as Collection);
-      const fittedIds: string[] = fittedNodes.map((n) => n.id());
+      expect(animateSpy).toHaveBeenCalled();
+      const animateArgs = animateSpy.mock.calls[0][0] as { center: { eles: Collection } };
+      const fittedIds: string[] = animateArgs.center.eles.map((n) => n.id());
       expect(fittedIds).toContain(getShadowNodeIdForContext('node3'));
     });
 
     it('should cycle through all terminals in backward direction', () => {
-      const fitSpy: MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
+      const animateSpy = vi.spyOn(cy, 'animate');
 
+      const getAnimatedEles = (callIndex: number): Collection =>
+        (animateSpy.mock.calls[callIndex][0] as { center: { eles: Collection } }).center.eles;
       const collectionIncludesTerminal = (collection: Collection, shadowNodeId: string): boolean =>
         collection.map((n) => n.id()).includes(shadowNodeId);
 
       service.cycleTerminal(-1); // 0->2: node3
-      expect(collectionIncludesTerminal(fitSpy.mock.calls[0]?.[0] as Collection, getShadowNodeIdForContext('node3'))).toBe(true);
+      expect(collectionIncludesTerminal(getAnimatedEles(0), getShadowNodeIdForContext('node3'))).toBe(true);
 
       service.cycleTerminal(-1); // 2->1: node2
-      expect(collectionIncludesTerminal(fitSpy.mock.calls[1]?.[0] as Collection, getShadowNodeIdForContext('node2'))).toBe(true);
+      expect(collectionIncludesTerminal(getAnimatedEles(1), getShadowNodeIdForContext('node2'))).toBe(true);
 
       service.cycleTerminal(-1); // 1->0: node1
-      expect(collectionIncludesTerminal(fitSpy.mock.calls[2]?.[0] as Collection, getShadowNodeIdForContext('node1'))).toBe(true);
+      expect(collectionIncludesTerminal(getAnimatedEles(2), getShadowNodeIdForContext('node1'))).toBe(true);
     });
 
     it('should wrap around to last terminal after first one in backward direction', () => {
-      const fitSpy: MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
+      const animateSpy = vi.spyOn(cy, 'animate');
 
+      const getAnimatedEles = (callIndex: number): Collection =>
+        (animateSpy.mock.calls[callIndex][0] as { center: { eles: Collection } }).center.eles;
       const collectionIncludesTerminal = (collection: Collection, shadowNodeId: string): boolean =>
         collection.map((n) => n.id()).includes(shadowNodeId);
 
       // Cycle backward to wrap to last
       service.cycleTerminal(-1); // 0->2: node3
-      expect(collectionIncludesTerminal(fitSpy.mock.calls[0]?.[0] as Collection, getShadowNodeIdForContext('node3'))).toBe(true);
+      expect(collectionIncludesTerminal(getAnimatedEles(0), getShadowNodeIdForContext('node3'))).toBe(true);
 
       // Continue backward through all
       service.cycleTerminal(-1); // 2->1: node2
       service.cycleTerminal(-1); // 1->0: node1
-      expect(collectionIncludesTerminal(fitSpy.mock.calls[2]?.[0] as Collection, getShadowNodeIdForContext('node1'))).toBe(true);
+      expect(collectionIncludesTerminal(getAnimatedEles(2), getShadowNodeIdForContext('node1'))).toBe(true);
 
       // Wrap around again
       service.cycleTerminal(-1); // 0->2: node3
-      expect(collectionIncludesTerminal(fitSpy.mock.calls[3]?.[0] as Collection, getShadowNodeIdForContext('node3'))).toBe(true);
+      expect(collectionIncludesTerminal(getAnimatedEles(3), getShadowNodeIdForContext('node3'))).toBe(true);
     });
 
     it('should do nothing when no terminals exist in TerminalStore', () => {
       // Clear TerminalStore to simulate no terminals
       clearTerminals();
 
-      const fitSpy: MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
+      const animateSpy = vi.spyOn(cy, 'animate');
 
       service.cycleTerminal(1);
 
-      expect(fitSpy).not.toHaveBeenCalled();
+      expect(animateSpy).not.toHaveBeenCalled();
     });
 
     it('should only cycle through terminals registered in TerminalStore', () => {
@@ -294,8 +304,10 @@ describe('GraphNavigationService', () => {
         position: { x: 500, y: 100 }
       });
 
-      const fitSpy: MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
+      const animateSpy = vi.spyOn(cy, 'animate');
 
+      const getAnimatedEles = (callIndex: number): Collection =>
+        (animateSpy.mock.calls[callIndex][0] as { center: { eles: Collection } }).center.eles;
       const collectionIncludesTerminal = (collection: Collection, shadowNodeId: string): boolean =>
         collection.map((n) => n.id()).includes(shadowNodeId);
 
@@ -304,13 +316,13 @@ describe('GraphNavigationService', () => {
       service.cycleTerminal(1); // 1->2: node3
       service.cycleTerminal(1); // 2->0: node1
 
-      expect(collectionIncludesTerminal(fitSpy.mock.calls[0]?.[0] as Collection, getShadowNodeIdForContext('node2'))).toBe(true);
-      expect(collectionIncludesTerminal(fitSpy.mock.calls[1]?.[0] as Collection, getShadowNodeIdForContext('node3'))).toBe(true);
-      expect(collectionIncludesTerminal(fitSpy.mock.calls[2]?.[0] as Collection, getShadowNodeIdForContext('node1'))).toBe(true);
+      expect(collectionIncludesTerminal(getAnimatedEles(0), getShadowNodeIdForContext('node2'))).toBe(true);
+      expect(collectionIncludesTerminal(getAnimatedEles(1), getShadowNodeIdForContext('node3'))).toBe(true);
+      expect(collectionIncludesTerminal(getAnimatedEles(2), getShadowNodeIdForContext('node1'))).toBe(true);
 
       // Fake terminal should never be cycled to
-      for (const call of fitSpy.mock.calls) {
-        const ids = (call[0] as Collection).map((n) => n.id());
+      for (const call of animateSpy.mock.calls) {
+        const ids = (call[0] as { center: { eles: Collection } }).center.eles.map((n) => n.id());
         expect(ids).not.toContain('fake-terminal-shadow');
       }
     });
@@ -322,35 +334,36 @@ describe('GraphNavigationService', () => {
       // Keep only the shadow node for this terminal in cy
       cy.remove(`#${getShadowNodeIdForContext('node2')}, #${getShadowNodeIdForContext('node3')}`);
 
-      const fitSpy: MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
+      const animateSpy = vi.spyOn(cy, 'animate');
 
+      const getAnimatedEles = (callIndex: number): Collection =>
+        (animateSpy.mock.calls[callIndex][0] as { center: { eles: Collection } }).center.eles;
       const collectionIncludesTerminal = (collection: Collection, shadowNodeId: string): boolean =>
         collection.map((n) => n.id()).includes(shadowNodeId);
 
       service.cycleTerminal(1);
-      expect(collectionIncludesTerminal(fitSpy.mock.calls[0]?.[0] as Collection, terminal.shadowNodeId)).toBe(true);
+      expect(collectionIncludesTerminal(getAnimatedEles(0), terminal.shadowNodeId)).toBe(true);
 
       service.cycleTerminal(1);
-      expect(collectionIncludesTerminal(fitSpy.mock.calls[1]?.[0] as Collection, terminal.shadowNodeId)).toBe(true);
+      expect(collectionIncludesTerminal(getAnimatedEles(1), terminal.shadowNodeId)).toBe(true);
 
       service.cycleTerminal(-1);
-      expect(collectionIncludesTerminal(fitSpy.mock.calls[2]?.[0] as Collection, terminal.shadowNodeId)).toBe(true);
+      expect(collectionIncludesTerminal(getAnimatedEles(2), terminal.shadowNodeId)).toBe(true);
     });
   });
 
   describe('handleSearchSelect', () => {
-    it('should fit viewport to selected node', () => {
-      // Use cy directly
-      const fitSpy: MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
+    it('should animate viewport to selected node', () => {
+      const animateSpy = vi.spyOn(cy, 'animate');
 
       service.handleSearchSelect('node2');
 
-      expect(fitSpy).toHaveBeenCalled();
-      expect(((fitSpy.mock.calls[0]?.[0] as Collection).first()?.id() ?? "")).toBe('node2');
+      expect(animateSpy).toHaveBeenCalled();
+      const animateArgs = animateSpy.mock.calls[0][0] as { center: { eles: Collection } };
+      expect((animateArgs.center.eles.first()?.id() ?? "")).toBe('node2');
     });
 
     it('should highlight selected node by adding highlighted class', () => {
-      // Use cy directly
       const node: cytoscape.CollectionReturnValue = cy.getElementById('node2');
       const addClassSpy: MockInstance<(classes: cytoscape.ClassNames) => cytoscape.CollectionReturnValue> = vi.spyOn(node, 'addClass');
 
@@ -362,7 +375,6 @@ describe('GraphNavigationService', () => {
     it('should remove highlight after timeout', () => {
       vi.useFakeTimers();
 
-      // Use cy directly
       const node: cytoscape.CollectionReturnValue = cy.getElementById('node2');
       const removeClassSpy: MockInstance<(classes: cytoscape.ClassNames) => cytoscape.CollectionReturnValue> = vi.spyOn(node, 'removeClass');
 
@@ -379,25 +391,25 @@ describe('GraphNavigationService', () => {
     });
 
     it('should handle non-existent node gracefully without throwing', () => {
-      // Use cy directly
-      const fitSpy: MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
+      const animateSpy = vi.spyOn(cy, 'animate');
 
       expect(() => {
         service.handleSearchSelect('nonexistent-node');
       }).not.toThrow();
 
-      // Should not call fit for non-existent nodes
-      expect(fitSpy).not.toHaveBeenCalled();
+      // Should not call animate for non-existent nodes
+      expect(animateSpy).not.toHaveBeenCalled();
     });
 
-    it('should use appropriate padding for search results', () => {
-      // Use cy directly
-      const fitSpy: MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
+    it('should use relative zoom for search results', () => {
+      const animateSpy = vi.spyOn(cy, 'animate');
 
       service.handleSearchSelect('node1');
 
-      // Second argument should be padding (number, even if 0 in headless mode)
-      expect(typeof fitSpy.mock.calls[0][1]).toBe('number');
+      // Should have zoom and duration in animate call
+      const animateArgs = animateSpy.mock.calls[0][0] as { zoom: number, duration: number };
+      expect(typeof animateArgs.zoom).toBe('number');
+      expect(typeof animateArgs.duration).toBe('number');
     });
   });
 
@@ -429,36 +441,38 @@ describe('GraphNavigationService', () => {
         { data: { id: shadowNodeB, windowType: 'Terminal', isShadowNode: true, parentNodeId: 'node2' }, position: { x: 400, y: 200 } }
       ]);
 
-      const fitSpy: MockInstance<(eles?: cytoscape.CollectionArgument | cytoscape.Selector, padding?: number) => cytoscape.Core> = vi.spyOn(cy, 'fit');
+      const animateSpy = vi.spyOn(cy, 'animate');
 
+      const getAnimatedEles = (callIndex: number): Collection =>
+        (animateSpy.mock.calls[callIndex][0] as { center: { eles: Collection } }).center.eles;
       const collectionIncludesNode = (collection: Collection, nodeId: string): boolean =>
         collection.map((n) => n.id()).includes(nodeId);
 
       // Set last node and fit to it
       service.setLastCreatedNodeId('node1');
       service.fitToLastNode();
-      expect(((fitSpy.mock.calls[0]?.[0] as Collection).first()?.id() ?? "")).toBe('node1');
+      expect((getAnimatedEles(0).first()?.id() ?? "")).toBe('node1');
 
       // Cycle terminal - should not affect last node
       // Terminals sorted: node1-terminal-0 < node2-terminal-0, index 0->1 = node2
       service.cycleTerminal(1);
-      expect(collectionIncludesNode(fitSpy.mock.calls[1]?.[0] as Collection, shadowNodeB)).toBe(true);
+      expect(collectionIncludesNode(getAnimatedEles(1), shadowNodeB)).toBe(true);
 
       // Fit to last node again - should still be node1
       service.fitToLastNode();
-      expect(((fitSpy.mock.calls[2]?.[0] as Collection).first()?.id() ?? "")).toBe('node1');
+      expect((getAnimatedEles(2).first()?.id() ?? "")).toBe('node1');
 
       // Handle search select - should not affect either
       service.handleSearchSelect('node2');
-      expect(((fitSpy.mock.calls[3]?.[0] as Collection).first()?.id() ?? "")).toBe('node2');
+      expect((getAnimatedEles(3).first()?.id() ?? "")).toBe('node2');
 
       // Last node and terminal cycling should still work independently
       service.fitToLastNode();
-      expect(((fitSpy.mock.calls[4]?.[0] as Collection).first()?.id() ?? "")).toBe('node1');
+      expect((getAnimatedEles(4).first()?.id() ?? "")).toBe('node1');
 
       // 1->0: node1
       service.cycleTerminal(1);
-      expect(collectionIncludesNode(fitSpy.mock.calls[5]?.[0] as Collection, shadowNodeA)).toBe(true);
+      expect(collectionIncludesNode(getAnimatedEles(5), shadowNodeA)).toBe(true);
     });
   });
 });

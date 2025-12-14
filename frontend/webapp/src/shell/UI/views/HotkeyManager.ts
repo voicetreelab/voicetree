@@ -97,6 +97,7 @@ export class HotkeyManager {
     createNewNode: () => void;
     runTerminal: () => void;
     deleteSelectedNodes: () => void;
+    navigateToRecentNode: (index: number) => void;
   }): void {
     // Space: Fit to last created node (repeatable while held)
     this.registerHotkey({
@@ -172,6 +173,15 @@ export class HotkeyManager {
       modifiers: ['Meta'],
       onPress: callbacks.deleteSelectedNodes
     });
+
+    // Command + 1-5: Navigate to recent node tabs
+    for (let i = 1; i <= 5; i++) {
+      this.registerHotkey({
+        key: String(i),
+        modifiers: ['Meta'],
+        onPress: () => callbacks.navigateToRecentNode(i - 1)
+      });
+    }
   }
 
   /**
