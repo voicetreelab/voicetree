@@ -4,11 +4,13 @@
  */
 
 import type {} from '@/shell/electron';
+import type cytoscape from 'cytoscape';
 import type {Core, Position} from 'cytoscape';
 import {createWindowChrome, getOrCreateOverlay} from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 import type {VTSettings} from '@/pure/settings/types';
 import {CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
-import type {FloatingWindowFields, EditorId} from '@/shell/edge/UI-edge/floating-windows/types';
+import type {FloatingWindowFields, EditorId, ShadowNodeId} from '@/shell/edge/UI-edge/floating-windows/types';
+import {cyFitWithRelativeZoom} from '@/utils/responsivePadding';
 import * as O from 'fp-ts/lib/Option.js';
 
 export async function createSettingsEditor(cy: Core): Promise<void> {
@@ -81,24 +83,50 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
         const vanillaInstances: Map<string, { dispose: () => void; }> = new Map<string, { dispose: () => void }>();
         vanillaInstances.set(settingsId, editor);
 
-        // Position window in center of current viewport
-        // Scale dimensions inversely with zoom so editor appears same size on screen
+        // Fixed size in graph coordinates (does not adapt to zoom)
+        const fixedWidth: number = 800;
+        const fixedHeight: number = 600;
+
+        // Position in center of current viewport
         const pan: Position = cy.pan();
         const zoom: number = cy.zoom();
         const centerX: number = (cy.width() / 2 - pan.x) / zoom;
         const centerY: number = (cy.height() / 2 - pan.y) / zoom;
 
-        const baseWidth: number = 600;
-        const baseHeight: number = 400;
-        const windowWidth: number = baseWidth / zoom;
-        const windowHeight: number = baseHeight / zoom;
-        windowElement.style.left = `${centerX - windowWidth / 2}px`;
-        windowElement.style.top = `${centerY - windowHeight / 2}px`;
-        windowElement.style.width = `${windowWidth}px`;
-        windowElement.style.height = `${windowHeight}px`;
+        // Create shadow node for the settings editor (enables cyFitWithRelativeZoom)
+        const shadowNodeId: ShadowNodeId = `shadow-${settingsId}` as ShadowNodeId;
+        const shadowNode: cytoscape.CollectionReturnValue = cy.add({
+            group: 'nodes',
+            data: {
+                id: shadowNodeId,
+                isFloatingWindow: true,
+                isShadowNode: true,
+                windowType: 'Settings',
+                laidOut: false
+            },
+            position: { x: centerX, y: centerY }
+        });
+
+        // Style shadow node (invisible but with dimensions for fitting)
+        shadowNode.style({
+            'opacity': 0,
+            'events': 'no',
+            'width': fixedWidth,
+            'height': fixedHeight
+        });
+
+        // Position window centered on shadow node
+        windowElement.style.left = `${centerX}px`;
+        windowElement.style.top = `${centerY}px`;
+        windowElement.style.width = `${fixedWidth}px`;
+        windowElement.style.height = `${fixedHeight}px`;
+        windowElement.style.transform = 'translate(-50%, -50%)';
 
         // Add to overlay
         overlay.appendChild(windowElement);
+
+        // Zoom viewport so settings window takes 75% of viewport
+        cyFitWithRelativeZoom(cy, shadowNode, 0.75);
 
         // Setup close button cleanup
         const closeButton: HTMLElement = windowElement.querySelector('.cy-floating-window-close') as HTMLElement;
@@ -106,6 +134,7 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
             closeButton.addEventListener('click', () => {
                 editor.dispose();
                 vanillaInstances.delete(settingsId);
+                shadowNode.remove();
                 windowElement.remove();
             });
         }
