@@ -431,9 +431,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // Expose cytoscape instance to window for testing
         (window as unknown as { cytoscapeInstance: unknown }).cytoscapeInstance = this.cy;
 
-        // Note: navigationService is exposed in constructor AFTER it's initialized
-        // (window as unknown as { navigationService: unknown }).navigationService = this.navigationService;
-
         // Expose voiceTreeGraphView to window for testing
         (window as unknown as { voiceTreeGraphView: VoiceTreeGraphView }).voiceTreeGraphView = this;
 
@@ -527,12 +524,14 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             navigateToRecentNode: (index) => this.navigateToRecentNodeByIndex(index)
         });
 
-        // Register cmd-f and cmd-e for search
+        // Cmd+F: Search - disabled in editors so CodeMirror can handle its own find
         this.hotkeyManager.registerHotkey({
             key: 'f',
             modifiers: ['Meta'],
+            disabledInEditors: true,
             onPress: () => this.searchService.open()
         });
+        // Cmd+E: Recent nodes ninja - works everywhere including editors
         this.hotkeyManager.registerHotkey({
             key: 'e',
             modifiers: ['Meta'],

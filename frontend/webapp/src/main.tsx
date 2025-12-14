@@ -8,11 +8,11 @@ import posthog from 'posthog-js'
 import { SseStatusPanel } from '@/shell/UI/sse-status-panel'
 import { setupUIRpcHandler } from '@/shell/edge/UI-edge/ui-rpc-handler'
 
-// Initialize PostHog
+// Initialize PostHog (skip in dev mode - npm run electron)
 const posthogKey: string | undefined = import.meta.env.VITE_POSTHOG_API_KEY
 const posthogHost: string | undefined = import.meta.env.VITE_POSTHOG_HOST
 
-if (posthogKey) {
+if (posthogKey && !import.meta.env.DEV) {
   posthog.init(posthogKey, {
     api_host: posthogHost,
     person_profiles: 'always',

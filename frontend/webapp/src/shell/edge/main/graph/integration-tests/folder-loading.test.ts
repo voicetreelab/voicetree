@@ -21,7 +21,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { loadFolder, stopFileWatching, isWatching } from '@/shell/edge/main/graph/watchFolder'
+import { loadFolder, stopFileWatching, isWatching, getWatchedDirectory } from '@/shell/edge/main/graph/watchFolder'
 import { getGraph, setGraph } from '@/shell/edge/main/state/graph-store'
 import { setVaultPath } from '@/shell/edge/main/graph/watchFolder'
 import type { GraphDelta, Graph, UpsertNodeDelta, DeleteNode, GraphNode, Edge } from '@/pure/graph'
@@ -549,6 +549,34 @@ describe('Folder Loading - Integration Tests', () => {
       // NOT from the broken frontmatter title
       expect(title).not.toBe('(Sam) Proposed Fix: Expose VoiceTreeGraphView (55)')
       expect(title).toBe('Bad YAML Frontmatter Test')
+    })
+  })
+
+  describe('BEHAVIOR: watchedDirectory updated before file limit check (suffix bug fix)', () => {
+    it('should update watchedDirectory immediately when loadFolder is called', async () => {
+      // GIVEN: Load the first folder
+      await loadFolder(EXAMPLE_SMALL_PATH)
+      expect(getWatchedDirectory()).toBe(EXAMPLE_SMALL_PATH)
+
+      // WHEN: Load a different folder
+      await loadFolder(EXAMPLE_LARGE_PATH)
+
+      // THEN: watchedDirectory should be updated to the new folder
+      expect(getWatchedDirectory()).toBe(EXAMPLE_LARGE_PATH)
+    })
+
+    it('should maintain watchedDirectory even after switching folders multiple times', async () => {
+      // Load folder A
+      await loadFolder(EXAMPLE_SMALL_PATH)
+      expect(getWatchedDirectory()).toBe(EXAMPLE_SMALL_PATH)
+
+      // Load folder B
+      await loadFolder(EXAMPLE_LARGE_PATH)
+      expect(getWatchedDirectory()).toBe(EXAMPLE_LARGE_PATH)
+
+      // Load folder A again
+      await loadFolder(EXAMPLE_SMALL_PATH)
+      expect(getWatchedDirectory()).toBe(EXAMPLE_SMALL_PATH)
     })
   })
 })

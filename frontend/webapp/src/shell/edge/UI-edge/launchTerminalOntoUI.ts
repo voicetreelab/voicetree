@@ -1,8 +1,9 @@
-import {getTerminalId, type TerminalData, type TerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
+import {getTerminalId, getShadowNodeId, type TerminalData, type TerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 import type {CollectionReturnValue, Core, Position as CyPosition} from "cytoscape";
 import {getCyInstance} from "@/shell/edge/UI-edge/state/cytoscape-state";
 import {createFloatingTerminal} from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
 import {addTerminal} from "@/shell/edge/UI-edge/state/TerminalStore";
+import {cyFitWithRelativeZoom} from "@/utils/responsivePadding";
 
 /**
  * Launch a terminal onto the UI, anchored to a context node
@@ -33,6 +34,16 @@ export async function launchTerminalOntoUI(
 
     if (terminalWithUI) {
         addTerminal(terminalWithUI);
+
+        // Zoom to terminal's neighborhood (context node + d=1 neighbors)
+        const shadowNodeId: string = getShadowNodeId(terminalId);
+        const terminalShadowNode: CollectionReturnValue = cy.getElementById(shadowNodeId);
+        const contextNode: CollectionReturnValue = cy.getElementById(contextNodeId);
+        const nodesToFit: CollectionReturnValue = contextNode.length > 0
+            ? contextNode.closedNeighborhood().nodes().union(terminalShadowNode)
+            : cy.collection().union(terminalShadowNode);
+        cyFitWithRelativeZoom(cy, nodesToFit, 0.9);
+
         console.log('[uiAPI] Terminal launched:', terminalId);
     } else {
         console.error('[uiAPI] Failed to create floating terminal');

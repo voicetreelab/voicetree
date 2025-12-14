@@ -16,6 +16,8 @@ export interface VTSettings {
   readonly askModeContextDistance: number;
   /** Default input mode for the transcribe panel */
   readonly defaultInputMode: 'add' | 'ask';
+  /** Whether user has been prompted about agent permission mode (auto-run vs safe mode) */
+  readonly agentPermissionModeChosen?: boolean;
 }
 
 export const DEFAULT_SETTINGS: VTSettings = {
@@ -26,7 +28,7 @@ export const DEFAULT_SETTINGS: VTSettings = {
   agents: [
     {
       name: 'Claude',
-      command: `claude --dangerously-skip-permissions "$AGENT_PROMPT"`,
+      command: `claude "$AGENT_PROMPT"`,
     },
     {
       name: 'Gemini',
