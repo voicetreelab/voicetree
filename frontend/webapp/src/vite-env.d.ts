@@ -91,6 +91,8 @@ declare global {
     readonly VITE_SONIOX_API_KEY?: string;
     readonly VITE_POSTHOG_API_KEY?: string;
     readonly VITE_POSTHOG_HOST?: string;
+    /** Set to 'true' in E2E tests to enable mock speech client */
+    readonly VITE_E2E_TEST?: string;
   }
 
   interface ImportMeta {

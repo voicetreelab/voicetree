@@ -90,3 +90,9 @@ async function exposeElectronAPI(): Promise<void> {
 exposeElectronAPI().catch((error: unknown) => {
     console.error('[Preload] FATAL ERROR: Failed to expose electronAPI:', error)
 })
+
+// E2E Test Mode: Expose flag for mock speech client injection
+// Set by Playwright tests via env var when launching Electron
+if (process.env.E2E_SPEECH_MOCK === 'true') {
+    contextBridge.exposeInMainWorld('__E2E_TEST__', true)
+}

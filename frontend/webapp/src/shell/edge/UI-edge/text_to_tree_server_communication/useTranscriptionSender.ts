@@ -45,6 +45,8 @@ export function useTranscriptionSender({
   const previewPromiseRef: RefObject<Promise<boolean> | null> = useRef(null);
   const previewStartTokenCount: RefObject<number> = useRef(0);
   const accumulatedPreviewText: RefObject<string> = useRef("");
+  // Track if we've already sent to server on timeout (to avoid double-send)
+  const sentToServerOnTimeoutRef: RefObject<boolean> = useRef(false);
 
   // Extract text from tokens (only final tokens)
   const getTranscriptText: (tokens: Token[]) => string = (tokens: Token[]): string => {
@@ -91,17 +93,17 @@ export function useTranscriptionSender({
   }, [endpoint]);
 
   // Handle preview result - called when user confirms or cancels
-  const handlePreviewResult = useCallback((inserted: boolean, focusedWindowType: string | null): void => {
+  const handlePreviewResult: (inserted: boolean, focusedWindowType: string | null) => void = useCallback((inserted: boolean, focusedWindowType: string | null): void => {
     const textToProcess: string = accumulatedPreviewText.current;
+    const alreadySentOnTimeout: boolean = sentToServerOnTimeoutRef.current;
 
-    console.log(`[TranscriptionSender] Preview result - focused: ${focusedWindowType ?? 'none'}, inserted: ${inserted}, text length: ${textToProcess.length}`);
+    console.log(`[TranscriptionSender] Preview result - focused: ${focusedWindowType ?? 'none'}, inserted: ${inserted}, alreadySent: ${alreadySentOnTimeout}, text length: ${textToProcess.length}`);
 
     if (inserted && focusedWindowType === 'editor') {
       // Text was inserted into editor - don't send to server
-      // Update sent count to mark these tokens as "handled"
-      // (already done in preview flow)
-    } else if (!inserted) {
-      // Cancelled - send to server instead
+      // (if already sent on timeout, that's fine - it goes to both places)
+    } else if (!inserted && !alreadySentOnTimeout) {
+      // Cancelled and not yet sent - send to server
       if (textToProcess.trim()) {
         void sendToServer(textToProcess, false);
       }
@@ -111,6 +113,7 @@ export function useTranscriptionSender({
     // Reset preview state
     previewPromiseRef.current = null;
     accumulatedPreviewText.current = "";
+    sentToServerOnTimeoutRef.current = false;
   }, [sendToServer]);
 
   // Send only NEW FINAL tokens incrementally
@@ -136,7 +139,7 @@ export function useTranscriptionSender({
 
     // Check if there's a focused editor/terminal
     const focusedWindow: { type: 'editor' | 'terminal'; id: string } | null = getFocusedFloatingWindow();
-    const focusedTarget = getFocusedTarget();
+    const focusedTarget: ReturnType<typeof getFocusedTarget> = getFocusedTarget();
 
     if (focusedTarget) {
       // Accumulate text for preview
@@ -150,7 +153,17 @@ export function useTranscriptionSender({
         previewStartTokenCount.current = sentTokensCount.current;
         const windowType: string | null = focusedWindow?.type ?? null;
 
-        previewPromiseRef.current = showTranscriptionPreview(accumulatedPreviewText.current, focusedTarget);
+        // onTimeout callback: send to server after 15s but keep chip visible
+        const onTimeout: () => void = (): void => {
+          const textToSend: string = accumulatedPreviewText.current;
+          if (textToSend.trim() && !sentToServerOnTimeoutRef.current) {
+            sentToServerOnTimeoutRef.current = true;
+            void sendToServer(textToSend, false);
+            console.log(`[TranscriptionSender] Timeout - sent to server, chip stays visible for user to insert`);
+          }
+        };
+
+        previewPromiseRef.current = showTranscriptionPreview(accumulatedPreviewText.current, focusedTarget, { onTimeout });
 
         // Handle the result when user confirms/cancels (non-blocking)
         previewPromiseRef.current.then((inserted: boolean) => {
@@ -159,6 +172,7 @@ export function useTranscriptionSender({
           // Preview was cancelled/errored - reset state
           previewPromiseRef.current = null;
           accumulatedPreviewText.current = "";
+          sentToServerOnTimeoutRef.current = false;
         });
       }
 
@@ -203,6 +217,7 @@ export function useTranscriptionSender({
     previewPromiseRef.current = null;
     previewStartTokenCount.current = 0;
     accumulatedPreviewText.current = "";
+    sentToServerOnTimeoutRef.current = false;
     setBufferLength(0);
     setConnectionError(null);
 

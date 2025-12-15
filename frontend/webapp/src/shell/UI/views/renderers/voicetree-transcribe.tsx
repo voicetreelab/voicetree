@@ -7,9 +7,8 @@ import StatusDisplay from "@/shell/UI/views/components/status-display";
 import useVoiceTreeClient from "@/shell/UI/views/hooks/useVoiceTreeClient";
 import { useTranscriptionSender } from "@/shell/edge/UI-edge/text_to_tree_server_communication/useTranscriptionSender";
 import getAPIKey from "@/utils/get-api-key";
-import Renderer from "./renderer";
-import useAutoScroll from "@/shell/UI/views/hooks/useAutoScroll";
-import { type Token } from "@soniox/speech-to-text-web";
+import { TranscriptionDisplay } from "@/shell/UI/views/TranscriptionDisplay";
+import { onVoiceResult, appendManualText, reset as resetTranscriptionStore } from "@/shell/edge/UI-edge/state/TranscriptionStore";
 import type {} from "@/shell/electron";
 import { ChevronDown } from "lucide-react";
 
@@ -17,7 +16,6 @@ type InputMode = 'add' | 'ask' | null;
 
 export default function VoiceTreeTranscribe(): JSX.Element {
   const [textInput, setTextInput] = useState("");
-  const [allFinalTokens, setAllFinalTokens] = useState<Token[]>([]);
   const [backendPort, setBackendPort] = useState<number | undefined>(undefined);
   const [isTranscriptionExpanded, setIsTranscriptionExpanded] = useState(true);
   const [inputMode, setInputMode] = useState<InputMode>(() => {
@@ -26,6 +24,10 @@ export default function VoiceTreeTranscribe(): JSX.Element {
     if (stored === 'add') return 'add';
     return null;
   });
+
+  // Ref for vanilla TranscriptionDisplay mount point
+  const displayContainerRef: RefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);
+  const displayInstanceRef: RefObject<TranscriptionDisplay | null> = useRef<TranscriptionDisplay | null>(null);
 
   // Persist mode changes
   useEffect(() => {
@@ -39,12 +41,12 @@ export default function VoiceTreeTranscribe(): JSX.Element {
   const {
     state,
     finalTokens,
-    nonFinalTokens,
     startTranscription,
     stopTranscription,
     error,
   } = useVoiceTreeClient({
     apiKey: getAPIKey,
+    onPartialResult: onVoiceResult,  // Wire raw SDK events directly to store
   });
 
   // Fetch backend port on mount
@@ -68,29 +70,27 @@ export default function VoiceTreeTranscribe(): JSX.Element {
     endpoint: backendPort ? `http://localhost:${backendPort}/send-text` : "http://localhost:8001/send-text",
   });
 
-  // Track how many voice tokens we've seen to append new ones only
-  const voiceTokenCountRef: RefObject<number> = useRef(0);
   // Track last sent count to avoid duplicate sends
   const lastSentCountRef: RefObject<number> = useRef(0);
 
-  // Append new voice final tokens to our combined list
+  // Mount vanilla TranscriptionDisplay
   useEffect(() => {
-    if (finalTokens.length > voiceTokenCountRef.current) {
-      const newTokens: Token[] = finalTokens.slice(voiceTokenCountRef.current);
-      setAllFinalTokens(prev => [...prev, ...newTokens]);
-      voiceTokenCountRef.current = finalTokens.length;
-    } else if (finalTokens.length === 0) {
-      // Reset when transcription restarts
-      voiceTokenCountRef.current = 0;
-      setAllFinalTokens([]);
-      resetSender(); // Reset the sender when transcription restarts
-      lastSentCountRef.current = 0;
+    if (displayContainerRef.current && !displayInstanceRef.current) {
+      displayInstanceRef.current = new TranscriptionDisplay(displayContainerRef.current);
     }
-  }, [finalTokens, resetSender]);
+    return () => {
+      displayInstanceRef.current?.dispose();
+      displayInstanceRef.current = null;
+    };
+  }, []);
 
-  // Combine all tokens for display
-  const allTokens: Token[] = [...allFinalTokens, ...nonFinalTokens];
-  const autoScrollRef: RefObject<HTMLDivElement | null> = useAutoScroll(allTokens);
+  // Start transcription with reset
+  const handleStartTranscription: () => Promise<void> = async () => {
+    resetTranscriptionStore();
+    resetSender();
+    lastSentCountRef.current = 0;
+    await startTranscription();
+  };
 
   // Show error popup when Soniox fails
   useEffect(() => {
@@ -148,34 +148,9 @@ export default function VoiceTreeTranscribe(): JSX.Element {
       return;
     }
 
-    // Add mode - existing behavior
+    // Add mode - send to backend and update store
     await sendManualText(textInput);
-
-    // Create tokens from the manual text input
-    const tokensToAdd: Token[] = [];
-
-    // Add a newline token if there are existing tokens
-    if (allFinalTokens.length > 0) {
-      tokensToAdd.push({
-        text: "\n",
-        is_final: true,
-        speaker: undefined,
-        language: undefined,
-        confidence: 1.0,
-      });
-    }
-
-    // Add the actual text token
-    tokensToAdd.push({
-      text: textInput,
-      is_final: true,
-      speaker: undefined,
-      language: undefined,
-      confidence: 1.0,
-    });
-
-    // Append to final tokens
-    setAllFinalTokens(prev => [...prev, ...tokensToAdd]);
+    appendManualText(textInput);
     setTextInput("");
   };
 
@@ -240,23 +215,16 @@ export default function VoiceTreeTranscribe(): JSX.Element {
                 WebkitMaskImage: 'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0.2) 70%, rgba(0,0,0,0) 100%)',
               }}
             />
-            {/* Scrollable text content with opacity gradient */}
+            {/* Scrollable text content - vanilla TranscriptionDisplay mounts here */}
             <div
-              ref={autoScrollRef}
+              ref={displayContainerRef}
               className="absolute inset-0 overflow-y-auto"
               style={{
                 maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,1) 100%)',
                 WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,1) 100%)',
                 zIndex: 1,
               }}
-            >
-              <Renderer
-                tokens={allTokens}
-                placeholder=""
-                onPlaceholderClick={() => void startTranscription()}
-                isRecording={state === 'Running'}
-              />
-            </div>
+            />
           </div>
           {/* Expand/Collapse toggle button - positioned just above input row */}
           <button
@@ -296,7 +264,7 @@ export default function VoiceTreeTranscribe(): JSX.Element {
 
             {/* Mic Button */}
             <button
-              onClick={() => state === 'Running' ? stopTranscription() : void startTranscription()}
+              onClick={() => state === 'Running' ? stopTranscription() : void handleStartTranscription()}
               className={cn(
                 "p-1 rounded-lg transition-all cursor-pointer",
                 state === 'Running'

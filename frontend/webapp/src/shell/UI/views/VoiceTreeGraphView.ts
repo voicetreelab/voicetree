@@ -41,7 +41,8 @@ import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/Vertic
 import {
     setupCommandHover,
     closeAllEditors,
-    disposeEditorManager
+    disposeEditorManager,
+    closeEditor
 } from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
 import {HotkeyManager} from './HotkeyManager';
 import {SearchService} from './SearchService';
@@ -80,6 +81,11 @@ import {
     spawnBackupTerminal
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnBackupTerminal";
 import {GraphNavigationService} from "@/shell/edge/UI-edge/graph/navigation/GraphNavigationService";
+import {getEditorByNodeId} from '@/shell/edge/UI-edge/state/EditorStore';
+import {getTerminalByNodeId} from '@/shell/edge/UI-edge/state/TerminalStore';
+import {closeTerminal} from '@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI';
+import * as O from 'fp-ts/lib/Option.js';
+import type {EditorData} from '@/shell/edge/UI-edge/floating-windows/types';
 
 /**
  * Main VoiceTreeGraphView implementation
@@ -521,7 +527,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             createNewNode: createNewNodeAction(this.cy),
             runTerminal: runTerminalAction(this.cy),
             deleteSelectedNodes: deleteSelectedNodesAction(this.cy),
-            navigateToRecentNode: (index) => this.navigateToRecentNodeByIndex(index)
+            navigateToRecentNode: (index) => this.navigateToRecentNodeByIndex(index),
+            closeSelectedWindow: () => this.closeSelectedWindow()
         });
 
         // Cmd+F: Search - disabled in editors so CodeMirror can handle its own find
@@ -636,6 +643,30 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         if (index >= 0 && index < this.recentNodeHistory.length) {
             const nodeId: string = this.recentNodeHistory[index].nodeToUpsert.relativeFilePathIsID;
             this.navigationService.handleSearchSelect(nodeId);
+        }
+    }
+
+    /**
+     * Close the editor or terminal associated with the currently selected node
+     * Used by the Cmd+W hotkey
+     */
+    private closeSelectedWindow(): void {
+        const selected: cytoscape.CollectionReturnValue = this.cy.$(':selected');
+        if (selected.length === 0) return;
+
+        const nodeId: string = selected.first().id();
+
+        // Try closing editor first
+        const editor: O.Option<EditorData> = getEditorByNodeId(nodeId);
+        if (O.isSome(editor)) {
+            closeEditor(this.cy, editor.value);
+            return;
+        }
+
+        // Try closing terminal
+        const terminal: O.Option<TerminalData> = getTerminalByNodeId(nodeId);
+        if (O.isSome(terminal)) {
+            closeTerminal(terminal.value, this.cy);
         }
     }
 

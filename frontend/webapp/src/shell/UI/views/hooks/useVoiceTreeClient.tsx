@@ -12,6 +12,8 @@ interface UseVoiceTreeClientOptions {
   translationConfig?: TranslationConfig;
   onStarted?: () => void;
   onFinished?: () => void;
+  /** Optional callback for raw SDK partial results - use for forwarding to external stores */
+  onPartialResult?: (result: { tokens: Token[] }) => void;
 }
 
 type TranscriptionError = {
@@ -26,6 +28,7 @@ export default function useVoiceTreeClient({
   translationConfig,
   onStarted,
   onFinished,
+  onPartialResult: onPartialResultCallback,
 }: UseVoiceTreeClientOptions): {
   startTranscription: () => Promise<void>;
   stopTranscription: () => void;
@@ -87,6 +90,9 @@ export default function useVoiceTreeClient({
       // When we receive some tokens back, sort them based on their status --
       // is it final or non-final token.
       onPartialResult(result) {
+        // Forward raw SDK result to external handler (e.g., TranscriptionStore)
+        onPartialResultCallback?.(result);
+
         const newFinalTokens: Token[] = [];
         const newNonFinalTokens: Token[] = [];
 
@@ -105,7 +111,7 @@ export default function useVoiceTreeClient({
         setNonFinalTokens(newNonFinalTokens);
       },
     });
-  }, [apiKey, onFinished, onStarted, translationConfig]);
+  }, [apiKey, onFinished, onPartialResultCallback, onStarted, translationConfig]);
 
   const stopTranscription: () => void = useCallback(() => {
     sonioxClient.current?.stop();

@@ -4,7 +4,7 @@ see `npm run test:smoke` for the most simple one.
 
 Ensure all other test files are passing. 
 
-1. Spawn one subagent per failing test file in `e2e-tests/electron`. Run all agents in parallel.
+1. Spawn one subagent per failing test file in `e2e-tests/electron/critical_e2e_verification_tests`. Run all agents in parallel. Do NOT run tests from the `for_feature_development_not_LT_verification` folder.
 
 Next, fixup any and all failing vite tests. `npm run test`
 

@@ -292,7 +292,7 @@ Object.defineProperty(navigator, 'webdriver', {
     configurable: true
 });
 
-// Mock HTMLElement.scrollTo for useAutoScroll e2e-tests
+// Mock HTMLElement.scrollTo for TranscriptionDisplay auto-scroll
 HTMLElement.prototype.scrollTo = vi.fn();
 
 // Mock window.electronAPI for tests that use Electron IPC

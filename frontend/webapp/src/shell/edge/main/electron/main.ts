@@ -1,5 +1,6 @@
 import {app, BrowserWindow, nativeImage, dialog, Menu, type MenuItemConstructorOptions} from 'electron';
 import path from 'path';
+import os from 'os';
 import fixPath from 'fix-path';
 import electronUpdater, {type UpdateCheckResult} from 'electron-updater';
 import log from 'electron-log';
@@ -26,6 +27,14 @@ fixPath();
 
 // Set app name (shows in macOS menu bar, taskbar, etc.)
 app.setName('VoiceTree');
+
+// Fresh start mode: use temporary userData to mimic first-time user experience
+// Default in dev mode, opt-out with VOICETREE_PERSIST_STATE=1
+if (process.env.VOICETREE_PERSIST_STATE !== '1' && process.env.NODE_ENV !== 'test') {
+    const tempDir: string = path.join(os.tmpdir(), `voicetree-fresh-${Date.now()}`);
+    app.setPath('userData', tempDir);
+    console.log(`[Fresh Start] Using temporary userData: ${tempDir}`);
+}
 
 // Parse CLI arguments for --open-folder (used by "Open Folder in New Instance")
 const openFolderIndex: number = process.argv.indexOf('--open-folder');
@@ -112,6 +121,11 @@ if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
     process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
 }
 
+// Default to minimized/headless mode in test environment (can override with MINIMIZE_TEST=0)
+if (process.env.NODE_ENV === 'test' && process.env.MINIMIZE_TEST === undefined) {
+    process.env.MINIMIZE_TEST = '1';
+}
+
 // Prevent focus stealing in test mode
 if (process.env.MINIMIZE_TEST === '1') {
     // Add command line switches to run in background mode
@@ -172,16 +186,12 @@ function setupApplicationMenu(): void {
                             });
                             if (!result.canceled && result.filePaths.length > 0) {
                                 const folderPath: string = result.filePaths[0];
-                                const appPath: string = app.getPath('exe');
                                 const {spawn} = await import('child_process');
-                                if (process.platform === 'darwin') {
-                                    // macOS: use 'open -n' to launch new instance
-                                    const appBundlePath: string = appPath.replace(/\/Contents\/MacOS\/.*$/, '');
-                                    spawn('open', ['-n', appBundlePath, '--args', '--open-folder', folderPath], {detached: true});
-                                } else {
-                                    // Windows/Linux: just run the executable again
-                                    spawn(appPath, ['--open-folder', folderPath], {detached: true});
-                                }
+                                // Spawn new instance: electron binary + app path + args
+                                spawn(process.execPath, [app.getAppPath(), '--open-folder', folderPath], {
+                                    detached: true,
+                                    stdio: 'ignore'
+                                }).unref();
                             }
                         })();
                     }

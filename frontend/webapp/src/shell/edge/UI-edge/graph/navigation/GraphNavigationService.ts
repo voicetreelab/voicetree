@@ -16,7 +16,7 @@ import { addRecentlyVisited } from '@/shell/edge/UI-edge/state/RecentlyVisitedSt
 import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
 import { getTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
 import { getTerminalId, getShadowNodeId, type TerminalData, type TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
-import { getDisplayOrder } from '@/shell/UI/views/AgentTabsBar';
+import { getDisplayOrder, clearActivityForTerminal } from '@/shell/UI/views/AgentTabsBar';
 
 // Callback type for terminal change notifications
 type TerminalChangeCallback = (terminalId: TerminalId | null) => void;
@@ -102,6 +102,9 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
 
     // Update active terminal state
     this.activeTerminalId = terminalId;
+
+    // Clear activity dots when navigating to this terminal (same as clicking the tab)
+    clearActivityForTerminal(terminalId);
 
     // Get the shadow node from cy for viewport fitting
     const terminalShadowNode: CollectionReturnValue = cy.getElementById(shadowNodeId);

@@ -128,38 +128,14 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
   }
 
   stop(): void {
-    if (this.serverProcess && this.serverProcess.pid) {
-      console.log(`[TextToTreeServer] Shutting down server (PID: ${this.serverProcess.pid})...`);
+    if (this.serverProcess) {
+      console.log('[TextToTreeServer] Shutting down server...');
       try {
-        // Kill entire process tree by sending signal to negative PID (process group)
-        // This ensures all child processes (python, uvicorn workers) are killed
-        // Note: This only works on Unix-like systems (macOS, Linux)
-        if (process.platform !== 'win32') {
-          process.kill(-this.serverProcess.pid, 'SIGTERM');
-          // Give processes a moment to terminate gracefully, then force kill
-          setTimeout(() => {
-            try {
-              if (this.serverProcess?.pid) {
-                process.kill(-this.serverProcess.pid, 'SIGKILL');
-              }
-            } catch {
-              // Process already terminated, ignore
-            }
-          }, 500);
-        } else {
-          // On Windows, just kill the direct process
-          this.serverProcess.kill('SIGTERM');
-        }
+        this.serverProcess.kill('SIGTERM');
+        this.serverProcess.kill('SIGKILL');
         this.serverProcess = null;
       } catch (error) {
         console.error('[TextToTreeServer] Error killing server:', error);
-        // Fallback: try to kill just the direct process
-        try {
-          this.serverProcess?.kill('SIGKILL');
-        } catch {
-          // Ignore if already dead
-        }
-        this.serverProcess = null;
       }
     }
 

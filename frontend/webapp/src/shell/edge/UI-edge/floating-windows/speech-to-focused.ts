@@ -122,7 +122,7 @@ function truncate(text: string, maxLength: number): string {
  */
 function getCursorPosition(target: { type: 'editor'; view: EditorView } | { type: 'terminal'; id: string }): { x: number; y: number } | null {
   if (target.type === 'editor') {
-    const coords = target.view.coordsAtPos(target.view.state.selection.main.head);
+    const coords: { left: number; right: number; top: number; bottom: number } | null = target.view.coordsAtPos(target.view.state.selection.main.head);
     if (coords) {
       return { x: coords.left, y: coords.top };
     }
@@ -152,7 +152,7 @@ function cleanupActivePreview(): void {
  */
 export function dismissTranscriptionPreview(): void {
   if (activePreview) {
-    const preview = activePreview;
+    const preview: NonNullable<typeof activePreview> = activePreview;
     activePreview = null;
     preview.cleanup();
     preview.element.remove();
@@ -193,7 +193,7 @@ export function hasActiveTranscriptionPreview(): boolean {
 export function confirmTranscriptionPreview(): boolean {
   if (!activePreview) return false;
 
-  const preview = activePreview;
+  const preview: NonNullable<typeof activePreview> = activePreview;
   activePreview = null;
 
   // Insert the current text
@@ -214,15 +214,27 @@ export function confirmTranscriptionPreview(): boolean {
 }
 
 /**
+ * Options for showTranscriptionPreview
+ */
+interface TranscriptionPreviewOptions {
+  /** Called when timeout fires (15s) - use to send to server while keeping chip visible */
+  onTimeout?: () => void;
+}
+
+/**
  * Show transcription preview chip above cursor.
  * Returns promise that resolves to true (inserted) or false (dismissed).
  *
  * The chip can be updated with new text via updateTranscriptionPreview().
- * The promise resolves when the user confirms (Enter) or dismisses (Escape/click/timeout).
+ * The promise resolves when the user confirms (Enter) or dismisses (Escape/click).
+ *
+ * After 15s timeout, onTimeout is called (to send to server) but chip stays visible
+ * so user can still choose to insert into editor.
  */
 export function showTranscriptionPreview(
   text: string,
-  target: { type: 'editor'; view: EditorView } | { type: 'terminal'; id: string }
+  target: { type: 'editor'; view: EditorView } | { type: 'terminal'; id: string },
+  options?: TranscriptionPreviewOptions
 ): Promise<boolean> {
   return new Promise((resolve) => {
     // 1. Clean up any existing preview (but don't resolve its promise - we're replacing it)
@@ -230,7 +242,7 @@ export function showTranscriptionPreview(
     activePreview = null;
 
     // 2. Get position
-    const position = getCursorPosition(target);
+    const position: { x: number; y: number } | null = getCursorPosition(target);
     if (!position) {
       resolve(false);
       return;
@@ -264,7 +276,7 @@ export function showTranscriptionPreview(
     }
 
     // 7. Setup keyboard listener
-    const handleKeydown = (e: KeyboardEvent): void => {
+    const handleKeydown: (e: KeyboardEvent) => void = (e: KeyboardEvent): void => {
       if (!activePreview) return;
 
       if (e.key === 'Enter') {
@@ -282,23 +294,25 @@ export function showTranscriptionPreview(
     };
 
     // 8. Setup click-outside listener
-    const handleClickOutside = (e: MouseEvent): void => {
+    const handleClickOutside: (e: MouseEvent) => void = (e: MouseEvent): void => {
       if (activePreview && !chip.contains(e.target as Node)) {
         dismissTranscriptionPreview();
       }
     };
 
-    // 9. Setup timeout (10s)
+    // 9. Setup timeout (15s) - sends to server but keeps chip visible for user to insert
     const timeoutId: ReturnType<typeof setTimeout> = setTimeout(() => {
-      dismissTranscriptionPreview();
-    }, 10000);
+      if (activePreview && options?.onTimeout) {
+        options.onTimeout();
+      }
+    }, 15000);
 
     // Add listeners
     document.addEventListener('keydown', handleKeydown, true);
     document.addEventListener('mousedown', handleClickOutside, true);
 
     // Store cleanup
-    const cleanup = (): void => {
+    const cleanup: () => void = (): void => {
       document.removeEventListener('keydown', handleKeydown, true);
       document.removeEventListener('mousedown', handleClickOutside, true);
       clearTimeout(timeoutId);

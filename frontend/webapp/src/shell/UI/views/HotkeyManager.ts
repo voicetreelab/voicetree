@@ -101,6 +101,7 @@ export class HotkeyManager {
     runTerminal: () => void;
     deleteSelectedNodes: () => void;
     navigateToRecentNode: (index: number) => void;
+    closeSelectedWindow: () => void;
   }): void {
     // Space: Fit to last created node (repeatable while held)
     this.registerHotkey({
@@ -179,6 +180,14 @@ export class HotkeyManager {
       key: 'Backspace',
       modifiers: ['Meta'],
       onPress: callbacks.deleteSelectedNodes
+    });
+
+    // Command + W: Close editor/terminal for selected node
+    this.registerHotkey({
+      key: 'w',
+      modifiers: ['Meta'],
+      disabledInEditors: true,
+      onPress: callbacks.closeSelectedWindow
     });
 
     // Command + 1-N: Navigate to recent node tabs (where N = MAX_RECENT_NODES)

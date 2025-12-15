@@ -6,7 +6,7 @@ import { defineConfig } from '@playwright/test';
  * with real file system operations and the complete IPC pipeline.
  */
 export default defineConfig({
-  testDir: './e2e-tests/electron',
+  testDir: './e2e-tests/electron/critical_e2e_verification_tests',
   testMatch: '**/electron-*.spec.ts', // Only run electron-specific e2e-tests
   fullyParallel: false, // Run e2e-tests sequentially for Electron
   forbidOnly: !!process.env.CI,
