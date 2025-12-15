@@ -182,7 +182,7 @@ export type GetSubgraphByDistance = (graph: Graph, startNodeId: NodeIdAndFilePat
 
 export type GetUnionSubgraphByDistance = (graph: Graph, startNodeIds: readonly NodeIdAndFilePath[], maxDistance: number) => Graph
 
-export type GraphToAscii = (graph: Graph) => string
+export type GraphToAscii = (graph: Graph, forcedRootNodeId?: NodeIdAndFilePath) => string
 
 export type GetNodeIdsInTraversalOrder = (graph: Graph) => readonly NodeIdAndFilePath[]
 

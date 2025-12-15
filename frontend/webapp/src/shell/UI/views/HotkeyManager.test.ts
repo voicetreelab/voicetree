@@ -215,7 +215,7 @@ describe('HotkeyManager', () => {
       document.body.removeChild(div);
     });
 
-    it('should not invoke closeSelectedWindow when in input element (disabledInEditors)', () => {
+    it('should invoke closeSelectedWindow even when in input element (to close editor/terminal)', () => {
       const input: HTMLInputElement = document.createElement('input');
       document.body.appendChild(input);
       input.focus();
@@ -241,8 +241,8 @@ describe('HotkeyManager', () => {
       });
       input.dispatchEvent(event);
 
-      // Handler should NOT be called because disabledInEditors is true
-      expect(closeSelectedWindowHandler).not.toHaveBeenCalled();
+      // Handler SHOULD be called - Cmd+W should close the editor even when focused inside it
+      expect(closeSelectedWindowHandler).toHaveBeenCalled();
 
       document.body.removeChild(input);
     });

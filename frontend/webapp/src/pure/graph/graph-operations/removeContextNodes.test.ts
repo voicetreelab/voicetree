@@ -31,7 +31,9 @@ function createContextNode(id: string, edges: readonly string[] = []): GraphNode
     }
 }
 
-const toEdges = (ids: readonly string[]) => ids.map(targetId => ({ targetId, label: '' }))
+function toEdges(ids: readonly string[]): readonly { readonly targetId: string; readonly label: string }[] {
+    return ids.map(targetId => ({ targetId, label: '' }))
+}
 
 describe('removeContextNodes', () => {
     it('should remove context node and bridge edges', () => {
@@ -177,5 +179,25 @@ describe('removeContextNodes', () => {
         const result: Graph = removeContextNodes(graph)
 
         expect(result.nodes).toEqual({})
+    })
+
+    it('should connect nodes that both pointed to removed context node (star pattern)', () => {
+        // A -> ContextNode <- C  should result in A and C connected
+        const graph: Graph = {
+            nodes: {
+                'A': createNode('A', ['ContextNode']),
+                'ContextNode': createContextNode('ContextNode', []),
+                'C': createNode('C', ['ContextNode'])
+            }
+        }
+
+        const result: Graph = removeContextNodes(graph)
+
+        // Both nodes should remain
+        expect(Object.keys(result.nodes).sort()).toEqual(['A', 'C'])
+
+        // A and C should be connected to each other (bidirectional for traversal)
+        expect(result.nodes['A'].outgoingEdges.map(e => e.targetId)).toContain('C')
+        expect(result.nodes['C'].outgoingEdges.map(e => e.targetId)).toContain('A')
     })
 })

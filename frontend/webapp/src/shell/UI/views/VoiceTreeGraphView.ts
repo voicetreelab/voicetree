@@ -273,6 +273,9 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
                 (nodeId) => this.navigationService.handleSearchSelect(nodeId)
             );
 
+            // Reset ninja-keys search data (now rebuilds from empty cytoscape)
+            this.searchService.updateSearchData();
+
             if (this.emptyStateOverlay) {
                 this.emptyStateOverlay.style.display = 'flex';
             }
