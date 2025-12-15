@@ -394,17 +394,18 @@ test.describe('Search Navigation (Browser)', () => {
     console.log('  Search order (first 5):', searchOrder.map(s => `${s.title} [${s.section}] hotkey=${s.hotkey}`));
 
     // Step 6: Verify order - most recent (node-2) should be first
-    // node-2 was hovered last, so it should have hotkey "1"
-    // node-3 was hovered second-to-last, so it should have hotkey "2"
-    // node-1 was hovered first, so it should have hotkey "3"
+    // node-2 was hovered last, so it should have hotkey "cmd+1"
+    // node-3 was hovered second-to-last, so it should have hotkey "cmd+2"
+    // node-1 was hovered first, so it should have hotkey "cmd+3"
+    // Note: hotkeys use cmd+N format to prevent ninja-keys from registering plain number keys
     expect(searchOrder[0].id).toBe('test-node-2.md');
-    expect(searchOrder[0].hotkey).toBe('1'); // Should have hotkey indicator
+    expect(searchOrder[0].hotkey).toBe('cmd+1'); // Should have hotkey indicator
     expect(searchOrder[0].section).toBe('Recently Active'); // Should be in Recently Active section
     expect(searchOrder[1].id).toBe('test-node-3.md');
-    expect(searchOrder[1].hotkey).toBe('2');
+    expect(searchOrder[1].hotkey).toBe('cmd+2');
     expect(searchOrder[1].section).toBe('Recently Active');
     expect(searchOrder[2].id).toBe('test-node-1.md');
-    expect(searchOrder[2].hotkey).toBe('3');
+    expect(searchOrder[2].hotkey).toBe('cmd+3');
     expect(searchOrder[2].section).toBe('Recently Active');
 
     // Verify non-recent nodes are in "All Nodes" section with no hotkey

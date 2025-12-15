@@ -124,8 +124,8 @@ describe('recent-deltas-store', () => {
             const delta: NodeDelta = makeUpsertDelta('test-node', 'content')
             markRecentDelta(delta)
 
-            // Advance time past the 900ms TTL
-            vi.advanceTimersByTime(901)
+            // Advance time past the 1500ms TTL
+            vi.advanceTimersByTime(1501)
 
             const incomingDelta: GraphDelta = toGraphDelta(makeUpsertDelta('test-node', 'content'))
             expect(isOurRecentDelta(incomingDelta)).toBe(false)

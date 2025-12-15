@@ -105,7 +105,9 @@ export class SearchService {
     const prefixed: NinjaAction[] = sorted.map((action: NinjaAction) => {
       const recentIndex: number = recentlyVisited.indexOf(action.id);
       if (recentIndex >= 0) {
-        return { ...action, hotkey: `${recentIndex + 1}`, section: 'Recently Active' };
+        // Use cmd+N format so ninja-keys displays the hint but doesn't register plain number keys
+        // HotkeyManager handles the actual Cmd+1-5 shortcuts
+        return { ...action, hotkey: `cmd+${recentIndex + 1}`, section: 'Recently Active' };
       }
       return { ...action, section: 'All Nodes' };
     });
@@ -175,7 +177,9 @@ export class SearchService {
     const prefixedSearchData: NinjaAction[] = sortedSearchData.map((action: NinjaAction) => {
       const recentIndex: number = recentlyVisited.indexOf(action.id);
       if (recentIndex >= 0) {
-        return { ...action, hotkey: `${recentIndex + 1}`, section: 'Recently Active' };
+        // Use cmd+N format so ninja-keys displays the hint but doesn't register plain number keys
+        // HotkeyManager handles the actual Cmd+1-5 shortcuts
+        return { ...action, hotkey: `cmd+${recentIndex + 1}`, section: 'Recently Active' };
       }
       return { ...action, section: 'All Nodes' };
     });

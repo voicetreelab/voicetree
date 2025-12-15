@@ -183,10 +183,10 @@ export class HotkeyManager {
     });
 
     // Command + W: Close editor/terminal for selected node
+    // NOTE: NOT disabled in editors - we want Cmd+W to close the editor/terminal even when focused inside it
     this.registerHotkey({
       key: 'w',
       modifiers: ['Meta'],
-      disabledInEditors: true,
       onPress: callbacks.closeSelectedWindow
     });
 

@@ -57,8 +57,10 @@ export async function createContextNode(
     console.log("[createContextNode] Subgraph has", Object.keys(subgraph.nodes).length, "nodes")
 
     // 3. PURE: Convert subgraph to ASCII visualization
+    // Pass parentNodeId as the forced root to handle star patterns where
+    // removeContextNodes creates bidirectional edges, leaving no natural roots
     console.log("[createContextNode] Converting to ASCII...")
-    const asciiTree: string = graphToAscii(subgraph)
+    const asciiTree: string = graphToAscii(subgraph, parentNodeId)
     console.log("[createContextNode] ASCII tree length:", asciiTree.length)
 
     // 4. EDGE: Generate unique context node ID

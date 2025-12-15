@@ -16,6 +16,9 @@ import { getNodeTitle } from '@/pure/graph/markdown-parsing'
  * Handles cycles gracefully using a visited set to prevent infinite recursion.
  *
  * @param graph - The graph to visualize
+ * @param forcedRootNodeId - Optional node ID to use as the root, regardless of graph structure.
+ *                           Useful when the graph has cycles (e.g., after star pattern removal)
+ *                           where no natural root exists.
  * @returns Multi-line ASCII string with tree structure
  *
  * @example
@@ -31,19 +34,27 @@ import { getNodeTitle } from '@/pure/graph/markdown-parsing'
  */
 
 
-export function graphToAscii(graph: Graph): string {
+export function graphToAscii(graph: Graph, forcedRootNodeId?: NodeIdAndFilePath): string {
   // eslint-disable-next-line functional/prefer-readonly-type
   const lines: string[] = []
   // eslint-disable-next-line functional/prefer-readonly-type
   const visited: Set<string> = new Set<NodeIdAndFilePath>()
 
-  // Find root nodes (nodes with no incoming edges)
-  // We reverse the graph to identify which nodes have no incoming edges
-  const reversedGraph: Graph = reverseGraphEdges(graph)
-  const roots: readonly string[] = Object.keys(graph.nodes).filter(nodeId => {
-    const reversedNode: GraphNode = reversedGraph.nodes[nodeId]
-    return !reversedNode || reversedNode.outgoingEdges.length === 0
-  })
+  // Determine roots: use forced root if provided, otherwise find natural roots
+  const roots: readonly string[] = (() => {
+    // If a forced root is provided and exists in the graph, use it
+    if (forcedRootNodeId && graph.nodes[forcedRootNodeId]) {
+      return [forcedRootNodeId]
+    }
+
+    // Find root nodes (nodes with no incoming edges)
+    // We reverse the graph to identify which nodes have no incoming edges
+    const reversedGraph: Graph = reverseGraphEdges(graph)
+    return Object.keys(graph.nodes).filter(nodeId => {
+      const reversedNode: GraphNode = reversedGraph.nodes[nodeId]
+      return !reversedNode || reversedNode.outgoingEdges.length === 0
+    })
+  })()
 
   /**
    * Recursive helper to print tree structure

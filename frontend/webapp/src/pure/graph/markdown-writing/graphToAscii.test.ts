@@ -106,6 +106,41 @@ describe('graphToAscii', () => {
     expect(result).toBe('')
   })
 
+  it('should use forcedRootNodeId as root for cycles (star pattern fix)', () => {
+    // This simulates the star pattern after context node removal:
+    // A -> ContextNode <- B becomes A <-> B (bidirectional)
+    const graph: Graph = {
+      nodes: {
+        'A': createTestNode('A', ['B']),
+        'B': createTestNode('B', ['A'])
+      }
+    }
+
+    // Without forced root: empty (no natural roots)
+    expect(graphToAscii(graph)).toBe('')
+
+    // With forced root A: should show A as root with B as child
+    const resultA: string = graphToAscii(graph, 'A')
+    expect(resultA).toBe('A\n└── B')
+
+    // With forced root B: should show B as root with A as child
+    const resultB: string = graphToAscii(graph, 'B')
+    expect(resultB).toBe('B\n└── A')
+  })
+
+  it('should ignore forcedRootNodeId if node does not exist in graph', () => {
+    const graph: Graph = {
+      nodes: {
+        'A': createTestNode('A', ['B']),
+        'B': createTestNode('B', [])
+      }
+    }
+
+    // Forced root that doesn't exist should fall back to natural root detection
+    const result: string = graphToAscii(graph, 'NonExistent')
+    expect(result).toBe('A\n└── B')
+  })
+
   it('should handle DAG with shared descendants', () => {
     // Diamond shape: A -> B -> D, A -> C -> D
     const graph: Graph = {
