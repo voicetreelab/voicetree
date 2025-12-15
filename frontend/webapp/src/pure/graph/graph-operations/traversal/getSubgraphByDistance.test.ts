@@ -603,7 +603,8 @@ describe('getSubgraphByDistance', () => {
     it('should handle multiple parents through the same context node', () => {
       // P1 -> ContextNode -> C
       // P2 -> ContextNode
-      // Start from P1: P1 should have bridge to C
+      // Start from P1: P1 should have bridge to C, AND connect to P2 (bidirectional reachability)
+      // In bidirectional traversal, P1 and P2 can reach each other via ContextNode's incoming edges
       const graph: Graph = {
         nodes: {
           'P1': createTestNode('P1', ['ContextNode']),
@@ -616,8 +617,8 @@ describe('getSubgraphByDistance', () => {
       const result: Graph = getSubgraphByDistance(graph, 'P1', 7)
 
       expect(Object.keys(result.nodes).sort()).toEqual(['C', 'P1', 'P2'])
-      // P1 should have bridged edge to C
-      expect(result.nodes['P1'].outgoingEdges).toEqual(toEdges(['C']))
+      // P1 should have bridged edge to C AND edge to P2 (fellow incomer)
+      expect(result.nodes['P1'].outgoingEdges.map(e => e.targetId).sort()).toEqual(['C', 'P2'])
     })
 
     it('should handle diamond topology with context node in one path', () => {

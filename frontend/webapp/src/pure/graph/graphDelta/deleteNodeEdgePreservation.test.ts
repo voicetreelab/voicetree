@@ -95,8 +95,9 @@ describe('Edge Preservation on Node Deletion', () => {
     })
 
     describe('Multiple parents: {a, x} -> b -> c', () => {
-        it('should connect all parents to children of deleted node', () => {
+        it('should connect all parents to children AND to each other', () => {
             // Setup: a -> b, x -> b, b -> c
+            // In bidirectional traversal, a and x can reach each other via b's incoming edges
             const graph: Graph = {
                 nodes: {
                     'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'label-a' }]),
@@ -110,21 +111,22 @@ describe('Edge Preservation on Node Deletion', () => {
             const delta: GraphDelta = createDeleteDelta('b.md', graph.nodes['b.md'])
             const result: Graph = applyGraphDeltaToGraph(graph, delta)
 
-            // Verify: a now points to c with a's label
-            expect(result.nodes['a.md'].outgoingEdges).toHaveLength(1)
-            expect(result.nodes['a.md'].outgoingEdges[0].targetId).toBe('c.md')
-            expect(result.nodes['a.md'].outgoingEdges[0].label).toBe('label-a')
+            // Verify: a now points to c (child of b) AND x (fellow incomer)
+            expect(result.nodes['a.md'].outgoingEdges.map(e => e.targetId).sort()).toEqual(['c.md', 'x.md'])
+            expect(result.nodes['a.md'].outgoingEdges.find(e => e.targetId === 'c.md')?.label).toBe('label-a')
+            expect(result.nodes['a.md'].outgoingEdges.find(e => e.targetId === 'x.md')?.label).toBe('label-a')
 
-            // Verify: x now points to c with x's label
-            expect(result.nodes['x.md'].outgoingEdges).toHaveLength(1)
-            expect(result.nodes['x.md'].outgoingEdges[0].targetId).toBe('c.md')
-            expect(result.nodes['x.md'].outgoingEdges[0].label).toBe('label-x')
+            // Verify: x now points to c (child of b) AND a (fellow incomer)
+            expect(result.nodes['x.md'].outgoingEdges.map(e => e.targetId).sort()).toEqual(['a.md', 'c.md'])
+            expect(result.nodes['x.md'].outgoingEdges.find(e => e.targetId === 'c.md')?.label).toBe('label-x')
+            expect(result.nodes['x.md'].outgoingEdges.find(e => e.targetId === 'a.md')?.label).toBe('label-x')
         })
     })
 
     describe('Combined: {a, x} -> b -> {c, d}', () => {
-        it('should connect all parents to all children', () => {
+        it('should connect all parents to all children AND to each other', () => {
             // Setup: a -> b, x -> b, b -> c, b -> d
+            // In bidirectional traversal, a and x can reach each other via b's incoming edges
             const graph: Graph = {
                 nodes: {
                     'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'from-a' }]),
@@ -142,14 +144,12 @@ describe('Edge Preservation on Node Deletion', () => {
             const delta: GraphDelta = createDeleteDelta('b.md', graph.nodes['b.md'])
             const result: Graph = applyGraphDeltaToGraph(graph, delta)
 
-            // Verify: a has edges to c and d (both with 'from-a' label)
-            expect(result.nodes['a.md'].outgoingEdges).toHaveLength(2)
-            expect(result.nodes['a.md'].outgoingEdges.map(e => e.targetId).sort()).toEqual(['c.md', 'd.md'])
+            // Verify: a has edges to c, d (children of b), AND x (fellow incomer)
+            expect(result.nodes['a.md'].outgoingEdges.map(e => e.targetId).sort()).toEqual(['c.md', 'd.md', 'x.md'])
             expect(result.nodes['a.md'].outgoingEdges.every(e => e.label === 'from-a')).toBe(true)
 
-            // Verify: x has edges to c and d (both with 'from-x' label)
-            expect(result.nodes['x.md'].outgoingEdges).toHaveLength(2)
-            expect(result.nodes['x.md'].outgoingEdges.map(e => e.targetId).sort()).toEqual(['c.md', 'd.md'])
+            // Verify: x has edges to c, d (children of b), AND a (fellow incomer)
+            expect(result.nodes['x.md'].outgoingEdges.map(e => e.targetId).sort()).toEqual(['a.md', 'c.md', 'd.md'])
             expect(result.nodes['x.md'].outgoingEdges.every(e => e.label === 'from-x')).toBe(true)
         })
     })

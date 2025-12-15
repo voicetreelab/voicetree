@@ -55,7 +55,9 @@ export async function createContextNodeFromQuestion(
 
     const questionContent: string = `# Question: "${truncateToFiveWords(question)}"
 
-The user has asked a question, your task is to answer it by reading all the relevant context provided.
+The user has asked the following question: ${question}
+
+Your task is to answer it by reading all the relevant context provided, and fetching more from the markdown directory or other project files if necessary.
 `
     const parsedQuestionNode: GraphNode = parseMarkdownToGraphNode(questionContent, questionNodeId, currentGraph)
     const questionNode: GraphNode = {

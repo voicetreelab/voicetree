@@ -439,9 +439,10 @@ function updateActivityDots(terminalId: TerminalId): void {
 }
 
 /**
- * Clear activity dots for a specific terminal (called when user clicks the tab)
+ * Clear activity dots for a specific terminal.
+ * Called when user clicks the tab OR when cycling to this terminal via hotkey.
  */
-function clearActivityForTerminal(terminalId: TerminalId): void {
+export function clearActivityForTerminal(terminalId: TerminalId): void {
     state.terminalActivityCount.set(terminalId, 0)
     updateActivityDots(terminalId)
 }

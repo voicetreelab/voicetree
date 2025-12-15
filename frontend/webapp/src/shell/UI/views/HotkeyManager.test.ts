@@ -180,4 +180,71 @@ describe('HotkeyManager', () => {
       document.body.removeChild(input);
     });
   });
+
+  describe('setupGraphHotkeys', () => {
+    it('should register Cmd+W hotkey and invoke closeSelectedWindow callback', () => {
+      const closeSelectedWindowHandler: Mock = vi.fn();
+
+      hotkeyManager.setupGraphHotkeys({
+        fitToLastNode: vi.fn(),
+        cycleTerminal: vi.fn(),
+        createNewNode: vi.fn(),
+        runTerminal: vi.fn(),
+        deleteSelectedNodes: vi.fn(),
+        navigateToRecentNode: vi.fn(),
+        closeSelectedWindow: closeSelectedWindowHandler
+      });
+
+      // Focus on a non-input element to ensure the hotkey is not blocked
+      const div: HTMLDivElement = document.createElement('div');
+      document.body.appendChild(div);
+      div.focus();
+
+      // Simulate Cmd+W key press
+      const event: KeyboardEvent = new KeyboardEvent('keydown', {
+        key: 'w',
+        metaKey: true,
+        bubbles: true,
+        composed: true
+      });
+      div.dispatchEvent(event);
+
+      // Handler should be called
+      expect(closeSelectedWindowHandler).toHaveBeenCalled();
+
+      document.body.removeChild(div);
+    });
+
+    it('should not invoke closeSelectedWindow when in input element (disabledInEditors)', () => {
+      const input: HTMLInputElement = document.createElement('input');
+      document.body.appendChild(input);
+      input.focus();
+
+      const closeSelectedWindowHandler: Mock = vi.fn();
+
+      hotkeyManager.setupGraphHotkeys({
+        fitToLastNode: vi.fn(),
+        cycleTerminal: vi.fn(),
+        createNewNode: vi.fn(),
+        runTerminal: vi.fn(),
+        deleteSelectedNodes: vi.fn(),
+        navigateToRecentNode: vi.fn(),
+        closeSelectedWindow: closeSelectedWindowHandler
+      });
+
+      // Simulate Cmd+W key press with input as target
+      const event: KeyboardEvent = new KeyboardEvent('keydown', {
+        key: 'w',
+        metaKey: true,
+        bubbles: true,
+        composed: true
+      });
+      input.dispatchEvent(event);
+
+      // Handler should NOT be called because disabledInEditors is true
+      expect(closeSelectedWindowHandler).not.toHaveBeenCalled();
+
+      document.body.removeChild(input);
+    });
+  });
 });

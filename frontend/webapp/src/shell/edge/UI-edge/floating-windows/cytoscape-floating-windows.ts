@@ -24,6 +24,7 @@ import {
 } from '@/shell/edge/UI-edge/floating-windows/types';
 import {removeTerminal} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {removeEditor} from "@/shell/edge/UI-edge/state/EditorStore";
+import {addRecentlyVisited} from "@/shell/edge/UI-edge/state/RecentlyVisitedStore";
 
 // =============================================================================
 // Cleanup Registry (WeakMap keyed by windowElement)
@@ -261,6 +262,7 @@ export function createWindowChrome(
             const parentNode: cytoscape.CollectionReturnValue = cy.getElementById(nodeIdToSelect);
             if (parentNode.length > 0) {
                 parentNode.select();
+                addRecentlyVisited(nodeIdToSelect);
             }
         }
     });

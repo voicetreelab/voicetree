@@ -17,6 +17,8 @@ import type { GraphDelta } from '@/pure/graph';
 interface NinjaAction {
   id: string;
   title: string;
+  section?: string;
+  hotkey?: string;
   description?: string;
   keywords?: string;
   handler?: () => void | { keepOpen: boolean };
@@ -80,10 +82,10 @@ export class SearchService {
     const recentlyVisited: string[] = getRecentlyVisited();
     const recentSet: Set<string> = new Set(recentlyVisited);
 
-    // Strip existing recency prefixes (e.g., "1. ", "2. ") before re-sorting
+    // Strip existing hotkeys before re-sorting (they'll be re-added based on new order)
     const strippedData: NinjaAction[] = currentData.map((action: NinjaAction) => {
-      const match: RegExpMatchArray | null = action.title.match(/^\d+\.\s+(.*)$/);
-      return match ? { ...action, title: match[1] } : action;
+      const { hotkey: _, ...rest } = action;
+      return rest;
     });
 
     // Sort by recency
@@ -99,13 +101,13 @@ export class SearchService {
       return 0;
     });
 
-    // Re-add recency prefixes
+    // Add sections and recency indicators
     const prefixed: NinjaAction[] = sorted.map((action: NinjaAction) => {
       const recentIndex: number = recentlyVisited.indexOf(action.id);
       if (recentIndex >= 0) {
-        return { ...action, title: `${recentIndex + 1}. ${action.title}` };
+        return { ...action, hotkey: `${recentIndex + 1}`, section: 'Recently Active' };
       }
-      return action;
+      return { ...action, section: 'All Nodes' };
     });
 
     this.ninjaKeys.data = prefixed;
@@ -169,13 +171,13 @@ export class SearchService {
       return 0;
     });
 
-    // Prefix recently visited nodes with their position (1, 2, 3, ...)
+    // Add sections and recency indicators
     const prefixedSearchData: NinjaAction[] = sortedSearchData.map((action: NinjaAction) => {
       const recentIndex: number = recentlyVisited.indexOf(action.id);
       if (recentIndex >= 0) {
-        return { ...action, title: `${recentIndex + 1}. ${action.title}` };
+        return { ...action, hotkey: `${recentIndex + 1}`, section: 'Recently Active' };
       }
-      return action;
+      return { ...action, section: 'All Nodes' };
     });
 
     this.ninjaKeys.data = prefixedSearchData;

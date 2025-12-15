@@ -149,4 +149,11 @@
 /* for its .modal element. CSS custom properties pierce Shadow DOM, unlike z-index directly */
 ninja-keys {
   --ninja-z-index: 10000;
+  /* Section headers: subtle, less emphasized than action titles */
+  --ninja-group-text-color: #888;
+  --ninja-font-size: 14px;
+}
+
+ninja-keys.dark {
+  --ninja-group-text-color: #666;
 }

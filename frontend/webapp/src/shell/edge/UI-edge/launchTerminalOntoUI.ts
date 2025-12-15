@@ -6,6 +6,19 @@ import {addTerminal} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {cyFitWithRelativeZoom} from "@/utils/responsivePadding";
 
 /**
+ * Zoom to terminal neighborhood (context node + d=1 neighbors + terminal shadow node)
+ */
+function zoomToTerminalNeighborhood(cy: Core, contextNodeId: string, terminalId: TerminalId): void {
+    const shadowNodeId: string = getShadowNodeId(terminalId);
+    const terminalShadowNode: CollectionReturnValue = cy.getElementById(shadowNodeId);
+    const contextNode: CollectionReturnValue = cy.getElementById(contextNodeId);
+    const nodesToFit: CollectionReturnValue = contextNode.length > 0
+        ? contextNode.closedNeighborhood().nodes().union(terminalShadowNode)
+        : cy.collection().union(terminalShadowNode);
+    cyFitWithRelativeZoom(cy, nodesToFit, 0.9);
+}
+
+/**
  * Launch a terminal onto the UI, anchored to a context node
  * Called from main process after terminal data is prepared
  */
@@ -15,9 +28,8 @@ export async function launchTerminalOntoUI(
 ): Promise<void> {
     console.log("BEFORE LAUNCH UI")
     const cy: Core = getCyInstance();
-    const targetNode: CollectionReturnValue = cy.getElementById(contextNodeId);
 
-    // Get node position, with fallback if node not yet in Cytoscape
+    const targetNode: CollectionReturnValue = cy.getElementById(contextNodeId);
     const nodePos: CyPosition = targetNode.length > 0
         ? targetNode.position()
         : {x: 100, y: 100};
@@ -35,14 +47,10 @@ export async function launchTerminalOntoUI(
     if (terminalWithUI) {
         addTerminal(terminalWithUI);
 
-        // Zoom to terminal's neighborhood (context node + d=1 neighbors)
-        const shadowNodeId: string = getShadowNodeId(terminalId);
-        const terminalShadowNode: CollectionReturnValue = cy.getElementById(shadowNodeId);
-        const contextNode: CollectionReturnValue = cy.getElementById(contextNodeId);
-        const nodesToFit: CollectionReturnValue = contextNode.length > 0
-            ? contextNode.closedNeighborhood().nodes().union(terminalShadowNode)
-            : cy.collection().union(terminalShadowNode);
-        cyFitWithRelativeZoom(cy, nodesToFit, 0.9);
+        // Zoom to terminal neighborhood twice with delays to handle IPC race condition
+        // (context node may not exist in Cytoscape yet when this runs)
+        setTimeout(() => zoomToTerminalNeighborhood(cy, contextNodeId, terminalId), 600);
+        setTimeout(() => zoomToTerminalNeighborhood(cy, contextNodeId, terminalId), 1100);
 
         console.log('[uiAPI] Terminal launched:', terminalId);
     } else {

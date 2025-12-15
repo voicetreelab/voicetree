@@ -11,22 +11,22 @@ import type {} from '@/utils/types/cytoscape-layout-utilities';
 import {cyFitCollectionByAverageNodeSize} from "@/utils/responsivePadding";
 
 const MAX_EDGES: number = 150;
-const FEEDBACK_NODE_THRESHOLD: number = 20;
+const FEEDBACK_DELTA_THRESHOLD: number = 20;
 
 // Session-level state for tracking total nodes created
-let sessionNodeCount: number = 0;
+let sessionDeltaCount: number = 0;
 let feedbackAlertShown: boolean = false;
 
 /**
  * Show feedback request alert after user creates enough nodes in a session.
  * Only shows once per session.
  */
-function maybeShowFeedbackAlert(newNodesInDelta: number): void {
+function maybeShowFeedbackAlert(): void {
     if (feedbackAlertShown) return;
 
-    sessionNodeCount += newNodesInDelta;
+    sessionDeltaCount ++;
 
-    if (sessionNodeCount >= FEEDBACK_NODE_THRESHOLD) {
+    if (sessionDeltaCount >= FEEDBACK_DELTA_THRESHOLD) {
         feedbackAlertShown = true;
         alert(
             "Hey I'm Manu who built this, glad to see you are using this! " +
@@ -217,13 +217,13 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
         layoutUtils.placeNewNodes(nodesCollection);
     }
 
-    if (newNodeCount>=1 && cy.nodes().length <= 4){
+    if (newNodeCount >= 1 && cy.nodes().length <= 4) {
         // Fit so average node takes 10% of viewport for comfortable initial view
         setTimeout(() => { if (!cy.destroyed()) cyFitCollectionByAverageNodeSize(cy, cy.nodes(), 0.1); }, 150);
     }
-    else if (newNodeCount >= 2) { // if not just one node + incoming changing, probs a bulk load.
-        // Fit so average node takes 10% of viewport for comfortable bulk load view
-        setTimeout(() => { if (!cy.destroyed()) cyFitCollectionByAverageNodeSize(cy, cy.nodes(), 0.1); }, 150);
+    else if (newNodeCount > 5) {
+        // Bulk load: just fit all nodes in view
+        setTimeout(() => { if (!cy.destroyed()) cy.fit(); }, 150);
     }
     //analytics
     const anonGraphDelta: GraphDelta = stripDeltaForReplay(delta);
@@ -233,7 +233,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
     console.log('[applyGraphDeltaToUI] Complete. Total nodes:', cy.nodes().length, 'Total edges:', cy.edges().length);
 
     // Show feedback request after enough nodes created in session
-    if (newNodeCount > 0) {
-        maybeShowFeedbackAlert(newNodeCount);
+    if (newNodeCount){
+        maybeShowFeedbackAlert();
     }
 }
