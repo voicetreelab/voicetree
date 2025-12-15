@@ -33,8 +33,6 @@ export default function useVoiceTreeClient({
   startTranscription: () => Promise<void>;
   stopTranscription: () => void;
   state: RecorderState;
-  finalTokens: Token[];
-  nonFinalTokens: Token[];
   error: TranscriptionError | null;
 } {
   const sonioxClient: RefObject<SonioxClient | null> = useRef<SonioxClient | null>(null);
@@ -44,8 +42,6 @@ export default function useVoiceTreeClient({
   });
 
   const [state, setState] = useState<RecorderState>("Init");
-  const [finalTokens, setFinalTokens] = useState<Token[]>([]);
-  const [nonFinalTokens, setNonFinalTokens] = useState<Token[]>([]);
   const [error, setError] = useState<TranscriptionError | null>(null);
 
   const startTranscription: () => Promise<void> = useCallback(async () => {
@@ -53,8 +49,6 @@ export default function useVoiceTreeClient({
     sonioxClient.current?.cancel();
     sonioxClient.current = new SonioxClient({ apiKey });
 
-    setFinalTokens([]);
-    setNonFinalTokens([]);
     setError(null);
 
     // First message we send contains configuration. Here we set if we set if we
@@ -87,28 +81,9 @@ export default function useVoiceTreeClient({
         setState(newState);
       },
 
-      // When we receive some tokens back, sort them based on their status --
-      // is it final or non-final token.
+      // Forward raw SDK result to external handler (e.g., TranscriptionStore)
       onPartialResult(result) {
-        // Forward raw SDK result to external handler (e.g., TranscriptionStore)
         onPartialResultCallback?.(result);
-
-        const newFinalTokens: Token[] = [];
-        const newNonFinalTokens: Token[] = [];
-
-        for (const token of result.tokens) {
-          if (token.is_final) {
-            newFinalTokens.push(token);
-          } else {
-            newNonFinalTokens.push(token);
-          }
-        }
-
-        setFinalTokens((previousTokens) => [
-          ...previousTokens,
-          ...newFinalTokens,
-        ]);
-        setNonFinalTokens(newNonFinalTokens);
       },
     });
   }, [apiKey, onFinished, onPartialResultCallback, onStarted, translationConfig]);
@@ -127,8 +102,6 @@ export default function useVoiceTreeClient({
     startTranscription,
     stopTranscription,
     state,
-    finalTokens,
-    nonFinalTokens,
     error,
   };
 }

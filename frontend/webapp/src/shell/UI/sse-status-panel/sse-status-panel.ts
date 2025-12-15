@@ -203,6 +203,7 @@ export class SseStatusPanel {
             workflow_complete: '✓✓',
             workflow_failed: '✗✗',
             connection_error: '⚡',
+            connection_loading: '◌',
             connection_open: '○'
         };
         return icons[type] || '○';
@@ -228,6 +229,8 @@ export class SseStatusPanel {
                 return `Done (${event.data.total_nodes} nodes)`;
             case 'connection_open':
                 return `Connected :${event.data.port}`;
+            case 'connection_loading':
+                return 'Loading server...';
             case 'connection_error':
                 return 'Disconnected';
             case 'workflow_failed': {

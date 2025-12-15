@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, type RefObject } from 'react';
+import { useState, useRef, useCallback, useEffect, type RefObject } from 'react';
 import { type Token } from '@soniox/speech-to-text-web';
 import {
   getFocusedFloatingWindow,
@@ -8,13 +8,13 @@ import {
   hasActiveTranscriptionPreview,
   dismissTranscriptionPreview
 } from "@/shell/edge/UI-edge/floating-windows/speech-to-focused";
+import { subscribe as subscribeToStore, getFinalTokens } from "@/shell/edge/UI-edge/state/TranscriptionStore";
 
 interface UseTranscriptionSenderOptions {
   endpoint: string;
 }
 
 interface UseTranscriptionSenderReturn {
-  sendIncrementalTokens: (tokens: Token[]) => Promise<void>;
   sendManualText: (text: string) => Promise<void>;
   bufferLength: number;
   isProcessing: boolean;
@@ -227,8 +227,18 @@ export function useTranscriptionSender({
     }
   }, []);
 
+  // Subscribe to TranscriptionStore and auto-send new final tokens
+  useEffect(() => {
+    const unsubscribe: () => void = subscribeToStore(() => {
+      const finalTokens: Token[] = getFinalTokens();
+      if (finalTokens.length > sentTokensCount.current) {
+        void sendIncrementalTokens(finalTokens);
+      }
+    });
+    return unsubscribe;
+  }, [sendIncrementalTokens]);
+
   return {
-    sendIncrementalTokens,
     sendManualText,
     bufferLength,
     isProcessing,

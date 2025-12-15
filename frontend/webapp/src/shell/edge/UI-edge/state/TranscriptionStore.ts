@@ -61,6 +61,13 @@ export function getFinalTokenCount(): number {
 }
 
 /**
+ * Get final tokens array (for sending to backend).
+ */
+export function getFinalTokens(): Token[] {
+    return finalTokens;
+}
+
+/**
  * Reset all tokens (on new transcription session).
  */
 export function reset(): void {
