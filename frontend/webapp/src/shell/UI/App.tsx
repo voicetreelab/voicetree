@@ -135,13 +135,14 @@ function App(): JSX.Element {
                 </div>
             </div>
 
-            {/* Bottom bar: Folder selector | Activity Log (narrow) | Transcription Panel */}
-            <div className="flex-shrink-0 flex items-center gap-3 px-2 py-1 mr-[min(calc(10vw+30px),180px)] relative z-[1050] bg-background rounded-xl">
-                <FileWatchingPanel/>
-                {/* Activity log - width for ~4 items, expands on hover via CSS */}
-                <div id="sse-status-panel-mount" className="w-[min(18vw,300px)] shrink-0 overflow-visible" />
-                {/* Transcription panel - takes remaining space */}
-                <div className="flex-1 min-w-0">
+            {/* Bottom bar: Folder selector (left) | Transcription Panel (centered, includes SSE activity panel) */}
+            <div className="flex-shrink-0 relative z-[1050] py-1">
+                {/* File watching panel - anchored bottom left, vertically centered */}
+                <div className="absolute left-2 top-1/2 -translate-y-1/2">
+                    <FileWatchingPanel/>
+                </div>
+                {/* Transcription panel - centered, with right margin for minimap */}
+                <div className="flex justify-center mr-[min(calc(10vw+30px),180px)]">
                     <VoiceTreeTranscribe/>
                 </div>
             </div>

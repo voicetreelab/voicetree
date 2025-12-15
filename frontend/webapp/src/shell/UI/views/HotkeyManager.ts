@@ -274,6 +274,19 @@ export class HotkeyManager {
       const hotkeyKey: string = this.getHotkeyKeyFromEvent(e);
       const hotkey: RegisteredHotkey | undefined = this.hotkeys.get(hotkeyKey);
 
+      // DEBUG: Log hotkey attempts for Meta+W
+      if (e.metaKey && e.key.toLowerCase() === 'w') {
+        const isInput: boolean = this.isInputElement(e.target as HTMLElement, e);
+        console.log(`[HotkeyManager] Cmd+W pressed:`, {
+          hotkeyKey,
+          hotkeyFound: !!hotkey,
+          disabledInEditors: hotkey?.config.disabledInEditors,
+          isInputElement: isInput,
+          target: (e.target as HTMLElement)?.tagName,
+          targetClasses: (e.target as HTMLElement)?.className
+        });
+      }
+
       // Ignore hotkeys when typing in input elements
       // Only intercept if we have a registered hotkey that's allowed in editors
       // This allows standard edit commands (Cmd+A, Cmd+C, Cmd+V, Cmd+Z, etc.) to pass through

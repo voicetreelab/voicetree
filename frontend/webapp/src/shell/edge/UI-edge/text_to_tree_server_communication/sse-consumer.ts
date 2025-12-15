@@ -1,4 +1,4 @@
-import type { SSEEvent } from '../../../UI/sse-status-panel/sse-status-panel';
+import type { SSEEvent } from '@/shell/UI/sse-status-panel/sse-status-panel';
 
 const SSE_EVENT_TYPES: readonly string[] = [
     'phase_started', 'phase_complete',
@@ -13,6 +13,7 @@ const SSE_EVENT_TYPES: readonly string[] = [
 export function createSSEConnection(backendPort: number, onEvent: (event: SSEEvent) => void): () => void {
     const url: string = `http://localhost:${backendPort}/stream-progress`;
     const eventSource: EventSource = new EventSource(url);
+    let hasConnectedOnce: boolean = false;
 
     SSE_EVENT_TYPES.forEach(type => {
         eventSource.addEventListener(type, (e: MessageEvent) => {
@@ -23,14 +24,17 @@ export function createSSEConnection(backendPort: number, onEvent: (event: SSEEve
     });
 
     eventSource.onerror = () => {
+        // Distinguish between initial loading (never connected) and actual disconnection
+        const eventType: string = hasConnectedOnce ? 'connection_error' : 'connection_loading';
         onEvent({
-            type: 'connection_error',
-            data: { message: 'SSE connection lost' },
+            type: eventType,
+            data: { message: hasConnectedOnce ? 'SSE connection lost' : 'Connecting to server' },
             timestamp: Date.now()
         });
     };
 
     eventSource.onopen = () => {
+        hasConnectedOnce = true;
         onEvent({
             type: 'connection_open',
             data: { message: 'Connected to backend', port: backendPort },

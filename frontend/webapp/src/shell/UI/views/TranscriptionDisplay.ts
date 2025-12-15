@@ -82,10 +82,12 @@ export class TranscriptionDisplay {
         this.container.appendChild(contentDiv);
 
         // Auto-scroll if new tokens arrived
+        // Using 'instant' instead of 'smooth' because smooth scroll can fail
+        // when the panel isn't focused/actively painted (browser throttles animations)
         if (count > this.prevTokenCount) {
             this.container.scrollTo({
                 top: this.container.scrollHeight,
-                behavior: 'smooth'
+                behavior: 'instant'
             });
             this.prevTokenCount = count;
         }

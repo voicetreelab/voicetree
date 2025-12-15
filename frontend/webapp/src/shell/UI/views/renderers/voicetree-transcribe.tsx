@@ -40,7 +40,6 @@ export default function VoiceTreeTranscribe(): JSX.Element {
 
   const {
     state,
-    finalTokens,
     startTranscription,
     stopTranscription,
     error,
@@ -58,9 +57,8 @@ export default function VoiceTreeTranscribe(): JSX.Element {
     }).catch(() => alert("port error"));
   }, []);
 
-  // Use the new transcription sender hook
+  // Use the transcription sender hook (auto-subscribes to TranscriptionStore)
   const {
-    sendIncrementalTokens,
     sendManualText,
     bufferLength: _bufferLength,
     isProcessing,
@@ -69,9 +67,6 @@ export default function VoiceTreeTranscribe(): JSX.Element {
   } = useTranscriptionSender({
     endpoint: backendPort ? `http://localhost:${backendPort}/send-text` : "http://localhost:8001/send-text",
   });
-
-  // Track last sent count to avoid duplicate sends
-  const lastSentCountRef: RefObject<number> = useRef(0);
 
   // Mount vanilla TranscriptionDisplay
   useEffect(() => {
@@ -88,7 +83,6 @@ export default function VoiceTreeTranscribe(): JSX.Element {
   const handleStartTranscription: () => Promise<void> = async () => {
     resetTranscriptionStore();
     resetSender();
-    lastSentCountRef.current = 0;
     await startTranscription();
   };
 
@@ -106,15 +100,6 @@ export default function VoiceTreeTranscribe(): JSX.Element {
       console.error('Soniox Error:', error);
     }
   }, [error]);
-
-  // Send incremental FINAL tokens to server (only new ones)
-  // sendIncrementalTokens is non-blocking - it updates preview chip live
-  useEffect(() => {
-    if (finalTokens.length > 0 && finalTokens.length > lastSentCountRef.current) {
-      void sendIncrementalTokens(finalTokens);
-      lastSentCountRef.current = finalTokens.length;
-    }
-  }, [finalTokens, sendIncrementalTokens]);
 
   // Handle Ask mode submission
   const handleAskSubmit: (question: string) => Promise<void> = async (question: string) => {
@@ -245,7 +230,10 @@ export default function VoiceTreeTranscribe(): JSX.Element {
 
           {/* Offset left by half minimap width to center controls relative to full viewport */}
           <div className="flex items-center justify-center gap-3 py-2 mr-[min(calc(3vw+10px),80px)]">
-            {/* Status Section */}
+            {/* SSE Activity Panel - shows server events for transcription processing */}
+            <div id="sse-status-panel-mount" className="w-[min(18vw,300px)] shrink-0 overflow-visible" />
+
+            {/* Status Section - just left of mic button */}
             <div className="flex items-center gap-2 text-xs">
               <StatusDisplay state={state} />
               {isProcessing && (
@@ -260,7 +248,6 @@ export default function VoiceTreeTranscribe(): JSX.Element {
                 <span className="text-destructive text-xs">Server Offline</span>
               )}
             </div>
-
 
             {/* Mic Button */}
             <button
