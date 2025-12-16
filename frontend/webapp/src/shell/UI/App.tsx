@@ -141,8 +141,8 @@ function App(): JSX.Element {
                 <div className="absolute left-2 top-1/2 -translate-y-1/2">
                     <FileWatchingPanel/>
                 </div>
-                {/* Transcription panel - centered, with right margin for minimap */}
-                <div className="flex justify-center mr-[min(calc(10vw+30px),180px)]">
+                {/* Transcription panel - centered, with right margin? for minimap */}
+                <div className="flex justify-center">
                     <VoiceTreeTranscribe/>
                 </div>
             </div>

@@ -157,3 +157,5 @@ tools/state/*
 cloud_functions/agentic_workflows/debug_logs/**/*
 backend/text_to_graph_pipeline/debug_logs/**/*
 **/debug_logs/**/*
+
+**/*.md

@@ -29,8 +29,10 @@ fixPath();
 app.setName('VoiceTree');
 
 // Fresh start mode: use temporary userData to mimic first-time user experience
-// Default in dev mode, opt-out with VOICETREE_PERSIST_STATE=1
-if (process.env.VOICETREE_PERSIST_STATE !== '1' && process.env.NODE_ENV !== 'test') {
+// Only in development/test mode, opt-out with VOICETREE_PERSIST_STATE=1
+// Production builds persist settings to real userData
+const isDev: boolean = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
+if (process.env.VOICETREE_PERSIST_STATE !== '1' && isDev) {
     const tempDir: string = path.join(os.tmpdir(), `voicetree-fresh-${Date.now()}`);
     app.setPath('userData', tempDir);
     console.log(`[Fresh Start] Using temporary userData: ${tempDir}`);
