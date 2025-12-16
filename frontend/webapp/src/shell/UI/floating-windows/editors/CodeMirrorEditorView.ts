@@ -380,6 +380,18 @@ export class CodeMirrorEditorView extends Disposable {
   }
 
   /**
+   * Set cursor to the end of the document and focus
+   * Used when opening editor for newly created nodes
+   */
+  focusAtEnd(): void {
+    const docLength: number = this.view.state.doc.length;
+    this.view.dispatch({
+      selection: { anchor: docLength }
+    });
+    this.view.focus();
+  }
+
+  /**
    * Register a callback for content changes
    * @param callback - Function called with new content when editor changes
    * @returns Unsubscribe function to remove the listener

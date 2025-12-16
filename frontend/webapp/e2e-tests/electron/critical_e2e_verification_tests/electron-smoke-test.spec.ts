@@ -49,7 +49,8 @@ const test = base.extend<{
         ...process.env,
         NODE_ENV: 'test',
         HEADLESS_TEST: '1',
-        MINIMIZE_TEST: '1'
+        MINIMIZE_TEST: '1',
+        VOICETREE_PERSIST_STATE: '1'
       },
       timeout: 8000 // 10 second timeout
     });

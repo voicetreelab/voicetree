@@ -64,7 +64,8 @@ const test = base.extend<{
         ...process.env,
         NODE_ENV: 'test',
         HEADLESS_TEST: '1',
-        MINIMIZE_TEST: '1' // Minimize window to avoid dialog popups
+        MINIMIZE_TEST: '1', // Minimize window to avoid dialog popups
+        VOICETREE_PERSIST_STATE: '1' // Use test's userData path instead of creating new temp directory
       }
     });
 

@@ -40,7 +40,7 @@ export const createNewNodeAction: (cy: Core) => () => void = (
     void (async () => {
       const {createNewChildNodeFromUI} = await import('@/shell/edge/UI-edge/graph/handleUIActions');
       const childId: string = await createNewChildNodeFromUI(parentNodeId, cy);
-      await createAnchoredFloatingEditor(cy, childId);
+      await createAnchoredFloatingEditor(cy, childId, true); // focusAtEnd for new node
     })();
   } else {
     // Create orphan node at center of viewport
@@ -51,7 +51,7 @@ export const createNewNodeAction: (cy: Core) => () => void = (
       const centerX: number = (cy.width() / 2 - pan.x) / zoom;
       const centerY: number = (cy.height() / 2 - pan.y) / zoom;
       const nodeId: string = await createNewEmptyOrphanNodeFromUI({x: centerX, y: centerY}, cy);
-      await createAnchoredFloatingEditor(cy, nodeId);
+      await createAnchoredFloatingEditor(cy, nodeId, true); // focusAtEnd for new node
     })();
   }
 };

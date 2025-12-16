@@ -63,19 +63,6 @@ function showFeedbackDialog(): Promise<string | null> {
                 ></textarea>
                 <div style="display: flex; gap: 8px; justify-content: flex-end;">
                     <button
-                        type="button"
-                        id="feedback-cancel"
-                        style="
-                            padding: 8px 16px;
-                            border: 1px solid var(--border);
-                            border-radius: calc(var(--radius) - 2px);
-                            background: transparent;
-                            color: var(--foreground);
-                            cursor: pointer;
-                            font-size: 0.9rem;
-                        "
-                    >Cancel</button>
-                    <button
                         type="submit"
                         id="feedback-submit"
                         disabled
@@ -97,7 +84,6 @@ function showFeedbackDialog(): Promise<string | null> {
         document.body.appendChild(dialog);
 
         const textarea: HTMLTextAreaElement = dialog.querySelector('#feedback-input')!;
-        const cancelBtn: HTMLButtonElement = dialog.querySelector('#feedback-cancel')!;
         const submitBtn: HTMLButtonElement = dialog.querySelector('#feedback-submit')!;
 
         // Enable submit button only when there's content
@@ -106,11 +92,6 @@ function showFeedbackDialog(): Promise<string | null> {
             submitBtn.disabled = !hasContent;
             submitBtn.style.opacity = hasContent ? '1' : '0.5';
             submitBtn.style.cursor = hasContent ? 'pointer' : 'not-allowed';
-        });
-
-        cancelBtn.addEventListener('click', () => {
-            dialog.close();
-            resolve(null);
         });
 
         dialog.addEventListener('close', () => {
@@ -124,12 +105,9 @@ function showFeedbackDialog(): Promise<string | null> {
             resolve(feedback || null);
         });
 
-        // Close on backdrop click
-        dialog.addEventListener('click', (e: MouseEvent) => {
-            if (e.target === dialog) {
-                dialog.close();
-                resolve(null);
-            }
+        // Prevent Escape key from closing dialog - user must submit or cancel
+        dialog.addEventListener('cancel', (e: Event) => {
+            e.preventDefault();
         });
 
         dialog.showModal();
