@@ -107,6 +107,7 @@ autoUpdater.on('update-downloaded', (info) => {
                 // Remove window-all-closed listeners to prevent them blocking the quit
                 // See: https://github.com/electron-userland/electron-builder/issues/1604
                 setImmediate(() => {
+                    isQuitting = true; // Prevent macOS hide-on-close from blocking the quit
                     app.removeAllListeners('window-all-closed');
                     mainWindow.close();
                     autoUpdater.quitAndInstall(false, true); // (isSilent=false, isForceRunAfter=true)

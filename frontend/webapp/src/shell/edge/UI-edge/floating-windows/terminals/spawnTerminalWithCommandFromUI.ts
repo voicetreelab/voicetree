@@ -7,7 +7,9 @@
  * - No stored callbacks - use disposeFloatingWindow()
  */
 
-import type { NodeIdAndFilePath, Position } from "@/pure/graph";
+import type { NodeIdAndFilePath, Position, GraphNode, GraphDelta } from "@/pure/graph";
+import { createDeleteNodesAction } from "@/pure/graph/graphDelta/uiInteractionsToGraphDeltas";
+import { getNodeFromMainToUI } from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
 import type { Core, CollectionReturnValue, NodeCollection } from "cytoscape";
 import * as O from 'fp-ts/lib/Option.js';
 // Import for global Window.electronAPI type augmentation
@@ -167,7 +169,7 @@ export function createFloatingTerminalWindow(
 /**
  * Close a terminal and clean up all resources
  */
-export function closeTerminal(terminal: TerminalData, cy: Core): void {
+export async function closeTerminal(terminal: TerminalData, cy: Core): Promise<void> {
     const terminalId: TerminalId = getTerminalId(terminal);
     console.log('[closeTerminal-v2] Closing terminal:', terminalId);
 
@@ -184,4 +186,40 @@ export function closeTerminal(terminal: TerminalData, cy: Core): void {
     // Use disposeFloatingWindow from cytoscape-floating-windows.ts
     // This removes shadow node, DOM elements, and from state
     disposeFloatingWindow(cy, terminal);
+
+    // Delete the context node if this was the last terminal attached to it
+    await deleteContextNodeIfExists(terminal.attachedToNodeId);
+}
+
+/**
+ * Delete the context node if:
+ * 1. It exists in the graph
+ * 2. It has isContextNode: true
+ * 3. No other terminals are still attached to it
+ */
+async function deleteContextNodeIfExists(nodeId: NodeIdAndFilePath): Promise<void> {
+    try {
+        const node: GraphNode | undefined = await getNodeFromMainToUI(nodeId);
+        if (!node) return;
+
+        // Only delete if it's a context node
+        if (!node.nodeUIMetadata.isContextNode) return;
+
+        // Check if other terminals are still attached (current terminal already removed from store)
+        const terminals: Map<TerminalId, TerminalData> = getTerminals();
+        const remainingTerminals: TerminalData[] = Array.from(terminals.values())
+            .filter((t: TerminalData) => t.attachedToNodeId === nodeId);
+
+        if (remainingTerminals.length > 0) {
+            console.log('[closeTerminal] Other terminals still attached, not deleting context node:', nodeId);
+            return;
+        }
+
+        // Create and apply delete delta
+        const graphDelta: GraphDelta = createDeleteNodesAction([{ nodeId, deletedNode: node }]);
+        await window.electronAPI?.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed(graphDelta);
+        console.log('[closeTerminal] Deleted context node:', nodeId);
+    } catch (error) {
+        console.error('[closeTerminal] Failed to delete context node:', error);
+    }
 }

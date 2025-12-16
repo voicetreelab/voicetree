@@ -1,4 +1,4 @@
-import type {Graph} from "@/pure/graph";
+import type {Graph, GraphNode} from "@/pure/graph";
 
 // The ONLY mutable state in the functional architecture for graph data
 // Initialized to empty - will be populated when file watching starts
@@ -11,4 +11,8 @@ export const getGraph: () => Graph = (): Graph => {
 
 export const setGraph: (graph: Graph) => void = (graph: Graph): void => {
     currentGraph = graph;
+};
+
+export const getNode: (nodeId: string) => GraphNode | undefined = (nodeId: string): GraphNode | undefined => {
+    return currentGraph.nodes[nodeId];
 };

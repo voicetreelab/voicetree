@@ -1,5 +1,6 @@
 import type { Graph, NodeIdAndFilePath } from '@/pure/graph'
-import { removeNodeMaintainingTransitiveEdges } from './removeNodeMaintainingTransitiveEdges'
+import { applyGraphDeltaToGraph } from '@/pure/graph/graphDelta/applyGraphDeltaToGraph'
+import { deleteNodeMaintainingTransitiveEdges } from './removeNodeMaintainingTransitiveEdges'
 
 /**
  * Removes all context nodes from a graph, preserving transitive connectivity.
@@ -23,7 +24,7 @@ export function removeContextNodes(graph: Graph): Graph {
         .filter(id => graph.nodes[id].nodeUIMetadata.isContextNode === true)
 
     return contextNodeIds.reduce(
-        (g, id) => removeNodeMaintainingTransitiveEdges(g, id),
+        (g, id) => applyGraphDeltaToGraph(g, deleteNodeMaintainingTransitiveEdges(g, id)),
         graph
     )
 }

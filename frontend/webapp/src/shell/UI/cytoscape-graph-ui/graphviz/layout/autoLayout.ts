@@ -42,7 +42,20 @@ const DEFAULT_OPTIONS: AutoLayoutOptions = {
   unconstrIter: 10, // TODO SOMETHINIG ABOUT THIS IS VERY IMPORTANT LAYOUT BREAK WITHOUT
   userConstIter: 10,
   allConstIter: 20,
-  edgeLength: 200,
+  edgeLength: (edge: EdgeSingular) => {
+    const source = edge.source();
+    const target = edge.target();
+
+    // Short edge length (30px) for terminal shadow nodes connected to context nodes
+    const isTerminalShadow = target.data('isShadowNode') === true &&
+                             target.data('windowType') === 'Terminal';
+    const sourceIsContextNode = source.data('isContextNode') === true;
+
+    if (isTerminalShadow && sourceIsContextNode) {
+      return 30;
+    }
+    return 200;
+  },
   // edgeSymDiffLength: undefined,
   // edgeJaccardLength: undefined
 };

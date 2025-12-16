@@ -9,135 +9,9 @@ import posthog from "posthog-js";
 import {markTerminalActivityForContextNode} from "@/shell/UI/views/AgentTabsBar";
 import type {} from '@/utils/types/cytoscape-layout-utilities';
 import {cyFitCollectionByAverageNodeSize} from "@/utils/responsivePadding";
+import {checkEngagementPrompts} from "./userEngagementPrompts";
 
 const MAX_EDGES: number = 150;
-const FEEDBACK_DELTA_THRESHOLD: number = 40;
-
-// Session-level state for tracking total nodes created
-let sessionDeltaCount: number = 0;
-let feedbackAlertShown: boolean = false;
-
-/**
- * Creates and shows an HTML dialog for collecting user feedback.
- * Returns a promise that resolves with the feedback text or null if cancelled.
- */
-function showFeedbackDialog(): Promise<string | null> {
-    return new Promise((resolve) => {
-        const dialog: HTMLDialogElement = document.createElement('dialog');
-        dialog.id = 'feedback-dialog';
-        dialog.style.cssText = `
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            background: var(--background);
-            color: var(--foreground);
-            padding: 24px;
-            max-width: 420px;
-            width: 90%;
-            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
-        `;
-
-        dialog.innerHTML = `
-            <form method="dialog" style="display: flex; flex-direction: column; gap: 16px;">
-                <h2 style="margin: 0; font-size: 1.1rem; font-weight: 600;">
-                    Hey I'm Manu who built this, glad to see you are using this!
-                </h2>
-                <p style="margin: 0; color: var(--muted-foreground); font-size: 0.9rem;">
-                    It would mean a lot to me if you share any feedback. Hope VoiceTree is useful for you!
-                </p>
-                <textarea
-                    id="feedback-input"
-                    rows="4"
-                    placeholder="Type your feedback here..."
-                    style="
-                        width: 100%;
-                        padding: 10px 12px;
-                        border: 1px solid var(--border);
-                        border-radius: calc(var(--radius) - 2px);
-                        background: var(--input);
-                        color: var(--foreground);
-                        font-family: inherit;
-                        font-size: 0.9rem;
-                        resize: vertical;
-                        box-sizing: border-box;
-                    "
-                ></textarea>
-                <div style="display: flex; gap: 8px; justify-content: flex-end;">
-                    <button
-                        type="submit"
-                        id="feedback-submit"
-                        disabled
-                        style="
-                            padding: 8px 16px;
-                            border: none;
-                            border-radius: calc(var(--radius) - 2px);
-                            background: var(--primary);
-                            color: var(--primary-foreground);
-                            cursor: not-allowed;
-                            font-size: 0.9rem;
-                            opacity: 0.5;
-                        "
-                    >Send Feedback</button>
-                </div>
-            </form>
-        `;
-
-        document.body.appendChild(dialog);
-
-        const textarea: HTMLTextAreaElement = dialog.querySelector('#feedback-input')!;
-        const submitBtn: HTMLButtonElement = dialog.querySelector('#feedback-submit')!;
-
-        // Enable submit button only when there's content
-        textarea.addEventListener('input', () => {
-            const hasContent: boolean = textarea.value.trim().length > 0;
-            submitBtn.disabled = !hasContent;
-            submitBtn.style.opacity = hasContent ? '1' : '0.5';
-            submitBtn.style.cursor = hasContent ? 'pointer' : 'not-allowed';
-        });
-
-        dialog.addEventListener('close', () => {
-            dialog.remove();
-        });
-
-        dialog.addEventListener('submit', (e: Event) => {
-            e.preventDefault();
-            const feedback: string = textarea.value.trim();
-            dialog.close();
-            resolve(feedback || null);
-        });
-
-        // Prevent Escape key from closing dialog - user must submit or cancel
-        dialog.addEventListener('cancel', (e: Event) => {
-            e.preventDefault();
-        });
-
-        dialog.showModal();
-        textarea.focus();
-    });
-}
-
-/**
- * Show feedback request dialog after user creates enough nodes in a session.
- * Collects user feedback and automatically sends it to PostHog.
- * Only shows once per session.
- */
-function maybeShowFeedbackAlert(): void {
-    if (feedbackAlertShown) return;
-
-    sessionDeltaCount++;
-
-    if (sessionDeltaCount >= FEEDBACK_DELTA_THRESHOLD) {
-        feedbackAlertShown = true;
-        void showFeedbackDialog().then((feedback: string | null) => {
-            if (feedback) {
-                posthog.capture('userFeedback', {
-                    feedback,
-                    source: 'in-app-dialog',
-                    sessionDeltaCount
-                });
-            }
-        });
-    }
-}
 
 /**
  * Validates if a color value is a valid CSS color using the browser's CSS.supports API
@@ -335,8 +209,8 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
     console.log("UUID", userId);
     console.log('[applyGraphDeltaToUI] Complete. Total nodes:', cy.nodes().length, 'Total edges:', cy.edges().length);
 
-    // Show feedback request after enough deltas created in session
+    // Show engagement prompts after enough deltas created in session
     if (newNodeCount){
-        maybeShowFeedbackAlert();
+        checkEngagementPrompts();
     }
 }

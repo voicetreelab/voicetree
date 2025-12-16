@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
-import type { Graph, GraphNode, NodeIdAndFilePath } from '@/pure/graph'
-import { removeNodeMaintainingTransitiveEdges } from './removeNodeMaintainingTransitiveEdges'
+import type { Graph, GraphNode, NodeIdAndFilePath, GraphDelta } from '@/pure/graph'
+import { deleteNodeMaintainingTransitiveEdges } from './removeNodeMaintainingTransitiveEdges'
+import { applyGraphDeltaToGraph } from '@/pure/graph/graphDelta/applyGraphDeltaToGraph'
 
 function createNode(id: string, outgoingEdges: readonly { readonly targetId: string; readonly label: string }[] = []): GraphNode {
     return {
@@ -17,7 +18,54 @@ function createNode(id: string, outgoingEdges: readonly { readonly targetId: str
     }
 }
 
-describe('removeNodeMaintainingTransitiveEdges', () => {
+/**
+ * Helper to apply deleteNodeMaintainingTransitiveEdges and return the resulting graph.
+ * This mirrors how the function is used in practice.
+ */
+function deleteAndApply(graph: Graph, nodeIdToRemove: NodeIdAndFilePath): Graph {
+    const delta: GraphDelta = deleteNodeMaintainingTransitiveEdges(graph, nodeIdToRemove)
+    return applyGraphDeltaToGraph(graph, delta)
+}
+
+describe('deleteNodeMaintainingTransitiveEdges', () => {
+    describe('delta structure', () => {
+        it('should return a delta with DeleteNode first, followed by UpsertNodes for modified incomers', () => {
+            const graph: Graph = {
+                nodes: {
+                    'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'extends' }]),
+                    'b.md': createNode('b.md', [{ targetId: 'c.md', label: 'implements' }]),
+                    'c.md': createNode('c.md', [])
+                }
+            }
+
+            const delta: GraphDelta = deleteNodeMaintainingTransitiveEdges(graph, 'b.md')
+
+            expect(delta.length).toBe(2) // DeleteNode for b.md, UpsertNode for a.md
+            expect(delta[0].type).toBe('DeleteNode')
+            if (delta[0].type === 'DeleteNode') {
+                expect(delta[0].nodeId).toBe('b.md')
+                expect(O.isSome(delta[0].deletedNode)).toBe(true)
+            }
+            expect(delta[1].type).toBe('UpsertNode')
+            if (delta[1].type === 'UpsertNode') {
+                expect(delta[1].nodeToUpsert.relativeFilePathIsID).toBe('a.md')
+            }
+        })
+
+        it('should return empty delta if node does not exist', () => {
+            const graph: Graph = {
+                nodes: {
+                    'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'test' }]),
+                    'b.md': createNode('b.md', [])
+                }
+            }
+
+            const delta: GraphDelta = deleteNodeMaintainingTransitiveEdges(graph, 'nonexistent.md')
+
+            expect(delta.length).toBe(0)
+        })
+    })
+
     describe('simple chain: a -> b -> c', () => {
         it('should connect parent to children when middle node is removed', () => {
             const graph: Graph = {
@@ -28,7 +76,7 @@ describe('removeNodeMaintainingTransitiveEdges', () => {
                 }
             }
 
-            const result: Graph = removeNodeMaintainingTransitiveEdges(graph, 'b.md')
+            const result: Graph = deleteAndApply(graph, 'b.md')
 
             expect(result.nodes['b.md']).toBeUndefined()
             expect(result.nodes['a.md'].outgoingEdges).toHaveLength(1)
@@ -52,7 +100,7 @@ describe('removeNodeMaintainingTransitiveEdges', () => {
                 }
             }
 
-            const result: Graph = removeNodeMaintainingTransitiveEdges(graph, 'b.md')
+            const result: Graph = deleteAndApply(graph, 'b.md')
 
             expect(result.nodes['a.md'].outgoingEdges).toHaveLength(2)
             const targetIds: readonly NodeIdAndFilePath[] = result.nodes['a.md'].outgoingEdges.map(e => e.targetId)
@@ -75,7 +123,7 @@ describe('removeNodeMaintainingTransitiveEdges', () => {
                 }
             }
 
-            const result: Graph = removeNodeMaintainingTransitiveEdges(graph, 'b.md')
+            const result: Graph = deleteAndApply(graph, 'b.md')
 
             // a connects to c (child of b) and x (other incomer)
             const aTargets: readonly string[] = result.nodes['a.md'].outgoingEdges.map(e => e.targetId)
@@ -106,7 +154,7 @@ describe('removeNodeMaintainingTransitiveEdges', () => {
                 }
             }
 
-            const result: Graph = removeNodeMaintainingTransitiveEdges(graph, 'b.md')
+            const result: Graph = deleteAndApply(graph, 'b.md')
 
             expect(result.nodes['a.md'].outgoingEdges).toHaveLength(1)
             expect(result.nodes['a.md'].outgoingEdges[0].targetId).toBe('c.md')
@@ -121,7 +169,7 @@ describe('removeNodeMaintainingTransitiveEdges', () => {
                 }
             }
 
-            const result: Graph = removeNodeMaintainingTransitiveEdges(graph, 'b.md')
+            const result: Graph = deleteAndApply(graph, 'b.md')
 
             expect(result.nodes['a.md'].outgoingEdges).toHaveLength(0)
         })
@@ -134,7 +182,7 @@ describe('removeNodeMaintainingTransitiveEdges', () => {
                 }
             }
 
-            const result: Graph = removeNodeMaintainingTransitiveEdges(graph, 'b.md')
+            const result: Graph = deleteAndApply(graph, 'b.md')
 
             expect(result.nodes['b.md']).toBeUndefined()
             expect(result.nodes['c.md'].outgoingEdges).toHaveLength(0)
@@ -148,7 +196,7 @@ describe('removeNodeMaintainingTransitiveEdges', () => {
                 }
             }
 
-            const result: Graph = removeNodeMaintainingTransitiveEdges(graph, 'nonexistent.md')
+            const result: Graph = deleteAndApply(graph, 'nonexistent.md')
 
             expect(result.nodes).toEqual(graph.nodes)
         })
@@ -177,7 +225,7 @@ describe('removeNodeMaintainingTransitiveEdges', () => {
                 }
             }
 
-            const result: Graph = removeNodeMaintainingTransitiveEdges(graph, 'x.md')
+            const result: Graph = deleteAndApply(graph, 'x.md')
 
             expect(result.nodes['x.md']).toBeUndefined()
             // a should connect to b (preserves: a -> x -> incoming -> b)
@@ -197,7 +245,7 @@ describe('removeNodeMaintainingTransitiveEdges', () => {
                 }
             }
 
-            const result: Graph = removeNodeMaintainingTransitiveEdges(graph, 'x.md')
+            const result: Graph = deleteAndApply(graph, 'x.md')
 
             // Each incomer should be able to reach the others
             const aTargets: readonly string[] = result.nodes['a.md'].outgoingEdges.map(e => e.targetId)
@@ -221,7 +269,7 @@ describe('removeNodeMaintainingTransitiveEdges', () => {
                 }
             }
 
-            const result: Graph = removeNodeMaintainingTransitiveEdges(graph, 'x.md')
+            const result: Graph = deleteAndApply(graph, 'x.md')
 
             // a's new edge to b should use a's original label
             const aToB = result.nodes['a.md'].outgoingEdges.find(e => e.targetId === 'b.md')
@@ -246,7 +294,7 @@ describe('removeNodeMaintainingTransitiveEdges', () => {
                 }
             }
 
-            const result: Graph = removeNodeMaintainingTransitiveEdges(graph, 'x.md')
+            const result: Graph = deleteAndApply(graph, 'x.md')
 
             // Current behavior: incomers connect to children
             expect(result.nodes['a.md'].outgoingEdges.map(e => e.targetId)).toContain('c.md')
@@ -278,7 +326,7 @@ describe('removeNodeMaintainingTransitiveEdges', () => {
                 }
             }
 
-            const result: Graph = removeNodeMaintainingTransitiveEdges(graph, 'context.md')
+            const result: Graph = deleteAndApply(graph, 'context.md')
 
             expect(result.nodes['context.md']).toBeUndefined()
 

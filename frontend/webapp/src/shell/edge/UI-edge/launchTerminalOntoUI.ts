@@ -4,6 +4,7 @@ import {getCyInstance} from "@/shell/edge/UI-edge/state/cytoscape-state";
 import {createFloatingTerminal} from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
 import {addTerminal} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {cyFitWithRelativeZoom} from "@/utils/responsivePadding";
+import {vanillaFloatingWindowInstances} from "@/shell/edge/UI-edge/state/UIAppState";
 
 /**
  * Zoom to terminal neighborhood (context node + d=1 neighbors + terminal shadow node)
@@ -51,6 +52,14 @@ export async function launchTerminalOntoUI(
         // (context node may not exist in Cytoscape yet when this runs)
         setTimeout(() => zoomToTerminalNeighborhood(cy, contextNodeId, terminalId), 600);
         setTimeout(() => zoomToTerminalNeighborhood(cy, contextNodeId, terminalId), 1100);
+
+        // Auto-focus the terminal after launch (500ms delay to avoid race with PTY initialization)
+        setTimeout(() => {
+            const vanillaInstance: { dispose: () => void; focus?: () => void } | undefined = vanillaFloatingWindowInstances.get(terminalId);
+            if (vanillaInstance?.focus) {
+                vanillaInstance.focus();
+            }
+        }, 500);
 
         console.log('[uiAPI] Terminal launched:', terminalId);
     } else {

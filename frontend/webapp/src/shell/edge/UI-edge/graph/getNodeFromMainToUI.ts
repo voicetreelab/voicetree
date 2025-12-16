@@ -1,13 +1,13 @@
-import type {Graph, GraphNode, NodeIdAndFilePath} from "@/pure/graph";
+import type {GraphNode, NodeIdAndFilePath} from "@/pure/graph";
 import {nodeIdToFilePathWithExtension} from "@/pure/graph/markdown-parsing";
 
 export async function getNodeFromMainToUI(nodeId: string): Promise<GraphNode> {
-    const currentGraph: Graph = await window.electronAPI?.main.getGraph() // todo just getNode()
-    if (!currentGraph) {
-        console.error("NO GRAPH IN STATE")
-        throw Error("NO GRAPH IN STATE")
+    const node: GraphNode | undefined = await window.electronAPI?.main.getNode(nodeId);
+    if (!node) {
+        console.error("NODE NOT FOUND IN GRAPH:", nodeId);
+        throw Error(`NODE NOT FOUND IN GRAPH: ${nodeId}`);
     }
-    return currentGraph.nodes[nodeId];
+    return node;
 }
 
 export async function getFilePathForNode(nodeId: NodeIdAndFilePath): Promise<string | undefined> {

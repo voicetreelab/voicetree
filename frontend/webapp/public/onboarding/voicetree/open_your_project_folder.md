@@ -6,7 +6,7 @@ isContextNode: false
 ---
 # Open Your Project Folder
 
-Use the File > 'Open Folder', or the button in the bottom right to open any project folder. VoiceTree will visualize your existing markdown notes as an interactive graph.
+Use the File > 'Open Folder', or the button in the bottom left to open any project folder. Voicetree will visualize your existing markdown notes as an interactive graph.
 
 
 next [[record_and_start_talking.md]]

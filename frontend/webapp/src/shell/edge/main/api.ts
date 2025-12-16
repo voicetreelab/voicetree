@@ -8,7 +8,7 @@
 import {
     applyGraphDeltaToDBThroughMemAndUI
 } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI'
-import {getGraph} from '@/shell/edge/main/state/graph-store'
+import {getGraph, getNode} from '@/shell/edge/main/state/graph-store'
 import {loadSettings, saveSettings as saveSettings} from './settings/settings_IO'
 import {getWatchStatus, loadPreviousFolder, startFileWatching, stopFileWatching, setVaultSuffix} from './graph/watchFolder'
 import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/state/app-electron-state";
@@ -38,6 +38,8 @@ export const mainAPI = {
     applyGraphDeltaToDBThroughMemAndUIExposed: applyGraphDeltaToDBThroughMemAndUI,
 
   getGraph,
+
+  getNode,
 
   // Position saving - lightweight in-memory update
   saveNodePositions,
