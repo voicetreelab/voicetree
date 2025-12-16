@@ -229,7 +229,7 @@ export default function VoiceTreeTranscribe(): JSX.Element {
 
 
           {/* Offset left by half minimap width to center controls relative to full viewport */}
-          <div className="flex items-center justify-center gap-3 py-2 mr-[min(calc(3vw+10px),80px)]">
+          <div className="flex items-center justify-center gap-3 py-2">
             {/* SSE Activity Panel - shows server events for transcription processing */}
             <div id="sse-status-panel-mount" className="w-[min(18vw,300px)] shrink-0 overflow-visible" />
 
