@@ -67,11 +67,13 @@ import {isAppendOnly, getAppendedSuffix} from "@/pure/graph/contentChangeDetecti
  * @param cy - Cytoscape instance
  * @param nodeId - ID of the node to edit (used to fetch content and derive editor ID)
  * @param anchoredToNodeId - Optional node to anchor to (set for anchored, undefined for hover)
+ * @param focusAtEnd - If true, focus editor with cursor at end of content (for new nodes)
  */
 export async function createFloatingEditor(
     cy: cytoscape.Core,
     nodeId: NodeIdAndFilePath,
-    anchoredToNodeId: NodeIdAndFilePath | undefined
+    anchoredToNodeId: NodeIdAndFilePath | undefined,
+    focusAtEnd: boolean = false
 ): Promise<EditorData | undefined> {
     // Check if editor already exists for this node
     const existingEditor: O.Option<EditorData> = getEditorByNodeId(nodeId);
@@ -129,6 +131,11 @@ export async function createFloatingEditor(
 
     // Store vanilla instance for getValue/setValue access (legacy pattern, but needed for updateFloatingEditors)
     vanillaFloatingWindowInstances.set(editorId, editor);
+
+    // Focus editor with cursor at end for new nodes
+    if (focusAtEnd) {
+        editor.focusAtEnd();
+    }
 
     // Attach close handler that will dispose editor and remove from state
     attachCloseHandler(cy, editorWithUI, (): void => {
@@ -302,17 +309,23 @@ export function setupCommandHover(cy: Core): void {
 /**
  * Create a floating editor window anchored to a node
  * Creates a child shadow node and anchors the editor to it
+ *
+ * @param cy - Cytoscape instance
+ * @param nodeId - ID of the node to edit
+ * @param focusAtEnd - If true, focus editor with cursor at end of content (for new nodes)
  */
 export async function createAnchoredFloatingEditor(
     cy: Core,
-    nodeId: NodeIdAndFilePath
+    nodeId: NodeIdAndFilePath,
+    focusAtEnd: boolean = false
 ): Promise<void> {
     try {
         // Create floating editor window with anchoredToNodeId set
         const editor: EditorData | undefined = await createFloatingEditor(
             cy,
             nodeId,
-            nodeId // Anchor to the same node we're editing
+            nodeId, // Anchor to the same node we're editing
+            focusAtEnd
         );
 
         // Return early if editor already exists

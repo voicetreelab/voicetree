@@ -113,6 +113,13 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
     const contextNodeId: string = terminal.attachedToNodeId;
     const contextNode: CollectionReturnValue = cy.getElementById(contextNodeId);
 
+    // Select the context node (matching behavior when clicking inside a terminal)
+    cy.$(':selected').unselect();
+    if (contextNode.length > 0) {
+      contextNode.select();
+      addRecentlyVisited(contextNodeId);
+    }
+
     // closedNeighborhood includes the node itself plus all directly connected nodes (d=1)
     // Union with terminal shadow node to ensure terminal is always in viewport
     const nodesToFit: CollectionReturnValue = contextNode.length > 0
