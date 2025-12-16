@@ -6,7 +6,8 @@ import * as O from 'fp-ts/lib/Option.js'
 // Helper to create a minimal GraphNode
 function createNode(
   id: NodeIdAndFilePath,
-  outgoingEdges: readonly Edge[] = []
+  outgoingEdges: readonly Edge[] = [],
+  isContextNode = false
 ): GraphNode {
   return {
     relativeFilePathIsID: id,
@@ -15,7 +16,8 @@ function createNode(
     nodeUIMetadata: {
       color: O.none,
       position: O.none,
-      additionalYAMLProps: new Map()
+      additionalYAMLProps: new Map(),
+      isContextNode
     }
   }
 }
@@ -181,6 +183,30 @@ describe('getIncomingEdgesToSubgraph', () => {
       {
         sourceNodeId: 'external1.md',
         edge: { targetId: 'internal.md', label: 'incoming edge' }
+      }
+    ])
+  })
+
+  it('should NOT return edges from context nodes (they are excluded from redirect)', () => {
+    const graph: Graph = {
+      nodes: {
+        'context-node.md': createNode('context-node.md', [
+          createEdge('internal.md', 'link from context')
+        ], true), // isContextNode = true
+        'regular-external.md': createNode('regular-external.md', [
+          createEdge('internal.md', 'link from regular')
+        ]),
+        'internal.md': createNode('internal.md')
+      }
+    }
+
+    const result = getIncomingEdgesToSubgraph(['internal.md'], graph)
+
+    // Only the regular external node's edge should be returned, not the context node's
+    expect(result).toEqual([
+      {
+        sourceNodeId: 'regular-external.md',
+        edge: { targetId: 'internal.md', label: 'link from regular' }
       }
     ])
   })

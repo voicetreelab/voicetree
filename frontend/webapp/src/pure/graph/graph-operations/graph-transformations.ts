@@ -7,6 +7,62 @@ import type { Graph, GraphNode, NodeIdAndFilePath, Edge } from '@/pure/graph'
 import { setOutgoingEdges } from './graph-edge-operations'
 
 /**
+ * Makes all edges in a graph bidirectional.
+ * For each edge A -> B, adds B -> A (if not already present).
+ * Original edges are preserved.
+ *
+ * Returns a new graph (does not mutate).
+ *
+ * Used for context node ASCII tree generation where we want to visualize
+ * both parents and children as descendants of the focus node.
+ *
+ * @example
+ * Given graph: A -> B -> C
+ * Result:      A <-> B <-> C (all bidirectional)
+ */
+export function makeBidirectionalEdges(graph: Graph): Graph {
+    // Build map of all edges that should be added (reverse edges)
+    // Map: sourceId -> Array<Edge to add>
+    const reverseEdgesToAdd: Record<NodeIdAndFilePath, readonly Edge[]> = {}
+
+    // Initialize empty arrays for all nodes
+    Object.keys(graph.nodes).forEach(nodeId => {
+        reverseEdgesToAdd[nodeId] = []
+    })
+
+    // For each edge A -> B, we want to add B -> A
+    Object.entries(graph.nodes).forEach(([sourceId, node]) => {
+        node.outgoingEdges.forEach(edge => {
+            // Only add reverse edge if target node exists in graph
+            if (graph.nodes[edge.targetId]) {
+                // Check if reverse edge already exists
+                const targetNode: GraphNode = graph.nodes[edge.targetId]
+                const reverseAlreadyExists: boolean = targetNode.outgoingEdges.some(e => e.targetId === sourceId)
+                if (!reverseAlreadyExists) {
+                    reverseEdgesToAdd[edge.targetId] = [
+                        ...reverseEdgesToAdd[edge.targetId],
+                        { targetId: sourceId, label: edge.label }
+                    ]
+                }
+            }
+        })
+    })
+
+    // Create new graph with added reverse edges
+    const newNodes: Record<NodeIdAndFilePath, GraphNode> = Object.fromEntries(
+        Object.entries(graph.nodes).map(([nodeId, node]) => {
+            const additionalEdges: readonly Edge[] = reverseEdgesToAdd[nodeId]
+            if (additionalEdges.length === 0) {
+                return [nodeId, node]
+            }
+            return [nodeId, setOutgoingEdges(node, [...node.outgoingEdges, ...additionalEdges])]
+        })
+    )
+
+    return { nodes: newNodes }
+}
+
+/**
  * Reverses all edges in a graph.
  * Each edge A -> B with label "foo" becomes B -> A with the same label "foo".
  *

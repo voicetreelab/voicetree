@@ -1,5 +1,4 @@
 import type {Graph, GraphDelta, GraphNode} from '@/pure/graph'
-import {removeNodeMaintainingTransitiveEdges} from '@/pure/graph/graph-operations/removeNodeMaintainingTransitiveEdges'
 import * as O from 'fp-ts/lib/Option.js'
 
 /**
@@ -9,7 +8,11 @@ import * as O from 'fp-ts/lib/Option.js'
  *
  * Handles:
  * - UpsertNode: Creates new node or updates existing node
- * - DeleteNode: Removes node, preserves connectivity by connecting parents to children
+ * - DeleteNode: Simply removes the node from the graph
+ *
+ * Note: Transitive edge maintenance is handled at the edge layer in
+ * applyGraphDeltaToDBThroughMemAndUI, which expands DeleteNode deltas
+ * using deleteNodeMaintainingTransitiveEdges before calling this function.
  *
  * @param graph - The current graph state
  * @param delta - The delta to apply
@@ -45,18 +48,9 @@ export function applyGraphDeltaToGraph(graph: Graph, delta: GraphDelta): Graph {
                 }
             }
         } else if (nodeDelta.type === 'DeleteNode') {
-            // If delta has the deleted node info, use it to create a temporary graph
-            // This ensures we use the deleted node's outgoing edges for transitive edge preservation
-            const graphToUse: Graph = O.isSome(nodeDelta.deletedNode)
-                ? {
-                    nodes: {
-                        ...currentGraph.nodes,
-                        [nodeDelta.nodeId]: nodeDelta.deletedNode.value
-                    }
-                }
-                : currentGraph
-
-            return removeNodeMaintainingTransitiveEdges(graphToUse, nodeDelta.nodeId)
+            // Simple delete - just remove the node
+            const { [nodeDelta.nodeId]: _, ...remaining } = currentGraph.nodes
+            return { nodes: remaining }
         }
 
         // Should never reach here due to TypeScript exhaustiveness checking

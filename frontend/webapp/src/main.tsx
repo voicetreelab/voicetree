@@ -20,7 +20,8 @@ if (posthogKey && !import.meta.env.DEV) {
     capture_pageview: true,
     session_recording: {
       maskAllInputs: true,
-      maskTextSelector: '.node-content, .markdown-editor',
+      // Mask user content in: CodeMirror editors, xterm terminals, floating window content
+      maskTextSelector: '.cm-editor, .cm-content, .xterm, .cy-floating-window-content',
     }
   })
 }

@@ -1,14 +1,6 @@
 import type {Graph, GraphDelta, NodeIdAndFilePath, GraphNode} from '@/pure/graph'
-import {getSubgraphByDistance, graphToAscii, getNodeIdsInTraversalOrder, CONTEXT_NODES_FOLDER} from '@/pure/graph'
+import {getSubgraphByDistance, graphToAscii, makeBidirectionalEdges, CONTEXT_NODES_FOLDER} from '@/pure/graph'
 import {getNodeTitle} from '@/pure/graph/markdown-parsing'
-
-/** Truncate a title to at most 5 words to prevent excessively long context node names */
-function truncateToFiveWords(title: string): string {
-    const words: string[] = title.split(/\s+/)
-    if (words.length <= 5) return title
-    return words.slice(0, 5).join(' ') + '...'
-}
-
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getWatchStatus} from '@/shell/edge/main/graph/watchFolder'
 import {getCachedSettings} from '@/shell/edge/main/state/settings-cache'
@@ -57,10 +49,12 @@ export async function createContextNode(
     console.log("[createContextNode] Subgraph has", Object.keys(subgraph.nodes).length, "nodes")
 
     // 3. PURE: Convert subgraph to ASCII visualization
-    // Pass parentNodeId as the forced root to handle star patterns where
-    // removeContextNodes creates bidirectional edges, leaving no natural roots
+    // Make edges bidirectional so parents are shown as "children" in the tree.
+    // This ensures nodes reachable via incoming edges (parents) appear in the ASCII tree,
+    // not just nodes reachable via outgoing edges (children).
     console.log("[createContextNode] Converting to ASCII...")
-    const asciiTree: string = graphToAscii(subgraph, parentNodeId)
+    const bidirectionalSubgraph: Graph = makeBidirectionalEdges(subgraph)
+    const asciiTree: string = graphToAscii(bidirectionalSubgraph, parentNodeId)
     console.log("[createContextNode] ASCII tree length:", asciiTree.length)
 
     // 4. EDGE: Generate unique context node ID
@@ -143,11 +137,12 @@ function buildContextNodeContent(
         : ''
 
     return `---
-title: "CONTEXT for: '${truncateToFiveWords(parentTitle)}'"
+title: "Context"
 isContextNode: true
 ${containedNodeIdsYaml}---
 
-## CONTEXT for: '${parentTitle}'
+## Context
+Collecting nearby nodes from '${parentTitle}'
 \`\`\`
 ${asciiTree}
 \`\`\`
@@ -167,10 +162,10 @@ function generateNodeDetailsList(
 ): string {
     const lines: string[] = []
 
-    // Get nodes in traversal order (same as ASCII tree)
-    const orderedNodeIds: readonly string[] = getNodeIdsInTraversalOrder(subgraph)
-
-    for (const nodeId of orderedNodeIds) {
+    // Iterate over all nodes in subgraph
+    // Note: Order won't match ASCII tree exactly, but ensures all nodes are included
+    // (getNodeIdsInTraversalOrder only follows outgoing edges, missing nodes reachable via incoming edges)
+    for (const nodeId of Object.keys(subgraph.nodes)) {
         const node: GraphNode = subgraph.nodes[nodeId]
         // Skip context nodes to prevent self-referencing in generated context
         if (node.nodeUIMetadata.isContextNode) {

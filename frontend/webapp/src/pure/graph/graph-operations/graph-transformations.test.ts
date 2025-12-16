@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { reverseGraphEdges } from '@/pure/graph/graph-operations/graph-transformations'
+import { reverseGraphEdges, makeBidirectionalEdges } from '@/pure/graph/graph-operations/graph-transformations'
 import type { Graph, GraphNode, Edge } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
 
@@ -180,6 +180,87 @@ describe('graph-transformations', () => {
       // Second reversal: still preserved (idempotent for non-existent edges)
       const reversed2: Graph = reverseGraphEdges(reversed1)
       expect(reversed2.nodes['source'].outgoingEdges).toEqual(toEdges(['does-not-exist']))
+    })
+  })
+
+  describe('makeBidirectionalEdges', () => {
+    it('should make edges bidirectional in a simple chain A -> B -> C', () => {
+      const graph: Graph = {
+        nodes: {
+          'A': createTestNode('A', ['B']),
+          'B': createTestNode('B', ['C']),
+          'C': createTestNode('C', [])
+        }
+      }
+
+      const result: Graph = makeBidirectionalEdges(graph)
+
+      // A -> B becomes A <-> B
+      expect(result.nodes['A'].outgoingEdges).toEqual(toEdges(['B']))
+      expect(result.nodes['B'].outgoingEdges).toEqual(expect.arrayContaining([...toEdges(['C', 'A'])]))
+      expect(result.nodes['C'].outgoingEdges).toEqual(toEdges(['B']))
+    })
+
+    it('should not duplicate already bidirectional edges', () => {
+      const graph: Graph = {
+        nodes: {
+          'A': createTestNode('A', ['B']),
+          'B': createTestNode('B', ['A'])
+        }
+      }
+
+      const result: Graph = makeBidirectionalEdges(graph)
+
+      // Already bidirectional, should not add duplicates
+      expect(result.nodes['A'].outgoingEdges).toEqual(toEdges(['B']))
+      expect(result.nodes['B'].outgoingEdges).toEqual(toEdges(['A']))
+    })
+
+    it('should handle graph where start node has only parents (the bug case)', () => {
+      // This is the exact scenario that caused the ASCII tree bug:
+      // Start node C has parents (A, B point to C) but no children
+      const graph: Graph = {
+        nodes: {
+          'A': createTestNode('A', ['C']),
+          'B': createTestNode('B', ['C']),
+          'C': createTestNode('C', [])
+        }
+      }
+
+      const result: Graph = makeBidirectionalEdges(graph)
+
+      // C should now have edges to A and B (its parents become "children" for tree viz)
+      expect(result.nodes['C'].outgoingEdges).toEqual(expect.arrayContaining([...toEdges(['A', 'B'])]))
+      // A and B keep their original edges to C
+      expect(result.nodes['A'].outgoingEdges).toEqual(toEdges(['C']))
+      expect(result.nodes['B'].outgoingEdges).toEqual(toEdges(['C']))
+    })
+
+    it('should handle empty graph', () => {
+      const graph: Graph = {
+        nodes: {}
+      }
+
+      const result: Graph = makeBidirectionalEdges(graph)
+
+      expect(result.nodes).toEqual({})
+    })
+
+    it('should not mutate the original graph', () => {
+      const graph: Graph = {
+        nodes: {
+          'A': createTestNode('A', ['B']),
+          'B': createTestNode('B', [])
+        }
+      }
+
+      const originalAEdges: readonly Edge[] = [...graph.nodes['A'].outgoingEdges]
+      const originalBEdges: readonly Edge[] = [...graph.nodes['B'].outgoingEdges]
+
+      makeBidirectionalEdges(graph)
+
+      expect(graph.nodes['A'].outgoingEdges).toEqual(originalAEdges)
+      expect(graph.nodes['B'].outgoingEdges).toEqual(originalBEdges)
     })
   })
 })

@@ -4,7 +4,7 @@ import { applyGraphDeltaToGraph } from './graphDelta/applyGraphDeltaToGraph'
 import { mapNewGraphToDelta } from './graphDelta/mapNewGraphtoDelta'
 import { stripDeltaForReplay } from './graphDelta/stripDeltaForReplay'
 import { setOutgoingEdges } from './graph-operations/graph-edge-operations'
-import { reverseGraphEdges } from './graph-operations/graph-transformations'
+import { reverseGraphEdges, makeBidirectionalEdges } from './graph-operations/graph-transformations'
 import { prettyPrintGraphDelta } from './graph-operations/prettyPrint'
 import { graphToAscii } from './markdown-writing/graphToAscii'
 import { getSubgraphByDistance, getUnionSubgraphByDistance } from './graph-operations/traversal/getSubgraphByDistance'
@@ -178,6 +178,8 @@ export type SetOutgoingEdges = (node: GraphNode, edges: readonly Edge[]) => Grap
 
 export type ReverseGraphEdges = (graph: Graph) => Graph
 
+export type MakeBidirectionalEdges = (graph: Graph) => Graph
+
 export type GetSubgraphByDistance = (graph: Graph, startNodeId: NodeIdAndFilePath, maxDistance: number) => Graph
 
 export type GetUnionSubgraphByDistance = (graph: Graph, startNodeIds: readonly NodeIdAndFilePath[], maxDistance: number) => Graph
@@ -208,6 +210,9 @@ void (setOutgoingEdges satisfies SetOutgoingEdges)
 export { reverseGraphEdges } from './graph-operations/graph-transformations'
 void (reverseGraphEdges satisfies ReverseGraphEdges)
 
+export { makeBidirectionalEdges } from './graph-operations/graph-transformations'
+void (makeBidirectionalEdges satisfies MakeBidirectionalEdges)
+
 export { getSubgraphByDistance } from './graph-operations/traversal/getSubgraphByDistance'
 void (getSubgraphByDistance satisfies GetSubgraphByDistance)
 
@@ -224,5 +229,5 @@ export { prettyPrintGraphDelta } from './graph-operations/prettyPrint'
 void (prettyPrintGraphDelta satisfies PrettyPrintGraphDelta)
 
 // === GRAPH TRANSFORMATION UTILITIES ===
-export { removeNodeMaintainingTransitiveEdges } from './graph-operations/removeNodeMaintainingTransitiveEdges'
+export { deleteNodeMaintainingTransitiveEdges } from './graph-operations/removeNodeMaintainingTransitiveEdges'
 export { removeContextNodes } from './graph-operations/removeContextNodes'
