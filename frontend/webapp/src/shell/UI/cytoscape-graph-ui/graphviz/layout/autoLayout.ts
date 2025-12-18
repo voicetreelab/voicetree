@@ -52,26 +52,20 @@ const DEFAULT_OPTIONS: AutoLayoutOptions = {
     const targetIsContextNode = target.data('isContextNode') === true;
 
     if (isTerminalShadow) {
-      // Get shadow node dimensions (terminal floating window size)
-      const shadowWidth = target.width();
-      const shadowHeight = target.height();
-      // Source (context node) dimensions
-      const sourceWidth = source.width();
-      const sourceHeight = source.height();
-      const gap = 20;
-
-      // Check current positions to determine if horizontal or vertical placement
+      // Terminal only spawns in cardinal directions (right, left, above, below)
+      // so we just need to check if horizontal or vertical placement
       const sourcePos = source.position();
       const targetPos = target.position();
       const dx = Math.abs(targetPos.x - sourcePos.x);
       const dy = Math.abs(targetPos.y - sourcePos.y);
+      const gap = 20;
 
       if (dx > dy) {
         // Horizontal placement: use widths
-        return (shadowWidth / 2) + (sourceWidth / 2) + gap;
+        return (target.width() / 2) + (source.width() / 2) + gap;
       } else {
         // Vertical placement: use heights
-        return (shadowHeight / 2) + (sourceHeight / 2) + gap;
+        return (target.height() / 2) + (source.height() / 2) + gap;
       }
     }
     if (targetIsContextNode){

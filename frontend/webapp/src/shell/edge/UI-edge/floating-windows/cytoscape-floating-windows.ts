@@ -346,18 +346,99 @@ export function anchorToNode(
     const fwId: EditorId | TerminalId = getFloatingWindowId(fw);
     const shadowNodeId: ShadowNodeId = getShadowNodeId(fwId);
 
-    // Position terminal horizontally to the right of parent (right-angle edge)
-    // Calculate offset based on dimensions: shadow half-width + parent half-width + gap
+    // Find best direction to spawn terminal based on available space and neighborhood
     const parentPos: cytoscape.Position = parentNode.position();
     const shadowDimensions = fw.shadowNodeDimensions;
     const parentWidth = parentNode.width();
+    const parentHeight = parentNode.height();
     const gap = 20;
-    const offsetX = (shadowDimensions.width / 2) + (parentWidth / 2) + gap;
-    const offset: { x: number; y: number } = { x: offsetX, y: 0 };
-    const childPosition: { x: number; y: number } = {
-        x: parentPos.x + offset.x,
-        y: parentPos.y + offset.y
+
+    // Cardinal directions
+    const directions = [
+        { dx: 1, dy: 0 },   // right
+        { dx: -1, dy: 0 },  // left
+        { dx: 0, dy: 1 },   // below
+        { dx: 0, dy: -1 },  // above
+    ];
+
+    // AABB overlap check
+    const rectsOverlap = (
+        a: { x1: number; x2: number; y1: number; y2: number },
+        b: { x1: number; x2: number; y1: number; y2: number }
+    ): boolean => {
+        return a.x1 < b.x2 && a.x2 > b.x1 && a.y1 < b.y2 && a.y2 > b.y1;
     };
+
+    // Get all non-shadow nodes to check for collisions
+    const existingNodes = cy.nodes().filter((n: cytoscape.NodeSingular) => !n.data('isShadowNode'));
+
+    // Calculate neighborhood center of mass (n=3 hops from parent)
+    const neighborhood = parentNode.closedNeighborhood('node[!isShadowNode]');
+    let centerOfMass = { x: 0, y: 0 };
+    if (neighborhood.length > 0) {
+        neighborhood.forEach((n: cytoscape.NodeSingular) => {
+            const pos = n.position();
+            centerOfMass.x += pos.x;
+            centerOfMass.y += pos.y;
+        });
+        centerOfMass.x /= neighborhood.length;
+        centerOfMass.y /= neighborhood.length;
+    } else {
+        centerOfMass = parentPos;
+    }
+
+    // Calculate candidate positions and filter by no-overlap
+    const candidates: { pos: { x: number; y: number }; distFromCoM: number }[] = [];
+    for (const dir of directions) {
+        const offsetX = dir.dx * ((shadowDimensions.width / 2) + (parentWidth / 2) + gap);
+        const offsetY = dir.dy * ((shadowDimensions.height / 2) + (parentHeight / 2) + gap);
+        const candidatePos = {
+            x: parentPos.x + offsetX,
+            y: parentPos.y + offsetY
+        };
+
+        // Calculate terminal bounding box at candidate position
+        const terminalBBox = {
+            x1: candidatePos.x - shadowDimensions.width / 2,
+            x2: candidatePos.x + shadowDimensions.width / 2,
+            y1: candidatePos.y - shadowDimensions.height / 2,
+            y2: candidatePos.y + shadowDimensions.height / 2
+        };
+
+        // Check overlap with existing nodes
+        let hasOverlap = false;
+        existingNodes.forEach((node: cytoscape.NodeSingular) => {
+            if (node.id() === parentNodeId) return;
+            const bb = node.boundingBox();
+            const nodeBBox = { x1: bb.x1, x2: bb.x2, y1: bb.y1, y2: bb.y2 };
+            if (rectsOverlap(terminalBBox, nodeBBox)) {
+                hasOverlap = true;
+            }
+        });
+
+        if (!hasOverlap) {
+            // Distance from candidate to neighborhood center of mass
+            const distFromCoM = Math.sqrt(
+                Math.pow(candidatePos.x - centerOfMass.x, 2) +
+                Math.pow(candidatePos.y - centerOfMass.y, 2)
+            );
+            candidates.push({ pos: candidatePos, distFromCoM });
+        }
+    }
+
+    // Pick candidate furthest from center of mass, or fallback to right
+    let childPosition: { x: number; y: number };
+    if (candidates.length > 0) {
+        candidates.sort((a, b) => b.distFromCoM - a.distFromCoM);
+        childPosition = candidates[0].pos;
+    } else {
+        // Fallback to right if all directions blocked
+        const offsetX = (shadowDimensions.width / 2) + (parentWidth / 2) + gap;
+        childPosition = {
+            x: parentPos.x + offsetX,
+            y: parentPos.y
+        };
+    }
 
     // Create shadow node (follows parent position via listener below)
     const shadowNode: cytoscape.CollectionReturnValue = cy.add({
@@ -422,15 +503,7 @@ export function anchorToNode(
     shadowNode.on('position', syncPosition);
     syncPosition(); // Initial sync
 
-    // Set up parent position sync (parent moves → shadow follows at fixed offset)
-    const syncWithParent: () => void = () => {
-        const currentParentPos: cytoscape.Position = parentNode.position();
-        shadowNode.position({
-            x: currentParentPos.x + offset.x,
-            y: currentParentPos.y + offset.y
-        });
-    };
-    parentNode.on('position', syncWithParent);
+    // Note: No parent position sync - Cola layout handles terminal positioning
 
     // Attach drag handlers and store cleanup references
     const { handleMouseMove, handleMouseUp } = attachDragHandlers(cy, titleBar, windowElement, shadowNodeId);
@@ -440,7 +513,6 @@ export function anchorToNode(
         dragMouseMove: handleMouseMove,
         dragMouseUp: handleMouseUp,
         resizeObserver,
-        parentPositionHandler: syncWithParent,
     });
 
     // Initial dimension sync
@@ -478,17 +550,6 @@ export function disposeFloatingWindow(
             // Disconnect ResizeObserver
             if (cleanup.resizeObserver) {
                 cleanup.resizeObserver.disconnect();
-            }
-            // Remove parent position listener
-            if (cleanup.parentPositionHandler) {
-                const shadowNode: cytoscape.CollectionReturnValue = cy.getElementById(shadowNodeId);
-                if (shadowNode.length > 0) {
-                    const parentNodeId: string = shadowNode.data('parentNodeId');
-                    const parentNode: cytoscape.CollectionReturnValue = cy.getElementById(parentNodeId);
-                    if (parentNode.length > 0) {
-                        parentNode.off('position', cleanup.parentPositionHandler);
-                    }
-                }
             }
             cleanupRegistry.delete(fw.ui.windowElement);
         }
