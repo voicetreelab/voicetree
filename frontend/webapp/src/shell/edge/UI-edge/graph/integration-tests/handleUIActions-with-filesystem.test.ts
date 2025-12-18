@@ -81,6 +81,12 @@ vi.mock('@/shell/edge/main/state/graph-store', () => {
         },
         setGraph: (graph: Graph) => {
             currentGraph = graph
+        },
+        getNode: (nodeId: string) => {
+            if (!currentGraph) {
+                throw new Error('Graph not initialized')
+            }
+            return currentGraph.nodes[nodeId]
         }
     }
 })
@@ -221,6 +227,7 @@ Child content`
             electronAPI: {
                 main: {
                     getGraph: mainAPI.getGraph,
+                    getNode: mainAPI.getNode,
                     applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
                         await mainAPI.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta)
                         // Also update cytoscape UI since file watching is mocked
@@ -409,6 +416,7 @@ Child content`
             electronAPI: {
                 main: {
                     getGraph: mainAPI.getGraph,
+                    getNode: mainAPI.getNode,
                     applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
                         await mainAPI.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta)
                         // Also update cytoscape UI since file watching is mocked

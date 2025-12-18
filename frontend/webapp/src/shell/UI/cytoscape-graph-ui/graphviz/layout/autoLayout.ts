@@ -36,23 +36,23 @@ const DEFAULT_OPTIONS: AutoLayoutOptions = {
   animate: true,
   maxSimulationTime: 1750,
   avoidOverlap: true,
-  nodeSpacing: 20,
+  nodeSpacing: 10,
   handleDisconnected: true, // handles disconnected components
   convergenceThreshold: 0.5,
   unconstrIter: 10, // TODO SOMETHINIG ABOUT THIS IS VERY IMPORTANT LAYOUT BREAK WITHOUT
   userConstIter: 10,
   allConstIter: 20,
   edgeLength: (edge: EdgeSingular) => {
-    const source = edge.source();
+    // const source = edge.source();
     const target = edge.target();
 
     // Short edge length (30px) for terminal shadow nodes connected to context nodes
     const isTerminalShadow = target.data('isShadowNode') === true &&
                              target.data('windowType') === 'Terminal';
-    const sourceIsContextNode = source.data('isContextNode') === true;
+    // const sourceIsContextNode = source.data('isContextNode') === true;
 
-    if (isTerminalShadow && sourceIsContextNode) {
-      return 30;
+    if (isTerminalShadow) {
+      return 1;
     }
     return 200;
   },
