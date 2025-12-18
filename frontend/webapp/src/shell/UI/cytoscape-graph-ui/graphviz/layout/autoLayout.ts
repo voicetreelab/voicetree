@@ -43,16 +43,39 @@ const DEFAULT_OPTIONS: AutoLayoutOptions = {
   userConstIter: 10,
   allConstIter: 20,
   edgeLength: (edge: EdgeSingular) => {
-    // const source = edge.source();
+    const source = edge.source();
     const target = edge.target();
 
-    // Short edge length (30px) for terminal shadow nodes connected to context nodes
+    // Dynamic edge length for terminal shadow nodes based on placement direction
     const isTerminalShadow = target.data('isShadowNode') === true &&
                              target.data('windowType') === 'Terminal';
-    // const sourceIsContextNode = source.data('isContextNode') === true;
+    const targetIsContextNode = target.data('isContextNode') === true;
 
     if (isTerminalShadow) {
-      return 1;
+      // Get shadow node dimensions (terminal floating window size)
+      const shadowWidth = target.width();
+      const shadowHeight = target.height();
+      // Source (context node) dimensions
+      const sourceWidth = source.width();
+      const sourceHeight = source.height();
+      const gap = 20;
+
+      // Check current positions to determine if horizontal or vertical placement
+      const sourcePos = source.position();
+      const targetPos = target.position();
+      const dx = Math.abs(targetPos.x - sourcePos.x);
+      const dy = Math.abs(targetPos.y - sourcePos.y);
+
+      if (dx > dy) {
+        // Horizontal placement: use widths
+        return (shadowWidth / 2) + (sourceWidth / 2) + gap;
+      } else {
+        // Vertical placement: use heights
+        return (shadowHeight / 2) + (sourceHeight / 2) + gap;
+      }
+    }
+    if (targetIsContextNode){
+        return 150;
     }
     return 200;
   },
