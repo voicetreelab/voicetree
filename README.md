@@ -1,7 +1,7 @@
 # voicetree
 A markdown graph built for context-engineering
 
-This repository currently only stores the releases for voicetree.
+This repository currently only stores the releases for voicetree, you can download the latest MacOS .dmg, signed & notarized by Apple Developer program here, https://github.com/voicetreelab/voicetree/releases/latest/download/voicetree.dmg
 
 Check out some of our open source repos:
 - https://github.com/voicetreelab/agent-canvas
