@@ -1,7 +1,11 @@
 # voicetree
-A platform for converting voice into markdown trees, creating a shared brain for you and your AI
+A markdown graph built for context-engineering
 
-Now in private alpha, sign up here [voicetree.io](https://voicetree.io)
+This repository currently only stores the releases for voicetree.
 
+Check out some of our open source repos:
+- https://github.com/voicetreelab/agent-canvas
+- https://github.com/voicetreelab/lazy-mcp
+- https://github.com/manu354/recursive-agent
 
 By using this software, you agree to our https://voicetree.io/docs/Privacy+Policy 
