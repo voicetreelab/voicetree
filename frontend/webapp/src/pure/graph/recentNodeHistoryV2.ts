@@ -33,6 +33,8 @@ export type RecentNodeHistory = readonly UpsertNodeDelta[]
 export function extractRecentNodesFromDelta(delta: GraphDelta): readonly UpsertNodeDelta[] {
     return delta.filter((action): action is UpsertNodeDelta => {
         if (action.type !== 'UpsertNode') return false
+        // Filter out context nodes - they should not appear in recent tabs
+        if (action.nodeToUpsert.nodeUIMetadata.isContextNode) return false
         // New node: always show
         if (O.isNone(action.previousNode)) return true
         // Update: only show if actual content changed (not just links in brackets)

@@ -158,6 +158,34 @@ describe('recentNodeHistoryV2', () => {
             expect(entries).toHaveLength(2)
             expect(entries.map(e => getNodeId(e))).toEqual(['new.md', 'changed.md'])
         })
+
+        it('excludes context nodes from recent history', () => {
+            // Create a context node (isContextNode: true)
+            const contextNode: GraphNode = {
+                relativeFilePathIsID: 'ctx-nodes/context.md',
+                contentWithoutYamlOrLinks: '# Context\n\nContext content',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.none,
+                    additionalYAMLProps: new Map(),
+                    isContextNode: true
+                }
+            }
+
+            const delta: GraphDelta = [
+                createUpsertAction('regular.md', 'Regular Node'),
+                {
+                    type: 'UpsertNode',
+                    nodeToUpsert: contextNode,
+                    previousNode: O.none
+                }
+            ]
+
+            const entries: readonly UpsertNodeDelta[] = extractRecentNodesFromDelta(delta)
+            expect(entries).toHaveLength(1)
+            expect(getNodeId(entries[0])).toBe('regular.md')
+        })
     })
 
     describe('addEntriesToHistory', () => {

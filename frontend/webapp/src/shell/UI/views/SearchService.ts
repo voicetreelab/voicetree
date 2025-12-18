@@ -129,8 +129,10 @@ export class SearchService {
       // todo, make this take a Graph object instead.
     const nodes: NodeCollection = this.cy.nodes();
 
-    // Filter out shadow nodes (internal UI nodes for editors/terminals)
-    const visibleNodes: NodeCollection = nodes.filter((node) => !node.data('isShadowNode'));
+    // Filter out shadow nodes (internal UI nodes for editors/terminals) and context nodes
+    const visibleNodes: NodeCollection = nodes.filter((node) =>
+      !node.data('isShadowNode') && !node.data('isContextNode')
+    );
 
     const searchData: NinjaAction[] = visibleNodes.map((node) => {
       const nodeId: string = node.id();
@@ -202,7 +204,7 @@ export class SearchService {
     for (const nodeDelta of delta) {
       if (nodeDelta.type === 'UpsertNode') {
         const node: NodeSingular | undefined = this.cy.getElementById(nodeDelta.nodeToUpsert.relativeFilePathIsID);
-        if (!node || node.empty() || node.data('isShadowNode')) continue;
+        if (!node || node.empty() || node.data('isShadowNode') || node.data('isContextNode')) continue;
 
         const nodeId: string = node.id();
         const label: string = node.data('label') as string ?? nodeId;

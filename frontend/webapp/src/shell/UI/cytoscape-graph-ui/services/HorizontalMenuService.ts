@@ -128,24 +128,11 @@ function createMenuItemElement(item: HorizontalMenuItem, onClose: () => void, al
     return button;
 }
 
-/** Create submenu container (vertical dropdown) */
+/** Create submenu container (vertical dropdown)
+ * Styles are defined in floating-windows.css (.horizontal-menu-submenu) for dark mode support */
 function createSubMenuElement(items: HorizontalMenuItem[], onClose: () => void): HTMLElement {
     const submenu: HTMLDivElement = document.createElement('div');
     submenu.className = 'horizontal-menu-submenu';
-    submenu.style.cssText = `
-        position: absolute;
-        top: 100%;
-        left: 50%;
-        transform: translateX(-50%);
-        display: none;
-        flex-direction: column;
-        background: #fff;
-        border: 1px solid #999;
-        box-shadow: #aaa 3px 3px 3px;
-        padding: 2px 0;
-        z-index: 10001;
-        pointer-events: auto;
-    `;
 
     for (const item of items) {
         // Pass alwaysShowLabel=true for vertical submenu items

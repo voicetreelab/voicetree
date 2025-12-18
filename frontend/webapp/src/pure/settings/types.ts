@@ -14,8 +14,6 @@ export interface VTSettings {
   readonly contextNodeMaxDistance: number;
   /** Maximum traversal distance when creating context nodes in Ask mode (from each relevant node) */
   readonly askModeContextDistance: number;
-  /** Default input mode for the transcribe panel */
-  readonly defaultInputMode: 'add' | 'ask';
   /** Whether user has been prompted about agent permission mode (auto-run vs safe mode) */
   readonly agentPermissionModeChosen?: boolean;
 }
@@ -24,7 +22,6 @@ export const DEFAULT_SETTINGS: VTSettings = {
   terminalSpawnPathRelativeToWatchedDirectory: '/',
   contextNodeMaxDistance: 7,
   askModeContextDistance: 4,
-  defaultInputMode: 'add',
   agents: [
     {
       name: 'Claude',

@@ -528,3 +528,24 @@ button.graph-button:disabled > svg > path {
     flex-shrink: 0;
     box-sizing: border-box;
 }
+
+/* Inactive terminal indicator - green outline with subtle pulse animation */
+.agent-tab-inactive {
+    border: 2px solid #22c55e;
+    box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
+    animation: inactive-pulse 2s ease-in-out infinite;
+}
+
+.agent-tab-inactive:hover {
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.6);
+    animation: none;
+}
+
+@keyframes inactive-pulse {
+    0%, 100% {
+        box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 12px rgba(34, 197, 94, 0.7);
+    }
+}

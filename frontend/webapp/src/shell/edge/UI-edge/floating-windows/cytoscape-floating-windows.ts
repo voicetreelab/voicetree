@@ -34,6 +34,7 @@ type CleanupFunctions = {
     dragMouseMove: (e: MouseEvent) => void;
     dragMouseUp: () => void;
     resizeObserver?: ResizeObserver;
+    parentPositionHandler?: () => void;
 };
 
 /**
@@ -345,14 +346,20 @@ export function anchorToNode(
     const fwId: EditorId | TerminalId = getFloatingWindowId(fw);
     const shadowNodeId: ShadowNodeId = getShadowNodeId(fwId);
 
-    // Position child shadow node offset from parent
+    // Position terminal horizontally to the right of parent (right-angle edge)
+    // Calculate offset based on dimensions: shadow half-width + parent half-width + gap
     const parentPos: cytoscape.Position = parentNode.position();
+    const shadowDimensions = fw.shadowNodeDimensions;
+    const parentWidth = parentNode.width();
+    const gap = 20;
+    const offsetX = (shadowDimensions.width / 2) + (parentWidth / 2) + gap;
+    const offset: { x: number; y: number } = { x: offsetX, y: 0 };
     const childPosition: { x: number; y: number } = {
-        x: parentPos.x + 50,
-        y: parentPos.y + 50
+        x: parentPos.x + offset.x,
+        y: parentPos.y + offset.y
     };
 
-    // Create shadow node
+    // Create shadow node (follows parent position via listener below)
     const shadowNode: cytoscape.CollectionReturnValue = cy.add({
         group: 'nodes',
         data: {
@@ -376,8 +383,13 @@ export function anchorToNode(
         height: windowElement.offsetHeight
     };
 
+    // Shadow node visible on minimap with subtle styling
     shadowNode.style({
-        'opacity': 0,
+        'opacity': 0.1,
+        'background-color': '#333333',
+        'border-width': 2,
+        'border-color': 'black',
+        'shape': 'rectangle',
         'events': 'yes',
         'width': dimensions.width,
         'height': dimensions.height
@@ -410,6 +422,16 @@ export function anchorToNode(
     shadowNode.on('position', syncPosition);
     syncPosition(); // Initial sync
 
+    // Set up parent position sync (parent moves → shadow follows at fixed offset)
+    const syncWithParent: () => void = () => {
+        const currentParentPos: cytoscape.Position = parentNode.position();
+        shadowNode.position({
+            x: currentParentPos.x + offset.x,
+            y: currentParentPos.y + offset.y
+        });
+    };
+    parentNode.on('position', syncWithParent);
+
     // Attach drag handlers and store cleanup references
     const { handleMouseMove, handleMouseUp } = attachDragHandlers(cy, titleBar, windowElement, shadowNodeId);
 
@@ -418,6 +440,7 @@ export function anchorToNode(
         dragMouseMove: handleMouseMove,
         dragMouseUp: handleMouseUp,
         resizeObserver,
+        parentPositionHandler: syncWithParent,
     });
 
     // Initial dimension sync
@@ -455,6 +478,17 @@ export function disposeFloatingWindow(
             // Disconnect ResizeObserver
             if (cleanup.resizeObserver) {
                 cleanup.resizeObserver.disconnect();
+            }
+            // Remove parent position listener
+            if (cleanup.parentPositionHandler) {
+                const shadowNode: cytoscape.CollectionReturnValue = cy.getElementById(shadowNodeId);
+                if (shadowNode.length > 0) {
+                    const parentNodeId: string = shadowNode.data('parentNodeId');
+                    const parentNode: cytoscape.CollectionReturnValue = cy.getElementById(parentNodeId);
+                    if (parentNode.length > 0) {
+                        parentNode.off('position', cleanup.parentPositionHandler);
+                    }
+                }
             }
             cleanupRegistry.delete(fw.ui.windowElement);
         }
