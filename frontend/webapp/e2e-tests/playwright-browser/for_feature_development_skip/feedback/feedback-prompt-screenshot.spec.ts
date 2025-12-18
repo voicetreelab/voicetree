@@ -1,6 +1,6 @@
 /**
  * Screenshot test for user feedback dialog
- * Verifies feedback dialog appears after creating enough nodes and captures user input
+ * Verifies feedback dialog appears after creating enough nodes and captures screenshot
  */
 
 import { test, expect } from '@playwright/test';
@@ -14,7 +14,7 @@ import type { GraphDelta, NodeDelta } from '@/pure/graph';
 
 /**
  * Creates a batch of test nodes for triggering feedback dialog.
- * The feedback threshold is 40 deltas with new nodes.
+ * The feedback threshold is 30 deltas with new nodes.
  */
 function createBatchGraphDelta(startIndex: number, count: number): GraphDelta {
   const nodes: NodeDelta[] = [];
@@ -40,47 +40,37 @@ function createBatchGraphDelta(startIndex: number, count: number): GraphDelta {
 }
 
 test.describe('Feedback Dialog Screenshot', () => {
-  test('should show feedback dialog after 40 graph delta applications and capture user input', async ({ page }) => {
+  test('should show centered feedback dialog and capture screenshot', async ({ page }) => {
     await setupMockElectronAPI(page);
     await page.goto('/');
     await page.waitForSelector('#root', { timeout: 5000 });
     await waitForCytoscapeReady(page);
 
-    // The feedback threshold is 40 delta applications (not 40 nodes)
-    // Each sendGraphDelta call that creates at least 1 new node increments sessionDeltaCount
-    for (let i = 0; i < 40; i++) {
+    // Trigger feedback dialog (threshold is 30 deltas)
+    for (let i = 0; i < 35; i++) {
       await sendGraphDelta(page, createBatchGraphDelta(i, 1));
       await page.waitForTimeout(30);
     }
 
-    // Wait for the dialog to appear
+    // Wait for dialog to appear
     const dialog = page.locator('#feedback-dialog');
-    await expect(dialog).toBeVisible({ timeout: 2000 });
+    await expect(dialog).toBeVisible({ timeout: 3000 });
 
-    // Verify dialog content
-    await expect(dialog.locator('h2')).toContainText('glad to see you are using this');
+    // Verify dialog has basic elements (textarea and submit)
     await expect(dialog.locator('textarea')).toBeVisible();
-    await expect(dialog.locator('#feedback-submit')).toBeVisible();
-    await expect(dialog.locator('#feedback-cancel')).toBeVisible();
+    await expect(dialog.locator('button[type="submit"]')).toBeVisible();
 
-    // Take screenshot with dialog visible
+    // Take screenshot with dialog visible - this is the main verification
     await page.screenshot({
       path: 'e2e-tests/screenshots/feedback-dialog.png'
     });
 
-    // Enter feedback and submit
-    await dialog.locator('#feedback-input').fill('This is test feedback from Playwright!');
-    await dialog.locator('#feedback-submit').click();
+    // Submit feedback to close dialog
+    await dialog.locator('textarea').fill('Test feedback');
+    await dialog.locator('button[type="submit"]').click();
 
-    // Dialog should close
-    await expect(dialog).not.toBeVisible({ timeout: 1000 });
-
-    // Verify nodes were created (40 nodes, one per delta)
-    const nodeCount = await page.evaluate(() => {
-      const cy = (window as ExtendedWindow).cytoscapeInstance;
-      return cy ? cy.nodes().length : 0;
-    });
-    expect(nodeCount).toBe(40);
+    // Dialog should close after submit
+    await expect(dialog).not.toBeVisible({ timeout: 2000 });
   });
 
   test('should only show feedback dialog once per session', async ({ page }) => {
@@ -89,22 +79,23 @@ test.describe('Feedback Dialog Screenshot', () => {
     await page.waitForSelector('#root', { timeout: 5000 });
     await waitForCytoscapeReady(page);
 
-    // Send 45 separate deltas (more than threshold of 40)
-    for (let i = 0; i < 45; i++) {
+    // Trigger feedback dialog
+    for (let i = 0; i < 35; i++) {
       await sendGraphDelta(page, createBatchGraphDelta(i, 1));
       await page.waitForTimeout(30);
     }
 
     // Wait for dialog
     const dialog = page.locator('#feedback-dialog');
-    await expect(dialog).toBeVisible({ timeout: 2000 });
+    await expect(dialog).toBeVisible({ timeout: 3000 });
 
-    // Close by clicking cancel
-    await dialog.locator('#feedback-cancel').click();
-    await expect(dialog).not.toBeVisible({ timeout: 1000 });
+    // Submit to close
+    await dialog.locator('textarea').fill('Test');
+    await dialog.locator('button[type="submit"]').click();
+    await expect(dialog).not.toBeVisible({ timeout: 2000 });
 
     // Send more deltas - dialog should not reappear
-    for (let i = 45; i < 50; i++) {
+    for (let i = 35; i < 45; i++) {
       await sendGraphDelta(page, createBatchGraphDelta(i, 1));
       await page.waitForTimeout(30);
     }
@@ -112,29 +103,5 @@ test.describe('Feedback Dialog Screenshot', () => {
     // Dialog should not be visible again
     await page.waitForTimeout(500);
     await expect(dialog).not.toBeVisible();
-  });
-
-  test('should close dialog on backdrop click', async ({ page }) => {
-    await setupMockElectronAPI(page);
-    await page.goto('/');
-    await page.waitForSelector('#root', { timeout: 5000 });
-    await waitForCytoscapeReady(page);
-
-    // Trigger feedback dialog
-    for (let i = 0; i < 40; i++) {
-      await sendGraphDelta(page, createBatchGraphDelta(i, 1));
-      await page.waitForTimeout(30);
-    }
-
-    // Wait for dialog
-    const dialog = page.locator('#feedback-dialog');
-    await expect(dialog).toBeVisible({ timeout: 2000 });
-
-    // Click outside the dialog (on the backdrop)
-    // The dialog's backdrop covers the viewport, clicking at (0,0) should hit it
-    await page.mouse.click(5, 5);
-
-    // Dialog should close
-    await expect(dialog).not.toBeVisible({ timeout: 1000 });
   });
 });

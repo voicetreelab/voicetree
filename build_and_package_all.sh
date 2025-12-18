@@ -190,6 +190,57 @@ fi
 echo ""
 if [ "$PUBLISH" = true ]; then
     echo "Published to GitHub releases!"
+
+    # Update Homebrew tap
+    echo ""
+    echo "🍺 Updating Homebrew tap..."
+    echo "----------------------------------------------"
+
+    # Get version from package.json
+    VERSION=$(node -p "require('./package.json').version")
+
+    # Get SHA256 of the DMG
+    DMG_PATH=$(find ../../dist/electron -name "voicetree.dmg" 2>/dev/null | head -1)
+    if [ -n "$DMG_PATH" ]; then
+        SHA256=$(shasum -a 256 "$DMG_PATH" | awk '{print $1}')
+
+        # Clone, update, and push homebrew tap
+        TEMP_TAP=$(mktemp -d)
+        git clone https://github.com/voicetreelab/homebrew-voicetree.git "$TEMP_TAP"
+
+        # Update the cask file
+        cat > "$TEMP_TAP/Casks/voicetree.rb" << EOF
+cask "voicetree" do
+  version "$VERSION"
+  sha256 "$SHA256"
+
+  url "https://github.com/voicetreelab/voicetree/releases/download/v#{version}/voicetree.dmg"
+  name "VoiceTree"
+  desc "Transform voice into navigable concept graphs"
+  homepage "https://github.com/voicetreelab/voicetree"
+
+  depends_on macos: ">= :monterey"
+
+  app "VoiceTree.app"
+
+  zap trash: [
+    "~/Library/Application Support/VoiceTree",
+    "~/Library/Preferences/com.voicetree.webapp.plist",
+  ]
+end
+EOF
+
+        cd "$TEMP_TAP"
+        git add -A
+        git commit -m "Update VoiceTree to v$VERSION" || echo "No changes to commit"
+        git push
+        cd -
+        rm -rf "$TEMP_TAP"
+
+        echo "✅ Homebrew tap updated to v$VERSION"
+    else
+        echo "⚠️  Could not find DMG to calculate SHA256"
+    fi
 else
     echo "To publish, run: ./build_and_package_all.sh --publish"
 fi

@@ -26,6 +26,11 @@ function showFeedbackDialog(): Promise<string | null> {
             max-width: 420px;
             width: 90%;
             box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            margin: 0;
         `;
 
         dialog.innerHTML = `
@@ -133,6 +138,11 @@ function showEmailDialog(): Promise<string | null> {
             max-width: 420px;
             width: 90%;
             box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            margin: 0;
         `;
 
         dialog.innerHTML = `

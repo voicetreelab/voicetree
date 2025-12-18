@@ -9,10 +9,10 @@ import type {
     UpsertNodeDelta
 } from "@/pure/graph";
 import {
-    createDeleteNodesAction,
     createNewNodeNoParent,
     fromCreateChildToUpsertNode
 } from "@/pure/graph/graphDelta/uiInteractionsToGraphDeltas";
+import {deleteNodeMaintainingTransitiveEdges} from "@/pure/graph/graph-operations/removeNodeMaintainingTransitiveEdges";
 import type {Core} from 'cytoscape';
 import {getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
 import {updateFloatingEditors} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
@@ -79,21 +79,24 @@ export async function createNewEmptyOrphanNodeFromUI(
 
 /**
  * Deletes multiple nodes in a single delta for atomic undo.
+ * Uses deleteNodeMaintainingTransitiveEdges to preserve transitive connectivity
+ * (redirects edges from parents to children when a middle node is deleted).
  */
 export async function deleteNodesFromUI(
     nodeIds: ReadonlyArray<NodeIdAndFilePath>,
     _cy: Core
 ): Promise<void> {
-    // Fetch all nodes in parallel for undo support
-    const nodesToDelete: Array<{nodeId: string; deletedNode: GraphNode}> = await Promise.all(
-        nodeIds.map(async (nodeId) => ({
-            nodeId,
-            deletedNode: await getNodeFromMainToUI(nodeId)
-        }))
-    );
+    // Get current graph state to compute transitive edge preservation
+    const currentGraph: Graph | undefined = await window.electronAPI?.main.getGraph()
+    if (!currentGraph) {
+        console.error("NO GRAPH IN STATE")
+        return
+    }
 
-    // Create single GraphDelta for all deletions
-    const graphDelta: GraphDelta = createDeleteNodesAction(nodesToDelete);
+    // For each node, compute the expanded delta (DeleteNode + UpsertNodes for edge preservation)
+    const graphDelta: GraphDelta = nodeIds.flatMap((nodeId) =>
+        deleteNodeMaintainingTransitiveEdges(currentGraph, nodeId)
+    )
 
     await window.electronAPI?.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed(graphDelta);
 }

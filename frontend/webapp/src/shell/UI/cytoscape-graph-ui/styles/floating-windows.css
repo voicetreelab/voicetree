@@ -149,6 +149,25 @@
   pointer-events: auto;
 }
 
+/* Vertical submenu dropdown from horizontal menu
+ * Uses CSS variables for dark mode support */
+.horizontal-menu-submenu {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  flex-direction: column;
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  border-radius: 8px;
+  padding: 2px 0;
+  z-index: 10001;
+  pointer-events: auto;
+  color: var(--foreground);
+}
+
 /* CodeMirror Editor Styles */
 /*// TODO BROKEN, frontmatter styling is applying to titles as well*/
 /*!* YAML Frontmatter - Smaller, de-emphasized styling *!*/

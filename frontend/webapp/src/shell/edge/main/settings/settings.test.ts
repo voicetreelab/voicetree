@@ -46,8 +46,7 @@ describe('settings', () => {
       agents: [{ name: 'Custom Agent', command: 'custom-command.sh' }],
       shiftEnterSendsOptionEnter: false,
       contextNodeMaxDistance: 7,
-      askModeContextDistance: 4,
-      defaultInputMode: 'add'
+      askModeContextDistance: 4
     };
 
     await saveSettings(customSettings);
@@ -63,8 +62,7 @@ describe('settings', () => {
       agents: [{ name: 'Test Agent', command: 'test.sh' }],
       shiftEnterSendsOptionEnter: true,
       contextNodeMaxDistance: 7,
-      askModeContextDistance: 4,
-      defaultInputMode: 'add'
+      askModeContextDistance: 4
     };
 
     await saveSettings(customSettings);
@@ -84,8 +82,7 @@ describe('settings', () => {
       agents: [{ name: 'Another Agent', command: 'another.sh' }],
       shiftEnterSendsOptionEnter: true,
       contextNodeMaxDistance: 7,
-      askModeContextDistance: 4,
-      defaultInputMode: 'add'
+      askModeContextDistance: 4
     };
 
     await saveSettings(settings);

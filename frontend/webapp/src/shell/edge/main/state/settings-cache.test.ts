@@ -14,8 +14,7 @@ describe('settings-cache', () => {
       shiftEnterSendsOptionEnter: true,
       INJECT_ENV_VARS: {},
       contextNodeMaxDistance: 7,
-      askModeContextDistance: 4,
-      defaultInputMode: 'add'
+      askModeContextDistance: 4
     };
     setCachedSettings(mockSettings);
     expect(getCachedSettings()).toEqual(mockSettings);
