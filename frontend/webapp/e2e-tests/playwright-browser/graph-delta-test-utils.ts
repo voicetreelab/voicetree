@@ -66,6 +66,10 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
           // Return the current graph state that's updated by sendGraphDelta
           return mockElectronAPI.graph._graphState;
         },
+        getNode: async (nodeId: string) => {
+          // Return a specific node from the graph state
+          return mockElectronAPI.graph._graphState.nodes[nodeId];
+        },
 
         // Settings operations
         loadSettings: async () => ({
@@ -90,7 +94,7 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
           console.log('[Mock] stopFileWatching called');
           return { success: true };
         },
-        getWatchStatus: async () => ({ isWatching: false, directory: null }),
+        getWatchStatus: async () => ({ isWatching: true, directory: '/mock/watched/directory' }),
         loadPreviousFolder: async () => ({ success: false }),
 
         // Backend server configuration
@@ -112,6 +116,26 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
           // Trigger graph update callback (simulating file watcher event)
           if (mockElectronAPI.graph._updateCallback) {
             // Use setTimeout to simulate async file system operation
+            setTimeout(() => {
+              mockElectronAPI.graph._updateCallback?.(delta);
+            }, 10);
+          }
+          return { success: true };
+        },
+
+        // Another UI-edge method (used by modifyNodeContentFromFloatingEditor.ts)
+        applyGraphDeltaToDBThroughMemAndUIExposed: async (delta: GraphDelta) => {
+          // Same as above - update mock graph state and trigger callback
+          delta.forEach((nodeDelta) => {
+            if (nodeDelta.type === 'UpsertNode') {
+              const node = nodeDelta.nodeToUpsert;
+              mockElectronAPI.graph._graphState.nodes[node.relativeFilePathIsID] = node;
+            } else if (nodeDelta.type === 'DeleteNode') {
+              delete mockElectronAPI.graph._graphState.nodes[nodeDelta.nodeId];
+            }
+          });
+
+          if (mockElectronAPI.graph._updateCallback) {
             setTimeout(() => {
               mockElectronAPI.graph._updateCallback?.(delta);
             }, 10);

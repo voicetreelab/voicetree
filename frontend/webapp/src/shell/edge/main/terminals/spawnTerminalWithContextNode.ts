@@ -22,6 +22,7 @@ import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/types';
 import { createTerminalData } from '@/shell/edge/UI-edge/floating-windows/types';
 import type { NodeIdAndFilePath, GraphNode, Graph } from '@/pure/graph';
 import { getNodeTitle } from '@/pure/graph/markdown-parsing';
+import { findFirstParentNode } from '@/pure/graph/graph-operations/findFirstParentNode';
 import type { VTSettings, AgentConfig } from '@/pure/settings';
 import { resolveEnvVars, expandEnvVarsInValues } from '@/pure/settings';
 import { dialog } from 'electron';
@@ -206,11 +207,13 @@ async function prepareTerminalDataInMain(
     // Resolve env vars (including random AGENT_NAME selection)
     const resolvedEnvVars: Record<string, string> = resolveEnvVars(settings.INJECT_ENV_VARS);
 
-    // Build terminal title: "<AGENT_NAME>: <context_node_name_without_prefix>"
-    const contextNodeTitle: string = getNodeTitle(contextNode);
-    const strippedTitle: string = contextNodeTitle.replace(/^CONTEXT for:\s*/i, '');
+    // Build terminal title: "<AGENT_NAME>: <parent_node_title>"
+    // Context nodes have title "context", so we use the parent node's title instead
+    // (the task node that spawned this context node)
+    const parentNode: GraphNode | undefined = findFirstParentNode(contextNode, graph);
+    const parentTitle: string = parentNode ? getNodeTitle(parentNode) : getNodeTitle(contextNode);
     const agentName: string = resolvedEnvVars['AGENT_NAME'] ?? '';
-    const title: string = agentName ? `${agentName}: ${strippedTitle}` : strippedTitle;
+    const title: string = agentName ? `${agentName}: ${parentTitle}` : parentTitle;
 
     // Compute initial_spawn_directory from watch directory + relative path setting
     let initialSpawnDirectory: string | undefined;

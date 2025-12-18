@@ -127,10 +127,10 @@ describe('createContextNode - Integration Tests', () => {
         // todo these tests arre way too specific, just make it expect a 'context' not anything else.
         // Should have frontmatter with title
         expect(fileContent).toContain('---')
-        expect(fileContent).toContain('CONTEXT for')
+        expect(fileContent).toContain('Context')
 
         // Should have heading for context graph
-        expect(fileContent).toContain('## CONTEXT for')
+        expect(fileContent).toContain('## Context')
 
         // Should have ASCII tree visualization in code block
         expect(fileContent).toContain('```')
@@ -182,7 +182,7 @@ describe('createContextNode - Integration Tests', () => {
       // AND: Context node should have the parent node as a connection
       const contextNode: GraphNode = reloadedGraph.nodes[contextNodeId]
       expect(contextNode).toBeDefined()
-      expect(contextNode.contentWithoutYamlOrLinks).toContain('CONTEXT for')
+      expect(contextNode.contentWithoutYamlOrLinks).toContain('Context')
     })
   })
 
