@@ -13,6 +13,8 @@ import { getTerminalId } from '@/shell/edge/UI-edge/floating-windows/types'
 import { getTerminals } from '@/shell/edge/UI-edge/state/TerminalStore'
 
 const TAB_WIDTH: number = 90
+const INACTIVITY_THRESHOLD_MS: number = 10000 // 10 seconds
+const CHECK_INTERVAL_MS: number = 1000 // Check every second
 
 interface AgentTabsBarState {
     container: HTMLElement | null
@@ -31,6 +33,10 @@ interface AgentTabsBarState {
     draggingFromIndex: number | null
     // Target index where ghost is positioned (where dragged tab will be inserted)
     ghostTargetIndex: number | null
+    // Inactivity tracking - last output time per terminal
+    lastOutputTime: Map<TerminalId, number>
+    // Interval for checking inactivity
+    inactivityCheckInterval: ReturnType<typeof setInterval> | null
 }
 
 // Module state for the single instance
@@ -44,7 +50,9 @@ const state: AgentTabsBarState = {
     lastOnSelect: null,
     ghostElement: null,
     draggingFromIndex: null,
-    ghostTargetIndex: null
+    ghostTargetIndex: null,
+    lastOutputTime: new Map(),
+    inactivityCheckInterval: null
 }
 
 /**
@@ -166,6 +174,19 @@ export function createAgentTabsBar(parentContainer: HTMLElement): () => void {
 
     // Initially hidden until we have terminals
     state.container.style.display = 'none'
+
+    // Subscribe to terminal data events for inactivity tracking
+    window.electronAPI.terminal.onData((terminalId: string, _data: string) => {
+        const now: number = Date.now()
+        state.lastOutputTime.set(terminalId as TerminalId, now)
+        // Terminal became active - remove inactive class immediately
+        updateInactivityClass(terminalId as TerminalId, false)
+    })
+
+    // Start interval to check for inactive terminals
+    state.inactivityCheckInterval = setInterval(() => {
+        checkTerminalInactivity()
+    }, CHECK_INTERVAL_MS)
 
     return disposeAgentTabsBar
 }
@@ -373,6 +394,15 @@ function createTab(
 export function disposeAgentTabsBar(): void {
     removeGhostElement()
 
+    // Clean up inactivity check interval
+    if (state.inactivityCheckInterval !== null) {
+        clearInterval(state.inactivityCheckInterval)
+        state.inactivityCheckInterval = null
+    }
+
+    // Remove terminal:data event listener
+    window.electronAPI.removeAllListeners('terminal:data')
+
     if (state.container && state.container.parentNode) {
         state.container.parentNode.removeChild(state.container)
     }
@@ -386,6 +416,7 @@ export function disposeAgentTabsBar(): void {
     state.lastOnSelect = null
     state.draggingFromIndex = null
     state.ghostTargetIndex = null
+    state.lastOutputTime.clear()
 }
 
 /**
@@ -445,4 +476,32 @@ function updateActivityDots(terminalId: TerminalId): void {
 export function clearActivityForTerminal(terminalId: TerminalId): void {
     state.terminalActivityCount.set(terminalId, 0)
     updateActivityDots(terminalId)
+}
+
+/**
+ * Check all tracked terminals for inactivity and update CSS classes
+ */
+function checkTerminalInactivity(): void {
+    const now: number = Date.now()
+    for (const [terminalId, lastTime] of state.lastOutputTime.entries()) {
+        const elapsed: number = now - lastTime
+        const isInactive: boolean = elapsed >= INACTIVITY_THRESHOLD_MS
+        updateInactivityClass(terminalId, isInactive)
+    }
+}
+
+/**
+ * Update the inactive CSS class on a specific terminal tab
+ */
+function updateInactivityClass(terminalId: TerminalId, isInactive: boolean): void {
+    if (!state.tabsContainer) return
+
+    const tab: HTMLElement | null = state.tabsContainer.querySelector(`[data-terminal-id="${terminalId}"]`)
+    if (!tab) return
+
+    if (isInactive) {
+        tab.classList.add('agent-tab-inactive')
+    } else {
+        tab.classList.remove('agent-tab-inactive')
+    }
 }
