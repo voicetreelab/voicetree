@@ -1,11 +1,13 @@
 ---
 position:
-  x: 37.87766020718214
-  y: 267.49679465631453
+  x: -85.93095943058819
+  y: 410.49966924650835
 isContextNode: false
 node_id: 9
 ---
-### Investigate running lambda functions locally, potentially via CLI, to facilitate a local development workflow and quick testing.
+### Investigate running lambda functions locally
+
+, potentially via CLI, to facilitate a local development workflow and quick testing.
 
 Investigate a way to run lambda functions locally, potentially via a CLI, to enable a local development workflow for quick testing.
 

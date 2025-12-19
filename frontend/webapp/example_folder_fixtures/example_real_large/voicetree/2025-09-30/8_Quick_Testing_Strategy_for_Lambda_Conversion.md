@@ -1,11 +1,13 @@
 ---
 position:
-  x: 51.51611536056483
-  y: 35.22353076978088
+  x: -152.2579323209976
+  y: 201.78595304004475
 isContextNode: false
 node_id: 8
 ---
-### Develop a quick testing strategy for the converted append agent lambda, leveraging existing and integration tests.
+### Develop a quick testing strategy for the lambdas
+
+converted append agent lambda, leveraging existing and integration tests.
 
 Develop a strategy for quickly testing the converted append agent lambda function. This strategy involves identifying the most important existing tests from the codebase. We also have integration tests in for the append agent itself.
 

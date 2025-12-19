@@ -1,11 +1,13 @@
 ---
 position:
-  x: 769.0026995538962
-  y: -30.37249149724583
+  x: 548.7616636455182
+  y: -155.1200767930283
 isContextNode: false
 node_id: 3
 ---
-### Initial steps for append agent conversion, including G Cloud CLI setup and understanding Lambda creation, are underway to enable focused work.
+### Initial steps for append agent conversion, including G Cloud CLI setup
+
+and understanding Lambda creation, are underway to enable focused work.
 
 The initial steps for converting the append agent involve setting up the G Cloud CLI and understanding Google Cloud Lambda creation. So let's just follow the steps. Okay, if ever just set up needed it. Right now, a lot of context watching is going on, but hopefully, um, we can stop that very soon and start actually focusing once we've got everything set up.
 

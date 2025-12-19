@@ -240,10 +240,16 @@ async function prepareTerminalDataInMain(
         ? `${watchedDir.replace(/\/$/, '')}/${contextNodeId}`
         : contextNodeId;
 
+    // Build absolute path for task node (parent of context node)
+    const taskNodeAbsolutePath: string = parentNode && watchedDir
+        ? `${watchedDir.replace(/\/$/, '')}/${parentNode.nodeIdAndFilePath}`
+        : '';
+
     // Build env vars then expand $VAR_NAME references within values
     const unexpandedEnvVars: Record<string, string> = {
         VOICETREE_APP_SUPPORT: appSupportPath ?? '',
         CONTEXT_NODE_PATH: contextNodeAbsolutePath,
+        TASK_NODE_PATH: taskNodeAbsolutePath,
         CONTEXT_NODE_CONTENT: contextContent,
         ...resolvedEnvVars,
     };

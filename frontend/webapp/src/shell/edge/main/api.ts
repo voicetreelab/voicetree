@@ -28,6 +28,7 @@ import type {VTSettings} from '@/pure/settings/types';
 import {resolveEnvVars, expandEnvVarsInValues} from '@/pure/settings';
 import type {Graph, GraphNode, NodeIdAndFilePath} from '@/pure/graph';
 import {getNodeTitle} from '@/pure/graph/markdown-parsing';
+import {findFirstParentNode} from '@/pure/graph/graph-operations/findFirstParentNode';
 import {getWatchedDirectory} from './graph/watchFolder';
 
 // eslint-disable-next-line @typescript-eslint/typedef
@@ -134,9 +135,16 @@ export const mainAPI = {
       ? `${watchedDir.replace(/\/$/, '')}/${contextNodeId}`
       : contextNodeId;
 
+    // Build absolute path for task node (parent of context node)
+    const parentNode: GraphNode | undefined = findFirstParentNode(contextNode, graph);
+    const taskNodeAbsolutePath: string = parentNode && watchedDir
+      ? `${watchedDir.replace(/\/$/, '')}/${parentNode.nodeIdAndFilePath}`
+      : '';
+
     const unexpandedEnvVars: Record<string, string> = {
       VOICETREE_APP_SUPPORT: appSupportPath ?? '',
       CONTEXT_NODE_PATH: contextNodeAbsolutePath,
+      TASK_NODE_PATH: taskNodeAbsolutePath,
       CONTEXT_NODE_CONTENT: contextContent,
       ...resolvedEnvVars,
     };

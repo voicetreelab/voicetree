@@ -276,3 +276,24 @@
   font-size: 12px;
   white-space: nowrap;
 }
+
+/* Diff highlighting in code blocks
+ * Lines starting with + get green background
+ * Lines starting with - get red background
+ * Semi-transparent for subtle visual cue */
+.cm-diff-added {
+  background-color: rgba(34, 197, 94, 0.2); /* light green, 20% opacity */
+}
+
+.cm-diff-removed {
+  background-color: rgba(239, 68, 68, 0.2); /* light red, 20% opacity */
+}
+
+/* Dark mode adjustments for diff highlighting */
+.dark .cm-diff-added {
+  background-color: rgba(34, 197, 94, 0.25);
+}
+
+.dark .cm-diff-removed {
+  background-color: rgba(239, 68, 68, 0.25);
+}

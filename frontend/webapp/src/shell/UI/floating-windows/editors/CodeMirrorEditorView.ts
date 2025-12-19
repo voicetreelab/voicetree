@@ -49,6 +49,7 @@ import renderBlock from 'codemirror-rich-markdoc/src/renderBlock';
 import { Disposable } from '@/shell/UI/views/Disposable';
 import { EventEmitter } from '@/utils/EventEmitter';
 import { mermaidRender } from '@/shell/UI/floating-windows/extensions/mermaidRender';
+import { diffHighlight } from '@/shell/UI/floating-windows/extensions/diffHighlight';
 import { FloatingWindowFullscreen } from '@/shell/UI/floating-windows/FloatingWindowFullscreen';
 
 /**
@@ -197,6 +198,7 @@ export class CodeMirrorEditorView extends Disposable {
       basicSetup,
       richMarkdocPlugin, // Rich markdown editing (provides markdown, decorations, and syntax highlighting inside provide())
       mermaidRender(), // Render Mermaid diagrams in live preview
+      diffHighlight(), // Highlight diff lines (+/-) in code blocks with green/red backgrounds
       frontmatterFoldService, // Custom fold service for frontmatter
       foldGutter(), // Add fold gutter for collapsing sections
       EditorView.lineWrapping, // Enable text wrapping

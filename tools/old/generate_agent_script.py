@@ -123,7 +123,7 @@ def generate_agent_script(
     # Write script
     if output_dir is None:
         # Use OBSIDIAN_VAULT_PATH if available, otherwise current directory
-        output_dir = os.environ.get('OBSIDIAN_VAULT_PATH', '.')
+        output_dir = os.environ.get('OBSIDIAN_VAULT_PATH', '..')
     
     output_path = Path(output_dir) / f"{agent_name_lower}.sh"
     output_path.write_text(script_content)

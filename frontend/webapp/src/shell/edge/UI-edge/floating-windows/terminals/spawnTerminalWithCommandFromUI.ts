@@ -7,9 +7,8 @@
  * - No stored callbacks - use disposeFloatingWindow()
  */
 
-import type { NodeIdAndFilePath, Position, GraphNode, GraphDelta } from "@/pure/graph";
-import { createDeleteNodesAction } from "@/pure/graph/graphDelta/uiInteractionsToGraphDeltas";
-import { getNodeFromMainToUI } from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
+import type { NodeIdAndFilePath, Position, GraphNode } from "@/pure/graph";
+import { deleteNodesFromUI } from "@/shell/edge/UI-edge/graph/handleUIActions";
 import type { Core, CollectionReturnValue, NodeCollection } from "cytoscape";
 import * as O from 'fp-ts/lib/Option.js';
 // Import for global Window.electronAPI type augmentation
@@ -148,7 +147,7 @@ export function createFloatingTerminalWindow(
     const closeButton: HTMLButtonElement | null = ui.titleBar.querySelector('.cy-floating-window-close');
     if (closeButton) {
         closeButton.addEventListener('click', () => {
-            closeTerminal(terminalWithUI, cy);
+            void closeTerminal(terminalWithUI, cy);
         });
     }
 
@@ -188,7 +187,7 @@ export async function closeTerminal(terminal: TerminalData, cy: Core): Promise<v
     disposeFloatingWindow(cy, terminal);
 
     // Delete the context node if this was the last terminal attached to it
-    await deleteContextNodeIfExists(terminal.attachedToNodeId);
+    await deleteContextNodeIfLastTerminal(terminal.attachedToNodeId, cy);
 }
 
 /**
@@ -196,10 +195,12 @@ export async function closeTerminal(terminal: TerminalData, cy: Core): Promise<v
  * 1. It exists in the graph
  * 2. It has isContextNode: true
  * 3. No other terminals are still attached to it
+ *
+ * Uses deleteNodesFromUI which handles transitive edge preservation.
  */
-async function deleteContextNodeIfExists(nodeId: NodeIdAndFilePath): Promise<void> {
+async function deleteContextNodeIfLastTerminal(nodeId: NodeIdAndFilePath, cy: Core): Promise<void> {
     try {
-        const node: GraphNode | undefined = await getNodeFromMainToUI(nodeId);
+        const node: GraphNode | undefined = await window.electronAPI?.main.getNode(nodeId);
         if (!node) return;
 
         // Only delete if it's a context node
@@ -215,9 +216,8 @@ async function deleteContextNodeIfExists(nodeId: NodeIdAndFilePath): Promise<voi
             return;
         }
 
-        // Create and apply delete delta
-        const graphDelta: GraphDelta = createDeleteNodesAction([{ nodeId, deletedNode: node }]);
-        await window.electronAPI?.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed(graphDelta);
+        // Use the canonical delete path with transitive edge preservation
+        await deleteNodesFromUI([nodeId], cy);
         console.log('[closeTerminal] Deleted context node:', nodeId);
     } catch (error) {
         console.error('[closeTerminal] Failed to delete context node:', error);

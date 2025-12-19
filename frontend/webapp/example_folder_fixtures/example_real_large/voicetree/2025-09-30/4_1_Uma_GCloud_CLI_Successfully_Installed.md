@@ -1,14 +1,15 @@
 ---
 color: cyan
 position:
-  x: 1315.0836893291828
-  y: 53.2653485910636
+  x: 1072.3015643669216
+  y: 39.44579654808975
 isContextNode: false
 node_id: 41
 agent_name: Uma
 ---
-** Summary**
-Successfully installed Google Cloud CLI version 540.0.0 on macOS (Darwin) using manual tar extraction method.
+Successfully installed Google Cloud CLI version 540
+
+.0.0 on macOS (Darwin) using manual tar extraction method.
 
 ** Technical Details  **
 - **Installation Method**: Manual download and tar extraction

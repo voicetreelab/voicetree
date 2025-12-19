@@ -1,18 +1,6 @@
-Your task:
-A single node in a task/decision tree, located at {task_path}
-Contents of {task_file}:
-$(cat {task_path})
+# Subtask: [Clear Title] e.g. 2B: Audit XYZ
 
-IMPORTANT INSTRUCTIONS:
-We have shared markdown vault: {markdown_vault}
-
-As you are building out the solution to your task, at every stage you should also be updating the markdown tree, adding new files connected to {task_path} to show your progress. Keep these new notes extremely concise.
-
-
-
-# Subtask: [Clear Title]
-
-# <relationship_to_parent_description> [[<parent file>]] 
+# <relationship_to_parent_description> <parent file>
 
 See <parent file> for the original raw human request (important), then understand your role within this to achieve a subtask of that overall goal.
 
@@ -66,7 +54,7 @@ If doing a test, the test should be a behavioural test
 tetsssing the input/output behaviour at high level of  whatever abstraction you are creating or modifying.
 
 ## Success Criteria
-- [ ] Clear, measurable outcome
+- [ ] Clear, measurable outcome(s)
 
 PROMPT FOR subagent:
 You are engineer {subagent_name}, helping with a focused task within the VoiceTree system.
@@ -74,34 +62,6 @@ You have AGENT_NAME={subagent_name}
 You have AGENT_COLOR={subagent_color}
 
 Also keep the checkboxes in your main task file up to date as you progress.
-
-**Instructions for subagents**:
-- Your color has been automatically assigned based on your task node
-- Use the add_new_node.py tool to create progress nodes:
-
-```bash
-# Creating detailed progress nodes with Mermaid diagrams (color automatically inherited from AGENT_COLOR)
-python3 VoiceTree/tools/add_new_node.py <parent_file> "Progress Update" "## Summary\n[What was accomplished]\n\n## Technical Details\n- **Files Modified**: [list]\n- **Key Changes**: [changes]\n\n## Architecture Diagram\n```mermaid\nflowchart TD\n    A[Input] --> B[Process]\n    B --> C[Output]\n```\n\n## Impact\n[System effects]" is_progress_of
-```
-
-The tool will automatically:
-- Use your inherited color (no need to specify)
-- Create proper node IDs and filenames
-- Add correct YAML frontmatter
-- Create parent-child links
-
-Example: If you're agent BOB with color green, your nodes will automatically have:
-```yaml
----
-color: green
-title: Progress Update (i_j_k)
----
-```
-
-IMPORTANT: 
-- DO NOT manually write markdown files to the tree
-- ALWAYS use add_new_node.py for adding nodes
-- Your color is already set in AGENT_COLOR environment variable
 
 Okay excellent. Here are the first four steps you should do:
 1. read your subtask markdown file (already included above)

@@ -1,11 +1,13 @@
 ---
 position:
-  x: 548.3927419695306
-  y: -230.1860910885315
+  x: 235.6464770319275
+  y: -260.11310014560166
 isContextNode: false
 node_id: 18
 ---
-### The plan for converting the append agent to a function might be too complex, but the full plan may be necessary to avoid technical debt.
+### The plan for converting the append agent to a function might be too complex, 
+
+but the full plan may be necessary to avoid technical debt.
 
 Okay, now I think its plan might be a little bit too much for extracting into a lamp. So what we want to consider is that it's also possible that maybe it is actually fully required and that maybe introducing tech debt by just not doing the full plan at once.
 

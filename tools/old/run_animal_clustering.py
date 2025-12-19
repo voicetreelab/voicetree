@@ -131,7 +131,7 @@ async def main():
     # Load the animal example tree
     # Simple relative paths from tools folder
     input_dir = "backend/benchmarker/output/igsm_op17_ip20_force_True_0_problem_question"
-    output_dir = "../backend/benchmarker/output_clustered_hard_16"
+    output_dir = "../../backend/benchmarker/output_clustered_hard_16"
     
     print(f"Loading tree from: {input_dir}")
     converter = MarkdownToTreeConverter()
