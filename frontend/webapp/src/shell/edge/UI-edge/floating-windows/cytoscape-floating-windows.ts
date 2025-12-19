@@ -372,23 +372,25 @@ export function anchorToNode(
     // Get all non-shadow nodes to check for collisions
     const existingNodes = cy.nodes().filter((n: cytoscape.NodeSingular) => !n.data('isShadowNode'));
 
-    // Calculate neighborhood center of mass (n=3 hops from parent)
-    const neighborhood = parentNode.closedNeighborhood('node[!isShadowNode]');
-    let centerOfMass = { x: 0, y: 0 };
-    if (neighborhood.length > 0) {
-        neighborhood.forEach((n: cytoscape.NodeSingular) => {
-            const pos = n.position();
-            centerOfMass.x += pos.x;
-            centerOfMass.y += pos.y;
-        });
-        centerOfMass.x /= neighborhood.length;
-        centerOfMass.y /= neighborhood.length;
+    // Calculate desired angle using angle continuation heuristic:
+    // Find the grandparent (task node) and continue the angle from task -> context -> terminal
+    const incomingEdges = parentNode.incomers('edge').filter(
+        (e: cytoscape.EdgeSingular) => !e.source().data('isShadowNode')
+    );
+    let desiredAngle: number;
+    if (incomingEdges.length > 0) {
+        // Use first incoming edge's source as grandparent (task node)
+        const grandparentNode = incomingEdges[0].source();
+        const grandparentPos = grandparentNode.position();
+        // Angle from grandparent -> context node, which we want to continue
+        desiredAngle = Math.atan2(parentPos.y - grandparentPos.y, parentPos.x - grandparentPos.x);
     } else {
-        centerOfMass = parentPos;
+        // No grandparent (context node is root), default to right (angle 0)
+        desiredAngle = 0;
     }
 
     // Calculate candidate positions and filter by no-overlap
-    const candidates: { pos: { x: number; y: number }; distFromCoM: number }[] = [];
+    const candidates: { pos: { x: number; y: number }; angleDiff: number }[] = [];
     for (const dir of directions) {
         const offsetX = dir.dx * ((shadowDimensions.width / 2) + (parentWidth / 2) + gap);
         const offsetY = dir.dy * ((shadowDimensions.height / 2) + (parentHeight / 2) + gap);
@@ -417,19 +419,21 @@ export function anchorToNode(
         });
 
         if (!hasOverlap) {
-            // Distance from candidate to neighborhood center of mass
-            const distFromCoM = Math.sqrt(
-                Math.pow(candidatePos.x - centerOfMass.x, 2) +
-                Math.pow(candidatePos.y - centerOfMass.y, 2)
-            );
-            candidates.push({ pos: candidatePos, distFromCoM });
+            // Calculate angle from context -> terminal candidate
+            const candidateAngle = Math.atan2(candidatePos.y - parentPos.y, candidatePos.x - parentPos.x);
+            // Calculate absolute angle difference (normalized to [0, PI])
+            let angleDiff = Math.abs(candidateAngle - desiredAngle);
+            if (angleDiff > Math.PI) {
+                angleDiff = 2 * Math.PI - angleDiff;
+            }
+            candidates.push({ pos: candidatePos, angleDiff });
         }
     }
 
-    // Pick candidate furthest from center of mass, or fallback to right
+    // Pick candidate with minimum angle difference (closest to continuation angle)
     let childPosition: { x: number; y: number };
     if (candidates.length > 0) {
-        candidates.sort((a, b) => b.distFromCoM - a.distFromCoM);
+        candidates.sort((a, b) => a.angleDiff - b.angleDiff);
         childPosition = candidates[0].pos;
     } else {
         // Fallback to right if all directions blocked
@@ -503,7 +507,31 @@ export function anchorToNode(
     shadowNode.on('position', syncPosition);
     syncPosition(); // Initial sync
 
-    // Note: No parent position sync - Cola layout handles terminal positioning
+    // Track offset for parent sync (terminal follows context node when dragged)
+    let currentOffset = {
+        x: childPosition.x - parentPos.x,
+        y: childPosition.y - parentPos.y
+    };
+
+    // Update offset when shadow node is dragged directly
+    shadowNode.on('position', () => {
+        const shadowPos = shadowNode.position();
+        const parentPosition = parentNode.position();
+        currentOffset = {
+            x: shadowPos.x - parentPosition.x,
+            y: shadowPos.y - parentPosition.y
+        };
+    });
+
+    // Parent position sync: terminal follows context node at current offset
+    const syncWithParent: () => void = () => {
+        const newParentPos = parentNode.position();
+        shadowNode.position({
+            x: newParentPos.x + currentOffset.x,
+            y: newParentPos.y + currentOffset.y
+        });
+    };
+    parentNode.on('position', syncWithParent);
 
     // Attach drag handlers and store cleanup references
     const { handleMouseMove, handleMouseUp } = attachDragHandlers(cy, titleBar, windowElement, shadowNodeId);
@@ -513,6 +541,7 @@ export function anchorToNode(
         dragMouseMove: handleMouseMove,
         dragMouseUp: handleMouseUp,
         resizeObserver,
+        parentPositionHandler: syncWithParent,
     });
 
     // Initial dimension sync
@@ -550,6 +579,17 @@ export function disposeFloatingWindow(
             // Disconnect ResizeObserver
             if (cleanup.resizeObserver) {
                 cleanup.resizeObserver.disconnect();
+            }
+            // Remove parent position listener
+            if (cleanup.parentPositionHandler) {
+                const shadowNode: cytoscape.CollectionReturnValue = cy.getElementById(shadowNodeId);
+                if (shadowNode.length > 0) {
+                    const parentNodeId: string = shadowNode.data('parentNodeId');
+                    const parentNode: cytoscape.CollectionReturnValue = cy.getElementById(parentNodeId);
+                    if (parentNode.length > 0) {
+                        parentNode.off('position', undefined, cleanup.parentPositionHandler);
+                    }
+                }
             }
             cleanupRegistry.delete(fw.ui.windowElement);
         }

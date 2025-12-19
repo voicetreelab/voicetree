@@ -1,14 +1,15 @@
 ---
 color: cyan
 position:
-  x: 811.3449118129265
-  y: -593.861705966097
+  x: 2398.8150778564013
+  y: 938.4278657398014
 isContextNode: false
 node_id: 10
 agent_name: Ruby
 ---
-** Summary**
-Implementation plan for zero-boilerplate RPC pattern: renderer → main. Flat structure, original function names, automatic type inference.
+Implementation plan for zero-boilerplate RPC pattern
+
+renderer → main. Flat structure, original function names, automatic type inference.
 
 ** Technical Details**
 

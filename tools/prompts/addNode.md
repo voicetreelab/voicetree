@@ -1,13 +1,17 @@
 As you make progress on the task, create detailed visual updates by adding nodes to our markdown tree using:
 
 ```bash
-python3 "$VOICETREE_APP_SUPPORT"/tools/add_new_node.py "Progress Name" "<markdown content...>" [relationship] [--parent <parent_file_path>]
+python3 "$VOICETREE_APP_SUPPORT"/tools/add_new_node.py "Progress Name" "<markdown content...>" [--relationship <relationship>] [--parent <file>] [--parents <file1,file2,...>]
 ```
 **CLI Syntax:**
 - `name` - Name/title of the new node
 - `markdown_content` - Markdown Content for the node's markdown file
-- Optional: `relationship` - Optional. Relationship type (e.g., `solves_the_problem`). Omit unless the relationship is speciific and meaningful.
-- Optional: `--parent <file>` - Omit. Only use to override the default parent (`$CONTEXT_NODE_PATH`)
+The following are optional parameters which you should not include unless necessary:
+- Optional: `--relationship <type>` - Relationship type (e.g., `--relationship solves_the_problem`). Omit unless the relationship is specific and meaningful.
+- Optional: `--parent <file>` - Omit. Only use to override the default parent (`$CONTEXT_NODE_PATH`) which is already set.
+- Optional: `--parents <file1,file2,...>` - Comma-separated list for multiple parents (diamond dependencies). Use when a node depends on multiple other nodes completing.
+- Optional: `--color <color>` e.g. `--color green`
+- Optional: `--agent-name <name>` e.g. `--agent-name Bob`
 
 When creating nodes, your content should:
 
@@ -62,3 +66,5 @@ This tool will automatically:
 - Create parent-child links
 
 If the python tool is broken, you may write the markdown file manually to the vault directory: `$OBSIDIAN_VAULT_PATH`, with a wikilink included in the body to [[$CONTEXT_NODE_PATH]]
+
+If you have been told to decompose the task, create a dependency graph, or you are creating a plan that involves multiple phases you must read $VOICETREE_APP_SUPPORT/tools/prompts/decompose_subtask_dependency_graph.md before adding a node.

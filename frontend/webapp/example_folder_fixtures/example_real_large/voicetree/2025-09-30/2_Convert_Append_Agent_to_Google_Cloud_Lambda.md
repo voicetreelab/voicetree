@@ -1,11 +1,13 @@
 ---
 position:
-  x: 375.3927409695306
-  y: -170.9134399712406
+  x: 148.80162695694221
+  y: -105.61311615600361
 isContextNode: false
 node_id: 2
 ---
-### Main task to convert the append agent into a Google Cloud Run Function, clarifying terminology.
+### Main task to convert the append agent into a Google Cloud Run Function, c
+
+larifying terminology.
 
 It's our main task: convert append agent to a function that runs on Google Cloud. It's important to note that for Google Cloud, these are called Cloud Run Functions, not Lambdas.
 

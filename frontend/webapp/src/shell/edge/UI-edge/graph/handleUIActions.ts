@@ -13,8 +13,8 @@ import {
     fromCreateChildToUpsertNode
 } from "@/pure/graph/graphDelta/uiInteractionsToGraphDeltas";
 import {deleteNodeMaintainingTransitiveEdges} from "@/pure/graph/graph-operations/removeNodeMaintainingTransitiveEdges";
+import {applyGraphDeltaToGraph} from "@/pure/graph/graphDelta/applyGraphDeltaToGraph";
 import type {Core} from 'cytoscape';
-import {getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
 import {updateFloatingEditors} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 import * as O from 'fp-ts/lib/Option.js';
 
@@ -81,6 +81,11 @@ export async function createNewEmptyOrphanNodeFromUI(
  * Deletes multiple nodes in a single delta for atomic undo.
  * Uses deleteNodeMaintainingTransitiveEdges to preserve transitive connectivity
  * (redirects edges from parents to children when a middle node is deleted).
+ *
+ * When deleting multiple connected nodes (e.g., Parent → A → B → C, deleting A and B),
+ * we process deletions iteratively, applying each delta to a working graph copy.
+ * This ensures transitive edges are computed correctly across the entire deletion set.
+ * Result: Parent → C (skipping over deleted A and B).
  */
 export async function deleteNodesFromUI(
     nodeIds: ReadonlyArray<NodeIdAndFilePath>,
@@ -93,11 +98,76 @@ export async function deleteNodesFromUI(
         return
     }
 
-    // For each node, compute the expanded delta (DeleteNode + UpsertNodes for edge preservation)
-    const graphDelta: GraphDelta = nodeIds.flatMap((nodeId) =>
-        deleteNodeMaintainingTransitiveEdges(currentGraph, nodeId)
-    )
+    const nodeIdsToDelete: ReadonlySet<NodeIdAndFilePath> = new Set(nodeIds)
 
-    await window.electronAPI?.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed(graphDelta);
+    // Process deletions iteratively, applying each delta to a working graph copy.
+    // This ensures each deletion sees the result of previous deletions.
+    const allDeltas: GraphDelta = []
+    let workingGraph: Graph = currentGraph
+
+    for (const nodeId of nodeIds) {
+        // Skip if node was already deleted by a previous iteration
+        if (!workingGraph.nodes[nodeId]) {
+            continue
+        }
+
+        const delta: GraphDelta = deleteNodeMaintainingTransitiveEdges(workingGraph, nodeId)
+
+        // Apply delta to working graph for next iteration
+        workingGraph = applyGraphDeltaToGraph(workingGraph, delta)
+
+        // Collect deltas, but filter out UpsertNodes for nodes we're going to delete
+        for (const nodeDelta of delta) {
+            if (nodeDelta.type === 'UpsertNode') {
+                if (nodeIdsToDelete.has(nodeDelta.nodeToUpsert.relativeFilePathIsID)) {
+                    // Don't include upserts for nodes we're deleting
+                    continue
+                }
+            }
+            allDeltas.push(nodeDelta)
+        }
+    }
+
+    // Deduplicate: keep only the last UpsertNode for each node ID
+    const finalDelta: GraphDelta = deduplicateDelta(allDeltas)
+
+    await window.electronAPI?.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed(finalDelta);
+}
+
+/**
+ * Deduplicate a delta by keeping only the last occurrence of each node operation.
+ * For UpsertNode: keep the last upsert (most up-to-date edges)
+ * For DeleteNode: keep only one delete per node
+ */
+function deduplicateDelta(delta: GraphDelta): GraphDelta {
+    const lastUpsertByNodeId: Map<NodeIdAndFilePath, UpsertNodeDelta> = new Map()
+    const deleteNodeIds: Set<NodeIdAndFilePath> = new Set()
+
+    for (const nodeDelta of delta) {
+        if (nodeDelta.type === 'DeleteNode') {
+            deleteNodeIds.add(nodeDelta.nodeId)
+        } else if (nodeDelta.type === 'UpsertNode') {
+            lastUpsertByNodeId.set(nodeDelta.nodeToUpsert.relativeFilePathIsID, nodeDelta)
+        }
+    }
+
+    // Build final delta: deletes first, then upserts
+    const result: GraphDelta = []
+
+    for (const nodeId of deleteNodeIds) {
+        // Find the original DeleteNode delta to preserve deletedNode info
+        const deleteNodeDelta: typeof delta[number] | undefined = delta.find(
+            d => d.type === 'DeleteNode' && d.nodeId === nodeId
+        )
+        if (deleteNodeDelta) {
+            result.push(deleteNodeDelta)
+        }
+    }
+
+    for (const upsert of lastUpsertByNodeId.values()) {
+        result.push(upsert)
+    }
+
+    return result
 }
 

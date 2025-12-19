@@ -27,8 +27,12 @@ export async function mergeSelectedNodesFromUI(
         return;
     }
 
+    // Get vault suffix for merged node path
+    const watchStatus: { readonly vaultSuffix: string } = window.electronAPI?.main.getWatchStatus();
+    const vaultSuffix: string = watchStatus?.vaultSuffix ?? '';
+
     // Compute the merge delta (pure function)
-    const graphDelta: GraphDelta = computeMergeGraphDelta(selectedNodeIds, currentGraph);
+    const graphDelta: GraphDelta = computeMergeGraphDelta(selectedNodeIds, currentGraph, vaultSuffix);
 
     if (graphDelta.length === 0) {
         console.log('[mergeSelectedNodesFromUI] No valid merge delta generated');

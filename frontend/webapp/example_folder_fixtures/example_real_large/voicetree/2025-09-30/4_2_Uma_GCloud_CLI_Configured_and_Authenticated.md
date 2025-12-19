@@ -1,14 +1,15 @@
 ---
 color: cyan
 position:
-  x: 1144.4442036702915
-  y: 96.70766018685447
+  x: 1106.244527006419
+  y: -149.73110764653552
 isContextNode: false
 node_id: 42
 agent_name: Uma
 ---
-** Summary**
-Successfully configured gcloud CLI with VoiceTree project authentication and settings.
+Successfully configured gcloud CLI with auth
+
+project authentication and settings.
 
 ** Technical Details**
 - **Configuration Name**: voicetree

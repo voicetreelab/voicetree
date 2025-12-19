@@ -11,13 +11,15 @@ import sys
 from pathlib import Path
 
 
-def addNewNode(parent_file=None, name=None, markdown_content=None, relationship_to=None, color_override=None, agent_name_override=None):
+def addNewNode(parent_file=None, parent_files=None, name=None, markdown_content=None, relationship_to=None, color_override=None, agent_name_override=None):
     """
     Add a new node to the VoiceTree structure.
 
     Args:
-        parent_file (str, optional): Path to the parent markdown file (relative to vault or absolute).
+        parent_file (str, optional): Path to a single parent markdown file (relative to vault or absolute).
                                      If not provided, uses CONTEXT_NODE_PATH env var.
+        parent_files (list, optional): List of paths for multiple parents (for diamond dependencies).
+                                       Takes precedence over parent_file if provided.
         name (str): Name/title of the new node
         markdown_content (str): Content for the new node's markdown file
         relationship_to (str, optional): Relationship type to parent (e.g., "is_a_component_of", "is_a_feature_of").
@@ -28,14 +30,14 @@ def addNewNode(parent_file=None, name=None, markdown_content=None, relationship_
     Returns:
         str: Path to the newly created file
     """
-    # Use color override if provided, otherwise get from environment variable
     if color_override:
         color = color_override
     else:
         color = os.environ.get('AGENT_COLOR', 'blue')
     
     # Get agent name from override or environment
-    if agent_name_override:
+    # Note: check `is not None` so empty string "" can override to no agent name
+    if agent_name_override is not None:
         agent_name = agent_name_override
     else:
         agent_name = os.environ.get('AGENT_NAME', 'default')
@@ -43,12 +45,20 @@ def addNewNode(parent_file=None, name=None, markdown_content=None, relationship_
     # Get vault path from environment variable
     vault_path_env = os.environ.get('OBSIDIAN_VAULT_PATH')
 
-    # If parent_file not provided, use CONTEXT_NODE_PATH from environment
-    if parent_file is None:
+    # Handle multiple parents (for diamond dependencies) or single parent
+    if parent_files:
+        # Use first parent for directory placement, all parents for links
+        all_parent_files = parent_files
+        parent_file = parent_files[0]  # Use first parent for file placement
+    elif parent_file is None:
+        # If parent_file not provided, use CONTEXT_NODE_PATH from environment
         source_note = os.environ.get('CONTEXT_NODE_PATH')
         if not source_note or not vault_path_env:
             raise ValueError("parent_file not provided and OBSIDIAN_VAULT_PATH/CONTEXT_NODE_PATH not set")
         parent_file = source_note
+        all_parent_files = [parent_file]
+    else:
+        all_parent_files = [parent_file]
 
     # Convert parent_file to Path
     parent_path = Path(parent_file)
@@ -129,23 +139,8 @@ def addNewNode(parent_file=None, name=None, markdown_content=None, relationship_
     
     new_file_path = parent_dir / new_filename
     
-    # Sanitize markdown content to prevent header rendering issues
-    # Only escape headers at the beginning of lines
-    # todo don't know why the fuck we were doing this
     sanitized_content = markdown_content
-    # sanitized_lines = []
-    # for line in lines:
-    #     stripped = line.strip()
-    #     if stripped.startswith('###'):
-    #         sanitized_lines.append(line.replace('###', '**', 1) + '**')
-    #     elif stripped.startswith('##'):
-    #         sanitized_lines.append(line.replace('##', '**', 1) + '**')
-    #     elif stripped.startswith('#'):
-    #         sanitized_lines.append(line.replace('#', '**', 1) + '**')
-    #     else:
-    #         sanitized_lines.append(line)
-    # sanitized_content = '\n'.join(sanitized_lines)
-    
+
     # Create the new node content with frontmatter
     # Include agent name in title if it's an agent-created node
     if agent_name and agent_name != 'default':
@@ -167,12 +162,51 @@ def addNewNode(parent_file=None, name=None, markdown_content=None, relationship_
     frontmatter_lines.append("---")
     frontmatter_lines.append(f"# {title_with_agent}")
     
-    # Calculate relative path from vault root for the parent link
-    relative_parent_dir = parent_dir.relative_to(vault_dir)
-    parent_link = f"[[{relative_parent_dir}/{parent_filename}]]"
-    if relationship_to:
-        parent_link = f"{relationship_to} {parent_link}"
-    new_content = "\n".join(frontmatter_lines) + f"\n{sanitized_content}\n\n-----------------\n_Links:_\nParent:\n- {parent_link}"
+    # Generate parent links for all parents
+    parent_links = []
+    for pf in all_parent_files:
+        pf_path = Path(pf)
+
+        # Resolve the parent file path to absolute if needed
+        if pf_path.is_absolute():
+            full_pf_path = pf_path
+        else:
+            # Try WATCHED_FOLDER first, then OBSIDIAN_VAULT_PATH
+            watched_folder_env = os.environ.get('WATCHED_FOLDER')
+            if watched_folder_env:
+                full_pf_path = Path(watched_folder_env) / pf_path
+                if not full_pf_path.exists() and vault_path_env:
+                    # Fallback to vault path with strip-prefix
+                    adjusted = pf_path
+                    vault_name = Path(vault_path_env).name
+                    if adjusted.parts and adjusted.parts[0] == vault_name:
+                        adjusted = Path(*adjusted.parts[1:])
+                    full_pf_path = Path(vault_path_env) / adjusted
+            elif vault_path_env:
+                adjusted = pf_path
+                vault_name = Path(vault_path_env).name
+                if adjusted.parts and adjusted.parts[0] == vault_name:
+                    adjusted = Path(*adjusted.parts[1:])
+                full_pf_path = Path(vault_path_env) / adjusted
+            else:
+                full_pf_path = pf_path  # Best effort
+
+        # Calculate relative path from vault root
+        try:
+            relative_pf_path = full_pf_path.relative_to(vault_dir)
+        except ValueError:
+            # If can't make relative, use the filename
+            relative_pf_path = full_pf_path.name
+
+        link = f"[[{relative_pf_path}]]"
+        if relationship_to:
+            link = f"{relationship_to} {link}"
+        parent_links.append(f"- {link}")
+
+    # Format links section - use "Parents:" if multiple, "Parent:" if single
+    links_header = "Parents:" if len(parent_links) > 1 else "Parent:"
+    links_section = "\n".join(parent_links)
+    new_content = "\n".join(frontmatter_lines) + f"\n{sanitized_content}\n\n-----------------\n_Links:_\n{links_header}\n{links_section}"
     
     # Write the new file
     with open(new_file_path, 'w', encoding='utf-8') as f:
@@ -187,40 +221,7 @@ def addNewNode(parent_file=None, name=None, markdown_content=None, relationship_
         # Hook module not available, silently continue
         pass
 
-    # DO NOT ADD CHILD LINKS FOR NOW
 
-    # # Update parent file to add child link
-    # with open(parent_file, 'r', encoding='utf-8') as f:
-    #     parent_content = f.read()
-    #
-    # # Check if parent already has a Children section
-    # if '\nChildren:' in parent_content:
-    #     # Add to existing children section
-    #     lines = parent_content.split('\n')
-    #     for i, line in enumerate(lines):
-    #         if line.strip() == 'Children:':
-    #             # Find the next non-child line
-    #             j = i + 1
-    #             while j < len(lines) and (lines[j].startswith('- ') or lines[j].strip() == ''):
-    #                 j += 1
-    #             # Insert new child link
-    #             lines.insert(j, f"- [[{parent_dir.name}/{new_filename}]] {relationship_to} this")
-    #             break
-    #     parent_content = '\n'.join(lines)
-    # else:
-    #     # Add new children section before the last line
-    #     lines = parent_content.rstrip().split('\n')
-    #     if lines[-1].strip() == '':
-    #         lines.pop()
-    #     lines.append('\nChildren:')
-    #     lines.append(f"- [[{parent_dir.name}/{new_filename}]] {relationship_to} this")
-    #     lines.append('')
-    #     parent_content = '\n'.join(lines)
-    
-    # # Write updated parent content
-    # with open(parent_file, 'w', encoding='utf-8') as f:
-    #     f.write(parent_content)
-    
     absolute_path = str(new_file_path.resolve())
     print(f"Created new node at: {absolute_path}")
 
@@ -234,40 +235,50 @@ if __name__ == "__main__":
         epilog="""
 Examples:
   # Plain link (no relationship):
-  python3 add_new_node.py "Task Manager" "Manages tasks"
+  python3 add_new_node.py "Task Manager" "### Manages tasks"
 
   # With relationship type:
-  python3 add_new_node.py "Task Manager" "Manages tasks" is_a_component_of
+  python3 add_new_node.py "Task Manager" "Manages tasks" --relationship is_a_component_of
 
   # With explicit parent file:
-  python3 add_new_node.py "Task Manager" "Manages tasks" is_a_component_of --parent parent.md
+  python3 add_new_node.py "Task Manager" "Manages tasks" --parent parent.md
+
+  # Multiple parents (diamond dependency):
+  python3 add_new_node.py "Phase 4" "Needs both phases" --parents "phase2.md,phase3.md"
 
   # Orchestrator creating subtask with specific color and name:
-  python3 add_new_node.py "Bob Subtask" "Implement feature X" is_subtask_of --parent parent.md --color green --agent-name Bob
+  python3 add_new_node.py "Bob Subtask" "Implement feature X" --parent parent.md --color green --agent-name Bob
 
 Note: Color/name taken from AGENT_COLOR/AGENT_NAME env vars unless overridden.
       Vault path from OBSIDIAN_VAULT_PATH, parent defaults to CONTEXT_NODE_PATH.
+      Use --parent for single parent, --parents for multiple (comma-separated).
         """
     )
 
     parser.add_argument("name", help="Name/title of the new node")
     parser.add_argument("markdown_content", help="Content for the new node's markdown file")
-    # TODO: consider using quoted strings with spaces for relationships (e.g., "is progress of") for more natural markdown output
-    parser.add_argument("relationship_to", nargs='?', default=None, help="Relationship type to parent (e.g., is_a_component_of). Optional - omit for plain link.")
-    parser.add_argument("--parent", dest="parent_file", help="Path to the parent markdown file (defaults to CONTEXT_NODE_PATH)")
+    parser.add_argument("--relationship", dest="relationship_to", default=None, help="Relationship type to parent (e.g., is_a_component_of). Optional - omit for plain link.")
+    parser.add_argument("--parent", dest="parent_file", help="Path to single parent markdown file (defaults to CONTEXT_NODE_PATH)")
+    parser.add_argument("--parents", dest="parent_files_str", help="Comma-separated paths for multiple parents (diamond dependencies)")
     parser.add_argument("--color", dest="color_override", help="Override color (for orchestrator agents creating subtasks)")
     parser.add_argument("--agent-name", dest="agent_name_override", help="Override agent name (for orchestrator agents creating subtasks)")
 
     args = parser.parse_args()
 
+    # Parse comma-separated parents if provided
+    parent_files = None
+    if args.parent_files_str:
+        parent_files = [p.strip() for p in args.parent_files_str.split(',') if p.strip()]
+
     try:
         addNewNode(
-            args.parent_file,
-            args.name,
-            args.markdown_content,
-            args.relationship_to,
-            args.color_override,
-            args.agent_name_override
+            parent_file=args.parent_file,
+            parent_files=parent_files,
+            name=args.name,
+            markdown_content=args.markdown_content,
+            relationship_to=args.relationship_to,
+            color_override=args.color_override,
+            agent_name_override=args.agent_name_override
         )
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)

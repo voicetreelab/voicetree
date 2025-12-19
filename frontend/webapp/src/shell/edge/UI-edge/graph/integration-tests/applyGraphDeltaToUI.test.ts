@@ -15,6 +15,11 @@ import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaT
 import type { GraphDelta, GraphNode, UpsertNodeDelta, DeleteNode } from '@/pure/graph'
 import { BreathingAnimationService, AnimationType } from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService'
 
+// Mock engagement prompts to avoid jsdom's missing dialog.showModal()
+vi.mock('@/shell/edge/UI-edge/graph/userEngagementPrompts', () => ({
+    checkEngagementPrompts: vi.fn()
+}))
+
 // Helper functions to create delta actions with required Option fields
 function upsert(node: GraphNode): UpsertNodeDelta {
     return { type: 'UpsertNode', nodeToUpsert: node, previousNode: O.none }

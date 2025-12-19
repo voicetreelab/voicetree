@@ -1,11 +1,13 @@
 ---
 position:
-  x: -300.9838866394352
-  y: 63.86967324080664
+  x: -127.64547314831655
+  y: 37.46848962725135
 isContextNode: false
 node_id: 25
 ---
-### Advocates for local execution of the Google Cloud Function to enable a quick development loop for testing.
+### Advocates for local execution of the Google Cloud Function (testing loop
+
+o enable a quick development loop for testing.
 
 Ideally, the Google Cloud Function should be local, so we don't actually want to put it into the cloud yet, just for a quick local development loop.
 
