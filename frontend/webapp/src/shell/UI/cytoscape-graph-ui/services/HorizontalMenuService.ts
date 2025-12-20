@@ -2,10 +2,11 @@ import type {Core, NodeSingular, Position} from 'cytoscape';
 import type {NodeIdAndFilePath, GraphNode} from "@/pure/graph";
 import {createNewChildNodeFromUI, deleteNodesFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions";
 import {
-    spawnTerminalWithNewContextNode
+    spawnTerminalWithNewContextNode,
+    spawnPlainTerminal,
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
 import {getFilePathForNode, getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
-import {Plus, Play, Trash2, Clipboard, MoreHorizontal, Pin, createElement, type IconNode} from 'lucide';
+import {Plus, Play, Trash2, Clipboard, MoreHorizontal, Pin, Terminal, createElement, type IconNode} from 'lucide';
 import {getOrCreateOverlay} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import type {AgentConfig} from "@/pure/settings";
 
@@ -369,7 +370,7 @@ export class HorizontalMenuService {
             },
         });
 
-        // Expandable "more" menu with Copy Content and additional agents
+        // Expandable "more" menu with Copy Content, Plain Terminal, and additional agents
         const moreSubMenu: HorizontalMenuItem[] = [
             {
                 icon: Clipboard,
@@ -377,6 +378,13 @@ export class HorizontalMenuService {
                 action: async () => {
                     const graphNode: GraphNode = await getNodeFromMainToUI(nodeId);
                     void navigator.clipboard.writeText(graphNode.contentWithoutYamlOrLinks);
+                },
+            },
+            {
+                icon: Terminal,
+                label: 'Plain Terminal',
+                action: async () => {
+                    await spawnPlainTerminal(nodeId, this.cy!);
                 },
             },
         ];

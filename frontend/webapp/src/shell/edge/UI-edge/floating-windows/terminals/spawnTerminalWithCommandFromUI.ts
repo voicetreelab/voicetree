@@ -69,6 +69,30 @@ export async function spawnTerminalWithNewContextNode(
 }
 
 /**
+ * Spawn a plain terminal attached to a node (no agent command, no context node)
+ *
+ * Opens a regular shell terminal anchored to the specified node, useful for
+ * manual terminal work without agent automation.
+ */
+export async function spawnPlainTerminal(
+    nodeId: NodeIdAndFilePath,
+    _cy: Core,
+): Promise<void> {
+    const terminalsMap: Map<TerminalId, TerminalData> = getTerminals();
+
+    // Check terminal limit
+    if (terminalsMap.size >= MAX_TERMINALS) {
+        alert(`Glad you are trying to power use VT! Limit of ${MAX_TERMINALS} agents at once for now but send over an email 1manumasson@gmail.com if you want to alpha-test higher limits`);
+        return;
+    }
+
+    const terminalCount: number = getNextTerminalCount(terminalsMap, nodeId);
+
+    // Delegate to main process
+    await window.electronAPI.main.spawnPlainTerminal(nodeId, terminalCount);
+}
+
+/**
  * Create a floating terminal window
  * Returns TerminalData with ui populated, or undefined if terminal already exists
  */
@@ -222,4 +246,30 @@ async function deleteContextNodeIfLastTerminal(nodeId: NodeIdAndFilePath, cy: Co
     } catch (error) {
         console.error('[closeTerminal] Failed to delete context node:', error);
     }
+}
+
+/**
+ * Close all terminals and clean up their UI resources.
+ * Used when switching folders - does not delete context nodes since the graph is being cleared.
+ */
+export function closeAllTerminals(cy: Core): void {
+    console.log('[closeAllTerminals] Closing all terminals');
+    const terminals: Map<TerminalId, TerminalData> = getTerminals();
+
+    for (const terminal of terminals.values()) {
+        const terminalId: TerminalId = getTerminalId(terminal);
+
+        // Dispose vanilla instance
+        const vanillaInstance: { dispose: () => void; } | undefined = vanillaFloatingWindowInstances.get(terminalId);
+        if (vanillaInstance) {
+            vanillaInstance.dispose();
+            vanillaFloatingWindowInstances.delete(terminalId);
+        }
+
+        // Dispose floating window (removes shadow node, DOM elements)
+        disposeFloatingWindow(cy, terminal);
+    }
+
+    // Clear the terminal store - import clearTerminals
+    // Note: disposeFloatingWindow already removes from store, but clear to be safe
 }
