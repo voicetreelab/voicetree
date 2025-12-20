@@ -43,6 +43,7 @@ import {
 } from '@/shell/edge/UI-edge/state/UIAppState';
 
 import { CodeMirrorEditorView } from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
+import { FloatingWindowFullscreen } from '@/shell/UI/floating-windows/FloatingWindowFullscreen';
 import { createNewEmptyOrphanNodeFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions';
 import { getNodeFromMainToUI } from '@/shell/edge/UI-edge/graph/getNodeFromMainToUI';
 import { fromNodeToContentWithWikilinks } from '@/pure/graph/markdown-writing/node_to_markdown';
@@ -147,11 +148,13 @@ export async function createFloatingEditor(
         }
     });
 
-    // Setup fullscreen button handler
+    // Setup fullscreen button handler - fullscreen the entire windowElement (not just content)
+    // This allows escaping the transform containment from the graph overlay
     const fullscreenButton: HTMLButtonElement | null = ui.titleBar.querySelector('.cy-floating-window-fullscreen');
     if (fullscreenButton) {
+        const windowFullscreen: FloatingWindowFullscreen = new FloatingWindowFullscreen(ui.windowElement);
         fullscreenButton.addEventListener('click', (): void => {
-            void editor.toggleFullscreen();
+            void windowFullscreen.toggle();
         });
     }
 

@@ -1,92 +1,114 @@
 /**
- * FloatingWindowFullscreen - Shared fullscreen utility for floating window components
+ * FloatingWindowFullscreen - Expands floating windows to fill the Electron window
  *
- * Provides a clean API for fullscreen functionality with automatic cleanup.
- * Used by TerminalVanilla, CodeMirrorEditorView, and other floating window components.
+ * Uses CSS position:fixed instead of native requestFullscreen() for better UX on macOS.
+ * Reparents element to document.body to escape CSS transform containment from graph overlay.
  */
 export class FloatingWindowFullscreen {
   private container: HTMLElement;
-  private fullscreenChangeHandler: (() => void) | null = null;
   private onFullscreenChange?: () => void;
+  private isExpanded: boolean = false;
+  private originalStyles: Record<string, string> | null = null;
+  private originalParent: HTMLElement | null = null;
+  private escapeHandler: ((e: KeyboardEvent) => void) | null = null;
 
-  /**
-   * Create a new fullscreen manager for a container element
-   * @param container - The DOM element to make fullscreen
-   * @param onFullscreenChange - Optional callback invoked when fullscreen state changes
-   */
   constructor(container: HTMLElement, onFullscreenChange?: () => void) {
     this.container = container;
     this.onFullscreenChange = onFullscreenChange;
-    this.setupFullscreenListener();
   }
 
-  /**
-   * Setup listener for fullscreen state changes
-   */
-  private setupFullscreenListener(): void {
-    this.fullscreenChangeHandler = () => {
-      // Call user callback if provided
-      if (this.onFullscreenChange) {
-        this.onFullscreenChange();
+  async enter(): Promise<void> {
+    if (this.isExpanded) return;
+
+    // Save original parent for restoration
+    this.originalParent = this.container.parentElement;
+
+    // Save original inline styles for restoration
+    const s: CSSStyleDeclaration = this.container.style;
+    this.originalStyles = {
+      position: s.position,
+      top: s.top,
+      left: s.left,
+      width: s.width,
+      height: s.height,
+      zIndex: s.zIndex,
+      transform: s.transform,
+    };
+
+    // Move to document.body to escape transform containment from graph overlay
+    document.body.appendChild(this.container);
+
+    // Expand to fill entire window using fixed positioning
+    Object.assign(this.container.style, {
+      position: 'fixed',
+      top: '0',
+      left: '0',
+      width: '100vw',
+      height: '100vh',
+      zIndex: '10000',
+      transform: 'none',
+    });
+
+    // Add Escape key handler to exit fullscreen
+    this.escapeHandler = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        void this.exit();
       }
     };
-    document.addEventListener('fullscreenchange', this.fullscreenChangeHandler);
+    document.addEventListener('keydown', this.escapeHandler);
+
+    this.isExpanded = true;
+    this.onFullscreenChange?.();
   }
 
-  /**
-   * Enter fullscreen mode
-   */
-  async enter(): Promise<void> {
-    try {
-      await this.container.requestFullscreen();
-    } catch (err) {
-      console.error('Failed to enter fullscreen:', err);
-    }
-  }
-
-  /**
-   * Exit fullscreen mode
-   */
   async exit(): Promise<void> {
-    try {
-      if (document.fullscreenElement === this.container) {
-        await document.exitFullscreen();
-      }
-    } catch (err) {
-      console.error('Failed to exit fullscreen:', err);
+    if (!this.isExpanded || !this.originalStyles || !this.originalParent) return;
+
+    // Remove Escape key handler
+    if (this.escapeHandler) {
+      document.removeEventListener('keydown', this.escapeHandler);
+      this.escapeHandler = null;
     }
+
+    // Restore original styles
+    Object.assign(this.container.style, this.originalStyles);
+
+    // Move back to original parent
+    this.originalParent.appendChild(this.container);
+
+    this.originalStyles = null;
+    this.originalParent = null;
+    this.isExpanded = false;
+    this.onFullscreenChange?.();
   }
 
-  /**
-   * Toggle fullscreen mode
-   */
   async toggle(): Promise<void> {
-    if (this.isFullscreen()) {
+    if (this.isExpanded) {
       await this.exit();
     } else {
       await this.enter();
     }
   }
 
-  /**
-   * Check if currently in fullscreen mode
-   */
   isFullscreen(): boolean {
-    return document.fullscreenElement === this.container;
+    return this.isExpanded;
   }
 
-  /**
-   * Cleanup - remove listeners and exit fullscreen if active
-   */
   dispose(): void {
-    if (this.fullscreenChangeHandler) {
-      document.removeEventListener('fullscreenchange', this.fullscreenChangeHandler);
-      this.fullscreenChangeHandler = null;
+    // Remove Escape key handler
+    if (this.escapeHandler) {
+      document.removeEventListener('keydown', this.escapeHandler);
+      this.escapeHandler = null;
     }
 
-    // Exit fullscreen if active
-    if (this.isFullscreen()) {
-      document.exitFullscreen().catch(console.error);
+    if (this.isExpanded && this.originalStyles && this.originalParent) {
+      Object.assign(this.container.style, this.originalStyles);
+      this.originalParent.appendChild(this.container);
+      this.isExpanded = false;
+      this.originalStyles = null;
+      this.originalParent = null;
     }
   }
 }
