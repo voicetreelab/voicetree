@@ -81,9 +81,10 @@ import {
     spawnBackupTerminal
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnBackupTerminal";
 import {GraphNavigationService} from "@/shell/edge/UI-edge/graph/navigation/GraphNavigationService";
+import {NavigationGestureService} from "@/shell/edge/UI-edge/graph/navigation/NavigationGestureService";
 import {getEditorByNodeId} from '@/shell/edge/UI-edge/state/EditorStore';
 import {getTerminalByNodeId} from '@/shell/edge/UI-edge/state/TerminalStore';
-import {closeTerminal} from '@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI';
+import {closeTerminal, closeAllTerminals} from '@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI';
 import * as O from 'fp-ts/lib/Option.js';
 import type {EditorData} from '@/shell/edge/UI-edge/floating-windows/types';
 
@@ -107,6 +108,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     private hotkeyManager: HotkeyManager;
     private searchService: SearchService;
     private navigationService: GraphNavigationService;
+    private gestureService: NavigationGestureService;
 
     // State
     private _isDarkMode = false;
@@ -159,6 +161,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // Initialize managers (after cy is created in render())
         this.hotkeyManager = new HotkeyManager();
         this.navigationService = new GraphNavigationService(this.cy);
+        this.gestureService = new NavigationGestureService(this.cy, this.container);
         this.searchService = new SearchService(
             this.cy,
             (nodeId) => this.navigateToNodeAndTrack(nodeId)
@@ -261,6 +264,10 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
         const handleGraphClear: () => void = (): void => {
             console.log('[VoiceTreeGraphView] Received graph:clear event');
+
+            // Close all open terminals (UI cleanup - PTY processes already killed by main process)
+            closeAllTerminals(this.cy);
+
             clearCytoscapeState(this.cy);
 
             // Close all open floating editors
@@ -420,7 +427,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             minZoom: MIN_ZOOM,
             maxZoom: MAX_ZOOM,
             boxSelectionEnabled: true,
-            container: this.container
+            container: this.container,
+            wheelSensitivity: 0 // Disable native wheel zoom - handled by NavigationGestureService
         };
 
         try {
@@ -548,9 +556,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             onPress: () => this.searchService.open()
         });
 
-        // Prevent page scroll when zooming
-        const handleWheel: (e: WheelEvent) => void = (e: WheelEvent) => e.preventDefault();
-        this.container.addEventListener('wheel', handleWheel, {passive: false});
+        // Note: Wheel events (pan/zoom) are handled by NavigationGestureService
     }
 
     private handleResizeMethod(): void {
@@ -575,7 +581,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             this.navigator = (this.cy as any).navigator({
                 container: false, // Auto-create container
-                viewLiveFramerate: false, // Only update on drag end to avoid transform interference
+                viewLiveFramerate: 0, // Update graph pan instantly while dragging
                 thumbnailEventFramerate: 30, // Update thumbnail more frequently for responsiveness
                 thumbnailLiveFramerate: false, // Disable continuous thumbnail updates for performance
                 dblClickDelay: 200,
@@ -669,7 +675,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // Try closing terminal
         const terminal: O.Option<TerminalData> = getTerminalByNodeId(nodeId);
         if (O.isSome(terminal)) {
-            closeTerminal(terminal.value, this.cy);
+            void closeTerminal(terminal.value, this.cy);
         }
     }
 
@@ -784,6 +790,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
         // Dispose managers
         this.hotkeyManager.dispose();
+        this.gestureService.dispose();
         disposeEditorManager(this.cy);
         this.searchService.dispose();
         // TODO: Recent tabs temporarily disabled until better UX is designed
