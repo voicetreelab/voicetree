@@ -38,7 +38,7 @@ export class TranscriptionDisplay {
             // Handle end token
             if (token.text === "<end>") {
                 const endSpan: HTMLSpanElement = document.createElement('span');
-                endSpan.className = 'text-gray-400 italic text-xs';
+                endSpan.className = 'text-muted-foreground italic text-xs';
                 endSpan.textContent = ' <end>';
                 contentDiv.appendChild(endSpan);
                 continue;
@@ -67,14 +67,14 @@ export class TranscriptionDisplay {
             // Language label
             if (isNewLanguage && token.language) {
                 const langLabel: HTMLSpanElement = document.createElement('span');
-                langLabel.className = 'text-gray-500 text-xs bg-gray-200 px-2 py-0.5 rounded-full mr-1';
+                langLabel.className = 'text-muted-foreground text-xs bg-muted px-2 py-0.5 rounded-full mr-1';
                 langLabel.textContent = getLanguage(token.language).name;
                 contentDiv.appendChild(langLabel);
             }
 
             // Token text
             const tokenSpan: HTMLSpanElement = document.createElement('span');
-            tokenSpan.className = token.is_final ? 'text-black font-medium' : 'text-gray-600';
+            tokenSpan.className = token.is_final ? 'text-foreground font-medium' : 'text-muted-foreground';
             tokenSpan.textContent = token.text;
             contentDiv.appendChild(tokenSpan);
         }
