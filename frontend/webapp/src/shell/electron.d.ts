@@ -64,7 +64,7 @@ export interface ElectronAPI {
 // Extend the Window interface to include all global properties
 declare global {
   interface Window {
-    electronAPI: ElectronAPI;
+    electronAPI?: ElectronAPI;
     // Graph-related properties exposed for testing
     cy: CytoscapeCore | null;
   }

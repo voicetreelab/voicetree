@@ -244,7 +244,7 @@ async function maybeShowEmailPrompt(): Promise<void> {
     if (cachedUserEmail) return;
 
     // Check settings.json for existing email (only on first check)
-    if (!window.electronAPI) return;
+    if (!window.electronAPI?.main?.loadSettings) return;
     const settings: VTSettings = await window.electronAPI.main.loadSettings() as VTSettings;
     if (settings.userEmail) {
         cachedUserEmail = settings.userEmail;

@@ -47,8 +47,8 @@ async function getPermissionModeChoice(): Promise<number> {
         type: 'question',
         title: 'Agent Permission Mode',
         message: 'How should Claude agents run?',
-        detail: 'Auto-run mode lets agents execute commands without asking for permission each time. This is highly recommended for VoiceTree workflows.\n\nYou can change this in settings at any time.',
-        buttons: ['Auto-run (Recommended)', 'Safe Mode'],
+        detail: 'Auto-run mode will add `dangerously-skip-permissions` to the agent command, allowing it execute commands without asking for permission each time. This is recommended for VoiceTree workflows.\n\nYou can change this in settings at any time.',
+        buttons: ['Auto-run', 'Safe Mode'],
         defaultId: 0,
         cancelId: 1,
     });
