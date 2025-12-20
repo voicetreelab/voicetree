@@ -4,7 +4,7 @@ import os from 'os';
 import fixPath from 'fix-path';
 import electronUpdater, {type UpdateCheckResult} from 'electron-updater';
 import log from 'electron-log';
-import {startFileWatching, getWatchedDirectory, setStartupFolderOverride} from '@/shell/edge/main/graph/watchFolder';
+import {startFileWatching, getWatchedDirectory, setStartupFolderOverride, setOnFolderSwitchCleanup} from '@/shell/edge/main/graph/watchFolder';
 
 const {autoUpdater} = electronUpdater;
 import {StubTextToTreeServerManager} from './server/StubTextToTreeServerManager';
@@ -354,6 +354,12 @@ registerTerminalIpcHandlers(
     terminalManager,
     getToolsDirectory
 );
+
+// Register terminal cleanup for when folders are switched
+setOnFolderSwitchCleanup(() => {
+    console.log('[main] Cleaning up terminals on folder switch');
+    terminalManager.cleanup();
+});
 
 // App event handlers
 void app.whenReady().then(async () => {

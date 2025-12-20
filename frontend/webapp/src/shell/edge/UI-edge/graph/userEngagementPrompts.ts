@@ -1,13 +1,15 @@
 import posthog from "posthog-js";
+import type {VTSettings} from "@/pure/settings/types";
 
 const FEEDBACK_DELTA_THRESHOLD: number = 30;
 const EMAIL_DELTA_THRESHOLD: number = 10;
-const EMAIL_STORAGE_KEY: string = 'voicetree-user-email';
 
 // Session-level state for tracking total nodes created
 let sessionDeltaCount: number = 0;
 let feedbackAlertShown: boolean = false;
 let emailPromptShown: boolean = false;
+// Cache loaded email to avoid repeated IPC calls during session
+let cachedUserEmail: string | null = null;
 
 /**
  * Creates and shows an HTML dialog for collecting user feedback.
@@ -39,7 +41,7 @@ function showFeedbackDialog(): Promise<string | null> {
                     Hey I'm Manu who built this, glad to see you are using this!
                 </h2>
                 <p style="margin: 0; color: var(--muted-foreground); font-size: 0.9rem;">
-                    It would mean a lot to me if you share any feedback. Hope VoiceTree is useful for you!
+                    It would mean a lot to me if you share any feedback. You can also email me at 1manumasson@gmail.com Hope Voicetree has been useful for you!
                 </p>
                 <textarea
                     id="feedback-input"
@@ -232,29 +234,38 @@ function showEmailDialog(): Promise<string | null> {
 
 /**
  * Show email collection dialog after user creates enough nodes in a session.
- * Collects user email, saves to localStorage, and associates with PostHog.
- * Only shows once per session and skips if email already in localStorage.
+ * Collects user email, saves to settings.json (via IPC), and uses email as PostHog identifier.
+ * Only shows once per session and skips if email already saved.
  */
-function maybeShowEmailPrompt(): void {
+async function maybeShowEmailPrompt(): Promise<void> {
     if (emailPromptShown) return;
 
-    // Skip if email already collected (persisted in localStorage)
-    if (localStorage.getItem(EMAIL_STORAGE_KEY)) return;
+    // Skip if email already collected (cached or from settings)
+    if (cachedUserEmail) return;
+
+    // Check settings.json for existing email (only on first check)
+    if (!window.electronAPI) return;
+    const settings: VTSettings = await window.electronAPI.main.loadSettings() as VTSettings;
+    if (settings.userEmail) {
+        cachedUserEmail = settings.userEmail;
+        return;
+    }
 
     if (sessionDeltaCount >= EMAIL_DELTA_THRESHOLD) {
         emailPromptShown = true;
-        void showEmailDialog().then((email: string | null) => {
-            if (email) {
-                // Save to localStorage to prevent future prompts
-                localStorage.setItem(EMAIL_STORAGE_KEY, email);
-                // Associate email with PostHog user
-                posthog.identify(posthog.get_distinct_id(), { email });
-                posthog.capture('emailCollected', {
-                    source: 'in-app-dialog',
-                    sessionDeltaCount
-                });
-            }
-        });
+        const email: string | null = await showEmailDialog();
+        if (email) {
+            // Save to settings.json to persist across app updates/reinstalls
+            const updatedSettings: VTSettings = { ...settings, userEmail: email };
+            await window.electronAPI.main.saveSettings(updatedSettings);
+            cachedUserEmail = email;
+            // Use email as PostHog distinct_id for consistent identity
+            posthog.identify(email, { email });
+            posthog.capture('emailCollected', {
+                source: 'in-app-dialog',
+                sessionDeltaCount
+            });
+        }
     }
 }
 
@@ -288,5 +299,5 @@ function maybeShowFeedbackAlert(): void {
  */
 export function checkEngagementPrompts(): void {
     maybeShowFeedbackAlert();
-    maybeShowEmailPrompt();
+    void maybeShowEmailPrompt();
 }
