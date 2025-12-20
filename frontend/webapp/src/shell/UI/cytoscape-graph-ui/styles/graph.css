@@ -297,8 +297,8 @@ button.graph-button:disabled > svg > path {
     max-width: 90px;
     height: 16px;
     padding: 0 4px;
-    background: var(--background-secondary, #2a2a2a);
-    border: 1px solid var(--background-modifier-border, #333);
+    background: var(--card);
+    border: 1px solid var(--border);
     border-radius: 4px;
     cursor: pointer;
     overflow: hidden;
@@ -307,12 +307,12 @@ button.graph-button:disabled > svg > path {
 }
 
 .recent-tab:hover {
-    background: var(--background-modifier-hover, #3a3a3a);
-    border-color: var(--text-muted, #666);
+    background: var(--accent);
+    border-color: var(--ring);
 }
 
 .recent-tab:active {
-    background: var(--background-modifier-active, #4a4a4a);
+    background: var(--muted);
 }
 
 /* Recency gradient - most recent (leftmost) is fully opaque, fading toward older tabs */
@@ -335,26 +335,12 @@ button.graph-button:disabled > svg > path {
     overflow-y: hidden;
     scrollbar-width: none; /* Firefox */
     font-size: 12px;
-    color: var(--text-normal, #ddd);
+    color: var(--foreground);
     line-height: 1.2;
 }
 
 .recent-tab-text::-webkit-scrollbar {
     display: none; /* Chrome/Safari */
-}
-
-/* Light mode overrides */
-:root:not(.dark) .recent-tab {
-    background: var(--background-secondary, #f5f5f5);
-    border-color: var(--background-modifier-border, #ddd);
-}
-
-:root:not(.dark) .recent-tab:hover {
-    background: var(--background-modifier-hover, #eee);
-}
-
-:root:not(.dark) .recent-tab-text {
-    color: var(--text-normal, #333);
 }
 
 /* Tab wrapper - positions tab and hint together */
@@ -373,7 +359,7 @@ button.graph-button:disabled > svg > path {
     left: 50%;
     transform: translateX(-50%);
     font-size: 10px;
-    color: var(--text-faint, #666);
+    color: var(--muted-foreground);
     opacity: 0;
     transition: opacity 0.15s ease;
     white-space: nowrap;
@@ -382,11 +368,6 @@ button.graph-button:disabled > svg > path {
 
 .recent-tab-wrapper:hover .recent-tab-shortcut-hint {
     opacity: 1;
-}
-
-/* Light mode override for shortcut hint */
-:root:not(.dark) .recent-tab-shortcut-hint {
-    color: var(--text-faint, #aaa);
 }
 
 /* ============================================================================
@@ -449,23 +430,23 @@ button.graph-button:disabled > svg > path {
     max-width: 90px;
     height: 16px;
     padding: 0 4px;
-    background: #1a1a1a;
-    border: 1px solid #333;
+    background: #262626;
+    border: 1px solid #404040;
     border-radius: 4px;
     cursor: grab;
     overflow: visible; /* Allow activity dots to show below tab */
     flex-shrink: 0;
     transition: background-color 0.15s ease, border-color 0.15s ease;
-    color: #e0e0e0;
+    color: #e5e7eb;
 }
 
 .agent-tab:hover {
-    background: #2a2a2a;
+    background: #333;
     border-color: #555;
 }
 
 .agent-tab:active {
-    background: #333;
+    background: #3d3d3d;
 }
 
 /* Active terminal highlight */
@@ -488,7 +469,7 @@ button.graph-button:disabled > svg > path {
     overflow-y: hidden;
     scrollbar-width: none; /* Firefox */
     font-size: 12px;
-    color: var(--text-normal, #ddd);
+    color: #e5e7eb;
     line-height: 1.2;
 }
 

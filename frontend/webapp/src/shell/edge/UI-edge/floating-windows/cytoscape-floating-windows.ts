@@ -348,13 +348,14 @@ export function anchorToNode(
 
     // Find best direction to spawn terminal based on available space and neighborhood
     const parentPos: cytoscape.Position = parentNode.position();
-    const shadowDimensions = fw.shadowNodeDimensions;
-    const parentWidth = parentNode.width();
-    const parentHeight = parentNode.height();
-    const gap = 20;
+    const shadowDimensions: { width: number; height: number } = fw.shadowNodeDimensions;
+    const parentWidth: number = parentNode.width();
+    const parentHeight: number = parentNode.height();
+    const gap: number = 20;
 
     // Cardinal directions
-    const directions = [
+    type Direction = { dx: number; dy: number };
+    const directions: Direction[] = [
         { dx: 1, dy: 0 },   // right
         { dx: -1, dy: 0 },  // left
         { dx: 0, dy: 1 },   // below
@@ -362,26 +363,24 @@ export function anchorToNode(
     ];
 
     // AABB overlap check
-    const rectsOverlap = (
-        a: { x1: number; x2: number; y1: number; y2: number },
-        b: { x1: number; x2: number; y1: number; y2: number }
-    ): boolean => {
+    type BBox = { x1: number; x2: number; y1: number; y2: number };
+    const rectsOverlap: (a: BBox, b: BBox) => boolean = (a: BBox, b: BBox): boolean => {
         return a.x1 < b.x2 && a.x2 > b.x1 && a.y1 < b.y2 && a.y2 > b.y1;
     };
 
-    // Get all non-shadow nodes to check for collisions
-    const existingNodes = cy.nodes().filter((n: cytoscape.NodeSingular) => !n.data('isShadowNode'));
+    // Get all nodes to check for collisions (including shadow nodes for other floating windows)
+    const existingNodes: cytoscape.NodeCollection = cy.nodes();
 
     // Calculate desired angle using angle continuation heuristic:
     // Find the grandparent (task node) and continue the angle from task -> context -> terminal
-    const incomingEdges = parentNode.incomers('edge').filter(
+    const incomingEdges: cytoscape.EdgeCollection = parentNode.incomers('edge').filter(
         (e: cytoscape.EdgeSingular) => !e.source().data('isShadowNode')
     );
     let desiredAngle: number;
     if (incomingEdges.length > 0) {
         // Use first incoming edge's source as grandparent (task node)
-        const grandparentNode = incomingEdges[0].source();
-        const grandparentPos = grandparentNode.position();
+        const grandparentNode: cytoscape.NodeSingular = incomingEdges[0].source();
+        const grandparentPos: cytoscape.Position = grandparentNode.position();
         // Angle from grandparent -> context node, which we want to continue
         desiredAngle = Math.atan2(parentPos.y - grandparentPos.y, parentPos.x - grandparentPos.x);
     } else {
@@ -392,15 +391,15 @@ export function anchorToNode(
     // Calculate candidate positions and filter by no-overlap
     const candidates: { pos: { x: number; y: number }; angleDiff: number }[] = [];
     for (const dir of directions) {
-        const offsetX = dir.dx * ((shadowDimensions.width / 2) + (parentWidth / 2) + gap);
-        const offsetY = dir.dy * ((shadowDimensions.height / 2) + (parentHeight / 2) + gap);
-        const candidatePos = {
+        const offsetX: number = dir.dx * ((shadowDimensions.width / 2) + (parentWidth / 2) + gap);
+        const offsetY: number = dir.dy * ((shadowDimensions.height / 2) + (parentHeight / 2) + gap);
+        const candidatePos: { x: number; y: number } = {
             x: parentPos.x + offsetX,
             y: parentPos.y + offsetY
         };
 
         // Calculate terminal bounding box at candidate position
-        const terminalBBox = {
+        const terminalBBox: BBox = {
             x1: candidatePos.x - shadowDimensions.width / 2,
             x2: candidatePos.x + shadowDimensions.width / 2,
             y1: candidatePos.y - shadowDimensions.height / 2,
@@ -408,11 +407,11 @@ export function anchorToNode(
         };
 
         // Check overlap with existing nodes
-        let hasOverlap = false;
+        let hasOverlap: boolean = false;
         existingNodes.forEach((node: cytoscape.NodeSingular) => {
             if (node.id() === parentNodeId) return;
-            const bb = node.boundingBox();
-            const nodeBBox = { x1: bb.x1, x2: bb.x2, y1: bb.y1, y2: bb.y2 };
+            const bb: cytoscape.BoundingBox12 & cytoscape.BoundingBoxWH = node.boundingBox();
+            const nodeBBox: BBox = { x1: bb.x1, x2: bb.x2, y1: bb.y1, y2: bb.y2 };
             if (rectsOverlap(terminalBBox, nodeBBox)) {
                 hasOverlap = true;
             }
@@ -420,9 +419,9 @@ export function anchorToNode(
 
         if (!hasOverlap) {
             // Calculate angle from context -> terminal candidate
-            const candidateAngle = Math.atan2(candidatePos.y - parentPos.y, candidatePos.x - parentPos.x);
+            const candidateAngle: number = Math.atan2(candidatePos.y - parentPos.y, candidatePos.x - parentPos.x);
             // Calculate absolute angle difference (normalized to [0, PI])
-            let angleDiff = Math.abs(candidateAngle - desiredAngle);
+            let angleDiff: number = Math.abs(candidateAngle - desiredAngle);
             if (angleDiff > Math.PI) {
                 angleDiff = 2 * Math.PI - angleDiff;
             }
@@ -437,7 +436,7 @@ export function anchorToNode(
         childPosition = candidates[0].pos;
     } else {
         // Fallback to right if all directions blocked
-        const offsetX = (shadowDimensions.width / 2) + (parentWidth / 2) + gap;
+        const offsetX: number = (shadowDimensions.width / 2) + (parentWidth / 2) + gap;
         childPosition = {
             x: parentPos.x + offsetX,
             y: parentPos.y
@@ -508,15 +507,15 @@ export function anchorToNode(
     syncPosition(); // Initial sync
 
     // Track offset for parent sync (terminal follows context node when dragged)
-    let currentOffset = {
+    let currentOffset: { x: number; y: number } = {
         x: childPosition.x - parentPos.x,
         y: childPosition.y - parentPos.y
     };
 
     // Update offset when shadow node is dragged directly
     shadowNode.on('position', () => {
-        const shadowPos = shadowNode.position();
-        const parentPosition = parentNode.position();
+        const shadowPos: cytoscape.Position = shadowNode.position();
+        const parentPosition: cytoscape.Position = parentNode.position();
         currentOffset = {
             x: shadowPos.x - parentPosition.x,
             y: shadowPos.y - parentPosition.y
@@ -525,7 +524,7 @@ export function anchorToNode(
 
     // Parent position sync: terminal follows context node at current offset
     const syncWithParent: () => void = () => {
-        const newParentPos = parentNode.position();
+        const newParentPos: cytoscape.Position = parentNode.position();
         shadowNode.position({
             x: newParentPos.x + currentOffset.x,
             y: newParentPos.y + currentOffset.y
