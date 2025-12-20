@@ -16,6 +16,8 @@ export interface VTSettings {
   readonly askModeContextDistance: number;
   /** Whether user has been prompted about agent permission mode (auto-run vs safe mode) */
   readonly agentPermissionModeChosen?: boolean;
+  /** User email for PostHog identification - stored here to persist across app updates */
+  readonly userEmail?: string;
 }
 
 export const DEFAULT_SETTINGS: VTSettings = {

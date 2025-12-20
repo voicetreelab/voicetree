@@ -151,7 +151,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                         } else if (cy.edges().length >= MAX_EDGES) {
                             // Edge limit reached - only show alert once per delta application
                             if (!edgeLimitAlertShown) {
-                                alert(`There is a limit of ${MAX_EDGES} edges at once, contact manu@voicetree.io to increase this`);
+                                alert(`There is a limit of ${MAX_EDGES} edges at once, contact 1manumasson@gmail.com to increase this`);
                                 edgeLimitAlertShown = true;
                             }
                             console.warn(`[applyGraphDeltaToUI] Edge limit reached (${MAX_EDGES}), not adding edge ${edgeId}`);

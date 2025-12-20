@@ -102,7 +102,7 @@ export async function deleteNodesFromUI(
 
     // Process deletions iteratively, applying each delta to a working graph copy.
     // This ensures each deletion sees the result of previous deletions.
-    const allDeltas: GraphDelta = []
+    let allDeltas: GraphDelta = []
     let workingGraph: Graph = currentGraph
 
     for (const nodeId of nodeIds) {
@@ -117,15 +117,16 @@ export async function deleteNodesFromUI(
         workingGraph = applyGraphDeltaToGraph(workingGraph, delta)
 
         // Collect deltas, but filter out UpsertNodes for nodes we're going to delete
-        for (const nodeDelta of delta) {
+        const filteredDeltas: GraphDelta = delta.filter(nodeDelta => {
             if (nodeDelta.type === 'UpsertNode') {
                 if (nodeIdsToDelete.has(nodeDelta.nodeToUpsert.relativeFilePathIsID)) {
                     // Don't include upserts for nodes we're deleting
-                    continue
+                    return false
                 }
             }
-            allDeltas.push(nodeDelta)
-        }
+            return true
+        })
+        allDeltas = [...allDeltas, ...filteredDeltas]
     }
 
     // Deduplicate: keep only the last UpsertNode for each node ID
@@ -152,22 +153,12 @@ function deduplicateDelta(delta: GraphDelta): GraphDelta {
     }
 
     // Build final delta: deletes first, then upserts
-    const result: GraphDelta = []
+    const deleteDeltas: GraphDelta = Array.from(deleteNodeIds)
+        .map(nodeId => delta.find(d => d.type === 'DeleteNode' && d.nodeId === nodeId))
+        .filter((d): d is typeof delta[number] => d !== undefined)
 
-    for (const nodeId of deleteNodeIds) {
-        // Find the original DeleteNode delta to preserve deletedNode info
-        const deleteNodeDelta: typeof delta[number] | undefined = delta.find(
-            d => d.type === 'DeleteNode' && d.nodeId === nodeId
-        )
-        if (deleteNodeDelta) {
-            result.push(deleteNodeDelta)
-        }
-    }
+    const upsertDeltas: GraphDelta = Array.from(lastUpsertByNodeId.values())
 
-    for (const upsert of lastUpsertByNodeId.values()) {
-        result.push(upsert)
-    }
-
-    return result
+    return [...deleteDeltas, ...upsertDeltas]
 }
 

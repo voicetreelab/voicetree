@@ -242,7 +242,7 @@ async function prepareTerminalDataInMain(
 
     // Build absolute path for task node (parent of context node)
     const taskNodeAbsolutePath: string = parentNode && watchedDir
-        ? `${watchedDir.replace(/\/$/, '')}/${parentNode.nodeIdAndFilePath}`
+        ? `${watchedDir.replace(/\/$/, '')}/${parentNode.relativeFilePathIsID}`
         : '';
 
     // Build env vars then expand $VAR_NAME references within values

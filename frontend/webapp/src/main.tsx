@@ -24,6 +24,16 @@ if (posthogKey && !import.meta.env.DEV) {
       maskTextSelector: '.cm-editor, .cm-content, .xterm, .cy-floating-window-content',
     }
   })
+
+  // Identify user with email from settings if available (fixes UUID reset on app updates)
+  void (async () => {
+    if (window.electronAPI) {
+      const settings = await window.electronAPI.main.loadSettings()
+      if (settings.userEmail) {
+        posthog.identify(settings.userEmail, { email: settings.userEmail })
+      }
+    }
+  })()
 }
 
 // Setup UI RPC handler for main→UI IPC calls (must be before render so it's ready for early calls)

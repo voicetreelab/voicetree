@@ -41,6 +41,13 @@ export function setStartupFolderOverride(folderPath: string): void {
     startupFolderOverride = folderPath;
 }
 
+// Cleanup callback for resources that need to be disposed when switching folders (e.g., terminals)
+let onFolderSwitchCleanup: (() => void) | null = null;
+
+export function setOnFolderSwitchCleanup(cleanup: () => void): void {
+    onFolderSwitchCleanup = cleanup;
+}
+
 export async function initialLoad(): Promise<void>  {
     // Check for CLI-specified folder first (from "Open Folder in New Instance")
     if (startupFolderOverride !== null) {
@@ -157,6 +164,12 @@ export async function loadFolder(watchedFolderPath: FilePath, suffixOverride?: s
     if (watcher) {
         await watcher.close();
         watcher = null;
+    }
+
+    // Clean up terminals and other resources before switching folders
+    if (onFolderSwitchCleanup) {
+        console.log('[loadFolder] Running folder switch cleanup (terminals, etc.)');
+        onFolderSwitchCleanup();
     }
 
     // Clear existing graph state in UI-edge before loading new folder

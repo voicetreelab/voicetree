@@ -57,7 +57,7 @@ export class SpeedDialSideGraphFloatingMenuView extends Disposable {
       },
       {
         id: 'backup',
-        label: 'Backup & Reset',
+        label: 'Backup',
         iconName: 'download',
         onClick: options.onBackup,
         isDanger: true,

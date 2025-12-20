@@ -28,7 +28,7 @@ export async function mergeSelectedNodesFromUI(
     }
 
     // Get vault suffix for merged node path
-    const watchStatus: { readonly vaultSuffix: string } = window.electronAPI?.main.getWatchStatus();
+    const watchStatus: { readonly vaultSuffix: string } | undefined = await window.electronAPI?.main.getWatchStatus();
     const vaultSuffix: string = watchStatus?.vaultSuffix ?? '';
 
     // Compute the merge delta (pure function)
