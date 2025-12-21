@@ -159,3 +159,11 @@ backend/text_to_graph_pipeline/debug_logs/**/*
 **/debug_logs/**/*
 
 **/*.md
+/dist/**/*
+/dist-intel/**/*
+/dist-electron/**/*
+**/transcript_history.txt
+/bulid-intel/**/*
+**/*.mp4
+**/*.mov
+**/*.gif
