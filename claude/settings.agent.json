@@ -1,0 +1,12 @@
+{
+"hooks" : {
+  "UserPromptSubmit": [],
+  "Stop": [
+    {
+      "description": "Summary reminder to check created nodes",
+      "hooks": [
+      ]
+    }
+  ]
+}
+}
