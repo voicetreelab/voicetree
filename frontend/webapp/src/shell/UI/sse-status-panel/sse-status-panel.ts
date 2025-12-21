@@ -228,9 +228,9 @@ export class SseStatusPanel {
             case 'workflow_complete':
                 return `Done (${event.data.total_nodes} nodes)`;
             case 'connection_open':
-                return `Connected :${event.data.port}`;
+                return `Speech-to-tree server connected`;
             case 'connection_loading':
-                return 'Loading server...';
+                return 'Loading...';
             case 'connection_error':
                 return 'Disconnected';
             case 'workflow_failed': {

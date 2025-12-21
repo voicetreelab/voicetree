@@ -136,7 +136,7 @@ function App(): JSX.Element {
             </div>
 
             {/* Bottom bar: Folder selector (left) | Transcription Panel (centered, includes SSE activity panel) */}
-            <div className="flex-shrink-0 relative z-[1050] py-1">
+            <div className="flex-shrink-0 relative z-[1050] py-1 bg-background">
                 {/* File watching panel - anchored bottom left, vertically centered */}
                 <div className="absolute left-2 top-1/2 -translate-y-1/2">
                     <FileWatchingPanel/>

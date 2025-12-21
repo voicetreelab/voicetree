@@ -2,7 +2,9 @@
  * Spawns a plain terminal (no agent command, no context node).
  */
 
-import type {Graph, GraphNode, NodeIdAndFilePath} from '@/pure/graph';
+import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath} from '@/pure/graph';
+import type {Position} from '@/pure/graph';
+import {createNewNodeNoParent} from '@/pure/graph/graphDelta/uiInteractionsToGraphDeltas';
 import {getNodeTitle} from '@/pure/graph/markdown-parsing';
 import {resolveEnvVars, expandEnvVarsInValues} from '@/pure/settings';
 import type {VTSettings} from '@/pure/settings/types';
@@ -13,6 +15,9 @@ import {getGraph} from '@/shell/edge/main/state/graph-store';
 import {getWatchStatus, getWatchedDirectory} from '@/shell/edge/main/graph/watchFolder';
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
+import {
+    applyGraphDeltaToDBThroughMemAndUIAndEditors
+} from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange';
 
 export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCount: number): Promise<void> {
   const settings: VTSettings = await loadSettings();
@@ -56,4 +61,28 @@ export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCoun
   });
 
   void uiAPI.launchTerminalOntoUI(nodeId, terminalData);
+}
+
+/**
+ * Spawns a plain terminal with a newly created markdown node attached.
+ * The node enables draggability and note-saving for the terminal.
+ *
+ * Same logic as 'Add Node Here' but also attaches a plain terminal.
+ */
+export async function spawnPlainTerminalWithNode(
+    position: Position,
+    terminalCount: number
+): Promise<void> {
+    // Get vault suffix so node ID includes correct path prefix
+    const vaultSuffix: string = getWatchStatus().vaultSuffix;
+
+    // Create a new orphan node (same as 'Add Node Here')
+    const {newNode, graphDelta}: {readonly newNode: GraphNode; readonly graphDelta: GraphDelta} =
+        createNewNodeNoParent(position, vaultSuffix);
+
+    // Persist the node to disk and update UI
+    await applyGraphDeltaToDBThroughMemAndUIAndEditors(graphDelta);
+
+    // Now spawn a plain terminal attached to this node
+    await spawnPlainTerminal(newNode.relativeFilePathIsID, terminalCount);
 }

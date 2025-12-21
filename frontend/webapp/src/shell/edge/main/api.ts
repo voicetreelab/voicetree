@@ -16,7 +16,7 @@ import {createContextNode} from "@/shell/edge/main/graph/context-nodes/createCon
 import {saveNodePositions} from "@/shell/edge/main/saveNodePositions";
 import {performUndo, performRedo} from './graph/undoOperations'
 import {spawnTerminalWithContextNode} from './terminals/spawnTerminalWithContextNode'
-import {spawnPlainTerminal} from './terminals/spawnPlainTerminal'
+import {spawnPlainTerminal, spawnPlainTerminalWithNode} from './terminals/spawnPlainTerminal'
 import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange";
@@ -71,6 +71,9 @@ export const mainAPI = {
 
   // Plain terminal spawning (no agent command, no context node)
   spawnPlainTerminal,
+
+  // Plain terminal with attached node (for draggability)
+  spawnPlainTerminalWithNode,
 
   // Ask mode operations
   askQuery,
