@@ -120,7 +120,7 @@ vi.mock('@/shell/edge/main/graph/watchFolder', () => {
 let handlersImported: boolean = false
 async function ensureHandlersImported(): Promise<void> {
     if (!handlersImported) {
-        const { registerTerminalIpcHandlers } = await import('@/shell/edge/main/ipc-terminal-handlers')
+        const { registerTerminalIpcHandlers } = await import('@/shell/edge/main/terminals/ipc-terminal-handlers')
         registerTerminalIpcHandlers(
             {} as any, // terminalManager
             () => '' // getToolsDirectory

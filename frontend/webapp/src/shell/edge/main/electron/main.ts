@@ -9,12 +9,12 @@ import {startFileWatching, getWatchedDirectory, setStartupFolderOverride, setOnF
 const {autoUpdater} = electronUpdater;
 import {StubTextToTreeServerManager} from './server/StubTextToTreeServerManager';
 import {RealTextToTreeServerManager} from './server/RealTextToTreeServerManager';
-import TerminalManager from './terminal-manager';
+import TerminalManager from '../terminals/terminal-manager';
 import {setupToolsDirectory, getToolsDirectory} from './tools-setup';
 import {setupOnboardingDirectory} from './onboarding-setup';
 import {startNotificationScheduler, stopNotificationScheduler, recordAppUsage} from './notification-scheduler';
 import {setBackendPort, setMainWindow} from '@/shell/edge/main/state/app-electron-state';
-import {registerTerminalIpcHandlers} from '@/shell/edge/main/ipc-terminal-handlers';
+import {registerTerminalIpcHandlers} from '@/shell/edge/main/terminals/ipc-terminal-handlers';
 import {setupRPCHandlers} from '@/shell/edge/main/edge-auto-rpc/rpc-handler';
 import {writeAllPositionsSync} from '@/shell/edge/main/graph/writeAllPositionsOnExit';
 import {getGraph} from '@/shell/edge/main/state/graph-store';

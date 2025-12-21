@@ -13,23 +13,15 @@ import {loadSettings, saveSettings as saveSettings} from './settings/settings_IO
 import {getWatchStatus, loadPreviousFolder, startFileWatching, stopFileWatching, setVaultSuffix} from './graph/watchFolder'
 import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/state/app-electron-state";
 import {createContextNode} from "@/shell/edge/main/graph/context-nodes/createContextNode";
-import {createContextNodeFromQuestion} from "@/shell/edge/main/graph/context-nodes/createContextNodeFromQuestion";
 import {saveNodePositions} from "@/shell/edge/main/saveNodePositions";
 import {performUndo, performRedo} from './graph/undoOperations'
 import {spawnTerminalWithContextNode} from './terminals/spawnTerminalWithContextNode'
+import {spawnPlainTerminal} from './terminals/spawnPlainTerminal'
 import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange";
-import {askQuery as askQueryBackend, type AskQueryResponse} from './backend-api';
-import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
-import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/types';
-import {createTerminalData} from '@/shell/edge/UI-edge/floating-windows/types';
-import type {VTSettings} from '@/pure/settings/types';
-import {resolveEnvVars, expandEnvVarsInValues} from '@/pure/settings';
-import type {Graph, GraphNode, NodeIdAndFilePath} from '@/pure/graph';
-import {getNodeTitle} from '@/pure/graph/markdown-parsing';
-import {findFirstParentNode} from '@/pure/graph/graph-operations/findFirstParentNode';
-import {getWatchedDirectory} from './graph/watchFolder';
+import {askQuery} from './backend-api';
+import {askModeCreateAndSpawn} from './ask-mode/askModeCreateAndSpawn';
 
 // eslint-disable-next-line @typescript-eslint/typedef
 export const mainAPI = {
@@ -78,135 +70,10 @@ export const mainAPI = {
   spawnTerminalWithContextNode,
 
   // Plain terminal spawning (no agent command, no context node)
-  spawnPlainTerminal: async (nodeId: NodeIdAndFilePath, terminalCount: number): Promise<void> => {
-    const settings: VTSettings = await loadSettings();
-    const resolvedEnvVars: Record<string, string> = resolveEnvVars(settings.INJECT_ENV_VARS);
-
-    const graph: Graph = getGraph();
-    const node: GraphNode | undefined = graph.nodes[nodeId];
-    const title: string = node ? getNodeTitle(node) : 'Terminal';
-
-    const watchStatus: { readonly isWatching: boolean; readonly directory: string | undefined } = getWatchStatus();
-    let initialSpawnDirectory: string | undefined = watchStatus.directory;
-
-    if (watchStatus?.directory && settings.terminalSpawnPathRelativeToWatchedDirectory) {
-      const baseDir: string = watchStatus.directory.replace(/\/$/, '');
-      const relativePath: string = settings.terminalSpawnPathRelativeToWatchedDirectory.replace(/^\.\//, '');
-      initialSpawnDirectory = `${baseDir}/${relativePath}`;
-    }
-
-    const appSupportPath: string = getAppSupportPath();
-    const watchedDir: string | null = getWatchedDirectory();
-    const nodeAbsolutePath: string = watchedDir
-      ? `${watchedDir.replace(/\/$/, '')}/${nodeId}`
-      : nodeId;
-
-    const unexpandedEnvVars: Record<string, string> = {
-      VOICETREE_APP_SUPPORT: appSupportPath ?? '',
-      CONTEXT_NODE_PATH: nodeAbsolutePath,
-      ...resolvedEnvVars,
-    };
-    const expandedEnvVars: Record<string, string> = expandEnvVarsInValues(unexpandedEnvVars);
-
-    const terminalData: TerminalData = createTerminalData({
-      attachedToNodeId: nodeId,
-      terminalCount: terminalCount,
-      title: title,
-      anchoredToNodeId: nodeId,
-      // No initialCommand - opens a plain shell
-      executeCommand: false,
-      initialSpawnDirectory: initialSpawnDirectory,
-      initialEnvVars: expandedEnvVars,
-    });
-
-    void uiAPI.launchTerminalOntoUI(nodeId, terminalData);
-  },
+  spawnPlainTerminal,
 
   // Ask mode operations
-  askQuery: async (query: string, topK: number = 10): Promise<AskQueryResponse> => {
-    return askQueryBackend(query, topK);
-  },
+  askQuery,
 
-  askModeCreateAndSpawn: async (relevantNodeIds: readonly string[], question: string): Promise<void> => {
-    // Fix: Prepend vault suffix to node IDs from backend
-    // Backend returns paths relative to vault (e.g., 'voice/Node.md')
-    // Frontend graph keys include vault suffix (e.g., 'vt/voice/Node.md')
-    const vaultSuffix: string = getWatchStatus().vaultSuffix;
-    const adjustedNodeIds: readonly string[] = vaultSuffix
-      ? relevantNodeIds.map(id => `${vaultSuffix}/${id}`)
-      : relevantNodeIds;
-
-    // 1. Create context node from relevant nodes
-    const contextNodeId: NodeIdAndFilePath = await createContextNodeFromQuestion(adjustedNodeIds, question);
-
-    // 2. Get terminal count from UI (we'll use 0 as default since we don't track it here)
-    const terminalCount: number = 0;
-
-    // 3. Load settings
-    const settings: VTSettings = await loadSettings();
-    const agents: readonly { readonly name: string; readonly command: string }[] = settings.agents ?? [];
-    const command: string = agents[0]?.command ?? '';
-
-    if (!command) {
-      throw new Error('No agent command available');
-    }
-
-    // 4. Prepare terminal data
-    const graph: Graph = getGraph();
-    const contextNode: GraphNode = graph.nodes[contextNodeId];
-    if (!contextNode) {
-      throw new Error(`Context node ${contextNodeId} not found`);
-    }
-
-    const contextContent: string = contextNode.contentWithoutYamlOrLinks;
-    const resolvedEnvVars: Record<string, string> = resolveEnvVars(settings.INJECT_ENV_VARS);
-    const contextNodeTitle: string = getNodeTitle(contextNode);
-    const strippedTitle: string = contextNodeTitle.replace(/^ASK:\s*/i, '');
-    const agentName: string = resolvedEnvVars['AGENT_NAME'] ?? '';
-    const title: string = agentName ? `${agentName}: ${strippedTitle}` : strippedTitle;
-
-    const watchStatus: { readonly isWatching: boolean; readonly directory: string | undefined } = getWatchStatus();
-    let initialSpawnDirectory: string | undefined = watchStatus.directory;
-
-    if (watchStatus?.directory && settings.terminalSpawnPathRelativeToWatchedDirectory) {
-      const baseDir: string = watchStatus.directory.replace(/\/$/, '');
-      const relativePath: string = settings.terminalSpawnPathRelativeToWatchedDirectory.replace(/^\.\//, '');
-      initialSpawnDirectory = `${baseDir}/${relativePath}`;
-    }
-
-    const appSupportPath: string = getAppSupportPath();
-    const watchedDir: string | null = getWatchedDirectory();
-    const contextNodeAbsolutePath: string = watchedDir
-      ? `${watchedDir.replace(/\/$/, '')}/${contextNodeId}`
-      : contextNodeId;
-
-    // Build absolute path for task node (parent of context node)
-    const parentNode: GraphNode | undefined = findFirstParentNode(contextNode, graph);
-    const taskNodeAbsolutePath: string = parentNode && watchedDir
-      ? `${watchedDir.replace(/\/$/, '')}/${parentNode.relativeFilePathIsID}`
-      : '';
-
-    const unexpandedEnvVars: Record<string, string> = {
-      VOICETREE_APP_SUPPORT: appSupportPath ?? '',
-      CONTEXT_NODE_PATH: contextNodeAbsolutePath,
-      TASK_NODE_PATH: taskNodeAbsolutePath,
-      CONTEXT_NODE_CONTENT: contextContent,
-      ...resolvedEnvVars,
-    };
-    const expandedEnvVars: Record<string, string> = expandEnvVarsInValues(unexpandedEnvVars);
-
-    const terminalData: TerminalData = createTerminalData({
-      attachedToNodeId: contextNodeId,
-      terminalCount: terminalCount,
-      title: title,
-      anchoredToNodeId: contextNodeId,
-      initialCommand: command,
-      executeCommand: true,
-      initialSpawnDirectory: initialSpawnDirectory,
-      initialEnvVars: expandedEnvVars,
-    });
-
-    // 5. Launch terminal via UI API
-    void uiAPI.launchTerminalOntoUI(contextNodeId, terminalData);
-  },
+  askModeCreateAndSpawn,
 }
