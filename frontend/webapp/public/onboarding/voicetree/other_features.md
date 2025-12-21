@@ -1,20 +1,22 @@
 ---
 position:
-  x: 1349.3786135052949
-  y: -1599.004673088264
+  x: 1245.712495651966
+  y: -1709.17084403816
 isContextNode: false
 ---
-# Other Features
+# Hotkeys & Other Features
 
 ### Navigation
 - Hold **space** to follow most recent node
+- **Cmd + ] or [** to cycle between terminals
+- ***Cmd+ 1-5** to navigate to recently added or modified nodes (appear as tabs in the top left)
+- Command pallete (Cmd+E) is ordererd by recently selected
 
-- Recent nodes also appear in the top left
+## Markdown nodes
 
-- There is also a minimap in the bottom right
-
-- Agent/Terminal tabs appear in the top right
-
+- select nodes with cmd + drag. Node auto selected when hovered. 
+- **Cmd + n** to create new child node, or if no node is selected, creates orphan node
+- **Cmd + backspace** to delete selected node(s)
 
 ### File Syncing
 Markdown files are only read and written to the vault folder you have specified in the bottom left corner.
@@ -30,6 +32,12 @@ You can open the editor for this file in the floating menu on the right hand sid
 
 ### Agents
 All prompts and commands for running agents can be modified in the settings. 
+
+Tell Agents at any Time to 'add a progress node'
+
+These will show up in the top right under the respective terminal/agent tab
+
+You can get creative with this, for example, expirement with asking an agent to use the add node tool to create a task tree for their proposed plan.
 
 
 
