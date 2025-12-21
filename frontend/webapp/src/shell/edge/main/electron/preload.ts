@@ -30,9 +30,6 @@ async function exposeElectronAPI(): Promise<void> {
         onWatchingStarted: (callback) => {
             ipcRenderer.on('watching-started', (_event, data) => callback(data));
         },
-        onFileWatchingStopped: (callback) => {
-            ipcRenderer.on('file-watching-stopped', (_event, data) => callback(data));
-        },
 
         // Remove event listeners (cleanup)
         removeAllListeners: (channel) => {

@@ -114,7 +114,7 @@ export function AgentStatsPanel(): JSX.Element {
   }
 
   return (
-    <div className="flex flex-col gap-3 p-3 bg-background text-foreground font-mono text-xs">
+    <div data-testid="agent-stats-panel" className="flex flex-col gap-3 p-3 bg-background text-foreground font-mono text-xs">
       {/* Time Filter Buttons */}
       <div className="flex items-center gap-2">
         <span className="text-gray-500">Filter:</span>
@@ -141,7 +141,7 @@ export function AgentStatsPanel(): JSX.Element {
         {/* Total Sessions */}
         <div className="bg-gray-50 rounded p-2 border border-gray-200">
           <div className="text-gray-500 text-[10px] uppercase tracking-wide mb-1">Sessions</div>
-          <div className="text-lg font-semibold text-gray-900">
+          <div data-testid="sessions-count" className="text-lg font-semibold text-gray-900">
             {isLoading ? '...' : filteredSessions.length}
           </div>
         </div>
@@ -149,7 +149,7 @@ export function AgentStatsPanel(): JSX.Element {
         {/* Total Cost */}
         <div className="bg-gray-50 rounded p-2 border border-gray-200">
           <div className="text-gray-500 text-[10px] uppercase tracking-wide mb-1">Total Cost</div>
-          <div className="text-lg font-semibold text-gray-900">
+          <div data-testid="total-cost" className="text-lg font-semibold text-gray-900">
             {isLoading ? '...' : formatCost(filteredTotals.cost)}
           </div>
         </div>
@@ -160,10 +160,10 @@ export function AgentStatsPanel(): JSX.Element {
           <div className="text-sm font-semibold text-gray-900">
             {isLoading ? '...' : (
               <div className="flex flex-col gap-0.5">
-                <div className="text-xs">
+                <div data-testid="tokens-input" className="text-xs">
                   <span className="text-gray-500">In:</span> {formatTokens(filteredTotals.tokens.input)}
                 </div>
-                <div className="text-xs">
+                <div data-testid="tokens-output" className="text-xs">
                   <span className="text-gray-500">Out:</span> {formatTokens(filteredTotals.tokens.output)}
                 </div>
                 {filteredTotals.tokens.cacheRead > 0 && (
@@ -196,6 +196,7 @@ export function AgentStatsPanel(): JSX.Element {
               return (
                 <div
                   key={session.sessionId}
+                  data-testid="session-row"
                   className="bg-gray-50 rounded border border-gray-200 overflow-hidden"
                 >
                   {/* Compact Row */}
@@ -212,7 +213,7 @@ export function AgentStatsPanel(): JSX.Element {
                             isRunning ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
                           )}
                         />
-                        <span className="font-semibold text-gray-900 truncate">
+                        <span data-testid="session-agent-name" className="font-semibold text-gray-900 truncate">
                           {session.agentName}
                         </span>
                         <span className="text-gray-500 text-[10px]">
@@ -223,7 +224,7 @@ export function AgentStatsPanel(): JSX.Element {
                       {/* Right: Metrics */}
                       <div className="flex items-center gap-3 shrink-0">
                         {session.durationMs !== undefined && (
-                          <span className="text-gray-600">
+                          <span data-testid="session-duration" className="text-gray-600">
                             {formatDuration(session.durationMs)}
                           </span>
                         )}
@@ -233,7 +234,7 @@ export function AgentStatsPanel(): JSX.Element {
                           </span>
                         )}
                         {session.costUsd !== undefined && (
-                          <span className="text-gray-900 font-semibold">
+                          <span data-testid="session-cost" className="text-gray-900 font-semibold">
                             {formatCost(session.costUsd)}
                           </span>
                         )}

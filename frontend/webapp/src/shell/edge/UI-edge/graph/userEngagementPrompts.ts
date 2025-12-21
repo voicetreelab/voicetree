@@ -255,16 +255,16 @@ async function maybeShowEmailPrompt(): Promise<void> {
         emailPromptShown = true;
         const email: string | null = await showEmailDialog();
         if (email) {
-            // Save to settings.json to persist across app updates/reinstalls
-            const updatedSettings: VTSettings = { ...settings, userEmail: email };
-            await window.electronAPI.main.saveSettings(updatedSettings);
-            cachedUserEmail = email;
             // Use email as PostHog distinct_id for consistent identity
             posthog.identify(email, { email });
             posthog.capture('emailCollected', {
                 source: 'in-app-dialog',
                 sessionDeltaCount
             });
+            // Save to settings.json to persist across app updates/reinstalls
+            const updatedSettings: VTSettings = { ...settings, userEmail: email };
+            await window.electronAPI.main.saveSettings(updatedSettings);
+            cachedUserEmail = email;
         }
     }
 }

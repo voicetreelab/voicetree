@@ -14,6 +14,7 @@ import {setupToolsDirectory, getToolsDirectory} from './tools-setup';
 import {setupOnboardingDirectory} from './onboarding-setup';
 import {startNotificationScheduler, stopNotificationScheduler, recordAppUsage} from './notification-scheduler';
 import {setBackendPort, setMainWindow} from '@/shell/edge/main/state/app-electron-state';
+import {startOTLPReceiver, stopOTLPReceiver} from '@/shell/edge/main/metrics/otlp-receiver';
 import {registerTerminalIpcHandlers} from '@/shell/edge/main/terminals/ipc-terminal-handlers';
 import {setupRPCHandlers} from '@/shell/edge/main/edge-auto-rpc/rpc-handler';
 import {writeAllPositionsSync} from '@/shell/edge/main/graph/writeAllPositionsOnExit';
@@ -397,6 +398,9 @@ void app.whenReady().then(async () => {
 
     createWindow();
 
+    // Start OTLP receiver for Claude Code metrics (port 4318)
+    await startOTLPReceiver();
+
     // Start re-engagement notification scheduler
     startNotificationScheduler();
 
@@ -431,6 +435,9 @@ app.on('before-quit', () => {
 
     // Clean up all terminals
     terminalManager.cleanup();
+
+    // Stop OTLP receiver
+    void stopOTLPReceiver();
 
     // Stop notification scheduler
     stopNotificationScheduler();

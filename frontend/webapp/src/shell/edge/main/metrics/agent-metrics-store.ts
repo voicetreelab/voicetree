@@ -93,3 +93,26 @@ export async function endSession(data: {
 export async function getMetrics(): Promise<AgentMetricsData> {
   return readMetrics();
 }
+
+export async function appendTokenMetrics(data: {
+  sessionId: string;
+  tokens: TokenMetrics;
+  costUsd: number;
+}): Promise<void> {
+  const metrics: AgentMetricsData = await readMetrics();
+
+  const session: SessionMetric | undefined = metrics.sessions.find(
+    (s: SessionMetric) => s.sessionId === data.sessionId
+  );
+
+  if (session) {
+    // Update existing session with token metrics
+    session.tokens = data.tokens;
+    session.costUsd = data.costUsd;
+    await writeMetrics(metrics);
+  } else {
+    // Session not found - this can happen if metrics arrive before session start
+    // or if there's a mismatch in session IDs
+    console.warn(`[agent-metrics-store] Session ${data.sessionId} not found in metrics file`);
+  }
+}

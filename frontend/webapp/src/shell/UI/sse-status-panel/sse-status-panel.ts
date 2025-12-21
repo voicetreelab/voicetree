@@ -217,7 +217,7 @@ export class SseStatusPanel {
                     const text: string = event.data.text_chunk as string;
                     const first30: string = text.slice(0, 30);
                     const rest: string = text.length > 30 ? `<span class="activity-text-rest">${text.slice(30)}</span>` : '';
-                    return `${phase}: ${first30}${rest}`;
+                    return `${phase}: ${first30}${rest} <span class="activity-processing-spinner">◌</span>`;
                 }
                 return `${phase}`;
             }

@@ -1,6 +1,7 @@
 import VoiceTreeTranscribe from "@/shell/UI/views/renderers/voicetree-transcribe";
 import {useFolderWatcher} from "@/shell/UI/views/hooks/useFolderWatcher";
 import {VoiceTreeGraphView} from "@/shell/UI/views/VoiceTreeGraphView";
+import {AgentStatsPanel} from "@/shell/UI/views/AgentStatsPanel";
 import {useEffect, useRef, useState} from "react";
 import type { JSX } from "react/jsx-runtime";
 import type { RefObject, KeyboardEvent, FocusEvent, ChangeEvent } from "react";
@@ -21,6 +22,9 @@ function App(): JSX.Element {
     // State for inline editing of vault suffix
     const [isEditingSuffix, setIsEditingSuffix] = useState(false);
     const [editedSuffix, setEditedSuffix] = useState(vaultSuffix ?? 'voicetree');
+
+    // State for agent stats panel visibility
+    const [isStatsPanelOpen, setIsStatsPanelOpen] = useState(false);
 
     // Sync editedSuffix when vaultSuffix changes from external sources
     useEffect(() => {
@@ -135,7 +139,7 @@ function App(): JSX.Element {
                 </div>
             </div>
 
-            {/* Bottom bar: Folder selector (left) | Transcription Panel (centered, includes SSE activity panel) */}
+            {/* Bottom bar: Folder selector (left) | Transcription Panel (centered, includes SSE activity panel) | Stats toggle (right) */}
             <div className="flex-shrink-0 relative z-[1050] py-1 bg-background">
                 {/* File watching panel - anchored bottom left, vertically centered */}
                 <div className="absolute left-2 top-1/2 -translate-y-1/2">
@@ -145,7 +149,37 @@ function App(): JSX.Element {
                 <div className="flex justify-center">
                     <VoiceTreeTranscribe/>
                 </div>
+                {/* Agent stats toggle - anchored bottom right, vertically centered */}
+                <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                    <button
+                        onClick={() => setIsStatsPanelOpen(!isStatsPanelOpen)}
+                        className="text-gray-600 px-1.5 py-1 rounded bg-gray-100 hover:bg-gray-200 transition-colors font-mono text-xs"
+                        title="Toggle Agent Stats Panel"
+                    >
+                        {isStatsPanelOpen ? '📊 Hide Stats' : '📊 Stats'}
+                    </button>
+                </div>
             </div>
+
+            {/* Agent Stats Panel - slide out from right */}
+            {isStatsPanelOpen && (
+                <div
+                    data-testid="agent-stats-panel-container"
+                    className="fixed right-0 top-0 bottom-0 w-96 bg-white border-l border-gray-300 shadow-lg z-[1100] overflow-y-auto"
+                >
+                    <div className="sticky top-0 bg-white border-b border-gray-200 p-2 flex items-center justify-between">
+                        <h2 className="font-mono text-sm font-semibold text-gray-900">Agent Statistics</h2>
+                        <button
+                            onClick={() => setIsStatsPanelOpen(false)}
+                            className="text-gray-600 px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 transition-colors font-mono text-xs"
+                            title="Close panel"
+                        >
+                            ✕
+                        </button>
+                    </div>
+                    <AgentStatsPanel/>
+                </div>
+            )}
         </div>
     );
 }
