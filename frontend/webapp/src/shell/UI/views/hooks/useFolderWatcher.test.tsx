@@ -14,19 +14,13 @@ const mockMainAPI: { startFileWatching: Mock<(...args: any[]) => any>; stopFileW
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockElectronAPI: { main: { startFileWatching: Mock<(...args: any[]) => any>; stopFileWatching: Mock<(...args: any[]) => any>; getWatchStatus: Mock<(...args: any[]) => any>; setVaultSuffix: Mock<(...args: any[]) => any>; }; onWatchingStarted: Mock<(callback: any) => void>; onFileWatchingStopped: Mock<(callback: any) => void>; removeAllListeners: Mock<(eventName: string) => void>; } = {
+const mockElectronAPI: { main: { startFileWatching: Mock<(...args: any[]) => any>; stopFileWatching: Mock<(...args: any[]) => any>; getWatchStatus: Mock<(...args: any[]) => any>; setVaultSuffix: Mock<(...args: any[]) => any>; }; onWatchingStarted: Mock<(callback: any) => void>; removeAllListeners: Mock<(eventName: string) => void>; } = {
   main: mockMainAPI,
   onWatchingStarted: vi.fn((callback) => {
     if (!eventListeners['watching-started']) {
       eventListeners['watching-started'] = [];
     }
     eventListeners['watching-started'].push(callback);
-  }),
-  onFileWatchingStopped: vi.fn((callback) => {
-    if (!eventListeners['file-watching-stopped']) {
-      eventListeners['file-watching-stopped'] = [];
-    }
-    eventListeners['file-watching-stopped'].push(callback);
   }),
   removeAllListeners: vi.fn((eventName: string) => {
     eventListeners[eventName] = [];
@@ -100,30 +94,6 @@ describe('useFolderWatcher (Electron version)', () => {
     expect(result.current.isLoading).toBe(false);
   });
 
-  it('should update state when file-watching-stopped event is received', async () => {
-    const { result } = renderHook(() => useFolderWatcher());
-
-    // Wait for initialization and set to watching state
-    await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 0));
-      triggerEvent('watching-started', {
-        directory: '/test/dir',
-        timestamp: new Date().toISOString()
-      });
-    });
-
-    expect(result.current.isWatching).toBe(true);
-
-    // Trigger file-watching-stopped event
-    await act(async () => {
-      triggerEvent('file-watching-stopped');
-    });
-
-    expect(result.current.isWatching).toBe(false);
-    expect(result.current.watchDirectory).toBeUndefined();
-    expect(result.current.isLoading).toBe(false);
-  });
-
   it('should clear graph data when stopping watching', async () => {
     const { result } = renderHook(() => useFolderWatcher());
 
@@ -139,10 +109,9 @@ describe('useFolderWatcher (Electron version)', () => {
     expect(result.current.isWatching).toBe(true);
     expect(mockMainAPI.startFileWatching).toHaveBeenCalled();
 
-    // Stop watching and trigger the event
+    // Stop watching - hook sets isWatching to false on successful stopFileWatching
     await act(async () => {
       await result.current.stopWatching();
-      triggerEvent('file-watching-stopped');
     });
 
     expect(result.current.isWatching).toBe(false);

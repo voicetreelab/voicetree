@@ -3,20 +3,22 @@ import type {CollectionReturnValue, Core, Position as CyPosition} from "cytoscap
 import {getCyInstance} from "@/shell/edge/UI-edge/state/cytoscape-state";
 import {createFloatingTerminal} from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
 import {addTerminal} from "@/shell/edge/UI-edge/state/TerminalStore";
-import {cyFitWithRelativeZoom} from "@/utils/responsivePadding";
 import {vanillaFloatingWindowInstances} from "@/shell/edge/UI-edge/state/UIAppState";
 
 /**
- * Zoom to terminal neighborhood (context node + d=1 neighbors + terminal shadow node)
+ * Pan to terminal neighborhood (maintains current zoom level)
  */
-function zoomToTerminalNeighborhood(cy: Core, contextNodeId: string, terminalId: TerminalId): void {
+function panToTerminalNeighborhood(cy: Core, contextNodeId: string, terminalId: TerminalId): void {
     const shadowNodeId: string = getShadowNodeId(terminalId);
     const terminalShadowNode: CollectionReturnValue = cy.getElementById(shadowNodeId);
     const contextNode: CollectionReturnValue = cy.getElementById(contextNodeId);
-    const nodesToFit: CollectionReturnValue = contextNode.length > 0
+    const nodesToCenter: CollectionReturnValue = contextNode.length > 0
         ? contextNode.closedNeighborhood().nodes().union(terminalShadowNode)
         : cy.collection().union(terminalShadowNode);
-    cyFitWithRelativeZoom(cy, nodesToFit, 0.9);
+    cy.animate({
+        center: { eles: nodesToCenter },
+        duration: 300
+    });
 }
 
 /**
@@ -48,10 +50,10 @@ export async function launchTerminalOntoUI(
     if (terminalWithUI) {
         addTerminal(terminalWithUI);
 
-        // Zoom to terminal neighborhood twice with delays to handle IPC race condition
+        // Pan to terminal neighborhood twice with delays to handle IPC race condition
         // (context node may not exist in Cytoscape yet when this runs)
-        setTimeout(() => zoomToTerminalNeighborhood(cy, contextNodeId, terminalId), 600);
-        setTimeout(() => zoomToTerminalNeighborhood(cy, contextNodeId, terminalId), 1100);
+        setTimeout(() => panToTerminalNeighborhood(cy, contextNodeId, terminalId), 600);
+        setTimeout(() => panToTerminalNeighborhood(cy, contextNodeId, terminalId), 1100);
 
         // Auto-focus the terminal after launch (500ms delay to avoid race with PTY initialization)
         setTimeout(() => {

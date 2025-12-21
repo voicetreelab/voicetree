@@ -142,7 +142,7 @@ function generateDateSuffix(): string {
     return `voicetree-${now.getDate()}-${now.getMonth() + 1}`;
 }
 
-export async function loadFolder(watchedFolderPath: FilePath, suffixOverride?: string): Promise<void>  {
+export async function loadFolder(watchedFolderPath: FilePath, suffixOverride?: string): Promise<{ success: boolean }>  {
     // TODO: Save current graph positions before switching folders (writeAllPositionsSync)
     // IMPORTANT,  watchedFolderPath is the folder the human chooses for proj
 
@@ -153,7 +153,7 @@ export async function loadFolder(watchedFolderPath: FilePath, suffixOverride?: s
     const mainWindow: Electron.CrossProcessExports.BrowserWindow | null = getMainWindow();
     if (!mainWindow) {
         console.error('No main window available');
-        return;
+        return { success: false };
     }
 
     // Update watchedDirectory FIRST so suffix setting targets the correct folder
@@ -217,11 +217,14 @@ export async function loadFolder(watchedFolderPath: FilePath, suffixOverride?: s
             return loadFolder(watchedFolderPath, dateSuffix);
         }
 
-        // Has explicit suffix but still too many files - notify UI and exit
-        if (!mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('file-watching-stopped');
-        }
-        return;
+        // Has explicit suffix but still too many files - show error dialog
+        void dialog.showMessageBox(mainWindow, {
+            type: 'error',
+            title: 'File Limit Exceeded',
+            message: `This folder has ${fileCount} markdown files, which exceeds the limit of 300.\n\nPlease use a different suffix to create a smaller workspace.`,
+            buttons: ['OK']
+        });
+        return { success: false };
     }
 
     const currentGraph: Graph = loadResult.right;
@@ -256,6 +259,8 @@ export async function loadFolder(watchedFolderPath: FilePath, suffixOverride?: s
         vaultSuffix: currentVaultSuffix,
         timestamp: new Date().toISOString()
     });
+
+    return { success: true };
 }
 
 /**
@@ -504,13 +509,14 @@ export async function setVaultSuffix(suffix: string): Promise<{ readonly success
         return { success: true };
     }
 
-    // Save the new suffix for this directory
-    await saveSuffixForDirectory(dir, trimmedSuffix);
+    // Reload the folder with new suffix - only save if load succeeds
+    const loadResult: { success: boolean } = await loadFolder(dir, trimmedSuffix);
+    if (loadResult.success) {
+        await saveSuffixForDirectory(dir, trimmedSuffix);
+        return { success: true };
+    }
 
-    // Reload the folder with new suffix
-    await loadFolder(dir, trimmedSuffix);
-
-    return { success: true };
+    return { success: false, error: 'Failed to load folder with new suffix (file limit exceeded)' };
 }
 
 export async function loadPreviousFolder(): Promise<{ readonly success: boolean; readonly directory?: string; readonly error?: string }> {

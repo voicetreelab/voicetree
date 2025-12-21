@@ -48,7 +48,7 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
     void checkStatus();
   }, [isElectron]);
 
-  // Listen to watching-started and file-watching-stopped events to stay in sync
+  // Listen to watching-started events to stay in sync
   useEffect(() => {
     if (!isElectron || !window.electronAPI?.onWatchingStarted) return;
 
@@ -59,20 +59,12 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
       setError(null);
     };
 
-    const handleWatchingStopped: () => void = () => {
-      console.log('[useFolderWatcher] file-watching-stopped event received');
-      setWatchStatus({ isWatching: false });
-      setIsLoading(false);
-    };
-
     // Register event listeners
     window.electronAPI.onWatchingStarted(handleWatchingStarted);
-    window.electronAPI.onFileWatchingStopped(handleWatchingStopped);
 
     // Cleanup
     return () => {
       window.electronAPI?.removeAllListeners?.('watching-started');
-      window.electronAPI?.removeAllListeners?.('file-watching-stopped');
     };
   }, [isElectron]);
 

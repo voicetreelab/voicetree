@@ -7,6 +7,7 @@ import {getNodeTitle} from '@/pure/graph/markdown-parsing';
 import {findFirstParentNode} from '@/pure/graph/graph-operations/findFirstParentNode';
 import {resolveEnvVars, expandEnvVarsInValues} from '@/pure/settings';
 import type {VTSettings} from '@/pure/settings/types';
+import {getRandomAgentName} from '@/pure/settings/types';
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/types';
 import {createTerminalData} from '@/shell/edge/UI-edge/floating-windows/types';
 import {getAppSupportPath} from '@/shell/edge/main/state/app-electron-state';
@@ -51,8 +52,8 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
   const resolvedEnvVars: Record<string, string> = resolveEnvVars(settings.INJECT_ENV_VARS);
   const contextNodeTitle: string = getNodeTitle(contextNode);
   const strippedTitle: string = contextNodeTitle.replace(/^ASK:\s*/i, '');
-  const agentName: string = resolvedEnvVars['AGENT_NAME'] ?? '';
-  const title: string = agentName ? `${agentName}: ${strippedTitle}` : strippedTitle;
+  const agentName: string = getRandomAgentName();
+  const title: string = `${agentName}: ${strippedTitle}`;
 
   const watchStatus: { readonly isWatching: boolean; readonly directory: string | undefined } = getWatchStatus();
   let initialSpawnDirectory: string | undefined = watchStatus.directory;

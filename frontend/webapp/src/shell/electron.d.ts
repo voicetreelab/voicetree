@@ -30,7 +30,6 @@ export interface ElectronAPI {
 
   // File system event listeners
   onWatchingStarted?: (callback: (data: { directory: string; timestamp: string; positions?: Record<string, { x: number; y: number }> }) => void) => void;
-  onFileWatchingStopped: (callback: (data?: unknown) => void) => void;
   removeAllListeners: (channel: string) => void;
 
   // Terminal operations

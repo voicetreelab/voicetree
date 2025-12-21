@@ -209,3 +209,14 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+.activity-processing-spinner {
+    display: inline-block;
+    animation: spin 1s linear infinite;
+    margin-left: 4px;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}

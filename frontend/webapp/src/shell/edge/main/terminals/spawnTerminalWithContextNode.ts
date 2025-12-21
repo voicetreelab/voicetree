@@ -25,6 +25,7 @@ import { getNodeTitle } from '@/pure/graph/markdown-parsing';
 import { findFirstParentNode } from '@/pure/graph/graph-operations/findFirstParentNode';
 import type { VTSettings, AgentConfig } from '@/pure/settings';
 import { resolveEnvVars, expandEnvVarsInValues } from '@/pure/settings';
+import { getRandomAgentName } from '@/pure/settings/types';
 import { dialog } from 'electron';
 
 /**
@@ -207,8 +208,8 @@ async function prepareTerminalDataInMain(
     // (the task node that spawned this context node)
     const parentNode: GraphNode | undefined = findFirstParentNode(contextNode, graph);
     const parentTitle: string = parentNode ? getNodeTitle(parentNode) : getNodeTitle(contextNode);
-    const agentName: string = resolvedEnvVars['AGENT_NAME'] ?? '';
-    const title: string = agentName ? `${agentName}: ${parentTitle}` : parentTitle;
+    const agentName: string = getRandomAgentName();
+    const title: string = `${agentName}: ${parentTitle}`;
 
     // Compute initial_spawn_directory from watch directory + relative path setting
     let initialSpawnDirectory: string | undefined;

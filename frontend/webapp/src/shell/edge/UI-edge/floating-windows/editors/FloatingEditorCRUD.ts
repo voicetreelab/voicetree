@@ -23,6 +23,7 @@ import type { Position } from '@/shell/UI/views/IVoiceTreeGraphView';
 import {
     createEditorData,
     getEditorId,
+    getShadowNodeId,
     type EditorData,
     type EditorId,
     type FloatingWindowUIData,
@@ -344,6 +345,19 @@ export async function createAnchoredFloatingEditor(
 
         // Anchor to node using v2 function
         anchorToNode(cy, editor);
+
+        // Pan to editor shadow node (maintain current zoom level)
+        const editorId: EditorId = getEditorId(editor);
+        const shadowNodeId: string = getShadowNodeId(editorId);
+        setTimeout(() => {
+            const shadowNode: cytoscape.CollectionReturnValue = cy.getElementById(shadowNodeId);
+            if (shadowNode.length > 0) {
+                cy.animate({
+                    center: { eles: shadowNode },
+                    duration: 300
+                });
+            }
+        }, 100);
 
     } catch (error) {
         console.error('[FloatingEditorManager-v2] Error creating floating editor:', error);
