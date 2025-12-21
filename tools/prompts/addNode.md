@@ -10,8 +10,8 @@ The following are optional parameters which you should not include unless necess
 - Optional: `--relationship <type>` - Relationship type (e.g., `--relationship solves_the_problem`). Omit unless the relationship is specific and meaningful.
 - Optional: `--parent <file>` - Omit. Only use to override the default parent (`$CONTEXT_NODE_PATH`) which is already set.
 - Optional: `--parents <file1,file2,...>` - Comma-separated list for multiple parents (diamond dependencies). Use when a node depends on multiple other nodes completing.
-- Optional: `--color <color>` e.g. `--color green`
-- Optional: `--agent-name <name>` e.g. `--agent-name Bob`
+- Optional: `--color <color>` - Omit. Your agent color (`$AGENT_COLOR`) is used by default.
+- Optional: `--agent-name <name>` - Omit. Defaults to your agent name.
 
 When creating nodes, your content should:
 
