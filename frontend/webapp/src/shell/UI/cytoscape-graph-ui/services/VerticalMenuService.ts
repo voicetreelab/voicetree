@@ -2,6 +2,8 @@ import type {Core, Position as CyPosition} from 'cytoscape';
 import ctxmenu from '@/shell/UI/lib/ctxmenu.js';
 import {mergeSelectedNodesFromUI} from "@/shell/edge/UI-edge/graph/mergeSelectedNodesFromUI";
 import {deleteSelectedNodesAction} from "@/shell/UI/cytoscape-graph-ui/actions/graphActions";
+import {getNextTerminalCount, getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
+import type {TerminalData, TerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 
 export interface Position {
     x: number;
@@ -123,6 +125,17 @@ export class VerticalMenuService {
                 if (cannotMerge) return;
                 const selectedNodeIds: string[] = this.cy!.$(':selected').nodes().map(n => n.id());
                 await mergeSelectedNodesFromUI(selectedNodeIds, this.cy!);
+            },
+        });
+
+        // Terminal icon SVG (Lucide Terminal icon)
+        const terminalIcon: string = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>';
+        menuItems.push({
+            html: `<span style="display: flex; align-items: center; gap: 8px; white-space: nowrap;">${terminalIcon} Plain Terminal</span>`,
+            action: async () => {
+                const terminalsMap: Map<TerminalId, TerminalData> = getTerminals();
+                const terminalCount: number = getNextTerminalCount(terminalsMap, 'plain-terminal');
+                await window.electronAPI?.main.spawnPlainTerminalWithNode(position, terminalCount);
             },
         });
 

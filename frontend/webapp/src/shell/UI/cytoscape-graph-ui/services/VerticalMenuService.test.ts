@@ -65,7 +65,7 @@ describe('VerticalMenuService', () => {
   });
 
   describe('canvas context menu', () => {
-    it('should show context menu with 3 items when right-clicking on canvas', () => {
+    it('should show context menu with 4 items when right-clicking on canvas', () => {
       service = new VerticalMenuService();
       service.initialize(cy, mockDeps);
       /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
@@ -73,7 +73,7 @@ describe('VerticalMenuService', () => {
 
       expect(mockCtxmenuShow).toHaveBeenCalledTimes(1);
       const menuItems: MenuItem[] = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
-      expect(menuItems).toHaveLength(3);
+      expect(menuItems).toHaveLength(4);
     });
 
     it('should have Delete disabled when no nodes selected, enabled when nodes selected', () => {
