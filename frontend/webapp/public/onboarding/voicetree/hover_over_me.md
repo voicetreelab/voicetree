@@ -1,25 +1,25 @@
 ---
 position:
-  x: 1235.3998912474676
-  y: -1608.4475653724814
+  x: 1280.898464575175
+  y: -1708.051135301995
 isContextNode: false
 ---
-# Hover Over Me
+# Hover over me
 
-Above me you will see all the actions you can perform on a node. The two most important are adding a child node, and running a node.
+Above me, next to the node, you will see 6 buttons, these are all the actions you can perform on a node. Try adding a child node now.
 
-Hovering on a node opens its floating editor.
+Markdown support:
 
-It supports all *standard* markdown plus:
-
-**code blocks:**
+**Code blocks:**
 ```typescript
 while (true) {
-  const x : string = "Hello World!"
++  const x : string = "Hello World!"
+-  // agents will automatically produce handover nodes with their diff  
   ...
 }
 ```
-**mermaid diagram blocks:**
+
+**Mermaid diagram blocks:**
 ```mermaid
 flowchart LR
       A((Voice)) --> B((Tree))
@@ -29,7 +29,5 @@ You can add edges to other nodes by adding a wikilink with double square bracket
 
 
 Some other features:
-[[command_palette.md]]
 [[other_features.md]]
 [[run_me.md]]
-[[tell_agents_progress_node.md]]

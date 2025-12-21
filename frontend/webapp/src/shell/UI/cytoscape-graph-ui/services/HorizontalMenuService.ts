@@ -341,7 +341,7 @@ export class HorizontalMenuService {
 
         menuItems.push({
             icon: Plus,
-            label: 'Add',
+            label: 'Add Child',
             hotkey: '⌘N',
             action: async () => {
                 const childId: NodeIdAndFilePath = await createNewChildNodeFromUI(nodeId, this.cy!);
