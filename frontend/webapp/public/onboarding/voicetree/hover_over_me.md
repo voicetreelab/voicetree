@@ -1,7 +1,7 @@
 ---
 position:
-  x: 1224.0497467419023
-  y: -1415.7337281886587
+  x: 1235.3998912474676
+  y: -1608.4475653724814
 isContextNode: false
 ---
 # Hover Over Me
@@ -32,3 +32,4 @@ Some other features:
 [[command_palette.md]]
 [[other_features.md]]
 [[run_me.md]]
+[[tell_agents_progress_node.md]]
