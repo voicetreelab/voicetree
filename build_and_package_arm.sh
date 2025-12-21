@@ -2,7 +2,7 @@
 # Complete build and package script for VoiceTree with Electron
 # This script builds the Python server and packages it with the Electron app
 #
-# Usage: ./build_and_package_all.sh [--publish]
+# Usage: ./build_and_package_arm.sh [--publish]
 #   --publish  Also publish to GitHub releases after building
 
 set -e  # Exit on error
@@ -37,6 +37,15 @@ fi
 if [ ! -f "dist/resources/server/voicetree-server" ]; then
     echo "❌ Error: Server build failed or not copied to dist/resources/server/"
     exit 1
+fi
+
+# Verify ARM architecture
+echo "Verifying binary architecture..."
+ARCH=$(file dist/resources/server/voicetree-server | grep -o "arm64" || echo "")
+if [ -z "$ARCH" ]; then
+    echo "WARNING: Binary may not be arm64. Check the output above."
+else
+    echo "✅ Confirmed: Binary is arm64 (ARM)"
 fi
 
 # Step 1.5: Copy agent tools and backend modules to dist resources
@@ -119,9 +128,9 @@ echo "📦 Step 4: Creating distributable package..."
 echo "----------------------------------------------"
 echo "Building Electron distributable (this may take a few minutes)..."
 
-# Clean previous builds in root
+# Clean previous ARM builds in root
 cd ../..
-rm -rf dist/electron
+rm -rf dist/electron-arm
 
 # Build the distributable from frontend
 cd frontend/webapp
@@ -146,6 +155,19 @@ else
     npm run electron:dist
 fi
 
+# Move the output to arm-specific folder
+cd ../..
+if [ -d "dist/electron" ]; then
+    mv dist/electron dist/electron-arm
+fi
+
+# Backup ARM resources for multi-platform builds
+if [ -d "dist/resources" ] && [ ! -d "dist/resources-arm" ]; then
+    cp -r dist/resources dist/resources-arm
+fi
+
+cd frontend/webapp
+
 # Step 7: Report results
 echo ""
 echo "=========================================="
@@ -153,15 +175,15 @@ echo "✅ BUILD COMPLETE!"
 echo "=========================================="
 echo ""
 echo "Artifacts created:"
-echo "  • Python server: ../../dist/voicetree-server/"
+echo "  • Python server: ../../dist-arm/voicetree-server/"
 echo "  • Server in resources: ../../dist/resources/server/"
 
-if [ -d "../../dist/electron" ]; then
-    echo "  • Electron app: ../../dist/electron/"
+if [ -d "../../dist/electron-arm" ]; then
+    echo "  • Electron app: ../../dist/electron-arm/"
 
     # List the actual built files
     if [ "$(uname)" == "Darwin" ]; then
-        DMG_FILE=$(find ../../dist/electron -name "*.dmg" 2>/dev/null | head -1)
+        DMG_FILE=$(find ../../dist/electron-arm -name "voicetree-arm64.dmg" 2>/dev/null | head -1)
         if [ -n "$DMG_FILE" ]; then
             echo ""
             echo "🎉 Distributable package ready:"
@@ -171,14 +193,14 @@ if [ -d "../../dist/electron" ]; then
             echo "   Users can install it without needing Python or any dependencies."
         fi
     elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
-        APPIMAGE_FILE=$(find ../../dist/electron -name "*.AppImage" 2>/dev/null | head -1)
+        APPIMAGE_FILE=$(find ../../dist/electron-arm -name "*.AppImage" 2>/dev/null | head -1)
         if [ -n "$APPIMAGE_FILE" ]; then
             echo ""
             echo "🎉 Distributable package ready:"
             echo "   $APPIMAGE_FILE"
         fi
     elif [ "$(expr substr $(uname -s) 1 10)" == "MINGW32_NT" ] || [ "$(expr substr $(uname -s) 1 10)" == "MINGW64_NT" ]; then
-        EXE_FILE=$(find ../../dist/electron -name "*.exe" 2>/dev/null | head -1)
+        EXE_FILE=$(find ../../dist/electron-arm -name "*.exe" 2>/dev/null | head -1)
         if [ -n "$EXE_FILE" ]; then
             echo ""
             echo "🎉 Distributable package ready:"
@@ -190,59 +212,11 @@ fi
 echo ""
 if [ "$PUBLISH" = true ]; then
     echo "Published to GitHub releases!"
-
-    # Update Homebrew tap
     echo ""
-    echo "🍺 Updating Homebrew tap..."
-    echo "----------------------------------------------"
-
-    # Get version from package.json
-    VERSION=$(node -p "require('./package.json').version")
-
-    # Get SHA256 of the DMG
-    DMG_PATH=$(find ../../dist/electron -name "voicetree.dmg" 2>/dev/null | head -1)
-    if [ -n "$DMG_PATH" ]; then
-        SHA256=$(shasum -a 256 "$DMG_PATH" | awk '{print $1}')
-
-        # Clone, update, and push homebrew tap
-        TEMP_TAP=$(mktemp -d)
-        git clone https://github.com/voicetreelab/homebrew-voicetree.git "$TEMP_TAP"
-
-        # Update the cask file
-        cat > "$TEMP_TAP/Casks/voicetree.rb" << EOF
-cask "voicetree" do
-  version "$VERSION"
-  sha256 "$SHA256"
-
-  url "https://github.com/voicetreelab/voicetree/releases/download/v#{version}/voicetree.dmg"
-  name "VoiceTree"
-  desc "Transform voice into navigable concept graphs"
-  homepage "https://github.com/voicetreelab/voicetree"
-
-  depends_on macos: ">= :monterey"
-
-  app "VoiceTree.app"
-
-  zap trash: [
-    "~/Library/Application Support/VoiceTree",
-    "~/Library/Preferences/com.voicetree.webapp.plist",
-  ]
-end
-EOF
-
-        cd "$TEMP_TAP"
-        git add -A
-        git commit -m "Update VoiceTree to v$VERSION" || echo "No changes to commit"
-        git push
-        cd -
-        rm -rf "$TEMP_TAP"
-
-        echo "✅ Homebrew tap updated to v$VERSION"
-    else
-        echo "⚠️  Could not find DMG to calculate SHA256"
-    fi
+    echo "Note: Homebrew tap update is now handled by build_and_package_all_platforms.sh"
+    echo "      to support multi-arch cask generation."
 else
-    echo "To publish, run: ./build_and_package_all.sh --publish"
+    echo "To publish, run: ./build_and_package_arm.sh --publish"
 fi
 echo ""
 echo "Done! 🚀"
