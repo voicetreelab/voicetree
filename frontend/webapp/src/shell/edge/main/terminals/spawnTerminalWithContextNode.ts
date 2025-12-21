@@ -173,14 +173,9 @@ export async function spawnTerminalWithContextNode(
         settings
     );
 
-    console.log("BEFORE LAUNCH") // we never get here if we go down createContextNode path. Why?
-
     // Call UI to launch terminal (via UI API pattern)
     // Note: uiAPI sends IPC message, no need to await (fire-and-forget)
     void uiAPI.launchTerminalOntoUI(contextNodeId, terminalData);
-
-    console.log("AFTER LAUNCH")
-
 }
 
 /**

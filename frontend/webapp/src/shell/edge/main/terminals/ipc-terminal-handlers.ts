@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
-import type TerminalManager from '@/shell/edge/main/electron/terminal-manager'
-import type { TerminalSpawnResult } from '@/shell/edge/main/electron/terminal-manager'
+import type TerminalManager from '@/shell/edge/main/terminals/terminal-manager'
+import type { TerminalSpawnResult } from '@/shell/edge/main/terminals/terminal-manager'
 import { getWatchedDirectory } from '@/shell/edge/main/graph/watchFolder'
 
 // Import dependencies directly - functional programming style
