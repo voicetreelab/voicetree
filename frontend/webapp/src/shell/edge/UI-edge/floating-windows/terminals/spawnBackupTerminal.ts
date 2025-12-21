@@ -15,7 +15,7 @@ import {addTerminal, getNextTerminalCount, getTerminals} from "@/shell/edge/UI-e
 
 export async function spawnBackupTerminal(cy: Core): Promise<void> {
     // Get watch directory from IPC
-    const status: { readonly isWatching: boolean; readonly directory: string | undefined; } = await window.electronAPI?.main.getWatchStatus();
+    const status: { readonly isWatching: boolean; readonly directory: string | undefined; } | undefined = await window.electronAPI?.main.getWatchStatus();
     const watchDir: string | undefined = status?.directory;
 
     if (!watchDir) {

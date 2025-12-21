@@ -11,6 +11,8 @@
 import type { TerminalData, TerminalId } from '@/shell/edge/UI-edge/floating-windows/types'
 import { getTerminalId } from '@/shell/edge/UI-edge/floating-windows/types'
 import { getTerminals } from '@/shell/edge/UI-edge/state/TerminalStore'
+// Import to make Window.electronAPI type available
+import type {} from '@/shell/electron'
 
 const TAB_WIDTH: number = 90
 const INACTIVITY_THRESHOLD_MS: number = 10000 // 10 seconds
@@ -176,7 +178,7 @@ export function createAgentTabsBar(parentContainer: HTMLElement): () => void {
     state.container.style.display = 'none'
 
     // Subscribe to terminal data events for inactivity tracking
-    window.electronAPI.terminal.onData((terminalId: string, _data: string) => {
+    window.electronAPI?.terminal.onData((terminalId: string, _data: string) => {
         const now: number = Date.now()
         state.lastOutputTime.set(terminalId as TerminalId, now)
         // Terminal became active - remove inactive class immediately
@@ -225,7 +227,7 @@ export function renderAgentTabs(
         .filter((t): t is TerminalData => t !== undefined)
 
     // Create tab for each terminal
-    for (let i = 0; i < orderedTerminals.length; i++) {
+    for (let i: number = 0; i < orderedTerminals.length; i++) {
         const terminal: TerminalData = orderedTerminals[i]
         const tab: HTMLElement = createTab(terminal, activeTerminalId, onSelect, i)
         state.tabsContainer.appendChild(tab)
@@ -401,7 +403,7 @@ export function disposeAgentTabsBar(): void {
     }
 
     // Remove terminal:data event listener
-    window.electronAPI.removeAllListeners('terminal:data')
+    window.electronAPI?.removeAllListeners('terminal:data')
 
     if (state.container && state.container.parentNode) {
         state.container.parentNode.removeChild(state.container)

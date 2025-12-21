@@ -133,11 +133,6 @@ export async function createFloatingEditor(
     // Store vanilla instance for getValue/setValue access (legacy pattern, but needed for updateFloatingEditors)
     vanillaFloatingWindowInstances.set(editorId, editor);
 
-    // Focus editor with cursor at end for new nodes
-    if (focusAtEnd) {
-        editor.focusAtEnd();
-    }
-
     // Attach close handler that will dispose editor and remove from state
     attachCloseHandler(cy, editorWithUI, (): void => {
         // Additional cleanup: dispose CodeMirror instance
@@ -164,6 +159,16 @@ export async function createFloatingEditor(
 
     // Add to state
     addEditor(editorWithUI);
+
+    // Focus editor after DOM attachment - with cursor at end for new nodes, otherwise just focus
+    // Use requestAnimationFrame to ensure DOM is fully settled before focusing
+    requestAnimationFrame(() => {
+        if (focusAtEnd) {
+            editor.focusAtEnd();
+        } else {
+            editor.focus();
+        }
+    });
 
     return editorWithUI;
 }

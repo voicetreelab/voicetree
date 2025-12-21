@@ -42,7 +42,7 @@ export async function createNewChildNodeFromUI(
 ): Promise<NodeIdAndFilePath> {
 
     // Get current graph state
-    const currentGraph: Graph = await window.electronAPI?.main.getGraph() // todo, in memory renderer cache?
+    const currentGraph: Graph | undefined = await window.electronAPI?.main.getGraph() // todo, in memory renderer cache?
     if (!currentGraph) {
         console.error("NO GRAPH IN STATE")
         return "-1"; //todo cleaner

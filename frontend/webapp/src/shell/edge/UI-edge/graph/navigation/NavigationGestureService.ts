@@ -2,10 +2,11 @@
  * NavigationGestureService - Handles trackpad and mouse gestures for graph navigation
  *
  * Provides:
- * - Trackpad two-finger scroll → pan (like draw.io/Excalidraw)
- * - Trackpad pinch → zoom (ctrlKey detection)
- * - Mouse wheel → zoom (heuristic: deltaX=0 && |deltaY|>=50)
+ * - Trackpad two-finger scroll → pan
+ * - Trackpad pinch / Cmd+wheel → zoom (ctrlKey detection)
  * - Middle-mouse drag → pan
+ *
+ * Follows Excalidraw's approach: wheel pans, Cmd/Ctrl+wheel zooms.
  */
 
 import type { Core } from 'cytoscape';
@@ -49,9 +50,8 @@ export class NavigationGestureService {
 
   /**
    * Wheel handler: takes full control of wheel events to prevent Cytoscape conflicts.
-   * - Trackpad pinch (ctrlKey) → zoom
-   * - Mouse wheel (large deltaY, no deltaX) → zoom
-   * - Trackpad two-finger scroll → pan
+   * - Cmd/Ctrl + wheel (includes trackpad pinch) → zoom
+   * - All other wheel events → pan
    */
   private onWheel(e: WheelEvent): void {
     if (!this.cy.userPanningEnabled()) return;
@@ -59,13 +59,9 @@ export class NavigationGestureService {
     e.preventDefault();
     e.stopImmediatePropagation();
 
-    // Heuristic: mouse wheel has no horizontal component and discrete deltas
-    const isMouseWheel: boolean = e.deltaX === 0 && Math.abs(e.deltaY) >= 4;
-
-    if (e.ctrlKey || isMouseWheel) {
-      // Pinch gesture or mouse wheel → zoom centered on cursor
-      const sensitivity: number = e.ctrlKey ? 0.013 : 0.01;
-      const zoomFactor: number = 1 - e.deltaY * sensitivity;
+    if (e.ctrlKey || e.metaKey) {
+      // Pinch gesture or Cmd/Ctrl+wheel → zoom centered on cursor
+      const zoomFactor: number = 1 - e.deltaY * 0.01;
       const newZoom: number = Math.max(
         this.cy.minZoom(),
         Math.min(this.cy.maxZoom(), this.cy.zoom() * zoomFactor)
@@ -76,7 +72,7 @@ export class NavigationGestureService {
         renderedPosition: { x: e.clientX - rect.left, y: e.clientY - rect.top }
       });
     } else {
-      // Trackpad two-finger scroll → pan (natural scrolling)
+      // All other wheel events → pan (natural scrolling)
       this.cy.panBy({ x: -e.deltaX, y: -e.deltaY });
     }
   }

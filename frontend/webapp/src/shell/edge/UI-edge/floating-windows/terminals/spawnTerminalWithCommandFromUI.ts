@@ -61,7 +61,7 @@ export async function spawnTerminalWithNewContextNode(
     const terminalCount: number = getNextTerminalCount(terminalsMap, parentNodeId);
 
     // Delegate to main process which has immediate graph access
-    await window.electronAPI.main.spawnTerminalWithContextNode(
+    await window.electronAPI?.main.spawnTerminalWithContextNode(
         parentNodeId,
         agentCommand,
         terminalCount
@@ -89,7 +89,7 @@ export async function spawnPlainTerminal(
     const terminalCount: number = getNextTerminalCount(terminalsMap, nodeId);
 
     // Delegate to main process
-    await window.electronAPI.main.spawnPlainTerminal(nodeId, terminalCount);
+    await window.electronAPI?.main.spawnPlainTerminal(nodeId, terminalCount);
 }
 
 /**

@@ -21,7 +21,7 @@ export async function mergeSelectedNodesFromUI(
     }
 
     // Get current graph state
-    const currentGraph: Graph = await window.electronAPI?.main.getGraph();
+    const currentGraph: Graph | undefined = await window.electronAPI?.main.getGraph();
     if (!currentGraph) {
         console.error('[mergeSelectedNodesFromUI] NO GRAPH IN STATE');
         return;
