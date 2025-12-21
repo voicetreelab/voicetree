@@ -18,19 +18,19 @@ uv pip install --python .venv-server -r requirements-server.txt
 echo "Step 3: Installing PyInstaller..."
 uv pip install --python .venv-server pyinstaller
 
-# Step 4: Clean previous builds
-echo "Step 4: Cleaning previous builds..."
-rm -rf build/ dist/
+# Step 4: Clean previous ARM builds (don't touch Intel/Linux builds)
+echo "Step 4: Cleaning previous ARM builds..."
+rm -rf build-arm/ dist-arm/ dist/resources/
 
-# Step 5: Build with PyInstaller
+# Step 5: Build with PyInstaller - use separate dirs to avoid conflicts with Intel/Linux
 echo "Step 5: Building executable with PyInstaller..."
 # PyInstaller must run INSIDE the venv to see all dependencies
-.venv-server/bin/python -m PyInstaller server.spec --clean
+.venv-server/bin/python -m PyInstaller server.spec --clean --distpath dist-arm --workpath build-arm
 
 # Step 6: Copy to root dist resources
 echo "Step 6: Copying executable to root dist/resources/server..."
 mkdir -p ./dist/resources/server
-cp -r ./dist/voicetree-server/* ./dist/resources/server/
+cp -r ./dist-arm/voicetree-server/* ./dist/resources/server/
 echo "Copied to dist/resources/server/"
 
 # Step 7: Fix Python.framework structure for code signing
@@ -55,11 +55,11 @@ echo "✅ Created proper framework symlink structure"
 echo ""
 echo "Build complete!"
 echo "==============="
-echo "✅ Server executable built: ./dist/voicetree-server/voicetree-server"
+echo "✅ Server executable built: ./dist-arm/voicetree-server/voicetree-server"
 echo "✅ Copied to root dist: ./dist/resources/server/"
 echo ""
 echo "Next steps:"
-echo "  1. Test standalone server: ./dist/voicetree-server/voicetree-server"
-echo "  2. Build full app: ./build_and_package_all.sh"
+echo "  1. Test standalone server: ./dist-arm/voicetree-server/voicetree-server"
+echo "  2. Build full app: ./build_and_package_arm.sh"
 echo ""
 echo "The server is now ready to be bundled with the Electron app!"
