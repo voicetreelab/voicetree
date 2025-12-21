@@ -3,6 +3,8 @@ import type {Core} from "cytoscape";
 import {getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
 import {fromContentChangeToGraphDelta} from "@/pure/graph/graphDelta/uiInteractionsToGraphDeltas";
 import {mergeNodeUIMetadata} from "@/shell/edge/UI-edge/graph/handleUIActions";
+// Import to make Window.electronAPI type available
+import type {} from '@/shell/electron';
 
 export async function modifyNodeContentFromUI(
     nodeId: NodeIdAndFilePath,
@@ -12,7 +14,7 @@ export async function modifyNodeContentFromUI(
 
     // Get current graph state
     const currentNode: GraphNode = await getNodeFromMainToUI(nodeId);
-    const currentGraph: Graph = await window.electronAPI?.main.getGraph();
+    const currentGraph: Graph | undefined = await window.electronAPI?.main.getGraph();
     if (!currentGraph) {
         console.error("NO GRAPH IN STATE");
         return;

@@ -221,7 +221,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
      */
     private subscribeToGraphUpdates(): void {
         // Access electronAPI with type assertion since global Window type may not be recognized
-        const electronAPI: ElectronAPI = window.electronAPI;
+        const electronAPI: ElectronAPI | undefined = window.electronAPI;
 
         if (!electronAPI?.graph?.onGraphUpdate) {
             console.error('[VoiceTreeGraphView] electronAPI not available, skipping graph subscription');
@@ -307,7 +307,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
      * Auto-load the last watched folder (if one exists)
      */
     private autoLoadPreviousFolder(): void {
-        const electronAPI: ElectronAPI = window.electronAPI;
+        const electronAPI: ElectronAPI | undefined = window.electronAPI;
 
         if (!electronAPI?.main?.loadPreviousFolder) {
             console.warn('[VoiceTreeGraphView] loadPreviousFolder not available');

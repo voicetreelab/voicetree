@@ -105,7 +105,7 @@ export default function VoiceTreeTranscribe(): JSX.Element {
   const handleAskSubmit: (question: string) => Promise<void> = async (question: string) => {
     try {
       // 1. Get relevant nodes from backend via IPC
-      const response: { relevant_nodes: Array<{ node_path: string; score: number; title: string }> } | null =
+      const response: { relevant_nodes: Array<{ node_path: string; score: number; title: string }> } | null | undefined =
         await window.electronAPI?.main.askQuery(question, 10);
 
       if (!response || response.relevant_nodes.length === 0) {

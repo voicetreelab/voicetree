@@ -22,6 +22,9 @@ export function setupBasicCytoscapeEventListeners(
 
     const node: NodeSingular = e.target;
 
+    // Show grab cursor to indicate nodes are draggable
+    container.style.cursor = 'grab';
+
     // Skip shadow nodes (floating windows) for selection handling
     if (!node.data('isShadowNode')) {
       const selectedNodes: CollectionReturnValue = cy.$('node:selected');
@@ -66,6 +69,9 @@ export function setupBasicCytoscapeEventListeners(
       CLASS_UNHOVER,
       CLASS_CONNECTED_HOVER
     ]);
+
+    // Reset cursor when leaving a node
+    container.style.cursor = '';
   });
 
   // Focus handling
@@ -95,9 +101,16 @@ export function setupBasicCytoscapeEventListeners(
     styleService.updateNodeSizes(cy, affectedNodes);
   });
 
+  // Change cursor to grabbing when starting to drag a node
+  cy.on('grab', 'node', () => {
+    container.style.cursor = 'grabbing';
+  });
+
   // Save node positions when nodes are released after dragging
   // The 'free' event fires when a grabbed element is released
   cy.on('free', 'node', () => {
+    // Restore grab cursor (still hovering over node after release)
+    container.style.cursor = 'grab';
     console.log('[VoiceTreeGraphView] Node drag released, saving positions...');
     void window.electronAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);
   });
