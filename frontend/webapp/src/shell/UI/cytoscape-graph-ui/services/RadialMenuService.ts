@@ -7,14 +7,11 @@ import type {NodeIdAndFilePath} from "@/pure/graph";
 import {
     spawnTerminalWithNewContextNode
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
+import {createAnchoredFloatingEditor} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 import {getFilePathForNode} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
 
 // Register the extension with cytoscape
 cytoscape.use(cxtmenu);
-
-export interface RadialMenuDependencies {
-    createAnchoredFloatingEditor: (nodeId: NodeIdAndFilePath) => Promise<void>;
-}
 
 interface RadialMenuCommand {
     content: string | HTMLElement;
@@ -24,12 +21,10 @@ interface RadialMenuCommand {
 
 export class RadialMenuService {
     private cy: Core | null = null;
-    private deps: RadialMenuDependencies | null = null;
     private radialMenuInstance: unknown = null;
 
-    initialize(cy: Core, deps: RadialMenuDependencies): void {
+    initialize(cy: Core): void {
         this.cy = cy;
-        this.deps = deps;
         this.setupRadialMenuOnHover();
         this.setupMenuCloseOnMouseLeave();
     }
@@ -98,16 +93,17 @@ export class RadialMenuService {
     }
 
     private getRadialMenuCommands(node: NodeSingular): RadialMenuCommand[] {
-        if (!this.cy || !this.deps) return [];
+        if (!this.cy) return [];
 
         const commands: RadialMenuCommand[] = [];
         const nodeId: string = node.id();
+        const cy: Core = this.cy;
 
         // Open in Editor
         commands.push({
             content: this.createSvgIcon('edit', 'Edit'),
             select: async () => {
-                await this.deps!.createAnchoredFloatingEditor(nodeId);
+                await createAnchoredFloatingEditor(cy, nodeId);
             },
             enabled: true,
         });
@@ -152,7 +148,7 @@ export class RadialMenuService {
         return async () => {
             console.log('[RadialMenuService] adding child node to:', nodeId);
             const childId: NodeIdAndFilePath = await createNewChildNodeFromUI(nodeId, this.cy!);
-            await this.deps!.createAnchoredFloatingEditor(childId);
+            await createAnchoredFloatingEditor(this.cy!, childId, true, true); // focusAtEnd + isAutoPin for new node
         };
     }
 
@@ -244,6 +240,5 @@ export class RadialMenuService {
 
         this.radialMenuInstance = null;
         this.cy = null;
-        this.deps = null;
     }
 }

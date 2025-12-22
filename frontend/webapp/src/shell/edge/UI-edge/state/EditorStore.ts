@@ -5,6 +5,25 @@ import {getEditorId, type EditorId, type EditorData} from "@/shell/edge/UI-edge/
 
 const editors: Map<EditorId, EditorData> = new Map<EditorId, EditorData>();
 
+// Auto-pin tracking: stores the node ID of the last auto-pinned editor
+// When a new node is created, the previous auto-pinned editor is closed
+// If user manually pins (via Pin Editor button), this is cleared so it won't auto-close
+let lastAutoPinnedEditorNodeId: NodeIdAndFilePath | null = null;
+
+export function getLastAutoPinnedEditor(): NodeIdAndFilePath | null {
+    return lastAutoPinnedEditorNodeId;
+}
+
+export function setLastAutoPinnedEditor(nodeId: NodeIdAndFilePath | null): void {
+    lastAutoPinnedEditorNodeId = nodeId;
+}
+
+export function clearAutoPinIfMatches(nodeId: NodeIdAndFilePath): void {
+    if (lastAutoPinnedEditorNodeId === nodeId) {
+        lastAutoPinnedEditorNodeId = null;
+    }
+}
+
 export function getEditors(): Map<EditorId, EditorData> {
     return editors;
 }

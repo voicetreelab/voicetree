@@ -4,6 +4,8 @@ import {createNewChildNodeFromUI, deleteNodesFromUI} from "@/shell/edge/UI-edge/
 import {
     spawnTerminalWithNewContextNode,
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
+import {createAnchoredFloatingEditor} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
+import {clearAutoPinIfMatches} from "@/shell/edge/UI-edge/state/EditorStore";
 import {getFilePathForNode, getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
 import {Plus, Play, Trash2, Clipboard, MoreHorizontal, Pin, createElement, type IconNode} from 'lucide';
 import {getOrCreateOverlay} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
@@ -148,19 +150,13 @@ function createSubMenuElement(items: HorizontalMenuItem[], onClose: () => void):
     return submenu;
 }
 
-export interface HorizontalMenuDependencies {
-    createAnchoredFloatingEditor: (nodeId: NodeIdAndFilePath) => Promise<void>;
-}
-
 export class HorizontalMenuService {
     private cy: Core | null = null;
-    private deps: HorizontalMenuDependencies | null = null;
     private currentMenu: HTMLElement | null = null;
     private clickOutsideHandler: ((e: MouseEvent) => void) | null = null;
 
-    initialize(cy: Core, deps: HorizontalMenuDependencies): void {
+    initialize(cy: Core): void {
         this.cy = cy;
-        this.deps = deps;
         this.setupNodeHoverMenu();
     }
 
@@ -197,7 +193,7 @@ export class HorizontalMenuService {
     }
 
     private async showMenu(node: NodeSingular, position: {x: number; y: number}): Promise<void> {
-        if (!this.cy || !this.deps) return;
+        if (!this.cy) return;
 
         // Close any existing menu
         this.hideMenu();
@@ -316,17 +312,20 @@ export class HorizontalMenuService {
     }
 
     private getNodeMenuItems(node: NodeSingular, agents: readonly AgentConfig[]): HorizontalMenuItem[] {
-        if (!this.cy || !this.deps) return [];
+        if (!this.cy) return [];
 
         const menuItems: HorizontalMenuItem[] = [];
         const nodeId: string = node.id();
+        const cy: Core = this.cy;
 
         // LEFT SIDE: Pin, Copy, Add (3 buttons)
         menuItems.push({
             icon: Pin,
             label: 'Pin Editor',
             action: async () => {
-                await this.deps!.createAnchoredFloatingEditor(nodeId);
+                // Manual pin: clear auto-pin tracking so this editor won't auto-close
+                clearAutoPinIfMatches(nodeId);
+                await createAnchoredFloatingEditor(cy, nodeId);
             },
         });
 
@@ -344,8 +343,8 @@ export class HorizontalMenuService {
             label: 'Add Child',
             hotkey: '⌘N',
             action: async () => {
-                const childId: NodeIdAndFilePath = await createNewChildNodeFromUI(nodeId, this.cy!);
-                await this.deps!.createAnchoredFloatingEditor(childId);
+                const childId: NodeIdAndFilePath = await createNewChildNodeFromUI(nodeId, cy);
+                await createAnchoredFloatingEditor(cy, childId, true, true); // focusAtEnd + isAutoPin for new node
             },
         });
 
@@ -409,6 +408,5 @@ export class HorizontalMenuService {
             this.cy.removeListener('mouseover', 'node');
         }
         this.cy = null;
-        this.deps = null;
     }
 }
