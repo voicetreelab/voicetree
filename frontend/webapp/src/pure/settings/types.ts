@@ -32,12 +32,17 @@ export interface VTSettings {
     readonly agentPermissionModeChosen?: boolean;
     /** User email for PostHog identification - stored here to persist across app updates */
     readonly userEmail?: string;
+    /** Template for starter node created when opening an empty folder. Supports {{DATE}} placeholder. */
+    readonly emptyFolderTemplate?: string;
 }
 
 export const DEFAULT_SETTINGS: VTSettings = {
     terminalSpawnPathRelativeToWatchedDirectory: '/',
     contextNodeMaxDistance: 6,
     askModeContextDistance: 3,
+    emptyFolderTemplate: `# {{DATE}}
+
+Highest priority task: `,
     agents: [
         {
             name: 'Claude',

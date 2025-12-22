@@ -20,6 +20,9 @@ import {
     applyGraphDeltaToMemState,
     broadcastGraphDeltaToUI
 } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI";
+import {getCachedSettings} from "@/shell/edge/main/state/settings-cache";
+import {DEFAULT_SETTINGS, type VTSettings} from "@/pure/settings/types";
+import type {GraphNode} from "@/pure/graph";
 
 // THIS FUNCTION takes absolutePath
 // returns graph
@@ -27,7 +30,7 @@ import {
 // setting up file watchers
 // closing old watchers
 
-export const DEFAULT_VAULT_SUFFIX: string = "voicetree";
+export const DEFAULT_VAULT_SUFFIX: string = "";
 
 let watcher: FSWatcher | null = null;
 
@@ -227,8 +230,14 @@ export async function loadFolder(watchedFolderPath: FilePath, suffixOverride?: s
         return { success: false };
     }
 
-    const currentGraph: Graph = loadResult.right;
+    let currentGraph: Graph = loadResult.right;
     console.log('[loadFolder] Graph loaded from disk, node count:', Object.keys(currentGraph.nodes).length);
+
+    // If folder is empty, create a starter node using the template from settings
+    if (Object.keys(currentGraph.nodes).length === 0) {
+        console.log('[loadFolder] Empty folder detected, creating starter node');
+        currentGraph = await createStarterNode(vaultPath, suffix);
+    }
 
     // Update graph store (vault path is derived from watchedDirectory + currentVaultSuffix)
     setGraph(currentGraph);
@@ -530,4 +539,68 @@ export async function loadPreviousFolder(): Promise<{ readonly success: boolean;
         console.log('[watchFolder] No previous folder found to load');
         return { success: false, error: 'No previous folder found' };
     }
+}
+
+/**
+ * Creates a starter node when opening an empty folder.
+ * Uses the emptyFolderTemplate from settings, with {{DATE}} placeholder replaced.
+ *
+ * @param vaultPath - The vault path where the node file will be created
+ * @param vaultSuffix - The vault suffix for node ID generation
+ * @returns Graph containing the new starter node
+ */
+async function createStarterNode(vaultPath: string, vaultSuffix: string): Promise<Graph> {
+    const settings: VTSettings = getCachedSettings() ?? DEFAULT_SETTINGS;
+    const template: string = settings.emptyFolderTemplate ?? DEFAULT_SETTINGS.emptyFolderTemplate ?? '# ';
+
+    // Format date: "Tuesday, 23 December"
+    const now: Date = new Date();
+    const dateStr: string = now.toLocaleDateString('en-US', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long'
+    });
+
+    // Replace {{DATE}} placeholder with formatted date
+    const content: string = template.replace(/\{\{DATE\}\}/g, dateStr);
+
+    // Generate node ID with day-based folder: {dayAbbrev}/{timestamp}{randomChars}.md
+    const dayAbbrev: string = now.toLocaleDateString('en-US', { weekday: 'short' }).toLowerCase();
+    const timestamp: string = Date.now().toString();
+    const randomChars: string = Array.from({length: 3}, () =>
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'.charAt(
+            Math.floor(Math.random() * 52)
+        )
+    ).join('');
+
+    const fileName: string = `${timestamp}${randomChars}.md`;
+    const relativePath: string = `${dayAbbrev}/${fileName}`;
+
+    // Node ID includes vault suffix if present
+    const nodeId: string = vaultSuffix ? `${vaultSuffix}/${relativePath}` : relativePath;
+
+    // Create the node
+    const newNode: GraphNode = {
+        relativeFilePathIsID: nodeId,
+        outgoingEdges: [],
+        contentWithoutYamlOrLinks: content,
+        nodeUIMetadata: {
+            color: O.none,
+            position: O.some({ x: 0, y: 0 }),
+            additionalYAMLProps: new Map(),
+            isContextNode: false
+        },
+    };
+
+    const graph: Graph = { nodes: { [nodeId]: newNode } };
+
+    // Write the file to disk
+    const absolutePath: string = path.join(vaultPath, relativePath);
+    const dirPath: string = path.dirname(absolutePath);
+    await fs.mkdir(dirPath, { recursive: true });
+    await fs.writeFile(absolutePath, content, 'utf-8');
+
+    console.log('[createStarterNode] Created starter node:', nodeId);
+
+    return graph;
 }
