@@ -35,6 +35,7 @@ import {
     disposeFloatingWindow,
     attachCloseHandler,
     getOrCreateOverlay,
+    getCachedZoom,
 } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 
 import {
@@ -54,6 +55,8 @@ import {
     getEditorByNodeId,
     getEditors,
     getHoverEditor,
+    getLastAutoPinnedEditor,
+    setLastAutoPinnedEditor,
 } from "@/shell/edge/UI-edge/state/EditorStore";
 import {modifyNodeContentFromUI} from "@/shell/edge/UI-edge/floating-windows/editors/modifyNodeContentFromFloatingEditor";
 import {isAppendOnly, getAppendedSuffix} from "@/pure/graph/contentChangeDetection";
@@ -243,7 +246,8 @@ async function openHoverEditor(
         const editor: EditorData | undefined = await createFloatingEditor(
             cy,
             nodeId,
-            undefined // Not anchored - hover mode
+            undefined, // Not anchored - hover mode
+            true // focusAtEnd - cursor at end of content
         );
 
         if (!editor || !editor.ui) {
@@ -254,9 +258,11 @@ async function openHoverEditor(
         // Set position manually (no shadow node to sync with)
         // Position editor below the node, clearing the node circle icon
         // Use translateX(-50%) for proper horizontal centering regardless of actual width
+        // Positions are scaled by zoom since we removed CSS transform: scale(zoom) from overlay
         const HOVER_EDITOR_VERTICAL_OFFSET: number = 18;
-        editor.ui.windowElement.style.left = `${nodePos.x}px`;
-        editor.ui.windowElement.style.top = `${nodePos.y + HOVER_EDITOR_VERTICAL_OFFSET}px`;
+        const zoom: number = getCachedZoom();
+        editor.ui.windowElement.style.left = `${nodePos.x * zoom}px`;
+        editor.ui.windowElement.style.top = `${(nodePos.y + HOVER_EDITOR_VERTICAL_OFFSET) * zoom}px`;
         editor.ui.windowElement.style.transform = 'translateX(-50%)';
 
         // Hide the node's Cytoscape label (editor title bar shows the name)
@@ -322,13 +328,28 @@ export function setupCommandHover(cy: Core): void {
  * @param cy - Cytoscape instance
  * @param nodeId - ID of the node to edit
  * @param focusAtEnd - If true, focus editor with cursor at end of content (for new nodes)
+ * @param isAutoPin - If true, this is an auto-pinned editor (for new nodes) that will be
+ *                    auto-closed when the next new node is created
  */
 export async function createAnchoredFloatingEditor(
     cy: Core,
     nodeId: NodeIdAndFilePath,
-    focusAtEnd: boolean = false
+    focusAtEnd: boolean = false,
+    isAutoPin: boolean = false
 ): Promise<void> {
     try {
+        // If this is an auto-pin, close the previous auto-pinned editor first
+        if (isAutoPin) {
+            const lastAutoPinned: NodeIdAndFilePath | null = getLastAutoPinnedEditor();
+            if (lastAutoPinned !== null) {
+                const previousEditor: O.Option<EditorData> = getEditorByNodeId(lastAutoPinned);
+                if (O.isSome(previousEditor)) {
+                    console.log('[FloatingEditorManager-v2] Auto-closing previous auto-pinned editor:', lastAutoPinned);
+                    closeEditor(cy, previousEditor.value);
+                }
+            }
+        }
+
         // Create floating editor window with anchoredToNodeId set
         const editor: EditorData | undefined = await createFloatingEditor(
             cy,
@@ -341,6 +362,11 @@ export async function createAnchoredFloatingEditor(
         if (!editor) {
             console.log('[FloatingEditorManager-v2] Editor already exists');
             return;
+        }
+
+        // Track this as the last auto-pinned editor if isAutoPin
+        if (isAutoPin) {
+            setLastAutoPinnedEditor(nodeId);
         }
 
         // Anchor to node using v2 function
@@ -454,7 +480,7 @@ export async function handleAddNodeAtPosition(cy: Core, position: Position): Pro
     try {
         // Pass position directly to Electron - it will save it immediately
         const nodeId: string = await createNewEmptyOrphanNodeFromUI(position, cy);
-        await createAnchoredFloatingEditor(cy, nodeId);
+        await createAnchoredFloatingEditor(cy, nodeId, true, true); // focusAtEnd + isAutoPin for new node
         console.log('[FloatingEditorManager-v2] Creating node:', nodeId);
     } catch (error) {
         console.error('[FloatingEditorManager-v2] Error creating standalone node:', error);
