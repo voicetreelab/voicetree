@@ -42,7 +42,8 @@ import {
     setupCommandHover,
     closeAllEditors,
     disposeEditorManager,
-    closeEditor
+    closeEditor,
+    createAnchoredFloatingEditor
 } from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
 import {HotkeyManager} from './HotkeyManager';
 import {SearchService} from './SearchService';
@@ -234,7 +235,15 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             if (this.emptyStateOverlay) {
                 this.emptyStateOverlay.style.display = 'none';
             }
-            applyGraphDeltaToUI(this.cy, delta);
+            const { newNodeIds } = applyGraphDeltaToUI(this.cy, delta);
+
+            // Auto-pin editor for single externally-added nodes (e.g., file created outside app)
+            // Skip bulk loads (initial folder load, multiple file paste)
+            if (newNodeIds.length === 1) {
+                const nodeId: string = newNodeIds[0];
+                console.log('[VoiceTreeGraphView] Auto-pinning editor for externally added node:', nodeId);
+                void createAnchoredFloatingEditor(this.cy, nodeId, true, true); // focusAtEnd + isAutoPin
+            }
 
             // DO NOT SEND TO EDITORS FROM HERE TO AVOID FEEDBACK LOOP
 
@@ -539,21 +548,9 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             runTerminal: runTerminalAction(this.cy),
             deleteSelectedNodes: deleteSelectedNodesAction(this.cy),
             navigateToRecentNode: (index) => this.navigateToRecentNodeByIndex(index),
-            closeSelectedWindow: () => this.closeSelectedWindow()
-        });
-
-        // Cmd+F: Search - disabled in editors so CodeMirror can handle its own find
-        this.hotkeyManager.registerHotkey({
-            key: 'f',
-            modifiers: ['Meta'],
-            disabledInEditors: true,
-            onPress: () => this.searchService.open()
-        });
-        // Cmd+E: Recent nodes ninja - works everywhere including editors
-        this.hotkeyManager.registerHotkey({
-            key: 'e',
-            modifiers: ['Meta'],
-            onPress: () => this.searchService.open()
+            closeSelectedWindow: () => this.closeSelectedWindow(),
+            openSettings: () => void createSettingsEditor(this.cy),
+            openSearch: () => this.searchService.open()
         });
 
         // Note: Wheel events (pan/zoom) are handled by NavigationGestureService

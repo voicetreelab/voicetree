@@ -21,6 +21,10 @@ function isValidCSSColor(color: string): boolean {
     return CSS.supports('color', color);
 }
 
+export interface ApplyGraphDeltaResult {
+    newNodeIds: string[];
+}
+
 /**
  * Apply a GraphDelta to the Cytoscape UI-edge
  *
@@ -29,11 +33,13 @@ function isValidCSSColor(color: string): boolean {
  * - Updating existing nodes' metadata (except positions)
  * - Creating edges
  * - Deleting nodes
+ *
+ * Returns the IDs of newly created nodes (for auto-pin behavior on external file additions)
  */
-export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
+export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDeltaResult {
     console.log("applyGraphDeltaToUI", delta.length);
     console.log('[applyGraphDeltaToUI] Starting\n' + prettyPrintGraphDelta(delta));
-    let newNodeCount: number = 0;
+    const newNodeIds: string[] = [];
     let edgeLimitAlertShown: boolean = false;
     const nodesWithoutPositions: string[] = [];
     cy.batch(() => {
@@ -46,7 +52,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                 const isNewNode: boolean = existingNode.length === 0;
 
                 if (isNewNode) {
-                    newNodeCount++;
+                    newNodeIds.push(nodeId);
                     const hasPosition: boolean = O.isSome(node.nodeUIMetadata.position);
                     // Use saved position or temporary (0,0) - placeNewNodes will fix nodes without positions
                     const pos: { x: number; y: number; } = O.getOrElse(() => ({x: 0, y: 0}))(node.nodeUIMetadata.position);
@@ -194,6 +200,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
         layoutUtils.placeNewNodes(nodesCollection);
     }
 
+    const newNodeCount: number = newNodeIds.length;
     if (newNodeCount >= 1 && cy.nodes().length <= 4) {
         // Fit so average node takes 10% of viewport for comfortable initial view
         setTimeout(() => { if (!cy.destroyed()) cyFitCollectionByAverageNodeSize(cy, cy.nodes(), 0.1); }, 150);
@@ -213,4 +220,6 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
     if (newNodeCount){
         checkEngagementPrompts();
     }
+
+    return { newNodeIds };
 }
