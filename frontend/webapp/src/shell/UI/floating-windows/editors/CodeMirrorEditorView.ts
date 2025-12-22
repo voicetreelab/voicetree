@@ -1,14 +1,15 @@
 import '@/shell/UI/cytoscape-graph-ui/styles/floating-windows.css'; // VERY IMPORTANT
 import { EditorState, type Extension } from '@codemirror/state';
 import type { Text, Line } from '@codemirror/state';
-import { EditorView, ViewUpdate, ViewPlugin } from '@codemirror/view';
+import { EditorView, ViewUpdate, ViewPlugin, keymap } from '@codemirror/view';
+import { indentWithTab } from '@codemirror/commands';
 import { basicSetup } from 'codemirror';
 import { foldGutter, syntaxHighlighting, foldEffect, foldable, foldService, HighlightStyle, defaultHighlightStyle } from '@codemirror/language';
 import type { LanguageSupport } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
 import type { Tree } from '@lezer/common';
 import { syntaxTree } from '@codemirror/language';
-import { markdown } from '@codemirror/lang-markdown';
+import { markdown, markdownKeymap } from '@codemirror/lang-markdown';
 import { yamlFrontmatter } from '@codemirror/lang-yaml';
 import { json } from '@codemirror/lang-json';
 import { languages } from '@codemirror/language-data';
@@ -196,6 +197,8 @@ export class CodeMirrorEditorView extends Disposable {
 
     const extensions: Extension[] = [
       basicSetup,
+      keymap.of([indentWithTab]), // Tab/Shift-Tab to indent/outdent bullet points
+      keymap.of(markdownKeymap), // Enter continues lists, Backspace removes list markers
       richMarkdocPlugin, // Rich markdown editing (provides markdown, decorations, and syntax highlighting inside provide())
       mermaidRender(), // Render Mermaid diagrams in live preview
       diffHighlight(), // Highlight diff lines (+/-) in code blocks with green/red backgrounds
