@@ -58,9 +58,15 @@ function healNodeEdges(affectedNodeIds: readonly NodeIdAndFilePath[], currentGra
         })
 
         // Only include in delta if edges actually changed
-        const edgesChanged: boolean = healedEdges.some((healedEdge, i) =>
-            healedEdge.targetId !== affectedNode.outgoingEdges[i].targetId
-        )
+        const edgesChanged: boolean = healedEdges.some((healedEdge, i) => {
+            const original: { readonly targetId: string; readonly label: string } = affectedNode.outgoingEdges[i]
+            const targetChanged: boolean = healedEdge.targetId !== original.targetId
+            // Emit delta when a dangling edge becomes resolved
+            const danglingNowResolved: boolean =
+                currentGraph.nodes[original.targetId] === undefined &&
+                graphWithNewNode.nodes[healedEdge.targetId] !== undefined
+            return targetChanged || danglingNowResolved
+        })
 
         if (!edgesChanged) {
             return []
