@@ -48,7 +48,7 @@ export function generateChildNodeId(parentNode: GraphNode): NodeIdAndFilePath {
 export function fromCreateChildToUpsertNode(
     graph: Graph,
     parentNode: GraphNode,
-    newNodeContent: string = "# new",
+    newNodeContent: string = "# ",
     newFilePathIsID: NodeIdAndFilePath = generateChildNodeId(parentNode),
 ): GraphDelta {
 
@@ -138,7 +138,7 @@ export function createNewNodeNoParent(pos: Position, vaultSuffix: string): { rea
     const newNode: GraphNode = {
         relativeFilePathIsID: nodeId,
         outgoingEdges: [],
-        contentWithoutYamlOrLinks: '# New',
+        contentWithoutYamlOrLinks: '# ',
         nodeUIMetadata: {
             // NOTE: title is derived via getNodeTitle from contentWithoutYamlOrLinks
             color: O.none,

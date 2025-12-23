@@ -2,7 +2,7 @@
  * Setup cytoscape layout, event handlers, context menu, and test helpers
  */
 import type {Core, NodeSingular} from 'cytoscape';
-import type {Graph, NodeIdAndFilePath} from '@/pure/graph';
+import type {Graph} from '@/pure/graph';
 import {HorizontalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService';
 import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService';
 import {enableAutoLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout';
@@ -52,15 +52,12 @@ export function setupCytoscape(params: SetupCytoscapeParams): {
         onNodeSelected(node.id());
 
         console.log('[VoiceTreeGraphView] Calling createAnchoredFloatingEditor');
-        void createAnchoredFloatingEditor(cy, node.id()).then(() => console.log('[VoiceTreeGraphView] Created editor'));
+        void createAnchoredFloatingEditor(cy, node.id(), true).then(() => console.log('[VoiceTreeGraphView] Created editor'));
     });
 
     // Setup horizontal menu (node hover)
     const horizontalMenuService: HorizontalMenuService = new HorizontalMenuService();
-    horizontalMenuService.initialize(cy, {
-        createAnchoredFloatingEditor: (nodeId: NodeIdAndFilePath) =>
-            createAnchoredFloatingEditor(cy, nodeId),
-    });
+    horizontalMenuService.initialize(cy);
 
     // Setup vertical menu (right-click on canvas)
     const verticalMenuService: VerticalMenuService = new VerticalMenuService();

@@ -243,6 +243,35 @@ describe('StyleService', () => {
       expect(size0).toBeLessThan(size1);
       expect(size1).toBeLessThan(size2);
     });
+
+    it('should skip shadow nodes when updating node sizes', () => {
+      // Shadow nodes have fixed dimensions set by the floating window system
+      // and should not be resized based on degree
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mockRegularNode: { data: (key?: string) => undefined | boolean; degree: () => number; style: Mock<(...args: any[]) => any>; } = {
+        data: (key?: string) => key === 'isShadowNode' ? undefined : undefined,
+        degree: () => 5,
+        style: vi.fn()
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mockShadowNode: { data: (key?: string) => undefined | boolean; degree: () => number; style: Mock<(...args: any[]) => any>; } = {
+        data: (key?: string) => key === 'isShadowNode' ? true : undefined,
+        degree: () => 1,
+        style: vi.fn()
+      };
+
+      const mockCy: Core = {
+        nodes: () => [mockRegularNode, mockShadowNode]
+      } as unknown as Core;
+
+      styleService.updateNodeSizes(mockCy);
+
+      // Regular node should have style applied
+      expect(mockRegularNode.style).toHaveBeenCalled();
+      // Shadow node should NOT have style applied
+      expect(mockShadowNode.style).not.toHaveBeenCalled();
+    });
   });
 
   describe('getFrontmatterStylesheet', () => {

@@ -22,6 +22,7 @@ import {
 } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange";
 import {askQuery} from './backend-api';
 import {askModeCreateAndSpawn} from './ask-mode/askModeCreateAndSpawn';
+import {getMetrics} from './metrics/agent-metrics-store';
 
 // eslint-disable-next-line @typescript-eslint/typedef
 export const mainAPI = {
@@ -79,4 +80,7 @@ export const mainAPI = {
   askQuery,
 
   askModeCreateAndSpawn,
+
+  // Metrics
+  getMetrics,
 }

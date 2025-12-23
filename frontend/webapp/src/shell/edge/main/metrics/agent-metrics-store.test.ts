@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import * as os from 'os';
-import { startSession, endSession, getMetrics } from './agent-metrics-store';
+import { startSession, endSession, getMetrics, appendTokenMetrics } from './agent-metrics-store';
 import type { AgentMetricsData } from './agent-metrics-store';
 
 vi.mock('../state/app-electron-state', () => ({
@@ -193,5 +193,68 @@ describe('agent-metrics-store', () => {
       endTime: '2025-12-21T15:10:00Z',
       durationMs: 600000
     });
+  });
+
+  it('should append token metrics to existing session', async () => {
+    await startSession({
+      sessionId: 'terminal-tokens',
+      agentName: 'TokenAgent',
+      contextNode: 'test/tokens.md',
+      startTime: '2025-12-21T16:00:00Z'
+    });
+
+    await appendTokenMetrics({
+      sessionId: 'terminal-tokens',
+      tokens: { input: 1500, output: 800, cacheRead: 500 },
+      costUsd: 0.0234
+    });
+
+    const metrics: AgentMetricsData = await getMetrics();
+    expect(metrics.sessions).toHaveLength(1);
+    expect(metrics.sessions[0].tokens).toEqual({ input: 1500, output: 800, cacheRead: 500 });
+    expect(metrics.sessions[0].costUsd).toBe(0.0234);
+  });
+
+  it('should handle appendTokenMetrics for non-existent session gracefully', async () => {
+    await startSession({
+      sessionId: 'terminal-exists-2',
+      agentName: 'ExistingAgent2',
+      contextNode: 'test/exists2.md',
+      startTime: '2025-12-21T17:00:00Z'
+    });
+
+    // This should not throw, just log a warning
+    await appendTokenMetrics({
+      sessionId: 'terminal-nonexistent-2',
+      tokens: { input: 100, output: 50 },
+      costUsd: 0.01
+    });
+
+    const metrics: AgentMetricsData = await getMetrics();
+    expect(metrics.sessions).toHaveLength(1);
+    expect(metrics.sessions[0].tokens).toBeUndefined();
+    expect(metrics.sessions[0].costUsd).toBeUndefined();
+  });
+
+  it('should persist token metrics to JSON file', async () => {
+    await startSession({
+      sessionId: 'terminal-persist-tokens',
+      agentName: 'PersistTokenAgent',
+      contextNode: 'test/persist-tokens.md',
+      startTime: '2025-12-21T18:00:00Z'
+    });
+
+    await appendTokenMetrics({
+      sessionId: 'terminal-persist-tokens',
+      tokens: { input: 2000, output: 1000, cacheRead: 750 },
+      costUsd: 0.0456
+    });
+
+    const metricsPath: string = path.join(testAppSupportPath, 'agent_metrics.json');
+    const fileContent: string = await fs.readFile(metricsPath, 'utf-8');
+    const parsed: AgentMetricsData = JSON.parse(fileContent) as AgentMetricsData;
+
+    expect(parsed.sessions[0].tokens).toEqual({ input: 2000, output: 1000, cacheRead: 750 });
+    expect(parsed.sessions[0].costUsd).toBe(0.0456);
   });
 });

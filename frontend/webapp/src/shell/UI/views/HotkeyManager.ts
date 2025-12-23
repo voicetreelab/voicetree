@@ -102,6 +102,8 @@ export class HotkeyManager {
     deleteSelectedNodes: () => void;
     navigateToRecentNode: (index: number) => void;
     closeSelectedWindow: () => void;
+    openSettings: () => void;
+    openSearch: () => void;
   }): void {
     // Space: Fit to last created node (repeatable while held)
     this.registerHotkey({
@@ -198,6 +200,28 @@ export class HotkeyManager {
         onPress: () => callbacks.navigateToRecentNode(i - 1)
       });
     }
+
+    // Command + ,: Open settings editor
+    this.registerHotkey({
+      key: ',',
+      modifiers: ['Meta'],
+      onPress: callbacks.openSettings
+    });
+
+    // Command + F: Search - disabled in editors so CodeMirror can handle its own find
+    this.registerHotkey({
+      key: 'f',
+      modifiers: ['Meta'],
+      disabledInEditors: true,
+      onPress: callbacks.openSearch
+    });
+
+    // Command + E: Recent nodes ninja - works everywhere including editors
+    this.registerHotkey({
+      key: 'e',
+      modifiers: ['Meta'],
+      onPress: callbacks.openSearch
+    });
   }
 
   /**
