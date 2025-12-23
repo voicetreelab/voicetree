@@ -219,12 +219,15 @@ export class HorizontalMenuService {
             z-index: 10000;
         `;
 
-        // Position centered on the node (in graph coordinates)
+        // Position centered on the node
         // Layout: [<Pin> <Copy> <Add>] <SPACER> [<Run> <Delete> <More>]
         // Two pill backgrounds with gap in middle for node circle
-        menu.style.left = `${position.x}px`;
-        menu.style.top = `${position.y}px`;
-        menu.style.transform = 'translate(-50%, -50%)';
+        // Multiply by zoom to convert graph coordinates to overlay coordinates
+        const zoom: number = this.cy.zoom();
+        menu.style.left = `${position.x * zoom}px`;
+        menu.style.top = `${position.y * zoom}px`;
+        menu.style.transform = `translate(-50%, -50%) scale(${zoom})`;
+        menu.style.transformOrigin = 'center center';
 
         const closeMenu: () => void = () => this.hideMenu();
 

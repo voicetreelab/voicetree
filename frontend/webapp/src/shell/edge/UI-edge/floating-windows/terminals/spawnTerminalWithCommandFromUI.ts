@@ -18,6 +18,7 @@ import {
     anchorToNode,
     disposeFloatingWindow,
     getOrCreateOverlay,
+    getCachedZoom,
 } from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import { TerminalVanilla } from "@/shell/UI/floating-windows/terminals/TerminalVanilla";
 import posthog from "posthog-js";
@@ -125,8 +126,10 @@ export async function createFloatingTerminal(
             anchorToNode(cy, terminalWithUI);
         } else if (terminalWithUI.ui) {
             // Manual positioning if no parent or not anchored
-            terminalWithUI.ui.windowElement.style.left = `${nodePos.x + 100}px`;
-            terminalWithUI.ui.windowElement.style.top = `${nodePos.y}px`;
+            // Positions are scaled by zoom since we removed CSS transform: scale(zoom) from overlay
+            const zoom: number = getCachedZoom();
+            terminalWithUI.ui.windowElement.style.left = `${(nodePos.x + 100) * zoom}px`;
+            terminalWithUI.ui.windowElement.style.top = `${nodePos.y * zoom}px`;
         }
 
         return terminalWithUI;

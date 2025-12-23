@@ -13,15 +13,15 @@
     "postinstall": "electron-builder install-app-deps",
     "test": "vitest run ; npm run test:smoke ; npm run test:browser",
     "test:listen": "vitest",
-    "test:smoke": "electron-vite build && playwright test --config=playwright-electron.config.ts e2e-tests/electron/critical_e2e_verification_tests/electron-smoke-test.spec.ts",
-    "test:e2e": "electron-vite build && playwright test --config=playwright-electron.config.ts e2e-tests/electron/critical_e2e_verification_tests",
+    "test:smoke": "electron-vite build && npx electron-rebuild && playwright test --config=playwright-electron.config.ts e2e-tests/electron/critical_e2e_verification_tests/electron-smoke-test.spec.ts",
+    "test:e2e": "electron-vite build && npx electron-rebuild && playwright test --config=playwright-electron.config.ts e2e-tests/electron/critical_e2e_verification_tests",
     "test:browser": "playwright test e2e-tests/playwright-browser/critical_for_verification",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:test": "tsc -b && vite build && npm run test:smoke",
     "electron:watch": "npx kill-port 3000 2>/dev/null || true && electron-vite dev --watch",
     "electron": "npx kill-port 3000 2>/dev/null || true && electron-vite dev",
-    "electron:prod": "electron-vite build && electron .",
+    "electron:prod": "electron-vite build && npx electron-rebuild && electron .",
     "electron:persist-state": "VOICETREE_PERSIST_STATE=1 electron-vite build && VOICETREE_PERSIST_STATE=1 electron .",
     "electron:build": "electron-vite build",
     "electron:pack": "electron-vite build && electron-builder",
@@ -132,7 +132,7 @@
       "releaseType": "release"
     },
     "directories": {
-      "output": "../../dist/electron"
+      "output": "../../out/electron"
     },
     "afterPack": "./scripts/after-pack.cjs",
     "files": [
@@ -140,20 +140,23 @@
       "dist-electron/**/*",
       "package.json",
       "node_modules/**/*",
+      "!node_modules/**/.venv/**",
+      "!node_modules/**/.venv*/**",
+      "!node_modules/**/venv/**",
       "build/icon.png",
       "build/icon.icns"
     ],
     "extraResources": [
       {
-        "from": "../../dist/resources/server",
+        "from": "../../out/resources/server",
         "to": "server"
       },
       {
-        "from": "../../dist/resources/tools",
+        "from": "../../out/resources/tools",
         "to": "tools"
       },
       {
-        "from": "../../dist/resources/backend",
+        "from": "../../out/resources/backend",
         "to": "backend"
       },
       {
