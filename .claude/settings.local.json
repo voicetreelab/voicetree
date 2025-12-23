@@ -10,7 +10,7 @@
       "Bash(timeout 300 uv run:*)",
       "Bash(rg:*)",
       "Bash(python:*)",
-      "Bash(./build_and_package_all.sh)",
+      "Bash(./build_and_package_arm.sh)",
       "Bash(git log:*)"
     ],
     "deny": [],
