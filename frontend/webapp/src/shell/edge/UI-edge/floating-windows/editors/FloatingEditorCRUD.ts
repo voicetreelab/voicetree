@@ -257,13 +257,22 @@ async function openHoverEditor(
 
         // Set position manually (no shadow node to sync with)
         // Position editor below the node, clearing the node circle icon
-        // Use translateX(-50%) for proper horizontal centering regardless of actual width
-        // Positions are scaled by zoom since we removed CSS transform: scale(zoom) from overlay
+        // Store graph position in dataset so updateWindowFromZoom can update on zoom changes
         const HOVER_EDITOR_VERTICAL_OFFSET: number = 18;
         const zoom: number = getCachedZoom();
-        editor.ui.windowElement.style.left = `${nodePos.x * zoom}px`;
-        editor.ui.windowElement.style.top = `${(nodePos.y + HOVER_EDITOR_VERTICAL_OFFSET) * zoom}px`;
-        editor.ui.windowElement.style.transform = 'translateX(-50%)';
+        const graphX: number = nodePos.x;
+        const graphY: number = nodePos.y + HOVER_EDITOR_VERTICAL_OFFSET;
+
+        // Store graph position for zoom updates (hover editors have no shadow node)
+        editor.ui.windowElement.dataset.graphX = String(graphX);
+        editor.ui.windowElement.dataset.graphY = String(graphY);
+        editor.ui.windowElement.dataset.transformOrigin = 'top-center';
+
+        // Apply initial position and transform with scale
+        editor.ui.windowElement.style.left = `${graphX * zoom}px`;
+        editor.ui.windowElement.style.top = `${graphY * zoom}px`;
+        editor.ui.windowElement.style.transformOrigin = 'top center';
+        editor.ui.windowElement.style.transform = `translateX(-50%) scale(${zoom})`;
 
         // Hide the node's Cytoscape label (editor title bar shows the name)
         cy.getElementById(nodeId).addClass('hover-editor-open');

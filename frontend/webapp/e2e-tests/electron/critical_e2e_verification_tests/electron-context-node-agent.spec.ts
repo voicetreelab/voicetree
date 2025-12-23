@@ -313,7 +313,13 @@ test.describe('Context Node Agent Terminal E2E', () => {
               executeCommand: true,
               initialSpawnDirectory: spawnDir, // Correct field name (camelCase)
               initialEnvVars: {
-                CONTEXT_NODE_PATH: ctxNodePath
+                CONTEXT_NODE_PATH: ctxNodePath,
+                // Enable OTLP telemetry so Electron's OTLP receiver captures metrics
+                CLAUDE_CODE_ENABLE_TELEMETRY: '1',
+                OTEL_METRICS_EXPORTER: 'otlp',
+                OTEL_EXPORTER_OTLP_PROTOCOL: 'http/json',
+                OTEL_EXPORTER_OTLP_ENDPOINT: 'http://localhost:4318',
+                OTEL_METRIC_EXPORT_INTERVAL: '1000'  // 1 second - must be shorter than Claude -p runtime
               }
             });
 
@@ -362,6 +368,128 @@ test.describe('Context Node Agent Terminal E2E', () => {
     console.log('✓ Needle from Node 3 (2 hops away) found in context');
     console.log('');
     console.log('✅ CONTEXT NODE AGENT TERMINAL TEST PASSED');
+
+    // === PHASE 3: E2E OTLP METRICS VERIFICATION ===
+    // After agent completes, verify OTLP metrics are received and displayed in dashboard
+    console.log('');
+    console.log('=== STEP 8: Wait for OTLP metrics to be captured ===');
+
+    // Claude Code sends OTLP metrics with OTEL_METRIC_EXPORT_INTERVAL (set to 5s in env vars above)
+    // Wait for metrics to be received and stored in agent_metrics.json
+    // The OTLP receiver logs "[OTLP Receiver] Received metrics:" when it gets data
+
+    // Poll for metrics to appear - they may take a few seconds after Claude finishes
+    let metricsReceived = false;
+    const maxMetricsWaitMs = 20000; // 20 seconds max wait
+    const metricsStartTime = Date.now();
+
+    while (!metricsReceived && (Date.now() - metricsStartTime) < maxMetricsWaitMs) {
+      const metrics = await appWindow.evaluate(async () => {
+        const api = (window as ExtendedWindow).electronAPI;
+        if (!api?.main?.getMetrics) return null;
+        return await api.main.getMetrics();
+      });
+
+      if (metrics && metrics.sessions && metrics.sessions.length > 0) {
+        console.log(`✓ OTLP metrics received: ${metrics.sessions.length} session(s)`);
+        metricsReceived = true;
+      } else {
+        console.log(`Waiting for OTLP metrics (${Math.floor((Date.now() - metricsStartTime) / 1000)}s elapsed)...`);
+        await appWindow.waitForTimeout(2000);
+      }
+    }
+
+    // Note: Metrics may not arrive in all cases (e.g., Claude Code version without telemetry)
+    // but we should at least verify the dashboard opens and displays correctly
+
+    console.log('=== STEP 9: Open Agent Stats panel ===');
+
+    // Take screenshot before opening stats panel
+    await appWindow.screenshot({ path: 'test-results/step9-before-stats-panel.png' });
+    console.log('✓ Screenshot saved: step9-before-stats-panel.png');
+
+    // Find and click the stats toggle button using JavaScript to bypass overlay issues
+    // The cytoscape-navigator overlay intercepts pointer events so we use dispatchEvent
+    await appWindow.evaluate(() => {
+      const button = document.querySelector('button[title="Toggle Agent Stats Panel"]') as HTMLButtonElement;
+      if (button) {
+        button.click(); // Programmatic click bypasses pointer event interception
+      } else {
+        throw new Error('Stats button not found');
+      }
+    });
+    console.log('✓ Clicked Stats button (via JS)');
+
+    // Wait a moment for React state to update
+    await appWindow.waitForTimeout(500);
+
+    // Take screenshot to verify panel state
+    await appWindow.screenshot({ path: 'test-results/step9-after-stats-click.png' });
+    console.log('✓ Screenshot saved: step9-after-stats-click.png');
+
+    // Wait for the stats panel to appear
+    await expect(appWindow.locator('[data-testid="agent-stats-panel-container"]')).toBeVisible({ timeout: 5000 });
+    console.log('✓ Stats panel is visible');
+
+    // Take screenshot of open stats panel
+    await appWindow.screenshot({ path: 'test-results/step9-stats-panel-open.png' });
+    console.log('✓ Screenshot saved: step9-stats-panel-open.png');
+
+    console.log('=== STEP 10: Verify dashboard displays metrics data ===');
+
+    // Verify the dashboard structure is present
+    await expect(appWindow.locator('[data-testid="agent-stats-panel"]')).toBeVisible({ timeout: 3000 });
+    console.log('✓ AgentStatsPanel component rendered');
+
+    // Verify summary cards are present
+    await expect(appWindow.locator('[data-testid="sessions-count"]')).toBeVisible({ timeout: 3000 });
+    await expect(appWindow.locator('[data-testid="total-cost"]')).toBeVisible({ timeout: 3000 });
+    await expect(appWindow.locator('[data-testid="tokens-input"]')).toBeVisible({ timeout: 3000 });
+    console.log('✓ Summary cards (sessions, cost, tokens) are visible');
+
+    // If metrics were received, verify they show non-zero values
+    if (metricsReceived) {
+      // Wait a moment for the dashboard to refresh with the new data
+      await appWindow.waitForTimeout(1000);
+
+      // Check sessions count is not zero
+      const sessionsCount = await appWindow.locator('[data-testid="sessions-count"]').textContent();
+      console.log(`Sessions count displayed: ${sessionsCount}`);
+      expect(sessionsCount).not.toBe('0');
+      expect(sessionsCount).not.toBe('...');
+      console.log('✓ Sessions count is non-zero');
+
+      // Check that tokens input shows a value (not just "0" or loading state)
+      const tokensInputText = await appWindow.locator('[data-testid="tokens-input"]').textContent();
+      console.log(`Input tokens displayed: ${tokensInputText}`);
+      // Should contain at least one digit that's not zero in the number part
+      expect(tokensInputText).toMatch(/[1-9]/);
+      console.log('✓ Input tokens show non-zero value');
+
+      // Check that cost is displayed (may be $0.0000 for small operations, but should be present)
+      const totalCost = await appWindow.locator('[data-testid="total-cost"]').textContent();
+      console.log(`Total cost displayed: ${totalCost}`);
+      expect(totalCost).toMatch(/\$\d+\.\d+/);
+      console.log('✓ Cost is displayed in correct format');
+    } else {
+      // FAIL the test if metrics weren't received - this is an E2E test for the full flow
+      console.error('❌ OTLP metrics not received - E2E test FAILED');
+      console.error('Expected: Claude Code to send metrics via OTLP to localhost:4318');
+      console.error('Check: OTEL env vars are set, OTLP receiver is running, Claude version supports telemetry');
+      throw new Error('OTLP metrics not received - full E2E flow verification failed');
+    }
+
+    // Take final screenshot showing metrics dashboard state
+    await appWindow.screenshot({ path: 'test-results/step10-final-metrics-dashboard.png' });
+    console.log('✓ Screenshot saved: step10-final-metrics-dashboard.png');
+
+    console.log('');
+    console.log('=== E2E OTLP METRICS TEST SUMMARY ===');
+    console.log('✓ Stats panel opened successfully');
+    console.log('✓ Dashboard components rendered correctly');
+    console.log('✓ OTLP metrics captured and displayed in dashboard');
+    console.log('');
+    console.log('✅ FULL E2E TEST (Agent + OTLP Metrics) COMPLETE');
   });
 });
 

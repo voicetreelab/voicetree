@@ -8,11 +8,15 @@ import '@xterm/xterm/css/xterm.css';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/types';
 import { FloatingWindowFullscreen } from '@/shell/UI/floating-windows/FloatingWindowFullscreen';
 import type { VTSettings } from '@/pure/settings';
+import { subscribeToZoomChange, getCachedZoom, TERMINAL_CSS_TRANSFORM_THRESHOLD } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 
 export interface TerminalVanillaConfig {
   terminalData: TerminalData;
   container: HTMLElement;
 }
+
+// Base font size for terminals (scaled by zoom)
+const BASE_FONT_SIZE: number = 10;
 
 /**
  * Minimal vanilla JS terminal wrapper - bare essentials only
@@ -28,6 +32,7 @@ export class TerminalVanilla {
   private fullscreen: FloatingWindowFullscreen;
   private suppressNextEnter: boolean = false;
   private shiftEnterSendsOptionEnter: boolean = true;
+  private unsubscribeZoom: (() => void) | null = null;
 
   constructor(config: TerminalVanillaConfig) {
     this.container = config.container;
@@ -47,14 +52,21 @@ export class TerminalVanilla {
   }
 
   private async mount(): Promise<void> {
-    // Create terminal instance
+    // Get initial zoom level for font size scaling
+    const initialZoom: number = getCachedZoom();
+    // Only scale font if zoom >= threshold (dimension scaling mode)
+    const initialFontSize: number = initialZoom >= TERMINAL_CSS_TRANSFORM_THRESHOLD
+      ? Math.round(BASE_FONT_SIZE * initialZoom)
+      : BASE_FONT_SIZE;
+
+    // Create terminal instance with zoom-scaled font size
     const term: XTerm = new XTerm({
       cursorBlink: true,
       scrollback: 9999,
-        scrollOnEraseInDisplay : true,
-        scrollOnUserInput: true,
-        fontSize: 10,
-        allowProposedApi: true, // Required for Unicode11Addon
+      scrollOnEraseInDisplay: true,
+      scrollOnUserInput: true,
+      fontSize: initialFontSize,
+      allowProposedApi: true, // Required for Unicode11Addon
     });
 
     // Add FitAddon
@@ -66,6 +78,23 @@ export class TerminalVanilla {
 
     // Open terminal in the DOM
     term.open(this.container);
+
+    // Subscribe to zoom changes to adjust font size
+    // Only scale font when zoom >= threshold (dimension scaling mode)
+    // Below threshold, CSS transform handles visual scaling
+    this.unsubscribeZoom = subscribeToZoomChange((zoom: number) => {
+      if (this.term && this.fitAddon) {
+        if (zoom >= TERMINAL_CSS_TRANSFORM_THRESHOLD) {
+          // Dimension scaling mode: adjust font size
+          const newFontSize: number = Math.round(BASE_FONT_SIZE * zoom);
+          this.term.options.fontSize = newFontSize;
+        } else {
+          // CSS transform mode: keep base font size, CSS transform handles visual scaling
+          this.term.options.fontSize = BASE_FONT_SIZE;
+        }
+        this.fitAddon.fit();
+      }
+    });
 
     // Load WebGL2 addon for better rendering performance
     try {
@@ -209,6 +238,12 @@ export class TerminalVanilla {
 
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
+    }
+
+    // Unsubscribe from zoom changes
+    if (this.unsubscribeZoom) {
+      this.unsubscribeZoom();
+      this.unsubscribeZoom = null;
     }
 
     // Cleanup fullscreen

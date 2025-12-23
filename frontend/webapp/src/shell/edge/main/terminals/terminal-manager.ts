@@ -322,6 +322,12 @@ export default class TerminalManager {
       const ext: string = path.extname(relativePath);
       customEnv.OBSIDIAN_SOURCE_BASENAME = path.basename(relativePath, ext);
 
+      // OTEL telemetry env vars - enables Claude Code to send metrics to our OTLP receiver
+      customEnv.CLAUDE_CODE_ENABLE_TELEMETRY = '1';
+      customEnv.OTEL_METRICS_EXPORTER = 'otlp';
+      customEnv.OTEL_EXPORTER_OTLP_PROTOCOL = 'http/json';
+      customEnv.OTEL_EXPORTER_OTLP_ENDPOINT = 'http://localhost:4318';
+
       return customEnv;
   }
 

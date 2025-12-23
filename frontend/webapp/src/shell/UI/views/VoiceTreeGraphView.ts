@@ -239,10 +239,15 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
             // Auto-pin editor for single externally-added nodes (e.g., file created outside app)
             // Skip bulk loads (initial folder load, multiple file paste)
+            // Skip context nodes (ctx-nodes folder) - they are supplementary and shouldn't auto-open
             if (newNodeIds.length === 1) {
                 const nodeId: string = newNodeIds[0];
-                console.log('[VoiceTreeGraphView] Auto-pinning editor for externally added node:', nodeId);
-                void createAnchoredFloatingEditor(this.cy, nodeId, true, true); // focusAtEnd + isAutoPin
+                const cyNode: cytoscape.NodeSingular = this.cy.getElementById(nodeId);
+                const isContextNode: boolean = cyNode.data('isContextNode') === true;
+                if (!isContextNode) {
+                    console.log('[VoiceTreeGraphView] Auto-pinning editor for externally added node:', nodeId);
+                    void createAnchoredFloatingEditor(this.cy, nodeId, true, true); // focusAtEnd + isAutoPin
+                }
             }
 
             // DO NOT SEND TO EDITORS FROM HERE TO AVOID FEEDBACK LOOP

@@ -8,6 +8,31 @@
 import type cytoscape from 'cytoscape';
 import * as O from 'fp-ts/lib/Option.js';
 import type { NodeIdAndFilePath } from "@/pure/graph";
+
+// =============================================================================
+// Zoom Change Subscription
+// =============================================================================
+
+type ZoomChangeCallback = (zoom: number) => void;
+const zoomChangeCallbacks: Set<ZoomChangeCallback> = new Set();
+
+/**
+ * Subscribe to zoom changes for floating windows
+ * Used by terminals to adjust font size on zoom
+ */
+export function subscribeToZoomChange(callback: ZoomChangeCallback): () => void {
+    zoomChangeCallbacks.add(callback);
+    return () => zoomChangeCallbacks.delete(callback);
+}
+
+/**
+ * Get current zoom level from cytoscape instance
+ * Used by terminals to get initial zoom on mount
+ */
+let cachedZoom: number = 1;
+export function getCachedZoom(): number {
+    return cachedZoom;
+}
 import {
     type FloatingWindowData,
     type FloatingWindowFields,
@@ -50,6 +75,11 @@ const cleanupRegistry: WeakMap<HTMLElement, CleanupFunctions> = new WeakMap();
 
 /**
  * Get or create the shared overlay container for all floating windows
+ *
+ * NOTE: We no longer use CSS transform: scale(zoom) because xterm.js has a known bug
+ * where getBoundingClientRect() returns post-transform coords but terminal internal
+ * coords are pre-transform, causing text selection offset issues.
+ * Instead, we scale window positions and dimensions explicitly.
  */
 export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
     const container: HTMLElement = cy.container() as HTMLElement;
@@ -75,10 +105,30 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
 
         parent.appendChild(overlay);
 
+        // Debounce zoom change callbacks to avoid excessive re-renders
+        let zoomDebounceTimeout: ReturnType<typeof setTimeout> | null = null;
+
         const syncTransform: () => void = () => {
             const pan: cytoscape.Position = cy.pan();
             const zoom: number = cy.zoom();
-            overlay.style.transform = `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`;
+            cachedZoom = zoom;
+
+            // Only translate, no scale - windows handle their own sizing
+            overlay.style.transform = `translate(${pan.x}px, ${pan.y}px)`;
+
+            // Update all floating window positions and sizes
+            const windows: NodeListOf<HTMLElement> = overlay.querySelectorAll('.cy-floating-window');
+            windows.forEach((windowEl: HTMLElement) => {
+                updateWindowFromZoom(cy, windowEl, zoom);
+            });
+
+            // Debounced notification to terminals for font size adjustment
+            if (zoomDebounceTimeout) {
+                clearTimeout(zoomDebounceTimeout);
+            }
+            zoomDebounceTimeout = setTimeout(() => {
+                zoomChangeCallbacks.forEach(callback => callback(zoom));
+            }, 150);
         };
 
         syncTransform();
@@ -86,6 +136,97 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
     }
 
     return overlay;
+}
+
+// Zoom threshold below which terminals switch to CSS transform scaling
+// Exported so TerminalVanilla can skip font scaling when using CSS transform
+export const TERMINAL_CSS_TRANSFORM_THRESHOLD: number = 0.5;
+
+// Base font size for title bar (scaled with zoom in dimension-scaling mode)
+const TITLE_BAR_BASE_FONT_SIZE: number = 14;
+
+/**
+ * Update a floating window's scale and position based on zoom level
+ * Called on every zoom change for all floating windows
+ *
+ * Scaling strategy:
+ * - Editors: Always use CSS transform (simpler, no text selection issues with CodeMirror)
+ * - Terminals at zoom >= 0.5: Use dimension/font scaling (fixes xterm text selection bug)
+ * - Terminals at zoom < 0.5: Use CSS transform (text selection not needed when zoomed out)
+ */
+function updateWindowFromZoom(cy: cytoscape.Core, windowElement: HTMLElement, zoom: number): void {
+    const baseWidth: number = parseFloat(windowElement.dataset.baseWidth ?? '400');
+    const baseHeight: number = parseFloat(windowElement.dataset.baseHeight ?? '400');
+    const isTerminal: boolean = windowElement.classList.contains('cy-floating-window-terminal');
+    const useCssTransform: boolean = !isTerminal || zoom < TERMINAL_CSS_TRANSFORM_THRESHOLD;
+
+    // Get title bar element for font scaling
+    const titleBar: HTMLElement | null = windowElement.querySelector('.cy-floating-window-title');
+
+    if (useCssTransform) {
+        // CSS transform approach: keep base dimensions, scale visually via transform
+        windowElement.style.width = `${baseWidth}px`;
+        windowElement.style.height = `${baseHeight}px`;
+        windowElement.style.transformOrigin = 'center center';
+        windowElement.dataset.usingCssTransform = 'true';
+        // Reset title bar font to base (CSS transform handles visual scaling)
+        if (titleBar) {
+            titleBar.style.fontSize = `${TITLE_BAR_BASE_FONT_SIZE}px`;
+        }
+    } else {
+        // Dimension scaling approach: scale width/height directly (for terminals at zoom >= 0.5)
+        windowElement.style.width = `${baseWidth * zoom}px`;
+        windowElement.style.height = `${baseHeight * zoom}px`;
+        windowElement.dataset.usingCssTransform = 'false';
+        // Scale title bar font to match window scaling
+        if (titleBar) {
+            titleBar.style.fontSize = `${Math.round(TITLE_BAR_BASE_FONT_SIZE * zoom)}px`;
+        }
+    }
+
+    // Update position - look up shadow node or use stored graph position
+    const shadowNodeId: string | undefined = windowElement.dataset.shadowNodeId;
+    let graphX: number | undefined;
+    let graphY: number | undefined;
+
+    if (shadowNodeId) {
+        const shadowNode: cytoscape.CollectionReturnValue = cy.getElementById(shadowNodeId);
+        if (shadowNode.length > 0) {
+            const pos: cytoscape.Position = shadowNode.position();
+            graphX = pos.x;
+            graphY = pos.y;
+        }
+    } else if (windowElement.dataset.graphX && windowElement.dataset.graphY) {
+        // Hover editors store their graph position in dataset (no shadow node)
+        graphX = parseFloat(windowElement.dataset.graphX);
+        graphY = parseFloat(windowElement.dataset.graphY);
+    }
+
+    if (graphX !== undefined && graphY !== undefined) {
+        windowElement.style.left = `${graphX * zoom}px`;
+        windowElement.style.top = `${graphY * zoom}px`;
+
+        // Check for custom transform origin (e.g., hover editors use translateX(-50%) for centering)
+        const customTransformOrigin: string | undefined = windowElement.dataset.transformOrigin;
+
+        if (useCssTransform) {
+            if (customTransformOrigin === 'top-center') {
+                // Hover editors: center horizontally, anchor at top
+                windowElement.style.transform = `translateX(-50%) scale(${zoom})`;
+                windowElement.style.transformOrigin = 'top center';
+            } else {
+                // Anchored windows: center both axes
+                windowElement.style.transform = `translate(-50%, -50%) scale(${zoom})`;
+            }
+        } else {
+            if (customTransformOrigin === 'top-center') {
+                windowElement.style.transform = 'translateX(-50%)';
+                windowElement.style.transformOrigin = 'top center';
+            } else {
+                windowElement.style.transform = 'translate(-50%, -50%)';
+            }
+        }
+    }
 }
 
 // =============================================================================
@@ -110,20 +251,51 @@ export function getDefaultDimensions(type: 'Editor' | 'Terminal'): { width: numb
 
 /**
  * Update window DOM element position based on shadow node position
+ * Positions are scaled by zoom. Transform includes scale() when using CSS transform mode.
  */
 function updateWindowPosition(shadowNode: cytoscape.NodeSingular, domElement: HTMLElement): void {
     const pos: cytoscape.Position = shadowNode.position();
-    domElement.style.left = `${pos.x}px`;
-    domElement.style.top = `${pos.y}px`;
-    domElement.style.transform = 'translate(-50%, -50%)';
+    const zoom: number = getCachedZoom();
+    const usingCssTransform: boolean = domElement.dataset.usingCssTransform === 'true';
+
+    // Convert graph coordinates to screen coordinates (multiply by zoom)
+    domElement.style.left = `${pos.x * zoom}px`;
+    domElement.style.top = `${pos.y * zoom}px`;
+
+    if (usingCssTransform) {
+        domElement.style.transform = `translate(-50%, -50%) scale(${zoom})`;
+    } else {
+        domElement.style.transform = 'translate(-50%, -50%)';
+    }
 }
 
 /**
  * Update shadow node dimensions based on window DOM element dimensions
+ * Shadow node dimensions are in graph coordinates (base dimensions)
+ *
+ * When using CSS transform mode: offsetWidth/offsetHeight are base dimensions,
+ * which are already in graph coordinates (no conversion needed)
+ *
+ * When using dimension scaling mode: offsetWidth/offsetHeight are scaled (base * zoom),
+ * so we divide by zoom to get graph coordinates
  */
 function updateShadowNodeDimensions(shadowNode: cytoscape.NodeSingular, domElement: HTMLElement): void {
-    const width: number = domElement.offsetWidth;
-    const height: number = domElement.offsetHeight;
+    const usingCssTransform: boolean = domElement.dataset.usingCssTransform === 'true';
+
+    let width: number;
+    let height: number;
+
+    if (usingCssTransform) {
+        // CSS transform mode: offsetWidth/offsetHeight are base dimensions (graph coordinates)
+        width = domElement.offsetWidth;
+        height = domElement.offsetHeight;
+    } else {
+        // Dimension scaling mode: offsetWidth/offsetHeight are scaled, divide by zoom
+        const zoom: number = getCachedZoom();
+        width = domElement.offsetWidth / zoom;
+        height = domElement.offsetHeight / zoom;
+    }
+
     shadowNode.style({
         'width': width,
         'height': height
@@ -231,8 +403,26 @@ export function createWindowChrome(
     windowElement.className = `cy-floating-window ${typeClass}`.trim();
     windowElement.setAttribute('data-floating-window-id', id);
 
-    windowElement.style.width = `${dimensions.width}px`;
-    windowElement.style.height = `${dimensions.height}px`;
+    // Store base dimensions for zoom scaling (used by updateWindowFromZoom)
+    windowElement.dataset.baseWidth = String(dimensions.width);
+    windowElement.dataset.baseHeight = String(dimensions.height);
+
+    // Determine if this is a terminal (dimension scaling) or editor (CSS transform)
+    const currentZoom: number = getCachedZoom();
+    const isTerminal: boolean = typeClass.includes('terminal');
+    const useCssTransform: boolean = !isTerminal || currentZoom < TERMINAL_CSS_TRANSFORM_THRESHOLD;
+
+    if (useCssTransform) {
+        // CSS transform mode: base dimensions, scale handled by transform
+        windowElement.style.width = `${dimensions.width}px`;
+        windowElement.style.height = `${dimensions.height}px`;
+        windowElement.dataset.usingCssTransform = 'true';
+    } else {
+        // Dimension scaling mode: scale dimensions directly
+        windowElement.style.width = `${dimensions.width * currentZoom}px`;
+        windowElement.style.height = `${dimensions.height * currentZoom}px`;
+        windowElement.dataset.usingCssTransform = 'false';
+    }
 
     if (fw.resizable) {
         windowElement.classList.add('resizable');
@@ -460,12 +650,16 @@ export function anchorToNode(
 
     // Store shadow node ID on DOM element for drag handler
     windowElement.setAttribute('data-shadow-node-id', shadowNodeId);
+    windowElement.dataset.shadowNodeId = shadowNodeId;
 
-    // Style shadow node (invisible but with dimensions)
-    const dimensions: { width: number; height: number } = {
-        width: windowElement.offsetWidth,
-        height: windowElement.offsetHeight
-    };
+    // Calculate shadow node dimensions (graph coordinates)
+    // CSS transform mode: offsetWidth/offsetHeight are base dimensions (graph coordinates)
+    // Dimension scaling mode: offsetWidth/offsetHeight are scaled, divide by zoom
+    const usingCssTransform: boolean = windowElement.dataset.usingCssTransform === 'true';
+    const currentZoom: number = getCachedZoom();
+    const dimensions: { width: number; height: number } = usingCssTransform
+        ? { width: windowElement.offsetWidth, height: windowElement.offsetHeight }
+        : { width: windowElement.offsetWidth / currentZoom, height: windowElement.offsetHeight / currentZoom };
 
     // Shadow node visible on minimap with subtle styling
     shadowNode.style({
