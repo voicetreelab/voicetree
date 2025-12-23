@@ -129,6 +129,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // DOM elements
     private statsOverlay: HTMLElement | null = null;
     private loadingOverlay: HTMLElement | null = null;
+    private loadingMessageElement: HTMLElement | null = null;
     private errorOverlay: HTMLElement | null = null;
     private emptyStateOverlay: HTMLElement | null = null;
     private speedDialMenu: SpeedDialSideGraphFloatingMenuView | null = null;
@@ -232,6 +233,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         const handleGraphDelta: (delta: GraphDelta) => void = (delta: GraphDelta): void => {
             console.log('[VoiceTreeGraphView] Received graph delta, length:', delta.length);
             console.trace('[VoiceTreeGraphView] Graph delta stack trace'); // DEBUG: Check if called repeatedly
+            this.setLoadingState(false);
             if (this.emptyStateOverlay) {
                 this.emptyStateOverlay.style.display = 'none';
             }
@@ -278,6 +280,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
         const handleGraphClear: () => void = (): void => {
             console.log('[VoiceTreeGraphView] Received graph:clear event');
+            this.setLoadingState(true, 'Loading VoiceTree...');
 
             // Close all open terminals (UI cleanup - PTY processes already killed by main process)
             closeAllTerminals(this.cy);
@@ -380,15 +383,33 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             onBackup: () => { void spawnBackupTerminal(this.cy); },
             onSettings: () => void createSettingsEditor(this.cy),
             onAbout: () => window.open('https://voicetree.io', '_blank'),
+            onStats: () => window.dispatchEvent(new Event('toggle-stats-panel')),
             isDarkMode: this._isDarkMode,
         });
 
         // Create loading overlay
         this.loadingOverlay = document.createElement('div');
-        this.loadingOverlay.className = 'absolute top-4 right-4 bg-blue-500 text-white px-3 py-1.5 rounded-md shadow-lg text-sm font-medium z-10';
-        this.loadingOverlay.textContent = 'Loading graph...';
+        this.loadingOverlay.className = 'absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/90 text-muted-foreground pointer-events-none z-20';
         this.loadingOverlay.style.display = 'none';
+
+        const spinner: HTMLDivElement = document.createElement('div');
+        spinner.className = 'h-10 w-10 rounded-full border-2 border-blue-200 border-t-blue-500 animate-spin';
+
+        const loadingMessage: HTMLParagraphElement = document.createElement('p');
+        loadingMessage.className = 'text-base font-semibold text-foreground';
+        loadingMessage.textContent = 'Loading VoiceTree...';
+
+        const loadingSubtext: HTMLParagraphElement = document.createElement('p');
+        loadingSubtext.className = 'text-xs text-muted-foreground/80';
+        loadingSubtext.textContent = 'Preparing your workspace';
+
+        this.loadingOverlay.appendChild(spinner);
+        this.loadingOverlay.appendChild(loadingMessage);
+        this.loadingOverlay.appendChild(loadingSubtext);
+
+        this.loadingMessageElement = loadingMessage;
         this.container.appendChild(this.loadingOverlay);
+        this.setLoadingState(true, 'Loading VoiceTree...');
 
         // Create error overlay
         this.errorOverlay = document.createElement('div');
@@ -506,6 +527,19 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             this.styleService,
             this.container
         );
+    }
+
+    private setLoadingState(isLoading: boolean, message?: string): void {
+        if (!this.loadingOverlay) return;
+
+        if (isLoading) {
+            if (message && this.loadingMessageElement) {
+                this.loadingMessageElement.textContent = message;
+            }
+            this.loadingOverlay.style.display = 'flex';
+        } else {
+            this.loadingOverlay.style.display = 'none';
+        }
     }
 
     private setupCytoscape(): void {

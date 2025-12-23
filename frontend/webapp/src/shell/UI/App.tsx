@@ -26,6 +26,13 @@ function App(): JSX.Element {
     // State for agent stats panel visibility
     const [isStatsPanelOpen, setIsStatsPanelOpen] = useState(false);
 
+    // Listen for stats panel toggle event from SpeedDial menu
+    useEffect(() => {
+        const handleToggleStats: () => void = (): void => setIsStatsPanelOpen(prev => !prev);
+        window.addEventListener('toggle-stats-panel', handleToggleStats);
+        return () => window.removeEventListener('toggle-stats-panel', handleToggleStats);
+    }, []);
+
     // Sync editedSuffix when vaultSuffix changes from external sources
     useEffect(() => {
         if (!isEditingSuffix) {
@@ -148,16 +155,6 @@ function App(): JSX.Element {
                 {/* Transcription panel - centered, with right margin? for minimap */}
                 <div className="flex justify-center">
                     <VoiceTreeTranscribe/>
-                </div>
-                {/* Agent stats toggle - anchored bottom right, vertically centered */}
-                <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                    <button
-                        onClick={() => setIsStatsPanelOpen(!isStatsPanelOpen)}
-                        className="text-gray-600 px-1.5 py-1 rounded bg-gray-100 hover:bg-gray-200 transition-colors font-mono text-xs"
-                        title="Toggle Agent Stats Panel"
-                    >
-                        {isStatsPanelOpen ? '📊 Hide Stats' : '📊 Stats'}
-                    </button>
                 </div>
             </div>
 
