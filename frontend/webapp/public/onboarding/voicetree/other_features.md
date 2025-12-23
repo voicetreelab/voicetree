@@ -10,15 +10,18 @@ isContextNode: false
 - Hold **space** to follow most recent node
 - **Cmd + ] or [[** to cycle between terminals
 - **Cmd + 1-5** to navigate to recently added or modified nodes (appear as tabs in the top left)
-- **Cmd + E** to open the graph search / command pallete (nodes here are ordererd by recently selected)
+- **Cmd + E** to open the graph search / command pallete (nodes here are ordererd by recently selected), cmd + f, cmd + k also work
 
 ## Markdown nodes
-
 - **Cmd + drag** to select nodes. Hover also selects node.
 - **Cmd + n** to create new child node, or if no node is selected, creates orphan node
 - **Cmd + backspace** to delete selected node(s)
 - **Cmd + enter** to run this node the default agent (first agent in the agents array in settings.json)
 - **Cmd + z** / **cmd + shift + z** to undo / redo 
+- **Cmd + w** to close terminals and editors
+
+- when a node is selected, you can speak directly into it! A chip with transcribed text will appear
+- you can start writing [[ and it will suggest autocompletions
 
 ### File Syncing
 Markdown files are only read and written to the vault folder you have specified in the bottom left corner.
@@ -41,7 +44,8 @@ These will show up in the top right under the respective terminal/agent tab
 
 You can get creative with this, for example, expirement with asking an agent to use the add node tool to create a task tree for their proposed plan.
 
-
-
+#### Context nodes
+When you run an agent, it will produce a context node, this is a traversal of nodes within distance=6 (configurable in the settings)
+This is the context that will be injected into the agent at startup.
 
 [voicetree/other_features_0.md]]
