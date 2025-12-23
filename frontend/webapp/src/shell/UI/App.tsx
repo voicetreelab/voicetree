@@ -91,7 +91,7 @@ function App(): JSX.Element {
                             className="text-gray-600 px-1.5 py-1 rounded bg-gray-100 hover:bg-gray-200 transition-colors"
                             title="Vault – .md file storage for graph nodes"
                         >
-                            {vaultSuffix ?? <span className="text-gray-400 italic">(edit)</span>}
+                            {vaultSuffix !== '' && vaultSuffix != null ? vaultSuffix : <span className="text-gray-400 italic">(set .md subfolder)</span>}
                         </button>
                     )}
                 </>
