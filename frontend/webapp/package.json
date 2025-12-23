@@ -4,7 +4,7 @@
   "description": "Transform voice into navigable concept graphs",
   "author": "Manu Masson",
   "private": true,
-  "version": "1.8.5",
+  "version": "1.9.0",
   "type": "module",
   "main": "dist-electron/main/index.js",
   "scripts": {
@@ -47,6 +47,7 @@
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-navigation-menu": "^1.2.14",
     "@radix-ui/react-slot": "^1.2.3",
+    "@replit/codemirror-vim": "^6.3.0",
     "@soniox/speech-to-text-web": "^1.2.0",
     "@tailwindcss/vite": "^4.1.11",
     "@types/cytoscape": "^3.21.9",

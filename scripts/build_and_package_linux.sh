@@ -84,6 +84,8 @@ cp -r out/resources-linux "$STAGING_DIR/out/resources"
 # Copy .env if it exists
 if [ -f "frontend/webapp/.env" ]; then
     cp frontend/webapp/.env "$STAGING_DIR/webapp/.env"
+    # Export GH_TOKEN for publishing
+    export $(grep -E '^GH_TOKEN=' frontend/webapp/.env | xargs)
 fi
 
 # Step 3: Install dependencies in staging (fresh Linux-native node_modules)
@@ -113,20 +115,30 @@ echo "Step 5: Creating distributable package..."
 echo "----------------------------------------------"
 echo "Building Electron distributable for Linux (this may take a few minutes)..."
 
+# Capture exit code so mv always runs even if publish fails
+BUILD_EXIT_CODE=0
 if [ "$PUBLISH" = true ]; then
     echo "Publishing enabled - will upload to GitHub releases"
-    electron-builder --linux --publish=always
+    electron-builder --linux --publish=always || BUILD_EXIT_CODE=$?
 else
-    electron-builder --linux --publish=never
+    electron-builder --linux --publish=never || BUILD_EXIT_CODE=$?
 fi
 
 # Move back to project root
 cd ../..
 
-# Move the output to linux-specific folder in main out
+# Always move the output to linux-specific folder (even if publish failed)
 rm -rf out/electron-linux
 if [ -d "$STAGING_DIR/out/electron" ]; then
     mv "$STAGING_DIR/out/electron" out/electron-linux
+fi
+
+# Exit with original code if build/publish failed
+if [ $BUILD_EXIT_CODE -ne 0 ]; then
+    echo "Build or publish step failed with exit code $BUILD_EXIT_CODE"
+    # Clean up staging before exit
+    rm -rf "$STAGING_DIR"
+    exit $BUILD_EXIT_CODE
 fi
 
 # Clean up staging folder
