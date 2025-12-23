@@ -17,13 +17,12 @@ import type cytoscape from 'cytoscape';
 import type { Core } from 'cytoscape';
 import * as O from 'fp-ts/lib/Option.js';
 
-import type { GraphDelta, NodeIdAndFilePath, GraphNode } from '@/pure/graph';
+import type { GraphDelta, NodeIdAndFilePath } from '@/pure/graph';
 import type { Position } from '@/shell/UI/views/IVoiceTreeGraphView';
 
 import {
     createEditorData,
     getEditorId,
-    getShadowNodeId,
     type EditorData,
     type EditorId,
     type FloatingWindowUIData,
@@ -40,8 +39,6 @@ import {
 
 import {
     vanillaFloatingWindowInstances,
-
-
 } from '@/shell/edge/UI-edge/state/UIAppState';
 
 import { CodeMirrorEditorView } from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
@@ -87,9 +84,14 @@ export async function createFloatingEditor(
         return undefined;
     }
 
+    // Fetch settings and node content in parallel
+    const [node, settings] = await Promise.all([
+        getNodeFromMainToUI(nodeId),
+        window.electronAPI!.main.loadSettings()
+    ]);
+
     // Derive title and content from nodeId
     // Editor shows content WITHOUT YAML frontmatter - YAML is managed separately
-    const node: GraphNode = await getNodeFromMainToUI(nodeId);
     let content: string = 'loading...';
     let title: string = `${nodeId}`; // fallback to nodeId if node not found
     if (node) {
@@ -121,6 +123,7 @@ export async function createFloatingEditor(
         {
             autosaveDelay: 300,
             darkMode: document.documentElement.classList.contains('dark'),
+            vimMode: settings.vimMode ?? false,
         }
     );
 
@@ -347,6 +350,11 @@ export async function createAnchoredFloatingEditor(
     isAutoPin: boolean = false
 ): Promise<void> {
     try {
+        // Early exit if editor already exists - don't close previous auto-pin or set new tracking
+        if (O.isSome(getEditorByNodeId(nodeId))) {
+            return;
+        }
+
         // If this is an auto-pin, close the previous auto-pinned editor first
         if (isAutoPin) {
             const lastAutoPinned: NodeIdAndFilePath | null = getLastAutoPinnedEditor();
@@ -381,18 +389,12 @@ export async function createAnchoredFloatingEditor(
         // Anchor to node using v2 function
         anchorToNode(cy, editor);
 
-        // Pan to editor shadow node (maintain current zoom level)
-        const editorId: EditorId = getEditorId(editor);
-        const shadowNodeId: string = getShadowNodeId(editorId);
-        setTimeout(() => {
-            const shadowNode: cytoscape.CollectionReturnValue = cy.getElementById(shadowNodeId);
-            if (shadowNode.length > 0) {
-                cy.animate({
-                    center: { eles: shadowNode },
-                    duration: 300
-                });
-            }
-        }, 100);
+        // TODO: Re-enable zoom for UI-initiated editor creation only.
+        // Currently disabled because both UI-created nodes and external filesystem nodes
+        // flow through the same file watcher path, so we can't distinguish them here.
+        // To fix: either track "pending UI nodes" or have UI path call this directly
+        // (with early-exit preventing duplicates from file watcher).
+        // See: tues/58_Dae_Fix_Prevent_Duplicate_Auto_Pin_Editors_3.md
 
     } catch (error) {
         console.error('[FloatingEditorManager-v2] Error creating floating editor:', error);
@@ -488,8 +490,8 @@ export function updateFloatingEditors(cy: Core, delta: GraphDelta): void {
 export async function handleAddNodeAtPosition(cy: Core, position: Position): Promise<void> {
     try {
         // Pass position directly to Electron - it will save it immediately
+        // Editor auto-pinning handled by file watcher in VoiceTreeGraphView
         const nodeId: string = await createNewEmptyOrphanNodeFromUI(position, cy);
-        await createAnchoredFloatingEditor(cy, nodeId, true, true); // focusAtEnd + isAutoPin for new node
         console.log('[FloatingEditorManager-v2] Creating node:', nodeId);
     } catch (error) {
         console.error('[FloatingEditorManager-v2] Error creating standalone node:', error);

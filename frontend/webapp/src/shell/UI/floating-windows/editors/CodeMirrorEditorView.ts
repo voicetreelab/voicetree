@@ -1,4 +1,5 @@
 import '@/shell/UI/cytoscape-graph-ui/styles/floating-windows.css'; // VERY IMPORTANT
+import { vim } from '@replit/codemirror-vim';
 import { EditorState, type Extension } from '@codemirror/state';
 import type { Text, Line } from '@codemirror/state';
 import { EditorView, ViewUpdate, ViewPlugin, keymap } from '@codemirror/view';
@@ -63,6 +64,8 @@ export interface CodeMirrorEditorOptions {
   autosaveDelay?: number;
   /** Language mode: 'markdown' (default) for rich markdown editing, 'json' for JSON syntax highlighting */
   language?: 'markdown' | 'json';
+  /** Enable VIM keybindings */
+  vimMode?: boolean;
 }
 
 /**
@@ -197,6 +200,8 @@ export class CodeMirrorEditorView extends Disposable {
     const isDarkMode: boolean = this.options.darkMode ?? document.documentElement.classList.contains('dark');
 
     const extensions: Extension[] = [
+      // VIM mode must come BEFORE basicSetup and other keymaps
+      ...(this.options.vimMode ? [vim()] : []),
       basicSetup,
       keymap.of([indentWithTab]), // Tab/Shift-Tab to indent/outdent bullet points
       keymap.of(markdownKeymap), // Enter continues lists, Backspace removes list markers

@@ -9,9 +9,6 @@ import type {Core, Position} from 'cytoscape';
 import {
     spawnTerminalWithNewContextNode
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
-import {
-    createAnchoredFloatingEditor,
-} from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
 import {deleteNodesFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions";
 
 /**
@@ -34,13 +31,13 @@ export const createNewNodeAction: (cy: Core) => () => void = (
 ) => (): void => {
   const selectedNodes: string[] = getSelectedGraphNodes(cy);
 
+  // Editor auto-pinning handled by file watcher in VoiceTreeGraphView
   if (selectedNodes.length > 0) {
     // Create child node from first selected node
     const parentNodeId: string = selectedNodes[0];
     void (async () => {
       const {createNewChildNodeFromUI} = await import('@/shell/edge/UI-edge/graph/handleUIActions');
-      const childId: string = await createNewChildNodeFromUI(parentNodeId, cy);
-      await createAnchoredFloatingEditor(cy, childId, true, true); // focusAtEnd + isAutoPin for new node
+      await createNewChildNodeFromUI(parentNodeId, cy);
     })();
   } else {
     // Create orphan node at center of viewport
@@ -50,8 +47,7 @@ export const createNewNodeAction: (cy: Core) => () => void = (
       const zoom: number = cy.zoom();
       const centerX: number = (cy.width() / 2 - pan.x) / zoom;
       const centerY: number = (cy.height() / 2 - pan.y) / zoom;
-      const nodeId: string = await createNewEmptyOrphanNodeFromUI({x: centerX, y: centerY}, cy);
-      await createAnchoredFloatingEditor(cy, nodeId, true, true); // focusAtEnd + isAutoPin for new node
+      await createNewEmptyOrphanNodeFromUI({x: centerX, y: centerY}, cy);
     })();
   }
 };

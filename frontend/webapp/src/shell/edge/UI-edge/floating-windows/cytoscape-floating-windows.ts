@@ -150,7 +150,7 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
             }
             zoomDebounceTimeout = setTimeout(() => {
                 zoomChangeCallbacks.forEach(callback => callback(zoom));
-            }, 150);
+            }, 400);
         };
 
         syncTransform();
@@ -423,8 +423,11 @@ export function createWindowChrome(
             }
         }
     });
+    // Allow horizontal scroll to pan graph, block vertical scroll for in-window scrolling
     windowElement.addEventListener('wheel', (e) => {
-        e.stopPropagation();
+        if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+            e.stopPropagation();
+        }
     }, { passive: false });
 
     // Create title bar

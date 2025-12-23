@@ -1,5 +1,5 @@
 import type {Core, NodeSingular, Position} from 'cytoscape';
-import type {NodeIdAndFilePath, GraphNode} from "@/pure/graph";
+import type {GraphNode} from "@/pure/graph";
 import {createNewChildNodeFromUI, deleteNodesFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions";
 import {
     spawnTerminalWithNewContextNode,
@@ -347,8 +347,8 @@ export class HorizontalMenuService {
             label: 'Add Child',
             hotkey: '⌘N',
             action: async () => {
-                const childId: NodeIdAndFilePath = await createNewChildNodeFromUI(nodeId, cy);
-                await createAnchoredFloatingEditor(cy, childId, true, true); // focusAtEnd + isAutoPin for new node
+                // Editor auto-pinning handled by file watcher in VoiceTreeGraphView
+                await createNewChildNodeFromUI(nodeId, cy);
             },
         });
 
