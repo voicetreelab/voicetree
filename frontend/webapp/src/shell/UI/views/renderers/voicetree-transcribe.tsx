@@ -270,7 +270,7 @@ export default function VoiceTreeTranscribe(): JSX.Element {
               "flex items-center border border-input bg-background rounded-full overflow-hidden shadow-sm transition-all",
               inputMode !== null && "min-w-[320px]"
             )}>
-              {/* Add Button */}
+              {/* Add Button - COMMENTED OUT: confuses users, only ask mode now
               <button
                 onClick={() => setInputMode(inputMode === 'add' ? null : 'add')}
                 className={cn(
@@ -282,9 +282,8 @@ export default function VoiceTreeTranscribe(): JSX.Element {
               >
                 Add
               </button>
-
-              {/* Separator between Add/Ask */}
               <div className="h-4 w-px bg-border" />
+              */}
 
               {/* Ask Button */}
               <button
