@@ -6,14 +6,26 @@ python3 "$VOICETREE_APP_SUPPORT"/tools/add_new_node.py "Progress Name" "<markdow
 **CLI Syntax:**
 - `name` - Name/title of the new node
 - `markdown_content` - Markdown Content for the node's markdown file
-The following are optional parameters which you should not include unless necessary:
+  The following are optional parameters which you should not include unless necessary:
 - Optional: `--relationship <type>` - Relationship type (e.g., `--relationship solves_the_problem`). Omit unless the relationship is specific and meaningful.
 - Optional: `--parent <file>` - Omit. Only use to override the default parent (`$CONTEXT_NODE_PATH`) which is already set.
 - Optional: `--parents <file1,file2,...>` - Comma-separated list for multiple parents (diamond dependencies). Use when a node depends on multiple other nodes completing.
 - Optional: `--color <color>` - Omit. Your agent color (`$AGENT_COLOR`) is used by default.
 - Optional: `--agent-name <name>` - Omit. Defaults to your agent name.
 
-When creating nodes, your content should:
+
+What type of node to create:
+1. Create multiple linked nodes if:
+    - User explicitly requested a "tree", "graph", "dependency graph", or task breakdown/decomposition
+    - You're planning a large and complex implementation which naturally lends itself to being broken down.
+
+If either applies you must now read `decompose_subtask_dependency_graph.md` first.
+
+2. Otherwise, for straightforward plans, create a planning node, read `prompts/SUBAGENT_PROMPT.md` for a rough starting point but make modifications/simplifications to suit the task.
+
+3. Otherwise, create a single progress node using the template below:
+
+When creating progress nodes, your content should:
 
 Start with a brief description of what was accomplished. Keep it highly concise.
 Always include a list of all the file paths you have modified.
@@ -66,5 +78,3 @@ This tool will automatically:
 - Create parent-child links
 
 If the python tool is broken, you may write the markdown file manually to the vault directory: `$OBSIDIAN_VAULT_PATH`, with a wikilink included in the body to [[$CONTEXT_NODE_PATH]]
-
-If you have been told to decompose the task, create a dependency graph, or you are creating a plan that involves multiple phases you must read $VOICETREE_APP_SUPPORT/tools/prompts/decompose_subtask_dependency_graph.md before adding a node.

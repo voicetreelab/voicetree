@@ -27,7 +27,8 @@
       "mcp__playwright__browser_evaluate",
       "Read(//Users/bobbobby/repos/VoiceTree/backend/markdown_tree_manager/markdown_to_tree/**)",
       "mcp__playwright__browser_console_messages",
-      "Bash(HEADLESS_TEST=0 npx playwright test electron-real-folder.spec.ts --project=chromium --reporter=list)"
+      "Bash(HEADLESS_TEST=0 npx playwright test electron-real-folder.spec.ts --project=chromium --reporter=list)",
+      "Bash(cat:*)"
     ]
   },
   "enabledMcpjsonServers": [
@@ -36,16 +37,6 @@
   "disabledMcpjsonServers": [
     "playwright"
   ],
-    "mcpServers": {
-    "playwright": {
-      "type": "stdio",
-      "command": "npx",
-      "args": [
-        "@playwright/mcp@latest"
-      ],
-      "env": {}
-    }
-  },
   "hooks": {
     "PostToolUse": [
       {
@@ -58,5 +49,15 @@
         ]
       }
     ]
+  },
+  "mcpServers": {
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "@playwright/mcp@latest"
+      ],
+      "env": {}
+    }
   }
 }

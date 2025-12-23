@@ -6,4 +6,4 @@ isContextNode: false
 ---
 # Run me (generates task tree)
 
-Your task is to produce a small task dependency tree for the actions (tasks) the user should attempt for a comprehensive onboarding to voicetree, based on these tutorial nodes.
+Your task is to produce a small task dependency tree of nodes representing the actions (tasks) the user should attempt for a comprehensive onboarding to voicetree.
