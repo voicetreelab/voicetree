@@ -1,8 +1,32 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { app } from 'electron';
 import { getBuildConfig } from './build-config';
 import type { BuildConfig } from '@/shell/edge/main/electron/build-config';
 import type { Dirent } from 'fs';
+
+const VERSION_FILE: string = '.voicetree-version';
+
+/**
+ * Check if tools are already installed for current app version
+ */
+async function isCurrentVersionInstalled(destDir: string): Promise<boolean> {
+  try {
+    const versionPath: string = path.join(destDir, VERSION_FILE);
+    const installedVersion: string = await fs.readFile(versionPath, 'utf-8');
+    return installedVersion.trim() === app.getVersion();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Write current app version to destination directory
+ */
+async function writeVersionFile(destDir: string): Promise<void> {
+  const versionPath: string = path.join(destDir, VERSION_FILE);
+  await fs.writeFile(versionPath, app.getVersion());
+}
 
 /**
  * Get the tools directory absolutePath in Application Support
@@ -74,6 +98,12 @@ async function setupToolsDirectoryInternal(config: ReturnType<typeof getBuildCon
   try {
     const { toolsSource, toolsDest, backendSource, backendDest } = config;
 
+    // Skip if current version already installed
+    if (await isCurrentVersionInstalled(toolsDest)) {
+      console.log(`[Setup] Tools already installed for version ${app.getVersion()}, skipping copy`);
+      return;
+    }
+
     // Remove existing directories if they exist to ensure fresh copy
     try {
       await fs.rm(toolsDest, { recursive: true, force: true });
@@ -134,6 +164,10 @@ async function setupToolsDirectoryInternal(config: ReturnType<typeof getBuildCon
       await copyDir(backendSource, backendDest);
       console.log('[Setup] ✓ Copied backend to:', backendDest);
     }
+
+    // Write version file so we skip copy on next launch
+    await writeVersionFile(toolsDest);
+    console.log(`[Setup] ✓ Wrote version file for ${app.getVersion()}`);
 
     console.log('[Setup] Setup complete!');
   } catch (error) {
