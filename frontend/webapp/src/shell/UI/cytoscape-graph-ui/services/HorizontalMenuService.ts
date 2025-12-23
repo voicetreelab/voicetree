@@ -9,6 +9,7 @@ import {clearAutoPinIfMatches} from "@/shell/edge/UI-edge/state/EditorStore";
 import {getFilePathForNode, getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
 import {Plus, Play, Trash2, Clipboard, MoreHorizontal, Pin, createElement, type IconNode} from 'lucide';
 import {getOrCreateOverlay} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
+import {graphToScreenPosition, getWindowTransform, getTransformOrigin} from '@/pure/floatingWindowScaling';
 import type {AgentConfig} from "@/pure/settings";
 
 /** Menu item interface for the custom horizontal menu */
@@ -219,15 +220,15 @@ export class HorizontalMenuService {
             z-index: 10000;
         `;
 
-        // Position centered on the node
-        // Layout: [<Pin> <Copy> <Add>] <SPACER> [<Run> <Delete> <More>]
-        // Two pill backgrounds with gap in middle for node circle
-        // Multiply by zoom to convert graph coordinates to overlay coordinates
+        // Store graph position for zoom updates (menu uses CSS transform scaling)
         const zoom: number = this.cy.zoom();
-        menu.style.left = `${position.x * zoom}px`;
-        menu.style.top = `${position.y * zoom}px`;
-        menu.style.transform = `translate(-50%, -50%) scale(${zoom})`;
-        menu.style.transformOrigin = 'center center';
+        menu.dataset.graphX = String(position.x);
+        menu.dataset.graphY = String(position.y);
+        const screenPos: { readonly x: number; readonly y: number } = graphToScreenPosition(position, zoom);
+        menu.style.left = `${screenPos.x}px`;
+        menu.style.top = `${screenPos.y}px`;
+        menu.style.transform = getWindowTransform('css-transform', zoom, 'center');
+        menu.style.transformOrigin = getTransformOrigin('center');
 
         const closeMenu: () => void = () => this.hideMenu();
 
