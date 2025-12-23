@@ -775,6 +775,50 @@ describe('applyGraphDeltaToUI - Integration', () => {
             expect(edge.data('label')).toBe('simple label')
         })
 
+        it('should update edge label when relationship label changes in markdown', () => {
+            // GIVEN: Two nodes with an edge labeled "parent_of"
+            const parent: GraphNode = {
+                relativeFilePathIsID: 'parent',
+                contentWithoutYamlOrLinks: '# Parent',
+                outgoingEdges: [{ targetId: 'child', label: 'parent_of' }],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            }
+
+            const child: GraphNode = {
+                relativeFilePathIsID: 'child',
+                contentWithoutYamlOrLinks: '# Child',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 200, y: 200 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            }
+
+            applyGraphDeltaToUI(cy, [upsert(parent), upsert(child)])
+
+            // Verify initial label
+            const edge: cytoscape.CollectionReturnValue = cy.getElementById('parent->child')
+            expect(edge.data('label')).toBe('parent of')
+
+            // WHEN: Updating the parent node with a new edge label
+            const updatedParent: GraphNode = {
+                ...parent,
+                outgoingEdges: [{ targetId: 'child', label: 'is_prerequisite_for' }]
+            }
+
+            applyGraphDeltaToUI(cy, [upsert(updatedParent)])
+
+            // THEN: Edge label should be updated to the new value
+            expect(edge.data('label')).toBe('is prerequisite for')
+        })
+
         // todo, we might not be handling the case where the shadow node has been closed/removed?
         // human: DO NOT REMOVE THIS TEST - it catches a critical bug where edges to floating
         // human: windows (terminals/editors) were incorrectly deleted during graph sync.

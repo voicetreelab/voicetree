@@ -42,12 +42,14 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
     const newNodeIds: string[] = [];
     let edgeLimitAlertShown: boolean = false;
     const nodesWithoutPositions: string[] = [];
+
     cy.batch(() => {
         // PASS 1: Create/update all nodes and handle deletions
         delta.forEach((nodeDelta) => {
             if (nodeDelta.type === 'UpsertNode') {
                 const node: GraphNode = nodeDelta.nodeToUpsert;
                 const nodeId: string = node.relativeFilePathIsID;
+
                 const existingNode: CollectionReturnValue = cy.getElementById(nodeId);
                 const isNewNode: boolean = existingNode.length === 0;
 
@@ -81,16 +83,15 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                     if (!hasPosition) {
                         nodesWithoutPositions.push(nodeId);
                     }
-                } else {
+                } else if (existingNode.length > 0) {
                     // Update existing node metadata (but NOT position)
                     existingNode.data('label', getNodeTitle(node));
-                    // DO NOT sET existingNode.data('content', node.content); it's too much storage duplicated unnec in frontend.
                     existingNode.data('summary', '');
                     const color: string | undefined = O.isSome(node.nodeUIMetadata.color) && isValidCSSColor(node.nodeUIMetadata.color.value)
                         ? node.nodeUIMetadata.color.value
                         : undefined;
                     if (color === undefined) {
-                        existingNode.removeData('color'); // todo, really necessary? Cytoscape doesn't clear values when set to undefined but that shouldn't matter?
+                        existingNode.removeData('color');
                     } else {
                         existingNode.data('color', color);
                     }
@@ -141,20 +142,22 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                     }
                 });
 
-                // Add edges for all outgoing connections (if they don't exist)
+                // Add edges for all outgoing connections (if they don't exist), and update labels for existing edges
                 node.outgoingEdges.forEach((edge) => {
+                    const edgeId: string = `${nodeId}->${edge.targetId}`;
+                    const existingEdge: CollectionReturnValue = cy.getElementById(edgeId);
+                    const newLabel: string | undefined = edge.label ? edge.label.replace(/_/g, ' ') : undefined;
+
+                    // If edge already exists, update its label
+                    if (existingEdge.length > 0) {
+                        existingEdge.data('label', newLabel);
+                        return;
+                    }
+
                     if (!currentTargets.has(edge.targetId)) {
-                        const edgeId: string = `${nodeId}->${edge.targetId}`;
-                        // Only create edge if target node exists AND edge doesn't already exist
-                        // (belt-and-suspenders check - currentTargets should catch most cases,
-                        // but direct getElementById catches edge cases like same node appearing
-                        // multiple times in delta or race conditions between deltas)
+                        // Only create edge if target node exists
                         const targetNode: CollectionReturnValue = cy.getElementById(edge.targetId);
-                        const existingEdge: CollectionReturnValue = cy.getElementById(edgeId);
-                        if (existingEdge.length > 0) {
-                            // Edge already exists (race condition or duplicate in delta)
-                            console.log(`[applyGraphDeltaToUI] Edge ${edgeId} already exists, skipping`);
-                        } else if (cy.edges().length >= MAX_EDGES) {
+                        if (cy.edges().length >= MAX_EDGES) {
                             // Edge limit reached - only show alert once per delta application
                             if (!edgeLimitAlertShown) {
                                 alert(`There is a limit of ${MAX_EDGES} edges at once, contact 1manumasson@gmail.com to increase this`);
@@ -169,7 +172,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                                     id: edgeId,
                                     source: nodeId,
                                     target: edge.targetId,
-                                    label: edge.label ? edge.label.replace(/_/g, ' ') : undefined
+                                    label: newLabel
                                 }
                             });
                             // If source or target is a context node, mark associated terminal as having activity
