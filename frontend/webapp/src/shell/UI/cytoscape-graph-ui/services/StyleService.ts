@@ -424,6 +424,9 @@ export class StyleService {
       typeof val === 'number' && !isNaN(val) && isFinite(val) && val >= 0;
 
     nodesToUpdate.forEach(node => {
+      // Skip shadow nodes - they have fixed dimensions set by floating window system
+      if (node.data('isShadowNode')) return;
+
       let degree: number = node.degree();
 
       // Defensive check: ensure degree is a valid number, default to 0 if not

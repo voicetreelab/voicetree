@@ -66,10 +66,9 @@ Highest priority task: `,
         AGENT_PROMPT: `First analyze the context of your task: <TASK_CONTEXT> $CONTEXT_NODE_CONTENT </TASK_CONTEXT>
             Briefly explore your directory to gather additional critical context.
             <HANDLING_AMBIGUITY> If your task has non-trivial ambiguity, stop and ask the user for clarifications. For each clarifying question include your current working assumption. Otherwise, if the task is clear, continue working on it, or developing your task plan until ambiguity does arise.</HANDLING_AMBIGUITY>
-            <TASK_NODES_INSTRUCTION> After completing your task, you MUST:
+            <TASK_NODES_INSTRUCTION> After completing any task, or sub-task (such as after proposing an implementation plan), you MUST:
             1. Read $VOICETREE_APP_SUPPORT/tools/prompts/addNode.md
             2. Follow the instructions to create a progress node documenting your work.
-
             If using a todolist, add 'Create progress node' as the final item. Either way, you MUST create a progress node before reporting completion to the user. </TASK_NODES_INSTRUCTION>`,
     },
 };

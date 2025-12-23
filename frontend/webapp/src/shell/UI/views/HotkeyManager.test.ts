@@ -192,7 +192,9 @@ describe('HotkeyManager', () => {
         runTerminal: vi.fn(),
         deleteSelectedNodes: vi.fn(),
         navigateToRecentNode: vi.fn(),
-        closeSelectedWindow: closeSelectedWindowHandler
+        closeSelectedWindow: closeSelectedWindowHandler,
+        openSettings: vi.fn(),
+        openSearch: vi.fn()
       });
 
       // Focus on a non-input element to ensure the hotkey is not blocked
@@ -229,7 +231,9 @@ describe('HotkeyManager', () => {
         runTerminal: vi.fn(),
         deleteSelectedNodes: vi.fn(),
         navigateToRecentNode: vi.fn(),
-        closeSelectedWindow: closeSelectedWindowHandler
+        closeSelectedWindow: closeSelectedWindowHandler,
+        openSettings: vi.fn(),
+        openSearch: vi.fn()
       });
 
       // Simulate Cmd+W key press with input as target

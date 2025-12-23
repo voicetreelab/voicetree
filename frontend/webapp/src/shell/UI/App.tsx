@@ -21,7 +21,7 @@ function App(): JSX.Element {
 
     // State for inline editing of vault suffix
     const [isEditingSuffix, setIsEditingSuffix] = useState(false);
-    const [editedSuffix, setEditedSuffix] = useState(vaultSuffix ?? 'voicetree');
+    const [editedSuffix, setEditedSuffix] = useState(vaultSuffix ?? '');
 
     // State for agent stats panel visibility
     const [isStatsPanelOpen, setIsStatsPanelOpen] = useState(false);
@@ -51,7 +51,7 @@ function App(): JSX.Element {
         if (e.key === 'Enter') {
             e.currentTarget.blur();
         } else if (e.key === 'Escape') {
-            setEditedSuffix(vaultSuffix ?? 'voicetree');
+            setEditedSuffix(vaultSuffix ?? '');
             setIsEditingSuffix(false);
         }
     };
@@ -82,7 +82,7 @@ function App(): JSX.Element {
                             onBlur={handleSuffixBlur}
                             onKeyDown={handleSuffixKeyDown}
                             autoFocus
-                            placeholder="(no subfolder)"
+                            placeholder=".md subfolder"
                             className="text-gray-600 px-1.5 py-1 rounded bg-white border border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 w-24"
                         />
                     ) : (
