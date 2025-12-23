@@ -421,7 +421,7 @@ export async function startFileWatching(directoryPath?: string): Promise<{ reado
         const result: Electron.OpenDialogReturnValue = await dialog.showOpenDialog({
             properties: ['openDirectory', 'createDirectory'],
             title: 'Select Directory to Watch for Markdown Files',
-            buttonLabel: 'Watch Directory',
+            buttonLabel: 'Open',
             defaultPath: getWatchedDirectory() ?? process.env.HOME ?? '/'
         });
 

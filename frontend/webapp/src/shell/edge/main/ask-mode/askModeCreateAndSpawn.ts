@@ -76,11 +76,18 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
     ? `${watchedDir.replace(/\/$/, '')}/${parentNode.relativeFilePathIsID}`
     : '';
 
+  // Truncate context content to avoid posix_spawnp failure from env size limits
+  // Full content is available at CONTEXT_NODE_PATH
+  const MAX_CONTEXT_CONTENT_LENGTH: number = 64000;
+  const truncatedContextContent: string = contextContent.length > MAX_CONTEXT_CONTENT_LENGTH
+    ? contextContent.slice(0, MAX_CONTEXT_CONTENT_LENGTH) + '\n\n[Content truncated - full content available at $CONTEXT_NODE_PATH]'
+    : contextContent;
+
   const unexpandedEnvVars: Record<string, string> = {
     VOICETREE_APP_SUPPORT: appSupportPath ?? '',
     CONTEXT_NODE_PATH: contextNodeAbsolutePath,
     TASK_NODE_PATH: taskNodeAbsolutePath,
-    CONTEXT_NODE_CONTENT: contextContent,
+    CONTEXT_NODE_CONTENT: truncatedContextContent,
     ...resolvedEnvVars,
   };
   const expandedEnvVars: Record<string, string> = expandEnvVarsInValues(unexpandedEnvVars);
