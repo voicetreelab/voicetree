@@ -26,20 +26,20 @@ uv pip install --python .venv-server pyinstaller
 
 # Step 4: Clean previous builds (Linux-specific only)
 echo "Step 4: Cleaning previous Linux builds..."
-rm -rf build/
-rm -rf dist/voicetree-server/
-rm -rf dist/resources-linux/
+rm -rf out/build-linux/
+rm -rf out/dist-linux/
+rm -rf out/resources-linux/
 
 # Step 5: Build with PyInstaller
 echo "Step 5: Building executable with PyInstaller..."
 # PyInstaller must run INSIDE the venv to see all dependencies
-.venv-server/bin/python -m PyInstaller server.spec --clean
+.venv-server/bin/python -m PyInstaller scripts/server.spec --clean --distpath out/dist-linux --workpath out/build-linux
 
-# Step 6: Copy to root dist resources (Linux-specific path)
-echo "Step 6: Copying executable to root dist/resources-linux/server..."
-mkdir -p ./dist/resources-linux/server
-cp -r ./dist/voicetree-server/* ./dist/resources-linux/server/
-echo "Copied to dist/resources-linux/server/"
+# Step 6: Copy to out/resources-linux
+echo "Step 6: Copying executable to out/resources-linux/server..."
+mkdir -p ./out/resources-linux/server
+cp -r ./out/dist-linux/voicetree-server/* ./out/resources-linux/server/
+echo "Copied to out/resources-linux/server/"
 
 # Step 7: Skip macOS Python.framework fixes (not needed on Linux)
 echo "Step 7: Skipping Python.framework fixes (Linux doesn't use .framework bundles)"
@@ -48,11 +48,11 @@ echo "Step 7: Skipping Python.framework fixes (Linux doesn't use .framework bund
 echo ""
 echo "Build complete!"
 echo "==============="
-echo "Server executable built: ./dist/voicetree-server/voicetree-server"
-echo "Copied to root dist: ./dist/resources-linux/server/"
+echo "Server executable built: ./out/dist-linux/voicetree-server/voicetree-server"
+echo "Copied to: ./out/resources-linux/server/"
 echo ""
 echo "Next steps:"
-echo "  1. Test standalone server: ./dist/voicetree-server/voicetree-server"
-echo "  2. Build full app: ./build_and_package_linux.sh"
+echo "  1. Test standalone server: ./out/dist-linux/voicetree-server/voicetree-server"
+echo "  2. Build full app: ./scripts/build_and_package_linux.sh"
 echo ""
 echo "The server is now ready to be bundled with the Electron app!"

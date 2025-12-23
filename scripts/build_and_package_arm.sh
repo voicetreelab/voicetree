@@ -32,43 +32,43 @@ fi
 ## Step 1: Build the Python server executable
 #echo "📦 Step 1: Building Python server executable..."
 #echo "----------------------------------------------"
-./build_server.sh
+./scripts/build_server.sh
 
-if [ ! -f "dist/resources/server/voicetree-server" ]; then
-    echo "❌ Error: Server build failed or not copied to dist/resources/server/"
+if [ ! -f "out/resources/server/voicetree-server" ]; then
+    echo "❌ Error: Server build failed or not copied to out/resources/server/"
     exit 1
 fi
 
 # Verify ARM architecture
 echo "Verifying binary architecture..."
-ARCH=$(file dist/resources/server/voicetree-server | grep -o "arm64" || echo "")
+ARCH=$(file out/resources/server/voicetree-server | grep -o "arm64" || echo "")
 if [ -z "$ARCH" ]; then
     echo "WARNING: Binary may not be arm64. Check the output above."
 else
     echo "✅ Confirmed: Binary is arm64 (ARM)"
 fi
 
-# Step 1.5: Copy agent tools and backend modules to dist resources
+# Step 1.5: Copy agent tools and backend modules to out/resources
 echo ""
-echo "📦 Step 1.5: Copying agent tools and backend modules to dist/resources..."
+echo "📦 Step 1.5: Copying agent tools and backend modules to out/resources..."
 echo "----------------------------------------------"
 
 # Copy tools
-mkdir -p ./dist/resources/tools
+mkdir -p ./out/resources/tools
 shopt -s dotglob
-cp -r ./tools/* ./dist/resources/tools/
+cp -r ./tools/* ./out/resources/tools/
 shopt -u dotglob
-echo "✅ Tools copied to dist/resources/tools/"
+echo "✅ Tools copied to out/resources/tools/"
 
 # Copy backend modules needed by tools
-mkdir -p ./dist/resources/backend
-cp -r ./backend/context_retrieval ./dist/resources/backend/
-cp -r ./backend/markdown_tree_manager ./dist/resources/backend/
-cp ./backend/__init__.py ./dist/resources/backend/
-cp ./backend/types.py ./dist/resources/backend/
-cp ./backend/settings.py ./dist/resources/backend/
-cp ./backend/logging_config.py ./dist/resources/backend/
-echo "✅ Backend modules copied to dist/resources/backend/"
+mkdir -p ./out/resources/backend
+cp -r ./backend/context_retrieval ./out/resources/backend/
+cp -r ./backend/markdown_tree_manager ./out/resources/backend/
+cp ./backend/__init__.py ./out/resources/backend/
+cp ./backend/types.py ./out/resources/backend/
+cp ./backend/settings.py ./out/resources/backend/
+cp ./backend/logging_config.py ./out/resources/backend/
+echo "✅ Backend modules copied to out/resources/backend/"
 echo "   - context_retrieval/"
 echo "   - markdown_tree_manager/"
 echo "   - types.py, settings.py, logging_config.py"
@@ -130,7 +130,7 @@ echo "Building Electron distributable (this may take a few minutes)..."
 
 # Clean previous ARM builds in root
 cd ../..
-rm -rf dist/electron-arm
+rm -rf out/electron-arm
 
 # Build the distributable from frontend
 cd frontend/webapp
@@ -144,7 +144,7 @@ fi
 # Update file modification times to satisfy codesign timestamp validation
 echo "Updating file timestamps for codesign..."
 cd ../..
-find dist/resources -type f -exec touch {} +
+find out/resources -type f -exec touch {} +
 cd frontend/webapp
 echo "✅ File timestamps updated"
 
@@ -157,13 +157,13 @@ fi
 
 # Move the output to arm-specific folder
 cd ../..
-if [ -d "dist/electron" ]; then
-    mv dist/electron dist/electron-arm
+if [ -d "out/electron" ]; then
+    mv out/electron out/electron-arm
 fi
 
 # Backup ARM resources for multi-platform builds
-if [ -d "dist/resources" ] && [ ! -d "dist/resources-arm" ]; then
-    cp -r dist/resources dist/resources-arm
+if [ -d "out/resources" ] && [ ! -d "out/resources-arm" ]; then
+    cp -r out/resources out/resources-arm
 fi
 
 cd frontend/webapp
@@ -175,15 +175,15 @@ echo "✅ BUILD COMPLETE!"
 echo "=========================================="
 echo ""
 echo "Artifacts created:"
-echo "  • Python server: ../../dist-arm/voicetree-server/"
-echo "  • Server in resources: ../../dist/resources/server/"
+echo "  • Python server: ../../out/dist-arm/voicetree-server/"
+echo "  • Server in resources: ../../out/resources/server/"
 
-if [ -d "../../dist/electron-arm" ]; then
-    echo "  • Electron app: ../../dist/electron-arm/"
+if [ -d "../../out/electron-arm" ]; then
+    echo "  • Electron app: ../../out/electron-arm/"
 
     # List the actual built files
     if [ "$(uname)" == "Darwin" ]; then
-        DMG_FILE=$(find ../../dist/electron-arm -name "voicetree-arm64.dmg" 2>/dev/null | head -1)
+        DMG_FILE=$(find ../../out/electron-arm -name "voicetree-arm64.dmg" 2>/dev/null | head -1)
         if [ -n "$DMG_FILE" ]; then
             echo ""
             echo "🎉 Distributable package ready:"
@@ -193,14 +193,14 @@ if [ -d "../../dist/electron-arm" ]; then
             echo "   Users can install it without needing Python or any dependencies."
         fi
     elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
-        APPIMAGE_FILE=$(find ../../dist/electron-arm -name "*.AppImage" 2>/dev/null | head -1)
+        APPIMAGE_FILE=$(find ../../out/electron-arm -name "*.AppImage" 2>/dev/null | head -1)
         if [ -n "$APPIMAGE_FILE" ]; then
             echo ""
             echo "🎉 Distributable package ready:"
             echo "   $APPIMAGE_FILE"
         fi
     elif [ "$(expr substr $(uname -s) 1 10)" == "MINGW32_NT" ] || [ "$(expr substr $(uname -s) 1 10)" == "MINGW64_NT" ]; then
-        EXE_FILE=$(find ../../dist/electron-arm -name "*.exe" 2>/dev/null | head -1)
+        EXE_FILE=$(find ../../out/electron-arm -name "*.exe" 2>/dev/null | head -1)
         if [ -n "$EXE_FILE" ]; then
             echo ""
             echo "🎉 Distributable package ready:"
@@ -216,7 +216,7 @@ if [ "$PUBLISH" = true ]; then
     echo "Note: Homebrew tap update is now handled by build_and_package_all_platforms.sh"
     echo "      to support multi-arch cask generation."
 else
-    echo "To publish, run: ./build_and_package_arm.sh --publish"
+    echo "To publish, run: ./scripts/build_and_package_arm.sh --publish"
 fi
 echo ""
 echo "Done! 🚀"

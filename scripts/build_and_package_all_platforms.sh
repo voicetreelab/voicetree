@@ -10,9 +10,9 @@
 #   --parallel      Run independent builds in parallel (experimental)
 #
 # Platform scripts used:
-#   - macOS ARM:   ./build_and_package_arm.sh
-#   - macOS Intel: ./build_and_package_intel.sh
-#   - Linux:       ./build_and_package_linux.sh (via OrbStack)
+#   - macOS ARM:   ./scripts/build_and_package_arm.sh
+#   - macOS Intel: ./scripts/build_and_package_intel.sh
+#   - Linux:       ./scripts/build_and_package_linux.sh (via OrbStack)
 
 set -e  # Exit on error
 
@@ -130,9 +130,9 @@ build_macos_arm() {
     PUBLISH_ARG=""
     [ "$PUBLISH" = true ] && PUBLISH_ARG="--publish"
 
-    if ./build_and_package_arm.sh $PUBLISH_ARG; then
-        # ARM script now outputs directly to dist/electron-arm/
-        echo "macOS ARM64 build complete: dist/electron-arm/"
+    if ./scripts/build_and_package_arm.sh $PUBLISH_ARG; then
+        # ARM script now outputs directly to out/electron-arm/
+        echo "macOS ARM64 build complete: out/electron-arm/"
         BUILD_RESULTS+=("macOS ARM64: SUCCESS")
     else
         echo "macOS ARM64 build failed"
@@ -150,8 +150,8 @@ build_macos_intel() {
     PUBLISH_ARG=""
     [ "$PUBLISH" = true ] && PUBLISH_ARG="--publish"
 
-    if ./build_and_package_intel.sh $PUBLISH_ARG; then
-        echo "macOS Intel build complete: dist/electron-intel/"
+    if ./scripts/build_and_package_intel.sh $PUBLISH_ARG; then
+        echo "macOS Intel build complete: out/electron-intel/"
         BUILD_RESULTS+=("macOS Intel: SUCCESS")
     else
         echo "macOS Intel build failed"
@@ -173,10 +173,10 @@ build_linux() {
     if orb -m ubuntu bash -c "
         source ~/.local/bin/env 2>/dev/null || true
         cd '$VOICETREE_DIR'
-        ./build_and_package_linux.sh $PUBLISH_ARG
+        ./scripts/build_and_package_linux.sh $PUBLISH_ARG
     "; then
-        if [ -d "dist/electron-linux" ]; then
-            APPIMAGE=$(find dist/electron-linux -name "*.AppImage" 2>/dev/null | head -1)
+        if [ -d "out/electron-linux" ]; then
+            APPIMAGE=$(find out/electron-linux -name "*.AppImage" 2>/dev/null | head -1)
             if [ -n "$APPIMAGE" ]; then
                 echo "Linux ARM64 build complete: $APPIMAGE"
                 BUILD_RESULTS+=("Linux ARM64: SUCCESS")
@@ -258,18 +258,18 @@ echo ""
 
 # List artifacts
 echo "Artifacts created:"
-if [ -d "dist/electron-arm" ]; then
-    DMG=$(find dist/electron-arm -name "voicetree-arm64.dmg" 2>/dev/null | head -1)
+if [ -d "out/electron-arm" ]; then
+    DMG=$(find out/electron-arm -name "voicetree-arm64.dmg" 2>/dev/null | head -1)
     [ -n "$DMG" ] && echo "  - macOS ARM64 DMG: $DMG"
 fi
 
-if [ -d "dist/electron-intel" ]; then
-    DMG=$(find dist/electron-intel -name "voicetree-x64.dmg" 2>/dev/null | head -1)
+if [ -d "out/electron-intel" ]; then
+    DMG=$(find out/electron-intel -name "voicetree-x64.dmg" 2>/dev/null | head -1)
     [ -n "$DMG" ] && echo "  - macOS Intel DMG: $DMG"
 fi
 
-if [ -d "dist/electron-linux" ]; then
-    APPIMAGE=$(find dist/electron-linux -name "*.AppImage" 2>/dev/null | head -1)
+if [ -d "out/electron-linux" ]; then
+    APPIMAGE=$(find out/electron-linux -name "*.AppImage" 2>/dev/null | head -1)
     [ -n "$APPIMAGE" ] && echo "  - Linux AppImage: $APPIMAGE"
 fi
 
@@ -289,8 +289,8 @@ if [ "$PUBLISH" = true ]; then
     cd ../..
 
     # Find DMGs with architecture-specific names
-    ARM_DMG=$(find dist/electron-arm -name "voicetree-arm64.dmg" 2>/dev/null | head -1)
-    INTEL_DMG=$(find dist/electron-intel -name "voicetree-x64.dmg" 2>/dev/null | head -1)
+    ARM_DMG=$(find out/electron-arm -name "voicetree-arm64.dmg" 2>/dev/null | head -1)
+    INTEL_DMG=$(find out/electron-intel -name "voicetree-x64.dmg" 2>/dev/null | head -1)
 
     if [ -n "$ARM_DMG" ] && [ -n "$INTEL_DMG" ]; then
         ARM_SHA256=$(shasum -a 256 "$ARM_DMG" | awk '{print $1}')
@@ -350,7 +350,7 @@ EOF
         echo "Homebrew tap was not updated."
     fi
 else
-    echo "To publish all builds, run: ./build_and_package_all_platforms.sh --publish"
+    echo "To publish all builds, run: ./scripts/build_and_package_all_platforms.sh --publish"
 fi
 
 echo ""
