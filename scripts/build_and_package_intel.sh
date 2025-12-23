@@ -38,54 +38,76 @@ fi
 ## Step 1: Build the Python server executable (Intel)
 echo "Step 1: Building Python server executable (Intel x86_64)..."
 echo "----------------------------------------------"
-./build_server_intel.sh
+./scripts/build_server_intel.sh
 
-if [ ! -f "dist/resources-intel/server/voicetree-server" ]; then
-    echo "Error: Server build failed or not copied to dist/resources-intel/server/"
+if [ ! -f "out/resources-intel/server/voicetree-server" ]; then
+    echo "Error: Server build failed or not copied to out/resources-intel/server/"
     exit 1
 fi
 
-# Step 1.5: Copy agent tools and backend modules to dist resources
+# Step 1.5: Copy agent tools and backend modules to out/resources-intel
 echo ""
-echo "Step 1.5: Copying agent tools and backend modules to dist/resources-intel..."
+echo "Step 1.5: Copying agent tools and backend modules to out/resources-intel..."
 echo "----------------------------------------------"
 
 # Copy tools
-mkdir -p ./dist/resources-intel/tools
+mkdir -p ./out/resources-intel/tools
 shopt -s dotglob
-cp -r ./tools/* ./dist/resources-intel/tools/
+cp -r ./tools/* ./out/resources-intel/tools/
 shopt -u dotglob
-echo "Tools copied to dist/resources-intel/tools/"
+echo "Tools copied to out/resources-intel/tools/"
 
 # Copy backend modules needed by tools
-mkdir -p ./dist/resources-intel/backend
-cp -r ./backend/context_retrieval ./dist/resources-intel/backend/
-cp -r ./backend/markdown_tree_manager ./dist/resources-intel/backend/
-cp ./backend/__init__.py ./dist/resources-intel/backend/
-cp ./backend/types.py ./dist/resources-intel/backend/
-cp ./backend/settings.py ./dist/resources-intel/backend/
-cp ./backend/logging_config.py ./dist/resources-intel/backend/
-echo "Backend modules copied to dist/resources-intel/backend/"
+mkdir -p ./out/resources-intel/backend
+cp -r ./backend/context_retrieval ./out/resources-intel/backend/
+cp -r ./backend/markdown_tree_manager ./out/resources-intel/backend/
+cp ./backend/__init__.py ./out/resources-intel/backend/
+cp ./backend/types.py ./out/resources-intel/backend/
+cp ./backend/settings.py ./out/resources-intel/backend/
+cp ./backend/logging_config.py ./out/resources-intel/backend/
+echo "Backend modules copied to out/resources-intel/backend/"
 
-# Step 2: Navigate to frontend
+# Step 2: Create isolated staging folder for Intel build
+# This prevents corrupting the ARM node_modules in frontend/webapp
 echo ""
-echo "Step 2: Preparing Electron frontend for Intel build..."
-echo "----------------------------------------------"
-cd frontend/webapp
-
-# Step 3: Clean and reinstall node_modules for x64 architecture
-echo "Step 3: Rebuilding native modules for x64..."
+echo "Step 2: Creating isolated staging folder for Intel build..."
 echo "----------------------------------------------"
 
-# Rebuild native modules (node-pty) for x64
-# This uses electron-rebuild which handles cross-compilation
-echo "Rebuilding node-pty and other native modules for x64..."
+STAGING_DIR="build-intel-staging"
+rm -rf "$STAGING_DIR"
+mkdir -p "$STAGING_DIR"
+
+# Copy frontend/webapp to staging (excluding node_modules for fresh install)
+echo "Copying frontend/webapp to staging folder..."
+rsync -a --exclude='node_modules' frontend/webapp/ "$STAGING_DIR/webapp/"
+
+# Set up out structure that electron-builder expects (../../out/resources from webapp)
+mkdir -p "$STAGING_DIR/out"
+cp -r out/resources-intel "$STAGING_DIR/out/resources"
+
+# Copy .env if it exists (for code signing credentials)
+if [ -f "frontend/webapp/.env" ]; then
+    cp frontend/webapp/.env "$STAGING_DIR/webapp/.env"
+fi
+
+# Step 3: Install dependencies and rebuild for x64 in staging
+echo ""
+echo "Step 3: Installing dependencies and rebuilding for x64..."
+echo "----------------------------------------------"
+cd "$STAGING_DIR/webapp"
+
+# Fresh install ensures correct architecture
+echo "Running npm ci for fresh x64 install..."
+npm ci
+
+# Rebuild native modules for x64
+echo "Rebuilding native modules for x64..."
 arch -x86_64 npm rebuild --arch=x64
 
 # Step 4: Build frontend
 echo ""
 echo "Step 4: Building frontend assets..."
-npm run electron:build  # Skip smoke tests - they run ARM Electron against x86_64 node-pty
+npm run electron:build
 
 # Step 5: Build distributable for Intel
 echo ""
@@ -93,16 +115,10 @@ echo "Step 5: Creating Intel distributable package..."
 echo "----------------------------------------------"
 echo "Building Electron distributable for x64 (this may take a few minutes)..."
 
-# Clean previous builds
-cd ../..
-rm -rf dist/electron-intel
-
 # Update file modification times for codesign
 echo "Updating file timestamps for codesign..."
-find dist/resources-intel -type f -exec touch {} +
+find ../out/resources -type f -exec touch {} +
 echo "File timestamps updated"
-
-cd frontend/webapp
 
 # Load environment variables for code signing and notarization
 if [ -f ".env" ]; then
@@ -110,34 +126,32 @@ if [ -f ".env" ]; then
   export $(grep -E '^(APPLE_ID|APPLE_APP_SPECIFIC_PASSWORD|APPLE_TEAM_ID)=' .env | xargs)
 fi
 
-# Copy Intel resources to the standard location for electron-builder
-# electron-builder expects resources at ../../dist/resources
-echo "Preparing Intel resources for electron-builder..."
-rm -rf ../../dist/resources
-cp -r ../../dist/resources-intel ../../dist/resources
-
 if [ "$PUBLISH" = true ]; then
     echo "Publishing enabled - will upload to GitHub releases"
-    # Build for x64 architecture and publish
-    npm run electron:build
     npx electron-builder --mac --x64 --publish=always
 else
     # Build for x64 architecture without code signing for local testing
     export CSC_IDENTITY_AUTO_DISCOVERY=false
-    npm run electron:build
     npx electron-builder --mac --x64 --config -c.mac.identity=null --publish=never
 fi
 
-# Move the output to intel-specific folder
+# Move back to project root
 cd ../..
-if [ -d "dist/electron" ]; then
-    mv dist/electron dist/electron-intel
+
+# Move the output to intel-specific folder in main out
+rm -rf out/electron-intel
+if [ -d "$STAGING_DIR/out/electron" ]; then
+    mv "$STAGING_DIR/out/electron" out/electron-intel
 fi
 
+# Clean up staging folder
+echo "Cleaning up staging folder..."
+rm -rf "$STAGING_DIR"
+
 # Restore ARM resources if they exist
-if [ -d "dist/resources-arm" ]; then
-    rm -rf dist/resources
-    cp -r dist/resources-arm dist/resources
+if [ -d "out/resources-arm" ]; then
+    rm -rf out/resources
+    cp -r out/resources-arm out/resources
 fi
 
 # Step 6: Report results
@@ -147,14 +161,14 @@ echo "BUILD COMPLETE! (Intel x86_64)"
 echo "=========================================="
 echo ""
 echo "Artifacts created:"
-echo "  - Python server (Intel): dist/voicetree-server/"
-echo "  - Server in resources: dist/resources-intel/server/"
+echo "  - Python server (Intel): out/dist-intel/voicetree-server/"
+echo "  - Server in resources: out/resources-intel/server/"
 
-if [ -d "dist/electron-intel" ]; then
-    echo "  - Electron app (Intel): dist/electron-intel/"
+if [ -d "out/electron-intel" ]; then
+    echo "  - Electron app (Intel): out/electron-intel/"
 
     # List the actual built files
-    DMG_FILE=$(find dist/electron-intel -name "voicetree-x64.dmg" 2>/dev/null | head -1)
+    DMG_FILE=$(find out/electron-intel -name "voicetree-x64.dmg" 2>/dev/null | head -1)
     if [ -n "$DMG_FILE" ]; then
         echo ""
         echo "Distributable package ready:"
@@ -163,7 +177,7 @@ if [ -d "dist/electron-intel" ]; then
         echo "   This Intel DMG can be installed on Intel Macs or ARM Macs via Rosetta."
 
         # Show architecture of the main binary
-        APP_PATH=$(find dist/electron-intel -name "*.app" -type d 2>/dev/null | head -1)
+        APP_PATH=$(find out/electron-intel -name "*.app" -type d 2>/dev/null | head -1)
         if [ -n "$APP_PATH" ]; then
             MAIN_BINARY="$APP_PATH/Contents/MacOS/VoiceTree"
             if [ -f "$MAIN_BINARY" ]; then
@@ -179,7 +193,7 @@ echo ""
 if [ "$PUBLISH" = true ]; then
     echo "Published to GitHub releases!"
 else
-    echo "To publish, run: ./build_and_package_intel.sh --publish"
+    echo "To publish, run: ./scripts/build_and_package_intel.sh --publish"
 fi
 echo ""
 echo "Done!"

@@ -69,53 +69,53 @@ arch -x86_64 $X86_UV pip install --python .venv-server-intel pyinstaller
 
 # Step 4: Clean previous Intel builds (don't touch ARM builds)
 echo "Step 4: Cleaning previous Intel builds..."
-rm -rf build-intel/ dist-intel/ dist/resources-intel/
+rm -rf out/build-intel/ out/dist-intel/ out/resources-intel/
 
 # Step 5: Build with PyInstaller (under Rosetta) - use separate dirs to avoid conflicts
 echo "Step 5: Building executable with PyInstaller (x86_64)..."
-arch -x86_64 .venv-server-intel/bin/python -m PyInstaller server.spec --clean --distpath dist-intel --workpath build-intel
+arch -x86_64 .venv-server-intel/bin/python -m PyInstaller scripts/server.spec --clean --distpath out/dist-intel --workpath out/build-intel
 
 # Verify architecture
 echo ""
 echo "Verifying binary architecture..."
-file ./dist-intel/voicetree-server/voicetree-server
-ARCH=$(file ./dist-intel/voicetree-server/voicetree-server | grep -o "x86_64" || echo "")
+file ./out/dist-intel/voicetree-server/voicetree-server
+ARCH=$(file ./out/dist-intel/voicetree-server/voicetree-server | grep -o "x86_64" || echo "")
 if [ -z "$ARCH" ]; then
     echo "WARNING: Binary may not be x86_64. Check the output above."
 else
     echo "Confirmed: Binary is x86_64 (Intel)"
 fi
 
-# Step 6: Copy to root dist resources (use intel-specific path)
+# Step 6: Copy to out/resources-intel
 echo ""
-echo "Step 6: Copying executable to dist/resources-intel/server..."
-mkdir -p ./dist/resources-intel/server
-cp -r ./dist-intel/voicetree-server/* ./dist/resources-intel/server/
-echo "Copied to dist/resources-intel/server/"
+echo "Step 6: Copying executable to out/resources-intel/server..."
+mkdir -p ./out/resources-intel/server
+cp -r ./out/dist-intel/voicetree-server/* ./out/resources-intel/server/
+echo "Copied to out/resources-intel/server/"
 
 # Step 7: Fix Python.framework structure for code signing
 echo "Step 7: Fixing Python.framework structure (replace duplicates with symlinks)..."
 # PyInstaller creates duplicate directories instead of proper macOS framework symlink structure
 # Fix 1: Replace Versions/Current directory with symlink to 3.13
-rm -rf dist/resources-intel/server/_internal/Python.framework/Versions/Current
-ln -s 3.13 dist/resources-intel/server/_internal/Python.framework/Versions/Current
+rm -rf out/resources-intel/server/_internal/Python.framework/Versions/Current
+ln -s 3.13 out/resources-intel/server/_internal/Python.framework/Versions/Current
 # Fix 2: Replace Python binary with symlink to Versions/Current/Python
-rm -f dist/resources-intel/server/_internal/Python.framework/Python
-ln -s Versions/Current/Python dist/resources-intel/server/_internal/Python.framework/Python
+rm -f out/resources-intel/server/_internal/Python.framework/Python
+ln -s Versions/Current/Python out/resources-intel/server/_internal/Python.framework/Python
 # Fix 3: Replace Resources directory with symlink to Versions/Current/Resources
-rm -rf dist/resources-intel/server/_internal/Python.framework/Resources
-ln -s Versions/Current/Resources dist/resources-intel/server/_internal/Python.framework/Resources
+rm -rf out/resources-intel/server/_internal/Python.framework/Resources
+ln -s Versions/Current/Resources out/resources-intel/server/_internal/Python.framework/Resources
 echo "Created proper framework symlink structure"
 
 # Step 8: Display results
 echo ""
 echo "Build complete!"
 echo "==============="
-echo "Server executable (Intel x86_64): ./dist-intel/voicetree-server/voicetree-server"
-echo "Copied to: ./dist/resources-intel/server/"
+echo "Server executable (Intel x86_64): ./out/dist-intel/voicetree-server/voicetree-server"
+echo "Copied to: ./out/resources-intel/server/"
 echo ""
 echo "Next steps:"
-echo "  1. Test standalone server: arch -x86_64 ./dist-intel/voicetree-server/voicetree-server"
-echo "  2. Build full Intel app: ./build_and_package_intel.sh"
+echo "  1. Test standalone server: arch -x86_64 ./out/dist-intel/voicetree-server/voicetree-server"
+echo "  2. Build full Intel app: ./scripts/build_and_package_intel.sh"
 echo ""
 echo "The Intel server is ready to be bundled with the Electron app!"

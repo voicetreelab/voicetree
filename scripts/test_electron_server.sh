@@ -9,8 +9,8 @@ echo "======================================"
 echo ""
 
 # Check if server is built
-if [ ! -f "dist/resources/server/voicetree-server" ]; then
-    echo "❌ Server not built. Run ./build_server.sh first"
+if [ ! -f "out/resources/server/voicetree-server" ]; then
+    echo "❌ Server not built. Run ./scripts/build_server.sh first"
     exit 1
 fi
 
