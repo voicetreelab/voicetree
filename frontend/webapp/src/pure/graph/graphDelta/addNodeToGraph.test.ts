@@ -260,8 +260,8 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       }
     })
 
-    it('should NOT include parent in delta when edges already point to correct ID (no unnecessary healing)', () => {
-      // Setup: Parent exists with edge already pointing to exact child ID (already healed)
+    it('should include parent in delta when previously dangling edges become resolvable', () => {
+      // Setup: Parent references child.md but child node is missing (dangling edge)
       const currentGraph: Graph = {
         nodes: {
           'parent.md': {
@@ -273,11 +273,76 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         }
       }
 
-      // Add child node
+      // Add child node (resolves the dangling edge)
       const fsEvent: FSUpdate = { absolutePath: path.join(testVaultPath, 'child.md'), content: '# Child', eventType: 'Added' }
       const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, testVaultPath, currentGraph)
 
-      // Parent should NOT be in delta since edges haven't changed (already pointing to correct ID)
+      // Expect delta to include new child node AND healed parent so UI can draw the edge
+      expect(delta).toHaveLength(2)
+      expect(delta[0].type).toBe('UpsertNode')
+      expect(delta[1].type).toBe('UpsertNode')
+      if (delta[0].type === 'UpsertNode') {
+        expect(delta[0].nodeToUpsert.relativeFilePathIsID).toBe('child.md')
+      }
+      if (delta[1].type === 'UpsertNode') {
+        expect(delta[1].nodeToUpsert.relativeFilePathIsID).toBe('parent.md')
+        expect(delta[1].previousNode._tag).toBe('Some')
+      }
+    })
+
+    it('BUG REGRESSION: edge with exact targetId match should emit delta when target node appears', () => {
+      // BUG: [file.md] creates edge with targetId "file.md", target doesn't exist yet
+      // When file.md is added, old logic: targetId unchanged ("file.md" === "file.md") → no delta
+      // Result: UI never receives delta, edge never rendered despite both nodes existing
+      const currentGraph: Graph = {
+        nodes: {
+          'source.md': {
+            relativeFilePathIsID: 'source.md',
+            contentWithoutYamlOrLinks: '# Source',
+            // Edge targetId EXACTLY matches the node ID that will be created - no fuzzy matching needed
+            outgoingEdges: [{ targetId: 'target.md', label: 'links to' }],
+            nodeUIMetadata: { color: O.none, position: O.none, additionalYAMLProps: new Map(), isContextNode: false }
+          }
+        }
+      }
+
+      // Target node doesn't exist yet - edge is dangling
+      expect(currentGraph.nodes['target.md']).toBeUndefined()
+
+      // Add the target node
+      const fsEvent: FSUpdate = { absolutePath: path.join(testVaultPath, 'target.md'), content: '# Target', eventType: 'Added' }
+      const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, testVaultPath, currentGraph)
+
+      // CRITICAL: Delta must include source node so UI can draw the edge
+      // Without the dangling-edge fix, delta.length would be 1 (only target.md)
+      expect(delta).toHaveLength(2)
+      const sourceNodeDelta: GraphDelta[number] | undefined = delta.find(d => d.type === 'UpsertNode' && d.nodeToUpsert.relativeFilePathIsID === 'source.md')
+      expect(sourceNodeDelta).toBeDefined()
+    })
+
+    it('should skip parent delta when edge was never dangling', () => {
+      // Setup: Parent and child already exist, edge points to real child node
+      const currentGraph: Graph = {
+        nodes: {
+          'parent.md': {
+            relativeFilePathIsID: 'parent.md',
+            contentWithoutYamlOrLinks: '# Parent',
+            outgoingEdges: [{ targetId: 'child.md', label: 'links to' }],
+            nodeUIMetadata: { color: O.none, position: O.none, additionalYAMLProps: new Map(), isContextNode: false }
+          },
+          'child.md': {
+            relativeFilePathIsID: 'child.md',
+            contentWithoutYamlOrLinks: '# Child',
+            outgoingEdges: [],
+            nodeUIMetadata: { color: O.none, position: O.none, additionalYAMLProps: new Map(), isContextNode: false }
+          }
+        }
+      }
+
+      // Re-add child node (e.g., file change) - should not trigger redundant parent delta
+      const fsEvent: FSUpdate = { absolutePath: path.join(testVaultPath, 'child.md'), content: '# Child updated', eventType: 'Changed' }
+      const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, testVaultPath, currentGraph)
+
       expect(delta).toHaveLength(1)
       expect(delta[0].type).toBe('UpsertNode')
       if (delta[0].type === 'UpsertNode') {
