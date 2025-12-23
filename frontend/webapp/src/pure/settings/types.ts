@@ -19,6 +19,75 @@ export function getRandomAgentName(): string {
 
 export type EnvVarValue = string | readonly string[];
 
+// Hotkey configuration types
+export type HotkeyModifier = 'Meta' | 'Control' | 'Alt' | 'Shift';
+
+export interface HotkeyBinding {
+    readonly key: string;
+    readonly modifiers: readonly HotkeyModifier[];
+}
+
+export interface HotkeySettings {
+    readonly fitToLastNode: HotkeyBinding;
+    readonly nextTerminal: HotkeyBinding;
+    readonly prevTerminal: HotkeyBinding;
+    readonly createNewNode: HotkeyBinding;
+    readonly runTerminal: HotkeyBinding;
+    readonly deleteSelectedNodes: HotkeyBinding;
+    readonly closeWindow: HotkeyBinding;
+    readonly openSettings: HotkeyBinding;
+    readonly openSearch: HotkeyBinding;
+    readonly openSearchAlt: HotkeyBinding; // Cmd+E recent nodes ninja
+    readonly recentNode1: HotkeyBinding;
+    readonly recentNode2: HotkeyBinding;
+    readonly recentNode3: HotkeyBinding;
+    readonly recentNode4: HotkeyBinding;
+    readonly recentNode5: HotkeyBinding;
+}
+
+/** Mac-style defaults using Meta key */
+const MAC_HOTKEYS: HotkeySettings = {
+    fitToLastNode: { key: ' ', modifiers: [] },
+    nextTerminal: { key: ']', modifiers: ['Meta'] },
+    prevTerminal: { key: '[', modifiers: ['Meta'] },
+    createNewNode: { key: 'n', modifiers: ['Meta'] },
+    runTerminal: { key: 'Enter', modifiers: ['Meta'] },
+    deleteSelectedNodes: { key: 'Backspace', modifiers: ['Meta'] },
+    closeWindow: { key: 'w', modifiers: ['Meta'] },
+    openSettings: { key: ',', modifiers: ['Meta'] },
+    openSearch: { key: 'f', modifiers: ['Meta'] },
+    openSearchAlt: { key: 'e', modifiers: ['Meta'] },
+    recentNode1: { key: '1', modifiers: ['Meta'] },
+    recentNode2: { key: '2', modifiers: ['Meta'] },
+    recentNode3: { key: '3', modifiers: ['Meta'] },
+    recentNode4: { key: '4', modifiers: ['Meta'] },
+    recentNode5: { key: '5', modifiers: ['Meta'] },
+};
+
+/** Non-Mac defaults using Control key */
+const NON_MAC_HOTKEYS: HotkeySettings = {
+    fitToLastNode: { key: ' ', modifiers: [] },
+    nextTerminal: { key: ']', modifiers: ['Control'] },
+    prevTerminal: { key: '[', modifiers: ['Control'] },
+    createNewNode: { key: 'n', modifiers: ['Control'] },
+    runTerminal: { key: 'Enter', modifiers: ['Control'] },
+    deleteSelectedNodes: { key: 'Backspace', modifiers: ['Control'] },
+    closeWindow: { key: 'w', modifiers: ['Control'] },
+    openSettings: { key: ',', modifiers: ['Control'] },
+    openSearch: { key: 'f', modifiers: ['Control'] },
+    openSearchAlt: { key: 'e', modifiers: ['Control'] },
+    recentNode1: { key: '1', modifiers: ['Control'] },
+    recentNode2: { key: '2', modifiers: ['Control'] },
+    recentNode3: { key: '3', modifiers: ['Control'] },
+    recentNode4: { key: '4', modifiers: ['Control'] },
+    recentNode5: { key: '5', modifiers: ['Control'] },
+};
+
+const isMac: boolean = typeof navigator !== 'undefined' && navigator.platform.toLowerCase().includes('mac');
+
+/** Platform-appropriate default hotkeys */
+export const DEFAULT_HOTKEYS: HotkeySettings = isMac ? MAC_HOTKEYS : NON_MAC_HOTKEYS;
+
 export interface VTSettings {
     readonly terminalSpawnPathRelativeToWatchedDirectory: string;
     readonly agents: readonly AgentConfig[];
@@ -34,6 +103,10 @@ export interface VTSettings {
     readonly userEmail?: string;
     /** Template for starter node created when opening an empty folder. Supports {{DATE}} placeholder. */
     readonly emptyFolderTemplate?: string;
+    /** Enable VIM keybindings in markdown editors */
+    readonly vimMode?: boolean;
+    /** Custom hotkey bindings - falls back to DEFAULT_HOTKEYS if not set */
+    readonly hotkeys?: HotkeySettings;
 }
 
 export const DEFAULT_SETTINGS: VTSettings = {
@@ -62,6 +135,7 @@ Highest priority task: `,
         }
     ],
     shiftEnterSendsOptionEnter: true,
+    vimMode: false,
     INJECT_ENV_VARS: {
         AGENT_PROMPT: `First analyze the context of your task: <TASK_CONTEXT> $CONTEXT_NODE_CONTENT </TASK_CONTEXT>
             Briefly explore your directory to gather additional critical context.
