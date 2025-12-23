@@ -25,6 +25,18 @@ declare module './index.css' {
   const content: string;
   export default content;
 }
+declare module 'cytoscape-navigator/cytoscape.js-navigator.css' {
+  const content: string;
+  export default content;
+}
+declare module '@/shell/UI/views/styles/navigator.css' {
+  const content: string;
+  export default content;
+}
+declare module '@/shell/UI/cytoscape-graph-ui/styles/graph.css' {
+  const content: string;
+  export default content;
+}
 declare module '@/shell/UI/sse-status-panel/status-panel.css' {
   const content: string;
   export default content;

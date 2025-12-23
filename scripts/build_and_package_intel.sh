@@ -122,26 +122,36 @@ echo "File timestamps updated"
 
 # Load environment variables for code signing and notarization
 if [ -f ".env" ]; then
-  echo "Loading Apple code signing credentials from .env..."
-  export $(grep -E '^(APPLE_ID|APPLE_APP_SPECIFIC_PASSWORD|APPLE_TEAM_ID)=' .env | xargs)
+  echo "Loading credentials from .env..."
+  export $(grep -E '^(APPLE_ID|APPLE_APP_SPECIFIC_PASSWORD|APPLE_TEAM_ID|GH_TOKEN)=' .env | xargs)
 fi
 
+# Capture exit code so mv always runs even if publish fails
+BUILD_EXIT_CODE=0
 if [ "$PUBLISH" = true ]; then
     echo "Publishing enabled - will upload to GitHub releases"
-    npx electron-builder --mac --x64 --publish=always
+    npx electron-builder --mac --x64 --publish=always || BUILD_EXIT_CODE=$?
 else
     # Build for x64 architecture without code signing for local testing
     export CSC_IDENTITY_AUTO_DISCOVERY=false
-    npx electron-builder --mac --x64 --config -c.mac.identity=null --publish=never
+    npx electron-builder --mac --x64 --config -c.mac.identity=null --publish=never || BUILD_EXIT_CODE=$?
 fi
 
 # Move back to project root
 cd ../..
 
-# Move the output to intel-specific folder in main out
+# Always move the output to intel-specific folder (even if publish failed)
 rm -rf out/electron-intel
 if [ -d "$STAGING_DIR/out/electron" ]; then
     mv "$STAGING_DIR/out/electron" out/electron-intel
+fi
+
+# Exit with original code if build/publish failed
+if [ $BUILD_EXIT_CODE -ne 0 ]; then
+    echo "Build or publish step failed with exit code $BUILD_EXIT_CODE"
+    # Clean up staging before exit
+    rm -rf "$STAGING_DIR"
+    exit $BUILD_EXIT_CODE
 fi
 
 # Clean up staging folder

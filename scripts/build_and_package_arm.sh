@@ -131,14 +131,15 @@ echo "Building Electron distributable (this may take a few minutes)..."
 # Clean previous ARM builds in root
 cd ../..
 rm -rf out/electron-arm
+rm -rf out/electron  # Also clean main electron folder to avoid mixing with other platform artifacts
 
 # Build the distributable from frontend
 cd frontend/webapp
 
 # Load environment variables for code signing and notarization
 if [ -f ".env" ]; then
-  echo "Loading Apple code signing credentials from .env..."
-  export $(grep -E '^(APPLE_ID|APPLE_APP_SPECIFIC_PASSWORD|APPLE_TEAM_ID)=' .env | xargs)
+  echo "Loading credentials from .env..."
+  export $(grep -E '^(APPLE_ID|APPLE_APP_SPECIFIC_PASSWORD|APPLE_TEAM_ID|GH_TOKEN)=' .env | xargs)
 fi
 
 # Update file modification times to satisfy codesign timestamp validation
@@ -148,17 +149,25 @@ find out/resources -type f -exec touch {} +
 cd frontend/webapp
 echo "✅ File timestamps updated"
 
+# Capture exit code so mv always runs even if publish fails
+BUILD_EXIT_CODE=0
 if [ "$PUBLISH" = true ]; then
     echo "Publishing enabled - will upload to GitHub releases"
-    npm run electron:dist-and-publish
+    npm run electron:dist-and-publish || BUILD_EXIT_CODE=$?
 else
-    npm run electron:dist
+    npm run electron:dist || BUILD_EXIT_CODE=$?
 fi
 
-# Move the output to arm-specific folder
+# Always move the output to arm-specific folder (even if publish failed)
 cd ../..
 if [ -d "out/electron" ]; then
     mv out/electron out/electron-arm
+fi
+
+# Exit with original code if build/publish failed
+if [ $BUILD_EXIT_CODE -ne 0 ]; then
+    echo "Build or publish step failed with exit code $BUILD_EXIT_CODE"
+    exit $BUILD_EXIT_CODE
 fi
 
 # Backup ARM resources for multi-platform builds
