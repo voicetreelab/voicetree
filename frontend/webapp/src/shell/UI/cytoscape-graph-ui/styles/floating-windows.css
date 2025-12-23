@@ -265,9 +265,8 @@
 
 .transcription-preview-chip .preview-text {
   flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
   color: var(--foreground);
 }
 
