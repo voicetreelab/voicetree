@@ -9,7 +9,7 @@ import {startFileWatching, getWatchedDirectory, setStartupFolderOverride, setOnF
 const {autoUpdater} = electronUpdater;
 import {StubTextToTreeServerManager} from './server/StubTextToTreeServerManager';
 import {RealTextToTreeServerManager} from './server/RealTextToTreeServerManager';
-import TerminalManager from '../terminals/terminal-manager';
+import TerminalManager from '@/shell/edge/main/terminals/terminal-manager';
 import {setupToolsDirectory, getToolsDirectory} from './tools-setup';
 import {setupOnboardingDirectory} from './onboarding-setup';
 import {startNotificationScheduler, stopNotificationScheduler, recordAppUsage} from './notification-scheduler';
@@ -364,6 +364,8 @@ setOnFolderSwitchCleanup(() => {
 
 // App event handlers
 void app.whenReady().then(async () => {
+    console.time('[Startup] Total time to window');
+
     setupRPCHandlers();
     setupApplicationMenu();
 
@@ -383,20 +385,29 @@ void app.whenReady().then(async () => {
     }
 
     // Set up agent tools directory on first launch (skipped in test mode)
+    console.time('[Startup] setupToolsDirectory');
     await setupToolsDirectory();
+    console.timeEnd('[Startup] setupToolsDirectory');
 
     // Set up onboarding directory on first launch (skipped in test mode)
+    console.time('[Startup] setupOnboardingDirectory');
     await setupOnboardingDirectory();
+    console.timeEnd('[Startup] setupOnboardingDirectory');
 
     // Start the server and store the port it's using
     // Factory automatically chooses StubServer (test) or RealServer (production)
+    console.time('[Startup] textToTreeServer.start');
     textToTreeServerPort = await textToTreeServerManager.start();
+    console.timeEnd('[Startup] textToTreeServer.start');
     console.log(`[App] Server started on port ${textToTreeServerPort}`);
 
     // Inject backend port into mainAPI
     setBackendPort(textToTreeServerPort);
 
+    console.time('[Startup] createWindow');
     createWindow();
+    console.timeEnd('[Startup] createWindow');
+    console.timeEnd('[Startup] Total time to window');
 
     // Start OTLP receiver for Claude Code metrics (port 4318)
     await startOTLPReceiver();
