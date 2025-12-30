@@ -30,7 +30,7 @@ When creating progress nodes, your content should:
 Start with a brief description of what was accomplished. Keep it highly concise.
 Always include a list of all the file paths you have modified.
 
-1. If the changes involve < 40 lines of code changes to production files. Include the exact diff in the markdown. Do not include test file diff unless that is your main task, or includes important logic.
+1. If the changes involve < 40 lines of code changes to production files. Include the exact diff in the markdown. Do not include test file diff unless that is your main task, or includes important logic. If >40 lines of code, include only the key changes.
 
 2. If the changes involve architectural changes, include a mermaid diagram for visual representation of the change/architecture/flow. Do not include a diagram if it's easier to explain as text.
 

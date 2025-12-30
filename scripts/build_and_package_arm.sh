@@ -170,11 +170,6 @@ if [ $BUILD_EXIT_CODE -ne 0 ]; then
     exit $BUILD_EXIT_CODE
 fi
 
-# Backup ARM resources for multi-platform builds
-if [ -d "out/resources" ] && [ ! -d "out/resources-arm" ]; then
-    cp -r out/resources out/resources-arm
-fi
-
 cd frontend/webapp
 
 # Step 7: Report results
