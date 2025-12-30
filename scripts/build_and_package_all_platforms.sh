@@ -1,75 +1,43 @@
 #!/bin/bash
 # Complete build and package script for VoiceTree - ALL PLATFORMS
-# Delegates to platform-specific scripts for actual builds
+# Builds macOS universal (arm64 + x86_64), Linux ARM64, and Linux x86_64.
 #
-# Usage: ./build_and_package_all_platforms.sh [options]
-#   --publish       Upload all builds to GitHub releases
-#   --macos-arm     Build only macOS ARM64 (default on Apple Silicon)
-#   --macos-intel   Build only macOS Intel x86_64
-#   --linux         Build only Linux ARM64 (requires OrbStack)
-#   --parallel      Run independent builds in parallel (experimental)
+# Usage: ./build_and_package_all_platforms.sh [--publish]
 #
 # Platform scripts used:
-#   - macOS ARM:   ./scripts/build_and_package_arm.sh
-#   - macOS Intel: ./scripts/build_and_package_intel.sh
-#   - Linux:       ./scripts/build_and_package_linux.sh (via OrbStack)
+#   - macOS universal: ./scripts/build_and_package_mac_universal.sh
+#   - Linux ARM64:     ./scripts/build_and_package_linux.sh (via OrbStack ARM VM)
+#   - Linux x86_64:    ./scripts/build_and_package_linux_x64.sh (via OrbStack x64 VM)
+#
+# For single-platform builds, use the individual scripts in scripts/.
 
 set -e  # Exit on error
 
 # Parse arguments
 PUBLISH=false
-BUILD_MACOS_ARM=false
-BUILD_MACOS_INTEL=false
-BUILD_LINUX=false
-PARALLEL=false
-SPECIFIC_BUILD=false
-
 for arg in "$@"; do
     case $arg in
         --publish)
             PUBLISH=true
             shift
             ;;
-        --macos-arm)
-            BUILD_MACOS_ARM=true
-            SPECIFIC_BUILD=true
-            shift
-            ;;
-        --macos-intel)
-            BUILD_MACOS_INTEL=true
-            SPECIFIC_BUILD=true
-            shift
-            ;;
-        --linux)
-            BUILD_LINUX=true
-            SPECIFIC_BUILD=true
-            shift
-            ;;
-        --parallel)
-            PARALLEL=true
-            shift
+        *)
+            echo "Error: Unknown option: $arg"
+            exit 1
             ;;
     esac
 done
-
-# If no specific builds requested, build all
-if [ "$SPECIFIC_BUILD" = false ]; then
-    BUILD_MACOS_ARM=true
-    BUILD_MACOS_INTEL=true
-    BUILD_LINUX=true
-fi
 
 echo "============================================================"
 echo "VoiceTree Multi-Platform Build & Package Script"
 echo "============================================================"
 echo ""
 echo "Build targets:"
-[ "$BUILD_MACOS_ARM" = true ] && echo "  - macOS ARM64"
-[ "$BUILD_MACOS_INTEL" = true ] && echo "  - macOS Intel x86_64"
-[ "$BUILD_LINUX" = true ] && echo "  - Linux ARM64"
+echo "  - macOS Universal (arm64 + x86_64)"
+echo "  - Linux ARM64"
+echo "  - Linux x86_64"
 echo ""
 [ "$PUBLISH" = true ] && echo "Publishing: ENABLED (GitHub Releases)"
-[ "$PARALLEL" = true ] && echo "Parallel builds: ENABLED"
 echo ""
 
 # Check we're in the VoiceTree directory
@@ -81,87 +49,83 @@ fi
 # Get absolute path for OrbStack
 VOICETREE_DIR="$(pwd)"
 
-# Check for required tools
+# Check for required tools (non-fatal - just track what's available)
+CAN_BUILD_MACOS=true
+CAN_BUILD_LINUX_ARM64=true
+CAN_BUILD_LINUX_X64=true
+
 check_prerequisites() {
     echo "Checking prerequisites..."
 
-    if [ "$BUILD_MACOS_INTEL" = true ]; then
-        if [ ! -f "/usr/local/bin/brew" ]; then
-            echo "Error: x86_64 Homebrew not found. Required for Intel build."
-            echo "Install with: arch -x86_64 /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
-            exit 1
-        fi
-        if [ ! -f "/usr/local/bin/uv" ]; then
-            echo "Error: x86_64 uv not found. Required for Intel build."
-            echo "Install with: arch -x86_64 /usr/local/bin/brew install uv"
-            exit 1
-        fi
+    # macOS universal build requirements
+    if [ ! -f "/usr/local/bin/brew" ]; then
+        echo "Warning: x86_64 Homebrew not found. Skipping macOS build."
+        echo "  Install with: arch -x86_64 /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+        CAN_BUILD_MACOS=false
+    elif [ ! -f "/usr/local/bin/uv" ]; then
+        echo "Warning: x86_64 uv not found. Skipping macOS build."
+        echo "  Install with: arch -x86_64 /usr/local/bin/brew install uv"
+        CAN_BUILD_MACOS=false
     fi
 
-    if [ "$BUILD_LINUX" = true ]; then
-        if ! command -v orb &> /dev/null; then
-            echo "Error: OrbStack CLI (orb) not found. Required for Linux build."
-            echo "Install OrbStack from: https://orbstack.dev/"
-            exit 1
-        fi
-        # Check if Ubuntu VM exists
+    # Linux build requirements
+    if ! command -v orb &> /dev/null; then
+        echo "Warning: OrbStack CLI (orb) not found. Skipping Linux builds."
+        echo "  Install OrbStack from: https://orbstack.dev/"
+        CAN_BUILD_LINUX_ARM64=false
+        CAN_BUILD_LINUX_X64=false
+    else
+        # Check if Ubuntu ARM VM exists
         if ! orb list | grep -q "ubuntu"; then
-            echo "Error: OrbStack Ubuntu VM not found."
-            echo "Create one with: orb create ubuntu ubuntu"
-            exit 1
+            echo "Warning: OrbStack Ubuntu ARM VM not found. Skipping Linux ARM64 build."
+            echo "  Create one with: orb create ubuntu ubuntu"
+            CAN_BUILD_LINUX_ARM64=false
+        fi
+        # Check if Ubuntu x64 VM exists
+        if ! orb list | grep -q "ubuntu-x64"; then
+            echo "Warning: OrbStack Ubuntu x64 VM not found. Skipping Linux x64 build."
+            echo "  Create one with: orb create --arch amd64 ubuntu ubuntu-x64"
+            CAN_BUILD_LINUX_X64=false
         fi
     fi
 
-    echo "Prerequisites check passed!"
+    if [ "$CAN_BUILD_MACOS" = false ] && [ "$CAN_BUILD_LINUX_ARM64" = false ] && [ "$CAN_BUILD_LINUX_X64" = false ]; then
+        echo "Error: No build targets available. Please set up at least one platform."
+        exit 1
+    fi
+
+    echo "Prerequisites check complete."
     echo ""
 }
 
 check_prerequisites
 
-# Track build results
-BUILD_RESULTS=()
-
-# Build macOS ARM64
-build_macos_arm() {
+# Build macOS Universal
+build_macos_universal() {
     echo "============================================================"
-    echo "Building macOS ARM64..."
+    echo "Building macOS Universal (arm64 + x86_64)..."
     echo "============================================================"
 
     PUBLISH_ARG=""
     [ "$PUBLISH" = true ] && PUBLISH_ARG="--publish"
 
-    if ./scripts/build_and_package_arm.sh $PUBLISH_ARG; then
-        # ARM script now outputs directly to out/electron-arm/
-        echo "macOS ARM64 build complete: out/electron-arm/"
-        BUILD_RESULTS+=("macOS ARM64: SUCCESS")
-    else
-        echo "macOS ARM64 build failed"
-        BUILD_RESULTS+=("macOS ARM64: FAILED")
-        return 1
+    if ./scripts/build_and_package_mac_universal.sh $PUBLISH_ARG; then
+        if [ ! -d "out/electron" ]; then
+            echo "macOS universal build completed but no out/electron output found"
+            return 1
+        fi
+        rm -rf out/electron-mac-universal
+        mv out/electron out/electron-mac-universal
+        echo "macOS universal build complete: out/electron-mac-universal/"
+        return 0
     fi
+
+    echo "macOS universal build failed"
+    return 1
 }
 
-# Build macOS Intel x86_64
-build_macos_intel() {
-    echo "============================================================"
-    echo "Building macOS Intel x86_64..."
-    echo "============================================================"
-
-    PUBLISH_ARG=""
-    [ "$PUBLISH" = true ] && PUBLISH_ARG="--publish"
-
-    if ./scripts/build_and_package_intel.sh $PUBLISH_ARG; then
-        echo "macOS Intel build complete: out/electron-intel/"
-        BUILD_RESULTS+=("macOS Intel: SUCCESS")
-    else
-        echo "macOS Intel build failed"
-        BUILD_RESULTS+=("macOS Intel: FAILED")
-        return 1
-    fi
-}
-
-# Build Linux ARM64 (via OrbStack)
-build_linux() {
+# Build Linux ARM64 (via OrbStack ARM VM)
+build_linux_arm64() {
     echo "============================================================"
     echo "Building Linux ARM64 (via OrbStack)..."
     echo "============================================================"
@@ -169,81 +133,90 @@ build_linux() {
     PUBLISH_ARG=""
     [ "$PUBLISH" = true ] && PUBLISH_ARG="--publish"
 
-    # Run the Linux build script inside OrbStack Ubuntu
     if orb -m ubuntu bash -c "
         source ~/.local/bin/env 2>/dev/null || true
         cd '$VOICETREE_DIR'
         ./scripts/build_and_package_linux.sh $PUBLISH_ARG
     "; then
-        if [ -d "out/electron-linux" ]; then
-            APPIMAGE=$(find out/electron-linux -name "*.AppImage" 2>/dev/null | head -1)
-            if [ -n "$APPIMAGE" ]; then
-                echo "Linux ARM64 build complete: $APPIMAGE"
-                BUILD_RESULTS+=("Linux ARM64: SUCCESS")
-            else
-                echo "Linux build completed but no AppImage found"
-                BUILD_RESULTS+=("Linux ARM64: PARTIAL (no AppImage)")
-            fi
-        else
-            echo "Linux ARM64 build failed - no output directory"
-            BUILD_RESULTS+=("Linux ARM64: FAILED")
-            return 1
+        APPIMAGE=$(find out/electron-linux -name "*.AppImage" 2>/dev/null | head -1)
+        if [ -n "$APPIMAGE" ]; then
+            echo "Linux ARM64 build complete: $APPIMAGE"
+            return 0
         fi
-    else
-        echo "Linux ARM64 build failed"
-        BUILD_RESULTS+=("Linux ARM64: FAILED")
+        echo "Linux ARM64 build completed but no AppImage found in out/electron-linux"
         return 1
     fi
+
+    echo "Linux ARM64 build failed"
+    return 1
 }
 
-# Execute builds
-if [ "$PARALLEL" = true ]; then
-    echo "Running builds in parallel..."
-    echo "(Note: parallel mode may have resource conflicts)"
-    echo ""
+# Build Linux x86_64 (via OrbStack x64 VM)
+build_linux_x64() {
+    echo "============================================================"
+    echo "Building Linux x86_64 (via OrbStack)..."
+    echo "============================================================"
 
-    # Start builds in background
-    PIDS=()
+    PUBLISH_ARG=""
+    [ "$PUBLISH" = true ] && PUBLISH_ARG="--publish"
 
-    if [ "$BUILD_MACOS_ARM" = true ]; then
-        build_macos_arm &
-        PIDS+=($!)
-    fi
-
-    if [ "$BUILD_MACOS_INTEL" = true ]; then
-        build_macos_intel &
-        PIDS+=($!)
-    fi
-
-    if [ "$BUILD_LINUX" = true ]; then
-        build_linux &
-        PIDS+=($!)
-    fi
-
-    # Wait for all builds
-    FAILED=0
-    for PID in "${PIDS[@]}"; do
-        if ! wait $PID; then
-            FAILED=$((FAILED + 1))
+    if orb -m ubuntu-x64 bash -c "
+        source ~/.local/bin/env 2>/dev/null || true
+        cd '$VOICETREE_DIR'
+        ./scripts/build_and_package_linux_x64.sh $PUBLISH_ARG
+    "; then
+        APPIMAGE=$(find out/electron-linux-x64 -name "*.AppImage" 2>/dev/null | head -1)
+        if [ -n "$APPIMAGE" ]; then
+            echo "Linux x86_64 build complete: $APPIMAGE"
+            return 0
         fi
-    done
+        echo "Linux x86_64 build completed but no AppImage found in out/electron-linux-x64"
+        return 1
+    fi
 
-    if [ $FAILED -gt 0 ]; then
-        echo "Warning: $FAILED build(s) failed"
+    echo "Linux x86_64 build failed"
+    return 1
+}
+
+# Execute builds (only for available platforms)
+BUILD_RESULTS=()
+BUILD_SUCCEEDED=0
+BUILD_FAILED=0
+
+if [ "$CAN_BUILD_MACOS" = true ]; then
+    if build_macos_universal; then
+        BUILD_RESULTS+=("macOS Universal: SUCCESS")
+        ((BUILD_SUCCEEDED++))
+    else
+        BUILD_RESULTS+=("macOS Universal: FAILED")
+        ((BUILD_FAILED++))
     fi
 else
-    # Sequential builds (safer, recommended)
-    if [ "$BUILD_MACOS_ARM" = true ]; then
-        build_macos_arm || true
-    fi
+    BUILD_RESULTS+=("macOS Universal: SKIPPED (prerequisites not met)")
+fi
 
-    if [ "$BUILD_MACOS_INTEL" = true ]; then
-        build_macos_intel || true
+if [ "$CAN_BUILD_LINUX_ARM64" = true ]; then
+    if build_linux_arm64; then
+        BUILD_RESULTS+=("Linux ARM64: SUCCESS")
+        ((BUILD_SUCCEEDED++))
+    else
+        BUILD_RESULTS+=("Linux ARM64: FAILED")
+        ((BUILD_FAILED++))
     fi
+else
+    BUILD_RESULTS+=("Linux ARM64: SKIPPED (prerequisites not met)")
+fi
 
-    if [ "$BUILD_LINUX" = true ]; then
-        build_linux || true
+if [ "$CAN_BUILD_LINUX_X64" = true ]; then
+    if build_linux_x64; then
+        BUILD_RESULTS+=("Linux x86_64: SUCCESS")
+        ((BUILD_SUCCEEDED++))
+    else
+        BUILD_RESULTS+=("Linux x86_64: FAILED")
+        ((BUILD_FAILED++))
     fi
+else
+    BUILD_RESULTS+=("Linux x86_64: SKIPPED (prerequisites not met)")
 fi
 
 # Final report
@@ -258,25 +231,30 @@ echo ""
 
 # List artifacts
 echo "Artifacts created:"
-if [ -d "out/electron-arm" ]; then
-    DMG=$(find out/electron-arm -name "voicetree-arm64.dmg" 2>/dev/null | head -1)
-    [ -n "$DMG" ] && echo "  - macOS ARM64 DMG: $DMG"
-fi
 
-if [ -d "out/electron-intel" ]; then
-    DMG=$(find out/electron-intel -name "voicetree-x64.dmg" 2>/dev/null | head -1)
-    [ -n "$DMG" ] && echo "  - macOS Intel DMG: $DMG"
-fi
+DMG=$(find out/electron-mac-universal -name "voicetree-arm64.dmg" 2>/dev/null | head -1)
+[ -n "$DMG" ] && echo "  - macOS ARM64 DMG: $DMG"
 
-if [ -d "out/electron-linux" ]; then
-    APPIMAGE=$(find out/electron-linux -name "*.AppImage" 2>/dev/null | head -1)
-    [ -n "$APPIMAGE" ] && echo "  - Linux AppImage: $APPIMAGE"
-fi
+DMG=$(find out/electron-mac-universal -name "voicetree-x64.dmg" 2>/dev/null | head -1)
+[ -n "$DMG" ] && echo "  - macOS Intel DMG: $DMG"
+
+APPIMAGE=$(find out/electron-linux -name "*.AppImage" 2>/dev/null | head -1)
+[ -n "$APPIMAGE" ] && echo "  - Linux ARM64 AppImage: $APPIMAGE"
+
+APPIMAGE_X64=$(find out/electron-linux-x64 -name "*.AppImage" 2>/dev/null | head -1)
+[ -n "$APPIMAGE_X64" ] && echo "  - Linux x86_64 AppImage: $APPIMAGE_X64"
 
 echo ""
+echo "Succeeded: $BUILD_SUCCEEDED, Failed: $BUILD_FAILED"
+echo ""
+
+if [ "$BUILD_SUCCEEDED" -eq 0 ]; then
+    echo "All builds failed. No artifacts to publish."
+    exit 1
+fi
 
 if [ "$PUBLISH" = true ]; then
-    echo "All artifacts published to GitHub Releases!"
+    echo "Artifacts published to GitHub Releases!"
 
     # Update Homebrew tap with multi-arch cask
     echo ""
@@ -288,25 +266,29 @@ if [ "$PUBLISH" = true ]; then
     VERSION=$(node -p "require('./package.json').version")
     cd ../..
 
-    # Find DMGs with architecture-specific names
-    ARM_DMG=$(find out/electron-arm -name "voicetree-arm64.dmg" 2>/dev/null | head -1)
-    INTEL_DMG=$(find out/electron-intel -name "voicetree-x64.dmg" 2>/dev/null | head -1)
+    ARM_DMG=$(find out/electron-mac-universal -name "voicetree-arm64.dmg" 2>/dev/null | head -1)
+    INTEL_DMG=$(find out/electron-mac-universal -name "voicetree-x64.dmg" 2>/dev/null | head -1)
 
-    if [ -n "$ARM_DMG" ] && [ -n "$INTEL_DMG" ]; then
-        ARM_SHA256=$(shasum -a 256 "$ARM_DMG" | awk '{print $1}')
-        INTEL_SHA256=$(shasum -a 256 "$INTEL_DMG" | awk '{print $1}')
+    if [ -z "$ARM_DMG" ] || [ -z "$INTEL_DMG" ]; then
+        echo "Skipping Homebrew tap update (macOS DMGs not available)"
+        [ -z "$ARM_DMG" ] && echo "  - Missing ARM64 DMG (voicetree-arm64.dmg)"
+        [ -z "$INTEL_DMG" ] && echo "  - Missing Intel DMG (voicetree-x64.dmg)"
+    else
 
-        echo "ARM64 DMG: $ARM_DMG"
-        echo "  SHA256: $ARM_SHA256"
-        echo "Intel DMG: $INTEL_DMG"
-        echo "  SHA256: $INTEL_SHA256"
+    ARM_SHA256=$(shasum -a 256 "$ARM_DMG" | awk '{print $1}')
+    INTEL_SHA256=$(shasum -a 256 "$INTEL_DMG" | awk '{print $1}')
 
-        # Clone, update, and push homebrew tap
-        TEMP_TAP=$(mktemp -d)
-        git clone https://github.com/voicetreelab/homebrew-voicetree.git "$TEMP_TAP"
+    echo "ARM64 DMG: $ARM_DMG"
+    echo "  SHA256: $ARM_SHA256"
+    echo "Intel DMG: $INTEL_DMG"
+    echo "  SHA256: $INTEL_SHA256"
 
-        # Generate multi-arch cask
-        cat > "$TEMP_TAP/Casks/voicetree.rb" << EOF
+    # Clone, update, and push homebrew tap
+    TEMP_TAP=$(mktemp -d)
+    git clone https://github.com/voicetreelab/homebrew-voicetree.git "$TEMP_TAP"
+
+    # Generate multi-arch cask
+    cat > "$TEMP_TAP/Casks/voicetree.rb" << CASK_EOF
 cask "voicetree" do
   version "$VERSION"
 
@@ -333,25 +315,25 @@ cask "voicetree" do
     "~/Library/Preferences/com.voicetree.webapp.plist",
   ]
 end
-EOF
+CASK_EOF
 
-        cd "$TEMP_TAP"
-        git add -A
-        git commit -m "Update VoiceTree to v$VERSION (multi-arch)" || echo "No changes to commit"
-        git push
-        cd -
-        rm -rf "$TEMP_TAP"
+    cd "$TEMP_TAP"
+    git add -A
+    git commit -m "Update VoiceTree to v$VERSION (multi-arch)" || echo "No changes to commit"
+    git push
+    cd -
+    rm -rf "$TEMP_TAP"
 
-        echo "Homebrew tap updated to v$VERSION with multi-arch support"
-    else
-        echo "Warning: Could not find both architecture DMGs for Homebrew tap update"
-        [ -z "$ARM_DMG" ] && echo "  - Missing ARM64 DMG (voicetree-arm64.dmg)"
-        [ -z "$INTEL_DMG" ] && echo "  - Missing Intel DMG (voicetree-x64.dmg)"
-        echo "Homebrew tap was not updated."
+    echo "Homebrew tap updated to v$VERSION with multi-arch support"
     fi
 else
     echo "To publish all builds, run: ./scripts/build_and_package_all_platforms.sh --publish"
 fi
 
 echo ""
-echo "Done!"
+if [ "$BUILD_FAILED" -gt 0 ]; then
+    echo "Done with $BUILD_FAILED failed build(s)."
+    exit 1
+else
+    echo "Done!"
+fi

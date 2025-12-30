@@ -141,9 +141,11 @@ fi
 cd ../..
 
 # Always move the output to intel-specific folder (even if publish failed)
+# Note: electron-builder outputs to ../../out/electron (relative to webapp),
+# which resolves to VoiceTree/out/electron even from staging directory
 rm -rf out/electron-intel
-if [ -d "$STAGING_DIR/out/electron" ]; then
-    mv "$STAGING_DIR/out/electron" out/electron-intel
+if [ -d "out/electron" ]; then
+    mv out/electron out/electron-intel
 fi
 
 # Exit with original code if build/publish failed
