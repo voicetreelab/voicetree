@@ -78,9 +78,23 @@ export class TerminalVanilla {
     // Subscribe to zoom changes to adjust font size
     this.unsubscribeZoom = subscribeToZoomChange((zoom: number) => {
       if (this.term && this.fitAddon) {
+        // Save scroll position before resize (fit changes row count which can reset scroll)
+        const buffer: { baseY: number; viewportY: number } = this.term.buffer.active;
+        const scrollOffset: number = buffer.baseY - buffer.viewportY; // lines scrolled up from bottom
+
         const strategy: 'css-transform' | 'dimension-scaling' = getScalingStrategy('Terminal', zoom);
         this.term.options.fontSize = getTerminalFontSize(zoom, strategy);
         this.fitAddon.fit();
+
+        // Restore scroll position after fit
+        if (scrollOffset > 0) {
+          // Calculate new scroll target based on the offset from bottom
+          const newBaseY: number = this.term.buffer.active.baseY;
+          const targetLine: number = newBaseY - scrollOffset;
+          if (targetLine >= 0) {
+            this.term.scrollToLine(targetLine);
+          }
+        }
       }
     });
 
@@ -157,7 +171,7 @@ export class TerminalVanilla {
         if (this.fitAddon) {
           this.fitAddon.fit();
         }
-      }, 300);
+      }, 50);
     });
     this.resizeObserver.observe(this.container);
 
