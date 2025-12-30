@@ -1,39 +1,134 @@
 name: Test Windows Build
 
 on:
-  workflow_dispatch:  # Manual trigger only
+  workflow_dispatch:
 
 jobs:
-  test-powershell:
+  build-windows:
     runs-on: windows-latest
-    name: Test PowerShell Build Script
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install UV
-      run: |
-        irm https://astral.sh/uv/install.ps1 | iex
-        echo "$env:USERPROFILE\.local\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/webapp/package-lock.json
 
-    - name: Verify UV installed
-      run: uv --version
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
 
-    - name: Run build_server_windows.ps1
-      run: .\scripts\build_server_windows.ps1
+      - name: Build Python server (Windows)
+        shell: pwsh
+        run: |
+          Write-Host "Building VoiceTree Server Executable (Windows)..."
 
-    - name: Verify server executable exists
-      run: |
-        if (Test-Path "out\resources\server\voicetree-server.exe") {
-          Write-Host "SUCCESS: voicetree-server.exe created"
-          Get-Item "out\resources\server\voicetree-server.exe"
-        } else {
-          Write-Host "FAILED: voicetree-server.exe not found"
-          exit 1
-        }
+          # Step 1: Create isolated UV environment
+          Write-Host "Step 1: Creating isolated UV environment..."
+          uv venv .venv-server --python 3.13 --clear
 
-    - name: Test server starts
-      run: |
-        $proc = Start-Process -FilePath "out\resources\server\voicetree-server.exe" -ArgumentList "--help" -PassThru -NoNewWindow -Wait -RedirectStandardOutput stdout.txt -RedirectStandardError stderr.txt
-        Get-Content stdout.txt -ErrorAction SilentlyContinue
-        Get-Content stderr.txt -ErrorAction SilentlyContinue
+          # Step 2: Install server dependencies
+          Write-Host "Step 2: Installing server dependencies..."
+          uv pip install --python .venv-server -r requirements-server.txt
+
+          # Step 3: Install PyInstaller
+          Write-Host "Step 3: Installing PyInstaller..."
+          uv pip install --python .venv-server pyinstaller
+
+          # Step 4: Clean previous builds
+          Write-Host "Step 4: Cleaning previous Windows builds..."
+          if (Test-Path "out\build-windows") { Remove-Item -Recurse -Force "out\build-windows" }
+          if (Test-Path "out\dist-windows") { Remove-Item -Recurse -Force "out\dist-windows" }
+          if (Test-Path "out\resources") { Remove-Item -Recurse -Force "out\resources" }
+
+          # Step 5: Build with PyInstaller
+          Write-Host "Step 5: Building executable with PyInstaller..."
+          & ".venv-server\Scripts\python.exe" -m PyInstaller scripts\server.spec --clean --distpath out\dist-windows --workpath out\build-windows
+
+          # Step 6: Copy to out/resources
+          Write-Host "Step 6: Copying executable to out\resources\server..."
+          New-Item -ItemType Directory -Force -Path "out\resources\server" | Out-Null
+          Copy-Item -Recurse -Force "out\dist-windows\voicetree-server\*" "out\resources\server\"
+
+          Write-Host "Server build complete!"
+
+      - name: Verify server executable
+        shell: pwsh
+        run: |
+          if (Test-Path "out\resources\server\voicetree-server.exe") {
+            Write-Host "SUCCESS: voicetree-server.exe exists"
+            Get-Item "out\resources\server\voicetree-server.exe" | Format-List
+          } else {
+            Write-Host "FAILED: voicetree-server.exe not found"
+            Get-ChildItem -Recurse "out\" | Format-Table
+            exit 1
+          }
+
+      - name: Copy tools and backend modules
+        shell: pwsh
+        run: |
+          # Copy tools
+          New-Item -ItemType Directory -Force -Path "out\resources\tools" | Out-Null
+          Copy-Item -Recurse -Force "tools\*" "out\resources\tools\"
+          Write-Host "Tools copied"
+
+          # Copy backend modules
+          New-Item -ItemType Directory -Force -Path "out\resources\backend" | Out-Null
+          Copy-Item -Recurse -Force "backend\context_retrieval" "out\resources\backend\"
+          Copy-Item -Recurse -Force "backend\markdown_tree_manager" "out\resources\backend\"
+          Copy-Item -Force "backend\__init__.py" "out\resources\backend\"
+          Copy-Item -Force "backend\types.py" "out\resources\backend\"
+          Copy-Item -Force "backend\settings.py" "out\resources\backend\"
+          Copy-Item -Force "backend\logging_config.py" "out\resources\backend\"
+          Write-Host "Backend modules copied"
+
+      - name: Install frontend dependencies
+        working-directory: frontend/webapp
+        run: npm ci
+
+      - name: Rebuild native modules for Electron
+        working-directory: frontend/webapp
+        run: npx electron-rebuild
+
+      - name: Build frontend
+        working-directory: frontend/webapp
+        run: npm run build:test
+
+      - name: Build Electron app (Windows)
+        working-directory: frontend/webapp
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npx electron-vite build
+          npx electron-builder --win --publish=never --config.directories.output=../../out/electron-windows
+
+      - name: Verify build artifacts
+        shell: pwsh
+        run: |
+          Write-Host "=== Build Artifacts ==="
+          if (Test-Path "out\electron-windows") {
+            Get-ChildItem -Recurse "out\electron-windows" -Include "*.exe" | Format-Table Name, Length, FullName
+          } else {
+            Write-Host "WARNING: out\electron-windows not found"
+          }
+
+          Write-Host ""
+          Write-Host "=== Server Executable ==="
+          if (Test-Path "out\resources\server\voicetree-server.exe") {
+            $exe = Get-Item "out\resources\server\voicetree-server.exe"
+            Write-Host "Size: $([math]::Round($exe.Length / 1MB, 2)) MB"
+          }
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: |
+            out/electron-windows/*.exe
+            out/resources/server/voicetree-server.exe
+          if-no-files-found: warn
