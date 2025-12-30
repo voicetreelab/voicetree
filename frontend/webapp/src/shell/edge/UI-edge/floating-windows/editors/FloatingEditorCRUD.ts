@@ -31,11 +31,11 @@ import {
 
 import {
     createWindowChrome,
-    anchorToNode,
     disposeFloatingWindow,
     attachCloseHandler,
     getOrCreateOverlay,
     getCachedZoom,
+
 } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 
 import {
@@ -43,7 +43,7 @@ import {
 } from '@/shell/edge/UI-edge/state/UIAppState';
 
 import { CodeMirrorEditorView } from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
-import { FloatingWindowFullscreen } from '@/shell/UI/floating-windows/FloatingWindowFullscreen';
+// FloatingWindowFullscreen import removed - editor fullscreen disabled due to Vim/Escape key conflict
 import { createNewEmptyOrphanNodeFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions';
 import { getNodeFromMainToUI } from '@/shell/edge/UI-edge/graph/getNodeFromMainToUI';
 import { fromNodeToContentWithWikilinks } from '@/pure/graph/markdown-writing/node_to_markdown';
@@ -58,6 +58,8 @@ import {
 } from "@/shell/edge/UI-edge/state/EditorStore";
 import {modifyNodeContentFromUI} from "@/shell/edge/UI-edge/floating-windows/editors/modifyNodeContentFromFloatingEditor";
 import {isAppendOnly, getAppendedSuffix} from "@/pure/graph/contentChangeDetection";
+import {selectFloatingWindowNode} from "@/shell/edge/UI-edge/floating-windows/select-floating-window-node";
+import {anchorToNode} from "@/shell/edge/UI-edge/floating-windows/anchor-to-node";
 
 // =============================================================================
 // Create Floating Editor
@@ -90,6 +92,13 @@ export async function createFloatingEditor(
         getNodeFromMainToUI(nodeId),
         window.electronAPI!.main.loadSettings()
     ]);
+
+    // Re-check after await - another path may have created editor during async gap
+    const existingAfterAwait: O.Option<EditorData> = getEditorByNodeId(nodeId);
+    if (O.isSome(existingAfterAwait)) {
+        console.log('[createFloatingEditor-v2] Editor created by another path during await:', nodeId);
+        return undefined;
+    }
 
     // Derive title and content from nodeId
     // Editor shows content WITHOUT YAML frontmatter - YAML is managed separately
@@ -151,15 +160,21 @@ export async function createFloatingEditor(
         }
     });
 
-    // Setup fullscreen button handler - fullscreen the entire windowElement (not just content)
-    // This allows escaping the transform containment from the graph overlay
+    // DISABLED: Editor fullscreen is buggy - Vim mode Escape key conflicts with fullscreen exit handler
+    // See: tues/141175_Editor_Fullscreen_Bug_Investigation.md for details
+    // When vimMode is enabled, pressing Escape to exit insert mode also triggers the fullscreen exit
+    // because FloatingWindowFullscreen.ts listens for Escape at document level
     const fullscreenButton: HTMLButtonElement | null = ui.titleBar.querySelector('.cy-floating-window-fullscreen');
     if (fullscreenButton) {
-        const windowFullscreen: FloatingWindowFullscreen = new FloatingWindowFullscreen(ui.windowElement);
-        fullscreenButton.addEventListener('click', (): void => {
-            void windowFullscreen.toggle();
-        });
+        fullscreenButton.style.display = 'none'; // Hide the button since fullscreen is disabled
     }
+    // const fullscreenButton: HTMLButtonElement | null = ui.titleBar.querySelector('.cy-floating-window-fullscreen');
+    // if (fullscreenButton) {
+    //     const windowFullscreen: FloatingWindowFullscreen = new FloatingWindowFullscreen(ui.windowElement);
+    //     fullscreenButton.addEventListener('click', (): void => {
+    //         void windowFullscreen.toggle();
+    //     });
+    // }
 
     // Add to overlay
     const overlay: HTMLElement = getOrCreateOverlay(cy);
@@ -173,6 +188,8 @@ export async function createFloatingEditor(
     requestAnimationFrame(() => {
         if (focusAtEnd) {
             editor.focusAtEnd();
+            // When focus stealing, also select the corresponding node in the graph
+            selectFloatingWindowNode(cy, editorWithUI);
         } else {
             editor.focus();
         }
