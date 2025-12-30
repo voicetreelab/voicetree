@@ -258,6 +258,7 @@ function updateWindowPosition(shadowNode: cytoscape.NodeSingular, domElement: HT
 /**
  * Update shadow node dimensions based on window DOM element dimensions
  * Shadow node dimensions are in graph coordinates (base dimensions)
+ * Also updates the base dimensions dataset so zoom/pan events preserve user resize
  */
 function updateShadowNodeDimensions(shadowNode: cytoscape.NodeSingular, domElement: HTMLElement): void {
     const strategy: ScalingStrategy = domElement.dataset.usingCssTransform === 'true' ? 'css-transform' : 'dimension-scaling';
@@ -272,6 +273,10 @@ function updateShadowNodeDimensions(shadowNode: cytoscape.NodeSingular, domEleme
         'width': graphDimensions.width,
         'height': graphDimensions.height
     });
+
+    // Update base dimensions dataset so updateWindowFromZoom preserves user resize
+    domElement.dataset.baseWidth = String(graphDimensions.width);
+    domElement.dataset.baseHeight = String(graphDimensions.height);
 }
 
 // =============================================================================
@@ -326,10 +331,12 @@ function attachDragHandlers(
         const graphX: number = (viewportX - pan.x) / zoom;
         const graphY: number = (viewportY - pan.y) / zoom;
 
-        windowElement.style.left = `${graphX}px`;
-        windowElement.style.top = `${graphY}px`;
+        // Use screen coordinates (graph * zoom) to match updateWindowPosition
+        const screenPos: { readonly x: number; readonly y: number } = graphToScreenPosition({ x: graphX, y: graphY }, zoom);
+        windowElement.style.left = `${screenPos.x}px`;
+        windowElement.style.top = `${screenPos.y}px`;
 
-        // Update shadow node position
+        // Update shadow node position (in graph coordinates)
         const shadowNode: cytoscape.CollectionReturnValue = cy.getElementById(shadowNodeId);
         if (shadowNode.length > 0) {
             shadowNode.position({ x: graphX, y: graphY });
@@ -669,6 +676,11 @@ export function anchorToNode(
     shadowNode.on('position', syncPosition);
     syncPosition(); // Initial sync
 
+    // BUG: The code below was commented out because it introduced a bug where dragging the terminal
+    // causes it to briefly teleport somewhere else. The feature was intended to make context nodes
+    // attached to their terminal anchor/shadow node so that dragging the context node drags the terminal.
+    // TODO: Fix and re-enable this feature
+    /*
     // Track offset for parent sync (terminal follows context node when dragged)
     let currentOffset: { x: number; y: number } = {
         x: childPosition.x - parentPos.x,
@@ -694,6 +706,7 @@ export function anchorToNode(
         });
     };
     parentNode.on('position', syncWithParent);
+    */
 
     // Attach drag handlers and store cleanup references
     const { handleMouseMove, handleMouseUp } = attachDragHandlers(cy, titleBar, windowElement, shadowNodeId);
@@ -703,7 +716,7 @@ export function anchorToNode(
         dragMouseMove: handleMouseMove,
         dragMouseUp: handleMouseUp,
         resizeObserver,
-        parentPositionHandler: syncWithParent,
+        // parentPositionHandler: syncWithParent, // BUG: commented out - see above
     });
 
     // Initial dimension sync
