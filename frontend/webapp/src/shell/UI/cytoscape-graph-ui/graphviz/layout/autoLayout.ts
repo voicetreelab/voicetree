@@ -11,7 +11,7 @@
  * second phase could still be quite janky which was what we were trying to avoid.
  */
 
-import type {Core, EdgeSingular, NodeDefinition} from 'cytoscape';
+import type {Core, EdgeSingular, NodeDefinition, NodeSingular, Position} from 'cytoscape';
 import ColaLayout from './cola';
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
@@ -43,22 +43,22 @@ const DEFAULT_OPTIONS: AutoLayoutOptions = {
   userConstIter: 10,
   allConstIter: 20,
   edgeLength: (edge: EdgeSingular) => {
-    const source = edge.source();
-    const target = edge.target();
+    const source: NodeSingular = edge.source();
+    const target: NodeSingular = edge.target();
 
     // Dynamic edge length for terminal shadow nodes based on placement direction
-    const isTerminalShadow = target.data('isShadowNode') === true &&
+    const isTerminalShadow: boolean = target.data('isShadowNode') === true &&
                              target.data('windowType') === 'Terminal';
-    const targetIsContextNode = target.data('isContextNode') === true;
+    const targetIsContextNode: boolean = target.data('isContextNode') === true;
 
     if (isTerminalShadow) {
       // Terminal only spawns in cardinal directions (right, left, above, below)
       // so we just need to check if horizontal or vertical placement
-      const sourcePos = source.position();
-      const targetPos = target.position();
-      const dx = Math.abs(targetPos.x - sourcePos.x);
-      const dy = Math.abs(targetPos.y - sourcePos.y);
-      const gap = 20;
+      const sourcePos: Position = source.position();
+      const targetPos: Position = target.position();
+      const dx: number = Math.abs(targetPos.x - sourcePos.x);
+      const dy: number = Math.abs(targetPos.y - sourcePos.y);
+      const gap: number = 20;
 
       if (dx > dy) {
         // Horizontal placement: use widths
@@ -163,8 +163,10 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
   cy.on('add', 'edge', debouncedRunLayout);
   cy.on('remove', 'edge', debouncedRunLayout);
 
-  // Listen to floating window resize (custom event from your codebase)
-  cy.on('floatingwindow:resize', debouncedRunLayout);
+  // NOTE: We intentionally do NOT listen to 'floatingwindow:resize' here.
+  // That event fires on zoom-induced dimension changes (not just user resize),
+  // which would cause unnecessary full layout recalculations during zoom/pan.
+  // Shadow node dimensions still update correctly without triggering layout.
 
   console.log('[AutoLayout] Auto-layout enabled');
 
@@ -174,7 +176,6 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     cy.off('remove', 'node', debouncedRunLayout);
     cy.off('add', 'edge', debouncedRunLayout);
     cy.off('remove', 'edge', debouncedRunLayout);
-    cy.off('floatingwindow:resize', debouncedRunLayout);
 
     if (debounceTimeout) {
       clearTimeout(debounceTimeout);
