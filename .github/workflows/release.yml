@@ -42,6 +42,11 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/webapp/package-lock.json
 
+      - name: Setup Python (for node-gyp)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Install uv
         uses: astral-sh/setup-uv@v4
 
@@ -80,10 +85,6 @@ jobs:
       - name: Install frontend dependencies
         working-directory: frontend/webapp
         run: npm ci
-
-      - name: Build frontend
-        working-directory: frontend/webapp
-        run: npm run build
 
       - name: Update file timestamps for codesign
         run: find out/resources -type f -exec touch {} +
@@ -157,10 +158,6 @@ jobs:
         working-directory: frontend/webapp
         run: npx electron-rebuild
 
-      - name: Build frontend
-        working-directory: frontend/webapp
-        run: npm run build  # NOT build:test - smoke tests launch Electron, may fail on CI
-
       - name: Build & Publish Electron
         working-directory: frontend/webapp
         shell: pwsh
@@ -217,10 +214,6 @@ jobs:
       - name: Install frontend dependencies
         working-directory: frontend/webapp
         run: npm ci
-
-      - name: Build frontend
-        working-directory: frontend/webapp
-        run: npm run build
 
       - name: Build & Publish Electron
         working-directory: frontend/webapp
