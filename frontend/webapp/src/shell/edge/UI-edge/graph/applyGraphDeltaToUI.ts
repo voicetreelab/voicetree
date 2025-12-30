@@ -9,9 +9,6 @@ import {markTerminalActivityForContextNode} from "@/shell/UI/views/AgentTabsBar"
 import type {} from '@/utils/types/cytoscape-layout-utilities';
 import {cyFitCollectionByAverageNodeSize} from "@/utils/responsivePadding";
 import {checkEngagementPrompts} from "./userEngagementPrompts";
-import {createAnchoredFloatingEditor} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
-import {getEditorByNodeId} from "@/shell/edge/UI-edge/state/EditorStore";
-import {getTerminalByNodeId} from "@/shell/edge/UI-edge/state/TerminalStore";
 
 const MAX_EDGES: number = 150;
 

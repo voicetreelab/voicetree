@@ -11,9 +11,9 @@
  */
 
 import {launchTerminalOntoUI} from "@/shell/edge/UI-edge/launchTerminalOntoUI";
-import {updateFloatingEditors} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
+import {updateFloatingEditors, createAnchoredFloatingEditor} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 import {getCyInstance} from "@/shell/edge/UI-edge/state/cytoscape-state";
-import type {GraphDelta} from "@/pure/graph";
+import type {GraphDelta, NodeIdAndFilePath} from "@/pure/graph";
 import type {Core} from "cytoscape";
 
 /**
@@ -25,11 +25,22 @@ function updateFloatingEditorsFromExternal(delta: GraphDelta): void {
     updateFloatingEditors(cy, delta);
 }
 
+/**
+ * Create an editor for a node created by an external FS change.
+ * This is the auto-pin path for truly external file additions.
+ * Called from main process FS watcher when it detects a new file was added externally.
+ */
+function createEditorForExternalNode(nodeId: NodeIdAndFilePath): void {
+    const cy: Core = getCyInstance();
+    void createAnchoredFloatingEditor(cy, nodeId, false, true);
+}
+
 // Export as object (like mainAPI)
 // eslint-disable-next-line @typescript-eslint/typedef
 export const uiAPIHandler = {
     launchTerminalOntoUI,
     updateFloatingEditorsFromExternal,
+    createEditorForExternalNode,
 };
 
 export type UIAPIType = typeof uiAPIHandler;
