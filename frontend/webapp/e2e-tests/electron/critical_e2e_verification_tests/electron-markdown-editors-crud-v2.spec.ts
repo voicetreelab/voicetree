@@ -259,15 +259,18 @@ test.describe('Markdown Editor CRUD Tests', () => {
       const cmView = (editorElement as CodeMirrorElement).cmView?.view;
       if (!cmView) throw new Error('CodeMirror view not found');
 
+      // IMPORTANT: Must include userEvent annotation to trigger onChange handler
+      // CodeMirrorEditorView only fires onChange for user-initiated changes
       cmView.dispatch({
-        changes: { from: 0, to: cmView.state.doc.length, insert: newContent }
+        changes: { from: 0, to: cmView.state.doc.length, insert: newContent },
+        userEvent: 'input'
       });
     }, { windowId: editorWindowId, newContent: testContent });
 
     console.log('✓ Content modified in editor');
 
-    // Wait for auto-save to complete (debounce is 300ms, add extra margin)
-    await appWindow.waitForTimeout(500);
+    // Wait for auto-save to complete (debounce is 300ms + IPC + FS write)
+    await appWindow.waitForTimeout(1000);
 
     // Verify file content changed on disk BEFORE closing
     // Note: The system adds frontmatter with position
