@@ -39,7 +39,6 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
     console.log("applyGraphDeltaToUI", delta.length);
     console.log('[applyGraphDeltaToUI] Starting\n' + prettyPrintGraphDelta(delta));
     const newNodeIds: string[] = [];
-    let edgeLimitAlertShown: boolean = false;
     const nodesWithoutPositions: string[] = [];
 
     cy.batch(() => {
@@ -158,12 +157,12 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                         // Only create edge if target node exists
                         const targetNode: CollectionReturnValue = cy.getElementById(edge.targetId);
                         if (cy.edges().length >= MAX_EDGES) {
-                            // Edge limit reached - only show alert once per delta application
-                            if (!edgeLimitAlertShown) {
-                                alert(`There is a limit of ${MAX_EDGES} edges at once, contact 1manumasson@gmail.com to increase this`);
-                                edgeLimitAlertShown = true;
-                            }
-                            console.warn(`[applyGraphDeltaToUI] Edge limit reached (${MAX_EDGES}), not adding edge ${edgeId}`);
+                            // // Edge limit reached - only show alert once per delta application
+                            // if (!edgeLimitAlertShown) {
+                            //     alert(`There is a limit of ${MAX_EDGES} edges at once, contact 1manumasson@gmail.com to increase this`);
+                            //     edgeLimitAlertShown = true;
+                            // }
+                            // console.warn(`[applyGraphDeltaToUI] Edge limit reached (${MAX_EDGES}), not adding edge ${edgeId}`);
                         } else if (targetNode.length > 0) {
                             console.log(`[applyGraphDeltaToUI] Adding new edge: ${edgeId} with label ${edge.label}`);
                             cy.add({
