@@ -4,7 +4,7 @@
   "description": "Transform voice into navigable concept graphs",
   "author": "Manu Masson",
   "private": true,
-  "version": "1.9.1",
+  "version": "1.9.2",
   "type": "module",
   "main": "dist-electron/main/index.js",
   "scripts": {
@@ -77,12 +77,13 @@
     "lucide-react": "^0.544.0",
     "mermaid": "^11.12.0",
     "ninja-keys": "^1.2.2",
-    "node-pty": "^1.0.0",
+    "node-pty": "^1.1.0",
     "posthog-js": "^1.290.0",
     "re-resizable": "^6.11.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-draggable": "^4.5.0",
+    "recharts": "^3.6.0",
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^4.1.11",
     "zod": "^3.25.76"
