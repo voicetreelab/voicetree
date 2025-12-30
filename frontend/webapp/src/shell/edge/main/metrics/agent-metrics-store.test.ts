@@ -3,7 +3,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import * as os from 'os';
 import { startSession, endSession, getMetrics, appendTokenMetrics } from './agent-metrics-store';
-import type { AgentMetricsData } from './agent-metrics-store';
+import type { AgentMetricsData, SessionMetric } from './agent-metrics-store';
 
 vi.mock('../state/app-electron-state', () => ({
   getAppSupportPath: vi.fn(() => testAppSupportPath)
@@ -31,7 +31,7 @@ describe('agent-metrics-store', () => {
   });
 
   it('should start a new session', async () => {
-    const sessionData = {
+    const sessionData: { sessionId: string; agentName: string; contextNode: string; startTime: string } = {
       sessionId: 'terminal-1234',
       agentName: 'Hana',
       contextNode: 'friday/task.md',
@@ -51,7 +51,7 @@ describe('agent-metrics-store', () => {
   });
 
   it('should end a session and calculate duration', async () => {
-    const sessionData = {
+    const sessionData: { sessionId: string; agentName: string; contextNode: string; startTime: string } = {
       sessionId: 'terminal-5678',
       agentName: 'Claude',
       contextNode: 'monday/review.md',
@@ -60,7 +60,7 @@ describe('agent-metrics-store', () => {
 
     await startSession(sessionData);
 
-    const endData = {
+    const endData: { sessionId: string; exitCode: number; endTime: string } = {
       sessionId: 'terminal-5678',
       exitCode: 0,
       endTime: '2025-12-21T10:15:00Z'
@@ -215,7 +215,7 @@ describe('agent-metrics-store', () => {
     expect(metrics.sessions[0].costUsd).toBe(0.0234);
   });
 
-  it('should handle appendTokenMetrics for non-existent session gracefully', async () => {
+  it('should auto-create session when appendTokenMetrics receives unknown sessionId', async () => {
     await startSession({
       sessionId: 'terminal-exists-2',
       agentName: 'ExistingAgent2',
@@ -223,17 +223,22 @@ describe('agent-metrics-store', () => {
       startTime: '2025-12-21T17:00:00Z'
     });
 
-    // This should not throw, just log a warning
+    // Should auto-create a new session for unknown sessionId (OTLP metrics from Claude Code)
     await appendTokenMetrics({
-      sessionId: 'terminal-nonexistent-2',
+      sessionId: 'claude-session-uuid',
       tokens: { input: 100, output: 50 },
       costUsd: 0.01
     });
 
     const metrics: AgentMetricsData = await getMetrics();
-    expect(metrics.sessions).toHaveLength(1);
-    expect(metrics.sessions[0].tokens).toBeUndefined();
-    expect(metrics.sessions[0].costUsd).toBeUndefined();
+    expect(metrics.sessions).toHaveLength(2);
+
+    const newSession: SessionMetric | undefined = metrics.sessions.find(s => s.sessionId === 'claude-session-uuid');
+    expect(newSession).toBeDefined();
+    expect(newSession!.agentName).toBe('Claude');
+    expect(newSession!.contextNode).toBe('unknown');
+    expect(newSession!.tokens).toEqual({ input: 100, output: 50 });
+    expect(newSession!.costUsd).toBe(0.01);
   });
 
   it('should persist token metrics to JSON file', async () => {
