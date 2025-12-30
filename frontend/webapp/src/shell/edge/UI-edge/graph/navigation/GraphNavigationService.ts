@@ -126,8 +126,11 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
       ? contextNode.closedNeighborhood().nodes().union(terminalShadowNode)
       : cy.collection().union(terminalShadowNode);
 
-    // Collection takes 90% of viewport (show context with minimal padding)
-    cyFitWithRelativeZoom(cy, nodesToFit, 0.9);
+    // Pan to center on neighborhood without changing zoom level
+    cy.animate({
+      center: { eles: nodesToFit },
+      duration: 300
+    });
 
     // Focus the terminal so keyboard input goes directly to it
     // Note: terminals are stored in vanillaFloatingWindowInstances with terminalId as key (not shadowNodeId)

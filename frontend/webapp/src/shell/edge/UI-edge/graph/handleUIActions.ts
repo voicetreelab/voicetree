@@ -15,7 +15,10 @@ import {
 import {deleteNodeMaintainingTransitiveEdges} from "@/pure/graph/graph-operations/removeNodeMaintainingTransitiveEdges";
 import {applyGraphDeltaToGraph} from "@/pure/graph/graphDelta/applyGraphDeltaToGraph";
 import type {Core} from 'cytoscape';
-import {updateFloatingEditors} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
+import {
+    updateFloatingEditors,
+    createFloatingEditorForUICreatedNode
+} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 import * as O from 'fp-ts/lib/Option.js';
 
 /**
@@ -59,12 +62,17 @@ export async function createNewChildNodeFromUI(
     updateFloatingEditors(cy, graphDelta);
 
     await window.electronAPI?.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed(graphDelta);
+
+    // Create editor for UI-created node: always steals focus, independent/permanent
+    // This runs after delta is applied so the node exists in the graph
+    void createFloatingEditorForUICreatedNode(cy, newNode.relativeFilePathIsID);
+
     return newNode.relativeFilePathIsID;
 }
 
 export async function createNewEmptyOrphanNodeFromUI(
     pos: Position,
-    _cy: Core
+    cy: Core
 ): Promise<NodeIdAndFilePath> {
     // Get vault suffix so node ID includes correct path prefix
     const watchStatus: { isWatching: boolean; directory?: string; vaultSuffix?: string } | undefined = await window.electronAPI?.main.getWatchStatus();
@@ -73,6 +81,10 @@ export async function createNewEmptyOrphanNodeFromUI(
     const {newNode, graphDelta} = createNewNodeNoParent(pos, vaultSuffix);
 
     await window.electronAPI?.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed(graphDelta);
+
+    // Create editor for UI-created node: always steals focus, independent/permanent
+    // This runs after delta is applied so the node exists in the graph
+    void createFloatingEditorForUICreatedNode(cy, newNode.relativeFilePathIsID);
 
     return newNode.relativeFilePathIsID;
 }
