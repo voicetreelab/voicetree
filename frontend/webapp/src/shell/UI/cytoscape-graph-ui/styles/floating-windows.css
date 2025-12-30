@@ -296,3 +296,14 @@
 .dark .cm-diff-removed {
   background-color: rgba(239, 68, 68, 0.25);
 }
+
+/* Wikilink title display - shows node title instead of ID */
+.cm-wikilink-title {
+  color: var(--primary, #3b82f6);
+  font-style: italic;
+  cursor: default;
+}
+
+.dark .cm-wikilink-title {
+  color: var(--primary, #60a5fa);
+}

@@ -5,10 +5,12 @@ import http from 'http';
 import { parseOTLPMetrics, type OTLPMetricsRequest } from './otlp-parser';
 import { appendTokenMetrics } from './agent-metrics-store';
 
-const OTLP_PORT = 4318;
+const OTLP_BASE_PORT = 4318;
+const OTLP_MAX_PORT_ATTEMPTS = 10;
 const OTLP_HOST = 'localhost';
 
 let server: http.Server | null = null;
+let activePort: number | null = null;
 
 async function handleMetricsRequest(
   req: http.IncomingMessage,
@@ -67,35 +69,47 @@ async function handleMetricsRequest(
   });
 }
 
-export function startOTLPReceiver(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (server) {
-      console.log('[OTLP Receiver] Server already running');
-      resolve();
-      return;
-    }
-
-    server = http.createServer((req, res) => {
+function tryListenOnPort(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const testServer = http.createServer((req, res) => {
       void handleMetricsRequest(req, res);
     });
 
-    server.on('error', (error: NodeJS.ErrnoException) => {
+    testServer.on('error', (error: NodeJS.ErrnoException) => {
       if (error.code === 'EADDRINUSE') {
-        console.warn(`[OTLP Receiver] Port ${OTLP_PORT} already in use, skipping`);
-        server = null;
-        resolve(); // Don't fail if port is busy
+        resolve(false);
       } else {
         console.error('[OTLP Receiver] Server error:', error);
-        reject(error);
+        resolve(false);
       }
     });
 
-    server.listen(OTLP_PORT, OTLP_HOST, () => {
-      console.log(`[OTLP Receiver] Listening on ${OTLP_HOST}:${OTLP_PORT}`);
-      console.log(`[OTLP Receiver] Metrics endpoint: POST http://${OTLP_HOST}:${OTLP_PORT}/v1/metrics`);
-      resolve();
+    testServer.listen(port, OTLP_HOST, () => {
+      server = testServer;
+      activePort = port;
+      console.log(`[OTLP Receiver] Listening on ${OTLP_HOST}:${port}`);
+      console.log(`[OTLP Receiver] Metrics endpoint: POST http://${OTLP_HOST}:${port}/v1/metrics`);
+      resolve(true);
     });
   });
+}
+
+export async function startOTLPReceiver(): Promise<void> {
+  if (server) {
+    console.log('[OTLP Receiver] Server already running');
+    return;
+  }
+
+  for (let i = 0; i < OTLP_MAX_PORT_ATTEMPTS; i++) {
+    const port = OTLP_BASE_PORT + i;
+    const success = await tryListenOnPort(port);
+    if (success) {
+      return;
+    }
+    console.warn(`[OTLP Receiver] Port ${port} already in use, trying ${port + 1}...`);
+  }
+
+  console.warn(`[OTLP Receiver] All ports ${OTLP_BASE_PORT}-${OTLP_BASE_PORT + OTLP_MAX_PORT_ATTEMPTS - 1} in use, skipping`);
 }
 
 export function stopOTLPReceiver(): Promise<void> {
@@ -109,7 +123,12 @@ export function stopOTLPReceiver(): Promise<void> {
     server.close(() => {
       console.log('[OTLP Receiver] Server stopped');
       server = null;
+      activePort = null;
       resolve();
     });
   });
+}
+
+export function getOTLPReceiverPort(): number | null {
+  return activePort;
 }

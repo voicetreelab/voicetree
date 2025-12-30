@@ -5,6 +5,7 @@ import type { WebContents } from 'electron';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/types";
 import {getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 import {getVaultSuffix} from "@/shell/edge/main/graph/watchFolder";
+import {getOTLPReceiverPort} from "@/shell/edge/main/metrics/otlp-receiver";
 
 export interface TerminalSpawnResult {
   success: boolean;
@@ -323,10 +324,13 @@ export default class TerminalManager {
       customEnv.OBSIDIAN_SOURCE_BASENAME = path.basename(relativePath, ext);
 
       // OTEL telemetry env vars - enables Claude Code to send metrics to our OTLP receiver
-      customEnv.CLAUDE_CODE_ENABLE_TELEMETRY = '1';
-      customEnv.OTEL_METRICS_EXPORTER = 'otlp';
-      customEnv.OTEL_EXPORTER_OTLP_PROTOCOL = 'http/json';
-      customEnv.OTEL_EXPORTER_OTLP_ENDPOINT = 'http://localhost:4318';
+      const otlpPort = getOTLPReceiverPort();
+      if (otlpPort) {
+        customEnv.CLAUDE_CODE_ENABLE_TELEMETRY = '1';
+        customEnv.OTEL_METRICS_EXPORTER = 'otlp';
+        customEnv.OTEL_EXPORTER_OTLP_PROTOCOL = 'http/json';
+        customEnv.OTEL_EXPORTER_OTLP_ENDPOINT = `http://localhost:${otlpPort}`;
+      }
 
       return customEnv;
   }

@@ -53,6 +53,7 @@ import { EventEmitter } from '@/utils/EventEmitter';
 import { mermaidRender } from '@/shell/UI/floating-windows/extensions/mermaidRender';
 import { diffHighlight } from '@/shell/UI/floating-windows/extensions/diffHighlight';
 import { wikilinkCompletion } from '@/shell/UI/floating-windows/extensions/wikilinkCompletion';
+import { wikilinkTitleDisplay } from '@/shell/UI/floating-windows/extensions/wikilinkTitleDisplay';
 import { FloatingWindowFullscreen } from '@/shell/UI/floating-windows/FloatingWindowFullscreen';
 
 /**
@@ -209,6 +210,7 @@ export class CodeMirrorEditorView extends Disposable {
       mermaidRender(), // Render Mermaid diagrams in live preview
       diffHighlight(), // Highlight diff lines (+/-) in code blocks with green/red backgrounds
       wikilinkCompletion(), // Autocomplete for [[wikilinks]] - shows nodes ordered by recency
+      wikilinkTitleDisplay(), // Display node titles instead of IDs in [[wikilinks]]
       frontmatterFoldService, // Custom fold service for frontmatter
       foldGutter(), // Add fold gutter for collapsing sections
       EditorView.lineWrapping, // Enable text wrapping

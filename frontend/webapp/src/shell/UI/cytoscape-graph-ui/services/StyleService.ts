@@ -86,8 +86,8 @@ export class StyleService {
       fillColor: isDark ? '#9fa5aa' :'#3f3f3f',
       fillHighlightColor: '#525252',
       accentBorderColor: '#4b96ff',
-      lineColor: '#5e5e5e',
-      lineHighlightColor: '#7c7c7c',
+      lineColor: isDark ? '#8a8a8a' : '#5e5e5e', // Lighter edges in dark mode for visibility
+      lineHighlightColor: isDark ? '#a0a0a0' : '#7c7c7c', // Lighter highlight in dark mode
       textColor: isDark ? '#dcddde' : '#2a2a2a', // Dark grey for light mode, light grey for dark mode
       danglingColor: '#683c3c',
     };
@@ -189,7 +189,7 @@ export class StyleService {
           'line-opacity': 0.3,
           'target-arrow-shape': 'triangle',
           'target-arrow-fill': 'hollow' as cytoscape.Css.ArrowFill,
-          'target-arrow-color': '#666',
+          'target-arrow-color': this.lineColor,
           'arrow-scale': 0.7,
           'font-size': 9,
           'font-family': this.font,

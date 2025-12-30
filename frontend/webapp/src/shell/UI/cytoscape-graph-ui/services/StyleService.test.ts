@@ -50,6 +50,9 @@ describe('StyleService', () => {
       // In light mode, text should be dark (#2a2a2a)
       expect(nodeStyle?.style.color).toBe('#2a2a2a');
       expect(edgeStyle?.style.color).toBe('#2a2a2a');
+      // In light mode, edge lines should be darker (#5e5e5e)
+      expect(edgeStyle?.style['line-color']).toBe('#5e5e5e');
+      expect(edgeStyle?.style['target-arrow-color']).toBe('#5e5e5e');
     });
 
     it('should use light text color (#dcddde) in dark mode', () => {
@@ -77,6 +80,9 @@ describe('StyleService', () => {
       // In dark mode, text should be light (#dcddde)
       expect(nodeStyle?.style.color).toBe('#dcddde');
       expect(edgeStyle?.style.color).toBe('#dcddde');
+      // In dark mode, edge lines should be lighter (#8a8a8a) for visibility
+      expect(edgeStyle?.style['line-color']).toBe('#8a8a8a');
+      expect(edgeStyle?.style['target-arrow-color']).toBe('#8a8a8a');
 
       // Cleanup
       document.documentElement.classList.remove('dark');
