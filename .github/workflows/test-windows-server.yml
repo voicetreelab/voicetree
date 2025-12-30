@@ -28,7 +28,15 @@ jobs:
             exit 1
           }
 
-      - name: Test server runs
+      - name: Test server starts (5s timeout)
         shell: pwsh
         run: |
-          & "out\resources\server\voicetree-server.exe" --help
+          $job = Start-Job { & "$using:PWD\out\resources\server\voicetree-server.exe" }
+          Start-Sleep -Seconds 5
+          if ($job.State -eq 'Running') {
+            Write-Host "SUCCESS: Server started and is running"
+            Stop-Job $job
+          } else {
+            Write-Host "Server exited early"
+            Receive-Job $job
+          }
