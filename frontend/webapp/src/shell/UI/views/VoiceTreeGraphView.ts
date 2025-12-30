@@ -42,8 +42,7 @@ import {
     setupCommandHover,
     closeAllEditors,
     disposeEditorManager,
-    closeEditor,
-    createAnchoredFloatingEditor
+    closeEditor
 } from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
 import {HotkeyManager} from './HotkeyManager';
 import {SearchService} from './SearchService';
@@ -237,20 +236,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             if (this.emptyStateOverlay) {
                 this.emptyStateOverlay.style.display = 'none';
             }
-            const { newNodeIds } = applyGraphDeltaToUI(this.cy, delta);
-
-            // Auto-pin editor for single externally-added nodes (e.g., file created outside app)
-            // Skip bulk loads (initial folder load, multiple file paste)
-            // Skip context nodes (ctx-nodes folder) - they are supplementary and shouldn't auto-open
-            if (newNodeIds.length === 1) {
-                const nodeId: string = newNodeIds[0];
-                const cyNode: cytoscape.NodeSingular = this.cy.getElementById(nodeId);
-                const isContextNode: boolean = cyNode.data('isContextNode') === true;
-                if (!isContextNode) {
-                    console.log('[VoiceTreeGraphView] Auto-pinning editor for externally added node:', nodeId);
-                    void createAnchoredFloatingEditor(this.cy, nodeId, true, true); // focusAtEnd + isAutoPin
-                }
-            }
+            // applyGraphDeltaToUI handles auto-pinning editors for new external nodes
+            applyGraphDeltaToUI(this.cy, delta);
 
             // DO NOT SEND TO EDITORS FROM HERE TO AVOID FEEDBACK LOOP
 

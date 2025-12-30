@@ -23,6 +23,7 @@ import type { Position } from '@/shell/UI/views/IVoiceTreeGraphView';
 import {
     createEditorData,
     getEditorId,
+    getShadowNodeId,
     type EditorData,
     type EditorId,
     type FloatingWindowUIData,
@@ -398,6 +399,80 @@ export async function createAnchoredFloatingEditor(
 
     } catch (error) {
         console.error('[FloatingEditorManager-v2] Error creating floating editor:', error);
+    }
+}
+
+// =============================================================================
+// Create Floating Editor for UI-Created Node
+// =============================================================================
+
+/**
+ * Pan to editor neighborhood (maintains current zoom level)
+ * Similar to terminal's panToTerminalNeighborhood
+ */
+function panToEditorNeighborhood(cy: Core, nodeId: NodeIdAndFilePath, editorId: EditorId): void {
+    const shadowNodeId: string = getShadowNodeId(editorId);
+    const editorShadowNode: cytoscape.CollectionReturnValue = cy.getElementById(shadowNodeId);
+    const contextNode: cytoscape.CollectionReturnValue = cy.getElementById(nodeId);
+    const nodesToCenter: cytoscape.CollectionReturnValue = contextNode.length > 0
+        ? contextNode.closedNeighborhood().nodes().union(editorShadowNode)
+        : cy.collection().union(editorShadowNode);
+    cy.animate({
+        center: { eles: nodesToCenter },
+        duration: 300
+    });
+}
+
+/**
+ * Create a floating editor for a node created via UI interaction (hotkey/menu).
+ * This is separate from the auto-pin path used for external graph deltas.
+ *
+ * Key differences from createAnchoredFloatingEditor:
+ * - ALWAYS steals focus (user just created the node, they want to type)
+ * - NO autopin state logic (editor is independent/permanent)
+ * - Does not close previous auto-pinned editors
+ * - Pans to editor neighborhood after creation (like terminal spawn)
+ *
+ * @param cy - Cytoscape instance
+ * @param nodeId - ID of the newly created node
+ */
+export async function createFloatingEditorForUICreatedNode(
+    cy: Core,
+    nodeId: NodeIdAndFilePath
+): Promise<void> {
+    try {
+        // Early exit if editor already exists
+        if (O.isSome(getEditorByNodeId(nodeId))) {
+            console.log('[FloatingEditorManager-v2] UI-created node editor already exists:', nodeId);
+            return;
+        }
+
+        console.log('[FloatingEditorManager-v2] Creating editor for UI-created node:', nodeId);
+
+        // Create floating editor window with focus at end (user wants to type immediately)
+        const editor: EditorData | undefined = await createFloatingEditor(
+            cy,
+            nodeId,
+            nodeId, // Anchor to the same node we're editing
+            true    // Always focus at end for UI-created nodes
+        );
+
+        if (!editor) {
+            console.log('[FloatingEditorManager-v2] Failed to create editor for UI-created node');
+            return;
+        }
+
+        // Anchor to node (creates shadow node for positioning)
+        anchorToNode(cy, editor);
+
+        // Pan to editor neighborhood twice with delays to handle IPC race condition
+        // (node may not be fully positioned in Cytoscape yet when this runs)
+        const editorId: EditorId = getEditorId(editor);
+        setTimeout(() => panToEditorNeighborhood(cy, nodeId, editorId), 300);
+        setTimeout(() => panToEditorNeighborhood(cy, nodeId, editorId), 1200);
+
+    } catch (error) {
+        console.error('[FloatingEditorManager-v2] Error creating editor for UI-created node:', error);
     }
 }
 
