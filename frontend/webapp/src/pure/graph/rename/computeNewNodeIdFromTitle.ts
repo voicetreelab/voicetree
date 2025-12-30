@@ -1,4 +1,5 @@
 import type { NodeIdAndFilePath } from '@/pure/graph'
+import { ensureUniqueNodeId } from '@/pure/graph/ensureUniqueNodeId'
 
 /**
  * Extracts the folder prefix from a node ID (everything before the last slash).
@@ -30,23 +31,6 @@ function titleToSnakeCase(title: string): string {
 }
 
 /**
- * Finds the first available suffix for a node ID that doesn't conflict with existing IDs.
- * Uses recursion to find _2, _3, etc.
- */
-function findAvailableSuffix(
-    folderPrefix: string,
-    baseName: string,
-    existingIds: ReadonlySet<string>,
-    suffix: number
-): NodeIdAndFilePath {
-    const candidateId: NodeIdAndFilePath = `${folderPrefix}${baseName}_${suffix}.md`
-    if (!existingIds.has(candidateId)) {
-        return candidateId
-    }
-    return findAvailableSuffix(folderPrefix, baseName, existingIds, suffix + 1)
-}
-
-/**
  * Converts a title to a new node ID in snake_case format.
  *
  * - Converts to lowercase
@@ -70,11 +54,6 @@ export function computeNewNodeIdFromTitle(
     // Build the base ID (without conflict suffix)
     const baseId: NodeIdAndFilePath = `${folderPrefix}${baseName}.md`
 
-    // If no conflict, return base ID
-    if (!existingIds.has(baseId)) {
-        return baseId
-    }
-
-    // Find first available suffix (_2, _3, etc.) using recursion
-    return findAvailableSuffix(folderPrefix, baseName, existingIds, 2)
+    // Use shared collision handling
+    return ensureUniqueNodeId(baseId, existingIds)
 }

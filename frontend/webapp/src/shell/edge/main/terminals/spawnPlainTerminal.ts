@@ -75,10 +75,11 @@ export async function spawnPlainTerminalWithNode(
 ): Promise<void> {
     // Get vault suffix so node ID includes correct path prefix
     const vaultSuffix: string = getWatchStatus().vaultSuffix;
+    const graph: Graph = getGraph();
 
     // Create a new orphan node (same as 'Add Node Here')
     const {newNode, graphDelta}: {readonly newNode: GraphNode; readonly graphDelta: GraphDelta} =
-        createNewNodeNoParent(position, vaultSuffix);
+        createNewNodeNoParent(position, vaultSuffix, graph);
 
     // Persist the node to disk and update UI
     await applyGraphDeltaToDBThroughMemAndUIAndEditors(graphDelta);

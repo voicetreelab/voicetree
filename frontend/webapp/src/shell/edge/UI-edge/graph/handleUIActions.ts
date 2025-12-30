@@ -78,7 +78,14 @@ export async function createNewEmptyOrphanNodeFromUI(
     const watchStatus: { isWatching: boolean; directory?: string; vaultSuffix?: string } | undefined = await window.electronAPI?.main.getWatchStatus();
     const vaultSuffix: string = watchStatus?.vaultSuffix ?? '';
 
-    const {newNode, graphDelta} = createNewNodeNoParent(pos, vaultSuffix);
+    // Get current graph for collision detection
+    const currentGraph: Graph | undefined = await window.electronAPI?.main.getGraph();
+    if (!currentGraph) {
+        console.error("NO GRAPH IN STATE");
+        throw new Error("Cannot create node: graph not available");
+    }
+
+    const {newNode, graphDelta} = createNewNodeNoParent(pos, vaultSuffix, currentGraph);
 
     await window.electronAPI?.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed(graphDelta);
 

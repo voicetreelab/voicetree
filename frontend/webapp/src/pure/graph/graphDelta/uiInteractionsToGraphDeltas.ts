@@ -5,6 +5,7 @@ import {addOutgoingEdge} from "@/pure/graph/graph-operations/graph-edge-operatio
 import * as O from "fp-ts/lib/Option.js";
 // TODO: parseMarkdownToGraphNode uses gray-matter which requires Node.js Buffer - move parsing to main process
 import {parseMarkdownToGraphNode} from "@/pure/graph/markdown-parsing/parse-markdown-to-node";
+import {ensureUniqueNodeId} from "@/pure/graph/ensureUniqueNodeId";
 
 /**
  * Pure action creator functions.
@@ -51,13 +52,16 @@ export function fromCreateChildToUpsertNode(
     newNodeContent: string = "# ",
     newFilePathIsID: NodeIdAndFilePath = generateChildNodeId(parentNode),
 ): GraphDelta {
+    // Ensure the node ID is unique by appending _2, _3, etc. if collision exists
+    const existingIds: ReadonlySet<string> = new Set(Object.keys(graph.nodes))
+    const uniqueNodeId: NodeIdAndFilePath = ensureUniqueNodeId(newFilePathIsID, existingIds)
 
     // Parse the content to extract metadata (including isContextNode from frontmatter)
-    const parsedNode: GraphNode = parseMarkdownToGraphNode(newNodeContent, newFilePathIsID, graph)
+    const parsedNode: GraphNode = parseMarkdownToGraphNode(newNodeContent, uniqueNodeId, graph)
 
     // Create the new node, merging parsed metadata with calculated position
     const newNode: GraphNode = {
-        relativeFilePathIsID: newFilePathIsID,
+        relativeFilePathIsID: uniqueNodeId,
         outgoingEdges: parsedNode.outgoingEdges,
         contentWithoutYamlOrLinks: parsedNode.contentWithoutYamlOrLinks,
         nodeUIMetadata: {
@@ -113,7 +117,7 @@ export function fromContentChangeToGraphDelta(
  * @param nodesToDelete - Array of {nodeId, deletedNode} pairs
  * @returns A single GraphDelta containing all delete actions
  */
-export function createDeleteNodesAction(nodesToDelete: ReadonlyArray<{nodeId: string; deletedNode?: GraphNode}>): GraphDelta {
+export function createDeleteNodesAction(nodesToDelete: ReadonlyArray<{readonly nodeId: string; readonly deletedNode?: GraphNode}>): GraphDelta {
     return nodesToDelete.map(({nodeId, deletedNode}) => ({
         type: 'DeleteNode' as const,
         nodeId,
@@ -131,10 +135,13 @@ function randomChars(number: number): string {
     ).join('');
 }
 
-export function createNewNodeNoParent(pos: Position, vaultSuffix: string): { readonly newNode: GraphNode; readonly graphDelta: GraphDelta; } {
+export function createNewNodeNoParent(pos: Position, vaultSuffix: string, graph: Graph): { readonly newNode: GraphNode; readonly graphDelta: GraphDelta; } {
     const randomId: string = Date.now().toString() + randomChars(3) + ".md"
     // Node ID must include vault suffix so path.join(watchedDirectory, nodeId) produces correct absolute path
-    const nodeId: string = vaultSuffix ? `${vaultSuffix}/${randomId}` : randomId
+    const candidateId: string = vaultSuffix ? `${vaultSuffix}/${randomId}` : randomId
+    // Ensure unique even with timestamp+random (defensive check)
+    const existingIds: ReadonlySet<string> = new Set(Object.keys(graph.nodes))
+    const nodeId: string = ensureUniqueNodeId(candidateId, existingIds)
     const newNode: GraphNode = {
         relativeFilePathIsID: nodeId,
         outgoingEdges: [],

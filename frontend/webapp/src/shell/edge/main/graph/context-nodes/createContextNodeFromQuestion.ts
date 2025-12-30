@@ -10,6 +10,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange";
+import {ensureUniqueNodeId} from "@/pure/graph/ensureUniqueNodeId";
 
 /** Truncate a title to at most 5 words */
 function truncateToFiveWords(text: string): string {
@@ -47,11 +48,14 @@ export async function createContextNodeFromQuestion(
 
     const timestamp: number = Date.now()
     const vaultSuffix: string = getWatchStatus().vaultSuffix
+    const existingIds: ReadonlySet<string> = new Set(Object.keys(currentGraph.nodes))
 
     // 1. Create standalone question node (no parent)
-    const questionNodeId: string = vaultSuffix
+    const candidateQuestionNodeId: string = vaultSuffix
         ? `${vaultSuffix}/ask_${timestamp}.md`
         : `ask_${timestamp}.md`
+    // Ensure unique ID by appending _2, _3, etc. if collision exists
+    const questionNodeId: string = ensureUniqueNodeId(candidateQuestionNodeId, existingIds)
 
     const questionContent: string = `# Question: "${truncateToFiveWords(question)}"
 

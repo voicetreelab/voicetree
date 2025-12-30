@@ -134,9 +134,13 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
 
     // Focus the terminal so keyboard input goes directly to it
     // Note: terminals are stored in vanillaFloatingWindowInstances with terminalId as key (not shadowNodeId)
-    const vanillaInstance: { dispose: () => void; focus?: () => void } | undefined = vanillaFloatingWindowInstances.get(terminalId);
+    const vanillaInstance: { dispose: () => void; focus?: () => void; scrollToBottom?: () => void } | undefined = vanillaFloatingWindowInstances.get(terminalId);
     if (vanillaInstance?.focus) {
       vanillaInstance.focus();
+    }
+    // Scroll to the end of terminal output when navigating
+    if (vanillaInstance?.scrollToBottom) {
+      vanillaInstance.scrollToBottom();
     }
 
     // Notify listeners of active terminal change
