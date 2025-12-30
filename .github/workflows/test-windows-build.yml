@@ -17,6 +17,11 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/webapp/package-lock.json
 
+      - name: Setup Python (for node-gyp)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Install uv
         uses: astral-sh/setup-uv@v4
         with:

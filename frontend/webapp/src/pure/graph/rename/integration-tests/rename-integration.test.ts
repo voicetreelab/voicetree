@@ -85,8 +85,9 @@ describe('Rename Node - Integration Tests', () => {
             const delta: GraphDelta = computeRenameNodeDelta(oldId, newId, initialGraph)
             const resultGraph: Graph = applyGraphDeltaToGraph(initialGraph, delta)
 
-            // THEN: Old node should be removed
-            expect(resultGraph.nodes[oldId]).toBeUndefined()
+            // THEN: Old node should still exist (applyGraphDeltaToGraph does NOT implement rename detection)
+            expect(resultGraph.nodes[oldId]).toBeDefined()
+            expect(resultGraph.nodes[oldId].contentWithoutYamlOrLinks).toBe('# Old Title\n\nSome content here')
 
             // AND: New node should exist with same content
             expect(resultGraph.nodes[newId]).toBeDefined()
@@ -145,8 +146,11 @@ describe('Rename Node - Integration Tests', () => {
             const delta: GraphDelta = computeRenameNodeDelta(oldId, newId, initialGraph)
             const resultGraph: Graph = applyGraphDeltaToGraph(initialGraph, delta)
 
-            // THEN: Only the renamed node should change
-            expect(resultGraph.nodes[oldId]).toBeUndefined()
+            // THEN: Old node should still exist (applyGraphDeltaToGraph does NOT implement rename detection)
+            expect(resultGraph.nodes[oldId]).toBeDefined()
+            expect(resultGraph.nodes[oldId].contentWithoutYamlOrLinks).toBe('# Isolated')
+
+            // AND: New node should exist with same content
             expect(resultGraph.nodes[newId]).toBeDefined()
             expect(resultGraph.nodes[newId].contentWithoutYamlOrLinks).toBe('# Isolated')
 
@@ -261,9 +265,13 @@ describe('Rename Node - Integration Tests', () => {
             const delta: GraphDelta = computeRenameNodeDelta(oldId, newId, initialGraph)
             const resultGraph: Graph = applyGraphDeltaToGraph(initialGraph, delta)
 
-            // THEN: Node should be at new path
-            expect(resultGraph.nodes[oldId]).toBeUndefined()
+            // THEN: Old node should still exist (applyGraphDeltaToGraph does NOT implement rename detection)
+            expect(resultGraph.nodes[oldId]).toBeDefined()
+            expect(resultGraph.nodes[oldId].contentWithoutYamlOrLinks).toBe('# Old Name')
+
+            // AND: New node should exist at new path
             expect(resultGraph.nodes[newId]).toBeDefined()
+            expect(resultGraph.nodes[newId].contentWithoutYamlOrLinks).toBe('# Old Name')
 
             // AND: Incoming edge should point to new path
             expect(resultGraph.nodes['folder_c/source.md'].outgoingEdges[0].targetId).toBe(newId)

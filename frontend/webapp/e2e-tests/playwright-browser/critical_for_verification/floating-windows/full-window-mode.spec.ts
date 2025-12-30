@@ -61,7 +61,10 @@ const test = base.extend<{ consoleCapture: ConsoleCapture }>({
 });
 
 test.describe('Full Window Mode (Browser)', () => {
-  test('should expand editor to fill window on fullscreen button click', async ({ page, consoleCapture: _consoleCapture }) => {
+  // Editor fullscreen is currently disabled due to Vim mode Escape key conflicts
+  // See: FloatingEditorCRUD.ts lines 163-177
+  // Terminal fullscreen is still enabled and should be tested separately
+  test.skip('should expand editor to fill window on fullscreen button click', async ({ page, consoleCapture: _consoleCapture }) => {
     console.log('\n=== Starting full-window mode test ===');
 
     console.log('=== Step 1: Setup mock Electron API ===');
@@ -226,7 +229,8 @@ test.describe('Full Window Mode (Browser)', () => {
     console.log('OK Full-window mode test completed successfully');
   });
 
-  test('should exit fullscreen on Escape key press', async ({ page, consoleCapture: _consoleCapture }) => {
+  // Editor fullscreen is currently disabled due to Vim mode Escape key conflicts
+  test.skip('should exit fullscreen on Escape key press', async ({ page, consoleCapture: _consoleCapture }) => {
     console.log('\n=== Starting Escape key exit test ===');
 
     console.log('=== Step 1: Setup mock Electron API ===');
@@ -312,7 +316,8 @@ test.describe('Full Window Mode (Browser)', () => {
     console.log('OK Escape key exited fullscreen successfully');
   });
 
-  test('should close window when close button clicked in fullscreen mode', async ({ page, consoleCapture: _consoleCapture }) => {
+  // Editor fullscreen is currently disabled due to Vim mode Escape key conflicts
+  test.skip('should close window when close button clicked in fullscreen mode', async ({ page, consoleCapture: _consoleCapture }) => {
     console.log('\n=== Starting close button in fullscreen test ===');
 
     await setupMockElectronAPI(page);
