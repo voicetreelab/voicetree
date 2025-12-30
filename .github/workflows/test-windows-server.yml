@@ -1,0 +1,34 @@
+name: Test Windows Server Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-server:
+    runs-on: windows-latest
+    name: Server Build Only
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Build server
+        shell: pwsh
+        run: .\scripts\build_server_windows.ps1
+
+      - name: Verify executable
+        shell: pwsh
+        run: |
+          if (Test-Path "out\resources\server\voicetree-server.exe") {
+            Write-Host "SUCCESS"
+            Get-Item "out\resources\server\voicetree-server.exe"
+          } else {
+            exit 1
+          }
+
+      - name: Test server runs
+        shell: pwsh
+        run: |
+          & "out\resources\server\voicetree-server.exe" --help
