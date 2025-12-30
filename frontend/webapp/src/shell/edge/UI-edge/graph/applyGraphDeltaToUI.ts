@@ -227,25 +227,5 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
         checkEngagementPrompts();
     }
 
-    // Auto-pin editor for single externally-added nodes (e.g., file created outside app)
-    // Skip bulk loads (initial folder load, multiple file paste)
-    // Skip context nodes (ctx-nodes folder) - they are supplementary and shouldn't auto-open
-    // Skip if node already has an editor or terminal open
-    // NEVER steal focus - this path is for external changes, not user-initiated
-    if (newNodeIds.length === 1) {
-        const nodeId: string = newNodeIds[0];
-        const cyNode: NodeSingular = cy.getElementById(nodeId);
-        const isContextNode: boolean = cyNode.data('isContextNode') === true;
-        const hasEditor: boolean = O.isSome(getEditorByNodeId(nodeId));
-        const hasTerminal: boolean = O.isSome(getTerminalByNodeId(nodeId));
-
-        if (!isContextNode && !hasEditor && !hasTerminal) {
-            console.log('[applyGraphDeltaToUI] Auto-pinning editor for external node:', nodeId);
-            // focusAtEnd=false: never steal focus for external graph deltas
-            // isAutoPin=true: use autopin state logic (close previous when next external node arrives)
-            void createAnchoredFloatingEditor(cy, nodeId, false, true);
-        }
-    }
-
     return { newNodeIds };
 }

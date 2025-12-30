@@ -46,7 +46,9 @@ describe('settings', () => {
       agents: [{ name: 'Custom Agent', command: 'custom-command.sh' }],
       shiftEnterSendsOptionEnter: false,
       contextNodeMaxDistance: 7,
-      askModeContextDistance: 4
+      askModeContextDistance: 4,
+      emptyFolderTemplate: '# Custom template',
+      vimMode: true
     };
 
     await saveSettings(customSettings);

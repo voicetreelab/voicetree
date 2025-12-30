@@ -270,9 +270,9 @@ Child content`
         const fileExists: boolean = await fs.access(newFilePath).then(() => true).catch(() => false)
         expect(fileExists).toBe(true)
 
-        // AND: File should have correct content
+        // AND: File should have correct content (new nodes start with empty heading "# ")
         const fileContent: string = await fs.readFile(newFilePath, 'utf-8')
-        expect(fileContent).toContain('# new')
+        expect(fileContent).toContain('#')
     })
 
     it('should create file with correct position metadata eventually', async () => {
