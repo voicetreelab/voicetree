@@ -15,7 +15,6 @@ import * as O from 'fp-ts/lib/Option.js';
 import '@/shell/electron.d.ts';
 import {
     createWindowChrome,
-    anchorToNode,
     disposeFloatingWindow,
     getOrCreateOverlay,
     getCachedZoom,
@@ -32,6 +31,7 @@ import {
     vanillaFloatingWindowInstances,
 } from "@/shell/edge/UI-edge/state/UIAppState";
 import { getNextTerminalCount, getTerminals } from "@/shell/edge/UI-edge/state/TerminalStore";
+import {anchorToNode} from "@/shell/edge/UI-edge/floating-windows/anchor-to-node";
 
 const MAX_TERMINALS: number = 6;
 
