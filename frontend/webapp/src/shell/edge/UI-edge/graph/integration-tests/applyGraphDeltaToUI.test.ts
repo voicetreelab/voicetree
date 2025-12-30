@@ -199,7 +199,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
     })
 
     describe('Update existing node metadata', () => {
-        it('should update title and color but preserve position and content', () => {
+        it('should update title, content and color but preserve position', () => {
             // GIVEN: Graph with a node
             const originalNode: GraphNode = {
                 relativeFilePathIsID: 'node-to-update',
@@ -252,9 +252,9 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             applyGraphDeltaToUI(cy, updateDelta)
 
-            // THEN: Content should remain unchanged (not updated for existing nodes)
+            // THEN: Content should be updated
             const node: cytoscape.CollectionReturnValue = cy.getElementById('node-to-update')
-            expect(node.data('content')).toBe('# Original Content')
+            expect(node.data('content')).toBe('# Updated Content')
 
             // AND: Title (label) should be updated
             expect(node.data('label')).toBe('Updated Content')
@@ -412,8 +412,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
             // AND: New node should exist
             expect(cy.getElementById('new').length).toBe(1)
 
-            // AND: Existing node content should remain unchanged (content not updated for existing nodes)
-            expect(cy.getElementById('existing').data('content')).toBe('# Existing')
+            // AND: Existing node content should be updated
+            expect(cy.getElementById('existing').data('content')).toBe('# Updated Existing')
 
             // AND: Existing node title (label) should be updated
             expect(cy.getElementById('existing').data('label')).toBe('Updated Existing')
