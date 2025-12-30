@@ -131,7 +131,7 @@
     "publish": {
       "provider": "github",
       "owner": "voicetreelab",
-      "repo": "voicetree",
+      "repo": "voicecore",
       "releaseType": "release"
     },
     "directories": {
