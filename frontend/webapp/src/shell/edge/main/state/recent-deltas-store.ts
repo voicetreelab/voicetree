@@ -5,15 +5,15 @@
  * We need to ignore these "echo" events to prevent feedback loops.
  *
  * Architecture: Simple module-level state with pure functions.
- * Stores only the NodeDelta objects. Comparison uses delta.nodeToUpsert.contentWithoutYamlOrLinks.
+ * Stores only the NodeDelta objects. Comparison uses edit distance with tolerance.
  *
- * TTL: Entries auto-expire after 300ms (macOS FSEvents typically arrive within 100ms).
+ * TTL: Entries auto-expire after 10s (generous window to avoid race conditions).
  */
 
 import type { NodeDelta, GraphDelta, NodeIdAndFilePath } from '@/pure/graph'
 import { stripBracketedContent } from '@/pure/graph/contentChangeDetection'
 
-const DEFAULT_TTL_MS: number = 1500
+const DEFAULT_TTL_MS: number = 10000
 
 interface RecentDeltaEntry {
     readonly delta: NodeDelta
@@ -30,6 +30,36 @@ const recentDeltas: Map<NodeIdAndFilePath, RecentDeltaEntry[]> = new Map()
 function normalizeContent(content: string): string {
     return stripBracketedContent(content).replace(/\s+/g, '')
 }
+
+/**
+ * Levenshtein distance - minimum edits (insert/delete/substitute) to transform a into b.
+ * Early exits if distance exceeds maxDistance for performance.
+ */
+function editDistance(a: string, b: string, maxDistance: number): number {
+    if (Math.abs(a.length - b.length) > maxDistance) return maxDistance + 1
+
+    const m: number = a.length
+    const n: number = b.length
+    let prev: number[] = Array.from({ length: n + 1 }, (_: unknown, i: number) => i)
+    let curr: number[] = new Array<number>(n + 1)
+
+    for (let i: number = 1; i <= m; i++) {
+        curr[0] = i
+        let minInRow: number = i
+        for (let j: number = 1; j <= n; j++) {
+            const cost: number = a[i - 1] === b[j - 1] ? 0 : 1
+            curr[j] = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost)
+            minInRow = Math.min(minInRow, curr[j])
+        }
+        if (minInRow > maxDistance) return maxDistance + 1
+        ;[prev, curr] = [curr, prev]
+    }
+    return prev[n]
+}
+
+// Tolerance for edit distance comparison - allows small differences in content
+// to still be recognized as "our" write (handles minor FS/encoding discrepancies)
+export const EDIT_DISTANCE_TOLERANCE: number = 20
 
 /**
  * Get nodeId from a NodeDelta.
@@ -103,7 +133,7 @@ export function isOurRecentDelta(incomingDelta: GraphDelta): boolean {
             const hasMatchingUpsert: boolean = validEntries.some(e => {
                 if (e.delta.type !== 'UpsertNode') return false
                 const storedContent: string = normalizeContent(e.delta.nodeToUpsert.contentWithoutYamlOrLinks)
-                return storedContent === incomingContent
+                return editDistance(storedContent, incomingContent, EDIT_DISTANCE_TOLERANCE) <= EDIT_DISTANCE_TOLERANCE
             })
             if (!hasMatchingUpsert) return false
         }

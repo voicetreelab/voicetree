@@ -54,12 +54,22 @@ describe('recent-deltas-store', () => {
             expect(isOurRecentDelta(incomingDelta)).toBe(true)
         })
 
-        it('should return false for different content', () => {
+        it('should return false for very different content (> 20 edit distance)', () => {
             const delta: NodeDelta = makeUpsertDelta('test-node', 'hello world')
             markRecentDelta(delta)
 
-            const incomingDelta: GraphDelta = toGraphDelta(makeUpsertDelta('test-node', 'different content'))
+            // Content that differs by more than EDIT_DISTANCE_TOLERANCE (20) characters
+            const incomingDelta: GraphDelta = toGraphDelta(makeUpsertDelta('test-node', 'this is completely different and much longer text that has nothing in common'))
             expect(isOurRecentDelta(incomingDelta)).toBe(false)
+        })
+
+        it('should return true for slightly different content (≤ 20 edit distance)', () => {
+            const delta: NodeDelta = makeUpsertDelta('test-node', 'hello world this is a test')
+            markRecentDelta(delta)
+
+            // Content with small differences (typos, minor edits) - should still match
+            const incomingDelta: GraphDelta = toGraphDelta(makeUpsertDelta('test-node', 'hello world this is a tset'))
+            expect(isOurRecentDelta(incomingDelta)).toBe(true)
         })
 
         it('should return false for unknown nodeId', () => {
@@ -124,8 +134,8 @@ describe('recent-deltas-store', () => {
             const delta: NodeDelta = makeUpsertDelta('test-node', 'content')
             markRecentDelta(delta)
 
-            // Advance time past the 1500ms TTL
-            vi.advanceTimersByTime(1501)
+            // Advance time past the 10s TTL
+            vi.advanceTimersByTime(10001)
 
             const incomingDelta: GraphDelta = toGraphDelta(makeUpsertDelta('test-node', 'content'))
             expect(isOurRecentDelta(incomingDelta)).toBe(false)
@@ -136,8 +146,8 @@ describe('recent-deltas-store', () => {
             const delta: NodeDelta = makeUpsertDelta('test-node', 'content')
             markRecentDelta(delta)
 
-            // Advance time within the 900ms TTL window
-            vi.advanceTimersByTime(50)
+            // Advance time within the 10s TTL window
+            vi.advanceTimersByTime(5000)
 
             const incomingDelta: GraphDelta = toGraphDelta(makeUpsertDelta('test-node', 'content'))
             expect(isOurRecentDelta(incomingDelta)).toBe(true)
