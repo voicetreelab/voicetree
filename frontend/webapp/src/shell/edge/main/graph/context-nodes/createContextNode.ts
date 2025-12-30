@@ -10,6 +10,7 @@ import {uiAPI as _uiAPI} from '@/shell/edge/main/ui-api-proxy'
 import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange";
+import {ensureUniqueNodeId} from "@/pure/graph/ensureUniqueNodeId";
 
 /**
  * Creates a context node for a given parent node.
@@ -68,11 +69,14 @@ export async function createContextNode(
     // Get vault suffix to properly construct context node path
     // e.g., for parent "monday/some_node", context should be "monday/ctx-nodes/some_node_context_123.md"
     const vaultSuffix: string = getWatchStatus().vaultSuffix
-    const contextNodeId: string = alreadyInContextFolder
+    const candidateContextNodeId: string = alreadyInContextFolder
         ? `${parentIdWithoutExtension}_context_${timestamp}.md`
         : vaultSuffix
             ? `${vaultSuffix}/${CONTEXT_NODES_FOLDER}/${parentIdWithoutExtension.replace(`${vaultSuffix}/`, '')}_context_${timestamp}.md`
             : `${CONTEXT_NODES_FOLDER}/${parentIdWithoutExtension}_context_${timestamp}.md`
+    // Ensure unique ID by appending _2, _3, etc. if collision exists
+    const existingIds: ReadonlySet<string> = new Set(Object.keys(currentGraph.nodes))
+    const contextNodeId: string = ensureUniqueNodeId(candidateContextNodeId, existingIds)
     console.log("[createContextNode] Generated contextNodeId:", contextNodeId)
 
     // 5. EDGE: Get parent node info for context

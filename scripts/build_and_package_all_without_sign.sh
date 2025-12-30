@@ -4,6 +4,11 @@
 #
 # Usage: ./build_and_package_all.sh [--publish]
 #   --publish  Also publish to GitHub releases after building
+#
+# WARNING: This script uses out/resources/ (the generic output folder) rather than
+# platform-specific folders like out/resources-linux/ or out/resources-arm/.
+# If you've run cross-platform builds, out/resources/ may contain the wrong binary.
+# Consider using the platform-specific scripts (build_and_package_arm.sh, etc.) instead.
 
 set -e  # Exit on error
 

@@ -227,6 +227,13 @@ export class TerminalVanilla {
   }
 
   /**
+   * Scroll terminal to the bottom (latest output)
+   */
+  scrollToBottom(): void {
+    this.term?.scrollToBottom();
+  }
+
+  /**
    * Cleanup and destroy the terminal
    */
   dispose(): void {
