@@ -22,10 +22,29 @@ jobs:
         with:
           version: "latest"
 
+      - name: Verify checkout contents
+        shell: pwsh
+        run: |
+          Write-Host "Current directory: $(Get-Location)"
+          Write-Host "=== scripts/ directory contents ==="
+          Get-ChildItem -Path scripts -ErrorAction SilentlyContinue | Format-Table Name
+          Write-Host "=== Looking for server.spec ==="
+          if (Test-Path "scripts/server.spec") {
+            Write-Host "server.spec FOUND at scripts/server.spec"
+            Get-Item "scripts/server.spec" | Format-List
+          } else {
+            Write-Host "server.spec NOT FOUND"
+            Write-Host "=== Searching for *.spec files ==="
+            Get-ChildItem -Recurse -Filter "*.spec" | Format-Table FullName
+          }
+
       - name: Build Python server (Windows)
         shell: pwsh
         run: |
           Write-Host "Building VoiceTree Server Executable (Windows)..."
+          $specPath = Join-Path $PWD "scripts/server.spec"
+          Write-Host "Spec file path: $specPath"
+          Write-Host "Spec file exists: $(Test-Path $specPath)"
 
           # Step 1: Create isolated UV environment
           Write-Host "Step 1: Creating isolated UV environment..."
@@ -41,18 +60,18 @@ jobs:
 
           # Step 4: Clean previous builds
           Write-Host "Step 4: Cleaning previous Windows builds..."
-          if (Test-Path "out\build-windows") { Remove-Item -Recurse -Force "out\build-windows" }
-          if (Test-Path "out\dist-windows") { Remove-Item -Recurse -Force "out\dist-windows" }
-          if (Test-Path "out\resources") { Remove-Item -Recurse -Force "out\resources" }
+          if (Test-Path "out/build-windows") { Remove-Item -Recurse -Force "out/build-windows" }
+          if (Test-Path "out/dist-windows") { Remove-Item -Recurse -Force "out/dist-windows" }
+          if (Test-Path "out/resources") { Remove-Item -Recurse -Force "out/resources" }
 
-          # Step 5: Build with PyInstaller
+          # Step 5: Build with PyInstaller (use forward slashes for cross-platform compatibility)
           Write-Host "Step 5: Building executable with PyInstaller..."
-          & ".venv-server\Scripts\python.exe" -m PyInstaller scripts\server.spec --clean --distpath out\dist-windows --workpath out\build-windows
+          & ".venv-server/Scripts/python.exe" -m PyInstaller $specPath --clean --distpath out/dist-windows --workpath out/build-windows
 
           # Step 6: Copy to out/resources
-          Write-Host "Step 6: Copying executable to out\resources\server..."
-          New-Item -ItemType Directory -Force -Path "out\resources\server" | Out-Null
-          Copy-Item -Recurse -Force "out\dist-windows\voicetree-server\*" "out\resources\server\"
+          Write-Host "Step 6: Copying executable to out/resources/server..."
+          New-Item -ItemType Directory -Force -Path "out/resources/server" | Out-Null
+          Copy-Item -Recurse -Force "out/dist-windows/voicetree-server/*" "out/resources/server/"
 
           Write-Host "Server build complete!"
 
