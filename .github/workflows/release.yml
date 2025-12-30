@@ -98,6 +98,7 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          NODE_OPTIONS: '--max-old-space-size=4096'
         run: |
           npx electron-vite build
           npx electron-builder --mac --${{ matrix.arch }} --publish=always
@@ -219,6 +220,7 @@ jobs:
         working-directory: frontend/webapp
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_OPTIONS: '--max-old-space-size=4096'
         run: |
           npx electron-vite build
           npx electron-builder --linux --publish=always
