@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { getAppSupportPath } from '../state/app-electron-state';
+import { getAppSupportPath } from '@/shell/edge/main/state/app-electron-state';
 
 export interface TokenMetrics {
   input: number;
@@ -101,18 +101,23 @@ export async function appendTokenMetrics(data: {
 }): Promise<void> {
   const metrics: AgentMetricsData = await readMetrics();
 
-  const session: SessionMetric | undefined = metrics.sessions.find(
+  let session: SessionMetric | undefined = metrics.sessions.find(
     (s: SessionMetric) => s.sessionId === data.sessionId
   );
 
-  if (session) {
-    // Update existing session with token metrics
-    session.tokens = data.tokens;
-    session.costUsd = data.costUsd;
-    await writeMetrics(metrics);
-  } else {
-    // Session not found - this can happen if metrics arrive before session start
-    // or if there's a mismatch in session IDs
-    console.warn(`[agent-metrics-store] Session ${data.sessionId} not found in metrics file`);
+  if (!session) {
+    // Auto-create session for OTLP metrics from Claude Code
+    // Claude Code uses its own session IDs, not VoiceTree terminal IDs
+    session = {
+      sessionId: data.sessionId,
+      agentName: 'Claude',
+      contextNode: 'unknown',
+      startTime: new Date().toISOString(),
+    };
+    metrics.sessions.push(session);
   }
+
+  session.tokens = data.tokens;
+  session.costUsd = data.costUsd;
+  await writeMetrics(metrics);
 }
