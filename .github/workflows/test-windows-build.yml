@@ -1,0 +1,39 @@
+name: Test Windows Build
+
+on:
+  workflow_dispatch:  # Manual trigger only
+
+jobs:
+  test-powershell:
+    runs-on: windows-latest
+    name: Test PowerShell Build Script
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install UV
+      run: |
+        irm https://astral.sh/uv/install.ps1 | iex
+        echo "$env:USERPROFILE\.local\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+    - name: Verify UV installed
+      run: uv --version
+
+    - name: Run build_server_windows.ps1
+      run: .\scripts\build_server_windows.ps1
+
+    - name: Verify server executable exists
+      run: |
+        if (Test-Path "out\resources\server\voicetree-server.exe") {
+          Write-Host "SUCCESS: voicetree-server.exe created"
+          Get-Item "out\resources\server\voicetree-server.exe"
+        } else {
+          Write-Host "FAILED: voicetree-server.exe not found"
+          exit 1
+        }
+
+    - name: Test server starts
+      run: |
+        $proc = Start-Process -FilePath "out\resources\server\voicetree-server.exe" -ArgumentList "--help" -PassThru -NoNewWindow -Wait -RedirectStandardOutput stdout.txt -RedirectStandardError stderr.txt
+        Get-Content stdout.txt -ErrorAction SilentlyContinue
+        Get-Content stderr.txt -ErrorAction SilentlyContinue
