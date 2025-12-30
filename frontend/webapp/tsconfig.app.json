@@ -33,5 +33,5 @@
     }
   },
   "include": ["src"],
-  "exclude": ["node_modules", "dist", "build", "out"]
+  "exclude": ["node_modules", "dist", "build", "out", "**/node_modules/codemirror-rich-markdoc/**"]
 }
