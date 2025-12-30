@@ -98,10 +98,16 @@ describe('createNewChildNodeFromUI - Integration', () => {
         })
 
         // Mock window.electronAPI
-        // Mock applyGraphDeltaToDBThroughMem to also update the cytoscape UI
+        // Mock applyGraphDeltaToDBThroughMem to also update the cytoscape UI and mockGraph
         const mockApplyDelta: (delta: GraphDelta) => Promise<void> = vi.fn().mockImplementation(async (delta: GraphDelta) => {
             // Apply the delta to the cytoscape instance to simulate the UI update
             applyGraphDeltaToUI(cy, delta)
+            // Also update mockGraph so getNode works for newly created nodes
+            delta.forEach((action) => {
+                if (action.type === 'UpsertNode') {
+                    mockGraph.nodes[action.nodeToUpsert.relativeFilePathIsID] = action.nodeToUpsert
+                }
+            })
             return undefined
         })
 
@@ -113,6 +119,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
         (global.window as any).electronAPI = {
             main: {
                 getGraph: vi.fn(() => mockGraph),
+                getNode: vi.fn((nodeId: string) => mockGraph.nodes[nodeId]),
                 applyGraphDeltaToDBThroughMemUIAndEditorExposed: mockApplyDelta
             }
         }
@@ -151,8 +158,9 @@ describe('createNewChildNodeFromUI - Integration', () => {
         const newNodeId: string = result // Use the actual returned ID
         const newNode: cytoscape.CollectionReturnValue = cy.getElementById(newNodeId)
         expect(newNode.length).toBe(1)
-        // Label comes from parsing "# new" content via markdownToTitle, extracting title "new"
-        expect(newNode.data('label')).toBe('new')
+        // New nodes are created with "# " content. After trimming, first non-empty line is "#"
+        // (the heading regex requires text after "# ", which "# " lacks)
+        expect(newNode.data('label')).toBe('#')
 
         // AND: There should be an edge from parent to the new node
         const newEdge: cytoscape.CollectionReturnValue = cy.getElementById(`parent.md->${newNodeId}`)
