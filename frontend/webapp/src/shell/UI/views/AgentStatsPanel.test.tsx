@@ -2,15 +2,21 @@ import '@testing-library/jest-dom/vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
 import { AgentStatsPanel } from './AgentStatsPanel';
+import type { SessionMetric } from './hooks/useAgentMetrics';
+
+interface TestMetricsData {
+  readonly sessions: readonly SessionMetric[];
+}
 
 // Test fixture matching the expected agent_metrics.json format
-const TEST_METRICS = {
+// Note: Sessions are sorted by startTime (most recent first), so TestAgent has the more recent timestamp
+const TEST_METRICS: TestMetricsData = {
   sessions: [
     {
       sessionId: 'test-001',
       agentName: 'TestAgent',
       contextNode: 'friday/task.md',
-      startTime: new Date().toISOString(),
+      startTime: new Date(Date.now() - 1000).toISOString(), // 1 second ago (more recent)
       endTime: new Date().toISOString(),
       durationMs: 300000,
       tokens: { input: 1500, output: 800, cacheRead: 200 },
@@ -20,7 +26,7 @@ const TEST_METRICS = {
       sessionId: 'test-002',
       agentName: 'OtherAgent',
       contextNode: 'monday/review.md',
-      startTime: new Date().toISOString(),
+      startTime: new Date(Date.now() - 2000).toISOString(), // 2 seconds ago (older)
       endTime: new Date().toISOString(),
       durationMs: 180000,
       tokens: { input: 1000, output: 500 },
@@ -101,7 +107,7 @@ describe('AgentStatsPanel', () => {
       render(<AgentStatsPanel />);
 
       await waitFor(() => {
-        const sessionRows = screen.getAllByTestId('session-row');
+        const sessionRows: HTMLElement[] = screen.getAllByTestId('session-row');
         expect(sessionRows).toHaveLength(2);
       });
     });
@@ -110,7 +116,7 @@ describe('AgentStatsPanel', () => {
       render(<AgentStatsPanel />);
 
       await waitFor(() => {
-        const agentNames = screen.getAllByTestId('session-agent-name');
+        const agentNames: HTMLElement[] = screen.getAllByTestId('session-agent-name');
         expect(agentNames[0]).toHaveTextContent('TestAgent');
         expect(agentNames[1]).toHaveTextContent('OtherAgent');
       });
@@ -120,7 +126,7 @@ describe('AgentStatsPanel', () => {
       render(<AgentStatsPanel />);
 
       await waitFor(() => {
-        const sessionCosts = screen.getAllByTestId('session-cost');
+        const sessionCosts: HTMLElement[] = screen.getAllByTestId('session-cost');
         expect(sessionCosts[0]).toHaveTextContent('$0.0234');
         expect(sessionCosts[1]).toHaveTextContent('$0.0156');
       });
@@ -130,7 +136,7 @@ describe('AgentStatsPanel', () => {
       render(<AgentStatsPanel />);
 
       await waitFor(() => {
-        const durations = screen.getAllByTestId('session-duration');
+        const durations: HTMLElement[] = screen.getAllByTestId('session-duration');
         expect(durations[0]).toHaveTextContent('5m 0s');
         expect(durations[1]).toHaveTextContent('3m 0s');
       });
@@ -194,10 +200,10 @@ describe('AgentStatsPanel', () => {
 
     it('filters sessions by "Today" when clicked', async () => {
       // Create sessions with different timestamps
-      const today = new Date();
-      const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+      const today: Date = new Date();
+      const yesterday: Date = new Date(today.getTime() - 24 * 60 * 60 * 1000);
 
-      const metricsWithMixedDates = {
+      const metricsWithMixedDates: TestMetricsData = {
         sessions: [
           {
             sessionId: 'today-session',
@@ -249,8 +255,8 @@ describe('AgentStatsPanel', () => {
       });
 
       // Click first session row to expand
-      const sessionRows = screen.getAllByTestId('session-row');
-      const expandButton = sessionRows[0].querySelector('button');
+      const sessionRows: HTMLElement[] = screen.getAllByTestId('session-row');
+      const expandButton: HTMLButtonElement | null = sessionRows[0].querySelector('button');
       if (expandButton) {
         fireEvent.click(expandButton);
       }

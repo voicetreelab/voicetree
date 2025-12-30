@@ -1,23 +1,34 @@
 import type { JSX } from 'react';
 import { useState, useMemo } from 'react';
 import { cn } from '@/utils/lib/utils';
-import { useAgentMetrics } from './hooks/useAgentMetrics';
+import { useAgentMetrics, type SessionMetric } from './hooks/useAgentMetrics';
+import { SessionDurationChart } from './components/SessionDurationChart';
+import { TotalTokensChart } from './components/TotalTokensChart';
 
 type TimeFilter = 'today' | 'week' | 'all';
+
+interface FilteredTotals {
+  readonly cost: number;
+  readonly tokens: {
+    readonly input: number;
+    readonly output: number;
+    readonly cacheRead: number;
+  };
+}
 
 // Formatting helpers
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
-  const seconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
+  const seconds: number = Math.floor(ms / 1000);
+  const minutes: number = Math.floor(seconds / 60);
+  const hours: number = Math.floor(minutes / 60);
 
   if (hours > 0) {
-    const remainingMinutes = minutes % 60;
+    const remainingMinutes: number = minutes % 60;
     return `${hours}h ${remainingMinutes}m`;
   }
   if (minutes > 0) {
-    const remainingSeconds = seconds % 60;
+    const remainingSeconds: number = seconds % 60;
     return `${minutes}m ${remainingSeconds}s`;
   }
   return `${seconds}s`;
@@ -32,31 +43,31 @@ function formatTokens(count: number): string {
 }
 
 function formatTimestamp(isoString: string): string {
-  const date = new Date(isoString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
+  const date: Date = new Date(isoString);
+  const now: Date = new Date();
+  const diffMs: number = now.getTime() - date.getTime();
+  const diffMins: number = Math.floor(diffMs / 60000);
 
   if (diffMins < 1) return 'just now';
   if (diffMins < 60) return `${diffMins}m ago`;
 
-  const diffHours = Math.floor(diffMins / 60);
+  const diffHours: number = Math.floor(diffMins / 60);
   if (diffHours < 24) return `${diffHours}h ago`;
 
-  const diffDays = Math.floor(diffHours / 24);
+  const diffDays: number = Math.floor(diffHours / 24);
   return `${diffDays}d ago`;
 }
 
 function isToday(isoString: string): boolean {
-  const date = new Date(isoString);
-  const now = new Date();
+  const date: Date = new Date(isoString);
+  const now: Date = new Date();
   return date.toDateString() === now.toDateString();
 }
 
 function isThisWeek(isoString: string): boolean {
-  const date = new Date(isoString);
-  const now = new Date();
-  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const date: Date = new Date(isoString);
+  const now: Date = new Date();
+  const weekAgo: Date = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   return date >= weekAgo;
 }
 
@@ -66,8 +77,8 @@ export function AgentStatsPanel(): JSX.Element {
   const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
 
   // Filter sessions by time
-  const filteredSessions = useMemo(() => {
-    let filtered = sessions;
+  const filteredSessions: SessionMetric[] = useMemo(() => {
+    let filtered: SessionMetric[] = sessions;
     if (timeFilter === 'today') {
       filtered = sessions.filter(s => isToday(s.startTime));
     } else if (timeFilter === 'week') {
@@ -80,9 +91,9 @@ export function AgentStatsPanel(): JSX.Element {
   }, [sessions, timeFilter]);
 
   // Calculate filtered totals
-  const filteredTotals = useMemo(() => {
-    const cost = filteredSessions.reduce((sum, s) => sum + (s.costUsd ?? 0), 0);
-    const tokens = filteredSessions.reduce(
+  const filteredTotals: FilteredTotals = useMemo(() => {
+    const cost: number = filteredSessions.reduce((sum, s) => sum + (s.costUsd ?? 0), 0);
+    const tokens: { input: number; output: number; cacheRead: number } = filteredSessions.reduce(
       (acc, s) => ({
         input: acc.input + (s.tokens?.input ?? 0),
         output: acc.output + (s.tokens?.output ?? 0),
@@ -93,9 +104,9 @@ export function AgentStatsPanel(): JSX.Element {
     return { cost, tokens };
   }, [filteredSessions]);
 
-  const toggleSessionExpanded = (sessionId: string): void => {
+  const toggleSessionExpanded: (sessionId: string) => void = (sessionId: string): void => {
     setExpandedSessions(prev => {
-      const next = new Set(prev);
+      const next: Set<string> = new Set(prev);
       if (next.has(sessionId)) {
         next.delete(sessionId);
       } else {
@@ -177,6 +188,22 @@ export function AgentStatsPanel(): JSX.Element {
         </div>
       </div>
 
+      {/* Session Duration Chart */}
+      <div className="flex flex-col gap-1">
+        <div className="text-gray-500 text-[10px] uppercase tracking-wide mb-1">
+          Avg Session Duration by Day
+        </div>
+        <SessionDurationChart sessions={filteredSessions} />
+      </div>
+
+      {/* Total Tokens Chart */}
+      <div className="flex flex-col gap-1">
+        <div className="text-gray-500 text-[10px] uppercase tracking-wide mb-1">
+          Total Tokens by Day
+        </div>
+        <TotalTokensChart sessions={filteredSessions} />
+      </div>
+
       {/* Session List Section */}
       <div className="flex flex-col gap-1">
         <div className="text-gray-500 text-[10px] uppercase tracking-wide mb-1">
@@ -190,8 +217,8 @@ export function AgentStatsPanel(): JSX.Element {
         ) : (
           <div className="flex flex-col gap-1 max-h-64 overflow-y-auto">
             {filteredSessions.map(session => {
-              const isExpanded = expandedSessions.has(session.sessionId);
-              const isRunning = !session.endTime;
+              const isExpanded: boolean = expandedSessions.has(session.sessionId);
+              const isRunning: boolean = !session.endTime;
 
               return (
                 <div
