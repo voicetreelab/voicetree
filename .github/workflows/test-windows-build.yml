@@ -107,11 +107,15 @@ jobs:
 
       - name: Install frontend dependencies
         working-directory: frontend/webapp
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Rebuild native modules for Electron
         working-directory: frontend/webapp
-        run: npx electron-rebuild
+        shell: pwsh
+        run: |
+          Write-Host "Rebuilding native modules for Electron on Windows..."
+          npx @electron/rebuild --force
+          Write-Host "Rebuild complete"
 
       - name: Build frontend
         working-directory: frontend/webapp
