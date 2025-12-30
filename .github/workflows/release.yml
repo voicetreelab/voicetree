@@ -5,9 +5,23 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      build_mac:
+        description: 'Build macOS (ARM64 + Intel)'
+        type: boolean
+        default: true
+      build_windows:
+        description: 'Build Windows'
+        type: boolean
+        default: true
+      build_linux:
+        description: 'Build Linux x64'
+        type: boolean
+        default: true
 
 jobs:
   build-mac:
+    if: ${{ github.event_name == 'push' || inputs.build_mac }}
     strategy:
       matrix:
         include:
@@ -28,31 +42,40 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/webapp/package-lock.json
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install Python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
 
       - name: Build Python server
-        run: ./build_server.sh
+        run: |
+          uv venv .venv-server --python 3.13 --clear
+          uv pip install --python .venv-server -r requirements-server.txt
+          uv pip install --python .venv-server pyinstaller
+          rm -rf out/build-mac out/dist-mac out/resources
+          .venv-server/bin/python -m PyInstaller scripts/server.spec --clean --distpath out/dist-mac --workpath out/build-mac
+          mkdir -p out/resources/server
+          cp -r out/dist-mac/voicetree-server/* out/resources/server/
+
+      - name: Fix Python.framework structure for codesign
+        run: |
+          # PyInstaller creates duplicate dirs instead of proper macOS framework symlinks
+          rm -rf out/resources/server/_internal/Python.framework/Versions/Current
+          ln -s 3.13 out/resources/server/_internal/Python.framework/Versions/Current
+          rm -f out/resources/server/_internal/Python.framework/Python
+          ln -s Versions/Current/Python out/resources/server/_internal/Python.framework/Python
+          rm -rf out/resources/server/_internal/Python.framework/Resources
+          ln -s Versions/Current/Resources out/resources/server/_internal/Python.framework/Resources
 
       - name: Copy tools and backend modules
         run: |
-          mkdir -p ./dist/resources/tools
-          cp -r ./tools/* ./dist/resources/tools/
-
-          mkdir -p ./dist/resources/backend
-          cp -r ./backend/context_retrieval ./dist/resources/backend/
-          cp -r ./backend/markdown_tree_manager ./dist/resources/backend/
-          cp ./backend/__init__.py ./dist/resources/backend/
-          cp ./backend/types.py ./dist/resources/backend/
-          cp ./backend/settings.py ./dist/resources/backend/
-          cp ./backend/logging_config.py ./dist/resources/backend/
+          mkdir -p out/resources/tools
+          cp -r tools/* out/resources/tools/
+          mkdir -p out/resources/backend
+          cp -r backend/context_retrieval out/resources/backend/
+          cp -r backend/markdown_tree_manager out/resources/backend/
+          cp backend/__init__.py out/resources/backend/
+          cp backend/types.py out/resources/backend/
+          cp backend/settings.py out/resources/backend/
+          cp backend/logging_config.py out/resources/backend/
 
       - name: Install frontend dependencies
         working-directory: frontend/webapp
@@ -60,10 +83,10 @@ jobs:
 
       - name: Build frontend
         working-directory: frontend/webapp
-        run: npm run build:test
+        run: npm run build
 
       - name: Update file timestamps for codesign
-        run: find dist/resources -type f -exec touch {} +
+        run: find out/resources -type f -exec touch {} +
 
       - name: Build & Publish Electron app
         working-directory: frontend/webapp
@@ -79,6 +102,7 @@ jobs:
           npx electron-builder --mac --${{ matrix.arch }} --publish=always
 
   build-windows:
+    if: ${{ github.event_name == 'push' || inputs.build_windows }}
     runs-on: windows-latest
 
     steps:
@@ -147,6 +171,7 @@ jobs:
           npx electron-builder --win --publish=always
 
   build-linux-x64:
+    if: ${{ github.event_name == 'push' || inputs.build_linux }}
     runs-on: ubuntu-latest
 
     steps:
@@ -205,61 +230,3 @@ jobs:
           npx electron-vite build
           npx electron-builder --linux --publish=always
 
-  build-linux-arm64:
-    runs-on: ubuntu-24.04-arm
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/webapp/package-lock.json
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-
-      - name: Build Python server
-        run: |
-          uv venv .venv-server --python 3.13 --clear
-          uv pip install --python .venv-server -r requirements-server.txt
-          uv pip install --python .venv-server pyinstaller
-          rm -rf out/build-linux-arm out/dist-linux-arm out/resources
-          .venv-server/bin/python -m PyInstaller scripts/server.spec --clean --distpath out/dist-linux-arm --workpath out/build-linux-arm
-          mkdir -p out/resources/server
-          cp -r out/dist-linux-arm/voicetree-server/* out/resources/server/
-
-      - name: Copy tools and backend
-        run: |
-          mkdir -p out/resources/tools
-          cp -r tools/* out/resources/tools/
-          mkdir -p out/resources/backend
-          cp -r backend/context_retrieval out/resources/backend/
-          cp -r backend/markdown_tree_manager out/resources/backend/
-          cp backend/__init__.py out/resources/backend/
-          cp backend/types.py out/resources/backend/
-          cp backend/settings.py out/resources/backend/
-          cp backend/logging_config.py out/resources/backend/
-
-      - name: Install frontend dependencies
-        working-directory: frontend/webapp
-        run: npm ci
-
-      - name: Build frontend
-        working-directory: frontend/webapp
-        run: npm run build
-
-      - name: Build & Publish Electron
-        working-directory: frontend/webapp
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          npx electron-vite build
-          npx electron-builder --linux --arm64 --publish=always
