@@ -75,25 +75,11 @@ export class TerminalVanilla {
     // Open terminal in the DOM
     term.open(this.container);
 
-    // Subscribe to zoom changes to adjust font size
+    // Subscribe to zoom changes to adjust font size (fit() handled by ResizeObserver)
     this.unsubscribeZoom = subscribeToZoomChange((zoom: number) => {
-      if (this.term && this.fitAddon) {
-        // Save scroll position before resize (fit changes row count which can reset scroll)
-        const buffer: { baseY: number; viewportY: number } = this.term.buffer.active;
-        const scrollOffset: number = buffer.baseY - buffer.viewportY; // lines scrolled up from bottom
-
+      if (this.term) {
         const strategy: 'css-transform' | 'dimension-scaling' = getScalingStrategy('Terminal', zoom);
         this.term.options.fontSize = getTerminalFontSize(zoom, strategy);
-        this.fitAddon.fit();
-
-        // Restore scroll position after fit
-        // scrollOffset=0 means at bottom, scrollOffset>0 means scrolled up
-        // In both cases, we want to maintain the same offset from bottom
-        const newBaseY: number = this.term.buffer.active.baseY;
-        const targetLine: number = newBaseY - scrollOffset;
-        if (targetLine >= 0) {
-          this.term.scrollToLine(targetLine);
-        }
       }
     });
 
@@ -161,14 +147,25 @@ export class TerminalVanilla {
       }
     });
 
-    // Set up ResizeObserver for container resize with debounce
+    // Set up ResizeObserver for container resize with debounce and scroll preservation
     this.resizeObserver = new ResizeObserver(() => {
       if (this.resizeTimeout) {
         clearTimeout(this.resizeTimeout);
       }
       this.resizeTimeout = setTimeout(() => {
-        if (this.fitAddon) {
+        if (this.term && this.fitAddon) {
+          // Save scroll position before fit (fit changes row count which can reset scroll)
+          const buffer: { baseY: number; viewportY: number } = this.term.buffer.active;
+          const scrollOffset: number = buffer.baseY - buffer.viewportY; // lines scrolled up from bottom
+
           this.fitAddon.fit();
+
+          // Restore scroll position after fit
+          const newBaseY: number = this.term.buffer.active.baseY;
+          const targetLine: number = newBaseY - scrollOffset;
+          if (targetLine >= 0) {
+            this.term.scrollToLine(targetLine);
+          }
         }
       }, 50);
     });
