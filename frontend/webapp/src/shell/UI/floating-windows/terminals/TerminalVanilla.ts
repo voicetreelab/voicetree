@@ -87,13 +87,12 @@ export class TerminalVanilla {
         this.fitAddon.fit();
 
         // Restore scroll position after fit
-        if (scrollOffset > 0) {
-          // Calculate new scroll target based on the offset from bottom
-          const newBaseY: number = this.term.buffer.active.baseY;
-          const targetLine: number = newBaseY - scrollOffset;
-          if (targetLine >= 0) {
-            this.term.scrollToLine(targetLine);
-          }
+        // scrollOffset=0 means at bottom, scrollOffset>0 means scrolled up
+        // In both cases, we want to maintain the same offset from bottom
+        const newBaseY: number = this.term.buffer.active.baseY;
+        const targetLine: number = newBaseY - scrollOffset;
+        if (targetLine >= 0) {
+          this.term.scrollToLine(targetLine);
         }
       }
     });
