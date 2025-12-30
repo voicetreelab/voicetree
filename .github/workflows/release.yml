@@ -77,3 +77,189 @@ jobs:
         run: |
           npx electron-vite build
           npx electron-builder --mac --${{ matrix.arch }} --publish=always
+
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/webapp/package-lock.json
+
+      - name: Setup Python (for node-gyp)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Build Python server
+        shell: pwsh
+        run: |
+          uv venv .venv-server --python 3.13 --clear
+          uv pip install --python .venv-server -r requirements-server.txt
+          uv pip install --python .venv-server pyinstaller
+          if (Test-Path "out\build-windows") { Remove-Item -Recurse -Force "out\build-windows" }
+          if (Test-Path "out\dist-windows") { Remove-Item -Recurse -Force "out\dist-windows" }
+          if (Test-Path "out\resources") { Remove-Item -Recurse -Force "out\resources" }
+          & ".venv-server\Scripts\python.exe" -m PyInstaller scripts\server.spec --clean --distpath out\dist-windows --workpath out\build-windows
+          New-Item -ItemType Directory -Force -Path "out\resources\server" | Out-Null
+          Copy-Item -Recurse -Force "out\dist-windows\voicetree-server\*" "out\resources\server\"
+
+      - name: Copy tools and backend
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "out\resources\tools" | Out-Null
+          Copy-Item -Recurse -Force "tools\*" "out\resources\tools\"
+          New-Item -ItemType Directory -Force -Path "out\resources\backend" | Out-Null
+          Copy-Item -Recurse -Force "backend\context_retrieval" "out\resources\backend\"
+          Copy-Item -Recurse -Force "backend\markdown_tree_manager" "out\resources\backend\"
+          Copy-Item -Force "backend\__init__.py" "out\resources\backend\"
+          Copy-Item -Force "backend\types.py" "out\resources\backend\"
+          Copy-Item -Force "backend\settings.py" "out\resources\backend\"
+          Copy-Item -Force "backend\logging_config.py" "out\resources\backend\"
+
+      - name: Install frontend dependencies
+        working-directory: frontend/webapp
+        run: npm ci
+
+      - name: Rebuild native modules
+        working-directory: frontend/webapp
+        run: npx electron-rebuild
+
+      - name: Build frontend
+        working-directory: frontend/webapp
+        run: npm run build  # NOT build:test - smoke tests launch Electron, may fail on CI
+
+      - name: Build & Publish Electron
+        working-directory: frontend/webapp
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npx electron-vite build
+          npx electron-builder --win --publish=always
+
+  build-linux-x64:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/webapp/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Build Python server
+        run: |
+          uv venv .venv-server --python 3.13 --clear
+          uv pip install --python .venv-server -r requirements-server.txt
+          uv pip install --python .venv-server pyinstaller
+          rm -rf out/build-linux out/dist-linux out/resources
+          .venv-server/bin/python -m PyInstaller scripts/server.spec --clean --distpath out/dist-linux --workpath out/build-linux
+          mkdir -p out/resources/server
+          cp -r out/dist-linux/voicetree-server/* out/resources/server/
+
+      - name: Copy tools and backend
+        run: |
+          mkdir -p out/resources/tools
+          cp -r tools/* out/resources/tools/
+          mkdir -p out/resources/backend
+          cp -r backend/context_retrieval out/resources/backend/
+          cp -r backend/markdown_tree_manager out/resources/backend/
+          cp backend/__init__.py out/resources/backend/
+          cp backend/types.py out/resources/backend/
+          cp backend/settings.py out/resources/backend/
+          cp backend/logging_config.py out/resources/backend/
+
+      - name: Install frontend dependencies
+        working-directory: frontend/webapp
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend/webapp
+        run: npm run build
+
+      - name: Build & Publish Electron
+        working-directory: frontend/webapp
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npx electron-vite build
+          npx electron-builder --linux --publish=always
+
+  build-linux-arm64:
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/webapp/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Build Python server
+        run: |
+          uv venv .venv-server --python 3.13 --clear
+          uv pip install --python .venv-server -r requirements-server.txt
+          uv pip install --python .venv-server pyinstaller
+          rm -rf out/build-linux-arm out/dist-linux-arm out/resources
+          .venv-server/bin/python -m PyInstaller scripts/server.spec --clean --distpath out/dist-linux-arm --workpath out/build-linux-arm
+          mkdir -p out/resources/server
+          cp -r out/dist-linux-arm/voicetree-server/* out/resources/server/
+
+      - name: Copy tools and backend
+        run: |
+          mkdir -p out/resources/tools
+          cp -r tools/* out/resources/tools/
+          mkdir -p out/resources/backend
+          cp -r backend/context_retrieval out/resources/backend/
+          cp -r backend/markdown_tree_manager out/resources/backend/
+          cp backend/__init__.py out/resources/backend/
+          cp backend/types.py out/resources/backend/
+          cp backend/settings.py out/resources/backend/
+          cp backend/logging_config.py out/resources/backend/
+
+      - name: Install frontend dependencies
+        working-directory: frontend/webapp
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend/webapp
+        run: npm run build
+
+      - name: Build & Publish Electron
+        working-directory: frontend/webapp
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npx electron-vite build
+          npx electron-builder --linux --arm64 --publish=always
