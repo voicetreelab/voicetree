@@ -211,7 +211,6 @@ function setupApplicationMenu(): void {
                 {role: 'cut'},
                 {role: 'copy'},
                 {role: 'paste'},
-                {role: 'selectAll'}
             ]
         },
         {
