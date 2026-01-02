@@ -102,6 +102,9 @@ jobs:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           NODE_OPTIONS: '--max-old-space-size=4096'
+          VITE_SONIOX_API_KEY: ${{ secrets.VITE_SONIOX_API_KEY }}
+          VITE_POSTHOG_API_KEY: ${{ secrets.VITE_POSTHOG_API_KEY }}
+          VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
         run: |
           npx electron-vite build
           npx electron-builder --mac --${{ matrix.arch }} --publish=always
@@ -167,6 +170,9 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VITE_SONIOX_API_KEY: ${{ secrets.VITE_SONIOX_API_KEY }}
+          VITE_POSTHOG_API_KEY: ${{ secrets.VITE_POSTHOG_API_KEY }}
+          VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
         run: |
           npx electron-vite build
           npx electron-builder --win --publish=always
@@ -224,6 +230,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_OPTIONS: '--max-old-space-size=4096'
+          VITE_SONIOX_API_KEY: ${{ secrets.VITE_SONIOX_API_KEY }}
+          VITE_POSTHOG_API_KEY: ${{ secrets.VITE_POSTHOG_API_KEY }}
+          VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
         run: |
           npx electron-vite build
           npx electron-builder --linux --publish=always

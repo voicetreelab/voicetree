@@ -398,6 +398,38 @@ class HybridSearchDiagnostics:
         }
 
 
+def _get_recent_node_ids(decision_tree: Any, limit: int, already_selected: Optional[set[Any]] = None) -> list[int]:
+    """
+    Fallback: return most recently modified nodes when search fails.
+
+    Args:
+        decision_tree: DecisionTree instance
+        limit: Maximum number of nodes to return
+        already_selected: Set of node IDs to exclude
+
+    Returns:
+        List of node IDs ordered by recency (most recent first)
+    """
+    if already_selected is None:
+        already_selected = set()
+
+    if not decision_tree.tree:
+        return []
+
+    nodes_by_recency = sorted(
+        decision_tree.tree.items(),
+        key=lambda x: x[1].modified_at,
+        reverse=True
+    )
+    result = []
+    for node_id, _ in nodes_by_recency:
+        if node_id not in already_selected:
+            result.append(node_id)
+            if len(result) >= limit:
+                break
+    return result
+
+
 def hybrid_search_for_relevant_nodes_with_diagnostics(
     decision_tree: Any,
     query: str,
@@ -466,8 +498,9 @@ def hybrid_search_for_relevant_nodes_with_diagnostics(
     bm25_ranked = bm25_filtered[:max_return_nodes]
 
     if not vector_ranked and not bm25_ranked:
-        logging.warning("No results passed quality thresholds")
-        return [], diagnostics.to_dict()
+        logging.warning("No results passed quality thresholds, falling back to recent nodes")
+        recent_nodes = _get_recent_node_ids(decision_tree, max_return_nodes, already_selected)
+        return recent_nodes, diagnostics.to_dict()
 
     combined = reciprocal_rank_fusion(vector_ranked, bm25_ranked, k=60)
 
