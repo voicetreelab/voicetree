@@ -2,6 +2,7 @@
  * Creates a context node from a question and spawns a terminal with the agent command.
  */
 
+import path from 'path';
 import type {Graph, GraphNode, NodeIdAndFilePath} from '@/pure/graph';
 import {getNodeTitle} from '@/pure/graph/markdown-parsing';
 import {findFirstParentNode} from '@/pure/graph/graph-operations/findFirstParentNode';
@@ -59,21 +60,20 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
   let initialSpawnDirectory: string | undefined = watchStatus.directory;
 
   if (watchStatus?.directory && settings.terminalSpawnPathRelativeToWatchedDirectory) {
-    const baseDir: string = watchStatus.directory.replace(/\/$/, '');
     const relativePath: string = settings.terminalSpawnPathRelativeToWatchedDirectory.replace(/^\.\//, '');
-    initialSpawnDirectory = `${baseDir}/${relativePath}`;
+    initialSpawnDirectory = path.join(watchStatus.directory, relativePath);
   }
 
   const appSupportPath: string = getAppSupportPath();
   const watchedDir: string | null = getWatchedDirectory();
   const contextNodeAbsolutePath: string = watchedDir
-    ? `${watchedDir.replace(/\/$/, '')}/${contextNodeId}`
+    ? path.join(watchedDir, contextNodeId)
     : contextNodeId;
 
   // Build absolute path for task node (parent of context node)
   const parentNode: GraphNode | undefined = findFirstParentNode(contextNode, graph);
   const taskNodeAbsolutePath: string = parentNode && watchedDir
-    ? `${watchedDir.replace(/\/$/, '')}/${parentNode.relativeFilePathIsID}`
+    ? path.join(watchedDir, parentNode.relativeFilePathIsID)
     : '';
 
   // Truncate context content to avoid posix_spawnp failure from env size limits

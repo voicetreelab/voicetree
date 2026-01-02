@@ -208,16 +208,9 @@ function findNodesWithPotentialEdgesToNode(
  * @returns GraphNode ID with relative path preserved (e.g., "subfolder/MyNote")
  */
 function extractNodeIdFromPath(filePath: string, vaultPath: string): NodeIdAndFilePath {
-    // todo this method seems slightly suss
+    // Use path.relative for cross-platform path handling (handles both / and \ separators)
+    const relativePath: string = path.relative(vaultPath, filePath)
 
-    // Normalize paths to handle trailing slashes
-    const normalizedVault: string = vaultPath.endsWith('/') ? vaultPath : vaultPath + '/'
-
-    // Get relative path from vault
-    const relativePath: string = filePath.startsWith(normalizedVault)
-        ? filePath.substring(normalizedVault.length)
-        : path.basename(filePath) // Fallback to basename if not under vault
-
-    // Convert to node ID (todo unnec)
+    // Convert to node ID (remove .md extension)
     return filenameToNodeId(relativePath)
 }

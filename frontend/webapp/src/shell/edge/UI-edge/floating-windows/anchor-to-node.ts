@@ -112,11 +112,20 @@ export function anchorToNode(
         };
 
         // Check overlap with existing nodes
+        // Note: Use node.width()/height() instead of boundingBox() because boundingBox()
+        // can return incorrect values for shadow nodes in certain scenarios
         let hasOverlap: boolean = false;
         existingNodes.forEach((node: cytoscape.NodeSingular) => {
             if (node.id() === parentNodeId) return;
-            const bb: cytoscape.BoundingBox12 & cytoscape.BoundingBoxWH = node.boundingBox();
-            const nodeBBox: BBox = {x1: bb.x1, x2: bb.x2, y1: bb.y1, y2: bb.y2};
+            const pos: cytoscape.Position = node.position();
+            const w: number = node.width();
+            const h: number = node.height();
+            const nodeBBox: BBox = {
+                x1: pos.x - w / 2,
+                x2: pos.x + w / 2,
+                y1: pos.y - h / 2,
+                y2: pos.y + h / 2
+            };
             if (rectsOverlap(terminalBBox, nodeBBox)) {
                 hasOverlap = true;
             }

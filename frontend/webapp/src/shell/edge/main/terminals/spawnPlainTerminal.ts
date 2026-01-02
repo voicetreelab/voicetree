@@ -2,6 +2,7 @@
  * Spawns a plain terminal (no agent command, no context node).
  */
 
+import path from 'path';
 import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath} from '@/pure/graph';
 import type {Position} from '@/pure/graph';
 import {createNewNodeNoParent} from '@/pure/graph/graphDelta/uiInteractionsToGraphDeltas';
@@ -31,15 +32,14 @@ export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCoun
   let initialSpawnDirectory: string | undefined = watchStatus.directory;
 
   if (watchStatus?.directory && settings.terminalSpawnPathRelativeToWatchedDirectory) {
-    const baseDir: string = watchStatus.directory.replace(/\/$/, '');
     const relativePath: string = settings.terminalSpawnPathRelativeToWatchedDirectory.replace(/^\.\//, '');
-    initialSpawnDirectory = `${baseDir}/${relativePath}`;
+    initialSpawnDirectory = path.join(watchStatus.directory, relativePath);
   }
 
   const appSupportPath: string = getAppSupportPath();
   const watchedDir: string | null = getWatchedDirectory();
   const nodeAbsolutePath: string = watchedDir
-    ? `${watchedDir.replace(/\/$/, '')}/${nodeId}`
+    ? path.join(watchedDir, nodeId)
     : nodeId;
 
   const unexpandedEnvVars: Record<string, string> = {

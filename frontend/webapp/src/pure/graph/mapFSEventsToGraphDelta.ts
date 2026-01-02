@@ -65,13 +65,8 @@ function handleUpsert(fsUpdate: FSUpdate, vaultPath: string, currentGraph: Graph
  * @returns GraphNode ID with relative absolutePath preserved (e.g., "subfolder/MyNote")
  */
 function extractNodeIdFromPath(filePath: string, vaultPath: string): NodeIdAndFilePath {
-  // Normalize paths to handle trailing slashes
-  const normalizedVault: string = vaultPath.endsWith('/') ? vaultPath : vaultPath + '/'
-
-  // Get relative absolutePath from vault
-  const relativePath: string = filePath.startsWith(normalizedVault)
-    ? filePath.substring(normalizedVault.length)
-    : path.basename(filePath) // Fallback to basename if not under vault
+  // Use path.relative for cross-platform path handling (handles both / and \ separators)
+  const relativePath: string = path.relative(vaultPath, filePath)
 
   // Convert to node ID (remove .md extension)
   return filenameToNodeId(relativePath)

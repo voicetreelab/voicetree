@@ -12,6 +12,7 @@
  * 4. UI renders terminal with Cytoscape
  */
 
+import path from 'path';
 import { createContextNode } from '@/shell/edge/main/graph/context-nodes/createContextNode';
 import { getGraph } from '@/shell/edge/main/state/graph-store';
 import { loadSettings, saveSettings } from '@/shell/edge/main/settings/settings_IO';
@@ -218,10 +219,9 @@ async function prepareTerminalDataInMain(
     initialSpawnDirectory = watchStatus.directory;
 
     if (watchStatus?.directory && settings.terminalSpawnPathRelativeToWatchedDirectory) {
-        // Simple path join: remove trailing slash from directory, remove leading ./ from relative path
-        const baseDir: string = watchStatus.directory.replace(/\/$/, '');
+        // Use path.join for cross-platform path handling
         const relativePath: string = settings.terminalSpawnPathRelativeToWatchedDirectory.replace(/^\.\//, '');
-        initialSpawnDirectory = `${baseDir}/${relativePath}`;
+        initialSpawnDirectory = path.join(watchStatus.directory, relativePath);
     }
 
     // Get app support path for VOICETREE_APP_SUPPORT env var
@@ -230,12 +230,12 @@ async function prepareTerminalDataInMain(
     // Build absolute path for context node (using watched directory, since nodeId is relative to it)
     const watchedDir: string | null = getWatchedDirectory();
     const contextNodeAbsolutePath: string = watchedDir
-        ? `${watchedDir.replace(/\/$/, '')}/${contextNodeId}`
+        ? path.join(watchedDir, contextNodeId)
         : contextNodeId;
 
     // Build absolute path for task node (parent of context node)
     const taskNodeAbsolutePath: string = parentNode && watchedDir
-        ? `${watchedDir.replace(/\/$/, '')}/${parentNode.relativeFilePathIsID}`
+        ? path.join(watchedDir, parentNode.relativeFilePathIsID)
         : '';
 
     // Build env vars then expand $VAR_NAME references within values
