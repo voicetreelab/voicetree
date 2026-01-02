@@ -32,7 +32,7 @@ export function markdownToTitle(content: string, filePath: FilePath): string {
 
     // Handle undefined/null content gracefully - fall back to filename
     if (!content) {
-        const filename: string = filePath.split('/').pop() ?? filePath;
+        const filename: string = filePath.split(/[/\\]/).pop() ?? filePath;
         const withoutExtension: string = filename.replace(/\.md$/, '');
         return withoutExtension.replace(/[_-]/g, ' ');
     }
@@ -64,7 +64,7 @@ export function markdownToTitle(content: string, filePath: FilePath): string {
     }
 
     // 4. Use filename, clean up _ and -
-    const filename: string = filePath.split('/').pop() ?? filePath;
+    const filename: string = filePath.split(/[/\\]/).pop() ?? filePath;
     const withoutExtension: string = filename.replace(/\.md$/, '');
     return withoutExtension.replace(/[_-]/g, ' ');
 }

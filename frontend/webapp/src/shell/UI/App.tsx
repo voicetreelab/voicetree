@@ -77,7 +77,7 @@ function App(): JSX.Element {
                         className="text-gray-600 px-1.5 py-1 rounded bg-gray-100 hover:bg-gray-200 transition-colors flex items-center gap-1"
                         title="Project root – agents spawn here by default"
                     >
-                        {watchDirectory.split('/').pop()}
+                        {watchDirectory.split(/[/\\]/).pop()}
                         <span className="text-[10px] ml-1">▼</span>
                     </button>
                     {(vaultSuffix ?? isEditingSuffix) && <span className="text-gray-400">/</span>}

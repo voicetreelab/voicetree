@@ -23,7 +23,7 @@ import type { NodeIdAndFilePath, GraphNode, Edge } from '@/pure/graph'
  */
 export function getPathComponents(path: string): readonly string[] {
   const components: readonly string[] = path
-    .split('/')
+    .split(/[/\\]/)
     .filter(p => p !== '' && p !== '.' && p !== '..')
 
   if (components.length === 0) return []

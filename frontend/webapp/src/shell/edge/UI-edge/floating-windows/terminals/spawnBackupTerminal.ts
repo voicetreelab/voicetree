@@ -23,8 +23,8 @@ export async function spawnBackupTerminal(cy: Core): Promise<void> {
         return;
     }
 
-    // Extract vault folder name for backup naming
-    const vaultName: string = watchDir.split('/').pop() ?? 'vault';
+    // Extract vault folder name for backup naming (handle both / and \ separators)
+    const vaultName: string = watchDir.split(/[/\\]/).pop() ?? 'vault';
 
     // Generate command: move vault to timestamped backup, then recreate empty vault
     const backupCommand: string = `mkdir -p "${watchDir}/../backups" && mv "${watchDir}" "${watchDir}/../backups/${vaultName}-$(date +%Y%m%d-%H%M%S)" && mkdir -p "${watchDir}"`;

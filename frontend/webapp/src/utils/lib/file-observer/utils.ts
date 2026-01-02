@@ -148,13 +148,15 @@ export function isFileInDirectory(filePath: string, directory: string): boolean 
 }
 
 /**
- * Normalizes a file absolutePath by removing trailing slashes and converting to lowercase
+ * Normalizes a file absolutePath by converting separators to forward slashes,
+ * removing trailing slashes, and converting to lowercase for cross-platform comparison.
  *
  * @param path Path to normalize
- * @returns Normalized absolutePath
+ * @returns Normalized absolutePath with forward slashes
  */
-export function normalizePath(path: string): string {
-  return path.replace(/\/+$/, '').toLowerCase();
+export function normalizePath(pathToNormalize: string): string {
+  // Convert Windows backslashes to forward slashes, then remove trailing slashes
+  return pathToNormalize.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
 }
 
 /**

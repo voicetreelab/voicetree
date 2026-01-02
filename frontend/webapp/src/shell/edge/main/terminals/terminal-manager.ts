@@ -295,7 +295,8 @@ export default class TerminalManager {
 
       // Always set vault absolutePath from watched directory
       const watchedDir: string | null = getWatchedDirectory();
-      const vaultPath: string = watchedDir + "/" + getVaultSuffix();
+      const vaultSuffix: string = getVaultSuffix();
+      const vaultPath: string = vaultSuffix ? path.join(watchedDir ?? '', vaultSuffix) : (watchedDir ?? '');
       console.log(`[TerminalManager] getWatchedDirectory() returned: ${watchedDir}`);
       console.log(`[TerminalManager] Using vault path: ${vaultPath}`);
       customEnv.OBSIDIAN_VAULT_PATH = vaultPath;
@@ -324,7 +325,7 @@ export default class TerminalManager {
       customEnv.OBSIDIAN_SOURCE_BASENAME = path.basename(relativePath, ext);
 
       // OTEL telemetry env vars - enables Claude Code to send metrics to our OTLP receiver
-      const otlpPort = getOTLPReceiverPort();
+      const otlpPort: number | null = getOTLPReceiverPort();
       if (otlpPort) {
         customEnv.CLAUDE_CODE_ENABLE_TELEMETRY = '1';
         customEnv.OTEL_METRICS_EXPORTER = 'otlp';
