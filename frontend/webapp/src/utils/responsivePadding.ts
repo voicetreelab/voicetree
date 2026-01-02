@@ -62,8 +62,36 @@ export function cyFitWithRelativeZoom(
 }
 
 // Comfortable zoom range - only zoom if outside this range, otherwise just pan
-const COMFORTABLE_ZOOM_MIN: number = 0.7;
+const COMFORTABLE_ZOOM_MIN: number = 0.65;
 const COMFORTABLE_ZOOM_MAX: number = 2;
+const COMFORTABLE_ZOOM_DEFAULT: number = 1.0;
+const SMART_CENTER_DURATION: number = 300;
+
+/**
+ * Smart center on elements - pans if in comfortable zoom range,
+ * otherwise zooms to comfortable level (1.0) while centering.
+ *
+ * Use this for navigating to terminals, editors, or other UI elements
+ * where you want to preserve user's zoom level when reasonable.
+ *
+ * @param cy - Cytoscape core instance
+ * @param eles - Element(s) to center on
+ */
+export function cySmartCenter(
+  cy: Core,
+  eles: CollectionReturnValue
+): void {
+  if (eles.length === 0) return;
+
+  const currentZoom: number = cy.zoom();
+  const isInComfortableRange: boolean = currentZoom >= COMFORTABLE_ZOOM_MIN && currentZoom <= COMFORTABLE_ZOOM_MAX;
+
+  if (isInComfortableRange) {
+    cy.animate({ center: { eles }, duration: SMART_CENTER_DURATION });
+  } else {
+    cy.animate({ center: { eles }, zoom: COMFORTABLE_ZOOM_DEFAULT, duration: SMART_CENTER_DURATION });
+  }
+}
 
 /**
  * Animate viewport to center on a collection, with zoom based on average node size.
