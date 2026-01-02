@@ -94,6 +94,8 @@ class TestTreeActionDeciderWorkflow:
     def simple_tree(self, temp_dir):
         """Create a simple tree for testing with markdown files"""
         tree = MarkdownTree(output_dir=temp_dir)
+        # Ensure voice subdirectory exists (filenames include voice/ prefix)
+        os.makedirs(os.path.join(temp_dir, "voice"), exist_ok=True)
         # Add multiple nodes for testing
         for node_id in [1, 2, 3, 5, 99, 100, 101]:
             node = Node(

@@ -1,3 +1,4 @@
+import os
 import re
 from typing import Any
 
@@ -285,7 +286,7 @@ def generate_filename_from_keywords(node_title: str, max_keywords: int = 3) -> s
     if not file_name:
         file_name = "untitled"
 
-    return "voice/" + file_name + ".md"
+    return os.path.join("voice", file_name + ".md")
 
 
 def slugify(text: str) -> str:

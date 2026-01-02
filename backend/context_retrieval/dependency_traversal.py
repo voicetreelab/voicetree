@@ -3,6 +3,7 @@
 Dependency traversal module for context retrieval.
 """
 
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -24,6 +25,38 @@ from backend.markdown_tree_manager.markdown_to_tree.link_extraction import (
 
 # Import load_node from markdown_to_tree module
 from backend.markdown_tree_manager.markdown_to_tree.node_loader import load_node
+
+
+def normalize_wikilink_path(link_path: str) -> str:
+    """
+    Convert a wikilink path (which always uses forward slashes) to OS-appropriate separators.
+
+    Wikilinks in markdown always use '/' regardless of OS, but when using them as filesystem
+    paths, we need to convert to the appropriate separator.
+
+    Args:
+        link_path: A path extracted from a wikilink, e.g., "voice/filename.md"
+
+    Returns:
+        Path with OS-appropriate separators
+    """
+    return link_path.replace('/', os.sep)
+
+
+def has_directory_component(link_path: str) -> bool:
+    """
+    Check if a wikilink path contains a directory component.
+
+    Since wikilinks always use forward slashes in markdown content (regardless of OS),
+    we check for '/' to determine if there's a directory component.
+
+    Args:
+        link_path: A path extracted from a wikilink
+
+    Returns:
+        True if the path contains a directory component
+    """
+    return '/' in link_path
 
 
 @dataclass
@@ -154,18 +187,23 @@ def traverse_bidirectional(
         parent_links = extract_parent_links(content)
 
         for parent_file in parent_links:
+            # Normalize wikilink path to OS-appropriate separators for filesystem operations
+            normalized_parent_file = normalize_wikilink_path(parent_file)
+
             # First try the link as-is (absolute path from markdown_dir)
-            parent_path = markdown_dir / parent_file
+            parent_path = markdown_dir / normalized_parent_file
 
             # If not found and link doesn't have a directory, try in the same directory as current file
-            if not parent_path.exists() and '/' not in parent_file:
+            if not parent_path.exists() and not has_directory_component(parent_file):
                 current_file_dir = Path(start_file).parent
                 if str(current_file_dir) != '.':
                     # Try in the same directory as the current file
-                    parent_file = str(current_file_dir / parent_file)
-                    parent_path = markdown_dir / parent_file
+                    normalized_parent_file = str(current_file_dir / normalized_parent_file)
+                    parent_path = markdown_dir / normalized_parent_file
 
             if parent_path.exists():
+                # Use the normalized path for filesystem operations
+                parent_file = normalized_parent_file
                 parent_results = traverse_bidirectional(
                     parent_file, markdown_dir, visited, file_cache,
                     depth + 1, max_depth, 'parents'  # Only go up when following parents
@@ -265,15 +303,20 @@ def get_neighborhood(
 
     # For each parent, find its other children (siblings of target)
     for parent_file in target_parents:
-        parent_path = markdown_dir / parent_file
-        if not parent_path.exists() and '/' not in parent_file:
+        # Normalize wikilink path to OS-appropriate separators for filesystem operations
+        normalized_parent_file = normalize_wikilink_path(parent_file)
+        parent_path = markdown_dir / normalized_parent_file
+
+        if not parent_path.exists() and not has_directory_component(parent_file):
             # Try in same directory as target
             current_dir = Path(target_file).parent
             if str(current_dir) != '.':
-                parent_file = str(current_dir / parent_file)
-                parent_path = markdown_dir / parent_file
+                normalized_parent_file = str(current_dir / normalized_parent_file)
+                parent_path = markdown_dir / normalized_parent_file
 
         if parent_path.exists():
+            # Use the normalized path for filesystem operations
+            parent_file = normalized_parent_file
             siblings = find_child_references(parent_file, markdown_dir, file_cache)
             for sibling in siblings:
                 if sibling != target_file and sibling not in visited:
