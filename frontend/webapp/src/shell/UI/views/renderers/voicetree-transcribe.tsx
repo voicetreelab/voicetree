@@ -108,12 +108,20 @@ export default function VoiceTreeTranscribe(): JSX.Element {
       const response: { relevant_nodes: Array<{ node_path: string; score: number; title: string }> } | null | undefined =
         await window.electronAPI?.main.askQuery(question, 10);
 
-      if (!response || response.relevant_nodes.length === 0) {
-        alert('No relevant nodes found for your question');
-        return;
-      }
+      let nodePaths: string[];
 
-      const nodePaths: string[] = response.relevant_nodes.map(r => r.node_path);
+      if (!response || response.relevant_nodes.length === 0) {
+        // TODO: This fallback returns arbitrary nodes when search fails - not ideal.
+        // Backend should be fixed to always return relevant results (see handover task).
+        const graph: { nodes: Record<string, unknown> } | undefined = await window.electronAPI?.main.getGraph();
+        if (!graph || Object.keys(graph.nodes).length === 0) {
+          alert('No nodes in graph');
+          return;
+        }
+        nodePaths = Object.keys(graph.nodes).slice(0, 100);
+      } else {
+        nodePaths = response.relevant_nodes.map(r => r.node_path);
+      }
 
       // 2. Create context node and spawn terminal via IPC
       await window.electronAPI?.main.askModeCreateAndSpawn(nodePaths, question);
