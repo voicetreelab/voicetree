@@ -61,12 +61,19 @@ export function cyFitWithRelativeZoom(
   });
 }
 
+// Comfortable zoom range - only zoom if outside this range, otherwise just pan
+const COMFORTABLE_ZOOM_MIN: number = 0.7;
+const COMFORTABLE_ZOOM_MAX: number = 2;
+
 /**
  * Animate viewport to center on a collection, with zoom based on average node size.
  *
  * Unlike cyFitWithRelativeZoom which zooms based on the collection's bounding box,
  * this zooms so that an average-sized node takes up targetFraction of the viewport.
  * This keeps node readability consistent regardless of how spread out nodes are.
+ *
+ * Smart zoom behavior: Only zooms if current zoom is outside comfortable range (0.7-2).
+ * If already in comfortable range, just pans to center the elements.
  *
  * @param cy - Cytoscape core instance
  * @param eles - Collection of elements to fit
@@ -81,6 +88,15 @@ export function cyFitCollectionByAverageNodeSize(
 ): void {
   const nodes: NodeCollection = eles.nodes();
   if (nodes.length === 0) return;
+
+  const currentZoom: number = cy.zoom();
+  const isInComfortableRange: boolean = currentZoom >= COMFORTABLE_ZOOM_MIN && currentZoom <= COMFORTABLE_ZOOM_MAX;
+
+  // If already in comfortable zoom range, just pan to center
+  if (isInComfortableRange) {
+    cy.animate({ center: { eles }, duration });
+    return;
+  }
 
   // Calculate average node dimensions
   let totalWidth: number = 0;
@@ -99,9 +115,6 @@ export function cyFitCollectionByAverageNodeSize(
   const zoomForWidth: number = (cy.width() * targetFraction) / avgWidth;
   const zoomForHeight: number = (cy.height() * targetFraction) / avgHeight;
   const targetZoom: number = Math.min(zoomForWidth, zoomForHeight);
-
-  // TODO: If nodes are very spread apart, this zoom might leave some nodes off-screen.
-  // Consider taking Math.min(targetZoom, zoomToFitAllNodes) to ensure all nodes visible.
 
   // Clamp to cytoscape's zoom limits
   const clampedZoom: number = Math.max(cy.minZoom(), Math.min(cy.maxZoom(), targetZoom));

@@ -1,6 +1,6 @@
 {
   "name": "voicetree-webapp",
-  "productName": "VoiceTree",
+  "productName": "Voicetree",
   "description": "Transform voice into navigable concept graphs",
   "author": "Manu Masson",
   "private": true,
@@ -127,7 +127,7 @@
   },
   "build": {
     "appId": "com.voicetree.webapp",
-    "productName": "VoiceTree",
+    "productName": "Voicetree",
     "publish": {
       "provider": "github",
       "owner": "voicetreelab",
@@ -185,7 +185,7 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "build/icon.png"
+      "icon": "build/icon.ico"
     },
     "linux": {
       "target": "AppImage",
