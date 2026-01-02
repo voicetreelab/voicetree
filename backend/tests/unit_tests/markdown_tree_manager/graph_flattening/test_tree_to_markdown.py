@@ -127,40 +127,42 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
         self.assertIsNone(parent_id)
 
     def test_generate_filename_from_keywords(self):
-        self.assertEqual(generate_filename_from_keywords("Test"), "Test.md")
-        self.assertEqual(generate_filename_from_keywords("Another Test"), "Another_Test.md")
+        # Function returns path with voice/ prefix (cross-platform)
+        voice_prefix = os.path.join("voice", "")  # Gets "voice/" on Unix, "voice\" on Windows
+        self.assertEqual(generate_filename_from_keywords("Test"), voice_prefix + "Test.md")
+        self.assertEqual(generate_filename_from_keywords("Another Test"), voice_prefix + "Another_Test.md")
         # Test handling of newlines
-        self.assertEqual(generate_filename_from_keywords("Voice Tree Project\n\nVoice Tree Project"), "Voice_Tree_Project_Voice_Tree_Project.md")
-        self.assertEqual(generate_filename_from_keywords("Line1\nLine2"), "Line1_Line2.md")
-        self.assertEqual(generate_filename_from_keywords("Line1\r\nLine2"), "Line1_Line2.md")
+        self.assertEqual(generate_filename_from_keywords("Voice Tree Project\n\nVoice Tree Project"), voice_prefix + "Voice_Tree_Project_Voice_Tree_Project.md")
+        self.assertEqual(generate_filename_from_keywords("Line1\nLine2"), voice_prefix + "Line1_Line2.md")
+        self.assertEqual(generate_filename_from_keywords("Line1\r\nLine2"), voice_prefix + "Line1_Line2.md")
 
         # Test special characters that should be replaced
-        self.assertEqual(generate_filename_from_keywords("File/Path"), "File_Path.md")
-        self.assertEqual(generate_filename_from_keywords("File\\Path"), "File_Path.md")
-        self.assertEqual(generate_filename_from_keywords("File:Name"), "File_Name.md")
-        self.assertEqual(generate_filename_from_keywords("File*Name"), "File_Name.md")
-        self.assertEqual(generate_filename_from_keywords("File?Name"), "File_Name.md")
-        self.assertEqual(generate_filename_from_keywords("File<Name>"), "File_Name.md")
-        self.assertEqual(generate_filename_from_keywords("File|Name"), "File_Name.md")
-        self.assertEqual(generate_filename_from_keywords('File"Name"'), "File_Name.md")
+        self.assertEqual(generate_filename_from_keywords("File/Path"), voice_prefix + "File_Path.md")
+        self.assertEqual(generate_filename_from_keywords("File\\Path"), voice_prefix + "File_Path.md")
+        self.assertEqual(generate_filename_from_keywords("File:Name"), voice_prefix + "File_Name.md")
+        self.assertEqual(generate_filename_from_keywords("File*Name"), voice_prefix + "File_Name.md")
+        self.assertEqual(generate_filename_from_keywords("File?Name"), voice_prefix + "File_Name.md")
+        self.assertEqual(generate_filename_from_keywords("File<Name>"), voice_prefix + "File_Name.md")
+        self.assertEqual(generate_filename_from_keywords("File|Name"), voice_prefix + "File_Name.md")
+        self.assertEqual(generate_filename_from_keywords('File"Name"'), voice_prefix + "File_Name.md")
 
         # Test allowed characters (should remain)
-        self.assertEqual(generate_filename_from_keywords("File-Name"), "File-Name.md")
-        self.assertEqual(generate_filename_from_keywords("File_Name"), "File_Name.md")
-        self.assertEqual(generate_filename_from_keywords("File123"), "File123.md")
-        self.assertEqual(generate_filename_from_keywords("ABC-123_test"), "ABC-123_test.md")
+        self.assertEqual(generate_filename_from_keywords("File-Name"), voice_prefix + "File-Name.md")
+        self.assertEqual(generate_filename_from_keywords("File_Name"), voice_prefix + "File_Name.md")
+        self.assertEqual(generate_filename_from_keywords("File123"), voice_prefix + "File123.md")
+        self.assertEqual(generate_filename_from_keywords("ABC-123_test"), voice_prefix + "ABC-123_test.md")
 
         # Test multiple consecutive special characters
-        self.assertEqual(generate_filename_from_keywords("File***Name"), "File_Name.md")
-        self.assertEqual(generate_filename_from_keywords("File   Name"), "File_Name.md")
-        self.assertEqual(generate_filename_from_keywords("File///Name"), "File_Name.md")
+        self.assertEqual(generate_filename_from_keywords("File***Name"), voice_prefix + "File_Name.md")
+        self.assertEqual(generate_filename_from_keywords("File   Name"), voice_prefix + "File_Name.md")
+        self.assertEqual(generate_filename_from_keywords("File///Name"), voice_prefix + "File_Name.md")
 
         # Test edge cases
-        self.assertEqual(generate_filename_from_keywords("!!!"), "untitled.md")
-        self.assertEqual(generate_filename_from_keywords("   "), "untitled.md")
-        self.assertEqual(generate_filename_from_keywords(""), "untitled.md")
-        self.assertEqual(generate_filename_from_keywords("___test___"), "test.md")
-        self.assertEqual(generate_filename_from_keywords("Research Gemini/OpenAI Voice-to-Text Streaming Capabilities"), "Research_Gemini_OpenAI_Voice-to-Text_Streaming_Capabilities.md")
+        self.assertEqual(generate_filename_from_keywords("!!!"), voice_prefix + "untitled.md")
+        self.assertEqual(generate_filename_from_keywords("   "), voice_prefix + "untitled.md")
+        self.assertEqual(generate_filename_from_keywords(""), voice_prefix + "untitled.md")
+        self.assertEqual(generate_filename_from_keywords("___test___"), voice_prefix + "test.md")
+        self.assertEqual(generate_filename_from_keywords("Research Gemini/OpenAI Voice-to-Text Streaming Capabilities"), voice_prefix + "Research_Gemini_OpenAI_Voice-to-Text_Streaming_Capabilities.md")
 
 
     def test_convert_to_snake_case(self):
@@ -485,12 +487,13 @@ class TestPreserveExtraLinksOnWrite(unittest.TestCase):
         os.makedirs(self.output_dir, exist_ok=True)
 
     def tearDown(self):
-        # Clean up including VT subdirectory
-        if os.path.exists(os.path.join(self.output_dir, "VT")):
-            vt_dir = os.path.join(self.output_dir, "VT")
-            for filename in os.listdir(vt_dir):
-                os.unlink(os.path.join(vt_dir, filename))
-            os.rmdir(vt_dir)
+        # Clean up including VT and voice subdirectories
+        for subdir in ["VT", "voice"]:
+            subdir_path = os.path.join(self.output_dir, subdir)
+            if os.path.exists(subdir_path):
+                for filename in os.listdir(subdir_path):
+                    os.unlink(os.path.join(subdir_path, filename))
+                os.rmdir(subdir_path)
         for filename in os.listdir(self.output_dir):
             file_path = os.path.join(self.output_dir, filename)
             if os.path.isfile(file_path):
