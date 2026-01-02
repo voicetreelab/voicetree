@@ -114,6 +114,8 @@ export function anchorToNode(
         // Check overlap with existing nodes
         // Note: Use node.width()/height() instead of boundingBox() because boundingBox()
         // can return incorrect values for shadow nodes in certain scenarios
+        // TODO: If terminal/editor collision bug persists, it's likely a race condition
+        // where the context node position hasn't been set yet when this runs
         let hasOverlap: boolean = false;
         existingNodes.forEach((node: cytoscape.NodeSingular) => {
             if (node.id() === parentNodeId) return;

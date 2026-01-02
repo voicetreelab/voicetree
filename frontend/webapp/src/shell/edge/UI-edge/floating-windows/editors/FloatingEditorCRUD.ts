@@ -60,6 +60,7 @@ import {modifyNodeContentFromUI} from "@/shell/edge/UI-edge/floating-windows/edi
 import {isAppendOnly, getAppendedSuffix} from "@/pure/graph/contentChangeDetection";
 import {selectFloatingWindowNode} from "@/shell/edge/UI-edge/floating-windows/select-floating-window-node";
 import {anchorToNode} from "@/shell/edge/UI-edge/floating-windows/anchor-to-node";
+import {cySmartCenter} from "@/utils/responsivePadding";
 
 // =============================================================================
 // Create Floating Editor
@@ -424,20 +425,16 @@ export async function createAnchoredFloatingEditor(
 // =============================================================================
 
 /**
- * Pan to editor neighborhood (maintains current zoom level)
- * Similar to terminal's panToTerminalNeighborhood
+ * Navigate to editor neighborhood - pans if zoom is comfortable, zooms to 1.0 if not
  */
-function panToEditorNeighborhood(cy: Core, nodeId: NodeIdAndFilePath, editorId: EditorId): void {
+function navigateToEditorNeighborhood(cy: Core, nodeId: NodeIdAndFilePath, editorId: EditorId): void {
     const shadowNodeId: string = getShadowNodeId(editorId);
     const editorShadowNode: cytoscape.CollectionReturnValue = cy.getElementById(shadowNodeId);
     const contextNode: cytoscape.CollectionReturnValue = cy.getElementById(nodeId);
     const nodesToCenter: cytoscape.CollectionReturnValue = contextNode.length > 0
         ? contextNode.closedNeighborhood().nodes().union(editorShadowNode)
         : cy.collection().union(editorShadowNode);
-    cy.animate({
-        center: { eles: nodesToCenter },
-        duration: 300
-    });
+    cySmartCenter(cy, nodesToCenter);
 }
 
 /**
@@ -482,11 +479,11 @@ export async function createFloatingEditorForUICreatedNode(
         // Anchor to node (creates shadow node for positioning)
         anchorToNode(cy, editor);
 
-        // Pan to editor neighborhood twice with delays to handle IPC race condition
+        // Navigate to editor neighborhood twice with delays to handle IPC race condition
         // (node may not be fully positioned in Cytoscape yet when this runs)
         const editorId: EditorId = getEditorId(editor);
-        setTimeout(() => panToEditorNeighborhood(cy, nodeId, editorId), 300);
-        setTimeout(() => panToEditorNeighborhood(cy, nodeId, editorId), 1200);
+        setTimeout(() => navigateToEditorNeighborhood(cy, nodeId, editorId), 300);
+        setTimeout(() => navigateToEditorNeighborhood(cy, nodeId, editorId), 1200);
 
     } catch (error) {
         console.error('[FloatingEditorManager-v2] Error creating editor for UI-created node:', error);
