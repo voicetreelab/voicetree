@@ -211,7 +211,7 @@ export function createFloatingTerminalWindow(
             } else {
                 // Store current viewport and fit to terminal
                 previousViewport = { zoom: cy.zoom(), pan: cy.pan() };
-                cy.fit(shadowNode, getResponsivePadding(cy, 10));
+                cy.fit(shadowNode);
 
                 // Add ESC handler
                 fullscreenEscapeHandler = (e: KeyboardEvent): void => {
