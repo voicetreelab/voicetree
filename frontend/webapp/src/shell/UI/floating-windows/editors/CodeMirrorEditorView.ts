@@ -91,6 +91,8 @@ export class CodeMirrorEditorView extends Disposable {
   private view: EditorView;
   private container: HTMLElement;
   private changeEmitter: EventEmitter<string>;
+  private anyDocChangeEmitter: EventEmitter<void>; // Fires for ALL document changes (user + programmatic)
+  private geometryChangeEmitter: EventEmitter<void>; // Fires when content geometry changes (after layout)
   private options: CodeMirrorEditorOptions;
   private debounceTimeout: ReturnType<typeof setTimeout> | null = null;
   private fullscreen: FloatingWindowFullscreen;
@@ -110,6 +112,8 @@ export class CodeMirrorEditorView extends Disposable {
     this.container = container;
     this.options = options;
     this.changeEmitter = new EventEmitter<string>();
+    this.anyDocChangeEmitter = new EventEmitter<void>();
+    this.geometryChangeEmitter = new EventEmitter<void>();
 
     // Setup fullscreen (no callback needed - CodeMirror auto-resizes)
     this.fullscreen = new FloatingWindowFullscreen(container);
@@ -254,20 +258,30 @@ export class CodeMirrorEditorView extends Disposable {
    * Setup update listener to detect content changes
    * Debounces emissions based on autosaveDelay option (default: 300ms)
    *
-   * Only emits for user input (typing, paste, etc.) - NOT for programmatic setValue() calls.
-   * This prevents feedback loops without needing an external awaiting store.
+   * Emits to two channels:
+   * - changeEmitter: Only for user input (typing, paste, etc.) - used for autosave
+   * - anyDocChangeEmitter: For ALL document changes (user + programmatic) - used for auto-height
    */
   private setupUpdateListener(): Extension {
     return EditorView.updateListener.of((viewUpdate: ViewUpdate) => {
+      // Emit geometry changes (used by auto-height) - fires after layout is complete
+      if (viewUpdate.geometryChanged) {
+        this.geometryChangeEmitter.emit();
+      }
+
       if (viewUpdate.docChanged) {
-        // Only emit for user-initiated changes - not programmatic setValue() calls
+        // Emit to anyDocChangeEmitter for ALL document changes
+        this.anyDocChangeEmitter.emit();
+
+        // Only emit to changeEmitter for user-initiated changes - not programmatic setValue() calls
         // User events: input (typing/paste), delete (backspace/del), undo, redo
+        // This prevents feedback loops for autosave
         const isUserChange: boolean = viewUpdate.transactions.some(
           tr => tr.isUserEvent("input") || tr.isUserEvent("delete") || tr.isUserEvent("undo") || tr.isUserEvent("redo")
         );
 
         if (!isUserChange) {
-          return; // Skip programmatic changes
+          return; // Skip programmatic changes for autosave
         }
 
         const delay: number = this.options.autosaveDelay ?? 300;
@@ -415,6 +429,36 @@ export class CodeMirrorEditorView extends Disposable {
   }
 
   /**
+   * Get the content height of the editor in pixels
+   * This is the height of the document content, not the visible viewport
+   * @returns Content height in pixels
+   */
+  getContentHeight(): number {
+    return this.view.contentHeight;
+  }
+
+  /**
+   * Register a callback for ANY document changes (user + programmatic)
+   * Unlike onChange, this fires for setValue() calls too.
+   * @param callback - Function called when document changes
+   * @returns Unsubscribe function to remove the listener
+   */
+  onAnyDocChange(callback: () => void): () => void {
+    return this.anyDocChangeEmitter.on(callback);
+  }
+
+  /**
+   * Register a callback for geometry changes (content height/width changes)
+   * Fires AFTER CodeMirror has recalculated layout, so contentHeight is accurate.
+   * Used for auto-height resizing.
+   * @param callback - Function called when geometry changes
+   * @returns Unsubscribe function to remove the listener
+   */
+  onGeometryChange(callback: () => void): () => void {
+    return this.geometryChangeEmitter.on(callback);
+  }
+
+  /**
    * Enter fullscreen mode
    */
   async enterFullscreen(): Promise<void> {
@@ -460,6 +504,8 @@ export class CodeMirrorEditorView extends Disposable {
 
     // Clear event listeners
     this.changeEmitter.clear();
+    this.anyDocChangeEmitter.clear();
+    this.geometryChangeEmitter.clear();
 
     // Call internal disposables cleanup
     const disposables: (() => void)[] | undefined = (this as unknown as { _disposables?: (() => void)[] })._disposables;
