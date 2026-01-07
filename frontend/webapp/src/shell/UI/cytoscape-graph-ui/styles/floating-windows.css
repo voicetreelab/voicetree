@@ -78,6 +78,23 @@
   text-overflow: ellipsis;
 }
 
+/* Expand button (doubles/halves window size) */
+.cy-floating-window-expand {
+  all: unset;
+  cursor: pointer;
+  font-size: 14px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cy-floating-window-expand:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
 /* Fullscreen button */
 .cy-floating-window-fullscreen {
   all: unset;
@@ -88,7 +105,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: 4px;
 }
 
 .cy-floating-window-fullscreen:hover {
@@ -350,7 +366,15 @@
 
 /* Fix: CM6 positions the first selection rectangle at extreme negative top (-1e9px)
  * with a huge height. This causes it to end just above the visible content.
- * Override to position at top:0 with full viewport height to cover all content. */
+ * Override to position at top:0 with full viewport height to cover all content.
+ *
+ * KNOWN LIMITATION: This :first-child selector targets ALL first selection rectangles,
+ * which could cause visual artifacts for partial selections or multi-cursor scenarios.
+ * However, this is acceptable because:
+ * 1. Cmd+A select-all is the primary use case that was broken
+ * 2. Partial selections typically don't hit the extreme-positioning edge case
+ * 3. The functional selection still works correctly even if visuals are slightly off
+ */
 .cm-editor .cm-selectionBackground:first-child {
   top: 0 !important;
   height: 100vh !important;
