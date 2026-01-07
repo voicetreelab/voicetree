@@ -72,24 +72,6 @@ export async function startSession(data: {
   await writeMetrics(metrics);
 }
 
-export async function endSession(data: {
-  sessionId: string;
-  exitCode: number;
-  endTime: string;
-}): Promise<void> {
-  const metrics: AgentMetricsData = await readMetrics();
-
-  const session: SessionMetric | undefined = metrics.sessions.find(
-    (s: SessionMetric) => s.sessionId === data.sessionId
-  );
-
-  if (session) {
-    session.endTime = data.endTime;
-    session.durationMs = new Date(data.endTime).getTime() - new Date(session.startTime).getTime();
-    await writeMetrics(metrics);
-  }
-}
-
 export async function getMetrics(): Promise<AgentMetricsData> {
   return readMetrics();
 }
@@ -119,5 +101,11 @@ export async function appendTokenMetrics(data: {
 
   session.tokens = data.tokens;
   session.costUsd = data.costUsd;
+
+  // Update duration for running sessions (no endTime yet)
+  if (!session.endTime) {
+    session.durationMs = Date.now() - new Date(session.startTime).getTime();
+  }
+
   await writeMetrics(metrics);
 }
