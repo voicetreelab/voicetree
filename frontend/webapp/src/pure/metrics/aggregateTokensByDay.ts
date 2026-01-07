@@ -3,6 +3,7 @@ import type { SessionMetric } from '@/shell/UI/views/hooks/useAgentMetrics';
 export interface DayTokenAggregation {
   readonly date: string; // YYYY-MM-DD format
   readonly totalTokens: number;
+  readonly averageTokens: number; // Average tokens per session
 }
 
 /**
@@ -20,21 +21,32 @@ export function aggregateTokensByDay(sessions: readonly SessionMetric[]): readon
     return [];
   }
 
-  // Group by date (YYYY-MM-DD) using reduce
-  const byDay: Map<string, number> = sessionsWithTokens.reduce(
-    (acc: Map<string, number>, session) => {
+  // Group by date (YYYY-MM-DD), tracking total tokens and session count
+  interface DayAccumulator {
+    totalTokens: number;
+    sessionCount: number;
+  }
+  const byDay: Map<string, DayAccumulator> = sessionsWithTokens.reduce(
+    (acc: Map<string, DayAccumulator>, session) => {
       const date: string = session.startTime.slice(0, 10);
       const sessionTotal: number = session.tokens.input + session.tokens.output + (session.tokens.cacheRead ?? 0);
-      const existing: number = acc.get(date) ?? 0;
-      acc.set(date, existing + sessionTotal);
+      const existing: DayAccumulator = acc.get(date) ?? { totalTokens: 0, sessionCount: 0 };
+      acc.set(date, {
+        totalTokens: existing.totalTokens + sessionTotal,
+        sessionCount: existing.sessionCount + 1,
+      });
       return acc;
     },
-    new Map<string, number>()
+    new Map<string, DayAccumulator>()
   );
 
   // Convert to array and sort by date
   const result: readonly DayTokenAggregation[] = Array.from(byDay.entries())
-    .map(([date, totalTokens]: [string, number]) => ({ date, totalTokens }))
+    .map(([date, { totalTokens, sessionCount }]: [string, DayAccumulator]) => ({
+      date,
+      totalTokens,
+      averageTokens: sessionCount > 0 ? Math.round(totalTokens / sessionCount) : 0,
+    }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
   return result;
