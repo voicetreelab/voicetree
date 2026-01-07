@@ -199,6 +199,9 @@ export class CodeMirrorEditorView extends Disposable {
     // Check if dark mode is active (either via option or from document class)
     const isDarkMode: boolean = this.options.darkMode ?? document.documentElement.classList.contains('dark');
 
+    // Selection visibility fix is handled in floating-windows.css
+    // (CM6's selection layer renders behind content - CSS ensures backgrounds are transparent)
+
     const extensions: Extension[] = [
       // VIM mode must come BEFORE basicSetup and other keymaps
       ...(this.options.vimMode ? [vim()] : []),

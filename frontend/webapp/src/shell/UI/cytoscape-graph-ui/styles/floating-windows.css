@@ -307,3 +307,51 @@
 .dark .cm-wikilink-title {
   color: var(--primary, #60a5fa);
 }
+
+/* CodeMirror 6 Selection Visibility Fix
+ *
+ * CM6 has a known issue where the selection highlight doesn't show properly:
+ * 1. The selection layer renders BEHIND the content layer
+ * 2. Selection rectangles for "select all" use extreme positioning (top: -1e9px)
+ *    which causes them to end just above the visible content area
+ *
+ * Solution:
+ * - Ensure transparent backgrounds so selection shows through
+ * - Override the first selection rectangle's position to cover visible content
+ */
+
+/* Ensure content area is transparent so selection layer shows through */
+.cm-editor .cm-content {
+  background-color: transparent !important;
+}
+
+/* Selection highlight colors */
+.cm-editor .cm-selectionBackground {
+  background-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+.cm-editor.cm-focused .cm-selectionBackground {
+  background-color: rgba(59, 130, 246, 0.4) !important;
+}
+
+/* Dark mode selection */
+.dark .cm-editor .cm-selectionBackground {
+  background-color: rgba(59, 130, 246, 0.4) !important;
+}
+
+.dark .cm-editor.cm-focused .cm-selectionBackground {
+  background-color: rgba(59, 130, 246, 0.5) !important;
+}
+
+/* Keep active line subtle so selection shows through */
+.cm-editor .cm-activeLine {
+  background-color: rgba(0, 0, 0, 0.03) !important;
+}
+
+/* Fix: CM6 positions the first selection rectangle at extreme negative top (-1e9px)
+ * with a huge height. This causes it to end just above the visible content.
+ * Override to position at top:0 with full viewport height to cover all content. */
+.cm-editor .cm-selectionBackground:first-child {
+  top: 0 !important;
+  height: 100vh !important;
+}
