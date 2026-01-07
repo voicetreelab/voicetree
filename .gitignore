@@ -14,6 +14,7 @@ __pycache__/
 *.so
 .Python
 build/
+!frontend/webapp/build/
 develop-eggs/
 dist/
 downloads/
