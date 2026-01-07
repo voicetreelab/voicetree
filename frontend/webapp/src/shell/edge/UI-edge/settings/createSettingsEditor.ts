@@ -1,26 +1,61 @@
 /**
  * Create a floating settings editor window
  * Loads settings from IPC and allows editing them as JSON
+ *
+ * Uses patterns from FloatingEditorCRUD.ts but adapted for non-graph-node editing:
+ * - No contentLinkedToNodeId (settings aren't a graph node)
+ * - Fixed position (not anchored to a parent node)
+ * - Custom onChange (saves to IPC instead of graph)
  */
 
 import type {} from '@/shell/electron';
 import type cytoscape from 'cytoscape';
 import type {Core, Position} from 'cytoscape';
-import {createWindowChrome, getOrCreateOverlay} from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
+import {createWindowChrome, getOrCreateOverlay, getCachedZoom} from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 import type {VTSettings} from '@/pure/settings/types';
 import {CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
 import type {FloatingWindowFields, EditorId, ShadowNodeId} from '@/shell/edge/UI-edge/floating-windows/types';
-import {cyFitWithRelativeZoom} from '@/utils/responsivePadding';
+import {cySmartCenter} from '@/utils/responsivePadding';
 import * as O from 'fp-ts/lib/Option.js';
+import {vanillaFloatingWindowInstances} from '@/shell/edge/UI-edge/state/UIAppState';
+import {graphToScreenPosition, getWindowTransform, getScalingStrategy, getScreenDimensions} from '@/pure/floatingWindowScaling';
+
+const SETTINGS_EDITOR_ID: EditorId = 'settings-editor' as EditorId;
+const SETTINGS_SHADOW_NODE_ID: ShadowNodeId = `shadow-${SETTINGS_EDITOR_ID}` as ShadowNodeId;
+
+/**
+ * Close the settings editor if it exists
+ */
+function closeSettingsEditor(cy: Core): void {
+    const editor = vanillaFloatingWindowInstances.get(SETTINGS_EDITOR_ID);
+    if (!editor) return;
+
+    // Dispose CodeMirror instance
+    editor.dispose();
+
+    // Remove from global state
+    vanillaFloatingWindowInstances.delete(SETTINGS_EDITOR_ID);
+
+    // Remove shadow node
+    const shadowNode = cy.getElementById(SETTINGS_SHADOW_NODE_ID);
+    if (shadowNode.length > 0) {
+        shadowNode.remove();
+    }
+
+    // Remove DOM element
+    const windowElement = document.getElementById(`window-${SETTINGS_EDITOR_ID}`);
+    if (windowElement) {
+        windowElement.remove();
+    }
+
+    console.log('[createSettingsEditor] Settings editor closed');
+}
 
 export async function createSettingsEditor(cy: Core): Promise<void> {
-    const settingsId: EditorId = 'settings-editor' as EditorId;
-
     try {
-        // Check if already exists
-        const existing: HTMLElement | null = document.getElementById(`window-${settingsId}`);
-        if (existing) {
-            console.log('[createSettingsEditor] Settings editor already exists');
+        // Toggle behavior: close if already exists
+        if (vanillaFloatingWindowInstances.has(SETTINGS_EDITOR_ID)) {
+            closeSettingsEditor(cy);
             return;
         }
 
@@ -37,16 +72,20 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
         // Get overlay
         const overlay: HTMLElement = getOrCreateOverlay(cy);
 
-        // Create FloatingWindowFields for v2 createWindowChrome
+        // Fixed size in graph coordinates
+        const fixedWidth: number = 800;
+        const fixedHeight: number = 600;
+
+        // Create FloatingWindowFields for createWindowChrome
         const settingsWindowFields: FloatingWindowFields = {
             anchoredToNodeId: O.none,
             title: 'Settings',
             resizable: true,
-            shadowNodeDimensions: { width: 600, height: 400 },
+            shadowNodeDimensions: { width: fixedWidth, height: fixedHeight },
         };
 
         // Create window chrome with CodeMirror editor
-        const {windowElement, contentContainer} = createWindowChrome(cy, settingsWindowFields, settingsId);
+        const {windowElement, contentContainer, titleBar} = createWindowChrome(cy, settingsWindowFields, SETTINGS_EDITOR_ID);
 
         // Create CodeMirror editor instance for JSON editing
         const editor: CodeMirrorEditorView = new CodeMirrorEditorView(
@@ -74,18 +113,12 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
                 } catch (error) {
                     // Show error to user for invalid JSON
                     console.error('[createSettingsEditor] Invalid JSON in settings:', error);
-                    // Could add visual error indicator here
                 }
             })();
         });
 
-        // Store editor instance for cleanup
-        const vanillaInstances: Map<string, { dispose: () => void; }> = new Map<string, { dispose: () => void }>();
-        vanillaInstances.set(settingsId, editor);
-
-        // Fixed size in graph coordinates (does not adapt to zoom)
-        const fixedWidth: number = 800;
-        const fixedHeight: number = 600;
+        // Store editor instance in global state (fixes Bug 1 - proper cleanup tracking)
+        vanillaFloatingWindowInstances.set(SETTINGS_EDITOR_ID, editor);
 
         // Position in center of current viewport
         const pan: Position = cy.pan();
@@ -93,16 +126,16 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
         const centerX: number = (cy.width() / 2 - pan.x) / zoom;
         const centerY: number = (cy.height() / 2 - pan.y) / zoom;
 
-        // Create shadow node for the settings editor (enables cyFitWithRelativeZoom)
-        const shadowNodeId: ShadowNodeId = `shadow-${settingsId}` as ShadowNodeId;
+        // Create shadow node for the settings editor
+        // Mark as laidOut: true to prevent layout from moving it (fixes Bug 2)
         const shadowNode: cytoscape.CollectionReturnValue = cy.add({
             group: 'nodes',
             data: {
-                id: shadowNodeId,
+                id: SETTINGS_SHADOW_NODE_ID,
                 isFloatingWindow: true,
                 isShadowNode: true,
                 windowType: 'Settings',
-                laidOut: false
+                laidOut: true  // CRITICAL: Prevents layout from repositioning to 0,0
             },
             position: { x: centerX, y: centerY }
         });
@@ -115,31 +148,41 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
             'height': fixedHeight
         });
 
-        // Position window centered on shadow node
-        windowElement.style.left = `${centerX}px`;
-        windowElement.style.top = `${centerY}px`;
-        windowElement.style.width = `${fixedWidth}px`;
-        windowElement.style.height = `${fixedHeight}px`;
-        windowElement.style.transform = 'translate(-50%, -50%)';
+        // Store shadow node ID on DOM element for zoom/pan updates
+        windowElement.dataset.shadowNodeId = SETTINGS_SHADOW_NODE_ID;
+        windowElement.dataset.baseWidth = String(fixedWidth);
+        windowElement.dataset.baseHeight = String(fixedHeight);
+
+        // Position window using the same pattern as anchor-to-node
+        const currentZoom: number = getCachedZoom();
+        const strategy = getScalingStrategy('Editor', currentZoom);
+        const screenDimensions = getScreenDimensions({ width: fixedWidth, height: fixedHeight }, currentZoom, strategy);
+        const screenPos = graphToScreenPosition({ x: centerX, y: centerY }, currentZoom);
+
+        windowElement.style.left = `${screenPos.x}px`;
+        windowElement.style.top = `${screenPos.y}px`;
+        windowElement.style.width = `${screenDimensions.width}px`;
+        windowElement.style.height = `${screenDimensions.height}px`;
+        windowElement.style.transform = getWindowTransform(strategy, currentZoom, 'center');
+        windowElement.style.transformOrigin = 'center';
+        windowElement.dataset.usingCssTransform = strategy === 'css-transform' ? 'true' : 'false';
 
         // Add to overlay
         overlay.appendChild(windowElement);
 
-        // Zoom viewport so settings window takes 75% of viewport
-        cyFitWithRelativeZoom(cy, shadowNode, 0.75);
-
-        // Setup close button cleanup
-        const closeButton: HTMLElement = windowElement.querySelector('.cy-floating-window-close') as HTMLElement;
+        // Setup close button to use shared close function
+        const closeButton: HTMLButtonElement | null = titleBar.querySelector('.cy-floating-window-close');
         if (closeButton) {
-            closeButton.addEventListener('click', () => {
-                editor.dispose();
-                vanillaInstances.delete(settingsId);
-                shadowNode.remove();
-                windowElement.remove();
-            });
+            closeButton.addEventListener('click', () => closeSettingsEditor(cy));
         }
 
-        console.log('[createSettingsEditor] Types editor created successfully');
+        // Navigate to settings editor using delayed double-animation pattern
+        // This ensures animation happens after DOM is fully settled
+        // Uses cySmartCenter which pans if zoom is comfortable, or zooms to 1.0 if not
+        setTimeout(() => cySmartCenter(cy, shadowNode), 300);
+        setTimeout(() => cySmartCenter(cy, shadowNode), 1200);
+
+        console.log('[createSettingsEditor] Settings editor created successfully');
     } catch (error) {
         console.error('[createSettingsEditor] Failed to create settings editor:', error);
     }
