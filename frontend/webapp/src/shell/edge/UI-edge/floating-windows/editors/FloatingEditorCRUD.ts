@@ -16,7 +16,6 @@ import {
 
 import {
     attachCloseHandler,
-    createWindowChrome,
     disposeFloatingWindow,
     getCachedZoom,
     getOrCreateOverlay,
@@ -44,6 +43,7 @@ import {selectFloatingWindowNode} from "@/shell/edge/UI-edge/floating-windows/se
 import {anchorToNode} from "@/shell/edge/UI-edge/floating-windows/anchor-to-node";
 import {cySmartCenter} from "@/utils/responsivePadding";
 import {setupAutoHeight} from "@/shell/edge/UI-edge/floating-windows/editors/SetupAutoHeight";
+import {createWindowChrome} from "@/shell/edge/UI-edge/floating-windows/create-window-chrome";
 
 
 /**
