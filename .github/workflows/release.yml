@@ -5,8 +5,9 @@ permissions:
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [main]
+    paths:
+      - 'frontend/webapp/package.json'
   workflow_dispatch:
     inputs:
       build_mac:
@@ -23,8 +24,40 @@ on:
         default: true
 
 jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.check.outputs.changed }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Check if version changed
+        id: check
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual trigger - building"
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "version=$(jq -r .version frontend/webapp/package.json)" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          NEW_VER=$(jq -r .version frontend/webapp/package.json)
+          OLD_VER=$(git show HEAD~1:frontend/webapp/package.json 2>/dev/null | jq -r .version || echo "0.0.0")
+          echo "Current version: $NEW_VER"
+          echo "Previous version: $OLD_VER"
+          if [ "$NEW_VER" != "$OLD_VER" ]; then
+            echo "Version changed: $OLD_VER -> $NEW_VER"
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "version=$NEW_VER" >> $GITHUB_OUTPUT
+          else
+            echo "Version unchanged, skipping build"
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
   build-mac:
-    if: ${{ github.event_name == 'push' || inputs.build_mac }}
+    needs: [check-version]
+    if: ${{ needs.check-version.outputs.should_build == 'true' && (github.event_name == 'push' || inputs.build_mac) }}
     strategy:
       matrix:
         include:
@@ -110,7 +143,8 @@ jobs:
           npx electron-builder --mac --${{ matrix.arch }} --publish=always
 
   build-windows:
-    if: ${{ github.event_name == 'push' || inputs.build_windows }}
+    needs: [check-version]
+    if: ${{ needs.check-version.outputs.should_build == 'true' && (github.event_name == 'push' || inputs.build_windows) }}
     runs-on: windows-latest
 
     steps:
@@ -178,7 +212,8 @@ jobs:
           npx electron-builder --win --publish=always
 
   build-linux-x64:
-    if: ${{ github.event_name == 'push' || inputs.build_linux }}
+    needs: [check-version]
+    if: ${{ needs.check-version.outputs.should_build == 'true' && (github.event_name == 'push' || inputs.build_linux) }}
     runs-on: ubuntu-latest
 
     steps:
