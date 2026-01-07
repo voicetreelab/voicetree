@@ -66,11 +66,12 @@ export class TerminalVanilla {
     // Open terminal in the DOM
     term.open(this.container);
 
-    // Subscribe to zoom changes to adjust font size (fit() handled by ResizeObserver)
+    // Subscribe to zoom changes to adjust font size and refit terminal
     this.unsubscribeZoom = subscribeToZoomChange((zoom: number) => {
-      if (this.term) {
+      if (this.term && this.fitAddon) {
         const strategy: 'css-transform' | 'dimension-scaling' = getScalingStrategy('Terminal', zoom);
         this.term.options.fontSize = getTerminalFontSize(zoom, strategy);
+        this.fitAddon.fit();
       }
     });
 
