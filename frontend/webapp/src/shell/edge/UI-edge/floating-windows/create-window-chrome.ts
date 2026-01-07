@@ -1,0 +1,145 @@
+import type cytoscape from "cytoscape";
+import type {
+    EditorId,
+    FloatingWindowData,
+    FloatingWindowFields,
+    FloatingWindowUIData,
+    TerminalId
+} from "@/shell/edge/UI-edge/floating-windows/types";
+import {getScalingStrategy, getScreenDimensions, type ScalingStrategy} from "@/pure/floatingWindowScaling";
+import {selectFloatingWindowNode} from "@/shell/edge/UI-edge/floating-windows/select-floating-window-node";
+import {getCachedZoom} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
+import {updateWindowFromZoom} from "@/shell/edge/UI-edge/floating-windows/update-window-from-zoom";
+
+/**
+ * Create the window chrome (frame) with vanilla DOM
+ * Returns DOM refs that will populate the `ui` field on FloatingWindowData
+ *
+ * NO stored callbacks - use disposeFloatingWindow() for cleanup
+ */
+export function createWindowChrome(
+    cy: cytoscape.Core,
+    fw: FloatingWindowData | FloatingWindowFields,
+    id: EditorId | TerminalId
+): FloatingWindowUIData {
+    const dimensions: { width: number; height: number } = fw.shadowNodeDimensions;
+
+    // Create main window container
+    const windowElement: HTMLDivElement = document.createElement('div');
+    windowElement.id = `window-${id}`;
+    // Add type-specific class (terminal vs editor) for differentiated styling
+    const typeClass: string = 'type' in fw ? `cy-floating-window-${fw.type.toLowerCase()}` : '';
+    windowElement.className = `cy-floating-window ${typeClass}`.trim();
+    windowElement.setAttribute('data-floating-window-id', id);
+
+    // Store base dimensions for zoom scaling (used by updateWindowFromZoom)
+    windowElement.dataset.baseWidth = String(dimensions.width);
+    windowElement.dataset.baseHeight = String(dimensions.height);
+
+    // Determine scaling strategy and apply initial dimensions
+    const currentZoom: number = getCachedZoom();
+    const isTerminal: boolean = typeClass.includes('terminal');
+    const windowType: 'Terminal' | 'Editor' = isTerminal ? 'Terminal' : 'Editor';
+    const strategy: ScalingStrategy = getScalingStrategy(windowType, currentZoom);
+    const screenDimensions: {
+        readonly width: number;
+        readonly height: number
+    } = getScreenDimensions(dimensions, currentZoom, strategy);
+
+    windowElement.style.width = `${screenDimensions.width}px`;
+    windowElement.style.height = `${screenDimensions.height}px`;
+    windowElement.dataset.usingCssTransform = strategy === 'css-transform' ? 'true' : 'false';
+
+    if (fw.resizable) {
+        windowElement.classList.add('resizable');
+    }
+
+    // Event isolation - prevent graph interactions
+    windowElement.addEventListener('mousedown', (e: MouseEvent): void => {
+        e.stopPropagation();
+        selectFloatingWindowNode(cy, fw);
+    });
+    // Allow horizontal scroll to pan graph, block vertical scroll for in-window scrolling
+    windowElement.addEventListener('wheel', (e) => {
+        if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+            e.stopPropagation();
+        }
+    }, {passive: false});
+
+    // Create title bar
+    const titleBar: HTMLDivElement = document.createElement('div');
+    titleBar.className = 'cy-floating-window-title';
+
+    const titleText: HTMLSpanElement = document.createElement('span');
+    titleText.className = 'cy-floating-window-title-text';
+    titleText.textContent = fw.title || `Window: ${id}`;
+
+    // Create button container to keep fullscreen and close buttons together
+    const buttonContainer: HTMLDivElement = document.createElement('div');
+    buttonContainer.className = 'cy-floating-window-buttons';
+    buttonContainer.style.display = 'flex';
+    buttonContainer.style.alignItems = 'center';
+    buttonContainer.style.gap = '4px';
+
+    // Create expand button (doubles/halves window size)
+    const expandButton: HTMLButtonElement = document.createElement('button');
+    expandButton.className = 'cy-floating-window-expand';
+    expandButton.textContent = '⤢';
+    expandButton.title = 'Expand window';
+    expandButton.addEventListener('click', () => {
+        const isExpanded: boolean = windowElement.dataset.expanded === 'true';
+        const currentBaseWidth: number = parseFloat(windowElement.dataset.baseWidth ?? '400');
+        const currentBaseHeight: number = parseFloat(windowElement.dataset.baseHeight ?? '400');
+
+        if (isExpanded) {
+            // Halve dimensions
+            windowElement.dataset.baseWidth = String(currentBaseWidth / 2);
+            windowElement.dataset.baseHeight = String(currentBaseHeight / 2);
+            windowElement.dataset.expanded = 'false';
+            expandButton.textContent = '⤢';
+            expandButton.title = 'Expand window';
+        } else {
+            // Double dimensions
+            windowElement.dataset.baseWidth = String(currentBaseWidth * 2);
+            windowElement.dataset.baseHeight = String(currentBaseHeight * 2);
+            windowElement.dataset.expanded = 'true';
+            expandButton.textContent = '⤡';
+            expandButton.title = 'Shrink window';
+        }
+
+        // Trigger dimension update
+        updateWindowFromZoom(cy, windowElement, getCachedZoom());
+    });
+
+    // Create fullscreen button
+    const fullscreenButton: HTMLButtonElement = document.createElement('button');
+    fullscreenButton.className = 'cy-floating-window-fullscreen';
+    fullscreenButton.textContent = '⛶';
+    fullscreenButton.title = 'Toggle Fullscreen';
+    // Note: fullscreen handler will be attached by the caller (FloatingEditorManager/spawnTerminal)
+
+    // Create close button (handler will be attached by disposeFloatingWindow pattern)
+    const closeButton: HTMLButtonElement = document.createElement('button');
+    closeButton.className = 'cy-floating-window-close';
+    closeButton.textContent = '×';
+    // Note: close handler attached via disposeFloatingWindow pattern
+
+    // Assemble buttons into container
+    buttonContainer.appendChild(expandButton);
+    buttonContainer.appendChild(fullscreenButton);
+    buttonContainer.appendChild(closeButton);
+
+    // Assemble title bar
+    titleBar.appendChild(titleText);
+    titleBar.appendChild(buttonContainer);
+
+    // Create content container
+    const contentContainer: HTMLDivElement = document.createElement('div');
+    contentContainer.className = 'cy-floating-window-content';
+
+    // Assemble window
+    windowElement.appendChild(titleBar);
+    windowElement.appendChild(contentContainer);
+
+    return {windowElement, contentContainer, titleBar};
+}
