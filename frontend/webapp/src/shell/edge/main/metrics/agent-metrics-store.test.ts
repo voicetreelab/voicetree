@@ -262,4 +262,106 @@ describe('agent-metrics-store', () => {
     expect(parsed.sessions[0].tokens).toEqual({ input: 2000, output: 1000, cacheRead: 750 });
     expect(parsed.sessions[0].costUsd).toBe(0.0456);
   });
+
+  it('should calculate durationMs when appendTokenMetrics is called on existing session', async () => {
+    // Start session 10 minutes ago
+    const startTime: string = '2025-12-21T10:00:00Z';
+    await startSession({
+      sessionId: 'terminal-duration',
+      agentName: 'DurationAgent',
+      contextNode: 'test/duration.md',
+      startTime
+    });
+
+    // Mock Date.now to be 10 minutes after start
+    const mockNow: number = new Date('2025-12-21T10:10:00Z').getTime();
+    vi.spyOn(Date, 'now').mockReturnValue(mockNow);
+
+    await appendTokenMetrics({
+      sessionId: 'terminal-duration',
+      tokens: { input: 500, output: 200 },
+      costUsd: 0.01
+    });
+
+    const metrics: AgentMetricsData = await getMetrics();
+    const session: SessionMetric | undefined = metrics.sessions.find(s => s.sessionId === 'terminal-duration');
+
+    expect(session).toBeDefined();
+    expect(session!.durationMs).toBe(600000); // 10 minutes in ms
+
+    vi.restoreAllMocks();
+  });
+
+  it('should update durationMs on subsequent appendTokenMetrics calls', async () => {
+    const startTime: string = '2025-12-21T10:00:00Z';
+    await startSession({
+      sessionId: 'terminal-duration-update',
+      agentName: 'DurationUpdateAgent',
+      contextNode: 'test/duration-update.md',
+      startTime
+    });
+
+    // First call: 5 minutes after start
+    vi.spyOn(Date, 'now').mockReturnValue(new Date('2025-12-21T10:05:00Z').getTime());
+    await appendTokenMetrics({
+      sessionId: 'terminal-duration-update',
+      tokens: { input: 100, output: 50 },
+      costUsd: 0.005
+    });
+
+    let metrics: AgentMetricsData = await getMetrics();
+    let session: SessionMetric | undefined = metrics.sessions.find(s => s.sessionId === 'terminal-duration-update');
+    expect(session!.durationMs).toBe(300000); // 5 minutes
+
+    // Second call: 15 minutes after start
+    vi.spyOn(Date, 'now').mockReturnValue(new Date('2025-12-21T10:15:00Z').getTime());
+    await appendTokenMetrics({
+      sessionId: 'terminal-duration-update',
+      tokens: { input: 200, output: 100 },
+      costUsd: 0.01
+    });
+
+    metrics = await getMetrics();
+    session = metrics.sessions.find(s => s.sessionId === 'terminal-duration-update');
+    expect(session!.durationMs).toBe(900000); // 15 minutes (updated)
+
+    vi.restoreAllMocks();
+  });
+
+  it('should calculate durationMs for auto-created sessions from first to last data', async () => {
+    // First metrics call auto-creates session - mock "now" as start time
+    const firstCallTime: number = new Date('2025-12-21T14:00:00Z').getTime();
+    vi.spyOn(Date, 'now').mockReturnValue(firstCallTime);
+    vi.spyOn(Date.prototype, 'toISOString').mockReturnValue('2025-12-21T14:00:00.000Z');
+
+    await appendTokenMetrics({
+      sessionId: 'auto-session-duration',
+      tokens: { input: 100, output: 50 },
+      costUsd: 0.005
+    });
+
+    // First call: durationMs should be 0 (first data = last data)
+    let metrics: AgentMetricsData = await getMetrics();
+    let session: SessionMetric | undefined = metrics.sessions.find(s => s.sessionId === 'auto-session-duration');
+    expect(session).toBeDefined();
+    expect(session!.durationMs).toBe(0);
+
+    vi.restoreAllMocks();
+
+    // Second call: 20 minutes later
+    const secondCallTime: number = new Date('2025-12-21T14:20:00Z').getTime();
+    vi.spyOn(Date, 'now').mockReturnValue(secondCallTime);
+
+    await appendTokenMetrics({
+      sessionId: 'auto-session-duration',
+      tokens: { input: 200, output: 100 },
+      costUsd: 0.01
+    });
+
+    metrics = await getMetrics();
+    session = metrics.sessions.find(s => s.sessionId === 'auto-session-duration');
+    expect(session!.durationMs).toBe(1200000); // 20 minutes
+
+    vi.restoreAllMocks();
+  });
 });

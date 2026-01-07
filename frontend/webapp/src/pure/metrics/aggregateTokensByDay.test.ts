@@ -29,7 +29,7 @@ describe('aggregateTokensByDay', () => {
     ];
     const result: readonly DayTokenAggregation[] = aggregateTokensByDay(sessions);
     expect(result).toEqual([
-      { date: '2025-12-30', totalTokens: 1500 }
+      { date: '2025-12-30', totalTokens: 1500, averageTokens: 1500 }
     ]);
   });
 
@@ -52,7 +52,7 @@ describe('aggregateTokensByDay', () => {
     ];
     const result: readonly DayTokenAggregation[] = aggregateTokensByDay(sessions);
     expect(result).toEqual([
-      { date: '2025-12-30', totalTokens: 4500 } // (1000 + 500) + (2000 + 1000)
+      { date: '2025-12-30', totalTokens: 4500, averageTokens: 2250 } // (1000 + 500) + (2000 + 1000) / 2 sessions
     ]);
   });
 
@@ -82,9 +82,9 @@ describe('aggregateTokensByDay', () => {
     ];
     const result: readonly DayTokenAggregation[] = aggregateTokensByDay(sessions);
     expect(result).toEqual([
-      { date: '2025-12-28', totalTokens: 1300 },
-      { date: '2025-12-29', totalTokens: 1200 },
-      { date: '2025-12-30', totalTokens: 700 },
+      { date: '2025-12-28', totalTokens: 1300, averageTokens: 1300 },
+      { date: '2025-12-29', totalTokens: 1200, averageTokens: 1200 },
+      { date: '2025-12-30', totalTokens: 700, averageTokens: 700 },
     ]);
   });
 
@@ -113,7 +113,7 @@ describe('aggregateTokensByDay', () => {
     ];
     const result: readonly DayTokenAggregation[] = aggregateTokensByDay(sessions);
     expect(result).toEqual([
-      { date: '2025-12-30', totalTokens: 4500 }
+      { date: '2025-12-30', totalTokens: 4500, averageTokens: 2250 } // 2 sessions with tokens
     ]);
   });
 
@@ -129,7 +129,7 @@ describe('aggregateTokensByDay', () => {
     ];
     const result: readonly DayTokenAggregation[] = aggregateTokensByDay(sessions);
     expect(result).toEqual([
-      { date: '2025-12-30', totalTokens: 0 }
+      { date: '2025-12-30', totalTokens: 0, averageTokens: 0 }
     ]);
   });
 
@@ -145,7 +145,7 @@ describe('aggregateTokensByDay', () => {
     ];
     const result: readonly DayTokenAggregation[] = aggregateTokensByDay(sessions);
     expect(result).toEqual([
-      { date: '2025-12-30', totalTokens: 1700 } // 1000 + 500 + 200
+      { date: '2025-12-30', totalTokens: 1700, averageTokens: 1700 } // 1000 + 500 + 200
     ]);
   });
 });
