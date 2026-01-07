@@ -92,20 +92,35 @@ jobs:
           uv venv .venv-server --python 3.13 --clear
           uv pip install --python .venv-server -r requirements-server.txt
           uv pip install --python .venv-server pyinstaller
-          rm -rf out/build-mac out/dist-mac out/resources
+          rm -rf out/build-mac out/dist-mac out/resources out/resources-intel
           .venv-server/bin/python -m PyInstaller scripts/server.spec --clean --distpath out/dist-mac --workpath out/build-mac
-          mkdir -p out/resources/server
-          cp -r out/dist-mac/voicetree-server/* out/resources/server/
+          # ARM builds go to out/resources/server, Intel builds go to out/resources-intel/server
+          # This matches after-pack.cjs expectations which replaces server based on arch
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            mkdir -p out/resources/server
+            cp -r out/dist-mac/voicetree-server/* out/resources/server/
+          else
+            mkdir -p out/resources-intel/server
+            cp -r out/dist-mac/voicetree-server/* out/resources-intel/server/
+            # Create placeholder for extraResources (after-pack.cjs will replace with Intel version)
+            mkdir -p out/resources/server
+            touch out/resources/server/.placeholder
+          fi
 
       - name: Fix Python.framework structure for codesign
         run: |
           # PyInstaller creates duplicate dirs instead of proper macOS framework symlinks
-          rm -rf out/resources/server/_internal/Python.framework/Versions/Current
-          ln -s 3.13 out/resources/server/_internal/Python.framework/Versions/Current
-          rm -f out/resources/server/_internal/Python.framework/Python
-          ln -s Versions/Current/Python out/resources/server/_internal/Python.framework/Python
-          rm -rf out/resources/server/_internal/Python.framework/Resources
-          ln -s Versions/Current/Resources out/resources/server/_internal/Python.framework/Resources
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            SERVER_PATH="out/resources/server"
+          else
+            SERVER_PATH="out/resources-intel/server"
+          fi
+          rm -rf $SERVER_PATH/_internal/Python.framework/Versions/Current
+          ln -s 3.13 $SERVER_PATH/_internal/Python.framework/Versions/Current
+          rm -f $SERVER_PATH/_internal/Python.framework/Python
+          ln -s Versions/Current/Python $SERVER_PATH/_internal/Python.framework/Python
+          rm -rf $SERVER_PATH/_internal/Python.framework/Resources
+          ln -s Versions/Current/Resources $SERVER_PATH/_internal/Python.framework/Resources
 
       - name: Copy tools and backend modules
         run: |
@@ -124,7 +139,11 @@ jobs:
         run: npm ci
 
       - name: Update file timestamps for codesign
-        run: find out/resources -type f -exec touch {} +
+        run: |
+          find out/resources -type f -exec touch {} +
+          if [ -d "out/resources-intel" ]; then
+            find out/resources-intel -type f -exec touch {} +
+          fi
 
       - name: Build & Publish Electron app
         working-directory: frontend/webapp
