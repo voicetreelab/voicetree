@@ -23,10 +23,12 @@ import { TerminalVanilla } from "@/shell/UI/floating-windows/terminals/TerminalV
 import posthog from "posthog-js";
 import {
     getTerminalId,
+    getShadowNodeId,
     type TerminalData,
     type TerminalId,
     type FloatingWindowUIData,
 } from "@/shell/edge/UI-edge/floating-windows/types";
+import { getResponsivePadding } from "@/utils/responsivePadding";
 import {
     vanillaFloatingWindowInstances,
 } from "@/shell/edge/UI-edge/state/UIAppState";
@@ -34,6 +36,18 @@ import { getNextTerminalCount, getTerminals } from "@/shell/edge/UI-edge/state/T
 import {anchorToNode} from "@/shell/edge/UI-edge/floating-windows/anchor-to-node";
 
 const MAX_TERMINALS: number = 6;
+
+// State for fullscreen zoom restoration (module-level since only one terminal can be 'focused' at a time)
+let previousViewport: { zoom: number; pan: { x: number; y: number } } | null = null;
+let fullscreenEscapeHandler: ((e: KeyboardEvent) => void) | null = null;
+
+function cleanupFullscreenState(): void {
+    if (fullscreenEscapeHandler) {
+        document.removeEventListener('keydown', fullscreenEscapeHandler);
+        fullscreenEscapeHandler = null;
+    }
+    previousViewport = null;
+}
 
 /**
  * Spawn a terminal with a new context node
@@ -178,11 +192,42 @@ export function createFloatingTerminalWindow(
         });
     }
 
-    // Attach fullscreen button handler
+    // Attach fullscreen button handler - uses cy.fit() to zoom to terminal with padding
     const fullscreenButton: HTMLButtonElement | null = ui.titleBar.querySelector('.cy-floating-window-fullscreen');
     if (fullscreenButton) {
         fullscreenButton.addEventListener('click', () => {
-            void terminal.toggleFullscreen();
+            const shadowNodeId: string = getShadowNodeId(terminalId);
+            const shadowNode: CollectionReturnValue = cy.getElementById(shadowNodeId);
+            if (shadowNode.length === 0) return;
+
+            if (previousViewport) {
+                // Restore previous viewport (toggle off)
+                cy.animate({
+                    zoom: previousViewport.zoom,
+                    pan: previousViewport.pan,
+                    duration: 300
+                });
+                cleanupFullscreenState();
+            } else {
+                // Store current viewport and fit to terminal
+                previousViewport = { zoom: cy.zoom(), pan: cy.pan() };
+                cy.fit(shadowNode, getResponsivePadding(cy, 10));
+
+                // Add ESC handler
+                fullscreenEscapeHandler = (e: KeyboardEvent): void => {
+                    if (e.key === 'Escape' && previousViewport) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        cy.animate({
+                            zoom: previousViewport.zoom,
+                            pan: previousViewport.pan,
+                            duration: 300
+                        });
+                        cleanupFullscreenState();
+                    }
+                };
+                document.addEventListener('keydown', fullscreenEscapeHandler);
+            }
         });
     }
 
