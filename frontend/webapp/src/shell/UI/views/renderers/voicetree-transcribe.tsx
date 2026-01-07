@@ -11,6 +11,7 @@ import { TranscriptionDisplay } from "@/shell/UI/views/TranscriptionDisplay";
 import { onVoiceResult, appendManualText, reset as resetTranscriptionStore } from "@/shell/edge/UI-edge/state/TranscriptionStore";
 import type {} from "@/shell/electron";
 import { ChevronDown } from "lucide-react";
+import { initVoiceRecording, disposeVoiceRecording } from "@/shell/edge/UI-edge/state/VoiceRecordingController";
 
 type InputMode = 'add' | 'ask' | null;
 
@@ -85,6 +86,18 @@ export default function VoiceTreeTranscribe(): JSX.Element {
     resetSender();
     await startTranscription();
   };
+
+  // Initialize VoiceRecordingController to bridge React state with vanilla JS HotkeyManager
+  useEffect(() => {
+    initVoiceRecording(
+      handleStartTranscription,
+      stopTranscription,
+      () => state
+    );
+    return () => {
+      disposeVoiceRecording();
+    };
+  }, [state, stopTranscription]);
 
   // Show error popup when Soniox fails
   useEffect(() => {

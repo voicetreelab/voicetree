@@ -87,6 +87,7 @@ import {getTerminalByNodeId} from '@/shell/edge/UI-edge/state/TerminalStore';
 import {closeTerminal, closeAllTerminals} from '@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI';
 import * as O from 'fp-ts/lib/Option.js';
 import type {EditorData} from '@/shell/edge/UI-edge/floating-windows/types';
+import {toggleVoiceRecording} from '@/shell/edge/UI-edge/state/VoiceRecordingController';
 
 /**
  * Main VoiceTreeGraphView implementation
@@ -578,6 +579,9 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             openSettings: () => void createSettingsEditor(this.cy),
             openSearch: () => this.searchService.open()
         });
+
+        // Register voice recording hotkey (Option+R)
+        this.hotkeyManager.registerVoiceHotkey(toggleVoiceRecording);
 
         // Note: Wheel events (pan/zoom) are handled by NavigationGestureService
     }
