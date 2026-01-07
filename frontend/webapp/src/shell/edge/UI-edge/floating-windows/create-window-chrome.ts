@@ -10,6 +10,15 @@ import {getScalingStrategy, getScreenDimensions, type ScalingStrategy} from "@/p
 import {selectFloatingWindowNode} from "@/shell/edge/UI-edge/floating-windows/select-floating-window-node";
 import {getCachedZoom} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import {updateWindowFromZoom} from "@/shell/edge/UI-edge/floating-windows/update-window-from-zoom";
+import {Maximize2, Minimize2, createElement, type IconNode} from 'lucide';
+
+/** Render a Lucide icon to SVG element */
+function createIconElement(icon: IconNode, size: number = 14): SVGElement {
+    const svgElement: SVGElement = createElement(icon);
+    svgElement.setAttribute('width', String(size));
+    svgElement.setAttribute('height', String(size));
+    return svgElement;
+}
 
 /**
  * Create the window chrome (frame) with vanilla DOM
@@ -84,26 +93,29 @@ export function createWindowChrome(
     // Create expand button (doubles/halves window size)
     const expandButton: HTMLButtonElement = document.createElement('button');
     expandButton.className = 'cy-floating-window-expand';
-    expandButton.textContent = '⤢';
+    expandButton.appendChild(createIconElement(Maximize2));
     expandButton.title = 'Expand window';
     expandButton.addEventListener('click', () => {
         const isExpanded: boolean = windowElement.dataset.expanded === 'true';
         const currentBaseWidth: number = parseFloat(windowElement.dataset.baseWidth ?? '400');
         const currentBaseHeight: number = parseFloat(windowElement.dataset.baseHeight ?? '400');
 
+        // Clear existing icon
+        expandButton.innerHTML = '';
+
         if (isExpanded) {
             // Halve dimensions
             windowElement.dataset.baseWidth = String(currentBaseWidth / 2);
             windowElement.dataset.baseHeight = String(currentBaseHeight / 2);
             windowElement.dataset.expanded = 'false';
-            expandButton.textContent = '⤢';
+            expandButton.appendChild(createIconElement(Maximize2));
             expandButton.title = 'Expand window';
         } else {
             // Double dimensions
             windowElement.dataset.baseWidth = String(currentBaseWidth * 2);
             windowElement.dataset.baseHeight = String(currentBaseHeight * 2);
             windowElement.dataset.expanded = 'true';
-            expandButton.textContent = '⤡';
+            expandButton.appendChild(createIconElement(Minimize2));
             expandButton.title = 'Shrink window';
         }
 
