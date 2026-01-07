@@ -110,14 +110,6 @@ function escapeHtml(text: string): string {
 }
 
 /**
- * Truncate text with ellipsis if longer than maxLength
- */
-function truncate(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength) + '...';
-}
-
-/**
  * Get cursor position coordinates for editor or terminal
  */
 function getCursorPosition(target: { type: 'editor'; view: EditorView } | { type: 'terminal'; id: string }): { x: number; y: number } | null {
@@ -172,8 +164,7 @@ export function updateTranscriptionPreview(newText: string): boolean {
   // Update the displayed text
   const textSpan: Element | null = activePreview.element.querySelector('.preview-text');
   if (textSpan) {
-    textSpan.textContent = truncate(newText, 50);
-    textSpan.setAttribute('title', newText);
+    textSpan.textContent = newText;
   }
 
   return true;
@@ -252,7 +243,7 @@ export function showTranscriptionPreview(
     const chip: HTMLDivElement = document.createElement('div');
     chip.className = 'transcription-preview-chip';
     chip.innerHTML = `
-      <span class="preview-text" title="${escapeHtml(text)}">${escapeHtml(truncate(text, 50))}</span>
+      <span class="preview-text">${escapeHtml(text)}</span>
       <span class="preview-hints">↵ · Esc</span>
     `;
 
