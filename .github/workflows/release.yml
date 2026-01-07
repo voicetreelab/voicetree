@@ -32,7 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
       - name: Check if version changed
         id: check
         run: |
@@ -43,9 +43,10 @@ jobs:
             exit 0
           fi
           NEW_VER=$(jq -r .version frontend/webapp/package.json)
-          OLD_VER=$(git show HEAD~1:frontend/webapp/package.json 2>/dev/null | jq -r .version || echo "0.0.0")
+          # Compare against commit before push, not just HEAD~1
+          OLD_VER=$(git show ${{ github.event.before }}:frontend/webapp/package.json 2>/dev/null | jq -r .version || echo "0.0.0")
           echo "Current version: $NEW_VER"
-          echo "Previous version: $OLD_VER"
+          echo "Previous version (before push): $OLD_VER"
           if [ "$NEW_VER" != "$OLD_VER" ]; then
             echo "Version changed: $OLD_VER -> $NEW_VER"
             echo "changed=true" >> $GITHUB_OUTPUT
