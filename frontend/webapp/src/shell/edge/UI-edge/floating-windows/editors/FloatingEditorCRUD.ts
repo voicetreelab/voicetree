@@ -35,7 +35,6 @@ import {
     getEditorByNodeId,
     getEditors,
     getHoverEditor,
-    getLastAutoPinnedEditor,
     setLastAutoPinnedEditor,
 } from "@/shell/edge/UI-edge/state/EditorStore";
 import {
@@ -363,18 +362,6 @@ export async function createAnchoredFloatingEditor(
             return;
         }
 
-        // If this is an auto-pin, close the previous auto-pinned editor first
-        if (isAutoPin) {
-            const lastAutoPinned: NodeIdAndFilePath | null = getLastAutoPinnedEditor();
-            if (lastAutoPinned !== null) {
-                const previousEditor: O.Option<EditorData> = getEditorByNodeId(lastAutoPinned);
-                if (O.isSome(previousEditor)) {
-                    console.log('[FloatingEditorManager-v2] Auto-closing previous auto-pinned editor:', lastAutoPinned);
-                    closeEditor(cy, previousEditor.value);
-                }
-            }
-        }
-
         // Create floating editor window with anchoredToNodeId set
         const editor: EditorData | undefined = await createFloatingEditor(
             cy,
@@ -389,7 +376,8 @@ export async function createAnchoredFloatingEditor(
             return;
         }
 
-        // Track this as the last auto-pinned editor if isAutoPin
+        // TODO: This tracking is no longer used - auto-close was removed to keep all editors open.
+        // Can be cleaned up along with setLastAutoPinnedEditor/getLastAutoPinnedEditor in EditorStore.ts
         if (isAutoPin) {
             setLastAutoPinnedEditor(nodeId);
         }
