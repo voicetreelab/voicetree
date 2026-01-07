@@ -54,7 +54,6 @@ import { mermaidRender } from '@/shell/UI/floating-windows/extensions/mermaidRen
 import { diffHighlight } from '@/shell/UI/floating-windows/extensions/diffHighlight';
 import { wikilinkCompletion } from '@/shell/UI/floating-windows/extensions/wikilinkCompletion';
 import { wikilinkTitleDisplay } from '@/shell/UI/floating-windows/extensions/wikilinkTitleDisplay';
-import { FloatingWindowFullscreen } from '@/shell/UI/floating-windows/FloatingWindowFullscreen';
 
 /**
  * Configuration options for CodeMirrorEditorView
@@ -95,7 +94,6 @@ export class CodeMirrorEditorView extends Disposable {
   private geometryChangeEmitter: EventEmitter<void>; // Fires when content geometry changes (after layout)
   private options: CodeMirrorEditorOptions;
   private debounceTimeout: ReturnType<typeof setTimeout> | null = null;
-  private fullscreen: FloatingWindowFullscreen;
 
   /**
    * Creates a new CodeMirror editor instance
@@ -114,9 +112,6 @@ export class CodeMirrorEditorView extends Disposable {
     this.changeEmitter = new EventEmitter<string>();
     this.anyDocChangeEmitter = new EventEmitter<void>();
     this.geometryChangeEmitter = new EventEmitter<void>();
-
-    // Setup fullscreen (no callback needed - CodeMirror auto-resizes)
-    this.fullscreen = new FloatingWindowFullscreen(container);
 
     // Create editor state with extensions
     const state: EditorState = EditorState.create({
@@ -459,34 +454,6 @@ export class CodeMirrorEditorView extends Disposable {
   }
 
   /**
-   * Enter fullscreen mode
-   */
-  async enterFullscreen(): Promise<void> {
-    await this.fullscreen.enter();
-  }
-
-  /**
-   * Exit fullscreen mode
-   */
-  async exitFullscreen(): Promise<void> {
-    await this.fullscreen.exit();
-  }
-
-  /**
-   * Toggle fullscreen mode
-   */
-  async toggleFullscreen(): Promise<void> {
-    await this.fullscreen.toggle();
-  }
-
-  /**
-   * Check if editor is in fullscreen mode
-   */
-  isFullscreen(): boolean {
-    return this.fullscreen.isFullscreen();
-  }
-
-  /**
    * Clean up editor resources
    */
   dispose(): void {
@@ -495,9 +462,6 @@ export class CodeMirrorEditorView extends Disposable {
       clearTimeout(this.debounceTimeout);
       this.debounceTimeout = null;
     }
-
-    // Cleanup fullscreen
-    this.fullscreen.dispose();
 
     // Destroy the CodeMirror view
     this.view.destroy();

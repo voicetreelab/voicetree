@@ -6,7 +6,6 @@ import { SearchAddon } from '@xterm/addon-search';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import '@xterm/xterm/css/xterm.css';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/types';
-import { FloatingWindowFullscreen } from '@/shell/UI/floating-windows/FloatingWindowFullscreen';
 import type { VTSettings } from '@/pure/settings';
 import { subscribeToZoomChange, getCachedZoom } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 import { getScalingStrategy, getTerminalFontSize } from '@/pure/floatingWindowScaling';
@@ -27,7 +26,6 @@ export class TerminalVanilla {
   private terminalData: TerminalData;
   private resizeObserver: ResizeObserver | null = null;
   private resizeTimeout: NodeJS.Timeout | null = null;
-  private fullscreen: FloatingWindowFullscreen;
   private suppressNextEnter: boolean = false;
   private shiftEnterSendsOptionEnter: boolean = true;
   private unsubscribeZoom: (() => void) | null = null;
@@ -38,13 +36,6 @@ export class TerminalVanilla {
 
     void window.electronAPI?.main.loadSettings().then(
       (settings: VTSettings) => this.shiftEnterSendsOptionEnter = settings.shiftEnterSendsOptionEnter ?? true);
-
-    // Setup fullscreen with callback to fit terminal when fullscreen changes
-    this.fullscreen = new FloatingWindowFullscreen(config.container, () => {
-      if (this.fitAddon) {
-        this.fitAddon.fit();
-      }
-    });
 
     void this.mount();
   }
@@ -213,13 +204,6 @@ export class TerminalVanilla {
 
 
   /**
-   * Toggle fullscreen mode
-   */
-  async toggleFullscreen(): Promise<void> {
-    await this.fullscreen.toggle();
-  }
-
-  /**
    * Focus the terminal so it receives keyboard input
    */
   focus(): void {
@@ -250,9 +234,6 @@ export class TerminalVanilla {
       this.unsubscribeZoom();
       this.unsubscribeZoom = null;
     }
-
-    // Cleanup fullscreen
-    this.fullscreen.dispose();
 
     // Kill terminal process
     if (this.terminalId && window.electronAPI?.terminal) {
