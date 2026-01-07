@@ -148,4 +148,5 @@ Highest priority task: `,
             2. Follow the instructions to create a progress node documenting your work.
             If using a todolist, add 'Create progress node' as the final item. Either way, you MUST create a progress node before reporting completion to the user. </TASK_NODES_INSTRUCTION>`,
     },
+    hotkeys: DEFAULT_HOTKEYS
 };
