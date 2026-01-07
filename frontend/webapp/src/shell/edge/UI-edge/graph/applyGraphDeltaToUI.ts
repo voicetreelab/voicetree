@@ -212,8 +212,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
         setTimeout(() => { if (!cy.destroyed()) cy.fit(); }, 150);
     }
     //analytics
-    const anonGraphDelta: GraphDelta = stripDeltaForReplay(delta);
-    posthog.capture('graphDelta', {delta: anonGraphDelta});
+    posthog.capture('graphDelta');
     const userId: string = posthog.get_distinct_id()
     console.log("UUID", userId);
     console.log('[applyGraphDeltaToUI] Complete. Total nodes:', cy.nodes().length, 'Total edges:', cy.edges().length);
