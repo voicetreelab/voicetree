@@ -43,6 +43,7 @@ export interface HotkeySettings {
     readonly recentNode3: HotkeyBinding;
     readonly recentNode4: HotkeyBinding;
     readonly recentNode5: HotkeyBinding;
+    readonly voiceRecording: HotkeyBinding; // Option+R toggle voice recording
 }
 
 /** Mac-style defaults using Meta key */
@@ -62,6 +63,7 @@ const MAC_HOTKEYS: HotkeySettings = {
     recentNode3: { key: '3', modifiers: ['Meta'] },
     recentNode4: { key: '4', modifiers: ['Meta'] },
     recentNode5: { key: '5', modifiers: ['Meta'] },
+    voiceRecording: { key: 'r', modifiers: ['Alt'] },
 };
 
 /** Non-Mac defaults using Control key */
@@ -81,6 +83,7 @@ const NON_MAC_HOTKEYS: HotkeySettings = {
     recentNode3: { key: '3', modifiers: ['Control'] },
     recentNode4: { key: '4', modifiers: ['Control'] },
     recentNode5: { key: '5', modifiers: ['Control'] },
+    voiceRecording: { key: 'r', modifiers: ['Alt'] },
 };
 
 const isMac: boolean = typeof navigator !== 'undefined' && navigator.platform.toLowerCase().includes('mac');

@@ -1,53 +1,35 @@
-/**
- * FloatingEditorManager V2 - Fully Functional (No Classes)
- *
- * Uses:
- * - EditorData from types.ts (flat type with derived IDs)
- * - createWindowChrome, anchorToNode, disposeFloatingWindow from cytoscape-floating-windows.ts
- * - addEditor, removeEditor, getEditorByNodeId, getHoverEditor from UIAppState.ts
- *
- * Feedback loop prevention:
- * - Editor write path (user typing): broadcasts delta for graph UI (edges), but
- *   updateFloatingEditors uses awaiting store to skip re-saving own content
- * - External update path (FS/UI changes): updateFloatingEditors sets awaiting before setValue,
- *   onChange checks awaiting to skip re-saving content that came from setValue
- */
-
 import type cytoscape from 'cytoscape';
 import type { Core } from 'cytoscape';
 import * as O from 'fp-ts/lib/Option.js';
 
-import type { GraphDelta, NodeIdAndFilePath } from '@/pure/graph';
-import type { Position } from '@/shell/UI/views/IVoiceTreeGraphView';
+import type {GraphDelta, NodeIdAndFilePath} from '@/pure/graph';
+import type {Position} from '@/shell/UI/views/IVoiceTreeGraphView';
 
 import {
     createEditorData,
-    getEditorId,
-    getShadowNodeId,
     type EditorData,
     type EditorId,
     type FloatingWindowUIData,
+    getEditorId,
+    getShadowNodeId,
 } from '@/shell/edge/UI-edge/floating-windows/types';
 
 import {
+    attachCloseHandler,
     createWindowChrome,
     disposeFloatingWindow,
-    attachCloseHandler,
-    getOrCreateOverlay,
     getCachedZoom,
-
+    getOrCreateOverlay,
 } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 
-import {
-    vanillaFloatingWindowInstances,
-} from '@/shell/edge/UI-edge/state/UIAppState';
+import {vanillaFloatingWindowInstances,} from '@/shell/edge/UI-edge/state/UIAppState';
 
-import { CodeMirrorEditorView } from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
+import {CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
 // FloatingWindowFullscreen import removed - editor fullscreen disabled due to Vim/Escape key conflict
-import { createNewEmptyOrphanNodeFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions';
-import { getNodeFromMainToUI } from '@/shell/edge/UI-edge/graph/getNodeFromMainToUI';
-import { fromNodeToContentWithWikilinks } from '@/pure/graph/markdown-writing/node_to_markdown';
-import { getNodeTitle } from '@/pure/graph/markdown-parsing';
+import {createNewEmptyOrphanNodeFromUI} from '@/shell/edge/UI-edge/graph/handleUIActions';
+import {getNodeFromMainToUI} from '@/shell/edge/UI-edge/graph/getNodeFromMainToUI';
+import {fromNodeToContentWithWikilinks} from '@/pure/graph/markdown-writing/node_to_markdown';
+import {getNodeTitle} from '@/pure/graph/markdown-parsing';
 import {
     addEditor,
     getEditorByNodeId,
@@ -56,15 +38,15 @@ import {
     getLastAutoPinnedEditor,
     setLastAutoPinnedEditor,
 } from "@/shell/edge/UI-edge/state/EditorStore";
-import {modifyNodeContentFromUI} from "@/shell/edge/UI-edge/floating-windows/editors/modifyNodeContentFromFloatingEditor";
-import {isAppendOnly, getAppendedSuffix} from "@/pure/graph/contentChangeDetection";
+import {
+    modifyNodeContentFromUI
+} from "@/shell/edge/UI-edge/floating-windows/editors/modifyNodeContentFromFloatingEditor";
+import {getAppendedSuffix, isAppendOnly} from "@/pure/graph/contentChangeDetection";
 import {selectFloatingWindowNode} from "@/shell/edge/UI-edge/floating-windows/select-floating-window-node";
 import {anchorToNode} from "@/shell/edge/UI-edge/floating-windows/anchor-to-node";
 import {cySmartCenter} from "@/utils/responsivePadding";
+import {setupAutoHeight} from "@/shell/edge/UI-edge/floating-windows/editors/SetupAutoHeight";
 
-// =============================================================================
-// Create Floating Editor
-// =============================================================================
 
 /**
  * Create a floating editor window using v2 types
@@ -151,8 +133,15 @@ export async function createFloatingEditor(
     // Store vanilla instance for getValue/setValue access (legacy pattern, but needed for updateFloatingEditors)
     vanillaFloatingWindowInstances.set(editorId, editor);
 
+    // Setup auto-height for all editors
+    const cleanupAutoHeight: () => void = setupAutoHeight(
+        ui.windowElement,
+        editor
+    );
+
     // Attach close handler that will dispose editor and remove from state
     attachCloseHandler(cy, editorWithUI, (): void => {
+        cleanupAutoHeight();
         // Additional cleanup: dispose CodeMirror instance
         const vanillaInstance: { dispose: () => void } | undefined = vanillaFloatingWindowInstances.get(editorId);
         if (vanillaInstance) {
@@ -184,17 +173,17 @@ export async function createFloatingEditor(
     // Add to state
     addEditor(editorWithUI);
 
-    // Focus editor after DOM attachment - with cursor at end for new nodes, otherwise just focus
+    // Focus editor after DOM attachment - only when focusAtEnd is true (UI-created nodes)
+    // External/auto-pinned editors should NOT steal focus from the user's current work
     // Use requestAnimationFrame to ensure DOM is fully settled before focusing
-    requestAnimationFrame(() => {
-        if (focusAtEnd) {
+    if (focusAtEnd) {
+        requestAnimationFrame(() => {
+            editor.focus();
             editor.focusAtEnd();
             // When focus stealing, also select the corresponding node in the graph
             selectFloatingWindowNode(cy, editorWithUI);
-        } else {
-            editor.focus();
-        }
-    });
+        });
+    }
 
     return editorWithUI;
 }
