@@ -11,7 +11,7 @@
 import type {} from '@/shell/electron';
 import type cytoscape from 'cytoscape';
 import type {Core, Position} from 'cytoscape';
-import {createWindowChrome, getOrCreateOverlay, getCachedZoom} from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
+import {getOrCreateOverlay, getCachedZoom} from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 import type {VTSettings} from '@/pure/settings/types';
 import {CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
 import type {FloatingWindowFields, EditorId, ShadowNodeId} from '@/shell/edge/UI-edge/floating-windows/types';
@@ -19,6 +19,7 @@ import {cySmartCenter} from '@/utils/responsivePadding';
 import * as O from 'fp-ts/lib/Option.js';
 import {vanillaFloatingWindowInstances} from '@/shell/edge/UI-edge/state/UIAppState';
 import {graphToScreenPosition, getWindowTransform, getScalingStrategy, getScreenDimensions} from '@/pure/floatingWindowScaling';
+import {createWindowChrome} from "@/shell/edge/UI-edge/floating-windows/create-window-chrome";
 
 const SETTINGS_EDITOR_ID: EditorId = 'settings-editor' as EditorId;
 const SETTINGS_SHADOW_NODE_ID: ShadowNodeId = `shadow-${SETTINGS_EDITOR_ID}` as ShadowNodeId;

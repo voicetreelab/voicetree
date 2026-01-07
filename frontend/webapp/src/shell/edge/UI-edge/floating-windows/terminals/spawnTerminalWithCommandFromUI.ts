@@ -14,7 +14,6 @@ import * as O from 'fp-ts/lib/Option.js';
 // Import for global Window.electronAPI type augmentation
 import '@/shell/electron.d.ts';
 import {
-    createWindowChrome,
     disposeFloatingWindow,
     getOrCreateOverlay,
     getCachedZoom,
@@ -34,6 +33,7 @@ import {
 } from "@/shell/edge/UI-edge/state/UIAppState";
 import { getNextTerminalCount, getTerminals } from "@/shell/edge/UI-edge/state/TerminalStore";
 import {anchorToNode} from "@/shell/edge/UI-edge/floating-windows/anchor-to-node";
+import {createWindowChrome} from "@/shell/edge/UI-edge/floating-windows/create-window-chrome";
 
 const MAX_TERMINALS: number = 6;
 
