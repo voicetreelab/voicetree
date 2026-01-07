@@ -1,6 +1,5 @@
 import type {FSEvent, GraphDelta, Graph, NodeIdAndFilePath} from "@/pure/graph";
 import {mapFSEventsToGraphDelta} from "@/pure/graph";
-import * as O from 'fp-ts/lib/Option.js';
 import type {BrowserWindow} from "electron";
 import {getGraph} from "@/shell/edge/main/state/graph-store";
 import {uiAPI} from "@/shell/edge/main/ui-api-proxy";
@@ -51,14 +50,14 @@ export function handleFSEventWithStateAndUISides(
     // broadcast to floating editor state
     uiAPI.updateFloatingEditorsFromExternal(delta)
 
-    // 6. Auto-pin editor for single new external node (not context nodes)
-    const newNodeIds: NodeIdAndFilePath[] = delta
-        .filter((d) => d.type === 'UpsertNode' && O.isNone(d.previousNode))
+    // 6. Auto-pin editor for single external node upsert (created or updated, not context nodes)
+    const upsertedNodeIds: NodeIdAndFilePath[] = delta
+        .filter((d) => d.type === 'UpsertNode')
         .map((d) => d.type === 'UpsertNode' ? d.nodeToUpsert.relativeFilePathIsID : '')
         .filter((id): id is NodeIdAndFilePath => id !== '')
 
-    if (newNodeIds.length === 1) {
-        const nodeId: NodeIdAndFilePath = newNodeIds[0]
+    if (upsertedNodeIds.length === 1) {
+        const nodeId: NodeIdAndFilePath = upsertedNodeIds[0]
         const isContextNode: boolean = nodeId.includes('ctx-nodes/')
         if (!isContextNode) {
             uiAPI.createEditorForExternalNode(nodeId)
