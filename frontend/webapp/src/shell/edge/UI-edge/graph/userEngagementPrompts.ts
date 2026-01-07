@@ -38,10 +38,12 @@ function showFeedbackDialog(): Promise<string | null> {
         dialog.innerHTML = `
             <form method="dialog" style="display: flex; flex-direction: column; gap: 16px;">
                 <h2 style="margin: 0; font-size: 1.1rem; font-weight: 600;">
-                    Hey I'm Manu who built this, glad to see you are using this!
+                    Hey I'm Manu who built this 
                 </h2>
                 <p style="margin: 0; color: var(--muted-foreground); font-size: 0.9rem;">
-                    It would mean a lot to me if you share any feedback. You can also email me at 1manumasson@gmail.com Hope Voicetree has been useful for you!
+                    Voicetree is currently very early beta, so my priority is to get feedback so I can learn what to build to make Voicetree something that's extremely useful for you.
+                    If you have any suggestions or critique, even just a sentence would be really useful. (You can also email me at founder@voicetree.io) 
+                    Thanks!
                 </p>
                 <textarea
                     id="feedback-input"
