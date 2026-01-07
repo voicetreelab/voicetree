@@ -25,7 +25,6 @@ import {
 import {vanillaFloatingWindowInstances,} from '@/shell/edge/UI-edge/state/UIAppState';
 
 import {CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
-// FloatingWindowFullscreen import removed - editor fullscreen disabled due to Vim/Escape key conflict
 import {createNewEmptyOrphanNodeFromUI} from '@/shell/edge/UI-edge/graph/handleUIActions';
 import {getNodeFromMainToUI} from '@/shell/edge/UI-edge/graph/getNodeFromMainToUI';
 import {fromNodeToContentWithWikilinks} from '@/pure/graph/markdown-writing/node_to_markdown';
@@ -149,21 +148,11 @@ export async function createFloatingEditor(
         }
     });
 
-    // DISABLED: Editor fullscreen is buggy - Vim mode Escape key conflicts with fullscreen exit handler
-    // See: tues/141175_Editor_Fullscreen_Bug_Investigation.md for details
-    // When vimMode is enabled, pressing Escape to exit insert mode also triggers the fullscreen exit
-    // because FloatingWindowFullscreen.ts listens for Escape at document level
+    // Editor fullscreen is disabled - hide the button
     const fullscreenButton: HTMLButtonElement | null = ui.titleBar.querySelector('.cy-floating-window-fullscreen');
     if (fullscreenButton) {
-        fullscreenButton.style.display = 'none'; // Hide the button since fullscreen is disabled
+        fullscreenButton.style.display = 'none';
     }
-    // const fullscreenButton: HTMLButtonElement | null = ui.titleBar.querySelector('.cy-floating-window-fullscreen');
-    // if (fullscreenButton) {
-    //     const windowFullscreen: FloatingWindowFullscreen = new FloatingWindowFullscreen(ui.windowElement);
-    //     fullscreenButton.addEventListener('click', (): void => {
-    //         void windowFullscreen.toggle();
-    //     });
-    // }
 
     // Add to overlay
     const overlay: HTMLElement = getOrCreateOverlay(cy);

@@ -40,3 +40,5 @@ The folder structure of this project should aim to represent our architecture.
 DO NOT create unnecessary indirection. (Never wrap a function unnecessarily)
 
 Do not create dependency objects, push state to the functional edge/shell in src/functional/shell/state. Keep it as just a local variable here.
+
+NEVER EVER RUN ANY DESTRUCTIVE GIT COMMANDS 
