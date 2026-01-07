@@ -348,13 +348,15 @@ function attachDragHandlers(
         titleBar.classList.add('dragging');
 
         const pan: cytoscape.Position = cy.pan();
-        const zoom: number = cy.zoom();
 
+        // currentLeft/Top are already in screen coordinates (graph * zoom)
+        // set by updateWindowPosition via graphToScreenPosition
         const currentLeft: number = parseFloat(windowElement.style.left) || 0;
         const currentTop: number = parseFloat(windowElement.style.top) || 0;
 
-        const viewportX: number = (currentLeft * zoom) + pan.x;
-        const viewportY: number = (currentTop * zoom) + pan.y;
+        // Viewport position = screen position + pan (overlay is translated by pan)
+        const viewportX: number = currentLeft + pan.x;
+        const viewportY: number = currentTop + pan.y;
 
         dragOffset = {
             x: e.clientX - viewportX,
