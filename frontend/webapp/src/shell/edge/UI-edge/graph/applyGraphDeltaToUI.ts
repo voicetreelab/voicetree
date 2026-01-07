@@ -33,7 +33,6 @@ export interface ApplyGraphDeltaResult {
  * - Creating edges
  * - Deleting nodes
  *
- * Returns the IDs of newly created nodes (for auto-pin behavior on external file additions)
  */
 export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDeltaResult {
     console.log("applyGraphDeltaToUI", delta.length);
@@ -198,7 +197,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
             nodesCollection = nodesCollection.merge(cy.getElementById(nodeId));
         });
         console.log('[applyGraphDeltaToUI] Placing', nodesWithoutPositions.length, 'nodes without positions');
-        const layoutUtils: ReturnType<Core['layoutUtilities']> = cy.layoutUtilities({ idealEdgeLength: 200, offset: 50 });
+        const layoutUtils: ReturnType<Core['layoutUtilities']> = cy.layoutUtilities({ idealEdgeLength: 100, offset: 10 });
         layoutUtils.placeNewNodes(nodesCollection);
     }
 
