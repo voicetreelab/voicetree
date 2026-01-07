@@ -225,6 +225,19 @@ export class HotkeyManager {
   }
 
   /**
+   * Register voice recording hotkey (Option+R)
+   * Separated from setupGraphHotkeys since it needs VoiceRecordingController which initializes later
+   */
+  registerVoiceHotkey(onToggle: () => void): void {
+    // Alt+R (Option+R on Mac): Toggle voice recording
+    this.registerHotkey({
+      key: 'r',
+      modifiers: ['Alt'],
+      onPress: onToggle
+    });
+  }
+
+  /**
    * Clean up all listeners
    */
   dispose(): void {
@@ -531,6 +544,13 @@ export class HotkeyManager {
     if (e.altKey) modifiers.push('Alt');
     if (e.shiftKey) modifiers.push('Shift');
 
-    return this.getHotkeyKey(e.key, modifiers);
+    // On Mac, Option+letter produces special characters (e.g., Option+R = "®")
+    // Use e.code to get the physical key and extract the letter for Alt combinations
+    let key: string = e.key;
+    if (e.altKey && e.code.startsWith('Key')) {
+      key = e.code.slice(3).toLowerCase(); // "KeyR" -> "r"
+    }
+
+    return this.getHotkeyKey(key, modifiers);
   }
 }
