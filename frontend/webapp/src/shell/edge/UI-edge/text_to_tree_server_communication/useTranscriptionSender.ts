@@ -178,10 +178,13 @@ export function useTranscriptionSender({
 
       // Mark tokens as handled (preview will deal with them)
       sentTokensCount.current = finalTokensOnly.length;
-      return;
+      // DISABLED: Early return that prevented server send when chip is shown.
+      // Removed because the routing logic added unnecessary complexity and latency.
+      // Tradeoff: occasional duplication (text goes to both chip and server) is acceptable.
+      // return;
     }
 
-    // No focused target - send directly to server
+    // Always send to server (chip input is now optional/additive)
     try {
       await sendToServer(newText, false);
       sentTokensCount.current = finalTokensOnly.length;
