@@ -1,14 +1,16 @@
 /**
  * BEHAVIORAL SPEC:
- * E2E test for fullscreen zoom functionality on floating windows
+ * E2E test for fullscreen zoom functionality on EDITORS (not terminals)
  *
  * This test verifies:
- * 1. Create a terminal on a node
+ * 1. Create a node and open an anchored editor
  * 2. Take screenshot BEFORE fullscreen (normal view)
- * 3. Click fullscreen button - viewport fits to terminal with padding
+ * 3. Click fullscreen button - viewport fits to editor with padding
  * 4. Take screenshot IN fullscreen mode
  * 5. Click fullscreen button again to restore viewport
  * 6. Take screenshot AFTER restoration
+ *
+ * NOTE: ESC key is intentionally disabled for editors due to vim mode conflicts
  *
  * IMPORTANT: THESE SPEC COMMENTS MUST BE KEPT UP TO DATE
  */
@@ -37,14 +39,14 @@ const test = base.extend<{
   appWindow: Page;
 }>({
   electronApp: async ({}, use) => {
-    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-fullscreen-zoom-test-'));
+    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-editor-fullscreen-test-'));
 
     // Write the config file to auto-load the test vault
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({
       lastDirectory: FIXTURE_VAULT_PATH,
       suffixes: {
-        [FIXTURE_VAULT_PATH]: '' // Empty suffix means use directory directly
+        [FIXTURE_VAULT_PATH]: ''
       }
     }, null, 2), 'utf8');
     console.log('[Test] Created config file to auto-load:', FIXTURE_VAULT_PATH);
@@ -58,7 +60,6 @@ const test = base.extend<{
         ...process.env,
         NODE_ENV: 'test',
         HEADLESS_TEST: '1'
-        // Note: No MINIMIZE_TEST so we can see the screenshots
       },
       timeout: 10000
     });
@@ -79,8 +80,6 @@ const test = base.extend<{
     }
 
     await electronApp.close();
-
-    // Cleanup temp directory
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
   },
 
@@ -97,7 +96,6 @@ const test = base.extend<{
 
     await window.waitForLoadState('domcontentloaded');
 
-    // Wait for cytoscape instance with retry logic
     try {
       await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
     } catch (error) {
@@ -106,16 +104,15 @@ const test = base.extend<{
     }
 
     await window.waitForTimeout(1000);
-
     await use(window);
   }
 });
 
-test.describe('Fullscreen Zoom E2E', () => {
-  test('should zoom to terminal on fullscreen click and restore on second click', async ({ appWindow }) => {
-    test.setTimeout(90000); // Increase timeout for large graph loading
+test.describe('Editor Fullscreen Zoom E2E', () => {
+  test('should zoom to editor on fullscreen click and restore on second click', async ({ appWindow }) => {
+    test.setTimeout(90000);
 
-    console.log('=== STEP 1: Wait for auto-load to complete (large example graph) ===');
+    console.log('=== STEP 1: Wait for auto-load to complete ===');
     await expect.poll(async () => {
       return appWindow.evaluate(() => {
         const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
@@ -128,45 +125,50 @@ test.describe('Fullscreen Zoom E2E', () => {
       intervals: [500, 1000, 1000, 2000]
     }).toBeGreaterThan(0);
 
-    console.log('✓ Graph auto-loaded with nodes');
+    console.log('Graph auto-loaded with nodes');
 
-    console.log('=== STEP 2: Get a node with neighbors to create terminal from ===');
+    console.log('=== STEP 2: Select a markdown node ===');
     const targetNodeId = await appWindow.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
 
-      // Find a node with at least 2 neighbors for better visualization
-      const nodesWithNeighbors = cy.nodes().filter(n => n.neighborhood().nodes().length >= 2);
-      if (nodesWithNeighbors.length === 0) {
-        return cy.nodes()[0].id();
-      }
-      return nodesWithNeighbors[0].id();
+      // Find a .md node (not a shadow node or terminal)
+      const mdNodes = cy.nodes().filter(n => n.id().endsWith('.md') && !n.id().includes('shadow'));
+      if (mdNodes.length === 0) throw new Error('No markdown nodes found');
+      return mdNodes[0].id();
     });
 
     console.log(`Target node: ${targetNodeId}`);
 
-    console.log('=== STEP 3: Select the target node ===');
+    console.log('=== STEP 3: Open anchored editor by tapping node ===');
     await appWindow.evaluate((nodeId) => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
       const node = cy.getElementById(nodeId);
       if (node.length === 0) throw new Error('Node not found');
-      cy.nodes().unselect();
-      node.select();
+      node.trigger('tap');
     }, targetNodeId);
 
-    console.log('=== STEP 4: Spawn terminal via Cmd+Enter ===');
-    await appWindow.keyboard.press('Meta+Enter');
-    await appWindow.waitForTimeout(3000); // Wait for terminal spawn
+    // Wait for editor to appear
+    await appWindow.waitForTimeout(500);
 
-    console.log('=== STEP 5: Verify terminal floating window exists ===');
-    const floatingWindowCount = await appWindow.evaluate(() => {
-      return document.querySelectorAll('.cy-floating-window-terminal').length;
+    console.log('=== STEP 4: Verify editor floating window exists ===');
+    const editorExists = await appWindow.evaluate(() => {
+      return document.querySelectorAll('.cy-floating-window-editor').length;
     });
-    console.log(`Terminal windows found: ${floatingWindowCount}`);
-    expect(floatingWindowCount).toBeGreaterThan(0);
+    console.log(`Editor windows found: ${editorExists}`);
+    expect(editorExists).toBeGreaterThan(0);
 
-    console.log('=== STEP 6: Capture viewport state BEFORE fullscreen ===');
+    // Verify fullscreen button is visible (not hidden)
+    const fullscreenButtonVisible = await appWindow.evaluate(() => {
+      const btn = document.querySelector('.cy-floating-window-editor .cy-floating-window-fullscreen') as HTMLButtonElement;
+      if (!btn) return false;
+      return btn.style.display !== 'none';
+    });
+    expect(fullscreenButtonVisible).toBe(true);
+    console.log('Fullscreen button is visible on editor');
+
+    console.log('=== STEP 5: Capture viewport state BEFORE fullscreen ===');
     const beforeState = await appWindow.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
@@ -179,21 +181,21 @@ test.describe('Fullscreen Zoom E2E', () => {
 
     // Screenshot BEFORE fullscreen
     await appWindow.screenshot({
-      path: 'e2e-tests/test-results/fullscreen-zoom-1-before.png'
+      path: 'e2e-tests/test-results/editor-fullscreen-zoom-1-before.png'
     });
-    console.log('✓ Screenshot 1 saved: fullscreen-zoom-1-before.png');
+    console.log('Screenshot 1 saved: editor-fullscreen-zoom-1-before.png');
 
-    console.log('=== STEP 7: Click fullscreen button ===');
+    console.log('=== STEP 6: Click fullscreen button on editor ===');
     await appWindow.evaluate(() => {
-      const fullscreenBtn = document.querySelector('.cy-floating-window-terminal .cy-floating-window-fullscreen') as HTMLButtonElement;
-      if (!fullscreenBtn) throw new Error('Fullscreen button not found');
+      const fullscreenBtn = document.querySelector('.cy-floating-window-editor .cy-floating-window-fullscreen') as HTMLButtonElement;
+      if (!fullscreenBtn) throw new Error('Fullscreen button not found on editor');
       fullscreenBtn.click();
     });
 
     // Wait for viewport to fit
     await appWindow.waitForTimeout(500);
 
-    console.log('=== STEP 8: Capture viewport state IN fullscreen ===');
+    console.log('=== STEP 7: Capture viewport state IN fullscreen ===');
     const fullscreenState = await appWindow.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
@@ -206,25 +208,25 @@ test.describe('Fullscreen Zoom E2E', () => {
 
     // Screenshot IN fullscreen
     await appWindow.screenshot({
-      path: 'e2e-tests/test-results/fullscreen-zoom-2-fullscreen.png'
+      path: 'e2e-tests/test-results/editor-fullscreen-zoom-2-fullscreen.png'
     });
-    console.log('✓ Screenshot 2 saved: fullscreen-zoom-2-fullscreen.png');
+    console.log('Screenshot 2 saved: editor-fullscreen-zoom-2-fullscreen.png');
 
-    // Verify zoom/pan changed (fullscreen should have different zoom)
+    // Verify zoom changed (fullscreen should have different zoom)
     expect(fullscreenState.zoom).not.toBeCloseTo(beforeState.zoom, 2);
-    console.log('✓ Viewport zoomed to terminal');
+    console.log('Viewport zoomed to editor');
 
-    console.log('=== STEP 9: Click fullscreen button again to restore ===');
+    console.log('=== STEP 8: Click fullscreen button again to restore ===');
     await appWindow.evaluate(() => {
-      const fullscreenBtn = document.querySelector('.cy-floating-window-terminal .cy-floating-window-fullscreen') as HTMLButtonElement;
-      if (!fullscreenBtn) throw new Error('Fullscreen button not found');
+      const fullscreenBtn = document.querySelector('.cy-floating-window-editor .cy-floating-window-fullscreen') as HTMLButtonElement;
+      if (!fullscreenBtn) throw new Error('Fullscreen button not found on editor');
       fullscreenBtn.click();
     });
 
     // Wait for animation to complete (300ms animate duration + buffer)
     await appWindow.waitForTimeout(500);
 
-    console.log('=== STEP 10: Capture viewport state AFTER restoration ===');
+    console.log('=== STEP 9: Capture viewport state AFTER restoration ===');
     const afterState = await appWindow.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
@@ -237,27 +239,25 @@ test.describe('Fullscreen Zoom E2E', () => {
 
     // Screenshot AFTER restoration
     await appWindow.screenshot({
-      path: 'e2e-tests/test-results/fullscreen-zoom-3-restored.png'
+      path: 'e2e-tests/test-results/editor-fullscreen-zoom-3-restored.png'
     });
-    console.log('✓ Screenshot 3 saved: fullscreen-zoom-3-restored.png');
+    console.log('Screenshot 3 saved: editor-fullscreen-zoom-3-restored.png');
 
     // Verify viewport restored to original state
     expect(afterState.zoom).toBeCloseTo(beforeState.zoom, 2);
     expect(afterState.pan.x).toBeCloseTo(beforeState.pan.x, 0);
     expect(afterState.pan.y).toBeCloseTo(beforeState.pan.y, 0);
-    console.log('✓ Viewport restored to original state');
+    console.log('Viewport restored to original state');
 
     console.log('');
-    console.log('✅ FULLSCREEN ZOOM TEST PASSED');
+    console.log('EDITOR FULLSCREEN ZOOM TEST PASSED');
     console.log('Review screenshots at:');
-    console.log('  - e2e-tests/test-results/fullscreen-zoom-1-before.png');
-    console.log('  - e2e-tests/test-results/fullscreen-zoom-2-fullscreen.png');
-    console.log('  - e2e-tests/test-results/fullscreen-zoom-3-restored.png');
+    console.log('  - e2e-tests/test-results/editor-fullscreen-zoom-1-before.png');
+    console.log('  - e2e-tests/test-results/editor-fullscreen-zoom-2-fullscreen.png');
+    console.log('  - e2e-tests/test-results/editor-fullscreen-zoom-3-restored.png');
   });
 
-  // ESC key test is skipped because terminal prompts (like Claude Code trust prompt) capture ESC first
-  // The ESC functionality works when terminal doesn't have an active prompt - verified manually
-  test.skip('should exit fullscreen on ESC key press (terminal only)', async ({ appWindow }) => {
+  test('ESC key should NOT exit fullscreen for editors (vim mode protection)', async ({ appWindow }) => {
     test.setTimeout(90000);
 
     console.log('=== STEP 1: Wait for auto-load ===');
@@ -273,19 +273,17 @@ test.describe('Fullscreen Zoom E2E', () => {
       intervals: [500, 1000, 1000, 2000]
     }).toBeGreaterThan(0);
 
-    console.log('=== STEP 2: Select a node and spawn terminal ===');
+    console.log('=== STEP 2: Open editor by tapping a node ===');
     await appWindow.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
-      const nodes = cy.nodes();
-      if (nodes.length === 0) throw new Error('No nodes found');
-      nodes[0].select();
+      const mdNodes = cy.nodes().filter(n => n.id().endsWith('.md') && !n.id().includes('shadow'));
+      if (mdNodes.length === 0) throw new Error('No markdown nodes found');
+      mdNodes[0].trigger('tap');
     });
+    await appWindow.waitForTimeout(500);
 
-    await appWindow.keyboard.press('Meta+Enter');
-    await appWindow.waitForTimeout(3000);
-
-    console.log('=== STEP 3: Capture before state and enter fullscreen ===');
+    console.log('=== STEP 3: Enter fullscreen mode ===');
     const beforeState = await appWindow.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
@@ -293,7 +291,7 @@ test.describe('Fullscreen Zoom E2E', () => {
     });
 
     await appWindow.evaluate(() => {
-      const fullscreenBtn = document.querySelector('.cy-floating-window-terminal .cy-floating-window-fullscreen') as HTMLButtonElement;
+      const fullscreenBtn = document.querySelector('.cy-floating-window-editor .cy-floating-window-fullscreen') as HTMLButtonElement;
       if (!fullscreenBtn) throw new Error('Fullscreen button not found');
       fullscreenBtn.click();
     });
@@ -306,26 +304,43 @@ test.describe('Fullscreen Zoom E2E', () => {
       return { zoom: cy.zoom() };
     });
     expect(fullscreenState.zoom).not.toBeCloseTo(beforeState.zoom, 2);
-    console.log('✓ In fullscreen mode');
+    console.log('In fullscreen mode');
 
-    console.log('=== STEP 4: Press ESC to exit fullscreen ===');
+    console.log('=== STEP 4: Press ESC key ===');
     await appWindow.keyboard.press('Escape');
     await appWindow.waitForTimeout(500);
 
-    console.log('=== STEP 5: Verify restored to original state ===');
-    const afterState = await appWindow.evaluate(() => {
+    console.log('=== STEP 5: Verify STILL in fullscreen (ESC should not exit for editors) ===');
+    const afterEscState = await appWindow.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
-      return { zoom: cy.zoom(), pan: cy.pan() };
+      return { zoom: cy.zoom() };
     });
 
-    expect(afterState.zoom).toBeCloseTo(beforeState.zoom, 2);
-    expect(afterState.pan.x).toBeCloseTo(beforeState.pan.x, 0);
-    expect(afterState.pan.y).toBeCloseTo(beforeState.pan.y, 0);
-    console.log('✓ ESC key exited fullscreen successfully');
+    // ESC should NOT have changed the zoom - we should still be in fullscreen
+    expect(afterEscState.zoom).toBeCloseTo(fullscreenState.zoom, 2);
+    console.log('ESC key correctly did NOT exit fullscreen (vim mode protection working)');
+
+    console.log('=== STEP 6: Click button to exit fullscreen ===');
+    await appWindow.evaluate(() => {
+      const fullscreenBtn = document.querySelector('.cy-floating-window-editor .cy-floating-window-fullscreen') as HTMLButtonElement;
+      if (!fullscreenBtn) throw new Error('Fullscreen button not found');
+      fullscreenBtn.click();
+    });
+    await appWindow.waitForTimeout(500);
+
+    const finalState = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+      return { zoom: cy.zoom() };
+    });
+
+    // Now we should be back to original
+    expect(finalState.zoom).toBeCloseTo(beforeState.zoom, 2);
+    console.log('Button click correctly exited fullscreen');
 
     console.log('');
-    console.log('✅ ESC KEY EXIT TEST PASSED');
+    console.log('ESC KEY PROTECTION TEST PASSED');
   });
 });
 

@@ -166,7 +166,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: mac-${{ matrix.arch }}
-          path: ../../out/electron/voicetree-${{ matrix.arch }}.dmg
+          path: ${{ github.workspace }}/out/electron/voicetree-${{ matrix.arch }}.dmg
 
   build-windows:
     needs: [check-version]
