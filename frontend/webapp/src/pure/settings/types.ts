@@ -87,9 +87,13 @@ const NON_MAC_HOTKEYS: HotkeySettings = {
 };
 
 const isMac: boolean = typeof navigator !== 'undefined' && navigator.platform.toLowerCase().includes('mac');
+const isWindows: boolean = typeof process !== 'undefined' && process.platform === 'win32';
 
 /** Platform-appropriate default hotkeys */
 export const DEFAULT_HOTKEYS: HotkeySettings = isMac ? MAC_HOTKEYS : NON_MAC_HOTKEYS;
+
+/** Platform-aware env var syntax for agent commands */
+const AGENT_PROMPT_VAR: string = isWindows ? '$env:AGENT_PROMPT' : '$AGENT_PROMPT';
 
 export interface VTSettings {
     readonly terminalSpawnPathRelativeToWatchedDirectory: string;
@@ -122,19 +126,19 @@ Highest priority task: `,
     agents: [
         {
             name: 'Claude',
-            command: `claude "$AGENT_PROMPT"`,
+            command: `claude "${AGENT_PROMPT_VAR}"`,
         },
         {
             name: 'Gemini',
-            command: `gemini -i "$AGENT_PROMPT"`,
+            command: `gemini -i "${AGENT_PROMPT_VAR}"`,
         },
         {
             name: 'Codex',
-            command: `codex "$AGENT_PROMPT"`,
+            command: `codex "${AGENT_PROMPT_VAR}"`,
         },
         {
             name: 'Rovodev',
-            command: `acli rovodev run "$AGENT_PROMPT"`,
+            command: `acli rovodev run "${AGENT_PROMPT_VAR}"`,
         }
     ],
     shiftEnterSendsOptionEnter: true,

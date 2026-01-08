@@ -31,7 +31,11 @@ export function updateWindowFromZoom(cy: cytoscape.Core, windowElement: HTMLElem
         readonly height: number
     } = getScreenDimensions(baseDimensions, zoom, strategy);
     windowElement.style.width = `${screenDimensions.width}px`;
-    windowElement.style.height = `${screenDimensions.height}px`;
+    // Only update height for terminals - editors use auto-height (SetupAutoHeight.ts)
+    // which manages height based on content. Resetting height here causes flicker.
+    if (isTerminal) {
+        windowElement.style.height = `${screenDimensions.height}px`;
+    }
     windowElement.dataset.usingCssTransform = strategy === 'css-transform' ? 'true' : 'false';
 
     // Apply title bar font size

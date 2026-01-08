@@ -148,7 +148,7 @@ jobs:
       - name: Build & Publish Electron app
         working-directory: frontend/webapp
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -229,7 +229,7 @@ jobs:
         working-directory: frontend/webapp
         shell: pwsh
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
           VITE_SONIOX_API_KEY: ${{ secrets.VITE_SONIOX_API_KEY }}
           VITE_POSTHOG_API_KEY: ${{ secrets.VITE_POSTHOG_API_KEY }}
           VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
@@ -289,7 +289,7 @@ jobs:
       - name: Build & Publish Electron
         working-directory: frontend/webapp
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
           NODE_OPTIONS: '--max-old-space-size=4096'
           VITE_SONIOX_API_KEY: ${{ secrets.VITE_SONIOX_API_KEY }}
           VITE_POSTHOG_API_KEY: ${{ secrets.VITE_POSTHOG_API_KEY }}
