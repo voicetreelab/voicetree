@@ -162,6 +162,12 @@ jobs:
           npx electron-vite build
           npx electron-builder --mac --${{ matrix.arch }} --publish=always
 
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-${{ matrix.arch }}
+          path: ../../out/electron/voicetree-${{ matrix.arch }}.dmg
+
   build-windows:
     needs: [check-version]
     if: ${{ needs.check-version.outputs.should_build == 'true' && (github.event_name == 'push' || inputs.build_windows) }}
@@ -291,4 +297,64 @@ jobs:
         run: |
           npx electron-vite build
           npx electron-builder --linux --publish=always
+
+  update-homebrew:
+    needs: [check-version, build-mac]
+    if: success()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Mac artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: mac-*
+          path: artifacts/
+
+      - name: Update Homebrew tap
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          VERSION=$(jq -r .version frontend/webapp/package.json)
+
+          # Calculate SHA256 for both DMGs
+          ARM_SHA256=$(shasum -a 256 artifacts/mac-arm64/voicetree-arm64.dmg | awk '{print $1}')
+          INTEL_SHA256=$(shasum -a 256 artifacts/mac-x64/voicetree-x64.dmg | awk '{print $1}')
+
+          # Clone tap, update cask, push
+          git clone https://x-access-token:${GH_TOKEN}@github.com/voicetreelab/homebrew-voicetree.git tap
+
+          cat > tap/Casks/voicetree.rb << EOF
+          cask "voicetree" do
+            version "$VERSION"
+
+            on_arm do
+              sha256 "$ARM_SHA256"
+              url "https://github.com/voicetreelab/voicetree/releases/download/v\#{version}/voicetree-arm64.dmg"
+            end
+
+            on_intel do
+              sha256 "$INTEL_SHA256"
+              url "https://github.com/voicetreelab/voicetree/releases/download/v\#{version}/voicetree-x64.dmg"
+            end
+
+            name "VoiceTree"
+            desc "Transform voice into navigable concept graphs"
+            homepage "https://github.com/voicetreelab/voicetree"
+            depends_on macos: ">= :monterey"
+            app "VoiceTree.app"
+
+            zap trash: [
+              "~/Library/Application Support/VoiceTree",
+              "~/Library/Preferences/com.voicetree.webapp.plist",
+            ]
+          end
+          EOF
+
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Update VoiceTree to v$VERSION" || echo "No changes"
+          git push
 
