@@ -11,7 +11,7 @@
  */
 
 import type { Core, CollectionReturnValue } from 'cytoscape';
-import { cyFitWithRelativeZoom } from '@/utils/responsivePadding';
+import { cyFitWithRelativeZoom, cySmartCenter } from '@/utils/responsivePadding';
 import { addRecentlyVisited } from '@/shell/edge/UI-edge/state/RecentlyVisitedStore';
 import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
 import { getTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
@@ -126,11 +126,8 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
       ? contextNode.closedNeighborhood().nodes().union(terminalShadowNode)
       : cy.collection().union(terminalShadowNode);
 
-    // Pan to center on neighborhood without changing zoom level
-    cy.animate({
-      center: { eles: nodesToFit },
-      duration: 300
-    });
+    // Smart center: pans if zoom is comfortable (0.65-2), otherwise zooms to 1.0
+    cySmartCenter(cy, nodesToFit);
 
     // Focus the terminal so keyboard input goes directly to it
     // Note: terminals are stored in vanillaFloatingWindowInstances with terminalId as key (not shadowNodeId)

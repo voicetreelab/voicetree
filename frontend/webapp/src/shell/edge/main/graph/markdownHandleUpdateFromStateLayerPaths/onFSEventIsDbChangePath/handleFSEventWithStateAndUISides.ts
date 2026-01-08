@@ -50,9 +50,9 @@ export function handleFSEventWithStateAndUISides(
     // broadcast to floating editor state
     uiAPI.updateFloatingEditorsFromExternal(delta)
 
-    // 6. Auto-pin editor for external node upserts (created or updated)
+    // 6. Auto-pin editor for external node upserts (created or updated, not context nodes)
     delta
-        .filter((d) => d.type === 'UpsertNode')
+        .filter((d) => d.type === 'UpsertNode' && !d.nodeToUpsert.nodeUIMetadata.isContextNode)
         .map((d) => d.type === 'UpsertNode' ? d.nodeToUpsert.relativeFilePathIsID : '')
         .filter((id): id is NodeIdAndFilePath => id !== '')
         .forEach((nodeId) => uiAPI.createEditorForExternalNode(nodeId))
