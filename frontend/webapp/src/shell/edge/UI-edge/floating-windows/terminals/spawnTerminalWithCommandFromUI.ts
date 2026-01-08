@@ -9,7 +9,7 @@
 
 import type { NodeIdAndFilePath, Position, GraphNode } from "@/pure/graph";
 import { deleteNodesFromUI } from "@/shell/edge/UI-edge/graph/handleUIActions";
-import type { Core, CollectionReturnValue, NodeCollection } from "cytoscape";
+import type { Core, NodeCollection, CollectionReturnValue } from "cytoscape";
 import * as O from 'fp-ts/lib/Option.js';
 // Import for global Window.electronAPI type augmentation
 import '@/shell/electron.d.ts';
@@ -27,27 +27,15 @@ import {
     type TerminalId,
     type FloatingWindowUIData,
 } from "@/shell/edge/UI-edge/floating-windows/types";
-import { getResponsivePadding } from "@/utils/responsivePadding";
 import {
     vanillaFloatingWindowInstances,
 } from "@/shell/edge/UI-edge/state/UIAppState";
 import { getNextTerminalCount, getTerminals } from "@/shell/edge/UI-edge/state/TerminalStore";
 import {anchorToNode} from "@/shell/edge/UI-edge/floating-windows/anchor-to-node";
 import {createWindowChrome} from "@/shell/edge/UI-edge/floating-windows/create-window-chrome";
+import {attachFullscreenZoom} from "@/shell/edge/UI-edge/floating-windows/fullscreen-zoom";
 
 const MAX_TERMINALS: number = 6;
-
-// State for fullscreen zoom restoration (module-level since only one terminal can be 'focused' at a time)
-let previousViewport: { zoom: number; pan: { x: number; y: number } } | null = null;
-let fullscreenEscapeHandler: ((e: KeyboardEvent) => void) | null = null;
-
-function cleanupFullscreenState(): void {
-    if (fullscreenEscapeHandler) {
-        document.removeEventListener('keydown', fullscreenEscapeHandler);
-        fullscreenEscapeHandler = null;
-    }
-    previousViewport = null;
-}
 
 /**
  * Spawn a terminal with a new context node
@@ -192,43 +180,15 @@ export function createFloatingTerminalWindow(
         });
     }
 
-    // Attach fullscreen button handler - uses cy.fit() to zoom to terminal with padding
+    // Attach fullscreen button handler - uses shared fullscreen zoom logic
     const fullscreenButton: HTMLButtonElement | null = ui.titleBar.querySelector('.cy-floating-window-fullscreen');
     if (fullscreenButton) {
-        fullscreenButton.addEventListener('click', () => {
-            const shadowNodeId: string = getShadowNodeId(terminalId);
-            const shadowNode: CollectionReturnValue = cy.getElementById(shadowNodeId);
-            if (shadowNode.length === 0) return;
-
-            if (previousViewport) {
-                // Restore previous viewport (toggle off)
-                cy.animate({
-                    zoom: previousViewport.zoom,
-                    pan: previousViewport.pan,
-                    duration: 300
-                });
-                cleanupFullscreenState();
-            } else {
-                // Store current viewport and fit to terminal
-                previousViewport = { zoom: cy.zoom(), pan: cy.pan() };
-                cy.fit(shadowNode, getResponsivePadding(cy, 2));
-
-                // Add ESC handler
-                fullscreenEscapeHandler = (e: KeyboardEvent): void => {
-                    if (e.key === 'Escape' && previousViewport) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        cy.animate({
-                            zoom: previousViewport.zoom,
-                            pan: previousViewport.pan,
-                            duration: 300
-                        });
-                        cleanupFullscreenState();
-                    }
-                };
-                document.addEventListener('keydown', fullscreenEscapeHandler);
-            }
-        });
+        attachFullscreenZoom(
+            cy,
+            fullscreenButton,
+            getShadowNodeId(terminalId),
+            true  // Enable ESC key for terminals
+        );
     }
 
     // Add to overlay

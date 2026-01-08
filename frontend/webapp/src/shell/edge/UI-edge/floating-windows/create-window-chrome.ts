@@ -103,23 +103,25 @@ export function createWindowChrome(
         // Clear existing icon
         expandButton.innerHTML = '';
 
-        if (isExpanded) {
-            // Halve dimensions
-            windowElement.dataset.baseWidth = String(currentBaseWidth / 2);
-            windowElement.dataset.baseHeight = String(currentBaseHeight / 2);
-            windowElement.dataset.expanded = 'false';
-            expandButton.appendChild(createIconElement(Maximize2));
-            expandButton.title = 'Expand window';
-        } else {
-            // Double dimensions
-            windowElement.dataset.baseWidth = String(currentBaseWidth * 2);
-            windowElement.dataset.baseHeight = String(currentBaseHeight * 2);
-            windowElement.dataset.expanded = 'true';
-            expandButton.appendChild(createIconElement(Minimize2));
-            expandButton.title = 'Shrink window';
+        const scaleFactor: number = isExpanded ? 0.5 : 2;
+
+        // Update base dimensions
+        windowElement.dataset.baseWidth = String(currentBaseWidth * scaleFactor);
+        windowElement.dataset.baseHeight = String(currentBaseHeight * scaleFactor);
+        windowElement.dataset.expanded = isExpanded ? 'false' : 'true';
+
+        // Update button icon and title
+        expandButton.appendChild(createIconElement(isExpanded ? Maximize2 : Minimize2));
+        expandButton.title = isExpanded ? 'Expand window' : 'Shrink window';
+
+        // For editors (non-terminals), also scale current height immediately
+        // since auto-height manages editor height (not updateWindowFromZoom)
+        if (!isTerminal) {
+            const currentDomHeight: number = parseFloat(windowElement.style.height) || currentBaseHeight;
+            windowElement.style.height = `${currentDomHeight * scaleFactor}px`;
         }
 
-        // Trigger dimension update
+        // Trigger dimension update (handles width for all, height for terminals only)
         updateWindowFromZoom(cy, windowElement, getCachedZoom());
     });
 

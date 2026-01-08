@@ -44,6 +44,7 @@ import {anchorToNode} from "@/shell/edge/UI-edge/floating-windows/anchor-to-node
 import {cySmartCenter} from "@/utils/responsivePadding";
 import {setupAutoHeight} from "@/shell/edge/UI-edge/floating-windows/editors/SetupAutoHeight";
 import {createWindowChrome} from "@/shell/edge/UI-edge/floating-windows/create-window-chrome";
+import {attachFullscreenZoom} from "@/shell/edge/UI-edge/floating-windows/fullscreen-zoom";
 
 
 /**
@@ -148,10 +149,21 @@ export async function createFloatingEditor(
         }
     });
 
-    // Editor fullscreen is disabled - hide the button
+    // Attach fullscreen button handler - only for anchored editors (they have shadow nodes)
     const fullscreenButton: HTMLButtonElement | null = ui.titleBar.querySelector('.cy-floating-window-fullscreen');
     if (fullscreenButton) {
-        fullscreenButton.style.display = 'none';
+        if (anchoredToNodeId !== undefined) {
+            // Anchored editors have shadow nodes - enable fullscreen zoom
+            attachFullscreenZoom(
+                cy,
+                fullscreenButton,
+                getShadowNodeId(editorId),
+                false  // Disable ESC key for editors (vim mode conflicts)
+            );
+        } else {
+            // Hover editors have no shadow node - hide the button
+            fullscreenButton.style.display = 'none';
+        }
     }
 
     // Add to overlay
@@ -231,9 +243,10 @@ async function openHoverEditor(
     // Skip if this node already has an editor open (hover or permanent)
     const existingEditor: O.Option<EditorData> = getEditorByNodeId(nodeId);
     if (O.isSome(existingEditor)) {
-        console.log('[HoverEditor-v2] Skipping - node already has editor:', nodeId);
+        console.log('[HoverEditor-v2] EARLY RETURN - node already has editor:', nodeId);
         return;
     }
+    console.log('[HoverEditor-v2] No existing editor, will create new one for:', nodeId);
 
     // Close any existing hover editor
     closeHoverEditor(cy);
