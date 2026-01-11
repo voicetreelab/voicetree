@@ -31,9 +31,19 @@ async function readMetrics(): Promise<AgentMetricsData> {
   const metricsPath: string = getMetricsPath();
   try {
     const data: string = await fs.readFile(metricsPath, 'utf-8');
-    return JSON.parse(data) as AgentMetricsData;
+    const parsed: unknown = JSON.parse(data);
+    // Ensure sessions is always an array
+    if (parsed && typeof parsed === 'object' && 'sessions' in parsed && Array.isArray((parsed as AgentMetricsData).sessions)) {
+      return parsed as AgentMetricsData;
+    }
+    return { sessions: [] };
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return { sessions: [] };
+    }
+    // Return empty on parse errors rather than crashing
+    if (error instanceof SyntaxError) {
+      console.error('[agent-metrics-store] Invalid JSON in metrics file, returning empty:', error);
       return { sessions: [] };
     }
     throw error;
