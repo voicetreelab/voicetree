@@ -3,7 +3,6 @@
  * These handle visual feedback and basic interactions.
  */
 import type { Core, NodeSingular, EdgeSingular, CollectionReturnValue, NodeCollection, NodeDefinition } from 'cytoscape';
-import type { BreathingAnimationService } from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService';
 import type { StyleService } from '@/shell/UI/cytoscape-graph-ui/services/StyleService';
 import { CLASS_HOVER, CLASS_UNHOVER, CLASS_CONNECTED_HOVER } from '@/shell/UI/cytoscape-graph-ui/constants';
 import { addRecentlyVisited } from '@/shell/edge/UI-edge/state/RecentlyVisitedStore';
@@ -12,7 +11,6 @@ import type {} from '@/shell/electron';
 
 export function setupBasicCytoscapeEventListeners(
   cy: Core,
-  animationService: BreathingAnimationService,
   styleService: StyleService,
   container: HTMLElement
 ): void {
@@ -51,14 +49,6 @@ export function setupBasicCytoscapeEventListeners(
       .addClass(CLASS_CONNECTED_HOVER)
       .connectedNodes()
       .addClass(CLASS_CONNECTED_HOVER);
-
-    // Stop breathing animation on hover for new nodes and appended content
-    if (animationService.isAnimationActive(node)) {
-      const animationType: string = node.data('animationType');
-      if (animationType === 'new_node' || animationType === 'appended_content') {
-        animationService.stopAnimationForNode(node);
-      }
-    }
   });
 
   cy.on('mouseout', (e) => {

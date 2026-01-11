@@ -68,16 +68,20 @@ export class BreathingAnimationService {
         return;
       }
 
-      // If there was a previous new node, give it a timeout
-      if (this.prevNewNode && this.prevNewNode.data('breathingActive')) {
-        this.setAnimationTimeout(this.prevNewNode, this.PREV_NODE_TIMEOUT);
-      }
-
       // Start green breathing animation on new node
       this.startBreathingAnimation(node, AnimationType.NEW_NODE);
 
       // Track this as the new prevNewNode
       this.prevNewNode = node;
+    });
+
+    // Clear animation when node is selected (via hover or floating window click)
+    this.cy.on('select', 'node', (evt) => {
+      const node: NodeSingular = evt.target;
+      const animationType: AnimationType | undefined = node.data('animationType') as AnimationType | undefined;
+      if (animationType === 'new_node' || animationType === 'appended_content') {
+        this.stopAnimationForNode(node);
+      }
     });
 
     // Listen for content updates (custom event emitted by file watcher)

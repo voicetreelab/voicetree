@@ -201,10 +201,13 @@ jobs:
           cat manifests/manifest-mac-x64/latest-mac.yml
           echo ""
 
-          # Merge files arrays from both manifests using yq eval-all
-          # eval-all loads both files as array elements, then we combine their files arrays
+          # Merge files arrays from both manifests
+          # Use fileIndex to select each document, capture files into variables, then combine
           yq eval-all '
-            {"version": .[0].version, "files": (.[0].files + .[1].files), "releaseDate": .[0].releaseDate}
+            (select(fileIndex == 0) | .files) as $arm |
+            (select(fileIndex == 1) | .files) as $x64 |
+            select(fileIndex == 0) |
+            .files = ($arm + $x64)
           ' manifests/manifest-mac-arm64/latest-mac.yml manifests/manifest-mac-x64/latest-mac.yml > latest-mac.yml
 
           echo "Merged manifest:"

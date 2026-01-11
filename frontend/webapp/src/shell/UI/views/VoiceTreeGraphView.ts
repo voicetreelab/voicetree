@@ -511,7 +511,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     private setupBasicCytoscapeEventListeners(): void {
         setupBasicCytoscapeEventListeners(
             this.cy,
-            this.animationService,
             this.styleService,
             this.container
         );
