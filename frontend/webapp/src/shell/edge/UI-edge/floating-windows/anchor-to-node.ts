@@ -16,6 +16,7 @@ import {
     screenToGraphDimensions
 } from "@/pure/floatingWindowScaling";
 import {cleanupRegistry, getCachedZoom} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
+import {setupResizeObserver, updateShadowNodeDimensions} from "@/shell/edge/UI-edge/floating-windows/setup-resize-observer";
 
 /**
  * Anchor a floating window to a parent node
@@ -76,6 +77,18 @@ export function anchorToNode(
     // Get all nodes to check for collisions (including shadow nodes for other floating windows)
     const existingNodes: cytoscape.NodeCollection = cy.nodes();
 
+    // DEBUG: Log all existing nodes and their dimensions for collision detection
+    console.log('[anchorToNode] Checking collisions. Total nodes:', existingNodes.length);
+    existingNodes.forEach((node: cytoscape.NodeSingular) => {
+        if (node.id() === parentNodeId) return;
+        const pos: cytoscape.Position = node.position();
+        const w: number = node.width();
+        const h: number = node.height();
+        const isShadow: boolean = node.data('isShadowNode') === true;
+        console.log(`[anchorToNode]   Node: ${node.id()}, isShadow: ${isShadow}, pos: (${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}), dims: ${w.toFixed(1)}x${h.toFixed(1)}`);
+    });
+    console.log(`[anchorToNode] Terminal shadowDimensions: ${shadowDimensions.width}x${shadowDimensions.height}`);
+
     // Calculate desired angle using angle continuation heuristic:
     // Find the grandparent (task node) and continue the angle from task -> context -> terminal
     const incomingEdges: cytoscape.EdgeCollection = parentNode.incomers('edge').filter(
@@ -133,6 +146,10 @@ export function anchorToNode(
             }
         });
 
+        // DEBUG: Log overlap detection result
+        const dirName: string = dir.dx === 1 ? 'right' : dir.dx === -1 ? 'left' : dir.dy === 1 ? 'below' : 'above';
+        console.log(`[anchorToNode] Direction ${dirName}: hasOverlap=${hasOverlap}, candidatePos=(${candidatePos.x.toFixed(1)}, ${candidatePos.y.toFixed(1)})`);
+
         if (!hasOverlap) {
             // Calculate angle from context -> terminal candidate
             const candidateAngle: number = Math.atan2(candidatePos.y - parentPos.y, candidatePos.x - parentPos.x);
@@ -150,6 +167,7 @@ export function anchorToNode(
     if (candidates.length > 0) {
         candidates.sort((a, b) => a.angleDiff - b.angleDiff);
         childPosition = candidates[0].pos;
+        console.log(`[anchorToNode] Chose position from ${candidates.length} candidates: (${childPosition.x.toFixed(1)}, ${childPosition.y.toFixed(1)})`);
     } else {
         // Fallback to right if all directions blocked
         const offsetX: number = (shadowDimensions.width / 2) + (parentWidth / 2) + gap;
@@ -157,6 +175,7 @@ export function anchorToNode(
             x: parentPos.x + offsetX,
             y: parentPos.y
         };
+        console.log(`[anchorToNode] FALLBACK to right (all directions blocked): (${childPosition.x.toFixed(1)}, ${childPosition.y.toFixed(1)})`);
     }
 
     // Create shadow node (follows parent position via listener below)
@@ -213,29 +232,8 @@ export function anchorToNode(
     });
 
     // Set up ResizeObserver (window resize → shadow dimensions)
-    // Only triggers layout for user-initiated resizes (CSS drag), not zoom-induced resizes.
-    // Key insight: zoom resizes change screen dims but not graph dims (dimension-scaling divides by zoom).
-    let resizeObserver: ResizeObserver | undefined;
-    if (typeof ResizeObserver !== 'undefined') {
-        resizeObserver = new ResizeObserver(() => {
-            // Capture old graph dimensions before update
-            const oldWidth: number = parseFloat(windowElement.dataset.baseWidth ?? '0');
-            const oldHeight: number = parseFloat(windowElement.dataset.baseHeight ?? '0');
-
-            updateShadowNodeDimensions(shadowNode, windowElement);
-            cy.trigger('floatingwindow:resize', [{nodeId: shadowNode.id()}]);
-
-            // Check if graph dimensions actually changed (user resize vs zoom-induced)
-            const newWidth: number = parseFloat(windowElement.dataset.baseWidth ?? '0');
-            const newHeight: number = parseFloat(windowElement.dataset.baseHeight ?? '0');
-            const dimChanged: boolean = Math.abs(newWidth - oldWidth) > 1 || Math.abs(newHeight - oldHeight) > 1;
-
-            if (dimChanged) {
-                triggerLayout(cy);
-            }
-        });
-        resizeObserver.observe(windowElement);
-    }
+    // Only triggers layout for user-initiated resizes, not zoom-induced resizes
+    const resizeObserver: ResizeObserver | undefined = setupResizeObserver(cy, shadowNode, windowElement);
 
     // Set up position sync (shadow position → window position)
     const syncPosition: () => void = () => {
@@ -313,30 +311,6 @@ function updateWindowPosition(shadowNode: cytoscape.NodeSingular, domElement: HT
     domElement.style.left = `${screenPos.x}px`;
     domElement.style.top = `${screenPos.y}px`;
     domElement.style.transform = getWindowTransform(strategy, zoom, 'center');
-}
-
-/**
- * Update shadow node dimensions based on window DOM element dimensions
- * Shadow node dimensions are in graph coordinates (base dimensions)
- * Also updates the base dimensions dataset so zoom/pan events preserve user resize
- */
-function updateShadowNodeDimensions(shadowNode: cytoscape.NodeSingular, domElement: HTMLElement): void {
-    const strategy: ScalingStrategy = domElement.dataset.usingCssTransform === 'true' ? 'css-transform' : 'dimension-scaling';
-    const zoom: number = getCachedZoom();
-    const screenDimensions: { readonly width: number; readonly height: number } = {
-        width: domElement.offsetWidth,
-        height: domElement.offsetHeight
-    };
-    const graphDimensions: { readonly width: number; readonly height: number } = screenToGraphDimensions(screenDimensions, zoom, strategy);
-
-    shadowNode.style({
-        'width': graphDimensions.width,
-        'height': graphDimensions.height
-    });
-
-    // Update base dimensions dataset so updateWindowFromZoom preserves user resize
-    domElement.dataset.baseWidth = String(graphDimensions.width);
-    domElement.dataset.baseHeight = String(graphDimensions.height);
 }
 
 // =============================================================================
