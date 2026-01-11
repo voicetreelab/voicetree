@@ -4,18 +4,15 @@ import {CodeMirrorEditorView} from "@/shell/UI/floating-windows/editors/CodeMirr
 // =============================================================================
 
 const AUTO_HEIGHT_MIN: number = 200;
-const AUTO_HEIGHT_MAX_DEFAULT: number = 400;
+const AUTO_HEIGHT_MAX: number = 600;
 
 
 /**
  * Setup auto-height behavior for an editor window
  * Adjusts window height based on content, respecting min/max bounds
  *
- * Uses onGeometryChange which fires AFTER CodeMirror has recalculated layout.
- * This ensures contentHeight is accurate (no timing/race conditions).
- *
- * Max height is read from windowElement.dataset.baseHeight, allowing the
- * expand button to increase the max dynamically.
+ * Listens to both geometryChange (fires after layout) and docChange (reliable on every edit).
+ * Uses DOM measurement for accurate content height.
  */
 export function setupAutoHeight(
     windowElement: HTMLElement,
@@ -25,17 +22,18 @@ export function setupAutoHeight(
     const CHROME_HEIGHT: number = 48;
     // Minimum height change to trigger update (prevents flicker from micro-adjustments)
     const HEIGHT_CHANGE_THRESHOLD: number = 5;
+    // Debounce delay for doc change updates (ms)
+    const DOC_CHANGE_DEBOUNCE: number = 50;
 
     let currentHeight: number = 0;
+    let debounceTimeout: ReturnType<typeof setTimeout> | null = null;
 
     const updateHeight: () => void = (): void => {
-        // Read max from dataset (allows expand button to change it dynamically)
-        const maxHeight: number = parseFloat(windowElement.dataset.baseHeight ?? String(AUTO_HEIGHT_MAX_DEFAULT));
-        // Use CodeMirror's actual content height - guaranteed accurate after geometryChanged
-        const contentHeight: number = editor.getContentHeight() + CHROME_HEIGHT;
+        const editorContentHeight: number = editor.getContentHeight();
+        const contentHeight: number = editorContentHeight + CHROME_HEIGHT;
         const totalHeight: number = Math.min(
             Math.max(contentHeight, AUTO_HEIGHT_MIN),
-            maxHeight
+            AUTO_HEIGHT_MAX
         );
         // Only update if change is meaningful (prevents flicker)
         if (Math.abs(totalHeight - currentHeight) > HEIGHT_CHANGE_THRESHOLD) {
@@ -45,11 +43,31 @@ export function setupAutoHeight(
     };
 
     // Subscribe to geometry changes - fires after CodeMirror layout is complete
-    // No debounce needed since CodeMirror batches updates internally
-    const unsubscribe: () => void = editor.onGeometryChange(updateHeight);
+    const unsubGeometry: () => void = editor.onGeometryChange(updateHeight);
+
+    // Subscribe to doc changes - fires reliably on every content change
+    // geometryChanged doesn't always fire for every keystroke, so we need this too
+    // Double RAF ensures CodeMirror has completed its layout cycle before we read contentHeight
+    const unsubDoc: () => void = editor.onAnyDocChange((): void => {
+        if (debounceTimeout) {
+            clearTimeout(debounceTimeout);
+        }
+        debounceTimeout = setTimeout((): void => {
+            requestAnimationFrame((): void => {
+                requestAnimationFrame(updateHeight);
+            });
+            debounceTimeout = null;
+        }, DOC_CHANGE_DEBOUNCE);
+    });
 
     // Initial height adjustment
     requestAnimationFrame(updateHeight);
 
-    return unsubscribe;
+    return (): void => {
+        if (debounceTimeout) {
+            clearTimeout(debounceTimeout);
+        }
+        unsubGeometry();
+        unsubDoc();
+    };
 }
