@@ -7,7 +7,7 @@ import { Unicode11Addon } from '@xterm/addon-unicode11';
 import '@xterm/xterm/css/xterm.css';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/types';
 import type { VTSettings } from '@/pure/settings';
-import { subscribeToZoomChange, getCachedZoom } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
+import { getCachedZoom } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 import { getScalingStrategy, getTerminalFontSize } from '@/pure/floatingWindowScaling';
 
 export interface TerminalVanillaConfig {
@@ -28,7 +28,6 @@ export class TerminalVanilla {
   private resizeTimeout: NodeJS.Timeout | null = null;
   private suppressNextEnter: boolean = false;
   private shiftEnterSendsOptionEnter: boolean = true;
-  private unsubscribeZoom: (() => void) | null = null;
 
   constructor(config: TerminalVanillaConfig) {
     this.container = config.container;
@@ -65,18 +64,6 @@ export class TerminalVanilla {
 
     // Open terminal in the DOM
     term.open(this.container);
-
-    // Subscribe to zoom changes to adjust font size
-    // ResizeObserver handles fit() for all cases:
-    // - dimension-scaling: DOM size changes on zoom → ResizeObserver fires
-    // - css-transform: fontSize is constant, DOM unchanged → no refit needed
-    // - threshold crossing: DOM size changes → ResizeObserver fires
-    this.unsubscribeZoom = subscribeToZoomChange((zoom: number) => {
-      if (this.term) {
-        const strategy: 'css-transform' | 'dimension-scaling' = getScalingStrategy('Terminal', zoom);
-        this.term.options.fontSize = getTerminalFontSize(zoom, strategy);
-      }
-    });
 
     // Load WebGL2 addon for better rendering performance
     try {
@@ -143,12 +130,19 @@ export class TerminalVanilla {
     });
 
     // Set up ResizeObserver for container resize with debounce and scroll preservation
+    // This is the single code path for all terminal resizing (zoom changes, manual resize, etc.)
+    // Future improvement: use requestAnimationFrame instead of 50ms timeout to reduce flicker
     this.resizeObserver = new ResizeObserver(() => {
       if (this.resizeTimeout) {
         clearTimeout(this.resizeTimeout);
       }
       this.resizeTimeout = setTimeout(() => {
         if (this.term && this.fitAddon) {
+          // Update fontSize based on current zoom level
+          const zoom: number = getCachedZoom();
+          const strategy: 'css-transform' | 'dimension-scaling' = getScalingStrategy('Terminal', zoom);
+          this.term.options.fontSize = getTerminalFontSize(zoom, strategy);
+
           // Save scroll position before fit (fit changes row count which can reset scroll)
           const buffer: { baseY: number; viewportY: number } = this.term.buffer.active;
           const scrollOffset: number = buffer.baseY - buffer.viewportY; // lines scrolled up from bottom
@@ -231,12 +225,6 @@ export class TerminalVanilla {
 
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
-    }
-
-    // Unsubscribe from zoom changes
-    if (this.unsubscribeZoom) {
-      this.unsubscribeZoom();
-      this.unsubscribeZoom = null;
     }
 
     // Kill terminal process
