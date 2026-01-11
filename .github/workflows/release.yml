@@ -283,12 +283,20 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          NODE_OPTIONS: '--max-old-space-size=4096'
           VITE_SONIOX_API_KEY: ${{ secrets.VITE_SONIOX_API_KEY }}
           VITE_POSTHOG_API_KEY: ${{ secrets.VITE_POSTHOG_API_KEY }}
           VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
         run: |
+          $ErrorActionPreference = "Stop"
           npx electron-vite build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path "dist\index.html")) {
+            Write-Error "Build failed: dist\index.html not found"
+            exit 1
+          }
           npx electron-builder --win --publish=always
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
   build-linux-x64:
     needs: [check-version]
