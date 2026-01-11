@@ -229,74 +229,110 @@ describe('BreathingAnimationService', () => {
     });
   });
 
-  describe('Bug reproduction: new node -> update -> multiple new nodes', () => {
-    it('should handle sequence: node1 new -> node1 update -> node2 new -> node3 new correctly', () => {
+  describe('Animation persistence and select-to-clear behavior', () => {
+    it('should persist NEW_NODE animations until node is selected', () => {
       vi.useFakeTimers();
 
       // Destroy existing service and create a fresh cy instance for this test
-      // This ensures we have full control over when animations start
       service.destroy();
       cy.destroy();
 
-      // Create fresh cy instance without any nodes
       cy = cytoscape({ headless: true });
       service = new BreathingAnimationService(cy);
 
-      // Step 1: Add node 1 (green breathing, no timeout) - event listener handles this
+      // Add multiple nodes - all should persist their animations
       const node1: cytoscape.NodeSingular = cy.add({ data: { id: 'node-1', label: 'GraphNode 1' } })[0] as NodeSingular;
-      expect(node1.data('breathingActive')).toBe(true);
-      expect(node1.data('animationType')).toBe(AnimationType.NEW_NODE);
-      expect(node1.hasClass('breathing-new-expand')).toBe(true);
+      const node2: cytoscape.NodeSingular = cy.add({ data: { id: 'node-2', label: 'GraphNode 2' } })[0] as NodeSingular;
+      const node3: cytoscape.NodeSingular = cy.add({ data: { id: 'node-3', label: 'GraphNode 3' } })[0] as NodeSingular;
 
-      // Step 2: Update node 1 (blue breathing, 15s timeout)
-      // Simulate content change by manually calling (since we don't have file watcher)
+      // All nodes should be breathing
+      expect(node1.data('breathingActive')).toBe(true);
+      expect(node2.data('breathingActive')).toBe(true);
+      expect(node3.data('breathingActive')).toBe(true);
+
+      // Advance time significantly - NEW_NODE animations should NOT timeout
+      vi.advanceTimersByTime(60000);
+
+      // All nodes should STILL be breathing (no timeout for NEW_NODE)
+      expect(node1.data('breathingActive')).toBe(true);
+      expect(node2.data('breathingActive')).toBe(true);
+      expect(node3.data('breathingActive')).toBe(true);
+
+      // Select node2 - should stop its animation
+      node2.select();
+
+      expect(node1.data('breathingActive')).toBe(true);
+      expect(node2.data('breathingActive')).toBeFalsy(); // Stopped by select
+      expect(node3.data('breathingActive')).toBe(true);
+
+      vi.useRealTimers();
+    });
+
+    it('should stop APPENDED_CONTENT animation on select', () => {
+      vi.useFakeTimers();
+
+      service.destroy();
+      cy.destroy();
+
+      cy = cytoscape({ headless: true });
+      service = new BreathingAnimationService(cy);
+
+      const node1: cytoscape.NodeSingular = cy.add({ data: { id: 'node-1', label: 'GraphNode 1' } })[0] as NodeSingular;
+
+      // Switch to APPENDED_CONTENT animation
       service.startBreathingAnimation(node1, AnimationType.APPENDED_CONTENT);
       expect(node1.data('breathingActive')).toBe(true);
       expect(node1.data('animationType')).toBe(AnimationType.APPENDED_CONTENT);
-      expect(node1.hasClass('breathing-appended-expand')).toBe(true);
-      // GraphNode 1 should NOT have green classes anymore
-      expect(node1.hasClass('breathing-new-expand')).toBe(false);
-      expect(node1.hasClass('breathing-new-contract')).toBe(false);
 
-      // Step 3: Add node 2 (green breathing, no timeout)
-      // Event listener will handle animation AND give node1 a 15s timeout
-      const node2: cytoscape.NodeSingular = cy.add({ data: { id: 'node-2', label: 'GraphNode 2' } })[0] as NodeSingular;
-      expect(node2.data('breathingActive')).toBe(true);
-      expect(node2.data('animationType')).toBe(AnimationType.NEW_NODE);
-
-      // Advance time by 15.5s - node1 should stop (15s timeout)
-      vi.advanceTimersByTime(15500);
-
-      // GraphNode 1 should be completely stopped (no breathing, no border, no classes)
-      expect(node1.data('breathingActive')).toBeFalsy();
-      expect(node1.hasClass('breathing-appended-expand')).toBe(false);
-      expect(node1.hasClass('breathing-appended-contract')).toBe(false);
-      expect(node1.hasClass('breathing-new-expand')).toBe(false);
-      expect(node1.hasClass('breathing-new-contract')).toBe(false);
-
-      // GraphNode 2 should still be breathing (no timeout yet)
-      expect(node2.data('breathingActive')).toBe(true);
-
-      // Step 4: Add node 3 (green breathing, no timeout)
-      // Event listener will give node2 a 15s timeout
-      const node3: cytoscape.NodeSingular = cy.add({ data: { id: 'node-3', label: 'GraphNode 3' } })[0] as NodeSingular;
-      expect(node3.data('breathingActive')).toBe(true);
-      expect(node3.data('animationType')).toBe(AnimationType.NEW_NODE);
-
-      // Advance time by 15.5s - node2 should stop, node3 should continue
-      vi.advanceTimersByTime(15500);
-
-      // GraphNode 1 should still be stopped
+      // Select should stop it
+      node1.select();
       expect(node1.data('breathingActive')).toBeFalsy();
 
-      // GraphNode 2 should be stopped
-      expect(node2.data('breathingActive')).toBeFalsy();
-      expect(node2.hasClass('breathing-new-expand')).toBe(false);
-      expect(node2.hasClass('breathing-new-contract')).toBe(false);
+      vi.useRealTimers();
+    });
 
-      // GraphNode 3 should STILL be breathing indefinitely (this is the key behavior)
-      expect(node3.data('breathingActive')).toBe(true);
-      expect(node3.data('animationType')).toBe(AnimationType.NEW_NODE);
+    it('should NOT stop PINNED animation on select', () => {
+      vi.useFakeTimers();
+
+      service.destroy();
+      cy.destroy();
+
+      cy = cytoscape({ headless: true });
+      service = new BreathingAnimationService(cy);
+
+      const node1: cytoscape.NodeSingular = cy.add({ data: { id: 'node-1', label: 'GraphNode 1' } })[0] as NodeSingular;
+
+      // Start PINNED animation
+      service.startBreathingAnimation(node1, AnimationType.PINNED);
+      expect(node1.data('breathingActive')).toBe(true);
+      expect(node1.data('animationType')).toBe(AnimationType.PINNED);
+
+      // Select should NOT stop PINNED animation
+      node1.select();
+      expect(node1.data('breathingActive')).toBe(true);
+
+      vi.useRealTimers();
+    });
+
+    it('should still timeout APPENDED_CONTENT after 15s if not selected', () => {
+      vi.useFakeTimers();
+
+      service.destroy();
+      cy.destroy();
+
+      cy = cytoscape({ headless: true });
+      service = new BreathingAnimationService(cy);
+
+      const node1: cytoscape.NodeSingular = cy.add({ data: { id: 'node-1', label: 'GraphNode 1' } })[0] as NodeSingular;
+
+      // Switch to APPENDED_CONTENT animation (has 15s timeout)
+      service.startBreathingAnimation(node1, AnimationType.APPENDED_CONTENT);
+      expect(node1.data('breathingActive')).toBe(true);
+
+      // Advance past timeout
+      vi.advanceTimersByTime(15500);
+
+      expect(node1.data('breathingActive')).toBeFalsy();
 
       vi.useRealTimers();
     });
