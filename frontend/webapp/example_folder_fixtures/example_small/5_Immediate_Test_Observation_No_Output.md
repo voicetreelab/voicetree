@@ -1,7 +1,7 @@
 ---
 position:
-  x: 124.31689484751867
-  y: 903.7527479625898
+  x: 115.86061988344505
+  y: 761.8529554297385
 isContextNode: false
 node_id: 5
 ---
@@ -42,3 +42,4 @@ Parent:
 [[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1767087663695.md]]
 [[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1767087700036.md]]
 [[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1767092576519.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1767924013303.md]]

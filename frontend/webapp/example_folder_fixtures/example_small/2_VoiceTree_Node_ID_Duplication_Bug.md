@@ -14,3 +14,5 @@ Nodes show their nodeId or number, their ID being duplicated, if I recall correc
 _Links:_
 Parent:
 - is_a_bug_identified_during [[1_VoiceTree_Website_Development_and_Node_Display_Bug.md]]
+
+[[ctx-nodes/2_VoiceTree_Node_ID_Duplication_Bug_context_1767922292782.md]]
