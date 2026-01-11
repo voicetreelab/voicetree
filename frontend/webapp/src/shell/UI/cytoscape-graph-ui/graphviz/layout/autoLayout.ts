@@ -16,6 +16,17 @@ import ColaLayout from './cola';
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
 
+// Registry for layout triggers - allows external code to trigger layout via triggerLayout(cy)
+const layoutTriggers = new Map<Core, () => void>();
+
+/**
+ * Trigger a debounced layout run for the given cytoscape instance.
+ * Use this for user-initiated resize events (expand button, CSS drag resize).
+ */
+export function triggerLayout(cy: Core): void {
+  layoutTriggers.get(cy)?.();
+}
+
 export interface AutoLayoutOptions {
   animate?: boolean;
   maxSimulationTime?: number;
@@ -167,6 +178,10 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
   // That event fires on zoom-induced dimension changes (not just user resize),
   // which would cause unnecessary full layout recalculations during zoom/pan.
   // Shadow node dimensions still update correctly without triggering layout.
+  // User-initiated resizes (expand button, CSS drag) call triggerLayout() directly.
+
+  // Register trigger for external callers (user-initiated resize)
+  layoutTriggers.set(cy, debouncedRunLayout);
 
   console.log('[AutoLayout] Auto-layout enabled');
 
@@ -176,6 +191,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     cy.off('remove', 'node', debouncedRunLayout);
     cy.off('add', 'edge', debouncedRunLayout);
     cy.off('remove', 'edge', debouncedRunLayout);
+    layoutTriggers.delete(cy);
 
     if (debounceTimeout) {
       clearTimeout(debounceTimeout);

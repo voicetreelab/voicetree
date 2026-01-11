@@ -10,6 +10,7 @@ import {getScalingStrategy, getScreenDimensions, type ScalingStrategy} from "@/p
 import {selectFloatingWindowNode} from "@/shell/edge/UI-edge/floating-windows/select-floating-window-node";
 import {getCachedZoom} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import {updateWindowFromZoom} from "@/shell/edge/UI-edge/floating-windows/update-window-from-zoom";
+import {triggerLayout} from "@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout";
 import {Maximize2, Minimize2, createElement, type IconNode} from 'lucide';
 
 /** Render a Lucide icon to SVG element */
@@ -123,6 +124,8 @@ export function createWindowChrome(
 
         // Trigger dimension update (handles width for all, height for terminals only)
         updateWindowFromZoom(cy, windowElement, getCachedZoom());
+        // Trigger layout since user explicitly resized
+        triggerLayout(cy);
     });
 
     // Create fullscreen button
