@@ -201,17 +201,11 @@ jobs:
           cat manifests/manifest-mac-x64/latest-mac.yml
           echo ""
 
-          # Extract version and releaseDate from arm64 manifest
-          VERSION=$(yq '.version' manifests/manifest-mac-arm64/latest-mac.yml)
-          RELEASE_DATE=$(yq '.releaseDate' manifests/manifest-mac-arm64/latest-mac.yml)
-
-          # Merge files arrays from both manifests
+          # Merge files arrays from both manifests using yq eval-all
+          # eval-all loads both files as array elements, then we combine their files arrays
           yq eval-all '
-            {"version": .version, "files": .files, "releaseDate": .releaseDate} | select(.files != null)
-          ' manifests/manifest-mac-arm64/latest-mac.yml manifests/manifest-mac-x64/latest-mac.yml | \
-          yq eval-all '
-            {"version": .[0].version, "files": ([.[].files] | flatten), "releaseDate": .[0].releaseDate}
-          ' > latest-mac.yml
+            {"version": .[0].version, "files": (.[0].files + .[1].files), "releaseDate": .[0].releaseDate}
+          ' manifests/manifest-mac-arm64/latest-mac.yml manifests/manifest-mac-x64/latest-mac.yml > latest-mac.yml
 
           echo "Merged manifest:"
           cat latest-mac.yml
