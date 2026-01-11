@@ -84,8 +84,9 @@ export function useAgentMetrics(): UseAgentMetricsReturn {
 
     try {
       const data: AgentMetricsData = await window.electronAPI!.main.getMetrics();
-      setSessions(data.sessions);
-      aggregateMetrics(data.sessions);
+      const sessions: SessionMetric[] = Array.isArray(data?.sessions) ? data.sessions : [];
+      setSessions(sessions);
+      aggregateMetrics(sessions);
       setIsLoading(false);
     } catch (err) {
       console.error('[useAgentMetrics] Failed to fetch metrics:', err);
