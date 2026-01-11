@@ -213,11 +213,26 @@ export function anchorToNode(
     });
 
     // Set up ResizeObserver (window resize → shadow dimensions)
+    // Only triggers layout for user-initiated resizes (CSS drag), not zoom-induced resizes.
+    // Key insight: zoom resizes change screen dims but not graph dims (dimension-scaling divides by zoom).
     let resizeObserver: ResizeObserver | undefined;
     if (typeof ResizeObserver !== 'undefined') {
         resizeObserver = new ResizeObserver(() => {
+            // Capture old graph dimensions before update
+            const oldWidth: number = parseFloat(windowElement.dataset.baseWidth ?? '0');
+            const oldHeight: number = parseFloat(windowElement.dataset.baseHeight ?? '0');
+
             updateShadowNodeDimensions(shadowNode, windowElement);
             cy.trigger('floatingwindow:resize', [{nodeId: shadowNode.id()}]);
+
+            // Check if graph dimensions actually changed (user resize vs zoom-induced)
+            const newWidth: number = parseFloat(windowElement.dataset.baseWidth ?? '0');
+            const newHeight: number = parseFloat(windowElement.dataset.baseHeight ?? '0');
+            const dimChanged: boolean = Math.abs(newWidth - oldWidth) > 1 || Math.abs(newHeight - oldHeight) > 1;
+
+            if (dimChanged) {
+                triggerLayout(cy);
+            }
         });
         resizeObserver.observe(windowElement);
     }
