@@ -429,9 +429,16 @@ export class CodeMirrorEditorView extends Disposable {
   /**
    * Get the content height of the editor in pixels
    * This is the height of the document content, not the visible viewport
+   * Uses DOM measurement (.cm-content scrollHeight) for accuracy, as CodeMirror's
+   * view.contentHeight may not reflect actual rendered content height.
    * @returns Content height in pixels
    */
   getContentHeight(): number {
+    const cmContent: HTMLElement | null = this.container.querySelector('.cm-content');
+    if (cmContent) {
+      return cmContent.scrollHeight;
+    }
+    // Fallback to CodeMirror's API
     return this.view.contentHeight;
   }
 
