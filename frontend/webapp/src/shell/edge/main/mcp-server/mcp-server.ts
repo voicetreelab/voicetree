@@ -16,6 +16,7 @@ import {StreamableHTTPServerTransport} from '@modelcontextprotocol/sdk/server/st
 import {z} from 'zod'
 import express, {type Express} from 'express'
 import * as O from 'fp-ts/lib/Option.js'
+import path from 'path'
 
 import type {FSUpdate, Graph, GraphDelta} from '@/pure/graph'
 import {addNodeToGraphWithEdgeHealingFromFSEvent} from '@/pure/graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent'
@@ -109,7 +110,7 @@ export function createMcpServer(): McpServer {
             }
 
             // Create FSUpdate event - absolutePath uses vaultPath
-            const absolutePath: string = `${vaultPath}/${nodeId}.md`
+            const absolutePath: string = path.join(vaultPath, `${nodeId}.md`)
             const fsEvent: FSUpdate = {
                 absolutePath,
                 content: markdownContent,
