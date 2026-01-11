@@ -1,4 +1,5 @@
 import type { NodeIdAndFilePath } from '@/pure/graph'
+import normalizePath from 'normalize-path'
 
 /**
  * Converts a filename to a node ID by removing the .md extension.
@@ -7,26 +8,26 @@ import type { NodeIdAndFilePath } from '@/pure/graph'
  *
  * Preserves the full relative absolutePath (if present) to support nested folder structures.
  * This allows nodes with the same filename in different folders to have unique IDs.
+ * Normalizes path separators to forward slashes for cross-platform consistency.
  *
  * @param filename - The filename (with or without absolutePath)
- * @returns GraphNode ID (filename without .md extension, absolutePath preserved)
+ * @returns GraphNode ID (filename without .md extension, absolutePath preserved, forward slashes)
  *
  * @example
  * ```typescript
  * filenameToNodeId("my-node.md")
- * // => "my-node"
+ * // => "my-node.md"
  *
  * filenameToNodeId("subfolder/another-node.md")
- * // => "subfolder/another-node"
+ * // => "subfolder/another-node.md"
  *
- * filenameToNodeId("concepts/architecture.md")
- * // => "concepts/architecture"
+ * filenameToNodeId("ctx-nodes\\context_123.md")  // Windows backslash
+ * // => "ctx-nodes/context_123.md"  // Normalized to forward slash
  * ```
  */
 export function filenameToNodeId(filename: string): NodeIdAndFilePath {
-  // DO NOT Strip .md extension
-  return filename;
-  // todo, at some point we need to think about whether node relativeFilePathIsID should be filepath, node counter
+  // Normalize path separators to forward slashes for consistent node IDs across platforms
+  return normalizePath(filename);
 }
 
 /**

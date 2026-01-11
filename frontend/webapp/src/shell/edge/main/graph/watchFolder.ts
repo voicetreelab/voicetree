@@ -186,7 +186,7 @@ export async function loadFolder(watchedFolderPath: FilePath, suffixOverride?: s
     currentVaultSuffix = suffix;
 
     // If suffix is empty, use the watched folder directly; otherwise append suffix
-    const vaultPath: string = suffix ? `${watchedFolderPath}/${suffix}` : watchedFolderPath;
+    const vaultPath: string = suffix ? path.join(watchedFolderPath, suffix) : watchedFolderPath;
 
     // Ensure vaultPath directory exists (creates if missing)
     await fs.mkdir(vaultPath, { recursive: true });
@@ -487,7 +487,7 @@ export function getVaultSuffix(): string {
 // Vault path functions - single source of truth, derived from watchedDirectory + currentVaultSuffix
 export function getVaultPath(): O.Option<FilePath> {
     if (!watchedDirectory) return O.none;
-    return O.some(currentVaultSuffix ? `${watchedDirectory}/${currentVaultSuffix}` : watchedDirectory);
+    return O.some(currentVaultSuffix ? path.join(watchedDirectory, currentVaultSuffix) : watchedDirectory);
 }
 
 // For external callers (MCP) - sets the full vault path directly by setting directory and clearing suffix
