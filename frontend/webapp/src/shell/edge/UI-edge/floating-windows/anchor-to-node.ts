@@ -17,6 +17,7 @@ import {
 } from "@/pure/floatingWindowScaling";
 import {cleanupRegistry, getCachedZoom} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import {setupResizeObserver, updateShadowNodeDimensions} from "@/shell/edge/UI-edge/floating-windows/setup-resize-observer";
+import {DEFAULT_EDGE_LENGTH} from "@/shell/UI/cytoscape-graph-ui/graphviz/layout/cytoscape-graph-constants";
 
 /**
  * Anchor a floating window to a parent node
@@ -76,19 +77,19 @@ export function anchorToNode(
 
     // Get all nodes to check for collisions (including shadow nodes for other floating windows)
     const existingNodes: cytoscape.NodeCollection = cy.nodes();
-
-    // DEBUG: Log all existing nodes and their dimensions for collision detection
-    console.log('[anchorToNode] Checking collisions. Total nodes:', existingNodes.length);
-    existingNodes.forEach((node: cytoscape.NodeSingular) => {
-        if (node.id() === parentNodeId) return;
-        const pos: cytoscape.Position = node.position();
-        const w: number = node.width();
-        const h: number = node.height();
-        const isShadow: boolean = node.data('isShadowNode') === true;
-        console.log(`[anchorToNode]   Node: ${node.id()}, isShadow: ${isShadow}, pos: (${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}), dims: ${w.toFixed(1)}x${h.toFixed(1)}`);
-    });
-    console.log(`[anchorToNode] Terminal shadowDimensions: ${shadowDimensions.width}x${shadowDimensions.height}`);
-
+    // todo, need to make this just neighborhood, not O(N)
+    // // DEBUG: Log all existing nodes and their dimensions for collision detection
+    // console.log('[anchorToNode] Checking collisions. Total nodes:', existingNodes.length);
+    // existingNodes.forEach((node: cytoscape.NodeSingular) => {
+    //     if (node.id() === parentNodeId) return;
+    //     const pos: cytoscape.Position = node.position();
+    //     const w: number = node.width();
+    //     const h: number = node.height();
+    //     const isShadow: boolean = node.data('isShadowNode') === true;
+    //     console.log(`[anchorToNode]   Node: ${node.id()}, isShadow: ${isShadow}, pos: (${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}), dims: ${w.toFixed(1)}x${h.toFixed(1)}`);
+    // });
+    // console.log(`[anchorToNode] Terminal shadowDimensions: ${shadowDimensions.width}x${shadowDimensions.height}`);
+    //
     // Calculate desired angle using angle continuation heuristic:
     // Find the grandparent (task node) and continue the angle from task -> context -> terminal
     const incomingEdges: cytoscape.EdgeCollection = parentNode.incomers('edge').filter(
@@ -109,8 +110,10 @@ export function anchorToNode(
     // Calculate candidate positions and filter by no-overlap
     const candidates: { pos: { x: number; y: number }; angleDiff: number }[] = [];
     for (const dir of directions) {
-        const offsetX: number = dir.dx * ((shadowDimensions.width / 2) + (parentWidth / 2) + gap);
-        const offsetY: number = dir.dy * ((shadowDimensions.height / 2) + (parentHeight / 2) + gap);
+        // Include DEFAULT_EDGE_LENGTH to push candidate past sibling floating windows
+        // (siblings are typically one edge length away from parent)
+        const offsetX: number = dir.dx * ((shadowDimensions.width / 2) + (parentWidth / 2) + gap + DEFAULT_EDGE_LENGTH);
+        const offsetY: number = dir.dy * ((shadowDimensions.height / 2) + (parentHeight / 2) + gap + DEFAULT_EDGE_LENGTH);
         const candidatePos: { x: number; y: number } = {
             x: parentPos.x + offsetX,
             y: parentPos.y + offsetY
@@ -170,7 +173,7 @@ export function anchorToNode(
         console.log(`[anchorToNode] Chose position from ${candidates.length} candidates: (${childPosition.x.toFixed(1)}, ${childPosition.y.toFixed(1)})`);
     } else {
         // Fallback to right if all directions blocked
-        const offsetX: number = (shadowDimensions.width / 2) + (parentWidth / 2) + gap;
+        const offsetX: number = (shadowDimensions.width / 2) + (parentWidth / 2) + gap + DEFAULT_EDGE_LENGTH;
         childPosition = {
             x: parentPos.x + offsetX,
             y: parentPos.y

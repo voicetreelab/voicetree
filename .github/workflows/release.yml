@@ -168,6 +168,62 @@ jobs:
           name: mac-${{ matrix.arch }}
           path: ${{ github.workspace }}/out/electron/voicetree-${{ matrix.arch }}.dmg
 
+      - name: Upload update manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: manifest-mac-${{ matrix.arch }}
+          path: ${{ github.workspace }}/out/electron/latest-mac.yml
+
+  merge-mac-manifests:
+    needs: [check-version, build-mac]
+    if: ${{ needs.check-version.outputs.should_build == 'true' && (github.event_name == 'push' || inputs.build_mac) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download manifests
+        uses: actions/download-artifact@v4
+        with:
+          pattern: manifest-mac-*
+          path: manifests/
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Merge manifests
+        run: |
+          echo "ARM64 manifest:"
+          cat manifests/manifest-mac-arm64/latest-mac.yml
+          echo ""
+          echo "x64 manifest:"
+          cat manifests/manifest-mac-x64/latest-mac.yml
+          echo ""
+
+          # Extract version and releaseDate from arm64 manifest
+          VERSION=$(yq '.version' manifests/manifest-mac-arm64/latest-mac.yml)
+          RELEASE_DATE=$(yq '.releaseDate' manifests/manifest-mac-arm64/latest-mac.yml)
+
+          # Merge files arrays from both manifests
+          yq eval-all '
+            {"version": .version, "files": .files, "releaseDate": .releaseDate} | select(.files != null)
+          ' manifests/manifest-mac-arm64/latest-mac.yml manifests/manifest-mac-x64/latest-mac.yml | \
+          yq eval-all '
+            {"version": .[0].version, "files": ([.[].files] | flatten), "releaseDate": .[0].releaseDate}
+          ' > latest-mac.yml
+
+          echo "Merged manifest:"
+          cat latest-mac.yml
+
+      - name: Upload merged manifest to release
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          VERSION=$(yq '.version' latest-mac.yml)
+          echo "Uploading merged manifest for v$VERSION"
+          gh release upload "v$VERSION" latest-mac.yml --clobber --repo ${{ github.repository }}
+
   build-windows:
     needs: [check-version]
     if: ${{ needs.check-version.outputs.should_build == 'true' && (github.event_name == 'push' || inputs.build_windows) }}
@@ -299,7 +355,7 @@ jobs:
           npx electron-builder --linux --publish=always
 
   update-homebrew:
-    needs: [check-version, build-mac]
+    needs: [check-version, build-mac, merge-mac-manifests]
     if: success()
     runs-on: ubuntu-latest
     steps:

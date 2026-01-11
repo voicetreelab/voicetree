@@ -13,6 +13,7 @@
 
 import type {Core, EdgeSingular, NodeDefinition, NodeSingular, Position} from 'cytoscape';
 import ColaLayout from './cola';
+import {CONTEXT_NODE_EDGE_LENGTH, DEFAULT_EDGE_LENGTH} from './cytoscape-graph-constants';
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
 
@@ -80,9 +81,9 @@ const DEFAULT_OPTIONS: AutoLayoutOptions = {
       }
     }
     if (targetIsContextNode){
-        return 150;
+        return CONTEXT_NODE_EDGE_LENGTH;
     }
-    return 200;
+    return DEFAULT_EDGE_LENGTH;
   },
   // edgeSymDiffLength: undefined,
   // edgeJaccardLength: undefined
