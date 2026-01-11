@@ -35,7 +35,7 @@ import {anchorToNode} from "@/shell/edge/UI-edge/floating-windows/anchor-to-node
 import {createWindowChrome} from "@/shell/edge/UI-edge/floating-windows/create-window-chrome";
 import {attachFullscreenZoom} from "@/shell/edge/UI-edge/floating-windows/fullscreen-zoom";
 
-const MAX_TERMINALS: number = 6;
+const MAX_TERMINALS: number = 12;
 
 /**
  * Spawn a terminal with a new context node
