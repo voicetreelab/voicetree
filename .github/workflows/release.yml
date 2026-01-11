@@ -219,7 +219,7 @@ jobs:
         run: |
           VERSION=$(yq '.version' latest-mac.yml)
           echo "Uploading merged manifest for v$VERSION"
-          gh release upload "v$VERSION" latest-mac.yml --clobber --repo ${{ github.repository }}
+          gh release upload "v$VERSION" latest-mac.yml --clobber --repo voicetreelab/voicetree
 
   build-windows:
     needs: [check-version]
