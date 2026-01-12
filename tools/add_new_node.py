@@ -198,7 +198,9 @@ def addNewNode(parent_file=None, parent_files=None, name=None, markdown_content=
             # If can't make relative, use the filename
             relative_pf_path = full_pf_path.name
 
-        link = f"[[{relative_pf_path}]]"
+        # Ensure forward slashes for cross-platform compatibility (Windows uses backslashes)
+        path_str = relative_pf_path.as_posix() if isinstance(relative_pf_path, Path) else relative_pf_path
+        link = f"[[{path_str}]]"
         if relationship_to:
             link = f"{relationship_to} {link}"
         parent_links.append(f"- {link}")
