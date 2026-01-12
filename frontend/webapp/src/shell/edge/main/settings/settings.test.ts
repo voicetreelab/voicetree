@@ -49,7 +49,8 @@ describe('settings', () => {
       contextNodeMaxDistance: 7,
       askModeContextDistance: 4,
       emptyFolderTemplate: '# Custom template',
-      vimMode: true
+      vimMode: true,
+      hotkeys: DEFAULT_SETTINGS.hotkeys
     };
 
     await saveSettings(customSettings);

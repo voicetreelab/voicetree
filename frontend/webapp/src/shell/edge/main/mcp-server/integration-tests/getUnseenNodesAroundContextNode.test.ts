@@ -14,7 +14,15 @@
  * - Verifying the MCP server tool returns correct results
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+
+// Mock electron app to provide getPath for settings
+vi.mock('electron', () => ({
+  app: {
+    getPath: vi.fn(() => '/tmp/test-userdata-nonexistent-' + Date.now())
+  }
+}))
+
 import { createContextNode } from '@/shell/edge/main/graph/context-nodes/createContextNode'
 import { getUnseenNodesAroundContextNode, type UnseenNode } from '@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk'

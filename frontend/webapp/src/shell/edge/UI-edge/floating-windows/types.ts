@@ -143,7 +143,7 @@ export function createTerminalData(params: CreateTerminalDataParams): TerminalDa
         initialCommand: params.initialCommand,
         executeCommand: params.executeCommand,
         resizable: params.resizable ?? true,
-        shadowNodeDimensions: params.shadowNodeDimensions ?? { width: 300, height: 300 }, // matches getDefaultDimensions('Terminal')
+        shadowNodeDimensions: params.shadowNodeDimensions ?? { width: 400, height: 300 }, // matches getDefaultDimensions('Terminal')
     };
 }
 

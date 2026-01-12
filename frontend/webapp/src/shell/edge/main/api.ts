@@ -13,6 +13,7 @@ import {loadSettings, saveSettings as saveSettings} from './settings/settings_IO
 import {getWatchStatus, loadPreviousFolder, startFileWatching, stopFileWatching, setVaultSuffix} from './graph/watchFolder'
 import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/state/app-electron-state";
 import {createContextNode} from "@/shell/edge/main/graph/context-nodes/createContextNode";
+import {getPreviewContainedNodeIds} from "@/shell/edge/main/graph/context-nodes/getPreviewContainedNodeIds";
 import {saveNodePositions} from "@/shell/edge/main/saveNodePositions";
 import {performUndo, performRedo} from './graph/undoOperations'
 import {spawnTerminalWithContextNode} from './terminals/spawnTerminalWithContextNode'
@@ -59,6 +60,8 @@ export const mainAPI = {
   getBackendPort,
 
   createContextNode,
+
+  getPreviewContainedNodeIds,
 
   // App paths
   getAppSupportPath,
