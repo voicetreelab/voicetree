@@ -173,7 +173,7 @@ describe('getUnseenNodesAroundContextNode - Integration Tests', () => {
             setGraph(loadResult2.right)
 
             // THEN: Call getUnseenNodesAroundContextNode
-            const unseenNodes: readonly UnseenNode[] = getUnseenNodesAroundContextNode(contextNodeId)
+            const unseenNodes: readonly UnseenNode[] = await getUnseenNodesAroundContextNode(contextNodeId)
 
             // VERIFY: The new node should be in the unseen nodes
             const newNodeInUnseen: UnseenNode | undefined = unseenNodes.find((n: UnseenNode) => n.nodeId === newNodeId)
@@ -200,7 +200,7 @@ describe('getUnseenNodesAroundContextNode - Integration Tests', () => {
             setGraph(loadResult.right)
 
             // THEN: Call getUnseenNodesAroundContextNode without adding any new nodes
-            const unseenNodes: readonly UnseenNode[] = getUnseenNodesAroundContextNode(contextNodeId)
+            const unseenNodes: readonly UnseenNode[] = await getUnseenNodesAroundContextNode(contextNodeId)
 
             // VERIFY: Should return empty array since graph hasn't changed
             expect(unseenNodes).toHaveLength(0)
@@ -208,15 +208,15 @@ describe('getUnseenNodesAroundContextNode - Integration Tests', () => {
     })
 
     describe('BEHAVIOR: Error handling', () => {
-        it('should throw error if context node does not exist', () => {
+        it('should throw error if context node does not exist', async () => {
             // GIVEN: A non-existent context node ID
             const nonExistentContextNodeId: NodeIdAndFilePath =
                 'ctx-nodes/non_existent_context_node.md'
 
             // WHEN/THEN: Should throw error
-            expect(() =>
+            await expect(
                 getUnseenNodesAroundContextNode(nonExistentContextNodeId)
-            ).toThrow(`Context node ${nonExistentContextNodeId} not found in graph`)
+            ).rejects.toThrow(`Context node ${nonExistentContextNodeId} not found in graph`)
         })
 
         it('should throw error if context node has no containedNodeIds', async () => {
@@ -225,7 +225,7 @@ describe('getUnseenNodesAroundContextNode - Integration Tests', () => {
                 '1_VoiceTree_Website_Development_and_Node_Display_Bug.md'
 
             // WHEN/THEN: Should throw error
-            expect(() => getUnseenNodesAroundContextNode(regularNodeId)).toThrow(
+            await expect(getUnseenNodesAroundContextNode(regularNodeId)).rejects.toThrow(
                 `Context node ${regularNodeId} has no containedNodeIds metadata`
             )
         })
@@ -274,7 +274,7 @@ This is the actual content without frontmatter.`
             setGraph(loadResult2.right)
 
             // WHEN: Get unseen nodes
-            const unseenNodes: readonly UnseenNode[] = getUnseenNodesAroundContextNode(contextNodeId)
+            const unseenNodes: readonly UnseenNode[] = await getUnseenNodesAroundContextNode(contextNodeId)
 
             // THEN: Find the new node
             const newNode: UnseenNode | undefined = unseenNodes.find((n: UnseenNode) => n.nodeId === newNodeId)

@@ -2,7 +2,7 @@ import type {Graph, GraphDelta, NodeIdAndFilePath, GraphNode} from '@/pure/graph
 import {getUnionSubgraphByDistance, graphToAscii, getNodeIdsInTraversalOrder, CONTEXT_NODES_FOLDER} from '@/pure/graph'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getWatchStatus} from '@/shell/edge/main/graph/watchFolder'
-import {getCachedSettings} from '@/shell/edge/main/state/settings-cache'
+import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
 import {type VTSettings} from '@/pure/settings/types'
 import {parseMarkdownToGraphNode} from '@/pure/graph/markdown-parsing/parse-markdown-to-node'
 import {fromCreateChildToUpsertNode} from '@/pure/graph/graphDelta/uiInteractionsToGraphDeltas'
@@ -11,7 +11,6 @@ import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange";
 import {ensureUniqueNodeId} from "@/pure/graph/ensureUniqueNodeId";
-import {DEFAULT_SETTINGS} from "@/pure/settings";
 
 /** Truncate a title to at most 5 words */
 function truncateToFiveWords(text: string): string {
@@ -31,7 +30,7 @@ export async function createContextNodeFromQuestion(
     question: string
 ): Promise<NodeIdAndFilePath> {
     const currentGraph: Graph = getGraph()
-    const settings: VTSettings = getCachedSettings() ?? DEFAULT_SETTINGS
+    const settings: VTSettings = await loadSettings()
     const maxDistance: number = settings.askModeContextDistance
 
     const validNodeIds: readonly NodeIdAndFilePath[] = relevantNodeIds

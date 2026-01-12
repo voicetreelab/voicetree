@@ -20,10 +20,9 @@ import {
     applyGraphDeltaToMemState,
     broadcastGraphDeltaToUI
 } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI";
-import {getCachedSettings} from "@/shell/edge/main/state/settings-cache";
+import {loadSettings} from "@/shell/edge/main/settings/settings_IO";
 import {type VTSettings} from "@/pure/settings/types";
 import type {GraphNode} from "@/pure/graph";
-import {DEFAULT_SETTINGS} from "@/pure/settings";
 
 // THIS FUNCTION takes absolutePath
 // returns graph
@@ -551,8 +550,8 @@ export async function loadPreviousFolder(): Promise<{ readonly success: boolean;
  * @returns Graph containing the new starter node
  */
 async function createStarterNode(vaultPath: string, vaultSuffix: string): Promise<Graph> {
-    const settings: VTSettings = getCachedSettings() ?? DEFAULT_SETTINGS;
-    const template: string = settings.emptyFolderTemplate ?? DEFAULT_SETTINGS.emptyFolderTemplate ?? '# ';
+    const settings: VTSettings = await loadSettings();
+    const template: string = settings.emptyFolderTemplate ?? '# ';
 
     // Format date: "Tuesday, 23 December"
     const now: Date = new Date();

@@ -245,13 +245,14 @@ export class StyleService {
         }
       },
 
-      // Context node highlighting - contained nodes
+      // Context node highlighting - contained nodes (uses outline like selected nodes)
       {
         selector: 'node.context-contained',
         style: {
-          'border-width': 3,
-          'border-color': '#FFD700',  // Gold
-          'border-style': 'dashed',
+          'outline-width': 2,
+          'outline-color': '#FFD700',  // Gold
+          'outline-offset': 10,
+          'outline-opacity': 1,
         }
       },
 
@@ -260,7 +261,8 @@ export class StyleService {
         selector: 'edge.context-edge',
         style: {
           'line-color': '#FFD700',
-          'width': 2,
+          'line-opacity': 1,
+          'width': 4,
         }
       },
 

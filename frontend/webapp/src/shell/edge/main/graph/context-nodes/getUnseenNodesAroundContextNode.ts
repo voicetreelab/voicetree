@@ -1,9 +1,8 @@
 import type { Graph, NodeIdAndFilePath, GraphNode } from '@/pure/graph'
 import { getSubgraphByDistance } from '@/pure/graph'
 import { getGraph } from '@/shell/edge/main/state/graph-store'
-import { getCachedSettings } from '@/shell/edge/main/state/settings-cache'
+import { loadSettings } from '@/shell/edge/main/settings/settings_IO'
 import { type VTSettings } from '@/pure/settings/types'
-import {DEFAULT_SETTINGS} from "@/pure/settings";
 
 /**
  * Result type for unseen nodes
@@ -25,9 +24,9 @@ export interface UnseenNode {
  * @param contextNodeId - The ID of the context node
  * @returns Array of unseen nodes with their content (without YAML/frontmatter)
  */
-export function getUnseenNodesAroundContextNode(
+export async function getUnseenNodesAroundContextNode(
     contextNodeId: NodeIdAndFilePath
-): readonly UnseenNode[] {
+): Promise<readonly UnseenNode[]> {
     const currentGraph: Graph = getGraph()
 
     // 1. Get the context node
@@ -46,7 +45,7 @@ export function getUnseenNodesAroundContextNode(
     const parentNodeId: NodeIdAndFilePath = containedNodeIds[0]
 
     // 4. Re-run the graph traversal from the parent node
-    const settings: VTSettings = getCachedSettings() ?? DEFAULT_SETTINGS
+    const settings: VTSettings = await loadSettings()
     const subgraph: Graph = getSubgraphByDistance(
         currentGraph,
         parentNodeId,

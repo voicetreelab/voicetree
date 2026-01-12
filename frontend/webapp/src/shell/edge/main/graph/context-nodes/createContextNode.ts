@@ -3,7 +3,7 @@ import {getSubgraphByDistance, graphToAscii, makeBidirectionalEdges, CONTEXT_NOD
 import {getNodeTitle} from '@/pure/graph/markdown-parsing'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getWatchStatus} from '@/shell/edge/main/graph/watchFolder'
-import {getCachedSettings} from '@/shell/edge/main/state/settings-cache'
+import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
 import {type VTSettings} from '@/pure/settings/types'
 import {fromCreateChildToUpsertNode} from '@/pure/graph/graphDelta/uiInteractionsToGraphDeltas'
 import {uiAPI as _uiAPI} from '@/shell/edge/main/ui-api-proxy'
@@ -11,7 +11,6 @@ import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange";
 import {ensureUniqueNodeId} from "@/pure/graph/ensureUniqueNodeId";
-import {DEFAULT_SETTINGS} from "@/pure/settings";
 
 /**
  * Creates a context node for a given parent node.
@@ -41,7 +40,7 @@ export async function createContextNode(
 
     // 2. PURE: Extract subgraph within distance
     console.log("[createContextNode] Extracting subgraph...")
-    const settings: VTSettings = getCachedSettings() ?? DEFAULT_SETTINGS
+    const settings: VTSettings = await loadSettings()
     const maxDistance: number = settings.contextNodeMaxDistance
     const subgraph: Graph = getSubgraphByDistance(
         currentGraph,

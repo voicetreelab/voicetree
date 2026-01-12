@@ -18,6 +18,9 @@ export async function highlightContainedNodes(cy: Core, contextNodeId: string): 
     cy.$('#' + id).addClass(CONTEXT_CONTAINED_CLASS);
     cy.edges('[target="' + id + '"]').addClass(CONTEXT_EDGE_CLASS);
   });
+
+  // Also highlight the edge from task node (parent) to this context node
+  cy.edges('[target="' + contextNodeId + '"]').addClass(CONTEXT_EDGE_CLASS);
 }
 
 /**

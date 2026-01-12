@@ -1,7 +1,7 @@
 ---
 position:
-  x: 80.05697435533061
-  y: 943.63152347579
+  x: 692.6929177672229
+  y: 419.98479982708017
 isContextNode: false
 node_id: 5
 ---
@@ -55,3 +55,20 @@ Parent:
 [[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768178416758.md]]
 [[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768178421352.md]]
 [[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768178425346.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768178719979.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768178724631.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768178729108.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768178733258.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768179113618.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768179118754.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768179123333.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768179127422.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768179574863.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768179581219.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768179586996.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768179591301.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768179625565.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768179631200.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768179636354.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768179641976.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768179647481.md]]
