@@ -25,7 +25,7 @@ export class TerminalVanilla {
   private container: HTMLElement;
   private terminalData: TerminalData;
   private resizeObserver: ResizeObserver | null = null;
-  private resizeTimeout: NodeJS.Timeout | null = null;
+  private resizeFrameId: number | null = null;
   private suppressNextEnter: boolean = false;
   private shiftEnterSendsOptionEnter: boolean = true;
 
@@ -129,14 +129,14 @@ export class TerminalVanilla {
       }
     });
 
-    // Set up ResizeObserver for container resize with debounce and scroll preservation
+    // Set up ResizeObserver for container resize with scroll preservation
     // This is the single code path for all terminal resizing (zoom changes, manual resize, etc.)
-    // Future improvement: use requestAnimationFrame instead of 50ms timeout to reduce flicker
+    // Uses requestAnimationFrame to sync with browser paint cycle (~16ms) instead of fixed 50ms delay
     this.resizeObserver = new ResizeObserver(() => {
-      if (this.resizeTimeout) {
-        clearTimeout(this.resizeTimeout);
+      if (this.resizeFrameId !== null) {
+        cancelAnimationFrame(this.resizeFrameId);
       }
-      this.resizeTimeout = setTimeout(() => {
+      this.resizeFrameId = requestAnimationFrame(() => {
         if (this.term && this.fitAddon) {
           // Update fontSize based on current zoom level
           const zoom: number = getCachedZoom();
@@ -156,7 +156,7 @@ export class TerminalVanilla {
             this.term.scrollToLine(targetLine);
           }
         }
-      }, 50);
+      });
     });
     this.resizeObserver.observe(this.container);
 
@@ -219,8 +219,8 @@ export class TerminalVanilla {
    * Cleanup and destroy the terminal
    */
   dispose(): void {
-    if (this.resizeTimeout) {
-      clearTimeout(this.resizeTimeout);
+    if (this.resizeFrameId !== null) {
+      cancelAnimationFrame(this.resizeFrameId);
     }
 
     if (this.resizeObserver) {
