@@ -245,15 +245,14 @@ export class StyleService {
         }
       },
 
-      // Context node highlighting - contained nodes (uses outline like selected nodes)
+      // Context node highlighting - contained nodes (uses border like breathing animations)
       {
         selector: 'node.context-contained',
         style: {
-          'outline-width': 2,
-          'outline-style': 'solid',
-          'outline-color': '#FFD700',  // Gold
-          'outline-offset': 10,
-          'outline-opacity': 1,
+          'border-width': 4,
+          'border-style': 'solid',
+          'border-color': '#FFD700',  // Gold
+          'border-opacity': 1,
         }
       },
 
