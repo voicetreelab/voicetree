@@ -12,6 +12,14 @@ import {getCachedZoom} from "@/shell/edge/UI-edge/floating-windows/cytoscape-flo
 import {updateWindowFromZoom} from "@/shell/edge/UI-edge/floating-windows/update-window-from-zoom";
 import {triggerLayout} from "@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout";
 import {Maximize2, Minimize2, createElement, type IconNode} from 'lucide';
+import * as O from 'fp-ts/lib/Option.js';
+import {
+    getNodeMenuItems,
+    createHorizontalMenuElement,
+    type NodeMenuItemsInput,
+    type HorizontalMenuItem
+} from "@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService";
+import type {AgentConfig} from "@/pure/settings";
 
 /** Render a Lucide icon to SVG element */
 function createIconElement(icon: IconNode, size: number = 14): SVGElement {
@@ -19,6 +27,12 @@ function createIconElement(icon: IconNode, size: number = 14): SVGElement {
     svgElement.setAttribute('width', String(size));
     svgElement.setAttribute('height', String(size));
     return svgElement;
+}
+
+/** Options for createWindowChrome */
+export interface CreateWindowChromeOptions {
+    /** Agents list for horizontal menu (editors only) */
+    readonly agents?: readonly AgentConfig[];
 }
 
 /**
@@ -30,7 +44,8 @@ function createIconElement(icon: IconNode, size: number = 14): SVGElement {
 export function createWindowChrome(
     cy: cytoscape.Core,
     fw: FloatingWindowData | FloatingWindowFields,
-    id: EditorId | TerminalId
+    id: EditorId | TerminalId,
+    options: CreateWindowChromeOptions = {}
 ): FloatingWindowUIData {
     const dimensions: { width: number; height: number } = fw.shadowNodeDimensions;
 
@@ -153,6 +168,42 @@ export function createWindowChrome(
     // Create content container
     const contentContainer: HTMLDivElement = document.createElement('div');
     contentContainer.className = 'cy-floating-window-content';
+
+    // Create horizontal menu for editors (not terminals) when anchored to a node
+    const isEditor: boolean = 'type' in fw && fw.type === 'Editor';
+    const hasAnchoredNode: boolean = O.isSome(fw.anchoredToNodeId);
+    const hasAgents: boolean = options.agents !== undefined && options.agents.length > 0;
+
+    if (isEditor && hasAnchoredNode && hasAgents) {
+        const nodeId: string = O.isSome(fw.anchoredToNodeId) ? fw.anchoredToNodeId.value : '';
+        // Check if node is a context node (has .context_node. in path)
+        const isContextNode: boolean = nodeId.includes('.context_node.');
+
+        const menuInput: NodeMenuItemsInput = {
+            nodeId,
+            cy,
+            agents: options.agents ?? [],
+            isContextNode,
+        };
+        const menuItems: HorizontalMenuItem[] = getNodeMenuItems(menuInput);
+
+        // Create menu container (positioned above the window)
+        const menuContainer: HTMLDivElement = document.createElement('div');
+        menuContainer.className = 'cy-floating-window-menu';
+
+        // Create menu elements and assemble
+        const { leftGroup, spacer, rightGroup } = createHorizontalMenuElement(
+            menuItems,
+            () => {} // No-op onClose - menu is persistent
+        );
+
+        menuContainer.appendChild(leftGroup);
+        menuContainer.appendChild(spacer);
+        menuContainer.appendChild(rightGroup);
+
+        // Add menu container first (above title bar)
+        windowElement.appendChild(menuContainer);
+    }
 
     // Assemble window
     windowElement.appendChild(titleBar);
