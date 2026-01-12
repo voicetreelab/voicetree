@@ -1,7 +1,7 @@
 ---
 position:
-  x: 692.6929177672229
-  y: 419.98479982708017
+  x: 702.2634982293902
+  y: 541.6231207869009
 isContextNode: false
 node_id: 5
 ---
@@ -73,3 +73,28 @@ Parent:
 [[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768179641976.md]]
 [[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768179647481.md]]
 [[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768179969327.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768180742283.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768180747407.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768180752697.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768180756853.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768180761093.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768180765448.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768180815708.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768180820350.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768180824749.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768180828862.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768180832916.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768180837386.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768186184205.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768186189718.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768186195659.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768186201890.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768186206950.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768186212643.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768186312889.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768186318590.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768186324382.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768186336140.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768186342544.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768186399116.md]]
+[[ctx-nodes/5_Immediate_Test_Observation_No_Output_context_1768186406899.md]]

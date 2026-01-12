@@ -13,7 +13,7 @@ import {Plus, Play, Trash2, Clipboard, MoreHorizontal, Pin, createElement, type 
 import {getOrCreateOverlay} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import {graphToScreenPosition, getWindowTransform, getTransformOrigin} from '@/pure/floatingWindowScaling';
 import type {AgentConfig} from "@/pure/settings";
-import {highlightContainedNodes, clearContainedHighlights} from '@/shell/UI/cytoscape-graph-ui/highlightContextNodes';
+import {highlightContainedNodes, highlightPreviewNodes, clearContainedHighlights} from '@/shell/UI/cytoscape-graph-ui/highlightContextNodes';
 
 /** Menu item interface for the custom horizontal menu */
 export interface HorizontalMenuItem {
@@ -217,8 +217,11 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
         action: async () => {
             await spawnTerminalWithNewContextNode(nodeId, cy);
         },
-        onHoverEnter: isContextNode ? () => highlightContainedNodes(cy, nodeId) : undefined,
-        onHoverLeave: isContextNode ? () => clearContainedHighlights(cy) : undefined,
+        // Context nodes: show contained nodes. Normal nodes: preview what would be captured.
+        onHoverEnter: isContextNode
+            ? () => highlightContainedNodes(cy, nodeId)
+            : () => highlightPreviewNodes(cy, nodeId),
+        onHoverLeave: () => clearContainedHighlights(cy),
     });
 
     menuItems.push({
@@ -251,8 +254,11 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
             action: async () => {
                 await spawnTerminalWithNewContextNode(nodeId, cy, agent.command);
             },
-            onHoverEnter: isContextNode ? () => highlightContainedNodes(cy, nodeId) : undefined,
-            onHoverLeave: isContextNode ? () => clearContainedHighlights(cy) : undefined,
+            // Context nodes: show contained nodes. Normal nodes: preview what would be captured.
+            onHoverEnter: isContextNode
+                ? () => highlightContainedNodes(cy, nodeId)
+                : () => highlightPreviewNodes(cy, nodeId),
+            onHoverLeave: () => clearContainedHighlights(cy),
         });
     }
     menuItems.push({
