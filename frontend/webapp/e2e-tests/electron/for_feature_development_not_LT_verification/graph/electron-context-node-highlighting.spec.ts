@@ -254,6 +254,9 @@ test.describe('Context Node Highlighting', () => {
     // Small delay for async highlighting
     await appWindow.waitForTimeout(200);
 
+    // Take screenshot of highlighted state
+    await appWindow.screenshot({ path: 'e2e-tests/screenshots/context-node-highlighting.png' });
+
     // ASSERT: Contained nodes have highlight class
     const highlightedNodeIds = await getNodesWithClass(appWindow, 'context-contained');
 
@@ -329,6 +332,34 @@ test.describe('Context Node Highlighting', () => {
     expect(highlightedEdgeCount).toBeGreaterThan(0);
 
     console.log('✅ TEST PASSED: edges to contained nodes are highlighted');
+  });
+
+  test('edge from task node to context node is highlighted', async ({ appWindow }) => {
+    test.setTimeout(60000);
+
+    console.log('=== TEST: edge from task node to context node is highlighted ===');
+
+    // ARRANGE: Wait for graph to load and create context node
+    await waitForGraphLoaded(appWindow);
+    const { contextNodeId } = await createTestContextNode(appWindow);
+
+    // ACT: Select context node
+    await selectNode(appWindow, contextNodeId);
+    await appWindow.waitForTimeout(200);
+    console.log('✓ Selected context node');
+
+    // ASSERT: The edge targeting the context node (from its parent/task node) is highlighted
+    const edgeToContextNodeHighlighted = await appWindow.evaluate((ctxId) => {
+      const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return false;
+      // Find edges where target is the context node
+      const edgesToContextNode = cy.edges(`[target="${ctxId}"]`);
+      return edgesToContextNode.filter('.context-edge').length > 0;
+    }, contextNodeId);
+
+    expect(edgeToContextNodeHighlighted).toBe(true);
+
+    console.log('✅ TEST PASSED: edge from task node to context node is highlighted');
   });
 
   test('deselecting context node clears highlights', async ({ appWindow }) => {

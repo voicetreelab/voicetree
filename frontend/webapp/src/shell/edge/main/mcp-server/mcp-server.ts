@@ -215,7 +215,7 @@ export function createMcpServer(): McpServer {
         },
         async ({contextNodeId}) => {
             try {
-                const unseenNodes: readonly UnseenNode[] = getUnseenNodesAroundContextNode(contextNodeId)
+                const unseenNodes: readonly UnseenNode[] = await getUnseenNodesAroundContextNode(contextNodeId)
 
                 return {
                     content: [{
