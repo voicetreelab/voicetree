@@ -6,6 +6,7 @@ import type { Core, NodeSingular, EdgeSingular, CollectionReturnValue, NodeColle
 import type { StyleService } from '@/shell/UI/cytoscape-graph-ui/services/StyleService';
 import { CLASS_HOVER, CLASS_UNHOVER, CLASS_CONNECTED_HOVER } from '@/shell/UI/cytoscape-graph-ui/constants';
 import { addRecentlyVisited } from '@/shell/edge/UI-edge/state/RecentlyVisitedStore';
+import { highlightContainedNodes, clearContainedHighlights } from '@/shell/UI/cytoscape-graph-ui/highlightContextNodes';
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
 
@@ -103,5 +104,19 @@ export function setupBasicCytoscapeEventListeners(
     container.style.cursor = 'grab';
     console.log('[VoiceTreeGraphView] Node drag released, saving positions...');
     void window.electronAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);
+  });
+
+  // Context node highlighting - clear previous and apply new highlights on node select
+  cy.on('select', 'node', (e) => {
+    clearContainedHighlights(cy);
+    const node: NodeSingular = e.target;
+    if (node.data('isContextNode')) {
+      void highlightContainedNodes(cy, node.id());
+    }
+  });
+
+  // Clear context node highlights when node is unselected
+  cy.on('unselect', 'node', () => {
+    clearContainedHighlights(cy);
   });
 }
