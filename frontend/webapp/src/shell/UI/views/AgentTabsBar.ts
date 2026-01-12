@@ -226,10 +226,15 @@ export function renderAgentTabs(
         .map(id => terminals.find(t => getTerminalId(t) === id))
         .filter((t): t is TerminalData => t !== undefined)
 
+    // Find the index of the active terminal in display order
+    const activeIndex: number = activeTerminalId
+        ? state.displayOrder.indexOf(activeTerminalId)
+        : -1
+
     // Create tab for each terminal
     for (let i: number = 0; i < orderedTerminals.length; i++) {
         const terminal: TerminalData = orderedTerminals[i]
-        const tab: HTMLElement = createTab(terminal, activeTerminalId, onSelect, i)
+        const tab: HTMLElement = createTab(terminal, activeTerminalId, onSelect, i, activeIndex, orderedTerminals.length)
         state.tabsContainer.appendChild(tab)
     }
 
@@ -245,16 +250,55 @@ export function setActiveTerminal(terminalId: TerminalId | null): void {
 
     if (!state.tabsContainer) return
 
-    // Update active class on all tabs
-    const tabs: HTMLCollectionOf<Element> = state.tabsContainer.getElementsByClassName('agent-tab')
-    for (const tab of tabs) {
-        const tabTerminalId: string | null = tab.getAttribute('data-terminal-id')
-        if (tabTerminalId === terminalId) {
-            tab.classList.add('agent-tab-active')
-        } else {
-            tab.classList.remove('agent-tab-active')
+    const activeIndex: number = terminalId ? state.displayOrder.indexOf(terminalId) : -1
+    const totalTabs: number = state.displayOrder.length
+
+    // Update active class on all tabs and shortcut hints
+    const wrappers: HTMLCollectionOf<Element> = state.tabsContainer.getElementsByClassName('agent-tab-wrapper')
+    for (let i: number = 0; i < wrappers.length; i++) {
+        const wrapper: Element = wrappers[i]
+        const tab: Element | null = wrapper.querySelector('.agent-tab')
+        const tabTerminalId: string | null = wrapper.getAttribute('data-terminal-id')
+
+        if (tab) {
+            if (tabTerminalId === terminalId) {
+                tab.classList.add('agent-tab-active')
+            } else {
+                tab.classList.remove('agent-tab-active')
+            }
+        }
+
+        // Update shortcut hint based on new active terminal
+        const existingHint: Element | null = wrapper.querySelector('.agent-tab-shortcut-hint')
+        if (existingHint) {
+            existingHint.remove()
+        }
+
+        const shortcutText: string | null = getShortcutHintForTab(i, activeIndex, totalTabs)
+        if (shortcutText !== null) {
+            const shortcutHint: HTMLSpanElement = document.createElement('span')
+            shortcutHint.className = 'agent-tab-shortcut-hint'
+            shortcutHint.textContent = shortcutText
+            wrapper.appendChild(shortcutHint)
         }
     }
+}
+
+/**
+ * Calculate which shortcut key to show for reaching a tab from the active terminal.
+ * Returns '⌘[' if the tab is to the left, '⌘]' if to the right, or null if it's the active tab.
+ */
+function getShortcutHintForTab(tabIndex: number, activeIndex: number, totalTabs: number): string | null {
+    if (tabIndex === activeIndex || totalTabs <= 1) {
+        return null // No hint for active tab or single tab
+    }
+
+    // Calculate shortest path direction (accounting for wrap-around)
+    const leftDistance: number = (activeIndex - tabIndex + totalTabs) % totalTabs
+    const rightDistance: number = (tabIndex - activeIndex + totalTabs) % totalTabs
+
+    // If distances are equal, prefer right (])
+    return leftDistance <= rightDistance ? '⌘[' : '⌘]'
 }
 
 /**
@@ -264,12 +308,19 @@ function createTab(
     terminal: TerminalData,
     activeTerminalId: TerminalId | null,
     onSelect: (terminal: TerminalData) => void,
-    index: number
+    index: number,
+    activeIndex: number,
+    totalTabs: number
 ): HTMLElement {
     const terminalId: TerminalId = getTerminalId(terminal)
     const fullTitle: string = terminal.title
     // Truncate to ~15 chars for 70px width at 9px font
     const displayTitle: string = fullTitle.length > 15 ? fullTitle.slice(0, 15) + '…' : fullTitle
+
+    // Create wrapper container for tab + hint (like recent-tab-wrapper)
+    const wrapper: HTMLDivElement = document.createElement('div')
+    wrapper.className = 'agent-tab-wrapper'
+    wrapper.setAttribute('data-terminal-id', terminalId)
 
     const tab: HTMLButtonElement = document.createElement('button')
     tab.className = 'agent-tab'
@@ -342,14 +393,15 @@ function createTab(
             return
         }
         // Detect which half of tab mouse is over and position ghost accordingly
+        // Use wrapper for positioning since tabs are now wrapped
         if (state.ghostElement && state.tabsContainer) {
-            const rect: DOMRect = tab.getBoundingClientRect()
+            const rect: DOMRect = wrapper.getBoundingClientRect()
             const midpoint: number = rect.left + rect.width / 2
             const isRightHalf: boolean = e.clientX > midpoint
 
             if (isRightHalf) {
-                // Insert ghost AFTER this tab
-                const nextSibling: Element | null = tab.nextElementSibling
+                // Insert ghost AFTER this wrapper
+                const nextSibling: Element | null = wrapper.nextElementSibling
                 if (nextSibling && !nextSibling.classList.contains('agent-tab-ghost')) {
                     state.tabsContainer.insertBefore(state.ghostElement, nextSibling)
                 } else if (!nextSibling) {
@@ -357,8 +409,8 @@ function createTab(
                 }
                 state.ghostTargetIndex = index + 1
             } else {
-                // Insert ghost BEFORE this tab (left half)
-                state.tabsContainer.insertBefore(state.ghostElement, tab)
+                // Insert ghost BEFORE this wrapper (left half)
+                state.tabsContainer.insertBefore(state.ghostElement, wrapper)
                 state.ghostTargetIndex = index
             }
         }
@@ -384,10 +436,19 @@ function createTab(
         }
     })
 
-    // Native tooltip for keyboard shortcut hint (appears after ~500ms delay)
-    tab.title = '⌘[ or ⌘] to cycle • Drag to reorder'
+    // Add tab to wrapper
+    wrapper.appendChild(tab)
 
-    return tab
+    // Create shortcut hint element (shown on hover, like recent-tab-shortcut-hint)
+    const shortcutText: string | null = getShortcutHintForTab(index, activeIndex, totalTabs)
+    if (shortcutText !== null) {
+        const shortcutHint: HTMLSpanElement = document.createElement('span')
+        shortcutHint.className = 'agent-tab-shortcut-hint'
+        shortcutHint.textContent = shortcutText
+        wrapper.appendChild(shortcutHint)
+    }
+
+    return wrapper
 }
 
 /**
@@ -454,7 +515,8 @@ export function markTerminalActivityForContextNode(contextNodeId: string): void 
 function updateActivityDots(terminalId: TerminalId): void {
     if (!state.tabsContainer) return
 
-    const tab: HTMLElement | null = state.tabsContainer.querySelector(`[data-terminal-id="${terminalId}"]`)
+    // Find the tab button (not the wrapper) by querying for .agent-tab with the terminal ID
+    const tab: HTMLElement | null = state.tabsContainer.querySelector(`.agent-tab[data-terminal-id="${terminalId}"]`)
     if (!tab) return
 
     // Remove all existing dots
@@ -498,7 +560,8 @@ function checkTerminalInactivity(): void {
 function updateInactivityClass(terminalId: TerminalId, isInactive: boolean): void {
     if (!state.tabsContainer) return
 
-    const tab: HTMLElement | null = state.tabsContainer.querySelector(`[data-terminal-id="${terminalId}"]`)
+    // Find the tab button (not the wrapper) by querying for .agent-tab with the terminal ID
+    const tab: HTMLElement | null = state.tabsContainer.querySelector(`.agent-tab[data-terminal-id="${terminalId}"]`)
     if (!tab) return
 
     if (isInactive) {
