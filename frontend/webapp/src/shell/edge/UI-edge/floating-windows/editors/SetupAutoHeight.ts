@@ -4,7 +4,7 @@ import {CodeMirrorEditorView} from "@/shell/UI/floating-windows/editors/CodeMirr
 // =============================================================================
 
 const AUTO_HEIGHT_MIN: number = 200;
-const AUTO_HEIGHT_MAX: number = 600;
+const AUTO_HEIGHT_MAX: number = 500;
 
 
 /**

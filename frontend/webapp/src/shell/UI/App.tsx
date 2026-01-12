@@ -167,6 +167,7 @@ function App(): JSX.Element {
                     <div className="sticky top-0 bg-white border-b border-gray-200 p-2 flex items-center justify-between">
                         <h2 className="font-mono text-sm font-semibold text-gray-900">Agent Statistics</h2>
                         <button
+                            data-testid="agent-stats-close-button"
                             onClick={() => setIsStatsPanelOpen(false)}
                             className="text-gray-600 px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 transition-colors font-mono text-xs"
                             title="Close panel"

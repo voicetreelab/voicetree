@@ -73,13 +73,15 @@ async function exposeFloatingWindowAPI(page: import('@playwright/test').Page): P
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const floatingWindowsModule = await import('/src/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows.ts' as any);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const createWindowChromeModule = await import('/src/shell/edge/UI-edge/floating-windows/create-window-chrome.ts' as any);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const anchorModule = await import('/src/shell/edge/UI-edge/floating-windows/anchor-to-node.ts' as any);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const types = await import('/src/shell/edge/UI-edge/floating-windows/types.ts' as any);
 
     (window as unknown as {
       floatingWindowAPI: {
-        createWindowChrome: typeof floatingWindowsModule.createWindowChrome;
+        createWindowChrome: typeof createWindowChromeModule.createWindowChrome;
         getOrCreateOverlay: typeof floatingWindowsModule.getOrCreateOverlay;
         anchorToNode: typeof anchorModule.anchorToNode;
         createTerminalData: typeof types.createTerminalData;
@@ -87,7 +89,7 @@ async function exposeFloatingWindowAPI(page: import('@playwright/test').Page): P
         getShadowNodeId: typeof types.getShadowNodeId;
       };
     }).floatingWindowAPI = {
-      createWindowChrome: floatingWindowsModule.createWindowChrome,
+      createWindowChrome: createWindowChromeModule.createWindowChrome,
       getOrCreateOverlay: floatingWindowsModule.getOrCreateOverlay,
       anchorToNode: anchorModule.anchorToNode,
       createTerminalData: types.createTerminalData,

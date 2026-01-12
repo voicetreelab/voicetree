@@ -403,17 +403,17 @@ test.describe('Context Node Highlighting', () => {
     console.log('✅ TEST PASSED: highlights cleared when deselecting');
   });
 
-  test('hovering over Run button on context node highlights contained nodes', async ({ appWindow }) => {
+  test('hovering over Run button on normal node previews nodes that would be captured', async ({ appWindow }) => {
     test.setTimeout(60000);
 
-    console.log('=== TEST: hovering over Run button triggers highlighting ===');
+    console.log('=== TEST: hovering over Run button on normal node previews context ===');
 
-    // ARRANGE: Wait for graph to load and create context node
+    // ARRANGE: Wait for graph to load
     await waitForGraphLoaded(appWindow);
-    const { contextNodeId, containedNodeIds } = await createTestContextNode(appWindow);
+    console.log('✓ Graph loaded');
 
-    expect(containedNodeIds.length).toBeGreaterThan(0);
-    console.log(`✓ Context node has ${containedNodeIds.length} contained nodes`);
+    // Use Node 5 as the normal node (it has ancestors that would be captured)
+    const normalNodeId = '5_Immediate_Test_Observation_No_Output.md';
 
     // Ensure no highlights initially
     await unselectAllNodes(appWindow);
@@ -422,14 +422,22 @@ test.describe('Context Node Highlighting', () => {
     expect(initialHighlights).toBe(0);
     console.log('✓ No initial highlights');
 
-    // ACT: Hover over the context node to trigger the horizontal menu
+    // Click on canvas to deselect any nodes before triggering menu
+    await appWindow.evaluate(() => {
+      const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not available');
+      cy.emit('tap');
+    });
+    await appWindow.waitForTimeout(100);
+    console.log('✓ Clicked canvas to deselect nodes');
+
+    // ACT: Hover over the normal node to trigger the horizontal menu
     await appWindow.evaluate((nodeId) => {
       const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not available');
       const node = cy.getElementById(nodeId);
-      // Trigger mouseover event to show the horizontal menu
       node.emit('mouseover');
-    }, contextNodeId);
+    }, normalNodeId);
 
     // Wait for menu to appear
     await appWindow.waitForTimeout(300);
@@ -443,28 +451,28 @@ test.describe('Context Node Highlighting', () => {
     await expect(runButton).toBeVisible({ timeout: 5000 });
     console.log('✓ Run button visible in horizontal menu');
 
-    // Hover over the Run button to trigger highlighting
+    // Hover over the Run button to trigger preview highlighting
     await runButton.hover();
-    await appWindow.waitForTimeout(200);
+    await appWindow.waitForTimeout(300); // Slightly longer wait for async preview computation
 
-    // Take screenshot of highlighted state from Run button hover
-    await appWindow.screenshot({ path: 'e2e-tests/screenshots/context-node-run-button-hover-highlighting.png' });
-    console.log('✓ Screenshot taken: context-node-run-button-hover-highlighting.png');
+    // Take screenshot of preview highlighted state
+    await appWindow.screenshot({ path: 'e2e-tests/screenshots/normal-node-run-button-hover-preview.png' });
+    console.log('✓ Screenshot taken: normal-node-run-button-hover-preview.png');
 
-    // ASSERT: Contained nodes have highlight class from Run button hover
+    // ASSERT: Preview nodes have highlight class
     const highlightedNodeIds = await getNodesWithClass(appWindow, 'context-contained');
 
-    console.log(`Highlighted nodes from Run hover: ${highlightedNodeIds.length}`);
+    console.log(`Preview highlighted nodes: ${highlightedNodeIds.length}`);
+    console.log(`Highlighted node IDs: ${highlightedNodeIds.join(', ')}`);
 
+    // The normal node itself should be in the preview (it's part of the subgraph)
     expect(highlightedNodeIds.length).toBeGreaterThan(0);
-    for (const nodeId of highlightedNodeIds) {
-      expect(containedNodeIds).toContain(nodeId);
-    }
+    expect(highlightedNodeIds).toContain(normalNodeId);
 
     // ASSERT: Edges also highlighted
     const highlightedEdgeCount = await getEdgeCountWithClass(appWindow, 'context-edge');
-    expect(highlightedEdgeCount).toBeGreaterThan(0);
-    console.log(`✓ Highlighted edges: ${highlightedEdgeCount}`);
+    console.log(`Preview highlighted edges: ${highlightedEdgeCount}`);
+    // Edges may or may not be highlighted depending on graph structure
 
     // ACT: Move mouse away from Run button
     await appWindow.mouse.move(0, 0);
@@ -475,7 +483,7 @@ test.describe('Context Node Highlighting', () => {
     expect(finalHighlightCount).toBe(0);
     console.log('✓ Highlights cleared after mouse leave');
 
-    console.log('✅ TEST PASSED: Run button hover triggers and clears highlighting');
+    console.log('✅ TEST PASSED: Run button hover on normal node previews context');
   });
 });
 

@@ -100,6 +100,9 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
         // Backend server configuration
         getBackendPort: async () => 5001,
 
+        // Agent metrics
+        getMetrics: async () => ({ sessions: [] }),
+
         // UI-edge graph delta operations (used by handleUIActions.ts)
         applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
           // Simulate what the real implementation does: write to DB, then trigger graph update via file watcher

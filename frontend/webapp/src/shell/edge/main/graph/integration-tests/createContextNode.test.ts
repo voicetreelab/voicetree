@@ -18,8 +18,15 @@
  * - Reading back the file to verify structure
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createContextNode } from '@/shell/edge/main/graph/context-nodes/createContextNode'
+
+// Mock electron app to provide getPath for settings
+vi.mock('electron', () => ({
+  app: {
+    getPath: vi.fn(() => '/tmp/test-userdata-nonexistent-' + Date.now())
+  }
+}))
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk'
 
 import { setGraph } from '@/shell/edge/main/state/graph-store'

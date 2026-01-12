@@ -260,7 +260,7 @@ async function prepareTerminalDataInMain(
         attachedToNodeId: contextNodeId,
         terminalCount: terminalCount,
         title: title,
-        anchoredToNodeId: contextNodeId, // Will be wrapped in O.some by factory
+        anchoredToNodeId: contextNodeId,
         initialCommand: command,
         executeCommand: true,
         initialSpawnDirectory: initialSpawnDirectory,

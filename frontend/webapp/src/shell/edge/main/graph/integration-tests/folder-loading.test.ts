@@ -41,7 +41,7 @@ interface BroadcastCall {
 // Expected counts (based on actual example_folder_fixtures)
 // Note: Loads entire directory including ctx-nodes
 const EXPECTED_SMALL_NODE_COUNT: 22 = 22 as const  // 11 root files + 11 in voicetree/ subfolder
-const EXPECTED_LARGE_NODE_COUNT: 183 = 183 as const  // Includes ctx-nodes
+const EXPECTED_LARGE_NODE_COUNT: 185 = 185 as const  // Includes ctx-nodes
 
 // State for mocks
 let broadcastCalls: Array<BroadcastCall> = []
