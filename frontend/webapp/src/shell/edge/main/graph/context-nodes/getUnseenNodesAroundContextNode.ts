@@ -2,7 +2,8 @@ import type { Graph, NodeIdAndFilePath, GraphNode } from '@/pure/graph'
 import { getSubgraphByDistance } from '@/pure/graph'
 import { getGraph } from '@/shell/edge/main/state/graph-store'
 import { getCachedSettings } from '@/shell/edge/main/state/settings-cache'
-import { DEFAULT_SETTINGS, type VTSettings } from '@/pure/settings/types'
+import { type VTSettings } from '@/pure/settings/types'
+import {DEFAULT_SETTINGS} from "@/pure/settings";
 
 /**
  * Result type for unseen nodes

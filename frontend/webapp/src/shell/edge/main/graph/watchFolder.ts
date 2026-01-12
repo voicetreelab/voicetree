@@ -21,8 +21,9 @@ import {
     broadcastGraphDeltaToUI
 } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI";
 import {getCachedSettings} from "@/shell/edge/main/state/settings-cache";
-import {DEFAULT_SETTINGS, type VTSettings} from "@/pure/settings/types";
+import {type VTSettings} from "@/pure/settings/types";
 import type {GraphNode} from "@/pure/graph";
+import {DEFAULT_SETTINGS} from "@/pure/settings";
 
 // THIS FUNCTION takes absolutePath
 // returns graph

@@ -4,7 +4,8 @@ import * as path from 'path';
 import * as os from 'os';
 import { loadSettings, saveSettings } from './settings_IO';
 import type { VTSettings } from '@/pure/settings/types';
-import { DEFAULT_SETTINGS } from '@/pure/settings/types';
+
+import {DEFAULT_SETTINGS} from "@/pure/settings";
 
 vi.mock('electron', () => ({
   app: {
