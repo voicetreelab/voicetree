@@ -34,6 +34,7 @@ import { getNextTerminalCount, getTerminals } from "@/shell/edge/UI-edge/state/T
 import {anchorToNode} from "@/shell/edge/UI-edge/floating-windows/anchor-to-node";
 import {createWindowChrome} from "@/shell/edge/UI-edge/floating-windows/create-window-chrome";
 import {attachFullscreenZoom} from "@/shell/edge/UI-edge/floating-windows/fullscreen-zoom";
+import {flushEditorForNode} from "@/shell/edge/UI-edge/floating-windows/editors/flushEditorForNode";
 
 const MAX_TERMINALS: number = 12;
 
@@ -45,14 +46,18 @@ const MAX_TERMINALS: number = 12;
  * immediate access to the graph after createContextNode completes.
  *
  * @param parentNodeId - The parent node to create context for
- * @param _cy - Cytoscape instance (unused, kept for backward compatibility)
+ * @param cy - Cytoscape instance (used to flush pending editor content)
  * @param agentCommand - Optional agent command. If not provided, uses the default (first) agent from settings.
  */
 export async function spawnTerminalWithNewContextNode(
     parentNodeId: NodeIdAndFilePath,
-    _cy: Core,
+    cy: Core,
     agentCommand?: string,
 ): Promise<void> {
+    // Flush any pending editor content for this node before creating context
+    // This ensures the context node has the latest typed content (bypasses 300ms debounce)
+    await flushEditorForNode(parentNodeId, cy)
+
     const terminalsMap: Map<TerminalId, TerminalData> = getTerminals();
 
     // Check terminal limit
