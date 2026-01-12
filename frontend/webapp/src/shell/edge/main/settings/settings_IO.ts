@@ -2,7 +2,8 @@ import { app } from 'electron';
 import { promises as fs } from 'fs';
 import path from 'path';
 import type { VTSettings } from '@/pure/settings/types';
-import { DEFAULT_SETTINGS  } from '@/pure/settings/types';
+
+import {DEFAULT_SETTINGS} from "@/pure/settings";
 
 function getSettingsPath(): string {
   return path.join(app.getPath('userData'), 'settings.json');
