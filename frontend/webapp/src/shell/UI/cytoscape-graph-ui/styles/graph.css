@@ -382,11 +382,11 @@ button.graph-button:disabled > svg > path {
     display: flex;
     align-items: flex-start; /* Align to top to match recent-tabs-bar vertical position */
     z-index: 1100; /* Above floating windows (1000) so tabs aren't obscured */
-    height: 20px;
+    height: 38px; /* Increased to accommodate shortcut hints below tabs */
     max-width: calc(50% - 100px); /* Don't overlap with recent nodes tabs */
     pointer-events: auto;
     -webkit-app-region: no-drag; /* Allow clicking tabs instead of dragging window */
-    overflow: visible; /* Allow activity dots to extend below */
+    overflow: visible; /* Allow activity dots and shortcut hints to extend below */
 }
 
 .agent-tabs-scroll {
@@ -529,4 +529,31 @@ button.graph-button:disabled > svg > path {
     50% {
         box-shadow: 0 0 12px rgba(34, 197, 94, 0.7);
     }
+}
+
+/* Agent tab wrapper - positions tab and hint together (mirrors recent-tab-wrapper) */
+.agent-tab-wrapper {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+/* Shortcut hint for agent tabs - shown below tab on hover */
+.agent-tab-shortcut-hint {
+    position: absolute;
+    bottom: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    color: #a1a1aa;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.agent-tab-wrapper:hover .agent-tab-shortcut-hint {
+    opacity: 1;
 }
