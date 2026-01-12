@@ -5,7 +5,9 @@ import {
     spawnTerminalWithNewContextNode,
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
 import {createAnchoredFloatingEditor} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
-import {clearAutoPinIfMatches} from "@/shell/edge/UI-edge/state/EditorStore";
+import {clearAutoPinIfMatches, getEditorByNodeId} from "@/shell/edge/UI-edge/state/EditorStore";
+import * as O from 'fp-ts/lib/Option.js';
+import {isAnchored, type EditorData} from "@/shell/edge/UI-edge/floating-windows/types";
 import {getFilePathForNode, getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
 import {Plus, Play, Trash2, Clipboard, MoreHorizontal, Pin, createElement, type IconNode} from 'lucide';
 import {getOrCreateOverlay} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
@@ -14,7 +16,7 @@ import type {AgentConfig} from "@/pure/settings";
 import {highlightContainedNodes, clearContainedHighlights} from '@/shell/UI/cytoscape-graph-ui/highlightContextNodes';
 
 /** Menu item interface for the custom horizontal menu */
-interface HorizontalMenuItem {
+export interface HorizontalMenuItem {
     icon: IconNode;
     label: string;
     color?: string;
@@ -160,6 +162,179 @@ function createSubMenuElement(items: HorizontalMenuItem[], onClose: () => void):
     return submenu;
 }
 
+/** Input parameters for getNodeMenuItems */
+export interface NodeMenuItemsInput {
+    readonly nodeId: string;
+    readonly cy: Core;
+    readonly agents: readonly AgentConfig[];
+    readonly isContextNode: boolean;
+}
+
+/**
+ * Get menu items for a node - pure function that returns menu item definitions.
+ * Extracted for reuse by floating window chrome.
+ */
+export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[] {
+    const { nodeId, cy, agents, isContextNode } = input;
+    const menuItems: HorizontalMenuItem[] = [];
+
+    // LEFT SIDE: Pin, Copy, Add (3 buttons)
+    menuItems.push({
+        icon: Pin,
+        label: 'Pin Editor',
+        action: async () => {
+            // Manual pin: clear auto-pin tracking so this editor won't auto-close
+            clearAutoPinIfMatches(nodeId);
+            await createAnchoredFloatingEditor(cy, nodeId);
+        },
+    });
+
+    menuItems.push({
+        icon: Clipboard,
+        label: 'Copy Path',
+        action: async () => {
+            const absolutePath: string | undefined = await getFilePathForNode(nodeId);
+            void navigator.clipboard.writeText(absolutePath ?? nodeId);
+        },
+    });
+
+    menuItems.push({
+        icon: Plus,
+        label: 'Add Child',
+        hotkey: '⌘N',
+        action: async () => {
+            // Editor auto-pinning handled by file watcher in VoiceTreeGraphView
+            await createNewChildNodeFromUI(nodeId, cy);
+        },
+    });
+
+    // RIGHT SIDE: Run, Delete, More (3 buttons)
+    menuItems.push({
+        icon: Play,
+        label: 'Run',
+        color: '#22c55e', // green
+        hotkey: '⌘⏎',
+        action: async () => {
+            await spawnTerminalWithNewContextNode(nodeId, cy);
+        },
+        onHoverEnter: isContextNode ? () => highlightContainedNodes(cy, nodeId) : undefined,
+        onHoverLeave: isContextNode ? () => clearContainedHighlights(cy) : undefined,
+    });
+
+    menuItems.push({
+        icon: Trash2,
+        label: 'Delete',
+        hotkey: '⌘⌫',
+        action: async () => {
+            await deleteNodesFromUI([nodeId], cy);
+        },
+    });
+
+    // Expandable "more" menu with Copy Content and additional agents
+    const moreSubMenu: HorizontalMenuItem[] = [
+        {
+            icon: Clipboard,
+            label: 'Copy Content',
+            action: async () => {
+                const graphNode: GraphNode = await getNodeFromMainToUI(nodeId);
+                void navigator.clipboard.writeText(graphNode.contentWithoutYamlOrLinks);
+            },
+        },
+    ];
+
+    // Add non-default agents (skip first which is default, used by Run button)
+    for (const agent of agents.slice(1)) {
+        moreSubMenu.push({
+            icon: Play,
+            label: agent.name,
+            color: '#6366f1', // indigo to distinguish from default Run
+            action: async () => {
+                await spawnTerminalWithNewContextNode(nodeId, cy, agent.command);
+            },
+            onHoverEnter: isContextNode ? () => highlightContainedNodes(cy, nodeId) : undefined,
+            onHoverLeave: isContextNode ? () => clearContainedHighlights(cy) : undefined,
+        });
+    }
+    menuItems.push({
+        icon: MoreHorizontal,
+        label: 'More',
+        action: () => {}, // No-op, submenu handles interaction
+        subMenu: moreSubMenu,
+    });
+
+    return menuItems;
+}
+
+/** Output from createHorizontalMenuElement */
+export interface HorizontalMenuElements {
+    readonly leftGroup: HTMLDivElement;
+    readonly spacer: HTMLDivElement;
+    readonly rightGroup: HTMLDivElement;
+}
+
+/**
+ * Create the horizontal menu DOM elements (left pill group + spacer + right pill group).
+ * Returns the individual elements so they can be assembled into any container.
+ * Extracted for reuse by floating window chrome.
+ */
+export function createHorizontalMenuElement(
+    menuItems: HorizontalMenuItem[],
+    onClose: () => void
+): HorizontalMenuElements {
+    // Create left group (first 3 buttons: Pin, Copy, Add)
+    // Uses .horizontal-menu-pill CSS class for styling (supports dark mode)
+    const leftGroup: HTMLDivElement = document.createElement('div');
+    leftGroup.className = 'horizontal-menu-pill horizontal-menu-left-group';
+
+    // Create right group (last 3 buttons: Run, Delete, More)
+    const rightGroup: HTMLDivElement = document.createElement('div');
+    rightGroup.className = 'horizontal-menu-pill horizontal-menu-right-group';
+
+    // Split point: first 3 items go left, rest go right
+    const SPLIT_INDEX: number = 3;
+
+    for (let i: number = 0; i < menuItems.length; i++) {
+        const item: HorizontalMenuItem = menuItems[i];
+        const itemContainer: HTMLDivElement = document.createElement('div');
+        itemContainer.style.position = 'relative';
+
+        const menuItemEl: HTMLElement = createMenuItemElement(item, onClose);
+        itemContainer.appendChild(menuItemEl);
+
+        // Handle submenu
+        if (item.subMenu) {
+            const submenu: HTMLElement = createSubMenuElement(item.subMenu, onClose);
+            itemContainer.appendChild(submenu);
+
+            // Show/hide submenu on hover
+            itemContainer.addEventListener('mouseenter', () => {
+                submenu.style.display = 'flex';
+            });
+            itemContainer.addEventListener('mouseleave', () => {
+                submenu.style.display = 'none';
+            });
+        }
+
+        // Add to left or right group
+        if (i < SPLIT_INDEX) {
+            leftGroup.appendChild(itemContainer);
+        } else {
+            rightGroup.appendChild(itemContainer);
+        }
+    }
+
+    // Spacer in middle (gap for node circle, no background)
+    const spacer: HTMLDivElement = document.createElement('div');
+    spacer.className = 'horizontal-menu-spacer';
+    spacer.style.cssText = `
+        width: 50px;
+        height: 1px;
+        pointer-events: none;
+    `;
+
+    return { leftGroup, spacer, rightGroup };
+}
+
 export class HorizontalMenuService {
     private cy: Core | null = null;
     private currentMenu: HTMLElement | null = null;
@@ -195,6 +370,13 @@ export class HorizontalMenuService {
                 return;
             }
 
+            // Skip hover menu if node has an anchored (pinned) editor open
+            // The menu is already visible on the floating window chrome
+            const existingEditor: O.Option<EditorData> = getEditorByNodeId(nodeId);
+            if (O.isSome(existingEditor) && isAnchored(existingEditor.value)) {
+                return;
+            }
+
             // Use graph position (not rendered position) since menu is in the overlay
             const position: Position = node.position();
 
@@ -212,7 +394,14 @@ export class HorizontalMenuService {
         const settings: { agents?: readonly AgentConfig[] } | null = await window.electronAPI?.main.loadSettings() ?? null;
         const agents: readonly AgentConfig[] = settings?.agents ?? [];
 
-        const menuItems: HorizontalMenuItem[] = this.getNodeMenuItems(node, agents);
+        const nodeId: string = node.id();
+        const isContextNode: boolean = node.data('isContextNode') === true;
+        const menuItems: HorizontalMenuItem[] = getNodeMenuItems({
+            nodeId,
+            cy: this.cy,
+            agents,
+            isContextNode,
+        });
         const overlay: HTMLElement = getOrCreateOverlay(this.cy);
 
         // Create menu container (transparent, just for positioning)
@@ -241,61 +430,12 @@ export class HorizontalMenuService {
 
         const closeMenu: () => void = () => this.hideMenu();
 
-        // Create left group (first 3 buttons: Pin, Copy, Add)
-        // Uses .horizontal-menu-pill CSS class for styling (supports dark mode)
-        const leftGroup: HTMLDivElement = document.createElement('div');
-        leftGroup.className = 'horizontal-menu-pill horizontal-menu-left-group';
-
-        // Create right group (last 3 buttons: Run, Delete, More)
-        const rightGroup: HTMLDivElement = document.createElement('div');
-        rightGroup.className = 'horizontal-menu-pill horizontal-menu-right-group';
-
-        // Split point: first 3 items go left, rest go right
-        const SPLIT_INDEX: number = 3;
-
-        for (let i: number = 0; i < menuItems.length; i++) {
-            const item: HorizontalMenuItem = menuItems[i];
-            const itemContainer: HTMLDivElement = document.createElement('div');
-            itemContainer.style.position = 'relative';
-
-            const menuItemEl: HTMLElement = createMenuItemElement(item, closeMenu);
-            itemContainer.appendChild(menuItemEl);
-
-            // Handle submenu
-            if (item.subMenu) {
-                const submenu: HTMLElement = createSubMenuElement(item.subMenu, closeMenu);
-                itemContainer.appendChild(submenu);
-
-                // Show/hide submenu on hover
-                itemContainer.addEventListener('mouseenter', () => {
-                    submenu.style.display = 'flex';
-                });
-                itemContainer.addEventListener('mouseleave', () => {
-                    submenu.style.display = 'none';
-                });
-            }
-
-            // Add to left or right group
-            if (i < SPLIT_INDEX) {
-                leftGroup.appendChild(itemContainer);
-            } else {
-                rightGroup.appendChild(itemContainer);
-            }
-        }
+        // Use extracted function to create menu elements
+        const { leftGroup, spacer, rightGroup } = createHorizontalMenuElement(menuItems, closeMenu);
 
         // Assemble: left group, spacer, right group
         menu.appendChild(leftGroup);
-
-        // Spacer in middle (gap for node circle, no background)
-        const spacer: HTMLDivElement = document.createElement('div');
-        spacer.className = 'horizontal-menu-spacer';
-        spacer.style.cssText = `
-            width: 50px;
-            height: 1px;
-            pointer-events: none;
-        `;
         menu.appendChild(spacer);
-
         menu.appendChild(rightGroup);
 
         overlay.appendChild(menu);
@@ -322,102 +462,6 @@ export class HorizontalMenuService {
             document.removeEventListener('mousedown', this.clickOutsideHandler);
             this.clickOutsideHandler = null;
         }
-    }
-
-    private getNodeMenuItems(node: NodeSingular, agents: readonly AgentConfig[]): HorizontalMenuItem[] {
-        if (!this.cy) return [];
-
-        const menuItems: HorizontalMenuItem[] = [];
-        const nodeId: string = node.id();
-        const cy: Core = this.cy;
-
-        // LEFT SIDE: Pin, Copy, Add (3 buttons)
-        menuItems.push({
-            icon: Pin,
-            label: 'Pin Editor',
-            action: async () => {
-                // Manual pin: clear auto-pin tracking so this editor won't auto-close
-                clearAutoPinIfMatches(nodeId);
-                await createAnchoredFloatingEditor(cy, nodeId);
-            },
-        });
-
-        menuItems.push({
-            icon: Clipboard,
-            label: 'Copy Path',
-            action: async () => {
-                const absolutePath: string | undefined = await getFilePathForNode(nodeId);
-                void navigator.clipboard.writeText(absolutePath ?? nodeId);
-            },
-        });
-
-        menuItems.push({
-            icon: Plus,
-            label: 'Add Child',
-            hotkey: '⌘N',
-            action: async () => {
-                // Editor auto-pinning handled by file watcher in VoiceTreeGraphView
-                await createNewChildNodeFromUI(nodeId, cy);
-            },
-        });
-
-        // RIGHT SIDE: Run, Delete, More (3 buttons)
-        // Add context highlighting callbacks if this is a context node
-        const isContextNode: boolean = node.data('isContextNode') === true;
-        menuItems.push({
-            icon: Play,
-            label: 'Run',
-            color: '#22c55e', // green
-            hotkey: '⌘⏎',
-            action: async () => {
-                await spawnTerminalWithNewContextNode(nodeId, this.cy!);
-            },
-            onHoverEnter: isContextNode ? () => highlightContainedNodes(cy, nodeId) : undefined,
-            onHoverLeave: isContextNode ? () => clearContainedHighlights(cy) : undefined,
-        });
-
-        menuItems.push({
-            icon: Trash2,
-            label: 'Delete',
-            hotkey: '⌘⌫',
-            action: async () => {
-                await deleteNodesFromUI([nodeId], this.cy!);
-            },
-        });
-
-        // Expandable "more" menu with Copy Content and additional agents
-        const moreSubMenu: HorizontalMenuItem[] = [
-            {
-                icon: Clipboard,
-                label: 'Copy Content',
-                action: async () => {
-                    const graphNode: GraphNode = await getNodeFromMainToUI(nodeId);
-                    void navigator.clipboard.writeText(graphNode.contentWithoutYamlOrLinks);
-                },
-            },
-        ];
-
-        // Add non-default agents (skip first which is default, used by Run button)
-        for (const agent of agents.slice(1)) {
-            moreSubMenu.push({
-                icon: Play,
-                label: agent.name,
-                color: '#6366f1', // indigo to distinguish from default Run
-                action: async () => {
-                    await spawnTerminalWithNewContextNode(nodeId, this.cy!, agent.command);
-                },
-                onHoverEnter: isContextNode ? () => highlightContainedNodes(cy, nodeId) : undefined,
-                onHoverLeave: isContextNode ? () => clearContainedHighlights(cy) : undefined,
-            });
-        }
-        menuItems.push({
-            icon: MoreHorizontal,
-            label: 'More',
-            action: () => {}, // No-op, submenu handles interaction
-            subMenu: moreSubMenu,
-        });
-
-        return menuItems;
     }
 
     destroy(): void {

@@ -402,6 +402,81 @@ test.describe('Context Node Highlighting', () => {
 
     console.log('✅ TEST PASSED: highlights cleared when deselecting');
   });
+
+  test('hovering over Run button on context node highlights contained nodes', async ({ appWindow }) => {
+    test.setTimeout(60000);
+
+    console.log('=== TEST: hovering over Run button triggers highlighting ===');
+
+    // ARRANGE: Wait for graph to load and create context node
+    await waitForGraphLoaded(appWindow);
+    const { contextNodeId, containedNodeIds } = await createTestContextNode(appWindow);
+
+    expect(containedNodeIds.length).toBeGreaterThan(0);
+    console.log(`✓ Context node has ${containedNodeIds.length} contained nodes`);
+
+    // Ensure no highlights initially
+    await unselectAllNodes(appWindow);
+    await appWindow.waitForTimeout(100);
+    const initialHighlights = (await getNodesWithClass(appWindow, 'context-contained')).length;
+    expect(initialHighlights).toBe(0);
+    console.log('✓ No initial highlights');
+
+    // ACT: Hover over the context node to trigger the horizontal menu
+    await appWindow.evaluate((nodeId) => {
+      const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not available');
+      const node = cy.getElementById(nodeId);
+      // Trigger mouseover event to show the horizontal menu
+      node.emit('mouseover');
+    }, contextNodeId);
+
+    // Wait for menu to appear
+    await appWindow.waitForTimeout(300);
+
+    // Find and hover over the Run button (has green color #22c55e)
+    const runButton = appWindow.locator('.cy-horizontal-context-menu .horizontal-menu-item').filter({
+      has: appWindow.locator('svg[stroke="#22c55e"]')
+    });
+
+    // Verify Run button exists
+    await expect(runButton).toBeVisible({ timeout: 5000 });
+    console.log('✓ Run button visible in horizontal menu');
+
+    // Hover over the Run button to trigger highlighting
+    await runButton.hover();
+    await appWindow.waitForTimeout(200);
+
+    // Take screenshot of highlighted state from Run button hover
+    await appWindow.screenshot({ path: 'e2e-tests/screenshots/context-node-run-button-hover-highlighting.png' });
+    console.log('✓ Screenshot taken: context-node-run-button-hover-highlighting.png');
+
+    // ASSERT: Contained nodes have highlight class from Run button hover
+    const highlightedNodeIds = await getNodesWithClass(appWindow, 'context-contained');
+
+    console.log(`Highlighted nodes from Run hover: ${highlightedNodeIds.length}`);
+
+    expect(highlightedNodeIds.length).toBeGreaterThan(0);
+    for (const nodeId of highlightedNodeIds) {
+      expect(containedNodeIds).toContain(nodeId);
+    }
+
+    // ASSERT: Edges also highlighted
+    const highlightedEdgeCount = await getEdgeCountWithClass(appWindow, 'context-edge');
+    expect(highlightedEdgeCount).toBeGreaterThan(0);
+    console.log(`✓ Highlighted edges: ${highlightedEdgeCount}`);
+
+    // ACT: Move mouse away from Run button
+    await appWindow.mouse.move(0, 0);
+    await appWindow.waitForTimeout(200);
+
+    // ASSERT: Highlights should be cleared after mouse leave
+    const finalHighlightCount = (await getNodesWithClass(appWindow, 'context-contained')).length;
+    expect(finalHighlightCount).toBe(0);
+    console.log('✓ Highlights cleared after mouse leave');
+
+    console.log('✅ TEST PASSED: Run button hover triggers and clears highlighting');
+  });
 });
 
 export { test };

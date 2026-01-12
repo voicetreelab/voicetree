@@ -151,6 +151,19 @@
   opacity: 0;
 }
 
+/* Horizontal menu container for editor windows
+ * Positioned above the title bar, centered */
+.cy-floating-window-menu {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 0;
+  background: transparent;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+
 /* Horizontal context menu pill backgrounds
  * Matches the floating window title bar color (--muted)
  * Supports light/dark mode via CSS variables

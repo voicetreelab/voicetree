@@ -103,7 +103,10 @@ export async function createFloatingEditor(
     const editorId: EditorId = getEditorId(editorData);
 
     // Create window chrome (returns FloatingWindowUIData)
-    const ui: FloatingWindowUIData = createWindowChrome(cy, editorData, editorId);
+    // Pass agents for horizontal menu (editors only)
+    const ui: FloatingWindowUIData = createWindowChrome(cy, editorData, editorId, {
+        agents: settings.agents ?? [],
+    });
 
     // Create EditorData with ui populated (immutable update)
     const editorWithUI: EditorData = { ...editorData, ui };
