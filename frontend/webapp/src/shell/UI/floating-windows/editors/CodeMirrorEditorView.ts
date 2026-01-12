@@ -267,6 +267,16 @@ export class CodeMirrorEditorView extends Disposable {
         this.geometryChangeEmitter.emit();
       }
 
+      // Detect "select all" state to apply CSS fix for CM6's extreme rectangle positioning
+      // CM6 positions select-all rectangles at top:-33Mpx with height:33Mpx, ending at y=0
+      // This causes the rectangle to not cover visible content. The CSS class triggers a fix.
+      if (viewUpdate.selectionSet) {
+        const state: EditorState = viewUpdate.state;
+        const selection: { from: number; to: number } = state.selection.main;
+        const isSelectAll: boolean = selection.from === 0 && selection.to === state.doc.length;
+        this.container.classList.toggle('cm-select-all', isSelectAll);
+      }
+
       if (viewUpdate.docChanged) {
         // Emit to anyDocChangeEmitter for ALL document changes
         this.anyDocChangeEmitter.emit();
