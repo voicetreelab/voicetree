@@ -245,6 +245,25 @@ export class StyleService {
         }
       },
 
+      // Context node highlighting - contained nodes
+      {
+        selector: 'node.context-contained',
+        style: {
+          'border-width': 3,
+          'border-color': '#FFD700',  // Gold
+          'border-style': 'dashed',
+        }
+      },
+
+      // Context node highlighting - edges to contained nodes
+      {
+        selector: 'edge.context-edge',
+        style: {
+          'line-color': '#FFD700',
+          'width': 2,
+        }
+      },
+
       // Selected nodes - green rounded rectangle underlay
       {
         selector: 'node:selected',

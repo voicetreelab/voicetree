@@ -11,6 +11,7 @@ import {Plus, Play, Trash2, Clipboard, MoreHorizontal, Pin, createElement, type 
 import {getOrCreateOverlay} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import {graphToScreenPosition, getWindowTransform, getTransformOrigin} from '@/pure/floatingWindowScaling';
 import type {AgentConfig} from "@/pure/settings";
+import {highlightContainedNodes, clearContainedHighlights} from '@/shell/UI/cytoscape-graph-ui/highlightContextNodes';
 
 /** Menu item interface for the custom horizontal menu */
 interface HorizontalMenuItem {
@@ -20,6 +21,8 @@ interface HorizontalMenuItem {
     action: () => void | Promise<void>;
     subMenu?: HorizontalMenuItem[];
     hotkey?: string; // e.g., "⌘⏎" for cmd+enter
+    onHoverEnter?: () => void | Promise<void>; // Optional callback on mouseenter
+    onHoverLeave?: () => void; // Optional callback on mouseleave
 }
 
 /** Render a Lucide icon to SVG element with optional color */
@@ -110,12 +113,18 @@ function createMenuItemElement(item: HorizontalMenuItem, onClose: () => void, al
             labelContainer.style.visibility = 'visible';
             labelContainer.style.opacity = '1';
         }
+        if (item.onHoverEnter) {
+            void item.onHoverEnter();
+        }
     });
     button.addEventListener('mouseleave', () => {
         button.style.background = 'transparent';
         if (!alwaysShowLabel) {
             labelContainer.style.visibility = 'hidden';
             labelContainer.style.opacity = '0';
+        }
+        if (item.onHoverLeave) {
+            item.onHoverLeave();
         }
     });
 
@@ -353,6 +362,8 @@ export class HorizontalMenuService {
         });
 
         // RIGHT SIDE: Run, Delete, More (3 buttons)
+        // Add context highlighting callbacks if this is a context node
+        const isContextNode: boolean = node.data('isContextNode') === true;
         menuItems.push({
             icon: Play,
             label: 'Run',
@@ -361,6 +372,8 @@ export class HorizontalMenuService {
             action: async () => {
                 await spawnTerminalWithNewContextNode(nodeId, this.cy!);
             },
+            onHoverEnter: isContextNode ? () => highlightContainedNodes(cy, nodeId) : undefined,
+            onHoverLeave: isContextNode ? () => clearContainedHighlights(cy) : undefined,
         });
 
         menuItems.push({
@@ -393,6 +406,8 @@ export class HorizontalMenuService {
                 action: async () => {
                     await spawnTerminalWithNewContextNode(nodeId, this.cy!, agent.command);
                 },
+                onHoverEnter: isContextNode ? () => highlightContainedNodes(cy, nodeId) : undefined,
+                onHoverLeave: isContextNode ? () => clearContainedHighlights(cy) : undefined,
             });
         }
         menuItems.push({

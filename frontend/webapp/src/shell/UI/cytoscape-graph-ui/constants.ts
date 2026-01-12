@@ -8,3 +8,7 @@ export const MAX_ZOOM: 3 = 3 as const;
 export const CLASS_HOVER: "hover" = 'hover' as const;
 export const CLASS_UNHOVER: "unhover" = 'unhover' as const;
 export const CLASS_CONNECTED_HOVER: "connected-hover" = 'connected-hover' as const;
+
+// CSS class names for context node highlighting
+export const CONTEXT_CONTAINED_CLASS: "context-contained" = 'context-contained' as const;
+export const CONTEXT_EDGE_CLASS: "context-edge" = 'context-edge' as const;
