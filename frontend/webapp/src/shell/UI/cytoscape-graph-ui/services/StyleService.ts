@@ -250,6 +250,7 @@ export class StyleService {
         selector: 'node.context-contained',
         style: {
           'outline-width': 2,
+          'outline-style': 'solid',
           'outline-color': '#FFD700',  // Gold
           'outline-offset': 10,
           'outline-opacity': 1,

@@ -24,6 +24,22 @@ export async function highlightContainedNodes(cy: Core, contextNodeId: string): 
 }
 
 /**
+ * Highlights nodes that would be captured if a context node were created from the given node.
+ * Used for preview when hovering Run button on a normal (non-context) node.
+ */
+export async function highlightPreviewNodes(cy: Core, nodeId: string): Promise<void> {
+  const api: typeof window.electronAPI | undefined = window.electronAPI;
+  if (!api) return;
+
+  const containedIds: readonly string[] = await api.main.getPreviewContainedNodeIds(nodeId);
+
+  containedIds.forEach(id => {
+    cy.$('#' + id).addClass(CONTEXT_CONTAINED_CLASS);
+    cy.edges('[target="' + id + '"]').addClass(CONTEXT_EDGE_CLASS);
+  });
+}
+
+/**
  * Removes all context-contained highlighting from the graph.
  */
 export function clearContainedHighlights(cy: Core): void {
