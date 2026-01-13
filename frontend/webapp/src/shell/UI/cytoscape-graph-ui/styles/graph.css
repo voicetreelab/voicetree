@@ -398,7 +398,7 @@ button.graph-button:disabled > svg > path {
     scrollbar-width: thin;
     scrollbar-color: var(--background-modifier-border, #444) transparent;
     -webkit-overflow-scrolling: touch;
-    padding: 2px 24px 12px 4px; /* Extra bottom padding for activity dots, right padding for rightmost tab */
+    padding: 2px 24px 20px 4px; /* Extra bottom padding for shortcut hints (18px) + activity dots, right padding for rightmost tab */
 }
 
 /* Webkit scrollbar styling */

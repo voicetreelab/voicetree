@@ -88,6 +88,8 @@ import {closeTerminal, closeAllTerminals} from '@/shell/edge/UI-edge/floating-wi
 import * as O from 'fp-ts/lib/Option.js';
 import type {EditorData} from '@/shell/edge/UI-edge/floating-windows/types';
 import {toggleVoiceRecording} from '@/shell/edge/UI-edge/state/VoiceRecordingController';
+import {DEFAULT_HOTKEYS} from '@/pure/settings/DEFAULT_SETTINGS';
+import type {HotkeySettings, VTSettings} from '@/pure/settings/types';
 
 /**
  * Main VoiceTreeGraphView implementation
@@ -566,21 +568,27 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // Focus container to ensure it receives keyboard events
         this.container.focus();
 
-        // Setup graph-specific hotkeys via HotkeyManager
-        this.hotkeyManager.setupGraphHotkeys({
-            fitToLastNode: () => this.navigationService.fitToLastNode(),
-            cycleTerminal: (direction) => this.navigationService.cycleTerminal(direction),
-            createNewNode: createNewNodeAction(this.cy),
-            runTerminal: runTerminalAction(this.cy),
-            deleteSelectedNodes: deleteSelectedNodesAction(this.cy),
-            navigateToRecentNode: (index) => this.navigateToRecentNodeByIndex(index),
-            closeSelectedWindow: () => this.closeSelectedWindow(),
-            openSettings: () => void createSettingsEditor(this.cy),
-            openSearch: () => this.searchService.open()
-        });
+        // Setup hotkeys with settings (async load with platform-aware defaults as fallback)
+        void (async (): Promise<void> => {
+            const settings: VTSettings | null = await window.electronAPI?.main.loadSettings() ?? null;
+            const hotkeys: HotkeySettings = settings?.hotkeys ?? DEFAULT_HOTKEYS;
 
-        // Register voice recording hotkey (Option+R)
-        this.hotkeyManager.registerVoiceHotkey(toggleVoiceRecording);
+            // Setup graph-specific hotkeys via HotkeyManager
+            this.hotkeyManager.setupGraphHotkeys({
+                fitToLastNode: () => this.navigationService.fitToLastNode(),
+                cycleTerminal: (direction) => this.navigationService.cycleTerminal(direction),
+                createNewNode: createNewNodeAction(this.cy),
+                runTerminal: runTerminalAction(this.cy),
+                deleteSelectedNodes: deleteSelectedNodesAction(this.cy),
+                navigateToRecentNode: (index) => this.navigateToRecentNodeByIndex(index),
+                closeSelectedWindow: () => this.closeSelectedWindow(),
+                openSettings: () => void createSettingsEditor(this.cy),
+                openSearch: () => this.searchService.open()
+            }, hotkeys);
+
+            // Register voice recording hotkey
+            this.hotkeyManager.registerVoiceHotkey(toggleVoiceRecording, hotkeys.voiceRecording);
+        })();
 
         // Note: Wheel events (pan/zoom) are handled by NavigationGestureService
     }
