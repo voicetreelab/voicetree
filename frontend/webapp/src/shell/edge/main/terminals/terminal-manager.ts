@@ -75,8 +75,6 @@ export default class TerminalManager {
       const customEnv: NodeJS.ProcessEnv = this.buildEnvironment(terminalData, getWatchedDirectory);
 
       console.log(`Spawning PTY with shell: ${shell} in directory: ${cwd}`);
-      console.log(`[TerminalManager] OBSIDIAN_VAULT_PATH in customEnv: ${customEnv.OBSIDIAN_VAULT_PATH}`);
-      console.log(`[TerminalManager] OBSIDIAN_SOURCE_NOTE in customEnv: ${customEnv.OBSIDIAN_SOURCE_NOTE}`);
       console.log(`Terminal data:`, terminalData);
 
       // Create PTY instance
@@ -303,26 +301,6 @@ export default class TerminalManager {
       customEnv.WATCHED_FOLDER = watchedDir ?? undefined;
 
       // Set node-based environment variables from attachedToNodeId
-      const filePath: string = terminalData.attachedToNodeId;
-      // Convert absolute absolutePath to relative absolutePath from vault root if needed
-      let relativePath: string = filePath;
-      if (path.isAbsolute(filePath)) {
-          // If filePath is absolute, make it relative to vault absolutePath
-          relativePath = path.relative(vaultPath, filePath);
-      }
-
-      // OBSIDIAN_SOURCE_NOTE is the relative absolutePath from vault root (e.g., "2025-10-03/23_Commitment.md" or "14_File.md")
-      customEnv.OBSIDIAN_SOURCE_NOTE = relativePath;
-
-      // OBSIDIAN_SOURCE_DIR is just the directory part (e.g., "2025-10-03" or ".")
-      customEnv.OBSIDIAN_SOURCE_DIR = path.dirname(relativePath);
-
-      // OBSIDIAN_SOURCE_NAME is the filename with extension (e.g., "23_Commitment.md")
-      customEnv.OBSIDIAN_SOURCE_NAME = path.basename(relativePath);
-
-      // OBSIDIAN_SOURCE_BASENAME is filename without extension (e.g., "23_Commitment")
-      const ext: string = path.extname(relativePath);
-      customEnv.OBSIDIAN_SOURCE_BASENAME = path.basename(relativePath, ext);
 
       // OTEL telemetry env vars - enables Claude Code to send metrics to our OTLP receiver
       const otlpPort: number | null = getOTLPReceiverPort();
