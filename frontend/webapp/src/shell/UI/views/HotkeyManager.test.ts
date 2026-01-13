@@ -1,5 +1,26 @@
 import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
 import { HotkeyManager } from './HotkeyManager';
+import type { HotkeySettings } from '@/pure/settings/types';
+
+/** Mock hotkey settings for tests (Mac-style with Meta modifier) */
+const mockHotkeys: HotkeySettings = {
+  fitToLastNode: { key: ' ', modifiers: [] },
+  nextTerminal: { key: ']', modifiers: ['Meta'] },
+  prevTerminal: { key: '[', modifiers: ['Meta'] },
+  createNewNode: { key: 'n', modifiers: ['Meta'] },
+  runTerminal: { key: 'Enter', modifiers: ['Meta'] },
+  deleteSelectedNodes: { key: 'Backspace', modifiers: ['Meta'] },
+  closeWindow: { key: 'w', modifiers: ['Meta'] },
+  openSettings: { key: ',', modifiers: ['Meta'] },
+  openSearch: { key: 'f', modifiers: ['Meta'] },
+  openSearchAlt: { key: 'e', modifiers: ['Meta'] },
+  recentNode1: { key: '1', modifiers: ['Meta'] },
+  recentNode2: { key: '2', modifiers: ['Meta'] },
+  recentNode3: { key: '3', modifiers: ['Meta'] },
+  recentNode4: { key: '4', modifiers: ['Meta'] },
+  recentNode5: { key: '5', modifiers: ['Meta'] },
+  voiceRecording: { key: 'r', modifiers: ['Alt'] },
+};
 
 describe('HotkeyManager', () => {
   let hotkeyManager: HotkeyManager;
@@ -195,7 +216,7 @@ describe('HotkeyManager', () => {
         closeSelectedWindow: closeSelectedWindowHandler,
         openSettings: vi.fn(),
         openSearch: vi.fn()
-      });
+      }, mockHotkeys);
 
       // Focus on a non-input element to ensure the hotkey is not blocked
       const div: HTMLDivElement = document.createElement('div');
@@ -234,7 +255,7 @@ describe('HotkeyManager', () => {
         closeSelectedWindow: closeSelectedWindowHandler,
         openSettings: vi.fn(),
         openSearch: vi.fn()
-      });
+      }, mockHotkeys);
 
       // Simulate Cmd+W key press with input as target
       const event: KeyboardEvent = new KeyboardEvent('keydown', {

@@ -12,6 +12,7 @@
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
 import { MAX_RECENT_NODES } from '@/pure/graph/recentNodeHistoryV2';
+import type { HotkeySettings, HotkeyBinding } from '@/pure/settings/types';
 
 export type Modifier = 'Meta' | 'Control' | 'Alt' | 'Shift';
 
@@ -94,145 +95,143 @@ export class HotkeyManager {
    * Setup all graph-specific hotkeys
    * Centralizes hotkey configuration in one place
    */
-  setupGraphHotkeys(callbacks: {
-    fitToLastNode: () => void;
-    cycleTerminal: (direction: 1 | -1) => void;
-    createNewNode: () => void;
-    runTerminal: () => void;
-    deleteSelectedNodes: () => void;
-    navigateToRecentNode: (index: number) => void;
-    closeSelectedWindow: () => void;
-    openSettings: () => void;
-    openSearch: () => void;
-  }): void {
+  setupGraphHotkeys(
+    callbacks: {
+      fitToLastNode: () => void;
+      cycleTerminal: (direction: 1 | -1) => void;
+      createNewNode: () => void;
+      runTerminal: () => void;
+      deleteSelectedNodes: () => void;
+      navigateToRecentNode: (index: number) => void;
+      closeSelectedWindow: () => void;
+      openSettings: () => void;
+      openSearch: () => void;
+    },
+    hotkeys: HotkeySettings
+  ): void {
     // Space: Fit to last created node (repeatable while held)
     this.registerHotkey({
-      key: ' ',
+      key: hotkeys.fitToLastNode.key,
+      modifiers: [...hotkeys.fitToLastNode.modifiers] as Modifier[],
       repeatable: true,
       repeatDelay: 150,
       onPress: callbacks.fitToLastNode
     });
 
-    // Command + ]: Next terminal
+    // Next terminal
     this.registerHotkey({
-      key: ']',
-      modifiers: ['Meta'],
+      key: hotkeys.nextTerminal.key,
+      modifiers: [...hotkeys.nextTerminal.modifiers] as Modifier[],
       onPress: () => callbacks.cycleTerminal(1)
     });
 
-    // Command + [: Previous terminal
+    // Previous terminal
     this.registerHotkey({
-      key: '[',
-      modifiers: ['Meta'],
+      key: hotkeys.prevTerminal.key,
+      modifiers: [...hotkeys.prevTerminal.modifiers] as Modifier[],
       onPress: () => callbacks.cycleTerminal(-1)
     });
 
-    // Control + ]: Next terminal (for non-Mac users)
+    // Create new node
     this.registerHotkey({
-      key: ']',
-      modifiers: ['Control'],
-      onPress: () => callbacks.cycleTerminal(1)
-    });
-
-    // Control + [: Previous terminal (for non-Mac users)
-    this.registerHotkey({
-      key: '[',
-      modifiers: ['Control'],
-      onPress: () => callbacks.cycleTerminal(-1)
-    });
-
-    // Command + N: Create new node
-    this.registerHotkey({
-      key: 'n',
-      modifiers: ['Meta'],
+      key: hotkeys.createNewNode.key,
+      modifiers: [...hotkeys.createNewNode.modifiers] as Modifier[],
       onPress: callbacks.createNewNode
     });
 
-    // Command + Enter: Run terminal/coding agent
+    // Run terminal/coding agent
     this.registerHotkey({
-      key: 'Enter',
-      modifiers: ['Meta'],
+      key: hotkeys.runTerminal.key,
+      modifiers: [...hotkeys.runTerminal.modifiers] as Modifier[],
       onPress: callbacks.runTerminal
     });
 
-    // Command + Z: Undo (no callback needed - calls main process directly)
+    // Undo - uses same modifier as other hotkeys for platform consistency
     // Disabled in editors so CodeMirror/terminals handle their own undo
+    const primaryModifier: Modifier = hotkeys.closeWindow.modifiers[0] as Modifier ?? 'Meta';
     this.registerHotkey({
       key: 'z',
-      modifiers: ['Meta'],
+      modifiers: [primaryModifier],
       disabledInEditors: true,
       onPress: () => {
         void window.electronAPI?.main.performUndo();
       }
     });
 
-    // Command + Shift + Z: Redo (no callback needed - calls main process directly)
+    // Redo - uses same modifier as other hotkeys for platform consistency
     // Disabled in editors so CodeMirror/terminals handle their own redo
     this.registerHotkey({
       key: 'z',
-      modifiers: ['Meta', 'Shift'],
+      modifiers: [primaryModifier, 'Shift'],
       disabledInEditors: true,
       onPress: () => {
         void window.electronAPI?.main.performRedo();
       }
     });
 
-    // Command + Backspace: Delete selected nodes
+    // Delete selected nodes
     this.registerHotkey({
-      key: 'Backspace',
-      modifiers: ['Meta'],
+      key: hotkeys.deleteSelectedNodes.key,
+      modifiers: [...hotkeys.deleteSelectedNodes.modifiers] as Modifier[],
       onPress: callbacks.deleteSelectedNodes
     });
 
-    // Command + W: Close editor/terminal for selected node
-    // NOTE: NOT disabled in editors - we want Cmd+W to close the editor/terminal even when focused inside it
+    // Close editor/terminal for selected node
+    // NOTE: NOT disabled in editors - we want to close the editor/terminal even when focused inside it
     this.registerHotkey({
-      key: 'w',
-      modifiers: ['Meta'],
+      key: hotkeys.closeWindow.key,
+      modifiers: [...hotkeys.closeWindow.modifiers] as Modifier[],
       onPress: callbacks.closeSelectedWindow
     });
 
-    // Command + 1-N: Navigate to recent node tabs (where N = MAX_RECENT_NODES)
-    for (let i: number = 1; i <= MAX_RECENT_NODES; i++) {
+    // Navigate to recent node tabs (1-5)
+    const recentNodeBindings: HotkeyBinding[] = [
+      hotkeys.recentNode1,
+      hotkeys.recentNode2,
+      hotkeys.recentNode3,
+      hotkeys.recentNode4,
+      hotkeys.recentNode5
+    ];
+    for (let i: number = 0; i < Math.min(MAX_RECENT_NODES, recentNodeBindings.length); i++) {
+      const binding: HotkeyBinding = recentNodeBindings[i];
       this.registerHotkey({
-        key: String(i),
-        modifiers: ['Meta'],
-        onPress: () => callbacks.navigateToRecentNode(i - 1)
+        key: binding.key,
+        modifiers: [...binding.modifiers] as Modifier[],
+        onPress: () => callbacks.navigateToRecentNode(i)
       });
     }
 
-    // Command + ,: Open settings editor
+    // Open settings editor
     this.registerHotkey({
-      key: ',',
-      modifiers: ['Meta'],
+      key: hotkeys.openSettings.key,
+      modifiers: [...hotkeys.openSettings.modifiers] as Modifier[],
       onPress: callbacks.openSettings
     });
 
-    // Command + F: Search - disabled in editors so CodeMirror can handle its own find
+    // Search - disabled in editors so CodeMirror can handle its own find
     this.registerHotkey({
-      key: 'f',
-      modifiers: ['Meta'],
+      key: hotkeys.openSearch.key,
+      modifiers: [...hotkeys.openSearch.modifiers] as Modifier[],
       disabledInEditors: true,
       onPress: callbacks.openSearch
     });
 
-    // Command + E: Recent nodes ninja - works everywhere including editors
+    // Recent nodes ninja (alt search) - works everywhere including editors
     this.registerHotkey({
-      key: 'e',
-      modifiers: ['Meta'],
+      key: hotkeys.openSearchAlt.key,
+      modifiers: [...hotkeys.openSearchAlt.modifiers] as Modifier[],
       onPress: callbacks.openSearch
     });
   }
 
   /**
-   * Register voice recording hotkey (Option+R)
+   * Register voice recording hotkey
    * Separated from setupGraphHotkeys since it needs VoiceRecordingController which initializes later
    */
-  registerVoiceHotkey(onToggle: () => void): void {
-    // Alt+R (Option+R on Mac): Toggle voice recording
+  registerVoiceHotkey(onToggle: () => void, binding: HotkeyBinding): void {
     this.registerHotkey({
-      key: 'r',
-      modifiers: ['Alt'],
+      key: binding.key,
+      modifiers: [...binding.modifiers] as Modifier[],
       onPress: onToggle
     });
   }
