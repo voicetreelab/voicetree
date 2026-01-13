@@ -404,12 +404,12 @@ jobs:
 
             on_arm do
               sha256 "$ARM_SHA256"
-              url "https://github.com/voicetreelab/voicetree/releases/download/v\#{version}/voicetree-arm64.dmg"
+              url "https://github.com/voicetreelab/voicetree/releases/download/v#{version}/voicetree-arm64.dmg"
             end
 
             on_intel do
               sha256 "$INTEL_SHA256"
-              url "https://github.com/voicetreelab/voicetree/releases/download/v\#{version}/voicetree-x64.dmg"
+              url "https://github.com/voicetreelab/voicetree/releases/download/v#{version}/voicetree-x64.dmg"
             end
 
             name "VoiceTree"
