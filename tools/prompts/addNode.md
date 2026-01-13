@@ -1,17 +1,29 @@
-As you make progress on the task, create detailed visual updates by adding nodes to our markdown tree using:
+As you make progress on the task, create detailed visual updates by adding nodes to our markdown tree.
 
-```bash
-python3 "$VOICETREE_APP_SUPPORT"/tools/add_new_node.py "Progress Name" "<markdown content...>" [--relationship <relationship>] [--parent <file>] [--parents <file1,file2,...>]
+**Create a new markdown file** at:
 ```
-**CLI Syntax:**
-- `name` - Name/title of the new node
-- `markdown_content` - Markdown Content for the node's markdown file
-  The following are optional parameters which you should not include unless necessary:
-- Optional: `--relationship <type>` - Relationship type (e.g., `--relationship solves_the_problem`). Omit unless the relationship is specific and meaningful.
-- Optional: `--parent <file>` - Omit. Only use to override the default parent (`$CONTEXT_NODE_PATH`) which is already set.
-- Optional: `--parents <file1,file2,...>` - Comma-separated list for multiple parents (diamond dependencies). Use when a node depends on multiple other nodes completing.
-- Optional: `--color <color>` - Omit. Your agent color (`$AGENT_COLOR`) is used by default.
-- Optional: `--agent-name <name>` - Omit. Defaults to your agent name.
+$VOICETREE_VAULT_PATH/slugified({node_title}).md
+```
+
+Where `slugified()` converts to lowercase, replaces spaces with underscores, removes special characters.
+
+**File template:**
+```markdown
+---
+color: $AGENT_COLOR ?? blue
+agent_name: $AGENT_NAME
+---
+# {node_title}
+
+{markdown_content}
+
+- <optional_relationship_to> [[{relative_path_to_parent}]] (multiple parent links OK when necessary, e.g. diamond dependencies))
+```
+
+- If `$AGENT_COLOR` is unset, default to `blue`
+- Wikilink paths are relative to `$VOICETREE_VAULT_PATH`
+- For multiple parents: use `Parents:` header with multiple `- [[path]]` entries
+- Optional relationship labels: `- solves_the_problem [[path]]`
 
 
 What type of node to create:
@@ -71,10 +83,3 @@ If relevant, include difficulties you faced in accomplishing this task, tech deb
 </OPTIONAL>
 </MARKDOWN new node Format Template>
 
-This tool will automatically:
-- Use your color ($AGENT_COLOR)
-- Create proper node IDs and filenames
-- Add correct YAML frontmatter
-- Create parent-child links
-
-If the python tool is broken, you may write the markdown file manually to the vault directory: `$OBSIDIAN_VAULT_PATH`, with a wikilink included in the body to [[$CONTEXT_NODE_PATH]]
