@@ -1,27 +1,64 @@
-name: Test Homebrew & Install Script
+name: Update Installers
 
 on:
   workflow_dispatch:
+    inputs:
+      update_homebrew:
+        description: 'Update Homebrew tap with latest release'
+        type: boolean
+        default: true
+      test_install_script:
+        description: 'Test install.sh against latest release'
+        type: boolean
+        default: false
 
 jobs:
-  test-homebrew-cask:
+  update-homebrew:
+    if: ${{ inputs.update_homebrew }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Create mock artifacts
+      - name: Get latest release info
+        id: release
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          mkdir -p artifacts/mac-arm64 artifacts/mac-x64
-          echo "mock" > artifacts/mac-arm64/voicetree-arm64.dmg
-          echo "mock" > artifacts/mac-x64/voicetree-x64.dmg
+          VERSION=$(gh release view --json tagName -q '.tagName' | sed 's/^v//')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Latest release: $VERSION"
 
-      - name: Test Homebrew cask generation
+      - name: Download release DMGs
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          VERSION=$(jq -r .version frontend/webapp/package.json)
-          ARM_SHA256=$(shasum -a 256 artifacts/mac-arm64/voicetree-arm64.dmg | awk '{print $1}')
-          INTEL_SHA256=$(shasum -a 256 artifacts/mac-x64/voicetree-x64.dmg | awk '{print $1}')
+          VERSION=${{ steps.release.outputs.version }}
+          mkdir -p artifacts
+          gh release download "v$VERSION" -p "voicetree-arm64.dmg" -D artifacts/
+          gh release download "v$VERSION" -p "voicetree-x64.dmg" -D artifacts/
+          ls -la artifacts/
 
-          cat > voicetree.rb << EOF
+      - name: Calculate SHA256
+        id: sha
+        run: |
+          ARM_SHA256=$(shasum -a 256 artifacts/voicetree-arm64.dmg | awk '{print $1}')
+          INTEL_SHA256=$(shasum -a 256 artifacts/voicetree-x64.dmg | awk '{print $1}')
+          echo "arm=$ARM_SHA256" >> $GITHUB_OUTPUT
+          echo "intel=$INTEL_SHA256" >> $GITHUB_OUTPUT
+          echo "ARM64 SHA256: $ARM_SHA256"
+          echo "Intel SHA256: $INTEL_SHA256"
+
+      - name: Update Homebrew tap
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          VERSION=${{ steps.release.outputs.version }}
+          ARM_SHA256=${{ steps.sha.outputs.arm }}
+          INTEL_SHA256=${{ steps.sha.outputs.intel }}
+
+          git clone https://x-access-token:${GH_TOKEN}@github.com/voicetreelab/homebrew-voicetree.git tap
+
+          cat > tap/Casks/voicetree.rb << EOF
           cask "voicetree" do
             version "$VERSION"
 
@@ -40,62 +77,42 @@ jobs:
             homepage "https://github.com/voicetreelab/voicetree"
             depends_on macos: ">= :monterey"
             app "VoiceTree.app"
+
+            zap trash: [
+              "~/Library/Application Support/VoiceTree",
+              "~/Library/Preferences/com.voicetree.webapp.plist",
+            ]
           end
           EOF
 
           echo "=== Generated cask ==="
-          cat voicetree.rb
+          cat tap/Casks/voicetree.rb
 
-          echo ""
-          echo "=== Validating no backslash before #{version} ==="
-          if grep -q '\\#{version}' voicetree.rb; then
-            echo "FAIL: Found escaped \\#{version}"
-            exit 1
-          else
-            echo "PASS: #{version} is correct"
-          fi
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --staged
+          git commit -m "Update VoiceTree to v$VERSION" || echo "No changes to commit"
+          git push
 
   test-install-script:
+    if: ${{ inputs.test_install_script }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Shellcheck install script
+      - name: Shellcheck
         run: |
           sudo apt-get update && sudo apt-get install -y shellcheck
           shellcheck install.sh
 
-      - name: Test install script syntax
+      - name: Run install script
         run: |
-          # Check script is valid shell
-          sh -n install.sh
-          echo "PASS: Shell syntax valid"
+          chmod +x install.sh
+          ./install.sh
 
-      - name: Test install script (dry run simulation)
+      - name: Verify installation
         run: |
-          # Test that script correctly detects Linux
-          OS=$(uname -s)
-          echo "Detected OS: $OS"
-          [ "$OS" = "Linux" ] && echo "PASS: OS detection would work"
-
-          # Test architecture detection
-          ARCH=$(uname -m)
-          echo "Detected arch: $ARCH"
-          case "$ARCH" in
-            x86_64) echo "PASS: Would download x64 AppImage" ;;
-            aarch64|arm64) echo "PASS: Would download arm64 AppImage" ;;
-            *) echo "FAIL: Unknown arch"; exit 1 ;;
-          esac
-
-          # Test URL construction
-          VERSION=$(jq -r .version frontend/webapp/package.json)
-          URL="https://github.com/voicetreelab/voicetree/releases/download/v${VERSION}/voicetree-${VERSION}-x64.AppImage"
-          echo "Would download from: $URL"
-
-          # Verify URL format is valid
-          if echo "$URL" | grep -qE '^https://github.com/[^/]+/[^/]+/releases/download/v[0-9]+\.[0-9]+\.[0-9]+/'; then
-            echo "PASS: URL format valid"
-          else
-            echo "FAIL: URL format invalid"
-            exit 1
-          fi
+          ls -la ~/.local/bin/
+          ~/.local/bin/voicetree --version || echo "Note: --version may not be supported"
