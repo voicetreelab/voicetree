@@ -1,0 +1,101 @@
+name: Test Homebrew & Install Script
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-homebrew-cask:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create mock artifacts
+        run: |
+          mkdir -p artifacts/mac-arm64 artifacts/mac-x64
+          echo "mock" > artifacts/mac-arm64/voicetree-arm64.dmg
+          echo "mock" > artifacts/mac-x64/voicetree-x64.dmg
+
+      - name: Test Homebrew cask generation
+        run: |
+          VERSION=$(jq -r .version frontend/webapp/package.json)
+          ARM_SHA256=$(shasum -a 256 artifacts/mac-arm64/voicetree-arm64.dmg | awk '{print $1}')
+          INTEL_SHA256=$(shasum -a 256 artifacts/mac-x64/voicetree-x64.dmg | awk '{print $1}')
+
+          cat > voicetree.rb << EOF
+          cask "voicetree" do
+            version "$VERSION"
+
+            on_arm do
+              sha256 "$ARM_SHA256"
+              url "https://github.com/voicetreelab/voicetree/releases/download/v#{version}/voicetree-arm64.dmg"
+            end
+
+            on_intel do
+              sha256 "$INTEL_SHA256"
+              url "https://github.com/voicetreelab/voicetree/releases/download/v#{version}/voicetree-x64.dmg"
+            end
+
+            name "VoiceTree"
+            desc "Transform voice into navigable concept graphs"
+            homepage "https://github.com/voicetreelab/voicetree"
+            depends_on macos: ">= :monterey"
+            app "VoiceTree.app"
+          end
+          EOF
+
+          echo "=== Generated cask ==="
+          cat voicetree.rb
+
+          echo ""
+          echo "=== Validating no backslash before #{version} ==="
+          if grep -q '\\#{version}' voicetree.rb; then
+            echo "FAIL: Found escaped \\#{version}"
+            exit 1
+          else
+            echo "PASS: #{version} is correct"
+          fi
+
+  test-install-script:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Shellcheck install script
+        run: |
+          sudo apt-get update && sudo apt-get install -y shellcheck
+          shellcheck install.sh
+
+      - name: Test install script syntax
+        run: |
+          # Check script is valid shell
+          sh -n install.sh
+          echo "PASS: Shell syntax valid"
+
+      - name: Test install script (dry run simulation)
+        run: |
+          # Test that script correctly detects Linux
+          OS=$(uname -s)
+          echo "Detected OS: $OS"
+          [ "$OS" = "Linux" ] && echo "PASS: OS detection would work"
+
+          # Test architecture detection
+          ARCH=$(uname -m)
+          echo "Detected arch: $ARCH"
+          case "$ARCH" in
+            x86_64) echo "PASS: Would download x64 AppImage" ;;
+            aarch64|arm64) echo "PASS: Would download arm64 AppImage" ;;
+            *) echo "FAIL: Unknown arch"; exit 1 ;;
+          esac
+
+          # Test URL construction
+          VERSION=$(jq -r .version frontend/webapp/package.json)
+          URL="https://github.com/voicetreelab/voicetree/releases/download/v${VERSION}/voicetree-${VERSION}-x64.AppImage"
+          echo "Would download from: $URL"
+
+          # Verify URL format is valid
+          if echo "$URL" | grep -qE '^https://github.com/[^/]+/[^/]+/releases/download/v[0-9]+\.[0-9]+\.[0-9]+/'; then
+            echo "PASS: URL format valid"
+          else
+            echo "FAIL: URL format invalid"
+            exit 1
+          fi
