@@ -39,6 +39,33 @@ import {flushEditorForNode} from "@/shell/edge/UI-edge/floating-windows/editors/
 const MAX_TERMINALS: number = 12;
 
 /**
+ * Wait for a node to appear in Cytoscape, polling until found or timeout
+ * Used to handle IPC race condition where terminal launch arrives before graph delta
+ */
+async function waitForNode(
+    cy: Core,
+    nodeId: string,
+    timeoutMs: number = 1000
+): Promise<CollectionReturnValue | null> {
+    const pollIntervalMs: number = 100;
+    const maxAttempts: number = Math.ceil(timeoutMs / pollIntervalMs);
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const node: CollectionReturnValue = cy.getElementById(nodeId);
+        if (node.length > 0) {
+            if (attempt > 0) {
+                console.log(`[waitForNode] Node ${nodeId} appeared after ${attempt * pollIntervalMs}ms`);
+            }
+            return node;
+        }
+        await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    }
+
+    console.warn(`[waitForNode] Node ${nodeId} did not appear within ${timeoutMs}ms`);
+    return null;
+}
+
+/**
  * Spawn a terminal with a new context node
  *
  * This function now simply delegates to the main process, which orchestrates
@@ -120,9 +147,10 @@ export async function createFloatingTerminal(
         return undefined;
     }
 
-    // Check if parent node exists
-    const parentNode: CollectionReturnValue = cy.getElementById(nodeId);
-    const parentNodeExists: boolean = parentNode.length > 0;
+    // Wait for parent node to appear (handles IPC race condition where terminal launch
+    // arrives before graph delta is processed)
+    const parentNode: CollectionReturnValue | null = await waitForNode(cy, nodeId, 1000);
+    const parentNodeExists: boolean = parentNode !== null && parentNode.length > 0;
 
     try {
         // Create floating terminal window (returns TerminalData with ui populated)
