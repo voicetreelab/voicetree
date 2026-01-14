@@ -155,8 +155,7 @@ test.describe('Write Path Change Bug', () => {
   }) => {
     test.setTimeout(45000);
 
-    // Mark test as expected to fail - remove this line once bug is fixed
-    test.fail();
+    // Bug fixed: currentVaultSuffix now stays in sync with defaultWritePath
 
     console.log('=== STEP 1: Verify initial state ===');
     await appWindow.waitForTimeout(500);

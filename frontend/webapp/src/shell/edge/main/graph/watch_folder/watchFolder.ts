@@ -68,6 +68,12 @@ export function setDefaultWritePath(vaultPath: FilePath): { success: boolean; er
         return { success: false, error: 'Path must be in the allowlist' };
     }
     defaultWritePath = vaultPath;
+
+    // Keep currentVaultSuffix in sync so getWatchStatus() returns correct suffix for node ID generation
+    if (watchedDirectory) {
+        currentVaultSuffix = path.relative(watchedDirectory, vaultPath);
+    }
+
     return { success: true };
 }
 
