@@ -2,7 +2,7 @@ import '@/shell/UI/cytoscape-graph-ui/styles/floating-windows.css'; // VERY IMPO
 import { vim } from '@replit/codemirror-vim';
 import { EditorState, type Extension } from '@codemirror/state';
 import type { Text, Line } from '@codemirror/state';
-import { EditorView, ViewUpdate, ViewPlugin, keymap } from '@codemirror/view';
+import { EditorView, ViewUpdate, ViewPlugin, keymap, tooltips } from '@codemirror/view';
 import { indentWithTab } from '@codemirror/commands';
 import { basicSetup } from 'codemirror';
 import { foldGutter, syntaxHighlighting, foldEffect, foldable, foldService, HighlightStyle, defaultHighlightStyle } from '@codemirror/language';
@@ -213,6 +213,7 @@ export class CodeMirrorEditorView extends Disposable {
       diffHighlight(), // Highlight diff lines (+/-) in code blocks with green/red backgrounds
       wikilinkCompletion(), // Autocomplete for [[wikilinks]] - shows nodes ordered by recency
       wikilinkTitleDisplay(), // Display node titles instead of IDs in [[wikilinks]]
+      tooltips({ parent: document.body }), // Render tooltips (including autocomplete) in body to avoid overflow clipping
       frontmatterFoldService, // Custom fold service for frontmatter
       foldGutter(), // Add fold gutter for collapsing sections
       EditorView.lineWrapping, // Enable text wrapping
