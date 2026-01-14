@@ -13,7 +13,7 @@
  */
 
 import path from 'path';
-import * as O from 'fp-ts/Option';
+import * as O from 'fp-ts/lib/Option.js';
 import { createContextNode } from '@/shell/edge/main/graph/context-nodes/createContextNode';
 import { getGraph } from '@/shell/edge/main/state/graph-store';
 import { loadSettings, saveSettings } from '@/shell/edge/main/settings/settings_IO';

@@ -7,7 +7,7 @@ import {
     type ShadowNodeId,
     type TerminalId
 } from "@/shell/edge/UI-edge/floating-windows/types";
-import * as O from "fp-ts/Option";
+import * as O from "fp-ts/lib/Option.js";
 import type {NodeIdAndFilePath} from "@/pure/graph";
 import {
     getWindowTransform,
