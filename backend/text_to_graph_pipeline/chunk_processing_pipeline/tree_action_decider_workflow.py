@@ -24,6 +24,7 @@ from backend.markdown_tree_manager.graph_search.tree_functions import (
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
 from backend.markdown_tree_manager.sync_markdown_to_tree import sync_nodes_from_markdown
 from backend.settings import APPEND_AGENT_URL
+from backend.settings import MAX_NODE_CONTENT_LENGTH_FOR_APPEND
 from backend.settings import MAX_NODES_FOR_LLM_CONTEXT
 from backend.settings import OPTIMIZER_AGENT_URL
 from backend.settings import ORPHAN_AGENT_URL
@@ -230,6 +231,11 @@ class TreeActionDeciderWorkflow:
 
             append_or_create_actions: list[AppendAction | CreateAction] = append_agent_result.actions
 
+            # Convert appends to child nodes for nodes that are too long
+            append_or_create_actions = self._convert_appends_to_children_for_long_nodes(
+                append_or_create_actions
+            )
+
             # FOR EACH COMPLETED SEGMENT, REMOVE FROM BUFFER AND UPDATE HISTORY
             # note, you ABSOLUTELY HAVE TO do this per segment, not all at once for all completed text.
             max_history = buffer_manager.bufferFlushLength * TRANSCRIPT_HISTORY_MULTIPLIER
@@ -417,7 +423,7 @@ class TreeActionDeciderWorkflow:
         if self.decision_tree is None:
             raise ValueError("Decision tree is not initialized")
 
-        if len(self.decision_tree.tree[node_id].content) > 1500:
+        if len(self.decision_tree.tree[node_id].content) > MAX_NODE_CONTENT_LENGTH_FOR_APPEND:
             logging.info(f"Skipping optimization for node {node_id} due to too much content")
             return set()
 
@@ -541,3 +547,39 @@ class TreeActionDeciderWorkflow:
         # set stuck text
         if buffer_manager.getBuffer() not in self.content_stuck_in_buffer:
             self.content_stuck_in_buffer[buffer_manager.getBuffer()] = 1
+
+    def _convert_appends_to_children_for_long_nodes(
+        self,
+        actions: list[AppendAction | CreateAction]
+    ) -> list[AppendAction | CreateAction]:
+        """
+        Convert AppendActions targeting nodes > MAX_NODE_CONTENT_LENGTH_FOR_APPEND
+        to CreateActions with the target as parent.
+        """
+        converted_actions: list[AppendAction | CreateAction] = []
+
+        for action in actions:
+            if isinstance(action, AppendAction):
+                target_node = self.decision_tree.tree.get(action.target_node_id) if self.decision_tree else None
+                if target_node and len(target_node.content) > MAX_NODE_CONTENT_LENGTH_FOR_APPEND:
+                    # Strip the +++ separator used for appends - not needed for new nodes
+                    cleaned_content = action.content.replace('\n+++\n', '').strip()
+                    # Use generic name - summary (filled by optimizer) serves as the title
+                    child_name = f"{target_node.title} (continued)"
+
+                    converted_actions.append(CreateAction(
+                        action="CREATE",
+                        parent_node_id=action.target_node_id,
+                        target_node_name=action.target_node_name,
+                        new_node_name=child_name,
+                        content=cleaned_content,
+                        summary="",  # Will be filled by optimizer
+                        relationship="continuation of"
+                    ))
+                    logging.info(f"Converted append to child creation for long node {action.target_node_id}")
+                else:
+                    converted_actions.append(action)
+            else:
+                converted_actions.append(action)
+
+        return converted_actions

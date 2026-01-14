@@ -25,6 +25,9 @@ TRANSCRIPT_HISTORY_MULTIPLIER = int(os.getenv("TRANSCRIPT_HISTORY_MULTIPLIER", 9
 BACKGROUND_REWRITE_EVERY_N_APPEND = int(os.getenv("BACKGROUND_REWRITE_FREQUENCY", 2))
 MAX_NODES_FOR_LLM_CONTEXT = int(os.getenv("MAX_NODES_FOR_LLM_CONTEXT", 8))
 
+# Maximum content length before appends become child nodes
+MAX_NODE_CONTENT_LENGTH_FOR_APPEND = 1500
+
 # Validate tree configuration
 if BACKGROUND_REWRITE_EVERY_N_APPEND < 1:
     raise ValueError("BACKGROUND_REWRITE_EVERY_N_APPEND must be at least 1")
