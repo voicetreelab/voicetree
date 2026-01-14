@@ -4,7 +4,7 @@ import os from 'os';
 import fixPath from 'fix-path';
 import electronUpdater, {type UpdateCheckResult} from 'electron-updater';
 import log from 'electron-log';
-import {startFileWatching, getWatchedDirectory, setStartupFolderOverride, setOnFolderSwitchCleanup} from '@/shell/edge/main/graph/watchFolder';
+import {startFileWatching, getWatchedDirectory, setStartupFolderOverride, setOnFolderSwitchCleanup} from '@/shell/edge/main/graph/watch_folder/watchFolder';
 
 const {autoUpdater} = electronUpdater;
 import {StubTextToTreeServerManager} from './server/StubTextToTreeServerManager';

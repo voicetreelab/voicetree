@@ -4,7 +4,7 @@ import pty, { type IPty } from 'node-pty';
 import type { WebContents } from 'electron';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/types";
 import {getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
-import {getVaultSuffix} from "@/shell/edge/main/graph/watchFolder";
+import {getVaultSuffix} from "@/shell/edge/main/graph/watch_folder/watchFolder";
 import {getOTLPReceiverPort} from "@/shell/edge/main/metrics/otlp-receiver";
 
 export interface TerminalSpawnResult {

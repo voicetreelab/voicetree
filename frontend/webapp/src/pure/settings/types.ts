@@ -65,5 +65,33 @@ export interface VTSettings {
     readonly vimMode?: boolean;
     /** Custom hotkey bindings - falls back to DEFAULT_HOTKEYS if not set */
     readonly hotkeys?: HotkeySettings;
+    /**
+     * Relative folder patterns auto-allowlisted for all projects (e.g., ["openspec"]).
+     * These resolve relative to each project's watchedDirectory.
+     */
+    readonly defaultAllowlistPatterns?: readonly string[];
+}
+
+/**
+ * Per-folder vault configuration for multi-vault support.
+ * All paths are stored as RELATIVE to the watchedDirectory for portability.
+ * They are converted to absolute paths at runtime when loading.
+ */
+export interface VaultConfig {
+    /** Relative paths (to watchedDirectory) to watch and display in graph */
+    readonly allowlist: readonly string[];
+    /** One relative path from allowlist designated for new node creation */
+    readonly defaultWritePath: string;
+}
+
+/**
+ * Per-project configuration stored in voicetree-config.json.
+ * Extends per-folder settings beyond just suffixes.
+ */
+export interface VoiceTreeConfig {
+    readonly lastDirectory?: string;
+    readonly suffixes?: { readonly [folderPath: string]: string };
+    /** Per-folder vault configuration for multi-vault support */
+    readonly vaultConfig?: { readonly [folderPath: string]: VaultConfig };
 }
 

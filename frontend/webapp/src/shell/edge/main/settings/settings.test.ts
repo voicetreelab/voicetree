@@ -50,7 +50,8 @@ describe('settings', () => {
       askModeContextDistance: 4,
       emptyFolderTemplate: '# Custom template',
       vimMode: true,
-      hotkeys: DEFAULT_SETTINGS.hotkeys
+      hotkeys: DEFAULT_SETTINGS.hotkeys,
+      defaultAllowlistPatterns: ['openspec']
     };
 
     await saveSettings(customSettings);

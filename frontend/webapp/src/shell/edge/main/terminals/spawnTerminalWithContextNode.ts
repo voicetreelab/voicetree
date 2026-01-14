@@ -17,7 +17,7 @@ import * as O from 'fp-ts/lib/Option.js';
 import { createContextNode } from '@/shell/edge/main/graph/context-nodes/createContextNode';
 import { getGraph } from '@/shell/edge/main/state/graph-store';
 import { loadSettings, saveSettings } from '@/shell/edge/main/settings/settings_IO';
-import { getWatchStatus, getWatchedDirectory, getVaultPath } from '@/shell/edge/main/graph/watchFolder';
+import { getWatchStatus, getWatchedDirectory, getDefaultWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import { getAppSupportPath } from '@/shell/edge/main/state/app-electron-state';
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/types';
@@ -247,8 +247,8 @@ async function prepareTerminalDataInMain(
         ? contextContent.slice(0, MAX_CONTEXT_CONTENT_LENGTH) + '\n\n[Content truncated - full content available at $CONTEXT_NODE_PATH]'
         : contextContent;
 
-    // Get vault path (watched directory + vault suffix)
-    const vaultPath: string = O.getOrElse(() => '')(getVaultPath());
+    // Get default write path (where new nodes are created)
+    const vaultPath: string = O.getOrElse(() => '')(getDefaultWritePath());
 
     const unexpandedEnvVars: Record<string, string> = {
         VOICETREE_APP_SUPPORT: appSupportPath ?? '',

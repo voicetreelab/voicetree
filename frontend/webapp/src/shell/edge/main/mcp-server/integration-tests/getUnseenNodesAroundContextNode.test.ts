@@ -27,7 +27,7 @@ import { createContextNode } from '@/shell/edge/main/graph/context-nodes/createC
 import { getUnseenNodesAroundContextNode, type UnseenNode } from '@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk'
 import { setGraph, getGraph } from '@/shell/edge/main/state/graph-store'
-import { setVaultPath, getVaultPath } from '@/shell/edge/main/graph/watchFolder'
+import { setVaultPath, getVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { addNodeToGraphWithEdgeHealingFromFSEvent } from '@/pure/graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent'
 import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths'
 import * as O from 'fp-ts/lib/Option.js'

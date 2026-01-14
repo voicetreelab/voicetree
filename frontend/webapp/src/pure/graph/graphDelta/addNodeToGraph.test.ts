@@ -53,7 +53,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         '# Source Node\n\n- links to [[target]]'
       )
 
-      const result: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(forwardVaultPath), O.some(forwardVaultPath))
+      const result: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([forwardVaultPath], forwardVaultPath)
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(result)) throw new Error('Expected Right')
       const graph: Graph = result.right
@@ -83,7 +83,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         '# Target Node'
       )
 
-      const result2: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(reverseVaultPath), O.some(reverseVaultPath))
+      const result2: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([reverseVaultPath], reverseVaultPath)
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(result2)) throw new Error('Expected Right')
       const graph: Graph = result2.right
@@ -113,7 +113,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         '# Node 1'
       )
 
-      const result3: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(subfolderVaultPath), O.some(subfolderVaultPath))
+      const result3: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([subfolderVaultPath], subfolderVaultPath)
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(result3)) throw new Error('Expected Right')
       const graph: Graph = result3.right
@@ -147,7 +147,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         '# A\n\n- extends [[b]]'
       )
 
-      const result4: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(chainVaultPath), O.some(chainVaultPath))
+      const result4: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([chainVaultPath], chainVaultPath)
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(result4)) throw new Error('Expected Right')
       const graph: Graph = result4.right

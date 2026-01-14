@@ -1,7 +1,7 @@
 import type {Graph, GraphDelta, NodeIdAndFilePath, GraphNode} from '@/pure/graph'
 import {getUnionSubgraphByDistance, graphToAscii, getNodeIdsInTraversalOrder, CONTEXT_NODES_FOLDER} from '@/pure/graph'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
-import {getWatchStatus} from '@/shell/edge/main/graph/watchFolder'
+import {getWatchStatus} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
 import {type VTSettings} from '@/pure/settings/types'
 import {parseMarkdownToGraphNode} from '@/pure/graph/markdown-parsing/parse-markdown-to-node'

@@ -30,7 +30,7 @@ vi.mock('electron', () => ({
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk'
 
 import { setGraph } from '@/shell/edge/main/state/graph-store'
-import { setVaultPath, getVaultPath } from '@/shell/edge/main/graph/watchFolder'
+import { setVaultPath, getVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { EXAMPLE_SMALL_PATH, EXAMPLE_LARGE_PATH } from '@/utils/test-utils/fixture-paths'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'

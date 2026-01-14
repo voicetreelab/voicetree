@@ -18,7 +18,7 @@ const TAB_WIDTH: number = 90
 const INACTIVITY_THRESHOLD_MS: number = 10000 // 10 seconds
 const CHECK_INTERVAL_MS: number = 1000 // Check every second
 // Duration to suppress terminal data events after zoom (to ignore resize-triggered redraws)
-const ZOOM_SUPPRESSION_MS: number = 600
+const ZOOM_SUPPRESSION_MS: number = 800
 
 interface AgentTabsBarState {
     container: HTMLElement | null
