@@ -241,7 +241,7 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
             {/* Trigger button */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="text-gray-600 px-1.5 py-1 rounded bg-gray-100 hover:bg-gray-200 transition-colors flex items-center gap-1"
+                className="text-muted-foreground px-1.5 py-1 rounded bg-muted hover:bg-accent transition-colors flex items-center gap-1"
                 title={`Default write path: ${defaultWritePath ?? 'None'}`}
             >
                 <span>{currentFolderName}</span>
@@ -250,9 +250,9 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
 
             {/* Dropdown menu */}
             {isOpen && (
-                <div className="absolute bottom-full left-0 mb-1 bg-white border border-gray-300 rounded shadow-lg min-w-[200px] max-w-[400px] z-[1200]">
+                <div className="absolute bottom-full left-0 mb-1 bg-card border border-border rounded shadow-lg min-w-[200px] max-w-[400px] z-[1200]">
                     <div className="py-1">
-                        <div className="px-3 py-1 text-[10px] text-gray-500 uppercase tracking-wide border-b border-gray-200">
+                        <div className="px-3 py-1 text-[10px] text-muted-foreground uppercase tracking-wide border-b border-border">
                             Markdown folders (select write destination)
                         </div>
                         {vaultPaths.map((path: string) => {
@@ -270,25 +270,25 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                                                 onChange={(e: ChangeEvent<HTMLInputElement>) => setEditedValue(e.target.value)}
                                                 onKeyDown={handleEditKeyDown}
                                                 autoFocus
-                                                className="flex-1 px-2 py-1 text-xs border border-blue-400 rounded focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                                className="flex-1 px-2 py-1 text-xs border border-ring rounded focus:outline-none focus:ring-1 focus:ring-ring bg-background text-foreground"
                                             />
                                             <button
                                                 onClick={() => void saveEditedPath()}
-                                                className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
+                                                className="px-2 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90"
                                                 title="Save"
                                             >
                                                 ✓
                                             </button>
                                             <button
                                                 onClick={cancelEditing}
-                                                className="px-2 py-1 text-xs bg-gray-200 rounded hover:bg-gray-300"
+                                                className="px-2 py-1 text-xs bg-muted text-foreground rounded hover:bg-accent"
                                                 title="Cancel"
                                             >
                                                 ✕
                                             </button>
                                         </div>
                                         {editError && (
-                                            <div className="mt-1 text-[10px] text-red-500">{editError}</div>
+                                            <div className="mt-1 text-[10px] text-destructive">{editError}</div>
                                         )}
                                     </div>
                                 );
@@ -297,15 +297,15 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                             return (
                                 <div
                                     key={path}
-                                    className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 flex items-center gap-2 ${
-                                        isDefault ? 'bg-blue-50' : ''
+                                    className={`w-full text-left px-3 py-1.5 text-xs text-foreground hover:bg-accent flex items-center gap-2 ${
+                                        isDefault ? 'bg-primary/10' : ''
                                     }`}
                                     title={path}
                                 >
                                     {/* Checkmark selects as write destination */}
                                     <button
                                         onClick={(e) => void handleSelectPath(path, e)}
-                                        className="w-4 text-blue-600 hover:bg-blue-100 rounded"
+                                        className="w-4 text-primary hover:bg-primary/20 rounded"
                                         title="Set as write destination"
                                     >
                                         {isDefault ? '✓' : '○'}
@@ -313,17 +313,17 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                                     {/* Clicking path text enters edit mode */}
                                     <button
                                         onClick={() => startEditing(path)}
-                                        className="flex-1 text-left font-medium truncate hover:text-blue-600 flex items-center gap-1"
+                                        className="flex-1 text-left font-medium truncate hover:text-primary flex items-center gap-1"
                                         title="Click to edit path"
                                     >
                                         <span className="truncate">{relativePath}</span>
-                                        <span className="text-gray-400">✎</span>
+                                        <span className="text-muted-foreground">✎</span>
                                     </button>
                                     {/* Remove button - hidden for default write path */}
                                     {!isDefault && (
                                         <button
                                             onClick={(e) => void handleRemovePath(path, e)}
-                                            className="w-4 text-gray-400 hover:text-red-500 hover:bg-red-100 rounded"
+                                            className="w-4 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded"
                                             title="Remove from allowlist"
                                         >
                                             ✕
@@ -334,8 +334,8 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                         })}
 
                         {/* Add vault path section */}
-                        <div className="border-t border-gray-200 mt-1 pt-1">
-                            <div className="px-3 py-1 text-[10px] text-gray-500 uppercase tracking-wide">
+                        <div className="border-t border-border mt-1 pt-1">
+                            <div className="px-3 py-1 text-[10px] text-muted-foreground uppercase tracking-wide">
                                 Add read vault
                             </div>
                             <div className="px-2 pb-2">
@@ -346,20 +346,20 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                                         onChange={handleInputChange}
                                         onKeyDown={handleInputKeyDown}
                                         placeholder="folder or /abs/path"
-                                        className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:border-blue-400"
+                                        className="flex-1 px-2 py-1 text-xs border border-input rounded focus:outline-none focus:border-ring bg-background text-foreground"
                                         disabled={isAdding}
                                     />
                                     <button
                                         onClick={() => void handleAddVaultPath()}
                                         disabled={isAdding || !newVaultPath.trim()}
-                                        className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                                        className="px-2 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed"
                                         title="Add vault path"
                                     >
                                         {isAdding ? '...' : '+'}
                                     </button>
                                 </div>
                                 {addError && (
-                                    <div className="mt-1 text-[10px] text-red-500">
+                                    <div className="mt-1 text-[10px] text-destructive">
                                         {addError}
                                     </div>
                                 )}

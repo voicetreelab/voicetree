@@ -5,7 +5,7 @@ import {
     spawnTerminalWithNewContextNode,
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
 import {createAnchoredFloatingEditor} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
-import {clearAutoPinIfMatches, getEditorByNodeId} from "@/shell/edge/UI-edge/state/EditorStore";
+import {removeFromAutoPinQueue, getEditorByNodeId} from "@/shell/edge/UI-edge/state/EditorStore";
 import * as O from 'fp-ts/lib/Option.js';
 import {isAnchored, type EditorData} from "@/shell/edge/UI-edge/floating-windows/types";
 import {getFilePathForNode, getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
@@ -183,8 +183,8 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
         icon: Pin,
         label: 'Pin Editor',
         action: async () => {
-            // Manual pin: clear auto-pin tracking so this editor won't auto-close
-            clearAutoPinIfMatches(nodeId);
+            // Manual pin: remove from auto-pin queue so this editor won't auto-close
+            removeFromAutoPinQueue(nodeId);
             await createAnchoredFloatingEditor(cy, nodeId);
         },
     });

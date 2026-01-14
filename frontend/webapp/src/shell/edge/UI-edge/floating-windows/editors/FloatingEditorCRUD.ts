@@ -33,7 +33,7 @@ import {
     getEditorByNodeId,
     getEditors,
     getHoverEditor,
-    setLastAutoPinnedEditor,
+    addToAutoPinQueue,
 } from "@/shell/edge/UI-edge/state/EditorStore";
 import {
     modifyNodeContentFromUI
@@ -381,10 +381,15 @@ export async function createAnchoredFloatingEditor(
             return;
         }
 
-        // TODO: This tracking is no longer used - auto-close was removed to keep all editors open.
-        // Can be cleaned up along with setLastAutoPinnedEditor/getLastAutoPinnedEditor in EditorStore.ts
+        // FIFO auto-pin: add to queue, close oldest if over limit
         if (isAutoPin) {
-            setLastAutoPinnedEditor(nodeId);
+            const oldestToClose: NodeIdAndFilePath | null = addToAutoPinQueue(nodeId);
+            if (oldestToClose !== null) {
+                const oldestEditor: O.Option<EditorData> = getEditorByNodeId(oldestToClose);
+                if (O.isSome(oldestEditor)) {
+                    closeEditor(cy, oldestEditor.value);
+                }
+            }
         }
 
         // Anchor to node using v2 function

@@ -74,6 +74,9 @@ export function setDefaultWritePath(vaultPath: FilePath): { success: boolean; er
         currentVaultSuffix = path.relative(watchedDirectory, vaultPath);
     }
 
+    // Notify backend so it writes new nodes to the correct directory
+    notifyTextToTreeServerOfDirectory(vaultPath);
+
     return { success: true };
 }
 

@@ -224,7 +224,7 @@ export function AgentStatsPanel(): JSX.Element {
                 <div
                   key={session.sessionId}
                   data-testid="session-row"
-                  className="bg-gray-50 rounded border border-gray-200 overflow-hidden"
+                  className="bg-gray-50 rounded border border-gray-200"
                 >
                   {/* Compact Row */}
                   <button
