@@ -8,19 +8,29 @@ import { CONTEXT_CONTAINED_CLASS, CONTEXT_EDGE_CLASS } from './constants';
 /**
  * Highlights all nodes contained within a context node's snapshot.
  * Fetches containedNodeIds from graph API (not Cytoscape data).
- * Adds CSS class to nodes and their incoming edges.
+ * Adds CSS class to nodes and edges between them.
  */
 export async function highlightContainedNodes(cy: Core, contextNodeId: string): Promise<void> {
   const node: Awaited<ReturnType<typeof getNodeFromMainToUI>> = await getNodeFromMainToUI(contextNodeId);
   const containedIds: readonly string[] = node.nodeUIMetadata.containedNodeIds ?? [];
+  const containedIdSet: Set<string> = new Set(containedIds);
 
   containedIds.forEach(id => {
-    cy.$('#' + id).addClass(CONTEXT_CONTAINED_CLASS);
-    cy.edges('[target="' + id + '"]').addClass(CONTEXT_EDGE_CLASS);
+    // Use cy.$id() to avoid CSS selector escaping issues with special characters like /
+    cy.$id(id).addClass(CONTEXT_CONTAINED_CLASS);
+  });
+
+  // Highlight only edges where both source and target are in containedIds
+  cy.edges().forEach(edge => {
+    const sourceId: string = edge.data('source') as string;
+    const targetId: string = edge.data('target') as string;
+    if (containedIdSet.has(sourceId) && containedIdSet.has(targetId)) {
+      edge.addClass(CONTEXT_EDGE_CLASS);
+    }
   });
 
   // Also highlight the edge from task node (parent) to this context node
-  cy.edges('[target="' + contextNodeId + '"]').addClass(CONTEXT_EDGE_CLASS);
+  cy.edges().filter(edge => edge.data('target') === contextNodeId).addClass(CONTEXT_EDGE_CLASS);
 }
 
 /**
@@ -32,10 +42,20 @@ export async function highlightPreviewNodes(cy: Core, nodeId: string): Promise<v
   if (!api) return;
 
   const containedIds: readonly string[] = await api.main.getPreviewContainedNodeIds(nodeId);
+  const containedIdSet: Set<string> = new Set(containedIds);
 
   containedIds.forEach(id => {
-    cy.$('#' + id).addClass(CONTEXT_CONTAINED_CLASS);
-    cy.edges('[target="' + id + '"]').addClass(CONTEXT_EDGE_CLASS);
+    // Use cy.$id() to avoid CSS selector escaping issues with special characters like /
+    cy.$id(id).addClass(CONTEXT_CONTAINED_CLASS);
+  });
+
+  // Highlight only edges where both source and target are in containedIds
+  cy.edges().forEach(edge => {
+    const sourceId: string = edge.data('source') as string;
+    const targetId: string = edge.data('target') as string;
+    if (containedIdSet.has(sourceId) && containedIdSet.has(targetId)) {
+      edge.addClass(CONTEXT_EDGE_CLASS);
+    }
   });
 }
 
