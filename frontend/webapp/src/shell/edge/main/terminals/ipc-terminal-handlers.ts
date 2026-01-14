@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron'
 import type TerminalManager from '@/shell/edge/main/terminals/terminal-manager'
 import type { TerminalSpawnResult } from '@/shell/edge/main/terminals/terminal-manager'
-import { getWatchedDirectory } from '@/shell/edge/main/graph/watchFolder'
+import { getWatchedDirectory } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 
 // Import dependencies directly - functional programming style
 // terminalManager and getToolsDirectory will be passed as parameters since terminal handlers need event.sender

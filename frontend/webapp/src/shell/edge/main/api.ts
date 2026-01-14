@@ -10,7 +10,7 @@ import {
 } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI'
 import {getGraph, getNode} from '@/shell/edge/main/state/graph-store'
 import {loadSettings, saveSettings as saveSettings} from './settings/settings_IO'
-import {getWatchStatus, loadPreviousFolder, startFileWatching, stopFileWatching, setVaultSuffix} from './graph/watchFolder'
+import {getWatchStatus, loadPreviousFolder, startFileWatching, stopFileWatching, setVaultSuffix, getVaultPaths, getDefaultWritePath, setDefaultWritePath, addVaultPathToAllowlist} from './graph/watch_folder/watchFolder'
 import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/state/app-electron-state";
 import {createContextNode} from "@/shell/edge/main/graph/context-nodes/createContextNode";
 import {getPreviewContainedNodeIds} from "@/shell/edge/main/graph/context-nodes/getPreviewContainedNodeIds";
@@ -55,6 +55,12 @@ export const mainAPI = {
 
   // Vault suffix operations
   setVaultSuffix,
+
+  // Multi-vault path operations
+  getVaultPaths,
+  getDefaultWritePath,
+  setDefaultWritePath,
+  addVaultPathToAllowlist,
 
   // Backend port
   getBackendPort,

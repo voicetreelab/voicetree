@@ -53,7 +53,7 @@ export function getCachedZoom(): number {
 // =============================================================================
 
 let zoomActiveUntil: number = 0;
-const ZOOM_ACTIVE_MS: number = 450; // slightly longer than 400ms debounce
+const ZOOM_ACTIVE_MS: number = 250; // slightly longer than 200ms debounce
 
 /**
  * Check if zoom is currently active (within the debounce window)
@@ -169,7 +169,7 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
             }
             zoomDebounceTimeout = setTimeout(() => {
                 zoomChangeCallbacks.forEach(callback => callback(zoom));
-            }, 400);
+            }, 200);
         };
 
         syncTransform();

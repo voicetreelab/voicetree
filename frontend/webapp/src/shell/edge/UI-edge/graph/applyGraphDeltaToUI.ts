@@ -1,7 +1,7 @@
 import type {Core, NodeSingular, CollectionReturnValue, EdgeCollection} from "cytoscape";
 import type {GraphDelta, GraphNode} from "@/pure/graph";
 import * as O from 'fp-ts/lib/Option.js';
-import {prettyPrintGraphDelta, stripDeltaForReplay} from "@/pure/graph";
+import {prettyPrintGraphDelta} from "@/pure/graph";
 import {getNodeTitle} from "@/pure/graph/markdown-parsing";
 import {hasActualContentChanged} from "@/pure/graph/contentChangeDetection";
 import posthog from "posthog-js";
@@ -10,14 +10,47 @@ import type {} from '@/utils/types/cytoscape-layout-utilities';
 import {cyFitCollectionByAverageNodeSize} from "@/utils/responsivePadding";
 import {checkEngagementPrompts} from "./userEngagementPrompts";
 
-const MAX_EDGES: number = 150;
-
 /**
  * Validates if a color value is a valid CSS color using the browser's CSS.supports API
  */
 function isValidCSSColor(color: string): boolean {
     if (!color) return false;
     return CSS.supports('color', color);
+}
+
+/**
+ * Extract the vault path prefix from a node ID.
+ * Node IDs are relative file paths like "openspec/foo.md" or "wed/bar.md".
+ * Returns the first path segment (vault folder name).
+ */
+function getVaultPrefixFromNodeId(nodeId: string): string {
+    const firstSlash: number = nodeId.indexOf('/');
+    if (firstSlash === -1) return '';
+    return nodeId.slice(0, firstSlash);
+}
+
+/**
+ * Generate a subtle, muted color based on a vault path prefix.
+ * Uses a hash of the prefix to create consistent hue, with low saturation
+ * for a professional appearance that doesn't overpower explicit colors.
+ */
+function generateVaultColor(vaultPrefix: string): string | undefined {
+    if (!vaultPrefix) return undefined;
+
+    // Simple hash function to convert string to number
+    let hash: number = 0;
+    for (let i: number = 0; i < vaultPrefix.length; i++) {
+        hash = vaultPrefix.charCodeAt(i) + ((hash << 5) - hash);
+        hash = hash & hash; // Convert to 32-bit integer
+    }
+
+    // Generate hue from hash (0-360), keep saturation and lightness subtle
+    const hue: number = Math.abs(hash % 360);
+    // Low saturation (15-25%) and high lightness (88-92%) for subtle, professional look
+    const saturation: number = 18 + (Math.abs(hash >> 8) % 8);
+    const lightness: number = 89 + (Math.abs(hash >> 16) % 4);
+
+    return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
 }
 
 export interface ApplyGraphDeltaResult {
@@ -55,9 +88,11 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                     const hasPosition: boolean = O.isSome(node.nodeUIMetadata.position);
                     // Use saved position or temporary (0,0) - placeNewNodes will fix nodes without positions
                     const pos: { x: number; y: number; } = O.getOrElse(() => ({x: 0, y: 0}))(node.nodeUIMetadata.position);
+                    // Use frontmatter color if valid, otherwise generate subtle vault-based color
+                    const vaultPrefix: string = getVaultPrefixFromNodeId(nodeId);
                     const colorValue: string | undefined = O.isSome(node.nodeUIMetadata.color) && isValidCSSColor(node.nodeUIMetadata.color.value)
                         ? node.nodeUIMetadata.color.value
-                        : undefined;
+                        : generateVaultColor(vaultPrefix);
 
                     console.log(`[applyGraphDeltaToUI] Creating node ${nodeId} with color:`, colorValue);
 
@@ -85,9 +120,11 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                     existingNode.data('label', getNodeTitle(node));
                     existingNode.data('content', node.contentWithoutYamlOrLinks);
                     existingNode.data('summary', '');
+                    // Use frontmatter color if valid, otherwise generate subtle vault-based color
+                    const existingVaultPrefix: string = getVaultPrefixFromNodeId(nodeId);
                     const color: string | undefined = O.isSome(node.nodeUIMetadata.color) && isValidCSSColor(node.nodeUIMetadata.color.value)
                         ? node.nodeUIMetadata.color.value
-                        : undefined;
+                        : generateVaultColor(existingVaultPrefix);
                     if (color === undefined) {
                         existingNode.removeData('color');
                     } else {

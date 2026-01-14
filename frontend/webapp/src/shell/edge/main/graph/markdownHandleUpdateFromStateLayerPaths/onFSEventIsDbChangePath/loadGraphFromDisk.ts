@@ -1,6 +1,5 @@
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import * as O from "fp-ts/lib/Option.js";
 import * as E from "fp-ts/lib/Either.js";
 import type { Graph, FSUpdate, GraphDelta } from '@/pure/graph'
 import type { Dirent } from 'fs'
@@ -15,7 +14,7 @@ import { applyGraphDeltaToGraph } from '@/pure/graph/graphDelta/applyGraphDeltaT
  * IO function: Performs side effects (file I/O) and returns a Promise<Graph>.
  *
  * Algorithm (progressive, order-independent):
- * 1. Scan vault directory recursively for .md files
+ * 1. Scan all vault directories recursively for .md files
  * 2. For each file, progressively add to graph using addNodeToGraph
  *    - Validates outgoing edges from new node
  *    - Heals incoming edges to new node (bidirectional validation)
@@ -24,42 +23,47 @@ import { applyGraphDeltaToGraph } from '@/pure/graph/graphDelta/applyGraphDeltaT
  *
  * Key property: Loading [A,B,C] produces same result as [C,B,A] (order-independent)
  *
- * @param vaultPath - Absolute path to the vault directory containing markdown files (used for scanning)
- * @param watchedDirectory - Absolute path used as base for computing node IDs. If None, falls back to vaultPath.
+ * @param vaultPaths - Array of absolute paths to vault directories containing markdown files
+ * @param watchedDirectory - Absolute path used as base for computing node IDs.
  * @returns Promise that resolves to a Graph
  *
  * @example
  * ```typescript
- * const graph = await loadGraphFromDisk(O.some('/path/to/vault'), O.some('/path/to'))
+ * const graph = await loadGraphFromDisk(['/path/to/vault', '/path/to/openspec'], '/path/to')
  * console.log(`Loaded ${Object.keys(graph.nodes).length} nodes`)
  * ```
  */
 export async function loadGraphFromDisk(
-    vaultPath: O.Option<string>,
-    watchedDirectory: O.Option<string>
+    vaultPaths: readonly string[],
+    watchedDirectory: string
 ): Promise<E.Either<FileLimitExceededError, Graph>> {
-    if (O.isNone(vaultPath)) {
+    if (vaultPaths.length === 0) {
         return E.right({ nodes: {} });
     }
 
-    // Determine base directory for node ID computation (fall back to vaultPath if watchedDirectory is None)
-    const basePathForNodeIds: string = O.isSome(watchedDirectory) ? watchedDirectory.value : vaultPath.value
-
-    // Step 1: Scan directory for markdown files
-    const files: readonly string[] = await scanMarkdownFiles(vaultPath.value)
+    // Step 1: Scan all vault directories for markdown files
+    // Each file is stored with its vault path for correct absolute path resolution
+    const allFiles: readonly { vaultPath: string; relativePath: string }[] = (
+        await Promise.all(
+            vaultPaths.map(async (vaultPath) => {
+                const files: readonly string[] = await scanMarkdownFiles(vaultPath);
+                return files.map(relativePath => ({ vaultPath, relativePath }));
+            })
+        )
+    ).flat();
 
     // Step 1.5: Enforce file limit (will show error dialog and return Left if exceeded)
-    const limitCheck: E.Either<FileLimitExceededError, void> = enforceFileLimit(files.length);
+    const limitCheck: E.Either<FileLimitExceededError, void> = enforceFileLimit(allFiles.length);
     if (E.isLeft(limitCheck)) {
         return E.left(limitCheck.left);
     }
 
     // Step 2: Progressively build graph by adding nodes one at a time
     // Each addition validates edges and heals incoming edges (order-independent)
-    const graph: Graph = await files.reduce(
-        async (graphPromise, file) => {
+    const graph: Graph = await allFiles.reduce(
+        async (graphPromise, { vaultPath, relativePath }) => {
             const currentGraph: Graph = await graphPromise
-            const fullPath: string = path.join(vaultPath.value, file)
+            const fullPath: string = path.join(vaultPath, relativePath)
             const content: string = await fs.readFile(fullPath, 'utf-8')
 
             const fsEvent: FSUpdate = {
@@ -69,7 +73,7 @@ export async function loadGraphFromDisk(
             }
 
             // Use unified function (same as incremental!)
-            const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, basePathForNodeIds, currentGraph)
+            const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, watchedDirectory, currentGraph)
             return applyGraphDeltaToGraph(currentGraph, delta)
         },
         Promise.resolve({ nodes: {} } as Graph)

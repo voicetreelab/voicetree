@@ -13,7 +13,7 @@ import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/types';
 import {createTerminalData} from '@/shell/edge/UI-edge/floating-windows/types';
 import {getAppSupportPath} from '@/shell/edge/main/state/app-electron-state';
 import {getGraph} from '@/shell/edge/main/state/graph-store';
-import {getWatchStatus, getWatchedDirectory} from '@/shell/edge/main/graph/watchFolder';
+import {getWatchStatus, getWatchedDirectory} from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
 import {

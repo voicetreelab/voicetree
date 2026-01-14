@@ -449,16 +449,26 @@ button.graph-button:disabled > svg > path {
     background: #3d3d3d;
 }
 
-/* Active terminal highlight */
+/* Active terminal highlight - uses box-shadow so it renders outside inactive border */
 .agent-tab-active {
-    border: 3px solid #7c3aed;
+    box-shadow: 0 0 0 3px #7c3aed;
     border-radius: 3px;
     background: #252525;
 }
 
 .agent-tab-active:hover {
-    border: 3px solid #8b5cf6;
+    box-shadow: 0 0 0 3px #8b5cf6;
     border-radius: 3px;
+}
+
+/* Combined state: both active (purple) and inactive (green) - purple outside, green inside */
+.agent-tab-active.agent-tab-inactive {
+    box-shadow: 0 0 0 5px #7c3aed, 0 0 6px rgba(34, 197, 94, 0.4);
+    animation: none;
+}
+
+.agent-tab-active.agent-tab-inactive:hover {
+    box-shadow: 0 0 0 5px #8b5cf6, 0 0 10px rgba(34, 197, 94, 0.6);
 }
 
 /* Agent tab text - horizontally scrollable within fixed width */

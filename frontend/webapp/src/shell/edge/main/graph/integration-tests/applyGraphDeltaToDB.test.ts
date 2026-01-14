@@ -22,7 +22,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { setGraph } from '@/shell/edge/main/state/graph-store'
-import { setVaultPath, clearVaultPath } from '@/shell/edge/main/graph/watchFolder'
+import { setVaultPath, clearVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import type { GraphDelta, UpsertNodeDelta, DeleteNode, GraphNode } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'

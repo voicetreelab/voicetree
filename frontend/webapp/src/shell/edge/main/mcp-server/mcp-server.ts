@@ -22,7 +22,7 @@ import type {FSUpdate, Graph, GraphDelta} from '@/pure/graph'
 import {addNodeToGraphWithEdgeHealingFromFSEvent} from '@/pure/graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent'
 import {getNodeTitle} from '@/pure/graph/markdown-parsing'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
-import {getVaultPath, setVaultPath, getWatchedDirectory} from '@/shell/edge/main/graph/watchFolder'
+import {getDefaultWritePath, setVaultPath, getWatchedDirectory} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getUnseenNodesAroundContextNode, type UnseenNode} from '@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode'
 import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
@@ -70,8 +70,8 @@ export function createMcpServer(): McpServer {
             }
         },
         async ({nodeId, content, parentNodeId}) => {
-            // Get vault path (where files are stored)
-            const vaultPathOpt: O.Option<string> = getVaultPath()
+            // Get default write path (where new nodes are created)
+            const vaultPathOpt: O.Option<string> = getDefaultWritePath()
             if (O.isNone(vaultPathOpt)) {
                 return {
                     content: [{

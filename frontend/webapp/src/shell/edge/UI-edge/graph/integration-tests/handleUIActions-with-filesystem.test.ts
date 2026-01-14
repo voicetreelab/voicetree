@@ -26,7 +26,7 @@ import type { Graph, GraphDelta } from '@/pure/graph'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import { setGraph } from '@/shell/edge/main/state/graph-store'
-import { setVaultPath } from '@/shell/edge/main/graph/watchFolder'
+import { setVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
 
 // State managed by mocked globals - using module-level state that the mock functions will access

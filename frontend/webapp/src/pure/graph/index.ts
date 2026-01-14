@@ -124,6 +124,7 @@ export interface DeleteNode {
 
 export interface Env {
     readonly watchedDirectory: string
+    readonly vaultPath: string  // Default write path for NEW nodes (watchedDirectory + suffix)
 }
 export type FilePath = string // todo enforce only / and chars
 

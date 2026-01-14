@@ -2,6 +2,7 @@ import VoiceTreeTranscribe from "@/shell/UI/views/renderers/voicetree-transcribe
 import {useFolderWatcher} from "@/shell/UI/views/hooks/useFolderWatcher";
 import {VoiceTreeGraphView} from "@/shell/UI/views/VoiceTreeGraphView";
 import {AgentStatsPanel} from "@/shell/UI/views/AgentStatsPanel";
+import {VaultPathSelector} from "@/shell/UI/views/components/VaultPathSelector";
 import {useEffect, useRef, useState} from "react";
 import type { JSX } from "react/jsx-runtime";
 import type { RefObject, KeyboardEvent, FocusEvent, ChangeEvent } from "react";
@@ -101,6 +102,8 @@ function App(): JSX.Element {
                             {vaultSuffix !== '' && vaultSuffix != null ? vaultSuffix : <span className="text-gray-400 italic">(set .md subfolder)</span>}
                         </button>
                     )}
+                    {/* Vault path selector for multi-vault support */}
+                    <VaultPathSelector watchDirectory={watchDirectory} />
                 </>
             )}
         </div>

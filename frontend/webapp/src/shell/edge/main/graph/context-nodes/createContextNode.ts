@@ -2,7 +2,7 @@ import type {Graph, GraphDelta, NodeIdAndFilePath, GraphNode} from '@/pure/graph
 import {getSubgraphByDistance, graphToAscii, makeBidirectionalEdges, CONTEXT_NODES_FOLDER} from '@/pure/graph'
 import {getNodeTitle} from '@/pure/graph/markdown-parsing'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
-import {getWatchStatus} from '@/shell/edge/main/graph/watchFolder'
+import {getWatchStatus} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
 import {type VTSettings} from '@/pure/settings/types'
 import {fromCreateChildToUpsertNode} from '@/pure/graph/graphDelta/uiInteractionsToGraphDeltas'
