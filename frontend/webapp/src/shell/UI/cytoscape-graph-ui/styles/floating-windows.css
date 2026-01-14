@@ -385,3 +385,11 @@
   top: 0 !important;
   height: 100vh !important;
 }
+
+/* Wikilink autocomplete tooltip - ensure it appears above floating windows
+ * The tooltip is rendered in document.body (via tooltips({ parent: document.body }))
+ * to escape the overflow:auto clipping of .cy-floating-window-content.
+ * Needs z-index > 1000 (.cy-floating-overlay) to appear on top. */
+.cm-tooltip-autocomplete {
+  z-index: 10001 !important;
+}
