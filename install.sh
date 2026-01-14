@@ -24,9 +24,8 @@ esac
 # Check architecture
 ARCH="$(uname -m)"
 case "$ARCH" in
-    x86_64) ARCH="x64" ;;
-    aarch64|arm64) ARCH="arm64" ;;
-    *) error "Unsupported architecture: $ARCH" ;;
+    x86_64) ;;
+    *) error "Unsupported architecture: $ARCH. Linux AppImage is only available for x86_64." ;;
 esac
 
 # Get latest version
@@ -36,7 +35,7 @@ LATEST=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" | grep 
 info "Latest version: $LATEST"
 
 # Download AppImage
-FILENAME="voicetree-${LATEST}-${ARCH}.AppImage"
+FILENAME="Voicetree-${LATEST}.AppImage"
 URL="https://github.com/$REPO/releases/download/v${LATEST}/${FILENAME}"
 
 info "Downloading $FILENAME..."
