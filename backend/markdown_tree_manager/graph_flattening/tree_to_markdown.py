@@ -125,8 +125,9 @@ class TreeToMarkdownConverter:
 
                 f.write(frontmatter)
 
-                # Write title as first markdown heading
-                f.write(f"# {node_data.title}\n\n")
+                # Write title as first markdown heading (unless skip_title is set)
+                if not getattr(node_data, 'skip_title', False):
+                    f.write(f"# {node_data.title}\n\n")
 
                 # Write summary as second heading
                 if node_data.summary and node_data.summary.strip():

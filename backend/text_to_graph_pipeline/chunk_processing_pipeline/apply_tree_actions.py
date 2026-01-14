@@ -94,7 +94,8 @@ class TreeActionApplier:
             parent_node_id=parent_id,
             content=action.content,
             summary=action.summary,
-            relationship_to_parent=action.relationship
+            relationship_to_parent=action.relationship,
+            skip_title=action.skip_title
         )
         logging.info(f"Created new node '{action.new_node_name}' with ID {new_node_id}")
 

@@ -80,6 +80,7 @@ class CreateAction(BaseTreeAction):
     summary: str = Field(description="Summary for the new node")
     relationship: str = Field(description="Relationship to parent (e.g., 'subtask of')")
     children_to_link: Optional[list[int]] = Field(default=None, description="IDs of existing nodes to become children of this node")
+    skip_title: bool = Field(default=False, description="If true, don't write # title in markdown - summary serves as title")
 
 
 class AppendAction(BaseTreeAction):

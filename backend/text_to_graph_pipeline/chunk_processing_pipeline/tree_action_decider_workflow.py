@@ -5,6 +5,7 @@ Combines the functionality of TreeActionDecider and WorkflowAdapter into a singl
 """
 import asyncio
 import logging
+import os
 from dataclasses import dataclass
 from itertools import groupby
 from typing import Any
@@ -384,12 +385,16 @@ class TreeActionDeciderWorkflow:
 
             # Workflow complete - include detailed node info for frontend display
             nodes_info = []
+            # Get vault folder name to include in filename (for multi-vault support)
+            vault_folder = os.path.basename(self.decision_tree.output_dir) if self.decision_tree and self.decision_tree.output_dir else ""
             for node_id in modified_or_new_nodes:
                 if self.decision_tree is not None and node_id in self.decision_tree.tree:
                     node = self.decision_tree.tree[node_id]
+                    # Include vault folder in filename so frontend can construct correct nodeId
+                    full_filename = f"{vault_folder}/{node.filename}" if vault_folder else node.filename
                     nodes_info.append({
                         "title": node.title,
-                        "filename": node.filename,
+                        "filename": full_filename,
                         "is_new": node_id in newly_created_nodes
                     })
             await emit_event(SSEEventType.WORKFLOW_COMPLETE, {
@@ -574,7 +579,8 @@ class TreeActionDeciderWorkflow:
                         new_node_name=child_name,
                         content=cleaned_content,
                         summary="",  # Will be filled by optimizer
-                        relationship="continuation of"
+                        relationship="continuation of",
+                        skip_title=True  # Summary serves as title for these nodes
                     ))
                     logging.info(f"Converted append to child creation for long node {action.target_node_id}")
                 else:

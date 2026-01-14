@@ -93,7 +93,8 @@ class TestTreeActionsBehavioral:
             parent_node_id=1,
             content="The system must ensure data privacy and encryption.",
             summary="Security requirements for the voice system",
-            relationship_to_parent="aspect of"
+            relationship_to_parent="aspect of",
+            skip_title=False
         )
 
         # Verify update action
@@ -138,7 +139,8 @@ class TestTreeActionsBehavioral:
             parent_node_id=2,  # Must use exact ID
             content="We will use Python and LangGraph",
             summary="Technical implementation details",
-            relationship_to_parent="elaborates on"
+            relationship_to_parent="elaborates on",
+            skip_title=False
         )
 
         # Should update parent node and new node
