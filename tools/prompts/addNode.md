@@ -77,11 +77,18 @@ files changed: e.g. file1.md, file2.py, etc..
 \```
 </optional>
 
-<OPTIONAL> 
+<OPTIONAL>
 - Important notes, gotchas
 If relevant, include how this change affects the overall system, dependencies, or workflow.
 If relevant, include difficulties you faced in accomplishing this task, tech debt which made it hard.
 </OPTIONAL>
+
+<OPTIONAL but ENCOURAGED>
+## Related Files
+If you created any other markdown files during this session (e.g. OpenSpec proposals, specs, documentation), link to them:
+- [[path/to/created_file.md]] - brief description
+This creates graph edges connecting your progress node to related artifacts.
+</OPTIONAL but ENCOURAGED>
 </MARKDOWN new node Format Template>
 
 **Important**: Use double brackets `[[link]]` for edges, not single `[link]`. Only `[[wikilinks]]` create graph edges.
