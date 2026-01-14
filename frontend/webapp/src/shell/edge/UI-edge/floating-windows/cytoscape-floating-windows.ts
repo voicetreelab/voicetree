@@ -21,6 +21,7 @@ import {
 import {removeTerminal} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {removeEditor} from "@/shell/edge/UI-edge/state/EditorStore";
 import {updateWindowFromZoom} from "@/shell/edge/UI-edge/floating-windows/update-window-from-zoom";
+import {suppressInactivityDuringZoom} from "@/shell/UI/views/AgentTabsBar";
 
 // =============================================================================
 // Zoom Change Subscription
@@ -45,6 +46,29 @@ export function subscribeToZoomChange(callback: ZoomChangeCallback): () => void 
 let cachedZoom: number = 1;
 export function getCachedZoom(): number {
     return cachedZoom;
+}
+
+// =============================================================================
+// Zoom State Tracking
+// =============================================================================
+
+let zoomActiveUntil: number = 0;
+const ZOOM_ACTIVE_MS: number = 450; // slightly longer than 400ms debounce
+
+/**
+ * Check if zoom is currently active (within the debounce window)
+ * Used to determine if CSS transform scaling should be applied to terminals
+ */
+export function isZoomActive(): boolean {
+    return Date.now() < zoomActiveUntil;
+}
+
+/**
+ * Mark zoom as active, extending the active window
+ * Called by syncTransform on each zoom event
+ */
+export function markZoomActive(): void {
+    zoomActiveUntil = Date.now() + ZOOM_ACTIVE_MS;
 }
 
 // =============================================================================
@@ -112,6 +136,12 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
             const pan: cytoscape.Position = cy.pan();
             const zoom: number = cy.zoom();
             cachedZoom = zoom;
+
+            // Suppress terminal inactivity detection during zoom (resize triggers shell redraws)
+            suppressInactivityDuringZoom();
+
+            // Mark zoom as active for CSS transform scaling decisions
+            markZoomActive();
 
             // Only translate, no scale - windows handle their own sizing
             overlay.style.transform = `translate(${pan.x}px, ${pan.y}px)`;

@@ -50,7 +50,7 @@ async function waitForNode(
     const pollIntervalMs: number = 100;
     const maxAttempts: number = Math.ceil(timeoutMs / pollIntervalMs);
 
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    for (let attempt: number = 0; attempt < maxAttempts; attempt++) {
         const node: CollectionReturnValue = cy.getElementById(nodeId);
         if (node.length > 0) {
             if (attempt > 0) {
@@ -140,8 +140,8 @@ export async function createFloatingTerminal(
     const terminalId: TerminalId = getTerminalId(terminalData);
     console.log('[FloatingWindowManager-v2] Creating floating terminal:', terminalId);
 
-    // Check if already exists
-    const existing: NodeCollection = cy.nodes(`#${terminalId}`);
+    // Check if already exists (use cy.$id to avoid CSS selector escaping issues with / in IDs)
+    const existing: NodeCollection = cy.$id(terminalId) as NodeCollection;
     if (existing && existing.length > 0) {
         console.log('[FloatingWindowManager-v2] Terminal already exists');
         return undefined;
