@@ -233,7 +233,7 @@ class TestConvertAppendsToChildrenForLongNodes:
         assert result == []
 
     def test_content_with_separator_stripped(self, workflow, mock_tree):
-        """Content preview should strip the +++ separator when deriving name"""
+        """Content should have +++ separator stripped when converting to child node"""
         # Setup: create a long node
         long_content = "x" * (MAX_NODE_CONTENT_LENGTH_FOR_APPEND + 100)
         node_id = mock_tree.create_new_node(
@@ -253,11 +253,12 @@ class TestConvertAppendsToChildrenForLongNodes:
         # Execute
         result = workflow._convert_appends_to_children_for_long_nodes([append_action])
 
-        # Assert: separator is stripped from name
+        # Assert: separator is stripped from content, name is generic
         assert len(result) == 1
         create_action = result[0]
-        assert "+++" not in create_action.new_node_name
-        assert "Actual content starts here" in create_action.new_node_name
+        assert "+++" not in create_action.content
+        assert create_action.content == "Actual content starts here"
+        assert create_action.new_node_name == "Parent (continued)"
 
     def test_node_exactly_at_threshold_unchanged(self, workflow, mock_tree):
         """AppendAction targeting node exactly at threshold should remain unchanged"""

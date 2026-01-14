@@ -19,7 +19,7 @@ def extract_title_from_md(node_content: str) -> str:
     return title
 
 class Node:
-    def __init__(self, name : str, node_id: int, content: str, summary: str = "", parent_id: Optional[int] = None):
+    def __init__(self, name : str, node_id: int, content: str, summary: str = "", parent_id: Optional[int] = None, skip_title: bool = False):
         self.transcript_history = ""
         self.id: int = node_id or -1
         self.content: str = content
@@ -34,6 +34,7 @@ class Node:
         self.num_appends: int = 0
         self.tags: list[str] = []  # Support for multiple tags per node
         self.color: Optional[str] = None  # Support for color attribute
+        self.skip_title: bool = skip_title  # If true, don't write # title in markdown
 
 
 
@@ -189,7 +190,7 @@ class MarkdownTree:
         except Exception as e:
             logging.error(f"Failed to write markdown for nodes {node_ids}: {e}")
 
-    def create_new_node(self, name: str, parent_node_id: Optional[int], content: str, summary : str, relationship_to_parent: str = "child of") -> int:
+    def create_new_node(self, name: str, parent_node_id: Optional[int], content: str, summary : str, relationship_to_parent: str = "child of", skip_title: bool = False) -> int:
         if parent_node_id is not None and parent_node_id not in self.tree:
             logging.error(f"Warning: Trying to create a node with non-existent parent ID: {parent_node_id}")
             parent_node_id = None
@@ -203,7 +204,7 @@ class MarkdownTree:
 
         # Only get and increment node_id after validation passes
         new_node_id = self.next_node_id
-        new_node = Node(name, new_node_id, content, summary, parent_id=parent_node_id)
+        new_node = Node(name, new_node_id, content, summary, parent_id=parent_node_id, skip_title=skip_title)
         if parent_node_id is not None:
             new_node.relationships[parent_node_id] = relationship_to_parent
             # TODO: Consider adding inverse relationship storage in parent node for easier lookups

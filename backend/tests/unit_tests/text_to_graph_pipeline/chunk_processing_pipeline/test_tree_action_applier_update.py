@@ -109,14 +109,16 @@ class TestTreeActionApplierUpdate:
             parent_node_id=parent_node_id,
             content="Content for child B",
             summary="Child B summary",
-            relationship_to_parent="subtask of"
+            relationship_to_parent="subtask of",
+            skip_title=False
         )
         mock_decision_tree.create_new_node.assert_any_call(
             name="Child C",
             parent_node_id=parent_node_id,
             content="Content for child C",
             summary="Child C summary",
-            relationship_to_parent="subtask of"
+            relationship_to_parent="subtask of",
+            skip_title=False
         )
 
         # Should track all updated nodes
