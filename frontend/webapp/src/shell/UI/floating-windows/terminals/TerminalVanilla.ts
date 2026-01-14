@@ -7,7 +7,7 @@ import { Unicode11Addon } from '@xterm/addon-unicode11';
 import '@xterm/xterm/css/xterm.css';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/types';
 import type { VTSettings } from '@/pure/settings';
-import { getCachedZoom } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
+import { getCachedZoom, isZoomActive, subscribeToZoomChange } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 import { getScalingStrategy, getTerminalFontSize } from '@/pure/floatingWindowScaling';
 
 export interface TerminalVanillaConfig {
@@ -28,6 +28,7 @@ export class TerminalVanilla {
   private resizeFrameId: number | null = null;
   private suppressNextEnter: boolean = false;
   private shiftEnterSendsOptionEnter: boolean = true;
+  private unsubscribeZoom: (() => void) | null = null;
 
   constructor(config: TerminalVanillaConfig) {
     this.container = config.container;
@@ -137,28 +138,57 @@ export class TerminalVanilla {
         cancelAnimationFrame(this.resizeFrameId);
       }
       this.resizeFrameId = requestAnimationFrame(() => {
-        if (this.term && this.fitAddon) {
-          // Update fontSize based on current zoom level
-          const zoom: number = getCachedZoom();
-          const strategy: 'css-transform' | 'dimension-scaling' = getScalingStrategy('Terminal', zoom);
-          this.term.options.fontSize = getTerminalFontSize(zoom, strategy);
+        if (!this.term || !this.fitAddon) return;
 
-          // Save scroll position before fit (fit changes row count which can reset scroll)
-          const buffer: { baseY: number; viewportY: number } = this.term.buffer.active;
-          const scrollOffset: number = buffer.baseY - buffer.viewportY; // lines scrolled up from bottom
+        const zoom: number = getCachedZoom();
 
-          this.fitAddon.fit();
+        if (isZoomActive()) {
+          // During zoom: skip fit() to avoid PTY resize/shell redraws
+          // Visual scaling is handled by the parent floating window's CSS transform
+          return;
+        }
 
-          // Restore scroll position after fit
-          const newBaseY: number = this.term.buffer.active.baseY;
-          const targetLine: number = newBaseY - scrollOffset;
-          if (targetLine >= 0) {
-            this.term.scrollToLine(targetLine);
-          }
+        // Update fontSize based on current zoom level
+        const strategy: 'css-transform' | 'dimension-scaling' = getScalingStrategy('Terminal', zoom);
+        this.term.options.fontSize = getTerminalFontSize(zoom, strategy);
+
+        // Save scroll position before fit (fit changes row count which can reset scroll)
+        const buffer: { baseY: number; viewportY: number } = this.term.buffer.active;
+        const scrollOffset: number = buffer.baseY - buffer.viewportY; // lines scrolled up from bottom
+
+        this.fitAddon.fit();
+
+        // Restore scroll position after fit
+        const newBaseY: number = this.term.buffer.active.baseY;
+        const targetLine: number = newBaseY - scrollOffset;
+        if (targetLine >= 0) {
+          this.term.scrollToLine(targetLine);
         }
       });
     });
     this.resizeObserver.observe(this.container);
+
+    // Subscribe to zoom end for guaranteed final fit after zoom stops
+    this.unsubscribeZoom = subscribeToZoomChange((zoom: number) => {
+      if (!this.term || !this.fitAddon) return;
+
+      // Update font size
+      const strategy: 'css-transform' | 'dimension-scaling' = getScalingStrategy('Terminal', zoom);
+      this.term.options.fontSize = getTerminalFontSize(zoom, strategy);
+
+      // Save scroll position
+      const buffer: { baseY: number; viewportY: number } = this.term.buffer.active;
+      const scrollOffset: number = buffer.baseY - buffer.viewportY;
+
+      this.fitAddon.fit();
+
+      // Restore scroll position
+      const newBaseY: number = this.term.buffer.active.baseY;
+      const targetLine: number = newBaseY - scrollOffset;
+      if (targetLine >= 0) {
+        this.term.scrollToLine(targetLine);
+      }
+    });
 
     // Initialize terminal backend connection
     await this.initTerminal();
@@ -225,6 +255,10 @@ export class TerminalVanilla {
 
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
+    }
+
+    if (this.unsubscribeZoom) {
+      this.unsubscribeZoom();
     }
 
     // Kill terminal process
