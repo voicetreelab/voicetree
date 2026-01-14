@@ -1,4 +1,4 @@
-import {type HotkeySettings, type VTSettings} from "@/pure/settings/types";
+import {type HotkeySettings, type VTSettings, AGENT_NAMES} from "@/pure/settings/types";
 
 /** Mac-style defaults using Meta key */
 const MAC_HOTKEYS: HotkeySettings = {
@@ -82,6 +82,7 @@ Highest priority task: `,
     shiftEnterSendsOptionEnter: true,
     vimMode: false,
     INJECT_ENV_VARS: {
+        AGENT_NAME: AGENT_NAMES,
         AGENT_PROMPT: stripNewlines(`First read and analyze the context of your task: <TASK_CONTEXT> Read $CONTEXT_NODE_PATH </TASK_CONTEXT>
             If necessary, explore your directory to gather additional context.
             <HANDLING_AMBIGUITY> If your task has non-trivial ambiguity, stop and ask the user for clarifications. For each clarifying question include your current working assumption. Otherwise, if the task is clear, continue working on it, or developing your task plan until ambiguity does arise.</HANDLING_AMBIGUITY>
