@@ -140,20 +140,43 @@ describe('Multi-Vault Path Allowlist (7.1)', () => {
     })
   })
 
-  describe('7.1.2 Scenario: Vault path validation', () => {
-    it('should reject non-existent paths and leave allowlist unchanged', async () => {
+  describe('7.1.2 Scenario: Auto-create vault folder when adding non-existent path', () => {
+    it('should auto-create directory when adding a non-existent path within project', async () => {
+      // GIVEN: Load a folder (initializes with primary vault path)
+      await loadFolder(testWatchedDir, 'voicetree')
+
+      // WHEN: Add a path that doesn't exist yet (but is within the project directory)
+      const newFolderPath: string = path.join(testWatchedDir, 'new-folder-to-create')
+
+      // Verify it doesn't exist before
+      await expect(fs.access(newFolderPath)).rejects.toThrow()
+
+      const result: { success: boolean; error?: string } = await addVaultPathToAllowlist(newFolderPath)
+
+      // ASSERT: Addition succeeds
+      expect(result.success).toBe(true)
+
+      // ASSERT: Directory was created
+      const stats: Awaited<ReturnType<typeof fs.stat>> = await fs.stat(newFolderPath)
+      expect(stats.isDirectory()).toBe(true)
+
+      // ASSERT: Path is now in allowlist
+      expect(getVaultPaths()).toContain(newFolderPath)
+    })
+
+    it('should fail gracefully when path cannot be created (e.g., invalid characters or permissions)', async () => {
       // GIVEN: Load a folder (initializes with primary vault path)
       await loadFolder(testWatchedDir, 'voicetree')
       const initialPaths: readonly string[] = [...getVaultPaths()]
 
-      // WHEN: Attempt to add non-existent path
-      const nonExistentPath: string = '/nonexistent/path/that/does/not/exist'
-      const result: { success: boolean; error?: string } = await addVaultPathToAllowlist(nonExistentPath)
+      // WHEN: Attempt to add path in non-existent root location (will fail on permissions)
+      const invalidPath: string = '/nonexistent/root/path/that/cannot/be/created'
+      const result: { success: boolean; error?: string } = await addVaultPathToAllowlist(invalidPath)
 
-      // ASSERT: Function returns error
+      // ASSERT: Function returns error (can't create directory without permissions)
       expect(result.success).toBe(false)
       expect(result.error).toBeDefined()
-      expect(result.error).toContain('does not exist')
+      expect(result.error).toContain('Failed to create directory')
 
       // ASSERT: getVaultPaths() unchanged
       const currentPaths: readonly string[] = getVaultPaths()
@@ -712,12 +735,20 @@ describe('Auto-load files when adding new vault path', () => {
     // THEN: Addition should succeed
     expect(result.success).toBe(true)
 
-    // THEN: New files should have been broadcast to UI (graph:stateChanged events)
-    // We should see delta broadcasts for the files in the new vault
+    // THEN: New files should have been broadcast to UI via single bulk broadcast
+    // Uses bulk load path: single stateChanged event containing all new nodes
     const newCalls: BroadcastCall[] = broadcastCalls.slice(callsBeforeAdd)
     const stateChangedCalls: BroadcastCall[] = newCalls.filter(c => c.channel === 'graph:stateChanged')
 
-    // Should have at least 2 stateChanged calls (one for each file in new-vault)
-    expect(stateChangedCalls.length).toBeGreaterThanOrEqual(2)
+    // Should have exactly 1 bulk broadcast (not N per-file broadcasts)
+    expect(stateChangedCalls.length).toBe(1)
+
+    // The single broadcast should contain both new files
+    const bulkDelta: GraphDelta = stateChangedCalls[0].delta
+    expect(bulkDelta.length).toBe(2)
+
+    const nodeIds: readonly string[] = bulkDelta.map(d => d.type === 'UpsertNode' ? d.nodeToUpsert.relativeFilePathIsID : '')
+    expect(nodeIds).toContain('new-vault/newfile1.md')
+    expect(nodeIds).toContain('new-vault/newfile2.md')
   })
 })

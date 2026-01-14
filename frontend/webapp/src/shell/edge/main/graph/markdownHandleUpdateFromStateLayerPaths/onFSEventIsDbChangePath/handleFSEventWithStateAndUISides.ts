@@ -18,6 +18,9 @@ import {isOurRecentDelta} from "@/shell/edge/main/state/recent-deltas-store";
  *
  * FS Event Path: FS → MEM + GraphUI + Editors
  *
+ * Note: Bulk loads (e.g., adding a new vault path) use loadVaultPathAdditively
+ * instead of this function, so no time-based guard is needed here.
+ *
  * @param fsEvent - Filesystem event (add, change, or delete)
  * @param watchedDirectory - Absolute path to watched directory
  * @param _mainWindow - Electron window (unused, kept for API compatibility)

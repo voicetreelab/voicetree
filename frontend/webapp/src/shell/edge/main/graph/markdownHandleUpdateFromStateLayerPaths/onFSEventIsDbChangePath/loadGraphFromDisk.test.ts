@@ -4,8 +4,8 @@ import * as path from 'path'
 import * as os from 'os'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
-import { loadGraphFromDisk } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk'
-import type { Graph, GraphNode } from '@/pure/graph'
+import { loadGraphFromDisk, loadVaultPathAdditively } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk'
+import type { Graph, GraphNode, GraphDelta } from '@/pure/graph'
 import { getNodeTitle } from '@/pure/graph/markdown-parsing'
 import type { FileLimitExceededError } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce'
 
@@ -181,5 +181,144 @@ This is in a subfolder.`
     const graph2: Graph = r11.right
 
     expect(Object.keys(graph1.nodes).sort()).toEqual(Object.keys(graph2.nodes).sort())
+  })
+})
+
+describe('loadVaultPathAdditively', () => {
+  let tmpDir: string
+  let watchedDir: string
+  let primaryVaultPath: string
+  let secondaryVaultPath: string
+
+  beforeAll(async () => {
+    // Create temp directory structure:
+    // tmpDir/
+    //   project/           <- watchedDir
+    //     primary-vault/   <- primaryVaultPath (existing nodes)
+    //       existing.md
+    //     secondary-vault/ <- secondaryVaultPath (new nodes to add)
+    //       newfile1.md
+    //       newfile2.md
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'additive-test-'))
+    watchedDir = path.join(tmpDir, 'project')
+    primaryVaultPath = path.join(watchedDir, 'primary-vault')
+    secondaryVaultPath = path.join(watchedDir, 'secondary-vault')
+
+    await fs.mkdir(primaryVaultPath, { recursive: true })
+    await fs.mkdir(secondaryVaultPath, { recursive: true })
+
+    // Create existing node in primary vault
+    await fs.writeFile(
+      path.join(primaryVaultPath, 'existing.md'),
+      `# Existing Node
+
+This is an existing node.`
+    )
+
+    // Create new nodes in secondary vault
+    await fs.writeFile(
+      path.join(secondaryVaultPath, 'newfile1.md'),
+      `# New File 1
+
+Content for new file 1.`
+    )
+    await fs.writeFile(
+      path.join(secondaryVaultPath, 'newfile2.md'),
+      `# New File 2
+
+Content for new file 2. Links to [[existing]].`
+    )
+  })
+
+  afterAll(async () => {
+    await fs.rm(tmpDir, { recursive: true, force: true })
+  })
+
+  it('should merge new vault nodes into existing graph', async () => {
+    // GIVEN: Load initial graph from primary vault
+    const initialResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([primaryVaultPath], watchedDir)
+    if (E.isLeft(initialResult)) throw new Error('Expected Right')
+    const existingGraph: Graph = initialResult.right
+
+    expect(Object.keys(existingGraph.nodes)).toHaveLength(1)
+    expect(existingGraph.nodes['primary-vault/existing.md']).toBeDefined()
+
+    // WHEN: Load secondary vault additively
+    const additiveResult: E.Either<FileLimitExceededError, { graph: Graph; delta: GraphDelta }> =
+      await loadVaultPathAdditively(secondaryVaultPath, watchedDir, existingGraph)
+
+    // THEN: Result should be Right with merged graph
+    if (E.isLeft(additiveResult)) throw new Error('Expected Right')
+    const { graph: mergedGraph, delta } = additiveResult.right
+
+    // THEN: Merged graph should contain all nodes (original + new)
+    expect(Object.keys(mergedGraph.nodes)).toHaveLength(3)
+    expect(mergedGraph.nodes['primary-vault/existing.md']).toBeDefined()
+    expect(mergedGraph.nodes['secondary-vault/newfile1.md']).toBeDefined()
+    expect(mergedGraph.nodes['secondary-vault/newfile2.md']).toBeDefined()
+
+    // THEN: Delta should only contain the new nodes
+    expect(delta).toHaveLength(2)
+    const deltaNodeIds: readonly string[] = delta.map(d => d.type === 'UpsertNode' ? d.nodeToUpsert.relativeFilePathIsID : '')
+    expect(deltaNodeIds).toContain('secondary-vault/newfile1.md')
+    expect(deltaNodeIds).toContain('secondary-vault/newfile2.md')
+    expect(deltaNodeIds).not.toContain('primary-vault/existing.md')
+  })
+
+  it('should preserve existing node positions when merging', async () => {
+    // GIVEN: Load initial graph and set a position on existing node
+    const initialResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([primaryVaultPath], watchedDir)
+    if (E.isLeft(initialResult)) throw new Error('Expected Right')
+
+    const existingGraph: Graph = {
+      nodes: {
+        ...initialResult.right.nodes,
+        'primary-vault/existing.md': {
+          ...initialResult.right.nodes['primary-vault/existing.md'],
+          nodeUIMetadata: {
+            ...initialResult.right.nodes['primary-vault/existing.md'].nodeUIMetadata,
+            position: O.some({ x: 100, y: 200 })
+          }
+        }
+      }
+    }
+
+    // WHEN: Load secondary vault additively
+    const additiveResult: E.Either<FileLimitExceededError, { graph: Graph; delta: GraphDelta }> =
+      await loadVaultPathAdditively(secondaryVaultPath, watchedDir, existingGraph)
+
+    if (E.isLeft(additiveResult)) throw new Error('Expected Right')
+    const { graph: mergedGraph } = additiveResult.right
+
+    // THEN: Existing node position should be preserved
+    const existingNode: GraphNode = mergedGraph.nodes['primary-vault/existing.md']
+    expect(O.isSome(existingNode.nodeUIMetadata.position)).toBe(true)
+    if (O.isSome(existingNode.nodeUIMetadata.position)) {
+      expect(existingNode.nodeUIMetadata.position.value).toEqual({ x: 100, y: 200 })
+    }
+  })
+
+  it('should return empty delta when adding empty vault', async () => {
+    // GIVEN: Existing graph with nodes
+    const initialResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([primaryVaultPath], watchedDir)
+    if (E.isLeft(initialResult)) throw new Error('Expected Right')
+    const existingGraph: Graph = initialResult.right
+
+    // AND: Create an empty vault
+    const emptyVaultPath: string = path.join(watchedDir, 'empty-vault')
+    await fs.mkdir(emptyVaultPath, { recursive: true })
+
+    // WHEN: Load empty vault additively
+    const additiveResult: E.Either<FileLimitExceededError, { graph: Graph; delta: GraphDelta }> =
+      await loadVaultPathAdditively(emptyVaultPath, watchedDir, existingGraph)
+
+    if (E.isLeft(additiveResult)) throw new Error('Expected Right')
+    const { graph: mergedGraph, delta } = additiveResult.right
+
+    // THEN: Graph should be unchanged
+    expect(Object.keys(mergedGraph.nodes)).toHaveLength(1)
+
+    // THEN: Delta should be empty
+    expect(delta).toHaveLength(0)
   })
 })
