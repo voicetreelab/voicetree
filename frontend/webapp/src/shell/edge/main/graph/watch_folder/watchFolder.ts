@@ -1,4 +1,4 @@
-import {loadGraphFromDisk} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk";
+import {loadGraphFromDisk, scanMarkdownFiles} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk";
 import type {FilePath, Graph, GraphDelta, FSDelete, GraphNode, DeleteNode} from "@/pure/graph";
 import type {FileLimitExceededError} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce";
 import {setGraph, getGraph} from "@/shell/edge/main/state/graph-store";
@@ -74,6 +74,7 @@ export function setDefaultWritePath(vaultPath: FilePath): { success: boolean; er
 /**
  * Add a vault path to the allowlist.
  * The path must exist on disk.
+ * Automatically loads files from the new path into the graph and adds to watcher.
  */
 export async function addVaultPathToAllowlist(vaultPath: FilePath): Promise<{ success: boolean; error?: string }> {
     // Check if already in allowlist
@@ -96,6 +97,36 @@ export async function addVaultPathToAllowlist(vaultPath: FilePath): Promise<{ su
             allowlist: vaultPathAllowlist,
             defaultWritePath: defaultWritePath
         });
+    }
+
+    // Load files from the new path into the graph
+    if (watchedDirectory) {
+        const mainWindow: Electron.CrossProcessExports.BrowserWindow | null = getMainWindow();
+
+        // Scan and load files from the new vault path
+        const files: readonly string[] = await scanMarkdownFiles(vaultPath);
+        for (const relativePath of files) {
+            const fullPath: string = path.join(vaultPath, relativePath);
+            try {
+                const content: string = await fs.readFile(fullPath, 'utf8');
+                const fsUpdate: FSUpdate = {
+                    absolutePath: fullPath,
+                    content,
+                    eventType: 'Added'
+                };
+                // Use the same handler as the watcher for consistency
+                if (mainWindow) {
+                    handleFSEventWithStateAndUISides(fsUpdate, watchedDirectory, mainWindow);
+                }
+            } catch (err) {
+                console.error(`[addVaultPathToAllowlist] Error reading file ${fullPath}:`, err);
+            }
+        }
+
+        // Add the new path to the watcher
+        if (watcher) {
+            watcher.add(vaultPath);
+        }
     }
 
     return { success: true };

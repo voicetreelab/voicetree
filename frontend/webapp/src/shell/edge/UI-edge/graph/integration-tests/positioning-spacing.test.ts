@@ -49,7 +49,7 @@ describe('Node Positioning Spacing - Integration', () => {
     const exampleFolderPath: string = path.resolve(process.cwd(), 'example_folder_fixtures', 'example_real_large')
 
     // WHEN: Load graph from disk (this applies positions)
-    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(exampleFolderPath), O.some(exampleFolderPath))
+    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([exampleFolderPath], exampleFolderPath)
     if (E.isLeft(loadResult)) throw new Error('Expected Right')
     const graph: Graph = loadResult.right
 
@@ -120,7 +120,7 @@ describe('Node Positioning Spacing - Integration', () => {
   it.skip('should investigate child node position: simulates bug where cytoscape position diverges from graph model', async () => {
     // GIVEN: Load example_real_large folder
     const exampleFolderPath: string = path.resolve(process.cwd(), 'example_folder_fixtures', 'example_real_large')
-    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(exampleFolderPath), O.some(exampleFolderPath))
+    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([exampleFolderPath], exampleFolderPath)
     if (E.isLeft(loadResult)) throw new Error('Expected Right')
     const graph: Graph = loadResult.right
 

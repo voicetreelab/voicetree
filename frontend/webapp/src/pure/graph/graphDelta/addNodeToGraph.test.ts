@@ -361,7 +361,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       await fs.writeFile(path.join(bulkVaultPath, 'b.md'), '# B\n\n- links [[c]]')
       await fs.writeFile(path.join(bulkVaultPath, 'c.md'), '# C')
 
-      const bulkResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(bulkVaultPath), O.some(bulkVaultPath))
+      const bulkResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([bulkVaultPath], bulkVaultPath)
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(bulkResult)) throw new Error('Expected Right')
       const bulkGraph: Graph = bulkResult.right
@@ -414,7 +414,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       await fs.writeFile(path.join(bulkVaultPath, 'a.md'), '# A\n\n- links [[b]]')
       await fs.writeFile(path.join(bulkVaultPath, 'b.md'), '# B')
 
-      const bulkResult2: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(bulkVaultPath), O.some(bulkVaultPath))
+      const bulkResult2: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([bulkVaultPath], bulkVaultPath)
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(bulkResult2)) throw new Error('Expected Right')
       const bulkGraph: Graph = bulkResult2.right
@@ -459,7 +459,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         '# Source\n\n- broken link [[does-not-exist]]'
       )
 
-      const result5: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(vaultPath), O.some(vaultPath))
+      const result5: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([vaultPath], vaultPath)
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(result5)) throw new Error('Expected Right')
       const graph: Graph = result5.right
@@ -498,7 +498,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         '# Source\n\n- link1 [[a]]\n- link2 [[b]]\n- link3 [[c]]'
       )
 
-      const result6: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(vaultPath), O.some(vaultPath))
+      const result6: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([vaultPath], vaultPath)
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(result6)) throw new Error('Expected Right')
       const graph: Graph = result6.right

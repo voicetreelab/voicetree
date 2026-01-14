@@ -646,3 +646,78 @@ describe('Fallback Behavior - getVaultPath vs getDefaultWritePath', () => {
     }
   })
 })
+
+describe('Auto-load files when adding new vault path', () => {
+  beforeEach(async () => {
+    // Create temp directory structure for tests
+    testTmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'auto-load-test-'))
+    testWatchedDir = path.join(testTmpDir, 'project')
+    testVaultPath1 = path.join(testWatchedDir, 'voicetree')
+    testVaultPath2 = path.join(testWatchedDir, 'new-vault')
+
+    await fs.mkdir(testWatchedDir, { recursive: true })
+    await fs.mkdir(testVaultPath1, { recursive: true })
+    await fs.mkdir(testVaultPath2, { recursive: true })
+
+    // Create a test file in primary vault
+    await fs.writeFile(
+      path.join(testVaultPath1, 'test.md'),
+      '# Test Node\n\nTest content.'
+    )
+
+    // Create test files in the new vault that will be added later
+    await fs.writeFile(
+      path.join(testVaultPath2, 'newfile1.md'),
+      '# New File 1\n\nContent 1.'
+    )
+    await fs.writeFile(
+      path.join(testVaultPath2, 'newfile2.md'),
+      '# New File 2\n\nContent 2.'
+    )
+
+    // Reset graph state
+    setGraph({ nodes: {} })
+    clearVaultPath()
+
+    // Reset broadcast tracking
+    broadcastCalls = []
+
+    // Create mock BrowserWindow
+    mockMainWindow = {
+      webContents: {
+        send: vi.fn((channel: string, data: unknown) => {
+          broadcastCalls.push({ channel, delta: data as GraphDelta })
+        })
+      },
+      isDestroyed: vi.fn(() => false)
+    }
+  })
+
+  afterEach(async () => {
+    await stopFileWatching()
+    await fs.rm(testTmpDir, { recursive: true, force: true })
+    vi.clearAllMocks()
+  })
+
+  it('should auto-load files from new vault path when added via addVaultPathToAllowlist', async () => {
+    // GIVEN: Load a folder (initializes with primary vault path)
+    await loadFolder(testWatchedDir, 'voicetree')
+
+    // Record broadcast calls before adding new vault
+    const callsBeforeAdd: number = broadcastCalls.length
+
+    // WHEN: Add a new vault path that contains files
+    const result: { success: boolean; error?: string } = await addVaultPathToAllowlist(testVaultPath2)
+
+    // THEN: Addition should succeed
+    expect(result.success).toBe(true)
+
+    // THEN: New files should have been broadcast to UI (graph:stateChanged events)
+    // We should see delta broadcasts for the files in the new vault
+    const newCalls: BroadcastCall[] = broadcastCalls.slice(callsBeforeAdd)
+    const stateChangedCalls: BroadcastCall[] = newCalls.filter(c => c.channel === 'graph:stateChanged')
+
+    // Should have at least 2 stateChanged calls (one for each file in new-vault)
+    expect(stateChangedCalls.length).toBeGreaterThanOrEqual(2)
+  })
+})
