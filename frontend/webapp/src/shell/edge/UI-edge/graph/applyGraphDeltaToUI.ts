@@ -181,7 +181,10 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                 node.outgoingEdges.forEach((edge) => {
                     const edgeId: string = `${nodeId}->${edge.targetId}`;
                     const existingEdge: CollectionReturnValue = cy.getElementById(edgeId);
-                    const newLabel: string | undefined = edge.label ? edge.label.replace(/_/g, ' ') : undefined;
+                    const MAX_EDGE_LABEL_LENGTH: number = 50;
+                    const newLabel: string | undefined = edge.label
+                        ? edge.label.replace(/_/g, ' ').slice(0, MAX_EDGE_LABEL_LENGTH) + (edge.label.length > MAX_EDGE_LABEL_LENGTH ? '…' : '')
+                        : undefined;
 
                     // If edge already exists, update its label
                     if (existingEdge.length > 0) {
