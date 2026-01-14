@@ -1,4 +1,4 @@
-import {loadGraphFromDisk, scanMarkdownFiles} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk";
+import {loadGraphFromDisk, loadVaultPathAdditively} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk";
 import type {FilePath, Graph, GraphDelta, FSDelete, GraphNode, DeleteNode} from "@/pure/graph";
 import type {FileLimitExceededError} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce";
 import {setGraph, getGraph} from "@/shell/edge/main/state/graph-store";
@@ -73,8 +73,13 @@ export function setDefaultWritePath(vaultPath: FilePath): { success: boolean; er
 
 /**
  * Add a vault path to the allowlist.
- * The path must exist on disk.
+ * If the path doesn't exist, it will be created.
  * Automatically loads files from the new path into the graph and adds to watcher.
+ *
+ * Uses bulk load path (loadVaultPathAdditively) for efficiency:
+ * - Single UI broadcast instead of N broadcasts
+ * - No floating editors auto-opened (bulk load behavior)
+ * - Consistent with initial loadGraphFromDisk pattern
  */
 export async function addVaultPathToAllowlist(vaultPath: FilePath): Promise<{ success: boolean; error?: string }> {
     // Check if already in allowlist
@@ -82,11 +87,11 @@ export async function addVaultPathToAllowlist(vaultPath: FilePath): Promise<{ su
         return { success: false, error: 'Path already in allowlist' };
     }
 
-    // Verify path exists
+    // Create directory if it doesn't exist (matching loadFolder behavior)
     try {
-        await fs.access(vaultPath);
-    } catch {
-        return { success: false, error: 'Path does not exist' };
+        await fs.mkdir(vaultPath, { recursive: true });
+    } catch (err) {
+        return { success: false, error: `Failed to create directory: ${err instanceof Error ? err.message : 'Unknown error'}` };
     }
 
     vaultPathAllowlist = [...vaultPathAllowlist, vaultPath];
@@ -99,28 +104,29 @@ export async function addVaultPathToAllowlist(vaultPath: FilePath): Promise<{ su
         });
     }
 
-    // Load files from the new path into the graph
+    // Load files from the new path into the graph using bulk load path
     if (watchedDirectory) {
-        const mainWindow: Electron.CrossProcessExports.BrowserWindow | null = getMainWindow();
+        const existingGraph: Graph = getGraph();
 
-        // Scan and load files from the new vault path
-        const files: readonly string[] = await scanMarkdownFiles(vaultPath);
-        for (const relativePath of files) {
-            const fullPath: string = path.join(vaultPath, relativePath);
-            try {
-                const content: string = await fs.readFile(fullPath, 'utf8');
-                const fsUpdate: FSUpdate = {
-                    absolutePath: fullPath,
-                    content,
-                    eventType: 'Added'
-                };
-                // Use the same handler as the watcher for consistency
-                if (mainWindow) {
-                    handleFSEventWithStateAndUISides(fsUpdate, watchedDirectory, mainWindow);
-                }
-            } catch (err) {
-                console.error(`[addVaultPathToAllowlist] Error reading file ${fullPath}:`, err);
-            }
+        // Use bulk load path: single pass, single broadcast, no editors auto-opened
+        const loadResult: E.Either<FileLimitExceededError, { graph: Graph; delta: GraphDelta }> =
+            await loadVaultPathAdditively(vaultPath, watchedDirectory, existingGraph);
+
+        if (E.isLeft(loadResult)) {
+            // File limit exceeded - remove from allowlist and return error
+            vaultPathAllowlist = vaultPathAllowlist.filter(p => p !== vaultPath);
+            return { success: false, error: `File limit exceeded: ${loadResult.left.fileCount} files` };
+        }
+
+        const { graph: mergedGraph, delta } = loadResult.right;
+
+        // Update graph state
+        setGraph(mergedGraph);
+
+        // Single broadcast to UI (no editors auto-opened for bulk loads)
+        if (delta.length > 0) {
+            applyGraphDeltaToMemState(delta);
+            broadcastGraphDeltaToUI(delta);
         }
 
         // Add the new path to the watcher

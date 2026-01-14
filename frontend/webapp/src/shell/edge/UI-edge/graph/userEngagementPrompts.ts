@@ -1,8 +1,8 @@
 import posthog from "posthog-js";
 import type {VTSettings} from "@/pure/settings/types";
 
-const FEEDBACK_DELTA_THRESHOLD: number = 30;
-const EMAIL_DELTA_THRESHOLD: number = 10;
+const FEEDBACK_DELTA_THRESHOLD: number = 40;
+const EMAIL_DELTA_THRESHOLD: number = 20;
 
 // Session-level state for tracking total nodes created
 let sessionDeltaCount: number = 0;
@@ -241,6 +241,7 @@ function showEmailDialog(): Promise<string | null> {
  */
 async function maybeShowEmailPrompt(): Promise<void> {
     if (emailPromptShown) return;
+    emailPromptShown = true;
 
     // Skip if email already collected (cached or from settings)
     if (cachedUserEmail) return;

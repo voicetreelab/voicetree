@@ -15,7 +15,7 @@ interface AddVaultResult {
 
 /**
  * Dropdown component for selecting the default write path from allowlisted vault paths.
- * Design: Button shows "📝 {folder-name}", dropdown lists all paths with checkmark on current.
+ * Design: Button shows "{folder-name}", dropdown lists all paths with checkmark on current.
  * Paths are editable inline. Also includes an input field to add additional read vault paths.
  */
 export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): JSX.Element | null {
@@ -190,14 +190,33 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
         }
     };
 
+    // Handle removing a vault path from the allowlist
+    const handleRemovePath: (path: string, e: MouseEvent) => Promise<void> = async (path: string, e: MouseEvent): Promise<void> => {
+        e.stopPropagation();
+        if (!window.electronAPI) return;
+
+        try {
+            const result: { success: boolean; error?: string } = await window.electronAPI.main.removeVaultPathFromAllowlist(path);
+            if (result.success) {
+                await refreshVaultPaths();
+            } else {
+                console.error('[VaultPathSelector] Failed to remove vault path:', result.error);
+            }
+        } catch (err) {
+            console.error('[VaultPathSelector] Error removing vault path:', err);
+        }
+    };
+
     // Extract folder name from path for display
     const getFolderName: (fullPath: string) => string = (fullPath: string): string => {
         return fullPath.split(/[/\\]/).pop() ?? fullPath;
     };
 
     // Get relative path from watchDirectory for display
+    // Returns "." for root path (when fullPath === watchDirectory) to avoid empty display
     const getRelativePath: (fullPath: string) => string = (fullPath: string): string => {
         if (!watchDirectory) return fullPath;
+        if (fullPath === watchDirectory) return '.';
         if (fullPath.startsWith(watchDirectory)) {
             const relative: string = fullPath.slice(watchDirectory.length);
             return relative.startsWith('/') ? relative.slice(1) : relative;
@@ -210,7 +229,12 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
         return null;
     }
 
-    const currentFolderName: string = defaultWritePath ? getFolderName(defaultWritePath) : 'Select vault';
+    // When defaultWritePath equals watchDirectory, show "." to avoid duplicating the root name
+    // (App.tsx already shows the project root name to the left of VaultPathSelector)
+    const isRootPath: boolean = Boolean(defaultWritePath && watchDirectory && defaultWritePath === watchDirectory);
+    const currentFolderName: string = defaultWritePath
+        ? (isRootPath ? '.' : getFolderName(defaultWritePath))
+        : 'Select vault';
 
     return (
         <div ref={dropdownRef} className="relative">
@@ -220,9 +244,8 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                 className="text-gray-600 px-1.5 py-1 rounded bg-gray-100 hover:bg-gray-200 transition-colors flex items-center gap-1"
                 title={`Default write path: ${defaultWritePath ?? 'None'}`}
             >
-                <span>📝</span>
                 <span>{currentFolderName}</span>
-                <span className="text-[10px] ml-0.5">{isOpen ? '▲' : '▼'}</span>
+                <span className="text-[10px] ml-0.5">{isOpen ? '▼' : '▲'}</span>
             </button>
 
             {/* Dropdown menu */}
@@ -230,7 +253,7 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                 <div className="absolute bottom-full left-0 mb-1 bg-white border border-gray-300 rounded shadow-lg min-w-[200px] max-w-[400px] z-[1200]">
                     <div className="py-1">
                         <div className="px-3 py-1 text-[10px] text-gray-500 uppercase tracking-wide border-b border-gray-200">
-                            Write destination
+                            Markdown folders (select write destination)
                         </div>
                         {vaultPaths.map((path: string) => {
                             const isDefault: boolean = path === defaultWritePath;
@@ -279,22 +302,33 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                                     }`}
                                     title={path}
                                 >
+                                    {/* Checkmark selects as write destination */}
                                     <button
                                         onClick={(e) => void handleSelectPath(path, e)}
-                                        className="flex items-center gap-2 flex-1"
+                                        className="w-4 text-blue-600 hover:bg-blue-100 rounded"
+                                        title="Set as write destination"
                                     >
-                                        <span className="w-4 text-blue-600">
-                                            {isDefault ? '✓' : ''}
-                                        </span>
-                                        <span className="font-medium truncate">{relativePath}</span>
+                                        {isDefault ? '✓' : '○'}
                                     </button>
+                                    {/* Clicking path text enters edit mode */}
                                     <button
-                                        onClick={(e: MouseEvent) => { e.stopPropagation(); startEditing(path); }}
-                                        className="text-gray-400 hover:text-gray-600 px-1"
-                                        title="Edit path"
+                                        onClick={() => startEditing(path)}
+                                        className="flex-1 text-left font-medium truncate hover:text-blue-600 flex items-center gap-1"
+                                        title="Click to edit path"
                                     >
-                                        ✎
+                                        <span className="truncate">{relativePath}</span>
+                                        <span className="text-gray-400">✎</span>
                                     </button>
+                                    {/* Remove button - hidden for default write path */}
+                                    {!isDefault && (
+                                        <button
+                                            onClick={(e) => void handleRemovePath(path, e)}
+                                            className="w-4 text-gray-400 hover:text-red-500 hover:bg-red-100 rounded"
+                                            title="Remove from allowlist"
+                                        >
+                                            ✕
+                                        </button>
+                                    )}
                                 </div>
                             );
                         })}
