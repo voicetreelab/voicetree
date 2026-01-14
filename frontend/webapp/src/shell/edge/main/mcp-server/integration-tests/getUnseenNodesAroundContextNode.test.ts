@@ -52,7 +52,7 @@ describe('getUnseenNodesAroundContextNode - Integration Tests', () => {
         const loadResult: E.Either<
             import('@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce').FileLimitExceededError,
             Graph
-        > = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH), O.some(EXAMPLE_SMALL_PATH))
+        > = await loadGraphFromDisk([EXAMPLE_SMALL_PATH], EXAMPLE_SMALL_PATH)
         if (E.isLeft(loadResult)) throw new Error('Expected Right')
         const graph: Graph = loadResult.right
         setGraph(graph)
@@ -160,7 +160,7 @@ describe('getUnseenNodesAroundContextNode - Integration Tests', () => {
             const loadResult1: E.Either<
                 import('@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce').FileLimitExceededError,
                 Graph
-            > = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH), O.some(EXAMPLE_SMALL_PATH))
+            > = await loadGraphFromDisk([EXAMPLE_SMALL_PATH], EXAMPLE_SMALL_PATH)
             if (E.isLeft(loadResult1)) throw new Error('Expected Right')
             setGraph(loadResult1.right)
 
@@ -176,7 +176,7 @@ describe('getUnseenNodesAroundContextNode - Integration Tests', () => {
             const loadResult2: E.Either<
                 import('@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce').FileLimitExceededError,
                 Graph
-            > = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH), O.some(EXAMPLE_SMALL_PATH))
+            > = await loadGraphFromDisk([EXAMPLE_SMALL_PATH], EXAMPLE_SMALL_PATH)
             if (E.isLeft(loadResult2)) throw new Error('Expected Right')
             setGraph(loadResult2.right)
 
@@ -203,7 +203,7 @@ describe('getUnseenNodesAroundContextNode - Integration Tests', () => {
             const loadResult: E.Either<
                 import('@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce').FileLimitExceededError,
                 Graph
-            > = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH), O.some(EXAMPLE_SMALL_PATH))
+            > = await loadGraphFromDisk([EXAMPLE_SMALL_PATH], EXAMPLE_SMALL_PATH)
             if (E.isLeft(loadResult)) throw new Error('Expected Right')
             setGraph(loadResult.right)
 
@@ -253,7 +253,7 @@ describe('getUnseenNodesAroundContextNode - Integration Tests', () => {
             const loadResult1: E.Either<
                 import('@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce').FileLimitExceededError,
                 Graph
-            > = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH), O.some(EXAMPLE_SMALL_PATH))
+            > = await loadGraphFromDisk([EXAMPLE_SMALL_PATH], EXAMPLE_SMALL_PATH)
             if (E.isLeft(loadResult1)) throw new Error('Expected Right')
             setGraph(loadResult1.right)
 
@@ -277,7 +277,7 @@ This is the actual content without frontmatter.`
             const loadResult2: E.Either<
                 import('@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce').FileLimitExceededError,
                 Graph
-            > = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH), O.some(EXAMPLE_SMALL_PATH))
+            > = await loadGraphFromDisk([EXAMPLE_SMALL_PATH], EXAMPLE_SMALL_PATH)
             if (E.isLeft(loadResult2)) throw new Error('Expected Right')
             setGraph(loadResult2.right)
 

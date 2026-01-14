@@ -22,6 +22,7 @@ agent_name: $AGENT_NAME
 
 - If `$AGENT_COLOR` is unset, default to `blue`
 - Wikilink paths are relative to `$VOICETREE_VAULT_PATH`
+- Use `$CONTEXT_NODE_PATH` as the default parent to link your node to
 - For multiple parents: use `Parents:` header with multiple `- [[path]]` entries
 - Optional relationship labels: `- solves_the_problem [[path]]`
 
@@ -82,4 +83,6 @@ If relevant, include how this change affects the overall system, dependencies, o
 If relevant, include difficulties you faced in accomplishing this task, tech debt which made it hard.
 </OPTIONAL>
 </MARKDOWN new node Format Template>
+
+**Important**: Use double brackets `[[link]]` for edges, not single `[link]`. Only `[[wikilinks]]` create graph edges.
 

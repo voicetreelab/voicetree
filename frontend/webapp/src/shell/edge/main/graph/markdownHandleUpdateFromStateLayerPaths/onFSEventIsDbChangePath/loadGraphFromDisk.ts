@@ -89,7 +89,7 @@ export async function loadGraphFromDisk(
  * @param vaultPath - Absolute absolutePath to vault directory
  * @returns Array of relative file paths (e.g., ["note.md", "subfolder/other.md"])
  */
-async function scanMarkdownFiles(vaultPath: string): Promise<readonly string[]> {
+export async function scanMarkdownFiles(vaultPath: string): Promise<readonly string[]> {
   async function scan(dirPath: string, relativePath = ''): Promise<readonly string[]> {
     const entries: Dirent<string>[] = await fs.readdir(dirPath, { withFileTypes: true })
 

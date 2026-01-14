@@ -5,24 +5,18 @@ import {AgentStatsPanel} from "@/shell/UI/views/AgentStatsPanel";
 import {VaultPathSelector} from "@/shell/UI/views/components/VaultPathSelector";
 import {useEffect, useRef, useState} from "react";
 import type { JSX } from "react/jsx-runtime";
-import type { RefObject, KeyboardEvent, FocusEvent, ChangeEvent } from "react";
+import type { RefObject } from "react";
 import type {} from "@/shell/electron";
 
 function App(): JSX.Element {
     // Use the folder watcher hook for file watching
     const {
         watchDirectory,
-        vaultSuffix,
         startWatching,
-        setVaultSuffix,
     } = useFolderWatcher();
 
     // Ref for graph container
     const graphContainerRef: RefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);
-
-    // State for inline editing of vault suffix
-    const [isEditingSuffix, setIsEditingSuffix] = useState(false);
-    const [editedSuffix, setEditedSuffix] = useState(vaultSuffix ?? '');
 
     // State for agent stats panel visibility
     const [isStatsPanelOpen, setIsStatsPanelOpen] = useState(false);
@@ -33,40 +27,6 @@ function App(): JSX.Element {
         window.addEventListener('toggle-stats-panel', handleToggleStats);
         return () => window.removeEventListener('toggle-stats-panel', handleToggleStats);
     }, []);
-
-    // Sync editedSuffix when vaultSuffix changes from external sources
-    useEffect(() => {
-        if (!isEditingSuffix) {
-            setEditedSuffix(vaultSuffix ?? '');
-        }
-    }, [vaultSuffix, isEditingSuffix]);
-
-    const handleSuffixClick: () => void = () => {
-        setIsEditingSuffix(true);
-        setEditedSuffix(vaultSuffix ?? '');
-    };
-
-    const handleSuffixBlur: (e: FocusEvent<HTMLInputElement>) => void = (e: FocusEvent<HTMLInputElement>) => {
-        setIsEditingSuffix(false);
-        const newSuffix: string = e.target.value.trim();
-        // Allow empty suffix, only update if changed
-        if (newSuffix !== vaultSuffix) {
-            void setVaultSuffix(newSuffix);
-        }
-    };
-
-    const handleSuffixKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void = (e: KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter') {
-            e.currentTarget.blur();
-        } else if (e.key === 'Escape') {
-            setEditedSuffix(vaultSuffix ?? '');
-            setIsEditingSuffix(false);
-        }
-    };
-
-    const handleSuffixChange: (e: ChangeEvent<HTMLInputElement>) => void = (e: ChangeEvent<HTMLInputElement>) => {
-        setEditedSuffix(e.target.value);
-    };
 
     // File Watching Control Panel Component - compact inline style matching activity panel
     const FileWatchingPanel: () => JSX.Element = () => (
@@ -81,28 +41,7 @@ function App(): JSX.Element {
                         {watchDirectory.split(/[/\\]/).pop()}
                         <span className="text-[10px] ml-1">▼</span>
                     </button>
-                    {(vaultSuffix ?? isEditingSuffix) && <span className="text-gray-400">/</span>}
-                    {isEditingSuffix ? (
-                        <input
-                            type="text"
-                            value={editedSuffix}
-                            onChange={handleSuffixChange}
-                            onBlur={handleSuffixBlur}
-                            onKeyDown={handleSuffixKeyDown}
-                            autoFocus
-                            placeholder=".md subfolder"
-                            className="text-gray-600 px-1.5 py-1 rounded bg-white border border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 w-24"
-                        />
-                    ) : (
-                        <button
-                            onClick={handleSuffixClick}
-                            className="text-gray-600 px-1.5 py-1 rounded bg-gray-100 hover:bg-gray-200 transition-colors"
-                            title="Vault – .md file storage for graph nodes"
-                        >
-                            {vaultSuffix !== '' && vaultSuffix != null ? vaultSuffix : <span className="text-gray-400 italic">(set .md subfolder)</span>}
-                        </button>
-                    )}
-                    {/* Vault path selector for multi-vault support */}
+                    <span className="text-gray-400">/</span>
                     <VaultPathSelector watchDirectory={watchDirectory} />
                 </>
             )}

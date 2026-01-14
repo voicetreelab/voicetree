@@ -16,7 +16,7 @@ interface AddVaultResult {
 /**
  * Dropdown component for selecting the default write path from allowlisted vault paths.
  * Design: Button shows "📝 {folder-name}", dropdown lists all paths with checkmark on current.
- * Also includes an input field to add additional read vault paths.
+ * Paths are editable inline. Also includes an input field to add additional read vault paths.
  */
 export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): JSX.Element | null {
     const [isOpen, setIsOpen] = useState(false);
@@ -25,7 +25,72 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
     const [newVaultPath, setNewVaultPath] = useState<string>('');
     const [addError, setAddError] = useState<string | null>(null);
     const [isAdding, setIsAdding] = useState<boolean>(false);
+    const [editingPath, setEditingPath] = useState<string | null>(null);
+    const [editedValue, setEditedValue] = useState<string>('');
+    const [editError, setEditError] = useState<string | null>(null);
     const dropdownRef: RefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);
+
+    // Start editing a vault path
+    const startEditing: (path: string) => void = (path: string): void => {
+        const relativePath: string = watchDirectory && path.startsWith(watchDirectory)
+            ? path.slice(watchDirectory.length + 1)
+            : path;
+        setEditingPath(path);
+        setEditedValue(relativePath);
+        setEditError(null);
+    };
+
+    // Save edited vault path
+    const saveEditedPath: () => Promise<void> = async (): Promise<void> => {
+        if (!window.electronAPI || !editingPath || !editedValue.trim() || !watchDirectory) return;
+
+        const newAbsPath: string = editedValue.startsWith('/')
+            ? editedValue
+            : `${watchDirectory}/${editedValue}`;
+
+        // If unchanged, just cancel
+        if (newAbsPath === editingPath) {
+            setEditingPath(null);
+            return;
+        }
+
+        try {
+            // Add new path first
+            const addResult: AddVaultResult = await window.electronAPI.main.addVaultPathToAllowlist(newAbsPath);
+            if (!addResult.success) {
+                setEditError(addResult.error ?? 'Failed to add new path');
+                return;
+            }
+
+            // If this was the default write path, update it
+            if (editingPath === defaultWritePath) {
+                await window.electronAPI.main.setDefaultWritePath(newAbsPath);
+            }
+
+            // Remove old path
+            await window.electronAPI.main.removeVaultPathFromAllowlist(editingPath);
+
+            setEditingPath(null);
+            await refreshVaultPaths();
+        } catch (err) {
+            const errorMessage: string = err instanceof Error ? err.message : 'Unknown error';
+            setEditError(errorMessage);
+        }
+    };
+
+    const cancelEditing: () => void = (): void => {
+        setEditingPath(null);
+        setEditError(null);
+    };
+
+    const handleEditKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void = (e: KeyboardEvent<HTMLInputElement>): void => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            void saveEditedPath();
+        } else if (e.key === 'Escape') {
+            cancelEditing();
+        }
+    };
 
     // Fetch vault paths and default write path
     const refreshVaultPaths: () => Promise<void> = useCallback(async (): Promise<void> => {
@@ -170,27 +235,67 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                         {vaultPaths.map((path: string) => {
                             const isDefault: boolean = path === defaultWritePath;
                             const relativePath: string = getRelativePath(path);
-                            const folderName: string = getFolderName(path);
+                            const isEditing: boolean = editingPath === path;
+
+                            if (isEditing) {
+                                return (
+                                    <div key={path} className="px-2 py-1.5">
+                                        <div className="flex gap-1">
+                                            <input
+                                                type="text"
+                                                value={editedValue}
+                                                onChange={(e: ChangeEvent<HTMLInputElement>) => setEditedValue(e.target.value)}
+                                                onKeyDown={handleEditKeyDown}
+                                                autoFocus
+                                                className="flex-1 px-2 py-1 text-xs border border-blue-400 rounded focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                            />
+                                            <button
+                                                onClick={() => void saveEditedPath()}
+                                                className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
+                                                title="Save"
+                                            >
+                                                ✓
+                                            </button>
+                                            <button
+                                                onClick={cancelEditing}
+                                                className="px-2 py-1 text-xs bg-gray-200 rounded hover:bg-gray-300"
+                                                title="Cancel"
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
+                                        {editError && (
+                                            <div className="mt-1 text-[10px] text-red-500">{editError}</div>
+                                        )}
+                                    </div>
+                                );
+                            }
 
                             return (
-                                <button
+                                <div
                                     key={path}
-                                    onClick={(e) => void handleSelectPath(path, e)}
                                     className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 flex items-center gap-2 ${
                                         isDefault ? 'bg-blue-50' : ''
                                     }`}
                                     title={path}
                                 >
-                                    <span className="w-4 text-blue-600">
-                                        {isDefault ? '✓' : ''}
-                                    </span>
-                                    <span className="font-medium">{folderName}</span>
-                                    {relativePath !== folderName && (
-                                        <span className="text-gray-400 truncate">
-                                            ({relativePath})
+                                    <button
+                                        onClick={(e) => void handleSelectPath(path, e)}
+                                        className="flex items-center gap-2 flex-1"
+                                    >
+                                        <span className="w-4 text-blue-600">
+                                            {isDefault ? '✓' : ''}
                                         </span>
-                                    )}
-                                </button>
+                                        <span className="font-medium truncate">{relativePath}</span>
+                                    </button>
+                                    <button
+                                        onClick={(e: MouseEvent) => { e.stopPropagation(); startEditing(path); }}
+                                        className="text-gray-400 hover:text-gray-600 px-1"
+                                        title="Edit path"
+                                    >
+                                        ✎
+                                    </button>
+                                </div>
                             );
                         })}
 

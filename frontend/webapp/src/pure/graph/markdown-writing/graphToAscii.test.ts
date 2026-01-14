@@ -185,7 +185,7 @@ describe('graphToAscii', () => {
 
   it('should render example_large fixture - visual output inspection', async () => {
     // Load the real example_large graph from disk
-    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(EXAMPLE_LARGE_PATH), O.some(EXAMPLE_LARGE_PATH))
+    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([EXAMPLE_LARGE_PATH], EXAMPLE_LARGE_PATH)
     // eslint-disable-next-line functional/no-throw-statements
     if (E.isLeft(loadResult)) throw new Error('Expected Right')
     const graph: Graph = loadResult.right
@@ -210,7 +210,7 @@ describe('graphToAscii', () => {
 
   it('should render example_small fixture - visual output inspection', async () => {
     // Load the real example_small graph from disk
-    const loadResult2: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH), O.some(EXAMPLE_SMALL_PATH))
+    const loadResult2: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([EXAMPLE_SMALL_PATH], EXAMPLE_SMALL_PATH)
     // eslint-disable-next-line functional/no-throw-statements
     if (E.isLeft(loadResult2)) throw new Error('Expected Right')
     const graph: Graph = loadResult2.right
