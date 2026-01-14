@@ -159,14 +159,10 @@ export class SseStatusPanel {
 
     /** Dispatch navigation event for VoiceTreeGraphView to handle */
     private navigateToNode(filename: string): void {
-        // Get vaultSuffix to construct full nodeId (nodeIds are relative to watchedDirectory, not vaultPath)
-        void window.electronAPI?.main.getWatchStatus().then((status: { vaultSuffix?: string }) => {
-            const vaultSuffix: string = status?.vaultSuffix ?? '';
-            const nodeId: string = vaultSuffix ? `${vaultSuffix}/${filename}` : filename;
-            window.dispatchEvent(new CustomEvent('voicetree-navigate', {
-                detail: { nodeId }
-            }));
-        });
+        // filename now includes vault folder from backend, use directly as nodeId
+        window.dispatchEvent(new CustomEvent('voicetree-navigate', {
+            detail: { nodeId: filename }
+        }));
     }
 
     private formatEventCard(event: SSEEvent): string {

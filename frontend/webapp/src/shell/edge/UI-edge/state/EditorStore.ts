@@ -5,22 +5,31 @@ import {getEditorId, type EditorId, type EditorData} from "@/shell/edge/UI-edge/
 
 const editors: Map<EditorId, EditorData> = new Map<EditorId, EditorData>();
 
-// Auto-pin tracking: stores the node ID of the last auto-pinned editor
-// When a new node is created, the previous auto-pinned editor is closed
-// If user manually pins (via Pin Editor button), this is cleared so it won't auto-close
-let lastAutoPinnedEditorNodeId: NodeIdAndFilePath | null = null;
+// Auto-pin tracking: FIFO queue of auto-pinned editor node IDs
+// When queue exceeds MAX_AUTO_PINNED_EDITORS, oldest is closed
+// If user manually pins (via Pin Editor button), editor is removed from queue
+const MAX_AUTO_PINNED_EDITORS: number = 4;
+const autoPinnedEditorQueue: NodeIdAndFilePath[] = [];
 
-export function getLastAutoPinnedEditor(): NodeIdAndFilePath | null {
-    return lastAutoPinnedEditorNodeId;
+/**
+ * Add an editor to the auto-pin queue.
+ * Returns the oldest editor's nodeId if queue exceeds limit (caller should close it).
+ */
+export function addToAutoPinQueue(nodeId: NodeIdAndFilePath): NodeIdAndFilePath | null {
+    autoPinnedEditorQueue.push(nodeId);
+    if (autoPinnedEditorQueue.length > MAX_AUTO_PINNED_EDITORS) {
+        return autoPinnedEditorQueue.shift() ?? null;
+    }
+    return null;
 }
 
-export function setLastAutoPinnedEditor(nodeId: NodeIdAndFilePath | null): void {
-    lastAutoPinnedEditorNodeId = nodeId;
-}
-
-export function clearAutoPinIfMatches(nodeId: NodeIdAndFilePath): void {
-    if (lastAutoPinnedEditorNodeId === nodeId) {
-        lastAutoPinnedEditorNodeId = null;
+/**
+ * Remove an editor from the auto-pin queue (e.g., when manually pinned).
+ */
+export function removeFromAutoPinQueue(nodeId: NodeIdAndFilePath): void {
+    const index: number = autoPinnedEditorQueue.indexOf(nodeId);
+    if (index !== -1) {
+        autoPinnedEditorQueue.splice(index, 1);
     }
 }
 

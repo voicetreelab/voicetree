@@ -83,12 +83,12 @@ export class StyleService {
     console.log('[StyleService] getGraphColors - isDark:', isDark, 'textColor:', isDark ? '#dcddde' : '#2a2a2a');
 
     return {
-      fillColor: isDark ? '#9fa5aa' :'#3f3f3f',
-      fillHighlightColor: '#525252',
+      fillColor: isDark ? '#5a6065' :'#3f3f3f', // Darker nodes in dark mode for softer contrast
+      fillHighlightColor: isDark ? '#6a6e73' : '#525252',
       accentBorderColor: '#4b96ff',
-      lineColor: isDark ? '#8a8a8a' : '#5e5e5e', // Lighter edges in dark mode for visibility
-      lineHighlightColor: isDark ? '#a0a0a0' : '#7c7c7c', // Lighter highlight in dark mode
-      textColor: isDark ? '#dcddde' : '#2a2a2a', // Dark grey for light mode, light grey for dark mode
+      lineColor: isDark ? '#505558' : '#5e5e5e', // Subtle edges that blend better
+      lineHighlightColor: isDark ? '#707578' : '#7c7c7c', // Noticeable but not harsh highlight
+      textColor: isDark ? '#c5c8cc' : '#2a2a2a', // Soft off-white for dark mode
       danglingColor: '#683c3c',
     };
   }
@@ -186,7 +186,7 @@ export class StyleService {
           'loop-sweep': '-50deg',
           'loop-direction': '-45deg',
           'width': 2,
-          'line-opacity': 0.3,
+          'line-opacity': 0.5, // Increased from 0.3 for better visibility in dark mode
           'target-arrow-shape': 'triangle',
           'target-arrow-fill': 'hollow' as cytoscape.Css.ArrowFill,
           'target-arrow-color': this.lineColor,
@@ -213,7 +213,7 @@ export class StyleService {
         style: {
           'width': 'mapData(edgeCount, 1, 50, 0.55, 3)',
           'arrow-scale': 'mapData(edgeCount, 1, 50, 0.35, 1.5)',
-          'line-opacity': 'mapData(edgeCount, 1, 10, 0.2, 0.4)',
+          'line-opacity': 'mapData(edgeCount, 1, 10, 0.35, 0.6)', // Increased min/max for visibility
         }
       },
 
