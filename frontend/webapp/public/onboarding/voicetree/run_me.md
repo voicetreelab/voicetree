@@ -9,7 +9,7 @@ isContextNode: false
 
 Your task is to produce a small task dependency tree of nodes representing the actions (tasks) the user should attempt for a comprehensive onboarding to voicetree.
 
-## Example Output Format (Diamond Dependency Tree)
+Just create the following nodes as is:
 
 ```md
 # Voice Input Into Nodes & Terminals
@@ -66,5 +66,3 @@ Parents:
 - [[create_linked_nodes.md]]
 - [[try_text_input.md]]
 ```
-
-Run this task completely using a haiku subagent, don't do anything yourself.
