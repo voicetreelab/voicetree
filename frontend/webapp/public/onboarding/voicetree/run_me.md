@@ -9,32 +9,21 @@ isContextNode: false
 
 Your task is to produce a small task dependency tree of nodes representing the actions (tasks) the user should attempt for a comprehensive onboarding to voicetree.
 
-Just create the following nodes as is:
+Just create the following nodes as a dependency graph, with content kept as is:
 
-```md
 # Voice Input Into Nodes & Terminals
 Select any node or terminal, then speak - your voice goes directly into it.
 
 How it works:
-- Click a node to select it, then hold record - transcription appears as a chip on the node
-- Focus a terminal, hold record - your speech becomes terminal input
-- No need to type everything - dictate commands, edits, or new content
+- Click into an editor or terminal, while recording, transcription appears as a chip on the node
 
 This lets you talk to agents naturally while they're running.
 
-- [[getting_started.md]]
-```
-
-```md
 # Works Amazingly With OpenSpec
 VoiceTree pairs perfectly with OpenSpec for AI-assisted development.
 
 Just tell your agent: "Please create an OpenSpec change proposal for this feature" - the markdown files will appear in the graph.
 
-- [[getting_started.md]]
-```
-
-```md
 # Create Linked Nodes
 Now that you've created some nodes, link them together manually.
 
@@ -45,15 +34,12 @@ How to link:
 
 Tip: Wikilinks autocomplete - start typing `[[` and suggestions appear.
 
-- [[try_voice_input.md]]
-```
 
-```md
 # Create Custom Agents
 Add your own agents via the settings file. Any CLI command can become an agent.
 
 How to add:
-1. Open settings (floating menu on right, or ~/Library/Application Support/VoiceTree/settings.json)
+1. Open settings (floating menu on right)
 2. Add an entry to the `agents` array with name and command
 3. New agents automatically appear in the horizontal menu dropdown
 
@@ -61,8 +47,3 @@ Example agent entry:
 { "name": "my-agent", "command": "claude --model sonnet" }
 
 The first agent in the array is the default (triggered by Cmd+Enter).
-
-Parents:
-- [[create_linked_nodes.md]]
-- [[try_text_input.md]]
-```
