@@ -17,6 +17,8 @@ import type {} from '@/shell/electron'
 const TAB_WIDTH: number = 90
 const INACTIVITY_THRESHOLD_MS: number = 10000 // 10 seconds
 const CHECK_INTERVAL_MS: number = 1000 // Check every second
+// Duration to suppress terminal data events after zoom (to ignore resize-triggered redraws)
+const ZOOM_SUPPRESSION_MS: number = 600
 
 interface AgentTabsBarState {
     container: HTMLElement | null
@@ -39,6 +41,8 @@ interface AgentTabsBarState {
     lastOutputTime: Map<TerminalId, number>
     // Interval for checking inactivity
     inactivityCheckInterval: ReturnType<typeof setInterval> | null
+    // Timestamp when zoom suppression started (ignore terminal data during resize)
+    zoomSuppressionUntil: number
 }
 
 // Module state for the single instance
@@ -54,7 +58,8 @@ const state: AgentTabsBarState = {
     draggingFromIndex: null,
     ghostTargetIndex: null,
     lastOutputTime: new Map(),
-    inactivityCheckInterval: null
+    inactivityCheckInterval: null,
+    zoomSuppressionUntil: 0
 }
 
 /**
@@ -180,6 +185,10 @@ export function createAgentTabsBar(parentContainer: HTMLElement): () => void {
     // Subscribe to terminal data events for inactivity tracking
     window.electronAPI?.terminal.onData((terminalId: string, _data: string) => {
         const now: number = Date.now()
+        // Skip inactivity updates during zoom suppression window (resize-triggered redraws)
+        if (now < state.zoomSuppressionUntil) {
+            return
+        }
         state.lastOutputTime.set(terminalId as TerminalId, now)
         // Terminal became active - remove inactive class immediately
         updateInactivityClass(terminalId as TerminalId, false)
@@ -487,6 +496,15 @@ export function disposeAgentTabsBar(): void {
  */
 export function isAgentTabsBarMounted(): boolean {
     return state.container !== null && state.container.parentNode !== null
+}
+
+/**
+ * Suppress inactivity tracking for a brief period during zoom/resize.
+ * Terminal resize triggers shell redraws which emit data, but this isn't real activity.
+ * Called from zoom event handlers to prevent false "active" detection.
+ */
+export function suppressInactivityDuringZoom(): void {
+    state.zoomSuppressionUntil = Date.now() + ZOOM_SUPPRESSION_MS
 }
 
 /**

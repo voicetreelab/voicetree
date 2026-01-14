@@ -59,15 +59,16 @@ export async function spawnBackupTerminal(cy: Core): Promise<void> {
     await spawnTerminalWithSyntheticParent(cy, position, terminalData);
 
     // Fit the graph to include the newly spawned terminal
+    // Use cy.$id() to avoid CSS selector escaping issues with / in IDs
     setTimeout(() => {
-        const terminalNode: CollectionReturnValue = cy.$(`#${terminalId}`);
+        const terminalNode: CollectionReturnValue = cy.$id(terminalId);
         if (terminalNode.length > 0) {
             cy.fit(terminalNode, 50); // 50px padding
         }
     }, 50);
 
     setTimeout(() => {
-        const terminalNode: CollectionReturnValue = cy.$(`#${terminalId}`);
+        const terminalNode: CollectionReturnValue = cy.$id(terminalId);
         if (terminalNode.length > 0) {
             cy.fit(terminalNode, 50); // 50px padding
         }
