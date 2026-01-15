@@ -10,13 +10,16 @@
  * 2. Main process prepares terminal data (reads settings, env vars, etc.)
  * 3. Main process calls UI via uiAPI.launchTerminalOntoUI()
  * 4. UI renders terminal with Cytoscape
+ *
+ * Note: Permission mode prompting is now handled in the renderer
+ * (spawnTerminalWithCommandFromUI.ts) before calling this function.
  */
 
 import path from 'path';
 import * as O from 'fp-ts/lib/Option.js';
 import { createContextNode } from '@/shell/edge/main/graph/context-nodes/createContextNode';
 import { getGraph } from '@/shell/edge/main/state/graph-store';
-import { loadSettings, saveSettings } from '@/shell/edge/main/settings/settings_IO';
+import { loadSettings } from '@/shell/edge/main/settings/settings_IO';
 import { getWatchStatus, getWatchedDirectory, getDefaultWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import { getAppSupportPath } from '@/shell/edge/main/state/app-electron-state';
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy';
@@ -25,95 +28,8 @@ import { createTerminalData } from '@/shell/edge/UI-edge/floating-windows/types'
 import type { NodeIdAndFilePath, GraphNode, Graph } from '@/pure/graph';
 import { getNodeTitle } from '@/pure/graph/markdown-parsing';
 import { findFirstParentNode } from '@/pure/graph/graph-operations/findFirstParentNode';
-import type { VTSettings, AgentConfig } from '@/pure/settings';
+import type { VTSettings } from '@/pure/settings';
 import { resolveEnvVars, expandEnvVarsInValues } from '@/pure/settings';
-import { dialog } from 'electron';
-
-/**
- * Get the user's permission mode choice.
- * In test mode (AGENT_PERMISSION_TEST_RESPONSE env var), returns the test response.
- * In production, shows an Electron dialog.
- *
- * @returns 0 for Auto-run, 1 for Safe Mode
- */
-async function getPermissionModeChoice(): Promise<number> {
-    // Test mode: use env var to specify response (avoids blocking dialog in tests)
-    const testResponse: string | undefined = process.env['AGENT_PERMISSION_TEST_RESPONSE'];
-    if (testResponse !== undefined) {
-        console.log(`[Permission] Test mode: using response "${testResponse}"`);
-        return testResponse === 'auto-run' ? 0 : 1;
-    }
-
-    // Production: show dialog
-    const result: Electron.MessageBoxReturnValue = await dialog.showMessageBox({
-        type: 'question',
-        title: 'Agent Permission Mode',
-        message: 'How should Claude agents run?',
-        detail: 'Auto-run mode will add `dangerously-skip-permissions` to the agent command, allowing it execute commands without asking for permission each time. This is recommended for VoiceTree workflows.\n\nYou can change this in settings at any time.',
-        buttons: ['Auto-run', 'Safe Mode'],
-        defaultId: 0,
-        cancelId: 1,
-    });
-
-    return result.response;
-}
-
-/**
- * Check if user has chosen agent permission mode, prompt if not.
- * Returns the (possibly updated) command to use.
- *
- * For Claude agents, prompts user to choose between:
- * - Safe mode: requires manual approval for each action
- * - Auto-run (recommended): bypasses permission prompts
- */
-async function ensureAgentPermissionModeChosen(
-    settings: VTSettings,
-    command: string
-): Promise<{ updatedCommand: string; updatedSettings: VTSettings }> {
-    // Only prompt for Claude agent and only if not already chosen
-    const isClaudeAgent: boolean = command.toLowerCase().includes('claude');
-    if (settings.agentPermissionModeChosen || !isClaudeAgent) {
-        return { updatedCommand: command, updatedSettings: settings };
-    }
-
-    const choiceResponse: number = await getPermissionModeChoice();
-    const choseAutoRun: boolean = choiceResponse === 0;
-
-    let updatedCommand: string = command;
-    let updatedAgents: readonly AgentConfig[] = settings.agents;
-
-    if (choseAutoRun) {
-        // Add --dangerously-skip-permissions to Claude command
-        updatedCommand = command.replace(
-            /^claude\s+/,
-            'claude --dangerously-skip-permissions '
-        );
-
-        // Update Claude agent in settings
-        updatedAgents = settings.agents.map((agent: AgentConfig): AgentConfig => {
-            if (agent.name === 'Claude' || agent.command.toLowerCase().includes('claude')) {
-                return {
-                    ...agent,
-                    command: agent.command.replace(
-                        /^claude\s+/,
-                        'claude --dangerously-skip-permissions '
-                    ),
-                };
-            }
-            return agent;
-        });
-    }
-
-    // Save settings with choice recorded
-    const updatedSettings: VTSettings = {
-        ...settings,
-        agents: updatedAgents,
-        agentPermissionModeChosen: true,
-    };
-    await saveSettings(updatedSettings);
-
-    return { updatedCommand, updatedSettings };
-}
 
 /**
  * Spawn a terminal with a context node, orchestrated from main process
@@ -123,7 +39,7 @@ async function ensureAgentPermissionModeChosen(
  * main process where graph state is immediately available.
  *
  * @param parentNodeId - The parent node to create context for
- * @param agentCommand - Optional agent command. If not provided, uses default agent from settings
+ * @param agentCommand - The agent command to run (already processed by renderer for permission mode)
  * @param terminalCount - Current terminal count from UI TerminalStore
  */
 export async function spawnTerminalWithContextNode(
@@ -132,23 +48,17 @@ export async function spawnTerminalWithContextNode(
     terminalCount: number
 ): Promise<void> {
     // Load settings to get agents
-    let settings: VTSettings = await loadSettings();
+    const settings: VTSettings = await loadSettings();
     if (!settings) {
         throw new Error(`Failed to load settings for ${parentNodeId}`);
     }
 
     // Use provided command or default to first agent
     const agents: readonly { readonly name: string; readonly command: string }[] = settings.agents ?? [];
-    let command: string = agentCommand ?? agents[0]?.command ?? '';
+    const command: string = agentCommand ?? agents[0]?.command ?? '';
     if (!command) {
         throw new Error('No agent command available - settings.agents is empty or undefined');
     }
-
-    // Check if user needs to choose permission mode (first-time prompt for Claude)
-    const permissionResult: { updatedCommand: string; updatedSettings: VTSettings } =
-        await ensureAgentPermissionModeChosen(settings, command);
-    command = permissionResult.updatedCommand;
-    settings = permissionResult.updatedSettings;
 
     // Get parent node from graph
     const graph: Graph = getGraph();

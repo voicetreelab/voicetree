@@ -23,12 +23,26 @@ import { spawnTerminalWithNewContextNode } from '@/shell/edge/UI-edge/floating-w
 import { clearTerminals, addTerminal } from '@/shell/edge/UI-edge/state/TerminalStore'
 import { createTerminalData, type TerminalData } from '@/shell/edge/UI-edge/floating-windows/types'
 import type { NodeIdAndFilePath } from '@/pure/graph'
+import type { VTSettings } from '@/pure/settings'
 import cytoscape from 'cytoscape'
 import type { Core } from 'cytoscape'
 
 describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
     let cy: Core
     let mockSpawnTerminalWithContextNode: ReturnType<typeof vi.fn>
+    let mockLoadSettings: ReturnType<typeof vi.fn>
+    let mockSaveSettings: ReturnType<typeof vi.fn>
+
+    // Default settings with permission mode already chosen (skips popup)
+    const defaultSettings: VTSettings = {
+        agents: [{ name: 'Claude', command: 'claude' }],
+        agentPermissionModeChosen: true,
+        INJECT_ENV_VARS: {},
+        terminalSpawnPathRelativeToWatchedDirectory: '',
+        shiftEnterSendsOptionEnter: false,
+        contextNodeMaxDistance: 2,
+        askModeContextDistance: 1,
+    } as unknown as VTSettings
 
     beforeEach(() => {
         // Create a minimal Cytoscape instance for testing
@@ -37,13 +51,17 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
             elements: []
         })
 
-        // Mock window.electronAPI.main.spawnTerminalWithContextNode
+        // Mock window.electronAPI.main functions
         mockSpawnTerminalWithContextNode = vi.fn().mockResolvedValue(undefined)
+        mockLoadSettings = vi.fn().mockResolvedValue(defaultSettings)
+        mockSaveSettings = vi.fn().mockResolvedValue(undefined)
 
         global.window = {
             electronAPI: {
                 main: {
-                    spawnTerminalWithContextNode: mockSpawnTerminalWithContextNode
+                    spawnTerminalWithContextNode: mockSpawnTerminalWithContextNode,
+                    loadSettings: mockLoadSettings,
+                    saveSettings: mockSaveSettings,
                 }
             }
         } as unknown as Window & typeof globalThis
@@ -67,10 +85,11 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
             await spawnTerminalWithNewContextNode(parentNodeId, cy)
 
             // THEN: Should call main process with correct parameters
+            // Note: command is now resolved from settings in renderer when not specified
             expect(mockSpawnTerminalWithContextNode).toHaveBeenCalledTimes(1)
             expect(mockSpawnTerminalWithContextNode).toHaveBeenCalledWith(
                 parentNodeId,
-                undefined, // no agent command specified
+                'claude', // default command from settings
                 0 // terminal count starts at 0
             )
         })
@@ -121,7 +140,7 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
             // THEN: Should pass terminal count = 2 (next after 0, 1)
             expect(mockSpawnTerminalWithContextNode).toHaveBeenCalledWith(
                 parentNodeId,
-                undefined,
+                'claude', // default command from settings
                 2
             )
         })
@@ -155,7 +174,7 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
             // THEN: Should use max + 1 = 4 (not fill gaps)
             expect(mockSpawnTerminalWithContextNode).toHaveBeenCalledWith(
                 parentNodeId,
-                undefined,
+                'claude', // default command from settings
                 4
             )
         })
@@ -181,7 +200,7 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
             // THEN: Should start at 0 (other node's terminals don't count)
             expect(mockSpawnTerminalWithContextNode).toHaveBeenCalledWith(
                 parentNodeId,
-                undefined,
+                'claude', // default command from settings
                 0
             )
         })
