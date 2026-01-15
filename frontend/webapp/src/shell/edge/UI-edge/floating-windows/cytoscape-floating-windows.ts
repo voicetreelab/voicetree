@@ -39,6 +39,23 @@ export function subscribeToZoomChange(callback: ZoomChangeCallback): () => void 
     return () => zoomChangeCallbacks.delete(callback);
 }
 
+// =============================================================================
+// Zoom Start Subscription
+// =============================================================================
+
+type ZoomStartCallback = () => void;
+const zoomStartCallbacks: Set<ZoomStartCallback> = new Set();
+let wasZoomActive: boolean = false;
+
+/**
+ * Subscribe to zoom start events
+ * Used by terminals to capture scroll position before any zoom-related corruption
+ */
+export function subscribeToZoomStart(callback: ZoomStartCallback): () => void {
+    zoomStartCallbacks.add(callback);
+    return () => zoomStartCallbacks.delete(callback);
+}
+
 /**
  * Get current zoom level from cytoscape instance
  * Used by terminals to get initial zoom on mount
@@ -140,6 +157,12 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
             // Suppress terminal inactivity detection during zoom (resize triggers shell redraws)
             suppressInactivityDuringZoom();
 
+            // Detect zoom start and notify subscribers (for scroll position capture)
+            if (!wasZoomActive) {
+                wasZoomActive = true;
+                zoomStartCallbacks.forEach(callback => callback());
+            }
+
             // Mark zoom as active for CSS transform scaling decisions
             markZoomActive();
 
@@ -168,6 +191,7 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
                 clearTimeout(zoomDebounceTimeout);
             }
             zoomDebounceTimeout = setTimeout(() => {
+                wasZoomActive = false;
                 zoomChangeCallbacks.forEach(callback => callback(zoom));
             }, 200);
         };

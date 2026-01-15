@@ -1,0 +1,216 @@
+/**
+ * Agent Command Editor Popup
+ *
+ * Displays an HTML dialog for viewing and editing agent commands before execution.
+ * Replaces the native Electron dialog.showMessageBox() for a better UX.
+ *
+ * Pattern follows userEngagementPrompts.ts
+ */
+
+export const AUTO_RUN_FLAG: string = '--dangerously-skip-permissions';
+
+export interface AgentCommandEditorResult {
+    command: string;
+    agentPrompt: string;
+}
+
+/**
+ * Shows a modal dialog for editing an agent command and prompt before execution.
+ *
+ * @param command - The initial command to display
+ * @param agentPrompt - The initial agent prompt to display (editable)
+ * @returns Promise resolving to the (possibly modified) command and prompt on Run click, or null if cancelled
+ */
+export function showAgentCommandEditor(command: string, agentPrompt: string): Promise<AgentCommandEditorResult | null> {
+    return new Promise((resolve: (value: AgentCommandEditorResult | null) => void) => {
+        const dialog: HTMLDialogElement = document.createElement('dialog');
+        dialog.id = 'agent-command-editor-dialog';
+        dialog.style.cssText = `
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--background);
+            color: var(--foreground);
+            padding: 24px;
+            max-width: 520px;
+            width: 90%;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            margin: 0;
+        `;
+
+        const hasAutoRunFlag: boolean = command.includes(AUTO_RUN_FLAG);
+
+        dialog.innerHTML = `
+            <form method="dialog" style="display: flex; flex-direction: column; gap: 16px;">
+                <h2 style="margin: 0; font-size: 1.1rem; font-weight: 600;">
+                    Agent Command
+                </h2>
+                <p style="margin: 0; color: var(--muted-foreground); font-size: 0.9rem;">
+                    Review or edit the command and prompt before running.
+                </p>
+                <label style="display: flex; flex-direction: column; gap: 6px;">
+                    <span style="font-size: 0.85rem; color: var(--muted-foreground);">Agent Prompt</span>
+                    <textarea
+                        id="agent-prompt-input"
+                        data-testid="agent-prompt-input"
+                        rows="6"
+                        style="
+                            width: 100%;
+                            padding: 10px 12px;
+                            border: 1px solid var(--border);
+                            border-radius: calc(var(--radius) - 2px);
+                            background: var(--input);
+                            color: var(--foreground);
+                            font-family: monospace;
+                            font-size: 0.85rem;
+                            box-sizing: border-box;
+                            resize: vertical;
+                            min-height: 100px;
+                        "
+                    ></textarea>
+                </label>
+                <label style="display: flex; flex-direction: column; gap: 6px;">
+                    <span style="font-size: 0.85rem; color: var(--muted-foreground);">Command</span>
+                    <input
+                        type="text"
+                        id="command-input"
+                        style="
+                            width: 100%;
+                            padding: 10px 12px;
+                            border: 1px solid var(--border);
+                            border-radius: calc(var(--radius) - 2px);
+                            background: var(--input);
+                            color: var(--foreground);
+                            font-family: monospace;
+                            font-size: 0.9rem;
+                            box-sizing: border-box;
+                        "
+                    />
+                </label>
+                <div style="display: flex; gap: 8px; justify-content: space-between; align-items: center;">
+                    <button
+                        type="button"
+                        id="add-auto-run-button"
+                        data-testid="add-auto-run-button"
+                        ${hasAutoRunFlag ? 'disabled' : ''}
+                        style="
+                            padding: 8px 12px;
+                            border: 1px solid var(--border);
+                            border-radius: calc(var(--radius) - 2px);
+                            background: transparent;
+                            color: var(--foreground);
+                            cursor: ${hasAutoRunFlag ? 'not-allowed' : 'pointer'};
+                            font-size: 0.85rem;
+                            opacity: ${hasAutoRunFlag ? '0.5' : '1'};
+                        "
+                    >Add auto-run</button>
+                    <div style="display: flex; gap: 8px;">
+                        <button
+                            type="button"
+                            id="cancel-button"
+                            data-testid="cancel-button"
+                            style="
+                                padding: 8px 16px;
+                                border: 1px solid var(--border);
+                                border-radius: calc(var(--radius) - 2px);
+                                background: transparent;
+                                color: var(--foreground);
+                                cursor: pointer;
+                                font-size: 0.9rem;
+                            "
+                        >Cancel</button>
+                        <button
+                            type="submit"
+                            id="run-button"
+                            data-testid="run-button"
+                            style="
+                                padding: 8px 16px;
+                                border: none;
+                                border-radius: calc(var(--radius) - 2px);
+                                background: var(--primary);
+                                color: var(--primary-foreground);
+                                cursor: pointer;
+                                font-size: 0.9rem;
+                            "
+                        >Run</button>
+                    </div>
+                </div>
+            </form>
+        `;
+
+        document.body.appendChild(dialog);
+
+        const form: HTMLFormElement = dialog.querySelector('form')!;
+        const promptTextarea: HTMLTextAreaElement = dialog.querySelector('#agent-prompt-input')!;
+        const input: HTMLInputElement = dialog.querySelector('#command-input')!;
+        const addAutoRunButton: HTMLButtonElement = dialog.querySelector('#add-auto-run-button')!;
+        const cancelButton: HTMLButtonElement = dialog.querySelector('#cancel-button')!;
+
+        // Set values programmatically to avoid HTML escaping issues with quotes
+        promptTextarea.value = agentPrompt;
+        input.value = command;
+
+        // Update Add auto-run button state when input changes
+        input.addEventListener('input', () => {
+            const currentHasFlag: boolean = input.value.includes(AUTO_RUN_FLAG);
+            addAutoRunButton.disabled = currentHasFlag;
+            addAutoRunButton.style.opacity = currentHasFlag ? '0.5' : '1';
+            addAutoRunButton.style.cursor = currentHasFlag ? 'not-allowed' : 'pointer';
+        });
+
+        // Add auto-run button click handler
+        addAutoRunButton.addEventListener('click', () => {
+            if (!input.value.includes(AUTO_RUN_FLAG)) {
+                // Insert flag after 'claude' command, preserving the rest of the command
+                input.value = input.value.replace(
+                    /^(claude)\s+(.*)$/,
+                    `$1 ${AUTO_RUN_FLAG} $2`
+                );
+                // If no 'claude' prefix, just prepend the flag
+                if (!input.value.includes(AUTO_RUN_FLAG)) {
+                    input.value = `${AUTO_RUN_FLAG} ${input.value}`;
+                }
+                // Update button state
+                addAutoRunButton.disabled = true;
+                addAutoRunButton.style.opacity = '0.5';
+                addAutoRunButton.style.cursor = 'not-allowed';
+            }
+        });
+
+        // Cancel button click handler
+        cancelButton.addEventListener('click', () => {
+            dialog.close();
+            resolve(null);
+        });
+
+        // Form submit (Run button) handler
+        form.addEventListener('submit', (e: Event) => {
+            e.preventDefault();
+            const finalCommand: string = input.value.trim();
+            const finalPrompt: string = promptTextarea.value.trim();
+            dialog.close();
+            if (!finalCommand) {
+                resolve(null);
+                return;
+            }
+            resolve({ command: finalCommand, agentPrompt: finalPrompt });
+        });
+
+        // Clean up dialog on close
+        dialog.addEventListener('close', () => {
+            dialog.remove();
+        });
+
+        // Prevent Escape key from closing without resolving
+        dialog.addEventListener('cancel', (e: Event) => {
+            e.preventDefault();
+        });
+
+        dialog.showModal();
+        input.focus();
+        input.select();
+    });
+}

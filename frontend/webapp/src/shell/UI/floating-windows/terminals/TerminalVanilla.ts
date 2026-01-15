@@ -7,7 +7,7 @@ import { Unicode11Addon } from '@xterm/addon-unicode11';
 import '@xterm/xterm/css/xterm.css';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/types';
 import type { VTSettings } from '@/pure/settings';
-import { getCachedZoom, isZoomActive, subscribeToZoomChange } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
+import { getCachedZoom, isZoomActive, subscribeToZoomChange, subscribeToZoomStart } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 import { getScalingStrategy, getTerminalFontSize } from '@/pure/floatingWindowScaling';
 
 export interface TerminalVanillaConfig {
@@ -29,6 +29,8 @@ export class TerminalVanilla {
   private suppressNextEnter: boolean = false;
   private shiftEnterSendsOptionEnter: boolean = true;
   private unsubscribeZoom: (() => void) | null = null;
+  private unsubscribeZoomStart: (() => void) | null = null;
+  private scrollOffsetBeforeZoom: number | null = null;
 
   constructor(config: TerminalVanillaConfig) {
     this.container = config.container;
@@ -168,6 +170,13 @@ export class TerminalVanilla {
     });
     this.resizeObserver.observe(this.container);
 
+    // Subscribe to zoom start to capture scroll position before any corruption
+    this.unsubscribeZoomStart = subscribeToZoomStart(() => {
+      if (!this.term) return;
+      const buffer: { baseY: number; viewportY: number } = this.term.buffer.active;
+      this.scrollOffsetBeforeZoom = buffer.baseY - buffer.viewportY;
+    });
+
     // Subscribe to zoom end for guaranteed final fit after zoom stops
     this.unsubscribeZoom = subscribeToZoomChange((zoom: number) => {
       if (!this.term || !this.fitAddon) return;
@@ -176,17 +185,16 @@ export class TerminalVanilla {
       const strategy: 'css-transform' | 'dimension-scaling' = getScalingStrategy('Terminal', zoom);
       this.term.options.fontSize = getTerminalFontSize(zoom, strategy);
 
-      // Save scroll position
-      const buffer: { baseY: number; viewportY: number } = this.term.buffer.active;
-      const scrollOffset: number = buffer.baseY - buffer.viewportY;
-
       this.fitAddon.fit();
 
-      // Restore scroll position
-      const newBaseY: number = this.term.buffer.active.baseY;
-      const targetLine: number = newBaseY - scrollOffset;
-      if (targetLine >= 0) {
-        this.term.scrollToLine(targetLine);
+      // Restore scroll position from pre-zoom capture (guaranteed uncorrupted)
+      if (this.scrollOffsetBeforeZoom !== null) {
+        const newBaseY: number = this.term.buffer.active.baseY;
+        const targetLine: number = newBaseY - this.scrollOffsetBeforeZoom;
+        if (targetLine >= 0) {
+          this.term.scrollToLine(targetLine);
+        }
+        this.scrollOffsetBeforeZoom = null;
       }
     });
 
@@ -243,6 +251,8 @@ export class TerminalVanilla {
    */
   scrollToBottom(): void {
     this.term?.scrollToBottom();
+    // Update saved scroll offset so zoom restoration respects this intentional scroll
+    this.scrollOffsetBeforeZoom = 0;
   }
 
   /**
@@ -259,6 +269,10 @@ export class TerminalVanilla {
 
     if (this.unsubscribeZoom) {
       this.unsubscribeZoom();
+    }
+
+    if (this.unsubscribeZoomStart) {
+      this.unsubscribeZoomStart();
     }
 
     // Kill terminal process

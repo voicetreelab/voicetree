@@ -3,13 +3,14 @@ import type {GraphNode} from "@/pure/graph";
 import {createNewChildNodeFromUI, deleteNodesFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions";
 import {
     spawnTerminalWithNewContextNode,
+    spawnTerminalWithCommandEditor,
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
 import {createAnchoredFloatingEditor} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 import {removeFromAutoPinQueue, getEditorByNodeId} from "@/shell/edge/UI-edge/state/EditorStore";
 import * as O from 'fp-ts/lib/Option.js';
 import {isAnchored, type EditorData} from "@/shell/edge/UI-edge/floating-windows/types";
 import {getFilePathForNode, getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
-import {Plus, Play, Trash2, Clipboard, MoreHorizontal, Pin, createElement, type IconNode} from 'lucide';
+import {Plus, Play, Trash2, Clipboard, MoreHorizontal, Pin, Edit2, createElement, type IconNode} from 'lucide';
 import {getOrCreateOverlay} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import {graphToScreenPosition, getWindowTransform, getTransformOrigin} from '@/pure/floatingWindowScaling';
 import type {AgentConfig} from "@/pure/settings";
@@ -222,6 +223,16 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
             ? () => highlightContainedNodes(cy, nodeId)
             : () => highlightPreviewNodes(cy, nodeId),
         onHoverLeave: () => clearContainedHighlights(cy),
+        // Dropdown submenu with "Edit Command" option
+        subMenu: [
+            {
+                icon: Edit2,
+                label: 'Edit Command',
+                action: async () => {
+                    await spawnTerminalWithCommandEditor(nodeId, cy);
+                },
+            },
+        ],
     });
 
     menuItems.push({

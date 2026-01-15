@@ -8,7 +8,9 @@
  */
 
 import type { NodeIdAndFilePath, Position, GraphNode } from "@/pure/graph";
+import type { VTSettings, AgentConfig } from "@/pure/settings";
 import { deleteNodesFromUI } from "@/shell/edge/UI-edge/graph/handleUIActions";
+import { showAgentCommandEditor, AUTO_RUN_FLAG } from "@/shell/edge/UI-edge/graph/agentCommandEditorPopup";
 import type { Core, NodeCollection, CollectionReturnValue } from "cytoscape";
 import * as O from 'fp-ts/lib/Option.js';
 // Import for global Window.electronAPI type augmentation
@@ -65,6 +67,182 @@ async function waitForNode(
     return null;
 }
 
+interface PermissionModeResult {
+    finalCommand: string;
+    shouldSaveSettings: boolean;
+    updatedAgents: readonly AgentConfig[];
+    updatedAgentPrompt: string;
+}
+
+/**
+ * Check if user needs to choose permission mode and show popup if needed.
+ * Returns the (possibly modified) command and agent prompt to use.
+ *
+ * For Claude agents, prompts user on first run to review/edit the command and prompt.
+ * If user adds the auto-run flag, saves the preference to settings.
+ */
+async function ensureAgentPermissionModeChosen(
+    settings: VTSettings,
+    command: string
+): Promise<PermissionModeResult> {
+    // Get current agent prompt from settings
+    const currentAgentPrompt: string = typeof settings.INJECT_ENV_VARS.AGENT_PROMPT === 'string'
+        ? settings.INJECT_ENV_VARS.AGENT_PROMPT
+        : '';
+
+    // Only prompt for Claude agent and only if not already chosen
+    const isClaudeAgent: boolean = command.toLowerCase().includes('claude');
+    if (settings.agentPermissionModeChosen || !isClaudeAgent) {
+        return {
+            finalCommand: command,
+            shouldSaveSettings: false,
+            updatedAgents: settings.agents,
+            updatedAgentPrompt: currentAgentPrompt,
+        };
+    }
+
+    // Show the agent command editor popup with both command and agent prompt
+    const result: { command: string; agentPrompt: string } | null = await showAgentCommandEditor(command, currentAgentPrompt);
+
+    // User cancelled - return original values but mark as chosen to not prompt again
+    if (result === null) {
+        return {
+            finalCommand: command,
+            shouldSaveSettings: true,
+            updatedAgents: settings.agents,
+            updatedAgentPrompt: currentAgentPrompt,
+        };
+    }
+
+    // Check if user added the auto-run flag
+    const hasAutoRunFlag: boolean = result.command.includes(AUTO_RUN_FLAG);
+
+    let updatedAgents: readonly AgentConfig[] = settings.agents;
+    if (hasAutoRunFlag) {
+        // Update Claude agent in settings to include the flag
+        updatedAgents = settings.agents.map((agent: AgentConfig): AgentConfig => {
+            if (agent.name === 'Claude' || agent.command.toLowerCase().includes('claude')) {
+                // Only update if the agent command doesn't already have the flag
+                if (!agent.command.includes(AUTO_RUN_FLAG)) {
+                    return {
+                        ...agent,
+                        command: agent.command.replace(
+                            /^(claude)\s+(.*)$/,
+                            `$1 ${AUTO_RUN_FLAG} $2`
+                        ),
+                    };
+                }
+            }
+            return agent;
+        });
+    }
+
+    return {
+        finalCommand: result.command,
+        shouldSaveSettings: true,
+        updatedAgents,
+        updatedAgentPrompt: result.agentPrompt,
+    };
+}
+
+/**
+ * Spawn a terminal after showing the command editor popup.
+ * Always shows the popup regardless of agentPermissionModeChosen setting.
+ * Used when user explicitly requests to edit command before running.
+ *
+ * @param parentNodeId - The parent node to create context for
+ * @param cy - Cytoscape instance (used to flush pending editor content)
+ * @param agentCommand - Optional agent command. If not provided, uses the default (first) agent from settings.
+ */
+export async function spawnTerminalWithCommandEditor(
+    parentNodeId: NodeIdAndFilePath,
+    cy: Core,
+    agentCommand?: string,
+): Promise<void> {
+    // Flush any pending editor content for this node before creating context
+    await flushEditorForNode(parentNodeId, cy);
+
+    const terminalsMap: Map<TerminalId, TerminalData> = getTerminals();
+
+    // Check terminal limit
+    if (terminalsMap.size >= MAX_TERMINALS) {
+        alert(`Glad you are trying to power use VT! Limit of ${MAX_TERMINALS} agents at once for now but send over an email 1manumasson@gmail.com if you want to alpha-test higher limits`);
+        return;
+    }
+
+    // Load settings to get agents and agent prompt
+    const settings: VTSettings = await window.electronAPI?.main.loadSettings() as VTSettings;
+    if (!settings) {
+        console.error('[spawnTerminalWithCommandEditor] Failed to load settings');
+        return;
+    }
+
+    // Determine the command to use
+    const agents: readonly AgentConfig[] = settings.agents ?? [];
+    const command: string = agentCommand ?? agents[0]?.command ?? '';
+    if (!command) {
+        console.error('[spawnTerminalWithCommandEditor] No agent command available');
+        return;
+    }
+
+    // Get current agent prompt from settings
+    const currentAgentPrompt: string = typeof settings.INJECT_ENV_VARS.AGENT_PROMPT === 'string'
+        ? settings.INJECT_ENV_VARS.AGENT_PROMPT
+        : '';
+
+    // Always show the popup (user explicitly requested edit)
+    const result: { command: string; agentPrompt: string } | null = await showAgentCommandEditor(command, currentAgentPrompt);
+
+    // User cancelled
+    if (result === null) {
+        return;
+    }
+
+    // Check if user added the auto-run flag to update settings
+    const hasAutoRunFlag: boolean = result.command.includes(AUTO_RUN_FLAG);
+    let updatedAgents: readonly AgentConfig[] = settings.agents;
+    if (hasAutoRunFlag) {
+        updatedAgents = settings.agents.map((agent: AgentConfig): AgentConfig => {
+            if (agent.name === 'Claude' || agent.command.toLowerCase().includes('claude')) {
+                if (!agent.command.includes(AUTO_RUN_FLAG)) {
+                    return {
+                        ...agent,
+                        command: agent.command.replace(
+                            /^(claude)\s+(.*)$/,
+                            `$1 ${AUTO_RUN_FLAG} $2`
+                        ),
+                    };
+                }
+            }
+            return agent;
+        });
+    }
+
+    // Save settings if agent prompt changed or auto-run flag was added
+    const promptChanged: boolean = result.agentPrompt !== currentAgentPrompt;
+    if (promptChanged || hasAutoRunFlag) {
+        const updatedSettings: VTSettings = {
+            ...settings,
+            agents: updatedAgents,
+            agentPermissionModeChosen: true,
+            INJECT_ENV_VARS: {
+                ...settings.INJECT_ENV_VARS,
+                AGENT_PROMPT: result.agentPrompt,
+            },
+        };
+        await window.electronAPI?.main.saveSettings(updatedSettings);
+    }
+
+    const terminalCount: number = getNextTerminalCount(terminalsMap, parentNodeId);
+
+    // Spawn terminal with the (possibly modified) command
+    await window.electronAPI?.main.spawnTerminalWithContextNode(
+        parentNodeId,
+        result.command,
+        terminalCount
+    );
+}
+
 /**
  * Spawn a terminal with a new context node
  *
@@ -93,12 +271,46 @@ export async function spawnTerminalWithNewContextNode(
         return;
     }
 
+    // Load settings to get agents and check permission mode
+    const settings: VTSettings = await window.electronAPI?.main.loadSettings() as VTSettings;
+    if (!settings) {
+        console.error('[spawnTerminalWithNewContextNode] Failed to load settings');
+        return;
+    }
+
+    // Determine the command to use
+    const agents: readonly AgentConfig[] = settings.agents ?? [];
+    let command: string = agentCommand ?? agents[0]?.command ?? '';
+    if (!command) {
+        console.error('[spawnTerminalWithNewContextNode] No agent command available');
+        return;
+    }
+
+    // Check if user needs to choose permission mode (first-time prompt for Claude)
+    const permissionResult: PermissionModeResult = await ensureAgentPermissionModeChosen(settings, command);
+
+    command = permissionResult.finalCommand;
+
+    // Save settings if permission mode was just chosen
+    if (permissionResult.shouldSaveSettings) {
+        const updatedSettings: VTSettings = {
+            ...settings,
+            agents: permissionResult.updatedAgents,
+            agentPermissionModeChosen: true,
+            INJECT_ENV_VARS: {
+                ...settings.INJECT_ENV_VARS,
+                AGENT_PROMPT: permissionResult.updatedAgentPrompt,
+            },
+        };
+        await window.electronAPI?.main.saveSettings(updatedSettings);
+    }
+
     const terminalCount: number = getNextTerminalCount(terminalsMap, parentNodeId);
 
     // Delegate to main process which has immediate graph access
     await window.electronAPI?.main.spawnTerminalWithContextNode(
         parentNodeId,
-        agentCommand,
+        command,
         terminalCount
     );
 }
