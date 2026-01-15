@@ -20,6 +20,7 @@ import {
     applyGraphDeltaToMemState,
     broadcastGraphDeltaToUI
 } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI";
+import {uiAPI} from "@/shell/edge/main/ui-api-proxy";
 import {loadSettings} from "@/shell/edge/main/settings/settings_IO";
 import {type VTSettings} from "@/pure/settings/types";
 
@@ -63,7 +64,7 @@ export function getDefaultWritePath(): O.Option<FilePath> {
 /**
  * Set the default write path. Must be in the allowlist.
  */
-export function setDefaultWritePath(vaultPath: FilePath): { success: boolean; error?: string } {
+export async function setDefaultWritePath(vaultPath: FilePath): Promise<{ success: boolean; error?: string }> {
     if (!vaultPathAllowlist.includes(vaultPath)) {
         return { success: false, error: 'Path must be in the allowlist' };
     }
@@ -72,6 +73,14 @@ export function setDefaultWritePath(vaultPath: FilePath): { success: boolean; er
     // Keep currentVaultSuffix in sync so getWatchStatus() returns correct suffix for node ID generation
     if (watchedDirectory) {
         currentVaultSuffix = path.relative(watchedDirectory, vaultPath);
+    }
+
+    // Persist to config so changes survive refresh
+    if (watchedDirectory) {
+        await saveVaultConfigForDirectory(watchedDirectory, {
+            allowlist: vaultPathAllowlist,
+            defaultWritePath: vaultPath
+        });
     }
 
     // Notify backend so it writes new nodes to the correct directory
@@ -152,7 +161,7 @@ export async function addVaultPathToAllowlist(vaultPath: FilePath): Promise<{ su
  * Cannot remove the default write path.
  * Immediately removes nodes from that vault from the graph.
  */
-export function removeVaultPathFromAllowlist(vaultPath: FilePath): { success: boolean; error?: string } {
+export async function removeVaultPathFromAllowlist(vaultPath: FilePath): Promise<{ success: boolean; error?: string }> {
     if (!vaultPathAllowlist.includes(vaultPath)) {
         return { success: false, error: 'Path not in allowlist' };
     }
@@ -182,10 +191,22 @@ export function removeVaultPathFromAllowlist(vaultPath: FilePath): { success: bo
             // Apply to memory state and broadcast to UI (but NOT to DB - files still exist)
             applyGraphDeltaToMemState(deleteDelta);
             broadcastGraphDeltaToUI(deleteDelta);
+
+            // Fit viewport to remaining nodes after vault removal
+            uiAPI.fitViewport();
         }
     }
 
     vaultPathAllowlist = vaultPathAllowlist.filter(p => p !== vaultPath);
+
+    // Persist to config so changes survive refresh
+    if (watchedDirectory && defaultWritePath) {
+        await saveVaultConfigForDirectory(watchedDirectory, {
+            allowlist: vaultPathAllowlist,
+            defaultWritePath: defaultWritePath
+        });
+    }
+
     return { success: true };
 }
 

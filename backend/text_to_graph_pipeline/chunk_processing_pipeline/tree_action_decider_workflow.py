@@ -281,6 +281,7 @@ class TreeActionDeciderWorkflow:
             # --- First Side Effect: Apply Placement ---
             modified_or_new_nodes = tree_action_applier.apply(actions_to_apply)
             logging.info(f"Phase 1 Complete. Nodes affected: {modified_or_new_nodes}")
+            # TODO, here is where we should send append/create new node SSE events
 
             # Separate newly created nodes from modified nodes
             newly_created_nodes: set[int] = set()

@@ -411,6 +411,21 @@ describe('GraphNavigationService', () => {
       expect(typeof animateArgs.zoom).toBe('number');
       expect(typeof animateArgs.duration).toBe('number');
     });
+
+    it('should fallback to stripped path when node not found with folder prefix', () => {
+      // Add a node without the folder prefix (simulates how frontend stores nodes)
+      cy.add({ data: { id: 'voice/test-node', label: 'Test Node' }, position: { x: 400, y: 400 } });
+
+      const animateSpy = vi.spyOn(cy, 'animate');
+
+      // Try to navigate with prefix (simulates SSE event with vault folder prefix)
+      service.handleSearchSelect('wed/voice/test-node');
+
+      // Should have found the node via fallback
+      expect(animateSpy).toHaveBeenCalled();
+      const animateArgs = animateSpy.mock.calls[0][0] as { center: { eles: Collection } };
+      expect((animateArgs.center.eles.first()?.id() ?? "")).toBe('voice/test-node');
+    });
   });
 
   describe('navigation integration', () => {
