@@ -1,31 +1,4 @@
-As you make progress on the task, create detailed visual updates by adding nodes to our markdown tree.
-
-**Create a new markdown file** at:
-```
-$VOICETREE_VAULT_PATH/slugified({node_title}).md
-```
-
-Where `slugified()` converts to lowercase, replaces spaces with underscores, removes special characters.
-
-**File template:**
-```markdown
----
-color: $AGENT_COLOR ?? blue
-agent_name: $AGENT_NAME
----
-# {node_title}
-
-{markdown_content}
-
-- <optional_relationship_to> [[{relative_path_to_parent}]] (multiple parent links OK when necessary, e.g. diamond dependencies))
-```
-
-- If `$AGENT_COLOR` is unset, default to `blue`
-- Wikilink paths are relative to `$VOICETREE_VAULT_PATH`
-- Use `$CONTEXT_NODE_PATH` as the default parent to link your node to
-- For multiple parents: use `Parents:` header with multiple `- [[path]]` entries
-- Optional relationship labels: `- solves_the_problem [[path]]`
-
+As you make progress on the task, create detailed visual updates by adding nodes to our Markdown tree.
 
 What type of node to create:
 1. Create multiple linked nodes if:
@@ -34,23 +7,31 @@ What type of node to create:
 
 If either applies you must now read `decompose_subtask_dependency_graph.md` first.
 
-2. Otherwise, for straightforward plans, create a planning node, read `prompts/SUBAGENT_PROMPT.md` for a rough starting point but make modifications/simplifications to suit the task.
+2. Otherwise, for straightforward plans, create a planning node, read `prompts/SUBAGENT_PROMPT.md` for a rough starting point but make modifications/simplifications to suit the task. (Ignore this if you are using openspec)
 
 3. Otherwise, create a single progress node using the template below:
 
 When creating progress nodes, your content should:
 
-Start with a brief description of what was accomplished. Keep it highly concise.
+Start with a brief description of the current progress of your task. Keep it concise.
 Always include a list of all the file paths you have modified.
 
 1. If the changes involve < 40 lines of code changes to production files. Include the exact diff in the markdown. Do not include test file diff unless that is your main task, or includes important logic. If >40 lines of code, include only the key changes.
 
 2. If the changes involve architectural changes, include a mermaid diagram for visual representation of the change/architecture/flow. Do not include a diagram if it's easier to explain as text.
 
+Create the following markdown file:
+```$VOICETREE_VAULT_PATH/{node_title}.md
+
 <MARKDOWN new node Format Template>
+---
+color: $AGENT_COLOR ?? blue
+agent_name: $AGENT_NAME
+---
 
-##Summary, concise high level description of what was accomplished
+## Summary, concise high level description of what was accomplished
 
+Key details such as specifications, decisions made, plans, outcomes, etc.
 
 <OPTIONAL if files changed> ##DIFF 
 files changed: e.g. file1.md, file2.py, etc..
@@ -78,18 +59,30 @@ files changed: e.g. file1.md, file2.py, etc..
 </optional>
 
 <OPTIONAL>
-- Important notes, gotchas
+- More notes, gotchas
 If relevant, include how this change affects the overall system, dependencies, or workflow.
-If relevant, include difficulties you faced in accomplishing this task, tech debt which made it hard.
+If relevant, include difficulties you faced in achieving this task, for example technical debt which made it hard.
 </OPTIONAL>
 
-<OPTIONAL but ENCOURAGED>
+<IF YOU MODIFIED OPENSPEC FILES>
 ## Related Files
-If you created any other markdown files during this session (e.g. OpenSpec proposals, specs, documentation), link to them:
-- [[path/to/created_file.md]] - brief description
-This creates graph edges connecting your progress node to related artifacts.
-</OPTIONAL but ENCOURAGED>
-</MARKDOWN new node Format Template>
+If you created any Openspec markdown files during this session (e.g. proposals, specs, documentation), link to them:
 
-**Important**: Use double brackets `[[link]]` for edges, not single `[link]`. Only `[[wikilinks]]` create graph edges.
+- <optional_relationship_label> [[path/to/created_file.md]]
+This creates graph edges connecting your progress node to related artifacts.
+</IF>
+
+<CRITICAL>
+- <optional_relationship_label> [[$CONTEXT_NODE_PATH]]
+</CRITICAL>
+
+</MARKDOWN new node Format Template>
+```
+
+- If `$AGENT_COLOR` is unset, default to `blue`
+- Wikilink paths are relative to `$VOICETREE_VAULT_PATH`, you must ensure your file is also saved here.
+- Use `[[$CONTEXT_NODE_PATH]]` as the default parent to link your node to. Override when necessary.
+  **Important**: Use double brackets `[[link]]` for edges, not single `[link]`. Only `[[wikilinks]]` create graph edges.
+- Optional relationship labels: `- solves build failure [[path]]` Omit unless the relationship is specific and meaningful.
+
 
