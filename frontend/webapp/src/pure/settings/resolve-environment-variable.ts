@@ -1,17 +1,26 @@
 import type {EnvVarValue} from "@/pure/settings/types";
 
 /**
+ * Normalize env var value by collapsing whitespace to single spaces.
+ * Prevents env var issues on Windows where newlines break PowerShell parsing.
+ */
+function normalizeEnvValue(s: string): string {
+    return s.replace(/\s+/g, ' ').trim();
+}
+
+/**
  * Resolve env var definitions to concrete string values.
  * For arrays, randomly selects one element.
+ * All values are normalized (newlines collapsed) for cross-platform compatibility.
  */
 export function resolveEnvVars(envVarDefs: Record<string, EnvVarValue>): Record<string, string> {
     return Object.fromEntries(
         Object.entries(envVarDefs).map(([key, value]: [string, EnvVarValue]): [string, string] => {
             if (typeof value === 'string') {
-                return [key, value];
+                return [key, normalizeEnvValue(value)];
             }
             const randomIndex: number = Math.floor(Math.random() * value.length);
-            return [key, value[randomIndex]];
+            return [key, normalizeEnvValue(value[randomIndex])];
         })
     );
 }
