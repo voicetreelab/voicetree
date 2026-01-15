@@ -3,13 +3,24 @@ import { type EnvVarValue } from './types';
 import {expandEnvVarsInValues, resolveEnvVars} from "@/pure/settings/resolve-environment-variable";
 
 describe('resolveEnvVars', () => {
-  it('should pass through string values unchanged', () => {
+  it('should pass through simple string values', () => {
     const input: Record<string, EnvVarValue> = {
       FOO: 'bar',
       BAZ: 'qux',
     };
     const result: Record<string, string> = resolveEnvVars(input);
     expect(result).toEqual({ FOO: 'bar', BAZ: 'qux' });
+  });
+
+  it('should normalize whitespace (collapse newlines to single spaces)', () => {
+    const input: Record<string, EnvVarValue> = {
+      PROMPT: `First line
+
+Second line
+Third line`,
+    };
+    const result: Record<string, string> = resolveEnvVars(input);
+    expect(result.PROMPT).toBe('First line Second line Third line');
   });
 
   it('should randomly select from array values', () => {
