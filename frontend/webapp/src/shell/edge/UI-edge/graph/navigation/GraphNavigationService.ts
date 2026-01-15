@@ -192,12 +192,26 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
   handleSearchSelect(nodeId: string): void {
     console.log('[GraphNavigationService] handleSearchSelect called with nodeId:', nodeId);
     const cy: Core = this.cy;
-    const node: CollectionReturnValue = cy.getElementById(nodeId);
+    let node: CollectionReturnValue = cy.getElementById(nodeId);
+    let resolvedNodeId: string = nodeId;
+
+    // Fallback: if node not found, try stripping first path segment
+    // This handles SSE events that include vault folder prefix
+    if (node.length === 0 && nodeId.includes('/')) {
+      const withoutFirstSegment: string = nodeId.substring(nodeId.indexOf('/') + 1);
+      const fallbackNode: CollectionReturnValue = cy.getElementById(withoutFirstSegment);
+      if (fallbackNode.length > 0) {
+        node = fallbackNode;
+        resolvedNodeId = withoutFirstSegment;
+        console.log('[GraphNavigationService] Used fallback nodeId:', resolvedNodeId);
+      }
+    }
+
     console.log('[GraphNavigationService] Found node:', node.length > 0, node);
 
     if (node.length > 0) {
       // Track as recently visited for command palette ordering
-      addRecentlyVisited(nodeId);
+      addRecentlyVisited(resolvedNodeId);
 
       // Animate to node - node takes 10% of viewport (comfortable with lots of context)
       console.log('[GraphNavigationService] Calling cyFitWithRelativeZoom on node');

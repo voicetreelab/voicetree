@@ -6,6 +6,12 @@ import electronUpdater, {type UpdateCheckResult} from 'electron-updater';
 import log from 'electron-log';
 import {startFileWatching, getWatchedDirectory, setStartupFolderOverride, setOnFolderSwitchCleanup} from '@/shell/edge/main/graph/watch_folder/watchFolder';
 
+// Redirect all console.* to electron-log in production (handles EPIPE errors on Linux AppImage)
+// Writes asynchronously to ~/Library/Logs/Voicetree/ (macOS) or ~/.config/Voicetree/logs/ (Linux)
+if (app.isPackaged) {
+    Object.assign(console, log.functions);
+}
+
 const {autoUpdater} = electronUpdater;
 import {StubTextToTreeServerManager} from './server/StubTextToTreeServerManager';
 import {RealTextToTreeServerManager} from './server/RealTextToTreeServerManager';

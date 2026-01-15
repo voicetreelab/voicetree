@@ -270,7 +270,7 @@ describe('Default Write Path (7.2)', () => {
       // WHEN: Attempt to set default to a path NOT in allowlist
       const outsidePath: string = path.join(testTmpDir, 'outside')
       await fs.mkdir(outsidePath, { recursive: true })
-      const result: { success: boolean; error?: string } = setDefaultWritePath(outsidePath)
+      const result: { success: boolean; error?: string } = await setDefaultWritePath(outsidePath)
 
       // ASSERT: setDefaultWritePath() returns error
       expect(result.success).toBe(false)
@@ -291,7 +291,7 @@ describe('Default Write Path (7.2)', () => {
       await addVaultPathToAllowlist(testVaultPath2)
 
       // WHEN: Set default to the second path (which IS in allowlist)
-      const result: { success: boolean; error?: string } = setDefaultWritePath(testVaultPath2)
+      const result: { success: boolean; error?: string } = await setDefaultWritePath(testVaultPath2)
 
       // ASSERT: setDefaultWritePath() succeeds
       expect(result.success).toBe(true)
@@ -356,7 +356,7 @@ describe('Remove Vault Path from Allowlist', () => {
     expect(getVaultPaths()).toContain(testVaultPath2)
 
     // WHEN: Remove the second path (not the default)
-    const result: { success: boolean; error?: string } = removeVaultPathFromAllowlist(testVaultPath2)
+    const result: { success: boolean; error?: string } = await removeVaultPathFromAllowlist(testVaultPath2)
 
     // ASSERT: Removal succeeds
     expect(result.success).toBe(true)
@@ -370,7 +370,7 @@ describe('Remove Vault Path from Allowlist', () => {
     await loadFolder(testWatchedDir, 'voicetree')
 
     // WHEN: Attempt to remove the default write path
-    const result: { success: boolean; error?: string } = removeVaultPathFromAllowlist(testVaultPath1)
+    const result: { success: boolean; error?: string } = await removeVaultPathFromAllowlist(testVaultPath1)
 
     // ASSERT: Removal fails
     expect(result.success).toBe(false)
@@ -386,7 +386,7 @@ describe('Remove Vault Path from Allowlist', () => {
 
     // WHEN: Attempt to remove path not in allowlist
     const outsidePath: string = '/some/random/path'
-    const result: { success: boolean; error?: string } = removeVaultPathFromAllowlist(outsidePath)
+    const result: { success: boolean; error?: string } = await removeVaultPathFromAllowlist(outsidePath)
 
     // ASSERT: Removal fails
     expect(result.success).toBe(false)
@@ -646,13 +646,13 @@ describe('Fallback Behavior - getVaultPath vs getDefaultWritePath', () => {
     }
   })
 
-  it('should allow changing default write path while keeping getVaultPath unchanged', async () => {
+  it('should keep getVaultPath in sync with default write path for node ID generation', async () => {
     // GIVEN: Load a folder and add second vault
     await loadFolder(testWatchedDir, 'voicetree')
     await addVaultPathToAllowlist(testVaultPath2)
 
     // AND: Change default write path to the second vault
-    setDefaultWritePath(testVaultPath2)
+    await setDefaultWritePath(testVaultPath2)
 
     // THEN: getDefaultWritePath should return the new default
     const defaultWritePath: O.Option<string> = getDefaultWritePath()
@@ -661,11 +661,11 @@ describe('Fallback Behavior - getVaultPath vs getDefaultWritePath', () => {
       expect(defaultWritePath.value).toBe(testVaultPath2)
     }
 
-    // BUT: getVaultPath (legacy API) still returns primary vault path
+    // AND: getVaultPath should also return the new default (kept in sync for node ID generation)
     const vaultPath: O.Option<string> = getVaultPath()
     expect(O.isSome(vaultPath)).toBe(true)
     if (O.isSome(vaultPath)) {
-      expect(vaultPath.value).toBe(testVaultPath1)
+      expect(vaultPath.value).toBe(testVaultPath2)
     }
   })
 })
