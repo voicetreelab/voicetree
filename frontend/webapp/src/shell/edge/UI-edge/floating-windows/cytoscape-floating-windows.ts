@@ -276,24 +276,20 @@ export function disposeFloatingWindow(
 
 /**
  * Attach close button handler to a floating window
- * This sets up the close button to call disposeFloatingWindow
+ *
+ * Phase 1 refactor: No-op - close button removed from title bar.
+ * Traffic lights (including close) will be added to horizontal menu in Phase 2A/3.
+ * Keeping function signature for callers; will be reimplemented when traffic lights move to menu.
  */
 export function attachCloseHandler(
-    cy: cytoscape.Core,
+    _cy: cytoscape.Core,
     fw: FloatingWindowData,
-    additionalCleanup?: () => void
+    _additionalCleanup?: () => void
 ): void {
     if (!fw.ui) {
         throw new Error('FloatingWindowData.ui must be populated before attaching close handler');
     }
 
-    const closeButton: HTMLButtonElement | null = fw.ui.titleBar.querySelector('.cy-floating-window-close');
-    if (closeButton) {
-        closeButton.addEventListener('click', () => {
-            if (additionalCleanup) {
-                additionalCleanup();
-            }
-            disposeFloatingWindow(cy, fw);
-        });
-    }
+    // Phase 1: No close button in UI - traffic lights will be in horizontal menu (Phase 2A/3)
+    // This function will be reimplemented when traffic lights are added to the horizontal menu
 }

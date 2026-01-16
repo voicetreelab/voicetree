@@ -266,7 +266,7 @@ button.graph-button:disabled > svg > path {
     scrollbar-width: thin;
     scrollbar-color: var(--background-modifier-border, #444) transparent;
     -webkit-overflow-scrolling: touch;
-    padding: 2px 4px 20px 24px; /* Extra bottom padding for shortcut hints, left padding for leftmost tab */
+    padding: 2px 4px 20px 4px; /* Extra bottom padding for shortcut hints */
 }
 
 /* Webkit scrollbar styling */
@@ -374,9 +374,9 @@ button.graph-button:disabled > svg > path {
 .recent-tabs-pinned-section {
     display: flex;
     gap: 4px;
-    padding-right: 8px;
+    padding: 2px 8px 0 4px; /* Match vertical alignment with recent-tabs-scroll */
     border-right: 1px solid var(--border);
-    margin-right: 8px;
+    margin-right: 4px;
 }
 
 .recent-tabs-pinned-section:empty {

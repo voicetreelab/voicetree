@@ -28,7 +28,7 @@ const SETTINGS_SHADOW_NODE_ID: ShadowNodeId = `shadow-${SETTINGS_EDITOR_ID}` as 
  * Close the settings editor if it exists
  */
 function closeSettingsEditor(cy: Core): void {
-    const editor = vanillaFloatingWindowInstances.get(SETTINGS_EDITOR_ID);
+    const editor: { dispose: () => void } | undefined = vanillaFloatingWindowInstances.get(SETTINGS_EDITOR_ID);
     if (!editor) return;
 
     // Dispose CodeMirror instance
@@ -38,13 +38,13 @@ function closeSettingsEditor(cy: Core): void {
     vanillaFloatingWindowInstances.delete(SETTINGS_EDITOR_ID);
 
     // Remove shadow node
-    const shadowNode = cy.getElementById(SETTINGS_SHADOW_NODE_ID);
+    const shadowNode: cytoscape.CollectionReturnValue = cy.getElementById(SETTINGS_SHADOW_NODE_ID);
     if (shadowNode.length > 0) {
         shadowNode.remove();
     }
 
     // Remove DOM element
-    const windowElement = document.getElementById(`window-${SETTINGS_EDITOR_ID}`);
+    const windowElement: HTMLElement | null = document.getElementById(`window-${SETTINGS_EDITOR_ID}`);
     if (windowElement) {
         windowElement.remove();
     }
@@ -86,7 +86,7 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
         };
 
         // Create window chrome with CodeMirror editor
-        const {windowElement, contentContainer, titleBar} = createWindowChrome(cy, settingsWindowFields, SETTINGS_EDITOR_ID);
+        const {windowElement, contentContainer} = createWindowChrome(cy, settingsWindowFields, SETTINGS_EDITOR_ID);
 
         // Create CodeMirror editor instance for JSON editing
         const editor: CodeMirrorEditorView = new CodeMirrorEditorView(
@@ -156,9 +156,9 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
 
         // Position window using the same pattern as anchor-to-node
         const currentZoom: number = getCachedZoom();
-        const strategy = getScalingStrategy('Editor', currentZoom);
-        const screenDimensions = getScreenDimensions({ width: fixedWidth, height: fixedHeight }, currentZoom, strategy);
-        const screenPos = graphToScreenPosition({ x: centerX, y: centerY }, currentZoom);
+        const strategy: 'css-transform' | 'dimension-scaling' = getScalingStrategy('Editor', currentZoom);
+        const screenDimensions: { readonly width: number; readonly height: number } = getScreenDimensions({ width: fixedWidth, height: fixedHeight }, currentZoom, strategy);
+        const screenPos: { readonly x: number; readonly y: number } = graphToScreenPosition({ x: centerX, y: centerY }, currentZoom);
 
         windowElement.style.left = `${screenPos.x}px`;
         windowElement.style.top = `${screenPos.y}px`;
@@ -171,11 +171,9 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
         // Add to overlay
         overlay.appendChild(windowElement);
 
-        // Setup close button to use shared close function
-        const closeButton: HTMLButtonElement | null = titleBar.querySelector('.cy-floating-window-close');
-        if (closeButton) {
-            closeButton.addEventListener('click', () => closeSettingsEditor(cy));
-        }
+        // Phase 1 refactor: Close button removed from title bar
+        // Traffic lights (including close) will be added to horizontal menu in Phase 2A/3
+        // When implemented, close handler should call: closeSettingsEditor(cy)
 
         // Navigate to settings editor using delayed double-animation pattern
         // This ensures animation happens after DOM is fully settled

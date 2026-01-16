@@ -38,9 +38,6 @@ export const TERMINAL_CSS_TRANSFORM_THRESHOLD: number = 0.5;
 /** Base font size for terminal text (scaled by zoom in dimension-scaling mode) */
 export const TERMINAL_BASE_FONT_SIZE: number = 10;
 
-/** Base font size for floating window title bars */
-export const TITLE_BAR_BASE_FONT_SIZE: number = 14;
-
 // =============================================================================
 // Core Strategy Function
 // =============================================================================
@@ -148,19 +145,6 @@ export function getTerminalFontSize(zoom: number, strategy: ScalingStrategy): nu
         return TERMINAL_BASE_FONT_SIZE;
     }
     return Math.round(TERMINAL_BASE_FONT_SIZE * zoom);
-}
-
-/**
- * Get the font size for floating window title bar.
- *
- * Dimension scaling mode: Scale font with zoom
- * CSS transform mode: Use base font (CSS transform handles visual scaling)
- */
-export function getTitleBarFontSize(zoom: number, strategy: ScalingStrategy): number {
-    if (strategy === 'css-transform') {
-        return TITLE_BAR_BASE_FONT_SIZE;
-    }
-    return Math.round(TITLE_BAR_BASE_FONT_SIZE * zoom);
 }
 
 // =============================================================================

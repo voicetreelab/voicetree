@@ -40,106 +40,6 @@
   width: 100%;
 }
 
-/* Title bar - compact for editors, standard for terminals */
-.cy-floating-window-title {
-  position: relative;
-  padding: 6px 10px;
-  background-color: var(--muted);
-  border-bottom: 1px solid var(--border);
-  border-top-left-radius: 8px;
-  border-top-right-radius: 8px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  user-select: none;
-  cursor: move;
-  gap: 8px;
-}
-
-/* Terminal title bar - standard height with title visible */
-.cy-floating-window-terminal .cy-floating-window-title {
-  padding: 8px 12px;
-}
-
-.cy-floating-window-title.dragging {
-  cursor: grabbing;
-}
-
-/* Title text - hidden for editors (compact bar) */
-.cy-floating-window-title-text {
-  display: none;
-}
-
-/* Terminal title text - visible */
-.cy-floating-window-terminal .cy-floating-window-title-text {
-  display: block;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex: 1;
-}
-
-/* =============================================================================
- * Window Control Buttons
- * Neutral circles with Lucide SVG icons: X (close), Maximize2 (expand), Maximize (fullscreen), Pin
- * ============================================================================= */
-
-.cy-floating-window-buttons.macos-traffic-lights {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  z-index: 1;
-}
-
-/* Base button style - neutral circles with visible icons */
-.cy-floating-window-btn {
-  all: unset;
-  cursor: pointer;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  font-weight: normal;
-  color: var(--muted-foreground);
-  background-color: transparent;
-  border: 1px solid var(--border);
-  transition: background-color 0.15s ease, color 0.15s ease;
-}
-
-/* Hover effects - subtle highlight */
-.cy-floating-window-btn:hover {
-  background-color: var(--muted);
-  color: var(--foreground);
-}
-
-/* SVG icon styling for Lucide icons */
-.cy-floating-window-btn svg {
-  width: 8px;
-  height: 8px;
-  stroke: var(--muted-foreground);
-  stroke-width: 2;
-}
-
-.macos-traffic-lights:hover .cy-floating-window-btn svg {
-  stroke: rgba(0, 0, 0, 0.5);
-}
-
-/* Pin button - transparent, no background */
-.cy-floating-window-pin {
-  background-color: transparent !important;
-}
-
-.cy-floating-window-pin:hover {
-  background-color: var(--muted);
-}
 
 /* Content area */
 .cy-floating-window-content {
@@ -152,29 +52,14 @@
   background-color: var(--background, white);
 }
 
-/* Resizable windows */
+/* Resizable windows - Phase 2C: macOS-style edge resizing replaces CSS resize: both */
 .cy-floating-window.resizable {
-  resize: both;
   overflow: auto;
 }
 
 /* Shadow nodes (invisible) */
 .floating-window-node {
   opacity: 0;
-}
-
-/* Title bar with embedded horizontal menu
- * Traffic lights overlay on left, menu pills centered */
-.cy-floating-window-title-with-menu {
-  justify-content: center;
-}
-
-/* Menu wrapper inside title bar - centered */
-.cy-floating-window-title-menu {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 6px;
 }
 
 /* Horizontal context menu pill backgrounds
@@ -189,6 +74,17 @@
   border-radius: 16px;
   padding: 4px 8px;
   pointer-events: auto;
+}
+
+/* Floating window chrome horizontal menu wrapper
+ * Displays left and right pill groups with centered spacer for node circle gap */
+.cy-floating-window-horizontal-menu {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 8px;
 }
 
 /* Vertical submenu dropdown from horizontal menu
@@ -405,4 +301,191 @@
  * Needs z-index > 1000 (.cy-floating-overlay) to appear on top. */
 .cm-tooltip-autocomplete {
   z-index: 10001 !important;
+}
+
+/* =============================================================================
+ * Bottom-Right Expand Button (Phase 2B)
+ * Small icon button in bottom-right corner for expanding/minimizing window
+ * Visually distinct from CSS resize handles
+ * ============================================================================= */
+
+.cy-floating-window-expand-corner {
+  all: unset;
+  cursor: pointer;
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  background-color: var(--muted);
+  border: 1px solid var(--border);
+  color: var(--muted-foreground);
+  opacity: 0.6;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
+  z-index: 10; /* Above content but below menus */
+}
+
+.cy-floating-window-expand-corner:hover {
+  opacity: 1;
+  background-color: var(--accent);
+  color: var(--foreground);
+}
+
+.cy-floating-window-expand-corner svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+/* =============================================================================
+ * Traffic Light Buttons (Phase 3)
+ * macOS-style colored circles in horizontal menu: Close (light red), Pin (neutral gray), Fullscreen (soft green outline)
+ * ============================================================================= */
+
+/* Base traffic light button style - 14px circles */
+.traffic-light {
+  all: unset;
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 4px;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+}
+
+.traffic-light:hover {
+  opacity: 0.85;
+  transform: scale(1.1);
+}
+
+.traffic-light:active {
+  transform: scale(0.95);
+}
+
+/* Traffic light icons - tiny (6-8px) and subtle */
+.traffic-light svg {
+  width: 6px;
+  height: 6px;
+  stroke-width: 2.5;
+}
+
+/* Close button - soft light red filled circle */
+.traffic-light-close {
+  background-color: rgba(255, 120, 117, 0.65);
+}
+
+.traffic-light-close svg {
+  stroke: rgba(0, 0, 0, 0.35);
+}
+
+.traffic-light-close:hover svg {
+  stroke: rgba(0, 0, 0, 0.55);
+}
+
+/* Pin button - neutral gray filled circle */
+.traffic-light-pin {
+  background-color: rgba(150, 150, 150, 0.5);
+}
+
+.traffic-light-pin svg {
+  stroke: rgba(0, 0, 0, 0.35);
+}
+
+.traffic-light-pin:hover svg {
+  stroke: rgba(0, 0, 0, 0.55);
+}
+
+/* Fullscreen button - soft green outline only (not filled) */
+.traffic-light-fullscreen {
+  background-color: transparent;
+  border: 1.5px solid rgba(80, 200, 100, 0.6);
+}
+
+.traffic-light-fullscreen svg {
+  stroke: rgba(80, 200, 100, 0.7);
+}
+
+.traffic-light-fullscreen:hover {
+  background-color: rgba(80, 200, 100, 0.12);
+}
+
+.traffic-light-fullscreen:hover svg {
+  stroke: rgba(60, 180, 80, 0.85);
+}
+
+/* =============================================================================
+ * Terminal Window Chrome (Phase 4)
+ * Minimal title bar with traffic lights at far right
+ * Optional context badge for terminals with context nodes
+ * ============================================================================= */
+
+/* Terminal title bar - minimal height, relative positioning for traffic lights */
+.terminal-title-bar {
+  position: relative;
+  min-height: 28px;
+  padding: 4px 10px;
+  background-color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  display: flex;
+  align-items: center;
+}
+
+/* Traffic lights container - positioned at far right */
+.terminal-traffic-lights {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Context badge - pill shape with clipboard icon and truncated title */
+.terminal-context-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background-color: var(--accent);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  max-width: 200px;
+}
+
+.terminal-context-badge:hover {
+  background-color: var(--accent-foreground);
+}
+
+.terminal-context-badge svg {
+  flex-shrink: 0;
+  stroke: var(--muted-foreground);
+}
+
+.terminal-context-badge-title {
+  font-size: 12px;
+  color: var(--foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Context expanded state - visual indicator */
+.cy-floating-window-terminal.terminal-context-expanded .terminal-context-badge {
+  background-color: var(--primary);
+}
+
+.cy-floating-window-terminal.terminal-context-expanded .terminal-context-badge svg {
+  stroke: var(--primary-foreground);
+}
+
+.cy-floating-window-terminal.terminal-context-expanded .terminal-context-badge-title {
+  color: var(--primary-foreground);
 }

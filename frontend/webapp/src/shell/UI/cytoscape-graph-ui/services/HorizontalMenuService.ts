@@ -9,7 +9,7 @@ import {getEditorByNodeId} from "@/shell/edge/UI-edge/state/EditorStore";
 import * as O from 'fp-ts/lib/Option.js';
 import {isAnchored, type EditorData} from "@/shell/edge/UI-edge/floating-windows/types";
 import {getFilePathForNode, getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
-import {Plus, Play, Trash2, Clipboard, MoreHorizontal, Edit2, createElement, type IconNode} from 'lucide';
+import {Plus, Play, Trash2, Clipboard, ChevronDown, Edit2, X, Pin, Maximize, createElement, type IconNode} from 'lucide';
 import {getOrCreateOverlay} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import {graphToScreenPosition, getWindowTransform, getTransformOrigin} from '@/pure/floatingWindowScaling';
 import type {AgentConfig} from "@/pure/settings";
@@ -178,7 +178,16 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
     const { nodeId, cy, agents, isContextNode } = input;
     const menuItems: HorizontalMenuItem[] = [];
 
-    // LEFT SIDE: Copy, Add (2 buttons)
+    // LEFT SIDE: Delete, Copy, Add (3 buttons)
+    menuItems.push({
+        icon: Trash2,
+        label: 'Delete',
+        hotkey: '⌘⌫',
+        action: async () => {
+            await deleteNodesFromUI([nodeId], cy);
+        },
+    });
+
     menuItems.push({
         icon: Clipboard,
         label: 'Copy Path',
@@ -198,7 +207,7 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
         },
     });
 
-    // RIGHT SIDE: Run, Delete, More (3 buttons)
+    // RIGHT SIDE: Run, More (2 buttons) + traffic light placeholders (Close, Pin, Fullscreen)
     menuItems.push({
         icon: Play,
         label: 'Run',
@@ -222,15 +231,6 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
                 },
             },
         ],
-    });
-
-    menuItems.push({
-        icon: Trash2,
-        label: 'Delete',
-        hotkey: '⌘⌫',
-        action: async () => {
-            await deleteNodesFromUI([nodeId], cy);
-        },
     });
 
     // Expandable "more" menu with Copy Content and additional agents
@@ -262,7 +262,7 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
         });
     }
     menuItems.push({
-        icon: MoreHorizontal,
+        icon: ChevronDown,
         label: 'More',
         action: () => {}, // No-op, submenu handles interaction
         subMenu: moreSubMenu,
@@ -278,26 +278,43 @@ export interface HorizontalMenuElements {
     readonly rightGroup: HTMLDivElement;
 }
 
+/** Context for traffic light button click handlers (optional) */
+export interface TrafficLightContext {
+    /** Called when Close button is clicked */
+    readonly onCloseClick: () => void;
+    /** Called when Pin button is clicked - receives current pin state, returns new state */
+    readonly onPinClick: () => boolean;
+    /** Called when Fullscreen button is clicked */
+    readonly onFullscreenClick: () => void;
+    /** Get initial pin state */
+    readonly isPinned: () => boolean;
+}
+
 /**
  * Create the horizontal menu DOM elements (left pill group + spacer + right pill group).
  * Returns the individual elements so they can be assembled into any container.
  * Extracted for reuse by floating window chrome.
+ *
+ * @param menuItems - Menu items to render
+ * @param onClose - Callback when menu should close (for hover menus)
+ * @param trafficLightContext - Optional context for traffic light button click handlers
  */
 export function createHorizontalMenuElement(
     menuItems: HorizontalMenuItem[],
-    onClose: () => void
+    onClose: () => void,
+    trafficLightContext?: TrafficLightContext
 ): HorizontalMenuElements {
-    // Create left group (first 2 buttons: Copy, Add)
+    // Create left group (first 3 buttons: Delete, Copy, Add)
     // Uses .horizontal-menu-pill CSS class for styling (supports dark mode)
     const leftGroup: HTMLDivElement = document.createElement('div');
     leftGroup.className = 'horizontal-menu-pill horizontal-menu-left-group';
 
-    // Create right group (last 3 buttons: Run, Delete, More)
+    // Create right group (Run, More + traffic light placeholders)
     const rightGroup: HTMLDivElement = document.createElement('div');
     rightGroup.className = 'horizontal-menu-pill horizontal-menu-right-group';
 
-    // Split point: first 2 items go left, rest go right
-    const SPLIT_INDEX: number = 2;
+    // Split point: first 3 items go left (Delete, Copy, Add), rest go right (Run, More)
+    const SPLIT_INDEX: number = 3;
 
     for (let i: number = 0; i < menuItems.length; i++) {
         const item: HorizontalMenuItem = menuItems[i];
@@ -327,6 +344,56 @@ export function createHorizontalMenuElement(
         } else {
             rightGroup.appendChild(itemContainer);
         }
+    }
+
+    // Add traffic light buttons to right group (Close, Pin, Fullscreen)
+    // Phase 3: Styled as ~12px colored circles with tiny Lucide icons
+    const trafficLightClose: HTMLButtonElement = document.createElement('button');
+    trafficLightClose.className = 'traffic-light traffic-light-close';
+    trafficLightClose.type = 'button';
+    const closeIcon: SVGElement = createElement(X);
+    closeIcon.setAttribute('width', '8');
+    closeIcon.setAttribute('height', '8');
+    trafficLightClose.appendChild(closeIcon);
+    rightGroup.appendChild(trafficLightClose);
+
+    const trafficLightPin: HTMLButtonElement = document.createElement('button');
+    trafficLightPin.className = 'traffic-light traffic-light-pin';
+    trafficLightPin.type = 'button';
+    const pinIcon: SVGElement = createElement(Pin);
+    pinIcon.setAttribute('width', '8');
+    pinIcon.setAttribute('height', '8');
+    trafficLightPin.appendChild(pinIcon);
+    rightGroup.appendChild(trafficLightPin);
+
+    const trafficLightFullscreen: HTMLButtonElement = document.createElement('button');
+    trafficLightFullscreen.className = 'traffic-light traffic-light-fullscreen';
+    trafficLightFullscreen.type = 'button';
+    const fullscreenIcon: SVGElement = createElement(Maximize);
+    fullscreenIcon.setAttribute('width', '8');
+    fullscreenIcon.setAttribute('height', '8');
+    trafficLightFullscreen.appendChild(fullscreenIcon);
+    rightGroup.appendChild(trafficLightFullscreen);
+
+    // Wire up traffic light click handlers if context is provided
+    if (trafficLightContext) {
+        // Close button - closes the floating window
+        trafficLightClose.addEventListener('click', (e: MouseEvent): void => {
+            e.stopPropagation();
+            trafficLightContext.onCloseClick();
+        });
+
+        // Pin button - toggles pin state
+        trafficLightPin.addEventListener('click', (e: MouseEvent): void => {
+            e.stopPropagation();
+            trafficLightContext.onPinClick();
+        });
+
+        // Fullscreen button - toggles fullscreen mode
+        trafficLightFullscreen.addEventListener('click', (e: MouseEvent): void => {
+            e.stopPropagation();
+            trafficLightContext.onFullscreenClick();
+        });
     }
 
     // Spacer in middle (gap for node circle, no background)

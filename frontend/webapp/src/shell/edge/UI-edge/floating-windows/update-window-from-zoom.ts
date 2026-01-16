@@ -2,7 +2,6 @@ import type cytoscape from "cytoscape";
 import {
     getScalingStrategy,
     getScreenDimensions,
-    getTitleBarFontSize,
     getTransformOrigin,
     getWindowTransform,
     graphToScreenPosition,
@@ -21,9 +20,6 @@ export function updateWindowFromZoom(cy: cytoscape.Core, windowElement: HTMLElem
     const windowType: 'Terminal' | 'Editor' = isTerminal ? 'Terminal' : 'Editor';
     const strategy: ScalingStrategy = getScalingStrategy(windowType, zoom);
 
-    // Get title bar element for font scaling
-    const titleBar: HTMLElement | null = windowElement.querySelector('.cy-floating-window-title');
-
     // Apply dimensions based on strategy
     const baseDimensions: { readonly width: number; readonly height: number } = {width: baseWidth, height: baseHeight};
     const screenDimensions: {
@@ -37,11 +33,6 @@ export function updateWindowFromZoom(cy: cytoscape.Core, windowElement: HTMLElem
         windowElement.style.height = `${screenDimensions.height}px`;
     }
     windowElement.dataset.usingCssTransform = strategy === 'css-transform' ? 'true' : 'false';
-
-    // Apply title bar font size
-    if (titleBar) {
-        titleBar.style.fontSize = `${getTitleBarFontSize(zoom, strategy)}px`;
-    }
 
     // Update position - look up shadow node or use stored graph position
     const shadowNodeId: string | undefined = windowElement.dataset.shadowNodeId;
