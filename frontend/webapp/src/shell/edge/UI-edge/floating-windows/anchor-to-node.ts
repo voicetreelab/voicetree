@@ -40,7 +40,7 @@ export function anchorToNode(
     }
 
     const parentNodeId: NodeIdAndFilePath = fw.anchoredToNodeId.value;
-    const {windowElement, titleBar} = fw.ui;
+    const {windowElement} = fw.ui;
 
     console.log('[anchorToNode-v2] Anchoring to parentNodeId:', parentNodeId);
 
@@ -170,7 +170,7 @@ export function anchorToNode(
     if (candidates.length > 0) {
         candidates.sort((a, b) => a.angleDiff - b.angleDiff);
         // Place at DEFAULT_EDGE_LENGTH center-to-center (matches cola's edge length)
-        const chosen = candidates[0].pos;
+        const chosen: { x: number; y: number } = candidates[0].pos;
         childPosition = {
             x: parentPos.x + Math.sign(chosen.x - parentPos.x) * DEFAULT_EDGE_LENGTH,
             y: parentPos.y + Math.sign(chosen.y - parentPos.y) * DEFAULT_EDGE_LENGTH
@@ -282,7 +282,8 @@ export function anchorToNode(
     */
 
     // Attach drag handlers and store cleanup references
-    const {handleMouseMove, handleMouseUp} = attachDragHandlers(cy, titleBar, windowElement, shadowNodeId);
+    // Phase 1 refactor: No title bar, so drag handlers attach to windowElement directly
+    const {handleMouseMove, handleMouseUp} = attachDragHandlers(cy, windowElement, shadowNodeId);
 
     // Register cleanup functions
     cleanupRegistry.set(windowElement, {
@@ -325,12 +326,12 @@ function updateWindowPosition(shadowNode: cytoscape.NodeSingular, domElement: HT
 // =============================================================================
 
 /**
- * Attach drag-and-drop handlers to the title bar
+ * Attach drag-and-drop handlers to the window element
+ * Phase 1 refactor: No title bar, so drag handlers attach to windowElement directly
  * Returns the document-level handlers so they can be removed on dispose
  */
 function attachDragHandlers(
     cy: cytoscape.Core,
-    titleBar: HTMLElement,
     windowElement: HTMLElement,
     shadowNodeId: ShadowNodeId
 ): { handleMouseMove: (e: MouseEvent) => void; handleMouseUp: () => void } {
@@ -341,7 +342,7 @@ function attachDragHandlers(
         if ((e.target as HTMLElement).tagName === 'BUTTON') return;
 
         isDragging = true;
-        titleBar.classList.add('dragging');
+        windowElement.classList.add('dragging');
 
         const pan: cytoscape.Position = cy.pan();
 
@@ -389,11 +390,11 @@ function attachDragHandlers(
     const handleMouseUp: () => void = () => {
         if (isDragging) {
             isDragging = false;
-            titleBar.classList.remove('dragging');
+            windowElement.classList.remove('dragging');
         }
     };
 
-    titleBar.addEventListener('mousedown', handleMouseDown);
+    windowElement.addEventListener('mousedown', handleMouseDown);
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
 

@@ -24,7 +24,6 @@ import { TerminalVanilla } from "@/shell/UI/floating-windows/terminals/TerminalV
 import posthog from "posthog-js";
 import {
     getTerminalId,
-    getShadowNodeId,
     type TerminalData,
     type TerminalId,
     type FloatingWindowUIData,
@@ -35,7 +34,6 @@ import {
 import { getNextTerminalCount, getTerminals } from "@/shell/edge/UI-edge/state/TerminalStore";
 import {anchorToNode} from "@/shell/edge/UI-edge/floating-windows/anchor-to-node";
 import {createWindowChrome} from "@/shell/edge/UI-edge/floating-windows/create-window-chrome";
-import {attachFullscreenZoom} from "@/shell/edge/UI-edge/floating-windows/fullscreen-zoom";
 import {flushEditorForNode} from "@/shell/edge/UI-edge/floating-windows/editors/flushEditorForNode";
 
 const MAX_TERMINALS: number = 12;
@@ -417,24 +415,10 @@ export function createFloatingTerminalWindow(
     // Analytics: Track terminal opened
     posthog.capture('terminal_opened', { terminalId: terminalId });
 
-    // Attach close button handler
-    const closeButton: HTMLButtonElement | null = ui.titleBar.querySelector('.cy-floating-window-close');
-    if (closeButton) {
-        closeButton.addEventListener('click', () => {
-            void closeTerminal(terminalWithUI, cy);
-        });
-    }
-
-    // Attach fullscreen button handler - uses shared fullscreen zoom logic
-    const fullscreenButton: HTMLButtonElement | null = ui.titleBar.querySelector('.cy-floating-window-fullscreen');
-    if (fullscreenButton) {
-        attachFullscreenZoom(
-            cy,
-            fullscreenButton,
-            getShadowNodeId(terminalId),
-            true  // Enable ESC key for terminals
-        );
-    }
+    // Phase 1 refactor: Close and fullscreen buttons removed from title bar
+    // Traffic lights will be added to horizontal menu in Phase 2A/3
+    // When implemented, close handler should call: closeTerminal(terminalWithUI, cy)
+    // When implemented, fullscreen handler should use: attachFullscreenZoom(cy, btn, getShadowNodeId(terminalId), true)
 
     // Add to overlay
     overlay.appendChild(ui.windowElement);

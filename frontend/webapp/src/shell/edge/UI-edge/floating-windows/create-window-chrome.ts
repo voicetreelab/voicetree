@@ -8,30 +8,19 @@ import type {
 } from "@/shell/edge/UI-edge/floating-windows/types";
 import {getScalingStrategy, getScreenDimensions, type ScalingStrategy} from "@/pure/floatingWindowScaling";
 import {selectFloatingWindowNode} from "@/shell/edge/UI-edge/floating-windows/select-floating-window-node";
-import {getCachedZoom, captureTerminalScrollPositions} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
-import {updateWindowFromZoom} from "@/shell/edge/UI-edge/floating-windows/update-window-from-zoom";
-import {triggerLayout} from "@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout";
+import {getCachedZoom} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import * as O from 'fp-ts/lib/Option.js';
 import {
     getNodeMenuItems,
     createHorizontalMenuElement,
     type NodeMenuItemsInput,
-    type HorizontalMenuItem
+    type HorizontalMenuItem,
+    type TrafficLightContext
 } from "@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService";
 import type {AgentConfig} from "@/pure/settings";
-import {Maximize2, Minimize2, Pin, PinOff, X, Maximize, createElement, type IconNode} from 'lucide';
-import {removeFromAutoPinQueue, addToAutoPinQueue, isPinned, addToPinnedEditors, removeFromPinnedEditors} from "@/shell/edge/UI-edge/state/EditorStore";
-import {createAnchoredFloatingEditor, closeHoverEditor} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
-
-/**
- * Create an SVG element from a Lucide icon definition.
- */
-function createLucideIcon(icon: IconNode, size: number = 8): SVGElement {
-    const svg: SVGElement = createElement(icon);
-    svg.setAttribute('width', String(size));
-    svg.setAttribute('height', String(size));
-    return svg;
-}
+import {Maximize2, Minimize2, X, Pin, Maximize, Clipboard, createElement} from 'lucide';
+import {isPinned, addToPinnedEditors, removeFromPinnedEditors} from "@/shell/edge/UI-edge/state/EditorStore";
+import {getShadowNodeId} from "@/shell/edge/UI-edge/floating-windows/types";
 
 /** Options for createWindowChrome */
 export interface CreateWindowChromeOptions {
@@ -42,6 +31,8 @@ export interface CreateWindowChromeOptions {
 /**
  * Create the window chrome (frame) with vanilla DOM
  * Returns DOM refs that will populate the `ui` field on FloatingWindowData
+ *
+ * Phase 1 refactor: No title bar. Traffic lights will be moved to horizontal menu in Phase 2A/3.
  *
  * NO stored callbacks - use disposeFloatingWindow() for cleanup
  */
@@ -95,130 +86,15 @@ export function createWindowChrome(
         }
     }, {passive: false});
 
-    // Create title bar
-    const titleBar: HTMLDivElement = document.createElement('div');
-    titleBar.className = 'cy-floating-window-title';
-
-    const titleText: HTMLSpanElement = document.createElement('span');
-    titleText.className = 'cy-floating-window-title-text';
-    titleText.textContent = fw.title || `Window: ${id}`;
-
-    // Create macOS-style traffic light button container (left side)
-    const buttonContainer: HTMLDivElement = document.createElement('div');
-    buttonContainer.className = 'cy-floating-window-buttons macos-traffic-lights';
-
-    // Create close button (red) - leftmost in macOS style
-    const closeButton: HTMLButtonElement = document.createElement('button');
-    closeButton.className = 'cy-floating-window-btn cy-floating-window-close';
-    closeButton.title = 'Close';
-    closeButton.appendChild(createLucideIcon(X));
-    // Note: close handler attached via disposeFloatingWindow pattern
-
-    // Create expand button (yellow) - middle in macOS style
-    const expandButton: HTMLButtonElement = document.createElement('button');
-    expandButton.className = 'cy-floating-window-btn cy-floating-window-expand';
-    expandButton.title = 'Expand window';
-    expandButton.appendChild(createLucideIcon(Maximize2));
-    expandButton.addEventListener('click', () => {
-        // Capture terminal scroll positions BEFORE dimension changes to avoid race with auto-scroll
-        captureTerminalScrollPositions();
-
-        const isExpanded: boolean = windowElement.dataset.expanded === 'true';
-        const currentBaseWidth: number = parseFloat(windowElement.dataset.baseWidth ?? '400');
-        const currentBaseHeight: number = parseFloat(windowElement.dataset.baseHeight ?? '400');
-
-        const scaleFactor: number = isExpanded ? 0.5 : 2;
-
-        // Update base dimensions
-        windowElement.dataset.baseWidth = String(currentBaseWidth * scaleFactor);
-        windowElement.dataset.baseHeight = String(currentBaseHeight * scaleFactor);
-        windowElement.dataset.expanded = isExpanded ? 'false' : 'true';
-        expandButton.title = isExpanded ? 'Expand window' : 'Shrink window';
-
-        // Update icon based on expanded state
-        expandButton.innerHTML = '';
-        expandButton.appendChild(createLucideIcon(isExpanded ? Maximize2 : Minimize2));
-
-        // For editors (non-terminals), also scale current height immediately
-        // since auto-height manages editor height (not updateWindowFromZoom)
-        if (!isTerminal) {
-            const currentDomHeight: number = parseFloat(windowElement.style.height) || currentBaseHeight;
-            windowElement.style.height = `${currentDomHeight * scaleFactor}px`;
-        }
-
-        // Trigger dimension update (handles width for all, height for terminals only)
-        updateWindowFromZoom(cy, windowElement, getCachedZoom());
-        // Trigger layout since user explicitly resized
-        triggerLayout(cy);
-    });
-
-    // Create fullscreen button (green) - rightmost in macOS style
-    const fullscreenButton: HTMLButtonElement = document.createElement('button');
-    fullscreenButton.className = 'cy-floating-window-btn cy-floating-window-fullscreen';
-    fullscreenButton.title = 'Toggle Fullscreen';
-    fullscreenButton.appendChild(createLucideIcon(Maximize));
-    // Note: fullscreen handler will be attached by the caller (FloatingEditorManager/spawnTerminal)
-
-    // Create pin button (4th button)
-    const pinButton: HTMLButtonElement = document.createElement('button');
-    pinButton.className = 'cy-floating-window-btn cy-floating-window-pin';
-
-    // Get initial pin state
-    const hasAnchoredNode: boolean = O.isSome(fw.anchoredToNodeId);
-    const anchoredNodeId: string = hasAnchoredNode ? fw.anchoredToNodeId.value : '';
-    const contentNodeId: string = 'contentLinkedToNodeId' in fw ? fw.contentLinkedToNodeId : '';
-    const pinNodeId: string = anchoredNodeId || contentNodeId;
-    const isCurrentlyPinned: boolean = pinNodeId ? isPinned(pinNodeId) : false;
-    pinButton.appendChild(createLucideIcon(isCurrentlyPinned ? PinOff : Pin));
-    pinButton.title = isCurrentlyPinned ? 'Unpin (allow auto-close)' : 'Pin Editor';
-
-    pinButton.addEventListener('click', async () => {
-        const nodeId: string = anchoredNodeId || contentNodeId;
-
-        if (isPinned(nodeId)) {
-            // Unpin: remove from pinnedEditors, add to auto-close queue
-            removeFromPinnedEditors(nodeId);
-            addToAutoPinQueue(nodeId);
-            pinButton.innerHTML = '';
-            pinButton.appendChild(createLucideIcon(Pin));
-            pinButton.title = 'Pin Editor';
-        } else {
-            // Pin: if hover editor, need to close it and create anchored editor
-            if (!hasAnchoredNode) {
-                // Close hover editor first, then create anchored editor
-                // After closing, this DOM element is disposed, so return early
-                // The new anchored editor will have its own pin button with correct state
-                closeHoverEditor(cy);
-                await createAnchoredFloatingEditor(cy, nodeId);
-                addToPinnedEditors(nodeId);
-                return;
-            }
-            removeFromAutoPinQueue(nodeId);
-            addToPinnedEditors(nodeId);
-            pinButton.innerHTML = '';
-            pinButton.appendChild(createLucideIcon(PinOff));
-            pinButton.title = 'Unpin (allow auto-close)';
-        }
-    });
-
-    // Assemble buttons in macOS order: close (red), expand (yellow), fullscreen (green), pin
-    buttonContainer.appendChild(closeButton);
-    buttonContainer.appendChild(expandButton);
-    buttonContainer.appendChild(fullscreenButton);
-    buttonContainer.appendChild(pinButton);
-
-    // Assemble title bar: buttons first (left), then title text
-    // Traffic lights are shown for ALL editors (including hover editors)
-    titleBar.appendChild(buttonContainer);
-    titleBar.appendChild(titleText);
-
     // Create content container
     const contentContainer: HTMLDivElement = document.createElement('div');
     contentContainer.className = 'cy-floating-window-content';
 
     // Create horizontal menu for editors (not terminals) when anchored to a node
-    // Menu is embedded IN the title bar for unified draggable chrome
+    // Phase 1: Menu is attached directly to windowElement (no title bar)
+    // Phase 2A/3 will add traffic lights to this menu
     const isEditor: boolean = 'type' in fw && fw.type === 'Editor';
+    const hasAnchoredNode: boolean = O.isSome(fw.anchoredToNodeId);
     const hasAgents: boolean = options.agents !== undefined && options.agents.length > 0;
 
     if (isEditor && hasAnchoredNode && hasAgents) {
@@ -234,28 +110,513 @@ export function createWindowChrome(
         };
         const menuItems: HorizontalMenuItem[] = getNodeMenuItems(menuInput);
 
-        // Create menu elements (leftGroup and rightGroup pills)
-        const { leftGroup, rightGroup } = createHorizontalMenuElement(
-            menuItems,
-            () => {} // No-op onClose - menu is persistent
-        );
+        // Create traffic light context for click handlers
+        // Phase 3: Wire up Close, Pin, Fullscreen buttons
+        const trafficLightContext: TrafficLightContext = {
+            onCloseClick: (): void => {
+                // Close the editor - need to get EditorData from store
+                // The fw parameter is FloatingWindowFields, not full EditorData
+                // We dispatch a custom event that FloatingEditorCRUD will handle
+                windowElement.dispatchEvent(new CustomEvent('traffic-light-close', { bubbles: true }));
+            },
+            onPinClick: (): boolean => {
+                const currentlyPinned: boolean = isPinned(nodeId);
+                if (currentlyPinned) {
+                    removeFromPinnedEditors(nodeId);
+                } else {
+                    addToPinnedEditors(nodeId);
+                }
+                return !currentlyPinned;
+            },
+            onFullscreenClick: (): void => {
+                // Use the fullscreen zoom function with the shadow node
+                // Create a temporary button to attach the handler
+                const shadowNodeId: string = getShadowNodeId(id);
+                const shadowNode: cytoscape.CollectionReturnValue = cy.getElementById(shadowNodeId);
+                if (shadowNode.length > 0) {
+                    // Toggle zoom to fit the shadow node
+                    cy.fit(shadowNode, 50);
+                }
+            },
+            isPinned: (): boolean => isPinned(nodeId),
+        };
 
-        // Add menu class to title bar for styling
-        titleBar.classList.add('cy-floating-window-title-with-menu');
+        // Create menu elements (leftGroup, spacer, and rightGroup pills)
+        // The spacer creates a centered gap where the node circle appears visually
+        const { leftGroup, spacer, rightGroup } = createHorizontalMenuElement(
+            menuItems,
+            () => {}, // No-op onClose - menu is persistent
+            trafficLightContext
+        );
 
         // Create menu wrapper to group menu pills together
         const menuWrapper: HTMLDivElement = document.createElement('div');
-        menuWrapper.className = 'cy-floating-window-title-menu';
+        menuWrapper.className = 'cy-floating-window-horizontal-menu';
         menuWrapper.appendChild(leftGroup);
+        menuWrapper.appendChild(spacer);
         menuWrapper.appendChild(rightGroup);
 
-        // Insert menu at start of title bar (before title text)
-        titleBar.insertBefore(menuWrapper, titleText);
+        // Add menu to window element (before content container)
+        windowElement.appendChild(menuWrapper);
     }
 
-    // Assemble window
-    windowElement.appendChild(titleBar);
+    // Phase 4: Terminal-specific chrome - minimal title bar with traffic lights at far right
+    if (isTerminal) {
+        const terminalTitleBar: HTMLDivElement = createTerminalTitleBar(windowElement, cy, id, fw);
+        windowElement.appendChild(terminalTitleBar);
+    }
+
+    // Assemble window - content container only (no title bar in Phase 1)
     windowElement.appendChild(contentContainer);
 
-    return {windowElement, contentContainer, titleBar};
+    // Create bottom-right expand button (Phase 2B)
+    const expandButton: HTMLButtonElement = createExpandButton(windowElement, dimensions);
+    windowElement.appendChild(expandButton);
+
+    // Create resize zones for edges and corners (Phase 2C)
+    if (fw.resizable) {
+        addResizeZones(windowElement);
+    }
+
+    return {windowElement, contentContainer};
+}
+
+/**
+ * Create the bottom-right expand/minimize button
+ * Toggles between 2x expanded and base dimensions
+ */
+function createExpandButton(
+    windowElement: HTMLDivElement,
+    baseDimensions: { width: number; height: number }
+): HTMLButtonElement {
+    const button: HTMLButtonElement = document.createElement('button');
+    button.className = 'cy-floating-window-expand-corner';
+    button.dataset.icon = 'maximize';
+    button.dataset.expanded = 'false';
+
+    // Position in bottom-right corner
+    button.style.position = 'absolute';
+    button.style.bottom = '8px';
+    button.style.right = '8px';
+
+    // Create and append initial icon (Maximize2)
+    const initialIcon: SVGElement = createElement(Maximize2);
+    initialIcon.setAttribute('width', '16');
+    initialIcon.setAttribute('height', '16');
+    button.appendChild(initialIcon);
+
+    // Click handler for expand/minimize toggle
+    button.addEventListener('click', (e: MouseEvent): void => {
+        e.stopPropagation();
+
+        const isExpanded: boolean = windowElement.dataset.expanded === 'true';
+
+        if (isExpanded) {
+            // Minimize: shrink back to base dimensions (0.5x of expanded)
+            windowElement.style.width = `${baseDimensions.width}px`;
+            windowElement.style.height = `${baseDimensions.height}px`;
+            windowElement.dataset.expanded = 'false';
+            button.dataset.expanded = 'false';
+            button.dataset.icon = 'maximize';
+
+            // Swap icon to Maximize2
+            button.innerHTML = '';
+            const maximizeIcon: SVGElement = createElement(Maximize2);
+            maximizeIcon.setAttribute('width', '16');
+            maximizeIcon.setAttribute('height', '16');
+            button.appendChild(maximizeIcon);
+        } else {
+            // Expand: grow to 2x base dimensions
+            windowElement.style.width = `${baseDimensions.width * 2}px`;
+            windowElement.style.height = `${baseDimensions.height * 2}px`;
+            windowElement.dataset.expanded = 'true';
+            button.dataset.expanded = 'true';
+            button.dataset.icon = 'minimize';
+
+            // Swap icon to Minimize2
+            button.innerHTML = '';
+            const minimizeIcon: SVGElement = createElement(Minimize2);
+            minimizeIcon.setAttribute('width', '16');
+            minimizeIcon.setAttribute('height', '16');
+            button.appendChild(minimizeIcon);
+        }
+    });
+
+    return button;
+}
+
+/** Resize zone size in pixels (4-6px as per spec) */
+const RESIZE_ZONE_SIZE: number = 5;
+
+/** Minimum window dimensions during resize */
+const MIN_WIDTH: number = 300;
+const MIN_HEIGHT: number = 200;
+
+/**
+ * Add invisible resize zones to all 4 edges and 4 corners of a window (Phase 2C)
+ * Each zone has appropriate cursor styling and mousedown handlers for resizing
+ */
+function addResizeZones(windowElement: HTMLDivElement): void {
+    // Edge zones
+    const topZone: HTMLDivElement = createEdgeResizeZone('top', 'ns-resize');
+    const bottomZone: HTMLDivElement = createEdgeResizeZone('bottom', 'ns-resize');
+    const leftZone: HTMLDivElement = createEdgeResizeZone('left', 'ew-resize');
+    const rightZone: HTMLDivElement = createEdgeResizeZone('right', 'ew-resize');
+
+    // Corner zones
+    const nwCorner: HTMLDivElement = createCornerResizeZone('nw', 'nwse-resize');
+    const neCorner: HTMLDivElement = createCornerResizeZone('ne', 'nesw-resize');
+    const swCorner: HTMLDivElement = createCornerResizeZone('sw', 'nesw-resize');
+    const seCorner: HTMLDivElement = createCornerResizeZone('se', 'nwse-resize');
+
+    // Add resize handlers
+    setupEdgeResizeHandler(topZone, windowElement, 'top');
+    setupEdgeResizeHandler(bottomZone, windowElement, 'bottom');
+    setupEdgeResizeHandler(leftZone, windowElement, 'left');
+    setupEdgeResizeHandler(rightZone, windowElement, 'right');
+
+    setupCornerResizeHandler(nwCorner, windowElement, 'nw');
+    setupCornerResizeHandler(neCorner, windowElement, 'ne');
+    setupCornerResizeHandler(swCorner, windowElement, 'sw');
+    setupCornerResizeHandler(seCorner, windowElement, 'se');
+
+    // Append all zones to window
+    windowElement.appendChild(topZone);
+    windowElement.appendChild(bottomZone);
+    windowElement.appendChild(leftZone);
+    windowElement.appendChild(rightZone);
+    windowElement.appendChild(nwCorner);
+    windowElement.appendChild(neCorner);
+    windowElement.appendChild(swCorner);
+    windowElement.appendChild(seCorner);
+}
+
+/**
+ * Create an edge resize zone with proper positioning and cursor
+ */
+function createEdgeResizeZone(
+    edge: 'top' | 'bottom' | 'left' | 'right',
+    cursor: 'ns-resize' | 'ew-resize'
+): HTMLDivElement {
+    const zone: HTMLDivElement = document.createElement('div');
+    zone.className = `resize-zone-${edge}`;
+    zone.style.position = 'absolute';
+    zone.style.cursor = cursor;
+
+    // Position based on edge
+    if (edge === 'top') {
+        zone.style.top = '0px';
+        zone.style.left = '0px';
+        zone.style.right = '0px';
+        zone.style.height = `${RESIZE_ZONE_SIZE}px`;
+    } else if (edge === 'bottom') {
+        zone.style.bottom = '0px';
+        zone.style.left = '0px';
+        zone.style.right = '0px';
+        zone.style.height = `${RESIZE_ZONE_SIZE}px`;
+    } else if (edge === 'left') {
+        zone.style.left = '0px';
+        zone.style.top = '0px';
+        zone.style.bottom = '0px';
+        zone.style.width = `${RESIZE_ZONE_SIZE}px`;
+    } else {
+        // right
+        zone.style.right = '0px';
+        zone.style.top = '0px';
+        zone.style.bottom = '0px';
+        zone.style.width = `${RESIZE_ZONE_SIZE}px`;
+    }
+
+    return zone;
+}
+
+/**
+ * Create a corner resize zone with proper positioning and cursor
+ */
+function createCornerResizeZone(
+    corner: 'nw' | 'ne' | 'sw' | 'se',
+    cursor: 'nwse-resize' | 'nesw-resize'
+): HTMLDivElement {
+    const zone: HTMLDivElement = document.createElement('div');
+    zone.className = `resize-zone-corner-${corner}`;
+    zone.style.position = 'absolute';
+    zone.style.cursor = cursor;
+    zone.style.width = `${RESIZE_ZONE_SIZE * 2}px`;
+    zone.style.height = `${RESIZE_ZONE_SIZE * 2}px`;
+    zone.style.zIndex = '1'; // Above edge zones
+
+    // Position based on corner
+    if (corner === 'nw') {
+        zone.style.top = '0px';
+        zone.style.left = '0px';
+    } else if (corner === 'ne') {
+        zone.style.top = '0px';
+        zone.style.right = '0px';
+    } else if (corner === 'sw') {
+        zone.style.bottom = '0px';
+        zone.style.left = '0px';
+    } else {
+        // se
+        zone.style.bottom = '0px';
+        zone.style.right = '0px';
+    }
+
+    return zone;
+}
+
+/**
+ * Setup mousedown handler for edge resize
+ */
+function setupEdgeResizeHandler(
+    zone: HTMLDivElement,
+    windowElement: HTMLDivElement,
+    edge: 'top' | 'bottom' | 'left' | 'right'
+): void {
+    zone.addEventListener('mousedown', (e: MouseEvent): void => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const startX: number = e.clientX;
+        const startY: number = e.clientY;
+        const startWidth: number = windowElement.offsetWidth;
+        const startHeight: number = windowElement.offsetHeight;
+        const startLeft: number = windowElement.offsetLeft;
+        const startTop: number = windowElement.offsetTop;
+
+        const onMouseMove: (moveEvent: MouseEvent) => void = (moveEvent: MouseEvent): void => {
+            const deltaX: number = moveEvent.clientX - startX;
+            const deltaY: number = moveEvent.clientY - startY;
+
+            if (edge === 'right') {
+                const newWidth: number = Math.max(MIN_WIDTH, startWidth + deltaX);
+                windowElement.style.width = `${newWidth}px`;
+            } else if (edge === 'left') {
+                const newWidth: number = Math.max(MIN_WIDTH, startWidth - deltaX);
+                if (newWidth > MIN_WIDTH || deltaX < 0) {
+                    windowElement.style.width = `${newWidth}px`;
+                    windowElement.style.left = `${startLeft + (startWidth - newWidth)}px`;
+                }
+            } else if (edge === 'bottom') {
+                const newHeight: number = Math.max(MIN_HEIGHT, startHeight + deltaY);
+                windowElement.style.height = `${newHeight}px`;
+            } else if (edge === 'top') {
+                const newHeight: number = Math.max(MIN_HEIGHT, startHeight - deltaY);
+                if (newHeight > MIN_HEIGHT || deltaY < 0) {
+                    windowElement.style.height = `${newHeight}px`;
+                    windowElement.style.top = `${startTop + (startHeight - newHeight)}px`;
+                }
+            }
+        };
+
+        const onMouseUp: () => void = (): void => {
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        };
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+    });
+}
+
+/**
+ * Setup mousedown handler for corner resize (both dimensions)
+ */
+function setupCornerResizeHandler(
+    zone: HTMLDivElement,
+    windowElement: HTMLDivElement,
+    corner: 'nw' | 'ne' | 'sw' | 'se'
+): void {
+    zone.addEventListener('mousedown', (e: MouseEvent): void => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const startX: number = e.clientX;
+        const startY: number = e.clientY;
+        const startWidth: number = windowElement.offsetWidth;
+        const startHeight: number = windowElement.offsetHeight;
+        const startLeft: number = windowElement.offsetLeft;
+        const startTop: number = windowElement.offsetTop;
+
+        const onMouseMove: (moveEvent: MouseEvent) => void = (moveEvent: MouseEvent): void => {
+            const deltaX: number = moveEvent.clientX - startX;
+            const deltaY: number = moveEvent.clientY - startY;
+
+            // Handle width based on corner
+            if (corner === 'ne' || corner === 'se') {
+                const newWidth: number = Math.max(MIN_WIDTH, startWidth + deltaX);
+                windowElement.style.width = `${newWidth}px`;
+            } else {
+                // nw or sw - resize from left edge
+                const newWidth: number = Math.max(MIN_WIDTH, startWidth - deltaX);
+                if (newWidth > MIN_WIDTH || deltaX < 0) {
+                    windowElement.style.width = `${newWidth}px`;
+                    windowElement.style.left = `${startLeft + (startWidth - newWidth)}px`;
+                }
+            }
+
+            // Handle height based on corner
+            if (corner === 'sw' || corner === 'se') {
+                const newHeight: number = Math.max(MIN_HEIGHT, startHeight + deltaY);
+                windowElement.style.height = `${newHeight}px`;
+            } else {
+                // nw or ne - resize from top edge
+                const newHeight: number = Math.max(MIN_HEIGHT, startHeight - deltaY);
+                if (newHeight > MIN_HEIGHT || deltaY < 0) {
+                    windowElement.style.height = `${newHeight}px`;
+                    windowElement.style.top = `${startTop + (startHeight - newHeight)}px`;
+                }
+            }
+        };
+
+        const onMouseUp: () => void = (): void => {
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        };
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+    });
+}
+
+/**
+ * Check if a node ID represents a context node
+ * Context nodes have 'ctx-nodes/' prefix or '_context_' in their path
+ */
+function isContextNodeId(nodeId: string): boolean {
+    return nodeId.startsWith('ctx-nodes/') || nodeId.includes('_context_');
+}
+
+/**
+ * Truncate title to max length, adding ellipsis if needed
+ */
+function truncateTitle(title: string, maxLength: number): string {
+    if (title.length <= maxLength) {
+        return title;
+    }
+    return title.slice(0, maxLength) + '...';
+}
+
+/**
+ * Create terminal-specific title bar with traffic lights at far right
+ * Phase 4: Terminals have minimal chrome - just traffic lights, no horizontal menu
+ *
+ * @param windowElement - The window element to attach events to
+ * @param cy - Cytoscape instance
+ * @param id - Terminal ID
+ * @param fw - Floating window data
+ */
+function createTerminalTitleBar(
+    windowElement: HTMLDivElement,
+    cy: cytoscape.Core,
+    id: EditorId | TerminalId,
+    fw: FloatingWindowData | FloatingWindowFields
+): HTMLDivElement {
+    const titleBar: HTMLDivElement = document.createElement('div');
+    titleBar.className = 'terminal-title-bar';
+
+    // Get the attached node ID for context detection
+    const attachedNodeId: string = 'attachedToNodeId' in fw ? fw.attachedToNodeId : '';
+    const hasContextNode: boolean = isContextNodeId(attachedNodeId);
+
+    // Create context badge for terminals with context nodes
+    if (hasContextNode) {
+        const contextBadge: HTMLDivElement = createContextBadge(fw.title, windowElement);
+        titleBar.appendChild(contextBadge);
+    }
+
+    // Create traffic lights container positioned at far right
+    const trafficLights: HTMLDivElement = document.createElement('div');
+    trafficLights.className = 'terminal-traffic-lights';
+    trafficLights.style.position = 'absolute';
+    trafficLights.style.right = '10px';
+    trafficLights.style.top = '50%';
+    trafficLights.style.transform = 'translateY(-50%)';
+    trafficLights.style.display = 'flex';
+    trafficLights.style.alignItems = 'center';
+    trafficLights.style.gap = '4px';
+
+    // Close button
+    const closeBtn: HTMLButtonElement = document.createElement('button');
+    closeBtn.className = 'traffic-light traffic-light-close';
+    closeBtn.type = 'button';
+    const closeIcon: SVGElement = createElement(X);
+    closeIcon.setAttribute('width', '8');
+    closeIcon.setAttribute('height', '8');
+    closeBtn.appendChild(closeIcon);
+    closeBtn.addEventListener('click', (e: MouseEvent): void => {
+        e.stopPropagation();
+        windowElement.dispatchEvent(new CustomEvent('traffic-light-close', { bubbles: true }));
+    });
+
+    // Pin button
+    const pinBtn: HTMLButtonElement = document.createElement('button');
+    pinBtn.className = 'traffic-light traffic-light-pin';
+    pinBtn.type = 'button';
+    const pinIcon: SVGElement = createElement(Pin);
+    pinIcon.setAttribute('width', '8');
+    pinIcon.setAttribute('height', '8');
+    pinBtn.appendChild(pinIcon);
+    pinBtn.addEventListener('click', (e: MouseEvent): void => {
+        e.stopPropagation();
+        const currentlyPinned: boolean = isPinned(attachedNodeId);
+        if (currentlyPinned) {
+            removeFromPinnedEditors(attachedNodeId);
+        } else {
+            addToPinnedEditors(attachedNodeId);
+        }
+    });
+
+    // Fullscreen button
+    const fullscreenBtn: HTMLButtonElement = document.createElement('button');
+    fullscreenBtn.className = 'traffic-light traffic-light-fullscreen';
+    fullscreenBtn.type = 'button';
+    const fullscreenIcon: SVGElement = createElement(Maximize);
+    fullscreenIcon.setAttribute('width', '8');
+    fullscreenIcon.setAttribute('height', '8');
+    fullscreenBtn.appendChild(fullscreenIcon);
+    fullscreenBtn.addEventListener('click', (e: MouseEvent): void => {
+        e.stopPropagation();
+        const shadowNodeId: string = getShadowNodeId(id);
+        const shadowNode: cytoscape.CollectionReturnValue = cy.getElementById(shadowNodeId);
+        if (shadowNode.length > 0) {
+            cy.fit(shadowNode, 50);
+        }
+    });
+
+    trafficLights.appendChild(closeBtn);
+    trafficLights.appendChild(pinBtn);
+    trafficLights.appendChild(fullscreenBtn);
+
+    titleBar.appendChild(trafficLights);
+
+    return titleBar;
+}
+
+/**
+ * Create context badge for terminals with context nodes
+ * Shows clipboard icon + truncated title, expands on click
+ */
+function createContextBadge(title: string, windowElement: HTMLDivElement): HTMLDivElement {
+    const badge: HTMLDivElement = document.createElement('div');
+    badge.className = 'terminal-context-badge';
+
+    // Clipboard icon
+    const icon: SVGElement = createElement(Clipboard);
+    icon.setAttribute('width', '14');
+    icon.setAttribute('height', '14');
+    badge.appendChild(icon);
+
+    // Truncated title (max 20 chars)
+    const titleSpan: HTMLSpanElement = document.createElement('span');
+    titleSpan.className = 'terminal-context-badge-title';
+    titleSpan.textContent = truncateTitle(title, 20);
+    badge.appendChild(titleSpan);
+
+    // Click handler to toggle expanded state
+    badge.addEventListener('click', (e: MouseEvent): void => {
+        e.stopPropagation();
+        windowElement.classList.toggle('terminal-context-expanded');
+    });
+
+    return badge;
 }

@@ -44,7 +44,6 @@ import {anchorToNode} from "@/shell/edge/UI-edge/floating-windows/anchor-to-node
 import {cySmartCenter} from "@/utils/responsivePadding";
 import {setupAutoHeight} from "@/shell/edge/UI-edge/floating-windows/editors/SetupAutoHeight";
 import {createWindowChrome} from "@/shell/edge/UI-edge/floating-windows/create-window-chrome";
-import {attachFullscreenZoom} from "@/shell/edge/UI-edge/floating-windows/fullscreen-zoom";
 
 
 /**
@@ -152,22 +151,11 @@ export async function createFloatingEditor(
         }
     });
 
-    // Attach fullscreen button handler - only for anchored editors (they have shadow nodes)
-    const fullscreenButton: HTMLButtonElement | null = ui.titleBar.querySelector('.cy-floating-window-fullscreen');
-    if (fullscreenButton) {
-        if (anchoredToNodeId !== undefined) {
-            // Anchored editors have shadow nodes - enable fullscreen zoom
-            attachFullscreenZoom(
-                cy,
-                fullscreenButton,
-                getShadowNodeId(editorId),
-                false  // Disable ESC key for editors (vim mode conflicts)
-            );
-        } else {
-            // Hover editors have no shadow node - hide the button
-            fullscreenButton.style.display = 'none';
-        }
-    }
+    // Phase 3: Handle traffic light close button click
+    // The close button dispatches a custom event that we listen for here
+    ui.windowElement.addEventListener('traffic-light-close', (): void => {
+        closeEditor(cy, editorWithUI);
+    });
 
     // Add to overlay
     const overlay: HTMLElement = getOrCreateOverlay(cy);
