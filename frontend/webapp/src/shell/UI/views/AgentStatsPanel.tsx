@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react';
 import { cn } from '@/utils/lib/utils';
 import { useAgentMetrics, type SessionMetric } from './hooks/useAgentMetrics';
 import { SessionDurationChart } from './components/SessionDurationChart';
+import { AvgTokensChart } from './components/AvgTokensChart';
 import { TotalTokensChart } from './components/TotalTokensChart';
 
 type TimeFilter = 'today' | 'week' | 'all';
@@ -194,6 +195,14 @@ export function AgentStatsPanel(): JSX.Element {
           Avg Session Duration by Day
         </div>
         <SessionDurationChart sessions={filteredSessions} />
+      </div>
+
+      {/* Avg Tokens Per Session Chart */}
+      <div className="flex flex-col gap-1">
+        <div className="text-gray-500 text-[10px] uppercase tracking-wide mb-1">
+          Avg Session Total Tokens by Day
+        </div>
+        <AvgTokensChart sessions={filteredSessions} />
       </div>
 
       {/* Total Tokens Chart */}

@@ -358,19 +358,55 @@ async function saveVaultConfigForDirectory(directoryPath: string, vaultConfig: V
 
 /**
  * Resolve the full vault path allowlist for a project.
- * Combines:
+ *
+ * If saved vault config exists, it is authoritative - use it directly.
+ * This ensures user removals persist across reloads.
+ *
+ * If no saved config, build default allowlist from:
  * 1. Primary vault path (watchedDirectory + suffix)
  * 2. Global default patterns from settings (e.g., "openspec")
- * 3. Explicit paths from per-project vaultConfig
  */
 async function resolveAllowlistForProject(
     watchedDir: string,
     primaryVaultPath: string
 ): Promise<{ allowlist: readonly string[]; defaultWritePath: string }> {
-    const settings: VTSettings = await loadSettings();
     const savedVaultConfig: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
 
-    // Start with primary vault path
+    // If saved config exists, use it as authoritative source
+    // This ensures user removals persist across reloads
+    if (savedVaultConfig?.allowlist && savedVaultConfig.allowlist.length > 0) {
+        const allowlist: string[] = [];
+
+        // Convert saved relative paths to absolute, keeping only paths that exist
+        for (const savedRelativePath of savedVaultConfig.allowlist) {
+            const absolutePath: string = path.resolve(watchedDir, savedRelativePath);
+            try {
+                await fs.access(absolutePath);
+                allowlist.push(absolutePath);
+            } catch {
+                // Saved path no longer exists on disk, skip
+            }
+        }
+
+        // Ensure we have at least the primary vault path
+        if (!allowlist.includes(primaryVaultPath)) {
+            allowlist.unshift(primaryVaultPath);
+        }
+
+        // Resolve default write path from saved config
+        let resolvedDefaultWritePath: string = primaryVaultPath;
+        if (savedVaultConfig.defaultWritePath) {
+            const absoluteDefaultPath: string = path.resolve(watchedDir, savedVaultConfig.defaultWritePath);
+            if (allowlist.includes(absoluteDefaultPath)) {
+                resolvedDefaultWritePath = absoluteDefaultPath;
+            }
+        }
+
+        return { allowlist, defaultWritePath: resolvedDefaultWritePath };
+    }
+
+    // No saved config - build default allowlist
+    const settings: VTSettings = await loadSettings();
     const allowlist: string[] = [primaryVaultPath];
 
     // Add paths from global default patterns (if folders exist)
@@ -387,33 +423,7 @@ async function resolveAllowlistForProject(
         }
     }
 
-    // Add explicit paths from saved vault config (if they still exist)
-    // Saved paths are relative - convert to absolute
-    if (savedVaultConfig?.allowlist) {
-        for (const savedRelativePath of savedVaultConfig.allowlist) {
-            const absolutePath: string = path.resolve(watchedDir, savedRelativePath);
-            try {
-                await fs.access(absolutePath);
-                if (!allowlist.includes(absolutePath)) {
-                    allowlist.push(absolutePath);
-                }
-            } catch {
-                // Saved path no longer exists, skip
-            }
-        }
-    }
-
-    // Determine default write path
-    // Saved defaultWritePath is relative - convert to absolute
-    let resolvedDefaultWritePath: string = primaryVaultPath;
-    if (savedVaultConfig?.defaultWritePath) {
-        const absoluteDefaultPath: string = path.resolve(watchedDir, savedVaultConfig.defaultWritePath);
-        if (allowlist.includes(absoluteDefaultPath)) {
-            resolvedDefaultWritePath = absoluteDefaultPath;
-        }
-    }
-
-    return { allowlist, defaultWritePath: resolvedDefaultWritePath };
+    return { allowlist, defaultWritePath: primaryVaultPath };
 }
 
 export async function loadFolder(watchedFolderPath: FilePath, suffixOverride?: string): Promise<{ success: boolean }>  {

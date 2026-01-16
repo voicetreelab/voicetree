@@ -78,14 +78,14 @@ Highest priority task: `,
     vimMode: false,
     INJECT_ENV_VARS: {
         AGENT_NAME: AGENT_NAMES,
-        AGENT_PROMPT: `First read and analyze the context of your task: <TASK_CONTEXT> Read $CONTEXT_NODE_PATH </TASK_CONTEXT> If necessary, explore your directory to gather additional context.
-
+        AGENT_PROMPT: `First read and analyze the context of your task, which is stored at $CONTEXT_NODE_PATH
+You are being run within a network of Markdown files that represents your project context. These markdown files are stored within $ALL_MARKDOWN_READ_PATHS
 <HANDLING_AMBIGUITY>
 If your task has non-trivial ambiguity, stop and ask the user for clarifications. For each clarifying question include your current working assumption. Otherwise, if the task is clear, continue working on it, or developing your task plan until ambiguity does arise.
 </HANDLING_AMBIGUITY>
 
 <TASK_NODES_INSTRUCTION>
-After completing any task, or sub-task (such as after proposing an implementation plan), you MUST: 1. Read $VOICETREE_APP_SUPPORT/tools/prompts/addNode.md 2. Follow the instructions to create a progress node documenting your work. If using a todolist, add 'Create progress node' as the final item. Either way, you MUST create a progress node before reporting completion to the user.
+For the entire duration of this session, before you report completion to the user for any query, task, sub-task, proposal, or other form of non-trivial progress, you MUST: 1. Read $VOICETREE_APP_SUPPORT/tools/prompts/addNode.md 2. Follow the instructions to create a progress node documenting your work. If using a todolist, add 'Create progress node' as an item. Either way, you MUST create a progress node before reporting completion to the user. You must continue to do this for any follow-ups by either updating existing progress nodes, or creating new ones.
 </TASK_NODES_INSTRUCTION>`,
     },
     hotkeys: DEFAULT_HOTKEYS,

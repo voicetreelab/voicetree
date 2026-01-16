@@ -57,6 +57,15 @@ export function subscribeToZoomStart(callback: ZoomStartCallback): () => void {
 }
 
 /**
+ * Trigger scroll position capture for all terminals.
+ * Call this BEFORE any operation that will resize terminal containers
+ * (e.g., expand button click) to avoid race condition with auto-scroll.
+ */
+export function captureTerminalScrollPositions(): void {
+    zoomStartCallbacks.forEach(callback => callback());
+}
+
+/**
  * Get current zoom level from cytoscape instance
  * Used by terminals to get initial zoom on mount
  */
