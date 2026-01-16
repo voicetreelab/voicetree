@@ -8,10 +8,9 @@ import type {
 } from "@/shell/edge/UI-edge/floating-windows/types";
 import {getScalingStrategy, getScreenDimensions, type ScalingStrategy} from "@/pure/floatingWindowScaling";
 import {selectFloatingWindowNode} from "@/shell/edge/UI-edge/floating-windows/select-floating-window-node";
-import {getCachedZoom} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
+import {getCachedZoom, captureTerminalScrollPositions} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import {updateWindowFromZoom} from "@/shell/edge/UI-edge/floating-windows/update-window-from-zoom";
 import {triggerLayout} from "@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout";
-import {Maximize2, Minimize2, createElement, type IconNode} from 'lucide';
 import * as O from 'fp-ts/lib/Option.js';
 import {
     getNodeMenuItems,
@@ -20,13 +19,18 @@ import {
     type HorizontalMenuItem
 } from "@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService";
 import type {AgentConfig} from "@/pure/settings";
+import {Maximize2, Minimize2, Pin, PinOff, X, Maximize, createElement, type IconNode} from 'lucide';
+import {removeFromAutoPinQueue, addToAutoPinQueue, isPinned, addToPinnedEditors, removeFromPinnedEditors} from "@/shell/edge/UI-edge/state/EditorStore";
+import {createAnchoredFloatingEditor, closeHoverEditor} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 
-/** Render a Lucide icon to SVG element */
-function createIconElement(icon: IconNode, size: number = 14): SVGElement {
-    const svgElement: SVGElement = createElement(icon);
-    svgElement.setAttribute('width', String(size));
-    svgElement.setAttribute('height', String(size));
-    return svgElement;
+/**
+ * Create an SVG element from a Lucide icon definition.
+ */
+function createLucideIcon(icon: IconNode, size: number = 8): SVGElement {
+    const svg: SVGElement = createElement(icon);
+    svg.setAttribute('width', String(size));
+    svg.setAttribute('height', String(size));
+    return svg;
 }
 
 /** Options for createWindowChrome */
@@ -99,25 +103,29 @@ export function createWindowChrome(
     titleText.className = 'cy-floating-window-title-text';
     titleText.textContent = fw.title || `Window: ${id}`;
 
-    // Create button container to keep fullscreen and close buttons together
+    // Create macOS-style traffic light button container (left side)
     const buttonContainer: HTMLDivElement = document.createElement('div');
-    buttonContainer.className = 'cy-floating-window-buttons';
-    buttonContainer.style.display = 'flex';
-    buttonContainer.style.alignItems = 'center';
-    buttonContainer.style.gap = '4px';
+    buttonContainer.className = 'cy-floating-window-buttons macos-traffic-lights';
 
-    // Create expand button (doubles/halves window size)
+    // Create close button (red) - leftmost in macOS style
+    const closeButton: HTMLButtonElement = document.createElement('button');
+    closeButton.className = 'cy-floating-window-btn cy-floating-window-close';
+    closeButton.title = 'Close';
+    closeButton.appendChild(createLucideIcon(X));
+    // Note: close handler attached via disposeFloatingWindow pattern
+
+    // Create expand button (yellow) - middle in macOS style
     const expandButton: HTMLButtonElement = document.createElement('button');
-    expandButton.className = 'cy-floating-window-expand';
-    expandButton.appendChild(createIconElement(Maximize2));
+    expandButton.className = 'cy-floating-window-btn cy-floating-window-expand';
     expandButton.title = 'Expand window';
+    expandButton.appendChild(createLucideIcon(Maximize2));
     expandButton.addEventListener('click', () => {
+        // Capture terminal scroll positions BEFORE dimension changes to avoid race with auto-scroll
+        captureTerminalScrollPositions();
+
         const isExpanded: boolean = windowElement.dataset.expanded === 'true';
         const currentBaseWidth: number = parseFloat(windowElement.dataset.baseWidth ?? '400');
         const currentBaseHeight: number = parseFloat(windowElement.dataset.baseHeight ?? '400');
-
-        // Clear existing icon
-        expandButton.innerHTML = '';
 
         const scaleFactor: number = isExpanded ? 0.5 : 2;
 
@@ -125,10 +133,11 @@ export function createWindowChrome(
         windowElement.dataset.baseWidth = String(currentBaseWidth * scaleFactor);
         windowElement.dataset.baseHeight = String(currentBaseHeight * scaleFactor);
         windowElement.dataset.expanded = isExpanded ? 'false' : 'true';
-
-        // Update button icon and title
-        expandButton.appendChild(createIconElement(isExpanded ? Maximize2 : Minimize2));
         expandButton.title = isExpanded ? 'Expand window' : 'Shrink window';
+
+        // Update icon based on expanded state
+        expandButton.innerHTML = '';
+        expandButton.appendChild(createLucideIcon(isExpanded ? Maximize2 : Minimize2));
 
         // For editors (non-terminals), also scale current height immediately
         // since auto-height manages editor height (not updateWindowFromZoom)
@@ -143,35 +152,73 @@ export function createWindowChrome(
         triggerLayout(cy);
     });
 
-    // Create fullscreen button
+    // Create fullscreen button (green) - rightmost in macOS style
     const fullscreenButton: HTMLButtonElement = document.createElement('button');
-    fullscreenButton.className = 'cy-floating-window-fullscreen';
-    fullscreenButton.textContent = '⛶';
+    fullscreenButton.className = 'cy-floating-window-btn cy-floating-window-fullscreen';
     fullscreenButton.title = 'Toggle Fullscreen';
+    fullscreenButton.appendChild(createLucideIcon(Maximize));
     // Note: fullscreen handler will be attached by the caller (FloatingEditorManager/spawnTerminal)
 
-    // Create close button (handler will be attached by disposeFloatingWindow pattern)
-    const closeButton: HTMLButtonElement = document.createElement('button');
-    closeButton.className = 'cy-floating-window-close';
-    closeButton.textContent = '×';
-    // Note: close handler attached via disposeFloatingWindow pattern
+    // Create pin button (4th button)
+    const pinButton: HTMLButtonElement = document.createElement('button');
+    pinButton.className = 'cy-floating-window-btn cy-floating-window-pin';
 
-    // Assemble buttons into container
+    // Get initial pin state
+    const hasAnchoredNode: boolean = O.isSome(fw.anchoredToNodeId);
+    const anchoredNodeId: string = hasAnchoredNode ? fw.anchoredToNodeId.value : '';
+    const contentNodeId: string = 'contentLinkedToNodeId' in fw ? fw.contentLinkedToNodeId : '';
+    const pinNodeId: string = anchoredNodeId || contentNodeId;
+    const isCurrentlyPinned: boolean = pinNodeId ? isPinned(pinNodeId) : false;
+    pinButton.appendChild(createLucideIcon(isCurrentlyPinned ? PinOff : Pin));
+    pinButton.title = isCurrentlyPinned ? 'Unpin (allow auto-close)' : 'Pin Editor';
+
+    pinButton.addEventListener('click', async () => {
+        const nodeId: string = anchoredNodeId || contentNodeId;
+
+        if (isPinned(nodeId)) {
+            // Unpin: remove from pinnedEditors, add to auto-close queue
+            removeFromPinnedEditors(nodeId);
+            addToAutoPinQueue(nodeId);
+            pinButton.innerHTML = '';
+            pinButton.appendChild(createLucideIcon(Pin));
+            pinButton.title = 'Pin Editor';
+        } else {
+            // Pin: if hover editor, need to close it and create anchored editor
+            if (!hasAnchoredNode) {
+                // Close hover editor first, then create anchored editor
+                // After closing, this DOM element is disposed, so return early
+                // The new anchored editor will have its own pin button with correct state
+                closeHoverEditor(cy);
+                await createAnchoredFloatingEditor(cy, nodeId);
+                addToPinnedEditors(nodeId);
+                return;
+            }
+            removeFromAutoPinQueue(nodeId);
+            addToPinnedEditors(nodeId);
+            pinButton.innerHTML = '';
+            pinButton.appendChild(createLucideIcon(PinOff));
+            pinButton.title = 'Unpin (allow auto-close)';
+        }
+    });
+
+    // Assemble buttons in macOS order: close (red), expand (yellow), fullscreen (green), pin
+    buttonContainer.appendChild(closeButton);
     buttonContainer.appendChild(expandButton);
     buttonContainer.appendChild(fullscreenButton);
-    buttonContainer.appendChild(closeButton);
+    buttonContainer.appendChild(pinButton);
 
-    // Assemble title bar
-    titleBar.appendChild(titleText);
+    // Assemble title bar: buttons first (left), then title text
+    // Traffic lights are shown for ALL editors (including hover editors)
     titleBar.appendChild(buttonContainer);
+    titleBar.appendChild(titleText);
 
     // Create content container
     const contentContainer: HTMLDivElement = document.createElement('div');
     contentContainer.className = 'cy-floating-window-content';
 
     // Create horizontal menu for editors (not terminals) when anchored to a node
+    // Menu is embedded IN the title bar for unified draggable chrome
     const isEditor: boolean = 'type' in fw && fw.type === 'Editor';
-    const hasAnchoredNode: boolean = O.isSome(fw.anchoredToNodeId);
     const hasAgents: boolean = options.agents !== undefined && options.agents.length > 0;
 
     if (isEditor && hasAnchoredNode && hasAgents) {
@@ -187,22 +234,23 @@ export function createWindowChrome(
         };
         const menuItems: HorizontalMenuItem[] = getNodeMenuItems(menuInput);
 
-        // Create menu container (positioned above the window)
-        const menuContainer: HTMLDivElement = document.createElement('div');
-        menuContainer.className = 'cy-floating-window-menu';
-
-        // Create menu elements and assemble
-        const { leftGroup, spacer, rightGroup } = createHorizontalMenuElement(
+        // Create menu elements (leftGroup and rightGroup pills)
+        const { leftGroup, rightGroup } = createHorizontalMenuElement(
             menuItems,
             () => {} // No-op onClose - menu is persistent
         );
 
-        menuContainer.appendChild(leftGroup);
-        menuContainer.appendChild(spacer);
-        menuContainer.appendChild(rightGroup);
+        // Add menu class to title bar for styling
+        titleBar.classList.add('cy-floating-window-title-with-menu');
 
-        // Add menu container first (above title bar)
-        windowElement.appendChild(menuContainer);
+        // Create menu wrapper to group menu pills together
+        const menuWrapper: HTMLDivElement = document.createElement('div');
+        menuWrapper.className = 'cy-floating-window-title-menu';
+        menuWrapper.appendChild(leftGroup);
+        menuWrapper.appendChild(rightGroup);
+
+        // Insert menu at start of title bar (before title text)
+        titleBar.insertBefore(menuWrapper, titleText);
     }
 
     // Assemble window

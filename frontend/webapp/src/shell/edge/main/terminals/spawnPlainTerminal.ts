@@ -13,7 +13,7 @@ import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/types';
 import {createTerminalData} from '@/shell/edge/UI-edge/floating-windows/types';
 import {getAppSupportPath} from '@/shell/edge/main/state/app-electron-state';
 import {getGraph} from '@/shell/edge/main/state/graph-store';
-import {getWatchStatus, getWatchedDirectory} from '@/shell/edge/main/graph/watch_folder/watchFolder';
+import {getWatchStatus, getWatchedDirectory, getVaultPaths} from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
 import {
@@ -42,8 +42,13 @@ export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCoun
     ? path.join(watchedDir, nodeId)
     : nodeId;
 
+  // Get all vault paths for ALL_MARKDOWN_READ_PATHS
+  const allVaultPaths: readonly string[] = getVaultPaths();
+  const allMarkdownReadPaths: string = allVaultPaths.join('\n');
+
   const unexpandedEnvVars: Record<string, string> = {
     VOICETREE_APP_SUPPORT: appSupportPath ?? '',
+    ALL_MARKDOWN_READ_PATHS: allMarkdownReadPaths,
     CONTEXT_NODE_PATH: nodeAbsolutePath,
     ...resolvedEnvVars,
   };

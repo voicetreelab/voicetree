@@ -5,6 +5,9 @@ import {getEditorId, type EditorId, type EditorData} from "@/shell/edge/UI-edge/
 
 const editors: Map<EditorId, EditorData> = new Map<EditorId, EditorData>();
 
+// Manually pinned editors: set of nodeIds that user has explicitly pinned
+const pinnedEditors: Set<string> = new Set<string>();
+
 // Auto-pin tracking: FIFO queue of auto-pinned editor node IDs
 // When queue exceeds MAX_AUTO_PINNED_EDITORS, oldest is closed
 // If user manually pins (via Pin Editor button), editor is removed from queue
@@ -51,6 +54,10 @@ export function getEditorByNodeId(nodeId: NodeIdAndFilePath): Option<EditorData>
 }
 
 export function removeEditor(editorId: EditorId): void {
+    const editor = editors.get(editorId);
+    if (editor) {
+        pinnedEditors.delete(editor.contentLinkedToNodeId);
+    }
     editors.delete(editorId);
 }
 
@@ -66,4 +73,34 @@ export function getHoverEditor(): Option<EditorData> {
         }
     }
     return O.none;
+}
+
+/**
+ * Add a nodeId to the pinned editors set (manually pinned by user).
+ */
+export function addToPinnedEditors(nodeId: string): void {
+    pinnedEditors.add(nodeId);
+    document.dispatchEvent(new CustomEvent('pinned-editors-changed'));
+}
+
+/**
+ * Remove a nodeId from the pinned editors set.
+ */
+export function removeFromPinnedEditors(nodeId: string): void {
+    pinnedEditors.delete(nodeId);
+    document.dispatchEvent(new CustomEvent('pinned-editors-changed'));
+}
+
+/**
+ * Check if a nodeId is manually pinned.
+ */
+export function isPinned(nodeId: string): boolean {
+    return pinnedEditors.has(nodeId);
+}
+
+/**
+ * Get the set of pinned editor nodeIds for UI rendering.
+ */
+export function getPinnedEditors(): ReadonlySet<string> {
+    return pinnedEditors;
 }

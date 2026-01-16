@@ -42,22 +42,23 @@
 
 /* Title bar - compact for editors, standard for terminals */
 .cy-floating-window-title {
-  padding: 4px 8px;
+  position: relative;
+  padding: 6px 10px;
   background-color: var(--muted);
   border-bottom: 1px solid var(--border);
   border-top-left-radius: 8px;
   border-top-right-radius: 8px;
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   align-items: center;
   user-select: none;
   cursor: move;
+  gap: 8px;
 }
 
 /* Terminal title bar - standard height with title visible */
 .cy-floating-window-terminal .cy-floating-window-title {
   padding: 8px 12px;
-  justify-content: space-between;
 }
 
 .cy-floating-window-title.dragging {
@@ -76,57 +77,68 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
 }
 
-/* Expand button (doubles/halves window size) */
-.cy-floating-window-expand {
+/* =============================================================================
+ * Window Control Buttons
+ * Neutral circles with Lucide SVG icons: X (close), Maximize2 (expand), Maximize (fullscreen), Pin
+ * ============================================================================= */
+
+.cy-floating-window-buttons.macos-traffic-lights {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 1;
+}
+
+/* Base button style - neutral circles with visible icons */
+.cy-floating-window-btn {
   all: unset;
   cursor: pointer;
-  font-size: 14px;
-  width: 20px;
-  height: 20px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 10px;
+  font-weight: normal;
+  color: var(--muted-foreground);
+  background-color: transparent;
+  border: 1px solid var(--border);
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.cy-floating-window-expand:hover {
-  background-color: rgba(0, 0, 0, 0.1);
-  border-radius: 4px;
+/* Hover effects - subtle highlight */
+.cy-floating-window-btn:hover {
+  background-color: var(--muted);
+  color: var(--foreground);
 }
 
-/* Fullscreen button */
-.cy-floating-window-fullscreen {
-  all: unset;
-  cursor: pointer;
-  font-size: 14px;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* SVG icon styling for Lucide icons */
+.cy-floating-window-btn svg {
+  width: 8px;
+  height: 8px;
+  stroke: var(--muted-foreground);
+  stroke-width: 2;
 }
 
-.cy-floating-window-fullscreen:hover {
-  background-color: rgba(0, 0, 0, 0.1);
-  border-radius: 4px;
+.macos-traffic-lights:hover .cy-floating-window-btn svg {
+  stroke: rgba(0, 0, 0, 0.5);
 }
 
-/* Close button */
-.cy-floating-window-close {
-  all: unset;
-  cursor: pointer;
-  font-size: 16px;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* Pin button - transparent, no background */
+.cy-floating-window-pin {
+  background-color: transparent !important;
 }
 
-.cy-floating-window-close:hover {
-  background-color: rgba(0, 0, 0, 0.1);
-  border-radius: 4px;
+.cy-floating-window-pin:hover {
+  background-color: var(--muted);
 }
 
 /* Content area */
@@ -151,17 +163,18 @@
   opacity: 0;
 }
 
-/* Horizontal menu container for editor windows
- * Positioned above the title bar, centered */
-.cy-floating-window-menu {
+/* Title bar with embedded horizontal menu
+ * Traffic lights overlay on left, menu pills centered */
+.cy-floating-window-title-with-menu {
+  justify-content: center;
+}
+
+/* Menu wrapper inside title bar - centered */
+.cy-floating-window-title-menu {
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: center;
-  padding: 4px 0;
-  background: transparent;
-  border-top-left-radius: 8px;
-  border-top-right-radius: 8px;
+  gap: 6px;
 }
 
 /* Horizontal context menu pill backgrounds

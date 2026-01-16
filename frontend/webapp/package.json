@@ -189,9 +189,13 @@
       "target": "nsis",
       "icon": "build/icon.ico"
     },
+    "nsis": {
+      "artifactName": "voicetree.${ext}"
+    },
     "linux": {
       "target": "AppImage",
-      "icon": "build/icon.png"
+      "icon": "build/icon.png",
+      "artifactName": "voicetree.${ext}"
     }
   }
 }

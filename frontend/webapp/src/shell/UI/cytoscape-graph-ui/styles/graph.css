@@ -370,6 +370,30 @@ button.graph-button:disabled > svg > path {
     opacity: 1;
 }
 
+/* Pinned editors section - left side of recent tabs bar */
+.recent-tabs-pinned-section {
+    display: flex;
+    gap: 4px;
+    padding-right: 8px;
+    border-right: 1px solid var(--border);
+    margin-right: 8px;
+}
+
+.recent-tabs-pinned-section:empty {
+    display: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+.pinned-tab-icon {
+    width: 10px;
+    height: 10px;
+    margin-right: 4px;
+    stroke: var(--muted-foreground);
+    flex-shrink: 0;
+}
+
 /* ============================================================================
  * Agent Tabs Bar - Title bar area tabs for terminal/agent navigation (right side)
  * Mirrors RecentNodeTabsBar but positioned on the right

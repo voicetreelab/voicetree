@@ -5,12 +5,11 @@ import {
     spawnTerminalWithNewContextNode,
     spawnTerminalWithCommandEditor,
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
-import {createAnchoredFloatingEditor} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
-import {removeFromAutoPinQueue, getEditorByNodeId} from "@/shell/edge/UI-edge/state/EditorStore";
+import {getEditorByNodeId} from "@/shell/edge/UI-edge/state/EditorStore";
 import * as O from 'fp-ts/lib/Option.js';
 import {isAnchored, type EditorData} from "@/shell/edge/UI-edge/floating-windows/types";
 import {getFilePathForNode, getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
-import {Plus, Play, Trash2, Clipboard, MoreHorizontal, Pin, Edit2, createElement, type IconNode} from 'lucide';
+import {Plus, Play, Trash2, Clipboard, MoreHorizontal, Edit2, createElement, type IconNode} from 'lucide';
 import {getOrCreateOverlay} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import {graphToScreenPosition, getWindowTransform, getTransformOrigin} from '@/pure/floatingWindowScaling';
 import type {AgentConfig} from "@/pure/settings";
@@ -179,17 +178,7 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
     const { nodeId, cy, agents, isContextNode } = input;
     const menuItems: HorizontalMenuItem[] = [];
 
-    // LEFT SIDE: Pin, Copy, Add (3 buttons)
-    menuItems.push({
-        icon: Pin,
-        label: 'Pin Editor',
-        action: async () => {
-            // Manual pin: remove from auto-pin queue so this editor won't auto-close
-            removeFromAutoPinQueue(nodeId);
-            await createAnchoredFloatingEditor(cy, nodeId);
-        },
-    });
-
+    // LEFT SIDE: Copy, Add (2 buttons)
     menuItems.push({
         icon: Clipboard,
         label: 'Copy Path',
@@ -298,7 +287,7 @@ export function createHorizontalMenuElement(
     menuItems: HorizontalMenuItem[],
     onClose: () => void
 ): HorizontalMenuElements {
-    // Create left group (first 3 buttons: Pin, Copy, Add)
+    // Create left group (first 2 buttons: Copy, Add)
     // Uses .horizontal-menu-pill CSS class for styling (supports dark mode)
     const leftGroup: HTMLDivElement = document.createElement('div');
     leftGroup.className = 'horizontal-menu-pill horizontal-menu-left-group';
@@ -307,8 +296,8 @@ export function createHorizontalMenuElement(
     const rightGroup: HTMLDivElement = document.createElement('div');
     rightGroup.className = 'horizontal-menu-pill horizontal-menu-right-group';
 
-    // Split point: first 3 items go left, rest go right
-    const SPLIT_INDEX: number = 3;
+    // Split point: first 2 items go left, rest go right
+    const SPLIT_INDEX: number = 2;
 
     for (let i: number = 0; i < menuItems.length; i++) {
         const item: HorizontalMenuItem = menuItems[i];

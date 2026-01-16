@@ -128,6 +128,9 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // Navigation event listener cleanup
     private cleanupNavigationListener: (() => void) | null = null;
 
+    // Pinned editors change listener cleanup
+    private cleanupPinnedEditorsListener: (() => void) | null = null;
+
     // DOM elements
     private statsOverlay: HTMLElement | null = null;
     private loadingOverlay: HTMLElement | null = null;
@@ -204,6 +207,19 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             window.removeEventListener('voicetree-navigate', handleNavigateEvent);
         };
 
+        // Listen for pinned editors changes to re-render tabs bar
+        const handlePinnedEditorsChange: () => void = (): void => {
+            renderRecentNodeTabsV2(
+                this.recentNodeHistory,
+                (nodeId) => this.navigationService.handleSearchSelect(nodeId),
+                (nodeId) => this.cy.getElementById(nodeId).data('label') as string | undefined
+            );
+        };
+        document.addEventListener('pinned-editors-changed', handlePinnedEditorsChange);
+        this.cleanupPinnedEditorsListener = (): void => {
+            document.removeEventListener('pinned-editors-changed', handlePinnedEditorsChange);
+        };
+
         // Initialize Cytoscape
         this.setupCytoscape();
 
@@ -264,7 +280,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
             renderRecentNodeTabsV2(
                 this.recentNodeHistory,
-                (nodeId) => this.navigationService.handleSearchSelect(nodeId)
+                (nodeId) => this.navigationService.handleSearchSelect(nodeId),
+                (nodeId) => this.cy.getElementById(nodeId).data('label') as string | undefined
             );
         };
 
@@ -284,7 +301,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             this.recentNodeHistory = createEmptyHistory();
             renderRecentNodeTabsV2(
                 this.recentNodeHistory,
-                (nodeId) => this.navigationService.handleSearchSelect(nodeId)
+                (nodeId) => this.navigationService.handleSearchSelect(nodeId),
+                (nodeId) => this.cy.getElementById(nodeId).data('label') as string | undefined
             );
 
             // Reset ninja-keys search data (now rebuilds from empty cytoscape)
@@ -820,6 +838,12 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         if (this.cleanupNavigationListener) {
             this.cleanupNavigationListener();
             this.cleanupNavigationListener = null;
+        }
+
+        // Cleanup pinned editors change listener
+        if (this.cleanupPinnedEditorsListener) {
+            this.cleanupPinnedEditorsListener();
+            this.cleanupPinnedEditorsListener = null;
         }
 
         // Dispose managers

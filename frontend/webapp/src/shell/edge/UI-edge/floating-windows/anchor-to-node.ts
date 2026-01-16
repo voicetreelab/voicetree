@@ -169,13 +169,17 @@ export function anchorToNode(
     let childPosition: { x: number; y: number };
     if (candidates.length > 0) {
         candidates.sort((a, b) => a.angleDiff - b.angleDiff);
-        childPosition = candidates[0].pos;
+        // Place at DEFAULT_EDGE_LENGTH center-to-center (matches cola's edge length)
+        const chosen = candidates[0].pos;
+        childPosition = {
+            x: parentPos.x + Math.sign(chosen.x - parentPos.x) * DEFAULT_EDGE_LENGTH,
+            y: parentPos.y + Math.sign(chosen.y - parentPos.y) * DEFAULT_EDGE_LENGTH
+        };
         console.log(`[anchorToNode] Chose position from ${candidates.length} candidates: (${childPosition.x.toFixed(1)}, ${childPosition.y.toFixed(1)})`);
     } else {
         // Fallback to right if all directions blocked
-        const offsetX: number = (shadowDimensions.width / 2) + (parentWidth / 2) + gap + DEFAULT_EDGE_LENGTH;
         childPosition = {
-            x: parentPos.x + offsetX,
+            x: parentPos.x + DEFAULT_EDGE_LENGTH,
             y: parentPos.y
         };
         console.log(`[anchorToNode] FALLBACK to right (all directions blocked): (${childPosition.x.toFixed(1)}, ${childPosition.y.toFixed(1)})`);

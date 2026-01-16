@@ -9,7 +9,20 @@ isContextNode: false
 
 Your task is to produce a small task dependency tree of nodes representing the actions (tasks) the user should attempt for a comprehensive onboarding to voicetree.
 
-Just create the following nodes as a dependency graph, with content kept as is:
+Create the following nodes as a DIAMOND-shaped dependency graph:
+
+```
+                CUSTOM AGENTS
+             /                  \
+VOICE INPUT                      OPENSPEC
+             \                  /
+                LINKED NODES
+```
+
+Voice Input links to both Custom Agents and Linked Nodes.
+Both Custom Agents and Linked Nodes link to OpenSpec.
+
+Create the nodes with their content kept as is:
 
 # Voice Input Into Nodes & Terminals
 Select any node or terminal, then speak - your voice goes directly into it.

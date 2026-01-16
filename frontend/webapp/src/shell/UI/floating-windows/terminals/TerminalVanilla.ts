@@ -154,9 +154,10 @@ export class TerminalVanilla {
         const strategy: 'css-transform' | 'dimension-scaling' = getScalingStrategy('Terminal', zoom);
         this.term.options.fontSize = getTerminalFontSize(zoom, strategy);
 
-        // Save scroll position before fit (fit changes row count which can reset scroll)
+        // Use pre-captured scroll if available (from zoomStart or expand button click),
+        // otherwise capture inline. Pre-captured value is immune to auto-scroll race.
         const buffer: { baseY: number; viewportY: number } = this.term.buffer.active;
-        const scrollOffset: number = buffer.baseY - buffer.viewportY; // lines scrolled up from bottom
+        const scrollOffset: number = this.scrollOffsetBeforeZoom ?? (buffer.baseY - buffer.viewportY);
 
         this.fitAddon.fit();
 
@@ -166,6 +167,9 @@ export class TerminalVanilla {
         if (targetLine >= 0) {
           this.term.scrollToLine(targetLine);
         }
+
+        // Clear pre-captured scroll after successful restoration
+        this.scrollOffsetBeforeZoom = null;
       });
     });
     this.resizeObserver.observe(this.container);
@@ -188,13 +192,14 @@ export class TerminalVanilla {
       this.fitAddon.fit();
 
       // Restore scroll position from pre-zoom capture (guaranteed uncorrupted)
+      // DON'T clear scrollOffsetBeforeZoom here - ResizeObserver may fire later
+      // and needs the same uncorrupted value to avoid race with auto-scroll
       if (this.scrollOffsetBeforeZoom !== null) {
         const newBaseY: number = this.term.buffer.active.baseY;
         const targetLine: number = newBaseY - this.scrollOffsetBeforeZoom;
         if (targetLine >= 0) {
           this.term.scrollToLine(targetLine);
         }
-        this.scrollOffsetBeforeZoom = null;
       }
     });
 
