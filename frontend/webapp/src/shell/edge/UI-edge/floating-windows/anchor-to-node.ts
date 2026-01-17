@@ -281,8 +281,7 @@ export function anchorToNode(
     parentNode.on('position', syncWithParent);
     */
 
-    // Attach drag handlers and store cleanup references
-    // Phase 1 refactor: No title bar, so drag handlers attach to windowElement directly
+    // Attach drag handlers (only menu bar areas are draggable) and store cleanup references
     const {handleMouseMove, handleMouseUp} = attachDragHandlers(cy, windowElement, shadowNodeId);
 
     // Register cleanup functions
@@ -327,7 +326,8 @@ function updateWindowPosition(shadowNode: cytoscape.NodeSingular, domElement: HT
 
 /**
  * Attach drag-and-drop handlers to the window element
- * Phase 1 refactor: No title bar, so drag handlers attach to windowElement directly
+ * Dragging only initiates from menu bar areas (.cy-floating-window-horizontal-menu or .terminal-title-bar)
+ * to preserve text selection in editor content
  * Returns the document-level handlers so they can be removed on dispose
  */
 function attachDragHandlers(
@@ -339,7 +339,18 @@ function attachDragHandlers(
     let dragOffset: { x: number; y: number } = { x: 0, y: 0 };
 
     const handleMouseDown: (e: MouseEvent) => void = (e: MouseEvent) => {
-        if ((e.target as HTMLElement).tagName === 'BUTTON') return;
+        // Only allow dragging from the menu bar areas, not the content area
+        // This preserves text selection in the editor content
+        const target: HTMLElement = e.target as HTMLElement;
+
+        // Don't drag when clicking buttons
+        if (target.tagName === 'BUTTON') return;
+
+        // Check if the click originated from a draggable area:
+        // - .cy-floating-window-horizontal-menu (editor menu bar)
+        // - .terminal-title-bar (terminal title bar)
+        const draggableArea: Element | null = target.closest('.cy-floating-window-horizontal-menu, .terminal-title-bar');
+        if (!draggableArea) return;
 
         isDragging = true;
         windowElement.classList.add('dragging');
