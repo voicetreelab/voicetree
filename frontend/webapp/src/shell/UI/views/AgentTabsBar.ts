@@ -124,7 +124,11 @@ export function unpinTerminal(terminalId: TerminalId): void {
     updateTerminal(terminalId, { isPinned: false });
 }
 
-function pinTerminal(terminalId: TerminalId): void {
+/**
+ * Pin a terminal (move from unpinned to pinned section)
+ * Exported for use by terminal traffic light buttons
+ */
+export function pinTerminal(terminalId: TerminalId): void {
     updateTerminal(terminalId, { isPinned: true });
 }
 

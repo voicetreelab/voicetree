@@ -61,25 +61,21 @@ describe('createContextNode - Integration Tests', () => {
     // Wait for any pending timeouts from applyGraphDeltaToUI
     await new Promise(resolve => setTimeout(resolve, 200))
 
-    const vaultPath: O.Option<string> = getVaultPath()
-
     // Clean up created context node file if it exists
-    if (createdContextNodeId && O.isSome(vaultPath)) {
-      const contextFilePath: string = path.join(vaultPath.value, createdContextNodeId)
-      await fs.unlink(contextFilePath).catch(() => {
+    // contextNodeId is already an absolute path
+    if (createdContextNodeId) {
+      await fs.unlink(createdContextNodeId).catch(() => {
         // File might not exist, that's ok
       })
       createdContextNodeId = null
     }
 
     // Restore parent node files to their original state
-    if (O.isSome(vaultPath)) {
-      for (const [parentNodeId, originalContent] of parentNodeBackups.entries()) {
-        const parentFilePath: string = path.join(vaultPath.value, parentNodeId)
-        await fs.writeFile(parentFilePath, originalContent, 'utf-8').catch(() => {
-          // File might not exist, that's ok
-        })
-      }
+    // parentNodeId keys are already absolute paths
+    for (const [parentNodeId, originalContent] of parentNodeBackups.entries()) {
+      await fs.writeFile(parentNodeId, originalContent, 'utf-8').catch(() => {
+        // File might not exist, that's ok
+      })
     }
     parentNodeBackups.clear()
   })
@@ -88,14 +84,10 @@ describe('createContextNode - Integration Tests', () => {
    * Helper function to create a context node while backing up the parent node
    */
   async function createContextNodeWithBackup(parentNodeId: NodeIdAndFilePath): Promise<NodeIdAndFilePath> {
-    const vaultPath: O.Option<string> = getVaultPath()
-
     // Backup parent node before creating context node
-    if (O.isSome(vaultPath)) {
-      const parentFilePath: string = path.join(vaultPath.value, parentNodeId)
-      const originalContent: string = await fs.readFile(parentFilePath, 'utf-8')
-      parentNodeBackups.set(parentNodeId, originalContent)
-    }
+    // parentNodeId is already an absolute path
+    const originalContent: string = await fs.readFile(parentNodeId, 'utf-8')
+    parentNodeBackups.set(parentNodeId, originalContent)
 
     // Create context node
     return await createContextNode(parentNodeId)
@@ -103,8 +95,8 @@ describe('createContextNode - Integration Tests', () => {
 
   describe('BEHAVIOR: Create context node for existing parent node', () => {
     it('should create context node file with ASCII tree and node details', async () => {
-      // GIVEN: A parent node that exists in example_small graph
-      const parentNodeId: NodeIdAndFilePath = '1_VoiceTree_Website_Development_and_Node_Display_Bug.md'
+      // GIVEN: A parent node that exists in example_small graph - node IDs are absolute paths
+      const parentNodeId: NodeIdAndFilePath = path.join(EXAMPLE_SMALL_PATH, '1_VoiceTree_Website_Development_and_Node_Display_Bug.md')
 
       // WHEN: Create context node for this parent
       const contextNodeId: string = await createContextNodeWithBackup(parentNodeId)
@@ -112,9 +104,9 @@ describe('createContextNode - Integration Tests', () => {
 
       // THEN: Context node ID should be in ctx-nodes directory
       expect(contextNodeId).toContain('ctx-nodes/')
-      // Context node filename contains the parent node ID without the .md extension
-      const parentNodeIdWithoutExtension: string = parentNodeId.replace('.md', '')
-      expect(contextNodeId).toContain(parentNodeIdWithoutExtension)
+      // Context node filename contains the basename of the parent node ID without the .md extension
+      const parentBasename: string = path.basename(parentNodeId, '.md')
+      expect(contextNodeId).toContain(parentBasename)
       expect(contextNodeId).toMatch(/_context_\d+\.md$/)
 
       // AND: File should exist on disk
@@ -122,7 +114,7 @@ describe('createContextNode - Integration Tests', () => {
       expect(O.isSome(vaultPath)).toBe(true)
 
       if (O.isSome(vaultPath)) {
-        const contextFilePath: string = path.join(vaultPath.value, contextNodeId)
+        const contextFilePath: string = contextNodeId  // contextNodeId is already an absolute path
         const fileExists: boolean = await fs.access(contextFilePath)
           .then(() => true)
           .catch(() => false)
@@ -137,19 +129,19 @@ describe('createContextNode - Integration Tests', () => {
         expect(fileContent).toContain('Context')
 
         // Should have heading for context graph
-        expect(fileContent).toContain('## Context')
+        expect(fileContent).toContain('# Agent Context')
 
         // Should have ASCII tree visualization in code block
         expect(fileContent).toContain('```')
 
-        // Should have Node Details section
-        expect(fileContent).toContain('## Node Details')
+        // Should have Node Contents section
+        expect(fileContent).toContain('## Node Contents')
       }
     })
 
     it('should include parent node and related nodes in context', async () => {
-      // GIVEN: Parent node with known connections in example_small
-      const parentNodeId: NodeIdAndFilePath = '1_VoiceTree_Website_Development_and_Node_Display_Bug.md'
+      // GIVEN: Parent node with known connections in example_small - node IDs are absolute paths
+      const parentNodeId: NodeIdAndFilePath = path.join(EXAMPLE_SMALL_PATH, '1_VoiceTree_Website_Development_and_Node_Display_Bug.md')
 
       // WHEN: Create context node
       const contextNodeId: string = await createContextNodeWithBackup(parentNodeId)
@@ -158,7 +150,7 @@ describe('createContextNode - Integration Tests', () => {
       // THEN: Read the created file
       const vaultPath: O.Option<string> = getVaultPath()
       if (O.isSome(vaultPath)) {
-        const contextFilePath: string = path.join(vaultPath.value, contextNodeId)
+        const contextFilePath: string = contextNodeId  // contextNodeId is already an absolute path
         const fileContent: string = await fs.readFile(contextFilePath, 'utf-8')
 
         // Should contain information about the parent node
@@ -171,8 +163,8 @@ describe('createContextNode - Integration Tests', () => {
     })
 
     it('should create context node that can be loaded back into graph', async () => {
-      // GIVEN: A parent node
-      const parentNodeId: NodeIdAndFilePath = '2_VoiceTree_Node_ID_Duplication_Bug.md'
+      // GIVEN: A parent node - node IDs are absolute paths
+      const parentNodeId: NodeIdAndFilePath = path.join(EXAMPLE_SMALL_PATH, '2_VoiceTree_Node_ID_Duplication_Bug.md')
 
       // WHEN: Create context node
       const contextNodeId: string = await createContextNodeWithBackup(parentNodeId)
@@ -207,8 +199,8 @@ describe('createContextNode - Integration Tests', () => {
 
   describe('BEHAVIOR: Subgraph extraction with distance limit', () => {
     it('should extract subgraph within distance 7 from parent node', async () => {
-      // GIVEN: A parent node in the middle of the graph
-      const parentNodeId: NodeIdAndFilePath = '1_VoiceTree_Website_Development_and_Node_Display_Bug.md'
+      // GIVEN: A parent node in the middle of the graph - node IDs are absolute paths
+      const parentNodeId: NodeIdAndFilePath = path.join(EXAMPLE_SMALL_PATH, '1_VoiceTree_Website_Development_and_Node_Display_Bug.md')
 
       // WHEN: Create context node
       const contextNodeId: string = await createContextNodeWithBackup(parentNodeId)
@@ -217,7 +209,7 @@ describe('createContextNode - Integration Tests', () => {
       // THEN: Read the context file
       const vaultPath: O.Option<string> = getVaultPath()
       if (O.isSome(vaultPath)) {
-        const contextFilePath: string = path.join(vaultPath.value, contextNodeId)
+        const contextFilePath: string = contextNodeId  // contextNodeId is already an absolute path
         const fileContent: string = await fs.readFile(contextFilePath, 'utf-8')
 
         // Should contain ASCII visualization (which implies subgraph was extracted)
@@ -235,8 +227,8 @@ describe('createContextNode - Integration Tests', () => {
 
   describe('BEHAVIOR: Node details section should contain all nodes from subgraph', () => {
     it('should include parent node and connected nodes in details section', async () => {
-      // GIVEN: A parent node that exists in example_small graph
-      const parentNodeId: NodeIdAndFilePath = '1_VoiceTree_Website_Development_and_Node_Display_Bug.md'
+      // GIVEN: A parent node that exists in example_small graph - node IDs are absolute paths
+      const parentNodeId: NodeIdAndFilePath = path.join(EXAMPLE_SMALL_PATH, '1_VoiceTree_Website_Development_and_Node_Display_Bug.md')
 
       // WHEN: Create context node for this parent
       const contextNodeId: string = await createContextNodeWithBackup(parentNodeId)
@@ -247,30 +239,31 @@ describe('createContextNode - Integration Tests', () => {
       expect(O.isSome(vaultPath)).toBe(true)
 
       if (O.isSome(vaultPath)) {
-        const contextFilePath: string = path.join(vaultPath.value, contextNodeId)
+        const contextFilePath: string = contextNodeId  // contextNodeId is already an absolute path
         const fileContent: string = await fs.readFile(contextFilePath, 'utf-8')
 
-        // Extract Node Details section (after ## Node Details)
-        const nodeDetailsMatch: RegExpMatchArray | null = fileContent.match(/## Node Details\n([\s\S]+)$/)
-        expect(nodeDetailsMatch).toBeTruthy()
+        // Extract Node Contents section (after ## Node Contents)
+        const nodeContentsMatch: RegExpMatchArray | null = fileContent.match(/## Node Contents\s*\n([\s\S]+)$/)
+        expect(nodeContentsMatch).toBeTruthy()
 
-        if (nodeDetailsMatch) {
-          const nodeDetailsSection: string = nodeDetailsMatch[1]
+        if (nodeContentsMatch) {
+          const nodeContentsSection: string = nodeContentsMatch[1]
 
-          // Extract node IDs from Node Details section
-          // Node details has format: <node_id.md> \n content \n </node_id.md>
-          const nodeDetailIds: string[] = Array.from(
-            nodeDetailsSection.matchAll(/<([^/>][^>]*\.md)>\s*\n/g)
+          // Extract node IDs from Node Contents section
+          // Node contents has format: <absolute_file_path.md> \n content \n </absolute_file_path.md>
+          // Note: absolute paths contain slashes, so we need a regex that matches them
+          const nodeContentIds: string[] = Array.from(
+            nodeContentsSection.matchAll(/<([^>]+\.md)>\s*\n/g)
           ).map(match => match[1].trim())
 
-          // VERIFY: Parent node should be present in details
-          expect(nodeDetailIds).toContain(parentNodeId)
+          // VERIFY: Parent node should be present in contents
+          expect(nodeContentIds).toContain(parentNodeId)
 
           // VERIFY: Should have multiple nodes (parent + connected nodes)
-          expect(nodeDetailIds.length).toBeGreaterThan(1)
+          expect(nodeContentIds.length).toBeGreaterThan(1)
 
           // VERIFY: All node IDs should be valid (end with .md)
-          nodeDetailIds.forEach((nodeId: string) => {
+          nodeContentIds.forEach((nodeId: string) => {
             expect(nodeId).toMatch(/\.md$/)
           })
         }
@@ -308,7 +301,7 @@ describe('createContextNode - Integration Tests', () => {
       expect(O.isSome(vaultPath)).toBe(true)
 
       if (O.isSome(vaultPath)) {
-        const contextFilePath: string = path.join(vaultPath.value, contextNodeId)
+        const contextFilePath: string = contextNodeId  // contextNodeId is already an absolute path
         const contextFileContent: string = await fs.readFile(contextFilePath, 'utf-8')
 
         // Count wikilinks in the context node content
@@ -344,9 +337,9 @@ describe('createContextNode - Integration Tests', () => {
         // Write full content to temp file for inspection
         await fs.writeFile('/tmp/context-node-test-output.md', contextFileContent, 'utf-8')
 
-        // Context node should NOT have any wikilinks (no edges from context node to other nodes)
-        // The parent->context edge is created programmatically, not via wikilink
-        expect(wikilinkCount).toBe(0)
+        // Context node should have exactly ONE wikilink (bidirectional edge to parent)
+        // This prevents race conditions where parent -> context edge might not render
+        expect(wikilinkCount).toBe(1)
       }
 
       // THEN: Reload graph to get the context node
@@ -390,9 +383,11 @@ describe('createContextNode - Integration Tests', () => {
       expect(incomingEdgesCount).toBe(1)
 
       // ALSO VERIFY: Context node itself should have ZERO outgoing edges
-      // It should not link back to any of the nodes in its subgraph
+      // It should have exactly ONE outgoing edge - the bidirectional link to the parent node
       const contextNodeInReloaded: GraphNode = reloadedGraph.nodes[contextNodeId]
-      expect(contextNodeInReloaded.outgoingEdges.length).toBe(0)
+      expect(contextNodeInReloaded.outgoingEdges.length).toBe(1)
+      // Verify the single edge points to the parent
+      expect(contextNodeInReloaded.outgoingEdges[0].targetId).toBe(parentNodeId)
     })
   })
 })

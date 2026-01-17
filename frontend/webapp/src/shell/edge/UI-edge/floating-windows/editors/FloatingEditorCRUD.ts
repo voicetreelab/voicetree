@@ -434,6 +434,9 @@ export async function createFloatingEditorForUICreatedNode(
     nodeId: NodeIdAndFilePath
 ): Promise<void> {
     try {
+        // Close any open hover editor - user is creating a new node, focus should shift
+        closeHoverEditor(cy);
+
         // Early exit if editor already exists
         if (O.isSome(getEditorByNodeId(nodeId))) {
             console.log('[FloatingEditorManager-v2] UI-created node editor already exists:', nodeId);
@@ -458,10 +461,9 @@ export async function createFloatingEditorForUICreatedNode(
         // Anchor to node (creates shadow node for positioning)
         anchorToNode(cy, editor);
 
-        // Navigate to editor neighborhood twice with delays to handle IPC race condition
+        // Navigate to editor neighborhood with delay to handle IPC race condition
         // (node may not be fully positioned in Cytoscape yet when this runs)
         const editorId: EditorId = getEditorId(editor);
-        setTimeout(() => navigateToEditorNeighborhood(cy, nodeId, editorId), 300);
         setTimeout(() => navigateToEditorNeighborhood(cy, nodeId, editorId), 1200);
 
     } catch (error) {

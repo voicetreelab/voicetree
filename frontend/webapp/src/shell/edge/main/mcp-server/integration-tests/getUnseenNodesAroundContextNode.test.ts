@@ -62,34 +62,30 @@ describe('getUnseenNodesAroundContextNode - Integration Tests', () => {
     })
 
     afterEach(async () => {
-        const vaultPath: O.Option<string> = getVaultPath()
-
         // Clean up created context node file if it exists
-        if (createdContextNodeId && O.isSome(vaultPath)) {
-            const contextFilePath: string = path.join(vaultPath.value, createdContextNodeId)
-            await fs.unlink(contextFilePath).catch(() => {
+        // contextNodeId is already an absolute path
+        if (createdContextNodeId) {
+            await fs.unlink(createdContextNodeId).catch(() => {
                 // File might not exist, that's ok
             })
             createdContextNodeId = null
         }
 
         // Clean up created new node file if it exists
-        if (createdNewNodeId && O.isSome(vaultPath)) {
-            const newNodeFilePath: string = path.join(vaultPath.value, createdNewNodeId)
-            await fs.unlink(newNodeFilePath).catch(() => {
+        // newNodeId is already an absolute path
+        if (createdNewNodeId) {
+            await fs.unlink(createdNewNodeId).catch(() => {
                 // File might not exist, that's ok
             })
             createdNewNodeId = null
         }
 
         // Restore parent node files to their original state
-        if (O.isSome(vaultPath)) {
-            for (const [parentNodeId, originalContent] of parentNodeBackups.entries()) {
-                const parentFilePath: string = path.join(vaultPath.value, parentNodeId)
-                await fs.writeFile(parentFilePath, originalContent, 'utf-8').catch(() => {
-                    // File might not exist, that's ok
-                })
-            }
+        // parentNodeId keys are already absolute paths
+        for (const [parentNodeId, originalContent] of parentNodeBackups.entries()) {
+            await fs.writeFile(parentNodeId, originalContent, 'utf-8').catch(() => {
+                // File might not exist, that's ok
+            })
         }
         parentNodeBackups.clear()
     })
@@ -100,14 +96,10 @@ describe('getUnseenNodesAroundContextNode - Integration Tests', () => {
     async function createContextNodeWithBackup(
         parentNodeId: NodeIdAndFilePath
     ): Promise<NodeIdAndFilePath> {
-        const vaultPath: O.Option<string> = getVaultPath()
-
         // Backup parent node before creating context node
-        if (O.isSome(vaultPath)) {
-            const parentFilePath: string = path.join(vaultPath.value, parentNodeId)
-            const originalContent: string = await fs.readFile(parentFilePath, 'utf-8')
-            parentNodeBackups.set(parentNodeId, originalContent)
-        }
+        // parentNodeId is already an absolute path
+        const originalContent: string = await fs.readFile(parentNodeId, 'utf-8')
+        parentNodeBackups.set(parentNodeId, originalContent)
 
         // Create context node
         return await createContextNode(parentNodeId)
@@ -127,7 +119,7 @@ describe('getUnseenNodesAroundContextNode - Integration Tests', () => {
         // Build markdown content with parent link
         const markdownContent: string = `${content}\n\n-----------------\n_Links:_\nParent:\n- child_of [[${parentNodeId}]]\n`
 
-        // Create FSUpdate event
+        // Create FSUpdate event - nodeId will be the absolute path
         const absolutePath: string = `${vaultPath.value}/${nodeId}`
         const fsEvent: FSUpdate = {
             absolutePath,
@@ -135,21 +127,22 @@ describe('getUnseenNodesAroundContextNode - Integration Tests', () => {
             eventType: 'Added'
         }
 
-        // Apply to graph using pure function
+        // Apply to graph using pure function (no vaultPath argument - node IDs are now absolute paths)
         const currentGraph: Graph = getGraph()
-        const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, vaultPath.value, currentGraph)
+        const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, currentGraph)
 
         // Persist to filesystem
         await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta)
 
-        return nodeId
+        // Return the absolute path as the node ID
+        return absolutePath
     }
 
     describe('BEHAVIOR: Return unseen nodes after adding new node', () => {
         it('should return newly added node that was not in original context', async () => {
-            // GIVEN: A parent node that exists in example_small graph
+            // GIVEN: A parent node that exists in example_small graph - node IDs are absolute paths
             const parentNodeId: NodeIdAndFilePath =
-                '1_VoiceTree_Website_Development_and_Node_Display_Bug.md'
+                path.join(EXAMPLE_SMALL_PATH, '1_VoiceTree_Website_Development_and_Node_Display_Bug.md')
 
             // WHEN: Create context node for this parent
             const contextNodeId: NodeIdAndFilePath =
@@ -183,16 +176,16 @@ describe('getUnseenNodesAroundContextNode - Integration Tests', () => {
             // THEN: Call getUnseenNodesAroundContextNode
             const unseenNodes: readonly UnseenNode[] = await getUnseenNodesAroundContextNode(contextNodeId)
 
-            // VERIFY: The new node should be in the unseen nodes
-            const newNodeInUnseen: UnseenNode | undefined = unseenNodes.find((n: UnseenNode) => n.nodeId === newNodeId)
+            // VERIFY: The new node should be in the unseen nodes - use createdNewNodeId (absolute path)
+            const newNodeInUnseen: UnseenNode | undefined = unseenNodes.find((n: UnseenNode) => n.nodeId === createdNewNodeId)
             expect(newNodeInUnseen).toBeDefined()
             expect(newNodeInUnseen?.content).toContain('Test Unseen Node')
         })
 
         it('should return empty array when no new nodes have been added', async () => {
-            // GIVEN: A parent node that exists in example_small graph
+            // GIVEN: A parent node that exists in example_small graph - node IDs are absolute paths
             const parentNodeId: NodeIdAndFilePath =
-                '1_VoiceTree_Website_Development_and_Node_Display_Bug.md'
+                path.join(EXAMPLE_SMALL_PATH, '1_VoiceTree_Website_Development_and_Node_Display_Bug.md')
 
             // WHEN: Create context node for this parent
             const contextNodeId: NodeIdAndFilePath =
@@ -228,9 +221,9 @@ describe('getUnseenNodesAroundContextNode - Integration Tests', () => {
         })
 
         it('should throw error if context node has no containedNodeIds', async () => {
-            // GIVEN: A regular node (not a context node, so no containedNodeIds)
+            // GIVEN: A regular node (not a context node, so no containedNodeIds) - node IDs are absolute paths
             const regularNodeId: NodeIdAndFilePath =
-                '1_VoiceTree_Website_Development_and_Node_Display_Bug.md'
+                path.join(EXAMPLE_SMALL_PATH, '1_VoiceTree_Website_Development_and_Node_Display_Bug.md')
 
             // WHEN/THEN: Should throw error
             await expect(getUnseenNodesAroundContextNode(regularNodeId)).rejects.toThrow(
@@ -241,9 +234,9 @@ describe('getUnseenNodesAroundContextNode - Integration Tests', () => {
 
     describe('BEHAVIOR: Content returned should be without YAML frontmatter', () => {
         it('should return content without YAML or link markers', async () => {
-            // GIVEN: A parent node and context node
+            // GIVEN: A parent node and context node - node IDs are absolute paths
             const parentNodeId: NodeIdAndFilePath =
-                '1_VoiceTree_Website_Development_and_Node_Display_Bug.md'
+                path.join(EXAMPLE_SMALL_PATH, '1_VoiceTree_Website_Development_and_Node_Display_Bug.md')
 
             const contextNodeId: NodeIdAndFilePath =
                 await createContextNodeWithBackup(parentNodeId)
@@ -284,8 +277,8 @@ This is the actual content without frontmatter.`
             // WHEN: Get unseen nodes
             const unseenNodes: readonly UnseenNode[] = await getUnseenNodesAroundContextNode(contextNodeId)
 
-            // THEN: Find the new node
-            const newNode: UnseenNode | undefined = unseenNodes.find((n: UnseenNode) => n.nodeId === newNodeId)
+            // THEN: Find the new node - use createdNewNodeId (absolute path)
+            const newNode: UnseenNode | undefined = unseenNodes.find((n: UnseenNode) => n.nodeId === createdNewNodeId)
             expect(newNode).toBeDefined()
 
             // VERIFY: Content should NOT have YAML frontmatter (starts with ---)

@@ -12,8 +12,9 @@ import type { NodeIdAndFilePath } from '@/pure/graph';
 import type { ShadowNodeId, TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import { isAnchored, getShadowNodeIdFromData, getTerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import { getEditorByNodeId, isPinned, addToPinnedEditors, removeFromPinnedEditors } from '@/shell/edge/UI-edge/state/EditorStore';
+import { getTerminal } from '@/shell/edge/UI-edge/state/TerminalStore';
 import { attachFullscreenZoom } from '@/shell/edge/UI-edge/floating-windows/fullscreen-zoom';
-import { unpinTerminal } from '@/shell/UI/views/AgentTabsBar';
+import { pinTerminal, unpinTerminal } from '@/shell/UI/views/AgentTabsBar';
 import type { EditorData } from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
 import type { TerminalData } from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import { closeHoverEditor, createAnchoredFloatingEditor } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
@@ -179,16 +180,27 @@ export function createTrafficLightsForTarget(target: TrafficLightTarget): HTMLDi
 
     // terminal-window
     const { terminal, cy, closeTerminal } = target;
+    const terminalId: TerminalId = getTerminalId(terminal);
     const shadowNodeId: ShadowNodeId = getShadowNodeIdFromData(terminal);
     return createTrafficLights({
         onClose: (): void => {
             void closeTerminal(terminal, cy);
         },
         onPin: (): boolean => {
-            unpinTerminal(terminal);
-            return false;
+            // Get current terminal state from store (not captured closure)
+            const currentTerminal: O.Option<TerminalData> = getTerminal(terminalId);
+            if (O.isNone(currentTerminal)) {
+                return false;
+            }
+            if (currentTerminal.value.isPinned) {
+                unpinTerminal(terminalId);
+                return false;
+            } else {
+                pinTerminal(terminalId);
+                return true;
+            }
         },
-        isPinned: true,
+        isPinned: terminal.isPinned,
         cy,
         shadowNodeId,
         zoomToNeighborhood: true,

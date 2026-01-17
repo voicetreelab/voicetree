@@ -21,9 +21,17 @@ import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals
 export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], question: string): Promise<void> {
   // Get graph - node IDs are now absolute paths that match graph keys directly
   const graph: Graph = getGraph();
+  const watchedDir: string | null = getWatchedDirectory();
+
+  // Normalize incoming node IDs to absolute paths
+  // Backend returns relative paths like "voice/note.md" but graph uses absolute paths
+  const normalizedNodeIds: readonly string[] = relevantNodeIds.map(id => {
+    if (path.isAbsolute(id)) return id;
+    return watchedDir ? path.join(watchedDir, id) : id;
+  });
 
   // Filter to only node IDs that exist in the graph
-  const adjustedNodeIds: readonly string[] = relevantNodeIds
+  const adjustedNodeIds: readonly string[] = normalizedNodeIds
     .filter(id => graph.nodes[id] !== undefined);
 
   // 1. Create context node from relevant nodes
@@ -55,7 +63,6 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
   const title: string = `${agentName}: ${strippedTitle}`;
 
   const appSupportPath: string = getAppSupportPath();
-  const watchedDir: string | null = getWatchedDirectory();
 
   let initialSpawnDirectory: string | undefined = watchedDir ?? undefined;
 

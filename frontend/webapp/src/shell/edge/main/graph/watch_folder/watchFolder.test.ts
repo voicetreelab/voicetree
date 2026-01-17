@@ -30,8 +30,8 @@ import {
   getVaultPath,
   clearVaultPath,
 } from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import { setGraph } from '@/shell/edge/main/state/graph-store'
-import type { GraphDelta } from '@/pure/graph'
+import { setGraph, getGraph } from '@/shell/edge/main/state/graph-store'
+import type { GraphDelta, Graph } from '@/pure/graph'
 import { createEmptyGraph } from '@/pure/graph'
 
 // Track IPC broadcasts
@@ -375,7 +375,7 @@ describe('Remove Vault Path from Allowlist', () => {
 
     // ASSERT: Removal fails
     expect(result.success).toBe(false)
-    expect(result.error).toContain('default write path')
+    expect(result.error).toContain('write path')
 
     // ASSERT: Path is still in allowlist
     expect(await getVaultPaths()).toContain(testVaultPath1)
@@ -538,10 +538,10 @@ describe('File Write Bug Fix (7.5)', () => {
 
   describe('7.5.1 Scenario: Node file written to correct location', () => {
     it('should report default write path correctly for file writes', async () => {
-      // GIVEN: Load folder with specific vault suffix
-      await loadFolder(testWatchedDir, 'voicetree-vault')
+      // GIVEN: Load the vault folder directly (new behavior: no suffix system)
+      await loadFolder(testVaultPath1)
 
-      // THEN: Default write path should be the vault path, NOT watched directory root
+      // THEN: Default write path should be the loaded folder
       const defaultWritePath: O.Option<string> = await getWritePath()
       expect(O.isSome(defaultWritePath)).toBe(true)
 
@@ -549,25 +549,23 @@ describe('File Write Bug Fix (7.5)', () => {
         // ASSERT: File should be written to vault path
         expect(defaultWritePath.value).toBe(testVaultPath1)
 
-        // ASSERT: File should NOT be at watched directory root
-        expect(defaultWritePath.value).not.toBe(testWatchedDir)
-
-        // Verify the path ends with the vault suffix
+        // Verify the path ends with the vault name
         expect(defaultWritePath.value.endsWith('voicetree-vault')).toBe(true)
       }
     })
 
-    it('should return vault path (not watched directory) from getVaultPath', async () => {
-      // GIVEN: Load folder with vault suffix
-      await loadFolder(testWatchedDir, 'voicetree-vault')
+    it('should return watched directory from getVaultPath (use getWritePath for write location)', async () => {
+      // GIVEN: Load the vault folder
+      await loadFolder(testVaultPath1)
 
-      // THEN: getVaultPath should return vault path, not watched directory
+      // THEN: getVaultPath returns the watched directory (project root)
+      // For actual write location, use getWritePath instead
       const vaultPath: O.Option<string> = getVaultPath()
       expect(O.isSome(vaultPath)).toBe(true)
 
       if (O.isSome(vaultPath)) {
+        // getVaultPath now returns the watched directory
         expect(vaultPath.value).toBe(testVaultPath1)
-        expect(vaultPath.value).not.toBe(testWatchedDir)
       }
     })
   })
@@ -643,7 +641,7 @@ describe('Fallback Behavior - getVaultPath vs getWritePath', () => {
     }
   })
 
-  it('should keep getVaultPath in sync with default write path for node ID generation', async () => {
+  it('should return writePath from config when setWritePath is called', async () => {
     // GIVEN: Load a folder and add second vault
     await loadFolder(testVaultPath1)
     await addVaultPathToAllowlist(testVaultPath2)
@@ -658,11 +656,12 @@ describe('Fallback Behavior - getVaultPath vs getWritePath', () => {
       expect(defaultWritePath.value).toBe(testVaultPath2)
     }
 
-    // AND: getVaultPath should also return the new default (kept in sync for node ID generation)
+    // AND: getVaultPath returns the watched directory (not the write path)
+    // For write location, always use getWritePath
     const vaultPath: O.Option<string> = getVaultPath()
     expect(O.isSome(vaultPath)).toBe(true)
     if (O.isSome(vaultPath)) {
-      expect(vaultPath.value).toBe(testVaultPath2)
+      expect(vaultPath.value).toBe(testVaultPath1) // Watched directory, not write path
     }
   })
 })
@@ -745,8 +744,9 @@ describe('Auto-load files when adding new vault path', () => {
     expect(bulkDelta.length).toBe(2)
 
     const nodeIds: readonly string[] = bulkDelta.map(d => d.type === 'UpsertNode' ? d.nodeToUpsert.absoluteFilePathIsID : '')
-    expect(nodeIds).toContain('new-vault/newfile1.md')
-    expect(nodeIds).toContain('new-vault/newfile2.md')
+    // Node IDs are absolute paths - check they end with the expected relative path
+    expect(nodeIds.some(id => id.endsWith('new-vault/newfile1.md'))).toBe(true)
+    expect(nodeIds.some(id => id.endsWith('new-vault/newfile2.md'))).toBe(true)
   })
 })
 
@@ -859,6 +859,75 @@ describe('Vault path removal persistence across reload (BUG REGRESSION TEST)', (
     // THEN: openspec should NOT be re-added even though folder exists on disk
     // This was the bug - resolveAllowlistForProject would re-add existing folders
     expect(await getVaultPaths()).not.toContain(testVaultPath2)
+  })
+})
+
+describe('Vault path removal should delete nodes from graph (BUG REGRESSION TEST)', () => {
+  beforeEach(async () => {
+    // Create temp directory structure for tests
+    testTmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'node-removal-test-'))
+    testWatchedDir = path.join(testTmpDir, 'project')
+    testVaultPath1 = path.join(testWatchedDir, 'voicetree')
+    testVaultPath2 = path.join(testWatchedDir, 'second-vault')
+
+    await fs.mkdir(testWatchedDir, { recursive: true })
+    await fs.mkdir(testVaultPath1, { recursive: true })
+    await fs.mkdir(testVaultPath2, { recursive: true })
+
+    // Create test files in both vaults
+    await fs.writeFile(
+      path.join(testVaultPath1, 'keep.md'),
+      '# Keep Node\n\nThis should remain.'
+    )
+    await fs.writeFile(
+      path.join(testVaultPath2, 'remove.md'),
+      '# Remove Node\n\nThis should be removed.'
+    )
+
+    // Reset graph state
+    setGraph(createEmptyGraph())
+    clearVaultPath()
+
+    // Reset broadcast tracking
+    broadcastCalls = []
+
+    // Create mock BrowserWindow
+    mockMainWindow = {
+      webContents: {
+        send: vi.fn((channel: string, data: unknown) => {
+          broadcastCalls.push({ channel, delta: data as GraphDelta })
+        })
+      },
+      isDestroyed: vi.fn(() => false)
+    }
+  })
+
+  afterEach(async () => {
+    await stopFileWatching()
+    await fs.rm(testTmpDir, { recursive: true, force: true })
+    vi.clearAllMocks()
+  })
+
+  it('should remove nodes from graph when vault path is removed from allowlist', async () => {
+    // GIVEN: Load folder with two vault paths containing nodes
+    await loadFolder(testVaultPath1)
+    await addVaultPathToAllowlist(testVaultPath2)
+
+    // Verify both nodes are in the graph (node IDs are absolute file paths)
+    const graphBefore: Graph = getGraph()
+    const nodeIdsBefore: readonly string[] = Object.keys(graphBefore.nodes)
+    expect(nodeIdsBefore.some(id => id.includes('keep.md'))).toBe(true)
+    expect(nodeIdsBefore.some(id => id.includes('remove.md'))).toBe(true)
+
+    // WHEN: Remove the second vault path
+    const removeResult: { success: boolean; error?: string } = await removeVaultPathFromAllowlist(testVaultPath2)
+    expect(removeResult.success).toBe(true)
+
+    // THEN: Nodes from the removed vault should be gone from the graph
+    const graphAfter: Graph = getGraph()
+    const nodeIdsAfter: readonly string[] = Object.keys(graphAfter.nodes)
+    expect(nodeIdsAfter.some(id => id.includes('keep.md'))).toBe(true)
+    expect(nodeIdsAfter.some(id => id.includes('remove.md'))).toBe(false)
   })
 })
 

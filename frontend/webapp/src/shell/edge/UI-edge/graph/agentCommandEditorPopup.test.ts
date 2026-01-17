@@ -75,20 +75,21 @@ describe('showAgentCommandEditor', () => {
         expect(result).toBeNull();
     });
 
-    // 4.3 Unit Test: "Add auto-run" button appends --dangerously-skip-permissions flag
-    it('Add auto-run button appends --dangerously-skip-permissions flag and preserves rest of command', async () => {
+    // 4.3 Unit Test: Auto-run toggle appends --dangerously-skip-permissions flag
+    it('Auto-run toggle appends --dangerously-skip-permissions flag and preserves rest of command', async () => {
         const promise: Promise<AgentCommandEditorResult | null> = showAgentCommandEditor('claude "$AGENT_PROMPT"', DEFAULT_AGENT_PROMPT);
 
         const dialog: HTMLDialogElement = getDialog();
         const input: HTMLInputElement = dialog.querySelector('#command-input') as HTMLInputElement;
-        const addAutoRunButton: HTMLButtonElement = dialog.querySelector('[data-testid="add-auto-run-button"]') as HTMLButtonElement;
+        const autoRunToggle: HTMLInputElement = dialog.querySelector('[data-testid="auto-run-toggle"]') as HTMLInputElement;
 
         expect(input.value).toBe('claude "$AGENT_PROMPT"');
-        expect(addAutoRunButton).not.toBeNull();
-        expect(addAutoRunButton.disabled).toBe(false);
+        expect(autoRunToggle).not.toBeNull();
+        expect(autoRunToggle.checked).toBe(false);
 
-        // Click Add auto-run button
-        addAutoRunButton.click();
+        // Check the auto-run toggle
+        autoRunToggle.checked = true;
+        autoRunToggle.dispatchEvent(new Event('change'));
 
         // Verify flag was added AND original argument is preserved
         expect(input.value).toBe(`claude ${AUTO_RUN_FLAG} "$AGENT_PROMPT"`);
@@ -102,17 +103,43 @@ describe('showAgentCommandEditor', () => {
         expect(result!.command).toBe(`claude ${AUTO_RUN_FLAG} "$AGENT_PROMPT"`);
     });
 
-    // 4.4 Unit Test: "Add auto-run" button disabled when flag already present
-    it('Add auto-run button disabled when flag already present', async () => {
+    // 4.4 Unit Test: Auto-run toggle is checked when flag already present
+    it('Auto-run toggle is checked when flag already present', async () => {
         const commandWithFlag: string = `claude ${AUTO_RUN_FLAG} test`;
         void showAgentCommandEditor(commandWithFlag, DEFAULT_AGENT_PROMPT);
 
         const dialog: HTMLDialogElement = getDialog();
         const input: HTMLInputElement = dialog.querySelector('#command-input') as HTMLInputElement;
-        const addAutoRunButton: HTMLButtonElement = dialog.querySelector('[data-testid="add-auto-run-button"]') as HTMLButtonElement;
+        const autoRunToggle: HTMLInputElement = dialog.querySelector('[data-testid="auto-run-toggle"]') as HTMLInputElement;
 
         expect(input.value).toBe(commandWithFlag);
-        expect(addAutoRunButton.disabled).toBe(true);
+        expect(autoRunToggle.checked).toBe(true);
+    });
+
+    // 4.5 Unit Test: Unchecking auto-run toggle removes the flag
+    it('Unchecking auto-run toggle removes the flag from command', async () => {
+        const commandWithFlag: string = `claude ${AUTO_RUN_FLAG} test`;
+        const promise: Promise<AgentCommandEditorResult | null> = showAgentCommandEditor(commandWithFlag, DEFAULT_AGENT_PROMPT);
+
+        const dialog: HTMLDialogElement = getDialog();
+        const input: HTMLInputElement = dialog.querySelector('#command-input') as HTMLInputElement;
+        const autoRunToggle: HTMLInputElement = dialog.querySelector('[data-testid="auto-run-toggle"]') as HTMLInputElement;
+
+        expect(autoRunToggle.checked).toBe(true);
+
+        // Uncheck the toggle
+        autoRunToggle.checked = false;
+        autoRunToggle.dispatchEvent(new Event('change'));
+
+        // Verify flag was removed
+        expect(input.value).toBe('claude test');
+
+        const form: HTMLFormElement = dialog.querySelector('form') as HTMLFormElement;
+        form.dispatchEvent(new Event('submit', { cancelable: true }));
+
+        const result: AgentCommandEditorResult | null = await promise;
+        expect(result).not.toBeNull();
+        expect(result!.command).toBe('claude test');
     });
 
     it('displays the command in an editable input field', async () => {
@@ -137,7 +164,7 @@ describe('showAgentCommandEditor', () => {
         expect(dialog.querySelector('#agent-prompt-input')).not.toBeNull();
         expect(dialog.querySelector('#command-input')).not.toBeNull();
         expect(dialog.querySelector('#mcp-integration-toggle')).not.toBeNull();
-        expect(dialog.querySelector('[data-testid="add-auto-run-button"]')).not.toBeNull();
+        expect(dialog.querySelector('[data-testid="auto-run-toggle"]')).not.toBeNull();
         expect(dialog.querySelector('[data-testid="cancel-button"]')).not.toBeNull();
         expect(dialog.querySelector('[data-testid="run-button"]')).not.toBeNull();
     });

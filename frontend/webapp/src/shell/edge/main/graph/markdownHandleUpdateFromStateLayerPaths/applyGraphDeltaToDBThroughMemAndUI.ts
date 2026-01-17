@@ -85,7 +85,6 @@ export async function applyGraphDeltaToDBThroughMemAndUI(
     // This ensures consistency with file watcher (which computes absolute IDs)
     // and prevents duplicate node creation from relative/absolute ID mismatch
     const normalizedDelta: GraphDelta = normalizeNodeIdsToAbsolute(delta, watchedDirectory)
-    console.log('[applyGraphDelta] Normalized delta node IDs:', normalizedDelta.map(d => d.type === 'UpsertNode' ? d.nodeToUpsert.absoluteFilePathIsID : d.nodeId))
 
     // Record for undo BEFORE applying (so we can reverse from current state)
     if (recordForUndo) {
