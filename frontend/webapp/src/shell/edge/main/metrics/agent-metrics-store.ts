@@ -27,23 +27,66 @@ function getMetricsPath(): string {
   return path.join(getAppSupportPath(), 'agent_metrics.json');
 }
 
+/** Validate that a session has the minimum required fields */
+function isValidSession(session: unknown): session is SessionMetric {
+  if (!session || typeof session !== 'object') return false;
+  const s: Record<string, unknown> = session as Record<string, unknown>;
+  return (
+    typeof s.sessionId === 'string' &&
+    typeof s.agentName === 'string' &&
+    typeof s.contextNode === 'string' &&
+    typeof s.startTime === 'string'
+  );
+}
+
+/** Extract valid sessions from parsed data, preserving what we can */
+function extractValidSessions(parsed: unknown): SessionMetric[] {
+  if (!parsed || typeof parsed !== 'object') {
+    return [];
+  }
+
+  // Try to find sessions array in the parsed data
+  let rawSessions: unknown[] = [];
+
+  if ('sessions' in parsed && Array.isArray((parsed as { sessions: unknown }).sessions)) {
+    rawSessions = (parsed as { sessions: unknown[] }).sessions;
+  } else if (Array.isArray(parsed)) {
+    // Handle case where file is just an array
+    rawSessions = parsed;
+  }
+
+  // Validate each session individually, keeping only valid ones
+  const validSessions: SessionMetric[] = [];
+  let invalidCount: number = 0;
+
+  for (const session of rawSessions) {
+    if (isValidSession(session)) {
+      validSessions.push(session);
+    } else {
+      invalidCount++;
+    }
+  }
+
+  if (invalidCount > 0) {
+    console.warn(`[agent-metrics-store] Discarded ${invalidCount} invalid session(s), kept ${validSessions.length} valid session(s)`);
+  }
+
+  return validSessions;
+}
+
 async function readMetrics(): Promise<AgentMetricsData> {
   const metricsPath: string = getMetricsPath();
   try {
     const data: string = await fs.readFile(metricsPath, 'utf-8');
     const parsed: unknown = JSON.parse(data);
-    // Ensure sessions is always an array
-    if (parsed && typeof parsed === 'object' && 'sessions' in parsed && Array.isArray((parsed as AgentMetricsData).sessions)) {
-      return parsed as AgentMetricsData;
-    }
-    return { sessions: [] };
+    const sessions: SessionMetric[] = extractValidSessions(parsed);
+    return { sessions };
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       return { sessions: [] };
     }
-    // Return empty on parse errors rather than crashing
     if (error instanceof SyntaxError) {
-      console.error('[agent-metrics-store] Invalid JSON in metrics file, returning empty:', error);
+      console.error('[agent-metrics-store] Invalid JSON in metrics file:', error.message);
       return { sessions: [] };
     }
     throw error;
