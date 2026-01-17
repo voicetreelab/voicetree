@@ -4,6 +4,7 @@ import type {
     FloatingWindowData,
     FloatingWindowFields,
     FloatingWindowUIData,
+    ImageViewerId,
     TerminalId
 } from "@/shell/edge/UI-edge/floating-windows/types";
 import {isTerminalData, isEditorData} from "@/shell/edge/UI-edge/floating-windows/types";
@@ -22,7 +23,6 @@ import {
 } from "@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService";
 import type {AgentConfig} from "@/pure/settings";
 import {Maximize2, Minimize2, createElement} from 'lucide';
-import {getShadowNodeId} from "@/shell/edge/UI-edge/floating-windows/types";
 import {createTrafficLightsForTarget} from "@/shell/edge/UI-edge/floating-windows/traffic-lights";
 
 /** Options for createWindowChrome */
@@ -46,7 +46,7 @@ export interface CreateWindowChromeOptions {
 export function createWindowChrome(
     cy: cytoscape.Core,
     fw: FloatingWindowData | FloatingWindowFields,
-    id: EditorId | TerminalId,
+    id: EditorId | TerminalId | ImageViewerId,
     options: CreateWindowChromeOptions = {}
 ): FloatingWindowUIData {
     const dimensions: { width: number; height: number } = fw.shadowNodeDimensions;
@@ -190,8 +190,8 @@ function createExpandButton(
 
     // Create and append initial icon (Maximize2)
     const initialIcon: SVGElement = createElement(Maximize2);
-    initialIcon.setAttribute('width', '8');
-    initialIcon.setAttribute('height', '8');
+    initialIcon.setAttribute('width', '16');
+    initialIcon.setAttribute('height', '16');
     button.appendChild(initialIcon);
 
     // Click handler for expand/minimize toggle
@@ -215,8 +215,8 @@ function createExpandButton(
             // Swap icon to Maximize2
             button.innerHTML = '';
             const maximizeIcon: SVGElement = createElement(Maximize2);
-            maximizeIcon.setAttribute('width', '8');
-            maximizeIcon.setAttribute('height', '8');
+            maximizeIcon.setAttribute('width', '16');
+            maximizeIcon.setAttribute('height', '16');
             button.appendChild(maximizeIcon);
         } else {
             // Expand: grow current dimensions by 2x
@@ -229,8 +229,8 @@ function createExpandButton(
             // Swap icon to Minimize2
             button.innerHTML = '';
             const minimizeIcon: SVGElement = createElement(Minimize2);
-            minimizeIcon.setAttribute('width', '8');
-            minimizeIcon.setAttribute('height', '8');
+            minimizeIcon.setAttribute('width', '16');
+            minimizeIcon.setAttribute('height', '16');
             button.appendChild(minimizeIcon);
         }
     });

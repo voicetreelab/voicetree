@@ -10,13 +10,14 @@ import {
 } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI'
 import {getGraph, getNode} from '@/shell/edge/main/state/graph-store'
 import {loadSettings, saveSettings as saveSettings} from './settings/settings_IO'
-import {getWatchStatus, loadPreviousFolder, startFileWatching, stopFileWatching, getVaultPaths, getWritePath, setWritePath, addVaultPathToAllowlist, removeVaultPathFromAllowlist} from './graph/watch_folder/watchFolder'
+import {getWatchStatus, loadPreviousFolder, startFileWatching, stopFileWatching, getVaultPaths, getReadOnLinkPaths, getWritePath, setWritePath, addReadOnLinkPath, removeReadOnLinkPath, getShowAllPaths, toggleShowAll} from './graph/watch_folder/watchFolder'
 import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/state/app-electron-state";
 import {createContextNode} from "@/shell/edge/main/graph/context-nodes/createContextNode";
 import {getPreviewContainedNodeIds} from "@/shell/edge/main/graph/context-nodes/getPreviewContainedNodeIds";
 import {saveNodePositions} from "@/shell/edge/main/saveNodePositions";
 import {performUndo, performRedo} from './graph/undoOperations'
 import {spawnTerminalWithContextNode} from './terminals/spawnTerminalWithContextNode'
+import {updateTerminalIsDone} from './terminals/terminal-registry'
 import {spawnPlainTerminal, spawnPlainTerminalWithNode} from './terminals/spawnPlainTerminal'
 import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
@@ -25,6 +26,7 @@ import {askQuery} from './backend-api';
 import {askModeCreateAndSpawn} from './ask-mode/askModeCreateAndSpawn';
 import {getMetrics} from './metrics/agent-metrics-store';
 import {isMcpIntegrationEnabled, setMcpIntegration} from './mcp-server/mcp-client-config';
+import {saveClipboardImage} from './clipboard/saveClipboardImage';
 
 // eslint-disable-next-line @typescript-eslint/typedef
 export const mainAPI = {
@@ -56,10 +58,13 @@ export const mainAPI = {
 
   // Multi-vault path operations
   getVaultPaths,
+  getReadOnLinkPaths,
   getWritePath,
   setWritePath,
-  addVaultPathToAllowlist,
-  removeVaultPathFromAllowlist,
+  addReadOnLinkPath,
+  removeReadOnLinkPath,
+  getShowAllPaths,
+  toggleShowAll,
 
   // Backend port
   getBackendPort,
@@ -84,6 +89,9 @@ export const mainAPI = {
   // Plain terminal with attached node (for draggability)
   spawnPlainTerminalWithNode,
 
+  // Terminal state sync (renderer -> main for MCP)
+  updateTerminalIsDone,
+
   // Ask mode operations
   askQuery,
 
@@ -95,4 +103,7 @@ export const mainAPI = {
   // MCP client configuration
   isMcpIntegrationEnabled, //todo unused?
   setMcpIntegration,
+
+  // Clipboard operations
+  saveClipboardImage,
 }

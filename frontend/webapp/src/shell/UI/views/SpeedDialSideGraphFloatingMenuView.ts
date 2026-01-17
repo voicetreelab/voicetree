@@ -10,7 +10,8 @@
  */
 
 import { Disposable } from './Disposable';
-import '@/shell/UI/views/styles/speed-dial-side-graph-floating-menu.css';
+// @ts-expect-error CSS import - types declared in vite-env.d.ts (not visible to minimal TS program)
+import './styles/speed-dial-side-graph-floating-menu.css';
 
 export interface SpeedDialMenuViewOptions {
   onToggleDarkMode: () => void;
@@ -18,13 +19,14 @@ export interface SpeedDialMenuViewOptions {
   onSettings?: () => void;
   onAbout?: () => void;
   onStats?: () => void;
+  onFeedback?: () => void;
   isDarkMode: boolean;
 }
 
 interface MenuItem {
   id: string;
   label: string;
-  iconName: 'sun' | 'moon' | 'settings' | 'download' | 'info' | 'bar-chart';
+  iconName: 'sun' | 'moon' | 'settings' | 'download' | 'info' | 'bar-chart' | 'message-square';
   onClick: () => void;
   isDanger?: boolean;
 }
@@ -63,17 +65,23 @@ export class SpeedDialSideGraphFloatingMenuView extends Disposable {
       //   onClick: options.onBackup,
       //   isDanger: true,
       // },
-      {
-        id: 'about',
-        label: 'About',
-        iconName: 'info',
-        onClick: options.onAbout ?? (() => console.log('[SpeedDial] About clicked')),
-      },
+      // {
+      //   id: 'about',
+      //   label: 'About',
+      //   iconName: 'info',
+      //   onClick: options.onAbout ?? (() => console.log('[SpeedDial] About clicked')),
+      // },
       {
         id: 'stats',
         label: 'Stats',
         iconName: 'bar-chart',
         onClick: options.onStats ?? (() => console.log('[SpeedDial] Stats clicked')),
+      },
+      {
+        id: 'feedback',
+        label: 'Feedback',
+        iconName: 'message-square',
+        onClick: options.onFeedback ?? (() => console.log('[SpeedDial] Feedback clicked')),
       },
     ];
 
@@ -135,7 +143,7 @@ export class SpeedDialSideGraphFloatingMenuView extends Disposable {
   /**
    * Create an SVG icon element
    */
-  private createIcon(name: 'sun' | 'moon' | 'settings' | 'download' | 'info' | 'bar-chart'): SVGElement {
+  private createIcon(name: 'sun' | 'moon' | 'settings' | 'download' | 'info' | 'bar-chart' | 'message-square'): SVGElement {
     const svg: SVGSVGElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('class', 'speed-dial-icon');
     svg.setAttribute('width', '20');
@@ -165,6 +173,7 @@ export class SpeedDialSideGraphFloatingMenuView extends Disposable {
       ],
       info: ['M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z', 'M12 16v-4', 'M12 8h.01'],
       'bar-chart': ['M12 20V10', 'M18 20V4', 'M6 20v-4'],
+      'message-square': ['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'],
     };
 
     paths[name].forEach((d) => {

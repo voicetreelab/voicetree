@@ -1,4 +1,5 @@
 {
+  "files": ["src/vite-env.d.ts"],
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "target": "ES2022",

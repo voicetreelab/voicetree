@@ -8,8 +8,8 @@ import {
     createEmptyStateOverlay,
     createStatsOverlay,
     createTitleBarDragRegion
-} from '../components/overlays/graphOverlays';
-import {SpeedDialSideGraphFloatingMenuView} from '../SpeedDialSideGraphFloatingMenuView';
+} from '@/shell/UI/views/components/overlays/graphOverlays';
+import {SpeedDialSideGraphFloatingMenuView} from '@/shell/UI/views/SpeedDialSideGraphFloatingMenuView';
 import {
     initGraphViewOverlays,
     setLoadingState
@@ -21,6 +21,7 @@ export interface SpeedDialCallbacks {
     onSettings: () => void;
     onAbout: () => void;
     onStats: () => void;
+    onFeedback: () => void;
 }
 
 export interface GraphViewDOMConfig {
@@ -53,24 +54,24 @@ export function setupGraphViewDOM(config: GraphViewDOMConfig): GraphViewDOMEleme
     container.appendChild(createTitleBarDragRegion());
 
     // Create speed dial menu
-    const speedDialMenu = new SpeedDialSideGraphFloatingMenuView(container, {
+    const speedDialMenu: SpeedDialSideGraphFloatingMenuView = new SpeedDialSideGraphFloatingMenuView(container, {
         ...speedDialCallbacks,
         isDarkMode
     });
 
     // Create overlays
-    const loadingResult = createLoadingOverlay();
-    const loadingOverlay = loadingResult.overlay;
-    const loadingMessageElement = loadingResult.messageElement;
+    const loadingResult: { overlay: HTMLElement; messageElement: HTMLElement } = createLoadingOverlay();
+    const loadingOverlay: HTMLElement = loadingResult.overlay;
+    const loadingMessageElement: HTMLElement = loadingResult.messageElement;
     container.appendChild(loadingOverlay);
 
-    const errorOverlay = createErrorOverlay();
+    const errorOverlay: HTMLElement = createErrorOverlay();
     container.appendChild(errorOverlay);
 
-    const emptyStateOverlay = createEmptyStateOverlay();
+    const emptyStateOverlay: HTMLElement = createEmptyStateOverlay();
     container.appendChild(emptyStateOverlay);
 
-    const statsOverlay = createStatsOverlay();
+    const statsOverlay: HTMLElement = createStatsOverlay();
     container.appendChild(statsOverlay);
 
     // Initialize overlay store and show loading state

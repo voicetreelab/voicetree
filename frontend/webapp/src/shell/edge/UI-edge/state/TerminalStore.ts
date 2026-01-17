@@ -1,5 +1,6 @@
 import {getTerminalId, type TerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 import type {NodeIdAndFilePath} from "@/pure/graph";
+import type {} from '@/shell/electron';
 import * as O from "fp-ts/lib/Option.js";
 import {type Option} from "fp-ts/lib/Option.js";
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
@@ -78,6 +79,12 @@ export function updateTerminal(
     const updated: TerminalData = { ...existing, ...updates };
     terminals.set(terminalId, updated);
     notifySubscribers();
+
+    // Sync isDone changes to main process for MCP list_agents
+    if (updates.isDone !== undefined && updates.isDone !== existing.isDone) {
+        void window.electronAPI?.main.updateTerminalIsDone(terminalId, updates.isDone);
+    }
+
     return updated;
 }
 

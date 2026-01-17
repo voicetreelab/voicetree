@@ -9,6 +9,7 @@ import type {
     TerminalData
 } from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import type {CreateEditorDataParams, EditorData} from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
+import type {CreateImageViewerDataParams, ImageViewerData} from "@/shell/edge/UI-edge/floating-windows/image-viewers/imageViewerDataType";
 
 // =============================================================================
 // Branded ID Types (for type safety)
@@ -16,6 +17,7 @@ import type {CreateEditorDataParams, EditorData} from "@/shell/edge/UI-edge/floa
 
 export type EditorId = string & { readonly __brand: 'EditorId' };
 export type TerminalId = string & { readonly __brand: 'TerminalId' };
+export type ImageViewerId = string & { readonly __brand: 'ImageViewerId' };
 export type ShadowNodeId = string & { readonly __brand: 'ShadowNodeId' };
 
 // =============================================================================
@@ -48,7 +50,7 @@ export type FloatingWindowFields = {
 // Union Type for FloatingWindow Content
 // =============================================================================
 
-export type FloatingWindowData = EditorData | TerminalData;
+export type FloatingWindowData = EditorData | TerminalData | ImageViewerData;
 
 // =============================================================================
 // Pure ID Derivation Functions (single source of truth)
@@ -62,12 +64,18 @@ export function getTerminalId(terminal: TerminalData): TerminalId {
     return `${terminal.attachedToNodeId}-terminal-${terminal.terminalCount}` as TerminalId;
 }
 
-export function getFloatingWindowId(fw: FloatingWindowData): EditorId | TerminalId {
-    return fw.type === 'Editor' ? getEditorId(fw) : getTerminalId(fw);
+export function getImageViewerId(imageViewer: ImageViewerData): ImageViewerId {
+    return `${imageViewer.imageNodeId}-image-viewer` as ImageViewerId;
 }
 
-export function getShadowNodeId(editorOrTerminalId: EditorId | TerminalId): ShadowNodeId {
-    return `${editorOrTerminalId}-anchor-shadowNode` as ShadowNodeId;
+export function getFloatingWindowId(fw: FloatingWindowData): EditorId | TerminalId | ImageViewerId {
+    if (fw.type === 'Editor') return getEditorId(fw);
+    if (fw.type === 'Terminal') return getTerminalId(fw);
+    return getImageViewerId(fw);
+}
+
+export function getShadowNodeId(floatingWindowId: EditorId | TerminalId | ImageViewerId): ShadowNodeId {
+    return `${floatingWindowId}-anchor-shadowNode` as ShadowNodeId;
 }
 
 // Convenience: get shadow node ID directly from FloatingWindowData
@@ -110,6 +118,17 @@ export function createTerminalData(params: CreateTerminalDataParams): TerminalDa
     };
 }
 
+export function createImageViewerData(params: CreateImageViewerDataParams): ImageViewerData {
+    return {
+        type: 'ImageViewer',
+        imageNodeId: params.imageNodeId,
+        title: params.title,
+        anchoredToNodeId: params.anchoredToNodeId ? O.some(params.anchoredToNodeId) : O.none,
+        resizable: params.resizable ?? true,
+        shadowNodeDimensions: params.shadowNodeDimensions ?? { width: 480, height: 400 },
+    };
+}
+
 // =============================================================================
 // Callback Types
 // =============================================================================
@@ -129,6 +148,18 @@ export function isTerminalData(fw: FloatingWindowData): fw is TerminalData {
     return fw.type === 'Terminal';
 }
 
+export function isImageViewerData(fw: FloatingWindowData): fw is ImageViewerData {
+    return fw.type === 'ImageViewer';
+}
+
 export function isAnchored(fw: FloatingWindowFields): boolean {
     return O.isSome(fw.anchoredToNodeId);
 }
+
+// =============================================================================
+// Re-exports for convenience
+// =============================================================================
+
+export type {EditorData, CreateEditorDataParams} from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
+export type {TerminalData, CreateTerminalDataParams} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
+export type {ImageViewerData, CreateImageViewerDataParams} from "@/shell/edge/UI-edge/floating-windows/image-viewers/imageViewerDataType";

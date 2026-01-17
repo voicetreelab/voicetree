@@ -70,6 +70,8 @@ export interface VTSettings {
      * These resolve relative to each project's watchedDirectory.
      */
     readonly defaultAllowlistPatterns?: readonly string[];
+    /** Whether the feedback dialog has been shown (persisted to avoid showing again) */
+    readonly feedbackDialogShown?: boolean;
 }
 
 /**
@@ -77,12 +79,15 @@ export interface VTSettings {
  *
  * writePath: The main vault (read + write). Can be relative to watchedDirectory or absolute.
  * readOnLinkPaths: Additional directories that are lazy-loaded (only show nodes when linked or toggled).
+ * showAllPaths: Paths where "show all" is enabled (overrides lazy loading to show all nodes).
  */
 export interface VaultConfig {
     /** Main vault path where new nodes are created. Can be relative or absolute. */
     readonly writePath: string;
     /** Additional paths for lazy loading - nodes appear when linked or when "show all" is toggled */
     readonly readOnLinkPaths: readonly string[];
+    /** Paths where "show all" is enabled - all nodes from these paths are visible regardless of links */
+    readonly showAllPaths?: readonly string[];
 }
 
 /**

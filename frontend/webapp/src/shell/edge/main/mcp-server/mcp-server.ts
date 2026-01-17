@@ -84,7 +84,7 @@ export async function listAgentsTool(): Promise<McpToolResponse> {
         terminalId: string
         title: string
         contextNodeId: string
-        status: 'running' | 'exited'
+        status: 'running' | 'idle' | 'exited'
         newNodes: Array<{nodeId: string; title: string}>
     }> = []
 
@@ -111,11 +111,19 @@ export async function listAgentsTool(): Promise<McpToolResponse> {
             }
         })
 
+        // Determine status: exited > idle (isDone) > running
+        // isDone reflects UI green indicator (no output for a period)
+        const status: 'running' | 'idle' | 'exited' = record.status === 'exited'
+            ? 'exited'
+            : record.terminalData.isDone
+                ? 'idle'
+                : 'running'
+
         agents.push({
             terminalId: record.terminalId,
             title: record.terminalData.title,
             contextNodeId,
-            status: record.status,
+            status,
             newNodes
         })
     }

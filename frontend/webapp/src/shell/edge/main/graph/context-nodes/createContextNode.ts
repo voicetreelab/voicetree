@@ -1,13 +1,13 @@
 import type {Graph, GraphDelta, NodeIdAndFilePath, GraphNode} from '@/pure/graph'
 import {getSubgraphByDistance, graphToAscii, makeBidirectionalEdges, CONTEXT_NODES_FOLDER} from '@/pure/graph'
-import {getNodeTitle} from '@/pure/graph/markdown-parsing'
+import {getNodeTitle, parseMarkdownToGraphNode} from '@/pure/graph/markdown-parsing'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
 import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'
 import {type VTSettings} from '@/pure/settings/types'
-import {fromCreateChildToUpsertNode} from '@/pure/graph/graphDelta/uiInteractionsToGraphDeltas'
+import {calculateInitialPositionForChild} from '@/pure/graph/positioning/calculateInitialPosition'
 import {uiAPI as _uiAPI} from '@/shell/edge/main/ui-api-proxy'
 import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
@@ -85,6 +85,7 @@ export async function createContextNode(
     const parentTitle: string = getNodeTitle(parentNode)
 
     // 6. EDGE: Build markdown content with frontmatter
+    // Context node is orphaned (no edges to task node) - terminal shadow will connect to it
     console.log("[createContextNode] Building content...")
     const content: string = buildContextNodeContent(
         parentNodeId,
@@ -95,17 +96,27 @@ export async function createContextNode(
     )
     console.log("[createContextNode] Content length:", content.length)
 
-    // 7. PURE: Create context node delta using fromCreateChildToUpsertNode
-    console.log("[createContextNode] Creating delta...")
-    console.log("[createContextNode] Bidirectional edge: context_node→parent added to content")
-    const contextNodeDelta: GraphDelta = fromCreateChildToUpsertNode(
-        currentGraph,
-        parentNode,
-        content,
-        contextNodeId
-    )
-    console.log("[createContextNode] Delta created with", contextNodeDelta.length, "actions")
-    console.log("[createContextNode] Edges in delta - parent outgoing:", parentNode.outgoingEdges.length + 1, "context outgoing: 1 (to parent)")
+    // 7. PURE: Create orphaned context node (no parent edge)
+    // The terminal's shadow node will create a cytoscape edge to this context node
+    console.log("[createContextNode] Creating delta for orphaned context node...")
+    const parsedNode: GraphNode = parseMarkdownToGraphNode(content, contextNodeId, currentGraph)
+    const contextNode: GraphNode = {
+        absoluteFilePathIsID: contextNodeId,
+        outgoingEdges: parsedNode.outgoingEdges,
+        contentWithoutYamlOrLinks: parsedNode.contentWithoutYamlOrLinks,
+        nodeUIMetadata: {
+            ...parsedNode.nodeUIMetadata,
+            position: calculateInitialPositionForChild(parentNode, currentGraph, undefined, 100),
+        },
+    }
+    const contextNodeDelta: GraphDelta = [
+        {
+            type: 'UpsertNode',
+            nodeToUpsert: contextNode,
+            previousNode: O.none
+        }
+    ]
+    console.log("[createContextNode] Delta created with", contextNodeDelta.length, "actions (orphaned, no parent edge)")
 
     // 8a. Notify UI immediately (before DB write, ensures node exists in Cytoscape for terminal anchoring)
     console.log("[createContextNode] BEFORE UIAPI")
@@ -143,17 +154,14 @@ function buildContextNodeContent(
         ? `containedNodeIds:\n${containedNodeIds.map(id => `  - ${id}`).join('\n')}\n`
         : ''
 
-    // Create bidirectional edge: context_node → parent_node
-    // This guards against race conditions where the parent → context_node edge might not render
-    // See: wed/1768545341682COh.md for the original bug report
-    const parentWikilink: string = `[[${parentNodeId}]]`
-
+    // Context node is orphaned - no wikilink edge to parent
+    // The terminal's shadow node will create a cytoscape edge to this context node
     return `---
 title: "Agent Context"
 isContextNode: true
 ${containedNodeIdsYaml}---
 # Agent Context
-Nearby nodes to: ${parentWikilink}
+Nearby nodes to: ${parentNodeId}
 \`\`\`
 ${asciiTree}
 \`\`\`

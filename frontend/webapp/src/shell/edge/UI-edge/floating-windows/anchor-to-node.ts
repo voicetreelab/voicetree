@@ -4,6 +4,8 @@ import {
     type FloatingWindowData,
     getFloatingWindowId,
     getShadowNodeId,
+    type ImageViewerId,
+    isTerminalData,
     type ShadowNodeId,
     type TerminalId
 } from "@/shell/edge/UI-edge/floating-windows/types";
@@ -50,7 +52,7 @@ export function anchorToNode(
     }
 
     // Derive shadow node ID from the floating window data
-    const fwId: EditorId | TerminalId = getFloatingWindowId(fw);
+    const fwId: EditorId | TerminalId | ImageViewerId = getFloatingWindowId(fw);
     const shadowNodeId: ShadowNodeId = getShadowNodeId(fwId);
 
     // Find best direction to spawn terminal based on available space and neighborhood
@@ -228,7 +230,7 @@ export function anchorToNode(
         'height': dimensions.height
     });
 
-    // Create edge from parent to shadow
+    // Create edge from parent (task node) to shadow
     cy.add({
         group: 'edges',
         data: {
@@ -237,6 +239,20 @@ export function anchorToNode(
             target: shadowNode.id()
         }
     });
+
+    // For terminals: create edge from shadow to context node (attachedToNodeId)
+    // This connects the terminal visually to its orphaned context node
+    if (isTerminalData(fw) && fw.attachedToNodeId !== parentNodeId) {
+        const contextNodeId: NodeIdAndFilePath = fw.attachedToNodeId;
+        cy.add({
+            group: 'edges',
+            data: {
+                id: `edge-${shadowNode.id()}-${contextNodeId}`,
+                source: shadowNode.id(),
+                target: contextNodeId
+            }
+        });
+    }
 
     // Set up ResizeObserver (window resize → shadow dimensions)
     // Only triggers layout for user-initiated resizes, not zoom-induced resizes

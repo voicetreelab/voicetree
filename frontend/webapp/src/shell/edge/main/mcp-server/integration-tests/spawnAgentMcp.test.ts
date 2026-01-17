@@ -173,7 +173,7 @@ describe('MCP list_agents tool', () => {
 
         const records: TerminalRecord[] = [
             {terminalId: 'agent-a-terminal-0', terminalData: terminalDataA, status: 'running'},
-            {terminalId: 'agent-b-terminal-1', terminalData: terminalDataB, status: 'exited'},
+            {terminalId: 'agent-b-terminal-1', terminalData: {...terminalDataB, isDone: true}, status: 'exited'},
             {terminalId: 'plain-terminal-0', terminalData: terminalDataPlain, status: 'running'}
         ]
 
@@ -229,5 +229,28 @@ describe('MCP list_agents tool', () => {
         const payload: {agents: unknown[]} = parsePayload(response) as {agents: unknown[]}
 
         expect(payload.agents).toEqual([])
+    })
+
+    it('returns idle status when agent is inactive (isDone: true, PTY running)', async () => {
+        const terminalData: TerminalData = createTerminalData({
+            attachedToNodeId: 'ctx-nodes/idle-agent.md',
+            terminalCount: 0,
+            title: 'Idle Agent',
+            executeCommand: true
+        })
+
+        const records: TerminalRecord[] = [
+            {terminalId: 'idle-agent-terminal-0', terminalData: {...terminalData, isDone: true}, status: 'running'}
+        ]
+
+        vi.mocked(getTerminalRecords).mockReturnValue(records)
+        vi.mocked(getUnseenNodesAroundContextNode).mockResolvedValue([])
+        vi.mocked(getGraph).mockReturnValue({nodes: {}, incomingEdgesIndex: new Map()} as Graph)
+
+        const response: McpToolResponse = await listAgentsTool()
+        const payload: {agents: Array<{status: string}>} = parsePayload(response) as {agents: Array<{status: string}>}
+
+        expect(payload.agents).toHaveLength(1)
+        expect(payload.agents[0]?.status).toBe('idle')
     })
 })
