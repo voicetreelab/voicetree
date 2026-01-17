@@ -15,6 +15,10 @@
  * - SearchService: Command palette integration
  */
 
+// TODO, WE REALLY WANT TO AVOID ADDING ANYTHING EVER TO THIS FILE
+// IF WE ADD IT TO THIS FILE, it's TECH DEBT
+// ALL NEW CODE SHOULD BE MOVED INTO FUNCTIONAL pure or edge
+
 import {Disposable} from './Disposable';
 import {EventEmitter} from './EventEmitter';
 import type {
@@ -59,24 +63,21 @@ import {
     setActiveTerminal
 } from './AgentTabsBar';
 import { subscribeToTerminalChanges } from '@/shell/edge/UI-edge/state/TerminalStore';
-import type { TerminalData, TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
+import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import {
-    updateHistoryFromDelta,
     createEmptyHistory,
-    type RecentNodeHistory, extractRecentNodesFromDelta
+    type RecentNodeHistory
 } from '@/pure/graph/recentNodeHistoryV2';
 import {createNewNodeAction, runTerminalAction, deleteSelectedNodesAction} from '@/shell/UI/cytoscape-graph-ui/actions/graphActions';
 import {getResponsivePadding} from '@/utils/responsivePadding';
 import {SpeedDialSideGraphFloatingMenuView} from './SpeedDialSideGraphFloatingMenuView';
-import type {Graph, GraphDelta} from '@/pure/graph';
+import type {Graph} from '@/pure/graph';
 import {createEmptyGraph} from '@/pure/graph/createGraph';
 import {MIN_ZOOM, MAX_ZOOM} from '@/shell/UI/cytoscape-graph-ui/constants';
 import {setupBasicCytoscapeEventListeners, setupCytoscape} from './VoiceTreeGraphViewHelpers';
-import {applyGraphDeltaToUI} from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI';
-import {clearCytoscapeState} from '@/shell/edge/UI-edge/graph/clearCytoscapeState';
+import {subscribeToGraphUpdates} from '@/shell/edge/UI-edge/graph/subscribeToGraphUpdates';
 import {createSettingsEditor} from "@/shell/edge/UI-edge/settings/createSettingsEditor";
-import type {ElectronAPI} from '@/shell/electron';
-import type {UpsertNodeDelta} from '@/pure/graph';
+import type {TerminalData} from '@/shell/electron';
 
 import {
     spawnBackupTerminal
@@ -87,10 +88,10 @@ import {getEditorByNodeId} from '@/shell/edge/UI-edge/state/EditorStore';
 import {getTerminalByNodeId} from '@/shell/edge/UI-edge/state/TerminalStore';
 import {closeTerminal, closeAllTerminals} from '@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI';
 import * as O from 'fp-ts/lib/Option.js';
-import type {EditorData} from '@/shell/edge/UI-edge/floating-windows/types';
 import {toggleVoiceRecording} from '@/shell/edge/UI-edge/state/VoiceRecordingController';
 import {DEFAULT_HOTKEYS} from '@/pure/settings/DEFAULT_SETTINGS';
 import type {HotkeySettings, VTSettings} from '@/pure/settings/types';
+import type {EditorData} from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
 
 /**
  * Main VoiceTreeGraphView implementation
@@ -216,7 +217,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
                 (nodeId) => this.cy.getElementById(nodeId).data('label') as string | undefined
             );
         };
-        document.addEventListener('pinned-editors-changed', handlePinnedEditorsChange);
+        document.addEventListener('pinned-editors-changed', handlePinnedEditorsChange); // todo this should not be an event listener, function should just be called directly
         this.cleanupPinnedEditorsListener = (): void => {
             document.removeEventListener('pinned-editors-changed', handlePinnedEditorsChange);
         };

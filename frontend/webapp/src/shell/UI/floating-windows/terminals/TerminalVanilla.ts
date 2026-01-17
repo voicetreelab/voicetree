@@ -5,10 +5,10 @@ import { ClipboardAddon } from '@xterm/addon-clipboard';
 import { SearchAddon } from '@xterm/addon-search';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import '@xterm/xterm/css/xterm.css';
-import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/types';
 import type { VTSettings } from '@/pure/settings';
 import { getCachedZoom, isZoomActive, subscribeToZoomChange, subscribeToZoomStart } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 import { getScalingStrategy, getTerminalFontSize } from '@/pure/floatingWindowScaling';
+import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 
 export interface TerminalVanillaConfig {
   terminalData: TerminalData;

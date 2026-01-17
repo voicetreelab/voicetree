@@ -7,13 +7,14 @@ import {
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
 import {getEditorByNodeId} from "@/shell/edge/UI-edge/state/EditorStore";
 import * as O from 'fp-ts/lib/Option.js';
-import {isAnchored, type EditorData} from "@/shell/edge/UI-edge/floating-windows/types";
 import {getFilePathForNode, getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
-import {Plus, Play, Trash2, Clipboard, ChevronDown, Edit2, X, Pin, Maximize, createElement, type IconNode} from 'lucide';
+import {Plus, Play, Trash2, Clipboard, ChevronDown, Edit2, createElement, type IconNode} from 'lucide';
 import {getOrCreateOverlay} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import {graphToScreenPosition, getWindowTransform, getTransformOrigin} from '@/pure/floatingWindowScaling';
 import type {AgentConfig} from "@/pure/settings";
 import {highlightContainedNodes, highlightPreviewNodes, clearContainedHighlights} from '@/shell/UI/cytoscape-graph-ui/highlightContextNodes';
+import {createTrafficLights, createTrafficLightsForTarget} from "@/shell/edge/UI-edge/floating-windows/traffic-lights";
+import type {EditorData} from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
 
 /** Menu item interface for the custom horizontal menu */
 export interface HorizontalMenuItem {
@@ -99,7 +100,7 @@ function createMenuItemElement(item: HorizontalMenuItem, onClose: () => void, al
         const hotkeyHint: HTMLSpanElement = document.createElement('span');
         hotkeyHint.style.cssText = `
             font-size: 10px;
-            color: #888;
+            color: var(--muted-foreground);
             opacity: 0.7;
         `;
         hotkeyHint.textContent = item.hotkey;
@@ -109,8 +110,9 @@ function createMenuItemElement(item: HorizontalMenuItem, onClose: () => void, al
     button.appendChild(labelContainer);
 
     // Hover effect - for horizontal menu, show label; for vertical, just highlight
+    // Use CSS variable for dark mode support
     button.addEventListener('mouseenter', () => {
-        button.style.background = 'rgba(0,0,0,0.1)';
+        button.style.background = 'var(--accent)';
         if (!alwaysShowLabel) {
             labelContainer.style.visibility = 'visible';
             labelContainer.style.opacity = '1';
@@ -278,18 +280,6 @@ export interface HorizontalMenuElements {
     readonly rightGroup: HTMLDivElement;
 }
 
-/** Context for traffic light button click handlers (optional) */
-export interface TrafficLightContext {
-    /** Called when Close button is clicked */
-    readonly onCloseClick: () => void;
-    /** Called when Pin button is clicked - receives current pin state, returns new state */
-    readonly onPinClick: () => boolean;
-    /** Called when Fullscreen button is clicked */
-    readonly onFullscreenClick: () => void;
-    /** Get initial pin state */
-    readonly isPinned: () => boolean;
-}
-
 /**
  * Create the horizontal menu DOM elements (left pill group + spacer + right pill group).
  * Returns the individual elements so they can be assembled into any container.
@@ -297,12 +287,12 @@ export interface TrafficLightContext {
  *
  * @param menuItems - Menu items to render
  * @param onClose - Callback when menu should close (for hover menus)
- * @param trafficLightContext - Optional context for traffic light button click handlers
+ * @param trafficLights - Optional traffic light buttons to append
  */
 export function createHorizontalMenuElement(
     menuItems: HorizontalMenuItem[],
     onClose: () => void,
-    trafficLightContext?: TrafficLightContext
+    trafficLights?: HTMLDivElement
 ): HorizontalMenuElements {
     // Create left group (first 3 buttons: Delete, Copy, Add)
     // Uses .horizontal-menu-pill CSS class for styling (supports dark mode)
@@ -346,55 +336,18 @@ export function createHorizontalMenuElement(
         }
     }
 
-    // Add traffic light buttons to right group (Close, Pin, Fullscreen)
-    // Phase 3: Styled as ~12px colored circles with tiny Lucide icons
-    const trafficLightClose: HTMLButtonElement = document.createElement('button');
-    trafficLightClose.className = 'traffic-light traffic-light-close';
-    trafficLightClose.type = 'button';
-    const closeIcon: SVGElement = createElement(X);
-    closeIcon.setAttribute('width', '8');
-    closeIcon.setAttribute('height', '8');
-    trafficLightClose.appendChild(closeIcon);
-    rightGroup.appendChild(trafficLightClose);
+    const defaultTrafficLights: HTMLDivElement = createTrafficLights({
+        onClose: () => {},
+        onPin: () => false,
+        isPinned: false,
+    });
+    const trafficLightContainer: HTMLDivElement = trafficLights ?? defaultTrafficLights;
 
-    const trafficLightPin: HTMLButtonElement = document.createElement('button');
-    trafficLightPin.className = 'traffic-light traffic-light-pin';
-    trafficLightPin.type = 'button';
-    const pinIcon: SVGElement = createElement(Pin);
-    pinIcon.setAttribute('width', '8');
-    pinIcon.setAttribute('height', '8');
-    trafficLightPin.appendChild(pinIcon);
-    rightGroup.appendChild(trafficLightPin);
-
-    const trafficLightFullscreen: HTMLButtonElement = document.createElement('button');
-    trafficLightFullscreen.className = 'traffic-light traffic-light-fullscreen';
-    trafficLightFullscreen.type = 'button';
-    const fullscreenIcon: SVGElement = createElement(Maximize);
-    fullscreenIcon.setAttribute('width', '8');
-    fullscreenIcon.setAttribute('height', '8');
-    trafficLightFullscreen.appendChild(fullscreenIcon);
-    rightGroup.appendChild(trafficLightFullscreen);
-
-    // Wire up traffic light click handlers if context is provided
-    if (trafficLightContext) {
-        // Close button - closes the floating window
-        trafficLightClose.addEventListener('click', (e: MouseEvent): void => {
-            e.stopPropagation();
-            trafficLightContext.onCloseClick();
-        });
-
-        // Pin button - toggles pin state
-        trafficLightPin.addEventListener('click', (e: MouseEvent): void => {
-            e.stopPropagation();
-            trafficLightContext.onPinClick();
-        });
-
-        // Fullscreen button - toggles fullscreen mode
-        trafficLightFullscreen.addEventListener('click', (e: MouseEvent): void => {
-            e.stopPropagation();
-            trafficLightContext.onFullscreenClick();
-        });
-    }
+    // Append buttons directly to preserve existing right-group structure
+    const trafficLightButtons: Element[] = Array.from(trafficLightContainer.children);
+    trafficLightButtons.forEach((button: Element) => {
+        rightGroup.appendChild(button);
+    });
 
     // Spacer in middle (gap for node circle, no background)
     const spacer: HTMLDivElement = document.createElement('div');
@@ -443,10 +396,10 @@ export class HorizontalMenuService {
                 return;
             }
 
-            // Skip hover menu if node has an anchored (pinned) editor open
-            // The menu is already visible on the floating window chrome
+            // Skip hover menu if node has any editor open (anchored or hover)
+            // Both editor types now have traffic lights in their window chrome
             const existingEditor: O.Option<EditorData> = getEditorByNodeId(nodeId);
-            if (O.isSome(existingEditor) && isAnchored(existingEditor.value)) {
+            if (O.isSome(existingEditor)) {
                 return;
             }
 
@@ -503,8 +456,14 @@ export class HorizontalMenuService {
 
         const closeMenu: () => void = () => this.hideMenu();
 
-        // Use extracted function to create menu elements
-        const { leftGroup, spacer, rightGroup } = createHorizontalMenuElement(menuItems, closeMenu);
+        const trafficLights: HTMLDivElement = createTrafficLightsForTarget({
+            kind: 'hover-menu',
+            nodeId,
+            cy: this.cy,
+            closeMenu,
+        });
+
+        const { leftGroup, spacer, rightGroup } = createHorizontalMenuElement(menuItems, closeMenu, trafficLights);
 
         // Assemble: left group, spacer, right group
         menu.appendChild(leftGroup);

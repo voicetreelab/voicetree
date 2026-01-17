@@ -18,17 +18,113 @@ import express, {type Express} from 'express'
 import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'
 
-import type {FSUpdate, Graph, GraphDelta} from '@/pure/graph'
+import type {FSUpdate, Graph, GraphDelta, GraphNode} from '@/pure/graph'
 import {addNodeToGraphWithEdgeHealingFromFSEvent} from '@/pure/graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent'
 import {getNodeTitle} from '@/pure/graph/markdown-parsing'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getDefaultWritePath, setVaultPath, getWatchedDirectory} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getUnseenNodesAroundContextNode, type UnseenNode} from '@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode'
+import {spawnTerminalWithContextNode} from '@/shell/edge/main/terminals/spawnTerminalWithContextNode'
+import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange";
 
 const MCP_PORT: 3001 = 3001 as const
+
+type McpToolResponse = {
+    content: Array<{type: 'text'; text: string}>
+    isError?: boolean
+}
+
+function buildJsonResponse(payload: unknown, isError?: boolean): McpToolResponse {
+    return {
+        content: [{type: 'text', text: JSON.stringify(payload)}],
+        isError
+    }
+}
+
+export async function spawnAgentTool({nodeId}: {nodeId: string}): Promise<McpToolResponse> {
+    const vaultPathOpt: O.Option<string> = await getDefaultWritePath()
+    if (O.isNone(vaultPathOpt)) {
+        return buildJsonResponse({
+            success: false,
+            error: 'Vault path not set. Call set_vault_path first.'
+        }, true)
+    }
+
+    const graph: Graph = getGraph()
+    if (!graph.nodes[nodeId]) {
+        return buildJsonResponse({
+            success: false,
+            error: `Node ${nodeId} not found.`
+        }, true)
+    }
+
+    try {
+        const {terminalId, contextNodeId}: {terminalId: string; contextNodeId: string} =
+            await spawnTerminalWithContextNode(nodeId)
+
+        return buildJsonResponse({
+            success: true,
+            terminalId,
+            nodeId,
+            contextNodeId,
+            message: `Spawned agent for node ${nodeId}`
+        })
+    } catch (error) {
+        const errorMessage: string = error instanceof Error ? error.message : String(error)
+        return buildJsonResponse({
+            success: false,
+            error: errorMessage
+        }, true)
+    }
+}
+
+export async function listAgentsTool(): Promise<McpToolResponse> {
+    const graph: Graph = getGraph()
+    const agents: Array<{
+        terminalId: string
+        title: string
+        contextNodeId: string
+        status: 'running' | 'exited'
+        newNodes: Array<{nodeId: string; title: string}>
+    }> = []
+
+    const terminalRecords: TerminalRecord[] = getTerminalRecords()
+    for (const record of terminalRecords) {
+        if (record.terminalData.executeCommand !== true) {
+            continue
+        }
+
+        const contextNodeId: string = record.terminalData.attachedToNodeId
+        let unseenNodes: readonly UnseenNode[] = []
+
+        try {
+            unseenNodes = await getUnseenNodesAroundContextNode(contextNodeId)
+        } catch (error) {
+            console.warn(`[MCP] Failed to fetch unseen nodes for ${contextNodeId}:`, error)
+        }
+
+        const newNodes: Array<{nodeId: string; title: string}> = unseenNodes.map((node: UnseenNode) => {
+            const graphNode: GraphNode | undefined = graph.nodes[node.nodeId]
+            return {
+                nodeId: node.nodeId,
+                title: graphNode ? getNodeTitle(graphNode) : node.nodeId
+            }
+        })
+
+        agents.push({
+            terminalId: record.terminalId,
+            title: record.terminalData.title,
+            contextNodeId,
+            status: record.status,
+            newNodes
+        })
+    }
+
+    return buildJsonResponse({agents})
+}
 
 /**
  * Creates and configures the MCP server with VoiceTree tools.
@@ -201,6 +297,30 @@ export function createMcpServer(): McpServer {
                 }]
             }
         }
+    )
+
+    // Tool: spawn_agent
+    server.registerTool(
+        'spawn_agent',
+        {
+            title: 'Spawn Agent',
+            description: 'Spawn a coding agent terminal attached to an existing graph node.',
+            inputSchema: {
+                nodeId: z.string().describe('Target node ID to attach the spawned agent')
+            }
+        },
+        spawnAgentTool
+    )
+
+    // Tool: list_agents
+    server.registerTool(
+        'list_agents',
+        {
+            title: 'List Agents',
+            description: 'List running agent terminals with their status and newly created nodes.',
+            inputSchema: {}
+        },
+        listAgentsTool
     )
 
     // Tool: get_unseen_nodes_around_context_node

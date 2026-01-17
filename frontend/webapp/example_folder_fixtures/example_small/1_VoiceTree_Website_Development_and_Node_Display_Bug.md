@@ -1,7 +1,7 @@
 ---
 position:
-  x: 459.1406736089843
-  y: -235.69624968641185
+  x: 466.03223171635113
+  y: -348.34854939731554
 isContextNode: false
 node_id: 1
 ---
@@ -26,3 +26,4 @@ _Links:_
 [[ctx-nodes/1_VoiceTree_Website_Development_and_Node_Display_Bug_context_1768120799754.md]]
 [[ctx-nodes/1_VoiceTree_Website_Development_and_Node_Display_Bug_context_1768120814801.md]]
 [[ctx-nodes/1_VoiceTree_Website_Development_and_Node_Display_Bug_context_1768120819816.md]]
+[[ctx-nodes/1_VoiceTree_Website_Development_and_Node_Display_Bug_context_1768628572107.md]]

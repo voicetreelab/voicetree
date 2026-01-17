@@ -1,7 +1,8 @@
-import {getTerminalId, type TerminalId, type TerminalData} from "@/shell/edge/UI-edge/floating-windows/types";
+import {getTerminalId, type TerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 import type {NodeIdAndFilePath} from "@/pure/graph";
 import * as O from "fp-ts/lib/Option.js";
 import {type Option} from "fp-ts/lib/Option.js";
+import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 
 const terminals: Map<TerminalId, TerminalData> = new Map<TerminalId, TerminalData>();
 

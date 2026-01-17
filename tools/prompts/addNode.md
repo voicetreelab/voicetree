@@ -21,7 +21,7 @@ Always include a list of all the file paths you have modified.
 2. If the changes involve architectural changes, include a mermaid diagram for visual representation of the change/architecture/flow. Do not include a diagram if it's easier to explain as text.
 
 Create the following markdown file:
-```$VOICETREE_VAULT_PATH/{node_title}.md
+```$VOICETREE_VAULT_PATH/{node_title_sluggified}.md
 
 <MARKDOWN new node Format Template>
 ---
@@ -29,7 +29,9 @@ color: $AGENT_COLOR ?? blue
 agent_name: $AGENT_NAME
 ---
 
-## Summary, concise high level description of what was accomplished
+# {Title}
+
+## {Summary, concise high level description of what was accomplished}
 
 Key details such as specifications, decisions made, plans, outcomes, etc.
 

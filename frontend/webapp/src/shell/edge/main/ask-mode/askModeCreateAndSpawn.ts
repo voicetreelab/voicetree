@@ -9,7 +9,6 @@ import {findFirstParentNode} from '@/pure/graph/graph-operations/findFirstParent
 import {resolveEnvVars, expandEnvVarsInValues} from '@/pure/settings';
 import type {VTSettings} from '@/pure/settings/types';
 import {getRandomAgentName} from '@/pure/settings/types';
-import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/types';
 import {createTerminalData} from '@/shell/edge/UI-edge/floating-windows/types';
 import {getAppSupportPath} from '@/shell/edge/main/state/app-electron-state';
 import {getGraph} from '@/shell/edge/main/state/graph-store';
@@ -17,6 +16,7 @@ import {getWatchStatus, getWatchedDirectory} from '@/shell/edge/main/graph/watch
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
 import {createContextNodeFromQuestion} from '@/shell/edge/main/graph/context-nodes/createContextNodeFromQuestion';
+import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 
 /**
  * Resolve a node ID to match graph keys using fallback strategies.

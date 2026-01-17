@@ -25,6 +25,7 @@ import {registerTerminalIpcHandlers} from '@/shell/edge/main/terminals/ipc-termi
 import {setupRPCHandlers} from '@/shell/edge/main/edge-auto-rpc/rpc-handler';
 import {writeAllPositionsSync} from '@/shell/edge/main/graph/writeAllPositionsOnExit';
 import {getGraph} from '@/shell/edge/main/state/graph-store';
+import {startMcpServer} from '@/shell/edge/main/mcp-server/mcp-server';
 
 
 // Fix PATH for macOS/Linux GUI apps
@@ -375,7 +376,7 @@ void app.whenReady().then(async () => {
     setupApplicationMenu();
 
     // Start MCP server in-process (shares graph state with Electron)
-    // void startMcpServer();
+    void startMcpServer();
 
     // Set dock icon for macOS (BrowserWindow icon property doesn't work on macOS)
     if (process.platform === 'darwin' && app.dock) {

@@ -3,7 +3,8 @@ import ctxmenu from '@/shell/UI/lib/ctxmenu.js';
 import {mergeSelectedNodesFromUI} from "@/shell/edge/UI-edge/graph/mergeSelectedNodesFromUI";
 import {deleteSelectedNodesAction} from "@/shell/UI/cytoscape-graph-ui/actions/graphActions";
 import {getNextTerminalCount, getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
-import type {TerminalData, TerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
+import type {TerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
+import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 
 export interface Position {
     x: number;

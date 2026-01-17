@@ -9,7 +9,6 @@ import {createNewNodeNoParent} from '@/pure/graph/graphDelta/uiInteractionsToGra
 import {getNodeTitle} from '@/pure/graph/markdown-parsing';
 import {resolveEnvVars, expandEnvVarsInValues} from '@/pure/settings';
 import type {VTSettings} from '@/pure/settings/types';
-import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/types';
 import {createTerminalData} from '@/shell/edge/UI-edge/floating-windows/types';
 import {getAppSupportPath} from '@/shell/edge/main/state/app-electron-state';
 import {getGraph} from '@/shell/edge/main/state/graph-store';
@@ -19,6 +18,7 @@ import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
 import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange';
+import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 
 export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCount: number): Promise<void> {
   const settings: VTSettings = await loadSettings();

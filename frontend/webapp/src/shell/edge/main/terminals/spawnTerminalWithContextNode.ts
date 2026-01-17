@@ -23,13 +23,14 @@ import { loadSettings } from '@/shell/edge/main/settings/settings_IO';
 import { getWatchStatus, getWatchedDirectory, getDefaultWritePath, getVaultPaths } from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import { getAppSupportPath } from '@/shell/edge/main/state/app-electron-state';
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy';
-import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/types';
-import { createTerminalData } from '@/shell/edge/UI-edge/floating-windows/types';
+import { createTerminalData, getTerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import type { NodeIdAndFilePath, GraphNode, Graph } from '@/pure/graph';
 import { getNodeTitle } from '@/pure/graph/markdown-parsing';
 import { findFirstParentNode } from '@/pure/graph/graph-operations/findFirstParentNode';
 import type { VTSettings } from '@/pure/settings';
 import { resolveEnvVars, expandEnvVarsInValues } from '@/pure/settings';
+import { getNextTerminalCountForNode } from '@/shell/edge/main/terminals/terminal-registry';
+import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 
 /**
  * Spawn a terminal with a context node, orchestrated from main process
@@ -45,8 +46,8 @@ import { resolveEnvVars, expandEnvVarsInValues } from '@/pure/settings';
 export async function spawnTerminalWithContextNode(
     parentNodeId: NodeIdAndFilePath,
     agentCommand: string | undefined,
-    terminalCount: number
-): Promise<void> {
+    terminalCount?: number
+): Promise<{terminalId: string; contextNodeId: NodeIdAndFilePath}> {
     // Load settings to get agents
     const settings: VTSettings = await loadSettings();
     if (!settings) {
@@ -78,9 +79,13 @@ export async function spawnTerminalWithContextNode(
     }
 
     // Prepare terminal data (main has immediate access to all state)
+    const resolvedTerminalCount: number = typeof terminalCount === 'number'
+        ? terminalCount
+        : getNextTerminalCountForNode(contextNodeId)
+
     const terminalData: TerminalData = await prepareTerminalDataInMain(
         contextNodeId,
-        terminalCount,
+        resolvedTerminalCount,
         command,
         settings
     );
@@ -92,6 +97,11 @@ export async function spawnTerminalWithContextNode(
     // Call UI to launch terminal (via UI API pattern)
     // Note: uiAPI sends IPC message, no need to await (fire-and-forget)
     void uiAPI.launchTerminalOntoUI(contextNodeId, terminalData);
+
+    return {
+        terminalId: getTerminalId(terminalData),
+        contextNodeId
+    }
 }
 
 /**
