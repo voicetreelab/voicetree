@@ -74,14 +74,15 @@ export interface VTSettings {
 
 /**
  * Per-folder vault configuration for multi-vault support.
- * All paths are stored as RELATIVE to the watchedDirectory for portability.
- * They are converted to absolute paths at runtime when loading.
+ *
+ * writePath: The main vault (read + write). Can be relative to watchedDirectory or absolute.
+ * readOnLinkPaths: Additional directories that are lazy-loaded (only show nodes when linked or toggled).
  */
 export interface VaultConfig {
-    /** Relative paths (to watchedDirectory) to watch and display in graph */
-    readonly allowlist: readonly string[];
-    /** One path from allowlist designated for new node creation */
+    /** Main vault path where new nodes are created. Can be relative or absolute. */
     readonly writePath: string;
+    /** Additional paths for lazy loading - nodes appear when linked or when "show all" is toggled */
+    readonly readOnLinkPaths: readonly string[];
 }
 
 /**

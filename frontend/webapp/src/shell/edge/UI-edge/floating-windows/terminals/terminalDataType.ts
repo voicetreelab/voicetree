@@ -26,4 +26,5 @@ export type CreateTerminalDataParams = {
     readonly executeCommand?: boolean;
     readonly resizable?: boolean; // defaults to true
     readonly shadowNodeDimensions?: { width: number; height: number };
+    readonly isPinned?: boolean; // defaults to true
 };

@@ -77,12 +77,12 @@ describe('StyleService', () => {
       const nodeStyle: { selector: string; style: Record<string, unknown>; } | undefined = stylesheet.find(s => s.selector === 'node');
       const edgeStyle: { selector: string; style: Record<string, unknown>; } | undefined = stylesheet.find(s => s.selector === 'edge');
 
-      // In dark mode, text should be light (#dcddde)
-      expect(nodeStyle?.style.color).toBe('#dcddde');
-      expect(edgeStyle?.style.color).toBe('#dcddde');
-      // In dark mode, edge lines should be lighter (#8a8a8a) for visibility
-      expect(edgeStyle?.style['line-color']).toBe('#8a8a8a');
-      expect(edgeStyle?.style['target-arrow-color']).toBe('#8a8a8a');
+      // In dark mode, text should be soft off-white (#c5c8cc)
+      expect(nodeStyle?.style.color).toBe('#c5c8cc');
+      expect(edgeStyle?.style.color).toBe('#c5c8cc');
+      // In dark mode, edge lines should be subtle (#505558) for better blending
+      expect(edgeStyle?.style['line-color']).toBe('#505558');
+      expect(edgeStyle?.style['target-arrow-color']).toBe('#505558');
 
       // Cleanup
       document.documentElement.classList.remove('dark');
@@ -109,8 +109,8 @@ describe('StyleService', () => {
 
       const nodeStyle: { selector: string; style: Record<string, unknown>; } | undefined = stylesheet.find(s => s.selector === 'node');
 
-      // Should still use light text color because dark class is present
-      expect(nodeStyle?.style.color).toBe('#dcddde');
+      // Should still use soft off-white text color because dark class is present
+      expect(nodeStyle?.style.color).toBe('#c5c8cc');
 
       // Cleanup
       document.documentElement.classList.remove('dark');
@@ -199,7 +199,7 @@ describe('StyleService', () => {
       expect(edgeStyle?.style).toHaveProperty('line-color');
       expect(edgeStyle?.style).toHaveProperty('target-arrow-shape', 'triangle');
       expect(edgeStyle?.style).toHaveProperty('target-arrow-fill', 'hollow');
-      expect(edgeStyle?.style).toHaveProperty('line-opacity', 0.3);
+      expect(edgeStyle?.style).toHaveProperty('line-opacity', 0.5); // Increased for better visibility in dark mode
       expect(edgeStyle?.style).toHaveProperty('curve-style', 'straight');
 
       // Self-loop hiding

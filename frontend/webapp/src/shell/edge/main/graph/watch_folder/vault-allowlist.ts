@@ -1,10 +1,10 @@
 /**
- * Vault allowlist management.
+ * Vault path management.
  *
- * Handles CRUD operations for the vault allowlist:
- * - Adding/removing vault paths from the allowlist
- * - Managing the write path (where new nodes are created)
- * - Resolving allowlist configuration for a project
+ * Handles CRUD operations for vault paths:
+ * - Managing the write path (main vault for new node creation)
+ * - Managing readOnLinkPaths (additional paths for linking)
+ * - Resolving path configuration for a project
  */
 
 import path from "path";
@@ -34,34 +34,48 @@ import {
 } from "./voicetree-config-io";
 
 /**
- * Get all vault paths in the allowlist.
+ * Resolve a writePath to an absolute path.
+ * If writePath is relative, it's resolved against watchedFolder.
+ * If writePath is absolute, it's returned unchanged.
+ */
+export function resolveWritePath(watchedFolder: string, writePath: string): string {
+    return path.isAbsolute(writePath)
+        ? writePath
+        : path.join(watchedFolder, writePath);
+}
+
+/**
+ * Get all vault paths (writePath + readOnLinkPaths).
  * Reads directly from config file (source of truth).
  */
 export async function getVaultPaths(): Promise<readonly FilePath[]> {
     const watchedDir: FilePath | null = getWatchedDirectory();
     if (!watchedDir) return [];
     const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
-    return config?.allowlist ?? [];
+    if (!config) return [];
+    // Return writePath + all readOnLinkPaths
+    const resolvedWritePath: string = resolveWritePath(watchedDir, config.writePath);
+    return [resolvedWritePath, ...config.readOnLinkPaths];
 }
 
 /**
  * Get the write path (where new nodes are created).
  * Reads directly from config file (source of truth).
- * Falls back to the primary vault path if not explicitly set.
+ * Falls back to the watched directory if not explicitly set.
  */
 export async function getWritePath(): Promise<O.Option<FilePath>> {
     const watchedDir: FilePath | null = getWatchedDirectory();
     if (!watchedDir) return O.none;
     const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
     if (config?.writePath) {
-        return O.some(config.writePath);
+        return O.some(resolveWritePath(watchedDir, config.writePath));
     }
-    // Fallback to primary vault path (backward compatibility)
-    return getVaultPath();
+    // Fallback to watched directory
+    return O.some(watchedDir);
 }
 
 /**
- * Set the write path. Must be in the allowlist.
+ * Set the write path.
  */
 export async function setWritePath(vaultPath: FilePath): Promise<{ success: boolean; error?: string }> {
     const watchedDir: FilePath | null = getWatchedDirectory();
@@ -70,18 +84,11 @@ export async function setWritePath(vaultPath: FilePath): Promise<{ success: bool
     }
 
     const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
-    if (!config) {
-        return { success: false, error: 'No vault config found' };
-    }
-
-    if (!config.allowlist.includes(vaultPath)) {
-        return { success: false, error: 'Path must be in the allowlist' };
-    }
 
     // Save to config (source of truth)
     await saveVaultConfigForDirectory(watchedDir, {
-        allowlist: config.allowlist,
-        writePath: vaultPath
+        writePath: vaultPath,
+        readOnLinkPaths: config?.readOnLinkPaths ?? []
     });
 
     // Notify backend so it writes new nodes to the correct directory
@@ -91,7 +98,7 @@ export async function setWritePath(vaultPath: FilePath): Promise<{ success: bool
 }
 
 /**
- * Add a vault path to the allowlist.
+ * Add a vault path to readOnLinkPaths.
  * If the path doesn't exist, it will be created.
  * Automatically loads files from the new path into the graph and adds to watcher.
  *
@@ -107,12 +114,12 @@ export async function addVaultPathToAllowlist(vaultPath: FilePath): Promise<{ su
     }
 
     const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
-    if (!config) {
-        return { success: false, error: 'No vault config found' };
-    }
+    const currentReadOnLinkPaths: readonly string[] = config?.readOnLinkPaths ?? [];
+    const currentWritePath: string = config?.writePath ?? watchedDir;
 
-    // Check if already in allowlist
-    if (config.allowlist.includes(vaultPath)) {
+    // Check if already in readOnLinkPaths or is the writePath
+    const resolvedWritePath: string = resolveWritePath(watchedDir, currentWritePath);
+    if (currentReadOnLinkPaths.includes(vaultPath) || vaultPath === resolvedWritePath) {
         return { success: false, error: 'Path already in allowlist' };
     }
 
@@ -123,7 +130,7 @@ export async function addVaultPathToAllowlist(vaultPath: FilePath): Promise<{ su
         return { success: false, error: `Failed to create directory: ${err instanceof Error ? err.message : 'Unknown error'}` };
     }
 
-    const newAllowlist: readonly string[] = [...config.allowlist, vaultPath];
+    const newReadOnLinkPaths: readonly string[] = [...currentReadOnLinkPaths, vaultPath];
 
     // Load files from the new path into the graph using bulk load path
     const existingGraph: Graph = getGraph();
@@ -138,8 +145,8 @@ export async function addVaultPathToAllowlist(vaultPath: FilePath): Promise<{ su
 
     // Save to config (source of truth)
     await saveVaultConfigForDirectory(watchedDir, {
-        allowlist: newAllowlist,
-        writePath: config.writePath
+        writePath: currentWritePath,
+        readOnLinkPaths: newReadOnLinkPaths
     });
 
     const { graph: mergedGraph, delta } = loadResult.right;
@@ -163,8 +170,8 @@ export async function addVaultPathToAllowlist(vaultPath: FilePath): Promise<{ su
 }
 
 /**
- * Remove a vault path from the allowlist.
- * Cannot remove the default write path.
+ * Remove a vault path from readOnLinkPaths.
+ * Cannot remove the write path.
  * Immediately removes nodes from that vault from the graph.
  */
 export async function removeVaultPathFromAllowlist(vaultPath: FilePath): Promise<{ success: boolean; error?: string }> {
@@ -178,12 +185,15 @@ export async function removeVaultPathFromAllowlist(vaultPath: FilePath): Promise
         return { success: false, error: 'No vault config found' };
     }
 
-    if (!config.allowlist.includes(vaultPath)) {
-        return { success: false, error: 'Path not in allowlist' };
+    const resolvedWritePath: string = resolveWritePath(watchedDir, config.writePath);
+
+    // Cannot remove the write path
+    if (vaultPath === resolvedWritePath) {
+        return { success: false, error: 'Cannot remove write path' };
     }
 
-    if (vaultPath === config.writePath) {
-        return { success: false, error: 'Cannot remove write path' };
+    if (!config.readOnLinkPaths.includes(vaultPath)) {
+        return { success: false, error: 'Path not in allowlist' };
     }
 
     // Remove nodes from the graph that belong to this vault path
@@ -210,26 +220,24 @@ export async function removeVaultPathFromAllowlist(vaultPath: FilePath): Promise
         uiAPI.fitViewport();
     }
 
-    const newAllowlist: readonly string[] = config.allowlist.filter((p: string) => p !== vaultPath);
+    const newReadOnLinkPaths: readonly string[] = config.readOnLinkPaths.filter((p: string) => p !== vaultPath);
 
     // Save to config (source of truth)
     await saveVaultConfigForDirectory(watchedDir, {
-        allowlist: newAllowlist,
-        writePath: config.writePath
+        writePath: config.writePath,
+        readOnLinkPaths: newReadOnLinkPaths
     });
 
     return { success: true };
 }
 
 /**
- * Resolve the full vault path allowlist for a project.
+ * Resolve the vault path configuration for a project.
  *
  * If saved vault config exists, it is authoritative - use it directly.
- * This ensures user removals persist across reloads.
+ * This ensures user changes persist across reloads.
  *
- * If no saved config, build default allowlist from:
- * 1. The watched directory itself (or auto-created subfolder if file limit exceeded)
- * 2. Global default patterns from settings (e.g., "openspec")
+ * If no saved config, return null so caller can attempt loading directly.
  */
 export async function resolveAllowlistForProject(
     watchedDir: string
@@ -237,43 +245,40 @@ export async function resolveAllowlistForProject(
     const savedVaultConfig: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
 
     // If no saved config exists, return null so caller can attempt loading directly
-    if (!savedVaultConfig?.allowlist || savedVaultConfig.allowlist.length === 0) {
+    if (!savedVaultConfig?.writePath) {
         return null;
     }
 
-    // Filter to paths that still exist on disk
-    // Handle migration: resolve relative paths to absolute
-    const allowlist: string[] = [];
-    for (const savedPath of savedVaultConfig.allowlist) {
-        // Resolve relative paths to absolute using watchedDir as base
+    // Resolve writePath to absolute
+    const absoluteWritePath: string = resolveWritePath(watchedDir, savedVaultConfig.writePath);
+
+    // Check if writePath still exists on disk
+    try {
+        await fs.access(absoluteWritePath);
+    } catch {
+        // Write path no longer exists, return null to retry fresh
+        return null;
+    }
+
+    // Filter readOnLinkPaths to those that still exist on disk
+    const validReadOnLinkPaths: string[] = [];
+    for (const savedPath of savedVaultConfig.readOnLinkPaths) {
         const absolutePath: string = path.isAbsolute(savedPath)
             ? savedPath
             : path.join(watchedDir, savedPath);
         try {
             await fs.access(absolutePath);
-            allowlist.push(absolutePath);
+            validReadOnLinkPaths.push(absolutePath);
         } catch {
             // Path no longer exists on disk, skip
         }
     }
 
-    // If all saved paths were deleted from disk, return null to retry fresh
-    if (allowlist.length === 0) {
-        return null;
-    }
-
-    // Resolve relative write path to absolute
-    const absoluteWritePath: string | undefined = savedVaultConfig.writePath
-        ? (path.isAbsolute(savedVaultConfig.writePath) ? savedVaultConfig.writePath : path.join(watchedDir, savedVaultConfig.writePath))
-        : undefined;
-
-    // Use saved write path if it's still in the allowlist, otherwise use first allowlist entry
-    const resolvedWritePath: string =
-        absoluteWritePath && allowlist.includes(absoluteWritePath)
-            ? absoluteWritePath
-            : allowlist[0];
-
-    return { allowlist, writePath: resolvedWritePath };
+    // Return combined allowlist (writePath + readOnLinkPaths) for backwards compatibility
+    return {
+        allowlist: [absoluteWritePath, ...validReadOnLinkPaths],
+        writePath: absoluteWritePath
+    };
 }
 
 // Returns the watched directory (project root).

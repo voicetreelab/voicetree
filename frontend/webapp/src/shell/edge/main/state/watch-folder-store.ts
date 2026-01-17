@@ -4,15 +4,12 @@
  * Contains the mutable state needed for watching markdown files:
  * - File watcher instance (chokidar)
  * - Currently watched directory path
- * - Current vault suffix
  * - Startup folder override (CLI arg)
  * - Folder switch cleanup callback
  */
 
 import type { FSWatcher } from "chokidar";
 import type { FilePath } from "@/pure/graph";
-
-export const DEFAULT_VAULT_SUFFIX: string = "";
 
 // File watcher instance
 let watcher: FSWatcher | null = null;
@@ -34,17 +31,6 @@ export const getWatchedDirectory: () => FilePath | null = (): FilePath | null =>
 
 export const setWatchedDirectory: (dir: FilePath | null) => void = (dir: FilePath | null): void => {
     watchedDirectory = dir;
-};
-
-// Current vault suffix (appended to watchedDirectory to get vault path)
-let currentVaultSuffix: string = DEFAULT_VAULT_SUFFIX;
-
-export const getCurrentVaultSuffix: () => string = (): string => {
-    return currentVaultSuffix;
-};
-
-export const setCurrentVaultSuffix: (suffix: string) => void = (suffix: string): void => {
-    currentVaultSuffix = suffix;
 };
 
 // CLI argument override for opening a specific folder on startup (used by "Open Folder in New Instance")
@@ -75,7 +61,6 @@ export const setOnFolderSwitchCleanup: (cleanup: (() => void) | null) => void = 
 export const clearWatchFolderState: () => void = (): void => {
     watcher = null;
     watchedDirectory = null;
-    currentVaultSuffix = DEFAULT_VAULT_SUFFIX;
     startupFolderOverride = null;
     onFolderSwitchCleanup = null;
 };

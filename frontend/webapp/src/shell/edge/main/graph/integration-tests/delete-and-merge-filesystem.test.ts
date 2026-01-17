@@ -115,8 +115,6 @@ vi.mock('@/shell/edge/main/graph/watchFolder', () => {
         loadPreviousFolder: vi.fn().mockResolvedValue({ success: false }),
         isWatching: vi.fn(() => false),
         getWatchedDirectory: () => tempVault || null,
-        getVaultSuffix: vi.fn(() => 'voicetree'),
-        setVaultSuffix: vi.fn().mockResolvedValue({ success: true }),
         loadFolder: vi.fn().mockResolvedValue(undefined)
     }
 })

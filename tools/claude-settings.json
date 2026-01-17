@@ -4,8 +4,8 @@
       {
         "hooks": [
           {
-            "type": "prompt",
-            "prompt": "Reminder to create a progress node"
+            "type": "command",
+            "command": "echo '{\"ok\":true,\"reason\":\"Remember to create a progress node before stopping!\"}'"
           }
         ]
       }

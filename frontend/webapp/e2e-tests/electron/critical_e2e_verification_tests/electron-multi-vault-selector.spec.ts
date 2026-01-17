@@ -211,7 +211,7 @@ test.describe('Multi-Vault VaultPathSelector E2E', () => {
     const initialDefaultPath = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      const result = await api.main.getDefaultWritePath();
+      const result = await api.main.getWritePath();
       // Handle fp-ts Option type
       if (result && typeof result === 'object' && '_tag' in result) {
         return (result as { _tag: string; value?: string })._tag === 'Some' ? (result as { value: string }).value : null;
@@ -244,7 +244,7 @@ test.describe('Multi-Vault VaultPathSelector E2E', () => {
     const newDefaultPath = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      const result = await api.main.getDefaultWritePath();
+      const result = await api.main.getWritePath();
       // Handle fp-ts Option type
       if (result && typeof result === 'object' && '_tag' in result) {
         return (result as { _tag: string; value?: string })._tag === 'Some' ? (result as { value: string }).value : null;

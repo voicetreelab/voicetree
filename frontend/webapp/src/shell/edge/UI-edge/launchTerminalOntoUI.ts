@@ -28,10 +28,13 @@ function navigateToTerminalNeighborhood(cy: Core, contextNodeId: string, termina
  *
  * Only one terminal is allowed per context node. If a terminal already exists
  * for this context node, focus it instead of creating a new one.
+ *
+ * @param skipFitAnimation - If true, skip navigating viewport to the terminal (used for MCP spawns)
  */
 export async function launchTerminalOntoUI(
     contextNodeId: string,
-    terminalData: TerminalData
+    terminalData: TerminalData,
+    skipFitAnimation?: boolean
 ): Promise<void> {
     console.log("BEFORE LAUNCH UI")
     const cy: Core = getCyInstance();
@@ -70,8 +73,11 @@ export async function launchTerminalOntoUI(
 
         // Navigate to terminal neighborhood twice with delays to handle IPC race condition
         // (context node may not exist in Cytoscape yet when this runs)
-        setTimeout(() => navigateToTerminalNeighborhood(cy, contextNodeId, terminalId), 600);
-        setTimeout(() => navigateToTerminalNeighborhood(cy, contextNodeId, terminalId), 1100);
+        // Skip navigation for MCP spawns to avoid interrupting user's viewport
+        if (!skipFitAnimation) {
+            setTimeout(() => navigateToTerminalNeighborhood(cy, contextNodeId, terminalId), 600);
+            setTimeout(() => navigateToTerminalNeighborhood(cy, contextNodeId, terminalId), 1100);
+        }
 
         // Auto-focus the terminal after launch (500ms delay to avoid race with PTY initialization)
         setTimeout(() => {

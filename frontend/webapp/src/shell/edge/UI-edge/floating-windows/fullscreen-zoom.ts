@@ -46,7 +46,7 @@ function isAlreadyFullscreenedOnNode(cy: Core, shadowNode: CollectionReturnValue
     const nodeHeight: number = bb.y2 - bb.y1;
     const containerWidth: number = cy.width();
     const containerHeight: number = cy.height();
-    const padding: number = getResponsivePadding(cy, 2);
+    const padding: number = getResponsivePadding(cy, 3);
 
     const fitZoomX: number = (containerWidth - 2 * padding) / nodeWidth;
     const fitZoomY: number = (containerHeight - 2 * padding) / nodeHeight;
@@ -102,7 +102,7 @@ export function attachFullscreenZoom(
         } else {
             // Not zoomed in → capture state and zoom in to window
             windowViewportStates.set(shadowNodeId, { zoom: cy.zoom(), pan: cy.pan() });
-            cy.fit(shadowNode, getResponsivePadding(cy, 2));
+            cy.fit(shadowNode, getResponsivePadding(cy, 3));
 
             // Add ESC handler only if enabled (terminals yes, editors no due to vim)
             if (enableEscapeKey) {

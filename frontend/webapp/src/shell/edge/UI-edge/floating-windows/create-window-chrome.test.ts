@@ -536,14 +536,15 @@ describe('createWindowChrome', () => {
                 expect(contextBadge).not.toBeNull();
             });
 
-            it('should have clipboard icon in context badge', () => {
+            it('should have context badge with title only (no icon)', () => {
                 const result: FloatingWindowUIData = createWindowChrome(cy, contextTerminalData, contextTerminalId);
 
                 const contextBadge: Element | null = result.windowElement.querySelector('.terminal-context-badge');
                 expect(contextBadge).not.toBeNull();
 
-                const icon: Element | null = contextBadge!.querySelector('svg');
-                expect(icon).not.toBeNull();
+                // Context badge now only has title, no icon
+                const titleSpan: Element | null = contextBadge!.querySelector('.terminal-context-badge-title');
+                expect(titleSpan).not.toBeNull();
             });
 
             it('should show truncated title in context badge (max 20 chars)', () => {
@@ -558,7 +559,7 @@ describe('createWindowChrome', () => {
             });
         });
 
-        describe('Context badge expands on click', () => {
+        describe('Context badge behavior', () => {
             let contextTerminalData: TerminalData;
             const contextTerminalId: TerminalId = 'ctx-nodes/parent-node_context_1.md-terminal-0' as TerminalId;
 
@@ -572,22 +573,14 @@ describe('createWindowChrome', () => {
                 });
             });
 
-            it('should toggle terminal-context-expanded class on click', () => {
+            it('should render context badge without errors', () => {
                 const result: FloatingWindowUIData = createWindowChrome(cy, contextTerminalData, contextTerminalId);
 
                 const contextBadge: HTMLElement | null = result.windowElement.querySelector('.terminal-context-badge');
                 expect(contextBadge).not.toBeNull();
 
-                // Initially not expanded
-                expect(result.windowElement.classList.contains('terminal-context-expanded')).toBe(false);
-
-                // Click to expand
+                // Badge should be clickable without errors
                 contextBadge!.click();
-                expect(result.windowElement.classList.contains('terminal-context-expanded')).toBe(true);
-
-                // Click again to collapse
-                contextBadge!.click();
-                expect(result.windowElement.classList.contains('terminal-context-expanded')).toBe(false);
             });
         });
 

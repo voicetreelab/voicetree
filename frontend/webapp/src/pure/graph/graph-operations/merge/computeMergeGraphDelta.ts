@@ -5,6 +5,7 @@ import { createRepresentativeNode, type MergeTitleInfo } from './createRepresent
 import { redirectEdgeTarget } from './redirectEdgeTarget'
 import { findRepresentativeNode } from './findRepresentativeNode'
 import { getNodeTitle } from '@/pure/graph/markdown-parsing'
+import path from 'path'
 
 /**
  * Generates a unique ID for a merged node based on timestamp and random suffix.
@@ -15,7 +16,7 @@ function generateMergedNodeId(writePath: string): NodeIdAndFilePath {
     const timestamp: number = Date.now()
     const randomSuffix: string = Math.random().toString(36).substring(2, 5)
     const filename: string = `merged_${timestamp}_${randomSuffix}.md`
-    return writePath ? `${writePath}/${filename}` : filename
+    return path.join(writePath, filename)
 }
 
 /**

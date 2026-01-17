@@ -385,12 +385,12 @@
  * macOS-style colored circles in horizontal menu: Close (light red), Pin (neutral gray), Fullscreen (soft green outline)
  * ============================================================================= */
 
-/* Base traffic light button style - 14px circles */
+/* Base traffic light button style - 17px circles (20% larger than original 14px) */
 .traffic-light {
   all: unset;
   cursor: pointer;
-  width: 14px;
-  height: 14px;
+  width: 17px;
+  height: 17px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -408,10 +408,10 @@
   transform: scale(0.95);
 }
 
-/* Traffic light icons - tiny (6-8px) and subtle */
+/* Traffic light icons - tiny (7px, 20% larger than original 6px) and subtle */
 .traffic-light svg {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   stroke-width: 2.5;
 }
 

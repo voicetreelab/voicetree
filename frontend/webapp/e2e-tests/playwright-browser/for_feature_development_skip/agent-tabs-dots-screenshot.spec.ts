@@ -2,7 +2,7 @@ import { test } from '@playwright/test';
 import {
     setupMockElectronAPI,
     waitForCytoscapeReady,
-} from '@e2e/playwright-browser/graph-delta-test-utils.ts';
+} from '@e2e/playwright-browser/graph-delta-test-utils';
 
 test('screenshot agent tabs with activity dots', async ({ page }) => {
     await page.goto('/');
@@ -11,13 +11,13 @@ test('screenshot agent tabs with activity dots', async ({ page }) => {
 
     // Inject fake agent tabs with activity dots for screenshot
     await page.evaluate(() => {
-        // Create the tabs bar structure with explicit visibility
+        // Create the tabs bar structure matching real DOM structure
         const container = document.createElement('div');
         container.className = 'agent-tabs-bar';
-        container.style.cssText = 'display: flex; position: absolute; top: 8px; left: 20px; z-index: 9999; background: #1a1a1a; padding: 8px 8px 20px 8px; border-radius: 6px;';
+        container.style.cssText = 'display: flex; position: absolute; top: 8px; left: 20px; z-index: 9999; background: #1a1a1a; padding: 8px; border-radius: 6px;';
 
-        const scroll = document.createElement('div');
-        scroll.className = 'agent-tabs-scroll';
+        const pinnedContainer = document.createElement('div');
+        pinnedContainer.className = 'agent-tabs-pinned';
 
         // Create two fake tabs
         for (let t = 0; t < 2; t++) {
@@ -39,10 +39,10 @@ test('screenshot agent tabs with activity dots', async ({ page }) => {
                 tab.appendChild(dot);
             }
 
-            scroll.appendChild(tab);
+            pinnedContainer.appendChild(tab);
         }
 
-        container.appendChild(scroll);
+        container.appendChild(pinnedContainer);
         document.body.appendChild(container);
     });
 

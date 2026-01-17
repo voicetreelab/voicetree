@@ -174,7 +174,7 @@ test.describe('Write Path Change Bug', () => {
     const initialDefaultPath = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      const result = await api.main.getDefaultWritePath();
+      const result = await api.main.getWritePath();
       if (result && typeof result === 'object' && '_tag' in result) {
         return (result as { _tag: string; value?: string })._tag === 'Some' ? (result as { value: string }).value : null;
       }
@@ -209,7 +209,7 @@ test.describe('Write Path Change Bug', () => {
     const setResult = await appWindow.evaluate(async (secondPath: string) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.main.setDefaultWritePath(secondPath);
+      return await api.main.setWritePath(secondPath);
     }, secondVaultPath);
 
     console.log('Set default write path result:', setResult);
@@ -219,7 +219,7 @@ test.describe('Write Path Change Bug', () => {
     const newDefaultPath = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      const result = await api.main.getDefaultWritePath();
+      const result = await api.main.getWritePath();
       if (result && typeof result === 'object' && '_tag' in result) {
         return (result as { _tag: string; value?: string })._tag === 'Some' ? (result as { value: string }).value : null;
       }

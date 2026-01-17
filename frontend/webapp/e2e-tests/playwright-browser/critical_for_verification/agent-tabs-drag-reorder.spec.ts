@@ -88,7 +88,7 @@ async function dragTabToPosition(
         const tabs = document.querySelectorAll('.agent-tab');
         const sourceTab = tabs[from] as HTMLElement;
         const targetTab = tabs[to] as HTMLElement;
-        const container = document.querySelector('.agent-tabs-scroll') as HTMLElement;
+        const container = document.querySelector('.agent-tabs-pinned') as HTMLElement;
 
         if (!sourceTab || !container) {
             throw new Error(`Source tab ${from} not found`);
@@ -381,7 +381,7 @@ test.describe('Agent tabs drag-drop reordering', () => {
 
         // Ghost should be the first child in the container (before A)
         const ghostIsFirst = await page.evaluate(() => {
-            const container = document.querySelector('.agent-tabs-scroll');
+            const container = document.querySelector('.agent-tabs-pinned');
             const ghost = document.querySelector('.agent-tab-ghost');
             return container?.firstElementChild === ghost;
         });
@@ -405,7 +405,7 @@ test.describe('Agent tabs drag-drop reordering', () => {
 
         // Ghost should be after A (second child, between A and C - B is dragging)
         const ghostPosition = await page.evaluate(() => {
-            const container = document.querySelector('.agent-tabs-scroll');
+            const container = document.querySelector('.agent-tabs-pinned');
             const ghost = document.querySelector('.agent-tab-ghost');
             if (!container || !ghost) return -1;
             const children = Array.from(container.children);
@@ -430,7 +430,7 @@ test.describe('Agent tabs drag-drop reordering', () => {
         // The ghost element is created but not inserted into the DOM when hovering over self
         const isInContainer = await page.evaluate(() => {
             const ghost = document.querySelector('.agent-tab-ghost');
-            const container = document.querySelector('.agent-tabs-scroll');
+            const container = document.querySelector('.agent-tabs-pinned');
             // Return false if ghost doesn't exist OR if it's not in container
             if (!ghost || !container) return false;
             return container.contains(ghost);
