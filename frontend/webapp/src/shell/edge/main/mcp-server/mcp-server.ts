@@ -16,19 +16,13 @@ import {StreamableHTTPServerTransport} from '@modelcontextprotocol/sdk/server/st
 import {z} from 'zod'
 import express, {type Express} from 'express'
 import * as O from 'fp-ts/lib/Option.js'
-import path from 'path'
-
-import type {FSUpdate, Graph, GraphDelta, GraphNode} from '@/pure/graph'
-import {addNodeToGraphWithEdgeHealingFromFSEvent} from '@/pure/graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent'
+import type {Graph, GraphNode} from '@/pure/graph'
 import {getNodeTitle} from '@/pure/graph/markdown-parsing'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
-import {getWritePath, getWatchedDirectory} from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getUnseenNodesAroundContextNode, type UnseenNode} from '@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode'
 import {spawnTerminalWithContextNode} from '@/shell/edge/main/terminals/spawnTerminalWithContextNode'
 import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
-import {
-    applyGraphDeltaToDBThroughMemAndUIAndEditors
-} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange";
 
 const MCP_PORT: 3001 = 3001 as const
 
@@ -62,8 +56,11 @@ export async function spawnAgentTool({nodeId}: {nodeId: string}): Promise<McpToo
     }
 
     try {
+        // Pass skipFitAnimation: true and startUnpinned: true for MCP spawns
+        // - skipFitAnimation: avoid interrupting user's viewport
+        // - startUnpinned: MCP terminals don't need to be pinned by default
         const {terminalId, contextNodeId}: {terminalId: string; contextNodeId: string} =
-            await spawnTerminalWithContextNode(nodeId, undefined)
+            await spawnTerminalWithContextNode(nodeId, undefined, undefined, true, true)
 
         return buildJsonResponse({
             success: true,
@@ -135,86 +132,86 @@ export function createMcpServer(): McpServer {
         version: '1.0.0'
     })
 
-    // Tool: add_node
-    server.registerTool(
-        'add_node',
-        {
-            title: 'Add Node',
-            description: 'Add a new node to the graph. Creates a markdown file and updates the graph with bidirectional edge healing.',
-            inputSchema: {
-                nodeId: z.string().describe('Relative path/ID for the node (e.g., "my_node" or "subfolder/my_node")'),
-                content: z.string().describe('Markdown content for the node'),
-                parentNodeId: z.string().optional().describe('Optional parent node ID to create a link to')
-            }
-        },
-        async ({nodeId, content, parentNodeId}) => {
-            // Get default write path (where new nodes are created)
-            const vaultPathOpt: O.Option<string> = await getWritePath()
-            if (O.isNone(vaultPathOpt)) {
-                return {
-                    content: [{
-                        type: 'text',
-                        text: JSON.stringify({
-                            success: false,
-                            nodeId,
-                            message: 'No vault loaded. Please load a folder in the UI first.'
-                        })
-                    }],
-                    isError: true
-                }
-            }
-            const vaultPath: string = vaultPathOpt.value
-
-            // Get watched directory (base for node ID computation)
-            const watchedDirectory: string | null = getWatchedDirectory()
-            if (!watchedDirectory) {
-                return {
-                    content: [{
-                        type: 'text',
-                        text: JSON.stringify({
-                            success: false,
-                            nodeId,
-                            message: 'Watched directory not set.'
-                        })
-                    }],
-                    isError: true
-                }
-            }
-
-            // Build markdown content with optional parent link
-            let markdownContent: string = content
-            if (parentNodeId) {
-                markdownContent = `${content}\n\n-----------------\n_Links:_\nParent:\n- child_of [[${parentNodeId}]]\n`
-            }
-
-            // Create FSUpdate event - absolutePath uses vaultPath
-            const absolutePath: string = path.join(vaultPath, `${nodeId}.md`)
-            const fsEvent: FSUpdate = {
-                absolutePath,
-                content: markdownContent,
-                eventType: 'Added'
-            }
-
-            // Apply to graph using pure function - pass watchedDirectory for node ID computation
-            // Node IDs must be relative to watchedDirectory so paths reconstruct correctly
-            const currentGraph: Graph = getGraph()
-            const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, currentGraph)
-
-            // Persist to filesystem
-            await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta)
-
-            return {
-                content: [{
-                    type: 'text',
-                    text: JSON.stringify({
-                        success: true,
-                        nodeId,
-                        message: `Node created at ${absolutePath}`
-                    })
-                }]
-            }
-        }
-    )
+    // Tool: add_node - COMMENTED OUT
+    // server.registerTool(
+    //     'add_node',
+    //     {
+    //         title: 'Add Node',
+    //         description: 'Add a new node to the graph. Creates a markdown file and updates the graph with bidirectional edge healing.',
+    //         inputSchema: {
+    //             nodeId: z.string().describe('Relative path/ID for the node (e.g., "my_node" or "subfolder/my_node")'),
+    //             content: z.string().describe('Markdown content for the node'),
+    //             parentNodeId: z.string().optional().describe('Optional parent node ID to create a link to')
+    //         }
+    //     },
+    //     async ({nodeId, content, parentNodeId}) => {
+    //         // Get default write path (where new nodes are created)
+    //         const vaultPathOpt: O.Option<string> = await getWritePath()
+    //         if (O.isNone(vaultPathOpt)) {
+    //             return {
+    //                 content: [{
+    //                     type: 'text',
+    //                     text: JSON.stringify({
+    //                         success: false,
+    //                         nodeId,
+    //                         message: 'No vault loaded. Please load a folder in the UI first.'
+    //                     })
+    //                 }],
+    //                 isError: true
+    //             }
+    //         }
+    //         const vaultPath: string = vaultPathOpt.value
+    //
+    //         // Get watched directory (base for node ID computation)
+    //         const watchedDirectory: string | null = getWatchedDirectory()
+    //         if (!watchedDirectory) {
+    //             return {
+    //                 content: [{
+    //                     type: 'text',
+    //                     text: JSON.stringify({
+    //                         success: false,
+    //                         nodeId,
+    //                         message: 'Watched directory not set.'
+    //                     })
+    //                 }],
+    //                 isError: true
+    //             }
+    //         }
+    //
+    //         // Build markdown content with optional parent link
+    //         let markdownContent: string = content
+    //         if (parentNodeId) {
+    //             markdownContent = `${content}\n\n-----------------\n_Links:_\nParent:\n- child_of [[${parentNodeId}]]\n`
+    //         }
+    //
+    //         // Create FSUpdate event - absolutePath uses vaultPath
+    //         const absolutePath: string = path.join(vaultPath, `${nodeId}.md`)
+    //         const fsEvent: FSUpdate = {
+    //             absolutePath,
+    //             content: markdownContent,
+    //             eventType: 'Added'
+    //         }
+    //
+    //         // Apply to graph using pure function - pass watchedDirectory for node ID computation
+    //         // Node IDs must be relative to watchedDirectory so paths reconstruct correctly
+    //         const currentGraph: Graph = getGraph()
+    //         const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, currentGraph)
+    //
+    //         // Persist to filesystem
+    //         await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta)
+    //
+    //         return {
+    //             content: [{
+    //                 type: 'text',
+    //                 text: JSON.stringify({
+    //                     success: true,
+    //                     nodeId,
+    //                     message: `Node created at ${absolutePath}`
+    //                 })
+    //             }]
+    //         }
+    //     }
+    // )
 
     // Tool: get_graph
     server.registerTool(
