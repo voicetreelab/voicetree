@@ -71,8 +71,8 @@ export function createTrafficLights(options: TrafficLightOptions): HTMLDivElemen
     closeBtn.className = 'traffic-light traffic-light-close';
     closeBtn.type = 'button';
     const closeIcon: SVGElement = createElement(X);
-    closeIcon.setAttribute('width', '8');
-    closeIcon.setAttribute('height', '8');
+    closeIcon.setAttribute('width', '10');
+    closeIcon.setAttribute('height', '10');
     closeBtn.appendChild(closeIcon);
     closeBtn.addEventListener('click', (e: MouseEvent): void => {
         e.stopPropagation();
@@ -84,8 +84,8 @@ export function createTrafficLights(options: TrafficLightOptions): HTMLDivElemen
     pinBtn.className = 'traffic-light traffic-light-pin';
     pinBtn.type = 'button';
     const pinIcon: SVGElement = createElement(Pin);
-    pinIcon.setAttribute('width', '8');
-    pinIcon.setAttribute('height', '8');
+    pinIcon.setAttribute('width', '10');
+    pinIcon.setAttribute('height', '10');
     pinBtn.appendChild(pinIcon);
     if (options.isPinned) {
         pinBtn.classList.add('pinned');
@@ -101,8 +101,8 @@ export function createTrafficLights(options: TrafficLightOptions): HTMLDivElemen
     fullscreenBtn.className = 'traffic-light traffic-light-fullscreen';
     fullscreenBtn.type = 'button';
     const fullscreenIcon: SVGElement = createElement(Maximize);
-    fullscreenIcon.setAttribute('width', '8');
-    fullscreenIcon.setAttribute('height', '8');
+    fullscreenIcon.setAttribute('width', '10');
+    fullscreenIcon.setAttribute('height', '10');
     fullscreenBtn.appendChild(fullscreenIcon);
     if (options.cy && options.shadowNodeId) {
         attachFullscreenZoom(

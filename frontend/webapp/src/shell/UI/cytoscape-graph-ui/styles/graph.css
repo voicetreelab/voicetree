@@ -477,7 +477,7 @@ button.graph-button:disabled > svg > path {
     border: 1px solid #404040;
     border-radius: 4px;
     cursor: grab;
-    overflow: hidden;
+    overflow: visible; /* Allow activity dots to extend below */
     flex-shrink: 0;
     transition: background-color 0.15s ease, border-color 0.15s ease;
     color: #e5e7eb;
@@ -586,6 +586,18 @@ button.graph-button:disabled > svg > path {
     border-radius: 50%;
     background: #22c55e;
     flex-shrink: 0;
+}
+
+/* Activity dot indicator for agent tabs (shown when terminal produces a node) */
+.agent-tab-activity-dot {
+    position: absolute;
+    bottom: -11px;
+    left: 4px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #3b82f6;
+    pointer-events: none;
 }
 
 /* Drag-and-drop states for agent tab reordering */

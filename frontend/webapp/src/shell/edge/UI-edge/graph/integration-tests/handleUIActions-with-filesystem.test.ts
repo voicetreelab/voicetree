@@ -23,6 +23,7 @@ import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
 import { createNewChildNodeFromUI, deleteNodesFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions'
 import type { Graph, GraphDelta } from '@/pure/graph'
+import { createGraph } from '@/pure/graph/createGraph'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import { setGraph } from '@/shell/edge/main/state/graph-store'
@@ -114,8 +115,6 @@ vi.mock('@/shell/edge/main/graph/watchFolder', () => {
         loadPreviousFolder: vi.fn().mockResolvedValue({ success: false }),
         isWatching: vi.fn(() => false),
         getWatchedDirectory: () => tempVault || null,
-        getVaultSuffix: vi.fn(() => 'voicetree'),
-        setVaultSuffix: vi.fn().mockResolvedValue({ success: true }),
         loadFolder: vi.fn().mockResolvedValue(undefined)
     }
 })
@@ -173,32 +172,30 @@ Child content`
         )
 
         // Create graph state with correct node IDs including .md extension
-        mockGraph = {
-            nodes: {
-                'parent.md': {
-                    absoluteFilePathIsID: 'parent.md',
-                    contentWithoutYamlOrLinks: '# Parent Node\n\nParent content',
-                    outgoingEdges: [{ targetId: 'child1.md', label: '' }],
-                    nodeUIMetadata: {
-                        color: O.none,
-                        position: O.of({ x: 100, y: 100 }),
-                        additionalYAMLProps: new Map(),
-                        isContextNode: false
-                    }
-                },
-                'child1.md': {
-                    absoluteFilePathIsID: 'child1.md',
-                    contentWithoutYamlOrLinks: '# Child 1\n\nChild content',
-                    outgoingEdges: [],
-                    nodeUIMetadata: {
-                        color: O.none,
-                        position: O.of({ x: 200, y: 200 }),
-                        additionalYAMLProps: new Map(),
-                        isContextNode: false
-                    }
+        mockGraph = createGraph({
+            'parent.md': {
+                absoluteFilePathIsID: 'parent.md',
+                contentWithoutYamlOrLinks: '# Parent Node\n\nParent content',
+                outgoingEdges: [{ targetId: 'child1.md', label: '' }],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.of({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            },
+            'child1.md': {
+                absoluteFilePathIsID: 'child1.md',
+                contentWithoutYamlOrLinks: '# Child 1\n\nChild content',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.of({ x: 200, y: 200 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
-        }
+        })
 
         currentGraph = mockGraph
         setGraph(mockGraph)
@@ -362,32 +359,30 @@ Child content`
         )
 
         // Create graph state
-        mockGraph = {
-            nodes: {
-                'parent.md': {
-                    absoluteFilePathIsID: 'parent.md',
-                    contentWithoutYamlOrLinks: '# Parent Node\n\nParent content',
-                    outgoingEdges: [{ targetId: 'child1.md', label: '' }],
-                    nodeUIMetadata: {
-                        color: O.none,
-                        position: O.of({ x: 100, y: 100 }),
-                        additionalYAMLProps: new Map(),
-                        isContextNode: false
-                    }
-                },
-                'child1.md': {
-                    absoluteFilePathIsID: 'child1.md',
-                    contentWithoutYamlOrLinks: '# Child 1\n\nChild content',
-                    outgoingEdges: [],
-                    nodeUIMetadata: {
-                        color: O.none,
-                        position: O.of({ x: 200, y: 200 }),
-                        additionalYAMLProps: new Map(),
-                        isContextNode: false
-                    }
+        mockGraph = createGraph({
+            'parent.md': {
+                absoluteFilePathIsID: 'parent.md',
+                contentWithoutYamlOrLinks: '# Parent Node\n\nParent content',
+                outgoingEdges: [{ targetId: 'child1.md', label: '' }],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.of({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            },
+            'child1.md': {
+                absoluteFilePathIsID: 'child1.md',
+                contentWithoutYamlOrLinks: '# Child 1\n\nChild content',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.of({ x: 200, y: 200 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
-        }
+        })
 
         currentGraph = mockGraph
         setGraph(mockGraph)

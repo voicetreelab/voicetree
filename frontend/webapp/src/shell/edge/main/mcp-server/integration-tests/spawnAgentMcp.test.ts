@@ -5,7 +5,7 @@ import {createTerminalData} from '@/shell/edge/UI-edge/floating-windows/types'
 import type {TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 
 vi.mock('@/shell/edge/main/graph/watch_folder/watchFolder', () => ({
-    getDefaultWritePath: vi.fn()
+    getWritePath: vi.fn()
 }))
 
 vi.mock('@/shell/edge/main/state/graph-store', () => ({
@@ -25,14 +25,19 @@ vi.mock('@/shell/edge/main/terminals/terminal-registry', () => ({
 }))
 
 import {spawnAgentTool, listAgentsTool} from '@/shell/edge/main/mcp-server/mcp-server'
-import {getDefaultWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {spawnTerminalWithContextNode} from '@/shell/edge/main/terminals/spawnTerminalWithContextNode'
 import {getUnseenNodesAroundContextNode} from '@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode'
 import {getTerminalRecords} from '@/shell/edge/main/terminals/terminal-registry'
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 
-function parsePayload(response: {content: Array<{type: 'text'; text: string}>}): unknown {
+type McpToolResponse = {
+    content: Array<{type: 'text'; text: string}>
+    isError?: boolean
+}
+
+function parsePayload(response: McpToolResponse): unknown {
     return JSON.parse(response.content[0].text)
 }
 
@@ -56,7 +61,7 @@ describe('MCP spawn_agent tool', () => {
     })
 
     it('spawns an agent on an existing node', async () => {
-        vi.mocked(getDefaultWritePath).mockResolvedValue(O.some('/vault'))
+        vi.mocked(getWritePath).mockResolvedValue(O.some('/vault'))
         vi.mocked(getGraph).mockReturnValue({
             nodes: {
                 'node-1.md': buildGraphNode('node-1.md', '# Node One')
@@ -69,8 +74,14 @@ describe('MCP spawn_agent tool', () => {
             contextNodeId: 'ctx-nodes/node-1_context.md'
         })
 
-        const response = await spawnAgentTool({nodeId: 'node-1.md'})
-        const payload = parsePayload(response) as {
+        const response: McpToolResponse = await spawnAgentTool({nodeId: 'node-1.md'})
+        const payload: {
+            success: boolean
+            terminalId: string
+            nodeId: string
+            contextNodeId: string
+            message: string
+        } = parsePayload(response) as {
             success: boolean
             terminalId: string
             nodeId: string
@@ -86,14 +97,14 @@ describe('MCP spawn_agent tool', () => {
     })
 
     it('returns an error when node is not found', async () => {
-        vi.mocked(getDefaultWritePath).mockResolvedValue(O.some('/vault'))
+        vi.mocked(getWritePath).mockResolvedValue(O.some('/vault'))
         vi.mocked(getGraph).mockReturnValue({
             nodes: {},
             incomingEdgesIndex: new Map()
         } as Graph)
 
-        const response = await spawnAgentTool({nodeId: 'missing-node.md'})
-        const payload = parsePayload(response) as {success: boolean; error: string}
+        const response: McpToolResponse = await spawnAgentTool({nodeId: 'missing-node.md'})
+        const payload: {success: boolean; error: string} = parsePayload(response) as {success: boolean; error: string}
 
         expect(response.isError).toBe(true)
         expect(payload.success).toBe(false)
@@ -101,19 +112,19 @@ describe('MCP spawn_agent tool', () => {
     })
 
     it('returns an error when vault path is not set', async () => {
-        vi.mocked(getDefaultWritePath).mockResolvedValue(O.none)
+        vi.mocked(getWritePath).mockResolvedValue(O.none)
 
-        const response = await spawnAgentTool({nodeId: 'node-1.md'})
-        const payload = parsePayload(response) as {success: boolean; error: string}
+        const response: McpToolResponse = await spawnAgentTool({nodeId: 'node-1.md'})
+        const payload: {success: boolean; error: string} = parsePayload(response) as {success: boolean; error: string}
 
         expect(response.isError).toBe(true)
         expect(payload.success).toBe(false)
-        expect(payload.error).toContain('Vault path not set')
+        expect(payload.error).toContain('No vault loaded')
         expect(spawnTerminalWithContextNode).not.toHaveBeenCalled()
     })
 
     it('returns after spawn is initiated', async () => {
-        vi.mocked(getDefaultWritePath).mockResolvedValue(O.some('/vault'))
+        vi.mocked(getWritePath).mockResolvedValue(O.some('/vault'))
         vi.mocked(getGraph).mockReturnValue({
             nodes: {
                 'node-1.md': buildGraphNode('node-1.md', '# Node One')
@@ -126,8 +137,8 @@ describe('MCP spawn_agent tool', () => {
             contextNodeId: 'ctx-nodes/node-1_context.md'
         })
 
-        const response = await spawnAgentTool({nodeId: 'node-1.md'})
-        const payload = parsePayload(response) as {success: boolean; terminalId: string}
+        const response: McpToolResponse = await spawnAgentTool({nodeId: 'node-1.md'})
+        const payload: {success: boolean; terminalId: string} = parsePayload(response) as {success: boolean; terminalId: string}
 
         expect(payload.success).toBe(true)
         expect(payload.terminalId).toBe('node-1-terminal-0')
@@ -185,8 +196,16 @@ describe('MCP list_agents tool', () => {
             incomingEdgesIndex: new Map()
         } as Graph)
 
-        const response = await listAgentsTool()
-        const payload = parsePayload(response) as {
+        const response: McpToolResponse = await listAgentsTool()
+        const payload: {
+            agents: Array<{
+                terminalId: string
+                title: string
+                contextNodeId: string
+                status: string
+                newNodes: Array<{nodeId: string; title: string}>
+            }>
+        } = parsePayload(response) as {
             agents: Array<{
                 terminalId: string
                 title: string
@@ -206,8 +225,8 @@ describe('MCP list_agents tool', () => {
     it('returns an empty list when no agents exist', async () => {
         vi.mocked(getTerminalRecords).mockReturnValue([])
 
-        const response = await listAgentsTool()
-        const payload = parsePayload(response) as {agents: unknown[]}
+        const response: McpToolResponse = await listAgentsTool()
+        const payload: {agents: unknown[]} = parsePayload(response) as {agents: unknown[]}
 
         expect(payload.agents).toEqual([])
     })

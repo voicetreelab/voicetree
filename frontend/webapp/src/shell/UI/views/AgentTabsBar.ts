@@ -44,10 +44,8 @@ import {
 import {
     createDragState,
     cleanupDragState,
-    attachItemDragHandlers,
     calculateAdjustedTargetIndex,
 } from '@/shell/UI/behaviors/dragReorder';
-import type {} from '@/shell/UI/behaviors/dragReorder';
 
 // =============================================================================
 // DOM Element Refs (UI-only state)
@@ -59,11 +57,31 @@ let unpinnedContainer: HTMLElement | null = null;
 let dividerElement: HTMLElement | null = null;
 
 // Drag-drop state (managed by behavior module)
-const dragState = createDragState();
+const dragState: ReturnType<typeof createDragState> = createDragState();
 
 // Cached for re-render after drag-drop
 let lastTerminals: TerminalData[] = [];
 let lastOnSelect: ((terminal: TerminalData) => void) | null = null;
+
+// Flag to indicate a render was skipped during drag (needs re-render after drag ends)
+let pendingRenderDuringDrag: boolean = false;
+
+/**
+ * Check if a drag operation is currently in progress
+ */
+function isDragging(): boolean {
+    return dragState.draggingFromIndex !== null;
+}
+
+/**
+ * Trigger a deferred re-render after drag ends (if one was skipped)
+ */
+function triggerDeferredRenderIfNeeded(): void {
+    if (pendingRenderDuringDrag && lastOnSelect) {
+        pendingRenderDuringDrag = false;
+        renderAgentTabs(lastTerminals, lastOnSelect);
+    }
+}
 
 // =============================================================================
 // Display Order (delegates to store)
@@ -227,6 +245,13 @@ export function renderAgentTabs(
     lastTerminals = terminals;
     lastOnSelect = onSelect;
 
+    // Skip destructive re-render during drag to prevent flickering
+    // The render will be triggered after drag ends via triggerDeferredRenderIfNeeded
+    if (isDragging()) {
+        pendingRenderDuringDrag = true;
+        return;
+    }
+
     // Clear existing tabs
     pinnedContainer.innerHTML = '';
     unpinnedContainer.innerHTML = '';
@@ -346,6 +371,9 @@ export function setActiveTerminal(terminalId: TerminalId | null): void {
 // Create Tab Elements
 // =============================================================================
 
+// Minimum distance (in pixels) mouse must move to initiate drag vs click
+const DRAG_THRESHOLD_PX: number = 5;
+
 function createPinnedTab(
     terminal: TerminalData,
     activeTerminalId: TerminalId | null,
@@ -356,6 +384,9 @@ function createPinnedTab(
 ): HTMLElement {
     const terminalId: TerminalId = getTerminalId(terminal);
     const displayTitle: string = truncateTabTitle(terminal.title);
+
+    // Track mousedown position for drag threshold check
+    let mouseDownPos: { x: number; y: number } | null = null;
 
     // Create wrapper container for tab + hint
     const wrapper: HTMLDivElement = document.createElement('div');
@@ -404,11 +435,27 @@ function createPinnedTab(
     // Drag-and-drop for reordering
     tab.draggable = true;
 
+    // Record mousedown position for drag threshold calculation
     tab.addEventListener('mousedown', (e: MouseEvent) => {
         e.stopPropagation();
+        mouseDownPos = { x: e.clientX, y: e.clientY };
     });
 
     tab.addEventListener('dragstart', (e: DragEvent) => {
+        // Check if mouse moved enough to trigger drag (prevents accidental drags on click)
+        if (mouseDownPos !== null) {
+            const dx: number = e.clientX - mouseDownPos.x;
+            const dy: number = e.clientY - mouseDownPos.y;
+            const distance: number = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < DRAG_THRESHOLD_PX) {
+                // Not moved enough - cancel drag to allow click event to fire
+                e.preventDefault();
+                mouseDownPos = null;
+                return;
+            }
+        }
+
         e.stopPropagation();
         tab.classList.add('agent-tab-dragging');
         e.dataTransfer?.setData('text/plain', String(index));
@@ -423,6 +470,7 @@ function createPinnedTab(
         e.stopPropagation();
         tab.classList.remove('agent-tab-dragging');
         cleanupDragState(dragState);
+        triggerDeferredRenderIfNeeded();
     });
 
     tab.addEventListener('dragover', (e: DragEvent) => {

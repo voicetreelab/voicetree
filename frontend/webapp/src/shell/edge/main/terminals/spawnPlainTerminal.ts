@@ -12,7 +12,7 @@ import type {VTSettings} from '@/pure/settings/types';
 import {createTerminalData} from '@/shell/edge/UI-edge/floating-windows/types';
 import {getAppSupportPath} from '@/shell/edge/main/state/app-electron-state';
 import {getGraph} from '@/shell/edge/main/state/graph-store';
-import {getWatchStatus, getWatchedDirectory, getVaultPaths, getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder';
+import {getWatchStatus, getVaultPaths, getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import * as O from 'fp-ts/lib/Option.js';
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
@@ -38,10 +38,8 @@ export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCoun
   }
 
   const appSupportPath: string = getAppSupportPath();
-  const watchedDir: string | null = getWatchedDirectory();
-  const nodeAbsolutePath: string = watchedDir
-    ? path.join(watchedDir, nodeId)
-    : nodeId;
+  // Node IDs are now absolute paths - use directly
+  const nodeAbsolutePath: string = nodeId;
 
   // Get all vault paths for ALL_MARKDOWN_READ_PATHS
   const allVaultPaths: readonly string[] = await getVaultPaths();

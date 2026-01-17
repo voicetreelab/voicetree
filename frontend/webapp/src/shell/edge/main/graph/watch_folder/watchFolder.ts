@@ -186,7 +186,11 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
             allowlist,
             writePath: watchedFolderPath
         };
-        await saveVaultConfigForDirectory(watchedFolderPath, newConfig);
+        // Convert to VaultConfig structure for saving: readOnLinkPaths = allowlist without writePath
+        await saveVaultConfigForDirectory(watchedFolderPath, {
+            writePath: watchedFolderPath,
+            readOnLinkPaths: allowlist.filter(p => p !== watchedFolderPath)
+        });
 
         return finishLoading(loadResult.right, newConfig, watchedFolderPath, mainWindow);
     }
@@ -224,7 +228,11 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
         allowlist,
         writePath: subfolderPath
     };
-    await saveVaultConfigForDirectory(watchedFolderPath, newConfig);
+    // Convert to VaultConfig structure for saving: readOnLinkPaths = allowlist without writePath
+    await saveVaultConfigForDirectory(watchedFolderPath, {
+        writePath: subfolderPath,
+        readOnLinkPaths: allowlist.filter(p => p !== subfolderPath)
+    });
 
     // Show info dialog (non-blocking)
     void dialog.showMessageBox(mainWindow, {

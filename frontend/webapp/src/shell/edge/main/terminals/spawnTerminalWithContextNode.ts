@@ -20,7 +20,7 @@ import * as O from 'fp-ts/lib/Option.js';
 import { createContextNode } from '@/shell/edge/main/graph/context-nodes/createContextNode';
 import { getGraph } from '@/shell/edge/main/state/graph-store';
 import { loadSettings } from '@/shell/edge/main/settings/settings_IO';
-import { getWatchStatus, getWatchedDirectory, getWritePath, getVaultPaths } from '@/shell/edge/main/graph/watch_folder/watchFolder';
+import { getWatchStatus, getWritePath, getVaultPaths } from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import { getAppSupportPath } from '@/shell/edge/main/state/app-electron-state';
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy';
 import { createTerminalData, getTerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
@@ -42,11 +42,15 @@ import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals
  * @param parentNodeId - The parent node to create context for
  * @param agentCommand - The agent command to run (already processed by renderer for permission mode)
  * @param terminalCount - Current terminal count from UI TerminalStore
+ * @param skipFitAnimation - If true, skip navigating viewport to the terminal (used for MCP spawns)
+ * @param startUnpinned - If true, terminal starts unpinned (used for MCP spawns)
  */
 export async function spawnTerminalWithContextNode(
     parentNodeId: NodeIdAndFilePath,
     agentCommand: string | undefined,
-    terminalCount?: number
+    terminalCount?: number,
+    skipFitAnimation?: boolean,
+    startUnpinned?: boolean
 ): Promise<{terminalId: string; contextNodeId: NodeIdAndFilePath}> {
     // Load settings to get agents
     const settings: VTSettings = await loadSettings();
@@ -87,7 +91,8 @@ export async function spawnTerminalWithContextNode(
         contextNodeId,
         resolvedTerminalCount,
         command,
-        settings
+        settings,
+        startUnpinned
     );
 
     // TODO, HERE WE NEED TO WAIT FOR CONTEXT NODE TO EXIST IN UI
@@ -96,7 +101,7 @@ export async function spawnTerminalWithContextNode(
 
     // Call UI to launch terminal (via UI API pattern)
     // Note: uiAPI sends IPC message, no need to await (fire-and-forget)
-    void uiAPI.launchTerminalOntoUI(contextNodeId, terminalData);
+    void uiAPI.launchTerminalOntoUI(contextNodeId, terminalData, skipFitAnimation);
 
     return {
         terminalId: getTerminalId(terminalData),
@@ -114,7 +119,8 @@ async function prepareTerminalDataInMain(
     contextNodeId: NodeIdAndFilePath,
     terminalCount: number,
     command: string,
-    settings: VTSettings
+    settings: VTSettings,
+    startUnpinned?: boolean
 ): Promise<TerminalData> {
     // Get context node from graph (main has immediate access)
     const graph: Graph = getGraph();
@@ -152,15 +158,12 @@ async function prepareTerminalDataInMain(
     // Get app support path for VOICETREE_APP_SUPPORT env var
     const appSupportPath: string = getAppSupportPath();
 
-    // Build absolute path for context node (using watched directory, since nodeId is relative to it)
-    const watchedDir: string | null = getWatchedDirectory();
-    const contextNodeAbsolutePath: string = watchedDir
-        ? path.join(watchedDir, contextNodeId)
-        : contextNodeId;
+    // Node IDs are now absolute paths - use directly
+    const contextNodeAbsolutePath: string = contextNodeId;
 
-    // Build absolute path for task node (parent of context node)
-    const taskNodeAbsolutePath: string = parentNode && watchedDir
-        ? path.join(watchedDir, parentNode.absoluteFilePathIsID)
+    // Task node path (parent of context node) - also absolute
+    const taskNodeAbsolutePath: string = parentNode
+        ? parentNode.absoluteFilePathIsID
         : '';
 
     // Build env vars then expand $VAR_NAME references within values
@@ -199,6 +202,7 @@ async function prepareTerminalDataInMain(
         executeCommand: true,
         initialSpawnDirectory: initialSpawnDirectory,
         initialEnvVars: expandedEnvVars,
+        isPinned: !startUnpinned,
     });
 
     return terminalData;
