@@ -35,13 +35,13 @@ function App(): JSX.Element {
                 <>
                     <button
                         onClick={() => void startWatching()}
-                        className="text-gray-600 px-1.5 py-1 rounded bg-gray-100 hover:bg-gray-200 transition-colors flex items-center gap-1"
+                        className="text-muted-foreground px-1.5 py-1 rounded bg-muted hover:bg-accent transition-colors flex items-center gap-1"
                         title="Project root – agents spawn here by default"
                     >
                         {watchDirectory.split(/[/\\]/).pop()}
                         <span className="text-[10px] ml-1">▼</span>
                     </button>
-                    <span className="text-gray-400">/</span>
+                    <span className="text-muted-foreground">/</span>
                     <VaultPathSelector watchDirectory={watchDirectory} />
                 </>
             )}
@@ -104,14 +104,14 @@ function App(): JSX.Element {
             {isStatsPanelOpen && (
                 <div
                     data-testid="agent-stats-panel-container"
-                    className="fixed right-0 top-0 bottom-0 w-96 bg-white border-l border-gray-300 shadow-lg z-[1100] overflow-y-auto"
+                    className="fixed right-0 top-0 bottom-0 w-96 bg-card border-l border-border shadow-lg z-[1100] overflow-y-auto"
                 >
-                    <div className="sticky top-0 bg-white border-b border-gray-200 p-2 flex items-center justify-between">
-                        <h2 className="font-mono text-sm font-semibold text-gray-900">Agent Statistics</h2>
+                    <div className="sticky top-0 bg-card border-b border-border p-2 flex items-center justify-between">
+                        <h2 className="font-mono text-sm font-semibold text-foreground">Agent Statistics</h2>
                         <button
                             data-testid="agent-stats-close-button"
                             onClick={() => setIsStatsPanelOpen(false)}
-                            className="text-gray-600 px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 transition-colors font-mono text-xs"
+                            className="text-muted-foreground px-2 py-1 rounded bg-muted hover:bg-accent transition-colors font-mono text-xs"
                             title="Close panel"
                         >
                             ✕
