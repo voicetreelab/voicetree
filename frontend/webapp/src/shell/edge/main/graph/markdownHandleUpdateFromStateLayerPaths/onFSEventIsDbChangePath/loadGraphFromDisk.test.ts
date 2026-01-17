@@ -72,6 +72,21 @@ title: "Nested Node"
 
 This is in a subfolder.`
     )
+
+    // Create image file for testing image node loading
+    // Write a minimal PNG file (1x1 transparent pixel)
+    const minimalPng: Buffer = Buffer.from([
+      0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG signature
+      0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, // IHDR chunk
+      0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, // 1x1 dimensions
+      0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4,
+      0x89, 0x00, 0x00, 0x00, 0x0A, 0x49, 0x44, 0x41,
+      0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00,
+      0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00,
+      0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE,
+      0x42, 0x60, 0x82 // IEND chunk
+    ])
+    await fs.writeFile(path.join(testVaultPath, 'test-image.png'), minimalPng)
   })
 
   afterAll(async () => {
@@ -87,16 +102,29 @@ This is in a subfolder.`
     expect(Object.keys(graph.nodes)).toHaveLength(0)
   })
 
-  it('should load all nodes from vault', async () => {
+  it('should load all nodes from vault including images', async () => {
     const r2: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPaths.testVault])
     if (E.isLeft(r2)) throw new Error('Expected Right')
     const graph: Graph = r2.right
 
-    expect(Object.keys(graph.nodes)).toHaveLength(4)
-    expect(graph.nodes['node1.md']).toBeDefined()
-    expect(graph.nodes['node2.md']).toBeDefined()
-    expect(graph.nodes['node3.md']).toBeDefined()
-    expect(graph.nodes['subfolder/nested.md']).toBeDefined()
+    // Node IDs are now absolute paths (4 markdown + 1 image)
+    expect(Object.keys(graph.nodes)).toHaveLength(5)
+    expect(graph.nodes[path.join(testVaultPaths.testVault, 'node1.md')]).toBeDefined()
+    expect(graph.nodes[path.join(testVaultPaths.testVault, 'node2.md')]).toBeDefined()
+    expect(graph.nodes[path.join(testVaultPaths.testVault, 'node3.md')]).toBeDefined()
+    expect(graph.nodes[path.join(testVaultPaths.testVault, 'subfolder/nested.md')]).toBeDefined()
+    expect(graph.nodes[path.join(testVaultPaths.testVault, 'test-image.png')]).toBeDefined()
+  })
+
+  it('should load image nodes with empty content and no edges', async () => {
+    const r: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPaths.testVault])
+    if (E.isLeft(r)) throw new Error('Expected Right')
+    const graph: Graph = r.right
+
+    const imageNode: GraphNode = graph.nodes[path.join(testVaultPaths.testVault, 'test-image.png')]
+    expect(imageNode).toBeDefined()
+    expect(imageNode.contentWithoutYamlOrLinks).toBe('')
+    expect(imageNode.outgoingEdges).toEqual([])
   })
 
   it('should parse node properties from frontmatter', async () => {
@@ -104,7 +132,7 @@ This is in a subfolder.`
     if (E.isLeft(r3)) throw new Error('Expected Right')
     const graph: Graph = r3.right
 
-    const node1: GraphNode = graph.nodes['node1.md']
+    const node1: GraphNode = graph.nodes[path.join(testVaultPaths.testVault, 'node1.md')]
     // contentWithoutYamlOrLinks should NOT contain YAML frontmatter (it's stripped)
     expect(node1.contentWithoutYamlOrLinks).not.toContain('title: "Node One"')
     expect(node1.contentWithoutYamlOrLinks).not.toContain('summary: "First node"')
@@ -117,13 +145,14 @@ This is in a subfolder.`
     }
   })
 
-  it('should use filename as node_id when missing from frontmatter', async () => {
+  it('should use absolute file path as node_id', async () => {
     const r4: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPaths.testVault])
     if (E.isLeft(r4)) throw new Error('Expected Right')
     const graph: Graph = r4.right
 
-    expect(graph.nodes['node3.md']).toBeDefined()
-    expect(graph.nodes['node3.md'].absoluteFilePathIsID).toBe('node3.md')
+    const node3Path: string = path.join(testVaultPaths.testVault, 'node3.md')
+    expect(graph.nodes[node3Path]).toBeDefined()
+    expect(graph.nodes[node3Path].absoluteFilePathIsID).toBe(node3Path)
   })
 
   it('should extract title from heading when not in frontmatter', async () => {
@@ -131,7 +160,7 @@ This is in a subfolder.`
     if (E.isLeft(r5)) throw new Error('Expected Right')
     const graph: Graph = r5.right
 
-    expect(graph.nodes['node3.md'].contentWithoutYamlOrLinks).toContain('# Node Three')
+    expect(graph.nodes[path.join(testVaultPaths.testVault, 'node3.md')].contentWithoutYamlOrLinks).toContain('# Node Three')
   })
 
   it('should build outgoingEdges from wikilinks', async () => {
@@ -139,9 +168,12 @@ This is in a subfolder.`
     if (E.isLeft(r6)) throw new Error('Expected Right')
     const graph: Graph = r6.right
 
-    expect(graph.nodes['node1.md'].outgoingEdges).toEqual([{ targetId: 'node2.md', label: 'This is node one. It links to' }])
-    expect(graph.nodes['node2.md'].outgoingEdges.some((e: { targetId: string }) => e.targetId === 'node1.md')).toBe(true)
-    expect(graph.nodes['node2.md'].outgoingEdges.some((e: { targetId: string }) => e.targetId === 'node3.md')).toBe(true)
+    const node1Path: string = path.join(testVaultPaths.testVault, 'node1.md')
+    const node2Path: string = path.join(testVaultPaths.testVault, 'node2.md')
+    const node3Path: string = path.join(testVaultPaths.testVault, 'node3.md')
+    expect(graph.nodes[node1Path].outgoingEdges).toEqual([{ targetId: node2Path, label: 'This is node one. It links to' }])
+    expect(graph.nodes[node2Path].outgoingEdges.some((e: { targetId: string }) => e.targetId === node1Path)).toBe(true)
+    expect(graph.nodes[node2Path].outgoingEdges.some((e: { targetId: string }) => e.targetId === node3Path)).toBe(true)
   })
 
   it('should handle nodes with no links', async () => {
@@ -149,7 +181,7 @@ This is in a subfolder.`
     if (E.isLeft(r7)) throw new Error('Expected Right')
     const graph: Graph = r7.right
 
-    expect(graph.nodes['node3.md'].outgoingEdges).toEqual([])
+    expect(graph.nodes[path.join(testVaultPaths.testVault, 'node3.md')].outgoingEdges).toEqual([])
   })
 
   it('should handle nested directory structure', async () => {
@@ -157,8 +189,9 @@ This is in a subfolder.`
     if (E.isLeft(r8)) throw new Error('Expected Right')
     const graph: Graph = r8.right
 
-    expect(graph.nodes['subfolder/nested.md']).toBeDefined()
-    expect(graph.nodes['subfolder/nested.md'].contentWithoutYamlOrLinks).toContain('# Nested')
+    const nestedPath: string = path.join(testVaultPaths.testVault, 'subfolder/nested.md')
+    expect(graph.nodes[nestedPath]).toBeDefined()
+    expect(graph.nodes[nestedPath].contentWithoutYamlOrLinks).toContain('# Nested')
   })
 
   it('should derive title from Markdown heading (single source of truth)', async () => {
@@ -166,7 +199,7 @@ This is in a subfolder.`
     if (E.isLeft(r9)) throw new Error('Expected Right')
     const graph: Graph = r9.right
 
-    const node1: GraphNode = graph.nodes['node1.md']
+    const node1: GraphNode = graph.nodes[path.join(testVaultPaths.testVault, 'node1.md')]
     // Node1 has BOTH frontmatter title "Node One" AND heading "# Node One Content"
     // Markdown is the single source of truth - title comes from heading via getNodeTitle
     expect(getNodeTitle(node1)).toBe('Node One Content')
@@ -241,8 +274,10 @@ Content for new file 2. Links to [[existing]].`
     if (E.isLeft(initialResult)) throw new Error('Expected Right')
     const existingGraph: Graph = initialResult.right
 
+    // Node IDs are now absolute paths
+    const existingNodePath: string = path.join(primaryVaultPath, 'existing.md')
     expect(Object.keys(existingGraph.nodes)).toHaveLength(1)
-    expect(existingGraph.nodes['primary-vault/existing.md']).toBeDefined()
+    expect(existingGraph.nodes[existingNodePath]).toBeDefined()
 
     // WHEN: Load secondary vault additively
     const additiveResult: E.Either<FileLimitExceededError, { graph: Graph; delta: GraphDelta }> =
@@ -253,17 +288,19 @@ Content for new file 2. Links to [[existing]].`
     const { graph: mergedGraph, delta } = additiveResult.right
 
     // THEN: Merged graph should contain all nodes (original + new)
+    const newFile1Path: string = path.join(secondaryVaultPath, 'newfile1.md')
+    const newFile2Path: string = path.join(secondaryVaultPath, 'newfile2.md')
     expect(Object.keys(mergedGraph.nodes)).toHaveLength(3)
-    expect(mergedGraph.nodes['primary-vault/existing.md']).toBeDefined()
-    expect(mergedGraph.nodes['secondary-vault/newfile1.md']).toBeDefined()
-    expect(mergedGraph.nodes['secondary-vault/newfile2.md']).toBeDefined()
+    expect(mergedGraph.nodes[existingNodePath]).toBeDefined()
+    expect(mergedGraph.nodes[newFile1Path]).toBeDefined()
+    expect(mergedGraph.nodes[newFile2Path]).toBeDefined()
 
     // THEN: Delta should only contain the new nodes
     expect(delta).toHaveLength(2)
     const deltaNodeIds: readonly string[] = delta.map(d => d.type === 'UpsertNode' ? d.nodeToUpsert.absoluteFilePathIsID : '')
-    expect(deltaNodeIds).toContain('secondary-vault/newfile1.md')
-    expect(deltaNodeIds).toContain('secondary-vault/newfile2.md')
-    expect(deltaNodeIds).not.toContain('primary-vault/existing.md')
+    expect(deltaNodeIds).toContain(newFile1Path)
+    expect(deltaNodeIds).toContain(newFile2Path)
+    expect(deltaNodeIds).not.toContain(existingNodePath)
   })
 
   it('should preserve existing node positions when merging', async () => {
@@ -271,12 +308,14 @@ Content for new file 2. Links to [[existing]].`
     const initialResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([primaryVaultPath])
     if (E.isLeft(initialResult)) throw new Error('Expected Right')
 
+    // Node IDs are now absolute paths
+    const existingNodePath: string = path.join(primaryVaultPath, 'existing.md')
     const existingGraph: Graph = createGraph({
       ...initialResult.right.nodes,
-      'primary-vault/existing.md': {
-        ...initialResult.right.nodes['primary-vault/existing.md'],
+      [existingNodePath]: {
+        ...initialResult.right.nodes[existingNodePath],
         nodeUIMetadata: {
-          ...initialResult.right.nodes['primary-vault/existing.md'].nodeUIMetadata,
+          ...initialResult.right.nodes[existingNodePath].nodeUIMetadata,
           position: O.some({ x: 100, y: 200 })
         }
       }
@@ -290,7 +329,7 @@ Content for new file 2. Links to [[existing]].`
     const { graph: mergedGraph } = additiveResult.right
 
     // THEN: Existing node position should be preserved
-    const existingNode: GraphNode = mergedGraph.nodes['primary-vault/existing.md']
+    const existingNode: GraphNode = mergedGraph.nodes[existingNodePath]
     expect(O.isSome(existingNode.nodeUIMetadata.position)).toBe(true)
     if (O.isSome(existingNode.nodeUIMetadata.position)) {
       expect(existingNode.nodeUIMetadata.position.value).toEqual({ x: 100, y: 200 })

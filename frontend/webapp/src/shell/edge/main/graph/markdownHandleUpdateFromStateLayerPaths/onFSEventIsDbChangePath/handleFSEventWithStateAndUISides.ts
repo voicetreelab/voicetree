@@ -1,13 +1,17 @@
 import type {FSEvent, GraphDelta, Graph, NodeIdAndFilePath} from "@/pure/graph";
 import {mapFSEventsToGraphDelta} from "@/pure/graph";
+import type {VaultConfig} from "@/pure/settings/types";
 import type {BrowserWindow} from "electron";
-import {getGraph} from "@/shell/edge/main/state/graph-store";
+import {getGraph, setGraph} from "@/shell/edge/main/state/graph-store";
 import {uiAPI} from "@/shell/edge/main/ui-api-proxy";
 import {
     applyGraphDeltaToMemState,
     broadcastGraphDeltaToUI
 } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI";
 import {isOurRecentDelta} from "@/shell/edge/main/state/recent-deltas-store";
+import {resolveLinksAfterChange} from "./loadGraphFromDisk";
+import {getVaultConfigForDirectory} from "@/shell/edge/main/graph/watch_folder/voicetree-config-io";
+import {getWatchedDirectory} from "@/shell/edge/main/state/watch-folder-store";
 
 /**
  * Handle filesystem events by:
@@ -59,4 +63,49 @@ export function handleFSEventWithStateAndUISides(
         .map((d) => d.type === 'UpsertNode' ? d.nodeToUpsert.absoluteFilePathIsID : '')
         .filter((id): id is NodeIdAndFilePath => id !== '')
         .forEach((nodeId) => uiAPI.createEditorForExternalNode(nodeId))
+
+    // 7. Resolve any new links to readOnLinkPaths (lazy loading)
+    // This is async but we don't need to wait for it
+    void resolveNewLinksToReadOnLinkPaths()
+}
+
+/**
+ * Resolves any new links that point to files in readOnLinkPaths.
+ * Called after a file change to load lazily-linked nodes.
+ */
+async function resolveNewLinksToReadOnLinkPaths(): Promise<void> {
+    const watchedDir: string | null = getWatchedDirectory();
+    if (!watchedDir) return;
+
+    const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
+    if (!config?.readOnLinkPaths || config.readOnLinkPaths.length === 0) return;
+
+    const currentGraph: Graph = getGraph();
+    const updatedGraph: Graph = await resolveLinksAfterChange(currentGraph, config.readOnLinkPaths);
+
+    // Check if any new nodes were added
+    const currentNodeCount: number = Object.keys(currentGraph.nodes).length;
+    const updatedNodeCount: number = Object.keys(updatedGraph.nodes).length;
+
+    if (updatedNodeCount > currentNodeCount) {
+        // Update graph state
+        setGraph(updatedGraph);
+
+        // Compute delta for new nodes only
+        const newNodeIds: readonly string[] = Object.keys(updatedGraph.nodes).filter(
+            (nodeId: string) => !currentGraph.nodes[nodeId]
+        );
+
+        const newNodesDelta: GraphDelta = newNodeIds.map((nodeId: string) => ({
+            type: 'UpsertNode' as const,
+            nodeToUpsert: updatedGraph.nodes[nodeId],
+            previousNode: { _tag: 'None' } as const
+        }));
+
+        // Broadcast new nodes to UI
+        applyGraphDeltaToMemState(newNodesDelta);
+        broadcastGraphDeltaToUI(newNodesDelta);
+
+        console.log(`[handleFSEvent] Lazy loaded ${newNodeIds.length} nodes from readOnLinkPaths`);
+    }
 }
