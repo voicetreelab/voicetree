@@ -2,9 +2,11 @@ import {getTerminalId, getShadowNodeId, type TerminalData, type TerminalId} from
 import type {CollectionReturnValue, Core, Position as CyPosition} from "cytoscape";
 import {getCyInstance} from "@/shell/edge/UI-edge/state/cytoscape-state";
 import {createFloatingTerminal} from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
-import {addTerminal} from "@/shell/edge/UI-edge/state/TerminalStore";
+import {addTerminal, getTerminalByNodeId} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {vanillaFloatingWindowInstances} from "@/shell/edge/UI-edge/state/UIAppState";
 import {cySmartCenter} from "@/utils/responsivePadding";
+import * as O from "fp-ts/lib/Option.js";
+import type {NodeIdAndFilePath} from "@/pure/graph";
 
 /**
  * Navigate to terminal neighborhood - pans if zoom is comfortable, zooms to 1.0 if not
@@ -22,6 +24,9 @@ function navigateToTerminalNeighborhood(cy: Core, contextNodeId: string, termina
 /**
  * Launch a terminal onto the UI, anchored to a context node
  * Called from main process after terminal data is prepared
+ *
+ * Only one terminal is allowed per context node. If a terminal already exists
+ * for this context node, focus it instead of creating a new one.
  */
 export async function launchTerminalOntoUI(
     contextNodeId: string,
@@ -29,6 +34,20 @@ export async function launchTerminalOntoUI(
 ): Promise<void> {
     console.log("BEFORE LAUNCH UI")
     const cy: Core = getCyInstance();
+
+    // Check if a terminal already exists for this context node - only one allowed
+    const existingTerminal: O.Option<TerminalData> = getTerminalByNodeId(contextNodeId as NodeIdAndFilePath);
+    if (O.isSome(existingTerminal)) {
+        const existingTerminalId: TerminalId = getTerminalId(existingTerminal.value);
+        console.log('[uiAPI] Terminal already exists for context node, focusing existing:', existingTerminalId);
+
+        // Focus the existing terminal instead of creating a new one
+        const vanillaInstance: { dispose: () => void; focus?: () => void } | undefined = vanillaFloatingWindowInstances.get(existingTerminalId);
+        if (vanillaInstance?.focus) {
+            vanillaInstance.focus();
+        }
+        return;
+    }
 
     const targetNode: CollectionReturnValue = cy.getElementById(contextNodeId);
     const nodePos: CyPosition = targetNode.length > 0
