@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Reminder to create a progress node"
+          }
+        ]
+      }
+    ]
+  }
+}
