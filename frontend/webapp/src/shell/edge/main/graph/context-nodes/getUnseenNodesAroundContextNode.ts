@@ -58,11 +58,11 @@ export async function getUnseenNodesAroundContextNode(
     // 6. Filter to nodes NOT in containedNodeIds (excluding context nodes)
     const unseenNodes: readonly UnseenNode[] = Object.values(subgraph.nodes)
         .filter((node: GraphNode) =>
-            !seenNodeIds.has(node.relativeFilePathIsID) &&
+            !seenNodeIds.has(node.absoluteFilePathIsID) &&
             !node.nodeUIMetadata.isContextNode
         )
         .map((node: GraphNode) => ({
-            nodeId: node.relativeFilePathIsID,
+            nodeId: node.absoluteFilePathIsID,
             content: node.contentWithoutYamlOrLinks
         }))
 

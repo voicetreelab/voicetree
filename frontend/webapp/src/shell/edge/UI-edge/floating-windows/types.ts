@@ -45,18 +45,6 @@ export type FloatingWindowFields = {
 };
 
 // =============================================================================
-// Editor Data Type
-// =============================================================================
-
-// =============================================================================
-// Factory Functions
-// =============================================================================
-
-// =============================================================================
-// Terminal Data Type
-// =============================================================================
-
-// =============================================================================
 // Union Type for FloatingWindow Content
 // =============================================================================
 
@@ -114,6 +102,11 @@ export function createTerminalData(params: CreateTerminalDataParams): TerminalDa
         executeCommand: params.executeCommand,
         resizable: params.resizable ?? true,
         shadowNodeDimensions: params.shadowNodeDimensions ?? { width: 400, height: 300 }, // matches getDefaultDimensions('Terminal')
+        // Tab UI state defaults
+        isPinned: true,         // New terminals start pinned
+        isDone: false,          // Running initially
+        lastOutputTime: Date.now(),
+        activityCount: 0,
     };
 }
 

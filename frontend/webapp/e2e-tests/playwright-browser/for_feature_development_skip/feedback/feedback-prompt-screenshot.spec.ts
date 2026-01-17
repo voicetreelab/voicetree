@@ -23,7 +23,7 @@ function createBatchGraphDelta(startIndex: number, count: number): GraphDelta {
     nodes.push({
       type: 'UpsertNode' as const,
       nodeToUpsert: {
-        relativeFilePathIsID: `batch-node-${index}.md`,
+        absoluteFilePathIsID: `batch-node-${index}.md`,
         contentWithoutYamlOrLinks: `# Node ${index}\nContent for node ${index}.`,
         outgoingEdges: [],
         nodeUIMetadata: {

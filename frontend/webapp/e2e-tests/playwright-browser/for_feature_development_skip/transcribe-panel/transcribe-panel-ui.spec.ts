@@ -32,7 +32,7 @@ async function setupMockWithWatchedDirectory(page: import('@playwright/test').Pa
           delta.forEach((nodeDelta: any) => {
             if (nodeDelta.type === 'UpsertNode') {
               const node = nodeDelta.nodeToUpsert;
-              mockElectronAPI.graph._graphState.nodes[node.relativeFilePathIsID] = node;
+              mockElectronAPI.graph._graphState.nodes[node.absoluteFilePathIsID] = node;
             } else if (nodeDelta.type === 'DeleteNode') {
               delete mockElectronAPI.graph._graphState.nodes[nodeDelta.nodeId];
             }
@@ -66,7 +66,7 @@ async function setupMockWithWatchedDirectory(page: import('@playwright/test').Pa
           delta.forEach((nodeDelta: any) => {
             if (nodeDelta.type === 'UpsertNode') {
               const node = nodeDelta.nodeToUpsert;
-              mockElectronAPI.graph._graphState.nodes[node.relativeFilePathIsID] = node;
+              mockElectronAPI.graph._graphState.nodes[node.absoluteFilePathIsID] = node;
             } else if (nodeDelta.type === 'DeleteNode') {
               delete mockElectronAPI.graph._graphState.nodes[nodeDelta.nodeId];
             }

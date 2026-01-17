@@ -55,7 +55,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
         mockGraph = {
             nodes: {
                 'parent.md': {
-                    relativeFilePathIsID: 'parent.md',
+                    absoluteFilePathIsID: 'parent.md',
                     contentWithoutYamlOrLinks: '# Parent GraphNode',
                     outgoingEdges: [{ targetId: 'child1.md', label: '' }],
                     nodeUIMetadata: {
@@ -66,7 +66,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
                     }
                 },
                 'child1.md': {
-                    relativeFilePathIsID: 'child1.md',
+                    absoluteFilePathIsID: 'child1.md',
                     contentWithoutYamlOrLinks: '# Child 1',
                     outgoingEdges: [],
                     nodeUIMetadata: {
@@ -109,7 +109,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
             // Also update mockGraph so getNode works for newly created nodes
             delta.forEach((action) => {
                 if (action.type === 'UpsertNode') {
-                    mockGraph.nodes[action.nodeToUpsert.relativeFilePathIsID] = action.nodeToUpsert
+                    mockGraph.nodes[action.nodeToUpsert.absoluteFilePathIsID] = action.nodeToUpsert
                 }
             })
             return undefined
@@ -179,11 +179,11 @@ describe('createNewChildNodeFromUI - Integration', () => {
 
         // First action: UpsertNode for new child
         expect(graphDeltaCall[0].type).toBe('UpsertNode')
-        expect(graphDeltaCall[0].nodeToUpsert.relativeFilePathIsID).toBe(newNodeId)
+        expect(graphDeltaCall[0].nodeToUpsert.absoluteFilePathIsID).toBe(newNodeId)
 
         // Second action: UpsertNode for parent with edge to new child
         expect(graphDeltaCall[1].type).toBe('UpsertNode')
-        expect(graphDeltaCall[1].nodeToUpsert.relativeFilePathIsID).toBe('parent.md')
+        expect(graphDeltaCall[1].nodeToUpsert.absoluteFilePathIsID).toBe('parent.md')
         const hasEdgeToNewNode: boolean = graphDeltaCall[1].nodeToUpsert.outgoingEdges.some(
             (edge: { targetId: string }) => edge.targetId === newNodeId
         ) as boolean;
@@ -237,7 +237,7 @@ describe('modifyNodeContentFromUI - Integration', () => {
         mockGraph = {
             nodes: {
                 'test.md': {
-                    relativeFilePathIsID: 'test.md',
+                    absoluteFilePathIsID: 'test.md',
                     contentWithoutYamlOrLinks: '# Old Title\n\nSome content',
                     outgoingEdges: [],
                     nodeUIMetadata: {

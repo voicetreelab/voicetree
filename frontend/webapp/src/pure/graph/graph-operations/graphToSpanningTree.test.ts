@@ -6,7 +6,7 @@ import * as O from 'fp-ts/lib/Option.js'
 
 describe('graphToSpanningTree', () => {
   const createTestNode: (id: string, edges?: readonly string[]) => GraphNode = (id: string, edges: readonly string[] = []): GraphNode => ({
-    relativeFilePathIsID: id,
+    absoluteFilePathIsID: id,
     outgoingEdges: edges.map((targetId: string): Edge => ({ targetId, label: '' })),
     contentWithoutYamlOrLinks: `content of ${id}`,
     nodeUIMetadata: {
@@ -370,7 +370,7 @@ describe('graphToSpanningTree', () => {
     it('should handle node with multiple self-loops', () => {
       // Node A has edges to itself multiple times
       const node: GraphNode = {
-        relativeFilePathIsID: 'A',
+        absoluteFilePathIsID: 'A',
         outgoingEdges: [
           { targetId: 'A', label: '' },
           { targetId: 'A', label: 'second' },

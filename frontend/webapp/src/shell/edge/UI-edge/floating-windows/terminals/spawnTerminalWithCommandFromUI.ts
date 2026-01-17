@@ -422,10 +422,10 @@ export function createFloatingTerminalWindow(
     // Analytics: Track terminal opened
     posthog.capture('terminal_opened', { terminalId: terminalId });
 
-    // Phase 1 refactor: Close and fullscreen buttons removed from title bar
-    // Traffic lights will be added to horizontal menu in Phase 2A/3
-    // When implemented, close handler should call: closeTerminal(terminalWithUI, cy)
-    // When implemented, fullscreen handler should use: attachFullscreenZoom(cy, btn, getShadowNodeId(terminalId), true)
+    // Handle traffic light close button click
+    ui.windowElement.addEventListener('traffic-light-close', (): void => {
+        void closeTerminal(terminalWithUI, cy);
+    });
 
     // Add to overlay
     overlay.appendChild(ui.windowElement);

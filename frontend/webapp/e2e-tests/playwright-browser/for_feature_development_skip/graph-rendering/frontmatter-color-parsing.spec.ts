@@ -88,7 +88,7 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'red-node',
+          absoluteFilePathIsID: 'red-node',
           contentWithoutYamlOrLinks: '---\ncolor: red\n---\n# Red Node\n\nThis node should be red.',
           outgoingEdges: [],
           nodeUIMetadata: {
@@ -103,7 +103,7 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'cyan-node',
+          absoluteFilePathIsID: 'cyan-node',
           contentWithoutYamlOrLinks: '---\ncolor: cyan\n---\n# Cyan Node\n\nThis node should be cyan.',
           outgoingEdges: [],
           nodeUIMetadata: {
@@ -118,7 +118,7 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'hex-color-node',
+          absoluteFilePathIsID: 'hex-color-node',
           contentWithoutYamlOrLinks: '---\ncolor: "#FF5733"\n---\n# Hex Color Node\n\nThis node should have hex color #FF5733.',
           outgoingEdges: [],
           nodeUIMetadata: {
@@ -133,7 +133,7 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'no-color-node',
+          absoluteFilePathIsID: 'no-color-node',
           contentWithoutYamlOrLinks: '# No Color Node\n\nThis node has no color specified.',
           outgoingEdges: [],
           nodeUIMetadata: {
@@ -218,7 +218,7 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'no-color-node',
+          absoluteFilePathIsID: 'no-color-node',
           contentWithoutYamlOrLinks: '---\ncolor: green\n---\n# Updated Color Node\n\nThis node now has green color.',
           outgoingEdges: [],
           nodeUIMetadata: {
@@ -229,7 +229,7 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
           }
         },
         previousNode: { _tag: 'Some', value: {
-          relativeFilePathIsID: 'no-color-node',
+          absoluteFilePathIsID: 'no-color-node',
           contentWithoutYamlOrLinks: '# No Color Node\n\nThis node has no color specified.',
           outgoingEdges: [],
           nodeUIMetadata: {
@@ -281,7 +281,7 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'invalid-1',
+          absoluteFilePathIsID: 'invalid-1',
           contentWithoutYamlOrLinks: '# Invalid 1',
           outgoingEdges: [],
           nodeUIMetadata: {
@@ -296,7 +296,7 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'invalid-2',
+          absoluteFilePathIsID: 'invalid-2',
           contentWithoutYamlOrLinks: '# Invalid 2',
           outgoingEdges: [],
           nodeUIMetadata: {
@@ -311,7 +311,7 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'invalid-3',
+          absoluteFilePathIsID: 'invalid-3',
           contentWithoutYamlOrLinks: '# Invalid 3',
           outgoingEdges: [],
           nodeUIMetadata: {
@@ -350,7 +350,7 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'update-test',
+          absoluteFilePathIsID: 'update-test',
           contentWithoutYamlOrLinks: '# Update Test',
           outgoingEdges: [],
           nodeUIMetadata: {
@@ -378,7 +378,7 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'update-test',
+          absoluteFilePathIsID: 'update-test',
           contentWithoutYamlOrLinks: '# Update Test - Invalid',
           outgoingEdges: [],
           nodeUIMetadata: {
@@ -389,7 +389,7 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
           }
         },
         previousNode: { _tag: 'Some', value: {
-          relativeFilePathIsID: 'update-test',
+          absoluteFilePathIsID: 'update-test',
           contentWithoutYamlOrLinks: '# Update Test',
           outgoingEdges: [],
           nodeUIMetadata: {

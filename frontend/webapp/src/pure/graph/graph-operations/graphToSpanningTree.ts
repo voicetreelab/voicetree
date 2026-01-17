@@ -103,19 +103,19 @@ function buildTree(
   const finalState: TraversalState = incomingNodes
     .reduce<TraversalState>((currentState, parentNode) => {
       // Skip if parent already visited (may have been visited by earlier edge in this reduce)
-      if (currentState.visited.has(parentNode.relativeFilePathIsID)) {
+      if (currentState.visited.has(parentNode.absoluteFilePathIsID)) {
         return currentState
       }
       // Ensure parent has edges array initialized
-      const withParentInit: TraversalState = currentState.treeEdges.has(parentNode.relativeFilePathIsID)
+      const withParentInit: TraversalState = currentState.treeEdges.has(parentNode.absoluteFilePathIsID)
         ? currentState
-        : { visited: currentState.visited, treeEdges: new Map([...currentState.treeEdges, [parentNode.relativeFilePathIsID, []]]) }
+        : { visited: currentState.visited, treeEdges: new Map([...currentState.treeEdges, [parentNode.absoluteFilePathIsID, []]]) }
       // Add edge from parent to current node
-      const withEdge: TraversalState = addTreeEdge(withParentInit, parentNode.relativeFilePathIsID, {
+      const withEdge: TraversalState = addTreeEdge(withParentInit, parentNode.absoluteFilePathIsID, {
         targetId: nodeId,
         label: ''
       })
-      return buildTree(graph, parentNode.relativeFilePathIsID, withEdge)
+      return buildTree(graph, parentNode.absoluteFilePathIsID, withEdge)
     }, stateAfterOutgoing)
 
   return finalState

@@ -59,7 +59,7 @@ Highest priority task: `,
     agents: [
         {
             name: 'Claude',
-            command: `claude "${AGENT_PROMPT_VAR}"`,
+            command: `claude --settings "$VOICETREE_APP_SUPPORT/tools/claude-settings.json" "${AGENT_PROMPT_VAR}"`,
         },
         {
             name: 'Gemini',

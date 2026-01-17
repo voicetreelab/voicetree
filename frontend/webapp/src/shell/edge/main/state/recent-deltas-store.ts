@@ -66,7 +66,7 @@ export const EDIT_DISTANCE_TOLERANCE: number = 20
  */
 function getNodeIdFromDelta(delta: NodeDelta): NodeIdAndFilePath {
     return delta.type === 'UpsertNode'
-        ? delta.nodeToUpsert.relativeFilePathIsID
+        ? delta.nodeToUpsert.absoluteFilePathIsID
         : delta.nodeId
 }
 
@@ -76,6 +76,7 @@ function getNodeIdFromDelta(delta: NodeDelta): NodeIdAndFilePath {
  */
 export function markRecentDelta(delta: NodeDelta): void {
     const nodeId: NodeIdAndFilePath = getNodeIdFromDelta(delta)
+    console.log('[markRecentDelta] Storing nodeId:', nodeId)
     const now: number = Date.now()
 
     // Clean up all expired entries across all nodeIds
@@ -112,6 +113,8 @@ export function isOurRecentDelta(incomingDelta: GraphDelta): boolean {
     for (const nodeDelta of incomingDelta) {
         const nodeId: NodeIdAndFilePath = getNodeIdFromDelta(nodeDelta)
         const entries: RecentDeltaEntry[] | undefined = recentDeltas.get(nodeId)
+        console.log('[isOurRecentDelta] Looking up nodeId:', nodeId, 'found entries:', entries?.length ?? 0)
+        console.log('[isOurRecentDelta] Current map keys:', Array.from(recentDeltas.keys()))
 
         if (!entries || entries.length === 0) {
             // No recent delta for this node - this is an external change

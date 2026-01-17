@@ -17,7 +17,7 @@ function createSingleNodeDelta(id: string, title: string, x: number, y: number):
   return [{
     type: 'UpsertNode' as const,
     nodeToUpsert: {
-      relativeFilePathIsID: id,
+      absoluteFilePathIsID: id,
       contentWithoutYamlOrLinks: `# ${title}\nContent for ${title} node.`,
       outgoingEdges: [],
       nodeUIMetadata: {

@@ -203,7 +203,7 @@ export class SearchService {
 
     for (const nodeDelta of delta) {
       if (nodeDelta.type === 'UpsertNode') {
-        const node: NodeSingular | undefined = this.cy.getElementById(nodeDelta.nodeToUpsert.relativeFilePathIsID);
+        const node: NodeSingular | undefined = this.cy.getElementById(nodeDelta.nodeToUpsert.absoluteFilePathIsID);
         if (!node || node.empty() || node.data('isShadowNode') || node.data('isContextNode')) continue;
 
         const nodeId: string = node.id();

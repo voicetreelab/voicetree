@@ -184,16 +184,6 @@ test.describe('MCP Agent Spawn E2E', () => {
     expect(watchResult.success).toBe(true);
     await appWindow.waitForTimeout(3000);
 
-    const watchStatus = await appWindow.evaluate(async () => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
-      return await api.main.getWatchStatus();
-    });
-
-    const vaultPath = watchStatus.vaultSuffix
-      ? path.join(watchStatus.directory ?? FIXTURE_VAULT_PATH, watchStatus.vaultSuffix)
-      : (watchStatus.directory ?? FIXTURE_VAULT_PATH);
-
     await appWindow.evaluate(async () => {
       const api = (window as unknown as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
@@ -211,8 +201,8 @@ test.describe('MCP Agent Spawn E2E', () => {
       clientInfo: { name: 'e2e-test', version: '1.0.0' }
     });
 
-    const setVaultResponse = await mcpCallToolRaw('set_vault_path', { vaultPath });
-    expect((setVaultResponse as { success: boolean }).success).toBe(true);
+    // No need to call set_vault_path - MCP server shares state with Electron
+    // and vault is already loaded via startFileWatching above
 
     const spawnResponse = await mcpCallToolRaw('spawn_agent', { nodeId: TARGET_NODE_ID }) as {
       success: boolean;

@@ -75,7 +75,7 @@ test.describe('Horizontal Menu Hover States', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'horizontal-menu-test.md',
+          absoluteFilePathIsID: 'horizontal-menu-test.md',
           contentWithoutYamlOrLinks: '# Horizontal Menu Test\nThis node tests horizontal menu hover states.',
           outgoingEdges: [],
           nodeUIMetadata: {

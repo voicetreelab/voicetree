@@ -71,7 +71,7 @@ test.describe('Context Menu Close on Mouseout (Browser)', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'context-menu-test-node.md',
+          absoluteFilePathIsID: 'context-menu-test-node.md',
           contentWithoutYamlOrLinks: '# Context Menu Test\nThis node tests context menu behavior.',
           outgoingEdges: [],
           nodeUIMetadata: {

@@ -51,7 +51,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             // Create parent node first
             const parentNode: GraphNode = {
-                relativeFilePathIsID: 'parent',
+                absoluteFilePathIsID: 'parent',
                 contentWithoutYamlOrLinks: '# Parent GraphNode',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -75,7 +75,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             // Create child node with edge to parent
             const childNode: GraphNode = {
-                relativeFilePathIsID: 'child',
+                absoluteFilePathIsID: 'child',
                 contentWithoutYamlOrLinks: '# Child GraphNode',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -125,7 +125,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             // WHEN: Adding an orphan node (no outgoing edges)
             const orphanNode: GraphNode = {
-                relativeFilePathIsID: 'orphan',
+                absoluteFilePathIsID: 'orphan',
                 contentWithoutYamlOrLinks: '# Orphan GraphNode',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -159,7 +159,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
         it('should remove a node from the graph', () => {
             // GIVEN: Graph with a node
             const node: GraphNode = {
-                relativeFilePathIsID: 'to-delete',
+                absoluteFilePathIsID: 'to-delete',
                 contentWithoutYamlOrLinks: '# GraphNode to Delete',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -202,7 +202,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
         it('should update title, content and color but preserve position', () => {
             // GIVEN: Graph with a node
             const originalNode: GraphNode = {
-                relativeFilePathIsID: 'node-to-update',
+                absoluteFilePathIsID: 'node-to-update',
                 contentWithoutYamlOrLinks: '# Original Content',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -230,7 +230,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             // WHEN: Updating the node with new title and color
             const updatedNode: GraphNode = {
-                relativeFilePathIsID: 'node-to-update',
+                absoluteFilePathIsID: 'node-to-update',
                 contentWithoutYamlOrLinks: '# Updated Content',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -276,7 +276,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             // WHEN: Adding multiple nodes at once
             const node1: GraphNode = {
-                relativeFilePathIsID: 'bulk-1',
+                absoluteFilePathIsID: 'bulk-1',
                 contentWithoutYamlOrLinks: '# Bulk GraphNode 1',
                 outgoingEdges: [{ targetId: 'bulk-2', label: '' }],
                 nodeUIMetadata: {
@@ -289,7 +289,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const node2: GraphNode = {
-                relativeFilePathIsID: 'bulk-2',
+                absoluteFilePathIsID: 'bulk-2',
                 contentWithoutYamlOrLinks: '# Bulk GraphNode 2',
                 outgoingEdges: [{ targetId: 'bulk-3', label: '' }],
                 nodeUIMetadata: {
@@ -302,7 +302,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const node3: GraphNode = {
-                relativeFilePathIsID: 'bulk-3',
+                absoluteFilePathIsID: 'bulk-3',
                 contentWithoutYamlOrLinks: '# Bulk GraphNode 3',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -338,7 +338,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
         it('should handle mixed operations (add, update, delete) in one delta', () => {
             // GIVEN: Graph with 2 nodes
             const existingNode: GraphNode = {
-                relativeFilePathIsID: 'existing',
+                absoluteFilePathIsID: 'existing',
                 contentWithoutYamlOrLinks: '# Existing',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -351,7 +351,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const nodeToDelete: GraphNode = {
-                relativeFilePathIsID: 'to-delete',
+                absoluteFilePathIsID: 'to-delete',
                 contentWithoutYamlOrLinks: '# Will be deleted',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -374,7 +374,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             // WHEN: Applying mixed delta (add new, update existing, delete one)
             const newNode: GraphNode = {
-                relativeFilePathIsID: 'new',
+                absoluteFilePathIsID: 'new',
                 contentWithoutYamlOrLinks: '# New GraphNode',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -427,7 +427,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
         it('should not create duplicate edges', () => {
             // GIVEN: Two nodes with an edge
             const parent: GraphNode = {
-                relativeFilePathIsID: 'parent',
+                absoluteFilePathIsID: 'parent',
                 contentWithoutYamlOrLinks: '# Parent',
                 outgoingEdges: [{ targetId: 'child', label: '' }],
                 nodeUIMetadata: {
@@ -440,7 +440,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const child: GraphNode = {
-                relativeFilePathIsID: 'child',
+                absoluteFilePathIsID: 'child',
                 contentWithoutYamlOrLinks: '# Child',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -475,7 +475,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             // and re-added to the delta. If both entries have the same edge, it would throw.
 
             const parent: GraphNode = {
-                relativeFilePathIsID: 'parent',
+                absoluteFilePathIsID: 'parent',
                 contentWithoutYamlOrLinks: '# Parent',
                 outgoingEdges: [{ targetId: 'child', label: 'test-label' }],
                 nodeUIMetadata: {
@@ -488,7 +488,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const child: GraphNode = {
-                relativeFilePathIsID: 'child',
+                absoluteFilePathIsID: 'child',
                 contentWithoutYamlOrLinks: '# Child',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -520,7 +520,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             // and both include the same parent node with edge to child (due to healing)
 
             const parent: GraphNode = {
-                relativeFilePathIsID: 'parent',
+                absoluteFilePathIsID: 'parent',
                 contentWithoutYamlOrLinks: '# Parent',
                 outgoingEdges: [{ targetId: 'child', label: '' }],
                 nodeUIMetadata: {
@@ -533,7 +533,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const child: GraphNode = {
-                relativeFilePathIsID: 'child',
+                absoluteFilePathIsID: 'child',
                 contentWithoutYamlOrLinks: '# Child',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -568,7 +568,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
         it('should set edge label when creating edges with non-empty labels', () => {
             // GIVEN: Two nodes
             const parent: GraphNode = {
-                relativeFilePathIsID: 'parent',
+                absoluteFilePathIsID: 'parent',
                 contentWithoutYamlOrLinks: '# Parent',
                 outgoingEdges: [{ targetId: 'child', label: 'is parent of' }],
                 nodeUIMetadata: {
@@ -581,7 +581,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const child: GraphNode = {
-                relativeFilePathIsID: 'child',
+                absoluteFilePathIsID: 'child',
                 contentWithoutYamlOrLinks: '# Child',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -610,7 +610,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
         it('should not set label when edge has empty label', () => {
             // GIVEN: Two nodes with empty label edge
             const parent: GraphNode = {
-                relativeFilePathIsID: 'parent',
+                absoluteFilePathIsID: 'parent',
                 contentWithoutYamlOrLinks: '# Parent',
                 outgoingEdges: [{ targetId: 'child', label: '' }],
                 nodeUIMetadata: {
@@ -623,7 +623,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const child: GraphNode = {
-                relativeFilePathIsID: 'child',
+                absoluteFilePathIsID: 'child',
                 contentWithoutYamlOrLinks: '# Child',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -652,7 +652,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
         it('should replace underscores with spaces in edge labels', () => {
             // GIVEN: Two nodes with edge label containing underscores
             const parent: GraphNode = {
-                relativeFilePathIsID: 'parent',
+                absoluteFilePathIsID: 'parent',
                 contentWithoutYamlOrLinks: '# Parent',
                 outgoingEdges: [{ targetId: 'child', label: 'is_a_prerequisite_for' }],
                 nodeUIMetadata: {
@@ -665,7 +665,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const child: GraphNode = {
-                relativeFilePathIsID: 'child',
+                absoluteFilePathIsID: 'child',
                 contentWithoutYamlOrLinks: '# Child',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -694,7 +694,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
         it('should handle edge labels with multiple underscores', () => {
             // GIVEN: Two nodes with complex label
             const parent: GraphNode = {
-                relativeFilePathIsID: 'parent',
+                absoluteFilePathIsID: 'parent',
                 contentWithoutYamlOrLinks: '# Parent',
                 outgoingEdges: [{ targetId: 'child', label: 'this_is_a_complex_relationship_label' }],
                 nodeUIMetadata: {
@@ -707,7 +707,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const child: GraphNode = {
-                relativeFilePathIsID: 'child',
+                absoluteFilePathIsID: 'child',
                 contentWithoutYamlOrLinks: '# Child',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -736,7 +736,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
         it('should handle edge labels without underscores', () => {
             // GIVEN: Two nodes with label without underscores
             const parent: GraphNode = {
-                relativeFilePathIsID: 'parent',
+                absoluteFilePathIsID: 'parent',
                 contentWithoutYamlOrLinks: '# Parent',
                 outgoingEdges: [{ targetId: 'child', label: 'simple label' }],
                 nodeUIMetadata: {
@@ -749,7 +749,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const child: GraphNode = {
-                relativeFilePathIsID: 'child',
+                absoluteFilePathIsID: 'child',
                 contentWithoutYamlOrLinks: '# Child',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -778,7 +778,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
         it('should update edge label when relationship label changes in markdown', () => {
             // GIVEN: Two nodes with an edge labeled "parent_of"
             const parent: GraphNode = {
-                relativeFilePathIsID: 'parent',
+                absoluteFilePathIsID: 'parent',
                 contentWithoutYamlOrLinks: '# Parent',
                 outgoingEdges: [{ targetId: 'child', label: 'parent_of' }],
                 nodeUIMetadata: {
@@ -790,7 +790,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const child: GraphNode = {
-                relativeFilePathIsID: 'child',
+                absoluteFilePathIsID: 'child',
                 contentWithoutYamlOrLinks: '# Child',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -826,7 +826,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
         it('should NOT remove edges to shadow nodes (floating terminals/editors)', () => {
             // GIVEN: A parent node in the graph
             const parent: GraphNode = {
-                relativeFilePathIsID: 'parent.md',
+                absoluteFilePathIsID: 'parent.md',
                 contentWithoutYamlOrLinks: '# Parent',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -876,7 +876,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
         it('should handle edge lifecycle: creation after target exists, persistence on update, removal on link delete', () => {
             // Helper to create node with minimal boilerplate
             const makeNode: (id: string, edges?: Array<{ targetId: string; label: string; }>) => GraphNode = (id: string, edges: Array<{targetId: string, label: string}> = []): GraphNode => ({
-                relativeFilePathIsID: id,
+                absoluteFilePathIsID: id,
                 contentWithoutYamlOrLinks: `# ${id}`,
                 outgoingEdges: edges,
                 nodeUIMetadata: { color: O.none, position: O.some({ x: 0, y: 0 }), additionalYAMLProps: new Map(), isContextNode: false }
@@ -916,7 +916,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             const validColors: string[] = ['#ff0000', 'rgb(0, 255, 0)', 'blue', 'cyan', 'hsl(120, 100%, 50%)']
 
             const nodes: GraphNode[] = validColors.map((color, i) => ({
-                relativeFilePathIsID: `node-${i}`,
+                absoluteFilePathIsID: `node-${i}`,
                 contentWithoutYamlOrLinks: `# Node ${i}`,
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -951,7 +951,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             const invalidColors: string[] = ['cyancyan', 'notacolor', '###', 'rgb(999,999,999)', '']
 
             const nodes: GraphNode[] = invalidColors.map((color, i) => ({
-                relativeFilePathIsID: `invalid-${i}`,
+                absoluteFilePathIsID: `invalid-${i}`,
                 contentWithoutYamlOrLinks: `# Invalid ${i}`,
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -981,7 +981,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
         it('should filter out invalid colors when updating existing nodes', () => {
             // GIVEN: Graph with a node with valid color
             const originalNode: GraphNode = {
-                relativeFilePathIsID: 'color-update',
+                absoluteFilePathIsID: 'color-update',
                 contentWithoutYamlOrLinks: '# Original',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -1002,7 +1002,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             // WHEN: Updating with invalid color
             const updatedNode: GraphNode = {
-                relativeFilePathIsID: 'color-update',
+                absoluteFilePathIsID: 'color-update',
                 contentWithoutYamlOrLinks: '# Updated',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -1033,7 +1033,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             // WHEN: Adding a node with scientific notation position (from real example file)
             // Content modeled after: example_folder_fixtures/example_real_large/2025-09-30/14_1_Victor_Append_Agent_Extraction_Analysis_Complete.md
             const nodeWithScientificNotation: GraphNode = {
-                relativeFilePathIsID: '14_1_Victor_Append_Agent_Extraction_Analysis_Complete.md',
+                absoluteFilePathIsID: '14_1_Victor_Append_Agent_Extraction_Analysis_Complete.md',
                 contentWithoutYamlOrLinks: '# Victor Append Agent Extraction Analysis Complete',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -1063,7 +1063,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
         it('should correctly position node with small positive scientific notation', () => {
             // Content modeled after: example_folder_fixtures/example_small/5_Immediate_Test_Observation_No_Output.md
             const nodeWithSmallScientificNotation: GraphNode = {
-                relativeFilePathIsID: '5_Immediate_Test_Observation_No_Output.md',
+                absoluteFilePathIsID: '5_Immediate_Test_Observation_No_Output.md',
                 contentWithoutYamlOrLinks: '# Speaker observes no output',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -1086,7 +1086,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
         it('should handle very large scientific notation values', () => {
             const nodeWithLargeNotation: GraphNode = {
-                relativeFilePathIsID: 'large-notation.md',
+                absoluteFilePathIsID: 'large-notation.md',
                 contentWithoutYamlOrLinks: '# Large Notation',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -1116,7 +1116,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             // GIVEN: Graph with an existing node
             const originalNode: GraphNode = {
-                relativeFilePathIsID: 'test-node',
+                absoluteFilePathIsID: 'test-node',
                 contentWithoutYamlOrLinks: '# Original Content',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -1147,7 +1147,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             // WHEN: Updating the existing node with new content
             const updatedNode: GraphNode = {
-                relativeFilePathIsID: 'test-node',
+                absoluteFilePathIsID: 'test-node',
                 contentWithoutYamlOrLinks: '# Updated Content\n\nNew paragraph added',
                 outgoingEdges: [],
                 nodeUIMetadata: {

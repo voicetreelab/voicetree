@@ -145,7 +145,7 @@ test.describe('Undo/Redo Hotkey Scope Isolation (Browser)', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'undo-test-node.md',
+          absoluteFilePathIsID: 'undo-test-node.md',
           contentWithoutYamlOrLinks: testContent,
           outgoingEdges: [],
           nodeUIMetadata: {
@@ -299,7 +299,7 @@ test.describe('Undo/Redo Hotkey Scope Isolation (Browser)', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'redo-test-node.md',
+          absoluteFilePathIsID: 'redo-test-node.md',
           contentWithoutYamlOrLinks: testContent,
           outgoingEdges: [],
           nodeUIMetadata: {

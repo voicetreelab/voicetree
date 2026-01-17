@@ -13,7 +13,7 @@ import type { GraphDelta, GraphNode, UpsertNodeDelta, DeleteNode } from '@/pure/
 // Helper to create a minimal GraphNode for testing
 function createTestNode(id: string, title: string, contentExtra: string = ''): GraphNode {
     return {
-        relativeFilePathIsID: id,
+        absoluteFilePathIsID: id,
         contentWithoutYamlOrLinks: `# ${title}\n\nSome content${contentExtra}`,
         outgoingEdges: [],
         nodeUIMetadata: {
@@ -42,7 +42,7 @@ function createDeleteAction(id: string): DeleteNode {
 
 // Helper to get nodeId from an UpsertNodeDelta
 function getNodeId(entry: UpsertNodeDelta): string {
-    return entry.nodeToUpsert.relativeFilePathIsID
+    return entry.nodeToUpsert.absoluteFilePathIsID
 }
 
 describe('recentNodeHistoryV2', () => {
@@ -162,7 +162,7 @@ describe('recentNodeHistoryV2', () => {
         it('excludes context nodes from recent history', () => {
             // Create a context node (isContextNode: true)
             const contextNode: GraphNode = {
-                relativeFilePathIsID: 'ctx-nodes/context.md',
+                absoluteFilePathIsID: 'ctx-nodes/context.md',
                 contentWithoutYamlOrLinks: '# Context\n\nContext content',
                 outgoingEdges: [],
                 nodeUIMetadata: {

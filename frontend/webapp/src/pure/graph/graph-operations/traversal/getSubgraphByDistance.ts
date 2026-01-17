@@ -118,7 +118,7 @@ function dfsTraversal(
     const afterParents: ReadonlySet<NodeIdAndFilePath> = incomingNodes
       .filter(() => distance + 1.0 < maxDistance)
       .reduce<ReadonlySet<NodeIdAndFilePath>>(
-        (acc, parentNode) => dfsVisit(parentNode.relativeFilePathIsID, distance + 1.0, acc),
+        (acc, parentNode) => dfsVisit(parentNode.absoluteFilePathIsID, distance + 1.0, acc),
         afterChildren
       )
 

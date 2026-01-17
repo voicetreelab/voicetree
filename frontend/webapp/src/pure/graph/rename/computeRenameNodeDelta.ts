@@ -32,7 +32,7 @@ export function computeRenameNodeDelta(
     // 1. Create the renamed node delta
     const renamedNode: GraphNode = {
         ...oldNode,
-        relativeFilePathIsID: newNodeId
+        absoluteFilePathIsID: newNodeId
     }
 
     const renamedNodeDelta: UpsertNodeDelta = {

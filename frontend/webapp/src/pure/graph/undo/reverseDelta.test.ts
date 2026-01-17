@@ -6,7 +6,7 @@ import type { GraphDelta, GraphNode, UpsertNodeDelta, DeleteNode } from '@/pure/
 // Helper to create a minimal GraphNode for testing
 function createTestNode(id: string, content: string = '# Test'): GraphNode {
     return {
-        relativeFilePathIsID: id,
+        absoluteFilePathIsID: id,
         contentWithoutYamlOrLinks: content,
         outgoingEdges: [],
         nodeUIMetadata: {

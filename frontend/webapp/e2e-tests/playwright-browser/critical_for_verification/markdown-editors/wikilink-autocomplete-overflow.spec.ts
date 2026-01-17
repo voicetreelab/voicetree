@@ -76,7 +76,7 @@ test.describe('Wikilink Autocomplete Overflow Fix', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'target-node-1.md',
+          absoluteFilePathIsID: 'target-node-1.md',
           contentWithoutYamlOrLinks: '# Target Node One\n\nFirst target node.',
           outgoingEdges: [],
           nodeUIMetadata: {
@@ -91,7 +91,7 @@ test.describe('Wikilink Autocomplete Overflow Fix', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'target-node-2.md',
+          absoluteFilePathIsID: 'target-node-2.md',
           contentWithoutYamlOrLinks: '# Target Node Two\n\nSecond target node.',
           outgoingEdges: [],
           nodeUIMetadata: {
@@ -108,7 +108,7 @@ test.describe('Wikilink Autocomplete Overflow Fix', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'test-editor.md',
+          absoluteFilePathIsID: 'test-editor.md',
           contentWithoutYamlOrLinks: `# Test Editor
 
 This is a test to verify the autocomplete dropdown is visible when the cursor

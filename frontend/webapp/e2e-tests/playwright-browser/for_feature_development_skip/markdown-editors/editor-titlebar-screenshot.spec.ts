@@ -25,7 +25,7 @@ test.describe('Floating Editor Title Bar Screenshot', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'screenshot-test-node.md',
+          absoluteFilePathIsID: 'screenshot-test-node.md',
           contentWithoutYamlOrLinks: '# Screenshot Test\nContent here.',
           outgoingEdges: [],
           nodeUIMetadata: {

@@ -22,7 +22,7 @@ import type {FSUpdate, Graph, GraphDelta, GraphNode} from '@/pure/graph'
 import {addNodeToGraphWithEdgeHealingFromFSEvent} from '@/pure/graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent'
 import {getNodeTitle} from '@/pure/graph/markdown-parsing'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
-import {getDefaultWritePath, setVaultPath, getWatchedDirectory} from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import {getWritePath, getWatchedDirectory} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getUnseenNodesAroundContextNode, type UnseenNode} from '@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode'
 import {spawnTerminalWithContextNode} from '@/shell/edge/main/terminals/spawnTerminalWithContextNode'
 import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
@@ -45,11 +45,11 @@ function buildJsonResponse(payload: unknown, isError?: boolean): McpToolResponse
 }
 
 export async function spawnAgentTool({nodeId}: {nodeId: string}): Promise<McpToolResponse> {
-    const vaultPathOpt: O.Option<string> = await getDefaultWritePath()
+    const vaultPathOpt: O.Option<string> = await getWritePath()
     if (O.isNone(vaultPathOpt)) {
         return buildJsonResponse({
             success: false,
-            error: 'Vault path not set. Call set_vault_path first.'
+            error: 'No vault loaded. Please load a folder in the UI first.'
         }, true)
     }
 
@@ -63,7 +63,7 @@ export async function spawnAgentTool({nodeId}: {nodeId: string}): Promise<McpToo
 
     try {
         const {terminalId, contextNodeId}: {terminalId: string; contextNodeId: string} =
-            await spawnTerminalWithContextNode(nodeId)
+            await spawnTerminalWithContextNode(nodeId, undefined)
 
         return buildJsonResponse({
             success: true,
@@ -135,24 +135,6 @@ export function createMcpServer(): McpServer {
         version: '1.0.0'
     })
 
-    // Tool: set_vault_path
-    server.registerTool(
-        'set_vault_path',
-        {
-            title: 'Set Vault Path',
-            description: 'Set the vault path for this MCP session. Must be called before add_node.',
-            inputSchema: {
-                vaultPath: z.string().describe('Absolute path to the vault directory')
-            }
-        },
-        async ({vaultPath}) => {
-            setVaultPath(vaultPath)
-            return {
-                content: [{type: 'text', text: JSON.stringify({success: true, vaultPath})}]
-            }
-        }
-    )
-
     // Tool: add_node
     server.registerTool(
         'add_node',
@@ -167,7 +149,7 @@ export function createMcpServer(): McpServer {
         },
         async ({nodeId, content, parentNodeId}) => {
             // Get default write path (where new nodes are created)
-            const vaultPathOpt: O.Option<string> = await getDefaultWritePath()
+            const vaultPathOpt: O.Option<string> = await getWritePath()
             if (O.isNone(vaultPathOpt)) {
                 return {
                     content: [{
@@ -175,7 +157,7 @@ export function createMcpServer(): McpServer {
                         text: JSON.stringify({
                             success: false,
                             nodeId,
-                            message: 'Vault path not set. Call set_vault_path first.'
+                            message: 'No vault loaded. Please load a folder in the UI first.'
                         })
                     }],
                     isError: true
@@ -216,7 +198,7 @@ export function createMcpServer(): McpServer {
             // Apply to graph using pure function - pass watchedDirectory for node ID computation
             // Node IDs must be relative to watchedDirectory so paths reconstruct correctly
             const currentGraph: Graph = getGraph()
-            const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, watchedDirectory, currentGraph)
+            const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, currentGraph)
 
             // Persist to filesystem
             await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta)
@@ -252,8 +234,8 @@ export function createMcpServer(): McpServer {
             }> = {}
 
             for (const [_nodeId, node] of Object.entries(graph.nodes)) {
-                nodes[node.relativeFilePathIsID] = {
-                    id: node.relativeFilePathIsID,
+                nodes[node.absoluteFilePathIsID] = {
+                    id: node.absoluteFilePathIsID,
                     title: getNodeTitle(node),
                     content: node.contentWithoutYamlOrLinks,
                     outgoingEdges: node.outgoingEdges.map(e => ({
@@ -286,7 +268,7 @@ export function createMcpServer(): McpServer {
         async () => {
             const graph: Graph = getGraph()
             const nodes: { id: string; title: string; }[] = Object.values(graph.nodes).map(node => ({
-                id: node.relativeFilePathIsID,
+                id: node.absoluteFilePathIsID,
                 title: getNodeTitle(node)
             }))
 

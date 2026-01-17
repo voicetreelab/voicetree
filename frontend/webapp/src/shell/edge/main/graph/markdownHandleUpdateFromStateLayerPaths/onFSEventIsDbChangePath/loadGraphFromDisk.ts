@@ -24,20 +24,19 @@ import { applyGraphDeltaToGraph } from '@/pure/graph/graphDelta/applyGraphDeltaT
  * 4. Return Graph with all edges correctly resolved
  *
  * Key property: Loading [A,B,C] produces same result as [C,B,A] (order-independent)
+ * Node IDs are absolute paths (normalized with forward slashes).
  *
  * @param vaultPaths - Array of absolute paths to vault directories containing markdown files
- * @param watchedDirectory - Absolute path used as base for computing node IDs.
  * @returns Promise that resolves to a Graph
  *
  * @example
  * ```typescript
- * const graph = await loadGraphFromDisk(['/path/to/vault', '/path/to/openspec'], '/path/to')
+ * const graph = await loadGraphFromDisk(['/path/to/vault', '/path/to/openspec'])
  * console.log(`Loaded ${Object.keys(graph.nodes).length} nodes`)
  * ```
  */
 export async function loadGraphFromDisk(
-    vaultPaths: readonly string[],
-    watchedDirectory: string
+    vaultPaths: readonly string[]
 ): Promise<E.Either<FileLimitExceededError, Graph>> {
     if (vaultPaths.length === 0) {
         return E.right(createEmptyGraph());
@@ -75,7 +74,7 @@ export async function loadGraphFromDisk(
             }
 
             // Use unified function (same as incremental!)
-            const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, watchedDirectory, currentGraph)
+            const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, currentGraph)
             return applyGraphDeltaToGraph(currentGraph, delta)
         },
         Promise.resolve(createEmptyGraph())
@@ -97,14 +96,14 @@ export async function loadGraphFromDisk(
  * - Pure function (no module state like time-based guards)
  * - Consistent with initial loadGraphFromDisk pattern
  *
+ * Node IDs are absolute paths (normalized with forward slashes).
+ *
  * @param vaultPath - Absolute path to the new vault directory to load
- * @param watchedDirectory - Absolute path used as base for computing node IDs
  * @param existingGraph - The current graph to merge new nodes into
  * @returns Either FileLimitExceededError or { graph: merged graph, delta: new nodes only }
  */
 export async function loadVaultPathAdditively(
     vaultPath: string,
-    watchedDirectory: string,
     existingGraph: Graph
 ): Promise<E.Either<FileLimitExceededError, { graph: Graph; delta: GraphDelta }>> {
     // Step 1: Scan the new vault path for markdown files
@@ -134,12 +133,12 @@ export async function loadVaultPathAdditively(
             };
 
             // Use unified function (same as loadGraphFromDisk)
-            const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, watchedDirectory, currentGraph);
+            const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, currentGraph);
 
             // Track new node IDs from this delta
             delta.forEach(d => {
                 if (d.type === 'UpsertNode') {
-                    newNodeIds.push(d.nodeToUpsert.relativeFilePathIsID);
+                    newNodeIds.push(d.nodeToUpsert.absoluteFilePathIsID);
                 }
             });
 

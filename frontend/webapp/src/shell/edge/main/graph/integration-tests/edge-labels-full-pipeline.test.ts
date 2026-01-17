@@ -67,7 +67,7 @@ Setup instructions.`
     console.log('✓ Step 1: Created markdown files on disk')
 
     // STEP 2: Load graph from disk
-    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([tempDir], tempDir)
+    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([tempDir])
     if (E.isLeft(loadResult)) throw new Error('Expected Right')
     const graph: Graph = loadResult.right
 
@@ -96,7 +96,7 @@ Setup instructions.`
     console.log('  Delta length:', delta.length)
 
     // Find node 5 in delta
-    const node5Delta: NodeDelta | undefined = delta.find(d => d.type === 'UpsertNode' && d.nodeToUpsert.relativeFilePathIsID === '5_Understand_G_Cloud_Lambda.md')
+    const node5Delta: NodeDelta | undefined = delta.find(d => d.type === 'UpsertNode' && d.nodeToUpsert.absoluteFilePathIsID === '5_Understand_G_Cloud_Lambda.md')
     expect(node5Delta).toBeDefined()
 
     if (node5Delta?.type === 'UpsertNode') {
@@ -149,7 +149,7 @@ _Links:_
     await fs.writeFile(path.join(tempDir, 'node-b.md'), '# Node B', 'utf-8')
     await fs.writeFile(path.join(tempDir, 'node-c.md'), '# Node C', 'utf-8')
 
-    const loadResult2: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([tempDir], tempDir)
+    const loadResult2: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([tempDir])
     if (E.isLeft(loadResult2)) throw new Error('Expected Right')
     const graph: Graph = loadResult2.right
     const delta: GraphDelta = mapNewGraphToDelta(graph)

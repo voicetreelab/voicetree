@@ -37,7 +37,7 @@ test.describe('Editor Cmd+Enter Hotkey (Browser)', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'test-node-1.md',
+          absoluteFilePathIsID: 'test-node-1.md',
           contentWithoutYamlOrLinks: 'Test content\n\nPress Cmd+Enter to run terminal',
           outgoingEdges: [],
           nodeUIMetadata: {
@@ -119,7 +119,7 @@ test.describe('Editor Cmd+Enter Hotkey (Browser)', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'node-A.md',
+          absoluteFilePathIsID: 'node-A.md',
           contentWithoutYamlOrLinks: 'Node A content',
           outgoingEdges: [],
           nodeUIMetadata: {
@@ -134,7 +134,7 @@ test.describe('Editor Cmd+Enter Hotkey (Browser)', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'node-B.md',
+          absoluteFilePathIsID: 'node-B.md',
           contentWithoutYamlOrLinks: 'Node B content',
           outgoingEdges: [],
           nodeUIMetadata: {

@@ -12,7 +12,7 @@ describe('fromNodeToMarkdownContent', () => {
   describe('frontmatter generation', () => {
     it('should generate frontmatter from nodeUIMetadata color', () => {
       const node: GraphNode = {
-        relativeFilePathIsID: 'test.md',
+        absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
         nodeUIMetadata: {
@@ -33,7 +33,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should generate frontmatter with only color when position is none', () => {
       const node: GraphNode = {
-        relativeFilePathIsID: 'test.md',
+        absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
         nodeUIMetadata: {
@@ -55,7 +55,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should generate frontmatter with position from nodeUIMetadata', () => {
       const node: GraphNode = {
-        relativeFilePathIsID: 'test.md',
+        absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
         nodeUIMetadata: {
@@ -77,7 +77,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should include both color and position when nodeUIMetadata has both', () => {
       const node: GraphNode = {
-        relativeFilePathIsID: 'test.md',
+        absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
         nodeUIMetadata: {
@@ -100,7 +100,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should work as currently does when content has no frontmatter', () => {
       const node: GraphNode = {
-        relativeFilePathIsID: 'test.md',
+        absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content\n\nJust plain content',
         outgoingEdges: [],
         nodeUIMetadata: {
@@ -123,7 +123,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should generate minimal frontmatter', () => {
       const node: GraphNode = {
-        relativeFilePathIsID: 'test.md',
+        absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
         nodeUIMetadata: {
@@ -144,7 +144,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should generate frontmatter with both color and position', () => {
       const node: GraphNode = {
-        relativeFilePathIsID: 'test.md',
+        absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
         nodeUIMetadata: {
@@ -166,7 +166,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should restore wikilinks from [link]* notation', () => {
       const node: GraphNode = {
-        relativeFilePathIsID: 'test.md',
+        absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test\n\nThis has [other-note]* and [another]* links.',
         outgoingEdges: [],
         nodeUIMetadata: {
@@ -191,7 +191,7 @@ describe('fromNodeToMarkdownContent', () => {
   describe('wikilinks appending', () => {
     it('should append wikilinks after content', () => {
       const node: GraphNode = {
-        relativeFilePathIsID: 'test.md',
+        absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [{ targetId: 'child1.md', label: '' }, { targetId: 'child2.md', label: '' }],
         nodeUIMetadata: {
@@ -214,7 +214,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should not append wikilinks when outgoingEdges is empty', () => {
       const node: GraphNode = {
-        relativeFilePathIsID: 'test.md',
+        absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
         nodeUIMetadata: {
@@ -234,7 +234,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should not duplicate wikilinks already in content as [link]*', () => {
       const node: GraphNode = {
-        relativeFilePathIsID: 'test.md',
+        absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test\n\nSee [child1.md]* for details.',
         outgoingEdges: [{ targetId: 'child1.md', label: '' }, { targetId: 'child2.md', label: '' }],
         nodeUIMetadata: {
@@ -273,7 +273,7 @@ describe('fromNodeToMarkdownContent', () => {
       // Edge was created with targetId: "linked-node.md" (with extension)
       // These refer to the same node but deduplication fails due to literal string match
       const node: GraphNode = {
-        relativeFilePathIsID: 'test.md',
+        absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test\n\nSee [linked-node]* for details.',
         outgoingEdges: [{ targetId: 'linked-node.md', label: '' }],
         nodeUIMetadata: {
@@ -300,7 +300,7 @@ describe('fromNodeToMarkdownContent', () => {
       // Scenario: User typed [[foo]] but node is in subfolder "subfolder/foo.md"
       // Edge targetId has full path, content has short relative form
       const node: GraphNode = {
-        relativeFilePathIsID: 'test.md',
+        absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test\n\nSee [foo]* for details.',
         outgoingEdges: [{ targetId: 'subfolder/foo.md', label: '' }],
         nodeUIMetadata: {
@@ -328,7 +328,7 @@ describe('fromNodeToMarkdownContent', () => {
   describe('additionalYAMLProps', () => {
     it('should write string properties from additionalYAMLProps', () => {
       const node: GraphNode = {
-        relativeFilePathIsID: 'test.md',
+        absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
         nodeUIMetadata: {
@@ -351,7 +351,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should write numeric string properties', () => {
       const node: GraphNode = {
-        relativeFilePathIsID: 'test.md',
+        absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
         nodeUIMetadata: {
@@ -374,7 +374,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should write boolean string properties', () => {
       const node: GraphNode = {
-        relativeFilePathIsID: 'test.md',
+        absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
         nodeUIMetadata: {
@@ -397,7 +397,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should write JSON array properties from additionalYAMLProps', () => {
       const node: GraphNode = {
-        relativeFilePathIsID: 'test.md',
+        absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
         nodeUIMetadata: {
@@ -421,7 +421,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should write JSON object properties from additionalYAMLProps', () => {
       const node: GraphNode = {
-        relativeFilePathIsID: 'test.md',
+        absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
         nodeUIMetadata: {
@@ -445,7 +445,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should write additionalYAMLProps together with color and position', () => {
       const node: GraphNode = {
-        relativeFilePathIsID: 'test.md',
+        absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
         nodeUIMetadata: {
@@ -472,7 +472,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should handle empty additionalYAMLProps', () => {
       const node: GraphNode = {
-        relativeFilePathIsID: 'test.md',
+        absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
         nodeUIMetadata: {
@@ -565,7 +565,7 @@ Content with complex frontmatter`
     it('should write and parse additionalYAMLProps alongside color and position', () => {
       // Test that all properties can coexist in the frontmatter
       const node1: GraphNode = {
-        relativeFilePathIsID: 'test.md',
+        absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Node\n\nContent here',
         outgoingEdges: [],
         nodeUIMetadata: {
@@ -620,7 +620,7 @@ Just content, no frontmatter`
   describe('containedNodeIds', () => {
     it('should write containedNodeIds array to frontmatter', () => {
       const node: GraphNode = {
-        relativeFilePathIsID: 'context.md',
+        absoluteFilePathIsID: 'context.md',
         contentWithoutYamlOrLinks: '# Context Node',
         outgoingEdges: [],
         nodeUIMetadata: {
@@ -667,7 +667,7 @@ containedNodeIds:
 
     it('should not write containedNodeIds when undefined', () => {
       const node: GraphNode = {
-        relativeFilePathIsID: 'regular.md',
+        absoluteFilePathIsID: 'regular.md',
         contentWithoutYamlOrLinks: '# Regular Node',
         outgoingEdges: [],
         nodeUIMetadata: {

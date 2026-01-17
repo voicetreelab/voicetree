@@ -91,7 +91,7 @@ test.describe('Terminal/Editor Collision Placement (Browser E2E)', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: testNodeId,
+          absoluteFilePathIsID: testNodeId,
           contentWithoutYamlOrLinks: '# Collision Test Node\nTest content for collision detection.',
           outgoingEdges: [],
           nodeUIMetadata: {

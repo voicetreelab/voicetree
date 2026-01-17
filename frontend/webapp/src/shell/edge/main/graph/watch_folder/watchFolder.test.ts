@@ -3,8 +3,8 @@
  *
  * Tests the public API functions for multi-vault path management:
  * - await getVaultPaths() - returns readonly FilePath[] of allowlisted vault paths
- * - await getDefaultWritePath() - returns O.Option<FilePath> of default write path
- * - setDefaultWritePath(path) - sets default write path, returns {success, error?}
+ * - await getWritePath() - returns O.Option<FilePath> of default write path
+ * - setWritePath(path) - sets default write path, returns {success, error?}
  * - addVaultPathToAllowlist(path) - adds path to allowlist
  * - removeVaultPathFromAllowlist(path) - removes path from allowlist
  *
@@ -21,8 +21,8 @@ import * as os from 'os'
 import * as O from 'fp-ts/lib/Option.js'
 import {
   getVaultPaths,
-  getDefaultWritePath,
-  setDefaultWritePath,
+  getWritePath,
+  setWritePath,
   addVaultPathToAllowlist,
   removeVaultPathFromAllowlist,
   loadFolder,
@@ -122,7 +122,7 @@ describe('Multi-Vault Path Allowlist (7.1)', () => {
   describe('7.1.1 Scenario: User adds multiple vault paths', () => {
     it('should return all configured vault paths from await getVaultPaths()', async () => {
       // GIVEN: Load a folder (initializes with primary vault path)
-      await loadFolder(testWatchedDir, 'voicetree')
+      await loadFolder(testVaultPath1)
 
       // AND: Add additional vault paths
       const result1: { success: boolean; error?: string } = await addVaultPathToAllowlist(testVaultPath2)
@@ -144,7 +144,7 @@ describe('Multi-Vault Path Allowlist (7.1)', () => {
   describe('7.1.2 Scenario: Auto-create vault folder when adding non-existent path', () => {
     it('should auto-create directory when adding a non-existent path within project', async () => {
       // GIVEN: Load a folder (initializes with primary vault path)
-      await loadFolder(testWatchedDir, 'voicetree')
+      await loadFolder(testVaultPath1)
 
       // WHEN: Add a path that doesn't exist yet (but is within the project directory)
       const newFolderPath: string = path.join(testWatchedDir, 'new-folder-to-create')
@@ -167,7 +167,7 @@ describe('Multi-Vault Path Allowlist (7.1)', () => {
 
     it('should fail gracefully when path cannot be created (e.g., invalid characters or permissions)', async () => {
       // GIVEN: Load a folder (initializes with primary vault path)
-      await loadFolder(testWatchedDir, 'voicetree')
+      await loadFolder(testVaultPath1)
       const initialPaths: readonly string[] = [...await getVaultPaths()]
 
       // WHEN: Attempt to add path in non-existent root location (will fail on permissions)
@@ -188,7 +188,7 @@ describe('Multi-Vault Path Allowlist (7.1)', () => {
   describe('7.1.3 Scenario: Duplicate vault path prevention', () => {
     it('should not add duplicate paths to allowlist', async () => {
       // GIVEN: Load a folder (initializes with primary vault path)
-      await loadFolder(testWatchedDir, 'voicetree')
+      await loadFolder(testVaultPath1)
 
       // AND: Add a path (using custom-vault which is not auto-added by defaultAllowlistPatterns)
       const firstAdd: { success: boolean; error?: string } = await addVaultPathToAllowlist(testVaultPath2)
@@ -252,10 +252,10 @@ describe('Default Write Path (7.2)', () => {
   describe('7.2.2 Scenario: Single vault path as default', () => {
     it('should return the single vault path as default write path automatically', async () => {
       // GIVEN: Only one vault path configured (via loadFolder)
-      await loadFolder(testWatchedDir, 'voicetree')
+      await loadFolder(testVaultPath1)
 
-      // ASSERT: await getDefaultWritePath() returns that path automatically
-      const defaultWritePath: O.Option<string> = await getDefaultWritePath()
+      // ASSERT: await getWritePath() returns that path automatically
+      const defaultWritePath: O.Option<string> = await getWritePath()
       expect(O.isSome(defaultWritePath)).toBe(true)
       if (O.isSome(defaultWritePath)) {
         expect(defaultWritePath.value).toBe(testVaultPath1)
@@ -266,20 +266,20 @@ describe('Default Write Path (7.2)', () => {
   describe('7.2.3 Scenario: Default write path must be in allowlist', () => {
     it('should reject setting default to path not in allowlist', async () => {
       // GIVEN: Load a folder (initializes with primary vault path)
-      await loadFolder(testWatchedDir, 'voicetree')
+      await loadFolder(testVaultPath1)
 
       // WHEN: Attempt to set default to a path NOT in allowlist
       const outsidePath: string = path.join(testTmpDir, 'outside')
       await fs.mkdir(outsidePath, { recursive: true })
-      const result: { success: boolean; error?: string } = await setDefaultWritePath(outsidePath)
+      const result: { success: boolean; error?: string } = await setWritePath(outsidePath)
 
-      // ASSERT: setDefaultWritePath() returns error
+      // ASSERT: setWritePath() returns error
       expect(result.success).toBe(false)
       expect(result.error).toBeDefined()
       expect(result.error).toContain('allowlist')
 
       // ASSERT: Default write path unchanged
-      const defaultWritePath: O.Option<string> = await getDefaultWritePath()
+      const defaultWritePath: O.Option<string> = await getWritePath()
       expect(O.isSome(defaultWritePath)).toBe(true)
       if (O.isSome(defaultWritePath)) {
         expect(defaultWritePath.value).toBe(testVaultPath1)
@@ -288,17 +288,17 @@ describe('Default Write Path (7.2)', () => {
 
     it('should accept setting default to path that IS in allowlist', async () => {
       // GIVEN: Load a folder and add second vault path
-      await loadFolder(testWatchedDir, 'voicetree')
+      await loadFolder(testVaultPath1)
       await addVaultPathToAllowlist(testVaultPath2)
 
       // WHEN: Set default to the second path (which IS in allowlist)
-      const result: { success: boolean; error?: string } = await setDefaultWritePath(testVaultPath2)
+      const result: { success: boolean; error?: string } = await setWritePath(testVaultPath2)
 
-      // ASSERT: setDefaultWritePath() succeeds
+      // ASSERT: setWritePath() succeeds
       expect(result.success).toBe(true)
 
       // ASSERT: Default write path is now the second path
-      const defaultWritePath: O.Option<string> = await getDefaultWritePath()
+      const defaultWritePath: O.Option<string> = await getWritePath()
       expect(O.isSome(defaultWritePath)).toBe(true)
       if (O.isSome(defaultWritePath)) {
         expect(defaultWritePath.value).toBe(testVaultPath2)
@@ -352,7 +352,7 @@ describe('Remove Vault Path from Allowlist', () => {
 
   it('should remove path from allowlist when it is not the default write path', async () => {
     // GIVEN: Load a folder and add second vault path
-    await loadFolder(testWatchedDir, 'voicetree')
+    await loadFolder(testVaultPath1)
     await addVaultPathToAllowlist(testVaultPath2)
     expect(await getVaultPaths()).toContain(testVaultPath2)
 
@@ -368,7 +368,7 @@ describe('Remove Vault Path from Allowlist', () => {
 
   it('should reject removing the default write path', async () => {
     // GIVEN: Load a folder (primary vault is default write path)
-    await loadFolder(testWatchedDir, 'voicetree')
+    await loadFolder(testVaultPath1)
 
     // WHEN: Attempt to remove the default write path
     const result: { success: boolean; error?: string } = await removeVaultPathFromAllowlist(testVaultPath1)
@@ -383,7 +383,7 @@ describe('Remove Vault Path from Allowlist', () => {
 
   it('should reject removing path not in allowlist', async () => {
     // GIVEN: Load a folder
-    await loadFolder(testWatchedDir, 'voicetree')
+    await loadFolder(testVaultPath1)
 
     // WHEN: Attempt to remove path not in allowlist
     const outsidePath: string = '/some/random/path'
@@ -454,7 +454,7 @@ describe('Two-Tier Configuration (7.3)', () => {
       // (Already created in beforeEach)
 
       // WHEN: loadFolder is called
-      await loadFolder(testWatchedDir, 'voicetree')
+      await loadFolder(testVaultPath1)
 
       // THEN: Check if openspec is in the allowlist
       // Note: This depends on the actual settings configuration
@@ -471,26 +471,22 @@ describe('Two-Tier Configuration (7.3)', () => {
 
   describe('7.3.2 Scenario: Per-project explicit allowlist', () => {
     it('should maintain separate allowlists between projects', async () => {
-      // GIVEN: Create two project directories
-      const projectA: string = testWatchedDir
-      const projectB: string = path.join(testTmpDir, 'project-b')
-      const projectBVault: string = path.join(projectB, 'voicetree')
-      const projectBCustomPath: string = path.join(projectB, 'custom')
+      // GIVEN: Create two project directories (vault paths directly)
+      const projectAVault: string = testVaultPath1
+      const projectBVault: string = path.join(testTmpDir, 'project-b-vault')
 
-      await fs.mkdir(projectB, { recursive: true })
       await fs.mkdir(projectBVault, { recursive: true })
-      await fs.mkdir(projectBCustomPath, { recursive: true })
       await fs.writeFile(path.join(projectBVault, 'test.md'), '# Test')
 
       // WHEN: Load project A and add custom path
-      await loadFolder(projectA, 'voicetree')
+      await loadFolder(projectAVault)
       await addVaultPathToAllowlist(testVaultPath2)
 
       const projectAPaths: readonly string[] = [...await getVaultPaths()]
       expect(projectAPaths).toContain(testVaultPath2)
 
       // WHEN: Switch to project B
-      await loadFolder(projectB, 'voicetree')
+      await loadFolder(projectBVault)
 
       // THEN: Project B should NOT have project A's custom path
       const projectBPaths: readonly string[] = await getVaultPaths()
@@ -546,7 +542,7 @@ describe('File Write Bug Fix (7.5)', () => {
       await loadFolder(testWatchedDir, 'voicetree-vault')
 
       // THEN: Default write path should be the vault path, NOT watched directory root
-      const defaultWritePath: O.Option<string> = await getDefaultWritePath()
+      const defaultWritePath: O.Option<string> = await getWritePath()
       expect(O.isSome(defaultWritePath)).toBe(true)
 
       if (O.isSome(defaultWritePath)) {
@@ -577,7 +573,7 @@ describe('File Write Bug Fix (7.5)', () => {
   })
 })
 
-describe('Fallback Behavior - getVaultPath vs getDefaultWritePath', () => {
+describe('Fallback Behavior - getVaultPath vs getWritePath', () => {
   beforeEach(async () => {
     // Create temp directory structure for tests
     testTmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fallback-test-'))
@@ -626,12 +622,12 @@ describe('Fallback Behavior - getVaultPath vs getDefaultWritePath', () => {
     expect(O.isNone(vaultPath)).toBe(true)
   })
 
-  it('should have getDefaultWritePath fall back to getVaultPath when no explicit default set', async () => {
+  it('should have getWritePath fall back to getVaultPath when no explicit default set', async () => {
     // GIVEN: Load a folder (sets up primary vault as default)
-    await loadFolder(testWatchedDir, 'voicetree')
+    await loadFolder(testVaultPath1)
 
     // WHEN: Get the default write path
-    const defaultWritePath: O.Option<string> = await getDefaultWritePath()
+    const defaultWritePath: O.Option<string> = await getWritePath()
 
     // THEN: It should match the primary vault path
     expect(O.isSome(defaultWritePath)).toBe(true)
@@ -649,14 +645,14 @@ describe('Fallback Behavior - getVaultPath vs getDefaultWritePath', () => {
 
   it('should keep getVaultPath in sync with default write path for node ID generation', async () => {
     // GIVEN: Load a folder and add second vault
-    await loadFolder(testWatchedDir, 'voicetree')
+    await loadFolder(testVaultPath1)
     await addVaultPathToAllowlist(testVaultPath2)
 
     // AND: Change default write path to the second vault
-    await setDefaultWritePath(testVaultPath2)
+    await setWritePath(testVaultPath2)
 
-    // THEN: getDefaultWritePath should return the new default
-    const defaultWritePath: O.Option<string> = await getDefaultWritePath()
+    // THEN: getWritePath should return the new default
+    const defaultWritePath: O.Option<string> = await getWritePath()
     expect(O.isSome(defaultWritePath)).toBe(true)
     if (O.isSome(defaultWritePath)) {
       expect(defaultWritePath.value).toBe(testVaultPath2)
@@ -725,7 +721,7 @@ describe('Auto-load files when adding new vault path', () => {
 
   it('should auto-load files from new vault path when added via addVaultPathToAllowlist', async () => {
     // GIVEN: Load a folder (initializes with primary vault path)
-    await loadFolder(testWatchedDir, 'voicetree')
+    await loadFolder(testVaultPath1)
 
     // Record broadcast calls before adding new vault
     const callsBeforeAdd: number = broadcastCalls.length
@@ -748,7 +744,7 @@ describe('Auto-load files when adding new vault path', () => {
     const bulkDelta: GraphDelta = stateChangedCalls[0].delta
     expect(bulkDelta.length).toBe(2)
 
-    const nodeIds: readonly string[] = bulkDelta.map(d => d.type === 'UpsertNode' ? d.nodeToUpsert.relativeFilePathIsID : '')
+    const nodeIds: readonly string[] = bulkDelta.map(d => d.type === 'UpsertNode' ? d.nodeToUpsert.absoluteFilePathIsID : '')
     expect(nodeIds).toContain('new-vault/newfile1.md')
     expect(nodeIds).toContain('new-vault/newfile2.md')
   })
@@ -802,7 +798,7 @@ describe('Vault path removal persistence across reload (BUG REGRESSION TEST)', (
 
   it('should persist removed vault path across folder reload (removal should NOT re-appear)', async () => {
     // GIVEN: Load folder and add second vault path
-    await loadFolder(testWatchedDir, 'voicetree')
+    await loadFolder(testVaultPath1)
     await addVaultPathToAllowlist(testVaultPath2)
 
     // Verify both paths are in allowlist
@@ -820,7 +816,7 @@ describe('Vault path removal persistence across reload (BUG REGRESSION TEST)', (
     console.log('[Test] After removal vault paths:', await getVaultPaths())
 
     // WHEN: Reload the folder (simulating app restart)
-    await loadFolder(testWatchedDir, 'voicetree')
+    await loadFolder(testVaultPath1)
     console.log('[Test] After reload vault paths:', await getVaultPaths())
 
     // THEN: Removed path should NOT be re-added
@@ -833,7 +829,7 @@ describe('Vault path removal persistence across reload (BUG REGRESSION TEST)', (
 
     // GIVEN: Load folder with openspec auto-added via default patterns
     // (The openspec folder exists, which would normally be auto-added by resolveAllowlistForProject)
-    await loadFolder(testWatchedDir, 'voicetree')
+    await loadFolder(testVaultPath1)
 
     // Manually add openspec to simulate it being auto-added by patterns
     const pathsBefore: readonly string[] = await getVaultPaths()
@@ -857,11 +853,108 @@ describe('Vault path removal persistence across reload (BUG REGRESSION TEST)', (
     expect(await getVaultPaths()).not.toContain(testVaultPath2)
 
     // WHEN: Reload the folder
-    await loadFolder(testWatchedDir, 'voicetree')
+    await loadFolder(testVaultPath1)
     console.log('[Test] After reload vault paths:', await getVaultPaths())
 
     // THEN: openspec should NOT be re-added even though folder exists on disk
     // This was the bug - resolveAllowlistForProject would re-add existing folders
     expect(await getVaultPaths()).not.toContain(testVaultPath2)
+  })
+})
+
+describe('VaultConfig uses writePath (renamed from defaultWritePath)', () => {
+  beforeEach(async () => {
+    // Create temp directory structure for tests
+    testTmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'writepath-rename-test-'))
+    testWatchedDir = path.join(testTmpDir, 'project')
+    testVaultPath1 = path.join(testWatchedDir, 'voicetree')
+    testVaultPath2 = path.join(testWatchedDir, 'custom-vault')
+
+    await fs.mkdir(testWatchedDir, { recursive: true })
+    await fs.mkdir(testVaultPath1, { recursive: true })
+    await fs.mkdir(testVaultPath2, { recursive: true })
+
+    // Create a test file in vault1 so the folder isn't empty
+    await fs.writeFile(
+      path.join(testVaultPath1, 'test.md'),
+      '# Test Node\n\nTest content.'
+    )
+
+    // Reset graph state
+    setGraph(createEmptyGraph())
+    clearVaultPath()
+
+    // Reset broadcast tracking
+    broadcastCalls = []
+
+    // Create mock BrowserWindow
+    mockMainWindow = {
+      webContents: {
+        send: vi.fn((channel: string, data: unknown) => {
+          broadcastCalls.push({ channel, delta: data as GraphDelta })
+        })
+      },
+      isDestroyed: vi.fn(() => false)
+    }
+  })
+
+  afterEach(async () => {
+    await stopFileWatching()
+    await fs.rm(testTmpDir, { recursive: true, force: true })
+    vi.clearAllMocks()
+  })
+
+  it('should use getWritePath to get the write path (renamed from getWritePath)', async () => {
+    // GIVEN: Load a folder
+    await loadFolder(testVaultPath1)
+
+    // WHEN: Get the write path using the renamed function
+    const writePath: O.Option<string> = await getWritePath()
+
+    // THEN: It should return the primary vault path
+    expect(O.isSome(writePath)).toBe(true)
+    if (O.isSome(writePath)) {
+      expect(writePath.value).toBe(testVaultPath1)
+    }
+  })
+
+  it('should use setWritePath to set the write path (renamed from setWritePath)', async () => {
+    // GIVEN: Load a folder and add second vault path
+    await loadFolder(testVaultPath1)
+    await addVaultPathToAllowlist(testVaultPath2)
+
+    // WHEN: Set write path to the second vault using renamed function
+    const result: { success: boolean; error?: string } = await setWritePath(testVaultPath2)
+
+    // THEN: It should succeed
+    expect(result.success).toBe(true)
+
+    // AND: getWritePath should return the new path
+    const writePath: O.Option<string> = await getWritePath()
+    expect(O.isSome(writePath)).toBe(true)
+    if (O.isSome(writePath)) {
+      expect(writePath.value).toBe(testVaultPath2)
+    }
+  })
+
+  it('should persist writePath across folder reload (config round-trip)', async () => {
+    // GIVEN: Load a folder, add second vault, and set it as write path
+    await loadFolder(testVaultPath1)
+    await addVaultPathToAllowlist(testVaultPath2)
+    await setWritePath(testVaultPath2)
+
+    // Verify write path is set
+    const writePathBefore: O.Option<string> = await getWritePath()
+    expect(O.isSome(writePathBefore) && writePathBefore.value === testVaultPath2).toBe(true)
+
+    // WHEN: Reload the folder
+    await loadFolder(testVaultPath1)
+
+    // THEN: Write path should be preserved
+    const writePathAfter: O.Option<string> = await getWritePath()
+    expect(O.isSome(writePathAfter)).toBe(true)
+    if (O.isSome(writePathAfter)) {
+      expect(writePathAfter.value).toBe(testVaultPath2)
+    }
   })
 })

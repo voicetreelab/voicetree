@@ -6,7 +6,7 @@ import * as O from 'fp-ts/lib/Option.js'
 
 describe('getSubgraphByDistance', () => {
   const createTestNode: (id: string, edges?: readonly string[]) => GraphNode = (id: string, edges: readonly string[] = []): GraphNode => ({
-    relativeFilePathIsID: id,
+    absoluteFilePathIsID: id,
     outgoingEdges: edges.map(targetId => ({ targetId, label: '' })),
     contentWithoutYamlOrLinks: `content of ${id}`,
     nodeUIMetadata: {
@@ -248,7 +248,7 @@ describe('getSubgraphByDistance', () => {
 
   describe('context node filtering', () => {
     const createContextNode: (id: string, edges?: readonly string[]) => GraphNode = (id: string, edges: readonly string[] = []): GraphNode => ({
-      relativeFilePathIsID: id,
+      absoluteFilePathIsID: id,
       outgoingEdges: edges.map(targetId => ({ targetId, label: '' })),
       contentWithoutYamlOrLinks: `content of ${id}`,
       nodeUIMetadata: {
@@ -501,7 +501,7 @@ describe('getSubgraphByDistance', () => {
 
       const result: Graph = getSubgraphByDistance(graph, 'A', 7)
 
-      expect(result.nodes['A'].relativeFilePathIsID).toBe('A')
+      expect(result.nodes['A'].absoluteFilePathIsID).toBe('A')
       expect(result.nodes['A'].contentWithoutYamlOrLinks).toBe('content of A')
       expect(result.nodes['A'].nodeUIMetadata).toEqual(graph.nodes['A'].nodeUIMetadata)
     })
@@ -509,7 +509,7 @@ describe('getSubgraphByDistance', () => {
 
   describe('bridging edge edge cases', () => {
     const createContextNode: (id: string, edges?: readonly string[]) => GraphNode = (id: string, edges: readonly string[] = []): GraphNode => ({
-      relativeFilePathIsID: id,
+      absoluteFilePathIsID: id,
       outgoingEdges: edges.map(targetId => ({ targetId, label: '' })),
       contentWithoutYamlOrLinks: `content of ${id}`,
       nodeUIMetadata: {
@@ -684,7 +684,7 @@ describe('getSubgraphByDistance', () => {
 
 describe('getUnionSubgraphByDistance', () => {
   const createTestNode: (id: string, edges?: readonly string[]) => GraphNode = (id: string, edges: readonly string[] = []): GraphNode => ({
-    relativeFilePathIsID: id,
+    absoluteFilePathIsID: id,
     outgoingEdges: edges.map(targetId => ({ targetId, label: '' })),
     contentWithoutYamlOrLinks: `content of ${id}`,
     nodeUIMetadata: {
@@ -696,7 +696,7 @@ describe('getUnionSubgraphByDistance', () => {
   })
 
   const createContextNode: (id: string, edges?: readonly string[]) => GraphNode = (id: string, edges: readonly string[] = []): GraphNode => ({
-    relativeFilePathIsID: id,
+    absoluteFilePathIsID: id,
     outgoingEdges: edges.map(targetId => ({ targetId, label: '' })),
     contentWithoutYamlOrLinks: `content of ${id}`,
     nodeUIMetadata: {

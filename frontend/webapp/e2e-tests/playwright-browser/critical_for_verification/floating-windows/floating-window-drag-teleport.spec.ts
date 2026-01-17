@@ -87,7 +87,7 @@ test.describe('Floating Window Drag Teleportation Bug', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'drag-test-node.md',
+          absoluteFilePathIsID: 'drag-test-node.md',
           contentWithoutYamlOrLinks: testContent,
           outgoingEdges: [],
           nodeUIMetadata: {
@@ -227,7 +227,7 @@ test.describe('Floating Window Drag Teleportation Bug', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'drag-zoom-test.md',
+          absoluteFilePathIsID: 'drag-zoom-test.md',
           contentWithoutYamlOrLinks: '# Drag Zoom Test',
           outgoingEdges: [],
           nodeUIMetadata: {

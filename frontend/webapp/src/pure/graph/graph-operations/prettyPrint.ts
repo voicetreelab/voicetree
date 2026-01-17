@@ -37,7 +37,7 @@ export function prettyPrintNode(node: GraphNode): string {
     ? `(${node.nodeUIMetadata.position.value.x}, ${node.nodeUIMetadata.position.value.y})`
     : 'none';
 
-  return `Node[${node.relativeFilePathIsID}]:
+  return `Node[${node.absoluteFilePathIsID}]:
   Content: ${node.contentWithoutYamlOrLinks.substring(0, 100)}
   Outgoing edges: [${node.outgoingEdges.join(', ')}]
   Position: ${posStr}`;
@@ -59,10 +59,10 @@ export function prettyPrintGraphDelta(delta: GraphDelta): string {
       const content: string = node.contentWithoutYamlOrLinks || '';
       const contentPreview: string = content.substring(0, 50).replace(/\n/g, ' ');
       const prevNodeStr: string = O.isSome(nodeDelta.previousNode)
-        ? `update from "${nodeDelta.previousNode.value.relativeFilePathIsID}"`
+        ? `update from "${nodeDelta.previousNode.value.absoluteFilePathIsID}"`
         : 'new node';
       return [
-        `  ${index + 1}. UpsertNode: ${node.relativeFilePathIsID} (${prevNodeStr})`,
+        `  ${index + 1}. UpsertNode: ${node.absoluteFilePathIsID} (${prevNodeStr})`,
         `     Content: "${contentPreview}${content.length > 50 ? '...' : ''}"`,
         `     Edges: [${node.outgoingEdges.join(', ')}]`
       ];

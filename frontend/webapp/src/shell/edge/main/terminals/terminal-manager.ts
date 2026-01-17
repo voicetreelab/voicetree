@@ -1,9 +1,7 @@
-import path from 'path';
 import { promises as fs } from 'fs';
 import pty, { type IPty } from 'node-pty';
 import type { WebContents } from 'electron';
 import {getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
-import {getVaultSuffix} from "@/shell/edge/main/graph/watch_folder/watchFolder";
 import {getOTLPReceiverPort} from "@/shell/edge/main/metrics/otlp-receiver";
 import {recordTerminalSpawn, markTerminalExited} from '@/shell/edge/main/terminals/terminal-registry';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
@@ -296,14 +294,11 @@ export default class TerminalManager {
           Object.assign(customEnv, terminalData.initialEnvVars);
       }
 
-      // Always set vault absolutePath from watched directory
-      const watchedDir: string | null = getWatchedDirectory();
-      const vaultSuffix: string = getVaultSuffix();
-      const vaultPath: string = vaultSuffix ? path.join(watchedDir ?? '', vaultSuffix) : (watchedDir ?? '');
-      console.log(`[TerminalManager] getWatchedDirectory() returned: ${watchedDir}`);
+      // Always set vault path from watched directory (which IS the vault path, no suffix)
+      const vaultPath: string | null = getWatchedDirectory();
       console.log(`[TerminalManager] Using vault path: ${vaultPath}`);
-      customEnv.OBSIDIAN_VAULT_PATH = vaultPath;
-      customEnv.WATCHED_FOLDER = watchedDir ?? undefined;
+      customEnv.OBSIDIAN_VAULT_PATH = vaultPath ?? '';
+      customEnv.WATCHED_FOLDER = vaultPath ?? undefined;
 
       // Set node-based environment variables from attachedToNodeId
 

@@ -96,7 +96,7 @@ async function setupExtendedMockElectronAPI(page: Page): Promise<void> {
         delta.forEach((nodeDelta) => {
           if (nodeDelta.type === 'UpsertNode') {
             const node = nodeDelta.nodeToUpsert;
-            api.graph._graphState.nodes[node.relativeFilePathIsID] = node;
+            api.graph._graphState.nodes[node.absoluteFilePathIsID] = node;
           } else if (nodeDelta.type === 'DeleteNode') {
             delete api.graph._graphState.nodes[nodeDelta.nodeId];
           }
@@ -139,7 +139,7 @@ test.describe('Editor Auto-Open on GraphNode Creation (Browser)', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'parent-node.md',
+          absoluteFilePathIsID: 'parent-node.md',
           contentWithoutYamlOrLinks: parentContent,
           outgoingEdges: [],
           nodeUIMetadata: {

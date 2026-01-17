@@ -16,7 +16,7 @@ function createTestNodesDelta(): GraphDelta {
         {
             type: 'UpsertNode' as const,
             nodeToUpsert: {
-                relativeFilePathIsID: 'agent-test-node-1.md',
+                absoluteFilePathIsID: 'agent-test-node-1.md',
                 contentWithoutYamlOrLinks: '# Agent Test 1',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -31,7 +31,7 @@ function createTestNodesDelta(): GraphDelta {
         {
             type: 'UpsertNode' as const,
             nodeToUpsert: {
-                relativeFilePathIsID: 'agent-test-node-2.md',
+                absoluteFilePathIsID: 'agent-test-node-2.md',
                 contentWithoutYamlOrLinks: '# Agent Test 2',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -46,7 +46,7 @@ function createTestNodesDelta(): GraphDelta {
         {
             type: 'UpsertNode' as const,
             nodeToUpsert: {
-                relativeFilePathIsID: 'agent-test-node-3.md',
+                absoluteFilePathIsID: 'agent-test-node-3.md',
                 contentWithoutYamlOrLinks: '# Agent Test 3',
                 outgoingEdges: [],
                 nodeUIMetadata: {

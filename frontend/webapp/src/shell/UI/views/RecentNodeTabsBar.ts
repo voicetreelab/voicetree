@@ -122,7 +122,7 @@ function createTab(
     onNavigate: (nodeId: string) => void,
     index: number
 ): HTMLElement {
-    const nodeId: string = entry.nodeToUpsert.relativeFilePathIsID
+    const nodeId: string = entry.nodeToUpsert.absoluteFilePathIsID
     const label: string = getNodeTitle(entry.nodeToUpsert)
     const shortcutNumber: number = index + 1
 

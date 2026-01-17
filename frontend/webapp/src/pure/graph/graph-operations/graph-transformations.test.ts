@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import { reverseGraphEdges, makeBidirectionalEdges } from '@/pure/graph/graph-operations/graph-transformations'
 import type { Graph, GraphNode, Edge } from '@/pure/graph'
+import { createGraph, createEmptyGraph } from '@/pure/graph/createGraph'
 import * as O from 'fp-ts/lib/Option.js'
 
 describe('graph-transformations', () => {
   const createTestNode: (id: string, edges?: readonly string[]) => GraphNode = (id: string, edges: readonly string[] = []): GraphNode => ({
-    relativeFilePathIsID: id,
+    absoluteFilePathIsID: id,
     outgoingEdges: edges.map(targetId => ({ targetId, label: '' })),
     contentWithoutYamlOrLinks: `content of ${id}`,
     nodeUIMetadata: {
@@ -22,13 +23,11 @@ describe('graph-transformations', () => {
 
   describe('reverseGraphEdges', () => {
     it('should reverse edges in a simple chain A -> B -> C', () => {
-      const graph: Graph = {
-        nodes: {
-          'A': createTestNode('A', ['B']),
-          'B': createTestNode('B', ['C']),
-          'C': createTestNode('C', [])
-        }
-      }
+      const graph: Graph = createGraph({
+        'A': createTestNode('A', ['B']),
+        'B': createTestNode('B', ['C']),
+        'C': createTestNode('C', [])
+      })
 
       const result: Graph = reverseGraphEdges(graph)
 
@@ -38,13 +37,11 @@ describe('graph-transformations', () => {
     })
 
     it('should reverse edges in a graph with multiple incoming edges', () => {
-      const graph: Graph = {
-        nodes: {
-          'A': createTestNode('A', ['C']),
-          'B': createTestNode('B', ['C']),
-          'C': createTestNode('C', [])
-        }
-      }
+      const graph: Graph = createGraph({
+        'A': createTestNode('A', ['C']),
+        'B': createTestNode('B', ['C']),
+        'C': createTestNode('C', [])
+      })
 
       const result: Graph = reverseGraphEdges(graph)
 
@@ -54,13 +51,11 @@ describe('graph-transformations', () => {
     })
 
     it('should reverse edges in a graph with multiple outgoing edges', () => {
-      const graph: Graph = {
-        nodes: {
-          'A': createTestNode('A', ['B', 'C']),
-          'B': createTestNode('B', []),
-          'C': createTestNode('C', [])
-        }
-      }
+      const graph: Graph = createGraph({
+        'A': createTestNode('A', ['B', 'C']),
+        'B': createTestNode('B', []),
+        'C': createTestNode('C', [])
+      })
 
       const result: Graph = reverseGraphEdges(graph)
 
@@ -70,9 +65,7 @@ describe('graph-transformations', () => {
     })
 
     it('should handle empty graph', () => {
-      const graph: Graph = {
-        nodes: {}
-      }
+      const graph: Graph = createEmptyGraph()
 
       const result: Graph = reverseGraphEdges(graph)
 
@@ -80,11 +73,9 @@ describe('graph-transformations', () => {
     })
 
     it('should handle graph with single node and no edges', () => {
-      const graph: Graph = {
-        nodes: {
-          'A': createTestNode('A', [])
-        }
-      }
+      const graph: Graph = createGraph({
+        'A': createTestNode('A', [])
+      })
 
       const result: Graph = reverseGraphEdges(graph)
 
@@ -92,12 +83,10 @@ describe('graph-transformations', () => {
     })
 
     it('should handle cyclic graph A -> B -> A', () => {
-      const graph: Graph = {
-        nodes: {
-          'A': createTestNode('A', ['B']),
-          'B': createTestNode('B', ['A'])
-        }
-      }
+      const graph: Graph = createGraph({
+        'A': createTestNode('A', ['B']),
+        'B': createTestNode('B', ['A'])
+      })
 
       const result: Graph = reverseGraphEdges(graph)
 
@@ -107,12 +96,10 @@ describe('graph-transformations', () => {
     })
 
     it('should not mutate the original graph', () => {
-      const graph: Graph = {
-        nodes: {
-          'A': createTestNode('A', ['B']),
-          'B': createTestNode('B', [])
-        }
-      }
+      const graph: Graph = createGraph({
+        'A': createTestNode('A', ['B']),
+        'B': createTestNode('B', [])
+      })
 
       const originalAEdges: readonly Edge[] = [...graph.nodes['A'].outgoingEdges]
       const originalBEdges: readonly Edge[] = [...graph.nodes['B'].outgoingEdges]
@@ -124,20 +111,18 @@ describe('graph-transformations', () => {
     })
 
     it('should preserve node properties other than outgoingEdges', () => {
-      const graph: Graph = {
-        nodes: {
-          'A': createTestNode('A', ['B']),
-          'B': createTestNode('B', [])
-        }
-      }
+      const graph: Graph = createGraph({
+        'A': createTestNode('A', ['B']),
+        'B': createTestNode('B', [])
+      })
 
       const result: Graph = reverseGraphEdges(graph)
 
-      expect(result.nodes['A'].relativeFilePathIsID).toBe('A')
+      expect(result.nodes['A'].absoluteFilePathIsID).toBe('A')
       expect(result.nodes['A'].contentWithoutYamlOrLinks).toBe('content of A')
       expect(result.nodes['A'].nodeUIMetadata).toEqual(graph.nodes['A'].nodeUIMetadata)
 
-      expect(result.nodes['B'].relativeFilePathIsID).toBe('B')
+      expect(result.nodes['B'].absoluteFilePathIsID).toBe('B')
       expect(result.nodes['B'].contentWithoutYamlOrLinks).toBe('content of B')
       expect(result.nodes['B'].nodeUIMetadata).toEqual(graph.nodes['B'].nodeUIMetadata)
     })
@@ -145,14 +130,12 @@ describe('graph-transformations', () => {
     it('should handle complex diamond graph', () => {
       // A -> B -> D
       // A -> C -> D
-      const graph: Graph = {
-        nodes: {
-          'A': createTestNode('A', ['B', 'C']),
-          'B': createTestNode('B', ['D']),
-          'C': createTestNode('C', ['D']),
-          'D': createTestNode('D', [])
-        }
-      }
+      const graph: Graph = createGraph({
+        'A': createTestNode('A', ['B', 'C']),
+        'B': createTestNode('B', ['D']),
+        'C': createTestNode('C', ['D']),
+        'D': createTestNode('D', [])
+      })
 
       const result: Graph = reverseGraphEdges(graph)
 
@@ -167,11 +150,9 @@ describe('graph-transformations', () => {
 
     it('should preserve edges to non-existent nodes after double reversal', () => {
       // Edges to non-existent nodes should be preserved through reversals
-      const graph: Graph = {
-        nodes: {
-          'source': createTestNode('source', ['does-not-exist'])
-        }
-      }
+      const graph: Graph = createGraph({
+        'source': createTestNode('source', ['does-not-exist'])
+      })
 
       // First reversal: edges to non-existent nodes are preserved
       const reversed1: Graph = reverseGraphEdges(graph)
@@ -185,13 +166,11 @@ describe('graph-transformations', () => {
 
   describe('makeBidirectionalEdges', () => {
     it('should make edges bidirectional in a simple chain A -> B -> C', () => {
-      const graph: Graph = {
-        nodes: {
-          'A': createTestNode('A', ['B']),
-          'B': createTestNode('B', ['C']),
-          'C': createTestNode('C', [])
-        }
-      }
+      const graph: Graph = createGraph({
+        'A': createTestNode('A', ['B']),
+        'B': createTestNode('B', ['C']),
+        'C': createTestNode('C', [])
+      })
 
       const result: Graph = makeBidirectionalEdges(graph)
 
@@ -202,12 +181,10 @@ describe('graph-transformations', () => {
     })
 
     it('should not duplicate already bidirectional edges', () => {
-      const graph: Graph = {
-        nodes: {
-          'A': createTestNode('A', ['B']),
-          'B': createTestNode('B', ['A'])
-        }
-      }
+      const graph: Graph = createGraph({
+        'A': createTestNode('A', ['B']),
+        'B': createTestNode('B', ['A'])
+      })
 
       const result: Graph = makeBidirectionalEdges(graph)
 
@@ -219,13 +196,11 @@ describe('graph-transformations', () => {
     it('should handle graph where start node has only parents (the bug case)', () => {
       // This is the exact scenario that caused the ASCII tree bug:
       // Start node C has parents (A, B point to C) but no children
-      const graph: Graph = {
-        nodes: {
-          'A': createTestNode('A', ['C']),
-          'B': createTestNode('B', ['C']),
-          'C': createTestNode('C', [])
-        }
-      }
+      const graph: Graph = createGraph({
+        'A': createTestNode('A', ['C']),
+        'B': createTestNode('B', ['C']),
+        'C': createTestNode('C', [])
+      })
 
       const result: Graph = makeBidirectionalEdges(graph)
 
@@ -237,9 +212,7 @@ describe('graph-transformations', () => {
     })
 
     it('should handle empty graph', () => {
-      const graph: Graph = {
-        nodes: {}
-      }
+      const graph: Graph = createEmptyGraph()
 
       const result: Graph = makeBidirectionalEdges(graph)
 
@@ -247,12 +220,10 @@ describe('graph-transformations', () => {
     })
 
     it('should not mutate the original graph', () => {
-      const graph: Graph = {
-        nodes: {
-          'A': createTestNode('A', ['B']),
-          'B': createTestNode('B', [])
-        }
-      }
+      const graph: Graph = createGraph({
+        'A': createTestNode('A', ['B']),
+        'B': createTestNode('B', [])
+      })
 
       const originalAEdges: readonly Edge[] = [...graph.nodes['A'].outgoingEdges]
       const originalBEdges: readonly Edge[] = [...graph.nodes['B'].outgoingEdges]

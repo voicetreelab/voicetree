@@ -54,7 +54,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
     it('should write node file to disk when UpsertNode delta is applied', async () => {
       // GIVEN: A UpsertNode delta
       const testNode: GraphNode = {
-        relativeFilePathIsID: TEST_NODE_ID,
+        absoluteFilePathIsID: TEST_NODE_ID,
         contentWithoutYamlOrLinks: '# Test Integration GraphNode\n\nThis is test content for integration testing.',
         outgoingEdges: [],
         nodeUIMetadata: {
@@ -93,7 +93,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
     it('should write node file with outgoing edges as markdown links', async () => {
       // GIVEN: Node with outgoing edges
       const testNode: GraphNode = {
-        relativeFilePathIsID: TEST_NODE_ID,
+        absoluteFilePathIsID: TEST_NODE_ID,
         contentWithoutYamlOrLinks: '# GraphNode With Links\n\nThis node links to [[1_VoiceTree_Website_Development_and_Node_Display_Bug]] and [[2_VoiceTree_Node_ID_Duplication_Bug]].',
         outgoingEdges: [
           { targetId: '1_VoiceTree_Website_Development_and_Node_Display_Bug', label: '' },
@@ -135,7 +135,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       // GIVEN: An existing file on disk
       // First create the file
       const testNode: GraphNode = {
-        relativeFilePathIsID: TEST_NODE_ID,
+        absoluteFilePathIsID: TEST_NODE_ID,
         contentWithoutYamlOrLinks: '# GraphNode To Delete\n\nThis node will be deleted.',
         outgoingEdges: [],
         nodeUIMetadata: {
@@ -184,7 +184,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
     it('should handle create -> update -> delete sequence', async () => {
       // STEP 1: Create node
       const createNode: GraphNode = {
-        relativeFilePathIsID: TEST_NODE_ID,
+        absoluteFilePathIsID: TEST_NODE_ID,
         contentWithoutYamlOrLinks: '# Original Content',
         outgoingEdges: [],
         nodeUIMetadata: {
@@ -250,7 +250,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       const delta: GraphDelta = [{
         type: 'UpsertNode',
         nodeToUpsert: {
-          relativeFilePathIsID: TEST_NODE_ID,
+          absoluteFilePathIsID: TEST_NODE_ID,
           contentWithoutYamlOrLinks: '# Test',
           outgoingEdges: [],
           nodeUIMetadata: {

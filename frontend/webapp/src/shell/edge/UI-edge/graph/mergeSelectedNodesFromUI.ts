@@ -1,6 +1,7 @@
 import type {Graph, GraphDelta, NodeIdAndFilePath} from "@/pure/graph";
 import type {Core} from "cytoscape";
 import {computeMergeGraphDelta} from "@/pure/graph/graph-operations/merge/computeMergeGraphDelta";
+import * as O from 'fp-ts/lib/Option.js';
 
 // Import ElectronAPI type for window.electronAPI access
 import type {} from "@/shell/electron";
@@ -27,12 +28,12 @@ export async function mergeSelectedNodesFromUI(
         return;
     }
 
-    // Get vault suffix for merged node path
-    const watchStatus: { readonly vaultSuffix: string } | undefined = await window.electronAPI?.main.getWatchStatus();
-    const vaultSuffix: string = watchStatus?.vaultSuffix ?? '';
+    // Get write path for merged node path
+    const writePathOption: O.Option<string> | undefined = await window.electronAPI?.main.getWritePath();
+    const writePath: string = writePathOption ? O.getOrElse(() => '')(writePathOption) : '';
 
     // Compute the merge delta (pure function)
-    const graphDelta: GraphDelta = computeMergeGraphDelta(selectedNodeIds, currentGraph, vaultSuffix);
+    const graphDelta: GraphDelta = computeMergeGraphDelta(selectedNodeIds, currentGraph, writePath);
 
     if (graphDelta.length === 0) {
         console.log('[mergeSelectedNodesFromUI] No valid merge delta generated');

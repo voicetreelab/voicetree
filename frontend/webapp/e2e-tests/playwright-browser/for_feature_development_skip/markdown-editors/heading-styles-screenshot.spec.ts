@@ -93,7 +93,7 @@ const greet = (user: User): string => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'heading-styles-test.md',
+          absoluteFilePathIsID: 'heading-styles-test.md',
           contentWithoutYamlOrLinks: testContent,
           outgoingEdges: [],
           nodeUIMetadata: {

@@ -29,7 +29,7 @@ test.describe('Run Button Dropdown', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'run-button-test.md',
+          absoluteFilePathIsID: 'run-button-test.md',
           contentWithoutYamlOrLinks: '# Run Button Test\nThis node tests the run button dropdown.',
           outgoingEdges: [],
           nodeUIMetadata: {

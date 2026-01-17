@@ -6,6 +6,10 @@ import type {
     FloatingWindowUIData,
     TerminalId
 } from "@/shell/edge/UI-edge/floating-windows/types";
+import {isTerminalData, isEditorData} from "@/shell/edge/UI-edge/floating-windows/types";
+import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
+import type {EditorData} from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
+import type {Core} from 'cytoscape';
 import {getScalingStrategy, getScreenDimensions, type ScalingStrategy} from "@/pure/floatingWindowScaling";
 import {selectFloatingWindowNode} from "@/shell/edge/UI-edge/floating-windows/select-floating-window-node";
 import {getCachedZoom} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
@@ -17,7 +21,7 @@ import {
     type HorizontalMenuItem
 } from "@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService";
 import type {AgentConfig} from "@/pure/settings";
-import {Maximize2, Minimize2, Clipboard, createElement} from 'lucide';
+import {Maximize2, Minimize2, createElement} from 'lucide';
 import {getShadowNodeId} from "@/shell/edge/UI-edge/floating-windows/types";
 import {createTrafficLightsForTarget} from "@/shell/edge/UI-edge/floating-windows/traffic-lights";
 
@@ -25,6 +29,10 @@ import {createTrafficLightsForTarget} from "@/shell/edge/UI-edge/floating-window
 export interface CreateWindowChromeOptions {
     /** Agents list for horizontal menu (editors only) */
     readonly agents?: readonly AgentConfig[];
+    /** Close callback for terminals (required when fw is TerminalData) */
+    readonly closeTerminal?: (terminal: TerminalData, cy: Core) => Promise<void>;
+    /** Close callback for editors (required when fw is EditorData) */
+    readonly closeEditor?: (cy: Core, editor: EditorData) => void;
 }
 
 /**
@@ -108,14 +116,18 @@ export function createWindowChrome(
         };
         const menuItems: HorizontalMenuItem[] = getNodeMenuItems(menuInput);
 
+        // Type-narrow fw to EditorData for traffic lights
+        const editorData: EditorData | undefined = 'type' in fw && isEditorData(fw) ? fw : undefined;
+        if (!editorData) {
+            throw new Error('Expected EditorData for editor-window traffic lights');
+        }
         const trafficLights: HTMLDivElement = createTrafficLightsForTarget({
             kind: 'editor-window',
-            nodeId,
+            editor: editorData,
             cy,
-            shadowNodeId: getShadowNodeId(id),
-            onClose: (): void => {
+            closeEditor: options.closeEditor ?? ((): void => {
                 windowElement.dispatchEvent(new CustomEvent('traffic-light-close', { bubbles: true }));
-            },
+            }),
         });
 
         // Create menu elements (leftGroup, spacer, and rightGroup pills)
@@ -138,8 +150,8 @@ export function createWindowChrome(
     }
 
     // Phase 4: Terminal-specific chrome - minimal title bar with traffic lights at far right
-    if (isTerminal) {
-        const terminalTitleBar: HTMLDivElement = createTerminalTitleBar(windowElement, cy, id as TerminalId, fw);
+    if (isTerminal && 'type' in fw && isTerminalData(fw)) {
+        const terminalTitleBar: HTMLDivElement = createTerminalTitleBar(windowElement, cy, fw, options.closeTerminal);
         windowElement.appendChild(terminalTitleBar);
     }
 
@@ -483,36 +495,35 @@ function truncateTitle(title: string, maxLength: number): string {
  *
  * @param windowElement - The window element to attach events to
  * @param cy - Cytoscape instance
- * @param id - Terminal ID
- * @param fw - Floating window data
+ * @param terminal - Terminal data
+ * @param closeTerminal - Optional close callback (falls back to event dispatch)
  */
 function createTerminalTitleBar(
     windowElement: HTMLDivElement,
     cy: cytoscape.Core,
-    id: TerminalId,
-    fw: FloatingWindowData | FloatingWindowFields
+    terminal: TerminalData,
+    closeTerminal?: (terminal: TerminalData, cy: Core) => Promise<void>
 ): HTMLDivElement {
     const titleBar: HTMLDivElement = document.createElement('div');
     titleBar.className = 'terminal-title-bar';
 
     // Get the attached node ID for context detection
-    const attachedNodeId: string = 'attachedToNodeId' in fw ? fw.attachedToNodeId : '';
+    const attachedNodeId: string = terminal.attachedToNodeId;
     const hasContextNode: boolean = isContextNodeId(attachedNodeId);
 
     // Create context badge for terminals with context nodes
     if (hasContextNode) {
-        const contextBadge: HTMLDivElement = createContextBadge(fw.title, windowElement);
+        const contextBadge: HTMLDivElement = createContextBadge(terminal.title, windowElement);
         titleBar.appendChild(contextBadge);
     }
 
     const trafficLights: HTMLDivElement = createTrafficLightsForTarget({
         kind: 'terminal-window',
-        terminalId: id,
+        terminal,
         cy,
-        shadowNodeId: getShadowNodeId(id),
-        onClose: (): void => {
+        closeTerminal: closeTerminal ?? (async (): Promise<void> => {
             windowElement.dispatchEvent(new CustomEvent('traffic-light-close', { bubbles: true }));
-        },
+        }),
     });
     trafficLights.classList.add('terminal-traffic-lights');
     trafficLights.style.position = 'absolute';
@@ -527,29 +538,17 @@ function createTerminalTitleBar(
 
 /**
  * Create context badge for terminals with context nodes
- * Shows clipboard icon + truncated title, expands on click
+ * Shows truncated title
  */
-function createContextBadge(title: string, windowElement: HTMLDivElement): HTMLDivElement {
+function createContextBadge(title: string, _windowElement: HTMLDivElement): HTMLDivElement {
     const badge: HTMLDivElement = document.createElement('div');
     badge.className = 'terminal-context-badge';
-
-    // Clipboard icon
-    const icon: SVGElement = createElement(Clipboard);
-    icon.setAttribute('width', '14');
-    icon.setAttribute('height', '14');
-    badge.appendChild(icon);
 
     // Truncated title (max 20 chars)
     const titleSpan: HTMLSpanElement = document.createElement('span');
     titleSpan.className = 'terminal-context-badge-title';
     titleSpan.textContent = truncateTitle(title, 20);
     badge.appendChild(titleSpan);
-
-    // Click handler to toggle expanded state
-    badge.addEventListener('click', (e: MouseEvent): void => {
-        e.stopPropagation();
-        windowElement.classList.toggle('terminal-context-expanded');
-    });
 
     return badge;
 }

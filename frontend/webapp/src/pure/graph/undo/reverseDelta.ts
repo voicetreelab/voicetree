@@ -30,7 +30,7 @@ function reverseUpsertNode(action: UpsertNodeDelta): GraphDelta {
         // Was a CREATE (no previousNode) → reverse is DELETE
         const deleteAction: DeleteNode = {
             type: 'DeleteNode',
-            nodeId: action.nodeToUpsert.relativeFilePathIsID,
+            nodeId: action.nodeToUpsert.absoluteFilePathIsID,
             deletedNode: O.some(action.nodeToUpsert)  // Save for potential re-redo
         }
         return [deleteAction]

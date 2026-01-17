@@ -80,17 +80,15 @@ export interface VTSettings {
 export interface VaultConfig {
     /** Relative paths (to watchedDirectory) to watch and display in graph */
     readonly allowlist: readonly string[];
-    /** One relative path from allowlist designated for new node creation */
-    readonly defaultWritePath: string;
+    /** One path from allowlist designated for new node creation */
+    readonly writePath: string;
 }
 
 /**
  * Per-project configuration stored in voicetree-config.json.
- * Extends per-folder settings beyond just suffixes.
  */
 export interface VoiceTreeConfig {
     readonly lastDirectory?: string;
-    readonly suffixes?: { readonly [folderPath: string]: string };
     /** Per-folder vault configuration for multi-vault support */
     readonly vaultConfig?: { readonly [folderPath: string]: VaultConfig };
 }

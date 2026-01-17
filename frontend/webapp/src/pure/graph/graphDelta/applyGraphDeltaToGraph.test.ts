@@ -13,7 +13,7 @@ function makeNode(
     edges: readonly { readonly targetId: NodeIdAndFilePath; readonly label: string }[] = []
 ): GraphNode {
     return {
-        relativeFilePathIsID: id,
+        absoluteFilePathIsID: id,
         contentWithoutYamlOrLinks: content,
         outgoingEdges: edges,
         nodeUIMetadata: {
@@ -28,7 +28,7 @@ function makeNode(
  * Helper to create a Graph from an array of nodes
  */
 function makeGraph(nodes: readonly GraphNode[]): Graph {
-    return createGraph(Object.fromEntries(nodes.map(n => [n.relativeFilePathIsID, n])))
+    return createGraph(Object.fromEntries(nodes.map(n => [n.absoluteFilePathIsID, n])))
 }
 
 describe('applyGraphDeltaToGraph', () => {

@@ -1,6 +1,5 @@
 import type {FSUpdate, Graph, GraphDelta, GraphNode, NodeIdAndFilePath, Position, UpsertNodeDelta} from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
-import path from 'path'
 import {parseMarkdownToGraphNode} from '@/pure/graph/markdown-parsing/parse-markdown-to-node'
 import {linkMatchScore, findBestMatchingNode} from '@/pure/graph/markdown-parsing/extract-edges'
 import {setOutgoingEdges} from '@/pure/graph/graph-operations/graph-edge-operations'
@@ -91,28 +90,28 @@ function healNodeEdges(affectedNodeIds: readonly NodeIdAndFilePath[], currentGra
  * - Loading [A, B, C] produces same result as [C, B, A]
  * - Bulk load and incremental updates use identical logic
  *
- * @param fsEvent - Filesystem event with content and path
- * @param vaultPath - Absolute path to vault directory
+ * Node IDs are absolute paths (normalized with forward slashes).
+ *
+ * @param fsEvent - Filesystem event with content and absolute path
  * @param currentGraph - Current graph state (used for edge resolution)
  * @returns GraphDelta containing the new node and all healed nodes
  *
  * @example
  * ```typescript
- * // Graph state: { "felix/2": { edges: [{ targetId: "1", label: "related" }] } }
- * // Add: felix/1.md
+ * // Graph state: { "/vault/felix/2.md": { edges: [{ targetId: "1", label: "related" }] } }
+ * // Add: /vault/felix/1.md
  *
  * const delta = addNodeToGraph(
  *   { absolutePath: "/vault/felix/1.md", content: "# One", eventType: "Added" },
- *   "/vault",
  *   currentGraph
  * )
  *
  * // Returns:
  * [
- *   { type: 'UpsertNode', nodeToUpsert: { id: "felix/1", ... } },
+ *   { type: 'UpsertNode', nodeToUpsert: { id: "/vault/felix/1.md", ... } },
  *   { type: 'UpsertNode', nodeToUpsert: {
- *       id: "felix/2",
- *       edges: [{ targetId: "felix/1", label: "related" }]  // HEALED from "1" to "felix/1"
+ *       id: "/vault/felix/2.md",
+ *       edges: [{ targetId: "/vault/felix/1.md", label: "related" }]  // HEALED
  *     }
  *   }
  * ]
@@ -120,15 +119,14 @@ function healNodeEdges(affectedNodeIds: readonly NodeIdAndFilePath[], currentGra
  */
 export function addNodeToGraphWithEdgeHealingFromFSEvent(
     fsEvent: FSUpdate,
-    vaultPath: string,
     currentGraph: Graph
 ): GraphDelta {
-    const absoluteFilePathMadeRelativeToVault: string = extractNodeIdFromPath(fsEvent.absolutePath, vaultPath)
-    const parsedNode: GraphNode = parseMarkdownToGraphNode(fsEvent.content, absoluteFilePathMadeRelativeToVault, currentGraph)
+    const nodeId: string = extractNodeIdFromPath(fsEvent.absolutePath)
+    const parsedNode: GraphNode = parseMarkdownToGraphNode(fsEvent.content, nodeId, currentGraph)
 
     // Check if this is a new node or an update to an existing node
-    console.log(`abs, ${absoluteFilePathMadeRelativeToVault} rel ${parsedNode.relativeFilePathIsID}`)
-    const previousNode: O.Option<GraphNode> = O.fromNullable(currentGraph.nodes[parsedNode.relativeFilePathIsID])
+    console.log(`nodeId: ${nodeId}, relativeFilePathIsID: ${parsedNode.absoluteFilePathIsID}`)
+    const previousNode: O.Option<GraphNode> = O.fromNullable(currentGraph.nodes[parsedNode.absoluteFilePathIsID])
 
     const affectedNodeIds: readonly string[] = findNodesWithPotentialEdgesToNode(parsedNode, currentGraph)
 
@@ -144,11 +142,13 @@ export function addNodeToGraphWithEdgeHealingFromFSEvent(
         : parsedNode
 
     // Step 6: Create temporary graph with new node for edge re-validation
+    // Note: incomingEdgesIndex is not used for edge healing (only .nodes is accessed), so we reuse the existing index
     const graphWithNewNode: Graph = {
         nodes: {
             ...currentGraph.nodes,
-            [newNode.relativeFilePathIsID]: newNode
-        }
+            [newNode.absoluteFilePathIsID]: newNode
+        },
+        incomingEdgesIndex: currentGraph.incomingEdgesIndex
     }
 
 
@@ -188,29 +188,26 @@ function findNodesWithPotentialEdgesToNode(
     newNode: GraphNode,
     currentGraph: Graph
 ): readonly NodeIdAndFilePath[] {
-    const newNodeId: string = newNode.relativeFilePathIsID
+    const newNodeId: string = newNode.absoluteFilePathIsID
 
     // Find all nodes that have edges with targetId matching the new node
     return Object.values(currentGraph.nodes)
         .filter((node: GraphNode) =>
             node.outgoingEdges.some((edge) => linkMatchScore(edge.targetId, newNodeId) > 0)
         )
-        .map((node: GraphNode) => node.relativeFilePathIsID)
+        .map((node: GraphNode) => node.absoluteFilePathIsID)
 }
 
 /**
- * Extract node ID from file path by computing relative path from vault.
+ * Extract node ID from file path using the absolute path.
  *
- * it's just a QOL method so node ids aren't the full absolute path.
+ * Node IDs are now absolute paths (normalized with forward slashes).
+ * This simplifies the architecture by removing the need for a vault/watched directory base.
  *
  * @param filePath - Absolute path to the file (e.g., "/path/to/vault/subfolder/MyNote.md")
- * @param vaultPath - Absolute path to the vault (e.g., "/path/to/vault")
- * @returns GraphNode ID with relative path preserved (e.g., "subfolder/MyNote")
+ * @returns GraphNode ID as normalized absolute path (e.g., "/path/to/vault/subfolder/MyNote.md")
  */
-function extractNodeIdFromPath(filePath: string, vaultPath: string): NodeIdAndFilePath {
-    // Use path.relative for cross-platform path handling (handles both / and \ separators)
-    const relativePath: string = path.relative(vaultPath, filePath)
-
-    // Convert to node ID (remove .md extension)
-    return filenameToNodeId(relativePath)
+function extractNodeIdFromPath(filePath: string): NodeIdAndFilePath {
+    // Normalize path separators to forward slashes for cross-platform consistency
+    return filenameToNodeId(filePath)
 }

@@ -246,7 +246,6 @@ test.describe('MCP Server Integration', () => {
         expect(toolNames).toContain('add_node');
         expect(toolNames).toContain('get_graph');
         expect(toolNames).toContain('list_nodes');
-        expect(toolNames).toContain('set_vault_path');
         console.log(`✓ Found ${toolNames.length} tools: ${toolNames.join(', ')}`);
     });
 

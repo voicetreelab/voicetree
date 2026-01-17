@@ -43,7 +43,7 @@ Final paragraph of content here.`;
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'cmd-a-test-node.md',
+          absoluteFilePathIsID: 'cmd-a-test-node.md',
           contentWithoutYamlOrLinks: multiLineContent,
           outgoingEdges: [],
           nodeUIMetadata: {

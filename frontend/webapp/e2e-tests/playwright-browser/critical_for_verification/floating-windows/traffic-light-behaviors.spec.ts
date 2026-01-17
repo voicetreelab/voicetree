@@ -77,7 +77,7 @@ test.describe('Traffic Light Behaviors (Browser)', () => {
         {
           type: 'UpsertNode' as const,
           nodeToUpsert: {
-            relativeFilePathIsID: 'hover-menu-test-node.md',
+            absoluteFilePathIsID: 'hover-menu-test-node.md',
             contentWithoutYamlOrLinks: '# Hover Menu Test\nTest content for hover menu.',
             outgoingEdges: [],
             nodeUIMetadata: {
@@ -173,7 +173,7 @@ test.describe('Traffic Light Behaviors (Browser)', () => {
         {
           type: 'UpsertNode' as const,
           nodeToUpsert: {
-            relativeFilePathIsID: 'pin-test-node.md',
+            absoluteFilePathIsID: 'pin-test-node.md',
             contentWithoutYamlOrLinks: '# Pin Test\nTest content for pin behavior.',
             outgoingEdges: [],
             nodeUIMetadata: {
@@ -267,7 +267,7 @@ test.describe('Traffic Light Behaviors (Browser)', () => {
         {
           type: 'UpsertNode' as const,
           nodeToUpsert: {
-            relativeFilePathIsID: 'fullscreen-test-node.md',
+            absoluteFilePathIsID: 'fullscreen-test-node.md',
             contentWithoutYamlOrLinks: '# Fullscreen Test\nTest content for fullscreen behavior.',
             outgoingEdges: [],
             nodeUIMetadata: {
@@ -363,7 +363,7 @@ test.describe('Traffic Light Behaviors (Browser)', () => {
         {
           type: 'UpsertNode' as const,
           nodeToUpsert: {
-            relativeFilePathIsID: 'pin-visual-test-node.md',
+            absoluteFilePathIsID: 'pin-visual-test-node.md',
             contentWithoutYamlOrLinks: '# Pin Visual Test\nTest content for pin visual state.',
             outgoingEdges: [],
             nodeUIMetadata: {
@@ -464,7 +464,7 @@ test.describe('Traffic Light Behaviors (Browser)', () => {
         {
           type: 'UpsertNode' as const,
           nodeToUpsert: {
-            relativeFilePathIsID: 'toggle-test-node.md',
+            absoluteFilePathIsID: 'toggle-test-node.md',
             contentWithoutYamlOrLinks: '# Toggle Test\nTest content for zoom toggle.',
             outgoingEdges: [],
             nodeUIMetadata: {
@@ -572,7 +572,7 @@ test.describe('Traffic Light Behaviors (Browser)', () => {
         {
           type: 'UpsertNode' as const,
           nodeToUpsert: {
-            relativeFilePathIsID: 'flow-test-node.md',
+            absoluteFilePathIsID: 'flow-test-node.md',
             contentWithoutYamlOrLinks: '# Flow Test\nTest content for complete hover-pin-fullscreen flow.',
             outgoingEdges: [],
             nodeUIMetadata: {

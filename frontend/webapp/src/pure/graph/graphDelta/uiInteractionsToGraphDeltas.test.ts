@@ -13,7 +13,7 @@ import { fromCreateChildToUpsertNode, generateChildNodeId } from './uiInteractio
 
 function createTestNode(nodeId: string, edgeCount: number = 0): GraphNode {
     return {
-        relativeFilePathIsID: nodeId,
+        absoluteFilePathIsID: nodeId,
         contentWithoutYamlOrLinks: '# Test',
         outgoingEdges: Array.from({ length: edgeCount }, (_, i) => ({
             targetId: `child_${i}.md`,
@@ -116,7 +116,7 @@ describe('fromCreateChildToUpsertNode', () => {
         expect(delta).toHaveLength(2) // child + updated parent
         expect(delta[0].type).toBe('UpsertNode')
         if (delta[0].type === 'UpsertNode') {
-            expect(delta[0].nodeToUpsert.relativeFilePathIsID).toBe('tuesday/some_node_0.md')
+            expect(delta[0].nodeToUpsert.absoluteFilePathIsID).toBe('tuesday/some_node_0.md')
         }
     })
 
@@ -128,7 +128,7 @@ describe('fromCreateChildToUpsertNode', () => {
         expect(delta).toHaveLength(2)
         expect(delta[0].type).toBe('UpsertNode')
         if (delta[0].type === 'UpsertNode') {
-            const childId: string = delta[0].nodeToUpsert.relativeFilePathIsID
+            const childId: string = delta[0].nodeToUpsert.absoluteFilePathIsID
             expect(childId).not.toContain('ctx-nodes/')
             expect(childId).toBe('tuesday/parent_context_123_0.md')
         }
@@ -142,7 +142,7 @@ describe('fromCreateChildToUpsertNode', () => {
 
         expect(delta[0].type).toBe('UpsertNode')
         if (delta[0].type === 'UpsertNode') {
-            expect(delta[0].nodeToUpsert.relativeFilePathIsID).toBe(explicitChildId)
+            expect(delta[0].nodeToUpsert.absoluteFilePathIsID).toBe(explicitChildId)
         }
     })
 })

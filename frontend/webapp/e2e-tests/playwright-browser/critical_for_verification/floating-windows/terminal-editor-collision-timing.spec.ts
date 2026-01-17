@@ -108,7 +108,7 @@ test.describe('Terminal/Editor Collision TIMING Hypothesis', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: testNodeId,
+          absoluteFilePathIsID: testNodeId,
           contentWithoutYamlOrLinks: '# Timing Test Node',
           outgoingEdges: [],
           nodeUIMetadata: {
@@ -313,7 +313,7 @@ test.describe('Terminal/Editor Collision TIMING Hypothesis', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: testNodeId,
+          absoluteFilePathIsID: testNodeId,
           contentWithoutYamlOrLinks: '# RAF Test Node',
           outgoingEdges: [],
           nodeUIMetadata: {

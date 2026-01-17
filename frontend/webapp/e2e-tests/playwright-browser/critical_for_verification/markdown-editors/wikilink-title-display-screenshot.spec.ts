@@ -71,7 +71,7 @@ test.describe('Wikilink Title Display Screenshot', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'architecture-overview.md',
+          absoluteFilePathIsID: 'architecture-overview.md',
           contentWithoutYamlOrLinks: '# Architecture Overview\n\nThis document describes the system architecture.',
           outgoingEdges: [],
           nodeUIMetadata: {
@@ -86,7 +86,7 @@ test.describe('Wikilink Title Display Screenshot', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'getting-started.md',
+          absoluteFilePathIsID: 'getting-started.md',
           contentWithoutYamlOrLinks: '# Getting Started Guide\n\nHow to get started with the project.',
           outgoingEdges: [],
           nodeUIMetadata: {
@@ -101,7 +101,7 @@ test.describe('Wikilink Title Display Screenshot', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'api-reference.md',
+          absoluteFilePathIsID: 'api-reference.md',
           contentWithoutYamlOrLinks: '# API Reference\n\nComplete API documentation.',
           outgoingEdges: [],
           nodeUIMetadata: {
@@ -117,7 +117,7 @@ test.describe('Wikilink Title Display Screenshot', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'wikilink-demo.md',
+          absoluteFilePathIsID: 'wikilink-demo.md',
           contentWithoutYamlOrLinks: `# Wikilink Title Display Demo
 
 This demonstrates how wikilinks display node titles:

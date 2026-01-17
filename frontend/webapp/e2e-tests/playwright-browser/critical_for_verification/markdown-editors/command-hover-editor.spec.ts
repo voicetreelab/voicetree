@@ -85,7 +85,7 @@ test.describe('Hover Editor (Browser)', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'hover-test-node.md',
+          absoluteFilePathIsID: 'hover-test-node.md',
           contentWithoutYamlOrLinks: testContent,
           outgoingEdges: [],
           nodeUIMetadata: {
@@ -198,7 +198,7 @@ test.describe('Hover Editor (Browser)', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'node-a.md',
+          absoluteFilePathIsID: 'node-a.md',
           contentWithoutYamlOrLinks: '# Node A\nContent for node A.',
           outgoingEdges: [],
           nodeUIMetadata: { color: { _tag: 'None' } as const, position: { _tag: 'Some', value: { x: 200, y: 200 } } as const, additionalYAMLProps: new Map(), isContextNode: false }
@@ -208,7 +208,7 @@ test.describe('Hover Editor (Browser)', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'node-b.md',
+          absoluteFilePathIsID: 'node-b.md',
           contentWithoutYamlOrLinks: '# Node B\nContent for node B.',
           outgoingEdges: [],
           nodeUIMetadata: { color: { _tag: 'None' } as const, position: { _tag: 'Some', value: { x: 400, y: 200 } } as const, additionalYAMLProps: new Map(), isContextNode: false }

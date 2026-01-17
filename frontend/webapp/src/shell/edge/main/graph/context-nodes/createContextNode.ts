@@ -2,8 +2,10 @@ import type {Graph, GraphDelta, NodeIdAndFilePath, GraphNode} from '@/pure/graph
 import {getSubgraphByDistance, graphToAscii, makeBidirectionalEdges, CONTEXT_NODES_FOLDER} from '@/pure/graph'
 import {getNodeTitle} from '@/pure/graph/markdown-parsing'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
-import {getWatchStatus} from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
+import * as O from 'fp-ts/lib/Option.js'
+import path from 'path'
 import {type VTSettings} from '@/pure/settings/types'
 import {fromCreateChildToUpsertNode} from '@/pure/graph/graphDelta/uiInteractionsToGraphDeltas'
 import {uiAPI as _uiAPI} from '@/shell/edge/main/ui-api-proxy'
@@ -66,14 +68,13 @@ export async function createContextNode(
     const alreadyInContextFolder: boolean = parentIdWithoutExtension.includes(`/${CONTEXT_NODES_FOLDER}/`)
         || parentIdWithoutExtension.startsWith(`${CONTEXT_NODES_FOLDER}/`)
 
-    // Get vault suffix to properly construct context node path
-    // e.g., for parent "monday/some_node", context should be "monday/ctx-nodes/some_node_context_123.md"
-    const vaultSuffix: string = getWatchStatus().vaultSuffix
+    // Get write path (absolute) to properly construct context node path
+    // Context nodes go in {writePath}/ctx-nodes/
+    const writePathOption: O.Option<string> = await getWritePath()
+    const writePath: string = O.getOrElse(() => '')(writePathOption)
     const candidateContextNodeId: string = alreadyInContextFolder
         ? `${parentIdWithoutExtension}_context_${timestamp}.md`
-        : vaultSuffix
-            ? `${vaultSuffix}/${CONTEXT_NODES_FOLDER}/${parentIdWithoutExtension.replace(`${vaultSuffix}/`, '')}_context_${timestamp}.md`
-            : `${CONTEXT_NODES_FOLDER}/${parentIdWithoutExtension}_context_${timestamp}.md`
+        : `${writePath}/${CONTEXT_NODES_FOLDER}/${path.basename(parentIdWithoutExtension)}_context_${timestamp}.md`
     // Ensure unique ID by appending _2, _3, etc. if collision exists
     const existingIds: ReadonlySet<string> = new Set(Object.keys(currentGraph.nodes))
     const contextNodeId: string = ensureUniqueNodeId(candidateContextNodeId, existingIds)
@@ -125,7 +126,7 @@ export async function createContextNode(
  */
 function buildContextNodeContent(
     parentNodeId: NodeIdAndFilePath,
-    parentTitle: string,
+    _parentTitle: string,
     _maxDistance: number,
     asciiTree: string,
     subgraph: Graph
@@ -151,6 +152,7 @@ function buildContextNodeContent(
 title: "Agent Context"
 isContextNode: true
 ${containedNodeIdsYaml}---
+# Agent Context
 Nearby nodes to: ${parentWikilink}
 \`\`\`
 ${asciiTree}
@@ -184,7 +186,7 @@ function generateNodeDetailsList(
         // Strip [link]* markers to prevent them being converted back to [[link]] wikilinks when written to disk.
         // Without this, fromNodeToMarkdownContent would create real edges from context node to all embedded nodes.
         const contentWithoutLinkStars: string = node.contentWithoutYamlOrLinks.replace(/\[([^\]]+)\]\*/g, '[$1]')
-        lines.push(`<${node.relativeFilePathIsID}> \n ${contentWithoutLinkStars} \n </${node.relativeFilePathIsID}>`)
+        lines.push(`<${node.absoluteFilePathIsID}> \n ${contentWithoutLinkStars} \n </${node.absoluteFilePathIsID}>`)
     }
 
     // Strip [link]* markers from the start node content too

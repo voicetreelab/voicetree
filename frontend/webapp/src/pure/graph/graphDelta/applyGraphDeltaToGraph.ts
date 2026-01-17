@@ -32,7 +32,7 @@ export function applyGraphDeltaToGraph(graph: Graph, delta: GraphDelta): Graph {
     return delta.reduce((currentGraph, nodeDelta) => {
         if (nodeDelta.type === 'UpsertNode') {
             // Upsert node: add new or update existing
-            const existingNode: GraphNode | undefined = currentGraph.nodes[nodeDelta.nodeToUpsert.relativeFilePathIsID]
+            const existingNode: GraphNode | undefined = currentGraph.nodes[nodeDelta.nodeToUpsert.absoluteFilePathIsID]
             const newNode: GraphNode = nodeDelta.nodeToUpsert
 
             // TODO: This position-preservation logic is a workaround. It should be moved to a more
@@ -50,7 +50,7 @@ export function applyGraphDeltaToGraph(graph: Graph, delta: GraphDelta): Graph {
             return {
                 nodes: {
                     ...currentGraph.nodes,
-                    [mergedNode.relativeFilePathIsID]: mergedNode
+                    [mergedNode.absoluteFilePathIsID]: mergedNode
                 },
                 incomingEdgesIndex: newIndex
             }

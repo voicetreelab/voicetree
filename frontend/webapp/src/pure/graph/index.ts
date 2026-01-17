@@ -42,7 +42,7 @@ export interface GraphNode {
     // CORE GRAPH STRUCTURE
     readonly outgoingEdges: readonly Edge[] // Adjacency list to children / outgoing outgoingEdges
     // incomingEdges is derived
-    readonly relativeFilePathIsID: NodeIdAndFilePath //  we enforce relativeFilePathIsID = relativeFilePath to watched folder
+    readonly absoluteFilePathIsID: NodeIdAndFilePath //  we enforce relativeFilePathIsID = relativeFilePath to watched folder
 
     // DATA - content WITHOUT frontmatter or wikilinks (those are in edges + metadata)
     readonly contentWithoutYamlOrLinks: string
@@ -171,7 +171,7 @@ export type MapNewGraphToDelta = (graph: Graph) => GraphDelta
 
 export type StripDeltaForReplay = (delta: GraphDelta) => GraphDelta
 
-export type MapFSEventsToGraphDelta = (fsEvent: FSEvent, vaultPath: string, currentGraph: Graph) => GraphDelta
+export type MapFSEventsToGraphDelta = (fsEvent: FSEvent, currentGraph: Graph) => GraphDelta
 
 // === CORE GRAPH OPERATIONS ===
 

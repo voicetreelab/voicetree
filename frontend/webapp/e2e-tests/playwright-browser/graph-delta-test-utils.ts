@@ -47,7 +47,7 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
           delta.forEach((nodeDelta) => {
             if (nodeDelta.type === 'UpsertNode') {
               const node = nodeDelta.nodeToUpsert;
-              mockElectronAPI.graph._graphState.nodes[node.relativeFilePathIsID] = node;
+              mockElectronAPI.graph._graphState.nodes[node.absoluteFilePathIsID] = node;
             } else if (nodeDelta.type === 'DeleteNode') {
               delete mockElectronAPI.graph._graphState.nodes[nodeDelta.nodeId];
             }
@@ -110,7 +110,7 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
           delta.forEach((nodeDelta) => {
             if (nodeDelta.type === 'UpsertNode') {
               const node = nodeDelta.nodeToUpsert;
-              mockElectronAPI.graph._graphState.nodes[node.relativeFilePathIsID] = node;
+              mockElectronAPI.graph._graphState.nodes[node.absoluteFilePathIsID] = node;
             } else if (nodeDelta.type === 'DeleteNode') {
               delete mockElectronAPI.graph._graphState.nodes[nodeDelta.nodeId];
             }
@@ -132,7 +132,7 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
           delta.forEach((nodeDelta) => {
             if (nodeDelta.type === 'UpsertNode') {
               const node = nodeDelta.nodeToUpsert;
-              mockElectronAPI.graph._graphState.nodes[node.relativeFilePathIsID] = node;
+              mockElectronAPI.graph._graphState.nodes[node.absoluteFilePathIsID] = node;
             } else if (nodeDelta.type === 'DeleteNode') {
               delete mockElectronAPI.graph._graphState.nodes[nodeDelta.nodeId];
             }
@@ -280,7 +280,7 @@ export function createTestGraphDelta(): GraphDelta {
     {
       type: 'UpsertNode' as const,
       nodeToUpsert: {
-        relativeFilePathIsID: 'test-node-1.md',
+        absoluteFilePathIsID: 'test-node-1.md',
         contentWithoutYamlOrLinks: '# Introduction\nThis is the introduction node.',
         outgoingEdges: [{ targetId: 'test-node-2.md', label: '' }],
         nodeUIMetadata: {
@@ -295,7 +295,7 @@ export function createTestGraphDelta(): GraphDelta {
     {
       type: 'UpsertNode' as const,
       nodeToUpsert: {
-        relativeFilePathIsID: 'test-node-2.md',
+        absoluteFilePathIsID: 'test-node-2.md',
         contentWithoutYamlOrLinks: '# Architecture\nArchitecture documentation.',
         outgoingEdges: [{ targetId: 'test-node-3.md', label: '' }],
         nodeUIMetadata: {
@@ -310,7 +310,7 @@ export function createTestGraphDelta(): GraphDelta {
     {
       type: 'UpsertNode' as const,
       nodeToUpsert: {
-        relativeFilePathIsID: 'test-node-3.md',
+        absoluteFilePathIsID: 'test-node-3.md',
         contentWithoutYamlOrLinks: '# Core Principles\nCore principles guide.',
         outgoingEdges: [],
         nodeUIMetadata: {
@@ -325,7 +325,7 @@ export function createTestGraphDelta(): GraphDelta {
     {
       type: 'UpsertNode' as const,
       nodeToUpsert: {
-        relativeFilePathIsID: 'test-node-4.md',
+        absoluteFilePathIsID: 'test-node-4.md',
         contentWithoutYamlOrLinks: '# API Design\nAPI design patterns.',
         outgoingEdges: [],
         nodeUIMetadata: {
@@ -340,7 +340,7 @@ export function createTestGraphDelta(): GraphDelta {
     {
       type: 'UpsertNode' as const,
       nodeToUpsert: {
-        relativeFilePathIsID: 'test-node-5.md',
+        absoluteFilePathIsID: 'test-node-5.md',
         contentWithoutYamlOrLinks: '# Testing Guide\nHow to test the system.',
         outgoingEdges: [],
         nodeUIMetadata: {
@@ -417,7 +417,7 @@ export async function sendGraphDelta(page: Page, graphDelta: GraphDelta): Promis
     reconstructedDelta.forEach((nodeDelta) => {
       if (nodeDelta.type === 'UpsertNode') {
         const node = nodeDelta.nodeToUpsert;
-        mockGraphAPI._graphState.nodes[node.relativeFilePathIsID] = node;
+        mockGraphAPI._graphState.nodes[node.absoluteFilePathIsID] = node;
       } else if (nodeDelta.type === 'DeleteNode') {
         delete mockGraphAPI._graphState.nodes[nodeDelta.nodeId];
       }

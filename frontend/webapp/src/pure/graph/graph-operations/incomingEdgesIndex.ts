@@ -48,7 +48,7 @@ export function updateIndexForUpsert(
   node: GraphNode,
   previousNode: O.Option<GraphNode>
 ): IncomingEdgesIndex {
-  const nodeId: NodeIdAndFilePath = node.relativeFilePathIsID
+  const nodeId: NodeIdAndFilePath = node.absoluteFilePathIsID
 
   // Step 1: Remove old references if this is an update
   const indexAfterRemovals: Map<NodeIdAndFilePath, readonly NodeIdAndFilePath[]> = O.isSome(previousNode)
@@ -95,7 +95,7 @@ export function updateIndexForDelete(
   index: IncomingEdgesIndex,
   deletedNode: GraphNode
 ): IncomingEdgesIndex {
-  const deletedNodeId: NodeIdAndFilePath = deletedNode.relativeFilePathIsID
+  const deletedNodeId: NodeIdAndFilePath = deletedNode.absoluteFilePathIsID
 
   // Step 1: Remove references from this node's outgoing edges
   const indexAfterEdgeRemovals: Map<NodeIdAndFilePath, readonly NodeIdAndFilePath[]> =

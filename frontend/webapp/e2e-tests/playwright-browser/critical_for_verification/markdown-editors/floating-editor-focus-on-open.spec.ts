@@ -90,7 +90,7 @@ test.describe('Floating Editor Focus On Open (Browser)', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'focus-test-node.md',
+          absoluteFilePathIsID: 'focus-test-node.md',
           contentWithoutYamlOrLinks: testContent,
           outgoingEdges: [],
           nodeUIMetadata: {
@@ -175,7 +175,7 @@ test.describe('Floating Editor Focus On Open (Browser)', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'typing-test-node.md',
+          absoluteFilePathIsID: 'typing-test-node.md',
           contentWithoutYamlOrLinks: '# Typing Test\nOriginal content.',
           outgoingEdges: [],
           nodeUIMetadata: {

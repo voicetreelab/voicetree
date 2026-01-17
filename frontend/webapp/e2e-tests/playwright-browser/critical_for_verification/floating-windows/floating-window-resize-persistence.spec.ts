@@ -91,7 +91,7 @@ test.describe('Floating Window Resize Persistence (Browser)', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'resize-test-node.md',
+          absoluteFilePathIsID: 'resize-test-node.md',
           contentWithoutYamlOrLinks: testContent,
           outgoingEdges: [],
           nodeUIMetadata: {
@@ -292,7 +292,7 @@ test.describe('Floating Window Resize Persistence (Browser)', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'terminal-resize-test.md',
+          absoluteFilePathIsID: 'terminal-resize-test.md',
           contentWithoutYamlOrLinks: '# Terminal Resize Test',
           outgoingEdges: [],
           nodeUIMetadata: {

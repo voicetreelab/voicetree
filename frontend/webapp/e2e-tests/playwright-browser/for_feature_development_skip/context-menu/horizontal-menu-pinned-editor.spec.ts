@@ -77,7 +77,7 @@ test.describe('Horizontal Menu Position with Floating Editors', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'menu-position-test.md',
+          absoluteFilePathIsID: 'menu-position-test.md',
           contentWithoutYamlOrLinks: '# Menu Position Test\n\nThis node tests horizontal menu positioning relative to the floating editor window.\n\nThe menu should appear above the editor window, not at the node position.',
           outgoingEdges: [],
           nodeUIMetadata: {

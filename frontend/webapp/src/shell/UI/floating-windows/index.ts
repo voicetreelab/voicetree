@@ -4,4 +4,4 @@
 // Note: MarkdownEditor is now vanilla JS (CodeMirrorEditorView), not a React component
 
 
-export {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
+export type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";

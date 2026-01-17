@@ -85,7 +85,7 @@ test.describe('Floating Editor Auto-Height (Browser)', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'auto-height-test.md',
+          absoluteFilePathIsID: 'auto-height-test.md',
           contentWithoutYamlOrLinks: minimalContent,
           outgoingEdges: [],
           nodeUIMetadata: {
@@ -205,7 +205,7 @@ test.describe('Floating Editor Auto-Height (Browser)', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'enter-height-test.md',
+          absoluteFilePathIsID: 'enter-height-test.md',
           contentWithoutYamlOrLinks: initialContent,
           outgoingEdges: [],
           nodeUIMetadata: {

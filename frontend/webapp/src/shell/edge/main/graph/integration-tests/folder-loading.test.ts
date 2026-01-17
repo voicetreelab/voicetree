@@ -143,7 +143,7 @@ describe('Folder Loading - Integration Tests', () => {
       nodes.forEach(node => {
         expect(node.contentWithoutYamlOrLinks).toBeDefined()
         expect(node.contentWithoutYamlOrLinks.length).toBeGreaterThan(0)
-        expect(node.relativeFilePathIsID).toBeDefined()
+        expect(node.absoluteFilePathIsID).toBeDefined()
       })
 
       // AND: Should broadcast delta to UI-edge (clear, stateChanged, watching-started)
@@ -278,7 +278,7 @@ describe('Folder Loading - Integration Tests', () => {
       const graphStateChangedBroadcasts: BroadcastCall[] = broadcastCalls.filter(call => call.channel === 'graph:stateChanged')
       expect(graphStateChangedBroadcasts.length).toBe(1)
       const addBroadcast: BroadcastCall | undefined = graphStateChangedBroadcasts.find(call =>
-        call.delta.some(d => d.type === 'UpsertNode' && d.nodeToUpsert.relativeFilePathIsID === 'test-new-file.md')
+        call.delta.some(d => d.type === 'UpsertNode' && d.nodeToUpsert.absoluteFilePathIsID === 'test-new-file.md')
       )
       expect(addBroadcast).toBeDefined()
 
@@ -513,7 +513,7 @@ describe('Folder Loading - Integration Tests', () => {
         expect(node).toHaveProperty('nodeUIMetadata')
 
         // Property types
-        expect(typeof node.relativeFilePathIsID).toBe('string')
+        expect(typeof node.absoluteFilePathIsID).toBe('string')
         expect(typeof node.contentWithoutYamlOrLinks).toBe('string')
 
         // Content should not be empty

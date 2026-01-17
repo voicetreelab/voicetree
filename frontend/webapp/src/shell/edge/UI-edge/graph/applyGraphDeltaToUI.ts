@@ -78,7 +78,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
         delta.forEach((nodeDelta) => {
             if (nodeDelta.type === 'UpsertNode') {
                 const node: GraphNode = nodeDelta.nodeToUpsert;
-                const nodeId: string = node.relativeFilePathIsID;
+                const nodeId: string = node.absoluteFilePathIsID;
 
                 const existingNode: CollectionReturnValue = cy.getElementById(nodeId);
                 const isNewNode: boolean = existingNode.length === 0;
@@ -153,7 +153,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
         delta.forEach((nodeDelta) => {
             if (nodeDelta.type === 'UpsertNode') {
                 const node: GraphNode = nodeDelta.nodeToUpsert;
-                const nodeId: string = node.relativeFilePathIsID;
+                const nodeId: string = node.absoluteFilePathIsID;
 
                 // Get current edges from this node in Cytoscape
                 const currentEdges: EdgeCollection = cy.edges(`[source = "${nodeId}"]`);

@@ -88,7 +88,7 @@ test.describe('Full Window Mode (Browser)', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'fullwindow-test-node.md',
+          absoluteFilePathIsID: 'fullwindow-test-node.md',
           contentWithoutYamlOrLinks: testContent,
           outgoingEdges: [],
           nodeUIMetadata: {
@@ -250,7 +250,7 @@ test.describe('Full Window Mode (Browser)', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'escape-test-node.md',
+          absoluteFilePathIsID: 'escape-test-node.md',
           contentWithoutYamlOrLinks: '# Escape Test\nTesting Escape key exits fullscreen.',
           outgoingEdges: [],
           nodeUIMetadata: {
@@ -330,7 +330,7 @@ test.describe('Full Window Mode (Browser)', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'close-test-node.md',
+          absoluteFilePathIsID: 'close-test-node.md',
           contentWithoutYamlOrLinks: '# Close Test\nTesting close button in fullscreen.',
           outgoingEdges: [],
           nodeUIMetadata: {

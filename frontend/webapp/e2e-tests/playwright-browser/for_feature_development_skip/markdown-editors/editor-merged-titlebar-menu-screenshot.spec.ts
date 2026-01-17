@@ -28,7 +28,7 @@ test.describe('Floating Editor Merged Title Bar with Menu', () => {
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'merged-titlebar-test.md',
+          absoluteFilePathIsID: 'merged-titlebar-test.md',
           contentWithoutYamlOrLinks: '# Merged Title Bar Test\n\nThis editor should have the horizontal menu embedded in the title bar.\n\nThe menu pills should appear on the left, window buttons on the right.',
           outgoingEdges: [],
           nodeUIMetadata: {
