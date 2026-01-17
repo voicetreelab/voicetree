@@ -96,6 +96,7 @@ export async function createContextNode(
 
     // 7. PURE: Create context node delta using fromCreateChildToUpsertNode
     console.log("[createContextNode] Creating delta...")
+    console.log("[createContextNode] Bidirectional edge: context_node→parent added to content")
     const contextNodeDelta: GraphDelta = fromCreateChildToUpsertNode(
         currentGraph,
         parentNode,
@@ -103,6 +104,7 @@ export async function createContextNode(
         contextNodeId
     )
     console.log("[createContextNode] Delta created with", contextNodeDelta.length, "actions")
+    console.log("[createContextNode] Edges in delta - parent outgoing:", parentNode.outgoingEdges.length + 1, "context outgoing: 1 (to parent)")
 
     // 8a. Notify UI immediately (before DB write, ensures node exists in Cytoscape for terminal anchoring)
     console.log("[createContextNode] BEFORE UIAPI")
@@ -140,10 +142,16 @@ function buildContextNodeContent(
         ? `containedNodeIds:\n${containedNodeIds.map(id => `  - ${id}`).join('\n')}\n`
         : ''
 
+    // Create bidirectional edge: context_node → parent_node
+    // This guards against race conditions where the parent → context_node edge might not render
+    // See: wed/1768545341682COh.md for the original bug report
+    const parentWikilink: string = `[[${parentNodeId}]]`
+
     return `---
 title: "Context"
 isContextNode: true
 ${containedNodeIdsYaml}---
+${parentWikilink}
 
 ## Context
 Collecting nearby nodes from '${parentTitle}'
