@@ -69,6 +69,7 @@ import {createNewNodeAction, runTerminalAction, deleteSelectedNodesAction} from 
 import {getResponsivePadding} from '@/utils/responsivePadding';
 import {SpeedDialSideGraphFloatingMenuView} from './SpeedDialSideGraphFloatingMenuView';
 import type {Graph, GraphDelta} from '@/pure/graph';
+import {createEmptyGraph} from '@/pure/graph/createGraph';
 import {MIN_ZOOM, MAX_ZOOM} from '@/shell/UI/cytoscape-graph-ui/constants';
 import {setupBasicCytoscapeEventListeners, setupCytoscape} from './VoiceTreeGraphViewHelpers';
 import {applyGraphDeltaToUI} from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI';
@@ -115,7 +116,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
     // State
     private _isDarkMode = false;
-    private currentGraphState: Graph = {nodes: {}};
+    private currentGraphState: Graph = createEmptyGraph();
     private recentNodeHistory: RecentNodeHistory = createEmptyHistory();
 
     // Graph subscription cleanup

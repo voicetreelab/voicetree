@@ -12,6 +12,7 @@ export const AUTO_RUN_FLAG: string = '--dangerously-skip-permissions';
 export interface AgentCommandEditorResult {
     command: string;
     agentPrompt: string;
+    mcpIntegrationEnabled: boolean;
 }
 
 /**
@@ -90,6 +91,35 @@ export function showAgentCommandEditor(command: string, agentPrompt: string): Pr
                         "
                     />
                 </label>
+                <div style="
+                    padding: 12px;
+                    border: 1px solid var(--border);
+                    border-radius: calc(var(--radius) - 2px);
+                    background: var(--muted);
+                ">
+                    <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
+                        <input
+                            type="checkbox"
+                            id="mcp-integration-toggle"
+                            data-testid="mcp-integration-toggle"
+                            checked
+                            style="
+                                margin-top: 2px;
+                                width: 16px;
+                                height: 16px;
+                                cursor: pointer;
+                            "
+                        />
+                        <div style="display: flex; flex-direction: column; gap: 2px;">
+                            <span style="font-size: 0.85rem; font-weight: 500;">
+                                ⚗️ Enable MCP Integration
+                            </span>
+                            <span style="font-size: 0.8rem; color: var(--muted-foreground);">
+                                Let agents spawn sub-agents directly in the graph (experimental)
+                            </span>
+                        </div>
+                    </label>
+                </div>
                 <div style="display: flex; gap: 8px; justify-content: space-between; align-items: center;">
                     <button
                         type="button"
@@ -146,6 +176,7 @@ export function showAgentCommandEditor(command: string, agentPrompt: string): Pr
         const form: HTMLFormElement = dialog.querySelector('form')!;
         const promptTextarea: HTMLTextAreaElement = dialog.querySelector('#agent-prompt-input')!;
         const input: HTMLInputElement = dialog.querySelector('#command-input')!;
+        const mcpToggle: HTMLInputElement = dialog.querySelector('#mcp-integration-toggle')!;
         const addAutoRunButton: HTMLButtonElement = dialog.querySelector('#add-auto-run-button')!;
         const cancelButton: HTMLButtonElement = dialog.querySelector('#cancel-button')!;
 
@@ -191,12 +222,13 @@ export function showAgentCommandEditor(command: string, agentPrompt: string): Pr
             e.preventDefault();
             const finalCommand: string = input.value.trim();
             const finalPrompt: string = promptTextarea.value.trim();
+            const mcpEnabled: boolean = mcpToggle.checked;
             dialog.close();
             if (!finalCommand) {
                 resolve(null);
                 return;
             }
-            resolve({ command: finalCommand, agentPrompt: finalPrompt });
+            resolve({ command: finalCommand, agentPrompt: finalPrompt, mcpIntegrationEnabled: mcpEnabled });
         });
 
         // Clean up dialog on close

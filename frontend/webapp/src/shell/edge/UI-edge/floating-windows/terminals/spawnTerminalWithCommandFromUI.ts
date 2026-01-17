@@ -12,13 +12,11 @@ import type { VTSettings, AgentConfig } from "@/pure/settings";
 import { deleteNodesFromUI } from "@/shell/edge/UI-edge/graph/handleUIActions";
 import { showAgentCommandEditor, AUTO_RUN_FLAG } from "@/shell/edge/UI-edge/graph/agentCommandEditorPopup";
 import type { Core, NodeCollection, CollectionReturnValue } from "cytoscape";
-import * as O from 'fp-ts/lib/Option.js';
 // Import for global Window.electronAPI type augmentation
 import '@/shell/electron.d.ts';
 import {
     disposeFloatingWindow,
     getOrCreateOverlay,
-    getCachedZoom,
 } from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import { TerminalVanilla } from "@/shell/UI/floating-windows/terminals/TerminalVanilla";
 import posthog from "posthog-js";
@@ -32,9 +30,10 @@ import {
     vanillaFloatingWindowInstances,
 } from "@/shell/edge/UI-edge/state/UIAppState";
 import { getNextTerminalCount, getTerminals } from "@/shell/edge/UI-edge/state/TerminalStore";
-import {anchorToNode} from "@/shell/edge/UI-edge/floating-windows/anchor-to-node";
 import {createWindowChrome} from "@/shell/edge/UI-edge/floating-windows/create-window-chrome";
 import {flushEditorForNode} from "@/shell/edge/UI-edge/floating-windows/editors/flushEditorForNode";
+import {anchorToNode} from "@/shell/edge/UI-edge/floating-windows/anchor-to-node";
+import * as O from "fp-ts/lib/Option.js";
 
 const MAX_TERMINALS: number = 12;
 
@@ -70,6 +69,7 @@ interface PermissionModeResult {
     shouldSaveSettings: boolean;
     updatedAgents: readonly AgentConfig[];
     updatedAgentPrompt: string;
+    mcpIntegrationEnabled: boolean;
 }
 
 /**
@@ -96,11 +96,12 @@ async function ensureAgentPermissionModeChosen(
             shouldSaveSettings: false,
             updatedAgents: settings.agents,
             updatedAgentPrompt: currentAgentPrompt,
+            mcpIntegrationEnabled: true, // Default to enabled when skipping popup
         };
     }
 
     // Show the agent command editor popup with both command and agent prompt
-    const result: { command: string; agentPrompt: string } | null = await showAgentCommandEditor(command, currentAgentPrompt);
+    const result: { command: string; agentPrompt: string; mcpIntegrationEnabled: boolean } | null = await showAgentCommandEditor(command, currentAgentPrompt);
 
     // User cancelled - return original values but mark as chosen to not prompt again
     if (result === null) {
@@ -109,6 +110,7 @@ async function ensureAgentPermissionModeChosen(
             shouldSaveSettings: true,
             updatedAgents: settings.agents,
             updatedAgentPrompt: currentAgentPrompt,
+            mcpIntegrationEnabled: true, // Default to enabled when cancelled
         };
     }
 
@@ -140,6 +142,7 @@ async function ensureAgentPermissionModeChosen(
         shouldSaveSettings: true,
         updatedAgents,
         updatedAgentPrompt: result.agentPrompt,
+        mcpIntegrationEnabled: result.mcpIntegrationEnabled,
     };
 }
 
@@ -189,7 +192,7 @@ export async function spawnTerminalWithCommandEditor(
         : '';
 
     // Always show the popup (user explicitly requested edit)
-    const result: { command: string; agentPrompt: string } | null = await showAgentCommandEditor(command, currentAgentPrompt);
+    const result: { command: string; agentPrompt: string; mcpIntegrationEnabled: boolean } | null = await showAgentCommandEditor(command, currentAgentPrompt);
 
     // User cancelled
     if (result === null) {
@@ -230,6 +233,9 @@ export async function spawnTerminalWithCommandEditor(
         };
         await window.electronAPI?.main.saveSettings(updatedSettings);
     }
+
+    // Update .mcp.json based on user's MCP integration toggle choice
+    await window.electronAPI?.main.setMcpIntegration(result.mcpIntegrationEnabled);
 
     const terminalCount: number = getNextTerminalCount(terminalsMap, parentNodeId);
 
@@ -303,6 +309,9 @@ export async function spawnTerminalWithNewContextNode(
         await window.electronAPI?.main.saveSettings(updatedSettings);
     }
 
+    // Update .mcp.json based on user's MCP integration toggle choice
+    await window.electronAPI?.main.setMcpIntegration(permissionResult.mcpIntegrationEnabled);
+
     const terminalCount: number = getNextTerminalCount(terminalsMap, parentNodeId);
 
     // Delegate to main process which has immediate graph access
@@ -345,7 +354,7 @@ export async function createFloatingTerminal(
     cy: Core,
     nodeId: string,
     terminalData: TerminalData,
-    nodePos: Position
+    _nodePos: Position
 ): Promise<TerminalData | undefined> {
     const terminalId: TerminalId = getTerminalId(terminalData);
     console.log('[FloatingWindowManager-v2] Creating floating terminal:', terminalId);
@@ -359,22 +368,20 @@ export async function createFloatingTerminal(
 
     // Wait for parent node to appear (handles IPC race condition where terminal launch
     // arrives before graph delta is processed)
-    const parentNode: CollectionReturnValue | null = await waitForNode(cy, nodeId, 1000);
-    const parentNodeExists: boolean = parentNode !== null && parentNode.length > 0;
+    await waitForNode(cy, nodeId, 1000);
 
     try {
         // Create floating terminal window (returns TerminalData with ui populated)
         const terminalWithUI: TerminalData = createFloatingTerminalWindow(cy, terminalData);
 
-        if (parentNodeExists && O.isSome(terminalWithUI.anchoredToNodeId)) {
-            // Anchor to parent node
+        // Anchor to parent node if it exists (creates shadow node in cytoscape graph)
+        if (terminalWithUI.ui && O.isSome(terminalWithUI.anchoredToNodeId)) {
             anchorToNode(cy, terminalWithUI);
         } else if (terminalWithUI.ui) {
-            // Manual positioning if no parent or not anchored
-            // Positions are scaled by zoom since we removed CSS transform: scale(zoom) from overlay
-            const zoom: number = getCachedZoom();
-            terminalWithUI.ui.windowElement.style.left = `${(nodePos.x + 100) * zoom}px`;
-            terminalWithUI.ui.windowElement.style.top = `${nodePos.y * zoom}px`;
+            // Fallback: position at a default location if no parent node
+            // (rare case - terminals usually have a parent context node)
+            terminalWithUI.ui.windowElement.style.left = '100px';
+            terminalWithUI.ui.windowElement.style.top = '100px';
         }
 
         return terminalWithUI;
