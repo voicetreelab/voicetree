@@ -64,7 +64,11 @@ function writeNodeToFile(node: GraphNode): FSWriteEffect<void> {
         async () => {
             const markdown: string = fromNodeToMarkdownContent(node)
             const filename: string = nodeIdToFilePathWithExtension(node.absoluteFilePathIsID)
-            const fullPath: string = path.join(env.watchedDirectory, filename)
+            // Handle both absolute and relative paths correctly
+            // If filename is already absolute, use it directly; otherwise join with watchedDirectory
+            const fullPath: string = path.isAbsolute(filename)
+                ? filename
+                : path.join(env.watchedDirectory, filename)
 
             // Ensure parent directory exists
             await fs.mkdir(path.dirname(fullPath), { recursive: true })
@@ -82,7 +86,11 @@ function deleteNodeFile(nodeId: NodeIdAndFilePath): FSWriteEffect<void> {
     return (env: Env) => TE.tryCatch(
         async () => {
             const filename: string = nodeIdToFilePathWithExtension(nodeId)
-            const fullPath: string = path.join(env.watchedDirectory, filename)
+            // Handle both absolute and relative paths correctly
+            // If filename is already absolute, use it directly; otherwise join with watchedDirectory
+            const fullPath: string = path.isAbsolute(filename)
+                ? filename
+                : path.join(env.watchedDirectory, filename)
 
             await fs.unlink(fullPath)
         },

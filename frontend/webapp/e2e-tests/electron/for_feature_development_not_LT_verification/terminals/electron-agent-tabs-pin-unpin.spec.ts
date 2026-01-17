@@ -1,14 +1,14 @@
 /**
  * BEHAVIORAL SPEC:
- * E2E test for AgentTabsBar pin/unpin functionality via tab interactions
+ * E2E test for AgentTabsBar pin/unpin functionality via traffic light button
  *
  * This test verifies:
  * 1. Load example graph
  * 2. Spawn a terminal from a selected node
  * 3. Verify terminal tab appears in pinned section
- * 4. Double-click pinned tab to unpin (should move to unpinned section)
+ * 4. Click traffic light pin button on terminal to unpin (should move to unpinned section)
  * 5. Screenshot the unpinned state
- * 6. Click unpinned tab to re-pin (should move back to pinned section)
+ * 6. Click traffic light pin button again to re-pin (should move back to pinned section)
  * 7. Screenshot the re-pinned state
  *
  * IMPORTANT: THESE SPEC COMMENTS MUST BE KEPT UP TO DATE
@@ -104,8 +104,8 @@ const test = base.extend<{
   }
 });
 
-test.describe('AgentTabsBar Pin/Unpin via Tab Interactions', () => {
-  test('should unpin via double-click and re-pin via single click on unpinned tab', async ({ appWindow }) => {
+test.describe('AgentTabsBar Pin/Unpin via Traffic Light Button', () => {
+  test('should unpin and re-pin via traffic light pin button on terminal window', async ({ appWindow }) => {
     test.setTimeout(90000);
 
     console.log('=== STEP 1: Wait for auto-load to complete ===');
@@ -189,11 +189,12 @@ test.describe('AgentTabsBar Pin/Unpin via Tab Interactions', () => {
     });
     console.log('Screenshot saved: agent-tabs-pin-unpin-1-initial-pinned.png');
 
-    console.log('=== STEP 5: Double-click pinned tab to unpin ===');
-    // Find and double-click the pinned tab
-    const pinnedTabSelector = `.agent-tabs-pinned .agent-tab[data-terminal-id="${initialState.terminalId}"]`;
-    await appWindow.waitForSelector(pinnedTabSelector);
-    await appWindow.dblclick(pinnedTabSelector);
+    console.log('=== STEP 5: Click traffic light pin button on terminal to unpin ===');
+    // Find and click the traffic light pin button on the terminal window
+    const terminalWindowSelector = '.cy-floating-window-terminal';
+    const trafficLightPinSelector = `${terminalWindowSelector} .traffic-light-pin`;
+    await appWindow.waitForSelector(trafficLightPinSelector);
+    await appWindow.click(trafficLightPinSelector);
     await appWindow.waitForTimeout(500);
 
     console.log('=== STEP 6: Verify tab moved to unpinned section ===');
@@ -209,7 +210,7 @@ test.describe('AgentTabsBar Pin/Unpin via Tab Interactions', () => {
         return { isInUnpinned, isInPinned };
       }, initialState.terminalId);
     }, {
-      message: 'Waiting for tab to move to unpinned section after double-click',
+      message: 'Waiting for tab to move to unpinned section after pin button click',
       timeout: 5000,
       intervals: [200, 500, 1000]
     }).toMatchObject({
@@ -247,10 +248,10 @@ test.describe('AgentTabsBar Pin/Unpin via Tab Interactions', () => {
     expect(afterUnpinState.pinnedCount).toBe(initialState.pinnedCount - 1);
     expect(afterUnpinState.unpinnedCount).toBe(initialState.unpinnedCount + 1);
 
-    console.log('=== STEP 7: Click unpinned tab to re-pin ===');
-    const unpinnedTabSelector = `.agent-tabs-unpinned .agent-tab-unpinned[data-terminal-id="${initialState.terminalId}"]`;
-    await appWindow.waitForSelector(unpinnedTabSelector);
-    await appWindow.click(unpinnedTabSelector);
+    console.log('=== STEP 7: Click traffic light pin button again to re-pin ===');
+    // Click the traffic light pin button again to re-pin the terminal
+    await appWindow.waitForSelector(trafficLightPinSelector);
+    await appWindow.click(trafficLightPinSelector);
     await appWindow.waitForTimeout(500);
 
     console.log('=== STEP 8: Verify tab moved back to pinned section ===');
@@ -266,7 +267,7 @@ test.describe('AgentTabsBar Pin/Unpin via Tab Interactions', () => {
         return { isInPinned, isInUnpinned };
       }, initialState.terminalId);
     }, {
-      message: 'Waiting for tab to move back to pinned section after click',
+      message: 'Waiting for tab to move back to pinned section after pin button click',
       timeout: 5000,
       intervals: [200, 500, 1000]
     }).toMatchObject({
@@ -304,6 +305,6 @@ test.describe('AgentTabsBar Pin/Unpin via Tab Interactions', () => {
     expect(afterRepinState.pinnedCount).toBe(initialState.pinnedCount);
     expect(afterRepinState.unpinnedCount).toBe(initialState.unpinnedCount);
 
-    console.log('=== TEST COMPLETE: Pin/Unpin via tab interactions verified ===');
+    console.log('=== TEST COMPLETE: Pin/Unpin via traffic light button verified ===');
   });
 });

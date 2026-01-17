@@ -42,7 +42,7 @@ interface BroadcastCall {
 // Expected counts (based on actual example_folder_fixtures)
 // Note: Loads entire directory including ctx-nodes
 const EXPECTED_SMALL_NODE_COUNT: 22 = 22 as const  // 11 root files + 11 in voicetree/ subfolder
-const EXPECTED_LARGE_NODE_COUNT: 185 = 185 as const  // Includes ctx-nodes
+const EXPECTED_LARGE_NODE_COUNT: 186 = 186 as const  // Includes ctx-nodes
 
 // State for mocks
 let broadcastCalls: Array<BroadcastCall> = []
@@ -258,14 +258,14 @@ describe('Folder Loading - Integration Tests', () => {
 
       handleFSEventWithStateAndUISides(addEvent, EXAMPLE_SMALL_PATH, mockMainWindow as unknown as BrowserWindow)
 
-      // Verify the node was added to the graph
+      // Verify the node was added to the graph - node IDs are now absolute paths
       const graphAfterAdd: Graph = getGraph()
-      expect(graphAfterAdd.nodes['test-new-file.md']).toBeDefined()
-      expect(graphAfterAdd.nodes['test-new-file.md'].contentWithoutYamlOrLinks).toBe(expectedContent)
+      expect(graphAfterAdd.nodes[testFilePath]).toBeDefined()
+      expect(graphAfterAdd.nodes[testFilePath].contentWithoutYamlOrLinks).toBe(expectedContent)
       expect(Object.keys(graphAfterAdd.nodes).length).toBe(EXPECTED_SMALL_NODE_COUNT + 1)
 
       // Verify edge was created from test-new-file to 5_Immediate_Test_Observation_No_Output
-      const testNode: GraphNode = graphAfterAdd.nodes['test-new-file.md']
+      const testNode: GraphNode = graphAfterAdd.nodes[testFilePath]
       expect(testNode.outgoingEdges).toBeDefined()
       expect(Array.isArray(testNode.outgoingEdges)).toBe(true)
       // Node IDs now include .md extension
@@ -278,7 +278,7 @@ describe('Folder Loading - Integration Tests', () => {
       const graphStateChangedBroadcasts: BroadcastCall[] = broadcastCalls.filter(call => call.channel === 'graph:stateChanged')
       expect(graphStateChangedBroadcasts.length).toBe(1)
       const addBroadcast: BroadcastCall | undefined = graphStateChangedBroadcasts.find(call =>
-        call.delta.some(d => d.type === 'UpsertNode' && d.nodeToUpsert.absoluteFilePathIsID === 'test-new-file.md')
+        call.delta.some(d => d.type === 'UpsertNode' && d.nodeToUpsert.absoluteFilePathIsID === testFilePath)
       )
       expect(addBroadcast).toBeDefined()
 
@@ -296,9 +296,9 @@ describe('Folder Loading - Integration Tests', () => {
 
       handleFSEventWithStateAndUISides(deleteEvent, EXAMPLE_SMALL_PATH, mockMainWindow as unknown as BrowserWindow)
 
-      // Verify the node was removed from the graph
+      // Verify the node was removed from the graph - node IDs are absolute paths
       const graphAfterDelete: Graph = getGraph()
-      expect(graphAfterDelete.nodes['test-new-file.md']).toBeUndefined()
+      expect(graphAfterDelete.nodes[testFilePath]).toBeUndefined()
       expect(Object.keys(graphAfterDelete.nodes).length).toBe(EXPECTED_SMALL_NODE_COUNT)
 
       // Verify broadcast was sent (graph:stateChanged)
@@ -308,7 +308,7 @@ describe('Folder Loading - Integration Tests', () => {
       const deleteGraphStateChangedBroadcasts: BroadcastCall[] = broadcastCalls.filter(call => call.channel === 'graph:stateChanged')
       expect(deleteGraphStateChangedBroadcasts.length).toBe(1)
       const deleteBroadcast: BroadcastCall | undefined = deleteGraphStateChangedBroadcasts.find(call =>
-        call.delta.some(d => d.type === 'DeleteNode' && d.nodeId === 'test-new-file.md')
+        call.delta.some(d => d.type === 'DeleteNode' && d.nodeId === testFilePath)
       )
       expect(deleteBroadcast).toBeDefined()
 
@@ -391,10 +391,10 @@ describe('Folder Loading - Integration Tests', () => {
        
       handleFSEventWithStateAndUISides(addEvent, EXAMPLE_SMALL_PATH, mockMainWindow as unknown as BrowserWindow)
 
-      // THEN: Graph should contain the new node
+      // THEN: Graph should contain the new node - node IDs are absolute paths
       const graph: Graph = getGraph()
-      expect(graph.nodes['test-new-file.md']).toBeDefined()
-      expect(graph.nodes['test-new-file.md'].contentWithoutYamlOrLinks).toBe(newFileContent)
+      expect(graph.nodes[newFilePath]).toBeDefined()
+      expect(graph.nodes[newFilePath].contentWithoutYamlOrLinks).toBe(newFileContent)
 
       // AND: Broadcast should have been sent (graph:stateChanged)
       // Note: handleFSEventWithStateAndUISides sends 2 broadcasts:
@@ -420,9 +420,9 @@ describe('Folder Loading - Integration Tests', () => {
 
       handleFSEventWithStateAndUISides(deleteEvent, EXAMPLE_SMALL_PATH, mockMainWindow as unknown as BrowserWindow)
 
-      // THEN: GraphNode should be removed from graph
+      // THEN: GraphNode should be removed from graph - node IDs are absolute paths
       const graphAfterDelete: Graph = getGraph()
-      expect(graphAfterDelete.nodes['test-new-file.md']).toBeUndefined()
+      expect(graphAfterDelete.nodes[newFilePath]).toBeUndefined()
 
       // AND: Broadcast should have been sent (graph:stateChanged)
       // Note: handleFSEventWithStateAndUISides sends 2 broadcasts:
@@ -507,8 +507,8 @@ describe('Folder Loading - Integration Tests', () => {
       const nodes: GraphNode[] = Object.values(graph.nodes)
 
       nodes.forEach(node => {
-        // Required properties
-        expect(node).toHaveProperty('relativeFilePathIsID')
+        // Required properties - node IDs are now absolute paths
+        expect(node).toHaveProperty('absoluteFilePathIsID')
         expect(node).toHaveProperty('contentWithoutYamlOrLinks')
         expect(node).toHaveProperty('nodeUIMetadata')
 
@@ -535,8 +535,9 @@ describe('Folder Loading - Integration Tests', () => {
       expect(Object.keys(graph.nodes).length).toBe(EXPECTED_SMALL_NODE_COUNT)
 
       // AND: The bad YAML file should be present
-      // Node IDs are now relative to watchedDirectory (EXAMPLE_SMALL_PATH), so include voicetree/ prefix
-      const badYamlNode: GraphNode = graph.nodes['voicetree/7_Bad_YAML_Frontmatter_Test.md']
+      // Node IDs are now absolute paths
+      const badYamlPath: string = path.join(EXAMPLE_SMALL_PATH, 'voicetree/7_Bad_YAML_Frontmatter_Test.md')
+      const badYamlNode: GraphNode = graph.nodes[badYamlPath]
       expect(badYamlNode).toBeDefined()
 
       // AND: Should have content (not skipped due to parse error)

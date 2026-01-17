@@ -120,23 +120,36 @@ export function showAgentCommandEditor(command: string, agentPrompt: string): Pr
                         </div>
                     </label>
                 </div>
-                <div style="display: flex; gap: 8px; justify-content: space-between; align-items: center;">
-                    <button
-                        type="button"
-                        id="add-auto-run-button"
-                        data-testid="add-auto-run-button"
-                        ${hasAutoRunFlag ? 'disabled' : ''}
-                        style="
-                            padding: 8px 12px;
-                            border: 1px solid var(--border);
-                            border-radius: calc(var(--radius) - 2px);
-                            background: transparent;
-                            color: var(--foreground);
-                            cursor: ${hasAutoRunFlag ? 'not-allowed' : 'pointer'};
-                            font-size: 0.85rem;
-                            opacity: ${hasAutoRunFlag ? '0.5' : '1'};
-                        "
-                    >Add auto-run</button>
+                <div style="
+                    padding: 12px;
+                    border: 1px solid var(--border);
+                    border-radius: calc(var(--radius) - 2px);
+                    background: var(--muted);
+                ">
+                    <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
+                        <input
+                            type="checkbox"
+                            id="auto-run-toggle"
+                            data-testid="auto-run-toggle"
+                            ${hasAutoRunFlag ? 'checked' : ''}
+                            style="
+                                margin-top: 2px;
+                                width: 16px;
+                                height: 16px;
+                                cursor: pointer;
+                            "
+                        />
+                        <div style="display: flex; flex-direction: column; gap: 2px;">
+                            <span style="font-size: 0.85rem; font-weight: 500;">
+                                Auto-run
+                            </span>
+                            <span style="font-size: 0.8rem; color: var(--muted-foreground);">
+                                Skip permission prompts (--dangerously-skip-permissions)
+                            </span>
+                        </div>
+                    </label>
+                </div>
+                <div style="display: flex; gap: 8px; justify-content: flex-end; align-items: center;">
                     <div style="display: flex; gap: 8px;">
                         <button
                             type="button"
@@ -177,24 +190,23 @@ export function showAgentCommandEditor(command: string, agentPrompt: string): Pr
         const promptTextarea: HTMLTextAreaElement = dialog.querySelector('#agent-prompt-input')!;
         const input: HTMLInputElement = dialog.querySelector('#command-input')!;
         const mcpToggle: HTMLInputElement = dialog.querySelector('#mcp-integration-toggle')!;
-        const addAutoRunButton: HTMLButtonElement = dialog.querySelector('#add-auto-run-button')!;
+        const autoRunToggle: HTMLInputElement = dialog.querySelector('#auto-run-toggle')!;
         const cancelButton: HTMLButtonElement = dialog.querySelector('#cancel-button')!;
 
         // Set values programmatically to avoid HTML escaping issues with quotes
         promptTextarea.value = agentPrompt;
         input.value = command;
 
-        // Update Add auto-run button state when input changes
+        // Update auto-run checkbox state when input changes
         input.addEventListener('input', () => {
             const currentHasFlag: boolean = input.value.includes(AUTO_RUN_FLAG);
-            addAutoRunButton.disabled = currentHasFlag;
-            addAutoRunButton.style.opacity = currentHasFlag ? '0.5' : '1';
-            addAutoRunButton.style.cursor = currentHasFlag ? 'not-allowed' : 'pointer';
+            autoRunToggle.checked = currentHasFlag;
         });
 
-        // Add auto-run button click handler
-        addAutoRunButton.addEventListener('click', () => {
-            if (!input.value.includes(AUTO_RUN_FLAG)) {
+        // Auto-run checkbox change handler
+        autoRunToggle.addEventListener('change', () => {
+            const currentHasFlag: boolean = input.value.includes(AUTO_RUN_FLAG);
+            if (autoRunToggle.checked && !currentHasFlag) {
                 // Insert flag after 'claude' command, preserving the rest of the command
                 input.value = input.value.replace(
                     /^(claude)\s+(.*)$/,
@@ -204,10 +216,9 @@ export function showAgentCommandEditor(command: string, agentPrompt: string): Pr
                 if (!input.value.includes(AUTO_RUN_FLAG)) {
                     input.value = `${AUTO_RUN_FLAG} ${input.value}`;
                 }
-                // Update button state
-                addAutoRunButton.disabled = true;
-                addAutoRunButton.style.opacity = '0.5';
-                addAutoRunButton.style.cursor = 'not-allowed';
+            } else if (!autoRunToggle.checked && currentHasFlag) {
+                // Remove the flag from the command
+                input.value = input.value.replace(new RegExp(`\\s*${AUTO_RUN_FLAG}\\s*`), ' ').trim();
             }
         });
 
