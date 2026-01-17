@@ -11,7 +11,7 @@ function createNode(
     content = '# Node'
 ): GraphNode {
     return {
-        relativeFilePathIsID: id,
+        absoluteFilePathIsID: id,
         outgoingEdges,
         contentWithoutYamlOrLinks: content,
         nodeUIMetadata: {

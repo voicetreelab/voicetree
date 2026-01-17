@@ -1,8 +1,8 @@
 /**
  * Traffic Light Buttons - Reusable close/pin/fullscreen controls for floating windows
  *
- * Extracted from HorizontalMenuService for reuse by both editors and terminals.
- * Provides consistent macOS-style traffic light buttons with proper callbacks.
+ * Contains all close/pin/fullscreen logic for floating windows.
+ * Detects window type (editor vs terminal) and handles appropriately.
  */
 
 import type { Core } from 'cytoscape';
@@ -10,12 +10,13 @@ import * as O from 'fp-ts/lib/Option.js';
 import { X, Pin, Maximize, createElement } from 'lucide';
 import type { NodeIdAndFilePath } from '@/pure/graph';
 import type { ShadowNodeId, TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
-import { isAnchored } from '@/shell/edge/UI-edge/floating-windows/types';
+import { isAnchored, getShadowNodeIdFromData, getTerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import { getEditorByNodeId, isPinned, addToPinnedEditors, removeFromPinnedEditors } from '@/shell/edge/UI-edge/state/EditorStore';
 import { attachFullscreenZoom } from '@/shell/edge/UI-edge/floating-windows/fullscreen-zoom';
-import { closeHoverEditor, createAnchoredFloatingEditor } from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
 import { unpinTerminal } from '@/shell/UI/views/AgentTabsBar';
-import type {EditorData} from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
+import type { EditorData } from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
+import type { TerminalData } from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
+import { closeHoverEditor, createAnchoredFloatingEditor } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 
 /** Options for creating traffic light buttons */
 export interface TrafficLightOptions {
@@ -42,17 +43,15 @@ export type TrafficLightTarget =
     }
     | {
         readonly kind: 'editor-window';
-        readonly nodeId: NodeIdAndFilePath;
+        readonly editor: EditorData;
         readonly cy: Core;
-        readonly shadowNodeId: ShadowNodeId;
-        readonly onClose: () => void;
+        readonly closeEditor: (cy: Core, editor: EditorData) => void;
     }
     | {
         readonly kind: 'terminal-window';
-        readonly terminalId: TerminalId;
+        readonly terminal: TerminalData;
         readonly cy: Core;
-        readonly shadowNodeId: ShadowNodeId;
-        readonly onClose: () => void;
+        readonly closeTerminal: (terminal: TerminalData, cy: Core) => Promise<void>;
     };
 
 /**
@@ -125,18 +124,18 @@ export function createTrafficLightsForTarget(target: TrafficLightTarget): HTMLDi
         const { nodeId, cy, closeMenu } = target;
         return createTrafficLights({
             onClose: (): void => {
-                const editor: O.Option<EditorData> = getEditorByNodeId(nodeId);
-                if (O.isSome(editor) && !isAnchored(editor.value)) {
-                    closeHoverEditor(cy);
-                }
+                // Hover menu close is handled by closeMenu callback
+                // (hover editors are closed via closeHoverEditor in the caller)
                 closeMenu();
             },
             onPin: (): boolean => {
                 const editor: O.Option<EditorData> = getEditorByNodeId(nodeId);
                 if (O.isSome(editor) && !isAnchored(editor.value)) {
+                    // Close hover editor and create anchored editor
                     closeHoverEditor(cy);
-                    void createAnchoredFloatingEditor(cy, nodeId, true);
                     closeMenu();
+                    void createAnchoredFloatingEditor(cy, nodeId, true);
+                    addToPinnedEditors(nodeId);
                     return true;
                 }
                 const currentlyPinned: boolean = isPinned(nodeId);
@@ -155,9 +154,13 @@ export function createTrafficLightsForTarget(target: TrafficLightTarget): HTMLDi
     }
 
     if (target.kind === 'editor-window') {
-        const { nodeId, cy, shadowNodeId, onClose } = target;
+        const { editor, cy, closeEditor } = target;
+        const nodeId: NodeIdAndFilePath = editor.contentLinkedToNodeId;
+        const shadowNodeId: ShadowNodeId = getShadowNodeIdFromData(editor);
         return createTrafficLights({
-            onClose,
+            onClose: (): void => {
+                closeEditor(cy, editor);
+            },
             onPin: (): boolean => {
                 const currentlyPinned: boolean = isPinned(nodeId);
                 if (currentlyPinned) {
@@ -174,11 +177,15 @@ export function createTrafficLightsForTarget(target: TrafficLightTarget): HTMLDi
         });
     }
 
-    const { terminalId, cy, shadowNodeId, onClose } = target;
+    // terminal-window
+    const { terminal, cy, closeTerminal } = target;
+    const shadowNodeId: ShadowNodeId = getShadowNodeIdFromData(terminal);
     return createTrafficLights({
-        onClose,
+        onClose: (): void => {
+            void closeTerminal(terminal, cy);
+        },
         onPin: (): boolean => {
-            unpinTerminal(terminalId);
+            unpinTerminal(terminal);
             return false;
         },
         isPinned: true,

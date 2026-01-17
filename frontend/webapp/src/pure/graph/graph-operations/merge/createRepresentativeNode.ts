@@ -46,7 +46,7 @@ function calculateCentroid(nodes: readonly GraphNode[]): O.Option<Position> {
  * Used for ASCII tree visualization of the merged subgraph structure.
  */
 function buildSubgraphFromNodes(nodesToMerge: readonly GraphNode[]): Graph {
-    const nodeIdSet: ReadonlySet<NodeIdAndFilePath> = new Set(nodesToMerge.map(n => n.relativeFilePathIsID))
+    const nodeIdSet: ReadonlySet<NodeIdAndFilePath> = new Set(nodesToMerge.map(n => n.absoluteFilePathIsID))
 
     const nodes: Record<NodeIdAndFilePath, GraphNode> = nodesToMerge.reduce(
         (acc, node) => {
@@ -54,7 +54,7 @@ function buildSubgraphFromNodes(nodesToMerge: readonly GraphNode[]): Graph {
             const internalEdges: readonly Edge[] = node.outgoingEdges.filter(edge => nodeIdSet.has(edge.targetId))
             return {
                 ...acc,
-                [node.relativeFilePathIsID]: {
+                [node.absoluteFilePathIsID]: {
                     ...node,
                     outgoingEdges: internalEdges
                 }
@@ -73,7 +73,7 @@ function buildSubgraphFromNodes(nodesToMerge: readonly GraphNode[]): Graph {
 function getExternalOutgoingEdges(
     nodesToMerge: readonly GraphNode[]
 ): readonly Edge[] {
-    const nodeIdSet: ReadonlySet<NodeIdAndFilePath> = new Set(nodesToMerge.map(n => n.relativeFilePathIsID))
+    const nodeIdSet: ReadonlySet<NodeIdAndFilePath> = new Set(nodesToMerge.map(n => n.absoluteFilePathIsID))
 
     const allExternalEdges: readonly Edge[] = nodesToMerge.flatMap(node =>
         node.outgoingEdges.filter(edge => !nodeIdSet.has(edge.targetId))
@@ -161,7 +161,7 @@ ${allContent}`
     const externalOutgoingEdges: readonly Edge[] = getExternalOutgoingEdges(nodesToMerge)
 
     return {
-        relativeFilePathIsID: newNodeId,
+        absoluteFilePathIsID: newNodeId,
         outgoingEdges: externalOutgoingEdges,
         contentWithoutYamlOrLinks: content,
         nodeUIMetadata: {

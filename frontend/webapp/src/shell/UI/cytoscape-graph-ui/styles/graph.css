@@ -404,8 +404,9 @@ button.graph-button:disabled > svg > path {
     top: 8px;
     right: 12px; /* Minimal spacing from window edge */
     display: flex;
-    align-items: flex-start; /* Align to top to match recent-tabs-bar vertical position */
+    align-items: flex-start; /* Align to top for consistent vertical positioning with recent-tabs-bar */
     z-index: 1100; /* Above floating windows (1000) so tabs aren't obscured */
+    height: 20px; /* Fixed height matching recent-tabs-bar */
     max-width: calc(50% - 100px); /* Don't overlap with recent nodes tabs */
     pointer-events: auto;
     -webkit-app-region: no-drag; /* Allow clicking tabs instead of dragging window */
@@ -446,9 +447,9 @@ button.graph-button:disabled > svg > path {
 /* Divider between pinned and unpinned sections */
 .agent-tabs-divider {
     width: 1px;
-    height: 16px;
+    height: 12px;
     background: #555;
-    margin: 2px 8px;
+    margin: 0 8px;
     flex-shrink: 0;
 }
 
@@ -482,15 +483,15 @@ button.graph-button:disabled > svg > path {
     color: #e5e7eb;
 }
 
-/* Unpinned agent tab (24px square with status dot only) */
+/* Unpinned agent tab (16px tall with status dot only, matching pinned tab height) */
 .agent-tab-unpinned {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 24px;
-    min-width: 24px;
-    max-width: 24px;
-    height: 24px;
+    width: 16px;
+    min-width: 16px;
+    max-width: 16px;
+    height: 16px;
     padding: 0;
     background: #262626;
     border: 1px solid #404040;

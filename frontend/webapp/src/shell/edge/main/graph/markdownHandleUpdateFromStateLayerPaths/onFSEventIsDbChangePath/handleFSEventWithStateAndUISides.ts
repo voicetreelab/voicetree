@@ -22,12 +22,12 @@ import {isOurRecentDelta} from "@/shell/edge/main/state/recent-deltas-store";
  * instead of this function, so no time-based guard is needed here.
  *
  * @param fsEvent - Filesystem event (add, change, or delete)
- * @param watchedDirectory - Absolute path to watched directory
+ * @param _watchedDirectory - Unused (node IDs are now absolute paths)
  * @param _mainWindow - Electron window (unused, kept for API compatibility)
  */
 export function handleFSEventWithStateAndUISides(
     fsEvent: FSEvent,
-    watchedDirectory: string,
+    _watchedDirectory: string,
     _mainWindow: BrowserWindow
 ): void {
     console.log("[handleFSEvent] external write from: ", fsEvent.absolutePath)
@@ -35,8 +35,8 @@ export function handleFSEventWithStateAndUISides(
     // 2. Get current graph state to resolve wikilinks
     const currentGraph: Graph = getGraph()
 
-    // 3. Map filesystem event to graph delta (pure)
-    const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, watchedDirectory, currentGraph)
+    // 3. Map filesystem event to graph delta (pure) - node IDs are absolute paths
+    const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, currentGraph)
 
     //  Check if this is our own recent write - skip if so
     if (isOurRecentDelta(delta)) {
@@ -56,7 +56,7 @@ export function handleFSEventWithStateAndUISides(
     // 6. Auto-pin editor for external node upserts (created or updated, not context nodes)
     delta
         .filter((d) => d.type === 'UpsertNode' && !d.nodeToUpsert.nodeUIMetadata.isContextNode)
-        .map((d) => d.type === 'UpsertNode' ? d.nodeToUpsert.relativeFilePathIsID : '')
+        .map((d) => d.type === 'UpsertNode' ? d.nodeToUpsert.absoluteFilePathIsID : '')
         .filter((id): id is NodeIdAndFilePath => id !== '')
         .forEach((nodeId) => uiAPI.createEditorForExternalNode(nodeId))
 }

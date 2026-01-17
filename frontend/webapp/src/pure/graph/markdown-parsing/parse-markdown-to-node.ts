@@ -146,7 +146,7 @@ export function parseMarkdownToGraphNode(content: string, filename: string, grap
 
     // Return node (title is derived via getNodeTitle when needed, not stored)
     return {
-        relativeFilePathIsID: filenameToNodeId(filename),
+        absoluteFilePathIsID: filenameToNodeId(filename),
         outgoingEdges: edges,
         contentWithoutYamlOrLinks,
         nodeUIMetadata: {

@@ -12,7 +12,7 @@ export function findFirstParentNode(node: GraphNode, graph: Graph): GraphNode | 
 
     // assumes graph is tree, just returns first incoming edge
     return Object.values(graph.nodes).find((candidateNode) =>
-        candidateNode.outgoingEdges.some(e => e.targetId === node.relativeFilePathIsID)
+        candidateNode.outgoingEdges.some(e => e.targetId === node.absoluteFilePathIsID)
     );
 
     // TODO MAKE THIS O(1) with a type IncomingEdgesIndex = Map<NodeId, readonly NodeId[]> on Graph

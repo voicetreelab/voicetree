@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { graphToAscii } from '@/pure/graph/markdown-writing/graphToAscii'
 import type { Graph, GraphNode } from '@/pure/graph'
+import { createGraph, createEmptyGraph } from '@/pure/graph/createGraph'
 import { getNodeTitle } from '@/pure/graph/markdown-parsing'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
@@ -12,7 +13,7 @@ import { EXAMPLE_SMALL_PATH, EXAMPLE_LARGE_PATH } from '@/utils/test-utils/fixtu
 describe('graphToAscii', () => {
   // Title is derived from content, so use # heading to set the title
   const createTestNode: (id: string, edges?: readonly string[]) => GraphNode = (id: string, edges: readonly string[] = []): GraphNode => ({
-    relativeFilePathIsID: id,
+    absoluteFilePathIsID: id,
     outgoingEdges: edges.map(targetId => ({ targetId, label: '' })),
     contentWithoutYamlOrLinks: `# ${id}`,
     nodeUIMetadata: {
@@ -24,11 +25,9 @@ describe('graphToAscii', () => {
   })
 
   it('should render a single node graph', () => {
-    const graph: Graph = {
-      nodes: {
-        'Root': createTestNode('Root', [])
-      }
-    }
+    const graph: Graph = createGraph({
+      'Root': createTestNode('Root', [])
+    })
 
     const result: string = graphToAscii(graph)
 
@@ -36,13 +35,11 @@ describe('graphToAscii', () => {
   })
 
   it('should render a linear chain (A -> B -> C)', () => {
-    const graph: Graph = {
-      nodes: {
-        'A': createTestNode('A', ['B']),
-        'B': createTestNode('B', ['C']),
-        'C': createTestNode('C', [])
-      }
-    }
+    const graph: Graph = createGraph({
+      'A': createTestNode('A', ['B']),
+      'B': createTestNode('B', ['C']),
+      'C': createTestNode('C', [])
+    })
 
     const result: string = graphToAscii(graph)
 
@@ -55,17 +52,15 @@ describe('graphToAscii', () => {
 
   it('should render trees with multiple and nested branches', () => {
     // Test both multiple children and nested grandchildren
-    const graph: Graph = {
-      nodes: {
-        'Root': createTestNode('Root', ['Child1', 'Child2', 'Child3']),
-        'Child1': createTestNode('Child1', ['Grandchild1', 'Grandchild2']),
-        'Child2': createTestNode('Child2', []),
-        'Child3': createTestNode('Child3', ['Grandchild3']),
-        'Grandchild1': createTestNode('Grandchild1', []),
-        'Grandchild2': createTestNode('Grandchild2', []),
-        'Grandchild3': createTestNode('Grandchild3', [])
-      }
-    }
+    const graph: Graph = createGraph({
+      'Root': createTestNode('Root', ['Child1', 'Child2', 'Child3']),
+      'Child1': createTestNode('Child1', ['Grandchild1', 'Grandchild2']),
+      'Child2': createTestNode('Child2', []),
+      'Child3': createTestNode('Child3', ['Grandchild3']),
+      'Grandchild1': createTestNode('Grandchild1', []),
+      'Grandchild2': createTestNode('Grandchild2', []),
+      'Grandchild3': createTestNode('Grandchild3', [])
+    })
 
     const result: string = graphToAscii(graph)
 
@@ -81,9 +76,7 @@ describe('graphToAscii', () => {
   })
 
   it('should handle empty graph', () => {
-    const graph: Graph = {
-      nodes: {}
-    }
+    const graph: Graph = createEmptyGraph()
 
     const result: string = graphToAscii(graph)
 
@@ -91,12 +84,10 @@ describe('graphToAscii', () => {
   })
 
   it('should handle graph with cycle gracefully (visited set prevents infinite recursion)', () => {
-    const graph: Graph = {
-      nodes: {
-        'A': createTestNode('A', ['B']),
-        'B': createTestNode('B', ['A'])
-      }
-    }
+    const graph: Graph = createGraph({
+      'A': createTestNode('A', ['B']),
+      'B': createTestNode('B', ['A'])
+    })
 
     const result: string = graphToAscii(graph)
 
@@ -185,7 +176,7 @@ describe('graphToAscii', () => {
 
   it('should render example_large fixture - visual output inspection', async () => {
     // Load the real example_large graph from disk
-    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([EXAMPLE_LARGE_PATH], EXAMPLE_LARGE_PATH)
+    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([EXAMPLE_LARGE_PATH])
     // eslint-disable-next-line functional/no-throw-statements
     if (E.isLeft(loadResult)) throw new Error('Expected Right')
     const graph: Graph = loadResult.right
@@ -210,7 +201,7 @@ describe('graphToAscii', () => {
 
   it('should render example_small fixture - visual output inspection', async () => {
     // Load the real example_small graph from disk
-    const loadResult2: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([EXAMPLE_SMALL_PATH], EXAMPLE_SMALL_PATH)
+    const loadResult2: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([EXAMPLE_SMALL_PATH])
     // eslint-disable-next-line functional/no-throw-statements
     if (E.isLeft(loadResult2)) throw new Error('Expected Right')
     const graph: Graph = loadResult2.right

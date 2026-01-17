@@ -20,14 +20,54 @@ import * as O from 'fp-ts/lib/Option.js';
 import {vanillaFloatingWindowInstances} from '@/shell/edge/UI-edge/state/UIAppState';
 import {graphToScreenPosition, getWindowTransform, getScalingStrategy, getScreenDimensions} from '@/pure/floatingWindowScaling';
 import {createWindowChrome} from "@/shell/edge/UI-edge/floating-windows/create-window-chrome";
+import {X, createElement} from 'lucide';
 
 const SETTINGS_EDITOR_ID: EditorId = 'settings-editor' as EditorId;
 const SETTINGS_SHADOW_NODE_ID: ShadowNodeId = `shadow-${SETTINGS_EDITOR_ID}` as ShadowNodeId;
 
 /**
+ * Create a simple title bar with macOS-style close button for the settings editor
+ * Settings editor only needs close functionality (no pin/fullscreen)
+ */
+function createSettingsTitleBar(onClose: () => void): HTMLDivElement {
+    const titleBar: HTMLDivElement = document.createElement('div');
+    titleBar.className = 'settings-title-bar';
+
+    // Close button (red traffic light)
+    const closeBtn: HTMLButtonElement = document.createElement('button');
+    closeBtn.className = 'traffic-light traffic-light-close';
+    closeBtn.type = 'button';
+    const closeIcon: SVGElement = createElement(X);
+    closeIcon.setAttribute('width', '8');
+    closeIcon.setAttribute('height', '8');
+    closeBtn.appendChild(closeIcon);
+    closeBtn.addEventListener('click', (e: MouseEvent): void => {
+        e.stopPropagation();
+        onClose();
+    });
+
+    // Title text
+    const titleText: HTMLSpanElement = document.createElement('span');
+    titleText.className = 'settings-title-text';
+    titleText.textContent = 'Settings';
+
+    titleBar.appendChild(closeBtn);
+    titleBar.appendChild(titleText);
+
+    return titleBar;
+}
+
+/**
+ * Check if the settings editor is currently open
+ */
+export function isSettingsEditorOpen(): boolean {
+    return vanillaFloatingWindowInstances.has(SETTINGS_EDITOR_ID);
+}
+
+/**
  * Close the settings editor if it exists
  */
-function closeSettingsEditor(cy: Core): void {
+export function closeSettingsEditor(cy: Core): void {
     const editor: { dispose: () => void } | undefined = vanillaFloatingWindowInstances.get(SETTINGS_EDITOR_ID);
     if (!editor) return;
 
@@ -87,6 +127,10 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
 
         // Create window chrome with CodeMirror editor
         const {windowElement, contentContainer} = createWindowChrome(cy, settingsWindowFields, SETTINGS_EDITOR_ID);
+
+        // Add title bar with close button (prepend before content container)
+        const titleBar: HTMLDivElement = createSettingsTitleBar(() => closeSettingsEditor(cy));
+        windowElement.insertBefore(titleBar, contentContainer);
 
         // Create CodeMirror editor instance for JSON editing
         const editor: CodeMirrorEditorView = new CodeMirrorEditorView(
@@ -170,10 +214,6 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
 
         // Add to overlay
         overlay.appendChild(windowElement);
-
-        // Phase 1 refactor: Close button removed from title bar
-        // Traffic lights (including close) will be added to horizontal menu in Phase 2A/3
-        // When implemented, close handler should call: closeSettingsEditor(cy)
 
         // Navigate to settings editor using delayed double-animation pattern
         // This ensures animation happens after DOM is fully settled

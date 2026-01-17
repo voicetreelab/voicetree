@@ -31,12 +31,9 @@ import {type VTSettings} from "@/pure/settings/types";
 // setting up file watchers
 // closing old watchers
 
-export const DEFAULT_VAULT_SUFFIX: string = "";
-
 let watcher: FSWatcher | null = null;
 
 let watchedDirectory: FilePath | null = null;
-let currentVaultSuffix: string = DEFAULT_VAULT_SUFFIX;
 
 /**
  * Get all vault paths in the allowlist.
@@ -49,24 +46,24 @@ export async function getVaultPaths(): Promise<readonly FilePath[]> {
 }
 
 /**
- * Get the default write path (where new nodes are created).
+ * Get the write path (where new nodes are created).
  * Reads directly from config file (source of truth).
  * Falls back to the primary vault path if not explicitly set.
  */
-export async function getDefaultWritePath(): Promise<O.Option<FilePath>> {
+export async function getWritePath(): Promise<O.Option<FilePath>> {
     if (!watchedDirectory) return O.none;
     const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDirectory);
-    if (config?.defaultWritePath) {
-        return O.some(config.defaultWritePath);
+    if (config?.writePath) {
+        return O.some(config.writePath);
     }
     // Fallback to primary vault path (backward compatibility)
     return getVaultPath();
 }
 
 /**
- * Set the default write path. Must be in the allowlist.
+ * Set the write path. Must be in the allowlist.
  */
-export async function setDefaultWritePath(vaultPath: FilePath): Promise<{ success: boolean; error?: string }> {
+export async function setWritePath(vaultPath: FilePath): Promise<{ success: boolean; error?: string }> {
     if (!watchedDirectory) {
         return { success: false, error: 'No directory is being watched' };
     }
@@ -80,13 +77,10 @@ export async function setDefaultWritePath(vaultPath: FilePath): Promise<{ succes
         return { success: false, error: 'Path must be in the allowlist' };
     }
 
-    // Keep currentVaultSuffix in sync so getWatchStatus() returns correct suffix for node ID generation
-    currentVaultSuffix = path.relative(watchedDirectory, vaultPath);
-
     // Save to config (source of truth)
     await saveVaultConfigForDirectory(watchedDirectory, {
         allowlist: config.allowlist,
-        defaultWritePath: vaultPath
+        writePath: vaultPath
     });
 
     // Notify backend so it writes new nodes to the correct directory
@@ -134,7 +128,7 @@ export async function addVaultPathToAllowlist(vaultPath: FilePath): Promise<{ su
 
     // Use bulk load path: single pass, single broadcast, no editors auto-opened
     const loadResult: E.Either<FileLimitExceededError, { graph: Graph; delta: GraphDelta }> =
-        await loadVaultPathAdditively(vaultPath, watchedDirectory, existingGraph);
+        await loadVaultPathAdditively(vaultPath, existingGraph);
 
     if (E.isLeft(loadResult)) {
         return { success: false, error: `File limit exceeded: ${loadResult.left.fileCount} files` };
@@ -143,7 +137,7 @@ export async function addVaultPathToAllowlist(vaultPath: FilePath): Promise<{ su
     // Save to config (source of truth)
     await saveVaultConfigForDirectory(watchedDirectory, {
         allowlist: newAllowlist,
-        defaultWritePath: config.defaultWritePath
+        writePath: config.writePath
     });
 
     const { graph: mergedGraph, delta } = loadResult.right;
@@ -184,8 +178,8 @@ export async function removeVaultPathFromAllowlist(vaultPath: FilePath): Promise
         return { success: false, error: 'Path not in allowlist' };
     }
 
-    if (vaultPath === config.defaultWritePath) {
-        return { success: false, error: 'Cannot remove default write path' };
+    if (vaultPath === config.writePath) {
+        return { success: false, error: 'Cannot remove write path' };
     }
 
     // Remove nodes from the graph that belong to this vault path
@@ -218,7 +212,7 @@ export async function removeVaultPathFromAllowlist(vaultPath: FilePath): Promise
     // Save to config (source of truth)
     await saveVaultConfigForDirectory(watchedDirectory, {
         allowlist: newAllowlist,
-        defaultWritePath: config.defaultWritePath
+        writePath: config.writePath
     });
 
     return { success: true };
@@ -276,13 +270,12 @@ async function getLastDirectory(): Promise<O.Option<FilePath>> {
         });
 }
 
-// Config structure: { lastDirectory, suffixes, vaultConfig }
+// Config structure: { lastDirectory, vaultConfig }
 // Mutable version for internal use (we mutate before saving)
 import type { VaultConfig } from "@/pure/settings/types";
 
 interface VoiceTreeConfig {
     lastDirectory?: string;
-    suffixes?: { [folderPath: string]: string };
     vaultConfig?: { [folderPath: string]: VaultConfig };
 }
 
@@ -313,32 +306,6 @@ async function saveLastDirectory(directoryPath: string): Promise<void> {
     await saveConfig(config);
 }
 
-// Get suffix for a specific directory (returns default if not set)
-async function getSuffixForDirectory(directoryPath: string): Promise<string> {
-    const config: VoiceTreeConfig = await loadConfig();
-    return config.suffixes?.[directoryPath] ?? DEFAULT_VAULT_SUFFIX;
-}
-
-// Save suffix for a specific directory
-async function saveSuffixForDirectory(directoryPath: string, suffix: string): Promise<void> {
-    const config: VoiceTreeConfig = await loadConfig();
-    config.suffixes ??= {};
-    config.suffixes[directoryPath] = suffix;
-    await saveConfig(config);
-}
-
-// Check if directory has an explicitly stored suffix (vs using default)
-async function hasStoredSuffix(directoryPath: string): Promise<boolean> {
-    const config: VoiceTreeConfig = await loadConfig();
-    return config.suffixes?.[directoryPath] !== undefined;
-}
-
-// Generate date-based suffix: voicetree-{day}-{month}
-function generateDateSuffix(): string {
-    const now: Date = new Date();
-    return `voicetree-${now.getDate()}-${now.getMonth() + 1}`;
-}
-
 // Get vault config for a specific directory
 async function getVaultConfigForDirectory(directoryPath: string): Promise<VaultConfig | undefined> {
     const config: VoiceTreeConfig = await loadConfig();
@@ -366,7 +333,7 @@ async function saveVaultConfigForDirectory(directoryPath: string, vaultConfig: V
 async function resolveAllowlistForProject(
     watchedDir: string,
     primaryVaultPath: string
-): Promise<{ allowlist: readonly string[]; defaultWritePath: string }> {
+): Promise<{ allowlist: readonly string[]; writePath: string }> {
     const savedVaultConfig: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
 
     // If saved config exists, use it as authoritative source
@@ -388,13 +355,13 @@ async function resolveAllowlistForProject(
             allowlist.unshift(primaryVaultPath);
         }
 
-        // Use saved default write path if it's still in the allowlist
-        const resolvedDefaultWritePath: string =
-            savedVaultConfig.defaultWritePath && allowlist.includes(savedVaultConfig.defaultWritePath)
-                ? savedVaultConfig.defaultWritePath
+        // Use saved write path if it's still in the allowlist
+        const resolvedWritePath: string =
+            savedVaultConfig.writePath && allowlist.includes(savedVaultConfig.writePath)
+                ? savedVaultConfig.writePath
                 : primaryVaultPath;
 
-        return { allowlist, defaultWritePath: resolvedDefaultWritePath };
+        return { allowlist, writePath: resolvedWritePath };
     }
 
     // No saved config - build default allowlist
@@ -415,14 +382,12 @@ async function resolveAllowlistForProject(
         }
     }
 
-    return { allowlist, defaultWritePath: primaryVaultPath };
+    return { allowlist, writePath: primaryVaultPath };
 }
 
-export async function loadFolder(watchedFolderPath: FilePath, suffixOverride?: string): Promise<{ success: boolean }>  {
+export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success: boolean }>  {
     // TODO: Save current graph positions before switching folders (writeAllPositionsSync)
-    // IMPORTANT,  watchedFolderPath is the folder the human chooses for proj
-
-    // but we only read and write files to the vaultPAth, which is watchedFolderPath/readWriteDir
+    // The watchedFolderPath is both the project folder and the primary vault path (no suffix indirection)
 
     console.log('[loadFolder] Starting for path:', watchedFolderPath);
 
@@ -432,8 +397,7 @@ export async function loadFolder(watchedFolderPath: FilePath, suffixOverride?: s
         return { success: false };
     }
 
-    // Update watchedDirectory FIRST so suffix setting targets the correct folder
-    // even if file limit check fails later
+    // Update watchedDirectory FIRST
     watchedDirectory = watchedFolderPath;
 
     // Close old watcher before attempting to load new folder
@@ -454,59 +418,34 @@ export async function loadFolder(watchedFolderPath: FilePath, suffixOverride?: s
         mainWindow.webContents.send('graph:clear');
     }
 
-    // Get suffix: use override if provided (including empty string), otherwise load from config
-    const suffix: string = suffixOverride ?? await getSuffixForDirectory(watchedFolderPath);
-    currentVaultSuffix = suffix;
-
-    // If suffix is empty, use the watched folder directly; otherwise append suffix
-    const vaultPath: string = suffix ? path.join(watchedFolderPath, suffix) : watchedFolderPath;
+    // The vault path is the watched folder directly (no suffix)
+    const vaultPath: string = watchedFolderPath;
 
     // Ensure vaultPath directory exists (creates if missing)
     await fs.mkdir(vaultPath, { recursive: true });
 
     // Resolve full allowlist from global patterns + per-project config
-    const resolved: { allowlist: readonly string[]; defaultWritePath: string } = await resolveAllowlistForProject(watchedFolderPath, vaultPath);
+    const resolved: { allowlist: readonly string[]; writePath: string } = await resolveAllowlistForProject(watchedFolderPath, vaultPath);
 
     // Save resolved config to disk (source of truth) so subsequent reads work
     await saveVaultConfigForDirectory(watchedFolderPath, {
         allowlist: resolved.allowlist,
-        defaultWritePath: resolved.defaultWritePath
+        writePath: resolved.writePath
     });
 
     // Load graph from disk (IO operation)
-    // Pass all vault paths in allowlist and watchedFolderPath (base for node IDs)
-    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(resolved.allowlist, watchedFolderPath);
+    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(resolved.allowlist);
 
     // Handle file limit exceeded
     if (E.isLeft(loadResult)) {
         const fileCount: number = loadResult.left.fileCount;
         console.log('[loadFolder] File limit exceeded:', fileCount, 'files');
 
-        // If no suffix explicitly configured for this folder, auto-create a date-based one
-        const hasSuffix: boolean = await hasStoredSuffix(watchedFolderPath);
-        if (!hasSuffix) {
-            const dateSuffix: string = generateDateSuffix();
-            console.log('[loadFolder] Auto-creating suffix:', dateSuffix);
-
-            await saveSuffixForDirectory(watchedFolderPath, dateSuffix);
-
-            // Show info dialog (non-blocking)
-            void dialog.showMessageBox(mainWindow, {
-                type: 'info',
-                title: 'New Workspace Created',
-                message: `This folder has ${fileCount} markdown files.\n\nCreated new workspace:\n${watchedFolderPath}/${dateSuffix}`,
-                buttons: ['OK']
-            });
-
-            // Retry with the new suffix
-            return loadFolder(watchedFolderPath, dateSuffix);
-        }
-
-        // Has explicit suffix but still too many files - show error dialog
+        // Show error dialog - user needs to select a smaller folder
         void dialog.showMessageBox(mainWindow, {
             type: 'error',
             title: 'File Limit Exceeded',
-            message: `This folder has ${fileCount} markdown files, which exceeds the limit of 300.\n\nPlease use a different suffix to create a smaller workspace.`,
+            message: `This folder has ${fileCount} markdown files, which exceeds the limit of 300.\n\nPlease select a folder with fewer files.`,
             buttons: ['OK']
         });
         return { success: false };
@@ -518,10 +457,10 @@ export async function loadFolder(watchedFolderPath: FilePath, suffixOverride?: s
     // If folder is empty, create a starter node using the template from settings
     if (Object.keys(currentGraph.nodes).length === 0) {
         console.log('[loadFolder] Empty folder detected, creating starter node');
-        currentGraph = await createStarterNode(vaultPath, suffix);
+        currentGraph = await createStarterNode(vaultPath);
     }
 
-    // Update graph store (vault path is derived from watchedDirectory + currentVaultSuffix)
+    // Update graph store
     setGraph(currentGraph);
 
     // let backend know, call /load-directory non blocking
@@ -542,12 +481,10 @@ export async function loadFolder(watchedFolderPath: FilePath, suffixOverride?: s
 
     // Save as last directory for auto-start on next launch
     await saveLastDirectory(watchedFolderPath);
-    // Note: watchedDirectory already set at start of function
 
     // Notify UI that watching has started
     mainWindow.webContents.send('watching-started', {
-        directory: watchedDirectory,  // The user-selected folder, not the vaultPath
-        vaultSuffix: currentVaultSuffix,
+        directory: watchedDirectory,
         timestamp: new Date().toISOString()
     });
 
@@ -752,62 +689,28 @@ export async function stopFileWatching(): Promise<{ readonly success: boolean; r
     return { success: true };
 }
 
-export function getWatchStatus(): { readonly isWatching: boolean; readonly directory: string | undefined; readonly vaultSuffix: string } {
-    const status: { isWatching: boolean; directory: string | undefined; vaultSuffix: string } = {
+export function getWatchStatus(): { readonly isWatching: boolean; readonly directory: string | undefined } {
+    const status: { isWatching: boolean; directory: string | undefined } = {
         isWatching: isWatching(),
-        directory: getWatchedDirectory() ?? undefined,
-        vaultSuffix: currentVaultSuffix
+        directory: getWatchedDirectory() ?? undefined
     };
     console.log('Watch status:', status);
     return status;
 }
 
-export function getVaultSuffix(): string {
-    return currentVaultSuffix;
-}
-
-// Vault path functions - single source of truth, derived from watchedDirectory + currentVaultSuffix
+// Vault path functions - watchedDirectory IS the vault path (no suffix indirection)
 export function getVaultPath(): O.Option<FilePath> {
     if (!watchedDirectory) return O.none;
-    return O.some(currentVaultSuffix ? path.join(watchedDirectory, currentVaultSuffix) : watchedDirectory);
+    return O.some(watchedDirectory);
 }
 
-// For external callers (MCP) - sets the full vault path directly by setting directory and clearing suffix
-export function setVaultPath(path: FilePath): void {
-    watchedDirectory = path;
-    currentVaultSuffix = '';
+// For external callers (MCP) - sets the vault path directly
+export function setVaultPath(vaultPath: FilePath): void {
+    watchedDirectory = vaultPath;
 }
 
 export function clearVaultPath(): void {
     watchedDirectory = null;
-    currentVaultSuffix = DEFAULT_VAULT_SUFFIX;
-}
-
-export async function setVaultSuffix(suffix: string): Promise<{ readonly success: boolean; readonly error?: string }> {
-    const dir: FilePath | null = getWatchedDirectory();
-    if (!dir) {
-        return { success: false, error: 'No directory is being watched' };
-    }
-
-    // Validate suffix: can be empty (uses directory directly) or valid folder name
-    const trimmedSuffix: string = suffix.trim();
-    if (trimmedSuffix.includes('/') || trimmedSuffix.includes('\\')) {
-        return { success: false, error: 'Suffix cannot contain path separators' };
-    }
-
-    // Skip reload if suffix hasn't changed
-    if (trimmedSuffix === currentVaultSuffix) {
-        return { success: true };
-    }
-
-    // Reload the folder with new suffix - only save if load succeeds
-    const loadResult: { success: boolean } = await loadFolder(dir, trimmedSuffix);
-    if (loadResult.success) {
-        await saveSuffixForDirectory(dir, trimmedSuffix);
-        return { success: true };
-    }
-
-    return { success: false, error: 'Failed to load folder with new suffix (file limit exceeded)' };
 }
 
 export async function loadPreviousFolder(): Promise<{ readonly success: boolean; readonly directory?: string; readonly error?: string }> {
@@ -828,10 +731,9 @@ export async function loadPreviousFolder(): Promise<{ readonly success: boolean;
  * Uses the emptyFolderTemplate from settings, with {{DATE}} placeholder replaced.
  *
  * @param vaultPath - The vault path where the node file will be created
- * @param vaultSuffix - The vault suffix for node ID generation
  * @returns Graph containing the new starter node
  */
-async function createStarterNode(vaultPath: string, vaultSuffix: string): Promise<Graph> {
+async function createStarterNode(vaultPath: string): Promise<Graph> {
     const settings: VTSettings = await loadSettings();
     const template: string = settings.emptyFolderTemplate ?? '# ';
 
@@ -858,12 +760,13 @@ async function createStarterNode(vaultPath: string, vaultSuffix: string): Promis
     const fileName: string = `${timestamp}${randomChars}.md`;
     const relativePath: string = `${dayAbbrev}/${fileName}`;
 
-    // Node ID includes vault suffix if present
-    const nodeId: string = vaultSuffix ? `${vaultSuffix}/${relativePath}` : relativePath;
+    // Node ID is the absolute path (consistent with loadGraphFromDisk)
+    const absolutePath: string = path.join(vaultPath, relativePath);
+    const nodeId: string = absolutePath;
 
     // Create the node
     const newNode: GraphNode = {
-        relativeFilePathIsID: nodeId,
+        absoluteFilePathIsID: nodeId,
         outgoingEdges: [],
         contentWithoutYamlOrLinks: content,
         nodeUIMetadata: {
@@ -877,7 +780,6 @@ async function createStarterNode(vaultPath: string, vaultSuffix: string): Promis
     const graph: Graph = createGraph({ [nodeId]: newNode });
 
     // Write the file to disk
-    const absolutePath: string = path.join(vaultPath, relativePath);
     const dirPath: string = path.dirname(absolutePath);
     await fs.mkdir(dirPath, { recursive: true });
     await fs.writeFile(absolutePath, content, 'utf-8');

@@ -7,7 +7,7 @@ describe('createRepresentativeNode', () => {
     it('should calculate centroid position from two nodes with positions', () => {
         const nodes: readonly GraphNode[] = [
             {
-                relativeFilePathIsID: 'node1.md',
+                absoluteFilePathIsID: 'node1.md',
                 outgoingEdges: [],
                 contentWithoutYamlOrLinks: '# Node One',
                 nodeUIMetadata: {
@@ -17,7 +17,7 @@ describe('createRepresentativeNode', () => {
                 }
             },
             {
-                relativeFilePathIsID: 'node2.md',
+                absoluteFilePathIsID: 'node2.md',
                 outgoingEdges: [],
                 contentWithoutYamlOrLinks: '# Node Two',
                 nodeUIMetadata: {
@@ -39,7 +39,7 @@ describe('createRepresentativeNode', () => {
     it('should include ASCII tree and accumulate all content from nodes', () => {
         const nodes: readonly GraphNode[] = [
             {
-                relativeFilePathIsID: 'node1.md',
+                absoluteFilePathIsID: 'node1.md',
                 outgoingEdges: [],
                 contentWithoutYamlOrLinks: '# First Node\nSome content',
                 nodeUIMetadata: {
@@ -49,7 +49,7 @@ describe('createRepresentativeNode', () => {
                 }
             },
             {
-                relativeFilePathIsID: 'node2.md',
+                absoluteFilePathIsID: 'node2.md',
                 outgoingEdges: [],
                 contentWithoutYamlOrLinks: '# Second Node\nMore content',
                 nodeUIMetadata: {
@@ -73,7 +73,7 @@ describe('createRepresentativeNode', () => {
     it('should exclude nodes without positions from centroid calculation', () => {
         const nodes: readonly GraphNode[] = [
             {
-                relativeFilePathIsID: 'node1.md',
+                absoluteFilePathIsID: 'node1.md',
                 outgoingEdges: [],
                 contentWithoutYamlOrLinks: '# Node One',
                 nodeUIMetadata: {
@@ -83,7 +83,7 @@ describe('createRepresentativeNode', () => {
                 }
             },
             {
-                relativeFilePathIsID: 'node2.md',
+                absoluteFilePathIsID: 'node2.md',
                 outgoingEdges: [],
                 contentWithoutYamlOrLinks: '# Node Two',
                 nodeUIMetadata: {
@@ -93,7 +93,7 @@ describe('createRepresentativeNode', () => {
                 }
             },
             {
-                relativeFilePathIsID: 'node3.md',
+                absoluteFilePathIsID: 'node3.md',
                 outgoingEdges: [],
                 contentWithoutYamlOrLinks: '# Node Three',
                 nodeUIMetadata: {
@@ -115,7 +115,7 @@ describe('createRepresentativeNode', () => {
     it('should handle single node', () => {
         const nodes: readonly GraphNode[] = [
             {
-                relativeFilePathIsID: 'node1.md',
+                absoluteFilePathIsID: 'node1.md',
                 outgoingEdges: [],
                 contentWithoutYamlOrLinks: '# Single Node',
                 nodeUIMetadata: {
@@ -139,7 +139,7 @@ describe('createRepresentativeNode', () => {
     it('should show ASCII tree with internal edges only', () => {
         const nodes: readonly GraphNode[] = [
             {
-                relativeFilePathIsID: 'parent.md',
+                absoluteFilePathIsID: 'parent.md',
                 outgoingEdges: [
                     { targetId: 'child.md', label: 'has_child' },
                     { targetId: 'external.md', label: 'external_link' } // This should be filtered out
@@ -152,7 +152,7 @@ describe('createRepresentativeNode', () => {
                 }
             },
             {
-                relativeFilePathIsID: 'child.md',
+                absoluteFilePathIsID: 'child.md',
                 outgoingEdges: [],
                 contentWithoutYamlOrLinks: '# Child Node',
                 nodeUIMetadata: {
@@ -175,7 +175,7 @@ describe('createRepresentativeNode', () => {
     it('should include content from nodes with and without headers', () => {
         const nodes: readonly GraphNode[] = [
             {
-                relativeFilePathIsID: 'node1.md',
+                absoluteFilePathIsID: 'node1.md',
                 outgoingEdges: [],
                 contentWithoutYamlOrLinks: '# Titled Node',
                 nodeUIMetadata: {
@@ -185,7 +185,7 @@ describe('createRepresentativeNode', () => {
                 }
             },
             {
-                relativeFilePathIsID: 'node2.md',
+                absoluteFilePathIsID: 'node2.md',
                 outgoingEdges: [],
                 contentWithoutYamlOrLinks: 'Just some content without a header',
                 nodeUIMetadata: {
@@ -206,7 +206,7 @@ describe('createRepresentativeNode', () => {
     it('should preserve external outgoing edges and discard internal ones', () => {
         const nodes: readonly GraphNode[] = [
             {
-                relativeFilePathIsID: 'node1.md',
+                absoluteFilePathIsID: 'node1.md',
                 outgoingEdges: [
                     { targetId: 'external1.md', label: 'external_link1' },
                     { targetId: 'node2.md', label: 'internal_link' } // internal - should be discarded
@@ -219,7 +219,7 @@ describe('createRepresentativeNode', () => {
                 }
             },
             {
-                relativeFilePathIsID: 'node2.md',
+                absoluteFilePathIsID: 'node2.md',
                 outgoingEdges: [{ targetId: 'external2.md', label: 'external_link2' }],
                 contentWithoutYamlOrLinks: '# Node Two',
                 nodeUIMetadata: {
@@ -241,7 +241,7 @@ describe('createRepresentativeNode', () => {
     it('should deduplicate external edges by targetId', () => {
         const nodes: readonly GraphNode[] = [
             {
-                relativeFilePathIsID: 'node1.md',
+                absoluteFilePathIsID: 'node1.md',
                 outgoingEdges: [{ targetId: 'shared-target.md', label: 'link_from_node1' }],
                 contentWithoutYamlOrLinks: '# Node One',
                 nodeUIMetadata: {
@@ -251,7 +251,7 @@ describe('createRepresentativeNode', () => {
                 }
             },
             {
-                relativeFilePathIsID: 'node2.md',
+                absoluteFilePathIsID: 'node2.md',
                 outgoingEdges: [{ targetId: 'shared-target.md', label: 'link_from_node2' }],
                 contentWithoutYamlOrLinks: '# Node Two',
                 nodeUIMetadata: {
@@ -273,7 +273,7 @@ describe('createRepresentativeNode', () => {
     it('should use new node ID as relativeFilePathIsID', () => {
         const nodes: readonly GraphNode[] = [
             {
-                relativeFilePathIsID: 'node1.md',
+                absoluteFilePathIsID: 'node1.md',
                 outgoingEdges: [],
                 contentWithoutYamlOrLinks: '# Node One',
                 nodeUIMetadata: {
@@ -286,13 +286,13 @@ describe('createRepresentativeNode', () => {
 
         const result: GraphNode = createRepresentativeNode(nodes, 'my-merged-node.md')
 
-        expect(result.relativeFilePathIsID).toBe('my-merged-node.md')
+        expect(result.absoluteFilePathIsID).toBe('my-merged-node.md')
     })
 
     it('should use first nodes color if it has one', () => {
         const nodes: readonly GraphNode[] = [
             {
-                relativeFilePathIsID: 'node1.md',
+                absoluteFilePathIsID: 'node1.md',
                 outgoingEdges: [],
                 contentWithoutYamlOrLinks: '# Node One',
                 nodeUIMetadata: {
@@ -302,7 +302,7 @@ describe('createRepresentativeNode', () => {
                 }
             },
             {
-                relativeFilePathIsID: 'node2.md',
+                absoluteFilePathIsID: 'node2.md',
                 outgoingEdges: [],
                 contentWithoutYamlOrLinks: '# Node Two',
                 nodeUIMetadata: {
@@ -324,7 +324,7 @@ describe('createRepresentativeNode', () => {
     it('should set isContextNode to false and containedNodeIds to undefined', () => {
         const nodes: readonly GraphNode[] = [
             {
-                relativeFilePathIsID: 'node1.md',
+                absoluteFilePathIsID: 'node1.md',
                 outgoingEdges: [],
                 contentWithoutYamlOrLinks: '# Node One',
                 nodeUIMetadata: {
@@ -345,7 +345,7 @@ describe('createRepresentativeNode', () => {
         it('should use "Merged Node" title when no mergeTitleInfo provided', () => {
             const nodes: readonly GraphNode[] = [
                 {
-                    relativeFilePathIsID: 'node1.md',
+                    absoluteFilePathIsID: 'node1.md',
                     outgoingEdges: [],
                     contentWithoutYamlOrLinks: '# Node One',
                     nodeUIMetadata: {
@@ -355,7 +355,7 @@ describe('createRepresentativeNode', () => {
                     }
                 },
                 {
-                    relativeFilePathIsID: 'node2.md',
+                    absoluteFilePathIsID: 'node2.md',
                     outgoingEdges: [],
                     contentWithoutYamlOrLinks: '# Node Two',
                     nodeUIMetadata: {
@@ -374,7 +374,7 @@ describe('createRepresentativeNode', () => {
         it('should use representative parent title with "+ N other nodes" format', () => {
             const nodes: readonly GraphNode[] = [
                 {
-                    relativeFilePathIsID: 'node1.md',
+                    absoluteFilePathIsID: 'node1.md',
                     outgoingEdges: [],
                     contentWithoutYamlOrLinks: '# Node One',
                     nodeUIMetadata: {
@@ -384,7 +384,7 @@ describe('createRepresentativeNode', () => {
                     }
                 },
                 {
-                    relativeFilePathIsID: 'node2.md',
+                    absoluteFilePathIsID: 'node2.md',
                     outgoingEdges: [],
                     contentWithoutYamlOrLinks: '# Node Two',
                     nodeUIMetadata: {
@@ -394,7 +394,7 @@ describe('createRepresentativeNode', () => {
                     }
                 },
                 {
-                    relativeFilePathIsID: 'node3.md',
+                    absoluteFilePathIsID: 'node3.md',
                     outgoingEdges: [],
                     contentWithoutYamlOrLinks: '# Node Three',
                     nodeUIMetadata: {
@@ -416,7 +416,7 @@ describe('createRepresentativeNode', () => {
         it('should use singular "node" when otherNodesCount is 1', () => {
             const nodes: readonly GraphNode[] = [
                 {
-                    relativeFilePathIsID: 'node1.md',
+                    absoluteFilePathIsID: 'node1.md',
                     outgoingEdges: [],
                     contentWithoutYamlOrLinks: '# Node One',
                     nodeUIMetadata: {
@@ -426,7 +426,7 @@ describe('createRepresentativeNode', () => {
                     }
                 },
                 {
-                    relativeFilePathIsID: 'node2.md',
+                    absoluteFilePathIsID: 'node2.md',
                     outgoingEdges: [],
                     contentWithoutYamlOrLinks: '# Node Two',
                     nodeUIMetadata: {
@@ -449,7 +449,7 @@ describe('createRepresentativeNode', () => {
         it('should use just the representative title when otherNodesCount is 0', () => {
             const nodes: readonly GraphNode[] = [
                 {
-                    relativeFilePathIsID: 'node1.md',
+                    absoluteFilePathIsID: 'node1.md',
                     outgoingEdges: [],
                     contentWithoutYamlOrLinks: '# Node One',
                     nodeUIMetadata: {

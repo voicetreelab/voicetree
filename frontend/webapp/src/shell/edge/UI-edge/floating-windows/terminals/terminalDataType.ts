@@ -9,6 +9,11 @@ export type TerminalData = FloatingWindowFields & {
     readonly initialSpawnDirectory?: string;
     readonly initialCommand?: string;
     readonly executeCommand?: boolean;
+    // Tab UI state (managed by TerminalStore, rendered by AgentTabsBar)
+    readonly isPinned: boolean;
+    readonly isDone: boolean;
+    readonly lastOutputTime: number;
+    readonly activityCount: number;
 };
 export type CreateTerminalDataParams = {
     readonly attachedToNodeId: NodeIdAndFilePath;

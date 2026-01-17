@@ -20,7 +20,7 @@ import * as O from 'fp-ts/lib/Option.js';
 import { createContextNode } from '@/shell/edge/main/graph/context-nodes/createContextNode';
 import { getGraph } from '@/shell/edge/main/state/graph-store';
 import { loadSettings } from '@/shell/edge/main/settings/settings_IO';
-import { getWatchStatus, getWatchedDirectory, getDefaultWritePath, getVaultPaths } from '@/shell/edge/main/graph/watch_folder/watchFolder';
+import { getWatchStatus, getWatchedDirectory, getWritePath, getVaultPaths } from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import { getAppSupportPath } from '@/shell/edge/main/state/app-electron-state';
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy';
 import { createTerminalData, getTerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
@@ -160,7 +160,7 @@ async function prepareTerminalDataInMain(
 
     // Build absolute path for task node (parent of context node)
     const taskNodeAbsolutePath: string = parentNode && watchedDir
-        ? path.join(watchedDir, parentNode.relativeFilePathIsID)
+        ? path.join(watchedDir, parentNode.absoluteFilePathIsID)
         : '';
 
     // Build env vars then expand $VAR_NAME references within values
@@ -171,8 +171,8 @@ async function prepareTerminalDataInMain(
         ? contextContent.slice(0, MAX_CONTEXT_CONTENT_LENGTH) + '\n\n[Content truncated - full content available at $CONTEXT_NODE_PATH]'
         : contextContent;
 
-    // Get default write path (where new nodes are created)
-    const vaultPath: string = O.getOrElse(() => '')(await getDefaultWritePath());
+    // Get write path (where new nodes are created)
+    const vaultPath: string = O.getOrElse(() => '')(await getWritePath());
 
     // Get all vault paths for ALL_MARKDOWN_READ_PATHS (newline-separated for readability in prompts)
     const allVaultPaths: readonly string[] = await getVaultPaths();

@@ -28,7 +28,7 @@ export type GetNodeTitle = (node: GraphNode) => string
  * Priority: first heading > first line > filename
  */
 export function getNodeTitle(node: GraphNode): string {
-    return markdownToTitle(node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+    return markdownToTitle(node.contentWithoutYamlOrLinks, node.absoluteFilePathIsID)
 }
 
 // === EXPORTS ===

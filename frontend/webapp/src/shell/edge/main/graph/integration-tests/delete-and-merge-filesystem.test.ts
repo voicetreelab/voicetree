@@ -23,6 +23,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import { deleteNodesFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions'
 import { mergeSelectedNodesFromUI } from '@/shell/edge/UI-edge/graph/mergeSelectedNodesFromUI'
 import type { Graph, GraphDelta, GraphNode } from '@/pure/graph'
+import { createGraph } from '@/pure/graph/createGraph'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import { setGraph } from '@/shell/edge/main/state/graph-store'
@@ -142,7 +143,7 @@ function createTestNode(
     isContextNode: boolean = false
 ): GraphNode {
     return {
-        relativeFilePathIsID: id,
+        absoluteFilePathIsID: id,
         outgoingEdges,
         contentWithoutYamlOrLinks: content,
         nodeUIMetadata: {
@@ -212,13 +213,11 @@ describe('Delete with Edge Preservation - Filesystem Integration', () => {
         await writeMarkdownFile(tempVault, 'C.md', '# Node C', [], { x: 200, y: 0 })
 
         // Setup graph state
-        const mockGraph: Graph = {
-            nodes: {
-                'A.md': createTestNode('A.md', '# Node A', [{ targetId: 'B.md', label: '' }], { x: 0, y: 0 }),
-                'B.md': createTestNode('B.md', '# Node B', [{ targetId: 'C.md', label: '' }], { x: 100, y: 0 }),
-                'C.md': createTestNode('C.md', '# Node C', [], { x: 200, y: 0 })
-            }
-        }
+        const mockGraph: Graph = createGraph({
+            'A.md': createTestNode('A.md', '# Node A', [{ targetId: 'B.md', label: '' }], { x: 0, y: 0 }),
+            'B.md': createTestNode('B.md', '# Node B', [{ targetId: 'C.md', label: '' }], { x: 100, y: 0 }),
+            'C.md': createTestNode('C.md', '# Node C', [], { x: 200, y: 0 })
+        })
         currentGraph = mockGraph
         setGraph(mockGraph)
 
@@ -275,16 +274,14 @@ describe('Delete with Edge Preservation - Filesystem Integration', () => {
         await writeMarkdownFile(tempVault, 'B.md', '# Node B', ['D.md'], { x: 200, y: 100 })
         await writeMarkdownFile(tempVault, 'D.md', '# Node D', [], { x: 200, y: 200 })
 
-        const mockGraph: Graph = {
-            nodes: {
-                'Parent1.md': createTestNode('Parent1.md', '# Parent 1', [{ targetId: 'A.md', label: '' }], { x: 0, y: 0 }),
-                'A.md': createTestNode('A.md', '# Node A', [{ targetId: 'C.md', label: '' }], { x: 0, y: 100 }),
-                'C.md': createTestNode('C.md', '# Node C', [], { x: 0, y: 200 }),
-                'Parent2.md': createTestNode('Parent2.md', '# Parent 2', [{ targetId: 'B.md', label: '' }], { x: 200, y: 0 }),
-                'B.md': createTestNode('B.md', '# Node B', [{ targetId: 'D.md', label: '' }], { x: 200, y: 100 }),
-                'D.md': createTestNode('D.md', '# Node D', [], { x: 200, y: 200 })
-            }
-        }
+        const mockGraph: Graph = createGraph({
+            'Parent1.md': createTestNode('Parent1.md', '# Parent 1', [{ targetId: 'A.md', label: '' }], { x: 0, y: 0 }),
+            'A.md': createTestNode('A.md', '# Node A', [{ targetId: 'C.md', label: '' }], { x: 0, y: 100 }),
+            'C.md': createTestNode('C.md', '# Node C', [], { x: 0, y: 200 }),
+            'Parent2.md': createTestNode('Parent2.md', '# Parent 2', [{ targetId: 'B.md', label: '' }], { x: 200, y: 0 }),
+            'B.md': createTestNode('B.md', '# Node B', [{ targetId: 'D.md', label: '' }], { x: 200, y: 100 }),
+            'D.md': createTestNode('D.md', '# Node D', [], { x: 200, y: 200 })
+        })
         currentGraph = mockGraph
         setGraph(mockGraph)
 
@@ -353,14 +350,12 @@ describe('Delete with Edge Preservation - Filesystem Integration', () => {
         await writeMarkdownFile(tempVault, 'B.md', '# Node B', ['C.md'], { x: 0, y: 200 })
         await writeMarkdownFile(tempVault, 'C.md', '# Node C', [], { x: 0, y: 300 })
 
-        const mockGraph: Graph = {
-            nodes: {
-                'Parent.md': createTestNode('Parent.md', '# Parent', [{ targetId: 'A.md', label: '' }], { x: 0, y: 0 }),
-                'A.md': createTestNode('A.md', '# Node A', [{ targetId: 'B.md', label: '' }], { x: 0, y: 100 }),
-                'B.md': createTestNode('B.md', '# Node B', [{ targetId: 'C.md', label: '' }], { x: 0, y: 200 }),
-                'C.md': createTestNode('C.md', '# Node C', [], { x: 0, y: 300 })
-            }
-        }
+        const mockGraph: Graph = createGraph({
+            'Parent.md': createTestNode('Parent.md', '# Parent', [{ targetId: 'A.md', label: '' }], { x: 0, y: 0 }),
+            'A.md': createTestNode('A.md', '# Node A', [{ targetId: 'B.md', label: '' }], { x: 0, y: 100 }),
+            'B.md': createTestNode('B.md', '# Node B', [{ targetId: 'C.md', label: '' }], { x: 0, y: 200 }),
+            'C.md': createTestNode('C.md', '# Node C', [], { x: 0, y: 300 })
+        })
         currentGraph = mockGraph
         setGraph(mockGraph)
 
@@ -431,13 +426,11 @@ describe('Merge Operation - Filesystem Integration', () => {
         await writeMarkdownFile(tempVault, 'Internal1.md', '# Internal 1', ['Internal2.md'], { x: 100, y: 100 })
         await writeMarkdownFile(tempVault, 'Internal2.md', '# Internal 2', [], { x: 100, y: 200 })
 
-        const mockGraph: Graph = {
-            nodes: {
-                'External.md': createTestNode('External.md', '# External', [{ targetId: 'Internal1.md', label: '' }], { x: 0, y: 0 }),
-                'Internal1.md': createTestNode('Internal1.md', '# Internal 1', [{ targetId: 'Internal2.md', label: '' }], { x: 100, y: 100 }),
-                'Internal2.md': createTestNode('Internal2.md', '# Internal 2', [], { x: 100, y: 200 })
-            }
-        }
+        const mockGraph: Graph = createGraph({
+            'External.md': createTestNode('External.md', '# External', [{ targetId: 'Internal1.md', label: '' }], { x: 0, y: 0 }),
+            'Internal1.md': createTestNode('Internal1.md', '# Internal 1', [{ targetId: 'Internal2.md', label: '' }], { x: 100, y: 100 }),
+            'Internal2.md': createTestNode('Internal2.md', '# Internal 2', [], { x: 100, y: 200 })
+        })
         currentGraph = mockGraph
         setGraph(mockGraph)
 
@@ -498,14 +491,12 @@ describe('Merge Operation - Filesystem Integration', () => {
         await writeMarkdownFile(tempVault, 'Leaf1.md', '# Leaf 1', [], { x: 50, y: 100 })
         await writeMarkdownFile(tempVault, 'Leaf2.md', '# Leaf 2', [], { x: 150, y: 100 })
 
-        const mockGraph: Graph = {
-            nodes: {
-                'Ext1.md': createTestNode('Ext1.md', '# Ext 1', [{ targetId: 'Leaf1.md', label: '' }], { x: 0, y: 0 }),
-                'Ext2.md': createTestNode('Ext2.md', '# Ext 2', [{ targetId: 'Leaf2.md', label: '' }], { x: 200, y: 0 }),
-                'Leaf1.md': createTestNode('Leaf1.md', '# Leaf 1', [], { x: 50, y: 100 }),
-                'Leaf2.md': createTestNode('Leaf2.md', '# Leaf 2', [], { x: 150, y: 100 })
-            }
-        }
+        const mockGraph: Graph = createGraph({
+            'Ext1.md': createTestNode('Ext1.md', '# Ext 1', [{ targetId: 'Leaf1.md', label: '' }], { x: 0, y: 0 }),
+            'Ext2.md': createTestNode('Ext2.md', '# Ext 2', [{ targetId: 'Leaf2.md', label: '' }], { x: 200, y: 0 }),
+            'Leaf1.md': createTestNode('Leaf1.md', '# Leaf 1', [], { x: 50, y: 100 }),
+            'Leaf2.md': createTestNode('Leaf2.md', '# Leaf 2', [], { x: 150, y: 100 })
+        })
         currentGraph = mockGraph
         setGraph(mockGraph)
 
@@ -581,13 +572,11 @@ describe('Merge with Context Nodes - Filesystem Integration', () => {
         await writeMarkdownFile(tempVault, 'Regular2.md', '# Regular 2', [], { x: 100, y: 0 })
         await writeMarkdownFile(tempVault, 'Context1.md', '# Context 1', [], { x: 50, y: 100 })
 
-        const mockGraph: Graph = {
-            nodes: {
-                'Regular1.md': createTestNode('Regular1.md', '# Regular 1', [], { x: 0, y: 0 }, false),
-                'Regular2.md': createTestNode('Regular2.md', '# Regular 2', [], { x: 100, y: 0 }, false),
-                'Context1.md': createTestNode('Context1.md', '# Context 1', [], { x: 50, y: 100 }, true) // isContextNode
-            }
-        }
+        const mockGraph: Graph = createGraph({
+            'Regular1.md': createTestNode('Regular1.md', '# Regular 1', [], { x: 0, y: 0 }, false),
+            'Regular2.md': createTestNode('Regular2.md', '# Regular 2', [], { x: 100, y: 0 }, false),
+            'Context1.md': createTestNode('Context1.md', '# Context 1', [], { x: 50, y: 100 }, true) // isContextNode
+        })
         currentGraph = mockGraph
         setGraph(mockGraph)
 
@@ -640,12 +629,10 @@ describe('Merge with Context Nodes - Filesystem Integration', () => {
         await writeMarkdownFile(tempVault, 'Regular1.md', '# Regular 1', [], { x: 0, y: 0 })
         await writeMarkdownFile(tempVault, 'Context1.md', '# Context 1', [], { x: 100, y: 0 })
 
-        const mockGraph: Graph = {
-            nodes: {
-                'Regular1.md': createTestNode('Regular1.md', '# Regular 1', [], { x: 0, y: 0 }, false),
-                'Context1.md': createTestNode('Context1.md', '# Context 1', [], { x: 100, y: 0 }, true)
-            }
-        }
+        const mockGraph: Graph = createGraph({
+            'Regular1.md': createTestNode('Regular1.md', '# Regular 1', [], { x: 0, y: 0 }, false),
+            'Context1.md': createTestNode('Context1.md', '# Context 1', [], { x: 100, y: 0 }, true)
+        })
         currentGraph = mockGraph
         setGraph(mockGraph)
 

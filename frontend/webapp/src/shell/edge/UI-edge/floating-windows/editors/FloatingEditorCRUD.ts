@@ -496,7 +496,7 @@ export function closeAllEditors(cy: Core): void {
 export function updateFloatingEditors(cy: Core, delta: GraphDelta): void {
     for (const nodeDelta of delta) {
         if (nodeDelta.type === 'UpsertNode') {
-            const nodeId: string = nodeDelta.nodeToUpsert.relativeFilePathIsID;
+            const nodeId: string = nodeDelta.nodeToUpsert.absoluteFilePathIsID;
             const newContent: string = fromNodeToContentWithWikilinks(nodeDelta.nodeToUpsert);
 
             // Check if there's an open editor for this node

@@ -23,7 +23,7 @@ export function writeAllPositionsSync(graph: Graph, watchedFolderRoot: FilePath)
     console.log('Writing node pos on close');
     for (const node of nodes) {
         const markdown: string = fromNodeToMarkdownContent(node)
-        const filename: string = nodeIdToFilePathWithExtension(node.relativeFilePathIsID)
+        const filename: string = nodeIdToFilePathWithExtension(node.absoluteFilePathIsID)
         const fullPath: string = path.join(watchedFolderRoot, filename)
 
         // Ensure parent directory exists

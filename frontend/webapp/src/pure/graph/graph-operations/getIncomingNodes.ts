@@ -10,7 +10,7 @@ import type {Graph, GraphNode, NodeIdAndFilePath} from "@/pure/graph";
  * @returns Array of nodes that have edges pointing to this node
  */
 export function getIncomingNodes(node: GraphNode, graph: Graph): readonly GraphNode[] {
-    const incomerIds: readonly NodeIdAndFilePath[] = graph.incomingEdgesIndex.get(node.relativeFilePathIsID) ?? []
+    const incomerIds: readonly NodeIdAndFilePath[] = graph.incomingEdgesIndex.get(node.absoluteFilePathIsID) ?? []
     return incomerIds
         .map(id => graph.nodes[id])
         .filter((n): n is GraphNode => n !== undefined)

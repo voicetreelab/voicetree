@@ -14,14 +14,14 @@ interface AddVaultResult {
 }
 
 /**
- * Dropdown component for selecting the default write path from allowlisted vault paths.
+ * Dropdown component for selecting the write path from read-on-link paths.
  * Design: Button shows "{folder-name}", dropdown lists all paths with checkmark on current.
  * Paths are editable inline. Also includes an input field to add additional read vault paths.
  */
 export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): JSX.Element | null {
     const [isOpen, setIsOpen] = useState(false);
-    const [vaultPaths, setVaultPaths] = useState<readonly string[]>([]);
-    const [defaultWritePath, setDefaultWritePathState] = useState<string | null>(null);
+    const [readOnLinkPaths, setReadOnLinkPaths] = useState<readonly string[]>([]);
+    const [writePath, setWritePathState] = useState<string | null>(null);
     const [newVaultPath, setNewVaultPath] = useState<string>('');
     const [addError, setAddError] = useState<string | null>(null);
     const [isAdding, setIsAdding] = useState<boolean>(false);
@@ -62,9 +62,9 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                 return;
             }
 
-            // If this was the default write path, update it
-            if (editingPath === defaultWritePath) {
-                await window.electronAPI.main.setDefaultWritePath(newAbsPath);
+            // If this was the write path, update it
+            if (editingPath === writePath) {
+                await window.electronAPI.main.setWritePath(newAbsPath);
             }
 
             // Remove old path
@@ -92,19 +92,19 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
         }
     };
 
-    // Fetch vault paths and default write path
+    // Fetch read-on-link paths and write path
     const refreshVaultPaths: () => Promise<void> = useCallback(async (): Promise<void> => {
         if (!window.electronAPI) return;
 
         try {
             const paths: readonly FilePath[] = await window.electronAPI.main.getVaultPaths();
-            setVaultPaths(paths);
+            setReadOnLinkPaths(paths);
 
-            const defaultPath: O.Option<FilePath> = await window.electronAPI.main.getDefaultWritePath();
-            if (O.isSome(defaultPath)) {
-                setDefaultWritePathState(defaultPath.value);
+            const currentWritePath: O.Option<FilePath> = await window.electronAPI.main.getWritePath();
+            if (O.isSome(currentWritePath)) {
+                setWritePathState(currentWritePath.value);
             } else {
-                setDefaultWritePathState(null);
+                setWritePathState(null);
             }
         } catch (err) {
             console.error('[VaultPathSelector] Failed to fetch vault paths:', err);
@@ -131,20 +131,20 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [isOpen]);
 
-    // Handle selecting a new default write path
+    // Handle selecting a new write path
     const handleSelectPath: (path: string, e: MouseEvent) => Promise<void> = async (path: string, e: MouseEvent): Promise<void> => {
         e.stopPropagation();
         if (!window.electronAPI) return;
 
         try {
-            const result: { success: boolean; error?: string } = await window.electronAPI.main.setDefaultWritePath(path);
+            const result: { success: boolean; error?: string } = await window.electronAPI.main.setWritePath(path);
             if (result.success) {
-                setDefaultWritePathState(path);
+                setWritePathState(path);
             } else {
-                console.error('[VaultPathSelector] Failed to set default write path:', result.error);
+                console.error('[VaultPathSelector] Failed to set write path:', result.error);
             }
         } catch (err) {
-            console.error('[VaultPathSelector] Error setting default write path:', err);
+            console.error('[VaultPathSelector] Error setting write path:', err);
         }
         setIsOpen(false);
     };
@@ -190,7 +190,7 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
         }
     };
 
-    // Handle removing a vault path from the allowlist
+    // Handle removing a vault path from the read-on-link paths
     const handleRemovePath: (path: string, e: MouseEvent) => Promise<void> = async (path: string, e: MouseEvent): Promise<void> => {
         e.stopPropagation();
         if (!window.electronAPI) return;
@@ -225,15 +225,15 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
     };
 
     // Always show if we have at least one vault path (to allow adding more)
-    if (vaultPaths.length === 0) {
+    if (readOnLinkPaths.length === 0) {
         return null;
     }
 
-    // When defaultWritePath equals watchDirectory, show "." to avoid duplicating the root name
+    // When writePath equals watchDirectory, show "." to avoid duplicating the root name
     // (App.tsx already shows the project root name to the left of VaultPathSelector)
-    const isRootPath: boolean = Boolean(defaultWritePath && watchDirectory && defaultWritePath === watchDirectory);
-    const currentFolderName: string = defaultWritePath
-        ? (isRootPath ? '.' : getFolderName(defaultWritePath))
+    const isRootPath: boolean = Boolean(writePath && watchDirectory && writePath === watchDirectory);
+    const currentFolderName: string = writePath
+        ? (isRootPath ? '.' : getFolderName(writePath))
         : 'Select vault';
 
     return (
@@ -242,7 +242,7 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className="text-muted-foreground px-1.5 py-1 rounded bg-muted hover:bg-accent transition-colors flex items-center gap-1"
-                title={`Default write path: ${defaultWritePath ?? 'None'}`}
+                title={`Write Path: ${writePath ?? 'None'}`}
             >
                 <span>{currentFolderName}</span>
                 <span className="text-[10px] ml-0.5">{isOpen ? '▼' : '▲'}</span>
@@ -255,8 +255,8 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                         <div className="px-3 py-1 text-[10px] text-muted-foreground uppercase tracking-wide border-b border-border">
                             Markdown folders (select write destination)
                         </div>
-                        {vaultPaths.map((path: string) => {
-                            const isDefault: boolean = path === defaultWritePath;
+                        {readOnLinkPaths.map((path: string) => {
+                            const isDefault: boolean = path === writePath;
                             const relativePath: string = getRelativePath(path);
                             const isEditing: boolean = editingPath === path;
 

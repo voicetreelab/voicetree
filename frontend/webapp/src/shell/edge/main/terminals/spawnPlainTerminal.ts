@@ -12,7 +12,8 @@ import type {VTSettings} from '@/pure/settings/types';
 import {createTerminalData} from '@/shell/edge/UI-edge/floating-windows/types';
 import {getAppSupportPath} from '@/shell/edge/main/state/app-electron-state';
 import {getGraph} from '@/shell/edge/main/state/graph-store';
-import {getWatchStatus, getWatchedDirectory, getVaultPaths} from '@/shell/edge/main/graph/watch_folder/watchFolder';
+import {getWatchStatus, getWatchedDirectory, getVaultPaths, getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder';
+import * as O from 'fp-ts/lib/Option.js';
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
 import {
@@ -78,17 +79,18 @@ export async function spawnPlainTerminalWithNode(
     position: Position,
     terminalCount: number
 ): Promise<void> {
-    // Get vault suffix so node ID includes correct path prefix
-    const vaultSuffix: string = getWatchStatus().vaultSuffix;
+    // Get write path (absolute) for new node creation
+    const writePathOption: O.Option<string> = await getWritePath();
+    const writePath: string = O.getOrElse(() => '')(writePathOption);
     const graph: Graph = getGraph();
 
     // Create a new orphan node (same as 'Add Node Here')
     const {newNode, graphDelta}: {readonly newNode: GraphNode; readonly graphDelta: GraphDelta} =
-        createNewNodeNoParent(position, vaultSuffix, graph);
+        createNewNodeNoParent(position, writePath, graph);
 
     // Persist the node to disk and update UI
     await applyGraphDeltaToDBThroughMemAndUIAndEditors(graphDelta);
 
     // Now spawn a plain terminal attached to this node
-    await spawnPlainTerminal(newNode.relativeFilePathIsID, terminalCount);
+    await spawnPlainTerminal(newNode.absoluteFilePathIsID, terminalCount);
 }

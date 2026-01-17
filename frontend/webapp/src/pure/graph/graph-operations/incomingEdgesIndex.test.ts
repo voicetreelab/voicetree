@@ -9,7 +9,7 @@ import type { GraphNode, Edge, NodeIdAndFilePath } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
 
 const createTestNode: (id: string, edges?: readonly Edge[]) => GraphNode = (id: string, edges: readonly Edge[] = []): GraphNode => ({
-  relativeFilePathIsID: id,
+  absoluteFilePathIsID: id,
   outgoingEdges: edges,
   contentWithoutYamlOrLinks: 'test content',
   nodeUIMetadata: {

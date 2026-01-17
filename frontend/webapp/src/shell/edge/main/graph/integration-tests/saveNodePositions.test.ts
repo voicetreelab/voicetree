@@ -85,7 +85,7 @@ describe('saveNodePositions - Integration Tests', () => {
         it('should update node positions in memory when called with Cytoscape node data', () => {
             // GIVEN: A graph with a node that has no position
             const testNode: GraphNode = {
-                relativeFilePathIsID: TEST_NODE_ID,
+                absoluteFilePathIsID: TEST_NODE_ID,
                 contentWithoutYamlOrLinks: '# Test Position Node\n\nContent here.',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -126,7 +126,7 @@ describe('saveNodePositions - Integration Tests', () => {
         it('should update positions for multiple nodes at once', () => {
             // GIVEN: A graph with multiple nodes without positions
             const node1: GraphNode = {
-                relativeFilePathIsID: 'node1.md',
+                absoluteFilePathIsID: 'node1.md',
                 contentWithoutYamlOrLinks: '# Node 1',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -138,7 +138,7 @@ describe('saveNodePositions - Integration Tests', () => {
             }
 
             const node2: GraphNode = {
-                relativeFilePathIsID: 'node2.md',
+                absoluteFilePathIsID: 'node2.md',
                 contentWithoutYamlOrLinks: '# Node 2',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -179,7 +179,7 @@ describe('saveNodePositions - Integration Tests', () => {
         it('should write position to disk YAML when UpsertNode delta is applied', async () => {
             // GIVEN: A node with position in memory
             const testNode: GraphNode = {
-                relativeFilePathIsID: TEST_NODE_ID,
+                absoluteFilePathIsID: TEST_NODE_ID,
                 contentWithoutYamlOrLinks: '# Test Position Node\n\nContent here.',
                 outgoingEdges: [],
                 nodeUIMetadata: {

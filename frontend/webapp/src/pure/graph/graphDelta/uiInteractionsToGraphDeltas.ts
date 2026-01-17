@@ -40,7 +40,7 @@ export function generateChildNodeId(parentNode: GraphNode): NodeIdAndFilePath {
     // Strip ctx-nodes/ from path so children of context nodes don't end up in ctx-nodes/
     // Matches both "ctx-nodes/..." and ".../ctx-nodes/..."
     const ctxNodesFolderPattern: RegExp = new RegExp(`(^|/)${CONTEXT_NODES_FOLDER}/`, 'g')
-    const parentPathWithoutCtxNodes: string = parentNode.relativeFilePathIsID.replace(ctxNodesFolderPattern, '$1')
+    const parentPathWithoutCtxNodes: string = parentNode.absoluteFilePathIsID.replace(ctxNodesFolderPattern, '$1')
     return parentPathWithoutCtxNodes.replace(/\.md$/, '') + '_' + parentNode.outgoingEdges.length + ".md"
 }
 
@@ -61,7 +61,7 @@ export function fromCreateChildToUpsertNode(
 
     // Create the new node, merging parsed metadata with calculated position
     const newNode: GraphNode = {
-        relativeFilePathIsID: uniqueNodeId,
+        absoluteFilePathIsID: uniqueNodeId,
         outgoingEdges: parsedNode.outgoingEdges,
         contentWithoutYamlOrLinks: parsedNode.contentWithoutYamlOrLinks,
         nodeUIMetadata: {
@@ -72,9 +72,9 @@ export function fromCreateChildToUpsertNode(
     }
 
     // Create updated parent node with edge to new child
-    const updatedParentNode: GraphNode = addOutgoingEdge(parentNode, newNode.relativeFilePathIsID)
+    const updatedParentNode: GraphNode = addOutgoingEdge(parentNode, newNode.absoluteFilePathIsID)
 
-    console.log("new node / parent node", newNode.relativeFilePathIsID, parentNode.relativeFilePathIsID)
+    console.log("new node / parent node", newNode.absoluteFilePathIsID, parentNode.absoluteFilePathIsID)
 
     // Return deltas for both the new child and the updated parent
     return [
@@ -98,10 +98,10 @@ export function fromContentChangeToGraphDelta(
     graph: Graph,
 ): GraphDelta {
     // Look up current state from graph for previousNode
-    const previousNode: O.Option<GraphNode> = O.fromNullable(graph.nodes[node.relativeFilePathIsID])
+    const previousNode: O.Option<GraphNode> = O.fromNullable(graph.nodes[node.absoluteFilePathIsID])
     // Extract wikilinks from new content and update outgoingEdges
     // This ensures markdown is the source of truth for edges
-    const nodeUpdated: GraphNode = parseMarkdownToGraphNode(content, node.relativeFilePathIsID, graph)
+    const nodeUpdated: GraphNode = parseMarkdownToGraphNode(content, node.absoluteFilePathIsID, graph)
     // todo review if this new logic works
     return [{
         type: 'UpsertNode',
@@ -135,15 +135,23 @@ function randomChars(number: number): string {
     ).join('');
 }
 
-export function createNewNodeNoParent(pos: Position, vaultSuffix: string, graph: Graph): { readonly newNode: GraphNode; readonly graphDelta: GraphDelta; } {
+/**
+ * Creates a new node without a parent at the specified position.
+ * Node IDs are absolute paths to simplify path handling throughout the codebase.
+ *
+ * @param pos - Position where the node should be placed
+ * @param writePath - Absolute path to the write directory (where new nodes are created)
+ * @param graph - Current graph state (for uniqueness check)
+ */
+export function createNewNodeNoParent(pos: Position, writePath: string, graph: Graph): { readonly newNode: GraphNode; readonly graphDelta: GraphDelta; } {
     const randomId: string = Date.now().toString() + randomChars(3) + ".md"
-    // Node ID must include vault suffix so path.join(watchedDirectory, nodeId) produces correct absolute path
-    const candidateId: string = vaultSuffix ? `${vaultSuffix}/${randomId}` : randomId
+    // Node ID is the absolute path to the file
+    const candidateId: string = writePath ? `${writePath}/${randomId}` : randomId
     // Ensure unique even with timestamp+random (defensive check)
     const existingIds: ReadonlySet<string> = new Set(Object.keys(graph.nodes))
     const nodeId: string = ensureUniqueNodeId(candidateId, existingIds)
     const newNode: GraphNode = {
-        relativeFilePathIsID: nodeId,
+        absoluteFilePathIsID: nodeId,
         outgoingEdges: [],
         contentWithoutYamlOrLinks: '# ',
         nodeUIMetadata: {

@@ -176,7 +176,7 @@ Child content`
         mockGraph = {
             nodes: {
                 'parent.md': {
-                    relativeFilePathIsID: 'parent.md',
+                    absoluteFilePathIsID: 'parent.md',
                     contentWithoutYamlOrLinks: '# Parent Node\n\nParent content',
                     outgoingEdges: [{ targetId: 'child1.md', label: '' }],
                     nodeUIMetadata: {
@@ -187,7 +187,7 @@ Child content`
                     }
                 },
                 'child1.md': {
-                    relativeFilePathIsID: 'child1.md',
+                    absoluteFilePathIsID: 'child1.md',
                     contentWithoutYamlOrLinks: '# Child 1\n\nChild content',
                     outgoingEdges: [],
                     nodeUIMetadata: {
@@ -365,7 +365,7 @@ Child content`
         mockGraph = {
             nodes: {
                 'parent.md': {
-                    relativeFilePathIsID: 'parent.md',
+                    absoluteFilePathIsID: 'parent.md',
                     contentWithoutYamlOrLinks: '# Parent Node\n\nParent content',
                     outgoingEdges: [{ targetId: 'child1.md', label: '' }],
                     nodeUIMetadata: {
@@ -376,7 +376,7 @@ Child content`
                     }
                 },
                 'child1.md': {
-                    relativeFilePathIsID: 'child1.md',
+                    absoluteFilePathIsID: 'child1.md',
                     contentWithoutYamlOrLinks: '# Child 1\n\nChild content',
                     outgoingEdges: [],
                     nodeUIMetadata: {

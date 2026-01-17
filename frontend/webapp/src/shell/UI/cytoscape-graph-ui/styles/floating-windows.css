@@ -548,3 +548,34 @@
 .cy-floating-window-terminal.terminal-context-expanded .terminal-context-badge-title {
   color: var(--primary-foreground);
 }
+
+/* =============================================================================
+ * Settings Editor Title Bar
+ * Simple title bar with close button - similar to terminal but simpler
+ * ============================================================================= */
+
+/* Settings title bar - minimal height with close button and title */
+.settings-title-bar {
+  position: relative;
+  min-height: 28px;
+  padding: 4px 10px;
+  background-color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: grab;
+}
+
+.settings-title-bar:active {
+  cursor: grabbing;
+}
+
+/* Settings title text */
+.settings-title-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}

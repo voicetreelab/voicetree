@@ -7,7 +7,7 @@ import { createGraph } from '@/pure/graph/createGraph'
 
 function createNode(id: string, outgoingEdges: readonly { readonly targetId: string; readonly label: string }[] = []): GraphNode {
     return {
-        relativeFilePathIsID: id,
+        absoluteFilePathIsID: id,
         contentWithoutYamlOrLinks: `# ${id}`,
         outgoingEdges,
         nodeUIMetadata: {
@@ -47,7 +47,7 @@ describe('deleteNodeMaintainingTransitiveEdges', () => {
             }
             expect(delta[1].type).toBe('UpsertNode')
             if (delta[1].type === 'UpsertNode') {
-                expect(delta[1].nodeToUpsert.relativeFilePathIsID).toBe('a.md')
+                expect(delta[1].nodeToUpsert.absoluteFilePathIsID).toBe('a.md')
             }
         })
 

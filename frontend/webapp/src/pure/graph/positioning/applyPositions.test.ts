@@ -185,7 +185,7 @@ function seededRandom(seed: number): () => number {
  */
 function createNode(id: NodeIdAndFilePath, outgoingEdges: readonly NodeIdAndFilePath[]): GraphNode {
   return {
-    relativeFilePathIsID: id,
+    absoluteFilePathIsID: id,
     outgoingEdges: outgoingEdges.map(targetId => ({ targetId, label: '' })),
     contentWithoutYamlOrLinks: `# ${id}\n\nContent for ${id}`,
     nodeUIMetadata: {
@@ -327,7 +327,7 @@ function extractEdges(graph: Graph): readonly Edge[] {
       edges.push({
         from: fromPos,
         to: toPos,
-        id: `${node.relativeFilePathIsID}->${edge.targetId}`
+        id: `${node.absoluteFilePathIsID}->${edge.targetId}`
       })
     })
   })

@@ -11,7 +11,7 @@ import type { GraphNode, Edge } from '@/pure/graph'
  */
 describe('extractLinkedNodeIds - relationship labels integration', () => {
   const createNode: (id: string, content?: string) => GraphNode = (id: string, content = ''): GraphNode => ({
-    relativeFilePathIsID: id,
+    absoluteFilePathIsID: id,
     contentWithoutYamlOrLinks: content,
     outgoingEdges: [],
     nodeUIMetadata: {

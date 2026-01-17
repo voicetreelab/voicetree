@@ -12,52 +12,18 @@ import {getRandomAgentName} from '@/pure/settings/types';
 import {createTerminalData} from '@/shell/edge/UI-edge/floating-windows/types';
 import {getAppSupportPath} from '@/shell/edge/main/state/app-electron-state';
 import {getGraph} from '@/shell/edge/main/state/graph-store';
-import {getWatchStatus, getWatchedDirectory} from '@/shell/edge/main/graph/watch_folder/watchFolder';
+import {getWatchedDirectory} from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
 import {createContextNodeFromQuestion} from '@/shell/edge/main/graph/context-nodes/createContextNodeFromQuestion';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 
-/**
- * Resolve a node ID to match graph keys using fallback strategies.
- * 1. Try path as-is
- * 2. Try with vault suffix prepended
- * 3. Try stripping first path component
- */
-function resolveNodeId(id: string, graph: Graph, vaultSuffix: string): string {
-  // 1. First try path as-is
-  if (graph.nodes[id]) {
-    return id;
-  }
-
-  // 2. Try with vault suffix prepended
-  if (vaultSuffix) {
-    const withVaultSuffix: string = `${vaultSuffix}/${id}`;
-    if (graph.nodes[withVaultSuffix]) {
-      return withVaultSuffix;
-    }
-  }
-
-  // 3. Try stripping first path component
-  if (id.includes('/')) {
-    const withoutFirstSegment: string = id.substring(id.indexOf('/') + 1);
-    if (graph.nodes[withoutFirstSegment]) {
-      return withoutFirstSegment;
-    }
-  }
-
-  // Return original if no match found (will be filtered out)
-  return id;
-}
-
 export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], question: string): Promise<void> {
-  // Get graph early to resolve node IDs
+  // Get graph - node IDs are now absolute paths that match graph keys directly
   const graph: Graph = getGraph();
-  const vaultSuffix: string = getWatchStatus().vaultSuffix;
 
-  // Resolve node IDs using fallback strategies, filter out any that don't exist
+  // Filter to only node IDs that exist in the graph
   const adjustedNodeIds: readonly string[] = relevantNodeIds
-    .map(id => resolveNodeId(id, graph, vaultSuffix))
     .filter(id => graph.nodes[id] !== undefined);
 
   // 1. Create context node from relevant nodes
@@ -88,24 +54,24 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
   const agentName: string = getRandomAgentName();
   const title: string = `${agentName}: ${strippedTitle}`;
 
-  const watchStatus: { readonly isWatching: boolean; readonly directory: string | undefined } = getWatchStatus();
-  let initialSpawnDirectory: string | undefined = watchStatus.directory;
-
-  if (watchStatus?.directory && settings.terminalSpawnPathRelativeToWatchedDirectory) {
-    const relativePath: string = settings.terminalSpawnPathRelativeToWatchedDirectory.replace(/^\.\//, '');
-    initialSpawnDirectory = path.join(watchStatus.directory, relativePath);
-  }
-
   const appSupportPath: string = getAppSupportPath();
   const watchedDir: string | null = getWatchedDirectory();
-  const contextNodeAbsolutePath: string = watchedDir
-    ? path.join(watchedDir, contextNodeId)
-    : contextNodeId;
+
+  let initialSpawnDirectory: string | undefined = watchedDir ?? undefined;
+
+  if (watchedDir && settings.terminalSpawnPathRelativeToWatchedDirectory) {
+    const relativePath: string = settings.terminalSpawnPathRelativeToWatchedDirectory.replace(/^\.\//, '');
+    initialSpawnDirectory = path.join(watchedDir, relativePath);
+  }
+
+  // Node IDs are now absolute paths, so contextNodeId is the absolute path
+  const contextNodeAbsolutePath: string = contextNodeId;
 
   // Build absolute path for task node (parent of context node)
+  // Node IDs are now absolute paths, so relativeFilePathIsID is the absolute path
   const parentNode: GraphNode | undefined = findFirstParentNode(contextNode, graph);
-  const taskNodeAbsolutePath: string = parentNode && watchedDir
-    ? path.join(watchedDir, parentNode.relativeFilePathIsID)
+  const taskNodeAbsolutePath: string = parentNode
+    ? parentNode.absoluteFilePathIsID
     : '';
 
   // Truncate context content to avoid posix_spawnp failure from env size limits

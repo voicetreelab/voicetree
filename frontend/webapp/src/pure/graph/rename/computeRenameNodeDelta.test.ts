@@ -13,7 +13,7 @@ function makeNode(
     edges: readonly { readonly targetId: NodeIdAndFilePath; readonly label: string }[] = []
 ): GraphNode {
     return {
-        relativeFilePathIsID: id,
+        absoluteFilePathIsID: id,
         contentWithoutYamlOrLinks: content,
         outgoingEdges: edges,
         nodeUIMetadata: {
@@ -28,7 +28,7 @@ function makeNode(
  * Helper to create a Graph from an array of nodes
  */
 function makeGraph(nodes: readonly GraphNode[]): Graph {
-    return createGraph(Object.fromEntries(nodes.map(n => [n.relativeFilePathIsID, n])))
+    return createGraph(Object.fromEntries(nodes.map(n => [n.absoluteFilePathIsID, n])))
 }
 
 describe('computeRenameNodeDelta', () => {
@@ -48,12 +48,12 @@ describe('computeRenameNodeDelta', () => {
             expect(renamedNodeDelta.type).toBe('UpsertNode')
 
             // nodeToUpsert should have the NEW ID
-            expect(renamedNodeDelta.nodeToUpsert.relativeFilePathIsID).toBe(newNodeId)
+            expect(renamedNodeDelta.nodeToUpsert.absoluteFilePathIsID).toBe(newNodeId)
 
             // previousNode should have the OLD ID
             expect(O.isSome(renamedNodeDelta.previousNode)).toBe(true)
             if (O.isSome(renamedNodeDelta.previousNode)) {
-                expect(renamedNodeDelta.previousNode.value.relativeFilePathIsID).toBe(oldNodeId)
+                expect(renamedNodeDelta.previousNode.value.absoluteFilePathIsID).toBe(oldNodeId)
             }
 
             // Content should be preserved
@@ -64,7 +64,7 @@ describe('computeRenameNodeDelta', () => {
             const oldNodeId: NodeIdAndFilePath = 'folder/old_name.md'
             const newNodeId: NodeIdAndFilePath = 'folder/new_title.md'
             const node: GraphNode = {
-                relativeFilePathIsID: oldNodeId,
+                absoluteFilePathIsID: oldNodeId,
                 contentWithoutYamlOrLinks: '# Title',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -120,7 +120,7 @@ describe('computeRenameNodeDelta', () => {
 
             // Find the source node delta
             const sourceNodeDelta: UpsertNodeDelta | undefined = delta.find(
-                (d: NodeDelta): boolean => d.type === 'UpsertNode' && d.nodeToUpsert.relativeFilePathIsID === sourceNodeId
+                (d: NodeDelta): boolean => d.type === 'UpsertNode' && d.nodeToUpsert.absoluteFilePathIsID === sourceNodeId
             ) as UpsertNodeDelta | undefined
 
             expect(sourceNodeDelta).toBeDefined()
@@ -156,10 +156,10 @@ describe('computeRenameNodeDelta', () => {
 
             // Both source nodes should have updated edges
             const source1Delta: UpsertNodeDelta = delta.find(
-                (d: NodeDelta): boolean => d.type === 'UpsertNode' && d.nodeToUpsert.relativeFilePathIsID === source1Id
+                (d: NodeDelta): boolean => d.type === 'UpsertNode' && d.nodeToUpsert.absoluteFilePathIsID === source1Id
             ) as UpsertNodeDelta
             const source2Delta: UpsertNodeDelta = delta.find(
-                (d: NodeDelta): boolean => d.type === 'UpsertNode' && d.nodeToUpsert.relativeFilePathIsID === source2Id
+                (d: NodeDelta): boolean => d.type === 'UpsertNode' && d.nodeToUpsert.absoluteFilePathIsID === source2Id
             ) as UpsertNodeDelta
 
             expect(source1Delta.nodeToUpsert.outgoingEdges[0].targetId).toBe(newNodeId)
@@ -181,7 +181,7 @@ describe('computeRenameNodeDelta', () => {
             const delta: GraphDelta = computeRenameNodeDelta(oldNodeId, newNodeId, graph)
 
             const sourceDelta: UpsertNodeDelta = delta.find(
-                (d: NodeDelta): boolean => d.type === 'UpsertNode' && d.nodeToUpsert.relativeFilePathIsID === sourceId
+                (d: NodeDelta): boolean => d.type === 'UpsertNode' && d.nodeToUpsert.absoluteFilePathIsID === sourceId
             ) as UpsertNodeDelta
 
             // Both edges should be updated
@@ -209,7 +209,7 @@ describe('computeRenameNodeDelta', () => {
             // Only the renamed node delta
             expect(delta).toHaveLength(1)
             expect(delta[0].type).toBe('UpsertNode')
-            expect((delta[0] as UpsertNodeDelta).nodeToUpsert.relativeFilePathIsID).toBe(newNodeId)
+            expect((delta[0] as UpsertNodeDelta).nodeToUpsert.absoluteFilePathIsID).toBe(newNodeId)
         })
 
         it('does not create delta for node with edge to different target', () => {
@@ -239,7 +239,7 @@ describe('computeRenameNodeDelta', () => {
 
             const targetNode: GraphNode = makeNode(oldNodeId, '# Target')
             const contextNode: GraphNode = {
-                relativeFilePathIsID: contextNodeId,
+                absoluteFilePathIsID: contextNodeId,
                 contentWithoutYamlOrLinks: 'Links to [target]*',
                 outgoingEdges: [{ targetId: oldNodeId, label: '' }],
                 nodeUIMetadata: {

@@ -63,7 +63,7 @@ function writeNodeToFile(node: GraphNode): FSWriteEffect<void> {
     return (env: Env) => TE.tryCatch(
         async () => {
             const markdown: string = fromNodeToMarkdownContent(node)
-            const filename: string = nodeIdToFilePathWithExtension(node.relativeFilePathIsID)
+            const filename: string = nodeIdToFilePathWithExtension(node.absoluteFilePathIsID)
             const fullPath: string = path.join(env.watchedDirectory, filename)
 
             // Ensure parent directory exists

@@ -16,7 +16,7 @@ function createNode(
   isContextNode = false
 ): GraphNode {
   return {
-    relativeFilePathIsID: id,
+    absoluteFilePathIsID: id,
     outgoingEdges,
     contentWithoutYamlOrLinks: '',
     nodeUIMetadata: {

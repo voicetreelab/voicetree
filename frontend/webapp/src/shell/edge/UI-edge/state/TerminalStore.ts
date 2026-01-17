@@ -65,6 +65,23 @@ export function removeTerminalByData(terminal: TerminalData): void {
 }
 
 /**
+ * Update specific fields of a terminal (immutable update pattern)
+ * Returns the updated terminal, or undefined if not found
+ */
+export function updateTerminal(
+    terminalId: TerminalId,
+    updates: Partial<Pick<TerminalData, 'isPinned' | 'isDone' | 'lastOutputTime' | 'activityCount'>>
+): TerminalData | undefined {
+    const existing: TerminalData | undefined = terminals.get(terminalId);
+    if (!existing) return undefined;
+
+    const updated: TerminalData = { ...existing, ...updates };
+    terminals.set(terminalId, updated);
+    notifySubscribers();
+    return updated;
+}
+
+/**
  * @deprecated Use addTerminal instead
  */
 export const addTerminalToMapState: (terminal: TerminalData) => void = addTerminal;

@@ -130,12 +130,12 @@ export class RadialMenuService {
             enabled: true,
         });
 
-        // Copy name
+        // Copy path
         commands.push({
             content: this.createSvgIcon('copy', 'Copy'),
-            select: async () => {
-                const absolutePath: string | undefined = await getFilePathForNode(nodeId);
-                void navigator.clipboard.writeText(absolutePath ?? nodeId);
+            select: () => {
+                const absolutePath: string = getFilePathForNode(nodeId);
+                void navigator.clipboard.writeText(absolutePath);
             },
             enabled: true,
         });

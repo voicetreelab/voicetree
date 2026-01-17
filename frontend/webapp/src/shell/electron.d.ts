@@ -18,7 +18,6 @@ export type Promisify<T> = {
 export interface WatchStatus {
   isWatching: boolean;
   directory?: string;
-  vaultSuffix?: string;
 }
 
 
@@ -67,4 +66,4 @@ declare global {
     cy: CytoscapeCore | null;
   }
 }
-export {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
+export type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";

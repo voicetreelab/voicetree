@@ -10,7 +10,7 @@ import {
 } from './recent-deltas-store'
 
 const makeNode: (nodeId: string, content: string) => GraphNode = (nodeId, content) => ({
-    relativeFilePathIsID: nodeId,
+    absoluteFilePathIsID: nodeId,
     contentWithoutYamlOrLinks: content,
     outgoingEdges: [],
     nodeUIMetadata: {
@@ -203,6 +203,38 @@ describe('recent-deltas-store', () => {
             expect(isOurRecentDelta(
                 toGraphDelta(makeUpsertDelta('node2', 'content'))
             )).toBe(false)
+        })
+    })
+
+    describe('relative vs absolute path matching (duplicate node bug)', () => {
+        it('should NOT match relative path when absolute was stored', () => {
+            // Store with absolute path
+            markRecentDelta(makeUpsertDelta('/tmp/vault/voicetree/node.md', 'content'))
+
+            // Lookup with relative path - should NOT match (different key)
+            expect(isOurRecentDelta(
+                toGraphDelta(makeUpsertDelta('voicetree/node.md', 'content'))
+            )).toBe(false)
+        })
+
+        it('should NOT match absolute path when relative was stored', () => {
+            // Store with relative path
+            markRecentDelta(makeUpsertDelta('voicetree/node.md', 'content'))
+
+            // Lookup with absolute path - should NOT match (different key)
+            expect(isOurRecentDelta(
+                toGraphDelta(makeUpsertDelta('/tmp/vault/voicetree/node.md', 'content'))
+            )).toBe(false)
+        })
+
+        it('should match when both use absolute paths', () => {
+            // Store with absolute path
+            markRecentDelta(makeUpsertDelta('/tmp/vault/voicetree/node.md', 'content'))
+
+            // Lookup with same absolute path - should match
+            expect(isOurRecentDelta(
+                toGraphDelta(makeUpsertDelta('/tmp/vault/voicetree/node.md', 'content'))
+            )).toBe(true)
         })
     })
 

@@ -1,7 +1,7 @@
 import type {Graph, GraphDelta, NodeIdAndFilePath, GraphNode} from '@/pure/graph'
 import {getUnionSubgraphByDistance, graphToAscii, getNodeIdsInTraversalOrder, CONTEXT_NODES_FOLDER} from '@/pure/graph'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
-import {getWatchStatus} from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
 import {type VTSettings} from '@/pure/settings/types'
 import {parseMarkdownToGraphNode} from '@/pure/graph/markdown-parsing/parse-markdown-to-node'
@@ -47,13 +47,12 @@ export async function createContextNodeFromQuestion(
     )
 
     const timestamp: number = Date.now()
-    const vaultSuffix: string = getWatchStatus().vaultSuffix
+    const writePathOption: O.Option<string> = await getWritePath()
+    const writePath: string = O.getOrElse(() => '')(writePathOption)
     const existingIds: ReadonlySet<string> = new Set(Object.keys(currentGraph.nodes))
 
     // 1. Create standalone question node (no parent)
-    const candidateQuestionNodeId: string = vaultSuffix
-        ? `${vaultSuffix}/ask_${timestamp}.md`
-        : `ask_${timestamp}.md`
+    const candidateQuestionNodeId: string = `${writePath}/ask_${timestamp}.md`
     // Ensure unique ID by appending _2, _3, etc. if collision exists
     const questionNodeId: string = ensureUniqueNodeId(candidateQuestionNodeId, existingIds)
 
@@ -65,7 +64,7 @@ Your task is to answer it by reading all the relevant context provided, and fetc
 `
     const parsedQuestionNode: GraphNode = parseMarkdownToGraphNode(questionContent, questionNodeId, currentGraph)
     const questionNode: GraphNode = {
-        relativeFilePathIsID: questionNodeId,
+        absoluteFilePathIsID: questionNodeId,
         outgoingEdges: [],
         contentWithoutYamlOrLinks: parsedQuestionNode.contentWithoutYamlOrLinks,
         nodeUIMetadata: {
@@ -83,9 +82,7 @@ Your task is to answer it by reading all the relevant context provided, and fetc
     await applyGraphDeltaToDBThroughMemAndUIAndEditors(questionDelta)
 
     // 2. Create context node as child of question node
-    const contextNodeId: string = vaultSuffix
-        ? `${vaultSuffix}/${CONTEXT_NODES_FOLDER}/ask_${timestamp}.md`
-        : `${CONTEXT_NODES_FOLDER}/ask_${timestamp}.md`
+    const contextNodeId: string = `${writePath}/${CONTEXT_NODES_FOLDER}/ask_${timestamp}.md`
 
     const asciiTree: string = graphToAscii(subgraph)
     const contextContent: string = buildAskModeContent(
@@ -157,7 +154,7 @@ function generateNodeDetailsList(
         const marker: string = isRelevant ? ' [RELEVANT]' : ''
         const contentClean: string = node.contentWithoutYamlOrLinks.replace(/\[([^\]]+)\]\*/g, '[$1]')
 
-        lines.push(`<${node.relativeFilePathIsID}>${marker}\n ${contentClean} \n </${node.relativeFilePathIsID}>`)
+        lines.push(`<${node.absoluteFilePathIsID}>${marker}\n ${contentClean} \n </${node.absoluteFilePathIsID}>`)
     }
 
     lines.push(`<TASK> Answer this question: ${question} </TASK>`)

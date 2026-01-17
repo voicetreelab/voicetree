@@ -80,7 +80,7 @@ This is in a subfolder.`
   })
 
   it('should load empty graph from empty directory', async () => {
-    const r1: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPaths.emptyVault], testVaultPaths.emptyVault)
+    const r1: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPaths.emptyVault])
     if (E.isLeft(r1)) throw new Error('Expected Right')
     const graph: Graph = r1.right
 
@@ -88,7 +88,7 @@ This is in a subfolder.`
   })
 
   it('should load all nodes from vault', async () => {
-    const r2: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPaths.testVault], testVaultPaths.testVault)
+    const r2: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPaths.testVault])
     if (E.isLeft(r2)) throw new Error('Expected Right')
     const graph: Graph = r2.right
 
@@ -100,7 +100,7 @@ This is in a subfolder.`
   })
 
   it('should parse node properties from frontmatter', async () => {
-    const r3: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPaths.testVault], testVaultPaths.testVault)
+    const r3: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPaths.testVault])
     if (E.isLeft(r3)) throw new Error('Expected Right')
     const graph: Graph = r3.right
 
@@ -118,16 +118,16 @@ This is in a subfolder.`
   })
 
   it('should use filename as node_id when missing from frontmatter', async () => {
-    const r4: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPaths.testVault], testVaultPaths.testVault)
+    const r4: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPaths.testVault])
     if (E.isLeft(r4)) throw new Error('Expected Right')
     const graph: Graph = r4.right
 
     expect(graph.nodes['node3.md']).toBeDefined()
-    expect(graph.nodes['node3.md'].relativeFilePathIsID).toBe('node3.md')
+    expect(graph.nodes['node3.md'].absoluteFilePathIsID).toBe('node3.md')
   })
 
   it('should extract title from heading when not in frontmatter', async () => {
-    const r5: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPaths.testVault], testVaultPaths.testVault)
+    const r5: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPaths.testVault])
     if (E.isLeft(r5)) throw new Error('Expected Right')
     const graph: Graph = r5.right
 
@@ -135,7 +135,7 @@ This is in a subfolder.`
   })
 
   it('should build outgoingEdges from wikilinks', async () => {
-    const r6: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPaths.testVault], testVaultPaths.testVault)
+    const r6: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPaths.testVault])
     if (E.isLeft(r6)) throw new Error('Expected Right')
     const graph: Graph = r6.right
 
@@ -145,7 +145,7 @@ This is in a subfolder.`
   })
 
   it('should handle nodes with no links', async () => {
-    const r7: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPaths.testVault], testVaultPaths.testVault)
+    const r7: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPaths.testVault])
     if (E.isLeft(r7)) throw new Error('Expected Right')
     const graph: Graph = r7.right
 
@@ -153,7 +153,7 @@ This is in a subfolder.`
   })
 
   it('should handle nested directory structure', async () => {
-    const r8: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPaths.testVault], testVaultPaths.testVault)
+    const r8: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPaths.testVault])
     if (E.isLeft(r8)) throw new Error('Expected Right')
     const graph: Graph = r8.right
 
@@ -162,7 +162,7 @@ This is in a subfolder.`
   })
 
   it('should derive title from Markdown heading (single source of truth)', async () => {
-    const r9: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPaths.testVault], testVaultPaths.testVault)
+    const r9: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPaths.testVault])
     if (E.isLeft(r9)) throw new Error('Expected Right')
     const graph: Graph = r9.right
 
@@ -174,10 +174,10 @@ This is in a subfolder.`
   })
 
   it('should be a pure IO function (same input -> same IO)', async () => {
-    const r10: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPaths.testVault], testVaultPaths.testVault)
+    const r10: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPaths.testVault])
     if (E.isLeft(r10)) throw new Error('Expected Right')
     const graph1: Graph = r10.right
-    const r11: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPaths.testVault], testVaultPaths.testVault)
+    const r11: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPaths.testVault])
     if (E.isLeft(r11)) throw new Error('Expected Right')
     const graph2: Graph = r11.right
 
@@ -237,7 +237,7 @@ Content for new file 2. Links to [[existing]].`
 
   it('should merge new vault nodes into existing graph', async () => {
     // GIVEN: Load initial graph from primary vault
-    const initialResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([primaryVaultPath], watchedDir)
+    const initialResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([primaryVaultPath])
     if (E.isLeft(initialResult)) throw new Error('Expected Right')
     const existingGraph: Graph = initialResult.right
 
@@ -246,7 +246,7 @@ Content for new file 2. Links to [[existing]].`
 
     // WHEN: Load secondary vault additively
     const additiveResult: E.Either<FileLimitExceededError, { graph: Graph; delta: GraphDelta }> =
-      await loadVaultPathAdditively(secondaryVaultPath, watchedDir, existingGraph)
+      await loadVaultPathAdditively(secondaryVaultPath, existingGraph)
 
     // THEN: Result should be Right with merged graph
     if (E.isLeft(additiveResult)) throw new Error('Expected Right')
@@ -260,7 +260,7 @@ Content for new file 2. Links to [[existing]].`
 
     // THEN: Delta should only contain the new nodes
     expect(delta).toHaveLength(2)
-    const deltaNodeIds: readonly string[] = delta.map(d => d.type === 'UpsertNode' ? d.nodeToUpsert.relativeFilePathIsID : '')
+    const deltaNodeIds: readonly string[] = delta.map(d => d.type === 'UpsertNode' ? d.nodeToUpsert.absoluteFilePathIsID : '')
     expect(deltaNodeIds).toContain('secondary-vault/newfile1.md')
     expect(deltaNodeIds).toContain('secondary-vault/newfile2.md')
     expect(deltaNodeIds).not.toContain('primary-vault/existing.md')
@@ -268,7 +268,7 @@ Content for new file 2. Links to [[existing]].`
 
   it('should preserve existing node positions when merging', async () => {
     // GIVEN: Load initial graph and set a position on existing node
-    const initialResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([primaryVaultPath], watchedDir)
+    const initialResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([primaryVaultPath])
     if (E.isLeft(initialResult)) throw new Error('Expected Right')
 
     const existingGraph: Graph = createGraph({
@@ -284,7 +284,7 @@ Content for new file 2. Links to [[existing]].`
 
     // WHEN: Load secondary vault additively
     const additiveResult: E.Either<FileLimitExceededError, { graph: Graph; delta: GraphDelta }> =
-      await loadVaultPathAdditively(secondaryVaultPath, watchedDir, existingGraph)
+      await loadVaultPathAdditively(secondaryVaultPath, existingGraph)
 
     if (E.isLeft(additiveResult)) throw new Error('Expected Right')
     const { graph: mergedGraph } = additiveResult.right
@@ -299,7 +299,7 @@ Content for new file 2. Links to [[existing]].`
 
   it('should return empty delta when adding empty vault', async () => {
     // GIVEN: Existing graph with nodes
-    const initialResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([primaryVaultPath], watchedDir)
+    const initialResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([primaryVaultPath])
     if (E.isLeft(initialResult)) throw new Error('Expected Right')
     const existingGraph: Graph = initialResult.right
 
@@ -309,7 +309,7 @@ Content for new file 2. Links to [[existing]].`
 
     // WHEN: Load empty vault additively
     const additiveResult: E.Either<FileLimitExceededError, { graph: Graph; delta: GraphDelta }> =
-      await loadVaultPathAdditively(emptyVaultPath, watchedDir, existingGraph)
+      await loadVaultPathAdditively(emptyVaultPath, existingGraph)
 
     if (E.isLeft(additiveResult)) throw new Error('Expected Right')
     const { graph: mergedGraph, delta } = additiveResult.right

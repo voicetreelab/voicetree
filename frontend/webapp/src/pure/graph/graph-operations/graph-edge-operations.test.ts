@@ -10,7 +10,7 @@ import * as O from 'fp-ts/lib/Option.js'
 
 describe('graph-edge-operations', () => {
   const createTestNode: (id: string, edges?: readonly Edge[]) => GraphNode = (id: string, edges: readonly Edge[] = []): GraphNode => ({
-    relativeFilePathIsID: id,
+    absoluteFilePathIsID: id,
     outgoingEdges: edges,
     contentWithoutYamlOrLinks: 'test content',
     nodeUIMetadata: {
@@ -68,7 +68,7 @@ describe('graph-edge-operations', () => {
       const node: GraphNode = createTestNode('node1', [{ targetId: 'node2', label: '' }])
       const result: GraphNode = setOutgoingEdges(node, [{ targetId: 'node3', label: '' }])
 
-      expect(result.relativeFilePathIsID).toBe('node1')
+      expect(result.absoluteFilePathIsID).toBe('node1')
       expect(result.contentWithoutYamlOrLinks).toBe('test content')
       expect(result.nodeUIMetadata).toEqual(node.nodeUIMetadata)
     })

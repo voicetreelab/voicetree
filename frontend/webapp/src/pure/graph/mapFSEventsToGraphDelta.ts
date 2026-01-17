@@ -1,6 +1,5 @@
 import type {FSEvent, GraphDelta, DeleteNode, NodeIdAndFilePath, FSUpdate, Graph} from '@/pure/graph/index'
 import * as O from 'fp-ts/lib/Option.js'
-import path from 'path'
 import { filenameToNodeId } from '@/pure/graph/markdown-parsing/filename-utils'
 import { addNodeToGraphWithEdgeHealingFromFSEvent } from '@/pure/graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent'
 
@@ -12,10 +11,9 @@ import { addNodeToGraphWithEdgeHealingFromFSEvent } from '@/pure/graph/graphDelt
  * - Added/Changed files → UpsertNode actions
  * - Deleted files → DeleteNode actions
  *
- * Function signature: (FSEvent, vaultPath, currentGraph) -> GraphDelta
+ * Node IDs are absolute paths (no vault path needed for ID computation).
  *
  * @param fsEvent - Filesystem event (add, change, or delete)
- * @param vaultPath - Absolute path to vault (used to compute relative node IDs)
  * @param currentGraph - Current graph state (used to resolve wikilinks to node IDs)
  * @returns GraphDelta representing the state change
  *
@@ -23,15 +21,15 @@ import { addNodeToGraphWithEdgeHealingFromFSEvent } from '@/pure/graph/graphDelt
  * ```typescript
  * const fsUpdate: FSUpdate = { absolutePath: '/vault/note.md', content: '# Title', eventType: 'Added' }
  * const currentGraph = { nodes: { ... } }
- * const delta = mapFSEventsToGraphDelta(fsUpdate, '/vault', currentGraph)
+ * const delta = mapFSEventsToGraphDelta(fsUpdate, currentGraph)
  * // delta = [{ type: 'UpsertNode', nodeToUpsert: {...} }]
  * ```
  */
-export function mapFSEventsToGraphDelta(fsEvent: FSEvent, vaultPath: string, currentGraph: Graph): GraphDelta {
+export function mapFSEventsToGraphDelta(fsEvent: FSEvent, currentGraph: Graph): GraphDelta {
   // Discriminate based on type field for FSDelete, or content field for FSUpdate
   if ('type' in fsEvent && fsEvent.type === 'Delete') {
-    // This is FSDelete
-    const nodeId: string = extractNodeIdFromPath(fsEvent.absolutePath, vaultPath)
+    // This is FSDelete - node ID is the absolute path
+    const nodeId: string = extractNodeIdFromPath(fsEvent.absolutePath)
     // Capture the deleted node for potential undo
     const deleteAction: DeleteNode = {
       type: 'DeleteNode',
@@ -42,7 +40,7 @@ export function mapFSEventsToGraphDelta(fsEvent: FSEvent, vaultPath: string, cur
   } else {
     // This is FSUpdate (Added or Changed)
     const fsUpdate: FSUpdate = fsEvent as FSUpdate
-    return handleUpsert(fsUpdate, vaultPath, currentGraph)
+    return handleUpsert(fsUpdate, currentGraph)
   }
 }
 
@@ -50,24 +48,18 @@ export function mapFSEventsToGraphDelta(fsEvent: FSEvent, vaultPath: string, cur
  * Handle add/change events by creating an upsert action.
  * Uses the unified addNodeToGraph function for progressive edge validation.
  */
-function handleUpsert(fsUpdate: FSUpdate, vaultPath: string, currentGraph: Graph): GraphDelta {
+function handleUpsert(fsUpdate: FSUpdate, currentGraph: Graph): GraphDelta {
   // Use unified function - handles both outgoing and incoming edge validation
-  return addNodeToGraphWithEdgeHealingFromFSEvent(fsUpdate, vaultPath, currentGraph)
+  return addNodeToGraphWithEdgeHealingFromFSEvent(fsUpdate, currentGraph)
 }
 
 /**
- * Extract node ID from file absolutePath by computing relative absolutePath from vault.
+ * Extract node ID from file path. Node IDs are absolute paths.
  *
- * Pure function: same input -> same output, no side effects
- *
- * @param filePath - Absolute absolutePath to the file (e.g., "/absolutePath/to/vault/subfolder/MyNote.md")
- * @param vaultPath - Absolute absolutePath to the vault (e.g., "/absolutePath/to/vault")
- * @returns GraphNode ID with relative absolutePath preserved (e.g., "subfolder/MyNote")
+ * @param filePath - Absolute path to the file (e.g., "/path/to/vault/subfolder/MyNote.md")
+ * @returns GraphNode ID as normalized absolute path
  */
-function extractNodeIdFromPath(filePath: string, vaultPath: string): NodeIdAndFilePath {
-  // Use path.relative for cross-platform path handling (handles both / and \ separators)
-  const relativePath: string = path.relative(vaultPath, filePath)
-
-  // Convert to node ID (remove .md extension)
-  return filenameToNodeId(relativePath)
+function extractNodeIdFromPath(filePath: string): NodeIdAndFilePath {
+  // Node ID is the absolute path (normalized)
+  return filenameToNodeId(filePath)
 }

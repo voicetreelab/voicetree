@@ -7,41 +7,31 @@ import type {GraphDelta, UpsertNodeDelta} from '@/pure/graph';
 import type {ElectronAPI} from '@/shell/electron';
 import {applyGraphDeltaToUI} from './applyGraphDeltaToUI';
 import {clearCytoscapeState} from './clearCytoscapeState';
-import {
-    updateHistoryFromDelta,
-    createEmptyHistory,
-    type RecentNodeHistory,
-    extractRecentNodesFromDelta
-} from '@/pure/graph/recentNodeHistoryV2';
+import {extractRecentNodesFromDelta} from '@/pure/graph/recentNodeHistoryV2';
 import {renderRecentNodeTabsV2} from '@/shell/UI/views/RecentNodeTabsBar';
 import {closeAllEditors} from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
 import {closeAllTerminals} from '@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI';
-
-/**
- * Dependencies required for graph subscription handlers
- */
-export interface GraphSubscriptionDeps {
-    cy: Core;
-    setLoadingState: (isLoading: boolean, message?: string) => void;
-    setEmptyStateVisible: (visible: boolean) => void;
-    navigationService: {
-        setLastCreatedNodeId: (nodeId: string) => void;
-        handleSearchSelect: (nodeId: string) => void;
-    };
-    searchService: {
-        updateSearchDataIncremental: (delta: GraphDelta) => void;
-        updateSearchData: () => void;
-    };
-    getRecentNodeHistory: () => RecentNodeHistory;
-    setRecentNodeHistory: (history: RecentNodeHistory) => void;
-    updateNavigatorVisibility: () => void;
-}
+import {
+    setLoadingState,
+    setEmptyStateVisible
+} from '@/shell/edge/UI-edge/state/GraphViewUIStore';
+import {
+    updateRecentNodeHistoryFromDelta,
+    clearRecentNodeHistory
+} from '@/shell/edge/UI-edge/state/RecentNodeHistoryStore';
+import type {RecentNodeHistory} from '@/pure/graph/recentNodeHistoryV2';
+import type {GraphNavigationService} from './navigation/GraphNavigationService';
+import type {SearchService} from '@/shell/UI/views/SearchService';
 
 /**
  * Subscribe to graph delta updates from main process via electronAPI.
  * Returns a cleanup function to unsubscribe.
  */
-export function subscribeToGraphUpdates(deps: GraphSubscriptionDeps): (() => void) | null {
+export function subscribeToGraphUpdates(
+    navigationService: GraphNavigationService,
+    searchService: SearchService,
+    updateNavigatorVisibility: () => void
+): (() => void) | null {
     const electronAPI: ElectronAPI | undefined = window.electronAPI;
 
     if (!electronAPI?.graph?.onGraphUpdate) {
@@ -49,63 +39,63 @@ export function subscribeToGraphUpdates(deps: GraphSubscriptionDeps): (() => voi
         return null;
     }
 
-    const handleGraphDelta = (delta: GraphDelta): void => {
+    const cy: Core = navigationService.getCy();
+
+    const handleGraphDelta: (delta: GraphDelta) => void = (delta: GraphDelta): void => {
         console.log('[subscribeToGraphUpdates] Received graph delta, length:', delta.length);
 
-        deps.setLoadingState(false);
-        deps.setEmptyStateVisible(false);
+        setLoadingState(false);
+        setEmptyStateVisible(false);
 
         // applyGraphDeltaToUI handles auto-pinning editors for new external nodes
-        applyGraphDeltaToUI(deps.cy, delta);
+        applyGraphDeltaToUI(cy, delta);
 
         // Track last created node for "fit to last node" hotkey (Space)
         const lastUpsertedNode: UpsertNodeDelta | undefined = extractRecentNodesFromDelta(delta)[0];
         if (lastUpsertedNode) {
-            deps.navigationService.setLastCreatedNodeId(lastUpsertedNode.nodeToUpsert.relativeFilePathIsID);
+            navigationService.setLastCreatedNodeId(lastUpsertedNode.nodeToUpsert.absoluteFilePathIsID);
         }
 
-        deps.searchService.updateSearchDataIncremental(delta);
+        searchService.updateSearchDataIncremental(delta);
 
         // Update navigator visibility based on node count
-        deps.updateNavigatorVisibility();
+        updateNavigatorVisibility();
 
         // Update recent node history from delta and re-render tabs
-        const updatedHistory = updateHistoryFromDelta(deps.getRecentNodeHistory(), delta);
-        deps.setRecentNodeHistory(updatedHistory);
+        const updatedHistory: RecentNodeHistory = updateRecentNodeHistoryFromDelta(delta);
 
         renderRecentNodeTabsV2(
             updatedHistory,
-            (nodeId) => deps.navigationService.handleSearchSelect(nodeId),
-            (nodeId) => deps.cy.getElementById(nodeId).data('label') as string | undefined
+            (nodeId) => navigationService.handleSearchSelect(nodeId),
+            (nodeId) => cy.getElementById(nodeId).data('label') as string | undefined
         );
     };
 
-    const handleGraphClear = (): void => {
+    const handleGraphClear: () => void = (): void => {
         console.log('[subscribeToGraphUpdates] Received graph:clear event');
-        deps.setLoadingState(true, 'Loading VoiceTree...');
+        setLoadingState(true, 'Loading VoiceTree...');
 
         // Close all open terminals (UI cleanup - PTY processes already killed by main process)
-        closeAllTerminals(deps.cy);
+        closeAllTerminals(cy);
 
-        clearCytoscapeState(deps.cy);
+        clearCytoscapeState(cy);
 
         // Close all open floating editors
-        closeAllEditors(deps.cy);
+        closeAllEditors(cy);
 
         // Clear recent node history and re-render (empty) tabs
-        const emptyHistory = createEmptyHistory();
-        deps.setRecentNodeHistory(emptyHistory);
+        const emptyHistory: RecentNodeHistory = clearRecentNodeHistory();
 
         renderRecentNodeTabsV2(
             emptyHistory,
-            (nodeId) => deps.navigationService.handleSearchSelect(nodeId),
-            (nodeId) => deps.cy.getElementById(nodeId).data('label') as string | undefined
+            (nodeId) => navigationService.handleSearchSelect(nodeId),
+            (nodeId) => cy.getElementById(nodeId).data('label') as string | undefined
         );
 
         // Reset ninja-keys search data (now rebuilds from empty cytoscape)
-        deps.searchService.updateSearchData();
+        searchService.updateSearchData();
 
-        deps.setEmptyStateVisible(true);
+        setEmptyStateVisible(true);
     };
 
     // Subscribe to graph updates via electronAPI (returns cleanup function)

@@ -65,18 +65,18 @@ export async function createNewChildNodeFromUI(
 
     // Create editor for UI-created node: always steals focus, independent/permanent
     // This runs after delta is applied so the node exists in the graph
-    void createFloatingEditorForUICreatedNode(cy, newNode.relativeFilePathIsID);
+    void createFloatingEditorForUICreatedNode(cy, newNode.absoluteFilePathIsID);
 
-    return newNode.relativeFilePathIsID;
+    return newNode.absoluteFilePathIsID;
 }
 
 export async function createNewEmptyOrphanNodeFromUI(
     pos: Position,
     cy: Core
 ): Promise<NodeIdAndFilePath> {
-    // Get vault suffix so node ID includes correct path prefix
-    const watchStatus: { isWatching: boolean; directory?: string; vaultSuffix?: string } | undefined = await window.electronAPI?.main.getWatchStatus();
-    const vaultSuffix: string = watchStatus?.vaultSuffix ?? '';
+    // Get write path (absolute) for new node creation
+    const writePathOption: O.Option<string> | undefined = await window.electronAPI?.main.getWritePath();
+    const writePath: string = writePathOption ? O.getOrElse(() => '')(writePathOption) : '';
 
     // Get current graph for collision detection
     const currentGraph: Graph | undefined = await window.electronAPI?.main.getGraph();
@@ -85,15 +85,15 @@ export async function createNewEmptyOrphanNodeFromUI(
         throw new Error("Cannot create node: graph not available");
     }
 
-    const {newNode, graphDelta} = createNewNodeNoParent(pos, vaultSuffix, currentGraph);
+    const {newNode, graphDelta} = createNewNodeNoParent(pos, writePath, currentGraph);
 
     await window.electronAPI?.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed(graphDelta);
 
     // Create editor for UI-created node: always steals focus, independent/permanent
     // This runs after delta is applied so the node exists in the graph
-    void createFloatingEditorForUICreatedNode(cy, newNode.relativeFilePathIsID);
+    void createFloatingEditorForUICreatedNode(cy, newNode.absoluteFilePathIsID);
 
-    return newNode.relativeFilePathIsID;
+    return newNode.absoluteFilePathIsID;
 }
 
 /**
@@ -138,7 +138,7 @@ export async function deleteNodesFromUI(
         // Collect deltas, but filter out UpsertNodes for nodes we're going to delete
         const filteredDeltas: GraphDelta = delta.filter(nodeDelta => {
             if (nodeDelta.type === 'UpsertNode') {
-                if (nodeIdsToDelete.has(nodeDelta.nodeToUpsert.relativeFilePathIsID)) {
+                if (nodeIdsToDelete.has(nodeDelta.nodeToUpsert.absoluteFilePathIsID)) {
                     // Don't include upserts for nodes we're deleting
                     return false
                 }
@@ -167,7 +167,7 @@ function deduplicateDelta(delta: GraphDelta): GraphDelta {
         if (nodeDelta.type === 'DeleteNode') {
             deleteNodeIds.add(nodeDelta.nodeId)
         } else if (nodeDelta.type === 'UpsertNode') {
-            lastUpsertByNodeId.set(nodeDelta.nodeToUpsert.relativeFilePathIsID, nodeDelta)
+            lastUpsertByNodeId.set(nodeDelta.nodeToUpsert.absoluteFilePathIsID, nodeDelta)
         }
     }
 

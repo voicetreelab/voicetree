@@ -11,15 +11,14 @@ describe('mapFSEventsToGraphDelta', () => {
         content: '# Test Note',
         eventType: 'Added'
       }
-      const vaultPath: "/vault" = '/vault'
       const currentGraph: Graph = createGraph({})
 
-      const delta: GraphDelta = mapFSEventsToGraphDelta(fsUpdate, vaultPath, currentGraph)
+      const delta: GraphDelta = mapFSEventsToGraphDelta(fsUpdate, currentGraph)
 
       expect(delta).toHaveLength(1)
       expect(delta[0].type).toBe('UpsertNode')
       if (delta[0].type === 'UpsertNode') {
-        expect(delta[0].nodeToUpsert.relativeFilePathIsID).toBe('test-note.md')
+        expect(delta[0].nodeToUpsert.absoluteFilePathIsID).toBe('/vault/test-note.md')
       }
     })
 
@@ -28,15 +27,14 @@ describe('mapFSEventsToGraphDelta', () => {
         type: 'Delete',
         absolutePath: '/vault/to-delete.md'
       }
-      const vaultPath: "/vault" = '/vault'
       const currentGraph: Graph = createGraph({})
 
-      const delta: GraphDelta = mapFSEventsToGraphDelta(fsDelete, vaultPath, currentGraph)
+      const delta: GraphDelta = mapFSEventsToGraphDelta(fsDelete, currentGraph)
 
       expect(delta).toHaveLength(1)
       expect(delta[0].type).toBe('DeleteNode')
       if (delta[0].type === 'DeleteNode') {
-        expect(delta[0].nodeId).toBe('to-delete.md')
+        expect(delta[0].nodeId).toBe('/vault/to-delete.md')
       }
     })
 
@@ -46,15 +44,14 @@ describe('mapFSEventsToGraphDelta', () => {
         content: '# Backup',
         eventType: 'Added'
       }
-      const vaultPath: "/vault" = '/vault'
       const currentGraph: Graph = createGraph({})
 
-      const delta: GraphDelta = mapFSEventsToGraphDelta(fsUpdate, vaultPath, currentGraph)
+      const delta: GraphDelta = mapFSEventsToGraphDelta(fsUpdate, currentGraph)
 
       expect(delta).toHaveLength(1)
       expect(delta[0].type).toBe('UpsertNode')
       if (delta[0].type === 'UpsertNode') {
-        expect(delta[0].nodeToUpsert.relativeFilePathIsID).toBe('folder/file.backup.md')
+        expect(delta[0].nodeToUpsert.absoluteFilePathIsID).toBe('/vault/folder/file.backup.md')
       }
     })
   })

@@ -10,7 +10,7 @@ function createNode(
   content = ''
 ): GraphNode {
   return {
-    relativeFilePathIsID: id,
+    absoluteFilePathIsID: id,
     outgoingEdges,
     contentWithoutYamlOrLinks: content,
     nodeUIMetadata: {
@@ -99,7 +99,7 @@ describe('redirectEdgeTarget', () => {
 
     const result: GraphNode = redirectEdgeTarget(node, 'old-target.md', 'new-target.md')
 
-    expect(result.relativeFilePathIsID).toBe('node.md')
+    expect(result.absoluteFilePathIsID).toBe('node.md')
     expect(result.contentWithoutYamlOrLinks).toBe('# My Content\n\nSome text')
     expect(result.nodeUIMetadata).toEqual(node.nodeUIMetadata)
   })

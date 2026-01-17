@@ -13,7 +13,7 @@ import type { GraphDelta, GraphNode } from '@/pure/graph'
 // Helper to create a minimal GraphNode for testing
 function createTestNode(id: string): GraphNode {
     return {
-        relativeFilePathIsID: id,
+        absoluteFilePathIsID: id,
         contentWithoutYamlOrLinks: '# Test',
         outgoingEdges: [],
         nodeUIMetadata: {
@@ -96,12 +96,12 @@ describe('undoStack', () => {
 
             // Most recent (last pushed) should be first
             const mostRecentDelta: GraphDelta = finalState.undoStack[0]
-            expect((mostRecentDelta[0] as { readonly nodeToUpsert: GraphNode }).nodeToUpsert.relativeFilePathIsID)
+            expect((mostRecentDelta[0] as { readonly nodeToUpsert: GraphNode }).nodeToUpsert.absoluteFilePathIsID)
                 .toBe(`node${MAX_UNDO_SIZE}.md`)
 
             // Oldest (first pushed, node0) should have been dropped
             const allNodeIds: readonly string[] = finalState.undoStack.map(d =>
-                (d[0] as { readonly nodeToUpsert: GraphNode }).nodeToUpsert.relativeFilePathIsID
+                (d[0] as { readonly nodeToUpsert: GraphNode }).nodeToUpsert.absoluteFilePathIsID
             )
             expect(allNodeIds).not.toContain('node0.md')
         })

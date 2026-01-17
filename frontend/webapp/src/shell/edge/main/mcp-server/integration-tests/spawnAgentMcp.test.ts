@@ -39,7 +39,7 @@ function parsePayload(response: {content: Array<{type: 'text'; text: string}>}):
 function buildGraphNode(nodeId: NodeIdAndFilePath, content: string): GraphNode {
     return {
         outgoingEdges: [],
-        relativeFilePathIsID: nodeId,
+        absoluteFilePathIsID: nodeId,
         contentWithoutYamlOrLinks: content,
         nodeUIMetadata: {
             color: O.none,

@@ -8,13 +8,14 @@ import { getNodeTitle } from '@/pure/graph/markdown-parsing'
 
 /**
  * Generates a unique ID for a merged node based on timestamp and random suffix.
- * @param vaultSuffix - Optional vault suffix to prepend (e.g., "voicetree")
+ * Node IDs are absolute paths to simplify path handling.
+ * @param writePath - Absolute path to the write directory (where merged nodes are created)
  */
-function generateMergedNodeId(vaultSuffix?: string): NodeIdAndFilePath {
+function generateMergedNodeId(writePath: string): NodeIdAndFilePath {
     const timestamp: number = Date.now()
     const randomSuffix: string = Math.random().toString(36).substring(2, 5)
     const filename: string = `merged_${timestamp}_${randomSuffix}.md`
-    return vaultSuffix ? `${vaultSuffix}/${filename}` : filename
+    return writePath ? `${writePath}/${filename}` : filename
 }
 
 /**
@@ -30,13 +31,13 @@ function generateMergedNodeId(vaultSuffix?: string): NodeIdAndFilePath {
  *
  * @param selectedNodeIds - Array of node IDs to merge (must have at least 2)
  * @param graph - The current graph state
- * @param vaultSuffix - Optional vault suffix for the merged node path (e.g., "voicetree")
+ * @param writePath - Absolute path to the write directory (where merged nodes are created)
  * @returns GraphDelta containing UpsertNode and DeleteNode actions
  */
 export function computeMergeGraphDelta(
     selectedNodeIds: readonly NodeIdAndFilePath[],
     graph: Graph,
-    vaultSuffix?: string
+    writePath: string
 ): GraphDelta {
     if (selectedNodeIds.length < 2) {
         return []
@@ -69,7 +70,7 @@ export function computeMergeGraphDelta(
         return contextNodeDeletions
     }
 
-    const newNodeId: NodeIdAndFilePath = generateMergedNodeId(vaultSuffix)
+    const newNodeId: NodeIdAndFilePath = generateMergedNodeId(writePath)
 
     // Get the nodes to merge (already filtered for non-context)
     const nodesToMerge: readonly GraphNode[] = nonContextNodeIds.map(

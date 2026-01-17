@@ -17,7 +17,7 @@ Some text`
 
     const result: GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
-    expect(result.relativeFilePathIsID).toBe('test.md')
+    expect(result.absoluteFilePathIsID).toBe('test.md')
     // contentWithoutYamlOrLinks should have YAML stripped
     expect(result.contentWithoutYamlOrLinks).toBe('# Content here\nSome text')
     expect(result.outgoingEdges).toEqual([])
@@ -36,7 +36,7 @@ position:
 
     const result: GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
-    expect(result.relativeFilePathIsID).toBe('test.md')
+    expect(result.absoluteFilePathIsID).toBe('test.md')
     // contentWithoutYamlOrLinks should have YAML stripped
     expect(result.contentWithoutYamlOrLinks).toBe('# Content here')
     expect(O.isSome(result.nodeUIMetadata.position)).toBe(true)
@@ -51,7 +51,7 @@ position:
 
     const result: GraphNode = parseMarkdownToGraphNode(content, 'my-file.md', emptyGraph)
 
-    expect(result.relativeFilePathIsID).toBe('my-file.md')
+    expect(result.absoluteFilePathIsID).toBe('my-file.md')
   })
 
   it('should use Option.none for missing color', () => {
@@ -93,7 +93,7 @@ Content here`
 
     const result: GraphNode = parseMarkdownToGraphNode(content, 'subfolder/nested/file.md', emptyGraph)
 
-    expect(result.relativeFilePathIsID).toBe('subfolder/nested/file.md')
+    expect(result.absoluteFilePathIsID).toBe('subfolder/nested/file.md')
   })
 
   it('should have empty outgoingEdges array', () => {
@@ -117,7 +117,7 @@ Content here`
     // Should not throw, should return a valid node
     const result: GraphNode = parseMarkdownToGraphNode(content, 'bad-yaml.md', emptyGraph)
 
-    expect(result.relativeFilePathIsID).toBe('bad-yaml.md')
+    expect(result.absoluteFilePathIsID).toBe('bad-yaml.md')
     // NOTE: gray-matter doesn't always strip invalid YAML, it tries to parse it anyway
     // The important thing is that it doesn't throw and the app keeps working
     expect(result.outgoingEdges).toEqual([])
@@ -134,7 +134,7 @@ This references [[other-note]] and [[another-note]].`
 
     const result: GraphNode = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
-    expect(result.relativeFilePathIsID).toBe('test.md')
+    expect(result.absoluteFilePathIsID).toBe('test.md')
     // Wikilinks should be replaced with [link]* notation
     expect(result.contentWithoutYamlOrLinks).toBe('# Test Content\n\nThis references [other-note]* and [another-note]*.')
     // Edges should still be extracted
@@ -165,7 +165,7 @@ Content with [[link-one]] and [[link-two]]`
 
       const result: GraphNode = parseMarkdownToGraphNode(content, 'test-file.md', emptyGraph)
 
-      expect(result.relativeFilePathIsID).toBe('test-file.md')
+      expect(result.absoluteFilePathIsID).toBe('test-file.md')
     })
 
     it('should keep .md extension in node ID for nested path', () => {
@@ -173,7 +173,7 @@ Content with [[link-one]] and [[link-two]]`
 
       const result: GraphNode = parseMarkdownToGraphNode(content, 'folder/subfolder/note.md', emptyGraph)
 
-      expect(result.relativeFilePathIsID).toBe('folder/subfolder/note.md')
+      expect(result.absoluteFilePathIsID).toBe('folder/subfolder/note.md')
     })
 
     it('should keep .md extension when file has multiple dots', () => {
@@ -181,7 +181,7 @@ Content with [[link-one]] and [[link-two]]`
 
       const result: GraphNode = parseMarkdownToGraphNode(content, 'file.backup.md', emptyGraph)
 
-      expect(result.relativeFilePathIsID).toBe('file.backup.md')
+      expect(result.absoluteFilePathIsID).toBe('file.backup.md')
     })
 
     it('should handle file without .md extension as-is', () => {
@@ -189,7 +189,7 @@ Content with [[link-one]] and [[link-two]]`
 
       const result: GraphNode = parseMarkdownToGraphNode(content, 'no-extension', emptyGraph)
 
-      expect(result.relativeFilePathIsID).toBe('no-extension')
+      expect(result.absoluteFilePathIsID).toBe('no-extension')
     })
   })
 

@@ -193,9 +193,9 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
     menuItems.push({
         icon: Clipboard,
         label: 'Copy Path',
-        action: async () => {
-            const absolutePath: string | undefined = await getFilePathForNode(nodeId);
-            void navigator.clipboard.writeText(absolutePath ?? nodeId);
+        action: () => {
+            const absolutePath: string = getFilePathForNode(nodeId);
+            void navigator.clipboard.writeText(absolutePath);
         },
     });
 

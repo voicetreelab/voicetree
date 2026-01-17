@@ -11,6 +11,26 @@ import { loadGraphFromDisk } from '@/shell/edge/main/graph/markdownHandleUpdateF
 import { mapFSEventsToGraphDelta } from '@/pure/graph/mapFSEventsToGraphDelta'
 import type { FileLimitExceededError } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce'
 
+// Helper to find a node by filename or relative path (since node IDs are now absolute paths)
+// Works with both 'file.md' and 'subdir/file.md' patterns
+function findNodeByFilename(graph: Graph, relativePathOrFilename: string): GraphNode | undefined {
+  const normalized: string = relativePathOrFilename.replace(/\\/g, '/')
+  const nodeId: string | undefined = Object.keys(graph.nodes).find(id =>
+    id.endsWith(`/${normalized}`) || id.endsWith(`\\${normalized}`)
+  )
+  return nodeId ? graph.nodes[nodeId] : undefined
+}
+
+// Helper to extract filename from absolute path
+function getFilename(absolutePath: string): string {
+  return path.basename(absolutePath)
+}
+
+// Helper to get sorted filenames from graph (for structural comparison)
+function getSortedFilenames(graph: Graph): readonly string[] {
+  return Object.keys(graph.nodes).map(id => getFilename(id)).sort()
+}
+
 /**
  * TDD Tests for Progressive Edge Validation
  *
@@ -54,17 +74,19 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         '# Source Node\n\n- links to [[target]]'
       )
 
-      const result: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([forwardVaultPath], forwardVaultPath)
+      const result: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([forwardVaultPath])
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(result)) throw new Error('Expected Right')
       const graph: Graph = result.right
 
-      // Verify: source node has edge to target using target's node ID
-      expect(graph.nodes['source.md']).toBeDefined()
-      expect(graph.nodes['target.md']).toBeDefined()
-      expect(graph.nodes['source.md'].outgoingEdges).toHaveLength(1)
-      expect(graph.nodes['source.md'].outgoingEdges[0].targetId).toBe('target.md')
-      expect(graph.nodes['source.md'].outgoingEdges[0].label).toBe('links to')
+      // Verify: source node has edge to target (using helpers for absolute paths)
+      const sourceNode: GraphNode | undefined = findNodeByFilename(graph, 'source.md')
+      const targetNode: GraphNode | undefined = findNodeByFilename(graph, 'target.md')
+      expect(sourceNode).toBeDefined()
+      expect(targetNode).toBeDefined()
+      expect(sourceNode!.outgoingEdges).toHaveLength(1)
+      expect(getFilename(sourceNode!.outgoingEdges[0].targetId)).toBe('target.md')
+      expect(sourceNode!.outgoingEdges[0].label).toBe('links to')
 
       await fs.rm(forwardVaultPath, { recursive: true })
     })
@@ -84,17 +106,19 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         '# Target Node'
       )
 
-      const result2: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([reverseVaultPath], reverseVaultPath)
+      const result2: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([reverseVaultPath])
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(result2)) throw new Error('Expected Right')
       const graph: Graph = result2.right
 
-      // Verify: SAME RESULT as forward order
-      expect(graph.nodes['source.md']).toBeDefined()
-      expect(graph.nodes['target.md']).toBeDefined()
-      expect(graph.nodes['source.md'].outgoingEdges).toHaveLength(1)
-      expect(graph.nodes['source.md'].outgoingEdges[0].targetId).toBe('target.md')
-      expect(graph.nodes['source.md'].outgoingEdges[0].label).toBe('links to')
+      // Verify: SAME RESULT as forward order (using helpers for absolute paths)
+      const sourceNode2: GraphNode | undefined = findNodeByFilename(graph, 'source.md')
+      const targetNode2: GraphNode | undefined = findNodeByFilename(graph, 'target.md')
+      expect(sourceNode2).toBeDefined()
+      expect(targetNode2).toBeDefined()
+      expect(sourceNode2!.outgoingEdges).toHaveLength(1)
+      expect(getFilename(sourceNode2!.outgoingEdges[0].targetId)).toBe('target.md')
+      expect(sourceNode2!.outgoingEdges[0].label).toBe('links to')
 
       await fs.rm(reverseVaultPath, { recursive: true })
     })
@@ -114,17 +138,20 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         '# Node 1'
       )
 
-      const result3: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([subfolderVaultPath], subfolderVaultPath)
+      const result3: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([subfolderVaultPath])
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(result3)) throw new Error('Expected Right')
       const graph: Graph = result3.right
 
-      // Verify: Link resolves to felix/1 (not just "1")
-      expect(graph.nodes['felix/2.md']).toBeDefined()
-      expect(graph.nodes['felix/1.md']).toBeDefined()
-      expect(graph.nodes['felix/2.md'].outgoingEdges).toHaveLength(1)
-      expect(graph.nodes['felix/2.md'].outgoingEdges[0].targetId).toBe('felix/1.md')
-      expect(graph.nodes['felix/2.md'].outgoingEdges[0].label).toBe('related')
+      // Verify: Link resolves to felix/1 (not just "1") - using helpers for absolute paths
+      const felix2: GraphNode | undefined = findNodeByFilename(graph, 'felix/2.md')
+      const felix1: GraphNode | undefined = findNodeByFilename(graph, 'felix/1.md')
+      expect(felix2).toBeDefined()
+      expect(felix1).toBeDefined()
+      expect(felix2!.outgoingEdges).toHaveLength(1)
+      // Target ID should end with felix/1.md
+      expect(felix2!.outgoingEdges[0].targetId).toContain('felix/1.md')
+      expect(felix2!.outgoingEdges[0].label).toBe('related')
 
       await fs.rm(subfolderVaultPath, { recursive: true })
     })
@@ -148,15 +175,18 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         '# A\n\n- extends [[b]]'
       )
 
-      const result4: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([chainVaultPath], chainVaultPath)
+      const result4: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([chainVaultPath])
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(result4)) throw new Error('Expected Right')
       const graph: Graph = result4.right
 
-      // Verify: All edges resolved
-      expect(graph.nodes['a.md'].outgoingEdges[0].targetId).toBe('b.md')
-      expect(graph.nodes['b.md'].outgoingEdges[0].targetId).toBe('c.md')
-      expect(graph.nodes['c.md'].outgoingEdges).toHaveLength(0)
+      // Verify: All edges resolved (using helpers for absolute paths)
+      const nodeA: GraphNode | undefined = findNodeByFilename(graph, 'a.md')
+      const nodeB: GraphNode | undefined = findNodeByFilename(graph, 'b.md')
+      const nodeC: GraphNode | undefined = findNodeByFilename(graph, 'c.md')
+      expect(getFilename(nodeA!.outgoingEdges[0].targetId)).toBe('b.md')
+      expect(getFilename(nodeB!.outgoingEdges[0].targetId)).toBe('c.md')
+      expect(nodeC!.outgoingEdges).toHaveLength(0)
 
       await fs.rm(chainVaultPath, { recursive: true })
     })
@@ -167,7 +197,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       // Setup: Graph with target node already loaded
       const currentGraph: Graph = createGraph({
         'target.md': {
-          relativeFilePathIsID: 'target.md',
+          absoluteFilePathIsID: 'target.md',
           contentWithoutYamlOrLinks: '# Target',
           outgoingEdges: [],
           nodeUIMetadata: {
@@ -187,15 +217,17 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         eventType: 'Added'
       }
 
-      const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, testVaultPath, currentGraph)
+      const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, currentGraph)
 
       // Verify: Edge resolves to existing target node
       expect(delta).toHaveLength(1)
       expect(delta[0].type).toBe('UpsertNode')
       if (delta[0].type === 'UpsertNode') {
         const node: GraphNode = delta[0].nodeToUpsert
-        expect(node.relativeFilePathIsID).toBe('source.md')
+        // Node ID is now absolute path - check filename
+        expect(getFilename(node.absoluteFilePathIsID)).toBe('source.md')
         expect(node.outgoingEdges).toHaveLength(1)
+        // Target ID points to existing node (relative in this test's graph)
         expect(node.outgoingEdges[0].targetId).toBe('target.md')
       }
     })
@@ -211,7 +243,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         eventType: 'Added'
       }
 
-      const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, testVaultPath, currentGraph)
+      const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, currentGraph)
 
       // Verify: Edge has raw link text (not resolved)
       expect(delta).toHaveLength(1)
@@ -227,7 +259,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       // Setup: Graph with felix/1 already loaded
       const currentGraph: Graph = createGraph({
         'felix/1.md': {
-          relativeFilePathIsID: 'felix/1.md',
+          absoluteFilePathIsID: 'felix/1.md',
           contentWithoutYamlOrLinks: '# Node 1',
           outgoingEdges: [],
           nodeUIMetadata: {
@@ -247,7 +279,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         eventType: 'Added'
       }
 
-      const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, testVaultPath, currentGraph)
+      const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, currentGraph)
 
       // Verify: Link resolves to felix/1
       expect(delta[0].type).toBe('UpsertNode')
@@ -261,7 +293,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       // Setup: Parent references child.md but child node is missing (dangling edge)
       const currentGraph: Graph = createGraph({
         'parent.md': {
-          relativeFilePathIsID: 'parent.md',
+          absoluteFilePathIsID: 'parent.md',
           contentWithoutYamlOrLinks: '# Parent',
           outgoingEdges: [{ targetId: 'child.md', label: 'links to' }],
           nodeUIMetadata: { color: O.none, position: O.none, additionalYAMLProps: new Map(), isContextNode: false }
@@ -270,17 +302,19 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
 
       // Add child node (resolves the dangling edge)
       const fsEvent: FSUpdate = { absolutePath: path.join(testVaultPath, 'child.md'), content: '# Child', eventType: 'Added' }
-      const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, testVaultPath, currentGraph)
+      const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, currentGraph)
 
       // Expect delta to include new child node AND healed parent so UI can draw the edge
       expect(delta).toHaveLength(2)
       expect(delta[0].type).toBe('UpsertNode')
       expect(delta[1].type).toBe('UpsertNode')
       if (delta[0].type === 'UpsertNode') {
-        expect(delta[0].nodeToUpsert.relativeFilePathIsID).toBe('child.md')
+        // Node ID is now absolute path - check filename
+        expect(getFilename(delta[0].nodeToUpsert.absoluteFilePathIsID)).toBe('child.md')
       }
       if (delta[1].type === 'UpsertNode') {
-        expect(delta[1].nodeToUpsert.relativeFilePathIsID).toBe('parent.md')
+        // Parent keeps relative ID since it's from the existing graph
+        expect(delta[1].nodeToUpsert.absoluteFilePathIsID).toBe('parent.md')
         expect(delta[1].previousNode._tag).toBe('Some')
       }
     })
@@ -291,7 +325,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       // Result: UI never receives delta, edge never rendered despite both nodes existing
       const currentGraph: Graph = createGraph({
         'source.md': {
-          relativeFilePathIsID: 'source.md',
+          absoluteFilePathIsID: 'source.md',
           contentWithoutYamlOrLinks: '# Source',
           // Edge targetId EXACTLY matches the node ID that will be created - no fuzzy matching needed
           outgoingEdges: [{ targetId: 'target.md', label: 'links to' }],
@@ -304,12 +338,15 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
 
       // Add the target node
       const fsEvent: FSUpdate = { absolutePath: path.join(testVaultPath, 'target.md'), content: '# Target', eventType: 'Added' }
-      const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, testVaultPath, currentGraph)
+      const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, currentGraph)
 
       // CRITICAL: Delta must include source node so UI can draw the edge
       // Without the dangling-edge fix, delta.length would be 1 (only target.md)
       expect(delta).toHaveLength(2)
-      const sourceNodeDelta: GraphDelta[number] | undefined = delta.find(d => d.type === 'UpsertNode' && d.nodeToUpsert.relativeFilePathIsID === 'source.md')
+      // Source node keeps its original relative ID from the graph
+      const sourceNodeDelta: GraphDelta[number] | undefined = delta.find(d =>
+        d.type === 'UpsertNode' && d.nodeToUpsert.absoluteFilePathIsID === 'source.md'
+      )
       expect(sourceNodeDelta).toBeDefined()
     })
 
@@ -317,13 +354,13 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       // Setup: Parent and child already exist, edge points to real child node
       const currentGraph: Graph = createGraph({
         'parent.md': {
-          relativeFilePathIsID: 'parent.md',
+          absoluteFilePathIsID: 'parent.md',
           contentWithoutYamlOrLinks: '# Parent',
           outgoingEdges: [{ targetId: 'child.md', label: 'links to' }],
           nodeUIMetadata: { color: O.none, position: O.none, additionalYAMLProps: new Map(), isContextNode: false }
         },
         'child.md': {
-          relativeFilePathIsID: 'child.md',
+          absoluteFilePathIsID: 'child.md',
           contentWithoutYamlOrLinks: '# Child',
           outgoingEdges: [],
           nodeUIMetadata: { color: O.none, position: O.none, additionalYAMLProps: new Map(), isContextNode: false }
@@ -332,12 +369,13 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
 
       // Re-add child node (e.g., file change) - should not trigger redundant parent delta
       const fsEvent: FSUpdate = { absolutePath: path.join(testVaultPath, 'child.md'), content: '# Child updated', eventType: 'Changed' }
-      const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, testVaultPath, currentGraph)
+      const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, currentGraph)
 
       expect(delta).toHaveLength(1)
       expect(delta[0].type).toBe('UpsertNode')
       if (delta[0].type === 'UpsertNode') {
-        expect(delta[0].nodeToUpsert.relativeFilePathIsID).toBe('child.md')
+        // Node ID is now absolute path - check filename
+        expect(getFilename(delta[0].nodeToUpsert.absoluteFilePathIsID)).toBe('child.md')
       }
     })
   })
@@ -352,7 +390,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       await fs.writeFile(path.join(bulkVaultPath, 'b.md'), '# B\n\n- links [[c]]')
       await fs.writeFile(path.join(bulkVaultPath, 'c.md'), '# C')
 
-      const bulkResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([bulkVaultPath], bulkVaultPath)
+      const bulkResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([bulkVaultPath])
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(bulkResult)) throw new Error('Expected Right')
       const bulkGraph: Graph = bulkResult.right
@@ -374,24 +412,31 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
           content: file.content,
           eventType: 'Added'
         }
-        const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, incrementalVaultPath, graph)
+        const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, graph)
         return applyGraphDeltaToGraph(graph, delta)
       }, createGraph({}))
 
-      // Verify: Nodes exist with correct IDs
-      expect(Object.keys(bulkGraph.nodes).sort()).toEqual(Object.keys(incrementalGraph.nodes).sort())
+      // Verify: Nodes exist with same filenames (paths differ due to different directories)
+      expect(getSortedFilenames(bulkGraph)).toEqual(getSortedFilenames(incrementalGraph))
 
       // NEW BEHAVIOR: With bidirectional edge healing, bulk and incremental produce IDENTICAL results!
       // When b.md is added incrementally, it HEALS a.md's edge from 'b' to 'b.md'
       // This ensures order-independent graph construction
-      expect(bulkGraph.nodes['a.md'].outgoingEdges[0].targetId).toBe('b.md')
-      expect(incrementalGraph.nodes['a.md'].outgoingEdges[0].targetId).toBe('b.md')  // HEALED!
+      const bulkA: GraphNode | undefined = findNodeByFilename(bulkGraph, 'a.md')
+      const incA: GraphNode | undefined = findNodeByFilename(incrementalGraph, 'a.md')
+      const bulkB: GraphNode | undefined = findNodeByFilename(bulkGraph, 'b.md')
+      const incB: GraphNode | undefined = findNodeByFilename(incrementalGraph, 'b.md')
+      const bulkC: GraphNode | undefined = findNodeByFilename(bulkGraph, 'c.md')
+      const incC: GraphNode | undefined = findNodeByFilename(incrementalGraph, 'c.md')
 
-      expect(bulkGraph.nodes['b.md'].outgoingEdges[0].targetId).toBe('c.md')
-      expect(incrementalGraph.nodes['b.md'].outgoingEdges[0].targetId).toBe('c.md')  // HEALED!
+      expect(getFilename(bulkA!.outgoingEdges[0].targetId)).toBe('b.md')
+      expect(getFilename(incA!.outgoingEdges[0].targetId)).toBe('b.md')  // HEALED!
 
-      expect(bulkGraph.nodes['c.md'].outgoingEdges).toHaveLength(0)
-      expect(incrementalGraph.nodes['c.md'].outgoingEdges).toHaveLength(0)
+      expect(getFilename(bulkB!.outgoingEdges[0].targetId)).toBe('c.md')
+      expect(getFilename(incB!.outgoingEdges[0].targetId)).toBe('c.md')  // HEALED!
+
+      expect(bulkC!.outgoingEdges).toHaveLength(0)
+      expect(incC!.outgoingEdges).toHaveLength(0)
 
       await fs.rm(bulkVaultPath, { recursive: true })
       await fs.rm(incrementalVaultPath, { recursive: true })
@@ -405,7 +450,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       await fs.writeFile(path.join(bulkVaultPath, 'a.md'), '# A\n\n- links [[b]]')
       await fs.writeFile(path.join(bulkVaultPath, 'b.md'), '# B')
 
-      const bulkResult2: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([bulkVaultPath], bulkVaultPath)
+      const bulkResult2: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([bulkVaultPath])
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(bulkResult2)) throw new Error('Expected Right')
       const bulkGraph: Graph = bulkResult2.right
@@ -426,14 +471,18 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
           content: file.content,
           eventType: 'Added'
         }
-        const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, incrementalVaultPath, graph)
+        const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, graph)
         return applyGraphDeltaToGraph(graph, delta)
       }, createGraph({}))
 
-      // Verify: IDENTICAL despite different order
-      expect(bulkGraph.nodes['a.md'].outgoingEdges).toEqual(incrementalGraph.nodes['a.md'].outgoingEdges)
-      expect(bulkGraph.nodes['a.md'].outgoingEdges[0].targetId).toBe('b.md')
-      expect(incrementalGraph.nodes['a.md'].outgoingEdges[0].targetId).toBe('b.md')
+      // Verify: IDENTICAL despite different order (using helpers for absolute paths)
+      const bulkA2: GraphNode | undefined = findNodeByFilename(bulkGraph, 'a.md')
+      const incA2: GraphNode | undefined = findNodeByFilename(incrementalGraph, 'a.md')
+      expect(bulkA2).toBeDefined()
+      expect(incA2).toBeDefined()
+      // Compare edge target filenames since paths differ
+      expect(getFilename(bulkA2!.outgoingEdges[0].targetId)).toBe('b.md')
+      expect(getFilename(incA2!.outgoingEdges[0].targetId)).toBe('b.md')
 
       await fs.rm(bulkVaultPath, { recursive: true })
       await fs.rm(incrementalVaultPath, { recursive: true })
@@ -450,14 +499,16 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         '# Source\n\n- broken link [[does-not-exist]]'
       )
 
-      const result5: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([vaultPath], vaultPath)
+      const result5: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([vaultPath])
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(result5)) throw new Error('Expected Right')
       const graph: Graph = result5.right
 
-      // Verify: Edge preserved with raw link text
-      expect(graph.nodes['source.md'].outgoingEdges).toHaveLength(1)
-      expect(graph.nodes['source.md'].outgoingEdges[0].targetId).toBe('does-not-exist')
+      // Verify: Edge preserved with raw link text (using helper for absolute paths)
+      const sourceNodeBulk: GraphNode | undefined = findNodeByFilename(graph, 'source.md')
+      expect(sourceNodeBulk).toBeDefined()
+      expect(sourceNodeBulk!.outgoingEdges).toHaveLength(1)
+      expect(sourceNodeBulk!.outgoingEdges[0].targetId).toBe('does-not-exist')
 
       await fs.rm(vaultPath, { recursive: true })
     })
@@ -471,7 +522,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         eventType: 'Added'
       }
 
-      const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, testVaultPath, currentGraph)
+      const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, currentGraph)
 
       // Verify: Edge preserved with raw link text
       expect(delta[0].type).toBe('UpsertNode')
@@ -489,14 +540,16 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         '# Source\n\n- link1 [[a]]\n- link2 [[b]]\n- link3 [[c]]'
       )
 
-      const result6: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([vaultPath], vaultPath)
+      const result6: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([vaultPath])
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(result6)) throw new Error('Expected Right')
       const graph: Graph = result6.right
 
-      // Verify: All edges preserved as raw text
-      expect(graph.nodes['source.md'].outgoingEdges).toHaveLength(3)
-      expect(graph.nodes['source.md'].outgoingEdges.map((e: { readonly targetId: string }) => e.targetId)).toEqual(['a', 'b', 'c'])
+      // Verify: All edges preserved as raw text (using helper for absolute paths)
+      const sourceNodeMulti: GraphNode | undefined = findNodeByFilename(graph, 'source.md')
+      expect(sourceNodeMulti).toBeDefined()
+      expect(sourceNodeMulti!.outgoingEdges).toHaveLength(3)
+      expect(sourceNodeMulti!.outgoingEdges.map((e: { readonly targetId: string }) => e.targetId)).toEqual(['a', 'b', 'c'])
 
       await fs.rm(vaultPath, { recursive: true })
     })

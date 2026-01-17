@@ -38,7 +38,7 @@ export function applyPositions(graph: Graph): Graph {
 
     // Create ghost root node with outgoing edges to all root nodes
     const ghostRootNode: GraphNode = {
-        relativeFilePathIsID: GHOST_ROOT_ID,
+        absoluteFilePathIsID: GHOST_ROOT_ID,
         outgoingEdges: rootNodes.map(targetId => ({ targetId, label: '' })),
         contentWithoutYamlOrLinks: '',
         nodeUIMetadata: {
@@ -76,7 +76,7 @@ export function applyPositions(graph: Graph): Graph {
 function findRootNodes(graph: Graph): readonly NodeIdAndFilePath[] {
     return Object.values(graph.nodes)
         .filter((node) => findFirstParentNode(node, graph) === undefined)
-        .map((node) => node.relativeFilePathIsID)
+        .map((node) => node.absoluteFilePathIsID)
 }
 
 /**

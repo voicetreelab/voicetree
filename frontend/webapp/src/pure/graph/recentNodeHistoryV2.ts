@@ -64,7 +64,7 @@ export function addEntriesToHistory(
     const result: RecentNodeHistory = newEntries.reduce(
         (acc: RecentNodeHistory, entry: UpsertNodeDelta) => {
             const filtered: RecentNodeHistory = acc.filter(
-                e => e.nodeToUpsert.relativeFilePathIsID !== entry.nodeToUpsert.relativeFilePathIsID
+                e => e.nodeToUpsert.absoluteFilePathIsID !== entry.nodeToUpsert.absoluteFilePathIsID
             )
             return [entry, ...filtered]
         },
@@ -83,7 +83,7 @@ export function removeNodeFromHistory(
     history: RecentNodeHistory,
     nodeId: string
 ): RecentNodeHistory {
-    return history.filter(e => e.nodeToUpsert.relativeFilePathIsID !== nodeId)
+    return history.filter(e => e.nodeToUpsert.absoluteFilePathIsID !== nodeId)
 }
 
 /**
@@ -110,10 +110,10 @@ export function updateHistoryFromDelta(
     const upsertByNodeId: Map<string, UpsertNodeDelta> = new Map(
         delta
             .filter((a): a is UpsertNodeDelta => a.type === 'UpsertNode')
-            .map(a => [a.nodeToUpsert.relativeFilePathIsID, a])
+            .map(a => [a.nodeToUpsert.absoluteFilePathIsID, a])
     )
     const historyWithTitleChanges: RecentNodeHistory = historyWithDeletions.map(entry => {
-        const updated: UpsertNodeDelta | undefined = upsertByNodeId.get(entry.nodeToUpsert.relativeFilePathIsID)
+        const updated: UpsertNodeDelta | undefined = upsertByNodeId.get(entry.nodeToUpsert.absoluteFilePathIsID)
         if (!updated) return entry
         return getNodeTitle(entry.nodeToUpsert) !== getNodeTitle(updated.nodeToUpsert) ? updated : entry
     })

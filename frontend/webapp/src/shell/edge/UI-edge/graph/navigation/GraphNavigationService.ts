@@ -16,7 +16,7 @@ import { addRecentlyVisited } from '@/shell/edge/UI-edge/state/RecentlyVisitedSt
 import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
 import { getTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
 import { getTerminalId, getShadowNodeId, type TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
-import { getDisplayOrder, clearActivityForTerminal } from '@/shell/UI/views/AgentTabsBar';
+import { getDisplayOrderForNavigation, clearActivityForTerminal } from '@/shell/UI/views/AgentTabsBar';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 
 // Callback type for terminal change notifications
@@ -56,6 +56,13 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
    */
   getActiveTerminalId(): TerminalId | null {
     return this.activeTerminalId;
+  }
+
+  /**
+   * Get the Cytoscape instance
+   */
+  getCy(): Core {
+    return this.cy;
   }
 
   /**
@@ -167,7 +174,7 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
 
     // Use display order from AgentTabsBar (respects user's drag-drop ordering)
     // Falls back to ID sort if AgentTabsBar not initialized
-    const displayOrder: TerminalId[] = getDisplayOrder();
+    const displayOrder: TerminalId[] = getDisplayOrderForNavigation();
     const orderedTerminals: TerminalData[] = displayOrder.length > 0
       ? displayOrder
           .map(id => terminals.find(t => getTerminalId(t) === id))

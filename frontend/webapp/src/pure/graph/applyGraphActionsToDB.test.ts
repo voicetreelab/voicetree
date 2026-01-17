@@ -10,6 +10,12 @@ import { markdownToTitle } from '@/pure/graph/markdown-parsing/markdown-to-title
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk'
 import type { FileLimitExceededError } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce'
 
+// Helper to find a node by filename (since node IDs are now absolute paths)
+function findNodeByFilename(graph: Graph, filename: string): GraphNode | undefined {
+  const nodeId: string | undefined = Object.keys(graph.nodes).find(id => id.endsWith(`/${filename}`) || id === filename)
+  return nodeId ? graph.nodes[nodeId] : undefined
+}
+
 describe('apply_graph_deltas_to_db', () => {
   const testVaultPath: string = path.join(tmpdir(), 'test-vault-apply-deltas-to-db')
 
@@ -31,7 +37,7 @@ describe('apply_graph_deltas_to_db', () => {
   // Helper to create a test node
   const createTestNode: (nodeId: string, content: string) => GraphNode = (nodeId: string, content: string): GraphNode => {
     return {
-      relativeFilePathIsID: nodeId,
+      absoluteFilePathIsID: nodeId,
       contentWithoutYamlOrLinks: content,
       outgoingEdges: [],
       nodeUIMetadata: {
@@ -70,14 +76,15 @@ describe('apply_graph_deltas_to_db', () => {
       expect(fileContent).toBe('---\nisContextNode: false\n---\n# New Node\n\nThis is content')
 
       // Verify we can load it back from disk
-      const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPath], testVaultPath)
+      const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPath])
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(loadResult)) throw new Error('Expected Right')
       const graph: Graph = loadResult.right
-      // Node IDs include .md extension when loaded from disk
-      expect(graph.nodes['node-1.md']).toBeDefined()
+      // Node IDs are now absolute paths - use helper to find by filename
+      const node1: GraphNode | undefined = findNodeByFilename(graph, 'node-1.md')
+      expect(node1).toBeDefined()
       // parseMarkdownToGraphNode strips YAML frontmatter from contentWithoutYamlOrLinks
-      expect(graph.nodes['node-1.md'].contentWithoutYamlOrLinks).toBe('# New Node\n\nThis is content')
+      expect(node1!.contentWithoutYamlOrLinks).toBe('# New Node\n\nThis is content')
     })
 
     it('should extract title from markdown header', async () => {
@@ -94,13 +101,15 @@ describe('apply_graph_deltas_to_db', () => {
       expect(E.isRight(result)).toBe(true)
 
       // Load from disk and verify title
-      const loadResult2: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPath], testVaultPath)
+      const loadResult2: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPath])
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(loadResult2)) throw new Error('Expected Right')
       const graph: Graph = loadResult2.right
-      // Node IDs include .md extension when loaded from disk
+      // Node IDs are now absolute paths - use helper to find by filename
+      const node2: GraphNode | undefined = findNodeByFilename(graph, 'node-2.md')
+      expect(node2).toBeDefined()
       // Title is derived from Markdown content (single source of truth)
-      const title: string = markdownToTitle(graph.nodes['node-2.md'].contentWithoutYamlOrLinks, graph.nodes['node-2.md'].relativeFilePathIsID)
+      const title: string = markdownToTitle(node2!.contentWithoutYamlOrLinks, node2!.absoluteFilePathIsID)
       expect(title).toBe('My Title')
     })
 
@@ -118,16 +127,18 @@ describe('apply_graph_deltas_to_db', () => {
       expect(E.isRight(result)).toBe(true)
 
       // Load from disk and verify title
-      const loadResult3: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPath], testVaultPath)
+      const loadResult3: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPath])
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(loadResult3)) throw new Error('Expected Right')
       const graph: Graph = loadResult3.right
-      // Node IDs include .md extension when loaded from disk
+      // Node IDs are now absolute paths - use helper to find by filename
+      const node3: GraphNode | undefined = findNodeByFilename(graph, 'node-3.md')
+      expect(node3).toBeDefined()
       // When content is empty, fromNodeToMarkdownContent writes '---\n---\n' (empty frontmatter)
       // parseMarkdownToGraphNode strips the frontmatter, leaving empty content
       // markdownToTitle falls back to filename when content is empty
       // Title is derived from Markdown content (single source of truth)
-      const title: string = markdownToTitle(graph.nodes['node-3.md'].contentWithoutYamlOrLinks, graph.nodes['node-3.md'].relativeFilePathIsID)
+      const title: string = markdownToTitle(node3!.contentWithoutYamlOrLinks, node3!.absoluteFilePathIsID)
       // Empty content falls back to filename-based title
       expect(title).toBe('node 3')
     })
@@ -181,19 +192,21 @@ describe('apply_graph_deltas_to_db', () => {
       expect(fileContent).toBe('---\nisContextNode: false\n---\n# Updated Title\n\nNew content')
 
       // Load from disk and verify
-      const loadResult4: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPath], testVaultPath)
+      const loadResult4: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPath])
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(loadResult4)) throw new Error('Expected Right')
       const graph: Graph = loadResult4.right
-      // Node IDs include .md extension when loaded from disk
+      // Node IDs are now absolute paths - use helper to find by filename
+      const nodeUpdate1: GraphNode | undefined = findNodeByFilename(graph, 'node-update-1.md')
+      expect(nodeUpdate1).toBeDefined()
       // parseMarkdownToGraphNode strips YAML frontmatter from contentWithoutYamlOrLinks
-      expect(graph.nodes['node-update-1.md'].contentWithoutYamlOrLinks).toBe('# Updated Title\n\nNew content')
+      expect(nodeUpdate1!.contentWithoutYamlOrLinks).toBe('# Updated Title\n\nNew content')
       // Title is derived from Markdown content (single source of truth)
-      const title: string = markdownToTitle(graph.nodes['node-update-1.md'].contentWithoutYamlOrLinks, graph.nodes['node-update-1.md'].relativeFilePathIsID)
+      const title: string = markdownToTitle(nodeUpdate1!.contentWithoutYamlOrLinks, nodeUpdate1!.absoluteFilePathIsID)
       expect(title).toBe('Updated Title')
     })
 
-    it('should preserve node relativeFilePathIsID when updating', async () => {
+    it('should preserve node absoluteFilePathIsID when updating', async () => {
       // First create a file
       const initialNode: GraphNode = createTestNode('node-update-2', '# Original')
       await apply_graph_deltas_to_db([{
@@ -216,12 +229,15 @@ describe('apply_graph_deltas_to_db', () => {
       expect(E.isRight(result)).toBe(true)
 
       // Load from disk and verify ID is preserved
-      const loadResult5: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPath], testVaultPath)
+      const loadResult5: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPath])
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(loadResult5)) throw new Error('Expected Right')
       const graph: Graph = loadResult5.right
-      // Node IDs include .md extension when loaded from disk
-      expect(graph.nodes['node-update-2.md'].relativeFilePathIsID).toBe('node-update-2.md')
+      // Node IDs are now absolute paths - use helper to find by filename
+      const nodeUpdate2: GraphNode | undefined = findNodeByFilename(graph, 'node-update-2.md')
+      expect(nodeUpdate2).toBeDefined()
+      // Verify absolute path ends with the filename
+      expect(nodeUpdate2!.absoluteFilePathIsID).toContain('node-update-2.md')
     })
   })
 
@@ -257,12 +273,13 @@ describe('apply_graph_deltas_to_db', () => {
       expect(existsAfter).toBe(false)
 
       // Verify it's not in the graph when loaded from disk
-      const loadResult6: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPath], testVaultPath)
+      const loadResult6: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([testVaultPath])
       // eslint-disable-next-line functional/no-throw-statements
       if (E.isLeft(loadResult6)) throw new Error('Expected Right')
       const graph: Graph = loadResult6.right
-      // Node IDs include .md extension when loaded from disk
-      expect(graph.nodes['node-delete-1.md']).toBeUndefined()
+      // Node IDs are now absolute paths - verify node is not found by filename
+      const nodeDelete1: GraphNode | undefined = findNodeByFilename(graph, 'node-delete-1.md')
+      expect(nodeDelete1).toBeUndefined()
     })
 
     it('should fail when deleting non-existent file (fail fast)', async () => {

@@ -48,7 +48,7 @@ describe('createContextNode - Integration Tests', () => {
     setVaultPath(EXAMPLE_SMALL_PATH)
 
     // Load the graph from disk
-    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([EXAMPLE_SMALL_PATH], EXAMPLE_SMALL_PATH)
+    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([EXAMPLE_SMALL_PATH])
     if (E.isLeft(loadResult)) throw new Error('Expected Right')
     const graph: Graph = loadResult.right
     setGraph(graph)
@@ -179,7 +179,7 @@ describe('createContextNode - Integration Tests', () => {
       createdContextNodeId = contextNodeId
 
       // AND: Reload graph from disk
-      const reloadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([EXAMPLE_SMALL_PATH], EXAMPLE_SMALL_PATH)
+      const reloadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([EXAMPLE_SMALL_PATH])
       if (E.isLeft(reloadResult)) throw new Error('Expected Right')
       const reloadedGraph: Graph = reloadResult.right
 
@@ -282,7 +282,7 @@ describe('createContextNode - Integration Tests', () => {
     it('should create context node with only one edge to parent, not one edge per subgraph node', async () => {
       // GIVEN: example_real_large fixture with at least 5 nodes
       setVaultPath(EXAMPLE_LARGE_PATH)
-      const largeLoadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([EXAMPLE_LARGE_PATH], EXAMPLE_LARGE_PATH)
+      const largeLoadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([EXAMPLE_LARGE_PATH])
       if (E.isLeft(largeLoadResult)) throw new Error('Expected Right')
       const largeGraph: Graph = largeLoadResult.right
       setGraph(largeGraph)
@@ -350,7 +350,7 @@ describe('createContextNode - Integration Tests', () => {
       }
 
       // THEN: Reload graph to get the context node
-      const largeReloadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([EXAMPLE_LARGE_PATH], EXAMPLE_LARGE_PATH)
+      const largeReloadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([EXAMPLE_LARGE_PATH])
       if (E.isLeft(largeReloadResult)) throw new Error('Expected Right')
       const reloadedGraph: Graph = largeReloadResult.right
 
