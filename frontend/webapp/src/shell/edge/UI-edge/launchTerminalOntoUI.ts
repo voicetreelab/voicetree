@@ -1,4 +1,4 @@
-import {getTerminalId, getShadowNodeId, type TerminalData, type TerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
+import {getTerminalId, getShadowNodeId, type TerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 import type {CollectionReturnValue, Core, Position as CyPosition} from "cytoscape";
 import {getCyInstance} from "@/shell/edge/UI-edge/state/cytoscape-state";
 import {createFloatingTerminal} from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
@@ -7,6 +7,7 @@ import {vanillaFloatingWindowInstances} from "@/shell/edge/UI-edge/state/UIAppSt
 import {cySmartCenter} from "@/utils/responsivePadding";
 import * as O from "fp-ts/lib/Option.js";
 import type {NodeIdAndFilePath} from "@/pure/graph";
+import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 
 /**
  * Navigate to terminal neighborhood - pans if zoom is comfortable, zooms to 1.0 if not

@@ -2,10 +2,11 @@ import * as O from 'fp-ts/lib/Option.js'
 import type { Core } from 'cytoscape'
 import type { NodeIdAndFilePath } from '@/pure/graph'
 import { getEditorByNodeId } from '@/shell/edge/UI-edge/state/EditorStore'
-import { getEditorId, type EditorData } from '@/shell/edge/UI-edge/floating-windows/types'
+import { getEditorId } from '@/shell/edge/UI-edge/floating-windows/types'
 import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState'
 import { CodeMirrorEditorView } from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView'
 import { modifyNodeContentFromUI } from './modifyNodeContentFromFloatingEditor'
+import type {EditorData} from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
 
 /**
  * Flush any pending editor content for a specific node.

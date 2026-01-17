@@ -22,7 +22,6 @@ import { TerminalVanilla } from "@/shell/UI/floating-windows/terminals/TerminalV
 import posthog from "posthog-js";
 import {
     getTerminalId,
-    type TerminalData,
     type TerminalId,
     type FloatingWindowUIData,
 } from "@/shell/edge/UI-edge/floating-windows/types";
@@ -34,6 +33,7 @@ import {createWindowChrome} from "@/shell/edge/UI-edge/floating-windows/create-w
 import {flushEditorForNode} from "@/shell/edge/UI-edge/floating-windows/editors/flushEditorForNode";
 import {anchorToNode} from "@/shell/edge/UI-edge/floating-windows/anchor-to-node";
 import * as O from "fp-ts/lib/Option.js";
+import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 
 const MAX_TERMINALS: number = 12;
 

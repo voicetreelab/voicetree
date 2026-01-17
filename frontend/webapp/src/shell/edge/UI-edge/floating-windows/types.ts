@@ -1,9 +1,14 @@
 // Type definitions for floating window components - V2
 // Functional design: flat types with intersection composition, IDs derived not stored
 
+import type {Option} from 'fp-ts/lib/Option.js';
 import * as O from 'fp-ts/lib/Option.js';
-import type { Option } from 'fp-ts/lib/Option.js';
-import type { NodeIdAndFilePath } from "@/pure/graph";
+import type {NodeIdAndFilePath} from "@/pure/graph";
+import type {
+    CreateTerminalDataParams,
+    TerminalData
+} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
+import type {CreateEditorDataParams, EditorData} from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
 
 // =============================================================================
 // Branded ID Types (for type safety)
@@ -43,25 +48,13 @@ export type FloatingWindowFields = {
 // Editor Data Type
 // =============================================================================
 
-export type EditorData = FloatingWindowFields & {
-    readonly type: 'Editor';
-    readonly contentLinkedToNodeId: NodeIdAndFilePath;
-    readonly initialContent?: string; // ONLY for initial content (e.g. "loading..."). After loading, use GetContentForEditor
-};
+// =============================================================================
+// Factory Functions
+// =============================================================================
 
 // =============================================================================
 // Terminal Data Type
 // =============================================================================
-
-export type TerminalData = FloatingWindowFields & {
-    readonly type: 'Terminal';
-    readonly attachedToNodeId: NodeIdAndFilePath;
-    readonly terminalCount: number; // Multiple terminals per parent node allowed
-    readonly initialEnvVars?: Record<string, string>;
-    readonly initialSpawnDirectory?: string;
-    readonly initialCommand?: string;
-    readonly executeCommand?: boolean;
-};
 
 // =============================================================================
 // Union Type for FloatingWindow Content
@@ -94,18 +87,7 @@ export function getShadowNodeIdFromData(fw: FloatingWindowData): ShadowNodeId {
     return getShadowNodeId(getFloatingWindowId(fw));
 }
 
-// =============================================================================
-// Factory Functions
-// =============================================================================
 
-export type CreateEditorDataParams = {
-    readonly contentLinkedToNodeId: NodeIdAndFilePath;
-    readonly title: string;
-    readonly anchoredToNodeId?: NodeIdAndFilePath; // defaults to O.none
-    readonly initialContent?: string;
-    readonly resizable?: boolean; // defaults to true
-    readonly shadowNodeDimensions?: { width: number; height: number };
-};
 
 export function createEditorData(params: CreateEditorDataParams): EditorData {
     return {
@@ -118,19 +100,6 @@ export function createEditorData(params: CreateEditorDataParams): EditorData {
         shadowNodeDimensions: params.shadowNodeDimensions ?? { width: 480, height: 400 }, // matches getDefaultDimensions('MarkdownEditor')
     };
 }
-
-export type CreateTerminalDataParams = {
-    readonly attachedToNodeId: NodeIdAndFilePath;
-    readonly terminalCount: number;
-    readonly title: string;
-    readonly anchoredToNodeId?: NodeIdAndFilePath; // defaults to O.none
-    readonly initialEnvVars?: Record<string, string>;
-    readonly initialSpawnDirectory?: string;
-    readonly initialCommand?: string;
-    readonly executeCommand?: boolean;
-    readonly resizable?: boolean; // defaults to true
-    readonly shadowNodeDimensions?: { width: number; height: number };
-};
 
 export function createTerminalData(params: CreateTerminalDataParams): TerminalData {
     return {

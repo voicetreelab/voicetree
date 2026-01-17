@@ -148,19 +148,17 @@ function buildContextNodeContent(
     const parentWikilink: string = `[[${parentNodeId}]]`
 
     return `---
-title: "Context"
+title: "Agent Context"
 isContextNode: true
 ${containedNodeIdsYaml}---
-${parentWikilink}
-
-## Context
-Collecting nearby nodes from '${parentTitle}'
+Nearby nodes to: ${parentWikilink}
 \`\`\`
 ${asciiTree}
 \`\`\`
 
-## Node Details
+## Node Contents 
 ${nodeDetailsList}
+
 `
 }
 

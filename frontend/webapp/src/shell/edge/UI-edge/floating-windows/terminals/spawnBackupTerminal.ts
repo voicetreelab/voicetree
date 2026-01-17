@@ -1,11 +1,10 @@
-import type {} from '@/shell/electron';
+import type {TerminalData} from '@/shell/electron';
 import type {Core} from "cytoscape";
 import type { Position as CyPosition, CollectionReturnValue } from "cytoscape";
 import type {Position} from "@/pure/graph";
 import {
     createTerminalData,
     getTerminalId,
-    type TerminalData,
     type TerminalId,
 } from "@/shell/edge/UI-edge/floating-windows/types";
 import {

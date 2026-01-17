@@ -2,7 +2,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import cytoscape from 'cytoscape';
 import type { Core } from 'cytoscape';
 import { createWindowChrome } from '@/shell/edge/UI-edge/floating-windows/create-window-chrome';
-import { createEditorData, createTerminalData, type EditorData, type TerminalData, type EditorId, type TerminalId, type FloatingWindowUIData } from '@/shell/edge/UI-edge/floating-windows/types';
+import { createEditorData, createTerminalData, type EditorId, type TerminalId, type FloatingWindowUIData } from '@/shell/edge/UI-edge/floating-windows/types';
+import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
+import type {EditorData} from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
 
 // Mock getCachedZoom to return 1
 vi.mock('@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows', () => ({

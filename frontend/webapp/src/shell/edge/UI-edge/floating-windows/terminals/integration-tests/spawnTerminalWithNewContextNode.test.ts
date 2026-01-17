@@ -21,11 +21,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { spawnTerminalWithNewContextNode } from '@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI'
 import { clearTerminals, addTerminal } from '@/shell/edge/UI-edge/state/TerminalStore'
-import { createTerminalData, type TerminalData } from '@/shell/edge/UI-edge/floating-windows/types'
+import { createTerminalData } from '@/shell/edge/UI-edge/floating-windows/types'
 import type { NodeIdAndFilePath } from '@/pure/graph'
 import type { VTSettings } from '@/pure/settings'
 import cytoscape from 'cytoscape'
 import type { Core } from 'cytoscape'
+import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 
 describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
     let cy: Core

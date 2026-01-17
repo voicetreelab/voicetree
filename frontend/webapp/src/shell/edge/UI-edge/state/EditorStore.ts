@@ -1,7 +1,8 @@
 import type {NodeIdAndFilePath} from "@/pure/graph";
 import * as O from "fp-ts/lib/Option.js";
 import {type Option} from "fp-ts/lib/Option.js";
-import {getEditorId, type EditorId, type EditorData} from "@/shell/edge/UI-edge/floating-windows/types";
+import {getEditorId, type EditorId} from "@/shell/edge/UI-edge/floating-windows/types";
+import type {EditorData} from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
 
 const editors: Map<EditorId, EditorData> = new Map<EditorId, EditorData>();
 
@@ -89,6 +90,7 @@ export function addToPinnedEditors(nodeId: string): void {
 export function removeFromPinnedEditors(nodeId: string): void {
     pinnedEditors.delete(nodeId);
     document.dispatchEvent(new CustomEvent('pinned-editors-changed'));
+    // todo this should not be an event listener, change function should just be called directly (and extracted out of voicetreegraphview.ts)
 }
 
 /**

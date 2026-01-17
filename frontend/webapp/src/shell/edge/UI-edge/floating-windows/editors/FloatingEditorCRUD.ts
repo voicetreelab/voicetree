@@ -7,7 +7,6 @@ import type {Position} from '@/shell/UI/views/IVoiceTreeGraphView';
 
 import {
     createEditorData,
-    type EditorData,
     type EditorId,
     type FloatingWindowUIData,
     getEditorId,
@@ -21,7 +20,7 @@ import {
     getOrCreateOverlay,
 } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 
-import {vanillaFloatingWindowInstances,} from '@/shell/edge/UI-edge/state/UIAppState';
+import {type EditorData, vanillaFloatingWindowInstances,} from '@/shell/edge/UI-edge/state/UIAppState';
 
 import {CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
 import {createNewEmptyOrphanNodeFromUI} from '@/shell/edge/UI-edge/graph/handleUIActions';

@@ -28,9 +28,13 @@ vi.mock('posthog-js', () => ({
 }))
 
 // Mock AgentTabsBar
-vi.mock('@/shell/UI/views/AgentTabsBar', () => ({
-    markTerminalActivityForContextNode: vi.fn()
-}))
+vi.mock('@/shell/UI/views/AgentTabsBar', async () => {
+    const actual: typeof import('@/shell/UI/views/AgentTabsBar') = await vi.importActual('@/shell/UI/views/AgentTabsBar')
+    return {
+        ...actual,
+        markTerminalActivityForContextNode: vi.fn()
+    }
+})
 
 // Mock FloatingEditorCRUD
 vi.mock('@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD', async () => {

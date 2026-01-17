@@ -2,10 +2,11 @@ import path from 'path';
 import { promises as fs } from 'fs';
 import pty, { type IPty } from 'node-pty';
 import type { WebContents } from 'electron';
-import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/types";
 import {getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 import {getVaultSuffix} from "@/shell/edge/main/graph/watch_folder/watchFolder";
 import {getOTLPReceiverPort} from "@/shell/edge/main/metrics/otlp-receiver";
+import {recordTerminalSpawn, markTerminalExited} from '@/shell/edge/main/terminals/terminal-registry';
+import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 
 export interface TerminalSpawnResult {
   success: boolean;
@@ -92,6 +93,7 @@ export default class TerminalManager {
 
       // Store the PTY process
       this.terminals.set(terminalId, ptyProcess);
+      recordTerminalSpawn(terminalId, terminalData);
 
       // Track terminal ownership for cleanup when window closes
       this.terminalToWindow.set(terminalId, sender.id);
@@ -127,6 +129,7 @@ export default class TerminalManager {
         } catch (error) {
           console.error(`Failed to send terminal exit for ${terminalId}:`, error);
         }
+        markTerminalExited(terminalId);
         this.terminals.delete(terminalId);
         this.terminalToWindow.delete(terminalId);
       });
@@ -195,7 +198,7 @@ export default class TerminalManager {
 
       // Resize PTY
       ptyProcess.resize(cols, rows);
-      console.log(`Terminal ${terminalId} resized to ${cols}x${rows}`);
+      // console.log(`Terminal ${terminalId} resized to ${cols}x${rows}`);
       return { success: true };
     } catch (error: unknown) {
       console.error(`Failed to resize terminal ${terminalId}:`, error);
@@ -213,6 +216,7 @@ export default class TerminalManager {
         // Clean up error terminals too
         if (terminalId.startsWith('error-')) {
           this.terminals.delete(terminalId);
+          markTerminalExited(terminalId);
           return { success: true };
         }
         return { success: false, error: 'Terminal not found' };
@@ -220,6 +224,7 @@ export default class TerminalManager {
 
       // Kill the PTY process
       ptyProcess.kill();
+      markTerminalExited(terminalId);
       this.terminals.delete(terminalId);
       this.terminalToWindow.delete(terminalId);
       return { success: true };

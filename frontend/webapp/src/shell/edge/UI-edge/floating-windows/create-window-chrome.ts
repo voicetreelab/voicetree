@@ -14,16 +14,12 @@ import {
     getNodeMenuItems,
     createHorizontalMenuElement,
     type NodeMenuItemsInput,
-    type HorizontalMenuItem,
-    type TrafficLightContext
+    type HorizontalMenuItem
 } from "@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService";
 import type {AgentConfig} from "@/pure/settings";
-import {Maximize2, Minimize2, X, Pin, Maximize, Clipboard, createElement} from 'lucide';
-import {isPinned, addToPinnedEditors, removeFromPinnedEditors} from "@/shell/edge/UI-edge/state/EditorStore";
+import {Maximize2, Minimize2, Clipboard, createElement} from 'lucide';
 import {getShadowNodeId} from "@/shell/edge/UI-edge/floating-windows/types";
-import {attachFullscreenZoom} from "@/shell/edge/UI-edge/floating-windows/fullscreen-zoom";
-import {createTrafficLights} from "@/shell/edge/UI-edge/floating-windows/traffic-lights";
-import {unpinTerminal} from "@/shell/UI/views/AgentTabsBar";
+import {createTrafficLightsForTarget} from "@/shell/edge/UI-edge/floating-windows/traffic-lights";
 
 /** Options for createWindowChrome */
 export interface CreateWindowChromeOptions {
@@ -112,32 +108,22 @@ export function createWindowChrome(
         };
         const menuItems: HorizontalMenuItem[] = getNodeMenuItems(menuInput);
 
-        // Create traffic light context for anchored editor click handlers
-        const trafficLightContext: TrafficLightContext = {
-            onCloseClick: (): void => {
-                windowElement.dispatchEvent(new CustomEvent('traffic-light-close', { bubbles: true }));
-            },
-            onPinClick: (): boolean => {
-                // Toggle pin state in EditorStore
-                const currentlyPinned: boolean = isPinned(nodeId);
-                if (currentlyPinned) {
-                    removeFromPinnedEditors(nodeId);
-                } else {
-                    addToPinnedEditors(nodeId);
-                }
-                return !currentlyPinned;
-            },
+        const trafficLights: HTMLDivElement = createTrafficLightsForTarget({
+            kind: 'editor-window',
+            nodeId,
             cy,
             shadowNodeId: getShadowNodeId(id),
-            isPinned: (): boolean => isPinned(nodeId),
-        };
+            onClose: (): void => {
+                windowElement.dispatchEvent(new CustomEvent('traffic-light-close', { bubbles: true }));
+            },
+        });
 
         // Create menu elements (leftGroup, spacer, and rightGroup pills)
         // The spacer creates a centered gap where the node circle appears visually
         const { leftGroup, spacer, rightGroup } = createHorizontalMenuElement(
             menuItems,
             () => {}, // No-op onClose - menu is persistent
-            trafficLightContext
+            trafficLights
         );
 
         // Create menu wrapper to group menu pills together
@@ -153,7 +139,7 @@ export function createWindowChrome(
 
     // Phase 4: Terminal-specific chrome - minimal title bar with traffic lights at far right
     if (isTerminal) {
-        const terminalTitleBar: HTMLDivElement = createTerminalTitleBar(windowElement, cy, id, fw);
+        const terminalTitleBar: HTMLDivElement = createTerminalTitleBar(windowElement, cy, id as TerminalId, fw);
         windowElement.appendChild(terminalTitleBar);
     }
 
@@ -503,7 +489,7 @@ function truncateTitle(title: string, maxLength: number): string {
 function createTerminalTitleBar(
     windowElement: HTMLDivElement,
     cy: cytoscape.Core,
-    id: EditorId | TerminalId,
+    id: TerminalId,
     fw: FloatingWindowData | FloatingWindowFields
 ): HTMLDivElement {
     const titleBar: HTMLDivElement = document.createElement('div');
@@ -519,60 +505,20 @@ function createTerminalTitleBar(
         titleBar.appendChild(contextBadge);
     }
 
-    // Create traffic lights container positioned at far right
-    const trafficLights: HTMLDivElement = document.createElement('div');
-    trafficLights.className = 'terminal-traffic-lights';
+    const trafficLights: HTMLDivElement = createTrafficLightsForTarget({
+        kind: 'terminal-window',
+        terminalId: id,
+        cy,
+        shadowNodeId: getShadowNodeId(id),
+        onClose: (): void => {
+            windowElement.dispatchEvent(new CustomEvent('traffic-light-close', { bubbles: true }));
+        },
+    });
+    trafficLights.classList.add('terminal-traffic-lights');
     trafficLights.style.position = 'absolute';
     trafficLights.style.right = '10px';
     trafficLights.style.top = '50%';
     trafficLights.style.transform = 'translateY(-50%)';
-    trafficLights.style.display = 'flex';
-    trafficLights.style.alignItems = 'center';
-    trafficLights.style.gap = '4px';
-
-    // Close button
-    const closeBtn: HTMLButtonElement = document.createElement('button');
-    closeBtn.className = 'traffic-light traffic-light-close';
-    closeBtn.type = 'button';
-    const closeIcon: SVGElement = createElement(X);
-    closeIcon.setAttribute('width', '8');
-    closeIcon.setAttribute('height', '8');
-    closeBtn.appendChild(closeIcon);
-    closeBtn.addEventListener('click', (e: MouseEvent): void => {
-        e.stopPropagation();
-        windowElement.dispatchEvent(new CustomEvent('traffic-light-close', { bubbles: true }));
-    });
-
-    // Pin button - terminals do NOT add to Node Tabs pinned section (that's for editors only)
-    // Terminal pin just toggles a visual "pinned" state to keep the terminal persistent
-    const pinBtn: HTMLButtonElement = document.createElement('button');
-    pinBtn.className = 'traffic-light traffic-light-pin';
-    pinBtn.type = 'button';
-    const pinIcon: SVGElement = createElement(Pin);
-    pinIcon.setAttribute('width', '8');
-    pinIcon.setAttribute('height', '8');
-    pinBtn.appendChild(pinIcon);
-    pinBtn.addEventListener('click', (e: MouseEvent): void => {
-        e.stopPropagation();
-        // Toggle visual pinned state on the window element (no Node Tabs integration)
-        const isPinnedNow: boolean = windowElement.dataset.terminalPinned === 'true';
-        windowElement.dataset.terminalPinned = isPinnedNow ? 'false' : 'true';
-        pinBtn.classList.toggle('pinned', !isPinnedNow);
-    });
-
-    // Fullscreen button
-    const fullscreenBtn: HTMLButtonElement = document.createElement('button');
-    fullscreenBtn.className = 'traffic-light traffic-light-fullscreen';
-    fullscreenBtn.type = 'button';
-    const fullscreenIcon: SVGElement = createElement(Maximize);
-    fullscreenIcon.setAttribute('width', '8');
-    fullscreenIcon.setAttribute('height', '8');
-    fullscreenBtn.appendChild(fullscreenIcon);
-    attachFullscreenZoom(cy, fullscreenBtn, getShadowNodeId(id), true);
-
-    trafficLights.appendChild(closeBtn);
-    trafficLights.appendChild(pinBtn);
-    trafficLights.appendChild(fullscreenBtn);
 
     titleBar.appendChild(trafficLights);
 

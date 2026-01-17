@@ -15,8 +15,9 @@ import { cyFitWithRelativeZoom, cySmartCenter } from '@/utils/responsivePadding'
 import { addRecentlyVisited } from '@/shell/edge/UI-edge/state/RecentlyVisitedStore';
 import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
 import { getTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
-import { getTerminalId, getShadowNodeId, type TerminalData, type TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
+import { getTerminalId, getShadowNodeId, type TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import { getDisplayOrder, clearActivityForTerminal } from '@/shell/UI/views/AgentTabsBar';
+import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 
 // Callback type for terminal change notifications
 type TerminalChangeCallback = (terminalId: TerminalId | null) => void;
