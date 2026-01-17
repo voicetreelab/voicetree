@@ -97,6 +97,7 @@ export default function VoiceTreeTranscribe(): JSX.Element {
     return () => {
       disposeVoiceRecording();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleStartTranscription is stable, adding it causes infinite re-registration
   }, [state, stopTranscription]);
 
   // Show error popup when Soniox fails
@@ -118,14 +119,25 @@ export default function VoiceTreeTranscribe(): JSX.Element {
   const handleAskSubmit: (question: string) => Promise<void> = async (question: string) => {
     try {
       // 1. Get relevant nodes from backend via IPC
-      const response: { relevant_nodes: Array<{ node_path: string; score: number; title: string }> } | null | undefined =
+      const response: { relevant_nodes?: Array<{ node_path: string; score: number; title: string }>; error?: string } | null | undefined =
         await window.electronAPI?.main.askQuery(question, 10);
 
       let nodePaths: string[];
 
-      if (!response || response.relevant_nodes.length === 0) {
-        // TODO: This fallback returns arbitrary nodes when search fails - not ideal.
-        // Backend should be fixed to always return relevant results (see handover task).
+      // Check for RPC error response
+      if (response && 'error' in response && response.error) {
+        console.error('Ask query returned error:', response.error);
+        // Fall through to fallback behavior
+      }
+
+      // Check if we have valid results
+      const hasValidResults: boolean = response !== null && response !== undefined &&
+        'relevant_nodes' in response &&
+        Array.isArray(response.relevant_nodes) &&
+        response.relevant_nodes.length > 0;
+
+      if (!hasValidResults) {
+        // Fallback: get nodes from graph when search fails
         const graph: { nodes: Record<string, unknown> } | undefined = await window.electronAPI?.main.getGraph();
         if (!graph || Object.keys(graph.nodes).length === 0) {
           alert('No nodes in graph');
@@ -133,11 +145,17 @@ export default function VoiceTreeTranscribe(): JSX.Element {
         }
         nodePaths = Object.keys(graph.nodes).slice(0, 100);
       } else {
-        nodePaths = response.relevant_nodes.map(r => r.node_path);
+        nodePaths = response!.relevant_nodes!.map(r => r.node_path);
       }
 
       // 2. Create context node and spawn terminal via IPC
-      await window.electronAPI?.main.askModeCreateAndSpawn(nodePaths, question);
+      // Note: askModeCreateAndSpawn returns void on success, or { error: string } on RPC failure
+      const result: unknown = await window.electronAPI?.main.askModeCreateAndSpawn(nodePaths, question);
+
+      // Check for RPC error in askModeCreateAndSpawn
+      if (result && typeof result === 'object' && 'error' in result) {
+        throw new Error((result as { error: string }).error);
+      }
     } catch (err) {
       console.error('Ask mode failed:', err);
       alert(`Ask failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
