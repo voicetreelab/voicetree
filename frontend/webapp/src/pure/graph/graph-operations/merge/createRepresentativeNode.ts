@@ -1,6 +1,6 @@
 import * as O from 'fp-ts/lib/Option.js'
 import type { Edge, Graph, GraphNode, NodeIdAndFilePath, Position } from '@/pure/graph'
-import { graphToAscii } from '@/pure/graph'
+import { graphToAscii, createGraph } from '@/pure/graph'
 
 /**
  * Information for generating the merge node title.
@@ -26,7 +26,7 @@ function calculateCentroid(nodes: readonly GraphNode[]): O.Option<Position> {
     const sum: { readonly x: number; readonly y: number } = nodesWithPositions.reduce(
         (acc, node) => {
             // We know position exists because we filtered for it
-            const pos = (node.nodeUIMetadata.position as O.Some<Position>).value
+            const pos: Position = (node.nodeUIMetadata.position as O.Some<Position>).value
             return {
                 x: acc.x + pos.x,
                 y: acc.y + pos.y
@@ -63,7 +63,7 @@ function buildSubgraphFromNodes(nodesToMerge: readonly GraphNode[]): Graph {
         {} as Record<NodeIdAndFilePath, GraphNode>
     )
 
-    return { nodes }
+    return createGraph(nodes)
 }
 
 /**
@@ -107,7 +107,7 @@ function generateMergeTitle(mergeTitleInfo: MergeTitleInfo | undefined): string 
         return representativeTitle
     }
 
-    const nodeWord = otherNodesCount === 1 ? 'node' : 'nodes'
+    const nodeWord: string = otherNodesCount === 1 ? 'node' : 'nodes'
     return `${representativeTitle} + ${otherNodesCount} other ${nodeWord}`
 }
 
