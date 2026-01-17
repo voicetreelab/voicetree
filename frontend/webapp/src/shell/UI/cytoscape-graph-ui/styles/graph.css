@@ -406,49 +406,67 @@ button.graph-button:disabled > svg > path {
     display: flex;
     align-items: flex-start; /* Align to top to match recent-tabs-bar vertical position */
     z-index: 1100; /* Above floating windows (1000) so tabs aren't obscured */
-    height: 38px; /* Increased to accommodate shortcut hints below tabs */
     max-width: calc(50% - 100px); /* Don't overlap with recent nodes tabs */
     pointer-events: auto;
     -webkit-app-region: no-drag; /* Allow clicking tabs instead of dragging window */
-    overflow: visible; /* Allow activity dots and shortcut hints to extend below */
+    overflow: visible; /* Allow shortcut hints to extend below */
+    gap: 0; /* No gap - divider provides spacing */
 }
 
-.agent-tabs-scroll {
+/* Pinned tabs container (left section, 90px tabs with title)
+ * Wraps into new rows after 5 tabs (5 × 90px + gaps ≈ 470px) */
+.agent-tabs-pinned {
     display: flex;
-    flex-direction: row; /* Left to right, matching keyboard navigation order */
+    flex-direction: row;
+    flex-wrap: wrap; /* Wrap to new row after 5 tabs */
     gap: 4px;
-    overflow-x: auto;
-    overflow-y: visible; /* Allow activity dots to extend below */
-    scrollbar-width: thin;
-    scrollbar-color: var(--background-modifier-border, #444) transparent;
-    -webkit-overflow-scrolling: touch;
-    padding: 2px 24px 20px 4px; /* Extra bottom padding for shortcut hints (18px) + activity dots, right padding for rightmost tab */
+    max-width: 470px; /* 5 tabs × 90px + 4 gaps × 4px + padding */
+    overflow-y: visible;
+    padding: 2px 4px 20px 4px; /* Bottom padding for shortcut hints */
 }
 
-/* Webkit scrollbar styling */
-.agent-tabs-scroll::-webkit-scrollbar {
+/* Webkit scrollbar styling for pinned */
+.agent-tabs-pinned::-webkit-scrollbar {
     height: 4px;
 }
 
-.agent-tabs-scroll::-webkit-scrollbar-track {
+.agent-tabs-pinned::-webkit-scrollbar-track {
     background: transparent;
 }
 
-.agent-tabs-scroll::-webkit-scrollbar-thumb {
+.agent-tabs-pinned::-webkit-scrollbar-thumb {
     background: var(--background-modifier-border, #444);
     border-radius: 2px;
 }
 
-.agent-tabs-scroll::-webkit-scrollbar-thumb:hover {
+.agent-tabs-pinned::-webkit-scrollbar-thumb:hover {
     background: var(--text-muted, #666);
 }
 
-/* Individual agent tab button - inverted colors (dark bg, light text) like terminals */
+/* Divider between pinned and unpinned sections */
+.agent-tabs-divider {
+    width: 1px;
+    height: 16px;
+    background: #555;
+    margin: 2px 8px;
+    flex-shrink: 0;
+}
+
+/* Unpinned tabs container (right section, 24px square tabs) */
+.agent-tabs-unpinned {
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+    padding: 2px 4px;
+}
+
+/* Individual agent tab button (pinned - 90px with title + status dot) */
 .agent-tab {
-    position: relative; /* Required for absolute positioning of activity dots */
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: flex-start;
+    gap: 4px;
     width: 90px;
     min-width: 90px;
     max-width: 90px;
@@ -458,10 +476,37 @@ button.graph-button:disabled > svg > path {
     border: 1px solid #404040;
     border-radius: 4px;
     cursor: grab;
-    overflow: visible; /* Allow activity dots to show below tab */
+    overflow: hidden;
     flex-shrink: 0;
     transition: background-color 0.15s ease, border-color 0.15s ease;
     color: #e5e7eb;
+}
+
+/* Unpinned agent tab (24px square with status dot only) */
+.agent-tab-unpinned {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    min-width: 24px;
+    max-width: 24px;
+    height: 24px;
+    padding: 0;
+    background: #262626;
+    border: 1px solid #404040;
+    border-radius: 4px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.agent-tab-unpinned:hover {
+    background: #333;
+    border-color: #555;
+}
+
+.agent-tab-unpinned.agent-tab-active {
+    box-shadow: 0 0 0 2px #7c3aed;
 }
 
 .agent-tab:hover {
@@ -513,16 +558,33 @@ button.graph-button:disabled > svg > path {
 
 /* Agent tabs stay dark in all themes (like terminals) - no light mode overrides */
 
-/* Activity dot indicator for agent tabs (shown when terminal produces a node) */
-.agent-tab-activity-dot {
-    position: absolute;
-    bottom: -11px; /* Position clearly below the tab with 2px gap */
-    left: 4px;
+/* Status dot - running state (transparent with dotted border, animated) */
+.agent-tab-status-running {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: #3b82f6;
-    pointer-events: none;
+    border: 1.5px dotted #a1a1aa;
+    background: transparent;
+    flex-shrink: 0;
+    animation: status-running-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes status-running-pulse {
+    0%, 100% {
+        opacity: 0.6;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+/* Status dot - done state (green filled circle) */
+.agent-tab-status-done {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    flex-shrink: 0;
 }
 
 /* Drag-and-drop states for agent tab reordering */
@@ -542,27 +604,6 @@ button.graph-button:disabled > svg > path {
     background: rgba(124, 58, 237, 0.1);
     flex-shrink: 0;
     box-sizing: border-box;
-}
-
-/* Inactive terminal indicator - green outline with subtle pulse animation */
-.agent-tab-inactive {
-    border: 2px solid #22c55e;
-    box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
-    animation: inactive-pulse 2s ease-in-out infinite;
-}
-
-.agent-tab-inactive:hover {
-    box-shadow: 0 0 10px rgba(34, 197, 94, 0.6);
-    animation: none;
-}
-
-@keyframes inactive-pulse {
-    0%, 100% {
-        box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
-    }
-    50% {
-        box-shadow: 0 0 12px rgba(34, 197, 94, 0.7);
-    }
 }
 
 /* Agent tab wrapper - positions tab and hint together (mirrors recent-tab-wrapper) */
