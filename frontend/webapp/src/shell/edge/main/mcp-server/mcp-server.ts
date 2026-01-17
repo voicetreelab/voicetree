@@ -71,7 +71,7 @@ export function createMcpServer(): McpServer {
         },
         async ({nodeId, content, parentNodeId}) => {
             // Get default write path (where new nodes are created)
-            const vaultPathOpt: O.Option<string> = getDefaultWritePath()
+            const vaultPathOpt: O.Option<string> = await getDefaultWritePath()
             if (O.isNone(vaultPathOpt)) {
                 return {
                     content: [{

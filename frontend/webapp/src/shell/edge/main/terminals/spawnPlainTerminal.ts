@@ -43,7 +43,7 @@ export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCoun
     : nodeId;
 
   // Get all vault paths for ALL_MARKDOWN_READ_PATHS
-  const allVaultPaths: readonly string[] = getVaultPaths();
+  const allVaultPaths: readonly string[] = await getVaultPaths();
   const allMarkdownReadPaths: string = allVaultPaths.join('\n');
 
   const unexpandedEnvVars: Record<string, string> = {
