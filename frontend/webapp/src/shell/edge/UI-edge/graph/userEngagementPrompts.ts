@@ -1,7 +1,9 @@
 import posthog from "posthog-js";
 import type {VTSettings} from "@/pure/settings/types";
+// Import ElectronAPI type for window.electronAPI access
+import type {} from "@/shell/electron";
 
-const FEEDBACK_DELTA_THRESHOLD: number = 40;
+const FEEDBACK_DELTA_THRESHOLD: number = 80;
 const EMAIL_DELTA_THRESHOLD: number = 20;
 
 // Session-level state for tracking total nodes created
@@ -14,8 +16,9 @@ let cachedUserEmail: string | null = null;
 /**
  * Creates and shows an HTML dialog for collecting user feedback.
  * Returns a promise that resolves with the feedback text or null if cancelled.
+ * Exported so it can be called from the speed dial menu.
  */
-function showFeedbackDialog(): Promise<string | null> {
+export function showFeedbackDialog(): Promise<string | null> {
     return new Promise((resolve) => {
         const dialog: HTMLDialogElement = document.createElement('dialog');
         dialog.id = 'feedback-dialog';
@@ -275,24 +278,33 @@ async function maybeShowEmailPrompt(): Promise<void> {
 /**
  * Show feedback request dialog after user creates enough nodes in a session.
  * Collects user feedback and automatically sends it to PostHog.
- * Only shows once per session.
+ * Only shows once ever (persisted across sessions).
  */
-function maybeShowFeedbackAlert(): void {
+async function maybeShowFeedbackAlert(): Promise<void> {
     if (feedbackAlertShown) return;
 
     sessionDeltaCount++;
 
     if (sessionDeltaCount >= FEEDBACK_DELTA_THRESHOLD) {
         feedbackAlertShown = true;
-        void showFeedbackDialog().then((feedback: string | null) => {
-            if (feedback) {
-                posthog.capture('userFeedback', {
-                    feedback,
-                    source: 'in-app-dialog',
-                    sessionDeltaCount
-                });
-            }
-        });
+
+        // Check if feedback dialog has already been shown in a previous session
+        if (!window.electronAPI?.main?.loadSettings) return;
+        const settings: VTSettings = await window.electronAPI.main.loadSettings() as VTSettings;
+        if (settings.feedbackDialogShown) return;
+
+        // Mark as shown in settings before showing dialog
+        const updatedSettings: VTSettings = { ...settings, feedbackDialogShown: true };
+        await window.electronAPI.main.saveSettings(updatedSettings);
+
+        const feedback: string | null = await showFeedbackDialog();
+        if (feedback) {
+            posthog.capture('userFeedback', {
+                feedback,
+                source: 'in-app-dialog',
+                sessionDeltaCount
+            });
+        }
     }
 }
 
@@ -301,6 +313,6 @@ function maybeShowFeedbackAlert(): void {
  * Call this after new nodes are created in the graph.
  */
 export function checkEngagementPrompts(): void {
-    maybeShowFeedbackAlert();
+    void maybeShowFeedbackAlert();
     void maybeShowEmailPrompt();
 }

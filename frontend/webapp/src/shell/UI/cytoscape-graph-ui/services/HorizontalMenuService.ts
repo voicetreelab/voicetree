@@ -6,6 +6,7 @@ import {
     spawnTerminalWithCommandEditor,
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
 import {getEditorByNodeId} from "@/shell/edge/UI-edge/state/EditorStore";
+import {getImageViewerByNodeId} from "@/shell/edge/UI-edge/state/ImageViewerStore";
 import * as O from 'fp-ts/lib/Option.js';
 import {getFilePathForNode, getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
 import {Plus, Play, Trash2, Clipboard, ChevronDown, Edit2, createElement, type IconNode} from 'lucide';
@@ -15,6 +16,7 @@ import type {AgentConfig} from "@/pure/settings";
 import {highlightContainedNodes, highlightPreviewNodes, clearContainedHighlights} from '@/shell/UI/cytoscape-graph-ui/highlightContextNodes';
 import {createTrafficLights, createTrafficLightsForTarget} from "@/shell/edge/UI-edge/floating-windows/traffic-lights";
 import type {EditorData} from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
+import type {ImageViewerData} from "@/shell/edge/UI-edge/floating-windows/image-viewers/imageViewerDataType";
 
 /** Menu item interface for the custom horizontal menu */
 export interface HorizontalMenuItem {
@@ -396,10 +398,14 @@ export class HorizontalMenuService {
                 return;
             }
 
-            // Skip hover menu if node has any editor open (anchored or hover)
-            // Both editor types now have traffic lights in their window chrome
+            // Skip hover menu if node has any editor or image viewer open (anchored or hover)
+            // Both types now have traffic lights in their window chrome
             const existingEditor: O.Option<EditorData> = getEditorByNodeId(nodeId);
             if (O.isSome(existingEditor)) {
+                return;
+            }
+            const existingImageViewer: O.Option<ImageViewerData> = getImageViewerByNodeId(nodeId);
+            if (O.isSome(existingImageViewer)) {
                 return;
             }
 

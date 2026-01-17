@@ -72,14 +72,20 @@ export async function spawnTerminalWithContextNode(
         throw new Error(`Node ${parentNodeId} not found in graph`);
     }
 
-    // Create or reuse context node
+    // Create or reuse context node, and determine task node for anchoring
     let contextNodeId: NodeIdAndFilePath;
+    let taskNodeId: NodeIdAndFilePath;
     if (parentNode.nodeUIMetadata.isContextNode) {
         // Reuse existing context node
         contextNodeId = parentNodeId;
+        // Task node is the parent of the context node
+        const taskNode: GraphNode | undefined = findFirstParentNode(parentNode, graph);
+        taskNodeId = taskNode?.absoluteFilePathIsID ?? parentNodeId;
     } else {
         // Create context node for the parent
         contextNodeId = await createContextNode(parentNodeId);
+        // The clicked node IS the task node
+        taskNodeId = parentNodeId;
     }
 
     // Prepare terminal data (main has immediate access to all state)
@@ -89,6 +95,7 @@ export async function spawnTerminalWithContextNode(
 
     const terminalData: TerminalData = await prepareTerminalDataInMain(
         contextNodeId,
+        taskNodeId,
         resolvedTerminalCount,
         command,
         settings,
@@ -114,9 +121,13 @@ export async function spawnTerminalWithContextNode(
  *
  * Equivalent to the UI-side prepareTerminalData function, but using
  * main process state access (graph-store, settings, watchFolder).
+ *
+ * @param contextNodeId - The context node containing agent context (attachedToNodeId)
+ * @param taskNodeId - The task node to anchor the terminal shadow to (anchoredToNodeId)
  */
 async function prepareTerminalDataInMain(
     contextNodeId: NodeIdAndFilePath,
+    taskNodeId: NodeIdAndFilePath,
     terminalCount: number,
     command: string,
     settings: VTSettings,
@@ -193,11 +204,13 @@ async function prepareTerminalDataInMain(
     const expandedEnvVars: Record<string, string> = expandEnvVarsInValues(unexpandedEnvVars);
 
     // Create TerminalData using the factory function (flat type, no nested floatingWindow)
+    // anchoredToNodeId = taskNodeId (shadow node connects to task node)
+    // attachedToNodeId = contextNodeId (for metadata, env vars, and shadow→context edge)
     const terminalData: TerminalData = createTerminalData({
         attachedToNodeId: contextNodeId,
         terminalCount: terminalCount,
         title: title,
-        anchoredToNodeId: contextNodeId,
+        anchoredToNodeId: taskNodeId,
         initialCommand: command,
         executeCommand: true,
         initialSpawnDirectory: initialSpawnDirectory,

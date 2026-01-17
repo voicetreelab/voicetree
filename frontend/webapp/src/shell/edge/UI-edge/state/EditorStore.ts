@@ -55,9 +55,9 @@ export function getEditorByNodeId(nodeId: NodeIdAndFilePath): Option<EditorData>
 }
 
 export function removeEditor(editorId: EditorId): void {
-    const editor = editors.get(editorId);
+    const editor: EditorData | undefined = editors.get(editorId);
     if (editor) {
-        pinnedEditors.delete(editor.contentLinkedToNodeId);
+        removeFromPinnedEditors(editor.contentLinkedToNodeId);
     }
     editors.delete(editorId);
 }

@@ -8,7 +8,7 @@
 import type { Core } from 'cytoscape';
 import * as O from 'fp-ts/lib/Option.js';
 import { X, Pin, Maximize, createElement } from 'lucide';
-import type { NodeIdAndFilePath } from '@/pure/graph';
+import { isImageNode, type NodeIdAndFilePath } from '@/pure/graph';
 import type { ShadowNodeId, TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import { isAnchored, getShadowNodeIdFromData, getTerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import { getEditorByNodeId, isPinned, addToPinnedEditors, removeFromPinnedEditors } from '@/shell/edge/UI-edge/state/EditorStore';
@@ -18,6 +18,9 @@ import { pinTerminal, unpinTerminal } from '@/shell/UI/views/AgentTabsBar';
 import type { EditorData } from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
 import type { TerminalData } from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import { closeHoverEditor, createAnchoredFloatingEditor } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
+import { getImageViewerByNodeId } from "@/shell/edge/UI-edge/state/ImageViewerStore";
+import { closeHoverImageViewer, createAnchoredFloatingImageViewer } from "@/shell/edge/UI-edge/floating-windows/image-viewers/FloatingImageViewerCRUD";
+import type { ImageViewerData } from "@/shell/edge/UI-edge/floating-windows/image-viewers/imageViewerDataType";
 
 /** Options for creating traffic light buttons */
 export interface TrafficLightOptions {
@@ -130,6 +133,23 @@ export function createTrafficLightsForTarget(target: TrafficLightTarget): HTMLDi
                 closeMenu();
             },
             onPin: (): boolean => {
+                // Handle image nodes - check for hover image viewer
+                if (isImageNode(nodeId)) {
+                    const imageViewer: O.Option<ImageViewerData> = getImageViewerByNodeId(nodeId);
+                    if (O.isSome(imageViewer) && !isAnchored(imageViewer.value)) {
+                        // Close hover image viewer and create anchored image viewer
+                        closeHoverImageViewer(cy);
+                        closeMenu();
+                        void createAnchoredFloatingImageViewer(cy, nodeId);
+                        return true;
+                    }
+                    // No hover image viewer open, just close menu and create anchored viewer
+                    closeMenu();
+                    void createAnchoredFloatingImageViewer(cy, nodeId);
+                    return true;
+                }
+
+                // Handle markdown nodes - existing editor logic
                 const editor: O.Option<EditorData> = getEditorByNodeId(nodeId);
                 if (O.isSome(editor) && !isAnchored(editor.value)) {
                     // Close hover editor and create anchored editor

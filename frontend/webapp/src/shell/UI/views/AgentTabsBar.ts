@@ -385,8 +385,9 @@ function createPinnedTab(
     const terminalId: TerminalId = getTerminalId(terminal);
     const displayTitle: string = truncateTabTitle(terminal.title);
 
-    // Track mousedown position for drag threshold check
+    // Track mousedown position and drag state for click vs drag detection
     let mouseDownPos: { x: number; y: number } | null = null;
+    let isDragActive: boolean = false;
 
     // Create wrapper container for tab + hint
     const wrapper: HTMLDivElement = document.createElement('div');
@@ -421,10 +422,8 @@ function createPinnedTab(
         tab.appendChild(dot);
     }
 
-    // Click handler
-    tab.addEventListener('click', () => {
-        onSelect(terminal);
-    });
+    // Selection is handled in mouseup to avoid HTML5 drag API click suppression
+    // No click handler needed - mouseup handles it reliably
 
     // Double-click handler - unpin the tab
     tab.addEventListener('dblclick', (e: MouseEvent) => {
@@ -435,27 +434,44 @@ function createPinnedTab(
     // Drag-and-drop for reordering
     tab.draggable = true;
 
-    // Record mousedown position for drag threshold calculation
+    // Record mousedown position and reset drag state
     tab.addEventListener('mousedown', (e: MouseEvent) => {
         e.stopPropagation();
         mouseDownPos = { x: e.clientX, y: e.clientY };
+        isDragActive = false;
+    });
+
+    // Handle selection on mouseup - this fires reliably regardless of drag state
+    tab.addEventListener('mouseup', (e: MouseEvent) => {
+        if (mouseDownPos !== null && !isDragActive) {
+            const dx: number = e.clientX - mouseDownPos.x;
+            const dy: number = e.clientY - mouseDownPos.y;
+            const distance: number = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < DRAG_THRESHOLD_PX) {
+                // This was a click, not a drag - select the tab
+                onSelect(terminal);
+            }
+        }
+        mouseDownPos = null;
     });
 
     tab.addEventListener('dragstart', (e: DragEvent) => {
-        // Check if mouse moved enough to trigger drag (prevents accidental drags on click)
+        // Check if mouse moved enough to trigger drag
         if (mouseDownPos !== null) {
             const dx: number = e.clientX - mouseDownPos.x;
             const dy: number = e.clientY - mouseDownPos.y;
             const distance: number = Math.sqrt(dx * dx + dy * dy);
 
             if (distance < DRAG_THRESHOLD_PX) {
-                // Not moved enough - cancel drag to allow click event to fire
+                // Not moved enough - cancel drag, mouseup will handle as click
                 e.preventDefault();
-                mouseDownPos = null;
                 return;
             }
         }
 
+        // Threshold exceeded - this is a real drag
+        isDragActive = true;
         e.stopPropagation();
         tab.classList.add('agent-tab-dragging');
         e.dataTransfer?.setData('text/plain', String(index));
@@ -469,6 +485,7 @@ function createPinnedTab(
     tab.addEventListener('dragend', (e: DragEvent) => {
         e.stopPropagation();
         tab.classList.remove('agent-tab-dragging');
+        isDragActive = false;
         cleanupDragState(dragState);
         triggerDeferredRenderIfNeeded();
     });

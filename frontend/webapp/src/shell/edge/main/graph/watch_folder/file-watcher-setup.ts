@@ -13,6 +13,7 @@ import type { Stats } from "fs";
 import chokidar from "chokidar";
 import type { FSWatcher } from "chokidar";
 import type { FilePath, FSUpdate, FSDelete } from "@/pure/graph";
+import { isImageNode } from "@/pure/graph";
 import { handleFSEventWithStateAndUISides } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/handleFSEventWithStateAndUISides";
 import { getMainWindow } from "@/shell/edge/main/state/app-electron-state";
 import { getWatcher, setWatcher } from "@/shell/edge/main/state/watch-folder-store";
@@ -53,7 +54,7 @@ export async function setupWatcher(vaultPaths: readonly FilePath[], watchedDir: 
     // Create new watcher - chokidar supports array of paths natively
     const newWatcher: FSWatcher = chokidar.watch([...vaultPaths], {
         ignored: [
-            // Only watch .md files (directories must pass through for traversal)
+            // Only watch .md and image files (directories must pass through for traversal)
             (filePath: string, stats?: Stats) => {
                 // If stats available, use it to detect directories
                 if (stats?.isDirectory()) {
@@ -63,7 +64,8 @@ export async function setupWatcher(vaultPaths: readonly FilePath[], watchedDir: 
                 if (!stats && !path.extname(filePath)) {
                     return false;
                 }
-                return !filePath.endsWith('.md');
+                // Allow markdown and image files
+                return !filePath.endsWith('.md') && !isImageNode(filePath);
             },
         ],
         persistent: true,
@@ -91,7 +93,12 @@ export function setupWatcherListeners(watchedDir: FilePath): void {
 
     // File added
     currentWatcher.on('add', (filePath: string) => {
-        void readFileWithRetry(filePath)
+        // Image files have empty content (don't read binary as UTF-8)
+        const contentPromise: Promise<string> = isImageNode(filePath)
+            ? Promise.resolve('')
+            : readFileWithRetry(filePath);
+
+        void contentPromise
             .then(content => {
                 const fsUpdate: FSUpdate = {
                     absolutePath: filePath,
@@ -110,6 +117,11 @@ export function setupWatcherListeners(watchedDir: FilePath): void {
 
     // File changed
     currentWatcher.on('change', (filePath: string) => {
+        // Skip image file changes - their content is always empty in the graph
+        if (isImageNode(filePath)) {
+            return;
+        }
+
         void readFileWithRetry(filePath)
             .then(content => {
                 const fsUpdate: FSUpdate = {

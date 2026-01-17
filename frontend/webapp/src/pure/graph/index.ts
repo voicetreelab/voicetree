@@ -235,3 +235,6 @@ export { removeContextNodes } from './graph-operations/removeContextNodes'
 
 // === GRAPH CREATION UTILITIES ===
 export { createGraph, createEmptyGraph } from './createGraph'
+
+// === NODE TYPE DETECTION ===
+export { isImageNode, IMAGE_EXTENSIONS } from './isImageNode'

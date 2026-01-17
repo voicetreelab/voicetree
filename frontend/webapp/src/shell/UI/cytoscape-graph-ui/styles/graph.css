@@ -420,6 +420,7 @@ button.graph-button:disabled > svg > path {
     display: flex;
     flex-direction: row;
     flex-wrap: wrap; /* Wrap to new row after 5 tabs */
+    justify-content: flex-end; /* Right-align tabs in each row when wrapping */
     gap: 4px;
     max-width: 470px; /* 5 tabs × 90px + 4 gaps × 4px + padding */
     overflow-y: visible;

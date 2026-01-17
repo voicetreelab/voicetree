@@ -20,6 +20,17 @@ export function recordTerminalSpawn(terminalId: string, terminalData: TerminalDa
     })
 }
 
+export function updateTerminalIsDone(terminalId: string, isDone: boolean): void {
+    const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
+    if (!record) {
+        return
+    }
+    terminalRecords.set(terminalId, {
+        ...record,
+        terminalData: {...record.terminalData, isDone}
+    })
+}
+
 export function markTerminalExited(terminalId: string): void {
     const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
     if (!record) {

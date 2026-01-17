@@ -12,14 +12,18 @@ import {
     type FloatingWindowData,
     getEditorId,
     getFloatingWindowId,
+    getImageViewerId,
     getShadowNodeId,
     getTerminalId,
     isEditorData,
+    isImageViewerData,
+    type ImageViewerId,
     type ShadowNodeId,
     type TerminalId,
 } from '@/shell/edge/UI-edge/floating-windows/types';
 import {removeTerminal} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {removeEditor} from "@/shell/edge/UI-edge/state/EditorStore";
+import {removeImageViewer} from "@/shell/edge/UI-edge/state/ImageViewerStore";
 import {updateWindowFromZoom} from "@/shell/edge/UI-edge/floating-windows/update-window-from-zoom";
 import {suppressInactivityDuringZoom} from "@/shell/UI/views/AgentTabsBar";
 
@@ -224,7 +228,7 @@ export function disposeFloatingWindow(
     cy: cytoscape.Core,
     fw: FloatingWindowData
 ): void {
-    const fwId: EditorId | TerminalId = getFloatingWindowId(fw);
+    const fwId: EditorId | TerminalId | ImageViewerId = getFloatingWindowId(fw);
     const shadowNodeId: ShadowNodeId = getShadowNodeId(fwId);
 
     console.log('[disposeFloatingWindow-v2] Disposing:', fwId);
@@ -266,9 +270,11 @@ export function disposeFloatingWindow(
         fw.ui.windowElement.remove();
     }
 
-    // Remove from state
+    // Remove from state based on type
     if (isEditorData(fw)) {
         removeEditor(getEditorId(fw));
+    } else if (isImageViewerData(fw)) {
+        removeImageViewer(getImageViewerId(fw));
     } else {
         removeTerminal(getTerminalId(fw));
     }

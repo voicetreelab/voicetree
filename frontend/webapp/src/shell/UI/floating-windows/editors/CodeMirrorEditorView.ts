@@ -1,4 +1,5 @@
 import '@/shell/UI/cytoscape-graph-ui/styles/floating-windows.css'; // VERY IMPORTANT
+import type {} from "@/shell/electron"; // Import ElectronAPI type for window.electronAPI access
 import { vim } from '@replit/codemirror-vim';
 import { EditorState, type Extension } from '@codemirror/state';
 import type { Text, Line } from '@codemirror/state';
@@ -66,6 +67,8 @@ export interface CodeMirrorEditorOptions {
   language?: 'markdown' | 'json';
   /** Enable VIM keybindings */
   vimMode?: boolean;
+  /** Node ID (file path) for image paste - required for saving pasted images as siblings */
+  nodeId?: string;
 }
 
 /**
@@ -217,7 +220,8 @@ export class CodeMirrorEditorView extends Disposable {
       frontmatterFoldService, // Custom fold service for frontmatter
       foldGutter(), // Add fold gutter for collapsing sections
       EditorView.lineWrapping, // Enable text wrapping
-      this.setupUpdateListener()
+      this.setupUpdateListener(),
+      this.setupImagePasteHandler() // Handle pasting images from clipboard
     ];
 
     // Add dark mode theme if active
@@ -307,6 +311,67 @@ export class CodeMirrorEditorView extends Disposable {
           this.changeEmitter.emit(this.view.state.doc.toString());
           this.debounceTimeout = null;
         }, delay);
+      }
+    });
+  }
+
+  /**
+   * Setup paste handler for images from clipboard.
+   * When an image is pasted:
+   * 1. Calls saveClipboardImage IPC to save image as sibling file
+   * 2. Inserts markdown image reference ![[filename.png]] at cursor
+   */
+  private setupImagePasteHandler(): Extension {
+    return EditorView.domEventHandlers({
+      paste: (event: ClipboardEvent, view: EditorView): boolean => {
+        // Only handle if we have a nodeId configured
+        if (!this.options.nodeId) {
+          return false; // Let default paste handling continue
+        }
+
+        // Check if clipboard contains an image
+        const clipboardData: DataTransfer | null = event.clipboardData;
+        if (!clipboardData) {
+          return false;
+        }
+
+        // Check for image data in clipboard items
+        const hasImage: boolean = Array.from(clipboardData.items).some(
+          (item: DataTransferItem) => item.type.startsWith('image/')
+        );
+
+        if (!hasImage) {
+          return false; // No image, let default paste handling continue
+        }
+
+        // Prevent default paste behavior for images
+        event.preventDefault();
+
+        // Call saveClipboardImage IPC to save the image
+        const nodeId: string = this.options.nodeId;
+        void (async (): Promise<void> => {
+          try {
+            const filename: string | null = await window.electronAPI?.main.saveClipboardImage(nodeId) ?? null;
+
+            if (filename) {
+              // Insert markdown image reference at cursor position
+              const imageRef: string = `![[${filename}]]`;
+              const cursor: number = view.state.selection.main.head;
+              view.dispatch({
+                changes: { from: cursor, insert: imageRef },
+                selection: { anchor: cursor + imageRef.length },
+                userEvent: 'input.paste'
+              });
+              console.log('[CodeMirrorEditorView] Pasted image:', filename);
+            } else {
+              console.log('[CodeMirrorEditorView] No image in clipboard');
+            }
+          } catch (error) {
+            console.error('[CodeMirrorEditorView] Error saving pasted image:', error);
+          }
+        })();
+
+        return true; // We handled the paste event
       }
     });
   }

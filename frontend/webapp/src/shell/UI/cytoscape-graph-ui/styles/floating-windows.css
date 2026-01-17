@@ -353,8 +353,8 @@
   position: absolute;
   bottom: 0;
   right: 0;
-  width: 12px;
-  height: 12px;
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -374,8 +374,8 @@
 }
 
 .cy-floating-window-expand-corner svg {
-  width: 8px;
-  height: 8px;
+  width: 16px;
+  height: 16px;
   stroke: currentColor;
   stroke-width: 2;
 }
@@ -397,6 +397,17 @@
   justify-content: center;
   margin-left: 4px;
   transition: opacity 0.15s ease, transform 0.1s ease;
+  flex-shrink: 0; /* Prevent squashing when inside flex containers */
+}
+
+/* First traffic light in a pill needs extra left margin to separate from menu items */
+.horizontal-menu-pill .traffic-light:first-of-type {
+  margin-left: 8px;
+}
+
+/* Compensate for 20% larger traffic light buttons (14px → 17px) overflowing pill container */
+.horizontal-menu-pill .traffic-lights {
+  margin-right: -4px;
 }
 
 .traffic-light:hover {

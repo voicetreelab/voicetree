@@ -3,7 +3,9 @@ import type { Core } from 'cytoscape';
 import * as O from 'fp-ts/lib/Option.js';
 
 import type {GraphDelta, NodeIdAndFilePath} from '@/pure/graph';
+import { isImageNode } from '@/pure/graph';
 import type {Position} from '@/shell/UI/views/IVoiceTreeGraphView';
+import { openHoverImageViewer } from '@/shell/edge/UI-edge/floating-windows/image-viewers/FloatingImageViewerCRUD';
 
 import {
     createEditorData,
@@ -117,6 +119,7 @@ export async function createFloatingEditor(
             autosaveDelay: 300,
             darkMode: document.documentElement.classList.contains('dark'),
             vimMode: settings.vimMode ?? false,
+            nodeId: nodeId, // Pass nodeId for image paste support
         }
     );
 
@@ -308,7 +311,7 @@ async function openHoverEditor(
 // =============================================================================
 
 /**
- * Setup hover mode (hover to show editor)
+ * Setup hover mode (hover to show editor or image viewer)
  */
 export function setupCommandHover(cy: Core): void {
     // Listen for node hover
@@ -319,15 +322,24 @@ export function setupCommandHover(cy: Core): void {
             const node: cytoscape.NodeSingular = event.target;
             const nodeId: string = node.id();
 
-            // Only open hover editor for markdown nodes (nodes with file extensions)
+            // Only open hover for nodes with file extensions
             // Terminal nodes, shadow nodes, etc. don't have file extensions
             const hasFileExtension: boolean = /\.\w+$/.test(nodeId);
             if (!hasFileExtension) {
-                console.log('[HoverEditor-v2] Skipping non-markdown node:', nodeId);
+                console.log('[HoverEditor-v2] Skipping non-file node:', nodeId);
                 return;
             }
 
-            // Open hover editor
+            // Check if this is an image node - open image viewer instead of editor
+            if (isImageNode(nodeId)) {
+                console.log('[HoverEditor-v2] Opening image viewer for:', nodeId);
+                // Close any open hover editor first
+                closeHoverEditor(cy);
+                await openHoverImageViewer(cy, nodeId, node.position());
+                return;
+            }
+
+            // Open hover editor for markdown files
             await openHoverEditor(cy, nodeId, node.position());
         })();
     });

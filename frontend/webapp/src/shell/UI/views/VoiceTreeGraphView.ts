@@ -30,8 +30,11 @@ import cytoscape, {type Core} from 'cytoscape';
 import navigator from 'cytoscape-navigator';
 // @ts-expect-error - cytoscape-layout-utilities doesn't have proper TypeScript definitions
 import layoutUtilities from 'cytoscape-layout-utilities';
+// @ts-expect-error CSS import - types declared in vite-env.d.ts (not visible to minimal TS program)
 import 'cytoscape-navigator/cytoscape.js-navigator.css'; // Import navigator CSS
+// @ts-expect-error CSS import - types declared in vite-env.d.ts (not visible to minimal TS program)
 import '@/shell/UI/views/styles/navigator.css'; // Custom navigator styling
+// @ts-expect-error CSS import - types declared in vite-env.d.ts (not visible to minimal TS program)
 import '@/shell/UI/cytoscape-graph-ui/styles/graph.css'; // Custom navigator styling
 import '@/shell/UI/cytoscape-graph-ui'; // Import to trigger extension registration
 
@@ -52,7 +55,7 @@ import {SearchService} from './SearchService';
 // V2 recent node tabs - tracks recently added/modified nodes (not visited)
 import {
     createRecentNodeTabsBar,
-    renderRecentNodeTabsV2
+    renderRecentNodeTabsV2 as _renderRecentNodeTabsV2
 } from './RecentNodeTabsBar';
 // Agent tabs - shows open terminals in top-right
 import {
@@ -60,23 +63,25 @@ import {
     disposeAgentTabsBar
 } from './AgentTabsBar';
 import {getRecentNodeHistory} from '@/shell/edge/UI-edge/state/RecentNodeHistoryStore';
+import type {RecentNodeHistory} from '@/pure/graph/recentNodeHistoryV2';
 import {disposeGraphViewOverlays} from '@/shell/edge/UI-edge/state/GraphViewUIStore';
 import {createNewNodeAction, runTerminalAction, deleteSelectedNodesAction} from '@/shell/UI/cytoscape-graph-ui/actions/graphActions';
 import {getResponsivePadding} from '@/utils/responsivePadding';
 import {SpeedDialSideGraphFloatingMenuView} from './SpeedDialSideGraphFloatingMenuView';
 import type {Graph} from '@/pure/graph';
 import {createEmptyGraph} from '@/pure/graph/createGraph';
-import {setupBasicCytoscapeEventListeners, setupCytoscape, initializeCytoscapeInstance, setupGraphViewDOM, initializeNavigatorMinimap} from './VoiceTreeGraphViewHelpers';
+import {setupBasicCytoscapeEventListeners, setupCytoscape, initializeCytoscapeInstance, setupGraphViewDOM, initializeNavigatorMinimap, type GraphViewDOMElements, type NavigatorMinimapResult} from './VoiceTreeGraphViewHelpers';
 import {setupViewSubscriptions, cleanupViewSubscriptions, type ViewSubscriptionCleanups} from '@/shell/edge/UI-edge/graph/setupViewSubscriptions';
 import {subscribeToGraphUpdates} from '@/shell/edge/UI-edge/graph/subscribeToGraphUpdates';
 import {createSettingsEditor, closeSettingsEditor, isSettingsEditorOpen} from "@/shell/edge/UI-edge/settings/createSettingsEditor";
-import type {TerminalData} from '@/shell/electron';
+import type {TerminalData, ElectronAPI} from '@/shell/electron';
 
 import {
     spawnBackupTerminal
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnBackupTerminal";
 import {GraphNavigationService} from "@/shell/edge/UI-edge/graph/navigation/GraphNavigationService";
 import {NavigationGestureService} from "@/shell/edge/UI-edge/graph/navigation/NavigationGestureService";
+import {showFeedbackDialog} from "@/shell/edge/UI-edge/graph/userEngagementPrompts";
 import {getEditorByNodeId} from '@/shell/edge/UI-edge/state/EditorStore';
 import {getTerminalByNodeId} from '@/shell/edge/UI-edge/state/TerminalStore';
 import {closeTerminal} from '@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI';
@@ -119,12 +124,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // View subscriptions cleanup (terminals, navigation, pinned editors)
     private viewSubscriptionCleanups: ViewSubscriptionCleanups | null = null;
 
-    // DOM elements
-    private statsOverlay: HTMLElement | null = null;
-    private loadingOverlay: HTMLElement | null = null;
-    private loadingMessageElement: HTMLElement | null = null;
-    private errorOverlay: HTMLElement | null = null;
-    private emptyStateOverlay: HTMLElement | null = null;
+    // DOM element reference (speedDialMenu needs lifecycle management for cleanup)
     private speedDialMenu: SpeedDialSideGraphFloatingMenuView | null = null;
 
     // Event emitters
@@ -252,7 +252,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // Setup DOM structure using extracted function
         // Note: speedDialCallbacks reference this.cy which isn't initialized yet,
         // so we pass callbacks that will access cy at call time
-        const domElements = setupGraphViewDOM({
+        const domElements: GraphViewDOMElements = setupGraphViewDOM({
             container: this.container,
             isDarkMode: this._isDarkMode,
             speedDialCallbacks: {
@@ -260,16 +260,12 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
                 onBackup: () => { void spawnBackupTerminal(this.cy); },
                 onSettings: () => void createSettingsEditor(this.cy),
                 onAbout: () => window.open('https://voicetree.io', '_blank'),
-                onStats: () => window.dispatchEvent(new Event('toggle-stats-panel'))
+                onStats: () => window.dispatchEvent(new Event('toggle-stats-panel')),
+                onFeedback: () => void showFeedbackDialog()
             }
         });
 
-        // Store DOM element references for lifecycle management
-        this.loadingOverlay = domElements.loadingOverlay;
-        this.loadingMessageElement = domElements.loadingMessageElement;
-        this.errorOverlay = domElements.errorOverlay;
-        this.emptyStateOverlay = domElements.emptyStateOverlay;
-        this.statsOverlay = domElements.statsOverlay;
+        // Store speedDialMenu reference for lifecycle management (other overlays are in DOM)
         this.speedDialMenu = domElements.speedDialMenu;
 
         // Initialize Cytoscape with the container directly
@@ -297,7 +293,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         this.animationService = new BreathingAnimationService(this.cy);
 
         // Initialize navigator minimap (bottom-right corner, performance-optimized)
-        const navigatorResult = initializeNavigatorMinimap(this.cy);
+        const navigatorResult: NavigatorMinimapResult = initializeNavigatorMinimap(this.cy);
         this.navigator = navigatorResult.navigator;
         this.updateNavigatorVisibility = navigatorResult.updateVisibility;
 
@@ -434,9 +430,9 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
      * Navigate to a recent node by index (0-4, for Cmd+1 through Cmd+5)
      */
     private navigateToRecentNodeByIndex(index: number): void {
-        const history = getRecentNodeHistory();
+        const history: RecentNodeHistory = getRecentNodeHistory();
         if (index >= 0 && index < history.length) {
-            const nodeId: string = history[index].nodeToUpsert.relativeFilePathIsID;
+            const nodeId: string = history[index].nodeToUpsert.absoluteFilePathIsID;
             this.navigationService.handleSearchSelect(nodeId);
         }
     }

@@ -40,26 +40,27 @@ export function deleteNodeMaintainingTransitiveEdges(
     const childrenOfRemovedNode: readonly Edge[] = nodeToRemove.outgoingEdges
 
     // Find all nodes that point to the removed node (incomers)
+    // Use incomingEdgesIndex for O(k) lookup instead of O(n) full graph scan
+    const incomerIds: readonly NodeIdAndFilePath[] = graph.incomingEdgesIndex.get(nodeIdToRemove) ?? []
     const incomers: readonly { readonly nodeId: NodeIdAndFilePath; readonly edge: Edge }[] =
-        Object.entries(graph.nodes)
-            .filter(([nodeId]) => nodeId !== nodeIdToRemove)
-            .map(([nodeId, node]) => ({
-                nodeId,
-                edge: node.outgoingEdges.find(e => e.targetId === nodeIdToRemove)
-            }))
+        incomerIds
+            .filter(nodeId => graph.nodes[nodeId]) // Safety: ensure node exists
+            .map(nodeId => {
+                const node: GraphNode = graph.nodes[nodeId]
+                const edge: Edge | undefined = node.outgoingEdges.find(e => e.targetId === nodeIdToRemove)
+                return { nodeId, edge }
+            })
             .filter((entry): entry is { readonly nodeId: NodeIdAndFilePath; readonly edge: Edge } =>
                 entry.edge !== undefined
             )
 
     const incomerNodeIds: readonly NodeIdAndFilePath[] = incomers.map(i => i.nodeId)
 
-    // Build the delta: start with DeleteNode
-    const delta: NodeDelta[] = [
-        { type: 'DeleteNode', nodeId: nodeIdToRemove, deletedNode: O.some(nodeToRemove) }
-    ]
+    // Build the delta: DeleteNode followed by UpsertNode for each modified incomer
+    const deleteNodeDelta: NodeDelta = { type: 'DeleteNode', nodeId: nodeIdToRemove, deletedNode: O.some(nodeToRemove) }
 
-    // For each incomer, compute the modified node and add UpsertNode to delta
-    for (const incomer of incomers) {
+    // For each incomer, compute the modified node
+    const upsertDeltas: readonly NodeDelta[] = incomers.map(incomer => {
         const node: GraphNode = graph.nodes[incomer.nodeId]
         const edgeToRemovedNode: Edge = incomer.edge
 
@@ -83,12 +84,12 @@ export function deleteNodeMaintainingTransitiveEdges(
             nodeWithChildEdges
         )
 
-        delta.push({
-            type: 'UpsertNode',
+        return {
+            type: 'UpsertNode' as const,
             nodeToUpsert: modifiedNode,
             previousNode: O.some(node)
-        })
-    }
+        }
+    })
 
-    return delta
+    return [deleteNodeDelta, ...upsertDeltas]
 }
