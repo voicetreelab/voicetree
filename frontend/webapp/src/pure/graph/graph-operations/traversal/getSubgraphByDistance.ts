@@ -4,6 +4,7 @@
  */
 
 import type { Graph, NodeIdAndFilePath, GraphNode, Edge } from '@/pure/graph'
+import { createGraph, createEmptyGraph } from '@/pure/graph/createGraph'
 import { getIncomingNodes } from '@/pure/graph/graph-operations/getIncomingNodes'
 import { setOutgoingEdges } from '@/pure/graph/graph-operations/graph-edge-operations'
 import { removeContextNodes } from '@/pure/graph/graph-operations/removeContextNodes'
@@ -44,23 +45,23 @@ export function getSubgraphByDistance(
     // Try to find children of the original start node if it was a context node
     const originalNode: GraphNode | undefined = graph.nodes[startNodeId]
     if (!originalNode) {
-      return { nodes: {} }
+      return createEmptyGraph()
     }
     // If start was a context node, traverse from its non-context children
     if (originalNode.nodeUIMetadata.isContextNode) {
-      const childResults: Graph[] = originalNode.outgoingEdges
+      const childResults: readonly Graph[] = originalNode.outgoingEdges
         .filter(edge => cleanGraph.nodes[edge.targetId])
         .map(edge => getSubgraphByDistance(graph, edge.targetId, maxDistance))
       return mergeGraphs(childResults)
     }
-    return { nodes: {} }
+    return createEmptyGraph()
   }
 
   // Step 2: Simple DFS on the clean graph (no context node logic needed)
   const visited: ReadonlySet<NodeIdAndFilePath> = dfsTraversal(cleanGraph, startNodeId, maxDistance)
 
   // Step 3: Build result graph with filtered edges
-  const filteredNodes: { readonly [k: string]: GraphNode } = Object.fromEntries(
+  const filteredNodes: Record<NodeIdAndFilePath, GraphNode> = Object.fromEntries(
     Array.from(visited)
       .filter(id => cleanGraph.nodes[id])
       .map(id => {
@@ -72,8 +73,14 @@ export function getSubgraphByDistance(
       })
   )
 
-  return { nodes: filteredNodes }
+  return createGraph(filteredNodes)
 }
+
+type DfsVisitFn = (
+  nodeId: NodeIdAndFilePath,
+  distance: number,
+  visited: ReadonlySet<NodeIdAndFilePath>
+) => ReadonlySet<NodeIdAndFilePath>
 
 /**
  * Pure DFS traversal without context node handling.
@@ -85,7 +92,7 @@ function dfsTraversal(
 ): ReadonlySet<NodeIdAndFilePath> {
   const processed: Set<NodeIdAndFilePath> = new Set()
 
-  const dfsVisit = (
+  const dfsVisit: DfsVisitFn = (
     nodeId: NodeIdAndFilePath,
     distance: number,
     visited: ReadonlySet<NodeIdAndFilePath>
@@ -98,11 +105,11 @@ function dfsTraversal(
     const node: GraphNode = graph.nodes[nodeId]
     const newVisited: ReadonlySet<NodeIdAndFilePath> = new Set([...visited, nodeId])
 
-    // Explore outgoing edges (children) with cost 1.5
+    // Explore outgoing edges (children) with cost
     const afterChildren: ReadonlySet<NodeIdAndFilePath> = node.outgoingEdges
-      .filter(() => distance + 1.5 < maxDistance)
+      .filter(() => distance + 1.0 < maxDistance)
       .reduce<ReadonlySet<NodeIdAndFilePath>>(
-        (acc, edge) => dfsVisit(edge.targetId, distance + 1.5, acc),
+        (acc, edge) => dfsVisit(edge.targetId, distance + 1.0, acc),
         newVisited
       )
 
@@ -128,7 +135,7 @@ function mergeGraphs(graphs: readonly Graph[]): Graph {
   const allNodeIds: Set<NodeIdAndFilePath> = new Set()
   graphs.forEach(g => Object.keys(g.nodes).forEach(id => allNodeIds.add(id)))
 
-  const mergedNodes: { readonly [k: string]: GraphNode } = Object.fromEntries(
+  const mergedNodes: Record<NodeIdAndFilePath, GraphNode> = Object.fromEntries(
     Array.from(allNodeIds).map(id => {
       // Find the first graph that has this node
       const sourceGraph: Graph = graphs.find(g => g.nodes[id])!
@@ -140,7 +147,7 @@ function mergeGraphs(graphs: readonly Graph[]): Graph {
     })
   )
 
-  return { nodes: mergedNodes }
+  return createGraph(mergedNodes)
 }
 
 /**
@@ -157,7 +164,7 @@ export function getUnionSubgraphByDistance(
   startNodeIds: readonly NodeIdAndFilePath[],
   maxDistance: number
 ): Graph {
-  const subgraphs: Graph[] = startNodeIds
+  const subgraphs: readonly Graph[] = startNodeIds
     .filter(id => graph.nodes[id])
     .map(id => getSubgraphByDistance(graph, id, maxDistance))
 
