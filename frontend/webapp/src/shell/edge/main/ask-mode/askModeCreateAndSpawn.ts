@@ -18,14 +18,47 @@ import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
 import {createContextNodeFromQuestion} from '@/shell/edge/main/graph/context-nodes/createContextNodeFromQuestion';
 
+/**
+ * Resolve a node ID to match graph keys using fallback strategies.
+ * 1. Try path as-is
+ * 2. Try with vault suffix prepended
+ * 3. Try stripping first path component
+ */
+function resolveNodeId(id: string, graph: Graph, vaultSuffix: string): string {
+  // 1. First try path as-is
+  if (graph.nodes[id]) {
+    return id;
+  }
+
+  // 2. Try with vault suffix prepended
+  if (vaultSuffix) {
+    const withVaultSuffix: string = `${vaultSuffix}/${id}`;
+    if (graph.nodes[withVaultSuffix]) {
+      return withVaultSuffix;
+    }
+  }
+
+  // 3. Try stripping first path component
+  if (id.includes('/')) {
+    const withoutFirstSegment: string = id.substring(id.indexOf('/') + 1);
+    if (graph.nodes[withoutFirstSegment]) {
+      return withoutFirstSegment;
+    }
+  }
+
+  // Return original if no match found (will be filtered out)
+  return id;
+}
+
 export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], question: string): Promise<void> {
-  // Fix: Prepend vault suffix to node IDs from backend
-  // Backend returns paths relative to vault (e.g., 'voice/Node.md')
-  // Frontend graph keys include vault suffix (e.g., 'vt/voice/Node.md')
+  // Get graph early to resolve node IDs
+  const graph: Graph = getGraph();
   const vaultSuffix: string = getWatchStatus().vaultSuffix;
-  const adjustedNodeIds: readonly string[] = vaultSuffix
-    ? relevantNodeIds.map(id => `${vaultSuffix}/${id}`)
-    : relevantNodeIds;
+
+  // Resolve node IDs using fallback strategies, filter out any that don't exist
+  const adjustedNodeIds: readonly string[] = relevantNodeIds
+    .map(id => resolveNodeId(id, graph, vaultSuffix))
+    .filter(id => graph.nodes[id] !== undefined);
 
   // 1. Create context node from relevant nodes
   const contextNodeId: NodeIdAndFilePath = await createContextNodeFromQuestion(adjustedNodeIds, question);
@@ -43,7 +76,6 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
   }
 
   // 4. Prepare terminal data
-  const graph: Graph = getGraph();
   const contextNode: GraphNode = graph.nodes[contextNodeId];
   if (!contextNode) {
     throw new Error(`Context node ${contextNodeId} not found`);
