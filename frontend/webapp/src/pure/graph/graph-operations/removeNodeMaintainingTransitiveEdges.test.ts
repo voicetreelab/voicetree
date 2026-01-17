@@ -3,6 +3,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import type { Graph, GraphNode, NodeIdAndFilePath, GraphDelta } from '@/pure/graph'
 import { deleteNodeMaintainingTransitiveEdges } from './removeNodeMaintainingTransitiveEdges'
 import { applyGraphDeltaToGraph } from '@/pure/graph/graphDelta/applyGraphDeltaToGraph'
+import { createGraph } from '@/pure/graph/createGraph'
 
 function createNode(id: string, outgoingEdges: readonly { readonly targetId: string; readonly label: string }[] = []): GraphNode {
     return {
@@ -30,13 +31,11 @@ function deleteAndApply(graph: Graph, nodeIdToRemove: NodeIdAndFilePath): Graph 
 describe('deleteNodeMaintainingTransitiveEdges', () => {
     describe('delta structure', () => {
         it('should return a delta with DeleteNode first, followed by UpsertNodes for modified incomers', () => {
-            const graph: Graph = {
-                nodes: {
-                    'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'extends' }]),
-                    'b.md': createNode('b.md', [{ targetId: 'c.md', label: 'implements' }]),
-                    'c.md': createNode('c.md', [])
-                }
-            }
+            const graph: Graph = createGraph({
+                'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'extends' }]),
+                'b.md': createNode('b.md', [{ targetId: 'c.md', label: 'implements' }]),
+                'c.md': createNode('c.md', [])
+            })
 
             const delta: GraphDelta = deleteNodeMaintainingTransitiveEdges(graph, 'b.md')
 
@@ -53,12 +52,10 @@ describe('deleteNodeMaintainingTransitiveEdges', () => {
         })
 
         it('should return empty delta if node does not exist', () => {
-            const graph: Graph = {
-                nodes: {
-                    'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'test' }]),
-                    'b.md': createNode('b.md', [])
-                }
-            }
+            const graph: Graph = createGraph({
+                'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'test' }]),
+                'b.md': createNode('b.md', [])
+            })
 
             const delta: GraphDelta = deleteNodeMaintainingTransitiveEdges(graph, 'nonexistent.md')
 
@@ -68,13 +65,11 @@ describe('deleteNodeMaintainingTransitiveEdges', () => {
 
     describe('simple chain: a -> b -> c', () => {
         it('should connect parent to children when middle node is removed', () => {
-            const graph: Graph = {
-                nodes: {
-                    'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'extends' }]),
-                    'b.md': createNode('b.md', [{ targetId: 'c.md', label: 'implements' }]),
-                    'c.md': createNode('c.md', [])
-                }
-            }
+            const graph: Graph = createGraph({
+                'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'extends' }]),
+                'b.md': createNode('b.md', [{ targetId: 'c.md', label: 'implements' }]),
+                'c.md': createNode('c.md', [])
+            })
 
             const result: Graph = deleteAndApply(graph, 'b.md')
 
@@ -88,17 +83,15 @@ describe('deleteNodeMaintainingTransitiveEdges', () => {
 
     describe('multiple children: a -> b -> {c, d}', () => {
         it('should connect parent to all children of removed node', () => {
-            const graph: Graph = {
-                nodes: {
-                    'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'parent-of' }]),
-                    'b.md': createNode('b.md', [
-                        { targetId: 'c.md', label: 'child1' },
-                        { targetId: 'd.md', label: 'child2' }
-                    ]),
-                    'c.md': createNode('c.md', []),
-                    'd.md': createNode('d.md', [])
-                }
-            }
+            const graph: Graph = createGraph({
+                'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'parent-of' }]),
+                'b.md': createNode('b.md', [
+                    { targetId: 'c.md', label: 'child1' },
+                    { targetId: 'd.md', label: 'child2' }
+                ]),
+                'c.md': createNode('c.md', []),
+                'd.md': createNode('d.md', [])
+            })
 
             const result: Graph = deleteAndApply(graph, 'b.md')
 
@@ -114,14 +107,12 @@ describe('deleteNodeMaintainingTransitiveEdges', () => {
         it('should connect all parents to children AND to each other', () => {
             // In bidirectional traversal, a and x can reach each other via b's incoming edges
             // So when removing b, we preserve: a -> c, x -> c (children) AND a -> x, x -> a (incomers)
-            const graph: Graph = {
-                nodes: {
-                    'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'label-a' }]),
-                    'x.md': createNode('x.md', [{ targetId: 'b.md', label: 'label-x' }]),
-                    'b.md': createNode('b.md', [{ targetId: 'c.md', label: 'to-c' }]),
-                    'c.md': createNode('c.md', [])
-                }
-            }
+            const graph: Graph = createGraph({
+                'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'label-a' }]),
+                'x.md': createNode('x.md', [{ targetId: 'b.md', label: 'label-x' }]),
+                'b.md': createNode('b.md', [{ targetId: 'c.md', label: 'to-c' }]),
+                'c.md': createNode('c.md', [])
+            })
 
             const result: Graph = deleteAndApply(graph, 'b.md')
 
@@ -143,16 +134,14 @@ describe('deleteNodeMaintainingTransitiveEdges', () => {
 
     describe('edge cases', () => {
         it('should not create duplicate edges if parent already connects to child', () => {
-            const graph: Graph = {
-                nodes: {
-                    'a.md': createNode('a.md', [
-                        { targetId: 'b.md', label: 'via-b' },
-                        { targetId: 'c.md', label: 'direct' }
-                    ]),
-                    'b.md': createNode('b.md', [{ targetId: 'c.md', label: 'to-c' }]),
-                    'c.md': createNode('c.md', [])
-                }
-            }
+            const graph: Graph = createGraph({
+                'a.md': createNode('a.md', [
+                    { targetId: 'b.md', label: 'via-b' },
+                    { targetId: 'c.md', label: 'direct' }
+                ]),
+                'b.md': createNode('b.md', [{ targetId: 'c.md', label: 'to-c' }]),
+                'c.md': createNode('c.md', [])
+            })
 
             const result: Graph = deleteAndApply(graph, 'b.md')
 
@@ -162,12 +151,10 @@ describe('deleteNodeMaintainingTransitiveEdges', () => {
         })
 
         it('should handle removal of leaf node', () => {
-            const graph: Graph = {
-                nodes: {
-                    'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'to-b' }]),
-                    'b.md': createNode('b.md', [])
-                }
-            }
+            const graph: Graph = createGraph({
+                'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'to-b' }]),
+                'b.md': createNode('b.md', [])
+            })
 
             const result: Graph = deleteAndApply(graph, 'b.md')
 
@@ -175,12 +162,10 @@ describe('deleteNodeMaintainingTransitiveEdges', () => {
         })
 
         it('should handle removal of root node', () => {
-            const graph: Graph = {
-                nodes: {
-                    'b.md': createNode('b.md', [{ targetId: 'c.md', label: 'to-c' }]),
-                    'c.md': createNode('c.md', [])
-                }
-            }
+            const graph: Graph = createGraph({
+                'b.md': createNode('b.md', [{ targetId: 'c.md', label: 'to-c' }]),
+                'c.md': createNode('c.md', [])
+            })
 
             const result: Graph = deleteAndApply(graph, 'b.md')
 
@@ -189,12 +174,10 @@ describe('deleteNodeMaintainingTransitiveEdges', () => {
         })
 
         it('should return unchanged graph if node does not exist', () => {
-            const graph: Graph = {
-                nodes: {
-                    'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'test' }]),
-                    'b.md': createNode('b.md', [])
-                }
-            }
+            const graph: Graph = createGraph({
+                'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'test' }]),
+                'b.md': createNode('b.md', [])
+            })
 
             const result: Graph = deleteAndApply(graph, 'nonexistent.md')
 
@@ -217,13 +200,11 @@ describe('deleteNodeMaintainingTransitiveEdges', () => {
             // Before: a -> x, b -> x (x is a "sink" with no outgoing edges)
             // Bidirectional traversal: a can reach b via x's incoming edges
             // After removing x: a -> b, b -> a (preserve mutual reachability)
-            const graph: Graph = {
-                nodes: {
-                    'a.md': createNode('a.md', [{ targetId: 'x.md', label: 'points-to' }]),
-                    'b.md': createNode('b.md', [{ targetId: 'x.md', label: 'also-points-to' }]),
-                    'x.md': createNode('x.md', []) // sink node - no outgoing edges
-                }
-            }
+            const graph: Graph = createGraph({
+                'a.md': createNode('a.md', [{ targetId: 'x.md', label: 'points-to' }]),
+                'b.md': createNode('b.md', [{ targetId: 'x.md', label: 'also-points-to' }]),
+                'x.md': createNode('x.md', []) // sink node - no outgoing edges
+            })
 
             const result: Graph = deleteAndApply(graph, 'x.md')
 
@@ -236,14 +217,12 @@ describe('deleteNodeMaintainingTransitiveEdges', () => {
 
         it('should connect all incomers to each other with 3+ nodes', () => {
             // a -> x, b -> x, c -> x (all can reach each other via x)
-            const graph: Graph = {
-                nodes: {
-                    'a.md': createNode('a.md', [{ targetId: 'x.md', label: 'label-a' }]),
-                    'b.md': createNode('b.md', [{ targetId: 'x.md', label: 'label-b' }]),
-                    'c.md': createNode('c.md', [{ targetId: 'x.md', label: 'label-c' }]),
-                    'x.md': createNode('x.md', [])
-                }
-            }
+            const graph: Graph = createGraph({
+                'a.md': createNode('a.md', [{ targetId: 'x.md', label: 'label-a' }]),
+                'b.md': createNode('b.md', [{ targetId: 'x.md', label: 'label-b' }]),
+                'c.md': createNode('c.md', [{ targetId: 'x.md', label: 'label-c' }]),
+                'x.md': createNode('x.md', [])
+            })
 
             const result: Graph = deleteAndApply(graph, 'x.md')
 
@@ -261,22 +240,20 @@ describe('deleteNodeMaintainingTransitiveEdges', () => {
         })
 
         it('should preserve original labels when connecting incomers', () => {
-            const graph: Graph = {
-                nodes: {
-                    'a.md': createNode('a.md', [{ targetId: 'x.md', label: 'my-label' }]),
-                    'b.md': createNode('b.md', [{ targetId: 'x.md', label: 'other-label' }]),
-                    'x.md': createNode('x.md', [])
-                }
-            }
+            const graph: Graph = createGraph({
+                'a.md': createNode('a.md', [{ targetId: 'x.md', label: 'my-label' }]),
+                'b.md': createNode('b.md', [{ targetId: 'x.md', label: 'other-label' }]),
+                'x.md': createNode('x.md', [])
+            })
 
             const result: Graph = deleteAndApply(graph, 'x.md')
 
             // a's new edge to b should use a's original label
-            const aToB = result.nodes['a.md'].outgoingEdges.find(e => e.targetId === 'b.md')
+            const aToB: { readonly targetId: string; readonly label: string } | undefined = result.nodes['a.md'].outgoingEdges.find(e => e.targetId === 'b.md')
             expect(aToB?.label).toBe('my-label')
 
             // b's new edge to a should use b's original label
-            const bToA = result.nodes['b.md'].outgoingEdges.find(e => e.targetId === 'a.md')
+            const bToA: { readonly targetId: string; readonly label: string } | undefined = result.nodes['b.md'].outgoingEdges.find(e => e.targetId === 'a.md')
             expect(bToA?.label).toBe('other-label')
         })
     })
@@ -285,14 +262,12 @@ describe('deleteNodeMaintainingTransitiveEdges', () => {
         it('should connect incomers to children AND to each other', () => {
             // Before: a -> x -> c, b -> x
             // After: a -> c, b -> c (current), PLUS a -> b, b -> a (new)
-            const graph: Graph = {
-                nodes: {
-                    'a.md': createNode('a.md', [{ targetId: 'x.md', label: 'label-a' }]),
-                    'b.md': createNode('b.md', [{ targetId: 'x.md', label: 'label-b' }]),
-                    'x.md': createNode('x.md', [{ targetId: 'c.md', label: 'to-c' }]),
-                    'c.md': createNode('c.md', [])
-                }
-            }
+            const graph: Graph = createGraph({
+                'a.md': createNode('a.md', [{ targetId: 'x.md', label: 'label-a' }]),
+                'b.md': createNode('b.md', [{ targetId: 'x.md', label: 'label-b' }]),
+                'x.md': createNode('x.md', [{ targetId: 'c.md', label: 'to-c' }]),
+                'c.md': createNode('c.md', [])
+            })
 
             const result: Graph = deleteAndApply(graph, 'x.md')
 
@@ -318,13 +293,11 @@ describe('deleteNodeMaintainingTransitiveEdges', () => {
             // - See original_node via context_node's incoming
             //
             // After removing context_node, agent_child should reach original_node
-            const graph: Graph = {
-                nodes: {
-                    'original.md': createNode('original.md', [{ targetId: 'context.md', label: 'created' }]),
-                    'agent_child.md': createNode('agent_child.md', [{ targetId: 'context.md', label: 'parent-backlink' }]),
-                    'context.md': createNode('context.md', []) // Context node - no outgoing
-                }
-            }
+            const graph: Graph = createGraph({
+                'original.md': createNode('original.md', [{ targetId: 'context.md', label: 'created' }]),
+                'agent_child.md': createNode('agent_child.md', [{ targetId: 'context.md', label: 'parent-backlink' }]),
+                'context.md': createNode('context.md', []) // Context node - no outgoing
+            })
 
             const result: Graph = deleteAndApply(graph, 'context.md')
 

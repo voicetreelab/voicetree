@@ -12,6 +12,7 @@
 // SEEN SET TO AVOID CYCLES
 
 import type { Graph, GraphNode, NodeIdAndFilePath, Position } from '@/pure/graph'
+import { createGraph } from '@/pure/graph/createGraph'
 import * as O from 'fp-ts/lib/Option.js'
 import { findFirstParentNode } from '@/pure/graph/graph-operations/findFirstParentNode'
 import { calculateInitialPositionForChild } from './calculateInitialPosition'
@@ -49,12 +50,10 @@ export function applyPositions(graph: Graph): Graph {
     }
 
     // Add ghost root to graph temporarily
-    const graphWithGhostRoot: Graph = {
-        nodes: {
-            ...graph.nodes,
-            [GHOST_ROOT_ID]: ghostRootNode
-        }
-    }
+    const graphWithGhostRoot: Graph = createGraph({
+        ...graph.nodes,
+        [GHOST_ROOT_ID]: ghostRootNode
+    })
 
     // Traverse from ghost root - this will position all nodes
     const graphWithAllPositions: Graph = traverseAndPosition(
@@ -65,10 +64,10 @@ export function applyPositions(graph: Graph): Graph {
     ).graph
 
     // Remove ghost root from final result
-     
+
     const { [GHOST_ROOT_ID]: _, ...finalNodes } = graphWithAllPositions.nodes
 
-    return { nodes: finalNodes }
+    return createGraph(finalNodes)
 }
 
 /**
@@ -165,10 +164,12 @@ function positionNodeIfNeeded(
         }
     }
 
+    // Preserve the existing incomingEdgesIndex since we're only updating node metadata, not edges
     return {
         nodes: {
             ...tree.nodes,
             [nodeId]: updatedNode
-        }
+        },
+        incomingEdgesIndex: tree.incomingEdgesIndex
     }
 }

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { graphToSpanningTree } from './graphToSpanningTree'
 import type { Graph, GraphNode, Edge } from '@/pure/graph'
+import { createGraph as createGraphWithIndex, createEmptyGraph } from '@/pure/graph/createGraph'
 import * as O from 'fp-ts/lib/Option.js'
 
 describe('graphToSpanningTree', () => {
@@ -16,13 +17,12 @@ describe('graphToSpanningTree', () => {
     }
   })
 
-  const createGraph: (nodeDefinitions: Record<string, readonly string[]>) => Graph = (nodeDefinitions: Record<string, readonly string[]>): Graph => ({
-    nodes: Object.fromEntries(
+  const createGraph: (nodeDefinitions: Record<string, readonly string[]>) => Graph = (nodeDefinitions: Record<string, readonly string[]>): Graph =>
+    createGraphWithIndex(Object.fromEntries(
       Object.entries(nodeDefinitions).map(([id, edges]: readonly [string, readonly string[]]): readonly [string, GraphNode] =>
         [id, createTestNode(id, edges)]
       )
-    )
-  })
+    ))
 
   const getEdgeSet: (graph: Graph) => ReadonlySet<string> = (graph: Graph): ReadonlySet<string> =>
     new Set(
@@ -310,7 +310,7 @@ describe('graphToSpanningTree', () => {
 
   describe('edge cases', () => {
     it('should handle empty graph', () => {
-      const graph: Graph = { nodes: {} }
+      const graph: Graph = createEmptyGraph()
 
       const result: Graph = graphToSpanningTree(graph, 'nonexistent')
 
@@ -385,12 +385,10 @@ describe('graphToSpanningTree', () => {
         }
       }
 
-      const graph: Graph = {
-        nodes: {
-          'A': node,
-          'B': createTestNode('B', [])
-        }
-      }
+      const graph: Graph = createGraphWithIndex({
+        'A': node,
+        'B': createTestNode('B', [])
+      })
 
       const result: Graph = graphToSpanningTree(graph, 'A')
 

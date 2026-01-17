@@ -2,9 +2,10 @@ import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import { parseMarkdownToGraphNode, getNodeTitle } from '@/pure/graph/markdown-parsing'
 import type { Graph, GraphNode } from '@/pure/graph'
+import { createGraph } from '@/pure/graph/createGraph'
 
 // Helper to create an empty graph for testing
-const emptyGraph: Graph = { nodes: {} }
+const emptyGraph: Graph = createGraph({})
 
 describe('parseMarkdownToGraphNode', () => {
   it('should parse node with complete frontmatter including color', () => {

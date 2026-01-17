@@ -1,4 +1,6 @@
 import type {Graph, GraphDelta, GraphNode} from '@/pure/graph'
+import { updateIndexForUpsert, updateIndexForDelete } from '@/pure/graph/graph-operations/incomingEdgesIndex'
+import type { IncomingEdgesIndex } from '@/pure/graph/graph-operations/incomingEdgesIndex'
 import * as O from 'fp-ts/lib/Option.js'
 
 /**
@@ -20,7 +22,7 @@ import * as O from 'fp-ts/lib/Option.js'
  *
  * @example
  * ```typescript
- * const graph: Graph = { nodes: { 'note1': {...} } }
+ * const graph: Graph = { nodes: { 'note1': {...} }, incomingEdgesIndex: new Map() }
  * const delta: GraphDelta = [{ type: 'UpsertNode', nodeToUpsert: {...} }]
  * const newGraph = applyGraphDeltaToGraph(graph, delta)
  * ```
@@ -41,16 +43,30 @@ export function applyGraphDeltaToGraph(graph: Graph, delta: GraphDelta): Graph {
                 ? { ...newNode, nodeUIMetadata: { ...newNode.nodeUIMetadata, position: existingNode.nodeUIMetadata.position } }
                 : newNode
 
+            // Update incoming edges index
+            const previousNode: O.Option<GraphNode> = existingNode ? O.some(existingNode) : O.none
+            const newIndex: IncomingEdgesIndex = updateIndexForUpsert(currentGraph.incomingEdgesIndex, mergedNode, previousNode)
+
             return {
                 nodes: {
                     ...currentGraph.nodes,
                     [mergedNode.relativeFilePathIsID]: mergedNode
-                }
+                },
+                incomingEdgesIndex: newIndex
             }
         } else if (nodeDelta.type === 'DeleteNode') {
             // Simple delete - just remove the node
-            const { [nodeDelta.nodeId]: _, ...remaining } = currentGraph.nodes
-            return { nodes: remaining }
+            const { [nodeDelta.nodeId]: deletedNode, ...remaining } = currentGraph.nodes
+
+            // Update incoming edges index if node existed
+            const newIndex: IncomingEdgesIndex = deletedNode
+                ? updateIndexForDelete(currentGraph.incomingEdgesIndex, deletedNode)
+                : currentGraph.incomingEdgesIndex
+
+            return {
+                nodes: remaining,
+                incomingEdgesIndex: newIndex
+            }
         }
 
         // Should never reach here due to TypeScript exhaustiveness checking

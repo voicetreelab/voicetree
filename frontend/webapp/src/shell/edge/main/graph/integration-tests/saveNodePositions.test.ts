@@ -19,6 +19,7 @@ import { getGraph, setGraph } from '@/shell/edge/main/state/graph-store'
 import { setVaultPath, clearVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { loadFolder, stopFileWatching, isWatching } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import type { GraphNode, Graph, GraphDelta } from '@/pure/graph'
+import { createGraph } from '@/pure/graph/createGraph'
 import type { NodeDefinition } from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'
@@ -52,7 +53,7 @@ vi.mock('@/shell/edge/main/state/app-electron-state', () => ({
 describe('saveNodePositions - Integration Tests', () => {
     beforeEach(() => {
         // Initialize state with empty graph and example_small vault path
-        setGraph({ nodes: {} })
+        setGraph(createGraph({}))
         setVaultPath(EXAMPLE_SMALL_PATH)
         clearRecentDeltas()
 
@@ -95,7 +96,7 @@ describe('saveNodePositions - Integration Tests', () => {
                 }
             }
 
-            setGraph({ nodes: { [TEST_NODE_ID]: testNode } })
+            setGraph(createGraph({ [TEST_NODE_ID]: testNode }))
 
             // Verify initial state - no position
             const graphBefore: Graph = getGraph()
@@ -148,7 +149,7 @@ describe('saveNodePositions - Integration Tests', () => {
                 }
             }
 
-            setGraph({ nodes: { 'node1.md': node1, 'node2.md': node2 } })
+            setGraph(createGraph({ 'node1.md': node1, 'node2.md': node2 }))
 
             // WHEN: Call saveNodePositions with multiple nodes
             const cyNodes: readonly NodeDefinition[] = [

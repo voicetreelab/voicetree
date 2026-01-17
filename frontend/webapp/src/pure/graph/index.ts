@@ -16,6 +16,7 @@ import { mapFSEventsToGraphDelta } from './mapFSEventsToGraphDelta'
 
 export interface Graph {
     readonly nodes: Record<NodeIdAndFilePath, GraphNode>
+    readonly incomingEdgesIndex: ReadonlyMap<NodeIdAndFilePath, readonly NodeIdAndFilePath[]>
 }
 
 
@@ -124,7 +125,6 @@ export interface DeleteNode {
 
 export interface Env {
     readonly watchedDirectory: string
-    readonly vaultPath: string  // Default write path for NEW nodes (watchedDirectory + suffix)
 }
 export type FilePath = string // todo enforce only / and chars
 
@@ -232,3 +232,6 @@ void (prettyPrintGraphDelta satisfies PrettyPrintGraphDelta)
 // === GRAPH TRANSFORMATION UTILITIES ===
 export { deleteNodeMaintainingTransitiveEdges } from './graph-operations/removeNodeMaintainingTransitiveEdges'
 export { removeContextNodes } from './graph-operations/removeContextNodes'
+
+// === GRAPH CREATION UTILITIES ===
+export { createGraph, createEmptyGraph } from './createGraph'

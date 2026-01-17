@@ -25,6 +25,7 @@ import { loadFolder, stopFileWatching, isWatching, getWatchedDirectory } from '@
 import { getGraph, setGraph } from '@/shell/edge/main/state/graph-store'
 import { setVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import type { GraphDelta, Graph, UpsertNodeDelta, DeleteNode, GraphNode, Edge } from '@/pure/graph'
+import { createGraph } from '@/pure/graph/createGraph'
 import { getNodeTitle } from '@/pure/graph/markdown-parsing'
 import path from 'path'
 import { promises as fs } from 'fs'
@@ -64,7 +65,7 @@ vi.mock('electron', () => ({
 describe('Folder Loading - Integration Tests', () => {
   beforeEach(async () => {
     // Reset graph state
-    setGraph({ nodes: {} })
+    setGraph(createGraph({}))
     setVaultPath('')
 
     // Clear recent writes to ensure fresh state for file watching tests

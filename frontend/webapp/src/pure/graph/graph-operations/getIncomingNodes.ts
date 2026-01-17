@@ -1,19 +1,17 @@
-import type {Graph, GraphNode} from "@/pure/graph";
+import type {Graph, GraphNode, NodeIdAndFilePath} from "@/pure/graph";
 
 /**
- * Find the parent node of a given node by searching the graph
+ * Find all nodes that have outgoing edges to the given node (its incomers/parents).
  *
- * @param node - The node to find the parent of
+ * Uses the graph's incomingEdgesIndex for O(1) lookup instead of scanning all nodes.
+ *
+ * @param node - The node to find incomers for
  * @param graph - The graph to search
- * @returns The parent node, or undefined if no parent exists (root node)
+ * @returns Array of nodes that have edges pointing to this node
  */
 export function getIncomingNodes(node: GraphNode, graph: Graph): readonly GraphNode[] {
-    // Search for a node that has this node in its outgoingEdges
-
-    // assumes graph is tree, just returns first incoming edge
-    return Object.values(graph.nodes).filter((candidateNode) =>
-        candidateNode.outgoingEdges.some(e => e.targetId === node.relativeFilePathIsID)
-    );
-
-    // TODO MAKE THIS O(1) with a type IncomingEdgesIndex = Map<NodeId, readonly NodeId[]> on Graph
+    const incomerIds: readonly NodeIdAndFilePath[] = graph.incomingEdgesIndex.get(node.relativeFilePathIsID) ?? []
+    return incomerIds
+        .map(id => graph.nodes[id])
+        .filter((n): n is GraphNode => n !== undefined)
 }

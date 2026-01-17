@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import { computeRenameNodeDelta } from './computeRenameNodeDelta'
+import { createGraph } from '@/pure/graph/createGraph'
 import type { Graph, GraphDelta, GraphNode, NodeDelta, NodeIdAndFilePath, UpsertNodeDelta } from '@/pure/graph'
 
 /**
@@ -27,9 +28,7 @@ function makeNode(
  * Helper to create a Graph from an array of nodes
  */
 function makeGraph(nodes: readonly GraphNode[]): Graph {
-    return {
-        nodes: Object.fromEntries(nodes.map(n => [n.relativeFilePathIsID, n]))
-    }
+    return createGraph(Object.fromEntries(nodes.map(n => [n.relativeFilePathIsID, n])))
 }
 
 describe('computeRenameNodeDelta', () => {

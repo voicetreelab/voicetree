@@ -5,21 +5,20 @@ import * as O from 'fp-ts/lib/Option.js'
 import { applyPositions } from '@/pure/graph/positioning/applyPositions'
 import { SPAWN_RADIUS } from '@/pure/graph/positioning/angularPositionSeeding'
 import type { Graph, GraphNode, NodeIdAndFilePath, Position } from '@/pure/graph'
+import { createGraph, createEmptyGraph } from '@/pure/graph/createGraph'
 
 describe('applyPositions', () => {
   describe('simple cases', () => {
     it('should handle empty graph', () => {
-      const emptyGraph: Graph = { nodes: {} }
+      const emptyGraph: Graph = createEmptyGraph()
       const result: Graph = applyPositions(emptyGraph)
       expect(result.nodes).toEqual({})
     })
 
     it('should position single root node at origin radius', () => {
-      const graph: Graph = {
-        nodes: {
-          'root.md': createNode('root.md', [])
-        }
-      }
+      const graph: Graph = createGraph({
+        'root.md': createNode('root.md', [])
+      })
 
       const result: Graph = applyPositions(graph)
       const rootNode: GraphNode = result.nodes['root.md']
@@ -34,12 +33,10 @@ describe('applyPositions', () => {
     })
 
     it('should position parent and child without overlap', () => {
-      const graph: Graph = {
-        nodes: {
-          'parent.md': createNode('parent.md', ['child.md']),
-          'child.md': createNode('child.md', [])
-        }
-      }
+      const graph: Graph = createGraph({
+        'parent.md': createNode('parent.md', ['child.md']),
+        'child.md': createNode('child.md', [])
+      })
 
       const result: Graph = applyPositions(graph)
 
@@ -135,14 +132,12 @@ describe('applyPositions', () => {
 
   describe('edge cases', () => {
     it('should handle graph with multiple root nodes', () => {
-      const graph: Graph = {
-        nodes: {
-          'root1.md': createNode('root1.md', ['child1.md']),
-          'root2.md': createNode('root2.md', ['child2.md']),
-          'child1.md': createNode('child1.md', []),
-          'child2.md': createNode('child2.md', [])
-        }
-      }
+      const graph: Graph = createGraph({
+        'root1.md': createNode('root1.md', ['child1.md']),
+        'root2.md': createNode('root2.md', ['child2.md']),
+        'child1.md': createNode('child1.md', []),
+        'child2.md': createNode('child2.md', [])
+      })
 
       const result: Graph = applyPositions(graph)
 
@@ -209,7 +204,7 @@ function createNode(id: NodeIdAndFilePath, outgoingEdges: readonly NodeIdAndFile
  */
 function generateRandomNAryTree(nodeCount: number, maxChildren: number): Graph {
   if (nodeCount <= 0) {
-    return { nodes: {} }
+    return createEmptyGraph()
   }
 
   const nodes: Record<NodeIdAndFilePath, GraphNode> = {}
@@ -254,7 +249,7 @@ function generateRandomNAryTree(nodeCount: number, maxChildren: number): Graph {
     }
   }
 
-  return { nodes }
+  return createGraph(nodes)
 }
 
 /**
@@ -269,7 +264,7 @@ function generateDeepTree(depth: number): Graph {
     nodes[nodeId] = createNode(nodeId, childId ? [childId] : [])
   }
 
-  return { nodes }
+  return createGraph(nodes)
 }
 
 // ============================================================================

@@ -3,7 +3,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import {pipe} from 'fp-ts/lib/function.js'
 import {applyGraphDeltaToGraph, type Env, type Graph, type GraphDelta} from '@/pure/graph'
 import {apply_graph_deltas_to_db} from '@/shell/edge/main/graph/graphActionsToDBEffects'
-import {getWatchedDirectory, getDefaultWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import {getWatchedDirectory} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {recordUserActionAndSetDeltaHistoryState} from '@/shell/edge/main/state/undo-store'
 import type {Either} from "fp-ts/es6/Either";
 import {getGraph, setGraph} from "@/shell/edge/main/state/graph-store";
@@ -47,16 +47,8 @@ export async function applyGraphDeltaToDBThroughMemAndUI(
         })
     )
 
-    // Extract default write path (where new nodes are created)
-    const vaultPath: string = pipe(
-        getDefaultWritePath(),
-        O.getOrElseW(() => {
-            throw new Error('Default write path not initialized')
-        })
-    )
-
     // Construct env and execute effect
-    const env: Env = {watchedDirectory, vaultPath}
+    const env: Env = {watchedDirectory}
     const result: Either<Error, GraphDelta> = await apply_graph_deltas_to_db(delta)(env)()
 
     // Handle errors (fail fast)

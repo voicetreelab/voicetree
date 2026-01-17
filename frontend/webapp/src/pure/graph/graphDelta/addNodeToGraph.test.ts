@@ -5,6 +5,7 @@ import * as os from 'os'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 import type { Graph, FSUpdate, GraphDelta, GraphNode } from '@/pure/graph'
+import { createGraph } from '@/pure/graph/createGraph'
 import { applyGraphDeltaToGraph } from '@/pure/graph/graphDelta/applyGraphDeltaToGraph'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk'
 import { mapFSEventsToGraphDelta } from '@/pure/graph/mapFSEventsToGraphDelta'
@@ -164,22 +165,20 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
   describe('Incremental Updates: Edge Resolution with mapFSEventsToGraphDelta', () => {
     it('should resolve edges when target already exists in graph', () => {
       // Setup: Graph with target node already loaded
-      const currentGraph: Graph = {
-        nodes: {
-          'target.md': {
-            relativeFilePathIsID: 'target.md',
-            contentWithoutYamlOrLinks: '# Target',
-            outgoingEdges: [],
-            nodeUIMetadata: {
+      const currentGraph: Graph = createGraph({
+        'target.md': {
+          relativeFilePathIsID: 'target.md',
+          contentWithoutYamlOrLinks: '# Target',
+          outgoingEdges: [],
+          nodeUIMetadata: {
 
-              color: O.none,
-              position: O.none,
-              additionalYAMLProps: new Map(),
-              isContextNode: false
-            }
+            color: O.none,
+            position: O.none,
+            additionalYAMLProps: new Map(),
+            isContextNode: false
           }
         }
-      }
+      })
 
       // Incremental: Add source node that links to target
       const fsEvent: FSUpdate = {
@@ -203,7 +202,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
 
     it('should store raw link text when target does not exist yet', () => {
       // Setup: Empty graph
-      const currentGraph: Graph = { nodes: {} }
+      const currentGraph: Graph = createGraph({})
 
       // Incremental: Add node with link to non-existent target
       const fsEvent: FSUpdate = {
@@ -226,22 +225,20 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
 
     it('should resolve subfolder links when target exists', () => {
       // Setup: Graph with felix/1 already loaded
-      const currentGraph: Graph = {
-        nodes: {
-          'felix/1.md': {
-            relativeFilePathIsID: 'felix/1.md',
-            contentWithoutYamlOrLinks: '# Node 1',
-            outgoingEdges: [],
-            nodeUIMetadata: {
+      const currentGraph: Graph = createGraph({
+        'felix/1.md': {
+          relativeFilePathIsID: 'felix/1.md',
+          contentWithoutYamlOrLinks: '# Node 1',
+          outgoingEdges: [],
+          nodeUIMetadata: {
 
-              color: O.none,
-              position: O.none,
-              additionalYAMLProps: new Map(),
-              isContextNode: false
-            }
+            color: O.none,
+            position: O.none,
+            additionalYAMLProps: new Map(),
+            isContextNode: false
           }
         }
-      }
+      })
 
       // Incremental: Add felix/2 with link [[1]]
       const fsEvent: FSUpdate = {
@@ -262,16 +259,14 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
 
     it('should include parent in delta when previously dangling edges become resolvable', () => {
       // Setup: Parent references child.md but child node is missing (dangling edge)
-      const currentGraph: Graph = {
-        nodes: {
-          'parent.md': {
-            relativeFilePathIsID: 'parent.md',
-            contentWithoutYamlOrLinks: '# Parent',
-            outgoingEdges: [{ targetId: 'child.md', label: 'links to' }],
-            nodeUIMetadata: { color: O.none, position: O.none, additionalYAMLProps: new Map(), isContextNode: false }
-          }
+      const currentGraph: Graph = createGraph({
+        'parent.md': {
+          relativeFilePathIsID: 'parent.md',
+          contentWithoutYamlOrLinks: '# Parent',
+          outgoingEdges: [{ targetId: 'child.md', label: 'links to' }],
+          nodeUIMetadata: { color: O.none, position: O.none, additionalYAMLProps: new Map(), isContextNode: false }
         }
-      }
+      })
 
       // Add child node (resolves the dangling edge)
       const fsEvent: FSUpdate = { absolutePath: path.join(testVaultPath, 'child.md'), content: '# Child', eventType: 'Added' }
@@ -294,17 +289,15 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       // BUG: [file.md] creates edge with targetId "file.md", target doesn't exist yet
       // When file.md is added, old logic: targetId unchanged ("file.md" === "file.md") → no delta
       // Result: UI never receives delta, edge never rendered despite both nodes existing
-      const currentGraph: Graph = {
-        nodes: {
-          'source.md': {
-            relativeFilePathIsID: 'source.md',
-            contentWithoutYamlOrLinks: '# Source',
-            // Edge targetId EXACTLY matches the node ID that will be created - no fuzzy matching needed
-            outgoingEdges: [{ targetId: 'target.md', label: 'links to' }],
-            nodeUIMetadata: { color: O.none, position: O.none, additionalYAMLProps: new Map(), isContextNode: false }
-          }
+      const currentGraph: Graph = createGraph({
+        'source.md': {
+          relativeFilePathIsID: 'source.md',
+          contentWithoutYamlOrLinks: '# Source',
+          // Edge targetId EXACTLY matches the node ID that will be created - no fuzzy matching needed
+          outgoingEdges: [{ targetId: 'target.md', label: 'links to' }],
+          nodeUIMetadata: { color: O.none, position: O.none, additionalYAMLProps: new Map(), isContextNode: false }
         }
-      }
+      })
 
       // Target node doesn't exist yet - edge is dangling
       expect(currentGraph.nodes['target.md']).toBeUndefined()
@@ -322,22 +315,20 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
 
     it('should skip parent delta when edge was never dangling', () => {
       // Setup: Parent and child already exist, edge points to real child node
-      const currentGraph: Graph = {
-        nodes: {
-          'parent.md': {
-            relativeFilePathIsID: 'parent.md',
-            contentWithoutYamlOrLinks: '# Parent',
-            outgoingEdges: [{ targetId: 'child.md', label: 'links to' }],
-            nodeUIMetadata: { color: O.none, position: O.none, additionalYAMLProps: new Map(), isContextNode: false }
-          },
-          'child.md': {
-            relativeFilePathIsID: 'child.md',
-            contentWithoutYamlOrLinks: '# Child',
-            outgoingEdges: [],
-            nodeUIMetadata: { color: O.none, position: O.none, additionalYAMLProps: new Map(), isContextNode: false }
-          }
+      const currentGraph: Graph = createGraph({
+        'parent.md': {
+          relativeFilePathIsID: 'parent.md',
+          contentWithoutYamlOrLinks: '# Parent',
+          outgoingEdges: [{ targetId: 'child.md', label: 'links to' }],
+          nodeUIMetadata: { color: O.none, position: O.none, additionalYAMLProps: new Map(), isContextNode: false }
+        },
+        'child.md': {
+          relativeFilePathIsID: 'child.md',
+          contentWithoutYamlOrLinks: '# Child',
+          outgoingEdges: [],
+          nodeUIMetadata: { color: O.none, position: O.none, additionalYAMLProps: new Map(), isContextNode: false }
         }
-      }
+      })
 
       // Re-add child node (e.g., file change) - should not trigger redundant parent delta
       const fsEvent: FSUpdate = { absolutePath: path.join(testVaultPath, 'child.md'), content: '# Child updated', eventType: 'Changed' }
@@ -385,7 +376,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         }
         const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, incrementalVaultPath, graph)
         return applyGraphDeltaToGraph(graph, delta)
-      }, { nodes: {} } as Graph)
+      }, createGraph({}))
 
       // Verify: Nodes exist with correct IDs
       expect(Object.keys(bulkGraph.nodes).sort()).toEqual(Object.keys(incrementalGraph.nodes).sort())
@@ -437,7 +428,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         }
         const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, incrementalVaultPath, graph)
         return applyGraphDeltaToGraph(graph, delta)
-      }, { nodes: {} } as Graph)
+      }, createGraph({}))
 
       // Verify: IDENTICAL despite different order
       expect(bulkGraph.nodes['a.md'].outgoingEdges).toEqual(incrementalGraph.nodes['a.md'].outgoingEdges)
@@ -472,7 +463,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
     })
 
     it('incremental should preserve raw link text when target never exists', () => {
-      const currentGraph: Graph = { nodes: {} }
+      const currentGraph: Graph = createGraph({})
 
       const fsEvent: FSUpdate = {
         absolutePath: path.join(testVaultPath, 'source.md'),

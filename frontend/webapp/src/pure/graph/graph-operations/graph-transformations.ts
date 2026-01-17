@@ -4,6 +4,7 @@
  */
 
 import type { Graph, GraphNode, NodeIdAndFilePath, Edge } from '@/pure/graph'
+import { createGraph } from '@/pure/graph/createGraph'
 import { setOutgoingEdges } from './graph-edge-operations'
 
 /**
@@ -59,7 +60,7 @@ export function makeBidirectionalEdges(graph: Graph): Graph {
         })
     )
 
-    return { nodes: newNodes }
+    return createGraph(newNodes)
 }
 
 /**
@@ -129,7 +130,5 @@ export function reverseGraphEdges(graph: Graph): Graph {
         {}
     )
 
-    return {
-        nodes: newNodes
-    }
+    return createGraph(newNodes)
 }
