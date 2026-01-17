@@ -21,6 +21,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { createEmptyGraph } from '@/pure/graph/createGraph'
 import { setGraph } from '@/shell/edge/main/state/graph-store'
 import { setVaultPath, clearVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import type { GraphDelta, UpsertNodeDelta, DeleteNode, GraphNode } from '@/pure/graph'
@@ -38,7 +39,7 @@ const TEST_FILE_PATH: string = path.join(EXAMPLE_SMALL_PATH, `${TEST_NODE_ID}.md
 describe('applyGraphDeltaToDB - Integration Tests', () => {
   beforeEach(() => {
     // Initialize state with empty graph and example_small vault path
-    setGraph({ nodes: {} })
+    setGraph(createEmptyGraph())
     setVaultPath(EXAMPLE_SMALL_PATH)
   })
 

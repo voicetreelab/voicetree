@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import { applyGraphDeltaToGraph } from './applyGraphDeltaToGraph'
 import type { Graph, GraphDelta, GraphNode, NodeIdAndFilePath } from '@/pure/graph'
+import { createGraph, createEmptyGraph } from '@/pure/graph/createGraph'
 
 /**
  * Helper to create a minimal GraphNode for testing
@@ -27,15 +28,13 @@ function makeNode(
  * Helper to create a Graph from an array of nodes
  */
 function makeGraph(nodes: readonly GraphNode[]): Graph {
-    return {
-        nodes: Object.fromEntries(nodes.map(n => [n.relativeFilePathIsID, n]))
-    }
+    return createGraph(Object.fromEntries(nodes.map(n => [n.relativeFilePathIsID, n])))
 }
 
 describe('applyGraphDeltaToGraph', () => {
     describe('UpsertNode - normal create/update', () => {
         it('creates a new node when it does not exist', () => {
-            const graph: Graph = { nodes: {} }
+            const graph: Graph = createEmptyGraph()
             const newNode: GraphNode = makeNode('folder/new.md', '# New Node')
             const delta: GraphDelta = [
                 { type: 'UpsertNode', nodeToUpsert: newNode, previousNode: O.none }
@@ -222,7 +221,7 @@ describe('applyGraphDeltaToGraph', () => {
         })
 
         it('handles delete of non-existent node gracefully', () => {
-            const graph: Graph = { nodes: {} }
+            const graph: Graph = createEmptyGraph()
             const delta: GraphDelta = [
                 { type: 'DeleteNode', nodeId: 'folder/nonexistent.md', deletedNode: O.none }
             ]
@@ -235,7 +234,7 @@ describe('applyGraphDeltaToGraph', () => {
 
     describe('multiple deltas', () => {
         it('applies multiple deltas sequentially', () => {
-            const graph: Graph = { nodes: {} }
+            const graph: Graph = createEmptyGraph()
             const node1: GraphNode = makeNode('folder/node1.md', '# Node 1')
             const node2: GraphNode = makeNode('folder/node2.md', '# Node 2')
 

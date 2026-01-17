@@ -20,6 +20,7 @@ import { loadFolder, stopFileWatching, isWatching } from '@/shell/edge/main/grap
 import { getGraph, setGraph } from '@/shell/edge/main/state/graph-store'
 import { setVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import type { GraphDelta, Graph, GraphNode } from '@/pure/graph'
+import { createEmptyGraph } from '@/pure/graph/createGraph'
 import path from 'path'
 import { promises as fs } from 'fs'
 import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths'
@@ -52,7 +53,7 @@ vi.mock('electron', () => ({
 describe('File Watching - Edge Management Tests', () => {
   beforeEach(() => {
     // Reset graph state
-    setGraph({ nodes: {} })
+    setGraph(createEmptyGraph())
     setVaultPath('')
 
     // Reset broadcast tracking

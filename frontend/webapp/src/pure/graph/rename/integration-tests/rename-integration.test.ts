@@ -21,6 +21,7 @@ import { describe, it, expect } from 'vitest'
 import { computeRenameNodeDelta } from '@/pure/graph/rename/computeRenameNodeDelta'
 import { applyGraphDeltaToGraph } from '@/pure/graph'
 import type { Graph, GraphNode, Edge, GraphDelta, NodeIdAndFilePath } from '@/pure/graph'
+import { createGraph } from '@/pure/graph/createGraph'
 import * as O from 'fp-ts/lib/Option.js'
 
 // Helper to create a minimal GraphNode
@@ -58,28 +59,26 @@ describe('Rename Node - Integration Tests', () => {
             const oldId: NodeIdAndFilePath = 'folder/old_title.md'
             const newId: NodeIdAndFilePath = 'folder/new_title.md'
 
-            const initialGraph: Graph = {
-                nodes: {
-                    'folder/source1.md': createTestNode(
-                        'folder/source1.md',
-                        [createEdge(oldId, 'references')],
-                        { x: 0, y: 0 },
-                        '# Source 1\n\nLinks to [old_title]*'
-                    ),
-                    'folder/source2.md': createTestNode(
-                        'folder/source2.md',
-                        [createEdge(oldId, 'depends on')],
-                        { x: 200, y: 0 },
-                        '# Source 2\n\nAlso links to [old_title]*'
-                    ),
-                    [oldId]: createTestNode(
-                        oldId,
-                        [],
-                        { x: 100, y: 100 },
-                        '# Old Title\n\nSome content here'
-                    )
-                }
-            }
+            const initialGraph: Graph = createGraph({
+                'folder/source1.md': createTestNode(
+                    'folder/source1.md',
+                    [createEdge(oldId, 'references')],
+                    { x: 0, y: 0 },
+                    '# Source 1\n\nLinks to [old_title]*'
+                ),
+                'folder/source2.md': createTestNode(
+                    'folder/source2.md',
+                    [createEdge(oldId, 'depends on')],
+                    { x: 200, y: 0 },
+                    '# Source 2\n\nAlso links to [old_title]*'
+                ),
+                [oldId]: createTestNode(
+                    oldId,
+                    [],
+                    { x: 100, y: 100 },
+                    '# Old Title\n\nSome content here'
+                )
+            })
 
             // WHEN: Rename target node
             const delta: GraphDelta = computeRenameNodeDelta(oldId, newId, initialGraph)
@@ -129,18 +128,16 @@ describe('Rename Node - Integration Tests', () => {
             const oldId: NodeIdAndFilePath = 'folder/isolated.md'
             const newId: NodeIdAndFilePath = 'folder/renamed.md'
 
-            const initialGraph: Graph = {
-                nodes: {
-                    [oldId]: createTestNode(oldId, [], { x: 50, y: 50 }, '# Isolated'),
-                    'folder/unrelated.md': createTestNode(
-                        'folder/unrelated.md',
-                        [createEdge('folder/other.md')],
-                        { x: 200, y: 200 },
-                        '# Unrelated'
-                    ),
-                    'folder/other.md': createTestNode('folder/other.md', [], undefined, '# Other')
-                }
-            }
+            const initialGraph: Graph = createGraph({
+                [oldId]: createTestNode(oldId, [], { x: 50, y: 50 }, '# Isolated'),
+                'folder/unrelated.md': createTestNode(
+                    'folder/unrelated.md',
+                    [createEdge('folder/other.md')],
+                    { x: 200, y: 200 },
+                    '# Unrelated'
+                ),
+                'folder/other.md': createTestNode('folder/other.md', [], undefined, '# Other')
+            })
 
             // WHEN: Rename isolated node
             const delta: GraphDelta = computeRenameNodeDelta(oldId, newId, initialGraph)
@@ -167,21 +164,19 @@ describe('Rename Node - Integration Tests', () => {
             const oldId: NodeIdAndFilePath = 'folder/hub.md'
             const newId: NodeIdAndFilePath = 'folder/renamed_hub.md'
 
-            const initialGraph: Graph = {
-                nodes: {
-                    [oldId]: createTestNode(
-                        oldId,
-                        [
-                            createEdge('folder/child1.md', 'has'),
-                            createEdge('folder/child2.md', 'contains')
-                        ],
-                        { x: 0, y: 0 },
-                        '# Hub\n\nLinks to [child1]* and [child2]*'
-                    ),
-                    'folder/child1.md': createTestNode('folder/child1.md', [], undefined, '# Child 1'),
-                    'folder/child2.md': createTestNode('folder/child2.md', [], undefined, '# Child 2')
-                }
-            }
+            const initialGraph: Graph = createGraph({
+                [oldId]: createTestNode(
+                    oldId,
+                    [
+                        createEdge('folder/child1.md', 'has'),
+                        createEdge('folder/child2.md', 'contains')
+                    ],
+                    { x: 0, y: 0 },
+                    '# Hub\n\nLinks to [child1]* and [child2]*'
+                ),
+                'folder/child1.md': createTestNode('folder/child1.md', [], undefined, '# Child 1'),
+                'folder/child2.md': createTestNode('folder/child2.md', [], undefined, '# Child 2')
+            })
 
             // WHEN: Rename hub node
             const delta: GraphDelta = computeRenameNodeDelta(oldId, newId, initialGraph)
@@ -203,22 +198,20 @@ describe('Rename Node - Integration Tests', () => {
             const oldId: NodeIdAndFilePath = 'folder/target.md'
             const newId: NodeIdAndFilePath = 'folder/renamed_target.md'
 
-            const initialGraph: Graph = {
-                nodes: {
-                    'folder/source.md': createTestNode(
-                        'folder/source.md',
-                        [
-                            createEdge(oldId, 'rel1'),
-                            createEdge(oldId, 'rel2'),
-                            createEdge('folder/other.md', 'unrelated')
-                        ],
-                        undefined,
-                        '# Source\n\nFirst [target]* and second [target]* and [other]*'
-                    ),
-                    [oldId]: createTestNode(oldId, [], undefined, '# Target'),
-                    'folder/other.md': createTestNode('folder/other.md', [], undefined, '# Other')
-                }
-            }
+            const initialGraph: Graph = createGraph({
+                'folder/source.md': createTestNode(
+                    'folder/source.md',
+                    [
+                        createEdge(oldId, 'rel1'),
+                        createEdge(oldId, 'rel2'),
+                        createEdge('folder/other.md', 'unrelated')
+                    ],
+                    undefined,
+                    '# Source\n\nFirst [target]* and second [target]* and [other]*'
+                ),
+                [oldId]: createTestNode(oldId, [], undefined, '# Target'),
+                'folder/other.md': createTestNode('folder/other.md', [], undefined, '# Other')
+            })
 
             // WHEN: Rename target
             const delta: GraphDelta = computeRenameNodeDelta(oldId, newId, initialGraph)
@@ -249,17 +242,15 @@ describe('Rename Node - Integration Tests', () => {
             const oldId: NodeIdAndFilePath = 'folder_a/old_name.md'
             const newId: NodeIdAndFilePath = 'folder_b/new_name.md'
 
-            const initialGraph: Graph = {
-                nodes: {
-                    'folder_c/source.md': createTestNode(
-                        'folder_c/source.md',
-                        [createEdge(oldId)],
-                        undefined,
-                        '# Source\n\nLinks to [folder_a/old_name]*'
-                    ),
-                    [oldId]: createTestNode(oldId, [], { x: 100, y: 100 }, '# Old Name')
-                }
-            }
+            const initialGraph: Graph = createGraph({
+                'folder_c/source.md': createTestNode(
+                    'folder_c/source.md',
+                    [createEdge(oldId)],
+                    undefined,
+                    '# Source\n\nLinks to [folder_a/old_name]*'
+                ),
+                [oldId]: createTestNode(oldId, [], { x: 100, y: 100 }, '# Old Name')
+            })
 
             // WHEN: Rename to different folder
             const delta: GraphDelta = computeRenameNodeDelta(oldId, newId, initialGraph)
@@ -288,21 +279,19 @@ describe('Rename Node - Integration Tests', () => {
             const oldId: NodeIdAndFilePath = 'folder/colored.md'
             const newId: NodeIdAndFilePath = 'folder/renamed_colored.md'
 
-            const initialGraph: Graph = {
-                nodes: {
-                    [oldId]: {
-                        relativeFilePathIsID: oldId,
-                        outgoingEdges: [],
-                        contentWithoutYamlOrLinks: '# Colored Node',
-                        nodeUIMetadata: {
-                            color: O.some('#ff5500'),
-                            position: O.some({ x: 42, y: 84 }),
-                            additionalYAMLProps: new Map([['agent_name', 'TestAgent']]),
-                            isContextNode: false
-                        }
+            const initialGraph: Graph = createGraph({
+                [oldId]: {
+                    relativeFilePathIsID: oldId,
+                    outgoingEdges: [],
+                    contentWithoutYamlOrLinks: '# Colored Node',
+                    nodeUIMetadata: {
+                        color: O.some('#ff5500'),
+                        position: O.some({ x: 42, y: 84 }),
+                        additionalYAMLProps: new Map([['agent_name', 'TestAgent']]),
+                        isContextNode: false
                     }
                 }
-            }
+            })
 
             // WHEN: Rename
             const delta: GraphDelta = computeRenameNodeDelta(oldId, newId, initialGraph)
@@ -323,11 +312,9 @@ describe('Rename Node - Integration Tests', () => {
 
     describe('BEHAVIOR: Edge cases', () => {
         it('should return empty delta for non-existent node', () => {
-            const graph: Graph = {
-                nodes: {
-                    'folder/exists.md': createTestNode('folder/exists.md')
-                }
-            }
+            const graph: Graph = createGraph({
+                'folder/exists.md': createTestNode('folder/exists.md')
+            })
 
             const delta: GraphDelta = computeRenameNodeDelta(
                 'folder/missing.md',
@@ -339,11 +326,9 @@ describe('Rename Node - Integration Tests', () => {
 
         it('should handle rename when old ID equals new ID (no-op)', () => {
             const nodeId: NodeIdAndFilePath = 'folder/same.md'
-            const graph: Graph = {
-                nodes: {
-                    [nodeId]: createTestNode(nodeId, [], undefined, '# Same')
-                }
-            }
+            const graph: Graph = createGraph({
+                [nodeId]: createTestNode(nodeId, [], undefined, '# Same')
+            })
 
             // WHEN: "Rename" to same ID
             const delta: GraphDelta = computeRenameNodeDelta(nodeId, nodeId, graph)
@@ -357,22 +342,20 @@ describe('Rename Node - Integration Tests', () => {
             const oldId: NodeIdAndFilePath = 'folder/target.md'
             const newId: NodeIdAndFilePath = 'folder/renamed.md'
 
-            const initialGraph: Graph = {
-                nodes: {
-                    'ctx-nodes/context.md': {
-                        relativeFilePathIsID: 'ctx-nodes/context.md',
-                        outgoingEdges: [createEdge(oldId)],
-                        contentWithoutYamlOrLinks: '# Context\n\n[target]*',
-                        nodeUIMetadata: {
-                            color: O.none,
-                            position: O.none,
-                            additionalYAMLProps: new Map(),
-                            isContextNode: true
-                        }
-                    },
-                    [oldId]: createTestNode(oldId, [], undefined, '# Target')
-                }
-            }
+            const initialGraph: Graph = createGraph({
+                'ctx-nodes/context.md': {
+                    relativeFilePathIsID: 'ctx-nodes/context.md',
+                    outgoingEdges: [createEdge(oldId)],
+                    contentWithoutYamlOrLinks: '# Context\n\n[target]*',
+                    nodeUIMetadata: {
+                        color: O.none,
+                        position: O.none,
+                        additionalYAMLProps: new Map(),
+                        isContextNode: true
+                    }
+                },
+                [oldId]: createTestNode(oldId, [], undefined, '# Target')
+            })
 
             // WHEN: Rename target
             const delta: GraphDelta = computeRenameNodeDelta(oldId, newId, initialGraph)

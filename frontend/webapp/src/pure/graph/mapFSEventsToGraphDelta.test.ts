@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { mapFSEventsToGraphDelta } from './mapFSEventsToGraphDelta'
 import type { FSUpdate, FSDelete, Graph, GraphDelta } from './index'
+import { createGraph } from '@/pure/graph/createGraph'
 
 describe('mapFSEventsToGraphDelta', () => {
   describe('Node ID preservation from fs events', () => {
@@ -11,7 +12,7 @@ describe('mapFSEventsToGraphDelta', () => {
         eventType: 'Added'
       }
       const vaultPath: "/vault" = '/vault'
-      const currentGraph: Graph = { nodes: {} }
+      const currentGraph: Graph = createGraph({})
 
       const delta: GraphDelta = mapFSEventsToGraphDelta(fsUpdate, vaultPath, currentGraph)
 
@@ -28,7 +29,7 @@ describe('mapFSEventsToGraphDelta', () => {
         absolutePath: '/vault/to-delete.md'
       }
       const vaultPath: "/vault" = '/vault'
-      const currentGraph: Graph = { nodes: {} }
+      const currentGraph: Graph = createGraph({})
 
       const delta: GraphDelta = mapFSEventsToGraphDelta(fsDelete, vaultPath, currentGraph)
 
@@ -46,7 +47,7 @@ describe('mapFSEventsToGraphDelta', () => {
         eventType: 'Added'
       }
       const vaultPath: "/vault" = '/vault'
-      const currentGraph: Graph = { nodes: {} }
+      const currentGraph: Graph = createGraph({})
 
       const delta: GraphDelta = mapFSEventsToGraphDelta(fsUpdate, vaultPath, currentGraph)
 

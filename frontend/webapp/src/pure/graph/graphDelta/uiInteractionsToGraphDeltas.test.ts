@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import type { Graph, GraphNode } from '@/pure/graph'
+import { createGraph } from '@/pure/graph/createGraph'
 import { fromCreateChildToUpsertNode, generateChildNodeId } from './uiInteractionsToGraphDeltas'
 
 /**
@@ -105,7 +106,7 @@ describe('generateChildNodeId', () => {
 })
 
 describe('fromCreateChildToUpsertNode', () => {
-    const emptyGraph: Graph = { nodes: {} }
+    const emptyGraph: Graph = createGraph({})
 
     it('should generate child ID in same folder for regular nodes', () => {
         const parentNode: GraphNode = createTestNode('tuesday/some_node.md', 0)

@@ -23,6 +23,7 @@
  */
 
 import type { Graph, NodeIdAndFilePath, GraphNode, Edge } from '@/pure/graph'
+import { createGraph, createEmptyGraph } from '@/pure/graph/createGraph'
 import { getIncomingNodes } from '@/pure/graph/graph-operations/getIncomingNodes'
 import { setOutgoingEdges } from '@/pure/graph/graph-operations/graph-edge-operations'
 
@@ -126,7 +127,7 @@ export function graphToSpanningTree(
 ): Graph {
   // If root doesn't exist, return empty graph
   if (!graph.nodes[rootNodeId]) {
-    return { nodes: {} }
+    return createEmptyGraph()
   }
 
   // Initial state
@@ -141,7 +142,7 @@ export function graphToSpanningTree(
   // Construct the result graph with only tree edges
   const resultNodes: Record<NodeIdAndFilePath, GraphNode> = Object.fromEntries(
     Array.from(finalState.visited)
-      .map(nodeId => {
+      .map((nodeId): [NodeIdAndFilePath, GraphNode] | null => {
         const originalNode: GraphNode | undefined = graph.nodes[nodeId]
         if (!originalNode) return null
         const nodeTreeEdges: readonly Edge[] = finalState.treeEdges.get(nodeId) ?? []
@@ -150,7 +151,7 @@ export function graphToSpanningTree(
       .filter((entry): entry is [NodeIdAndFilePath, GraphNode] => entry !== null)
   )
 
-  return { nodes: resultNodes }
+  return createGraph(resultNodes)
 }
 
 export type GraphToSpanningTree = typeof graphToSpanningTree

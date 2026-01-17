@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import type { Graph, GraphNode, GraphDelta, NodeIdAndFilePath } from '@/pure/graph'
+import { createGraph } from '@/pure/graph/createGraph'
 import { applyGraphDeltaToGraph } from '@/pure/graph/graphDelta/applyGraphDeltaToGraph'
 import { deleteNodeMaintainingTransitiveEdges } from '@/pure/graph/graph-operations/removeNodeMaintainingTransitiveEdges'
 
@@ -31,13 +32,11 @@ describe('Edge Preservation on Node Deletion', () => {
     describe('Simple chain: a -> b -> c', () => {
         it('should connect parent to children when middle node is deleted', () => {
             // Setup: a -> b -> c
-            const graph: Graph = {
-                nodes: {
-                    'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'extends' }]),
-                    'b.md': createNode('b.md', [{ targetId: 'c.md', label: 'implements' }]),
-                    'c.md': createNode('c.md', [])
-                }
-            }
+            const graph: Graph = createGraph({
+                'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'extends' }]),
+                'b.md': createNode('b.md', [{ targetId: 'c.md', label: 'implements' }]),
+                'c.md': createNode('c.md', [])
+            })
 
             // Delete b with edge preservation
             const delta: GraphDelta = deleteNodeMaintainingTransitiveEdges(graph, 'b.md')
@@ -59,17 +58,15 @@ describe('Edge Preservation on Node Deletion', () => {
     describe('Multiple children: a -> b -> {c, d}', () => {
         it('should connect parent to all children of deleted node', () => {
             // Setup: a -> b -> c, b -> d
-            const graph: Graph = {
-                nodes: {
-                    'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'parent-of' }]),
-                    'b.md': createNode('b.md', [
-                        { targetId: 'c.md', label: 'child1' },
-                        { targetId: 'd.md', label: 'child2' }
-                    ]),
-                    'c.md': createNode('c.md', []),
-                    'd.md': createNode('d.md', [])
-                }
-            }
+            const graph: Graph = createGraph({
+                'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'parent-of' }]),
+                'b.md': createNode('b.md', [
+                    { targetId: 'c.md', label: 'child1' },
+                    { targetId: 'd.md', label: 'child2' }
+                ]),
+                'c.md': createNode('c.md', []),
+                'd.md': createNode('d.md', [])
+            })
 
             // Delete b with edge preservation
             const delta: GraphDelta = deleteNodeMaintainingTransitiveEdges(graph, 'b.md')
@@ -90,14 +87,12 @@ describe('Edge Preservation on Node Deletion', () => {
         it('should connect all parents to children AND to each other', () => {
             // Setup: a -> b, x -> b, b -> c
             // In bidirectional traversal, a and x can reach each other via b's incoming edges
-            const graph: Graph = {
-                nodes: {
-                    'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'label-a' }]),
-                    'x.md': createNode('x.md', [{ targetId: 'b.md', label: 'label-x' }]),
-                    'b.md': createNode('b.md', [{ targetId: 'c.md', label: 'to-c' }]),
-                    'c.md': createNode('c.md', [])
-                }
-            }
+            const graph: Graph = createGraph({
+                'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'label-a' }]),
+                'x.md': createNode('x.md', [{ targetId: 'b.md', label: 'label-x' }]),
+                'b.md': createNode('b.md', [{ targetId: 'c.md', label: 'to-c' }]),
+                'c.md': createNode('c.md', [])
+            })
 
             // Delete b with edge preservation
             const delta: GraphDelta = deleteNodeMaintainingTransitiveEdges(graph, 'b.md')
@@ -119,18 +114,16 @@ describe('Edge Preservation on Node Deletion', () => {
         it('should connect all parents to all children AND to each other', () => {
             // Setup: a -> b, x -> b, b -> c, b -> d
             // In bidirectional traversal, a and x can reach each other via b's incoming edges
-            const graph: Graph = {
-                nodes: {
-                    'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'from-a' }]),
-                    'x.md': createNode('x.md', [{ targetId: 'b.md', label: 'from-x' }]),
-                    'b.md': createNode('b.md', [
-                        { targetId: 'c.md', label: 'to-c' },
-                        { targetId: 'd.md', label: 'to-d' }
-                    ]),
-                    'c.md': createNode('c.md', []),
-                    'd.md': createNode('d.md', [])
-                }
-            }
+            const graph: Graph = createGraph({
+                'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'from-a' }]),
+                'x.md': createNode('x.md', [{ targetId: 'b.md', label: 'from-x' }]),
+                'b.md': createNode('b.md', [
+                    { targetId: 'c.md', label: 'to-c' },
+                    { targetId: 'd.md', label: 'to-d' }
+                ]),
+                'c.md': createNode('c.md', []),
+                'd.md': createNode('d.md', [])
+            })
 
             // Delete b with edge preservation
             const delta: GraphDelta = deleteNodeMaintainingTransitiveEdges(graph, 'b.md')
@@ -149,16 +142,14 @@ describe('Edge Preservation on Node Deletion', () => {
     describe('Edge cases', () => {
         it('should not create duplicate edges if parent already connects to child', () => {
             // Setup: a -> b -> c, but a also already -> c
-            const graph: Graph = {
-                nodes: {
-                    'a.md': createNode('a.md', [
-                        { targetId: 'b.md', label: 'via-b' },
-                        { targetId: 'c.md', label: 'direct' }
-                    ]),
-                    'b.md': createNode('b.md', [{ targetId: 'c.md', label: 'to-c' }]),
-                    'c.md': createNode('c.md', [])
-                }
-            }
+            const graph: Graph = createGraph({
+                'a.md': createNode('a.md', [
+                    { targetId: 'b.md', label: 'via-b' },
+                    { targetId: 'c.md', label: 'direct' }
+                ]),
+                'b.md': createNode('b.md', [{ targetId: 'c.md', label: 'to-c' }]),
+                'c.md': createNode('c.md', [])
+            })
 
             // Delete b with edge preservation
             const delta: GraphDelta = deleteNodeMaintainingTransitiveEdges(graph, 'b.md')
@@ -173,12 +164,10 @@ describe('Edge Preservation on Node Deletion', () => {
 
         it('should handle deletion of node with no children (leaf node)', () => {
             // Setup: a -> b (b has no children)
-            const graph: Graph = {
-                nodes: {
-                    'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'to-b' }]),
-                    'b.md': createNode('b.md', [])
-                }
-            }
+            const graph: Graph = createGraph({
+                'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'to-b' }]),
+                'b.md': createNode('b.md', [])
+            })
 
             // Delete b with edge preservation
             const delta: GraphDelta = deleteNodeMaintainingTransitiveEdges(graph, 'b.md')
@@ -190,12 +179,10 @@ describe('Edge Preservation on Node Deletion', () => {
 
         it('should handle deletion of node with no parents (root node)', () => {
             // Setup: b -> c (b has no parents)
-            const graph: Graph = {
-                nodes: {
-                    'b.md': createNode('b.md', [{ targetId: 'c.md', label: 'to-c' }]),
-                    'c.md': createNode('c.md', [])
-                }
-            }
+            const graph: Graph = createGraph({
+                'b.md': createNode('b.md', [{ targetId: 'c.md', label: 'to-c' }]),
+                'c.md': createNode('c.md', [])
+            })
 
             // Delete b with edge preservation
             const delta: GraphDelta = deleteNodeMaintainingTransitiveEdges(graph, 'b.md')
@@ -208,13 +195,11 @@ describe('Edge Preservation on Node Deletion', () => {
 
         it('should handle deletion when using graph state for edge information', () => {
             // Setup: a -> b -> c
-            const graph: Graph = {
-                nodes: {
-                    'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'extends' }]),
-                    'b.md': createNode('b.md', [{ targetId: 'c.md', label: 'implements' }]),
-                    'c.md': createNode('c.md', [])
-                }
-            }
+            const graph: Graph = createGraph({
+                'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'extends' }]),
+                'b.md': createNode('b.md', [{ targetId: 'c.md', label: 'implements' }]),
+                'c.md': createNode('c.md', [])
+            })
 
             // Delete b with edge preservation (function reads from graph state)
             const delta: GraphDelta = deleteNodeMaintainingTransitiveEdges(graph, 'b.md')

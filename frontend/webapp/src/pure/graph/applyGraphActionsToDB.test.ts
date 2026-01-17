@@ -13,10 +13,9 @@ import type { FileLimitExceededError } from '@/shell/edge/main/graph/markdownHan
 describe('apply_graph_deltas_to_db', () => {
   const testVaultPath: string = path.join(tmpdir(), 'test-vault-apply-deltas-to-db')
 
-  // Mock environment for testing (watchedDirectory and vaultPath are same when no suffix)
+  // Mock environment for testing
   const testEnv: Env = {
-    watchedDirectory: testVaultPath,
-    vaultPath: testVaultPath
+    watchedDirectory: testVaultPath
   }
 
   // Create test vault directory before all tests
@@ -350,15 +349,13 @@ describe('apply_graph_deltas_to_db', () => {
       await fs.mkdir(vault1Path, { recursive: true })
       await fs.mkdir(vault2Path, { recursive: true })
 
-      // Test with different environments (watchedDirectory and vaultPath are same when no suffix)
+      // Test with different environments
       const env1: Env = {
-        watchedDirectory: vault1Path,
-        vaultPath: vault1Path
+        watchedDirectory: vault1Path
       }
 
       const env2: Env = {
-        watchedDirectory: vault2Path,
-        vaultPath: vault2Path
+        watchedDirectory: vault2Path
       }
 
       const newNode: GraphNode = createTestNode('test', '# Test')

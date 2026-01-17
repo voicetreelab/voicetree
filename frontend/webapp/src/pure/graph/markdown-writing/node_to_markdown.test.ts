@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import { fromNodeToMarkdownContent } from '@/pure/graph/markdown-writing/node_to_markdown'
 import { parseMarkdownToGraphNode } from '@/pure/graph/markdown-parsing/parse-markdown-to-node'
+import { createGraph } from '@/pure/graph/createGraph'
 import type { Graph, GraphNode } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
 
 // Helper to create an empty graph for testing
-const emptyGraph: Graph = { nodes: {} }
+const emptyGraph: Graph = createGraph({})
 
 describe('fromNodeToMarkdownContent', () => {
   describe('frontmatter generation', () => {

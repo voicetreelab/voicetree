@@ -6,6 +6,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 import { loadGraphFromDisk, loadVaultPathAdditively } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk'
 import type { Graph, GraphNode, GraphDelta } from '@/pure/graph'
+import { createGraph } from '@/pure/graph/createGraph'
 import { getNodeTitle } from '@/pure/graph/markdown-parsing'
 import type { FileLimitExceededError } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce'
 
@@ -270,18 +271,16 @@ Content for new file 2. Links to [[existing]].`
     const initialResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([primaryVaultPath], watchedDir)
     if (E.isLeft(initialResult)) throw new Error('Expected Right')
 
-    const existingGraph: Graph = {
-      nodes: {
-        ...initialResult.right.nodes,
-        'primary-vault/existing.md': {
-          ...initialResult.right.nodes['primary-vault/existing.md'],
-          nodeUIMetadata: {
-            ...initialResult.right.nodes['primary-vault/existing.md'].nodeUIMetadata,
-            position: O.some({ x: 100, y: 200 })
-          }
+    const existingGraph: Graph = createGraph({
+      ...initialResult.right.nodes,
+      'primary-vault/existing.md': {
+        ...initialResult.right.nodes['primary-vault/existing.md'],
+        nodeUIMetadata: {
+          ...initialResult.right.nodes['primary-vault/existing.md'].nodeUIMetadata,
+          position: O.some({ x: 100, y: 200 })
         }
       }
-    }
+    })
 
     // WHEN: Load secondary vault additively
     const additiveResult: E.Either<FileLimitExceededError, { graph: Graph; delta: GraphDelta }> =

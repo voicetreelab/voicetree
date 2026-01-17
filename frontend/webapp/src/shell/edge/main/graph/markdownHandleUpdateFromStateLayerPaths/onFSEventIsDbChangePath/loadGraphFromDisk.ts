@@ -3,6 +3,7 @@ import * as path from 'path'
 import * as E from "fp-ts/lib/Either.js";
 import * as O from "fp-ts/lib/Option.js";
 import type { Graph, FSUpdate, GraphDelta } from '@/pure/graph'
+import { createEmptyGraph } from '@/pure/graph/createGraph'
 import type { Dirent } from 'fs'
 import { enforceFileLimit, type FileLimitExceededError } from './fileLimitEnforce'
 import { applyPositions } from '@/pure/graph/positioning'
@@ -39,7 +40,7 @@ export async function loadGraphFromDisk(
     watchedDirectory: string
 ): Promise<E.Either<FileLimitExceededError, Graph>> {
     if (vaultPaths.length === 0) {
-        return E.right({ nodes: {} });
+        return E.right(createEmptyGraph());
     }
 
     // Step 1: Scan all vault directories for markdown files
@@ -77,7 +78,7 @@ export async function loadGraphFromDisk(
             const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, watchedDirectory, currentGraph)
             return applyGraphDeltaToGraph(currentGraph, delta)
         },
-        Promise.resolve({ nodes: {} } as Graph)
+        Promise.resolve(createEmptyGraph())
     )
 
     // Step 3: Apply positions to all nodes that don't have a position
