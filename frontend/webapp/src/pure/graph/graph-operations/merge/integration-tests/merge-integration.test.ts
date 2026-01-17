@@ -19,6 +19,7 @@
 import { describe, it, expect } from 'vitest'
 import { computeMergeGraphDelta } from '@/pure/graph/graph-operations/merge/computeMergeGraphDelta'
 import { applyGraphDeltaToGraph } from '@/pure/graph'
+import { createGraph } from '@/pure/graph/createGraph'
 import type { Graph, GraphNode, Edge, GraphDelta } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
 
@@ -55,20 +56,18 @@ describe('Merge Selected Nodes - Integration Tests', () => {
             // - external2 -> internal2 (another incoming edge)
             // - internal1 -> internal2 (internal edge to be discarded)
             // - internal2 (leaf node)
-            const initialGraph: Graph = {
-                nodes: {
-                    'external1.md': createTestNode('external1.md', [
-                        createEdge('internal1.md', 'references')
-                    ], { x: 0, y: 0 }, '# External 1'),
-                    'external2.md': createTestNode('external2.md', [
-                        createEdge('internal2.md', 'depends on')
-                    ], { x: 200, y: 0 }, '# External 2'),
-                    'internal1.md': createTestNode('internal1.md', [
-                        createEdge('internal2.md', 'child')
-                    ], { x: 100, y: 100 }, '# Internal 1'),
-                    'internal2.md': createTestNode('internal2.md', [], { x: 100, y: 200 }, '# Internal 2'),
-                }
-            }
+            const initialGraph: Graph = createGraph({
+                'external1.md': createTestNode('external1.md', [
+                    createEdge('internal1.md', 'references')
+                ], { x: 0, y: 0 }, '# External 1'),
+                'external2.md': createTestNode('external2.md', [
+                    createEdge('internal2.md', 'depends on')
+                ], { x: 200, y: 0 }, '# External 2'),
+                'internal1.md': createTestNode('internal1.md', [
+                    createEdge('internal2.md', 'child')
+                ], { x: 100, y: 100 }, '# Internal 1'),
+                'internal2.md': createTestNode('internal2.md', [], { x: 100, y: 200 }, '# Internal 2'),
+            })
 
             // WHEN: Merge internal1 and internal2
             const selectedNodeIds: readonly string[] = ['internal1.md', 'internal2.md']
@@ -124,14 +123,12 @@ describe('Merge Selected Nodes - Integration Tests', () => {
     describe('BEHAVIOR: Merge isolated subgraph (no external edges)', () => {
         it('should merge nodes without external edges', () => {
             // GIVEN: A graph with isolated nodes (no external edges)
-            const initialGraph: Graph = {
-                nodes: {
-                    'node1.md': createTestNode('node1.md', [
-                        createEdge('node2.md', 'link')
-                    ], { x: 0, y: 0 }, '# Node 1'),
-                    'node2.md': createTestNode('node2.md', [], { x: 100, y: 100 }, '# Node 2'),
-                }
-            }
+            const initialGraph: Graph = createGraph({
+                'node1.md': createTestNode('node1.md', [
+                    createEdge('node2.md', 'link')
+                ], { x: 0, y: 0 }, '# Node 1'),
+                'node2.md': createTestNode('node2.md', [], { x: 100, y: 100 }, '# Node 2'),
+            })
 
             // WHEN: Merge both nodes
             const delta: GraphDelta = computeMergeGraphDelta(['node1.md', 'node2.md'], initialGraph)
@@ -147,16 +144,14 @@ describe('Merge Selected Nodes - Integration Tests', () => {
     describe('BEHAVIOR: Merge preserves unrelated nodes', () => {
         it('should not affect unrelated nodes in the graph', () => {
             // GIVEN: A graph with some unrelated nodes
-            const initialGraph: Graph = {
-                nodes: {
-                    'unrelated.md': createTestNode('unrelated.md', [
-                        createEdge('other-unrelated.md')
-                    ], { x: 500, y: 500 }, '# Unrelated'),
-                    'other-unrelated.md': createTestNode('other-unrelated.md', [], { x: 600, y: 600 }, '# Other Unrelated'),
-                    'to-merge-1.md': createTestNode('to-merge-1.md', [], { x: 0, y: 0 }, '# To Merge 1'),
-                    'to-merge-2.md': createTestNode('to-merge-2.md', [], { x: 100, y: 100 }, '# To Merge 2'),
-                }
-            }
+            const initialGraph: Graph = createGraph({
+                'unrelated.md': createTestNode('unrelated.md', [
+                    createEdge('other-unrelated.md')
+                ], { x: 500, y: 500 }, '# Unrelated'),
+                'other-unrelated.md': createTestNode('other-unrelated.md', [], { x: 600, y: 600 }, '# Other Unrelated'),
+                'to-merge-1.md': createTestNode('to-merge-1.md', [], { x: 0, y: 0 }, '# To Merge 1'),
+                'to-merge-2.md': createTestNode('to-merge-2.md', [], { x: 100, y: 100 }, '# To Merge 2'),
+            })
 
             // WHEN: Merge only to-merge-1 and to-merge-2
             const delta: GraphDelta = computeMergeGraphDelta(['to-merge-1.md', 'to-merge-2.md'], initialGraph)
@@ -172,18 +167,16 @@ describe('Merge Selected Nodes - Integration Tests', () => {
     describe('BEHAVIOR: Multiple edges from same external node', () => {
         it('should redirect all edges from external node pointing to different subgraph nodes', () => {
             // GIVEN: An external node with edges to multiple nodes in the subgraph
-            const initialGraph: Graph = {
-                nodes: {
-                    'hub.md': createTestNode('hub.md', [
-                        createEdge('leaf1.md', 'link1'),
-                        createEdge('leaf2.md', 'link2'),
-                        createEdge('leaf3.md', 'link3'),
-                    ], { x: 0, y: 0 }, '# Hub'),
-                    'leaf1.md': createTestNode('leaf1.md', [], { x: 100, y: 0 }, '# Leaf 1'),
-                    'leaf2.md': createTestNode('leaf2.md', [], { x: 200, y: 0 }, '# Leaf 2'),
-                    'leaf3.md': createTestNode('leaf3.md', [], { x: 300, y: 0 }, '# Leaf 3'),
-                }
-            }
+            const initialGraph: Graph = createGraph({
+                'hub.md': createTestNode('hub.md', [
+                    createEdge('leaf1.md', 'link1'),
+                    createEdge('leaf2.md', 'link2'),
+                    createEdge('leaf3.md', 'link3'),
+                ], { x: 0, y: 0 }, '# Hub'),
+                'leaf1.md': createTestNode('leaf1.md', [], { x: 100, y: 0 }, '# Leaf 1'),
+                'leaf2.md': createTestNode('leaf2.md', [], { x: 200, y: 0 }, '# Leaf 2'),
+                'leaf3.md': createTestNode('leaf3.md', [], { x: 300, y: 0 }, '# Leaf 3'),
+            })
 
             // WHEN: Merge all leaf nodes
             const delta: GraphDelta = computeMergeGraphDelta(['leaf1.md', 'leaf2.md', 'leaf3.md'], initialGraph)
@@ -208,33 +201,27 @@ describe('Merge Selected Nodes - Integration Tests', () => {
 
     describe('BEHAVIOR: Edge cases', () => {
         it('should return empty delta for single node selection', () => {
-            const graph: Graph = {
-                nodes: {
-                    'single.md': createTestNode('single.md')
-                }
-            }
+            const graph: Graph = createGraph({
+                'single.md': createTestNode('single.md')
+            })
 
             const delta: GraphDelta = computeMergeGraphDelta(['single.md'], graph)
             expect(delta).toEqual([])
         })
 
         it('should return empty delta for empty selection', () => {
-            const graph: Graph = {
-                nodes: {
-                    'node.md': createTestNode('node.md')
-                }
-            }
+            const graph: Graph = createGraph({
+                'node.md': createTestNode('node.md')
+            })
 
             const delta: GraphDelta = computeMergeGraphDelta([], graph)
             expect(delta).toEqual([])
         })
 
         it('should return empty delta when selected nodes do not exist', () => {
-            const graph: Graph = {
-                nodes: {
-                    'existing.md': createTestNode('existing.md')
-                }
-            }
+            const graph: Graph = createGraph({
+                'existing.md': createTestNode('existing.md')
+            })
 
             const delta: GraphDelta = computeMergeGraphDelta(['missing1.md', 'missing2.md'], graph)
             expect(delta).toEqual([])

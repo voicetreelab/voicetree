@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { computeMergeGraphDelta } from './computeMergeGraphDelta'
 import type { Graph, GraphNode, Edge, GraphDelta } from '@/pure/graph'
+import { createGraph } from '@/pure/graph/createGraph'
 import * as O from 'fp-ts/lib/Option.js'
 
 // Helper to create a minimal GraphNode
@@ -29,11 +30,9 @@ function createEdge(targetId: string, label = ''): Edge {
 
 describe('computeMergeGraphDelta', () => {
     it('should return empty delta when less than 2 nodes selected', () => {
-        const graph: Graph = {
-            nodes: {
-                'node1.md': createNode('node1.md')
-            }
-        }
+        const graph: Graph = createGraph({
+            'node1.md': createNode('node1.md')
+        })
 
         const result: GraphDelta = computeMergeGraphDelta(['node1.md'], graph)
 
@@ -41,11 +40,9 @@ describe('computeMergeGraphDelta', () => {
     })
 
     it('should return empty delta when selected nodes do not exist in graph', () => {
-        const graph: Graph = {
-            nodes: {
-                'other.md': createNode('other.md')
-            }
-        }
+        const graph: Graph = createGraph({
+            'other.md': createNode('other.md')
+        })
 
         const result: GraphDelta = computeMergeGraphDelta(['missing1.md', 'missing2.md'], graph)
 
@@ -53,12 +50,10 @@ describe('computeMergeGraphDelta', () => {
     })
 
     it('should create representative node and delete selected nodes', () => {
-        const graph: Graph = {
-            nodes: {
-                'node1.md': createNode('node1.md', [], { x: 0, y: 0 }, '# First'),
-                'node2.md': createNode('node2.md', [], { x: 100, y: 100 }, '# Second')
-            }
-        }
+        const graph: Graph = createGraph({
+            'node1.md': createNode('node1.md', [], { x: 0, y: 0 }, '# First'),
+            'node2.md': createNode('node2.md', [], { x: 100, y: 100 }, '# Second')
+        })
 
         const result: GraphDelta = computeMergeGraphDelta(['node1.md', 'node2.md'], graph)
 
@@ -90,15 +85,13 @@ describe('computeMergeGraphDelta', () => {
     })
 
     it('should redirect incoming edges from external nodes to representative', () => {
-        const graph: Graph = {
-            nodes: {
-                'external.md': createNode('external.md', [
-                    createEdge('internal1.md', 'link to internal1')
-                ]),
-                'internal1.md': createNode('internal1.md', [], { x: 0, y: 0 }),
-                'internal2.md': createNode('internal2.md', [], { x: 100, y: 100 })
-            }
-        }
+        const graph: Graph = createGraph({
+            'external.md': createNode('external.md', [
+                createEdge('internal1.md', 'link to internal1')
+            ]),
+            'internal1.md': createNode('internal1.md', [], { x: 0, y: 0 }),
+            'internal2.md': createNode('internal2.md', [], { x: 100, y: 100 })
+        })
 
         const result: GraphDelta = computeMergeGraphDelta(['internal1.md', 'internal2.md'], graph)
 
@@ -120,14 +113,12 @@ describe('computeMergeGraphDelta', () => {
     })
 
     it('should handle multiple external nodes with edges to subgraph', () => {
-        const graph: Graph = {
-            nodes: {
-                'ext1.md': createNode('ext1.md', [createEdge('internal.md', 'from ext1')]),
-                'ext2.md': createNode('ext2.md', [createEdge('internal.md', 'from ext2')]),
-                'internal.md': createNode('internal.md', [], { x: 50, y: 50 }),
-                'internal2.md': createNode('internal2.md', [], { x: 60, y: 60 })
-            }
-        }
+        const graph: Graph = createGraph({
+            'ext1.md': createNode('ext1.md', [createEdge('internal.md', 'from ext1')]),
+            'ext2.md': createNode('ext2.md', [createEdge('internal.md', 'from ext2')]),
+            'internal.md': createNode('internal.md', [], { x: 50, y: 50 }),
+            'internal2.md': createNode('internal2.md', [], { x: 60, y: 60 })
+        })
 
         const result: GraphDelta = computeMergeGraphDelta(['internal.md', 'internal2.md'], graph)
 
@@ -144,14 +135,12 @@ describe('computeMergeGraphDelta', () => {
     })
 
     it('should not include external nodes that have no edges to subgraph', () => {
-        const graph: Graph = {
-            nodes: {
-                'unrelated.md': createNode('unrelated.md', [createEdge('other.md')]),
-                'other.md': createNode('other.md'),
-                'internal1.md': createNode('internal1.md', [], { x: 0, y: 0 }),
-                'internal2.md': createNode('internal2.md', [], { x: 100, y: 100 })
-            }
-        }
+        const graph: Graph = createGraph({
+            'unrelated.md': createNode('unrelated.md', [createEdge('other.md')]),
+            'other.md': createNode('other.md'),
+            'internal1.md': createNode('internal1.md', [], { x: 0, y: 0 }),
+            'internal2.md': createNode('internal2.md', [], { x: 100, y: 100 })
+        })
 
         const result: GraphDelta = computeMergeGraphDelta(['internal1.md', 'internal2.md'], graph)
 
@@ -160,16 +149,14 @@ describe('computeMergeGraphDelta', () => {
     })
 
     it('should redirect multiple edges from same external node to different subgraph nodes', () => {
-        const graph: Graph = {
-            nodes: {
-                'external.md': createNode('external.md', [
-                    createEdge('internal1.md', 'link1'),
-                    createEdge('internal2.md', 'link2')
-                ]),
-                'internal1.md': createNode('internal1.md', [], { x: 0, y: 0 }),
-                'internal2.md': createNode('internal2.md', [], { x: 100, y: 100 })
-            }
-        }
+        const graph: Graph = createGraph({
+            'external.md': createNode('external.md', [
+                createEdge('internal1.md', 'link1'),
+                createEdge('internal2.md', 'link2')
+            ]),
+            'internal1.md': createNode('internal1.md', [], { x: 0, y: 0 }),
+            'internal2.md': createNode('internal2.md', [], { x: 100, y: 100 })
+        })
 
         const result: GraphDelta = computeMergeGraphDelta(['internal1.md', 'internal2.md'], graph)
 
@@ -191,12 +178,10 @@ describe('computeMergeGraphDelta', () => {
     })
 
     it('should discard internal edges between selected nodes', () => {
-        const graph: Graph = {
-            nodes: {
-                'node1.md': createNode('node1.md', [createEdge('node2.md', 'internal')], { x: 0, y: 0 }),
-                'node2.md': createNode('node2.md', [], { x: 100, y: 100 })
-            }
-        }
+        const graph: Graph = createGraph({
+            'node1.md': createNode('node1.md', [createEdge('node2.md', 'internal')], { x: 0, y: 0 }),
+            'node2.md': createNode('node2.md', [], { x: 100, y: 100 })
+        })
 
         const result: GraphDelta = computeMergeGraphDelta(['node1.md', 'node2.md'], graph)
 
@@ -211,23 +196,21 @@ describe('computeMergeGraphDelta', () => {
     })
 
     it('should exclude context nodes from merge content but still delete them when selected', () => {
-        const graph: Graph = {
-            nodes: {
-                'node1.md': createNode('node1.md', [], { x: 0, y: 0 }, '# Regular Node 1'),
-                'node2.md': createNode('node2.md', [], { x: 100, y: 100 }, '# Regular Node 2'),
-                'context.md': {
-                    relativeFilePathIsID: 'context.md',
-                    outgoingEdges: [],
-                    contentWithoutYamlOrLinks: '# Context Node',
-                    nodeUIMetadata: {
-                        color: O.none,
-                        position: O.some({ x: 50, y: 50 }),
-                        additionalYAMLProps: new Map(),
-                        isContextNode: true
-                    }
+        const graph: Graph = createGraph({
+            'node1.md': createNode('node1.md', [], { x: 0, y: 0 }, '# Regular Node 1'),
+            'node2.md': createNode('node2.md', [], { x: 100, y: 100 }, '# Regular Node 2'),
+            'context.md': {
+                relativeFilePathIsID: 'context.md',
+                outgoingEdges: [],
+                contentWithoutYamlOrLinks: '# Context Node',
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 50, y: 50 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: true
                 }
             }
-        }
+        })
 
         const result: GraphDelta = computeMergeGraphDelta(['node1.md', 'node2.md', 'context.md'], graph)
 
@@ -254,22 +237,20 @@ describe('computeMergeGraphDelta', () => {
     })
 
     it('should delete context nodes even when merge cannot happen (1 regular + 1 context)', () => {
-        const graph: Graph = {
-            nodes: {
-                'node1.md': createNode('node1.md', [], { x: 0, y: 0 }, '# Regular Node'),
-                'context.md': {
-                    relativeFilePathIsID: 'context.md',
-                    outgoingEdges: [],
-                    contentWithoutYamlOrLinks: '# Context Node',
-                    nodeUIMetadata: {
-                        color: O.none,
-                        position: O.some({ x: 50, y: 50 }),
-                        additionalYAMLProps: new Map(),
-                        isContextNode: true
-                    }
+        const graph: Graph = createGraph({
+            'node1.md': createNode('node1.md', [], { x: 0, y: 0 }, '# Regular Node'),
+            'context.md': {
+                relativeFilePathIsID: 'context.md',
+                outgoingEdges: [],
+                contentWithoutYamlOrLinks: '# Context Node',
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 50, y: 50 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: true
                 }
             }
-        }
+        })
 
         const result: GraphDelta = computeMergeGraphDelta(['node1.md', 'context.md'], graph)
 
@@ -282,32 +263,30 @@ describe('computeMergeGraphDelta', () => {
     })
 
     it('should delete context nodes even when only context nodes are selected (no merge node created)', () => {
-        const graph: Graph = {
-            nodes: {
-                'context1.md': {
-                    relativeFilePathIsID: 'context1.md',
-                    outgoingEdges: [],
-                    contentWithoutYamlOrLinks: '# Context 1',
-                    nodeUIMetadata: {
-                        color: O.none,
-                        position: O.some({ x: 0, y: 0 }),
-                        additionalYAMLProps: new Map(),
-                        isContextNode: true
-                    }
-                },
-                'context2.md': {
-                    relativeFilePathIsID: 'context2.md',
-                    outgoingEdges: [],
-                    contentWithoutYamlOrLinks: '# Context 2',
-                    nodeUIMetadata: {
-                        color: O.none,
-                        position: O.some({ x: 100, y: 100 }),
-                        additionalYAMLProps: new Map(),
-                        isContextNode: true
-                    }
+        const graph: Graph = createGraph({
+            'context1.md': {
+                relativeFilePathIsID: 'context1.md',
+                outgoingEdges: [],
+                contentWithoutYamlOrLinks: '# Context 1',
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 0, y: 0 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: true
+                }
+            },
+            'context2.md': {
+                relativeFilePathIsID: 'context2.md',
+                outgoingEdges: [],
+                contentWithoutYamlOrLinks: '# Context 2',
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: true
                 }
             }
-        }
+        })
 
         const result: GraphDelta = computeMergeGraphDelta(['context1.md', 'context2.md'], graph)
 
