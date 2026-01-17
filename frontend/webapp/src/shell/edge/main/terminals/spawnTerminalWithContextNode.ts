@@ -87,6 +87,7 @@ export async function spawnTerminalWithContextNode(
 
     // TODO, HERE WE NEED TO WAIT FOR CONTEXT NODE TO EXIST IN UI
     // OR we could move that to within launchTerminalOntoUI
+    // Actually, this is handled in createFloatingTerminal via waitForNode: src/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI.ts:371
 
     // Call UI to launch terminal (via UI API pattern)
     // Note: uiAPI sends IPC message, no need to await (fire-and-forget)

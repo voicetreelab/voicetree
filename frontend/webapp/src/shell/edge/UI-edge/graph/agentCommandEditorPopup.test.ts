@@ -57,6 +57,7 @@ describe('showAgentCommandEditor', () => {
         expect(result).not.toBeNull();
         expect(result!.command).toBe('claude modified command');
         expect(result!.agentPrompt).toBe(DEFAULT_AGENT_PROMPT);
+        expect(result!.mcpIntegrationEnabled).toBe(true); // Default enabled
     });
 
     // 4.2 Unit Test: showAgentCommandEditor returns null on cancel/close
@@ -135,9 +136,37 @@ describe('showAgentCommandEditor', () => {
         expect(dialog.querySelector('h2')).not.toBeNull();
         expect(dialog.querySelector('#agent-prompt-input')).not.toBeNull();
         expect(dialog.querySelector('#command-input')).not.toBeNull();
+        expect(dialog.querySelector('#mcp-integration-toggle')).not.toBeNull();
         expect(dialog.querySelector('[data-testid="add-auto-run-button"]')).not.toBeNull();
         expect(dialog.querySelector('[data-testid="cancel-button"]')).not.toBeNull();
         expect(dialog.querySelector('[data-testid="run-button"]')).not.toBeNull();
+    });
+
+    it('MCP integration toggle is enabled by default', async () => {
+        void showAgentCommandEditor('claude test', DEFAULT_AGENT_PROMPT);
+
+        const dialog: HTMLDialogElement = getDialog();
+        const mcpToggle: HTMLInputElement = dialog.querySelector('#mcp-integration-toggle') as HTMLInputElement;
+
+        expect(mcpToggle).not.toBeNull();
+        expect(mcpToggle.checked).toBe(true);
+    });
+
+    it('returns mcpIntegrationEnabled as false when toggle is unchecked', async () => {
+        const promise: Promise<AgentCommandEditorResult | null> = showAgentCommandEditor('claude test', DEFAULT_AGENT_PROMPT);
+
+        const dialog: HTMLDialogElement = getDialog();
+        const mcpToggle: HTMLInputElement = dialog.querySelector('#mcp-integration-toggle') as HTMLInputElement;
+
+        // Uncheck the toggle
+        mcpToggle.checked = false;
+
+        const form: HTMLFormElement = dialog.querySelector('form') as HTMLFormElement;
+        form.dispatchEvent(new Event('submit', { cancelable: true }));
+
+        const result: AgentCommandEditorResult | null = await promise;
+        expect(result).not.toBeNull();
+        expect(result!.mcpIntegrationEnabled).toBe(false);
     });
 
     // New tests for agent prompt functionality

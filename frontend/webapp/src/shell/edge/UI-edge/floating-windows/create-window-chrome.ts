@@ -21,6 +21,9 @@ import type {AgentConfig} from "@/pure/settings";
 import {Maximize2, Minimize2, X, Pin, Maximize, Clipboard, createElement} from 'lucide';
 import {isPinned, addToPinnedEditors, removeFromPinnedEditors} from "@/shell/edge/UI-edge/state/EditorStore";
 import {getShadowNodeId} from "@/shell/edge/UI-edge/floating-windows/types";
+import {attachFullscreenZoom} from "@/shell/edge/UI-edge/floating-windows/fullscreen-zoom";
+import {createTrafficLights} from "@/shell/edge/UI-edge/floating-windows/traffic-lights";
+import {unpinTerminal} from "@/shell/UI/views/AgentTabsBar";
 
 /** Options for createWindowChrome */
 export interface CreateWindowChromeOptions {
@@ -90,15 +93,14 @@ export function createWindowChrome(
     const contentContainer: HTMLDivElement = document.createElement('div');
     contentContainer.className = 'cy-floating-window-content';
 
-    // Create horizontal menu for editors (not terminals) when anchored to a node
-    // Phase 1: Menu is attached directly to windowElement (no title bar)
-    // Phase 2A/3 will add traffic lights to this menu
+    // Create horizontal menu for anchored editors only
+    // Hover editors use HorizontalMenuService's hover menu instead (shows node in gap between pills)
     const isEditor: boolean = 'type' in fw && fw.type === 'Editor';
     const hasAnchoredNode: boolean = O.isSome(fw.anchoredToNodeId);
     const hasAgents: boolean = options.agents !== undefined && options.agents.length > 0;
 
     if (isEditor && hasAnchoredNode && hasAgents) {
-        const nodeId: string = O.isSome(fw.anchoredToNodeId) ? fw.anchoredToNodeId.value : '';
+        const nodeId: string = 'contentLinkedToNodeId' in fw ? fw.contentLinkedToNodeId : '';
         // Check if node is a context node (has .context_node. in path)
         const isContextNode: boolean = nodeId.includes('.context_node.');
 
@@ -110,16 +112,13 @@ export function createWindowChrome(
         };
         const menuItems: HorizontalMenuItem[] = getNodeMenuItems(menuInput);
 
-        // Create traffic light context for click handlers
-        // Phase 3: Wire up Close, Pin, Fullscreen buttons
+        // Create traffic light context for anchored editor click handlers
         const trafficLightContext: TrafficLightContext = {
             onCloseClick: (): void => {
-                // Close the editor - need to get EditorData from store
-                // The fw parameter is FloatingWindowFields, not full EditorData
-                // We dispatch a custom event that FloatingEditorCRUD will handle
                 windowElement.dispatchEvent(new CustomEvent('traffic-light-close', { bubbles: true }));
             },
             onPinClick: (): boolean => {
+                // Toggle pin state in EditorStore
                 const currentlyPinned: boolean = isPinned(nodeId);
                 if (currentlyPinned) {
                     removeFromPinnedEditors(nodeId);
@@ -128,16 +127,8 @@ export function createWindowChrome(
                 }
                 return !currentlyPinned;
             },
-            onFullscreenClick: (): void => {
-                // Use the fullscreen zoom function with the shadow node
-                // Create a temporary button to attach the handler
-                const shadowNodeId: string = getShadowNodeId(id);
-                const shadowNode: cytoscape.CollectionReturnValue = cy.getElementById(shadowNodeId);
-                if (shadowNode.length > 0) {
-                    // Toggle zoom to fit the shadow node
-                    cy.fit(shadowNode, 50);
-                }
-            },
+            cy,
+            shadowNodeId: getShadowNodeId(id),
             isPinned: (): boolean => isPinned(nodeId),
         };
 
@@ -183,26 +174,26 @@ export function createWindowChrome(
 
 /**
  * Create the bottom-right expand/minimize button
- * Toggles between 2x expanded and base dimensions
+ * Toggles between 2x and 0.5x of current dimensions
  */
 function createExpandButton(
     windowElement: HTMLDivElement,
-    baseDimensions: { width: number; height: number }
+    _baseDimensions: { width: number; height: number }
 ): HTMLButtonElement {
     const button: HTMLButtonElement = document.createElement('button');
     button.className = 'cy-floating-window-expand-corner';
     button.dataset.icon = 'maximize';
     button.dataset.expanded = 'false';
 
-    // Position in bottom-right corner
+    // Position in bottom-right corner, flush with edge
     button.style.position = 'absolute';
-    button.style.bottom = '8px';
-    button.style.right = '8px';
+    button.style.bottom = '0';
+    button.style.right = '0';
 
     // Create and append initial icon (Maximize2)
     const initialIcon: SVGElement = createElement(Maximize2);
-    initialIcon.setAttribute('width', '16');
-    initialIcon.setAttribute('height', '16');
+    initialIcon.setAttribute('width', '8');
+    initialIcon.setAttribute('height', '8');
     button.appendChild(initialIcon);
 
     // Click handler for expand/minimize toggle
@@ -210,11 +201,15 @@ function createExpandButton(
         e.stopPropagation();
 
         const isExpanded: boolean = windowElement.dataset.expanded === 'true';
+        // Get current actual dimensions (accounts for zoom scaling, user resizes, etc.)
+        // Fall back to parsing style.width/height for JSDOM tests where offsetWidth returns 0
+        const currentWidth: number = windowElement.offsetWidth || parseInt(windowElement.style.width, 10) || 0;
+        const currentHeight: number = windowElement.offsetHeight || parseInt(windowElement.style.height, 10) || 0;
 
         if (isExpanded) {
-            // Minimize: shrink back to base dimensions (0.5x of expanded)
-            windowElement.style.width = `${baseDimensions.width}px`;
-            windowElement.style.height = `${baseDimensions.height}px`;
+            // Minimize: shrink current dimensions by half (0.5x)
+            windowElement.style.width = `${currentWidth / 2}px`;
+            windowElement.style.height = `${currentHeight / 2}px`;
             windowElement.dataset.expanded = 'false';
             button.dataset.expanded = 'false';
             button.dataset.icon = 'maximize';
@@ -222,13 +217,13 @@ function createExpandButton(
             // Swap icon to Maximize2
             button.innerHTML = '';
             const maximizeIcon: SVGElement = createElement(Maximize2);
-            maximizeIcon.setAttribute('width', '16');
-            maximizeIcon.setAttribute('height', '16');
+            maximizeIcon.setAttribute('width', '8');
+            maximizeIcon.setAttribute('height', '8');
             button.appendChild(maximizeIcon);
         } else {
-            // Expand: grow to 2x base dimensions
-            windowElement.style.width = `${baseDimensions.width * 2}px`;
-            windowElement.style.height = `${baseDimensions.height * 2}px`;
+            // Expand: grow current dimensions by 2x
+            windowElement.style.width = `${currentWidth * 2}px`;
+            windowElement.style.height = `${currentHeight * 2}px`;
             windowElement.dataset.expanded = 'true';
             button.dataset.expanded = 'true';
             button.dataset.icon = 'minimize';
@@ -236,8 +231,8 @@ function createExpandButton(
             // Swap icon to Minimize2
             button.innerHTML = '';
             const minimizeIcon: SVGElement = createElement(Minimize2);
-            minimizeIcon.setAttribute('width', '16');
-            minimizeIcon.setAttribute('height', '16');
+            minimizeIcon.setAttribute('width', '8');
+            minimizeIcon.setAttribute('height', '8');
             button.appendChild(minimizeIcon);
         }
     });
@@ -548,7 +543,8 @@ function createTerminalTitleBar(
         windowElement.dispatchEvent(new CustomEvent('traffic-light-close', { bubbles: true }));
     });
 
-    // Pin button
+    // Pin button - terminals do NOT add to Node Tabs pinned section (that's for editors only)
+    // Terminal pin just toggles a visual "pinned" state to keep the terminal persistent
     const pinBtn: HTMLButtonElement = document.createElement('button');
     pinBtn.className = 'traffic-light traffic-light-pin';
     pinBtn.type = 'button';
@@ -558,12 +554,10 @@ function createTerminalTitleBar(
     pinBtn.appendChild(pinIcon);
     pinBtn.addEventListener('click', (e: MouseEvent): void => {
         e.stopPropagation();
-        const currentlyPinned: boolean = isPinned(attachedNodeId);
-        if (currentlyPinned) {
-            removeFromPinnedEditors(attachedNodeId);
-        } else {
-            addToPinnedEditors(attachedNodeId);
-        }
+        // Toggle visual pinned state on the window element (no Node Tabs integration)
+        const isPinnedNow: boolean = windowElement.dataset.terminalPinned === 'true';
+        windowElement.dataset.terminalPinned = isPinnedNow ? 'false' : 'true';
+        pinBtn.classList.toggle('pinned', !isPinnedNow);
     });
 
     // Fullscreen button
@@ -574,14 +568,7 @@ function createTerminalTitleBar(
     fullscreenIcon.setAttribute('width', '8');
     fullscreenIcon.setAttribute('height', '8');
     fullscreenBtn.appendChild(fullscreenIcon);
-    fullscreenBtn.addEventListener('click', (e: MouseEvent): void => {
-        e.stopPropagation();
-        const shadowNodeId: string = getShadowNodeId(id);
-        const shadowNode: cytoscape.CollectionReturnValue = cy.getElementById(shadowNodeId);
-        if (shadowNode.length > 0) {
-            cy.fit(shadowNode, 50);
-        }
-    });
+    attachFullscreenZoom(cy, fullscreenBtn, getShadowNodeId(id), true);
 
     trafficLights.appendChild(closeBtn);
     trafficLights.appendChild(pinBtn);

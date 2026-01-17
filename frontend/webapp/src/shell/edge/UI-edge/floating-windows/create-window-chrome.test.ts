@@ -134,11 +134,11 @@ describe('createWindowChrome', () => {
             expect(expandBtn).not.toBeNull();
             expect(expandBtn).toBeInstanceOf(HTMLElement);
 
-            // Verify button is positioned in bottom-right via inline styles
+            // Verify button is positioned in bottom-right via inline styles (flush with edge)
             if (expandBtn) {
                 expect(expandBtn.style.position).toBe('absolute');
-                expect(expandBtn.style.bottom).toBe('8px');
-                expect(expandBtn.style.right).toBe('8px');
+                expect(expandBtn.style.bottom).toBe('0px');
+                expect(expandBtn.style.right).toBe('0px');
             }
         });
 

@@ -41,7 +41,15 @@ export async function highlightPreviewNodes(cy: Core, nodeId: string): Promise<v
   const api: typeof window.electronAPI | undefined = window.electronAPI;
   if (!api) return;
 
-  const containedIds: readonly string[] = await api.main.getPreviewContainedNodeIds(nodeId);
+  const result: readonly string[] | { error: string } = await api.main.getPreviewContainedNodeIds(nodeId);
+
+  // Handle RPC error response - silently return for preview feature
+  if (result && typeof result === 'object' && 'error' in result) {
+    console.warn('[highlightPreviewNodes] RPC error:', (result as { error: string }).error);
+    return;
+  }
+
+  const containedIds: readonly string[] = result as readonly string[];
   const containedIdSet: Set<string> = new Set(containedIds);
 
   containedIds.forEach(id => {
