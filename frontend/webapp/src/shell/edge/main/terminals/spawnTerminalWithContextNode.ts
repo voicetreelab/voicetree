@@ -85,6 +85,9 @@ export async function spawnTerminalWithContextNode(
         settings
     );
 
+    // TODO, HERE WE NEED TO WAIT FOR CONTEXT NODE TO EXIST IN UI
+    // OR we could move that to within launchTerminalOntoUI
+
     // Call UI to launch terminal (via UI API pattern)
     // Note: uiAPI sends IPC message, no need to await (fire-and-forget)
     void uiAPI.launchTerminalOntoUI(contextNodeId, terminalData);
@@ -158,10 +161,10 @@ async function prepareTerminalDataInMain(
         : contextContent;
 
     // Get default write path (where new nodes are created)
-    const vaultPath: string = O.getOrElse(() => '')(getDefaultWritePath());
+    const vaultPath: string = O.getOrElse(() => '')(await getDefaultWritePath());
 
     // Get all vault paths for ALL_MARKDOWN_READ_PATHS (newline-separated for readability in prompts)
-    const allVaultPaths: readonly string[] = getVaultPaths();
+    const allVaultPaths: readonly string[] = await getVaultPaths();
     const allMarkdownReadPaths: string = allVaultPaths.join('\n');
 
     const unexpandedEnvVars: Record<string, string> = {
