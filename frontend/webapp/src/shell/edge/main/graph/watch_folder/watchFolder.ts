@@ -1,5 +1,6 @@
 import {loadGraphFromDisk, loadVaultPathAdditively} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk";
 import type {FilePath, Graph, GraphDelta, FSDelete, GraphNode, DeleteNode} from "@/pure/graph";
+import {createGraph} from "@/pure/graph";
 import type {FileLimitExceededError} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce";
 import {setGraph, getGraph} from "@/shell/edge/main/state/graph-store";
 import {app, dialog} from "electron";
@@ -37,25 +38,26 @@ let watcher: FSWatcher | null = null;
 let watchedDirectory: FilePath | null = null;
 let currentVaultSuffix: string = DEFAULT_VAULT_SUFFIX;
 
-// Multi-vault state: allowlist of vault paths and the default write path
-let vaultPathAllowlist: readonly FilePath[] = [];
-let defaultWritePath: FilePath | null = null;
-
 /**
  * Get all vault paths in the allowlist.
- * Returns paths that are being watched for file changes.
+ * Reads directly from config file (source of truth).
  */
-export function getVaultPaths(): readonly FilePath[] {
-    return vaultPathAllowlist;
+export async function getVaultPaths(): Promise<readonly FilePath[]> {
+    if (!watchedDirectory) return [];
+    const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDirectory);
+    return config?.allowlist ?? [];
 }
 
 /**
  * Get the default write path (where new nodes are created).
+ * Reads directly from config file (source of truth).
  * Falls back to the primary vault path if not explicitly set.
  */
-export function getDefaultWritePath(): O.Option<FilePath> {
-    if (defaultWritePath) {
-        return O.some(defaultWritePath);
+export async function getDefaultWritePath(): Promise<O.Option<FilePath>> {
+    if (!watchedDirectory) return O.none;
+    const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDirectory);
+    if (config?.defaultWritePath) {
+        return O.some(config.defaultWritePath);
     }
     // Fallback to primary vault path (backward compatibility)
     return getVaultPath();
@@ -65,23 +67,27 @@ export function getDefaultWritePath(): O.Option<FilePath> {
  * Set the default write path. Must be in the allowlist.
  */
 export async function setDefaultWritePath(vaultPath: FilePath): Promise<{ success: boolean; error?: string }> {
-    if (!vaultPathAllowlist.includes(vaultPath)) {
+    if (!watchedDirectory) {
+        return { success: false, error: 'No directory is being watched' };
+    }
+
+    const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDirectory);
+    if (!config) {
+        return { success: false, error: 'No vault config found' };
+    }
+
+    if (!config.allowlist.includes(vaultPath)) {
         return { success: false, error: 'Path must be in the allowlist' };
     }
-    defaultWritePath = vaultPath;
 
     // Keep currentVaultSuffix in sync so getWatchStatus() returns correct suffix for node ID generation
-    if (watchedDirectory) {
-        currentVaultSuffix = path.relative(watchedDirectory, vaultPath);
-    }
+    currentVaultSuffix = path.relative(watchedDirectory, vaultPath);
 
-    // Persist to config so changes survive refresh
-    if (watchedDirectory) {
-        await saveVaultConfigForDirectory(watchedDirectory, {
-            allowlist: vaultPathAllowlist,
-            defaultWritePath: vaultPath
-        });
-    }
+    // Save to config (source of truth)
+    await saveVaultConfigForDirectory(watchedDirectory, {
+        allowlist: config.allowlist,
+        defaultWritePath: vaultPath
+    });
 
     // Notify backend so it writes new nodes to the correct directory
     notifyTextToTreeServerOfDirectory(vaultPath);
@@ -100,8 +106,17 @@ export async function setDefaultWritePath(vaultPath: FilePath): Promise<{ succes
  * - Consistent with initial loadGraphFromDisk pattern
  */
 export async function addVaultPathToAllowlist(vaultPath: FilePath): Promise<{ success: boolean; error?: string }> {
+    if (!watchedDirectory) {
+        return { success: false, error: 'No directory is being watched' };
+    }
+
+    const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDirectory);
+    if (!config) {
+        return { success: false, error: 'No vault config found' };
+    }
+
     // Check if already in allowlist
-    if (vaultPathAllowlist.includes(vaultPath)) {
+    if (config.allowlist.includes(vaultPath)) {
         return { success: false, error: 'Path already in allowlist' };
     }
 
@@ -112,45 +127,39 @@ export async function addVaultPathToAllowlist(vaultPath: FilePath): Promise<{ su
         return { success: false, error: `Failed to create directory: ${err instanceof Error ? err.message : 'Unknown error'}` };
     }
 
-    vaultPathAllowlist = [...vaultPathAllowlist, vaultPath];
-
-    // Persist to config if we have a watched directory
-    if (watchedDirectory && defaultWritePath) {
-        await saveVaultConfigForDirectory(watchedDirectory, {
-            allowlist: vaultPathAllowlist,
-            defaultWritePath: defaultWritePath
-        });
-    }
+    const newAllowlist: readonly string[] = [...config.allowlist, vaultPath];
 
     // Load files from the new path into the graph using bulk load path
-    if (watchedDirectory) {
-        const existingGraph: Graph = getGraph();
+    const existingGraph: Graph = getGraph();
 
-        // Use bulk load path: single pass, single broadcast, no editors auto-opened
-        const loadResult: E.Either<FileLimitExceededError, { graph: Graph; delta: GraphDelta }> =
-            await loadVaultPathAdditively(vaultPath, watchedDirectory, existingGraph);
+    // Use bulk load path: single pass, single broadcast, no editors auto-opened
+    const loadResult: E.Either<FileLimitExceededError, { graph: Graph; delta: GraphDelta }> =
+        await loadVaultPathAdditively(vaultPath, watchedDirectory, existingGraph);
 
-        if (E.isLeft(loadResult)) {
-            // File limit exceeded - remove from allowlist and return error
-            vaultPathAllowlist = vaultPathAllowlist.filter(p => p !== vaultPath);
-            return { success: false, error: `File limit exceeded: ${loadResult.left.fileCount} files` };
-        }
+    if (E.isLeft(loadResult)) {
+        return { success: false, error: `File limit exceeded: ${loadResult.left.fileCount} files` };
+    }
 
-        const { graph: mergedGraph, delta } = loadResult.right;
+    // Save to config (source of truth)
+    await saveVaultConfigForDirectory(watchedDirectory, {
+        allowlist: newAllowlist,
+        defaultWritePath: config.defaultWritePath
+    });
 
-        // Update graph state
-        setGraph(mergedGraph);
+    const { graph: mergedGraph, delta } = loadResult.right;
 
-        // Single broadcast to UI (no editors auto-opened for bulk loads)
-        if (delta.length > 0) {
-            applyGraphDeltaToMemState(delta);
-            broadcastGraphDeltaToUI(delta);
-        }
+    // Update graph state
+    setGraph(mergedGraph);
 
-        // Add the new path to the watcher
-        if (watcher) {
-            watcher.add(vaultPath);
-        }
+    // Single broadcast to UI (no editors auto-opened for bulk loads)
+    if (delta.length > 0) {
+        applyGraphDeltaToMemState(delta);
+        broadcastGraphDeltaToUI(delta);
+    }
+
+    // Add the new path to the watcher
+    if (watcher) {
+        watcher.add(vaultPath);
     }
 
     return { success: true };
@@ -162,61 +171,57 @@ export async function addVaultPathToAllowlist(vaultPath: FilePath): Promise<{ su
  * Immediately removes nodes from that vault from the graph.
  */
 export async function removeVaultPathFromAllowlist(vaultPath: FilePath): Promise<{ success: boolean; error?: string }> {
-    if (!vaultPathAllowlist.includes(vaultPath)) {
+    if (!watchedDirectory) {
+        return { success: false, error: 'No directory is being watched' };
+    }
+
+    const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDirectory);
+    if (!config) {
+        return { success: false, error: 'No vault config found' };
+    }
+
+    if (!config.allowlist.includes(vaultPath)) {
         return { success: false, error: 'Path not in allowlist' };
     }
 
-    if (vaultPath === defaultWritePath) {
+    if (vaultPath === config.defaultWritePath) {
         return { success: false, error: 'Cannot remove default write path' };
     }
 
     // Remove nodes from the graph that belong to this vault path
-    if (watchedDirectory) {
-        const relativePath: string = path.relative(watchedDirectory, vaultPath);
-        const currentGraph: Graph = getGraph();
+    const relativePath: string = path.relative(watchedDirectory, vaultPath);
+    const currentGraph: Graph = getGraph();
 
-        // Find nodes whose ID starts with this vault's relative path
-        const nodesToRemove: readonly string[] = Object.keys(currentGraph.nodes).filter(nodeId =>
-            nodeId.startsWith(relativePath + '/') || nodeId === relativePath
-        );
+    // Find nodes whose ID starts with this vault's relative path
+    const nodesToRemove: readonly string[] = Object.keys(currentGraph.nodes).filter(nodeId =>
+        nodeId.startsWith(relativePath + '/') || nodeId === relativePath
+    );
 
-        if (nodesToRemove.length > 0) {
-            // Create delete deltas for each node
-            const deleteDelta: GraphDelta = nodesToRemove.map((nodeId): DeleteNode => ({
-                type: 'DeleteNode',
-                nodeId,
-                deletedNode: O.some(currentGraph.nodes[nodeId])
-            }));
+    if (nodesToRemove.length > 0) {
+        // Create delete deltas for each node
+        const deleteDelta: GraphDelta = nodesToRemove.map((nodeId): DeleteNode => ({
+            type: 'DeleteNode',
+            nodeId,
+            deletedNode: O.some(currentGraph.nodes[nodeId])
+        }));
 
-            // Apply to memory state and broadcast to UI (but NOT to DB - files still exist)
-            applyGraphDeltaToMemState(deleteDelta);
-            broadcastGraphDeltaToUI(deleteDelta);
+        // Apply to memory state and broadcast to UI (but NOT to DB - files still exist)
+        applyGraphDeltaToMemState(deleteDelta);
+        broadcastGraphDeltaToUI(deleteDelta);
 
-            // Fit viewport to remaining nodes after vault removal
-            uiAPI.fitViewport();
-        }
+        // Fit viewport to remaining nodes after vault removal
+        uiAPI.fitViewport();
     }
 
-    vaultPathAllowlist = vaultPathAllowlist.filter(p => p !== vaultPath);
+    const newAllowlist: readonly string[] = config.allowlist.filter((p: string) => p !== vaultPath);
 
-    // Persist to config so changes survive refresh
-    if (watchedDirectory && defaultWritePath) {
-        await saveVaultConfigForDirectory(watchedDirectory, {
-            allowlist: vaultPathAllowlist,
-            defaultWritePath: defaultWritePath
-        });
-    }
+    // Save to config (source of truth)
+    await saveVaultConfigForDirectory(watchedDirectory, {
+        allowlist: newAllowlist,
+        defaultWritePath: config.defaultWritePath
+    });
 
     return { success: true };
-}
-
-/**
- * Initialize the vault path allowlist with a single path (backward compatibility).
- * Used during loadFolder to set up initial state.
- */
-function initializeVaultAllowlist(primaryVaultPath: FilePath): void {
-    vaultPathAllowlist = [primaryVaultPath];
-    defaultWritePath = primaryVaultPath;
 }
 
 // CLI argument override for opening a specific folder on startup (used by "Open Folder in New Instance")
@@ -293,9 +298,12 @@ async function loadConfig(): Promise<VoiceTreeConfig> {
 
 async function saveConfig(config: VoiceTreeConfig): Promise<void> {
     const configPath: string = getConfigPath();
-    await fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf8').catch((error) => {
-        console.error('Failed to save config:', error);
-    });
+    try {
+        await fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf8');
+    } catch (error) {
+        console.error('[saveConfig] FAILED to save config:', error);
+        throw error;  // Propagate error so callers know save failed
+    }
 }
 
 // Save last watched directory to config
@@ -338,21 +346,10 @@ async function getVaultConfigForDirectory(directoryPath: string): Promise<VaultC
 }
 
 // Save vault config for a specific directory
-// Converts absolute paths to relative for storage (portable config)
 async function saveVaultConfigForDirectory(directoryPath: string, vaultConfig: VaultConfig): Promise<void> {
     const config: VoiceTreeConfig = await loadConfig();
     config.vaultConfig ??= {};
-
-    // Convert absolute paths to relative for storage
-    const relativeAllowlist: readonly string[] = vaultConfig.allowlist.map(absPath =>
-        path.relative(directoryPath, absPath)
-    );
-    const relativeDefaultWritePath: string = path.relative(directoryPath, vaultConfig.defaultWritePath);
-
-    config.vaultConfig[directoryPath] = {
-        allowlist: relativeAllowlist,
-        defaultWritePath: relativeDefaultWritePath
-    };
+    config.vaultConfig[directoryPath] = vaultConfig;
     await saveConfig(config);
 }
 
@@ -375,14 +372,12 @@ async function resolveAllowlistForProject(
     // If saved config exists, use it as authoritative source
     // This ensures user removals persist across reloads
     if (savedVaultConfig?.allowlist && savedVaultConfig.allowlist.length > 0) {
+        // Filter to paths that still exist on disk
         const allowlist: string[] = [];
-
-        // Convert saved relative paths to absolute, keeping only paths that exist
-        for (const savedRelativePath of savedVaultConfig.allowlist) {
-            const absolutePath: string = path.resolve(watchedDir, savedRelativePath);
+        for (const savedPath of savedVaultConfig.allowlist) {
             try {
-                await fs.access(absolutePath);
-                allowlist.push(absolutePath);
+                await fs.access(savedPath);
+                allowlist.push(savedPath);
             } catch {
                 // Saved path no longer exists on disk, skip
             }
@@ -393,14 +388,11 @@ async function resolveAllowlistForProject(
             allowlist.unshift(primaryVaultPath);
         }
 
-        // Resolve default write path from saved config
-        let resolvedDefaultWritePath: string = primaryVaultPath;
-        if (savedVaultConfig.defaultWritePath) {
-            const absoluteDefaultPath: string = path.resolve(watchedDir, savedVaultConfig.defaultWritePath);
-            if (allowlist.includes(absoluteDefaultPath)) {
-                resolvedDefaultWritePath = absoluteDefaultPath;
-            }
-        }
+        // Use saved default write path if it's still in the allowlist
+        const resolvedDefaultWritePath: string =
+            savedVaultConfig.defaultWritePath && allowlist.includes(savedVaultConfig.defaultWritePath)
+                ? savedVaultConfig.defaultWritePath
+                : primaryVaultPath;
 
         return { allowlist, defaultWritePath: resolvedDefaultWritePath };
     }
@@ -475,15 +467,15 @@ export async function loadFolder(watchedFolderPath: FilePath, suffixOverride?: s
     // Resolve full allowlist from global patterns + per-project config
     const resolved: { allowlist: readonly string[]; defaultWritePath: string } = await resolveAllowlistForProject(watchedFolderPath, vaultPath);
 
-    // Initialize multi-vault state
-    initializeVaultAllowlist(vaultPath);
-    // Override with resolved allowlist and default write path
-    vaultPathAllowlist = resolved.allowlist;
-    defaultWritePath = resolved.defaultWritePath;
+    // Save resolved config to disk (source of truth) so subsequent reads work
+    await saveVaultConfigForDirectory(watchedFolderPath, {
+        allowlist: resolved.allowlist,
+        defaultWritePath: resolved.defaultWritePath
+    });
 
     // Load graph from disk (IO operation)
     // Pass all vault paths in allowlist and watchedFolderPath (base for node IDs)
-    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(vaultPathAllowlist, watchedFolderPath);
+    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(resolved.allowlist, watchedFolderPath);
 
     // Handle file limit exceeded
     if (E.isLeft(loadResult)) {
@@ -545,8 +537,8 @@ export async function loadFolder(watchedFolderPath: FilePath, suffixOverride?: s
     console.log('[loadFolder] Graph delta broadcast to UI-edge');
 
     // Setup file watcher - watch all paths in allowlist, use watchedFolderPath as base for node IDs
-    await setupWatcher(vaultPathAllowlist, watchedFolderPath);
-    console.log('[loadFolder] File watcher setup complete for', vaultPathAllowlist.length, 'vault paths');
+    await setupWatcher(resolved.allowlist, watchedFolderPath);
+    console.log('[loadFolder] File watcher setup complete for', resolved.allowlist.length, 'vault paths');
 
     // Save as last directory for auto-start on next launch
     await saveLastDirectory(watchedFolderPath);
@@ -882,7 +874,7 @@ async function createStarterNode(vaultPath: string, vaultSuffix: string): Promis
         },
     };
 
-    const graph: Graph = { nodes: { [nodeId]: newNode } };
+    const graph: Graph = createGraph({ [nodeId]: newNode });
 
     // Write the file to disk
     const absolutePath: string = path.join(vaultPath, relativePath);
