@@ -44,7 +44,6 @@ import {HorizontalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/Hori
 import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService';
 import {
     setupCommandHover,
-    closeAllEditors,
     disposeEditorManager,
     closeEditor
 } from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
@@ -64,10 +63,12 @@ import {
 } from './AgentTabsBar';
 import { subscribeToTerminalChanges } from '@/shell/edge/UI-edge/state/TerminalStore';
 import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
+import {getRecentNodeHistory} from '@/shell/edge/UI-edge/state/RecentNodeHistoryStore';
 import {
-    createEmptyHistory,
-    type RecentNodeHistory
-} from '@/pure/graph/recentNodeHistoryV2';
+    initGraphViewOverlays,
+    setLoadingState,
+    disposeGraphViewOverlays
+} from '@/shell/edge/UI-edge/state/GraphViewUIStore';
 import {createNewNodeAction, runTerminalAction, deleteSelectedNodesAction} from '@/shell/UI/cytoscape-graph-ui/actions/graphActions';
 import {getResponsivePadding} from '@/utils/responsivePadding';
 import {SpeedDialSideGraphFloatingMenuView} from './SpeedDialSideGraphFloatingMenuView';
@@ -75,6 +76,13 @@ import type {Graph} from '@/pure/graph';
 import {createEmptyGraph} from '@/pure/graph/createGraph';
 import {MIN_ZOOM, MAX_ZOOM} from '@/shell/UI/cytoscape-graph-ui/constants';
 import {setupBasicCytoscapeEventListeners, setupCytoscape} from './VoiceTreeGraphViewHelpers';
+import {
+    createLoadingOverlay,
+    createErrorOverlay,
+    createEmptyStateOverlay,
+    createStatsOverlay,
+    createTitleBarDragRegion
+} from './components/overlays/graphOverlays';
 import {subscribeToGraphUpdates} from '@/shell/edge/UI-edge/graph/subscribeToGraphUpdates';
 import {createSettingsEditor} from "@/shell/edge/UI-edge/settings/createSettingsEditor";
 import type {TerminalData} from '@/shell/electron';
@@ -86,7 +94,7 @@ import {GraphNavigationService} from "@/shell/edge/UI-edge/graph/navigation/Grap
 import {NavigationGestureService} from "@/shell/edge/UI-edge/graph/navigation/NavigationGestureService";
 import {getEditorByNodeId} from '@/shell/edge/UI-edge/state/EditorStore';
 import {getTerminalByNodeId} from '@/shell/edge/UI-edge/state/TerminalStore';
-import {closeTerminal, closeAllTerminals} from '@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI';
+import {closeTerminal} from '@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI';
 import * as O from 'fp-ts/lib/Option.js';
 import {toggleVoiceRecording} from '@/shell/edge/UI-edge/state/VoiceRecordingController';
 import {DEFAULT_HOTKEYS} from '@/pure/settings/DEFAULT_SETTINGS';
@@ -118,7 +126,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // State
     private _isDarkMode = false;
     private currentGraphState: Graph = createEmptyGraph();
-    private recentNodeHistory: RecentNodeHistory = createEmptyHistory();
 
     // Graph subscription cleanup
     private cleanupGraphSubscription: (() => void) | null = null;
@@ -212,7 +219,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // Listen for pinned editors changes to re-render tabs bar
         const handlePinnedEditorsChange: () => void = (): void => {
             renderRecentNodeTabsV2(
-                this.recentNodeHistory,
+                getRecentNodeHistory(),
                 (nodeId) => this.navigationService.handleSearchSelect(nodeId),
                 (nodeId) => this.cy.getElementById(nodeId).data('label') as string | undefined
             );
@@ -242,92 +249,11 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
      * Subscribe to graph delta updates from main process via electronAPI
      */
     private subscribeToGraphUpdates(): void {
-        // Access electronAPI with type assertion since global Window type may not be recognized
-        const electronAPI: ElectronAPI | undefined = window.electronAPI;
-
-        if (!electronAPI?.graph?.onGraphUpdate) {
-            console.error('[VoiceTreeGraphView] electronAPI not available, skipping graph subscription');
-            return;
-        }
-
-        const handleGraphDelta: (delta: GraphDelta) => void = (delta: GraphDelta): void => {
-            console.log('[VoiceTreeGraphView] Received graph delta, length:', delta.length);
-            console.trace('[VoiceTreeGraphView] Graph delta stack trace'); // DEBUG: Check if called repeatedly
-            this.setLoadingState(false);
-            if (this.emptyStateOverlay) {
-                this.emptyStateOverlay.style.display = 'none';
-            }
-            // applyGraphDeltaToUI handles auto-pinning editors for new external nodes
-            applyGraphDeltaToUI(this.cy, delta);
-
-            // DO NOT SEND TO EDITORS FROM HERE TO AVOID FEEDBACK LOOP
-
-            // Track last created node for "fit to last node" hotkey (Space)
-            const lastUpsertedNode : UpsertNodeDelta = extractRecentNodesFromDelta(delta)[0];
-            if (lastUpsertedNode) {
-                this.navigationService.setLastCreatedNodeId(lastUpsertedNode.nodeToUpsert.relativeFilePathIsID);
-            }
-
-            this.searchService.updateSearchDataIncremental(delta);
-
-            // Update navigator visibility based on node count
-            this.updateNavigatorVisibility();
-
-            // Update recent node history from delta and re-render tabs
-            this.recentNodeHistory = updateHistoryFromDelta(this.recentNodeHistory, delta);
-            // todo, don't store this.recentNodeHistory here, instead make it a state in the graph store
-            // src/shell/edge/main/state which stores the past 50 deltas
-            // and then add a pure function which maps delta history, to recent node history (only deleted nodes, and new nodes, or nodes with signfificant char change)
-
-
-            renderRecentNodeTabsV2(
-                this.recentNodeHistory,
-                (nodeId) => this.navigationService.handleSearchSelect(nodeId),
-                (nodeId) => this.cy.getElementById(nodeId).data('label') as string | undefined
-            );
-        };
-
-        const handleGraphClear: () => void = (): void => {
-            console.log('[VoiceTreeGraphView] Received graph:clear event');
-            this.setLoadingState(true, 'Loading VoiceTree...');
-
-            // Close all open terminals (UI cleanup - PTY processes already killed by main process)
-            closeAllTerminals(this.cy);
-
-            clearCytoscapeState(this.cy);
-
-            // Close all open floating editors
-            closeAllEditors(this.cy);
-
-            // Clear recent node history and re-render (empty) tabs
-            this.recentNodeHistory = createEmptyHistory();
-            renderRecentNodeTabsV2(
-                this.recentNodeHistory,
-                (nodeId) => this.navigationService.handleSearchSelect(nodeId),
-                (nodeId) => this.cy.getElementById(nodeId).data('label') as string | undefined
-            );
-
-            // Reset ninja-keys search data (now rebuilds from empty cytoscape)
-            this.searchService.updateSearchData();
-
-            if (this.emptyStateOverlay) {
-                this.emptyStateOverlay.style.display = 'flex';
-            }
-        };
-
-        // Subscribe to graph updates via electronAPI (returns cleanup function)
-        const cleanupUpdate: () => void = electronAPI.graph.onGraphUpdate(handleGraphDelta);
-        const cleanupClear: () => void = electronAPI.graph.onGraphClear?.(handleGraphClear);
-
-        // Store combined cleanup function
-        this.cleanupGraphSubscription = () => {
-            cleanupUpdate();
-            cleanupClear?.();
-        };
-
-
-
-        // Auto-load previous folder if available
+        this.cleanupGraphSubscription = subscribeToGraphUpdates(
+            this.navigationService,
+            this.searchService,
+            () => this.updateNavigatorVisibility()
+        );
     }
 
     /**
@@ -383,9 +309,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         this.container.setAttribute('tabindex', '0');
 
         // Create title bar drag region for macOS (allows window dragging when titleBarStyle: 'hiddenInset')
-        const titleBarDragRegion: HTMLDivElement = document.createElement('div');
-        titleBarDragRegion.className = 'title-bar-drag-region';
-        this.container.appendChild(titleBarDragRegion);
+        this.container.appendChild(createTitleBarDragRegion());
 
         // Create speed dial menu
         this.speedDialMenu = new SpeedDialSideGraphFloatingMenuView(this.container, {
@@ -397,64 +321,24 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             isDarkMode: this._isDarkMode,
         });
 
-        // Create loading overlay
-        this.loadingOverlay = document.createElement('div');
-        this.loadingOverlay.className = 'absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/90 text-muted-foreground pointer-events-none z-20';
-        this.loadingOverlay.style.display = 'none';
-
-        const spinner: HTMLDivElement = document.createElement('div');
-        spinner.className = 'h-10 w-10 rounded-full border-2 border-blue-200 border-t-blue-500 animate-spin';
-
-        const loadingMessage: HTMLParagraphElement = document.createElement('p');
-        loadingMessage.className = 'text-base font-semibold text-foreground';
-        loadingMessage.textContent = 'Loading VoiceTree...';
-
-        const loadingSubtext: HTMLParagraphElement = document.createElement('p');
-        loadingSubtext.className = 'text-xs text-muted-foreground/80';
-        loadingSubtext.textContent = 'Preparing your workspace';
-
-        this.loadingOverlay.appendChild(spinner);
-        this.loadingOverlay.appendChild(loadingMessage);
-        this.loadingOverlay.appendChild(loadingSubtext);
-
-        this.loadingMessageElement = loadingMessage;
+        // Create overlays using extracted components
+        const loadingResult = createLoadingOverlay();
+        this.loadingOverlay = loadingResult.overlay;
+        this.loadingMessageElement = loadingResult.messageElement;
         this.container.appendChild(this.loadingOverlay);
-        this.setLoadingState(true, 'Loading VoiceTree...');
 
-        // Create error overlay
-        this.errorOverlay = document.createElement('div');
-        this.errorOverlay.className = 'absolute top-4 right-4 bg-red-500 text-white px-3 py-1.5 rounded-md shadow-lg text-sm font-medium z-10';
-        this.errorOverlay.style.display = 'none';
+        this.errorOverlay = createErrorOverlay();
         this.container.appendChild(this.errorOverlay);
 
-        // Create empty state overlay
-        this.emptyStateOverlay = document.createElement('div');
-        this.emptyStateOverlay.className = 'absolute inset-0 flex items-center justify-center text-muted-foreground pointer-events-none z-10';
-        this.emptyStateOverlay.innerHTML = `
-      <div class="text-center">
-        <svg class="w-24 h-24 mx-auto mb-4 opacity-20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-          <circle cx="12" cy="12" r="3" />
-          <circle cx="6" cy="6" r="2" />
-          <circle cx="18" cy="6" r="2" />
-          <circle cx="6" cy="18" r="2" />
-          <circle cx="18" cy="18" r="2" />
-          <path d="M12 9 L6 6" />
-          <path d="M12 9 L18 6" />
-          <path d="M12 15 L6 18" />
-          <path d="M12 15 L18 18" />
-        </svg>
-        <p class="text-sm">Graph visualization will appear here</p>
-        <p class="text-xs text-muted-foreground/60 mt-2">Use "Open Folder" to watch markdown files live</p>
-        <p class="text-xs text-muted-foreground/60">Powered by Cytoscape.js</p>
-      </div>
-    `;
+        this.emptyStateOverlay = createEmptyStateOverlay();
         this.container.appendChild(this.emptyStateOverlay);
 
-        // Create stats overlay
-        this.statsOverlay = document.createElement('div');
-        this.statsOverlay.className = 'absolute bottom-4 right-4 bg-background/80 backdrop-blur-sm rounded-lg px-3 py-2 text-xs text-muted-foreground pointer-events-none z-10';
-        this.statsOverlay.style.display = 'none';
+        this.statsOverlay = createStatsOverlay();
         this.container.appendChild(this.statsOverlay);
+
+        // Initialize overlay store and show loading state
+        initGraphViewOverlays(this.loadingOverlay, this.loadingMessageElement, this.emptyStateOverlay);
+        setLoadingState(true, 'Loading VoiceTree...');
 
         // Initialize Cytoscape with the container directly
         // Container serves as both the wrapper and the cytoscape rendering target
@@ -536,19 +420,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             this.styleService,
             this.container
         );
-    }
-
-    private setLoadingState(isLoading: boolean, message?: string): void {
-        if (!this.loadingOverlay) return;
-
-        if (isLoading) {
-            if (message && this.loadingMessageElement) {
-                this.loadingMessageElement.textContent = message;
-            }
-            this.loadingOverlay.style.display = 'flex';
-        } else {
-            this.loadingOverlay.style.display = 'none';
-        }
     }
 
     private setupCytoscape(): void {
@@ -703,8 +574,9 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
      * Navigate to a recent node by index (0-4, for Cmd+1 through Cmd+5)
      */
     private navigateToRecentNodeByIndex(index: number): void {
-        if (index >= 0 && index < this.recentNodeHistory.length) {
-            const nodeId: string = this.recentNodeHistory[index].nodeToUpsert.relativeFilePathIsID;
+        const history = getRecentNodeHistory();
+        if (index >= 0 && index < history.length) {
+            const nodeId: string = history[index].nodeToUpsert.relativeFilePathIsID;
             this.navigationService.handleSearchSelect(nodeId);
         }
     }
@@ -856,6 +728,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // TODO: Recent tabs temporarily disabled until better UX is designed
         // disposeRecentNodeTabsBar();
         disposeAgentTabsBar();
+        disposeGraphViewOverlays();
 
         // Dispose menu services
         if (this.horizontalMenuService) {
