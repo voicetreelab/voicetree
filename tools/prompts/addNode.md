@@ -75,7 +75,7 @@ This creates graph edges connecting your progress node to related artifacts.
 </IF>
 
 <CRITICAL>
-- <optional_relationship_label> [[$CONTEXT_NODE_PATH]]
+- <optional_relationship_label> [[$TASK_NODE_PATH]]
 </CRITICAL>
 
 </MARKDOWN new node Format Template>
@@ -83,7 +83,7 @@ This creates graph edges connecting your progress node to related artifacts.
 
 - If `$AGENT_COLOR` is unset, default to `blue`
 - Wikilink paths are relative to `$VOICETREE_VAULT_PATH`, you must ensure your file is also saved here.
-- Use `[[$CONTEXT_NODE_PATH]]` as the default parent to link your node to. Override when necessary.
+- Use `[[$TASK_NODE_PATH]]` as the default parent to link your node to. Override when necessary.
   **Important**: Use double brackets `[[link]]` for edges, not single `[link]`. Only `[[wikilinks]]` create graph edges.
 - Optional relationship labels: `- solves build failure [[path]]` Omit unless the relationship is specific and meaningful.
 

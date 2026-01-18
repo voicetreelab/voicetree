@@ -13,6 +13,7 @@ export interface AgentCommandEditorResult {
     command: string;
     agentPrompt: string;
     mcpIntegrationEnabled: boolean;
+    inNewWorktree: boolean;
 }
 
 /**
@@ -149,6 +150,34 @@ export function showAgentCommandEditor(command: string, agentPrompt: string): Pr
                         </div>
                     </label>
                 </div>
+                <div style="
+                    padding: 12px;
+                    border: 1px solid var(--border);
+                    border-radius: calc(var(--radius) - 2px);
+                    background: var(--muted);
+                ">
+                    <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
+                        <input
+                            type="checkbox"
+                            id="worktree-toggle"
+                            data-testid="worktree-toggle"
+                            style="
+                                margin-top: 2px;
+                                width: 16px;
+                                height: 16px;
+                                cursor: pointer;
+                            "
+                        />
+                        <div style="display: flex; flex-direction: column; gap: 2px;">
+                            <span style="font-size: 0.85rem; font-weight: 500;">
+                                🌿 Run in Worktree
+                            </span>
+                            <span style="font-size: 0.8rem; color: var(--muted-foreground);">
+                                Spawn agent in isolated git worktree branch
+                            </span>
+                        </div>
+                    </label>
+                </div>
                 <div style="display: flex; gap: 8px; justify-content: flex-end; align-items: center;">
                     <div style="display: flex; gap: 8px;">
                         <button
@@ -191,6 +220,7 @@ export function showAgentCommandEditor(command: string, agentPrompt: string): Pr
         const input: HTMLInputElement = dialog.querySelector('#command-input')!;
         const mcpToggle: HTMLInputElement = dialog.querySelector('#mcp-integration-toggle')!;
         const autoRunToggle: HTMLInputElement = dialog.querySelector('#auto-run-toggle')!;
+        const worktreeToggle: HTMLInputElement = dialog.querySelector('#worktree-toggle')!;
         const cancelButton: HTMLButtonElement = dialog.querySelector('#cancel-button')!;
 
         // Set values programmatically to avoid HTML escaping issues with quotes
@@ -239,7 +269,7 @@ export function showAgentCommandEditor(command: string, agentPrompt: string): Pr
                 resolve(null);
                 return;
             }
-            resolve({ command: finalCommand, agentPrompt: finalPrompt, mcpIntegrationEnabled: mcpEnabled });
+            resolve({ command: finalCommand, agentPrompt: finalPrompt, mcpIntegrationEnabled: mcpEnabled, inNewWorktree: worktreeToggle.checked });
         });
 
         // Clean up dialog on close

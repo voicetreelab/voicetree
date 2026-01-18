@@ -18,7 +18,7 @@
 
 import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import { getTerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
-import { getTerminals, updateTerminal } from '@/shell/edge/UI-edge/state/TerminalStore';
+import { updateTerminal } from '@/shell/edge/UI-edge/state/TerminalStore';
 import {
     getActiveTerminalId,
     setActiveTerminalId,
@@ -29,12 +29,8 @@ import {
     suppressInactivityDuringZoom as storeSuppress,
     resetAgentTabsStore,
 } from '@/shell/edge/UI-edge/state/AgentTabsStore';
-import {
-    TAB_WIDTH_PINNED,
-    TAB_WIDTH_UNPINNED,
-    getShortcutHintForTab,
-    truncateTabTitle,
-} from '@/pure/agentTabs';
+import { getShortcutHintForTab } from '@/pure/agentTabs';
+import { createPinnedTab, createUnpinnedTab, type TabCreationDeps } from './agentTabElements';
 import type {} from '@/shell/electron';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
 import {
@@ -46,6 +42,8 @@ import {
     cleanupDragState,
     calculateAdjustedTargetIndex,
 } from '@/shell/UI/behaviors/dragReorder';
+// Re-export activity tracking functions for backwards compatibility
+export { markTerminalActivityForContextNode, clearActivityForTerminal } from './agentTabsActivity';
 
 // =============================================================================
 // DOM Element Refs (UI-only state)
@@ -276,11 +274,12 @@ export function renderAgentTabs(
         : -1;
 
     // Create pinned tabs
+    const deps: TabCreationDeps = getTabCreationDeps();
     for (let i: number = 0; i < pinnedIds.length; i++) {
         const terminalId: TerminalId = pinnedIds[i];
         const terminal: TerminalData | undefined = terminals.find(t => getTerminalId(t) === terminalId);
         if (terminal) {
-            const tab: HTMLElement = createPinnedTab(terminal, activeTerminalId, onSelect, i, activeIndex, pinnedIds.length);
+            const tab: HTMLElement = createPinnedTab(terminal, activeTerminalId, onSelect, i, activeIndex, pinnedIds.length, deps);
             pinnedContainer.appendChild(tab);
         }
     }
@@ -289,7 +288,7 @@ export function renderAgentTabs(
     for (const terminalId of unpinnedIds) {
         const terminal: TerminalData | undefined = terminals.find(t => getTerminalId(t) === terminalId);
         if (terminal) {
-            const tab: HTMLElement = createUnpinnedTab(terminal, activeTerminalId, onSelect);
+            const tab: HTMLElement = createUnpinnedTab(terminal, activeTerminalId, onSelect, deps);
             unpinnedContainer.appendChild(tab);
         }
     }
@@ -368,247 +367,21 @@ export function setActiveTerminal(terminalId: TerminalId | null): void {
 }
 
 // =============================================================================
-// Create Tab Elements
+// Tab Creation Dependencies
 // =============================================================================
 
-// Minimum distance (in pixels) mouse must move to initiate drag vs click
-const DRAG_THRESHOLD_PX: number = 5;
-
-function createPinnedTab(
-    terminal: TerminalData,
-    activeTerminalId: TerminalId | null,
-    onSelect: (terminal: TerminalData) => void,
-    index: number,
-    activeIndex: number,
-    totalTabs: number
-): HTMLElement {
-    const terminalId: TerminalId = getTerminalId(terminal);
-    const displayTitle: string = truncateTabTitle(terminal.title);
-
-    // Track mousedown position and drag state for click vs drag detection
-    let mouseDownPos: { x: number; y: number } | null = null;
-    let isDragActive: boolean = false;
-
-    // Create wrapper container for tab + hint
-    const wrapper: HTMLDivElement = document.createElement('div');
-    wrapper.className = 'agent-tab-wrapper';
-    wrapper.setAttribute('data-terminal-id', terminalId);
-
-    const tab: HTMLButtonElement = document.createElement('button');
-    tab.className = 'agent-tab';
-    if (terminalId === activeTerminalId) {
-        tab.classList.add('agent-tab-active');
-    }
-    tab.setAttribute('data-terminal-id', terminalId);
-    tab.setAttribute('data-index', String(index));
-    tab.style.width = `${TAB_WIDTH_PINNED}px`;
-
-    // Create status dot
-    const statusDot: HTMLSpanElement = document.createElement('span');
-    statusDot.className = terminal.isDone ? 'agent-tab-status-done' : 'agent-tab-status-running';
-    tab.appendChild(statusDot);
-
-    // Create text span for title
-    const textSpan: HTMLSpanElement = document.createElement('span');
-    textSpan.className = 'agent-tab-text';
-    textSpan.textContent = displayTitle;
-    tab.appendChild(textSpan);
-
-    // Add activity dots
-    for (let i: number = 0; i < terminal.activityCount; i++) {
-        const dot: HTMLSpanElement = document.createElement('span');
-        dot.className = 'agent-tab-activity-dot';
-        dot.style.left = `${4 + i * 12}px`;
-        tab.appendChild(dot);
-    }
-
-    // Selection is handled in mouseup to avoid HTML5 drag API click suppression
-    // No click handler needed - mouseup handles it reliably
-
-    // Double-click handler - unpin the tab
-    tab.addEventListener('dblclick', (e: MouseEvent) => {
-        e.stopPropagation();
-        unpinTerminal(terminalId);
-    });
-
-    // Drag-and-drop for reordering
-    tab.draggable = true;
-
-    // Record mousedown position and reset drag state
-    tab.addEventListener('mousedown', (e: MouseEvent) => {
-        e.stopPropagation();
-        mouseDownPos = { x: e.clientX, y: e.clientY };
-        isDragActive = false;
-    });
-
-    // Handle selection on mouseup - this fires reliably regardless of drag state
-    tab.addEventListener('mouseup', (e: MouseEvent) => {
-        if (mouseDownPos !== null && !isDragActive) {
-            const dx: number = e.clientX - mouseDownPos.x;
-            const dy: number = e.clientY - mouseDownPos.y;
-            const distance: number = Math.sqrt(dx * dx + dy * dy);
-
-            if (distance < DRAG_THRESHOLD_PX) {
-                // This was a click, not a drag - select the tab
-                onSelect(terminal);
-            }
-        }
-        mouseDownPos = null;
-    });
-
-    tab.addEventListener('dragstart', (e: DragEvent) => {
-        // Check if mouse moved enough to trigger drag
-        if (mouseDownPos !== null) {
-            const dx: number = e.clientX - mouseDownPos.x;
-            const dy: number = e.clientY - mouseDownPos.y;
-            const distance: number = Math.sqrt(dx * dx + dy * dy);
-
-            if (distance < DRAG_THRESHOLD_PX) {
-                // Not moved enough - cancel drag, mouseup will handle as click
-                e.preventDefault();
-                return;
-            }
-        }
-
-        // Threshold exceeded - this is a real drag
-        isDragActive = true;
-        e.stopPropagation();
-        tab.classList.add('agent-tab-dragging');
-        e.dataTransfer?.setData('text/plain', String(index));
-        if (e.dataTransfer) {
-            e.dataTransfer.effectAllowed = 'move';
-        }
-        dragState.draggingFromIndex = index;
-        dragState.ghostElement = createGhostElement();
-    });
-
-    tab.addEventListener('dragend', (e: DragEvent) => {
-        e.stopPropagation();
-        tab.classList.remove('agent-tab-dragging');
-        isDragActive = false;
-        cleanupDragState(dragState);
-        triggerDeferredRenderIfNeeded();
-    });
-
-    tab.addEventListener('dragover', (e: DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (e.dataTransfer) {
-            e.dataTransfer.dropEffect = 'move';
-        }
-        if (dragState.draggingFromIndex === index) {
-            return;
-        }
-        if (dragState.ghostElement && pinnedContainer) {
-            const rect: DOMRect = wrapper.getBoundingClientRect();
-            const midpoint: number = rect.left + rect.width / 2;
-            const isRightHalf: boolean = e.clientX > midpoint;
-
-            if (isRightHalf) {
-                const nextSibling: Element | null = wrapper.nextElementSibling;
-                if (nextSibling && !nextSibling.classList.contains('agent-tab-ghost')) {
-                    pinnedContainer.insertBefore(dragState.ghostElement, nextSibling);
-                } else if (!nextSibling) {
-                    pinnedContainer.appendChild(dragState.ghostElement);
-                }
-                dragState.ghostTargetIndex = index + 1;
-            } else {
-                pinnedContainer.insertBefore(dragState.ghostElement, wrapper);
-                dragState.ghostTargetIndex = index;
-            }
-        }
-    });
-
-    tab.addEventListener('dragleave', (e: DragEvent) => {
-        e.stopPropagation();
-    });
-
-    tab.addEventListener('drop', (e: DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const fromIndex: number = parseInt(e.dataTransfer?.getData('text/plain') ?? '-1');
-        const targetIndex: number | null = dragState.ghostTargetIndex;
-        cleanupDragState(dragState);
-
-        if (fromIndex >= 0 && targetIndex !== null && fromIndex !== targetIndex) {
-            const adjustedTarget: number = calculateAdjustedTargetIndex(fromIndex, targetIndex);
-            reorderTerminal(fromIndex, adjustedTarget);
-        }
-    });
-
-    wrapper.appendChild(tab);
-
-    // Create shortcut hint element
-    const shortcutText: string | null = getShortcutHintForTab(index, activeIndex, totalTabs);
-    if (shortcutText !== null) {
-        const shortcutHint: HTMLSpanElement = document.createElement('span');
-        shortcutHint.className = 'agent-tab-shortcut-hint';
-        shortcutHint.textContent = shortcutText;
-        wrapper.appendChild(shortcutHint);
-    }
-
-    return wrapper;
+function getTabCreationDeps(): TabCreationDeps {
+    return {
+        dragState,
+        pinnedContainer,
+        unpinTerminal,
+        pinTerminal,
+        triggerDeferredRenderIfNeeded,
+        reorderTerminal,
+        createGhostElement,
+    };
 }
 
-function createUnpinnedTab(
-    terminal: TerminalData,
-    activeTerminalId: TerminalId | null,
-    onSelect: (terminal: TerminalData) => void
-): HTMLElement {
-    const terminalId: TerminalId = getTerminalId(terminal);
-
-    const tab: HTMLButtonElement = document.createElement('button');
-    tab.className = 'agent-tab-unpinned';
-    if (terminalId === activeTerminalId) {
-        tab.classList.add('agent-tab-active');
-    }
-    tab.setAttribute('data-terminal-id', terminalId);
-    tab.style.width = `${TAB_WIDTH_UNPINNED}px`;
-    tab.style.height = `${TAB_WIDTH_UNPINNED}px`;
-    tab.title = terminal.title;
-
-    // Create status dot
-    const statusDot: HTMLSpanElement = document.createElement('span');
-    statusDot.className = terminal.isDone ? 'agent-tab-status-done' : 'agent-tab-status-running';
-    tab.appendChild(statusDot);
-
-    // Click handler - re-pin and navigate
-    tab.addEventListener('click', () => {
-        pinTerminal(terminalId);
-        onSelect(terminal);
-    });
-
-    tab.addEventListener('mousedown', (e: MouseEvent) => {
-        e.stopPropagation();
-    });
-
-    return tab;
-}
-
-// =============================================================================
-// Activity Tracking
-// =============================================================================
-
-/**
- * Mark a terminal as having activity (produced a node)
- */
-export function markTerminalActivityForContextNode(contextNodeId: string): void {
-    const terminals: Map<TerminalId, TerminalData> = getTerminals();
-    for (const [terminalId, terminal] of terminals) {
-        if (terminal.attachedToNodeId === contextNodeId) {
-            updateTerminal(terminalId, { activityCount: terminal.activityCount + 1 });
-            console.log(`[AgentTabsBar] Marked activity for terminal ${terminalId}, count: ${terminal.activityCount + 1}`);
-            return;
-        }
-    }
-}
-
-/**
- * Clear activity dots for a specific terminal
- */
-export function clearActivityForTerminal(terminalId: TerminalId): void {
-    updateTerminal(terminalId, { activityCount: 0 });
-}
 
 // =============================================================================
 // Zoom Suppression (re-export from store)

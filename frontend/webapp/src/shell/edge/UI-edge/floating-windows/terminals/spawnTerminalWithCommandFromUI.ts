@@ -192,7 +192,7 @@ export async function spawnTerminalWithCommandEditor(
         : '';
 
     // Always show the popup (user explicitly requested edit)
-    const result: { command: string; agentPrompt: string; mcpIntegrationEnabled: boolean } | null = await showAgentCommandEditor(command, currentAgentPrompt);
+    const result: { command: string; agentPrompt: string; mcpIntegrationEnabled: boolean; inNewWorktree: boolean } | null = await showAgentCommandEditor(command, currentAgentPrompt);
 
     // User cancelled
     if (result === null) {
@@ -243,7 +243,10 @@ export async function spawnTerminalWithCommandEditor(
     await window.electronAPI?.main.spawnTerminalWithContextNode(
         parentNodeId,
         result.command,
-        terminalCount
+        terminalCount,
+        undefined, // skipFitAnimation
+        undefined, // startUnpinned
+        result.inNewWorktree
     );
 }
 

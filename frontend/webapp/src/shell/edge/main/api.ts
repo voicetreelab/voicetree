@@ -10,7 +10,7 @@ import {
 } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI'
 import {getGraph, getNode} from '@/shell/edge/main/state/graph-store'
 import {loadSettings, saveSettings as saveSettings} from './settings/settings_IO'
-import {getWatchStatus, loadPreviousFolder, startFileWatching, stopFileWatching, getVaultPaths, getReadOnLinkPaths, getWritePath, setWritePath, addReadOnLinkPath, removeReadOnLinkPath, getShowAllPaths, toggleShowAll} from './graph/watch_folder/watchFolder'
+import {getWatchStatus, loadPreviousFolder, startFileWatching, stopFileWatching, getVaultPaths, getReadOnLinkPaths, getWritePath, setWritePath, addReadOnLinkPath, removeReadOnLinkPath} from './graph/watch_folder/watchFolder'
 import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/state/app-electron-state";
 import {createContextNode} from "@/shell/edge/main/graph/context-nodes/createContextNode";
 import {getPreviewContainedNodeIds} from "@/shell/edge/main/graph/context-nodes/getPreviewContainedNodeIds";
@@ -28,6 +28,7 @@ import {getMetrics} from './metrics/agent-metrics-store';
 import {isMcpIntegrationEnabled, setMcpIntegration} from './mcp-server/mcp-client-config';
 import {saveClipboardImage} from './clipboard/saveClipboardImage';
 import {readImageAsDataUrl} from './clipboard/readImageAsDataUrl';
+import {findFileByName} from './graph/loading/findFileByName';
 
 // eslint-disable-next-line @typescript-eslint/typedef
 export const mainAPI = {
@@ -64,8 +65,6 @@ export const mainAPI = {
   setWritePath,
   addReadOnLinkPath,
   removeReadOnLinkPath,
-  getShowAllPaths,
-  toggleShowAll,
 
   // Backend port
   getBackendPort,
@@ -110,4 +109,7 @@ export const mainAPI = {
 
   // Image loading
   readImageAsDataUrl,
+
+  // File search
+  findFileByName,
 }

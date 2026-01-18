@@ -12,7 +12,7 @@
  * - file-watcher-setup.ts: File watcher setup
  */
 
-import { loadGraphFromDisk, loadGraphFromDiskWithLazyLoading } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk";
+import { loadGraphFromDisk, loadGraphFromDiskWithLazyLoading, resolveLinkedNodesInWatchedFolder } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk";
 import type { FilePath, Graph, GraphDelta, GraphNode } from "@/pure/graph";
 import { createGraph, mapNewGraphToDelta } from "@/pure/graph";
 import type { FileLimitExceededError } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce";
@@ -67,8 +67,6 @@ export {
     getVaultPath,
     setVaultPath,
     clearVaultPath,
-    getShowAllPaths,
-    toggleShowAll,
 } from "./vault-allowlist";
 
 // CLI argument override for opening a specific folder on startup (used by "Open Folder in New Instance")
@@ -143,18 +141,13 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
     }
 
     // Try to resolve from saved vaultConfig first
-    const savedConfig: { allowlist: readonly string[]; writePath: string; readOnLinkPaths: readonly string[]; showAllPaths: readonly string[] } | null = await resolveAllowlistForProject(watchedFolderPath);
+    const savedConfig: { allowlist: readonly string[]; writePath: string; readOnLinkPaths: readonly string[] } | null = await resolveAllowlistForProject(watchedFolderPath);
 
     if (savedConfig) {
         // Use saved config with lazy loading
-        // Paths to load immediately: writePath + showAllPaths
-        const immediateLoadPaths: readonly string[] = [
-            savedConfig.writePath,
-            ...savedConfig.showAllPaths
-        ];
-        // Paths to lazy load: readOnLinkPaths minus showAllPaths
-        const lazyLoadPaths: readonly string[] = savedConfig.readOnLinkPaths
-            .filter((p: string) => !savedConfig.showAllPaths.includes(p));
+        // Only writePath is loaded immediately, readOnLinkPaths are lazy-loaded
+        const immediateLoadPaths: readonly string[] = [savedConfig.writePath];
+        const lazyLoadPaths: readonly string[] = savedConfig.readOnLinkPaths;
 
         const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDiskWithLazyLoading(
             immediateLoadPaths,
@@ -198,11 +191,10 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
         }
 
         const readOnLinkPaths: readonly string[] = allowlist.filter(p => p !== watchedFolderPath);
-        const newConfig: { allowlist: readonly string[]; writePath: string; readOnLinkPaths: readonly string[]; showAllPaths: readonly string[] } = {
+        const newConfig: { allowlist: readonly string[]; writePath: string; readOnLinkPaths: readonly string[] } = {
             allowlist,
             writePath: watchedFolderPath,
-            readOnLinkPaths,
-            showAllPaths: []
+            readOnLinkPaths
         };
         // Convert to VaultConfig structure for saving
         await saveVaultConfigForDirectory(watchedFolderPath, {
@@ -243,11 +235,10 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
 
     // Save config with subfolder as writePath
     const subfolderReadOnLinkPaths: readonly string[] = allowlist.filter(p => p !== subfolderPath);
-    const newConfig: { allowlist: readonly string[]; writePath: string; readOnLinkPaths: readonly string[]; showAllPaths: readonly string[] } = {
+    const newConfig: { allowlist: readonly string[]; writePath: string; readOnLinkPaths: readonly string[] } = {
         allowlist,
         writePath: subfolderPath,
-        readOnLinkPaths: subfolderReadOnLinkPaths,
-        showAllPaths: []
+        readOnLinkPaths: subfolderReadOnLinkPaths
     };
     // Convert to VaultConfig structure for saving
     await saveVaultConfigForDirectory(watchedFolderPath, {
@@ -285,7 +276,7 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
  */
 async function finishLoading(
     graph: Graph,
-    config: { allowlist: readonly string[]; writePath: string; readOnLinkPaths: readonly string[]; showAllPaths: readonly string[] },
+    config: { allowlist: readonly string[]; writePath: string; readOnLinkPaths: readonly string[] },
     watchedFolderPath: FilePath,
     mainWindow: Electron.CrossProcessExports.BrowserWindow
 ): Promise<{ success: boolean }> {
@@ -297,6 +288,11 @@ async function finishLoading(
         console.log('[loadFolder] Empty folder detected, creating starter node');
         currentGraph = await createStarterNode(config.writePath);
     }
+
+    // Resolve any wikilinks that point to files in the watched folder
+    // This handles pre-existing links at load time (not just new links from file changes)
+    currentGraph = await resolveLinkedNodesInWatchedFolder(currentGraph, watchedFolderPath);
+    console.log('[loadFolder] Resolved linked nodes, node count:', Object.keys(currentGraph.nodes).length);
 
     // Update graph store
     setGraph(currentGraph);

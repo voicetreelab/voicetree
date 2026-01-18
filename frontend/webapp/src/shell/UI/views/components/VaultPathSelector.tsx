@@ -28,7 +28,6 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
     const [editingPath, setEditingPath] = useState<string | null>(null);
     const [editedValue, setEditedValue] = useState<string>('');
     const [editError, setEditError] = useState<string | null>(null);
-    const [showAllPaths, setShowAllPaths] = useState<readonly string[]>([]);
     const dropdownRef: RefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);
 
     // Start editing a read-on-link path
@@ -93,7 +92,7 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
         }
     };
 
-    // Fetch read-on-link paths, writePath, and showAllPaths
+    // Fetch read-on-link paths and writePath
     const refreshPaths: () => Promise<void> = useCallback(async (): Promise<void> => {
         if (!window.electronAPI) return;
 
@@ -107,9 +106,6 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
             } else {
                 setWritePathState(null);
             }
-
-            const currentShowAllPaths: readonly string[] = await window.electronAPI.main.getShowAllPaths();
-            setShowAllPaths(currentShowAllPaths);
         } catch (err) {
             console.error('[VaultPathSelector] Failed to fetch paths:', err);
         }
@@ -211,23 +207,6 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
         }
     };
 
-    // Handle toggling "show all" for a read-on-link path
-    const handleToggleShowAll: (path: string, e: MouseEvent) => Promise<void> = async (path: string, e: MouseEvent): Promise<void> => {
-        e.stopPropagation();
-        if (!window.electronAPI) return;
-
-        try {
-            const result: { success: boolean; showAll?: boolean; error?: string } = await window.electronAPI.main.toggleShowAll(path);
-            if (result.success) {
-                await refreshPaths();
-            } else {
-                console.error('[VaultPathSelector] Failed to toggle show all:', result.error);
-            }
-        } catch (err) {
-            console.error('[VaultPathSelector] Error toggling show all:', err);
-        }
-    };
-
     // Extract folder name from path for display
     const getFolderName: (fullPath: string) => string = (fullPath: string): string => {
         return fullPath.split(/[/\\]/).pop() ?? fullPath;
@@ -315,8 +294,6 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                                 );
                             }
 
-                            const isShowAll: boolean = showAllPaths.includes(path);
-
                             return (
                                 <div
                                     key={path}
@@ -342,16 +319,6 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                                         <span className="truncate">{relativePath}</span>
                                         <span className="text-muted-foreground">✎</span>
                                     </button>
-                                    {/* Show all toggle - eye icon for read-on-link paths (not writePath) */}
-                                    {!isDefault && (
-                                        <button
-                                            onClick={(e) => void handleToggleShowAll(path, e)}
-                                            className={`w-4 hover:bg-accent rounded ${isShowAll ? 'text-primary' : 'text-muted-foreground'}`}
-                                            title={isShowAll ? 'Hide unlinked nodes' : 'Show all nodes'}
-                                        >
-                                            {isShowAll ? '👁' : '👁‍🗨'}
-                                        </button>
-                                    )}
                                     {/* Remove button - hidden for default write path */}
                                     {!isDefault && (
                                         <button
