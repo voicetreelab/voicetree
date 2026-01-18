@@ -275,3 +275,115 @@ Not linked by anyone.`
         expect(nodeIds.some(id => id.includes('/orphan.md'))).toBe(false)
     })
 })
+
+/**
+ * Tests for resolveLinksAfterChange - the function that handles lazy loading
+ * when a file change adds new links to readOnLinkPaths.
+ *
+ * This tests the scenario where:
+ * 1. A graph exists with a node that has an edge with raw link text (unresolved)
+ * 2. resolveLinksAfterChange is called with the graph and readOnLinkPaths
+ * 3. The linked node from readOnLinkPaths should be loaded
+ */
+describe('resolveLinksAfterChange', () => {
+    let tmpDir: string
+    let writePath: string
+    let readOnLinkPath: string
+
+    beforeAll(async () => {
+        tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'resolve-after-change-test-'))
+        writePath = path.join(tmpDir, 'write-vault')
+        readOnLinkPath = path.join(tmpDir, 'read-vault')
+
+        await fs.mkdir(writePath, { recursive: true })
+        await fs.mkdir(readOnLinkPath, { recursive: true })
+
+        // Create target node in readOnLinkPath
+        await fs.writeFile(
+            path.join(readOnLinkPath, 'target-node.md'),
+            `# Target Node
+
+This should be lazy loaded when linked.`
+        )
+    })
+
+    afterAll(async () => {
+        await fs.rm(tmpDir, { recursive: true, force: true })
+    })
+
+    it('should load node from readOnLinkPath when graph has edge with raw link text', async () => {
+        // Import resolveLinksAfterChange
+        const { resolveLinksAfterChange } = await import('./loadGraphFromDisk')
+        const { createGraph } = await import('@/pure/graph')
+        const O = await import('fp-ts/lib/Option.js')
+
+        // Create a graph with a node that has an edge with raw link text
+        // (simulating what happens after a file is edited to add a new link)
+        const sourceNodePath = path.join(writePath, 'source-node.md')
+        const graph: Graph = createGraph({
+            [sourceNodePath]: {
+                absoluteFilePathIsID: sourceNodePath,
+                contentWithoutYamlOrLinks: '# Source Node',
+                outgoingEdges: [
+                    // Edge with RAW link text (as would happen when target doesn't exist yet)
+                    { targetId: 'target-node', label: 'links to' }
+                ],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.none,
+                    additionalYAMLProps: new Map()
+                }
+            }
+        })
+
+        // Call resolveLinksAfterChange
+        const updatedGraph: Graph = await resolveLinksAfterChange(graph, [readOnLinkPath])
+
+        const nodeIds: readonly string[] = Object.keys(updatedGraph.nodes)
+
+        // Source node should still be there
+        expect(nodeIds.some(id => id.includes('source-node'))).toBe(true)
+
+        // Target node should now be loaded from readOnLinkPath
+        const hasTargetNode = nodeIds.some(id => id.includes('target-node.md'))
+        expect(hasTargetNode).toBe(true)
+    })
+
+    it('should handle path-style link text like "folder/target-node"', async () => {
+        const { resolveLinksAfterChange } = await import('./loadGraphFromDisk')
+        const { createGraph } = await import('@/pure/graph')
+        const O = await import('fp-ts/lib/Option.js')
+
+        // Create a subfolder structure in readOnLinkPath
+        const subfolderPath = path.join(readOnLinkPath, 'subfolder')
+        await fs.mkdir(subfolderPath, { recursive: true })
+        await fs.writeFile(
+            path.join(subfolderPath, 'nested-node.md'),
+            `# Nested Node`
+        )
+
+        const sourceNodePath = path.join(writePath, 'source2.md')
+        const graph: Graph = createGraph({
+            [sourceNodePath]: {
+                absoluteFilePathIsID: sourceNodePath,
+                contentWithoutYamlOrLinks: '# Source 2',
+                outgoingEdges: [
+                    // Link text includes folder path
+                    { targetId: 'subfolder/nested-node', label: '' }
+                ],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.none,
+                    additionalYAMLProps: new Map()
+                }
+            }
+        })
+
+        const updatedGraph: Graph = await resolveLinksAfterChange(graph, [readOnLinkPath])
+        const nodeIds: readonly string[] = Object.keys(updatedGraph.nodes)
+
+        // Nested node should be loaded
+        const hasNestedNode = nodeIds.some(id => id.includes('nested-node.md'))
+        expect(hasNestedNode).toBe(true)
+    })
+})

@@ -78,11 +78,17 @@ const test = base.extend<{
 
     // Write config to auto-load the test project with 'primary' as vault suffix
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
+    const primaryVaultPath = path.join(testProjectPath, 'primary');
     await fs.writeFile(configPath, JSON.stringify({
       lastDirectory: testProjectPath,
-      suffixes: { [testProjectPath]: 'primary' }
+      vaultConfig: {
+        [testProjectPath]: {
+          writePath: primaryVaultPath,
+          readOnLinkPaths: []
+        }
+      }
     }, null, 2), 'utf8');
-    console.log('[Write Path Test] Created config to auto-load:', testProjectPath, 'with suffix: primary');
+    console.log('[Write Path Test] Created config to auto-load:', testProjectPath, 'with writePath:', primaryVaultPath);
 
     const electronApp = await electron.launch({
       args: [
@@ -184,11 +190,11 @@ test.describe('Write Path Change Bug', () => {
     console.log('Initial default write path:', initialDefaultPath);
     expect(initialDefaultPath).toBe(primaryVaultPath);
 
-    console.log('=== STEP 2: Add second vault path to allowlist ===');
+    console.log('=== STEP 2: Add second vault path to readOnLinkPaths ===');
     const addResult = await appWindow.evaluate(async (secondPath: string) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.main.addVaultPathToAllowlist(secondPath);
+      return await api.main.addReadOnLinkPath(secondPath);
     }, secondVaultPath);
 
     console.log('Add vault path result:', addResult);

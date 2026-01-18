@@ -351,4 +351,57 @@ Parent:
       { targetId: '3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation', label: 'is_a_prerequisite_for' }
     ])
   })
+
+  describe('multiline wikilink bug prevention', () => {
+    it('should not match across lines when [ is unclosed', () => {
+      const content: string = `[[unclosed_link.md
+
+Some content
+
+[[valid_link.md]]`
+
+      const nodes: Record<string, GraphNode> = {
+        'valid_link': createNode('valid_link'),
+        'unclosed_link': createNode('unclosed_link')
+      }
+
+      const result: readonly Edge[] = extractEdges(content, nodes)
+
+      // Should only extract the valid link, not match across lines
+      expect(result).toEqual([{ targetId: 'valid_link', label: '' }])
+    })
+
+    it('should handle unclosed [[ at end of document gracefully', () => {
+      const content: string = `- [[valid.md]]
+- [[unclosed`
+
+      const nodes: Record<string, GraphNode> = { 'valid': createNode('valid') }
+      const result: readonly Edge[] = extractEdges(content, nodes)
+
+      // Label is '-' due to existing trim behavior (out of scope to fix)
+      expect(result).toEqual([{ targetId: 'valid', label: '-' }])
+    })
+
+    it('should not create edge with multiline content as targetId', () => {
+      const content: string = `[voice_input.md
+
+Some other content here
+
+[[other_link.md]]`
+
+      const nodes: Record<string, GraphNode> = {
+        'other_link': createNode('other_link'),
+        'voice_input': createNode('voice_input')
+      }
+
+      const result: readonly Edge[] = extractEdges(content, nodes)
+
+      // Should only match the valid wikilink, not the garbage multiline content
+      expect(result).toEqual([{ targetId: 'other_link', label: '' }])
+      // Ensure no edge has multiline content
+      result.forEach(edge => {
+        expect(edge.targetId).not.toContain('\n')
+      })
+    })
+  })
 })

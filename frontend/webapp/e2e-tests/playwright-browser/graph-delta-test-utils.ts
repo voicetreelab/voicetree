@@ -103,6 +103,12 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
         // Agent metrics
         getMetrics: async () => ({ sessions: [] }),
 
+        // Image loading - returns a placeholder test image (100x100 blue square)
+        readImageAsDataUrl: async (_filePath: string): Promise<string> => {
+          // 100x100 light blue (#4A90D9) PNG as base64 (placeholder for tests)
+          return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkAQMAAABKLAcXAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAGUExURUqQ2f///4FAZ9QAAAABYktHRAH/Ai3eAAAAB3RJTUUH6gESAAsWq1tIegAAACV0RVh0ZGF0ZTpjcmVhdGUAMjAyNi0wMS0xOFQwMDoxMToyMiswMDowMKbMSowAAAAldEVYdGRhdGU6bW9kaWZ5ADIwMjYtMDEtMThUMDA6MTE6MjIrMDA6MDDXkfIwAAAAKHRFWHRkYXRlOnRpbWVzdGFtcAAyMDI2LTAxLTE4VDAwOjExOjIyKzAwOjAwgITT7wAAABRJREFUOMtjYBgFo2AUjIJRQE8AAAV4AAEpcbn8AAAAAElFTkSuQmCC';
+        },
+
         // UI-edge graph delta operations (used by handleUIActions.ts)
         applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
           // Simulate what the real implementation does: write to DB, then trigger graph update via file watcher

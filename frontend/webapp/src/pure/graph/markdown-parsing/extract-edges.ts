@@ -131,7 +131,7 @@ export function extractEdges(
   content: string,
   nodes: Record<NodeIdAndFilePath, GraphNode>
 ): readonly Edge[] {
-  const wikilinkRegex: RegExp = /\[\[([^\]]+)\]\]/g
+  const wikilinkRegex: RegExp = /\[\[([^\]\n\r]+)\]\]/g
   const matches: readonly RegExpExecArray[] = [...content.matchAll(wikilinkRegex)]
 
   const edges: readonly { readonly targetId: string; readonly label: string; }[] = matches

@@ -76,8 +76,6 @@ Phase 1
 
 ### 5. Diamond Dependencies = Multiple Parents
 
-When a phase needs multiple prior phases, use `--parents`:
-
 ```
 Implementation Plan
 ├── Phase 1 ─────┐
