@@ -8,11 +8,35 @@ import {recordUserActionAndSetDeltaHistoryState} from '@/shell/edge/main/state/u
 import type {Either} from "fp-ts/es6/Either";
 import {getGraph, setGraph} from "@/shell/edge/main/state/graph-store";
 import {getMainWindow} from "@/shell/edge/main/state/app-electron-state";
+import {resolveLinkedNodesInWatchedFolder} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk";
 
-export function applyGraphDeltaToMemState(delta: GraphDelta): void {
+/**
+ * Applies a delta to the in-memory graph state and resolves any new wikilinks.
+ *
+ * This is the unified path for both FS events and editor changes.
+ * After applying the delta, it resolves any wikilinks that point to files
+ * in the watched folder (lazy resolution).
+ *
+ * @param delta - The delta to apply
+ * @returns The merged delta (original + any resolved links) for UI broadcast
+ */
+export async function applyGraphDeltaToMemState(delta: GraphDelta): Promise<GraphDelta> {
     const currentGraph: Graph = getGraph();
-    const newGraph: Graph = applyGraphDeltaToGraph(currentGraph, delta);
+    let newGraph: Graph = applyGraphDeltaToGraph(currentGraph, delta);
+
+    // Resolve any new wikilinks (lazy resolution)
+    const watchedDir: string | null = getWatchedDirectory();
+    if (watchedDir) {
+        const resolutionDelta: GraphDelta = await resolveLinkedNodesInWatchedFolder(newGraph, watchedDir);
+        if (resolutionDelta.length > 0) {
+            newGraph = applyGraphDeltaToGraph(newGraph, resolutionDelta);
+            // Merge resolution delta into original for caller
+            delta = [...delta, ...resolutionDelta];
+        }
+    }
+
     setGraph(newGraph);
+    return delta;
 }
 
 export function broadcastGraphDeltaToUI(delta: GraphDelta): void {
@@ -42,11 +66,13 @@ export async function applyGraphDeltaToDBThroughMemAndUI(
         recordUserActionAndSetDeltaHistoryState(delta)
     }
 
-    applyGraphDeltaToMemState(delta)
+    // Apply to memory and resolve any new wikilinks (returns merged delta)
+    const mergedDelta: GraphDelta = await applyGraphDeltaToMemState(delta)
 
-    broadcastGraphDeltaToUI(delta)
+    // Broadcast merged delta (includes resolved links) to UI
+    broadcastGraphDeltaToUI(mergedDelta)
 
-    // Construct env and execute effect
+    // Construct env and execute effect (only original delta goes to DB)
     const env: Env = {watchedDirectory}
     const result: Either<Error, GraphDelta> = await apply_graph_deltas_to_db(delta)(env)()
 

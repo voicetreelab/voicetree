@@ -157,10 +157,10 @@ function buildContextNodeContent(
     // Context node is orphaned - no wikilink edge to parent
     // The terminal's shadow node will create a cytoscape edge to this context node
     return `---
-title: "Agent Context"
+title: "context"
 isContextNode: true
 ${containedNodeIdsYaml}---
-# Agent Context
+# context
 Nearby nodes to: ${parentNodeId}
 \`\`\`
 ${asciiTree}

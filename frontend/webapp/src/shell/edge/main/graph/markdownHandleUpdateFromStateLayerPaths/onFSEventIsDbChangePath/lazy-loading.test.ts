@@ -4,7 +4,8 @@ import * as path from 'path'
 import * as os from 'os'
 import * as E from 'fp-ts/lib/Either.js'
 import { loadGraphFromDiskWithLazyLoading, isReadPath } from './loadGraphFromDisk'
-import type { Graph } from '@/pure/graph'
+import { applyGraphDeltaToGraph } from '@/pure/graph'
+import type { Graph, GraphDelta } from '@/pure/graph'
 import type { FileLimitExceededError } from './fileLimitEnforce'
 
 /**
@@ -226,8 +227,9 @@ End of chain.`
         expect(Object.keys(initialGraph.nodes)).toHaveLength(1)
         expect(Object.keys(initialGraph.nodes)[0]).toContain('a.md')
 
-        // Now resolve links in watched folder
-        const resolvedGraph: Graph = await resolveLinkedNodesInWatchedFolder(initialGraph, watchedFolder)
+        // Now resolve links in watched folder (returns delta, apply to get resolved graph)
+        const resolutionDelta: GraphDelta = await resolveLinkedNodesInWatchedFolder(initialGraph, watchedFolder)
+        const resolvedGraph: Graph = applyGraphDeltaToGraph(initialGraph, resolutionDelta)
 
         const nodeIds: readonly string[] = Object.keys(resolvedGraph.nodes)
 

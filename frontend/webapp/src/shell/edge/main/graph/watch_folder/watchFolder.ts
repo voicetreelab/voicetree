@@ -14,7 +14,7 @@
 
 import { loadGraphFromDisk, loadGraphFromDiskWithLazyLoading, resolveLinkedNodesInWatchedFolder } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk";
 import type { FilePath, Graph, GraphDelta, GraphNode } from "@/pure/graph";
-import { createGraph, mapNewGraphToDelta } from "@/pure/graph";
+import { applyGraphDeltaToGraph, createGraph, mapNewGraphToDelta } from "@/pure/graph";
 import type { FileLimitExceededError } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce";
 import { setGraph } from "@/shell/edge/main/state/graph-store";
 import { dialog } from "electron";
@@ -28,7 +28,6 @@ import { getMainWindow } from "@/shell/edge/main/state/app-electron-state";
 import { notifyTextToTreeServerOfDirectory } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/notifyTextToTreeServerOfDirectory";
 import { getOnboardingDirectory } from "@/shell/edge/main/electron/onboarding-setup";
 import {
-    applyGraphDeltaToMemState,
     broadcastGraphDeltaToUI
 } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI";
 import { loadSettings } from "@/shell/edge/main/settings/settings_IO";
@@ -291,10 +290,13 @@ async function finishLoading(
 
     // Resolve any wikilinks that point to files in the watched folder
     // This handles pre-existing links at load time (not just new links from file changes)
-    currentGraph = await resolveLinkedNodesInWatchedFolder(currentGraph, watchedFolderPath);
+    const resolutionDelta: GraphDelta = await resolveLinkedNodesInWatchedFolder(currentGraph, watchedFolderPath);
+    if (resolutionDelta.length > 0) {
+        currentGraph = applyGraphDeltaToGraph(currentGraph, resolutionDelta);
+    }
     console.log('[loadFolder] Resolved linked nodes, node count:', Object.keys(currentGraph.nodes).length);
 
-    // Update graph store
+    // Update graph store directly (bypassing applyGraphDeltaToMemState to avoid double resolution)
     setGraph(currentGraph);
 
     // let backend know, call /load-directory non blocking
@@ -304,8 +306,7 @@ async function finishLoading(
     const graphDelta: GraphDelta = mapNewGraphToDelta(currentGraph);
     console.log('[loadFolder] Created graph delta, length:', graphDelta.length);
 
-    // Initial load: apply to memory and broadcast to UI
-    applyGraphDeltaToMemState(graphDelta);
+    // Initial load: broadcast directly to UI (skip applyGraphDeltaToMemState since graph is already set)
     broadcastGraphDeltaToUI(graphDelta);
     console.log('[loadFolder] Graph delta broadcast to UI-edge');
 

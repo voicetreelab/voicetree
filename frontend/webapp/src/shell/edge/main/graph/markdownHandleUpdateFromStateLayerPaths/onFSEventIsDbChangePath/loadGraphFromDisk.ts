@@ -260,16 +260,20 @@ export async function loadGraphFromDiskWithLazyLoading(
  *
  * @param graph - Current graph with nodes
  * @param watchedFolder - The root folder to search for linked files
- * @returns Graph with linked nodes resolved and loaded
+ * @returns GraphDelta containing all resolved nodes (caller applies to graph)
  */
 export async function resolveLinkedNodesInWatchedFolder(
     graph: Graph,
     watchedFolder: string
-): Promise<Graph> {
+): Promise<GraphDelta> {
     // Track which nodes we've already processed to avoid infinite loops
     const processedNodeIds: Set<string> = new Set();
     // Track which files need to be loaded
     const filesToLoad: Set<string> = new Set();
+    // Accumulate all deltas from resolution (mutable array, returned as GraphDelta)
+    const accumulatedDelta: GraphDelta[number][] = [];
+    // Working copy of graph for resolution
+    let workingGraph: Graph = graph;
 
     // Extract link targets from a node's outgoing edges
     const extractLinkTargets: (node: GraphNode) => readonly string[] = (node: GraphNode): readonly string[] => {
@@ -339,7 +343,7 @@ export async function resolveLinkedNodesInWatchedFolder(
     };
 
     // Initial pass: find all unresolved links
-    await findUnresolvedLinks(graph);
+    await findUnresolvedLinks(workingGraph);
 
     // Iteratively load files and resolve their transitive links
     while (filesToLoad.size > 0) {
@@ -348,7 +352,7 @@ export async function resolveLinkedNodesInWatchedFolder(
 
         // Load each file
         for (const filePath of pathsToLoad) {
-            if (graph.nodes[filePath]) continue; // Already loaded
+            if (workingGraph.nodes[filePath]) continue; // Already loaded
 
             try {
                 // Image files have empty content (don't read binary as UTF-8)
@@ -360,17 +364,19 @@ export async function resolveLinkedNodesInWatchedFolder(
                     eventType: 'Added'
                 };
 
-                const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, graph);
-                graph = applyGraphDeltaToGraph(graph, delta);
+                const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, workingGraph);
+                workingGraph = applyGraphDeltaToGraph(workingGraph, delta);
+                // Accumulate deltas for return
+                accumulatedDelta.push(...delta);
             } catch {
                 // File might not exist or be inaccessible - skip
             }
         }
 
         // Find new unresolved links from the nodes we just loaded
-        await findUnresolvedLinks(graph);
+        await findUnresolvedLinks(workingGraph);
     }
 
-    // Apply positions to all nodes
-    return applyPositions(graph);
+    // Return accumulated delta (caller handles positioning and applying to state)
+    return accumulatedDelta;
 }

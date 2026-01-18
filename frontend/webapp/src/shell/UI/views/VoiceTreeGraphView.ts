@@ -76,9 +76,6 @@ import {subscribeToGraphUpdates} from '@/shell/edge/UI-edge/graph/subscribeToGra
 import {createSettingsEditor, closeSettingsEditor, isSettingsEditorOpen} from "@/shell/edge/UI-edge/settings/createSettingsEditor";
 import type {TerminalData, ElectronAPI} from '@/shell/electron';
 
-import {
-    spawnBackupTerminal
-} from "@/shell/edge/UI-edge/floating-windows/terminals/spawnBackupTerminal";
 import {GraphNavigationService} from "@/shell/edge/UI-edge/graph/navigation/GraphNavigationService";
 import {NavigationGestureService} from "@/shell/edge/UI-edge/graph/navigation/NavigationGestureService";
 import {showFeedbackDialog} from "@/shell/edge/UI-edge/graph/userEngagementPrompts";
@@ -257,7 +254,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             isDarkMode: this._isDarkMode,
             speedDialCallbacks: {
                 onToggleDarkMode: () => this.toggleDarkMode(),
-                onBackup: () => { void spawnBackupTerminal(this.cy); },
                 onSettings: () => void createSettingsEditor(this.cy),
                 onAbout: () => window.open('https://voicetree.io', '_blank'),
                 onStats: () => window.dispatchEvent(new Event('toggle-stats-panel')),
@@ -397,7 +393,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
     private handleResizeMethod(): void {
         this.cy.resize();
-        this.cy.fit();
     }
 
     // ============================================================================
