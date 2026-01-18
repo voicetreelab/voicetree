@@ -144,38 +144,40 @@ export async function addReadOnLinkPath(vaultPath: FilePath): Promise<{ success:
 
     const newReadOnLinkPaths: readonly string[] = [...currentReadOnLinkPaths, vaultPath];
 
-    // Load files from the new path into the graph using bulk load path
-    const existingGraph: Graph = getGraph();
-
-    // Use bulk load path: single pass, single broadcast, no editors auto-opened
-    const loadResult: E.Either<FileLimitExceededError, { graph: Graph; delta: GraphDelta }> =
-        await loadVaultPathAdditively(vaultPath, existingGraph);
-
-    if (E.isLeft(loadResult)) {
-        return { success: false, error: `File limit exceeded: ${loadResult.left.fileCount} files` };
-    }
-
-    // Save to config (source of truth)
+    // Save to config FIRST (source of truth) - path must be in config before lazy resolution
     await saveVaultConfigForDirectory(watchedDir, {
         writePath: currentWritePath,
         readOnLinkPaths: newReadOnLinkPaths
     });
 
-    const { graph: mergedGraph, delta } = loadResult.right;
-
-    // Update graph state
-    setGraph(mergedGraph);
-
-    // Single broadcast to UI (no editors auto-opened for bulk loads)
-    if (delta.length > 0) {
-        applyGraphDeltaToMemState(delta);
-        broadcastGraphDeltaToUI(delta);
-    }
-
-    // Add the new path to the watcher
+    // Add the new path to the watcher BEFORE loading
     const currentWatcher: FSWatcher | null = getWatcher();
     if (currentWatcher) {
         currentWatcher.add(vaultPath);
+    }
+
+    // Use lazy loading: only load nodes that are linked from visible nodes
+    const existingGraph: Graph = getGraph();
+    const resolvedGraph: Graph = await resolveLinksAfterChange(existingGraph, [vaultPath]);
+
+    // Compute delta: find nodes in resolvedGraph that weren't in existingGraph
+    const newNodeIds: readonly string[] = Object.keys(resolvedGraph.nodes).filter(
+        (nodeId: string) => !existingGraph.nodes[nodeId]
+    );
+
+    if (newNodeIds.length > 0) {
+        const delta: GraphDelta = newNodeIds.map((nodeId: string) => ({
+            type: 'UpsertNode' as const,
+            nodeToUpsert: resolvedGraph.nodes[nodeId],
+            previousNode: O.none
+        }));
+
+        // Update graph state
+        setGraph(resolvedGraph);
+
+        // Broadcast to UI
+        applyGraphDeltaToMemState(delta);
+        broadcastGraphDeltaToUI(delta);
     }
 
     return { success: true };
@@ -363,14 +365,49 @@ export async function toggleShowAll(vaultPath: FilePath): Promise<{ success: boo
         // Remove unlinked nodes from this path
         const currentGraph: Graph = getGraph();
 
-        // Re-resolve links to determine which nodes to keep
-        const graphAfterResolve: Graph = await resolveLinksAfterChange(currentGraph, [vaultPath]);
-
-        // Find nodes in vaultPath that are in current graph but not in resolved graph (orphans to remove)
-        const nodesToRemove: readonly string[] = Object.keys(currentGraph.nodes).filter(nodeId =>
-            (nodeId.startsWith(vaultPath + path.sep) || nodeId === vaultPath) &&
-            !graphAfterResolve.nodes[nodeId]
+        // Find all nodes in vaultPath
+        const nodesInVaultPath: readonly string[] = Object.keys(currentGraph.nodes).filter(nodeId =>
+            nodeId.startsWith(vaultPath + path.sep) || nodeId === vaultPath
         );
+
+        // Find nodes that are linked (have incoming edges from outside vaultPath or transitively)
+        const linkedNodeIds: Set<string> = new Set();
+
+        // Helper to check if a node is in vaultPath
+        const isInVaultPath: (nodeId: string) => boolean = (nodeId: string): boolean =>
+            nodeId.startsWith(vaultPath + path.sep) || nodeId === vaultPath;
+
+        // First pass: find directly linked nodes (nodes in vaultPath that have incoming edges from outside vaultPath)
+        for (const nodeId of Object.keys(currentGraph.nodes)) {
+            if (isInVaultPath(nodeId)) continue; // Skip nodes in vaultPath itself
+
+            const node: Graph['nodes'][string] = currentGraph.nodes[nodeId];
+            for (const edge of node.outgoingEdges) {
+                if (isInVaultPath(edge.targetId)) {
+                    linkedNodeIds.add(edge.targetId);
+                }
+            }
+        }
+
+        // Second pass: find transitively linked nodes (nodes in vaultPath linked by other linked nodes in vaultPath)
+        let foundNew: boolean = true;
+        while (foundNew) {
+            foundNew = false;
+            for (const nodeId of linkedNodeIds) {
+                const node: Graph['nodes'][string] | undefined = currentGraph.nodes[nodeId];
+                if (!node) continue;
+
+                for (const edge of node.outgoingEdges) {
+                    if (isInVaultPath(edge.targetId) && !linkedNodeIds.has(edge.targetId) && currentGraph.nodes[edge.targetId]) {
+                        linkedNodeIds.add(edge.targetId);
+                        foundNew = true;
+                    }
+                }
+            }
+        }
+
+        // Nodes to remove are those in vaultPath that are NOT linked
+        const nodesToRemove: readonly string[] = nodesInVaultPath.filter(nodeId => !linkedNodeIds.has(nodeId));
 
         if (nodesToRemove.length > 0) {
             const deleteDelta: GraphDelta = nodesToRemove.map((nodeId): DeleteNode => ({

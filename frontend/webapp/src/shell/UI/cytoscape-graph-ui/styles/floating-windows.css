@@ -402,7 +402,7 @@
 
 /* First traffic light in a pill needs extra left margin to separate from menu items */
 .horizontal-menu-pill .traffic-light:first-of-type {
-  margin-left: 8px;
+  margin-left: -8px;
 }
 
 /* Compensate for 20% larger traffic light buttons (14px → 17px) overflowing pill container */

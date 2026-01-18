@@ -80,7 +80,6 @@ export async function createFloatingImageViewer(
 
     // Create image element to display the image
     const imageElement: HTMLImageElement = document.createElement('img');
-    imageElement.src = `file://${nodeId}`;
     imageElement.alt = title;
     imageElement.style.maxWidth = '100%';
     imageElement.style.maxHeight = '100%';
@@ -88,6 +87,15 @@ export async function createFloatingImageViewer(
     imageElement.style.display = 'block';
     imageElement.style.margin = 'auto';
     imageElement.draggable = false;
+
+    // Load image via IPC (returns data URL or null)
+    const dataUrl: string | null | undefined = await window.electronAPI?.main.readImageAsDataUrl(nodeId);
+    if (dataUrl) {
+        imageElement.src = dataUrl;
+    } else {
+        // Fallback: show alt text (image element with no src shows alt)
+        console.warn(`[FloatingImageViewerCRUD] Could not load image: ${nodeId}`);
+    }
 
     // Add image to content container
     ui.contentContainer.style.display = 'flex';

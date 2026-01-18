@@ -5,7 +5,7 @@
  * - Triggers on [[ or when cursor is inside [[...]]
  * - Shows nodes ordered by recency (recently visited first)
  * - Filters as user types
- * - Inserts node ID on selection
+ * - Inserts relative path (from watched folder) on selection
  */
 
 import {
@@ -17,6 +17,7 @@ import {
 import type { Extension } from '@codemirror/state';
 import type { Core, NodeSingular, NodeCollection } from 'cytoscape';
 import { getRecentlyVisited } from '@/shell/edge/UI-edge/state/RecentlyVisitedStore';
+import { toRelativePath } from '@/shell/edge/UI-edge/state/WatchedFolderStore';
 
 /**
  * Get Cytoscape instance from window
@@ -141,10 +142,11 @@ function wikilinkCompletionSource(context: CompletionContext): CompletionResult 
         : allNodes;
 
     // Convert to CodeMirror completion format
+    // Insert relative path (from watched folder) instead of absolute path
     const options: Completion[] = filteredNodes.map((node: NodeCompletionData) => ({
         label: node.title,
         detail: node.firstLine !== node.title ? node.firstLine : undefined,
-        apply: node.id, // Insert the node ID when selected
+        apply: toRelativePath(node.id), // Insert relative path for wikilink
         type: 'text',
         boost: 0, // Maintain our custom order
     }));

@@ -27,6 +27,7 @@ import {askModeCreateAndSpawn} from './ask-mode/askModeCreateAndSpawn';
 import {getMetrics} from './metrics/agent-metrics-store';
 import {isMcpIntegrationEnabled, setMcpIntegration} from './mcp-server/mcp-client-config';
 import {saveClipboardImage} from './clipboard/saveClipboardImage';
+import {readImageAsDataUrl} from './clipboard/readImageAsDataUrl';
 
 // eslint-disable-next-line @typescript-eslint/typedef
 export const mainAPI = {
@@ -106,4 +107,7 @@ export const mainAPI = {
 
   // Clipboard operations
   saveClipboardImage,
+
+  // Image loading
+  readImageAsDataUrl,
 }

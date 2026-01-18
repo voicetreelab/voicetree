@@ -14,7 +14,7 @@ Create the following nodes as a DIAMOND-shaped dependency graph:
 ```
                 CUSTOM AGENTS
              /                  \
-VOICE INPUT                      OPENSPEC
+TASK->VOICE INPUT                      OPENSPEC
              \                  /
                 LINKED NODES
 ```
