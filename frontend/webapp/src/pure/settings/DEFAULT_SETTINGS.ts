@@ -88,5 +88,5 @@ For the entire duration of this session, before you report completion to the use
 </TASK_NODES_INSTRUCTION>`,
     },
     hotkeys: DEFAULT_HOTKEYS,
-    defaultAllowlistPatterns: ['openspec']
+    defaultAllowlistPatterns: []
 };

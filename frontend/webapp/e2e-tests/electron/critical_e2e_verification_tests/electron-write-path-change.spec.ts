@@ -84,7 +84,7 @@ const test = base.extend<{
       vaultConfig: {
         [testProjectPath]: {
           writePath: primaryVaultPath,
-          readOnLinkPaths: []
+          readPaths: []
         }
       }
     }, null, 2), 'utf8');
@@ -190,7 +190,7 @@ test.describe('Write Path Change Bug', () => {
     console.log('Initial default write path:', initialDefaultPath);
     expect(initialDefaultPath).toBe(primaryVaultPath);
 
-    console.log('=== STEP 2: Add second vault path to readOnLinkPaths ===');
+    console.log('=== STEP 2: Add second vault path to readPaths ===');
     const addResult = await appWindow.evaluate(async (secondPath: string) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');

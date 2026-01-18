@@ -2,11 +2,11 @@
  * Unit Tests for Multi-Vault Path Functionality
  *
  * Tests the public API functions for multi-vault path management:
- * - await getVaultPaths() - returns readonly FilePath[] of readOnLinkPaths
+ * - await getVaultPaths() - returns readonly FilePath[] of readPaths
  * - await getWritePath() - returns O.Option<FilePath> of write path
  * - setWritePath(path) - sets write path, returns {success, error?}
- * - addReadOnLinkPath(path) - adds path to readOnLinkPaths
- * - removeReadOnLinkPath(path) - removes path from readOnLinkPaths
+ * - addReadPath(path) - adds path to readPaths
+ * - removeReadPath(path) - removes path from readPaths
  *
  * Testing Philosophy:
  * - Tests must test BEHAVIOR, not implementation details
@@ -23,8 +23,8 @@ import {
   getVaultPaths,
   getWritePath,
   setWritePath,
-  addReadOnLinkPath,
-  removeReadOnLinkPath,
+  addReadPath,
+  removeReadPath,
   loadFolder,
   stopFileWatching,
   getVaultPath,
@@ -125,8 +125,8 @@ describe('Multi-Vault Path Allowlist (7.1)', () => {
       await loadFolder(testVaultPath1)
 
       // AND: Add additional vault paths
-      const result1: { success: boolean; error?: string } = await addReadOnLinkPath(testVaultPath2)
-      const result2: { success: boolean; error?: string } = await addReadOnLinkPath(testVaultPath3)
+      const result1: { success: boolean; error?: string } = await addReadPath(testVaultPath2)
+      const result2: { success: boolean; error?: string } = await addReadPath(testVaultPath3)
 
       // ASSERT: Both additions succeeded
       expect(result1.success).toBe(true)
@@ -152,7 +152,7 @@ describe('Multi-Vault Path Allowlist (7.1)', () => {
       // Verify it doesn't exist before
       await expect(fs.access(newFolderPath)).rejects.toThrow()
 
-      const result: { success: boolean; error?: string } = await addReadOnLinkPath(newFolderPath)
+      const result: { success: boolean; error?: string } = await addReadPath(newFolderPath)
 
       // ASSERT: Addition succeeds
       expect(result.success).toBe(true)
@@ -161,7 +161,7 @@ describe('Multi-Vault Path Allowlist (7.1)', () => {
       const stats: Awaited<ReturnType<typeof fs.stat>> = await fs.stat(newFolderPath)
       expect(stats.isDirectory()).toBe(true)
 
-      // ASSERT: Path is now in readOnLinkPaths
+      // ASSERT: Path is now in readPaths
       expect(await getVaultPaths()).toContain(newFolderPath)
     })
 
@@ -172,7 +172,7 @@ describe('Multi-Vault Path Allowlist (7.1)', () => {
 
       // WHEN: Attempt to add path in non-existent root location (will fail on permissions)
       const invalidPath: string = '/nonexistent/root/path/that/cannot/be/created'
-      const result: { success: boolean; error?: string } = await addReadOnLinkPath(invalidPath)
+      const result: { success: boolean; error?: string } = await addReadPath(invalidPath)
 
       // ASSERT: Function returns error (can't create directory without permissions)
       expect(result.success).toBe(false)
@@ -186,21 +186,21 @@ describe('Multi-Vault Path Allowlist (7.1)', () => {
   })
 
   describe('7.1.3 Scenario: Duplicate vault path prevention', () => {
-    it('should not add duplicate paths to readOnLinkPaths', async () => {
+    it('should not add duplicate paths to readPaths', async () => {
       // GIVEN: Load a folder (initializes with primary vault path)
       await loadFolder(testVaultPath1)
 
       // AND: Add a path (using custom-vault which is not auto-added by defaultAllowlistPatterns)
-      const firstAdd: { success: boolean; error?: string } = await addReadOnLinkPath(testVaultPath2)
+      const firstAdd: { success: boolean; error?: string } = await addReadPath(testVaultPath2)
       expect(firstAdd.success).toBe(true)
       const lengthAfterFirstAdd: number = (await getVaultPaths()).length
 
       // WHEN: Attempt to add same path again
-      const secondAdd: { success: boolean; error?: string } = await addReadOnLinkPath(testVaultPath2)
+      const secondAdd: { success: boolean; error?: string } = await addReadPath(testVaultPath2)
 
-      // ASSERT: Duplicate not added (readOnLinkPaths length unchanged)
+      // ASSERT: Duplicate not added (readPaths length unchanged)
       expect(secondAdd.success).toBe(false)
-      expect(secondAdd.error).toContain('already in readOnLinkPaths')
+      expect(secondAdd.error).toContain('already in readPaths')
       expect((await getVaultPaths()).length).toBe(lengthAfterFirstAdd)
     })
   })
@@ -269,7 +269,7 @@ describe('Default Write Path (7.2)', () => {
       await loadFolder(testVaultPath1)
 
       // WHEN: Set write path to a different existing path
-      // In the new architecture, writePath is independent and doesn't need to be in readOnLinkPaths
+      // In the new architecture, writePath is independent and doesn't need to be in readPaths
       const outsidePath: string = path.join(testTmpDir, 'outside')
       await fs.mkdir(outsidePath, { recursive: true })
       const result: { success: boolean; error?: string } = await setWritePath(outsidePath)
@@ -285,12 +285,12 @@ describe('Default Write Path (7.2)', () => {
       }
     })
 
-    it('should accept setting write path to a readOnLinkPath', async () => {
+    it('should accept setting write path to a readPath', async () => {
       // GIVEN: Load a folder and add second vault path
       await loadFolder(testVaultPath1)
-      await addReadOnLinkPath(testVaultPath2)
+      await addReadPath(testVaultPath2)
 
-      // WHEN: Set write path to the second path (which is in readOnLinkPaths)
+      // WHEN: Set write path to the second path (which is in readPaths)
       const result: { success: boolean; error?: string } = await setWritePath(testVaultPath2)
 
       // ASSERT: setWritePath() succeeds
@@ -349,19 +349,19 @@ describe('Remove Vault Path from Allowlist', () => {
     vi.clearAllMocks()
   })
 
-  it('should remove path from readOnLinkPaths when it is not the write path', async () => {
+  it('should remove path from readPaths when it is not the write path', async () => {
     // GIVEN: Load a folder and add second vault path
     await loadFolder(testVaultPath1)
-    await addReadOnLinkPath(testVaultPath2)
+    await addReadPath(testVaultPath2)
     expect(await getVaultPaths()).toContain(testVaultPath2)
 
     // WHEN: Remove the second path (not the default)
-    const result: { success: boolean; error?: string } = await removeReadOnLinkPath(testVaultPath2)
+    const result: { success: boolean; error?: string } = await removeReadPath(testVaultPath2)
 
     // ASSERT: Removal succeeds
     expect(result.success).toBe(true)
 
-    // ASSERT: Path is no longer in readOnLinkPaths
+    // ASSERT: Path is no longer in readPaths
     expect(await getVaultPaths()).not.toContain(testVaultPath2)
   })
 
@@ -370,27 +370,28 @@ describe('Remove Vault Path from Allowlist', () => {
     await loadFolder(testVaultPath1)
 
     // WHEN: Attempt to remove the default write path
-    const result: { success: boolean; error?: string } = await removeReadOnLinkPath(testVaultPath1)
+    const result: { success: boolean; error?: string } = await removeReadPath(testVaultPath1)
 
     // ASSERT: Removal fails
     expect(result.success).toBe(false)
     expect(result.error).toContain('write path')
 
-    // ASSERT: Path is still in readOnLinkPaths
+    // ASSERT: Path is still in readPaths
     expect(await getVaultPaths()).toContain(testVaultPath1)
   })
 
-  it('should reject removing path not in readOnLinkPaths', async () => {
+  it('should succeed when removing path not in readPaths (no-op)', async () => {
     // GIVEN: Load a folder
     await loadFolder(testVaultPath1)
 
-    // WHEN: Attempt to remove path not in readOnLinkPaths
+    // WHEN: Attempt to remove path not in readPaths
+    // This is intentionally allowed to support clearing old write paths
     const outsidePath: string = '/some/random/path'
-    const result: { success: boolean; error?: string } = await removeReadOnLinkPath(outsidePath)
+    const result: { success: boolean; error?: string } = await removeReadPath(outsidePath)
 
-    // ASSERT: Removal fails
-    expect(result.success).toBe(false)
-    expect(result.error).toContain('not in readOnLinkPaths')
+    // ASSERT: Removal succeeds (no-op for non-existent paths)
+    // This behavior is intentional - old write paths aren't in readPaths
+    expect(result.success).toBe(true)
   })
 })
 
@@ -441,7 +442,7 @@ describe('Two-Tier Configuration (7.3)', () => {
   })
 
   describe('7.3.1 Scenario: Global default patterns auto-applied', () => {
-    it('should auto-add openspec to readOnLinkPaths when folder exists and pattern matches', async () => {
+    it('should auto-add openspec to readPaths when folder exists and pattern matches', async () => {
       // Note: This test depends on settings.defaultAllowlistPatterns being set
       // The current implementation in resolveAllowlistForProject reads from loadSettings()
       // For unit testing without integration, we verify the behavior via the public API
@@ -455,12 +456,12 @@ describe('Two-Tier Configuration (7.3)', () => {
       // WHEN: loadFolder is called
       await loadFolder(testVaultPath1)
 
-      // THEN: Check if openspec is in the readOnLinkPaths
+      // THEN: Check if openspec is in the readPaths
       // Note: This depends on the actual settings configuration
       // The test validates the public API behavior
       const vaultPaths: readonly string[] = await getVaultPaths()
 
-      // At minimum, the primary vault path should be in readOnLinkPaths
+      // At minimum, the primary vault path should be in readPaths
       expect(vaultPaths).toContain(testVaultPath1)
 
       // If defaultAllowlistPatterns includes "openspec", it should be auto-added
@@ -468,8 +469,8 @@ describe('Two-Tier Configuration (7.3)', () => {
     })
   })
 
-  describe('7.3.2 Scenario: Per-project explicit readOnLinkPaths', () => {
-    it('should maintain separate readOnLinkPaths between projects', async () => {
+  describe('7.3.2 Scenario: Per-project explicit readPaths', () => {
+    it('should maintain separate readPaths between projects', async () => {
       // GIVEN: Create two project directories (vault paths directly)
       const projectAVault: string = testVaultPath1
       const projectBVault: string = path.join(testTmpDir, 'project-b-vault')
@@ -479,7 +480,7 @@ describe('Two-Tier Configuration (7.3)', () => {
 
       // WHEN: Load project A and add custom path
       await loadFolder(projectAVault)
-      await addReadOnLinkPath(testVaultPath2)
+      await addReadPath(testVaultPath2)
 
       const projectAPaths: readonly string[] = [...await getVaultPaths()]
       expect(projectAPaths).toContain(testVaultPath2)
@@ -643,7 +644,7 @@ describe('Fallback Behavior - getVaultPath vs getWritePath', () => {
   it('should return writePath from config when setWritePath is called', async () => {
     // GIVEN: Load a folder and add second vault
     await loadFolder(testVaultPath1)
-    await addReadOnLinkPath(testVaultPath2)
+    await addReadPath(testVaultPath2)
 
     // AND: Change default write path to the second vault
     await setWritePath(testVaultPath2)
@@ -717,7 +718,7 @@ describe('Auto-load files when adding new vault path', () => {
     vi.clearAllMocks()
   })
 
-  it('should auto-load files from new vault path when added via addReadOnLinkPath', async () => {
+  it('should auto-load files from new vault path when added via addReadPath', async () => {
     // GIVEN: Load a folder (initializes with primary vault path)
     await loadFolder(testVaultPath1)
 
@@ -725,7 +726,7 @@ describe('Auto-load files when adding new vault path', () => {
     const callsBeforeAdd: number = broadcastCalls.length
 
     // WHEN: Add a new vault path that contains files
-    const result: { success: boolean; error?: string } = await addReadOnLinkPath(testVaultPath2)
+    const result: { success: boolean; error?: string } = await addReadPath(testVaultPath2)
 
     // THEN: Addition should succeed
     expect(result.success).toBe(true)
@@ -798,15 +799,15 @@ describe('Vault path removal persistence across reload (BUG REGRESSION TEST)', (
   it('should persist removed vault path across folder reload (removal should NOT re-appear)', async () => {
     // GIVEN: Load folder and add second vault path
     await loadFolder(testVaultPath1)
-    await addReadOnLinkPath(testVaultPath2)
+    await addReadPath(testVaultPath2)
 
-    // Verify both paths are in readOnLinkPaths
+    // Verify both paths are in readPaths
     expect(await getVaultPaths()).toContain(testVaultPath1)
     expect(await getVaultPaths()).toContain(testVaultPath2)
     console.log('[Test] Initial vault paths:', await getVaultPaths())
 
     // WHEN: Remove the second path
-    const removeResult: { success: boolean; error?: string } = await removeReadOnLinkPath(testVaultPath2)
+    const removeResult: { success: boolean; error?: string } = await removeReadPath(testVaultPath2)
     expect(removeResult.success).toBe(true)
 
     // Verify path is removed from memory
@@ -833,14 +834,14 @@ describe('Vault path removal persistence across reload (BUG REGRESSION TEST)', (
     // Manually add openspec to simulate it being auto-added by patterns
     const pathsBefore: readonly string[] = await getVaultPaths()
     if (!pathsBefore.includes(testVaultPath2)) {
-      await addReadOnLinkPath(testVaultPath2)
+      await addReadPath(testVaultPath2)
     }
 
     expect(await getVaultPaths()).toContain(testVaultPath2)
     console.log('[Test] Vault paths with openspec:', await getVaultPaths())
 
     // WHEN: Remove openspec
-    const removeResult: { success: boolean; error?: string } = await removeReadOnLinkPath(testVaultPath2)
+    const removeResult: { success: boolean; error?: string } = await removeReadPath(testVaultPath2)
     expect(removeResult.success).toBe(true)
 
     // Verify openspec folder still exists on disk
@@ -907,10 +908,10 @@ describe('Vault path removal should delete nodes from graph (BUG REGRESSION TEST
     vi.clearAllMocks()
   })
 
-  it('should remove nodes from graph when vault path is removed from readOnLinkPaths', async () => {
+  it('should remove nodes from graph when vault path is removed from readPaths', async () => {
     // GIVEN: Load folder with two vault paths containing nodes
     await loadFolder(testVaultPath1)
-    await addReadOnLinkPath(testVaultPath2)
+    await addReadPath(testVaultPath2)
 
     // Verify both nodes are in the graph (node IDs are absolute file paths)
     const graphBefore: Graph = getGraph()
@@ -919,7 +920,7 @@ describe('Vault path removal should delete nodes from graph (BUG REGRESSION TEST
     expect(nodeIdsBefore.some(id => id.includes('remove.md'))).toBe(true)
 
     // WHEN: Remove the second vault path
-    const removeResult: { success: boolean; error?: string } = await removeReadOnLinkPath(testVaultPath2)
+    const removeResult: { success: boolean; error?: string } = await removeReadPath(testVaultPath2)
     expect(removeResult.success).toBe(true)
 
     // THEN: Nodes from the removed vault should be gone from the graph
@@ -989,7 +990,7 @@ describe('VaultConfig uses writePath (renamed from defaultWritePath)', () => {
   it('should use setWritePath to set the write path (renamed from setWritePath)', async () => {
     // GIVEN: Load a folder and add second vault path
     await loadFolder(testVaultPath1)
-    await addReadOnLinkPath(testVaultPath2)
+    await addReadPath(testVaultPath2)
 
     // WHEN: Set write path to the second vault using renamed function
     const result: { success: boolean; error?: string } = await setWritePath(testVaultPath2)
@@ -1008,7 +1009,7 @@ describe('VaultConfig uses writePath (renamed from defaultWritePath)', () => {
   it('should persist writePath across folder reload (config round-trip)', async () => {
     // GIVEN: Load a folder, add second vault, and set it as write path
     await loadFolder(testVaultPath1)
-    await addReadOnLinkPath(testVaultPath2)
+    await addReadPath(testVaultPath2)
     await setWritePath(testVaultPath2)
 
     // Verify write path is set

@@ -14,13 +14,13 @@ interface AddVaultResult {
 }
 
 /**
- * Dropdown component for selecting the write path from read-on-link paths.
+ * Dropdown component for selecting the write path from read paths.
  * Design: Button shows "{folder-name}", dropdown lists all paths with checkmark on current.
- * Paths are editable inline. Also includes an input field to add additional read-on-link paths.
+ * Paths are editable inline. Also includes an input field to add additional read folders.
  */
 export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): JSX.Element | null {
     const [isOpen, setIsOpen] = useState(false);
-    const [readOnLinkPaths, setReadOnLinkPaths] = useState<readonly string[]>([]);
+    const [readPaths, setReadPaths] = useState<readonly string[]>([]);
     const [writePath, setWritePathState] = useState<string | null>(null);
     const [newReadPath, setNewReadPath] = useState<string>('');
     const [addError, setAddError] = useState<string | null>(null);
@@ -30,7 +30,7 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
     const [editError, setEditError] = useState<string | null>(null);
     const dropdownRef: RefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);
 
-    // Start editing a read-on-link path
+    // Start editing a read path
     const startEditing: (path: string) => void = (path: string): void => {
         const relativePath: string = watchDirectory && path.startsWith(watchDirectory)
             ? path.slice(watchDirectory.length + 1)
@@ -40,7 +40,7 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
         setEditError(null);
     };
 
-    // Save edited read-on-link path
+    // Save edited read path
     const saveEditedPath: () => Promise<void> = async (): Promise<void> => {
         if (!window.electronAPI || !editingPath || !editedValue.trim() || !watchDirectory) return;
 
@@ -56,7 +56,7 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
 
         try {
             // Add new path first
-            const addResult: AddVaultResult = await window.electronAPI.main.addReadOnLinkPath(newAbsPath);
+            const addResult: AddVaultResult = await window.electronAPI.main.addReadPath(newAbsPath);
             if (!addResult.success) {
                 setEditError(addResult.error ?? 'Failed to add new path');
                 return;
@@ -68,7 +68,7 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
             }
 
             // Remove old path
-            await window.electronAPI.main.removeReadOnLinkPath(editingPath);
+            await window.electronAPI.main.removeReadPath(editingPath);
 
             setEditingPath(null);
             await refreshPaths();
@@ -92,13 +92,13 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
         }
     };
 
-    // Fetch read-on-link paths and writePath
+    // Fetch read paths and writePath
     const refreshPaths: () => Promise<void> = useCallback(async (): Promise<void> => {
         if (!window.electronAPI) return;
 
         try {
             const paths: readonly FilePath[] = await window.electronAPI.main.getVaultPaths();
-            setReadOnLinkPaths(paths);
+            setReadPaths(paths);
 
             const currentWritePath: O.Option<FilePath> = await window.electronAPI.main.getWritePath();
             if (O.isSome(currentWritePath)) {
@@ -149,7 +149,7 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
         setIsOpen(false);
     };
 
-    // Handle adding a new read-on-link path
+    // Handle adding a new read folder
     const handleAddReadPath: () => Promise<void> = async (): Promise<void> => {
         if (!window.electronAPI || !newReadPath.trim() || !watchDirectory) return;
 
@@ -162,17 +162,17 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                 ? newReadPath
                 : `${watchDirectory}/${newReadPath}`;
 
-            const result: AddVaultResult = await window.electronAPI.main.addReadOnLinkPath(pathToAdd);
+            const result: AddVaultResult = await window.electronAPI.main.addReadPath(pathToAdd);
             if (result.success) {
                 setNewReadPath('');
                 await refreshPaths();
             } else {
-                setAddError(result.error ?? 'Failed to add read path');
+                setAddError(result.error ?? 'Failed to add read folder');
             }
         } catch (err) {
             const errorMessage: string = err instanceof Error ? err.message : 'Unknown error';
             setAddError(errorMessage);
-            console.error('[VaultPathSelector] Error adding read path:', err);
+            console.error('[VaultPathSelector] Error adding read folder:', err);
         } finally {
             setIsAdding(false);
         }
@@ -190,20 +190,20 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
         }
     };
 
-    // Handle removing a read-on-link path
+    // Handle removing a read folder
     const handleRemovePath: (path: string, e: MouseEvent) => Promise<void> = async (path: string, e: MouseEvent): Promise<void> => {
         e.stopPropagation();
         if (!window.electronAPI) return;
 
         try {
-            const result: { success: boolean; error?: string } = await window.electronAPI.main.removeReadOnLinkPath(path);
+            const result: { success: boolean; error?: string } = await window.electronAPI.main.removeReadPath(path);
             if (result.success) {
                 await refreshPaths();
             } else {
-                console.error('[VaultPathSelector] Failed to remove read-on-link path:', result.error);
+                console.error('[VaultPathSelector] Failed to remove read folder:', result.error);
             }
         } catch (err) {
-            console.error('[VaultPathSelector] Error removing read-on-link path:', err);
+            console.error('[VaultPathSelector] Error removing read folder:', err);
         }
     };
 
@@ -225,7 +225,7 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
     };
 
     // Always show if we have at least one path (to allow adding more)
-    if (readOnLinkPaths.length === 0) {
+    if (readPaths.length === 0) {
         return null;
     }
 
@@ -255,7 +255,7 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                         <div className="px-3 py-1 text-[10px] text-muted-foreground uppercase tracking-wide border-b border-border">
                             Markdown folders (select write destination)
                         </div>
-                        {readOnLinkPaths.map((path: string) => {
+                        {readPaths.map((path: string) => {
                             const isDefault: boolean = path === writePath;
                             const relativePath: string = getRelativePath(path);
                             const isEditing: boolean = editingPath === path;
@@ -324,7 +324,7 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                                         <button
                                             onClick={(e) => void handleRemovePath(path, e)}
                                             className="w-4 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded"
-                                            title="Remove read-on-link path"
+                                            title="Remove read folder"
                                         >
                                             ✕
                                         </button>
@@ -333,10 +333,10 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                             );
                         })}
 
-                        {/* Add read-on-link path section */}
+                        {/* Add read folder section */}
                         <div className="border-t border-border mt-1 pt-1">
                             <div className="px-3 py-1 text-[10px] text-muted-foreground uppercase tracking-wide">
-                                Add read-on-link path
+                                Add read folder
                             </div>
                             <div className="px-2 pb-2">
                                 <div className="flex gap-1">
@@ -353,7 +353,7 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                                         onClick={() => void handleAddReadPath()}
                                         disabled={isAdding || !newReadPath.trim()}
                                         className="px-2 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed"
-                                        title="Add read-on-link path"
+                                        title="Add read folder"
                                     >
                                         {isAdding ? '...' : '+'}
                                     </button>

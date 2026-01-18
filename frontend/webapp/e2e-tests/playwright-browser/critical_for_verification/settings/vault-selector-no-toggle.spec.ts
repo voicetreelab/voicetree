@@ -4,7 +4,7 @@
  *
  * This test verifies:
  * 1. VaultPathSelector should NOT show an eye icon or "show all" toggle
- * 2. readOnLinkPaths should display without any toggle state indicator
+ * 2. readPaths should display without any toggle state indicator
  * 3. The add/remove path functionality should still work
  */
 
@@ -206,7 +206,7 @@ const test = base.extend<{ consoleCapture: { logs: string[]; errors: string[] } 
 });
 
 test.describe('VaultPathSelector without showAll toggle', () => {
-  test('should not render eye icon toggle for readOnLinkPaths', async ({ page, consoleCapture: _consoleCapture }) => {
+  test('should not render eye icon toggle for readPaths', async ({ page, consoleCapture: _consoleCapture }) => {
     console.log('=== Starting VaultPathSelector eye icon toggle removal test ===');
 
     // Step 1: Setup mock Electron API with vault methods
@@ -273,7 +273,7 @@ test.describe('VaultPathSelector without showAll toggle', () => {
     console.log('=== TEST PASSED: Eye icon toggle is removed ===');
   });
 
-  test('should still allow adding and removing readOnLinkPaths', async ({ page, consoleCapture: _consoleCapture }) => {
+  test('should still allow adding and removing readPaths', async ({ page, consoleCapture: _consoleCapture }) => {
     console.log('=== Starting VaultPathSelector add/remove path test ===');
 
     // Setup
@@ -327,7 +327,7 @@ test.describe('VaultPathSelector without showAll toggle', () => {
     console.log('=== TEST PASSED: Add/remove functionality still works ===');
   });
 
-  test('should display readOnLinkPaths without toggle state indicator', async ({ page, consoleCapture: _consoleCapture }) => {
+  test('should display readPaths without toggle state indicator', async ({ page, consoleCapture: _consoleCapture }) => {
     console.log('=== Starting VaultPathSelector display without toggle indicator test ===');
 
     // Setup

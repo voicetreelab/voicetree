@@ -34,7 +34,7 @@ interface ExtendedWindow {
  *
  * Expected:
  *   - writePath is restored to 'write-vault'
- *   - readOnLinkPaths includes 'read-vault'
+ *   - readPaths includes 'read-vault'
  *   - Graph contains: node-a, linked-node
  *   - Graph does NOT contain: unlinked-node (lazy loading works)
  */
@@ -153,7 +153,7 @@ testPersistence.describe('Vault Config Persistence E2E', () => {
     );
     await window1.waitForTimeout(1500);
 
-    // Configure vault: set writePath and add readOnLinkPath
+    // Configure vault: set writePath and add readPath
     console.log('Setting writePath to:', writeVaultPath);
     const setWriteResult = await window1.evaluate(async (wp: string) => {
       const api = (window as ExtendedWindow).electronAPI;
@@ -163,7 +163,7 @@ testPersistence.describe('Vault Config Persistence E2E', () => {
     console.log('setWritePath result:', setWriteResult);
     expect(setWriteResult.success).toBe(true);
 
-    console.log('Adding readOnLinkPath:', readVaultPath);
+    console.log('Adding readPath:', readVaultPath);
     const addResult = await window1.evaluate(async (rp: string) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
@@ -254,14 +254,14 @@ testPersistence.describe('Vault Config Persistence E2E', () => {
     console.log('Restored writePath:', restoredWritePath);
     expect(restoredWritePath).toBe(writeVaultPath);
 
-    // Verify readOnLinkPaths persisted
-    console.log('=== VERIFICATION: readOnLinkPaths restored ===');
+    // Verify readPaths persisted
+    console.log('=== VERIFICATION: readPaths restored ===');
     const restoredReadOnLinkPaths = await window2.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       return await api.main.getReadOnLinkPaths();
     });
-    console.log('Restored readOnLinkPaths:', restoredReadOnLinkPaths);
+    console.log('Restored readPaths:', restoredReadOnLinkPaths);
     expect(restoredReadOnLinkPaths).toContain(readVaultPath);
 
     // Verify lazy loading: check which nodes are in the graph
@@ -305,7 +305,7 @@ testPersistence.describe('Vault Config Persistence E2E', () => {
     console.log('=== TEST SUMMARY ===');
     console.log('Vault Config Persistence test completed:');
     console.log('- writePath persisted across restart: PASS');
-    console.log('- readOnLinkPaths persisted across restart: PASS');
+    console.log('- readPaths persisted across restart: PASS');
     console.log('- Lazy loading works on reload (unlinked-node not loaded): PASS');
   });
 });
@@ -320,7 +320,7 @@ testPersistence.describe('Vault Config Persistence E2E', () => {
  *
  * Expected:
  *   - writePath is set to parent directory
- *   - readOnLinkPaths auto-includes 'openspec' (from defaultAllowlistPatterns)
+ *   - readPaths auto-includes 'openspec' (from defaultAllowlistPatterns)
  *   - Config is persisted to voicetree-config.json
  */
 const testDefaultConfig = base.extend<{
@@ -428,23 +428,23 @@ testDefaultConfig.describe('Default Vault Config Creation E2E', () => {
     // writePath should be the testDir itself (parent directory)
     expect(writePath).toBe(testDir);
 
-    console.log('=== VERIFICATION: readOnLinkPaths includes openspec ===');
-    const readOnLinkPaths = await window.evaluate(async () => {
+    console.log('=== VERIFICATION: readPaths includes openspec ===');
+    const readPaths = await window.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       return await api.main.getReadOnLinkPaths();
     });
-    console.log('readOnLinkPaths:', readOnLinkPaths);
+    console.log('readPaths:', readPaths);
 
     // Check if openspec was auto-added (depends on defaultAllowlistPatterns setting)
     const expectedOpenspecPath = path.join(testDir, 'openspec');
-    const hasOpenspec = readOnLinkPaths.some((p: string) => p === expectedOpenspecPath || p.includes('openspec'));
-    console.log('Has openspec in readOnLinkPaths:', hasOpenspec);
+    const hasOpenspec = readPaths.some((p: string) => p === expectedOpenspecPath || p.includes('openspec'));
+    console.log('Has openspec in readPaths:', hasOpenspec);
 
     // Note: This assertion depends on global settings having 'openspec' in defaultAllowlistPatterns
     // If the test fails here, it might be because the settings don't include 'openspec'
     if (!hasOpenspec) {
-      console.log('WARNING: openspec not in readOnLinkPaths.');
+      console.log('WARNING: openspec not in readPaths.');
       console.log('This is expected if defaultAllowlistPatterns does not include "openspec".');
       console.log('Check settings.defaultAllowlistPatterns if this behavior is unexpected.');
     }

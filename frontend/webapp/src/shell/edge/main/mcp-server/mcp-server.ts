@@ -70,11 +70,9 @@ export async function spawnAgentTool({nodeId, callerTerminalId}: {nodeId: string
     }
 
     try {
-        // Pass skipFitAnimation: true and startUnpinned: true for MCP spawns
-        // - skipFitAnimation: avoid interrupting user's viewport
-        // - startUnpinned: MCP terminals don't need to be pinned by default
+        // Pass skipFitAnimation: true for MCP spawns to avoid interrupting user's viewport
         const {terminalId, contextNodeId}: {terminalId: string; contextNodeId: string} =
-            await spawnTerminalWithContextNode(nodeId, undefined, undefined, true, true)
+            await spawnTerminalWithContextNode(nodeId, undefined, undefined, true, false)
 
         return buildJsonResponse({
             success: true,

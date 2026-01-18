@@ -45,7 +45,7 @@ const test = base.extend<{
         vaultConfig: {
           [tempDir]: {
             writePath: tempDir,
-            readOnLinkPaths: []
+            readPaths: []
           }
         }
       }, null, 2),

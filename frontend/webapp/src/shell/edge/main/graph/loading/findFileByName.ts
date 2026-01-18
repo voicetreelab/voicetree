@@ -15,11 +15,15 @@ export async function findFileByName(
   searchPath: string,
   maxDepth = 10
 ): Promise<string[]> {
+  // Escape glob-special characters to prevent ripgrep parsing errors
+  // Square brackets, asterisks, question marks need escaping
+  const escapedPattern: string = pattern.replace(/[[\]*?{}]/g, '\\$&');
+
   return new Promise((resolve, reject) => {
     const rg: ChildProcessWithoutNullStreams = spawn(rgPath, [
       '--files',
       '--max-depth', String(maxDepth),
-      '-g', `*${pattern}*.md`,
+      '-g', `*${escapedPattern}*.md`,
       searchPath
     ]);
 

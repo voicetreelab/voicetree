@@ -240,18 +240,37 @@ export function anchorToNode(
         }
     });
 
-    // For terminals: create edge from context node (attachedToNodeId) to shadow
-    // This connects the context node visually to its terminal
+    // For terminals: fix context node position to top-left of terminal (no edge)
+    // Context node follows terminal position at a fixed offset
     if (isTerminalData(fw) && fw.attachedToNodeId !== parentNodeId) {
         const contextNodeId: NodeIdAndFilePath = fw.attachedToNodeId;
-        cy.add({
-            group: 'edges',
-            data: {
-                id: `edge-${contextNodeId}-${shadowNode.id()}`,
-                source: contextNodeId,
-                target: shadowNode.id()
-            }
-        });
+        const contextNode: cytoscape.CollectionReturnValue = cy.getElementById(contextNodeId);
+
+        if (contextNode.length > 0) {
+            // Fixed offset: top-left of terminal
+            const contextOffset: { x: number; y: number } = {
+                x: -shadowDimensions.width / 2 - 40,
+                y: -shadowDimensions.height / 2 + 20
+            };
+
+            // Sync context node position to shadow node
+            const syncContextPosition: () => void = () => {
+                const shadowPos: cytoscape.Position = shadowNode.position();
+                contextNode.position({
+                    x: shadowPos.x + contextOffset.x,
+                    y: shadowPos.y + contextOffset.y
+                });
+            };
+
+            // Initial position sync
+            syncContextPosition();
+
+            // Follow terminal on position changes
+            shadowNode.on('position', syncContextPosition);
+
+            // Store cleanup reference
+            (shadowNode as cytoscape.NodeSingular & { _contextPositionSync?: () => void })._contextPositionSync = syncContextPosition;
+        }
     }
 
     // Set up ResizeObserver (window resize → shadow dimensions)

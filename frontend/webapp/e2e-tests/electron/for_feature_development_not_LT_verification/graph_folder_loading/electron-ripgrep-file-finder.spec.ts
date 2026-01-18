@@ -63,7 +63,7 @@ const test = base.extend<{
         vaultConfig: {
           [testDir]: {
             writePath: testDir,
-            readOnLinkPaths: []
+            readPaths: []
           }
         }
       }, null, 2),

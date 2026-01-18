@@ -46,7 +46,7 @@ const test = base.extend<{
         vaultConfig: {
           [testDir]: {
             writePath: testDir,
-            readOnLinkPaths: []
+            readPaths: []
             // Note: NO showAllPaths field
           }
         }
@@ -121,10 +121,10 @@ test.describe('No showAllPaths Configuration', () => {
     expect(configState.hasShowAllPaths).toBe(false);
   });
 
-  test('should lazy-load readOnLinkPaths without toggle option', async ({ appWindow }) => {
+  test('should lazy-load readPaths without toggle option', async ({ appWindow }) => {
     test.setTimeout(30000);
 
-    // Add a readOnLinkPath and verify it uses lazy loading by default
+    // Add a readPath and verify it uses lazy loading by default
     // No "show all" toggle should be available
     const result = await appWindow.evaluate(async () => {
       const api = (window as unknown as ExtendedWindow).electronAPI;

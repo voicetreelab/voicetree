@@ -1,6 +1,6 @@
 /**
  * BEHAVIORAL SPEC:
- * When a node in writePath has an existing wikilink to a node in readOnLinkPaths,
+ * When a node in writePath has an existing wikilink to a node in readPaths,
  * the linked node should be revealed (lazy-loaded) at initial graph load time.
  *
  * BUG: Currently, nodes linked via existing wikilinks are NOT revealed at load time.
@@ -8,7 +8,7 @@
  *
  * Expected behavior:
  * 1. writePath/main.md has [[linked-node]] wikilink
- * 2. readOnLinkPath/linked-node.md exists
+ * 2. readPath/linked-node.md exists
  * 3. On graph load → linked-node.md should be visible in the graph
  *
  * This test demonstrates the failure case.
@@ -34,7 +34,7 @@ const test = base.extend<{
   appWindow: Page;
   tempDir: string;
   writePath: string;
-  readOnLinkPath: string;
+  readPath: string;
 }>({
   tempDir: async ({}, use) => {
     const tempDir: string = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-reveal-existing-link-'));
@@ -48,13 +48,13 @@ const test = base.extend<{
     await use(writePath);
   },
 
-  readOnLinkPath: async ({ tempDir }, use) => {
-    const readOnLinkPath: string = path.join(tempDir, 'read-vault');
-    await fs.mkdir(readOnLinkPath, { recursive: true });
-    await use(readOnLinkPath);
+  readPath: async ({ tempDir }, use) => {
+    const readPath: string = path.join(tempDir, 'read-vault');
+    await fs.mkdir(readPath, { recursive: true });
+    await use(readPath);
   },
 
-  electronApp: async ({ tempDir, writePath, readOnLinkPath }, use) => {
+  electronApp: async ({ tempDir, writePath, readPath }, use) => {
     const tempUserDataPath: string = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-reveal-existing-link-userdata-'));
 
     // Create the node files BEFORE launching the app
@@ -68,25 +68,25 @@ This node is in the write path.
 It has an existing wikilink to [[linked-node]] which should be revealed at load time.`
     );
 
-    // Target node in readOnLinkPath (should be lazy-loaded via the existing link)
+    // Target node in readPath (should be lazy-loaded via the existing link)
     await fs.writeFile(
-      path.join(readOnLinkPath, 'linked-node.md'),
+      path.join(readPath, 'linked-node.md'),
       `# Linked Node
 
-This node is in readOnLinkPath.
+This node is in readPath.
 It should be revealed because main-node links to it.`
     );
 
-    // Unlinked node in readOnLinkPath (should NOT be loaded)
+    // Unlinked node in readPath (should NOT be loaded)
     await fs.writeFile(
-      path.join(readOnLinkPath, 'unlinked-node.md'),
+      path.join(readPath, 'unlinked-node.md'),
       `# Unlinked Node
 
 This node has no incoming links.
 It should NOT be loaded.`
     );
 
-    // Write config with writePath and readOnLinkPaths configured
+    // Write config with writePath and readPaths configured
     const configPath: string = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(
       configPath,
@@ -95,7 +95,7 @@ It should NOT be loaded.`
         vaultConfig: {
           [tempDir]: {
             writePath: writePath,
-            readOnLinkPaths: [readOnLinkPath]
+            readPaths: [readPath]
           }
         }
       }, null, 2),
@@ -170,13 +170,13 @@ test.describe('Reveal node on existing link', () => {
    *
    * Setup:
    * - writePath/main-node.md contains [[linked-node]]
-   * - readOnLinkPath/linked-node.md exists
+   * - readPath/linked-node.md exists
    *
    * Expected: linked-node should be visible in the graph at load time
    *
    * Current bug: linked-node is NOT revealed unless the link is created AFTER load
    */
-  test('should reveal linked node from readOnLinkPath when link ALREADY exists at load time', async ({ appWindow }) => {
+  test('should reveal linked node from readPath when link ALREADY exists at load time', async ({ appWindow }) => {
     test.setTimeout(30000);
 
     // Wait additional time for lazy loading to complete
@@ -198,7 +198,7 @@ test.describe('Reveal node on existing link', () => {
     // Main node from writePath should be loaded
     expect(nodeState.labels).toContain('Main Node');
 
-    // CRITICAL ASSERTION: Linked node from readOnLinkPath should be revealed
+    // CRITICAL ASSERTION: Linked node from readPath should be revealed
     // This is the expected behavior that should pass
     expect(
       nodeState.labels,
@@ -222,13 +222,13 @@ test.describe('Reveal node on existing link', () => {
   test('should reveal linked node when NEW link is created after load (working scenario)', async ({
     appWindow,
     writePath,
-    readOnLinkPath
+    readPath
   }) => {
     test.setTimeout(30000);
 
     // Create a new target node that we'll link to
     await fs.writeFile(
-      path.join(readOnLinkPath, 'new-target.md'),
+      path.join(readPath, 'new-target.md'),
       `# New Target Node
 
 This node will be linked AFTER the graph is loaded.`
@@ -272,18 +272,18 @@ NEW: Now also linking to [[new-target]].`
    *
    * Setup:
    * - writePath/a.md links to [[b]] (existing link)
-   * - readOnLinkPath/b.md links to [[c]] (existing link)
-   * - readOnLinkPath/c.md exists
+   * - readPath/b.md links to [[c]] (existing link)
+   * - readPath/c.md exists
    *
    * Expected: All nodes A, B, C should be visible
    */
-  test('should reveal transitively linked nodes from existing links', async ({ appWindow, writePath, readOnLinkPath }) => {
+  test('should reveal transitively linked nodes from existing links', async ({ appWindow, writePath, readPath }) => {
     test.setTimeout(30000);
 
     // Create a chain of files with existing links
     await fs.writeFile(path.join(writePath, 'chain-start.md'), '# Chain Start\nLinks to [[chain-middle]]');
-    await fs.writeFile(path.join(readOnLinkPath, 'chain-middle.md'), '# Chain Middle\nLinks to [[chain-end]]');
-    await fs.writeFile(path.join(readOnLinkPath, 'chain-end.md'), '# Chain End\nEnd of the chain');
+    await fs.writeFile(path.join(readPath, 'chain-middle.md'), '# Chain Middle\nLinks to [[chain-end]]');
+    await fs.writeFile(path.join(readPath, 'chain-end.md'), '# Chain End\nEnd of the chain');
 
     // Reload the folder to pick up new files
     await appWindow.evaluate(async (dir: string) => {

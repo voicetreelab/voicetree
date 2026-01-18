@@ -37,7 +37,7 @@ const test = base.extend<{
   // testDir/
   //   write-vault/           <- writePath
   //     node-a.md            <- Links to [[node-b]]
-  //   read-vault/            <- readOnLinkPath
+  //   read-vault/            <- readPath
   //     node-b.md            <- Linked by node-a
   testDir: async ({}, use) => {
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-remove-read-path-test-'));
@@ -95,7 +95,7 @@ This node is in the read-vault and should be removed when vault is removed.
         vaultConfig: {
           [testDir]: {
             writePath: writePath,
-            readOnLinkPaths: [readVaultPath]  // Read path already configured
+            readPaths: [readVaultPath]  // Read path already configured
           }
         }
       }, null, 2),
@@ -180,7 +180,7 @@ test.describe('Remove Read Path', () => {
     expect(initialNodes.some(id => id.includes('node-a'))).toBe(true);
     expect(initialNodes.some(id => id.includes('node-b'))).toBe(true);
 
-    console.log('=== STEP 2: Verify readOnLinkPaths includes read-vault ===');
+    console.log('=== STEP 2: Verify readPaths includes read-vault ===');
 
     const initialReadPaths = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
@@ -188,7 +188,7 @@ test.describe('Remove Read Path', () => {
       return await api.main.getReadOnLinkPaths();
     });
 
-    console.log('Initial readOnLinkPaths:', initialReadPaths);
+    console.log('Initial readPaths:', initialReadPaths);
     expect(initialReadPaths.some(p => p.includes('read-vault'))).toBe(true);
 
     console.log('=== STEP 3: Remove read-vault path via API ===');
@@ -217,7 +217,7 @@ test.describe('Remove Read Path', () => {
     expect(nodesAfterRemove.some(id => id.includes('node-a'))).toBe(true);
     expect(nodesAfterRemove.some(id => id.includes('node-b'))).toBe(false);
 
-    console.log('=== STEP 5: Verify readOnLinkPaths no longer includes read-vault ===');
+    console.log('=== STEP 5: Verify readPaths no longer includes read-vault ===');
 
     const finalReadPaths = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
@@ -225,7 +225,7 @@ test.describe('Remove Read Path', () => {
       return await api.main.getReadOnLinkPaths();
     });
 
-    console.log('Final readOnLinkPaths:', finalReadPaths);
+    console.log('Final readPaths:', finalReadPaths);
     expect(finalReadPaths.some(p => p.includes('read-vault'))).toBe(false);
 
     console.log('=== STEP 6: Verify files still exist on disk ===');
@@ -243,7 +243,7 @@ test.describe('Remove Read Path', () => {
     console.log('=== TEST SUMMARY ===');
     console.log('Remove Read Path test completed successfully:');
     console.log('- Nodes from read path removed from graph');
-    console.log('- readOnLinkPaths config updated');
+    console.log('- readPaths config updated');
     console.log('- Files remain on disk (not deleted)');
   });
 

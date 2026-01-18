@@ -260,11 +260,13 @@ export async function spawnTerminalWithCommandEditor(
  * @param parentNodeId - The parent node to create context for
  * @param cy - Cytoscape instance (used to flush pending editor content)
  * @param agentCommand - Optional agent command. If not provided, uses the default (first) agent from settings.
+ * @param inWorktree - If true, spawn the terminal in a new git worktree
  */
 export async function spawnTerminalWithNewContextNode(
     parentNodeId: NodeIdAndFilePath,
     cy: Core,
     agentCommand?: string,
+    inWorktree?: boolean,
 ): Promise<void> {
     // Flush any pending editor content for this node before creating context
     // This ensures the context node has the latest typed content (bypasses 300ms debounce)
@@ -319,9 +321,7 @@ export async function spawnTerminalWithNewContextNode(
 
     // Delegate to main process which has immediate graph access
     await window.electronAPI?.main.spawnTerminalWithContextNode(
-        parentNodeId,
-        command,
-        terminalCount
+        parentNodeId, command, terminalCount, undefined, undefined, inWorktree
     );
 }
 
