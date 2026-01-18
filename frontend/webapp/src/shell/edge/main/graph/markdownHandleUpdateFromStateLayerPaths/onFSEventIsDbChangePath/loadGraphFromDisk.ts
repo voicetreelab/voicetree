@@ -1,4 +1,5 @@
 import * as fs from 'fs/promises'
+import fsSync from 'fs'
 import * as path from 'path'
 import * as E from "fp-ts/lib/Either.js";
 import * as O from "fp-ts/lib/Option.js";
@@ -9,7 +10,8 @@ import { enforceFileLimit, type FileLimitExceededError } from './fileLimitEnforc
 import { applyPositions } from '@/pure/graph/positioning'
 import { addNodeToGraphWithEdgeHealingFromFSEvent } from '@/pure/graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent'
 import { applyGraphDeltaToGraph } from '@/pure/graph/graphDelta/applyGraphDeltaToGraph'
-import { findBestMatchingNode } from '@/pure/graph/markdown-parsing/extract-edges'
+import { findBestMatchingNode, linkMatchScore } from '@/pure/graph/markdown-parsing/extract-edges'
+import { findFileByName } from './findFileByName'
 
 /**
  * Loads a graph from the filesystem using progressive edge validation.
@@ -224,7 +226,7 @@ export function isReadOnLinkPath(nodeId: string, readOnLinkPaths: readonly strin
  * Nodes from lazyLoadPaths are only loaded if they are linked by visible nodes.
  * Transitive links are resolved recursively.
  *
- * @param immediateLoadPaths - Array of absolute paths to load immediately (writePath + showAllPaths)
+ * @param immediateLoadPaths - Array of absolute paths to load immediately (writePath)
  * @param lazyLoadPaths - Array of absolute paths to lazy-load directories
  * @returns Promise that resolves to a Graph with lazy-loaded nodes
  */
@@ -397,4 +399,131 @@ export async function resolveLinksAfterChange(
 
     // Resolve linked nodes (same logic as initial load)
     return resolveLinkedNodes(currentGraph, readOnLinkFiles);
+}
+
+/**
+ * Resolves wikilinks in the graph by searching the watched folder.
+ *
+ * For each unresolved wikilink in the graph:
+ * - Absolute path links (start with /): check if file exists using fs.existsSync
+ * - Relative path links: use findFileByName() to suffix-match in watchedFolder
+ *
+ * Uses linkMatchScore to pick the best match when multiple files match.
+ * Recursively resolves transitive links (A→B→C all get loaded).
+ *
+ * @param graph - Current graph with nodes
+ * @param watchedFolder - The root folder to search for linked files
+ * @returns Graph with linked nodes resolved and loaded
+ */
+export async function resolveLinkedNodesInWatchedFolder(
+    graph: Graph,
+    watchedFolder: string
+): Promise<Graph> {
+    // Track which nodes we've already processed to avoid infinite loops
+    const processedNodeIds: Set<string> = new Set();
+    // Track which files need to be loaded
+    const filesToLoad: Set<string> = new Set();
+
+    // Extract link targets from a node's outgoing edges
+    const extractLinkTargets: (node: GraphNode) => readonly string[] = (node: GraphNode): readonly string[] => {
+        return node.outgoingEdges.map(edge => edge.targetId);
+    };
+
+    // Resolve a single link target to an absolute file path
+    const resolveLinkTarget: (linkTarget: string) => Promise<string | undefined> = async (linkTarget: string): Promise<string | undefined> => {
+        // Case 1: Absolute path - check if file exists
+        if (linkTarget.startsWith('/')) {
+            // Ensure .md extension
+            const targetPath: string = linkTarget.endsWith('.md') ? linkTarget : `${linkTarget}.md`;
+            if (fsSync.existsSync(targetPath)) {
+                return targetPath;
+            }
+            return undefined;
+        }
+
+        // Case 2: Relative path - use findFileByName to suffix-match
+        // Extract the filename from the link (last component)
+        const linkComponents: readonly string[] = linkTarget.split(/[/\\]/);
+        const searchPattern: string = linkComponents[linkComponents.length - 1].replace(/\.md$/, '');
+
+        if (!searchPattern) return undefined;
+
+        const matchingFiles: readonly string[] = await findFileByName(searchPattern, watchedFolder);
+
+        if (matchingFiles.length === 0) return undefined;
+
+        if (matchingFiles.length === 1) return matchingFiles[0];
+
+        // Multiple matches - use linkMatchScore to pick the best one
+        let bestMatch: string = matchingFiles[0];
+        let bestScore: number = linkMatchScore(linkTarget, matchingFiles[0]);
+
+        for (let i: number = 1; i < matchingFiles.length; i++) {
+            const score: number = linkMatchScore(linkTarget, matchingFiles[i]);
+            if (score > bestScore) {
+                bestScore = score;
+                bestMatch = matchingFiles[i];
+            }
+        }
+
+        return bestMatch;
+    };
+
+    // Find all unresolved links from nodes in the graph
+    const findUnresolvedLinks: (currentGraph: Graph) => Promise<void> = async (currentGraph: Graph): Promise<void> => {
+        for (const nodeId of Object.keys(currentGraph.nodes)) {
+            if (processedNodeIds.has(nodeId)) continue;
+            processedNodeIds.add(nodeId);
+
+            const node: GraphNode = currentGraph.nodes[nodeId];
+            const linkTargets: readonly string[] = extractLinkTargets(node);
+
+            for (const target of linkTargets) {
+                // Skip if already in graph
+                if (currentGraph.nodes[target]) continue;
+
+                // Try to resolve the link
+                const resolvedPath: string | undefined = await resolveLinkTarget(target);
+                if (resolvedPath && !currentGraph.nodes[resolvedPath]) {
+                    filesToLoad.add(resolvedPath);
+                }
+            }
+        }
+    };
+
+    // Initial pass: find all unresolved links
+    await findUnresolvedLinks(graph);
+
+    // Iteratively load files and resolve their transitive links
+    while (filesToLoad.size > 0) {
+        const pathsToLoad: readonly string[] = [...filesToLoad];
+        filesToLoad.clear();
+
+        // Load each file
+        for (const filePath of pathsToLoad) {
+            if (graph.nodes[filePath]) continue; // Already loaded
+
+            try {
+                // Image files have empty content (don't read binary as UTF-8)
+                const content: string = isImageNode(filePath) ? '' : await fs.readFile(filePath, 'utf-8');
+
+                const fsEvent: FSUpdate = {
+                    absolutePath: filePath,
+                    content,
+                    eventType: 'Added'
+                };
+
+                const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, graph);
+                graph = applyGraphDeltaToGraph(graph, delta);
+            } catch {
+                // File might not exist or be inaccessible - skip
+            }
+        }
+
+        // Find new unresolved links from the nodes we just loaded
+        await findUnresolvedLinks(graph);
+    }
+
+    // Apply positions to all nodes
+    return applyPositions(graph);
 }

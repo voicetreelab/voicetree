@@ -421,10 +421,11 @@ button.graph-button:disabled > svg > path {
     flex-direction: row;
     flex-wrap: wrap; /* Wrap to new row after 5 tabs */
     justify-content: flex-end; /* Right-align tabs in each row when wrapping */
-    gap: 4px;
+    column-gap: 4px;
+    row-gap: 14px; /* Row gap to accommodate activity dots (positioned at bottom: -11px) */
     max-width: 470px; /* 5 tabs × 90px + 4 gaps × 4px + padding */
     overflow-y: visible;
-    padding: 2px 4px 20px 4px; /* Bottom padding for shortcut hints */
+    padding: 0 4px 20px 4px; /* No top padding; bottom padding for shortcut hints */
 }
 
 /* Webkit scrollbar styling for pinned */
@@ -482,6 +483,7 @@ button.graph-button:disabled > svg > path {
     flex-shrink: 0;
     transition: background-color 0.15s ease, border-color 0.15s ease;
     color: #e5e7eb;
+    -webkit-app-region: no-drag; /* Required for clicks in Electron title bar area */
 }
 
 /* Unpinned agent tab (16px tall with status dot only, matching pinned tab height) */
@@ -500,6 +502,7 @@ button.graph-button:disabled > svg > path {
     cursor: pointer;
     flex-shrink: 0;
     transition: background-color 0.15s ease, border-color 0.15s ease;
+    -webkit-app-region: no-drag; /* Required for clicks in Electron title bar area */
 }
 
 .agent-tab-unpinned:hover {

@@ -343,7 +343,21 @@ test.describe('Edit Path (Inline Rename) E2E', () => {
     console.log('Final write path:', finalWritePath);
     expect(finalWritePath).toContain('write-vault');
 
-    console.log('Edit write path test passed');
+    console.log('=== STEP 5: Assert nodes from write-vault are loaded into graph ===');
+    // BUG FIX VERIFICATION: When editing write path to a new folder, nodes from that folder must be loaded
+    const graphNodes = await appWindow.evaluate(async () => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('cytoscapeInstance not available');
+      return cy.nodes().map((n: { id: () => string }) => n.id());
+    });
+
+    console.log('Graph nodes after edit:', graphNodes);
+
+    // write-vault/node-a.md should be loaded into the graph
+    const hasNodeA = graphNodes.some((id: string) => id.includes('write-vault') && id.includes('node-a'));
+    expect(hasNodeA).toBe(true);
+
+    console.log('Edit write path test passed - nodes loaded correctly');
   });
 
   test('Test Scenario 3: Cancel Edit with Escape', async ({ appWindow }) => {

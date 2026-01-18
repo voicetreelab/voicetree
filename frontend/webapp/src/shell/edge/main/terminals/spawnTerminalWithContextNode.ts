@@ -31,6 +31,7 @@ import type { VTSettings } from '@/pure/settings';
 import { resolveEnvVars, expandEnvVarsInValues } from '@/pure/settings';
 import { getNextTerminalCountForNode } from '@/shell/edge/main/terminals/terminal-registry';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
+import { createWorktree, generateWorktreeName } from '@/shell/edge/main/worktree/gitWorktreeCommands';
 
 /**
  * Spawn a terminal with a context node, orchestrated from main process
@@ -50,7 +51,8 @@ export async function spawnTerminalWithContextNode(
     agentCommand: string | undefined,
     terminalCount?: number,
     skipFitAnimation?: boolean,
-    startUnpinned?: boolean
+    startUnpinned?: boolean,
+    inNewWorktree?: boolean
 ): Promise<{terminalId: string; contextNodeId: NodeIdAndFilePath}> {
     // Load settings to get agents
     const settings: VTSettings = await loadSettings();
@@ -192,6 +194,9 @@ async function prepareTerminalDataInMain(
     const allVaultPaths: readonly string[] = await getVaultPaths();
     const allMarkdownReadPaths: string = allVaultPaths.join('\n');
 
+    // Generate terminal ID before creating TerminalData so we can include it in env vars
+    const terminalId: string = `terminal-${contextNodeId}-${terminalCount}`;
+
     const unexpandedEnvVars: Record<string, string> = {
         VOICETREE_APP_SUPPORT: appSupportPath ?? '',
         VOICETREE_VAULT_PATH: vaultPath,
@@ -199,6 +204,7 @@ async function prepareTerminalDataInMain(
         CONTEXT_NODE_PATH: contextNodeAbsolutePath,
         TASK_NODE_PATH: taskNodeAbsolutePath,
         CONTEXT_NODE_CONTENT: truncatedContextContent,
+        VOICETREE_TERMINAL_ID: terminalId,
         ...resolvedEnvVars,
     };
     const expandedEnvVars: Record<string, string> = expandEnvVarsInValues(unexpandedEnvVars);

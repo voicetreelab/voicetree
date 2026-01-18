@@ -240,16 +240,16 @@ export function anchorToNode(
         }
     });
 
-    // For terminals: create edge from shadow to context node (attachedToNodeId)
-    // This connects the terminal visually to its orphaned context node
+    // For terminals: create edge from context node (attachedToNodeId) to shadow
+    // This connects the context node visually to its terminal
     if (isTerminalData(fw) && fw.attachedToNodeId !== parentNodeId) {
         const contextNodeId: NodeIdAndFilePath = fw.attachedToNodeId;
         cy.add({
             group: 'edges',
             data: {
-                id: `edge-${shadowNode.id()}-${contextNodeId}`,
-                source: shadowNode.id(),
-                target: contextNodeId
+                id: `edge-${contextNodeId}-${shadowNode.id()}`,
+                source: contextNodeId,
+                target: shadowNode.id()
             }
         });
     }

@@ -38,7 +38,21 @@ function buildJsonResponse(payload: unknown, isError?: boolean): McpToolResponse
     }
 }
 
-export async function spawnAgentTool({nodeId}: {nodeId: string}): Promise<McpToolResponse> {
+export async function spawnAgentTool({nodeId, callerTerminalId}: {nodeId: string; callerTerminalId: string}): Promise<McpToolResponse> {
+    console.log(`[MCP] spawn_agent called by terminal: ${callerTerminalId}`)
+
+    // Validate caller terminal exists
+    const terminalRecords: TerminalRecord[] = getTerminalRecords()
+    const callerExists: boolean = terminalRecords.some(
+        (record: TerminalRecord) => record.terminalId === callerTerminalId
+    )
+    if (!callerExists) {
+        return buildJsonResponse({
+            success: false,
+            error: `Unknown caller terminal: ${callerTerminalId}`
+        }, true)
+    }
+
     const vaultPathOpt: O.Option<string> = await getWritePath()
     if (O.isNone(vaultPathOpt)) {
         return buildJsonResponse({
@@ -293,10 +307,11 @@ export function createMcpServer(): McpServer {
             title: 'Spawn Agent',
             description: 'Spawn a coding agent terminal attached to an existing graph node.',
             inputSchema: {
-                nodeId: z.string().describe('Target node ID to attach the spawned agent')
+                nodeId: z.string().describe('Target node ID to attach the spawned agent'),
+                callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var')
             }
         },
-        spawnAgentTool
+        async ({nodeId, callerTerminalId}) => spawnAgentTool({nodeId, callerTerminalId})
     )
 
     // Tool: list_agents

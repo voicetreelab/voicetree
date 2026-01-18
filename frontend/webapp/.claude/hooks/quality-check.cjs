@@ -515,6 +515,7 @@ class QualityChecker {
 
     checkPromises.push(this.checkCommonIssues());
     checkPromises.push(this.checkNodePatterns());
+    checkPromises.push(this.checkFileLength());
 
     await Promise.all(checkPromises);
 
@@ -984,6 +985,37 @@ class QualityChecker {
       }
     } catch (error) {
       log.debug(`Node.js patterns check error: ${error.message}`);
+    }
+  }
+
+  /**
+   * Check if TypeScript file exceeds maximum allowed line count
+   * @returns {Promise<void>}
+   */
+  async checkFileLength() {
+    // Only check TypeScript files
+    if (!this.filePath.endsWith('.ts') && !this.filePath.endsWith('.tsx')) {
+      return;
+    }
+
+    const MAX_LINES = 500;
+
+    try {
+      const content = await fs.readFile(this.filePath, 'utf8');
+      const lineCount = content.split('\n').length;
+
+      if (lineCount > MAX_LINES) {
+        this.errors.push(
+          `YOU ARE NOT ALLOWED TO EXTEND THE LENGTH OF FILES PAST ${MAX_LINES} LINES, PLEASE EXTRACT FUNCTION INTO A NEW FILE`,
+        );
+        console.error(
+          `  ❌ File ${path.basename(this.filePath)} has ${lineCount} lines (max: ${MAX_LINES})`,
+        );
+      } else {
+        log.debug(`File length OK: ${lineCount}/${MAX_LINES} lines`);
+      }
+    } catch (error) {
+      log.debug(`File length check error: ${error.message}`);
     }
   }
 
