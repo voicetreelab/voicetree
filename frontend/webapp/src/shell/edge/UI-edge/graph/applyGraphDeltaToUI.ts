@@ -216,13 +216,9 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                                     label: newLabel
                                 }
                             });
-                            // If source or target is a context node, mark associated terminal as having activity
-                            console.log(`[applyGraphDeltaToUI] Checking isContextNode for ${nodeId}:`, node.nodeUIMetadata.isContextNode);
-                            if (node.nodeUIMetadata.isContextNode === true) {
-                                console.log(`[applyGraphDeltaToUI] Context node ${nodeId} got new edge, marking terminal activity`);
-                                markTerminalActivityForContextNode(nodeId);
-                            }
-                            // Always try to mark activity - markTerminalActivityForContextNode handles non-context nodes gracefully
+                            // Mark terminal activity for both source and target nodes
+                            // markTerminalActivityForContextNode checks both attachedToNodeId (context) and anchoredToNodeId (task)
+                            markTerminalActivityForContextNode(nodeId);
                             markTerminalActivityForContextNode(edge.targetId);
                         } else {
                             console.warn(`[applyGraphDeltaToUI] Skipping edge ${nodeId}->${edge.targetId}: target node does not exist`);

@@ -9,7 +9,7 @@ import {getEditorByNodeId} from "@/shell/edge/UI-edge/state/EditorStore";
 import {getImageViewerByNodeId} from "@/shell/edge/UI-edge/state/ImageViewerStore";
 import * as O from 'fp-ts/lib/Option.js';
 import {getFilePathForNode, getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
-import {Plus, Play, Trash2, Clipboard, ChevronDown, Edit2, createElement, type IconNode} from 'lucide';
+import {Plus, Play, Trash2, Clipboard, ChevronDown, Edit2, GitBranch, createElement, type IconNode} from 'lucide';
 import {getOrCreateOverlay} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import {graphToScreenPosition, getWindowTransform, getTransformOrigin} from '@/pure/floatingWindowScaling';
 import type {AgentConfig} from "@/pure/settings";
@@ -184,31 +184,16 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
 
     // LEFT SIDE: Delete, Copy, Add (3 buttons)
     menuItems.push({
-        icon: Trash2,
-        label: 'Delete',
-        hotkey: '⌘⌫',
-        action: async () => {
-            await deleteNodesFromUI([nodeId], cy);
-        },
+        icon: Trash2, label: 'Delete', hotkey: '⌘⌫',
+        action: () => deleteNodesFromUI([nodeId], cy),
     });
-
     menuItems.push({
-        icon: Clipboard,
-        label: 'Copy Path',
-        action: () => {
-            const absolutePath: string = getFilePathForNode(nodeId);
-            void navigator.clipboard.writeText(absolutePath);
-        },
+        icon: Clipboard, label: 'Copy Path',
+        action: () => { void navigator.clipboard.writeText(getFilePathForNode(nodeId)); },
     });
-
     menuItems.push({
-        icon: Plus,
-        label: 'Add Child',
-        hotkey: '⌘N',
-        action: async () => {
-            // Editor auto-pinning handled by file watcher in VoiceTreeGraphView
-            await createNewChildNodeFromUI(nodeId, cy);
-        },
+        icon: Plus, label: 'Add Child', hotkey: '⌘N',
+        action: () => { void createNewChildNodeFromUI(nodeId, cy); },
     });
 
     // RIGHT SIDE: Run, More (2 buttons) + traffic light placeholders (Close, Pin, Fullscreen)
@@ -225,15 +210,9 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
             ? () => highlightContainedNodes(cy, nodeId)
             : () => highlightPreviewNodes(cy, nodeId),
         onHoverLeave: () => clearContainedHighlights(cy),
-        // Dropdown submenu with "Edit Command" option
         subMenu: [
-            {
-                icon: Edit2,
-                label: 'Edit Command',
-                action: async () => {
-                    await spawnTerminalWithCommandEditor(nodeId, cy);
-                },
-            },
+            { icon: GitBranch, label: 'Run in Worktree', action: () => spawnTerminalWithNewContextNode(nodeId, cy, undefined, true) },
+            { icon: Edit2, label: 'Edit Command', action: () => spawnTerminalWithCommandEditor(nodeId, cy) },
         ],
     });
 

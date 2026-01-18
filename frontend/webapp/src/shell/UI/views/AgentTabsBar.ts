@@ -7,7 +7,6 @@
  * - Positioned in macOS title bar area (right: 80px, mirroring RecentNodeTabsBar)
  * - Clicking a tab navigates to and focuses that terminal
  * - Highlights currently active terminal
- * - Drag-and-drop reordering within pinned section
  *
  * Architecture:
  * - Terminal state (isPinned, isDone, etc.) lives in TerminalData via TerminalStore
@@ -25,7 +24,6 @@ import {
     getDisplayOrder,
     getPinnedDisplayOrder,
     syncDisplayOrder,
-    reorderInDisplayOrder,
     suppressInactivityDuringZoom as storeSuppress,
     resetAgentTabsStore,
 } from '@/shell/edge/UI-edge/state/AgentTabsStore';
@@ -37,11 +35,6 @@ import {
     startTerminalActivityPolling,
     stopTerminalActivityPolling,
 } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalActivityPolling';
-import {
-    createDragState,
-    cleanupDragState,
-    calculateAdjustedTargetIndex,
-} from '@/shell/UI/behaviors/dragReorder';
 // Re-export activity tracking functions for backwards compatibility
 export { markTerminalActivityForContextNode, clearActivityForTerminal } from './agentTabsActivity';
 
@@ -54,32 +47,8 @@ let pinnedContainer: HTMLElement | null = null;
 let unpinnedContainer: HTMLElement | null = null;
 let dividerElement: HTMLElement | null = null;
 
-// Drag-drop state (managed by behavior module)
-const dragState: ReturnType<typeof createDragState> = createDragState();
-
-// Cached for re-render after drag-drop
+// Cached for re-render
 let lastTerminals: TerminalData[] = [];
-let lastOnSelect: ((terminal: TerminalData) => void) | null = null;
-
-// Flag to indicate a render was skipped during drag (needs re-render after drag ends)
-let pendingRenderDuringDrag: boolean = false;
-
-/**
- * Check if a drag operation is currently in progress
- */
-function isDragging(): boolean {
-    return dragState.draggingFromIndex !== null;
-}
-
-/**
- * Trigger a deferred re-render after drag ends (if one was skipped)
- */
-function triggerDeferredRenderIfNeeded(): void {
-    if (pendingRenderDuringDrag && lastOnSelect) {
-        pendingRenderDuringDrag = false;
-        renderAgentTabs(lastTerminals, lastOnSelect);
-    }
-}
 
 // =============================================================================
 // Display Order (delegates to store)
@@ -93,16 +62,6 @@ export function getDisplayOrderForNavigation(): TerminalId[] {
 }
 
 // =============================================================================
-// Ghost Element for Drag-Drop Visual Feedback
-// =============================================================================
-
-function createGhostElement(): HTMLElement {
-    const ghost: HTMLElement = document.createElement('div');
-    ghost.className = 'agent-tab-ghost';
-    return ghost;
-}
-
-// =============================================================================
 // Divider Visibility
 // =============================================================================
 
@@ -113,19 +72,6 @@ function updateDividerVisibility(terminals: TerminalData[]): void {
     const hasUnpinned: boolean = terminals.some(t => !t.isPinned);
 
     dividerElement.style.display = (hasPinned && hasUnpinned) ? 'block' : 'none';
-}
-
-// =============================================================================
-// Reorder Terminal (after drag-drop)
-// =============================================================================
-
-function reorderTerminal(fromIndex: number, toIndex: number): void {
-    reorderInDisplayOrder(lastTerminals, fromIndex, toIndex);
-
-    // Re-render with cached data
-    if (lastOnSelect) {
-        renderAgentTabs(lastTerminals, lastOnSelect);
-    }
 }
 
 // =============================================================================
@@ -168,38 +114,6 @@ export function createAgentTabsBar(parentContainer: HTMLElement): () => void {
     pinnedContainer = document.createElement('div');
     pinnedContainer.className = 'agent-tabs-pinned';
 
-    // Container-level drag handlers for dropping at the end of the pinned list
-    pinnedContainer.addEventListener('dragover', (e: DragEvent) => {
-        e.preventDefault();
-        if (e.dataTransfer) {
-            e.dataTransfer.dropEffect = 'move';
-        }
-        if (dragState.ghostElement && pinnedContainer && dragState.draggingFromIndex !== null) {
-            const tabs: HTMLCollectionOf<Element> = pinnedContainer.getElementsByClassName('agent-tab');
-            if (tabs.length > 0) {
-                const lastTab: Element = tabs[tabs.length - 1];
-                const lastTabRect: DOMRect = lastTab.getBoundingClientRect();
-                if (e.clientX > lastTabRect.right) {
-                    pinnedContainer.appendChild(dragState.ghostElement);
-                    const pinnedCount: number = lastTerminals.filter(t => t.isPinned).length;
-                    dragState.ghostTargetIndex = pinnedCount;
-                }
-            }
-        }
-    });
-
-    pinnedContainer.addEventListener('drop', (e: DragEvent) => {
-        e.preventDefault();
-        const fromIndex: number = parseInt(e.dataTransfer?.getData('text/plain') ?? '-1');
-        const targetIndex: number | null = dragState.ghostTargetIndex;
-        cleanupDragState(dragState);
-
-        if (fromIndex >= 0 && targetIndex !== null && fromIndex !== targetIndex) {
-            const adjustedTarget: number = calculateAdjustedTargetIndex(fromIndex, targetIndex);
-            reorderTerminal(fromIndex, adjustedTarget);
-        }
-    });
-
     // Create divider
     dividerElement = document.createElement('div');
     dividerElement.className = 'agent-tabs-divider';
@@ -239,16 +153,8 @@ export function renderAgentTabs(
         return;
     }
 
-    // Cache for re-render after drag-drop
+    // Cache for active terminal lookup
     lastTerminals = terminals;
-    lastOnSelect = onSelect;
-
-    // Skip destructive re-render during drag to prevent flickering
-    // The render will be triggered after drag ends via triggerDeferredRenderIfNeeded
-    if (isDragging()) {
-        pendingRenderDuringDrag = true;
-        return;
-    }
 
     // Clear existing tabs
     pinnedContainer.innerHTML = '';
@@ -372,13 +278,8 @@ export function setActiveTerminal(terminalId: TerminalId | null): void {
 
 function getTabCreationDeps(): TabCreationDeps {
     return {
-        dragState,
-        pinnedContainer,
         unpinTerminal,
         pinTerminal,
-        triggerDeferredRenderIfNeeded,
-        reorderTerminal,
-        createGhostElement,
     };
 }
 
@@ -396,9 +297,6 @@ export function suppressInactivityDuringZoom(): void {
 // =============================================================================
 
 export function disposeAgentTabsBar(): void {
-    // Clean up drag state
-    cleanupDragState(dragState);
-
     // Stop activity polling (handled by edge layer)
     stopTerminalActivityPolling();
 
@@ -414,7 +312,6 @@ export function disposeAgentTabsBar(): void {
     unpinnedContainer = null;
     dividerElement = null;
     lastTerminals = [];
-    lastOnSelect = null;
 
     resetAgentTabsStore();
 }

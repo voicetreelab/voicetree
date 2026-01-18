@@ -68,10 +68,12 @@ export function removeTerminalByData(terminal: TerminalData): void {
 /**
  * Update specific fields of a terminal (immutable update pattern)
  * Returns the updated terminal, or undefined if not found
+ * NOTE: Only use for structural changes (isPinned) that require full re-render.
+ * For running state (isDone, lastOutputTime, activityCount), use updateTerminalRunningState.
  */
 export function updateTerminal(
     terminalId: TerminalId,
-    updates: Partial<Pick<TerminalData, 'isPinned' | 'isDone' | 'lastOutputTime' | 'activityCount'>>
+    updates: Partial<Pick<TerminalData, 'isPinned'>>
 ): TerminalData | undefined {
     const existing: TerminalData | undefined = terminals.get(terminalId);
     if (!existing) return undefined;
@@ -80,12 +82,31 @@ export function updateTerminal(
     terminals.set(terminalId, updated);
     notifySubscribers();
 
+    return updated;
+}
+
+/**
+ * Update running state fields without triggering a full re-render.
+ * Use targeted DOM updates (agentTabsDOMUpdates) after calling this.
+ * Returns the updated terminal with previous isDone state for change detection.
+ */
+export function updateTerminalRunningState(
+    terminalId: TerminalId,
+    updates: Partial<Pick<TerminalData, 'isDone' | 'lastOutputTime' | 'activityCount'>>
+): { terminal: TerminalData; previousIsDone: boolean } | undefined {
+    const existing: TerminalData | undefined = terminals.get(terminalId);
+    if (!existing) return undefined;
+
+    const previousIsDone: boolean = existing.isDone;
+    const updated: TerminalData = { ...existing, ...updates };
+    terminals.set(terminalId, updated);
+
     // Sync isDone changes to main process for MCP list_agents
-    if (updates.isDone !== undefined && updates.isDone !== existing.isDone) {
+    if (updates.isDone !== undefined && updates.isDone !== previousIsDone) {
         void window.electronAPI?.main.updateTerminalIsDone(terminalId, updates.isDone);
     }
 
-    return updated;
+    return { terminal: updated, previousIsDone };
 }
 
 /**

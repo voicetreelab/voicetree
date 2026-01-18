@@ -31,7 +31,7 @@ import type { VTSettings } from '@/pure/settings';
 import { resolveEnvVars, expandEnvVarsInValues } from '@/pure/settings';
 import { getNextTerminalCountForNode } from '@/shell/edge/main/terminals/terminal-registry';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
-import { createWorktree, generateWorktreeName } from '@/shell/edge/main/worktree/gitWorktreeCommands';
+import { generateWorktreeName } from '@/shell/edge/main/worktree/gitWorktreeCommands';
 
 /**
  * Spawn a terminal with a context node, orchestrated from main process
@@ -90,6 +90,19 @@ export async function spawnTerminalWithContextNode(
         taskNodeId = parentNodeId;
     }
 
+    // If worktree requested, prepend git worktree command to the agent command
+    let finalCommand: string = command;
+    if (inNewWorktree) {
+        const taskNode: GraphNode = graph.nodes[taskNodeId];
+        const nodeTitle: string = taskNode ? getNodeTitle(taskNode) : 'agent-task';
+        const worktreeName: string = generateWorktreeName(nodeTitle);
+        // Prepend git worktree add and cd commands
+        // Using .worktrees/ directory to keep worktrees organized
+        const worktreePrefix: string = `git worktree add -b "${worktreeName}" ".worktrees/${worktreeName}" && cd ".worktrees/${worktreeName}" && `;
+        finalCommand = worktreePrefix + command;
+        console.log(`[spawnTerminalWithContextNode] Prepending worktree command: ${worktreePrefix}`);
+    }
+
     // Prepare terminal data (main has immediate access to all state)
     const resolvedTerminalCount: number = typeof terminalCount === 'number'
         ? terminalCount
@@ -99,7 +112,7 @@ export async function spawnTerminalWithContextNode(
         contextNodeId,
         taskNodeId,
         resolvedTerminalCount,
-        command,
+        finalCommand,
         settings,
         startUnpinned
     );
@@ -147,11 +160,10 @@ async function prepareTerminalDataInMain(
     // Resolve env vars (including random AGENT_NAME selection)
     const resolvedEnvVars: Record<string, string> = resolveEnvVars(settings.INJECT_ENV_VARS);
 
-    // Build terminal title from parent node title
-    // Context nodes have title "context", so we use the parent node's title instead
-    // (the task node that spawned this context node)
-    const parentNode: GraphNode | undefined = findFirstParentNode(contextNode, graph);
-    const title: string = parentNode ? getNodeTitle(parentNode) : getNodeTitle(contextNode);
+    // Build terminal title from task node title (the node that spawned this terminal)
+    // Context nodes are orphaned (no edges), so we use the taskNodeId directly
+    const taskNode: GraphNode | undefined = graph.nodes[taskNodeId];
+    const title: string = taskNode ? getNodeTitle(taskNode) : getNodeTitle(contextNode);
 
     // Compute initial_spawn_directory from watch directory + relative path setting
     let initialSpawnDirectory: string | undefined;

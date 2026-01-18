@@ -1,6 +1,5 @@
-import type {FSEvent, GraphDelta, Graph, NodeIdAndFilePath} from "@/pure/graph";
+import type {FSEvent, GraphDelta, Graph, GraphNode, NodeIdAndFilePath} from "@/pure/graph";
 import {mapFSEventsToGraphDelta} from "@/pure/graph";
-import type {VaultConfig} from "@/pure/settings/types";
 import type {BrowserWindow} from "electron";
 import {getGraph, setGraph} from "@/shell/edge/main/state/graph-store";
 import {uiAPI} from "@/shell/edge/main/ui-api-proxy";
@@ -9,9 +8,9 @@ import {
     broadcastGraphDeltaToUI
 } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI";
 import {isOurRecentDelta} from "@/shell/edge/main/state/recent-deltas-store";
-import {resolveLinksAfterChange, resolveLinkedNodesInWatchedFolder} from "./loadGraphFromDisk";
-import {getVaultConfigForDirectory} from "@/shell/edge/main/graph/watch_folder/voicetree-config-io";
+import {resolveLinkedNodesInWatchedFolder} from "./loadGraphFromDisk";
 import {getWatchedDirectory} from "@/shell/edge/main/state/watch-folder-store";
+import * as O from "fp-ts/lib/Option.js";
 
 /**
  * Handle filesystem events by:
@@ -64,58 +63,28 @@ export function handleFSEventWithStateAndUISides(
         .filter((id): id is NodeIdAndFilePath => id !== '')
         .forEach((nodeId) => uiAPI.createEditorForExternalNode(nodeId))
 
-    // 7. Resolve any new links to readOnLinkPaths (lazy loading)
-    // This is async but we don't need to wait for it
-    void resolveNewLinksToReadOnLinkPaths()
-
-    // 8. Resolve any new links to files in the watched folder
+    // 7. Resolve any new links to files in the watched folder (resolve-on-link)
+    // This applies to files outside writePath/readPaths
     void resolveNewLinksInWatchedFolder()
 }
 
 /**
- * Resolves any new links that point to files in readOnLinkPaths.
- * Called after a file change to load lazily-linked nodes.
+ * Checks if two nodes have different edges (for detecting healed edges).
  */
-async function resolveNewLinksToReadOnLinkPaths(): Promise<void> {
-    const watchedDir: string | null = getWatchedDirectory();
-    if (!watchedDir) return;
-
-    const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
-    if (!config?.readOnLinkPaths || config.readOnLinkPaths.length === 0) return;
-
-    const currentGraph: Graph = getGraph();
-    const updatedGraph: Graph = await resolveLinksAfterChange(currentGraph, config.readOnLinkPaths);
-
-    // Check if any new nodes were added
-    const currentNodeCount: number = Object.keys(currentGraph.nodes).length;
-    const updatedNodeCount: number = Object.keys(updatedGraph.nodes).length;
-
-    if (updatedNodeCount > currentNodeCount) {
-        // Update graph state
-        setGraph(updatedGraph);
-
-        // Compute delta for new nodes only
-        const newNodeIds: readonly string[] = Object.keys(updatedGraph.nodes).filter(
-            (nodeId: string) => !currentGraph.nodes[nodeId]
-        );
-
-        const newNodesDelta: GraphDelta = newNodeIds.map((nodeId: string) => ({
-            type: 'UpsertNode' as const,
-            nodeToUpsert: updatedGraph.nodes[nodeId],
-            previousNode: { _tag: 'None' } as const
-        }));
-
-        // Broadcast new nodes to UI
-        applyGraphDeltaToMemState(newNodesDelta);
-        broadcastGraphDeltaToUI(newNodesDelta);
-
-        console.log(`[handleFSEvent] Lazy loaded ${newNodeIds.length} nodes from readOnLinkPaths`);
-    }
+function edgesChanged(oldNode: GraphNode, newNode: GraphNode): boolean {
+    if (oldNode.outgoingEdges.length !== newNode.outgoingEdges.length) return true;
+    return oldNode.outgoingEdges.some((oldEdge, i) => {
+        const newEdge: { readonly targetId: string; readonly label: string } = newNode.outgoingEdges[i];
+        return oldEdge.targetId !== newEdge.targetId || oldEdge.label !== newEdge.label;
+    });
 }
 
 /**
  * Resolves any new links that point to files in the watched folder.
  * Uses ripgrep-based file search to find matching files.
+ *
+ * This is the "resolve-on-link" behavior for files in the watched folder
+ * that are outside writePath/readPaths.
  */
 async function resolveNewLinksInWatchedFolder(): Promise<void> {
     const watchedDir: string | null = getWatchedDirectory();
@@ -124,29 +93,47 @@ async function resolveNewLinksInWatchedFolder(): Promise<void> {
     const currentGraph: Graph = getGraph();
     const updatedGraph: Graph = await resolveLinkedNodesInWatchedFolder(currentGraph, watchedDir);
 
-    // Check if any new nodes were added
-    const currentNodeCount: number = Object.keys(currentGraph.nodes).length;
-    const updatedNodeCount: number = Object.keys(updatedGraph.nodes).length;
+    // Find new nodes (nodes that didn't exist before)
+    const newNodeIds: readonly string[] = Object.keys(updatedGraph.nodes).filter(
+        (nodeId: string) => !currentGraph.nodes[nodeId]
+    );
 
-    if (updatedNodeCount > currentNodeCount) {
-        // Update graph state
-        setGraph(updatedGraph);
+    // Find healed nodes (existing nodes whose edges were updated)
+    const healedNodeIds: readonly string[] = Object.keys(updatedGraph.nodes).filter(
+        (nodeId: string) => {
+            const oldNode: GraphNode | undefined = currentGraph.nodes[nodeId];
+            if (!oldNode) return false; // New node, not healed
+            const newNode: GraphNode = updatedGraph.nodes[nodeId];
+            return edgesChanged(oldNode, newNode);
+        }
+    );
 
-        // Compute delta for new nodes only
-        const newNodeIds: readonly string[] = Object.keys(updatedGraph.nodes).filter(
-            (nodeId: string) => !currentGraph.nodes[nodeId]
-        );
+    // Only proceed if there are changes
+    if (newNodeIds.length === 0 && healedNodeIds.length === 0) return;
 
-        const newNodesDelta: GraphDelta = newNodeIds.map((nodeId: string) => ({
-            type: 'UpsertNode' as const,
-            nodeToUpsert: updatedGraph.nodes[nodeId],
-            previousNode: { _tag: 'None' } as const
-        }));
+    // Update graph state
+    setGraph(updatedGraph);
 
-        // Broadcast new nodes to UI
-        applyGraphDeltaToMemState(newNodesDelta);
-        broadcastGraphDeltaToUI(newNodesDelta);
+    // Build delta for new nodes
+    const newNodesDelta: GraphDelta = newNodeIds.map((nodeId: string) => ({
+        type: 'UpsertNode' as const,
+        nodeToUpsert: updatedGraph.nodes[nodeId],
+        previousNode: O.none
+    }));
 
-        console.log(`[handleFSEvent] Resolved ${newNodeIds.length} linked nodes from watched folder`);
-    }
+    // Build delta for healed nodes (include previousNode for proper diffing)
+    const healedNodesDelta: GraphDelta = healedNodeIds.map((nodeId: string) => ({
+        type: 'UpsertNode' as const,
+        nodeToUpsert: updatedGraph.nodes[nodeId],
+        previousNode: O.some(currentGraph.nodes[nodeId])
+    }));
+
+    // Combine all deltas
+    const combinedDelta: GraphDelta = [...newNodesDelta, ...healedNodesDelta];
+
+    // Broadcast all changes to UI
+    applyGraphDeltaToMemState(combinedDelta);
+    broadcastGraphDeltaToUI(combinedDelta);
+
+    console.log(`[handleFSEvent] Resolved ${newNodeIds.length} new nodes, healed ${healedNodeIds.length} edges from watched folder`);
 }

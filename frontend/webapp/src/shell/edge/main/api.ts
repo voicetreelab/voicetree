@@ -10,7 +10,7 @@ import {
 } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI'
 import {getGraph, getNode} from '@/shell/edge/main/state/graph-store'
 import {loadSettings, saveSettings as saveSettings} from './settings/settings_IO'
-import {getWatchStatus, loadPreviousFolder, startFileWatching, stopFileWatching, getVaultPaths, getReadOnLinkPaths, getWritePath, setWritePath, addReadOnLinkPath, removeReadOnLinkPath} from './graph/watch_folder/watchFolder'
+import {getWatchStatus, loadPreviousFolder, startFileWatching, stopFileWatching, getVaultPaths, getReadPaths, getWritePath, setWritePath, addReadPath, removeReadPath} from './graph/watch_folder/watchFolder'
 import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/state/app-electron-state";
 import {createContextNode} from "@/shell/edge/main/graph/context-nodes/createContextNode";
 import {getPreviewContainedNodeIds} from "@/shell/edge/main/graph/context-nodes/getPreviewContainedNodeIds";
@@ -60,11 +60,11 @@ export const mainAPI = {
 
   // Multi-vault path operations
   getVaultPaths,
-  getReadOnLinkPaths,
+  getReadPaths,
   getWritePath,
   setWritePath,
-  addReadOnLinkPath,
-  removeReadOnLinkPath,
+  addReadPath,
+  removeReadPath,
 
   // Backend port
   getBackendPort,

@@ -3,7 +3,7 @@
  *
  * Handles CRUD operations for vault paths:
  * - Managing the write path (main vault for new node creation)
- * - Managing readOnLinkPaths (additional paths for linking)
+ * - Managing readPaths (additional directories that are fully loaded)
  * - Resolving path configuration for a project
  */
 
@@ -13,7 +13,7 @@ import type { FSWatcher } from "chokidar";
 import * as O from "fp-ts/lib/Option.js";
 import type { FilePath, Graph, GraphDelta, DeleteNode } from "@/pure/graph";
 import type { VaultConfig } from "@/pure/settings/types";
-import { resolveLinksAfterChange, loadVaultPathAdditively } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk";
+import { loadVaultPathAdditively } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk";
 import type { FileLimitExceededError } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce";
 import * as E from "fp-ts/lib/Either.js";
 import { setGraph, getGraph } from "@/shell/edge/main/state/graph-store";
@@ -45,7 +45,7 @@ export function resolveWritePath(watchedFolder: string, writePath: string): stri
 }
 
 /**
- * Get all vault paths (writePath + readOnLinkPaths).
+ * Get all vault paths (writePath + readPaths).
  * Reads directly from config file (source of truth).
  */
 export async function getVaultPaths(): Promise<readonly FilePath[]> {
@@ -53,21 +53,21 @@ export async function getVaultPaths(): Promise<readonly FilePath[]> {
     if (!watchedDir) return [];
     const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
     if (!config) return [];
-    // Return writePath + all readOnLinkPaths
+    // Return writePath + all readPaths
     const resolvedWritePath: string = resolveWritePath(watchedDir, config.writePath);
-    return [resolvedWritePath, ...config.readOnLinkPaths];
+    return [resolvedWritePath, ...config.readPaths];
 }
 
 /**
- * Get the readOnLinkPaths array (additional paths for linking, not including writePath).
+ * Get the readPaths array (additional paths for reading, not including writePath).
  * Reads directly from config file (source of truth).
  */
-export async function getReadOnLinkPaths(): Promise<readonly FilePath[]> {
+export async function getReadPaths(): Promise<readonly FilePath[]> {
     const watchedDir: FilePath | null = getWatchedDirectory();
     if (!watchedDir) return [];
     const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
     if (!config) return [];
-    return config.readOnLinkPaths;
+    return config.readPaths;
 }
 
 /**
@@ -89,9 +89,8 @@ export async function getWritePath(): Promise<O.Option<FilePath>> {
 /**
  * Set the write path.
  *
- * When setting a new write path, all nodes from that path are fully loaded
- * (not lazy-loaded like readOnLinkPaths). This ensures the write path behaves
- * like an "immediate load" path.
+ * When setting a new write path, all nodes from that path are fully loaded.
+ * This ensures the write path behaves like an "immediate load" path.
  */
 export async function setWritePath(vaultPath: FilePath): Promise<{ success: boolean; error?: string }> {
     const watchedDir: FilePath | null = getWatchedDirectory();
@@ -104,10 +103,10 @@ export async function setWritePath(vaultPath: FilePath): Promise<{ success: bool
     // Save to config (source of truth)
     await saveVaultConfigForDirectory(watchedDir, {
         writePath: vaultPath,
-        readOnLinkPaths: config?.readOnLinkPaths ?? []
+        readPaths: config?.readPaths ?? []
     });
 
-    // Fully load all nodes from the new write path (write path is always fully loaded, not lazy)
+    // Fully load all nodes from the new write path
     const existingGraph: Graph = getGraph();
     const loadResult: E.Either<FileLimitExceededError, { graph: Graph; delta: GraphDelta }> =
         await loadVaultPathAdditively(vaultPath, existingGraph);
@@ -122,7 +121,7 @@ export async function setWritePath(vaultPath: FilePath): Promise<{ success: bool
     }
 
     // Note: Clearing the old write path is handled by the caller (VaultPathSelector)
-    // which calls removeReadOnLinkPath() after setWritePath()
+    // which calls removeReadPath() after setWritePath()
 
     // Notify backend so it writes new nodes to the correct directory
     notifyTextToTreeServerOfDirectory(vaultPath);
@@ -131,29 +130,29 @@ export async function setWritePath(vaultPath: FilePath): Promise<{ success: bool
 }
 
 /**
- * Add a path to readOnLinkPaths.
+ * Add a path to readPaths.
  * If the path doesn't exist, it will be created.
- * Automatically loads files from the new path into the graph and adds to watcher.
+ * Automatically loads ALL files from the new path into the graph and adds to watcher.
  *
  * Uses bulk load path (loadVaultPathAdditively) for efficiency:
  * - Single UI broadcast instead of N broadcasts
  * - No floating editors auto-opened (bulk load behavior)
- * - Consistent with initial loadGraphFromDisk pattern
+ * - All files are loaded immediately (not lazy)
  */
-export async function addReadOnLinkPath(vaultPath: FilePath): Promise<{ success: boolean; error?: string }> {
+export async function addReadPath(vaultPath: FilePath): Promise<{ success: boolean; error?: string }> {
     const watchedDir: FilePath | null = getWatchedDirectory();
     if (!watchedDir) {
         return { success: false, error: 'No directory is being watched' };
     }
 
     const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
-    const currentReadOnLinkPaths: readonly string[] = config?.readOnLinkPaths ?? [];
+    const currentReadPaths: readonly string[] = config?.readPaths ?? [];
     const currentWritePath: string = config?.writePath ?? watchedDir;
 
-    // Check if already in readOnLinkPaths or is the writePath
+    // Check if already in readPaths or is the writePath
     const resolvedWritePath: string = resolveWritePath(watchedDir, currentWritePath);
-    if (currentReadOnLinkPaths.includes(vaultPath) || vaultPath === resolvedWritePath) {
-        return { success: false, error: 'Path already in readOnLinkPaths' };
+    if (currentReadPaths.includes(vaultPath) || vaultPath === resolvedWritePath) {
+        return { success: false, error: 'Path already in readPaths' };
     }
 
     // Create directory if it doesn't exist (matching loadFolder behavior)
@@ -163,12 +162,12 @@ export async function addReadOnLinkPath(vaultPath: FilePath): Promise<{ success:
         return { success: false, error: `Failed to create directory: ${err instanceof Error ? err.message : 'Unknown error'}` };
     }
 
-    const newReadOnLinkPaths: readonly string[] = [...currentReadOnLinkPaths, vaultPath];
+    const newReadPaths: readonly string[] = [...currentReadPaths, vaultPath];
 
-    // Save to config FIRST (source of truth) - path must be in config before lazy resolution
+    // Save to config FIRST (source of truth)
     await saveVaultConfigForDirectory(watchedDir, {
         writePath: currentWritePath,
-        readOnLinkPaths: newReadOnLinkPaths
+        readPaths: newReadPaths
     });
 
     // Add the new path to the watcher BEFORE loading
@@ -177,39 +176,29 @@ export async function addReadOnLinkPath(vaultPath: FilePath): Promise<{ success:
         currentWatcher.add(vaultPath);
     }
 
-    // Use lazy loading: only load nodes that are linked from visible nodes
+    // Load ALL files from the new path immediately (not lazy)
     const existingGraph: Graph = getGraph();
-    const resolvedGraph: Graph = await resolveLinksAfterChange(existingGraph, [vaultPath]);
+    const loadResult: E.Either<FileLimitExceededError, { graph: Graph; delta: GraphDelta }> =
+        await loadVaultPathAdditively(vaultPath, existingGraph);
 
-    // Compute delta: find nodes in resolvedGraph that weren't in existingGraph
-    const newNodeIds: readonly string[] = Object.keys(resolvedGraph.nodes).filter(
-        (nodeId: string) => !existingGraph.nodes[nodeId]
-    );
+    if (E.isRight(loadResult) && loadResult.right.delta.length > 0) {
+        // Update graph state with new nodes
+        setGraph(loadResult.right.graph);
 
-    if (newNodeIds.length > 0) {
-        const delta: GraphDelta = newNodeIds.map((nodeId: string) => ({
-            type: 'UpsertNode' as const,
-            nodeToUpsert: resolvedGraph.nodes[nodeId],
-            previousNode: O.none
-        }));
-
-        // Update graph state
-        setGraph(resolvedGraph);
-
-        // Broadcast to UI
-        applyGraphDeltaToMemState(delta);
-        broadcastGraphDeltaToUI(delta);
+        // Broadcast new nodes to UI
+        applyGraphDeltaToMemState(loadResult.right.delta);
+        broadcastGraphDeltaToUI(loadResult.right.delta);
     }
 
     return { success: true };
 }
 
 /**
- * Remove a path from readOnLinkPaths.
+ * Remove a path from readPaths.
  * Cannot remove the write path.
  * Immediately removes nodes from that path from the graph.
  */
-export async function removeReadOnLinkPath(vaultPath: FilePath): Promise<{ success: boolean; error?: string }> {
+export async function removeReadPath(vaultPath: FilePath): Promise<{ success: boolean; error?: string }> {
     const watchedDir: FilePath | null = getWatchedDirectory();
     if (!watchedDir) {
         return { success: false, error: 'No directory is being watched' };
@@ -227,16 +216,17 @@ export async function removeReadOnLinkPath(vaultPath: FilePath): Promise<{ succe
         return { success: false, error: 'Cannot remove write path' };
     }
 
-    // Note: We don't check if path is in readOnLinkPaths because this function
+    // Note: We don't check if path is in readPaths because this function
     // is also used to clear the old write path when editing it to a new location.
-    // The old write path was never in readOnLinkPaths, so we must allow removing it.
+    // The old write path was never in readPaths, so we must allow removing it.
 
     // Remove nodes from the graph that belong to this vault path
     const currentGraph: Graph = getGraph();
 
-    // Build list of paths that should be KEPT (current writePath + readOnLinkPaths)
-    // Don't remove nodes that are inside these paths, even if they're also inside vaultPath being removed
-    const pathsToKeep: readonly string[] = [resolvedWritePath, ...config.readOnLinkPaths];
+    // Build list of paths that should be KEPT (current writePath + remaining readPaths)
+    // Exclude the path we're removing so its nodes can be deleted
+    const remainingReadPaths: readonly string[] = config.readPaths.filter((p: string) => p !== vaultPath);
+    const pathsToKeep: readonly string[] = [resolvedWritePath, ...remainingReadPaths];
 
     // Helper to check if a nodeId is inside any of the paths to keep
     const isInPathToKeep: (nodeId: string) => boolean = (nodeId: string): boolean => {
@@ -274,12 +264,12 @@ export async function removeReadOnLinkPath(vaultPath: FilePath): Promise<{ succe
         currentWatcher.unwatch(vaultPath);
     }
 
-    const newReadOnLinkPaths: readonly string[] = config.readOnLinkPaths.filter((p: string) => p !== vaultPath);
+    const newReadPaths: readonly string[] = config.readPaths.filter((p: string) => p !== vaultPath);
 
     // Save to config (source of truth)
     await saveVaultConfigForDirectory(watchedDir, {
         writePath: config.writePath,
-        readOnLinkPaths: newReadOnLinkPaths
+        readPaths: newReadPaths
     });
 
     return { success: true };
@@ -289,12 +279,12 @@ export async function removeReadOnLinkPath(vaultPath: FilePath): Promise<{ succe
  * Resolved vault configuration for loading.
  */
 export interface ResolvedVaultConfig {
-    /** Combined allowlist (writePath + readOnLinkPaths) for backwards compatibility */
+    /** Combined allowlist (writePath + readPaths) for backwards compatibility */
     readonly allowlist: readonly string[];
     /** Main vault path for writing new nodes */
     readonly writePath: string;
-    /** readOnLinkPaths (excluding writePath) */
-    readonly readOnLinkPaths: readonly string[];
+    /** readPaths (excluding writePath) */
+    readonly readPaths: readonly string[];
 }
 
 /**
@@ -326,24 +316,24 @@ export async function resolveAllowlistForProject(
         return null;
     }
 
-    // Filter readOnLinkPaths to those that still exist on disk
-    const validReadOnLinkPaths: string[] = [];
-    for (const savedPath of savedVaultConfig.readOnLinkPaths) {
+    // Filter readPaths to those that still exist on disk
+    const validReadPaths: string[] = [];
+    for (const savedPath of savedVaultConfig.readPaths) {
         const absolutePath: string = path.isAbsolute(savedPath)
             ? savedPath
             : path.join(watchedDir, savedPath);
         try {
             await fs.access(absolutePath);
-            validReadOnLinkPaths.push(absolutePath);
+            validReadPaths.push(absolutePath);
         } catch {
             // Path no longer exists on disk, skip
         }
     }
 
     return {
-        allowlist: [absoluteWritePath, ...validReadOnLinkPaths],
+        allowlist: [absoluteWritePath, ...validReadPaths],
         writePath: absoluteWritePath,
-        readOnLinkPaths: validReadOnLinkPaths
+        readPaths: validReadPaths
     };
 }
 

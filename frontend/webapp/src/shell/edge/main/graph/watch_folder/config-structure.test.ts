@@ -3,7 +3,7 @@
  *
  * These tests verify the new VaultConfig structure:
  * - writePath: string (relative or absolute)
- * - readOnLinkPaths: string[] (replaces allowlist)
+ * - readPaths: string[] (replaces allowlist)
  *
  * TDD: Write tests first, verify they fail, then implement.
  */
@@ -50,13 +50,13 @@ describe('Section 1: Config Structure Changes', () => {
     vi.clearAllMocks()
   })
 
-  describe('1.1 VaultConfig uses writePath and readOnLinkPaths', () => {
-    it('should store VaultConfig with writePath and readOnLinkPaths fields', async () => {
+  describe('1.1 VaultConfig uses writePath and readPaths', () => {
+    it('should store VaultConfig with writePath and readPaths fields', async () => {
       // GIVEN: A vault config with the new structure
       const watchedDir: string = path.join(testTmpDir, 'project')
       const vaultConfig: VaultConfig = {
         writePath: 'voicetree',
-        readOnLinkPaths: ['openspec', 'docs']
+        readPaths: ['openspec', 'docs']
       }
 
       // WHEN: Save and load the config
@@ -66,7 +66,7 @@ describe('Section 1: Config Structure Changes', () => {
       // THEN: The loaded config should have the new structure
       expect(loadedConfig).toBeDefined()
       expect(loadedConfig?.writePath).toBe('voicetree')
-      expect(loadedConfig?.readOnLinkPaths).toEqual(['openspec', 'docs'])
+      expect(loadedConfig?.readPaths).toEqual(['openspec', 'docs'])
     })
 
     it('should NOT have allowlist field in VaultConfig', async () => {
@@ -74,7 +74,7 @@ describe('Section 1: Config Structure Changes', () => {
       const watchedDir: string = path.join(testTmpDir, 'project')
       const vaultConfig: VaultConfig = {
         writePath: 'voicetree',
-        readOnLinkPaths: ['openspec']
+        readPaths: ['openspec']
       }
 
       // WHEN: Save and load the config
@@ -86,7 +86,7 @@ describe('Section 1: Config Structure Changes', () => {
       // Verify the structure only has the expected keys
       const keys: string[] = Object.keys(loadedConfig ?? {})
       expect(keys).toContain('writePath')
-      expect(keys).toContain('readOnLinkPaths')
+      expect(keys).toContain('readPaths')
       expect(keys).not.toContain('allowlist')
     })
   })
@@ -130,12 +130,12 @@ describe('Section 1: Config Structure Changes', () => {
   })
 
   describe('1.3 Config read/write round-trip with new structure', () => {
-    it('should preserve writePath and readOnLinkPaths across save/load cycle', async () => {
+    it('should preserve writePath and readPaths across save/load cycle', async () => {
       // GIVEN: A vault config with the new structure
       const watchedDir: string = path.join(testTmpDir, 'project')
       const originalConfig: VaultConfig = {
         writePath: 'my-notes',
-        readOnLinkPaths: ['openspec', 'docs', 'archive']
+        readPaths: ['openspec', 'docs', 'archive']
       }
 
       // WHEN: Save the config
@@ -147,7 +147,7 @@ describe('Section 1: Config Structure Changes', () => {
       // THEN: All fields should be preserved
       expect(loadedConfig).toBeDefined()
       expect(loadedConfig?.writePath).toBe(originalConfig.writePath)
-      expect(loadedConfig?.readOnLinkPaths).toEqual(originalConfig.readOnLinkPaths)
+      expect(loadedConfig?.readPaths).toEqual(originalConfig.readPaths)
     })
 
     it('should persist config across multiple directories', async () => {
@@ -157,11 +157,11 @@ describe('Section 1: Config Structure Changes', () => {
 
       const configA: VaultConfig = {
         writePath: 'voicetree-a',
-        readOnLinkPaths: ['openspec']
+        readPaths: ['openspec']
       }
       const configB: VaultConfig = {
         writePath: '/absolute/path/notes',
-        readOnLinkPaths: ['docs', 'archive']
+        readPaths: ['docs', 'archive']
       }
 
       // WHEN: Save both configs
@@ -174,17 +174,17 @@ describe('Section 1: Config Structure Changes', () => {
 
       // THEN: Each project should have its own config
       expect(loadedA?.writePath).toBe('voicetree-a')
-      expect(loadedA?.readOnLinkPaths).toEqual(['openspec'])
+      expect(loadedA?.readPaths).toEqual(['openspec'])
       expect(loadedB?.writePath).toBe('/absolute/path/notes')
-      expect(loadedB?.readOnLinkPaths).toEqual(['docs', 'archive'])
+      expect(loadedB?.readPaths).toEqual(['docs', 'archive'])
     })
 
-    it('should handle empty readOnLinkPaths array', async () => {
-      // GIVEN: A config with no readOnLinkPaths
+    it('should handle empty readPaths array', async () => {
+      // GIVEN: A config with no readPaths
       const watchedDir: string = path.join(testTmpDir, 'project')
       const config: VaultConfig = {
         writePath: 'voicetree',
-        readOnLinkPaths: []
+        readPaths: []
       }
 
       // WHEN: Save and load
@@ -192,7 +192,7 @@ describe('Section 1: Config Structure Changes', () => {
       const loaded: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir)
 
       // THEN: Empty array should be preserved
-      expect(loaded?.readOnLinkPaths).toEqual([])
+      expect(loaded?.readPaths).toEqual([])
     })
   })
 })

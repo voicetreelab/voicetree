@@ -478,7 +478,7 @@ button.graph-button:disabled > svg > path {
     background: #262626;
     border: 1px solid #404040;
     border-radius: 4px;
-    cursor: grab;
+    cursor: pointer;
     overflow: visible; /* Allow activity dots to extend below */
     flex-shrink: 0;
     transition: background-color 0.15s ease, border-color 0.15s ease;
