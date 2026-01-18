@@ -187,8 +187,8 @@ async function prepareTerminalDataInMain(
     const contextNodeAbsolutePath: string = contextNodeId;
 
     // Task node path (parent of context node) - also absolute
-    const taskNodeAbsolutePath: string = parentNode
-        ? parentNode.absoluteFilePathIsID
+    const taskNodeAbsolutePath: string = taskNode
+        ? taskNode.absoluteFilePathIsID
         : '';
 
     // Build env vars then expand $VAR_NAME references within values

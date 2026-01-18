@@ -15,7 +15,6 @@ import './styles/speed-dial-side-graph-floating-menu.css';
 
 export interface SpeedDialMenuViewOptions {
   onToggleDarkMode: () => void;
-  onBackup: () => void;
   onSettings?: () => void;
   onAbout?: () => void;
   onStats?: () => void;
@@ -26,7 +25,7 @@ export interface SpeedDialMenuViewOptions {
 interface MenuItem {
   id: string;
   label: string;
-  iconName: 'sun' | 'moon' | 'settings' | 'download' | 'info' | 'bar-chart' | 'message-square';
+  iconName: 'sun' | 'moon' | 'settings' | 'info' | 'bar-chart' | 'message-square';
   onClick: () => void;
   isDanger?: boolean;
 }
@@ -58,13 +57,6 @@ export class SpeedDialSideGraphFloatingMenuView extends Disposable {
         iconName: 'settings',
         onClick: options.onSettings ?? (() => console.log('[SpeedDial] Settings clicked')),
       },
-      // {
-      //   id: 'backup',
-      //   label: 'Backup',
-      //   iconName: 'download',
-      //   onClick: options.onBackup,
-      //   isDanger: true,
-      // },
       // {
       //   id: 'about',
       //   label: 'About',
@@ -143,7 +135,7 @@ export class SpeedDialSideGraphFloatingMenuView extends Disposable {
   /**
    * Create an SVG icon element
    */
-  private createIcon(name: 'sun' | 'moon' | 'settings' | 'download' | 'info' | 'bar-chart' | 'message-square'): SVGElement {
+  private createIcon(name: 'sun' | 'moon' | 'settings' | 'info' | 'bar-chart' | 'message-square'): SVGElement {
     const svg: SVGSVGElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('class', 'speed-dial-icon');
     svg.setAttribute('width', '20');
@@ -165,11 +157,6 @@ export class SpeedDialSideGraphFloatingMenuView extends Disposable {
       settings: [
         'M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z',
         'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
-      ],
-      download: [
-        'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4',
-        'M7 10l5 5 5-5',
-        'M12 15V3',
       ],
       info: ['M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z', 'M12 16v-4', 'M12 8h.01'],
       'bar-chart': ['M12 20V10', 'M18 20V4', 'M6 20v-4'],

@@ -112,11 +112,10 @@ export async function setWritePath(vaultPath: FilePath): Promise<{ success: bool
         await loadVaultPathAdditively(vaultPath, existingGraph);
 
     if (E.isRight(loadResult) && loadResult.right.delta.length > 0) {
-        // Update graph state with new nodes
+        // Update graph state with new nodes (bypass applyGraphDeltaToMemState - bulk load already complete)
         setGraph(loadResult.right.graph);
 
         // Broadcast new nodes to UI
-        applyGraphDeltaToMemState(loadResult.right.delta);
         broadcastGraphDeltaToUI(loadResult.right.delta);
     }
 
@@ -182,11 +181,10 @@ export async function addReadPath(vaultPath: FilePath): Promise<{ success: boole
         await loadVaultPathAdditively(vaultPath, existingGraph);
 
     if (E.isRight(loadResult) && loadResult.right.delta.length > 0) {
-        // Update graph state with new nodes
+        // Update graph state with new nodes (bypass applyGraphDeltaToMemState - bulk load already complete)
         setGraph(loadResult.right.graph);
 
         // Broadcast new nodes to UI
-        applyGraphDeltaToMemState(loadResult.right.delta);
         broadcastGraphDeltaToUI(loadResult.right.delta);
     }
 
@@ -251,8 +249,8 @@ export async function removeReadPath(vaultPath: FilePath): Promise<{ success: bo
         }));
 
         // Apply to memory state and broadcast to UI (but NOT to DB - files still exist)
-        applyGraphDeltaToMemState(deleteDelta);
-        broadcastGraphDeltaToUI(deleteDelta);
+        const mergedDelta: GraphDelta = await applyGraphDeltaToMemState(deleteDelta);
+        broadcastGraphDeltaToUI(mergedDelta);
 
         // Fit viewport to remaining nodes after vault removal
         uiAPI.fitViewport();

@@ -17,7 +17,6 @@ import {
 
 export interface SpeedDialCallbacks {
     onToggleDarkMode: () => void;
-    onBackup: () => void;
     onSettings: () => void;
     onAbout: () => void;
     onStats: () => void;

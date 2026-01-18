@@ -1,39 +1,21 @@
-/**
- * Terminal Flow - V2
- *
- * Rewritten to use types.ts with flat TerminalData type.
- * - IDs are derived, not stored
- * - ui field is populated after DOM creation
- * - No stored callbacks - use disposeFloatingWindow()
- */
-
+/** Terminal Flow - V2: Uses types.ts with flat TerminalData type. IDs derived, ui populated after DOM creation. */
 import type { NodeIdAndFilePath, Position, GraphNode } from "@/pure/graph";
 import type { VTSettings, AgentConfig } from "@/pure/settings";
 import { deleteNodesFromUI } from "@/shell/edge/UI-edge/graph/handleUIActions";
 import { showAgentCommandEditor, AUTO_RUN_FLAG } from "@/shell/edge/UI-edge/graph/agentCommandEditorPopup";
 import type { Core, NodeCollection, CollectionReturnValue } from "cytoscape";
-// Import for global Window.electronAPI type augmentation
 import '@/shell/electron.d.ts';
-import {
-    disposeFloatingWindow,
-    getOrCreateOverlay,
-} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
+import { disposeFloatingWindow, getOrCreateOverlay } from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import { TerminalVanilla } from "@/shell/UI/floating-windows/terminals/TerminalVanilla";
 import posthog from "posthog-js";
-import {
-    getTerminalId,
-    type TerminalId,
-    type FloatingWindowUIData,
-} from "@/shell/edge/UI-edge/floating-windows/types";
-import {
-    vanillaFloatingWindowInstances,
-} from "@/shell/edge/UI-edge/state/UIAppState";
+import { getTerminalId, type TerminalId, type FloatingWindowUIData } from "@/shell/edge/UI-edge/floating-windows/types";
+import { vanillaFloatingWindowInstances } from "@/shell/edge/UI-edge/state/UIAppState";
 import { getNextTerminalCount, getTerminals } from "@/shell/edge/UI-edge/state/TerminalStore";
-import {createWindowChrome} from "@/shell/edge/UI-edge/floating-windows/create-window-chrome";
-import {flushEditorForNode} from "@/shell/edge/UI-edge/floating-windows/editors/flushEditorForNode";
-import {anchorToNode} from "@/shell/edge/UI-edge/floating-windows/anchor-to-node";
+import { createWindowChrome } from "@/shell/edge/UI-edge/floating-windows/create-window-chrome";
+import { flushEditorForNode } from "@/shell/edge/UI-edge/floating-windows/editors/flushEditorForNode";
+import { anchorToNode } from "@/shell/edge/UI-edge/floating-windows/anchor-to-node";
 import * as O from "fp-ts/lib/Option.js";
-import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
+import type { TerminalData } from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 
 const MAX_TERMINALS: number = 12;
 
@@ -64,25 +46,20 @@ async function waitForNode(
     return null;
 }
 
-interface PermissionModeResult {
+interface AgentLaunchConfig {
     finalCommand: string;
-    shouldSaveSettings: boolean;
+    popupWasShown: boolean;
     updatedAgents: readonly AgentConfig[];
     updatedAgentPrompt: string;
     mcpIntegrationEnabled: boolean;
+    inNewWorktree: boolean;
 }
 
-/**
- * Check if user needs to choose permission mode and show popup if needed.
- * Returns the (possibly modified) command and agent prompt to use.
- *
- * For Claude agents, prompts user on first run to review/edit the command and prompt.
- * If user adds the auto-run flag, saves the preference to settings.
- */
-async function ensureAgentPermissionModeChosen(
+/** Shows first-run popup if needed. Returns resolved agent launch configuration. */
+async function resolveAgentLaunchConfig(
     settings: VTSettings,
     command: string
-): Promise<PermissionModeResult> {
+): Promise<AgentLaunchConfig> {
     // Get current agent prompt from settings
     const currentAgentPrompt: string = typeof settings.INJECT_ENV_VARS.AGENT_PROMPT === 'string'
         ? settings.INJECT_ENV_VARS.AGENT_PROMPT
@@ -92,25 +69,19 @@ async function ensureAgentPermissionModeChosen(
     const isClaudeAgent: boolean = command.toLowerCase().includes('claude');
     if (settings.agentPermissionModeChosen || !isClaudeAgent) {
         return {
-            finalCommand: command,
-            shouldSaveSettings: false,
-            updatedAgents: settings.agents,
-            updatedAgentPrompt: currentAgentPrompt,
-            mcpIntegrationEnabled: true, // Default to enabled when skipping popup
+            finalCommand: command, popupWasShown: false, updatedAgents: settings.agents,
+            updatedAgentPrompt: currentAgentPrompt, mcpIntegrationEnabled: true, inNewWorktree: false,
         };
     }
 
     // Show the agent command editor popup with both command and agent prompt
-    const result: { command: string; agentPrompt: string; mcpIntegrationEnabled: boolean } | null = await showAgentCommandEditor(command, currentAgentPrompt);
+    const result: ReturnType<typeof showAgentCommandEditor> extends Promise<infer T> ? T : never = await showAgentCommandEditor(command, currentAgentPrompt);
 
     // User cancelled - return original values but mark as chosen to not prompt again
     if (result === null) {
         return {
-            finalCommand: command,
-            shouldSaveSettings: true,
-            updatedAgents: settings.agents,
-            updatedAgentPrompt: currentAgentPrompt,
-            mcpIntegrationEnabled: true, // Default to enabled when cancelled
+            finalCommand: command, popupWasShown: true, updatedAgents: settings.agents,
+            updatedAgentPrompt: currentAgentPrompt, mcpIntegrationEnabled: true, inNewWorktree: false,
         };
     }
 
@@ -138,11 +109,9 @@ async function ensureAgentPermissionModeChosen(
     }
 
     return {
-        finalCommand: result.command,
-        shouldSaveSettings: true,
-        updatedAgents,
-        updatedAgentPrompt: result.agentPrompt,
-        mcpIntegrationEnabled: result.mcpIntegrationEnabled,
+        finalCommand: result.command, popupWasShown: true, updatedAgents,
+        updatedAgentPrompt: result.agentPrompt, mcpIntegrationEnabled: result.mcpIntegrationEnabled,
+        inNewWorktree: result.inNewWorktree,
     };
 }
 
@@ -295,33 +264,35 @@ export async function spawnTerminalWithNewContextNode(
         return;
     }
 
-    // Check if user needs to choose permission mode (first-time prompt for Claude)
-    const permissionResult: PermissionModeResult = await ensureAgentPermissionModeChosen(settings, command);
+    // Show first-run popup if needed, get resolved launch config
+    const launchConfig: AgentLaunchConfig = await resolveAgentLaunchConfig(settings, command);
 
-    command = permissionResult.finalCommand;
+    command = launchConfig.finalCommand;
 
     // Save settings if permission mode was just chosen
-    if (permissionResult.shouldSaveSettings) {
+    if (launchConfig.popupWasShown) {
         const updatedSettings: VTSettings = {
             ...settings,
-            agents: permissionResult.updatedAgents,
+            agents: launchConfig.updatedAgents,
             agentPermissionModeChosen: true,
             INJECT_ENV_VARS: {
                 ...settings.INJECT_ENV_VARS,
-                AGENT_PROMPT: permissionResult.updatedAgentPrompt,
+                AGENT_PROMPT: launchConfig.updatedAgentPrompt,
             },
         };
         await window.electronAPI?.main.saveSettings(updatedSettings);
     }
 
     // Update .mcp.json based on user's MCP integration toggle choice
-    await window.electronAPI?.main.setMcpIntegration(permissionResult.mcpIntegrationEnabled);
+    await window.electronAPI?.main.setMcpIntegration(launchConfig.mcpIntegrationEnabled);
 
     const terminalCount: number = getNextTerminalCount(terminalsMap, parentNodeId);
+    // Use popup's worktree choice if popup was shown, otherwise use the parameter
+    const useWorktree: boolean = launchConfig.popupWasShown ? launchConfig.inNewWorktree : (inWorktree ?? false);
 
     // Delegate to main process which has immediate graph access
     await window.electronAPI?.main.spawnTerminalWithContextNode(
-        parentNodeId, command, terminalCount, undefined, undefined, inWorktree
+        parentNodeId, command, terminalCount, undefined, undefined, useWorktree
     );
 }
 

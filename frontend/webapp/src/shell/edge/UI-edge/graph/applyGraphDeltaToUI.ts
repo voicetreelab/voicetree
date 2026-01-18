@@ -245,7 +245,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
         // Fit so average node takes target fraction of viewport (smart zoom: only zooms if needed)
         setTimeout(() => { if (!cy.destroyed()) cyFitCollectionByAverageNodeSize(cy, cy.nodes(), 0.15); }, 150);
     }
-    else if (newNodeCount > 5) {
+    else if (newNodeCount > 10) {
         // Bulk load: just fit all nodes in view
         setTimeout(() => { if (!cy.destroyed()) cy.fit(); }, 150);
     }
