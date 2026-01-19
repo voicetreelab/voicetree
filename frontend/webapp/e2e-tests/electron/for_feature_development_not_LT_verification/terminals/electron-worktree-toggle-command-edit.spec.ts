@@ -205,13 +205,20 @@ const CREATE_POPUP_SCRIPT = `
         }
     });
 
-    // Worktree checkbox change handler - adds [worktree] prefix
-    const WORKTREE_INDICATOR = '[worktree] ';
+    // Worktree checkbox change handler - shows actual git worktree command
+    let currentWorktreePrefix = '';
     worktreeToggle.addEventListener('change', () => {
-        if (worktreeToggle.checked && !input.value.startsWith(WORKTREE_INDICATOR)) {
-            input.value = WORKTREE_INDICATOR + input.value;
-        } else if (!worktreeToggle.checked && input.value.startsWith(WORKTREE_INDICATOR)) {
-            input.value = input.value.slice(WORKTREE_INDICATOR.length);
+        if (worktreeToggle.checked) {
+            // Generate worktree name (mirrors gitWorktreeCommands.ts logic)
+            const nodeTitle = 'test-task';
+            const sanitized = nodeTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30);
+            const suffix = Date.now().toString(36).slice(-4);
+            const worktreeName = 'wt-' + (sanitized || 'agent') + '-' + suffix;
+            currentWorktreePrefix = 'git worktree add -b "' + worktreeName + '" ".worktrees/' + worktreeName + '" && cd ".worktrees/' + worktreeName + '" && ';
+            input.value = currentWorktreePrefix + input.value;
+        } else if (currentWorktreePrefix && input.value.startsWith(currentWorktreePrefix)) {
+            input.value = input.value.slice(currentWorktreePrefix.length);
+            currentWorktreePrefix = '';
         }
     });
 
@@ -225,7 +232,7 @@ const CREATE_POPUP_SCRIPT = `
 `;
 
 test.describe('Worktree Toggle Command Edit', () => {
-    test('worktree toggle modifies the command input with [worktree] prefix when checked', async ({ appWindow }) => {
+    test('worktree toggle modifies the command input with git worktree prefix when checked', async ({ appWindow }) => {
         test.setTimeout(30000);
 
         console.log('=== STEP 1: Wait for app to be ready ===');
@@ -263,17 +270,19 @@ test.describe('Worktree Toggle Command Edit', () => {
         // Wait a bit for any potential event handlers
         await appWindow.waitForTimeout(200);
 
-        console.log('=== STEP 5: Verify command changed with [worktree] prefix ===');
+        console.log('=== STEP 5: Verify command changed with git worktree prefix ===');
         const commandAfterWorktreeToggle = await commandInput.inputValue();
         console.log(`Command after worktree toggle: "${commandAfterWorktreeToggle}"`);
 
-        // Verify the command now has [worktree] prefix
-        expect(commandAfterWorktreeToggle).toBe('[worktree] ' + initialCommand);
-        expect(commandAfterWorktreeToggle).toContain('[worktree]');
+        // Verify the command now has git worktree prefix
+        expect(commandAfterWorktreeToggle).toContain('git worktree add -b "wt-');
+        expect(commandAfterWorktreeToggle).toContain('.worktrees/wt-');
+        expect(commandAfterWorktreeToggle).toContain('&& cd ".worktrees/wt-');
+        expect(commandAfterWorktreeToggle).toContain('&& ' + initialCommand);
 
         console.log('');
         console.log('=== VERIFIED: Worktree toggle modifies command ===');
-        console.log('The worktree toggle checkbox correctly adds [worktree] prefix to the command.');
+        console.log('The worktree toggle checkbox correctly shows the actual git worktree command.');
         console.log('');
 
         // Take a screenshot to document the feature

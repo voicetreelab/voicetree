@@ -20,8 +20,8 @@
 .cy-floating-window {
   position: absolute;
   pointer-events: auto;
-  min-width: 300px;
-  min-height: 200px;
+  min-width: 100px;
+  min-height: 100px;
   /* max-height: 600px; */ /* Disabled to allow terminal windows to expand freely */
   background: var(--card);
   border: 1px solid var(--border);

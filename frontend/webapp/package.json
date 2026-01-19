@@ -4,7 +4,7 @@
   "description": "Transform voice into navigable concept graphs",
   "author": "Manu Masson",
   "private": true,
-  "version": "2.0.2",
+  "version": "2.0.3",
   "type": "module",
   "main": "dist-electron/main/index.js",
   "scripts": {
@@ -135,7 +135,7 @@
       "provider": "github",
       "owner": "voicetreelab",
       "repo": "voicetree",
-      "releaseType": "release"
+      "releaseType": "draft"
     },
     "directories": {
       "output": "../../out/electron"
