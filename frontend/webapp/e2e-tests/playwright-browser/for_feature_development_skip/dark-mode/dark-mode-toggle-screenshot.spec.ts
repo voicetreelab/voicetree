@@ -13,6 +13,53 @@ import {
 } from '@e2e/playwright-browser/graph-delta-test-utils';
 
 test.describe('Dark Mode Toggle Screenshot', () => {
+  test('should change edge color when toggling dark mode', async ({ page }) => {
+    await setupMockElectronAPI(page);
+    await page.goto('/');
+    await page.waitForSelector('#root', { timeout: 5000 });
+    await page.waitForTimeout(50);
+    await waitForCytoscapeReady(page);
+
+    // Send test graph data to have edges visible
+    const testDelta = createTestGraphDelta();
+    await sendGraphDelta(page, testDelta);
+    await page.waitForTimeout(300);
+
+    // Get edge color in LIGHT mode (initial state)
+    const lightModeEdgeColor = await page.evaluate(() => {
+      const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return null;
+      const edges = cy.edges();
+      if (edges.length === 0) return null;
+      return edges[0].style('line-color') as string;
+    });
+
+    console.log(`[Test] Light mode edge color: ${lightModeEdgeColor}`);
+    // Light mode edge color should be #5e5e5e = rgb(94,94,94) - no spaces in cytoscape format
+    expect(lightModeEdgeColor).toBe('rgb(94,94,94)');
+
+    // Toggle to dark mode
+    const darkModeButton = page.locator('.speed-dial-container button[data-item-relativeFilePathIsID="dark-mode"]');
+    await darkModeButton.click();
+    await page.waitForTimeout(200);
+
+    // Get edge color in DARK mode
+    const darkModeEdgeColor = await page.evaluate(() => {
+      const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return null;
+      const edges = cy.edges();
+      if (edges.length === 0) return null;
+      return edges[0].style('line-color') as string;
+    });
+
+    console.log(`[Test] Dark mode edge color: ${darkModeEdgeColor}`);
+    // Dark mode edge color should be #8a9099 = rgb(138,144,153) - lighter for better visibility
+    expect(darkModeEdgeColor).toBe('rgb(138,144,153)');
+
+    // CRITICAL: The colors MUST be different
+    expect(lightModeEdgeColor).not.toBe(darkModeEdgeColor);
+  });
+
   test('should switch from light to dark mode with correct styling', async ({ page }) => {
     await setupMockElectronAPI(page);
     await page.goto('/');
@@ -83,6 +130,18 @@ test.describe('Dark Mode Toggle Screenshot', () => {
     expect(edgeOpacity).toBeGreaterThanOrEqual(0.35); // Should be at least 0.35 (increased from 0.3)
 
     console.log(`[Test] Dark mode edge opacity: ${edgeOpacity}`);
+
+    // Verify edge COLOR changed to dark mode color
+    const darkEdgeColor = await page.evaluate(() => {
+      const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return null;
+      const edges = cy.edges();
+      if (edges.length === 0) return null;
+      return edges[0].style('line-color') as string;
+    });
+    // Dark mode edge color should be #8a9099 - lighter for better visibility
+    expect(darkEdgeColor).toBe('rgb(138,144,153)'); // #8a9099 in RGB format
+    console.log(`[Test] Dark mode edge color: ${darkEdgeColor}`);
   });
 
   test('should display vault selector correctly in dark mode', async ({ page }) => {

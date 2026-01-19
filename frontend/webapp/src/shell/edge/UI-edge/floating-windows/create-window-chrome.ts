@@ -544,10 +544,10 @@ function createContextBadge(title: string, _windowElement: HTMLDivElement): HTML
     const badge: HTMLDivElement = document.createElement('div');
     badge.className = 'terminal-context-badge';
 
-    // Truncated title (max 20 chars)
+    // Truncated title (max 100 chars)
     const titleSpan: HTMLSpanElement = document.createElement('span');
     titleSpan.className = 'terminal-context-badge-title';
-    titleSpan.textContent = truncateTitle(title, 20);
+    titleSpan.textContent = truncateTitle(title, 100);
     badge.appendChild(titleSpan);
 
     return badge;

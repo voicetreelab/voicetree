@@ -29,6 +29,7 @@ import {isMcpIntegrationEnabled, setMcpIntegration} from './mcp-server/mcp-clien
 import {saveClipboardImage} from './clipboard/saveClipboardImage';
 import {readImageAsDataUrl} from './clipboard/readImageAsDataUrl';
 import {findFileByName} from './graph/loading/findFileByName';
+import {runAgentOnSelectedNodes} from './runAgentOnSelectedNodes';
 
 // eslint-disable-next-line @typescript-eslint/typedef
 export const mainAPI = {
@@ -112,4 +113,7 @@ export const mainAPI = {
 
   // File search
   findFileByName,
+
+  // Run Agent on Selected Nodes
+  runAgentOnSelectedNodes,
 }

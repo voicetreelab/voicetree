@@ -86,8 +86,8 @@ export class StyleService {
       fillColor: isDark ? '#5a6065' :'#3f3f3f', // Darker nodes in dark mode for softer contrast
       fillHighlightColor: isDark ? '#6a6e73' : '#525252',
       accentBorderColor: '#4b96ff',
-      lineColor: isDark ? '#505558' : '#5e5e5e', // Subtle edges that blend better
-      lineHighlightColor: isDark ? '#707578' : '#7c7c7c', // Noticeable but not harsh highlight
+      lineColor: isDark ? '#8a9099' : '#5e5e5e', // Lighter edges in dark mode for better visibility
+      lineHighlightColor: isDark ? '#a0a8b0' : '#7c7c7c', // Lighter highlight in dark mode
       textColor: isDark ? '#c5c8cc' : '#2a2a2a', // Soft off-white for dark mode
       danglingColor: '#683c3c',
     };
@@ -271,6 +271,19 @@ export class StyleService {
           'line-color': '#FFD700',
           'line-opacity': 1,
           'width': 4,
+        }
+      },
+
+      // Terminal indicator lines - visual only, excluded from layout
+      {
+        selector: 'edge.terminal-indicator',
+        style: {
+          'line-style': 'dotted',
+          'line-color': '#888888',
+          'line-opacity': 0.4,
+          'width': 1,
+          'target-arrow-shape': 'none',
+          'curve-style': 'straight',
         }
       },
 

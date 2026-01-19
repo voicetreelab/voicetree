@@ -85,6 +85,7 @@ This creates graph edges connecting your progress node to related artifacts.
 - Wikilink paths are relative to `$VOICETREE_VAULT_PATH`, you must ensure your file is also saved here.
 - Use `[[$TASK_NODE_PATH]]` as the default parent to link your node to. Override when necessary.
   **Important**: Use double brackets `[[link]]` for edges, not single `[link]`. Only `[[wikilinks]]` create graph edges.
+- **Minimize edges.** Every `[[wikilink]]` creates a visible edge in the graph. Too many edges = visual clutter. Use sparingly.
 - Optional relationship labels: `- solves build failure [[path]]` Omit unless the relationship is specific and meaningful.
 
 
