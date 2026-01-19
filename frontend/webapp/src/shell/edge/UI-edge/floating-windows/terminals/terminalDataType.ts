@@ -1,8 +1,9 @@
 import type {NodeIdAndFilePath} from "@/pure/graph";
-import type {FloatingWindowFields} from "@/shell/edge/UI-edge/floating-windows/types";
+import type {FloatingWindowFields, TerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 
 export type TerminalData = FloatingWindowFields & {
     readonly type: 'Terminal';
+    readonly terminalId: TerminalId; // Single source of truth for terminal identity
     readonly attachedToNodeId: NodeIdAndFilePath;
     readonly terminalCount: number; // Multiple terminals per parent node allowed
     readonly initialEnvVars?: Record<string, string>;
@@ -14,6 +15,8 @@ export type TerminalData = FloatingWindowFields & {
     readonly isDone: boolean;
     readonly lastOutputTime: number;
     readonly activityCount: number;
+    // Parent-child relationship for tree-style tabs (null = root terminal)
+    readonly parentTerminalId: TerminalId | null;
 };
 export type CreateTerminalDataParams = {
     readonly attachedToNodeId: NodeIdAndFilePath;
@@ -27,4 +30,5 @@ export type CreateTerminalDataParams = {
     readonly resizable?: boolean; // defaults to true
     readonly shadowNodeDimensions?: { width: number; height: number };
     readonly isPinned?: boolean; // defaults to true
+    readonly parentTerminalId?: TerminalId | null; // defaults to null (root terminal)
 };

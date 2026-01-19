@@ -125,6 +125,14 @@ export class StyleService {
         }
       },
 
+      // Task nodes - nodes with running terminals/agents become squares
+      {
+        selector: 'node[?hasRunningTerminal]',
+        style: {
+          'shape': 'rectangle',
+        }
+      },
+
       // GraphNode labels - support both 'name' and 'label' fields
       {
         selector: 'node[label]',

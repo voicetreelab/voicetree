@@ -60,8 +60,16 @@ export function getEditorId(editor: EditorData): EditorId {
     return `${editor.contentLinkedToNodeId}-editor` as EditorId;
 }
 
+/**
+ * Pure function to compute terminal ID from its components.
+ * Single source of truth for terminal ID format.
+ */
+export function computeTerminalId(attachedToNodeId: string, terminalCount: number): TerminalId {
+    return `${attachedToNodeId}-terminal-${terminalCount}` as TerminalId;
+}
+
 export function getTerminalId(terminal: TerminalData): TerminalId {
-    return `${terminal.attachedToNodeId}-terminal-${terminal.terminalCount}` as TerminalId;
+    return terminal.terminalId;
 }
 
 export function getImageViewerId(imageViewer: ImageViewerData): ImageViewerId {
@@ -98,8 +106,10 @@ export function createEditorData(params: CreateEditorDataParams): EditorData {
 }
 
 export function createTerminalData(params: CreateTerminalDataParams): TerminalData {
+    const terminalId: TerminalId = computeTerminalId(params.attachedToNodeId, params.terminalCount);
     return {
         type: 'Terminal',
+        terminalId,
         attachedToNodeId: params.attachedToNodeId,
         terminalCount: params.terminalCount,
         title: params.title,
@@ -115,6 +125,8 @@ export function createTerminalData(params: CreateTerminalDataParams): TerminalDa
         isDone: false,          // Running initially
         lastOutputTime: Date.now(),
         activityCount: 0,
+        // Parent-child relationship for tree-style tabs (null = root terminal)
+        parentTerminalId: params.parentTerminalId ?? null,
     };
 }
 

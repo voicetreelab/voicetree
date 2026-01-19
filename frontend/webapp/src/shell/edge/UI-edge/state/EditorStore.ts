@@ -12,7 +12,7 @@ const pinnedEditors: Set<string> = new Set<string>();
 // Auto-pin tracking: FIFO queue of auto-pinned editor node IDs
 // When queue exceeds MAX_AUTO_PINNED_EDITORS, oldest is closed
 // If user manually pins (via Pin Editor button), editor is removed from queue
-const MAX_AUTO_PINNED_EDITORS: number = 4;
+const MAX_AUTO_PINNED_EDITORS: number = 1;
 const autoPinnedEditorQueue: NodeIdAndFilePath[] = [];
 
 /**

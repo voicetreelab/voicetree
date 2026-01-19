@@ -349,8 +349,21 @@ export async function createFloatingTerminal(
         const terminalWithUI: TerminalData = createFloatingTerminalWindow(cy, terminalData);
 
         // Anchor to parent node if it exists (creates shadow node in cytoscape graph)
+        console.log('[FloatingWindowManager-v2] anchoredToNodeId:', JSON.stringify(terminalWithUI.anchoredToNodeId));
+        console.log('[FloatingWindowManager-v2] O.isSome check:', O.isSome(terminalWithUI.anchoredToNodeId));
         if (terminalWithUI.ui && O.isSome(terminalWithUI.anchoredToNodeId)) {
             anchorToNode(cy, terminalWithUI);
+            // Mark the parent node as having a running terminal (changes shape to square)
+            const parentNodeId: string = terminalWithUI.anchoredToNodeId.value;
+            console.log('[FloatingWindowManager-v2] Looking for parent node:', parentNodeId);
+            const parentNode: CollectionReturnValue = cy.getElementById(parentNodeId);
+            console.log('[FloatingWindowManager-v2] Parent node found:', parentNode.length > 0);
+            if (parentNode.length > 0) {
+                parentNode.data('hasRunningTerminal', true);
+                console.log('[FloatingWindowManager-v2] Marked parent node as task node:', parentNodeId);
+            } else {
+                console.log('[FloatingWindowManager-v2] Parent node NOT found in Cytoscape!');
+            }
         } else if (terminalWithUI.ui) {
             // Fallback: position at a default location if no parent node
             // (rare case - terminals usually have a parent context node)
@@ -427,6 +440,25 @@ export async function closeTerminal(terminal: TerminalData, cy: Core): Promise<v
     // Use disposeFloatingWindow from cytoscape-floating-windows.ts
     // This removes shadow node, DOM elements, and from state
     disposeFloatingWindow(cy, terminal);
+
+    // Remove hasRunningTerminal flag from parent node if no other terminals are anchored to it
+    if (O.isSome(terminal.anchoredToNodeId)) {
+        const parentNodeId: string = terminal.anchoredToNodeId.value;
+        // Check if other terminals are still anchored to the same parent (current terminal already removed)
+        const terminals: Map<TerminalId, TerminalData> = getTerminals();
+        const remainingTerminalsOnParent: TerminalData[] = Array.from(terminals.values())
+            .filter((t: TerminalData) =>
+                O.isSome(t.anchoredToNodeId) && t.anchoredToNodeId.value === parentNodeId
+            );
+
+        if (remainingTerminalsOnParent.length === 0) {
+            const parentNode: CollectionReturnValue = cy.getElementById(parentNodeId);
+            if (parentNode.length > 0) {
+                parentNode.data('hasRunningTerminal', false);
+                console.log('[closeTerminal-v2] Removed task node indicator from:', parentNodeId);
+            }
+        }
+    }
 
     // Delete the context node if this was the last terminal attached to it
     await deleteContextNodeIfLastTerminal(terminal.attachedToNodeId, cy);
