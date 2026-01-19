@@ -1,6 +1,9 @@
 ---
 position:
-  x: 1507.1067811865473
-  y: -500.0000000000001
+  x: 2073.6938549632446
+  y: -439.3953701426415
+isContextNode: false
 ---
-# Title
+# Title]\
+
+/Users/bobbobby/repos/VoiceTree/frontend/webapp/vault/12_Ruby_RPC_Infrastructure_Implementation_Complete.md

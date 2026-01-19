@@ -143,6 +143,51 @@ export async function listAgentsTool(): Promise<McpToolResponse> {
     return buildJsonResponse({agents})
 }
 
+export async function waitForAgentsTool({
+    terminalIds,
+    callerTerminalId,
+    pollIntervalMs = 500
+}: {
+    terminalIds: string[]
+    callerTerminalId: string
+    pollIntervalMs?: number
+}): Promise<McpToolResponse> {
+    // 1. Validate caller terminal exists
+    const records: TerminalRecord[] = getTerminalRecords()
+    if (!records.some((r: TerminalRecord) => r.terminalId === callerTerminalId)) {
+        return buildJsonResponse({success: false, error: `Unknown caller: ${callerTerminalId}`}, true)
+    }
+
+    // 2. Validate all target terminals exist
+    for (const tid of terminalIds) {
+        if (!records.some((r: TerminalRecord) => r.terminalId === tid)) {
+            return buildJsonResponse({success: false, error: `Unknown terminal: ${tid}`}, true)
+        }
+    }
+
+    // 3. Poll until all are exited
+    while (true) {
+        const currentRecords: TerminalRecord[] = getTerminalRecords()
+        const targetRecords: TerminalRecord[] = currentRecords.filter(
+            (r: TerminalRecord) => terminalIds.includes(r.terminalId)
+        )
+        const allExited: boolean = targetRecords.every((r: TerminalRecord) => r.status === 'exited')
+
+        if (allExited) {
+            return buildJsonResponse({
+                success: true,
+                agents: targetRecords.map((r: TerminalRecord) => ({
+                    terminalId: r.terminalId,
+                    title: r.terminalData.title,
+                    status: 'exited'
+                }))
+            })
+        }
+
+        await new Promise(resolve => setTimeout(resolve, pollIntervalMs))
+    }
+}
+
 /**
  * Creates and configures the MCP server with VoiceTree tools.
  */
@@ -297,6 +342,22 @@ export function createMcpServer(): McpServer {
             inputSchema: {}
         },
         listAgentsTool
+    )
+
+    // Tool: wait_for_agents
+    server.registerTool(
+        'wait_for_agents',
+        {
+            title: 'Wait for Agents',
+            description: 'Wait for specified agent terminals to complete. Returns when all agents have exited.',
+            inputSchema: {
+                terminalIds: z.array(z.string()).describe('Array of terminal IDs to wait for'),
+                callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),
+                pollIntervalMs: z.number().optional().describe('Poll interval in ms (default: 500)')
+            }
+        },
+        async ({terminalIds, callerTerminalId, pollIntervalMs}) =>
+            waitForAgentsTool({terminalIds, callerTerminalId, pollIntervalMs})
     )
 
     return server
