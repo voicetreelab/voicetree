@@ -372,8 +372,21 @@ jobs:
           npx electron-vite build
           npx electron-builder --linux --publish=always
 
+  publish-release:
+    needs: [check-version, build-mac, build-windows, build-linux-x64, merge-mac-manifests]
+    if: ${{ needs.check-version.outputs.should_build == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          VERSION="${{ needs.check-version.outputs.version }}"
+          echo "Publishing release v$VERSION"
+          gh release edit "v$VERSION" --draft=false --repo voicetreelab/voicetree
+
   update-homebrew:
-    needs: [check-version, build-mac, merge-mac-manifests]
+    needs: [check-version, publish-release]
     if: success()
     runs-on: ubuntu-latest
     steps:

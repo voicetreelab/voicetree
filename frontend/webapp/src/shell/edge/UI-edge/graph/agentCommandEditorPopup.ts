@@ -17,13 +17,36 @@ export interface AgentCommandEditorResult {
 }
 
 /**
+ * Generate a valid git branch/worktree name from a node title.
+ * Mirrors the logic in gitWorktreeCommands.ts for preview purposes.
+ */
+function generateWorktreeName(nodeTitle: string): string {
+    const sanitized: string = nodeTitle
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 30);
+    const suffix: string = Date.now().toString(36).slice(-4);
+    return `wt-${sanitized || 'agent'}-${suffix}`;
+}
+
+/**
+ * Generate the git worktree command prefix for a given node title.
+ */
+function generateWorktreePrefix(nodeTitle: string): string {
+    const worktreeName: string = generateWorktreeName(nodeTitle);
+    return `git worktree add -b "${worktreeName}" ".worktrees/${worktreeName}" && cd ".worktrees/${worktreeName}" && `;
+}
+
+/**
  * Shows a modal dialog for editing an agent command and prompt before execution.
  *
  * @param command - The initial command to display
  * @param agentPrompt - The initial agent prompt to display (editable)
+ * @param nodeTitle - The title of the task node (used for worktree name generation)
  * @returns Promise resolving to the (possibly modified) command and prompt on Run click, or null if cancelled
  */
-export function showAgentCommandEditor(command: string, agentPrompt: string): Promise<AgentCommandEditorResult | null> {
+export function showAgentCommandEditor(command: string, agentPrompt: string, nodeTitle: string = 'agent-task'): Promise<AgentCommandEditorResult | null> {
     return new Promise((resolve: (value: AgentCommandEditorResult | null) => void) => {
         const dialog: HTMLDialogElement = document.createElement('dialog');
         dialog.id = 'agent-command-editor-dialog';
@@ -252,13 +275,17 @@ export function showAgentCommandEditor(command: string, agentPrompt: string): Pr
             }
         });
 
-        // Worktree checkbox change handler
-        const WORKTREE_INDICATOR: string = '[worktree] ';
+        // Worktree checkbox change handler - shows actual git worktree command
+        let currentWorktreePrefix: string = '';
         worktreeToggle.addEventListener('change', () => {
-            if (worktreeToggle.checked && !input.value.startsWith(WORKTREE_INDICATOR)) {
-                input.value = WORKTREE_INDICATOR + input.value;
-            } else if (!worktreeToggle.checked && input.value.startsWith(WORKTREE_INDICATOR)) {
-                input.value = input.value.slice(WORKTREE_INDICATOR.length);
+            if (worktreeToggle.checked) {
+                // Generate and prepend the actual git worktree command
+                currentWorktreePrefix = generateWorktreePrefix(nodeTitle);
+                input.value = currentWorktreePrefix + input.value;
+            } else if (currentWorktreePrefix && input.value.startsWith(currentWorktreePrefix)) {
+                // Remove the worktree prefix
+                input.value = input.value.slice(currentWorktreePrefix.length);
+                currentWorktreePrefix = '';
             }
         });
 
