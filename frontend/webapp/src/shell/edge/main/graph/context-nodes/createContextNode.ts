@@ -13,6 +13,7 @@ import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange";
 import {ensureUniqueNodeId} from "@/pure/graph/ensureUniqueNodeId";
+import {trace, traceSync} from '@/shell/edge/main/tracing/trace'
 
 /**
  * Creates a context node for a given parent node.
@@ -41,13 +42,10 @@ export async function createContextNode(
     }
 
     // 2. PURE: Extract subgraph within distance
-    console.log("[createContextNode] Extracting subgraph...")
     const settings: VTSettings = await loadSettings()
     const maxDistance: number = settings.contextNodeMaxDistance
-    const subgraph: Graph = getSubgraphByDistance(
-        currentGraph,
-        parentNodeId,
-        maxDistance
+    const subgraph: Graph = traceSync('getSubgraphByDistance', () =>
+        getSubgraphByDistance(currentGraph, parentNodeId, maxDistance)
     )
     console.log("[createContextNode] Subgraph has", Object.keys(subgraph.nodes).length, "nodes")
 
@@ -55,9 +53,10 @@ export async function createContextNode(
     // Make edges bidirectional so parents are shown as "children" in the tree.
     // This ensures nodes reachable via incoming edges (parents) appear in the ASCII tree,
     // not just nodes reachable via outgoing edges (children).
-    console.log("[createContextNode] Converting to ASCII...")
-    const bidirectionalSubgraph: Graph = makeBidirectionalEdges(subgraph)
-    const asciiTree: string = graphToAscii(bidirectionalSubgraph, parentNodeId)
+    const asciiTree: string = traceSync('graphToAscii', () => {
+        const bidirectionalSubgraph: Graph = makeBidirectionalEdges(subgraph)
+        return graphToAscii(bidirectionalSubgraph, parentNodeId)
+    })
     console.log("[createContextNode] ASCII tree length:", asciiTree.length)
 
     // 4. EDGE: Generate unique context node ID

@@ -23,7 +23,7 @@ import { loadSettings } from '@/shell/edge/main/settings/settings_IO';
 import { getWatchStatus, getWritePath, getVaultPaths } from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import { getAppSupportPath } from '@/shell/edge/main/state/app-electron-state';
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy';
-import { createTerminalData, getTerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
+import { createTerminalData, getTerminalId, computeTerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import type { NodeIdAndFilePath, GraphNode, Graph } from '@/pure/graph';
 import { getNodeTitle } from '@/pure/graph/markdown-parsing';
 import { findFirstParentNode } from '@/pure/graph/graph-operations/findFirstParentNode';
@@ -206,8 +206,8 @@ async function prepareTerminalDataInMain(
     const allVaultPaths: readonly string[] = await getVaultPaths();
     const allMarkdownReadPaths: string = allVaultPaths.join('\n');
 
-    // Generate terminal ID before creating TerminalData so we can include it in env vars
-    const terminalId: string = `terminal-${contextNodeId}-${terminalCount}`;
+    // Use computeTerminalId for consistent format (single source of truth)
+    const terminalId: string = computeTerminalId(contextNodeId, terminalCount);
 
     const unexpandedEnvVars: Record<string, string> = {
         VOICETREE_APP_SUPPORT: appSupportPath ?? '',
