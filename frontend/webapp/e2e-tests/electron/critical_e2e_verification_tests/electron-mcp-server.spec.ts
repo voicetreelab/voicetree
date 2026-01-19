@@ -243,9 +243,8 @@ test.describe('MCP Server Integration', () => {
         const toolsResponse = await mcpRequest('tools/list') as { result?: { tools?: Array<{ name: string }> } };
 
         const toolNames = toolsResponse.result?.tools?.map(t => t.name) ?? [];
-        expect(toolNames).toContain('add_node');
-        expect(toolNames).toContain('get_graph');
-        expect(toolNames).toContain('list_nodes');
+        expect(toolNames).toContain('spawn_agent');
+        expect(toolNames).toContain('list_agents');
         console.log(`✓ Found ${toolNames.length} tools: ${toolNames.join(', ')}`);
     });
 

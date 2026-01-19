@@ -25,7 +25,9 @@ export async function findFileByName(
       '--max-depth', String(maxDepth),
       '-g', `*${escapedPattern}*.md`,
       searchPath
-    ]);
+    ], {
+      cwd: searchPath  // Explicitly set cwd to avoid ENOTDIR if process.cwd() is invalid
+    });
 
     let stdout: string = '';
     let stderr: string = '';

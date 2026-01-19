@@ -13,8 +13,8 @@
  */
 
 import { loadGraphFromDisk, loadGraphFromDiskWithLazyLoading, resolveLinkedNodesInWatchedFolder } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk";
-import type { FilePath, Graph, GraphDelta, GraphNode } from "@/pure/graph";
-import { applyGraphDeltaToGraph, createGraph, mapNewGraphToDelta } from "@/pure/graph";
+import type { FilePath, Graph, GraphDelta } from "@/pure/graph";
+import { applyGraphDeltaToGraph, mapNewGraphToDelta } from "@/pure/graph";
 import type { FileLimitExceededError } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce";
 import { setGraph } from "@/shell/edge/main/state/graph-store";
 import { dialog } from "electron";
@@ -53,6 +53,10 @@ import {
     resolveAllowlistForProject,
 } from "./vault-allowlist";
 import { setupWatcher } from "./file-watcher-setup";
+import { acquireFolderLock, releaseFolderLock } from "./folder-lock";
+import { createStarterNode } from "./create-starter-node";
+// Re-export for app quit cleanup
+export { releaseCurrentLock } from "./folder-lock";
 
 // Re-exports for backward compatibility
 export { getWatchedDirectory } from "@/shell/edge/main/state/watch-folder-store";
@@ -113,6 +117,25 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
     const mainWindow: Electron.CrossProcessExports.BrowserWindow | null = getMainWindow();
     if (!mainWindow) {
         console.error('No main window available');
+        return { success: false };
+    }
+
+    // Release any existing lock before switching folders
+    const previousWatchedDir: string | null = getWatchedDirectory();
+    if (previousWatchedDir && previousWatchedDir !== watchedFolderPath) {
+        await releaseFolderLock(previousWatchedDir);
+    }
+
+    // Try to acquire lock for the new folder
+    const lockResult: { success: true } | { success: false; error: string } = await acquireFolderLock(watchedFolderPath);
+    if (!lockResult.success) {
+        console.error('[loadFolder] Failed to acquire folder lock:', lockResult.error);
+        void dialog.showMessageBox(mainWindow, {
+            type: 'error',
+            title: 'Folder Already Open',
+            message: 'Another instance of VoiceTree is already running in this folder.\n\nPlease close the other instance first, or choose a different folder.',
+            buttons: ['OK']
+        });
         return { success: false };
     }
 
@@ -389,6 +412,12 @@ export async function startFileWatching(directoryPath?: string): Promise<{ reado
 }
 
 export async function stopFileWatching(): Promise<{ readonly success: boolean; readonly error?: string }> {
+    // Release folder lock before stopping
+    const watchedDir: string | null = getWatchedDirectory();
+    if (watchedDir) {
+        await releaseFolderLock(watchedDir);
+    }
+
     const currentWatcher: FSWatcher | null = getWatcher();
     if (currentWatcher) {
         await currentWatcher.close();
@@ -420,65 +449,3 @@ export async function loadPreviousFolder(): Promise<{ readonly success: boolean;
     }
 }
 
-/**
- * Creates a starter node when opening an empty folder.
- * Uses the emptyFolderTemplate from settings, with {{DATE}} placeholder replaced.
- *
- * @param vaultPath - The vault path where the node file will be created
- * @returns Graph containing the new starter node
- */
-async function createStarterNode(vaultPath: string): Promise<Graph> {
-    const settings: VTSettings = await loadSettings();
-    const template: string = settings.emptyFolderTemplate ?? '# ';
-
-    // Format date: "Tuesday, 23 December"
-    const now: Date = new Date();
-    const dateStr: string = now.toLocaleDateString('en-US', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long'
-    });
-
-    // Replace {{DATE}} placeholder with formatted date
-    const content: string = template.replace(/\{\{DATE\}\}/g, dateStr);
-
-    // Generate node ID with day-based folder: {dayAbbrev}/{timestamp}{randomChars}.md
-    const dayAbbrev: string = now.toLocaleDateString('en-US', { weekday: 'short' }).toLowerCase();
-    const timestamp: string = Date.now().toString();
-    const randomChars: string = Array.from({length: 3}, () =>
-        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'.charAt(
-            Math.floor(Math.random() * 52)
-        )
-    ).join('');
-
-    const fileName: string = `${timestamp}${randomChars}.md`;
-    const relativePath: string = `${dayAbbrev}/${fileName}`;
-
-    // Node ID is the absolute path (consistent with loadGraphFromDisk)
-    const absolutePath: string = path.join(vaultPath, relativePath);
-    const nodeId: string = absolutePath;
-
-    // Create the node
-    const newNode: GraphNode = {
-        absoluteFilePathIsID: nodeId,
-        outgoingEdges: [],
-        contentWithoutYamlOrLinks: content,
-        nodeUIMetadata: {
-            color: O.none,
-            position: O.some({ x: 0, y: 0 }),
-            additionalYAMLProps: new Map(),
-            isContextNode: false
-        },
-    };
-
-    const graph: Graph = createGraph({ [nodeId]: newNode });
-
-    // Write the file to disk
-    const dirPath: string = path.dirname(absolutePath);
-    await fs.mkdir(dirPath, { recursive: true });
-    await fs.writeFile(absolutePath, content, 'utf-8');
-
-    console.log('[createStarterNode] Created starter node:', nodeId);
-
-    return graph;
-}

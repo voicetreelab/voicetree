@@ -87,6 +87,9 @@ export function findBestMatchingNode(
   linkText: string,
   nodes: Record<NodeIdAndFilePath, GraphNode>
 ): NodeIdAndFilePath | undefined {
+  const linkComponents: readonly string[] = getPathComponents(linkText)
+  if (linkComponents.length === 0) return undefined
+
   type BestMatch = { readonly nodeId: NodeIdAndFilePath | undefined; readonly score: number }
 
   const result: BestMatch = Object.keys(nodes).reduce<BestMatch>(
@@ -99,6 +102,13 @@ export function findBestMatchingNode(
     },
     { nodeId: undefined, score: 0 }
   )
+
+  // Only accept match if ALL link components matched
+  // e.g., [a/b/tasks.md] (3 components) requires score >= 3
+  // This prevents [openspec/changes/foo/tasks.md] from matching [other/tasks.md]
+  if (result.score < linkComponents.length) {
+    return undefined
+  }
 
   return result.nodeId
 }
