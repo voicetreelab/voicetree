@@ -55,12 +55,25 @@ function buildGraphNode(nodeId: NodeIdAndFilePath, content: string): GraphNode {
     }
 }
 
+function mockCallerTerminal(): void {
+    const callerTerminalData: TerminalData = createTerminalData({
+        attachedToNodeId: 'ctx-nodes/caller.md',
+        terminalCount: 99,
+        title: 'Caller',
+        executeCommand: true
+    })
+    vi.mocked(getTerminalRecords).mockReturnValue([
+        {terminalId: 'caller-terminal-99', terminalData: callerTerminalData, status: 'running'}
+    ])
+}
+
 describe('MCP spawn_agent tool', () => {
     beforeEach(() => {
         vi.clearAllMocks()
     })
 
     it('spawns an agent on an existing node', async () => {
+        mockCallerTerminal()
         vi.mocked(getWritePath).mockResolvedValue(O.some('/vault'))
         vi.mocked(getGraph).mockReturnValue({
             nodes: {
@@ -74,7 +87,7 @@ describe('MCP spawn_agent tool', () => {
             contextNodeId: 'ctx-nodes/node-1_context.md'
         })
 
-        const response: McpToolResponse = await spawnAgentTool({nodeId: 'node-1.md'})
+        const response: McpToolResponse = await spawnAgentTool({nodeId: 'node-1.md', callerTerminalId: 'caller-terminal-99'})
         const payload: {
             success: boolean
             terminalId: string
@@ -97,13 +110,14 @@ describe('MCP spawn_agent tool', () => {
     })
 
     it('returns an error when node is not found', async () => {
+        mockCallerTerminal()
         vi.mocked(getWritePath).mockResolvedValue(O.some('/vault'))
         vi.mocked(getGraph).mockReturnValue({
             nodes: {},
             incomingEdgesIndex: new Map()
         } as Graph)
 
-        const response: McpToolResponse = await spawnAgentTool({nodeId: 'missing-node.md'})
+        const response: McpToolResponse = await spawnAgentTool({nodeId: 'missing-node.md', callerTerminalId: 'caller-terminal-99'})
         const payload: {success: boolean; error: string} = parsePayload(response) as {success: boolean; error: string}
 
         expect(response.isError).toBe(true)
@@ -112,9 +126,10 @@ describe('MCP spawn_agent tool', () => {
     })
 
     it('returns an error when vault path is not set', async () => {
+        mockCallerTerminal()
         vi.mocked(getWritePath).mockResolvedValue(O.none)
 
-        const response: McpToolResponse = await spawnAgentTool({nodeId: 'node-1.md'})
+        const response: McpToolResponse = await spawnAgentTool({nodeId: 'node-1.md', callerTerminalId: 'caller-terminal-99'})
         const payload: {success: boolean; error: string} = parsePayload(response) as {success: boolean; error: string}
 
         expect(response.isError).toBe(true)
@@ -124,6 +139,7 @@ describe('MCP spawn_agent tool', () => {
     })
 
     it('returns after spawn is initiated', async () => {
+        mockCallerTerminal()
         vi.mocked(getWritePath).mockResolvedValue(O.some('/vault'))
         vi.mocked(getGraph).mockReturnValue({
             nodes: {
@@ -137,7 +153,7 @@ describe('MCP spawn_agent tool', () => {
             contextNodeId: 'ctx-nodes/node-1_context.md'
         })
 
-        const response: McpToolResponse = await spawnAgentTool({nodeId: 'node-1.md'})
+        const response: McpToolResponse = await spawnAgentTool({nodeId: 'node-1.md', callerTerminalId: 'caller-terminal-99'})
         const payload: {success: boolean; terminalId: string} = parsePayload(response) as {success: boolean; terminalId: string}
 
         expect(payload.success).toBe(true)
