@@ -11,13 +11,14 @@
  */
 
 import type { Core, CollectionReturnValue } from 'cytoscape';
-import { cyFitWithRelativeZoom, cySmartCenter } from '@/utils/responsivePadding';
+import { cyFitWithRelativeZoom } from '@/utils/responsivePadding';
 import { addRecentlyVisited } from '@/shell/edge/UI-edge/state/RecentlyVisitedStore';
 import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
 import { getTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
 import { getTerminalId, getShadowNodeId, type TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import { getDisplayOrderForNavigation, clearActivityForTerminal } from '@/shell/UI/views/AgentTabsBar';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
+import * as O from 'fp-ts/lib/Option.js';
 
 // Callback type for terminal change notifications
 type TerminalChangeCallback = (terminalId: TerminalId | null) => void;
@@ -128,14 +129,25 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
       addRecentlyVisited(contextNodeId);
     }
 
-    // closedNeighborhood includes the node itself plus all directly connected nodes (d=1)
-    // Union with terminal shadow node to ensure terminal is always in viewport
-    const nodesToFit: CollectionReturnValue = contextNode.length > 0
-      ? contextNode.closedNeighborhood().nodes().union(terminalShadowNode)
-      : cy.collection().union(terminalShadowNode);
+    // Start with terminal shadow node
+    let nodesToFit: CollectionReturnValue = cy.collection().union(terminalShadowNode);
 
-    // Smart center: pans if zoom is comfortable (0.65-2), otherwise zooms to 1.0
-    cySmartCenter(cy, nodesToFit);
+    // Add context node and its d=1 neighbors if it exists
+    if (contextNode.length > 0) {
+      nodesToFit = nodesToFit.union(contextNode.closedNeighborhood().nodes());
+    }
+
+    // Add task node (anchoredToNodeId) and its neighbors (both incoming and outgoing)
+    if (O.isSome(terminal.anchoredToNodeId)) {
+      const taskNodeId: string = terminal.anchoredToNodeId.value;
+      const taskNode: CollectionReturnValue = cy.getElementById(taskNodeId);
+      if (taskNode.length > 0) {
+        nodesToFit = nodesToFit.union(taskNode.closedNeighborhood().nodes());
+      }
+    }
+
+    // Fit viewport to show all nodes - collection takes ~95% of viewport
+    cyFitWithRelativeZoom(cy, nodesToFit, 0.95);
 
     // Focus the terminal so keyboard input goes directly to it
     // Note: terminals are stored in vanillaFloatingWindowInstances with terminalId as key (not shadowNodeId)

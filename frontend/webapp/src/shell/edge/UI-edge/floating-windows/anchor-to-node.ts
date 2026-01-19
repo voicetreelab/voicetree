@@ -236,8 +236,10 @@ export function anchorToNode(
         data: {
             id: `edge-${parentNode.id()}-${shadowNode.id()}`,
             source: parentNode.id(),
-            target: shadowNode.id()
-        }
+            target: shadowNode.id(),
+            isIndicatorEdge: true
+        },
+        classes: 'terminal-indicator'
     });
 
     // For terminals: fix context node position to top-left of terminal (no edge)

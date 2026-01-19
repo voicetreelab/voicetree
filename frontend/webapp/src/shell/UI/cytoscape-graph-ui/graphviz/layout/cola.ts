@@ -573,6 +573,8 @@ ColaLayout.prototype.run = function(){
     // add the outgoingEdges to cola
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     adaptor.links( edges.stdFilter(function( edge: any ){
+        // Exclude indicator edges from layout calculation
+        if (edge.data('isIndicatorEdge')) return false;
         return nonparentNodes.contains(edge.source()) && nonparentNodes.contains(edge.target());
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     }).map(function( edge: any ){

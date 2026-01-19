@@ -5,6 +5,9 @@ import {deleteSelectedNodesAction} from "@/shell/UI/cytoscape-graph-ui/actions/g
 import {getNextTerminalCount, getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
 import type {TerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
+import {showTaskInputPopup, type SelectedNodeInfo, type TaskInputResult} from "@/shell/edge/UI-edge/graph/taskInputPopup";
+import type {NodeIdAndFilePath} from "@/pure/graph";
+import '@/shell/electron.d.ts';
 
 export interface Position {
     x: number;
@@ -126,6 +129,47 @@ export class VerticalMenuService {
                 if (cannotMerge) return;
                 const selectedNodeIds: string[] = this.cy!.$(':selected').nodes().map(n => n.id());
                 await mergeSelectedNodesFromUI(selectedNodeIds, this.cy!);
+            },
+        });
+
+        // Run Agent on Selected - always show but disable when no nodes selected
+        const runAgentText: string = noNodesSelected
+            ? 'Run Agent on Selected (0 nodes selected)'
+            : `Run Agent on Selected (${selectedCount})`;
+        menuItems.push({
+            text: runAgentText,
+            disabled: noNodesSelected,
+            action: async () => {
+                if (noNodesSelected) return;
+
+                // Get selected node IDs and titles for popup
+                const selectedNodes: SelectedNodeInfo[] = this.cy!.$(':selected').nodes().map((node): SelectedNodeInfo => {
+                    const id: string = node.id();
+                    const title: string = (node.data('label') as string) ?? id;
+                    return { id, title };
+                });
+
+                // Show task input popup
+                const result: TaskInputResult | null = await showTaskInputPopup(selectedNodes);
+                if (!result) {
+                    // User cancelled
+                    return;
+                }
+
+                // Call main process to create task node, context node, and spawn agent
+                const selectedNodeIds: NodeIdAndFilePath[] = selectedNodes.map(
+                    (n: SelectedNodeInfo) => n.id as NodeIdAndFilePath
+                );
+
+                try {
+                    await window.electronAPI?.main.runAgentOnSelectedNodes({
+                        selectedNodeIds,
+                        taskDescription: result.taskDescription,
+                        position,
+                    });
+                } catch (error: unknown) {
+                    console.error('[VerticalMenuService] Failed to run agent on selected nodes:', error);
+                }
             },
         });
 

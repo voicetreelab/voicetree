@@ -42,8 +42,17 @@ Phase 1
 ### 1. Create a Root "Implementation Plan" Node First
 
 - **Parent**: the original task node
+- **Openspec link**: If implementing from an openspec, link to it here (only the root links to openspec)
 - **Keep your agent name** (don't use `--agent-name ""`)
 - **Contains**: dependency graph sketch, phase summary, key decisions
+
+### Minimize Edges
+
+Every `[[wikilink]]` creates a visible graph edge. Too many = visual clutter.
+
+- **Wikilinks = parent edges only.** Use `[[]]` only for linking to parents (and openspec from root)
+- **Only the Implementation Plan** links to openspec (not every phase/task)
+- For references (specs, docs, related files), use regular `[markdown](links)` - no edge created
 
 ### 2. Sequential Phases = Parent-Child Chain
 
