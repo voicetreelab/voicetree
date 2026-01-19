@@ -252,6 +252,16 @@ export function showAgentCommandEditor(command: string, agentPrompt: string): Pr
             }
         });
 
+        // Worktree checkbox change handler
+        const WORKTREE_INDICATOR: string = '[worktree] ';
+        worktreeToggle.addEventListener('change', () => {
+            if (worktreeToggle.checked && !input.value.startsWith(WORKTREE_INDICATOR)) {
+                input.value = WORKTREE_INDICATOR + input.value;
+            } else if (!worktreeToggle.checked && input.value.startsWith(WORKTREE_INDICATOR)) {
+                input.value = input.value.slice(WORKTREE_INDICATOR.length);
+            }
+        });
+
         // Cancel button click handler
         cancelButton.addEventListener('click', () => {
             dialog.close();
