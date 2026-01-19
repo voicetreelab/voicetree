@@ -1,15 +1,44 @@
-import {app, BrowserWindow, nativeImage, dialog, Menu, type MenuItemConstructorOptions} from 'electron';
+import {app, BrowserWindow, nativeImage, dialog} from 'electron';
 import path from 'path';
 import os from 'os';
+import fs from 'fs';
 import fixPath from 'fix-path';
 import electronUpdater, {type UpdateCheckResult} from 'electron-updater';
 import log from 'electron-log';
-import {startFileWatching, getWatchedDirectory, setStartupFolderOverride, setOnFolderSwitchCleanup} from '@/shell/edge/main/graph/watch_folder/watchFolder';
+import {getWatchedDirectory, setStartupFolderOverride, setOnFolderSwitchCleanup, releaseCurrentLock} from '@/shell/edge/main/graph/watch_folder/watchFolder';
+import {setupApplicationMenu} from '@/shell/edge/main/electron/application-menu';
 
 // Redirect all console.* to electron-log in production (handles EPIPE errors on Linux AppImage)
 // Writes asynchronously to ~/Library/Logs/Voicetree/ (macOS) or ~/.config/Voicetree/logs/ (Linux)
 if (app.isPackaged) {
     Object.assign(console, log.functions);
+}
+
+// ============================================================================
+// Startup CWD Diagnostics
+// ============================================================================
+// Log process.cwd() early to diagnose ENOTDIR issues when spawn() inherits it
+const startupCwd: string = process.cwd();
+console.log(`[Startup] process.cwd(): ${startupCwd}`);
+console.log(`[Startup] process.execPath: ${process.execPath}`);
+console.log(`[Startup] process.argv: ${JSON.stringify(process.argv)}`);
+
+try {
+    fs.accessSync(startupCwd, fs.constants.R_OK);
+    console.log('[Startup] cwd is valid and readable');
+} catch (cwdError: unknown) {
+    const errorMessage: string = cwdError instanceof Error ? cwdError.message : String(cwdError);
+    console.error(`[Startup] WARNING: cwd is INVALID - ${errorMessage}`);
+    // Change to a known-good directory to prevent spawn ENOTDIR errors
+    // Use app.getPath('home') or '/' as fallback
+    const fallbackCwd: string = os.homedir();
+    try {
+        process.chdir(fallbackCwd);
+        console.log(`[Startup] Changed cwd to fallback: ${fallbackCwd}`);
+    } catch (chdirError: unknown) {
+        const chdirErrorMessage: string = chdirError instanceof Error ? chdirError.message : String(chdirError);
+        console.error(`[Startup] Failed to change to fallback cwd: ${chdirErrorMessage}`);
+    }
 }
 
 const {autoUpdater} = electronUpdater;
@@ -161,92 +190,6 @@ let textToTreeServerPort: number | null = null;
 // ============================================================================
 // Functional Graph Architecture
 // ============================================================================
-
-/**
- * Setup native macOS application menu with File > Open
- */
-function setupApplicationMenu(): void {
-    const template: MenuItemConstructorOptions[] = [
-        {
-            label: app.name,
-            submenu: [
-                {role: 'about'},
-                {type: 'separator'},
-                {role: 'quit'}
-            ]
-        },
-        {
-            label: 'File',
-            submenu: [
-                {
-                    label: 'Open Folder...',
-                    accelerator: 'CmdOrCtrl+O',
-                    click: () => {
-                        void startFileWatching();
-                    }
-                },
-                {
-                    label: 'Open Folder in New Instance...',
-                    accelerator: 'CmdOrCtrl+Shift+N',
-                    click: () => {
-                        void (async () => {
-                            const result: Electron.OpenDialogReturnValue = await dialog.showOpenDialog({
-                                properties: ['openDirectory', 'createDirectory'],
-                                title: 'Select Directory to Open in New Instance',
-                                buttonLabel: 'Open in New Instance'
-                            });
-                            if (!result.canceled && result.filePaths.length > 0) {
-                                const folderPath: string = result.filePaths[0];
-                                const {spawn} = await import('child_process');
-                                // Spawn new instance: electron binary + app path + args
-                                spawn(process.execPath, [app.getAppPath(), '--open-folder', folderPath], {
-                                    detached: true,
-                                    stdio: 'ignore'
-                                }).unref();
-                            }
-                        })();
-                    }
-                }
-            ]
-        },
-        {
-            label: 'Edit',
-            submenu: [
-                {role: 'undo'},
-                {role: 'redo'},
-                {type: 'separator'},
-                {role: 'cut'},
-                {role: 'copy'},
-                {role: 'paste'},
-            ]
-        },
-        {
-            label: 'View',
-            submenu: [
-                {role: 'reload'},
-                {role: 'forceReload'},
-                {role: 'toggleDevTools'},
-                {type: 'separator'},
-                {role: 'resetZoom'},
-                {role: 'zoomIn'},
-                {role: 'zoomOut'}
-            ]
-        },
-        {
-            label: 'Window',
-            submenu: [
-                {role: 'minimize'},
-                {role: 'zoom'},
-                {role: 'togglefullscreen'},
-                {type: 'separator'},
-                {role: 'front'}
-            ]
-        }
-    ];
-
-    const menu: Menu = Menu.buildFromTemplate(template);
-    Menu.setApplicationMenu(menu);
-}
 
 function createWindow(): void {
     // Note: BrowserWindow icon property only works on Windows/Linux
@@ -446,6 +389,9 @@ let isQuitting: boolean = false;
 app.on('before-quit', () => {
     isQuitting = true;
     console.log('[App] before-quit event - cleaning up resources...');
+
+    // Release folder lock
+    void releaseCurrentLock();
 
     // Clean up server process
     textToTreeServerManager.stop();

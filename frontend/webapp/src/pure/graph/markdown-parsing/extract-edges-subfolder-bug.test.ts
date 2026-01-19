@@ -1,7 +1,87 @@
 import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
-import { extractEdges } from '@/pure/graph/markdown-parsing/extract-edges'
+import { extractEdges, findBestMatchingNode, getPathComponents } from '@/pure/graph/markdown-parsing/extract-edges'
 import type { GraphNode, Edge } from '@/pure/graph'
+
+describe('findBestMatchingNode - full path match requirement', () => {
+  const createNode: (id: string, content?: string) => GraphNode = (id: string, content = ''): GraphNode => ({
+    absoluteFilePathIsID: id,
+    contentWithoutYamlOrLinks: content,
+    outgoingEdges: [],
+    nodeUIMetadata: {
+      color: O.none,
+      position: O.none,
+      additionalYAMLProps: new Map(),
+      isContextNode: false
+    }
+  })
+
+  it('should not match when link has more specific path than any node', () => {
+    // Link: openspec/changes/add-run-agent-on-selection/tasks.md (4 components)
+    // Node: only simplify-vault-path-architecture/tasks.md exists (only "tasks" matches = score 1)
+    // Expected: undefined (no match) because 1 < 4 components required
+    const link: string = 'openspec/changes/add-run-agent-on-selection/tasks.md'
+    const nodes: Record<string, GraphNode> = {
+      '/path/to/simplify-vault-path-architecture/tasks.md': createNode('/path/to/simplify-vault-path-architecture/tasks.md')
+    }
+    expect(findBestMatchingNode(link, nodes)).toBeUndefined()
+  })
+
+  it('should match when all link components match from end', () => {
+    // Link: b/c/tasks.md (3 components)
+    // Node: a/b/c/tasks.md (all 3 match from end = score 3)
+    // Expected: match because 3 >= 3 components
+    const link: string = 'b/c/tasks.md'
+    const nodes: Record<string, GraphNode> = {
+      'a/b/c/tasks.md': createNode('a/b/c/tasks.md')
+    }
+    expect(findBestMatchingNode(link, nodes)).toBe('a/b/c/tasks.md')
+  })
+
+  it('should match simple basename links to any file with that name', () => {
+    // Link: tasks.md (1 component)
+    // Node: any/path/tasks.md
+    // Expected: match because 1 >= 1 component
+    const link: string = 'tasks.md'
+    const nodes: Record<string, GraphNode> = {
+      'any/path/tasks.md': createNode('any/path/tasks.md')
+    }
+    expect(findBestMatchingNode(link, nodes)).toBe('any/path/tasks.md')
+  })
+
+  it('should prefer better matches when multiple nodes exist', () => {
+    // Link: a/b/tasks.md (3 components)
+    // Node 1: x/y/tasks.md (only "tasks" matches = score 1)
+    // Node 2: z/a/b/tasks.md (all 3 match = score 3)
+    // Expected: Node 2 (higher score and meets threshold)
+    const link: string = 'a/b/tasks.md'
+    const nodes: Record<string, GraphNode> = {
+      'x/y/tasks.md': createNode('x/y/tasks.md'),
+      'z/a/b/tasks.md': createNode('z/a/b/tasks.md')
+    }
+    expect(findBestMatchingNode(link, nodes)).toBe('z/a/b/tasks.md')
+  })
+
+  it('should return undefined when partial path match is insufficient', () => {
+    // Link: a/b/c/tasks.md (4 components)
+    // Node: x/b/c/tasks.md (only b/c/tasks match = score 3)
+    // Expected: undefined because 3 < 4 components
+    const link: string = 'a/b/c/tasks.md'
+    const nodes: Record<string, GraphNode> = {
+      'x/b/c/tasks.md': createNode('x/b/c/tasks.md')
+    }
+    expect(findBestMatchingNode(link, nodes)).toBeUndefined()
+  })
+})
+
+describe('getPathComponents', () => {
+  it('should extract components correctly', () => {
+    expect(getPathComponents('a/b/c/tasks.md')).toEqual(['a', 'b', 'c', 'tasks'])
+    expect(getPathComponents('tasks.md')).toEqual(['tasks'])
+    expect(getPathComponents('./tasks.md')).toEqual(['tasks'])
+    expect(getPathComponents('../b/tasks.md')).toEqual(['b', 'tasks'])
+  })
+})
 
 describe('extractEdges - subfolder bug reproduction', () => {
   const createNode: (id: string, content?: string) => GraphNode = (id: string, content = ''): GraphNode => ({

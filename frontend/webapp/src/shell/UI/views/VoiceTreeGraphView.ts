@@ -494,7 +494,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // Update graph styles
         const styleService: StyleService = new StyleService();
         const newStyles: { selector: string; style: Record<string, unknown>; }[] = styleService.getCombinedStylesheet();
-        this.cy.style(newStyles);
+        this.cy.style().clear().fromJson(newStyles).update();
 
         // Update search service theme
         this.searchService.updateTheme(this._isDarkMode);

@@ -247,18 +247,19 @@ export function anchorToNode(
         const contextNode: cytoscape.CollectionReturnValue = cy.getElementById(contextNodeId);
 
         if (contextNode.length > 0) {
-            // Fixed offset: top-left of terminal
-            const contextOffset: { x: number; y: number } = {
-                x: -shadowDimensions.width / 2 - 40,
-                y: -shadowDimensions.height / 2 + 20
-            };
-
             // Sync context node position to shadow node
+            // Dynamically reads dimensions to stay terminal-width aware
             const syncContextPosition: () => void = () => {
                 const shadowPos: cytoscape.Position = shadowNode.position();
+                // Calculate offset dynamically based on current shadow node dimensions
+                const terminalWidth: number = shadowNode.width();
+                const terminalHeight: number = shadowNode.height();
+                const contextWidth: number = contextNode.width();
+                const contextHeight: number = contextNode.height();
+                // Position context node flush with terminal left edge, tops aligned
                 contextNode.position({
-                    x: shadowPos.x + contextOffset.x,
-                    y: shadowPos.y + contextOffset.y
+                    x: shadowPos.x - terminalWidth / 2 - contextWidth / 2,
+                    y: shadowPos.y - terminalHeight / 2 + contextHeight / 2
                 });
             };
 
@@ -268,8 +269,20 @@ export function anchorToNode(
             // Follow terminal on position changes
             shadowNode.on('position', syncContextPosition);
 
+            // Also update context position when terminal is resized
+            const handleResize: (evt: cytoscape.EventObject, data: { nodeId: string }) => void = (
+                _evt: cytoscape.EventObject,
+                data: { nodeId: string }
+            ) => {
+                if (data.nodeId === shadowNodeId) {
+                    syncContextPosition();
+                }
+            };
+            cy.on('floatingwindow:resize', handleResize);
+
             // Store cleanup reference
-            (shadowNode as cytoscape.NodeSingular & { _contextPositionSync?: () => void })._contextPositionSync = syncContextPosition;
+            (shadowNode as cytoscape.NodeSingular & { _contextPositionSync?: () => void; _resizeHandler?: typeof handleResize })._contextPositionSync = syncContextPosition;
+            (shadowNode as cytoscape.NodeSingular & { _contextPositionSync?: () => void; _resizeHandler?: typeof handleResize })._resizeHandler = handleResize;
         }
     }
 

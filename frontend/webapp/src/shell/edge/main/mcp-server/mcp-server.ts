@@ -1,7 +1,7 @@
 /**
  * MCP Server for VoiceTree
  *
- * Exposes graph operations (add_node, get_graph, list_nodes) via Model Context Protocol.
+ * Exposes graph operations (spawn_agent, list_agents) via Model Context Protocol.
  * This server uses HTTP transport so it can run in-process with Electron and share state.
  *
  * Architecture:
@@ -233,70 +233,46 @@ export function createMcpServer(): McpServer {
     //     }
     // )
 
-    // Tool: get_graph
-    server.registerTool(
-        'get_graph',
-        {
-            title: 'Get Graph',
-            description: 'Get the current graph state with all nodes and edges.',
-            inputSchema: {}
-        },
-        async () => {
-            const graph: Graph = getGraph()
-            const nodes: Record<string, {
-                id: string
-                title: string
-                content: string
-                outgoingEdges: Array<{targetId: string; label: string}>
-            }> = {}
-
-            for (const [_nodeId, node] of Object.entries(graph.nodes)) {
-                nodes[node.absoluteFilePathIsID] = {
-                    id: node.absoluteFilePathIsID,
-                    title: getNodeTitle(node),
-                    content: node.contentWithoutYamlOrLinks,
-                    outgoingEdges: node.outgoingEdges.map(e => ({
-                        targetId: e.targetId,
-                        label: e.label
-                    }))
-                }
-            }
-
-            return {
-                content: [{
-                    type: 'text',
-                    text: JSON.stringify({
-                        nodeCount: Object.keys(nodes).length,
-                        nodes
-                    }, null, 2)
-                }]
-            }
-        }
-    )
-
-    // Tool: list_nodes
-    server.registerTool(
-        'list_nodes',
-        {
-            title: 'List Nodes',
-            description: 'List all nodes in the graph with their IDs and titles.',
-            inputSchema: {}
-        },
-        async () => {
-            const graph: Graph = getGraph()
-            const nodes: { id: string; title: string; }[] = Object.values(graph.nodes).map(node => ({
-                id: node.absoluteFilePathIsID,
-                title: getNodeTitle(node)
-            }))
-
-            return {
-                content: [{
-                    type: 'text',
-                    text: JSON.stringify({nodes}, null, 2)
-                }]
-            }
-        }
-    )
+    // Tool: get_graph - COMMENTED OUT (unnecessary, agents can just read the markdown folders directly)
+    // server.registerTool(
+    //     'get_graph',
+    //     {
+    //         title: 'Get Graph',
+    //         description: 'Get the current graph state with all nodes and edges.',
+    //         inputSchema: {}
+    //     },
+    //     async () => {
+    //         const graph: Graph = getGraph()
+    //         const nodes: Record<string, {
+    //             id: string
+    //             title: string
+    //             content: string
+    //             outgoingEdges: Array<{targetId: string; label: string}>
+    //         }> = {}
+    //
+    //         for (const [_nodeId, node] of Object.entries(graph.nodes)) {
+    //             nodes[node.absoluteFilePathIsID] = {
+    //                 id: node.absoluteFilePathIsID,
+    //                 title: getNodeTitle(node),
+    //                 content: node.contentWithoutYamlOrLinks,
+    //                 outgoingEdges: node.outgoingEdges.map(e => ({
+    //                     targetId: e.targetId,
+    //                     label: e.label
+    //                 }))
+    //             }
+    //         }
+    //
+    //         return {
+    //             content: [{
+    //                 type: 'text',
+    //                 text: JSON.stringify({
+    //                     nodeCount: Object.keys(nodes).length,
+    //                     nodes
+    //                 }, null, 2)
+    //             }]
+    //         }
+    //     }
+    // )
 
     // Tool: spawn_agent
     server.registerTool(
@@ -321,51 +297,6 @@ export function createMcpServer(): McpServer {
             inputSchema: {}
         },
         listAgentsTool
-    )
-
-    // Tool: get_unseen_nodes_around_context_node
-    server.registerTool(
-        'get_unseen_nodes_around_context_node',
-        {
-            title: 'Get Unseen Nodes Around Context Node',
-            description: 'For a given context node, re-runs the graph traversal and returns nodes that were not included in the original context. Returns content without YAML frontmatter.',
-            inputSchema: {
-                contextNodeId: z.string().describe('The ID of the context node to find unseen nodes around')
-            }
-        },
-        async ({contextNodeId}) => {
-            try {
-                const unseenNodes: readonly UnseenNode[] = await getUnseenNodesAroundContextNode(contextNodeId)
-
-                return {
-                    content: [{
-                        type: 'text',
-                        text: JSON.stringify({
-                            success: true,
-                            contextNodeId,
-                            unseenNodeCount: unseenNodes.length,
-                            unseenNodes: unseenNodes.map(node => ({
-                                nodeId: node.nodeId,
-                                content: node.content
-                            }))
-                        }, null, 2)
-                    }]
-                }
-            } catch (error) {
-                const errorMessage: string = error instanceof Error ? error.message : String(error)
-                return {
-                    content: [{
-                        type: 'text',
-                        text: JSON.stringify({
-                            success: false,
-                            contextNodeId,
-                            error: errorMessage
-                        })
-                    }],
-                    isError: true
-                }
-            }
-        }
     )
 
     return server
