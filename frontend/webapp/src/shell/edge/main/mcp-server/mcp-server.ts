@@ -23,8 +23,10 @@ import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getUnseenNodesAroundContextNode, type UnseenNode} from '@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode'
 import {spawnTerminalWithContextNode} from '@/shell/edge/main/terminals/spawnTerminalWithContextNode'
 import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
+import {findAvailablePort} from '@/shell/edge/main/electron/port-utils'
 
-const MCP_PORT: 3001 = 3001 as const
+const MCP_BASE_PORT: 3001 = 3001 as const
+let mcpPort: number = MCP_BASE_PORT // eslint-disable-line prefer-const -- reassigned in startMcpServer
 
 type McpToolResponse = {
     content: Array<{type: 'text'; text: string}>
@@ -387,8 +389,10 @@ export async function startMcpServer(): Promise<void> {
         await transport.handleRequest(req, res, req.body)
     })
 
-    app.listen(MCP_PORT, () => {
-        console.log(`[MCP] VoiceTree MCP Server running on http://localhost:${MCP_PORT}/mcp`)
+    mcpPort = await findAvailablePort(MCP_BASE_PORT)
+
+    app.listen(mcpPort, () => {
+        console.log(`[MCP] VoiceTree MCP Server running on http://localhost:${mcpPort}/mcp`)
     })
 }
 
@@ -396,5 +400,5 @@ export async function startMcpServer(): Promise<void> {
  * Returns the MCP server port for configuration.
  */
 export function getMcpPort(): number {
-    return MCP_PORT
+    return mcpPort
 }

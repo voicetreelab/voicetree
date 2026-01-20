@@ -3,6 +3,7 @@
  */
 import type {Core, NodeSingular} from 'cytoscape';
 import type {Graph} from '@/pure/graph';
+import {isImageNode} from '@/pure/graph';
 import {HorizontalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService';
 import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService';
 import {enableAutoLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout';
@@ -47,12 +48,18 @@ export function setupCytoscape(params: SetupCytoscapeParams): {
     console.log('[VoiceTreeGraphView] Registering tap handler for floating windows');
     cy.on('tap', 'node', (event) => {
         const node: NodeSingular = event.target;
+        const nodeId: string = node.id();
 
         // Emit node selected event
-        onNodeSelected(node.id());
+        onNodeSelected(nodeId);
+
+        // Don't open floating editor for image nodes
+        if (isImageNode(nodeId)) {
+            return;
+        }
 
         console.log('[VoiceTreeGraphView] Calling createAnchoredFloatingEditor');
-        void createAnchoredFloatingEditor(cy, node.id(), true).then(() => console.log('[VoiceTreeGraphView] Created editor'));
+        void createAnchoredFloatingEditor(cy, nodeId, true).then(() => console.log('[VoiceTreeGraphView] Created editor'));
     });
 
     // Setup horizontal menu (node hover)

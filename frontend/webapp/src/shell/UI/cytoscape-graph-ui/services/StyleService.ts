@@ -193,7 +193,7 @@ export class StyleService {
           'line-color': this.lineColor,
           'loop-sweep': '-50deg',
           'loop-direction': '-45deg',
-          'width': 2,
+          'width': 3,
           'line-opacity': 0.5, // Increased from 0.3 for better visibility in dark mode
           'target-arrow-shape': 'triangle',
           'target-arrow-fill': 'hollow' as cytoscape.Css.ArrowFill,
@@ -219,7 +219,7 @@ export class StyleService {
       {
         selector: 'edge[edgeCount]',
         style: {
-          'width': 'mapData(edgeCount, 1, 50, 0.55, 3)',
+          'width': 'mapData(edgeCount, 1, 50, 1, 5)',
           'arrow-scale': 'mapData(edgeCount, 1, 50, 0.35, 1.5)',
           'line-opacity': 'mapData(edgeCount, 1, 10, 0.35, 0.6)', // Increased min/max for visibility
         }
@@ -229,7 +229,7 @@ export class StyleService {
       {
         selector: 'edge.connected-hover',
         style: {
-          'width': 1,
+          'width': 2,
           'opacity': 1,
           'font-weight': 'bold',
           'line-color': this.lineHighlightColor,
@@ -270,18 +270,32 @@ export class StyleService {
         style: {
           'line-color': '#FFD700',
           'line-opacity': 1,
-          'width': 4,
+          'width': 6,
         }
       },
 
-      // Terminal indicator lines - visual only, excluded from layout
+
+        // terminal -> created nodes indicator edges.
+        {
+            selector: 'edge.terminal-progres-nodes-indicator',
+            style: {
+                'line-style': 'dotted',
+                'line-color': '#100eb2',
+                'line-opacity': 0.5,
+                'width': 1,
+                'target-arrow-shape': 'none',
+                'curve-style': 'straight',
+            }
+        },
+
+      // floating-window indicator edges.
       {
         selector: 'edge.terminal-indicator',
         style: {
           'line-style': 'dotted',
           'line-color': '#888888',
-          'line-opacity': 0.4,
-          'width': 1,
+          'line-opacity': 0.8,
+          'width': 1.5,
           'target-arrow-shape': 'none',
           'curve-style': 'straight',
         }

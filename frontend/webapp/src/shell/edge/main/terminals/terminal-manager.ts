@@ -84,7 +84,7 @@ export default class TerminalManager {
       const ptyProcess: pty.IPty = pty.spawn(shell, shellArgs, {
         name: 'xterm-256color',
         cols: 80,
-        rows: 160,
+        rows: 24,
         cwd: cwd,
         env: customEnv
       });

@@ -34,6 +34,32 @@ export function updateWindowFromZoom(cy: cytoscape.Core, windowElement: HTMLElem
     }
     windowElement.dataset.usingCssTransform = strategy === 'css-transform' ? 'true' : 'false';
 
+    // Scale terminal title bar during dimension-scaling mode
+    // In css-transform mode, the whole window scales so title bar scales automatically.
+    // In dimension-scaling mode, we scale window dimensions but title bar stays fixed,
+    // making it look disproportionately large. Apply CSS transform to title bar to compensate.
+    if (isTerminal) {
+        const titleBar: HTMLElement | null = windowElement.querySelector('.terminal-title-bar');
+        if (titleBar) {
+            if (strategy === 'dimension-scaling') {
+                const baseHeight: number = 28; // Match CSS min-height
+                // Scale uniformly but counter-scale width so title bar spans full window
+                // Width: (100/zoom)% * zoom = 100% after transform
+                titleBar.style.width = `${100 / zoom}%`;
+                titleBar.style.transform = `scale(${zoom})`;
+                titleBar.style.transformOrigin = 'top left';
+                // Compensate for layout gap - element takes baseHeight but visually smaller
+                titleBar.style.marginBottom = `${-baseHeight * (1 - zoom)}px`;
+            } else {
+                // Reset in css-transform mode (whole window scales)
+                titleBar.style.width = '';
+                titleBar.style.transform = '';
+                titleBar.style.transformOrigin = '';
+                titleBar.style.marginBottom = '';
+            }
+        }
+    }
+
     // Update position - look up shadow node or use stored graph position
     const shadowNodeId: string | undefined = windowElement.dataset.shadowNodeId;
     let graphX: number | undefined;

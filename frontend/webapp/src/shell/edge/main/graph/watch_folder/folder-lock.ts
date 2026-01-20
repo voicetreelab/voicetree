@@ -29,11 +29,13 @@ function isPidRunning(pid: number): boolean {
 
 /**
  * Try to acquire a lock for the given folder.
+ * Always acquires the lock, but returns a warning if another process may be using the folder.
  *
- * @returns { success: true } if lock acquired, { success: false, error: string } if folder is locked by another instance
+ * @returns { success: true, warning?: string } - always succeeds, warning present if potential conflict detected
  */
-export async function acquireFolderLock(folderPath: string): Promise<{ success: true } | { success: false; error: string }> {
+export async function acquireFolderLock(folderPath: string): Promise<{ success: true; warning?: string }> {
     const lockPath: string = path.join(folderPath, LOCK_FILENAME)
+    let warning: string | undefined
 
     try {
         // Check if lock file exists
@@ -43,15 +45,14 @@ export async function acquireFolderLock(folderPath: string): Promise<{ success: 
             const pid: number = parseInt(lockContent.trim(), 10)
 
             if (!isNaN(pid) && isPidRunning(pid)) {
-                // Lock is held by a running process
-                return {
-                    success: false,
-                    error: `Another instance of VoiceTree is already running in this folder (PID: ${pid})`
-                }
+                // Lock is held by a running process - warn but continue
+                warning = `Another process may be using this folder (PID: ${pid}). This could be another VoiceTree instance or a stale lock from a crashed process.`
+                console.warn(`[folder-lock] ${warning}`)
+            } else {
+                // Stale lock from crashed process - remove it
+                console.log(`[folder-lock] Removing stale lock from PID ${pid}`)
             }
 
-            // Stale lock from crashed process - remove it
-            console.log(`[folder-lock] Removing stale lock from PID ${pid}`)
             await fs.unlink(lockPath).catch(() => {})
         }
 
@@ -60,10 +61,12 @@ export async function acquireFolderLock(folderPath: string): Promise<{ success: 
         currentLockPath = lockPath
         console.log(`[folder-lock] Acquired lock for ${folderPath} (PID: ${process.pid})`)
 
-        return { success: true }
+        return { success: true, warning }
     } catch (error) {
         const errorMessage: string = error instanceof Error ? error.message : String(error)
-        return { success: false, error: `Failed to acquire folder lock: ${errorMessage}` }
+        console.error(`[folder-lock] Failed to acquire lock: ${errorMessage}`)
+        // Still return success - lock is best-effort, don't block the user
+        return { success: true, warning: `Could not create lock file: ${errorMessage}` }
     }
 }
 
