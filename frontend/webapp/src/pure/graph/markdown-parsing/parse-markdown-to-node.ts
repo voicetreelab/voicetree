@@ -137,8 +137,11 @@ export function parseMarkdownToGraphNode(content: string, filename: string, grap
     const contentWithoutYamlOrLinks: string = contentWithoutFrontmatter.replace(/\[\[([^\]]+)\]\]/g, '[$1]*')
 
     // Read containedNodeIds from frontmatter (array of node IDs whose content is in this context node)
+    // Normalize paths to forward slashes for cross-platform consistency (Windows paths use backslashes)
     const containedNodeIds: readonly string[] | undefined = Array.isArray(parsed.data.containedNodeIds)
-        ? parsed.data.containedNodeIds.filter((id): id is string => typeof id === 'string')
+        ? parsed.data.containedNodeIds
+            .filter((id): id is string => typeof id === 'string')
+            .map((id: string) => filenameToNodeId(id))
         : undefined
 
     // Extract additional YAML properties, excluding keys that have explicit fields in NodeUIMetadata

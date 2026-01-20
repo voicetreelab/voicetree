@@ -9,6 +9,7 @@
 
 import path from "path";
 import { promises as fs } from "fs";
+import normalizePath from "normalize-path";
 import type { FSWatcher } from "chokidar";
 import * as O from "fp-ts/lib/Option.js";
 import type { FilePath, Graph, GraphDelta, DeleteNode } from "@/pure/graph";
@@ -34,46 +35,52 @@ import {
 } from "./voicetree-config-io";
 
 /**
- * Resolve a writePath to an absolute path.
+ * Resolve a writePath to an absolute path with normalized separators.
  * If writePath is relative, it's resolved against watchedFolder.
  * If writePath is absolute, it's returned unchanged.
+ * Always normalizes to forward slashes for cross-platform consistency.
  */
 export function resolveWritePath(watchedFolder: string, writePath: string): string {
-    return path.isAbsolute(writePath)
+    const resolved: string = path.isAbsolute(writePath)
         ? writePath
         : path.join(watchedFolder, writePath);
+    return normalizePath(resolved);
 }
 
 /**
  * Get all vault paths (writePath + readPaths).
  * Reads directly from config file (source of truth).
+ * All paths are normalized to forward slashes for cross-platform consistency.
  */
 export async function getVaultPaths(): Promise<readonly FilePath[]> {
     const watchedDir: FilePath | null = getWatchedDirectory();
     if (!watchedDir) return [];
     const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
     if (!config) return [];
-    // Return writePath + all readPaths
+    // Return writePath + all readPaths (all normalized)
     const resolvedWritePath: string = resolveWritePath(watchedDir, config.writePath);
-    return [resolvedWritePath, ...config.readPaths];
+    const normalizedReadPaths: readonly string[] = config.readPaths.map((p: string) => normalizePath(p));
+    return [resolvedWritePath, ...normalizedReadPaths];
 }
 
 /**
  * Get the readPaths array (additional paths for reading, not including writePath).
  * Reads directly from config file (source of truth).
+ * All paths are normalized to forward slashes for cross-platform consistency.
  */
 export async function getReadPaths(): Promise<readonly FilePath[]> {
     const watchedDir: FilePath | null = getWatchedDirectory();
     if (!watchedDir) return [];
     const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
     if (!config) return [];
-    return config.readPaths;
+    return config.readPaths.map((p: string) => normalizePath(p));
 }
 
 /**
  * Get the write path (where new nodes are created).
  * Reads directly from config file (source of truth).
  * Falls back to the watched directory if not explicitly set.
+ * Path is normalized to forward slashes for cross-platform consistency.
  */
 export async function getWritePath(): Promise<O.Option<FilePath>> {
     const watchedDir: FilePath | null = getWatchedDirectory();
@@ -82,8 +89,8 @@ export async function getWritePath(): Promise<O.Option<FilePath>> {
     if (config?.writePath) {
         return O.some(resolveWritePath(watchedDir, config.writePath));
     }
-    // Fallback to watched directory
-    return O.some(watchedDir);
+    // Fallback to watched directory (normalized)
+    return O.some(normalizePath(watchedDir));
 }
 
 /**
@@ -202,6 +209,9 @@ export async function removeReadPath(vaultPath: FilePath): Promise<{ success: bo
         return { success: false, error: 'No directory is being watched' };
     }
 
+    // Normalize input path for consistent comparisons (nodeIds use forward slashes)
+    const normalizedVaultPath: string = normalizePath(vaultPath);
+
     const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
     if (!config) {
         return { success: false, error: 'No vault config found' };
@@ -210,7 +220,7 @@ export async function removeReadPath(vaultPath: FilePath): Promise<{ success: bo
     const resolvedWritePath: string = resolveWritePath(watchedDir, config.writePath);
 
     // Cannot remove the current write path
-    if (vaultPath === resolvedWritePath) {
+    if (normalizedVaultPath === resolvedWritePath) {
         return { success: false, error: 'Cannot remove write path' };
     }
 
@@ -223,20 +233,23 @@ export async function removeReadPath(vaultPath: FilePath): Promise<{ success: bo
 
     // Build list of paths that should be KEPT (current writePath + remaining readPaths)
     // Exclude the path we're removing so its nodes can be deleted
-    const remainingReadPaths: readonly string[] = config.readPaths.filter((p: string) => p !== vaultPath);
+    // Normalize all paths for consistent comparison with nodeIds (which use forward slashes)
+    const remainingReadPaths: readonly string[] = config.readPaths
+        .filter((p: string) => normalizePath(p) !== normalizedVaultPath)
+        .map((p: string) => normalizePath(p));
     const pathsToKeep: readonly string[] = [resolvedWritePath, ...remainingReadPaths];
 
     // Helper to check if a nodeId is inside any of the paths to keep
     const isInPathToKeep: (nodeId: string) => boolean = (nodeId: string): boolean => {
         return pathsToKeep.some(keepPath =>
-            nodeId.startsWith(keepPath + path.sep) || nodeId === keepPath
+            nodeId.startsWith(keepPath + '/') || nodeId === keepPath
         );
     };
 
     // Find nodes whose ID starts with this vault's absolute path (node IDs are absolute file paths)
     // BUT exclude nodes that are inside paths we want to keep
     const nodesToRemove: readonly string[] = Object.keys(currentGraph.nodes).filter(nodeId =>
-        (nodeId.startsWith(vaultPath + path.sep) || nodeId === vaultPath) &&
+        (nodeId.startsWith(normalizedVaultPath + '/') || nodeId === normalizedVaultPath) &&
         !isInPathToKeep(nodeId)
     );
 
@@ -315,11 +328,14 @@ export async function resolveAllowlistForProject(
     }
 
     // Filter readPaths to those that still exist on disk
+    // Normalize all paths to forward slashes for cross-platform consistency
     const validReadPaths: string[] = [];
     for (const savedPath of savedVaultConfig.readPaths) {
-        const absolutePath: string = path.isAbsolute(savedPath)
-            ? savedPath
-            : path.join(watchedDir, savedPath);
+        const absolutePath: string = normalizePath(
+            path.isAbsolute(savedPath)
+                ? savedPath
+                : path.join(watchedDir, savedPath)
+        );
         try {
             await fs.access(absolutePath);
             validReadPaths.push(absolutePath);
@@ -335,12 +351,12 @@ export async function resolveAllowlistForProject(
     };
 }
 
-// Returns the watched directory (project root).
+// Returns the watched directory (project root), normalized to forward slashes.
 // For the actual write path where new files are created, use getWritePath() instead.
 export function getVaultPath(): O.Option<FilePath> {
     const watchedDir: FilePath | null = getWatchedDirectory();
     if (!watchedDir) return O.none;
-    return O.some(watchedDir);
+    return O.some(normalizePath(watchedDir));
 }
 
 // For external callers (MCP) - sets the vault path directly

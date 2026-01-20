@@ -183,10 +183,10 @@ function createExpandButton(
     button.dataset.icon = 'maximize';
     button.dataset.expanded = 'false';
 
-    // Position in bottom-right corner, flush with edge
+    // Position in bottom-left corner, flush with edge
     button.style.position = 'absolute';
     button.style.bottom = '0';
-    button.style.right = '0';
+    button.style.left = '0';
 
     // Create and append initial icon (Maximize2)
     const initialIcon: SVGElement = createElement(Maximize2);

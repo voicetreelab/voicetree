@@ -128,19 +128,19 @@ describe('createWindowChrome', () => {
         });
     });
 
-    describe('Phase 2B: Bottom-right expand button', () => {
-        it('should have expand button in bottom-right corner of window', () => {
+    describe('Phase 2B: Bottom-left expand button', () => {
+        it('should have expand button in bottom-left corner of window', () => {
             const result: FloatingWindowUIData = createWindowChrome(cy, editorData, editorId);
 
             const expandBtn: HTMLElement | null = result.windowElement.querySelector('.cy-floating-window-expand-corner');
             expect(expandBtn).not.toBeNull();
             expect(expandBtn).toBeInstanceOf(HTMLElement);
 
-            // Verify button is positioned in bottom-right via inline styles (flush with edge)
+            // Verify button is positioned in bottom-left via inline styles (flush with edge)
             if (expandBtn) {
                 expect(expandBtn.style.position).toBe('absolute');
                 expect(expandBtn.style.bottom).toBe('0px');
-                expect(expandBtn.style.right).toBe('0px');
+                expect(expandBtn.style.left).toBe('0px');
             }
         });
 
