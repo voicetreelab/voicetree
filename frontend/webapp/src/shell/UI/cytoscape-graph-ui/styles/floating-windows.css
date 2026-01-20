@@ -560,6 +560,13 @@
   color: var(--primary-foreground);
 }
 
+/* Terminal windows should not have horizontal scroll - xterm.js manages its own rendering.
+ * On Windows, scrollbars take up physical space causing FitAddon to miscalculate column width,
+ * resulting in xterm content being slightly wider than the container. */
+.cy-floating-window-terminal .cy-floating-window-content {
+  overflow-x: hidden;
+}
+
 /* =============================================================================
  * Settings Editor Title Bar
  * Simple title bar with close button - similar to terminal but simpler
@@ -589,4 +596,9 @@
   font-size: 12px;
   font-weight: 500;
   color: var(--muted-foreground);
+}
+
+/* Settings close button - pushed to far right */
+.settings-title-bar .traffic-light-close {
+  margin-left: auto;
 }

@@ -229,19 +229,41 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // ============================================================================
 
     private setupDarkMode(): void {
-        // Check localStorage first, then options
-        const savedDarkMode: string | null = localStorage.getItem('darkMode');
-        if (savedDarkMode !== null) {
-            this._isDarkMode = savedDarkMode === 'true';
-        } else if (this.options.initialDarkMode !== undefined) {
+        // Start with option default, then async load from settings
+        if (this.options.initialDarkMode !== undefined) {
             this._isDarkMode = this.options.initialDarkMode;
         }
 
-        // Apply to document
+        // Apply initial state to document
         if (this._isDarkMode) {
             document.documentElement.classList.add('dark');
         } else {
             document.documentElement.classList.remove('dark');
+        }
+
+        // Async load from settings (source of truth)
+        void this.loadDarkModeFromSettings();
+    }
+
+    private async loadDarkModeFromSettings(): Promise<void> {
+        const settings: VTSettings | null = await window.electronAPI?.main.loadSettings() ?? null;
+        if (settings?.darkMode !== undefined && settings.darkMode !== this._isDarkMode) {
+            this._isDarkMode = settings.darkMode;
+            if (this._isDarkMode) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+            // Update graph styles if already initialized
+            if (this.cy) {
+                const styleService: StyleService = new StyleService();
+                const newStyles: { selector: string; style: Record<string, unknown>; }[] = styleService.getCombinedStylesheet();
+                this.cy.style().clear().fromJson(newStyles).update();
+            }
+            // Update speed dial menu icon
+            if (this.speedDialMenu) {
+                this.speedDialMenu.updateDarkMode(this._isDarkMode);
+            }
         }
     }
 
@@ -489,7 +511,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             document.documentElement.classList.remove('dark');
         }
 
-        localStorage.setItem('darkMode', String(this._isDarkMode));
+        // Save to settings (source of truth)
+        void this.saveDarkModeToSettings();
 
         // Update graph styles
         const styleService: StyleService = new StyleService();
@@ -502,6 +525,14 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // Update speed dial menu icon
         if (this.speedDialMenu) {
             this.speedDialMenu.updateDarkMode(this._isDarkMode);
+        }
+    }
+
+    private async saveDarkModeToSettings(): Promise<void> {
+        const settings: VTSettings | null = await window.electronAPI?.main.loadSettings() ?? null;
+        if (settings && window.electronAPI) {
+            const updatedSettings: VTSettings = { ...settings, darkMode: this._isDarkMode };
+            await window.electronAPI.main.saveSettings(updatedSettings);
         }
     }
 

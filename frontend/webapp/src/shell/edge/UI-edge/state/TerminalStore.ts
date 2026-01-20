@@ -1,9 +1,10 @@
-import {getTerminalId, type TerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
+import {getTerminalId, type TerminalId, type FloatingWindowUIData} from "@/shell/edge/UI-edge/floating-windows/types";
 import type {NodeIdAndFilePath} from "@/pure/graph";
 import type {} from '@/shell/electron';
 import * as O from "fp-ts/lib/Option.js";
 import {type Option} from "fp-ts/lib/Option.js";
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
+import type {TerminalRecord} from "@/shell/edge/main/terminals/terminal-registry";
 
 const terminals: Map<TerminalId, TerminalData> = new Map<TerminalId, TerminalData>();
 
@@ -29,6 +30,65 @@ function notifySubscribers(): void {
     const terminalList: TerminalData[] = Array.from(terminals.values());
     for (const callback of subscribers) {
         callback(terminalList);
+    }
+}
+
+/**
+ * Sync terminal state from main process.
+ * This is the primary way terminal data arrives in the renderer - pushed from main.
+ * Preserves renderer-local UI references while updating data from main.
+ * Phase 3: Renderer is display-only, main is source of truth.
+ */
+export function syncFromMain(records: TerminalRecord[]): void {
+    // Build set of incoming terminal IDs for removal detection
+    const incomingIds: Set<string> = new Set(records.map(r => r.terminalId));
+
+    // Detect and handle removals (terminals in local store but not in incoming)
+    for (const [terminalId] of terminals) {
+        if (!incomingIds.has(terminalId)) {
+            // Terminal was removed in main - remove from local store
+            // Note: UI cleanup (floating window disposal) is handled separately
+            terminals.delete(terminalId);
+        }
+    }
+
+    // Update/add terminals from incoming records
+    for (const record of records) {
+        const terminalId: TerminalId = record.terminalId as TerminalId;
+        const existing: TerminalData | undefined = terminals.get(terminalId);
+
+        if (existing) {
+            // Update existing terminal, preserving renderer-local UI reference
+            terminals.set(terminalId, {
+                ...record.terminalData,
+                ui: existing.ui,  // Preserve existing UI
+            });
+        } else {
+            // New terminal from main - add without UI (will be set by launchTerminalOntoUI)
+            terminals.set(terminalId, record.terminalData);
+        }
+    }
+
+    notifySubscribers();
+}
+
+/**
+ * Set the UI reference for a terminal (renderer-local state).
+ * Called by launchTerminalOntoUI after creating the floating window.
+ *
+ * If terminal exists in store, attaches UI to it.
+ * If terminal doesn't exist yet (race condition: launchTerminalOntoUI arrived
+ * before syncTerminals), stores the terminalData with UI - it will be merged
+ * when syncFromMain arrives.
+ */
+export function setTerminalUI(terminalId: TerminalId, ui: FloatingWindowUIData, terminalData?: TerminalData): void {
+    const existing: TerminalData | undefined = terminals.get(terminalId);
+    if (existing) {
+        terminals.set(terminalId, { ...existing, ui });
+    } else if (terminalData) {
+        // Race condition fallback: terminal not in store yet, add it with UI
+        terminals.set(terminalId, { ...terminalData, ui });
+        notifySubscribers();
     }
 }
 

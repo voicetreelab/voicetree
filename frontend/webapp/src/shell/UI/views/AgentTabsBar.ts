@@ -17,7 +17,7 @@
 
 import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import { getTerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
-import { updateTerminal } from '@/shell/edge/UI-edge/state/TerminalStore';
+import type {} from '@/shell/electron';
 import {
     getActiveTerminalId,
     setActiveTerminalId,
@@ -29,7 +29,6 @@ import {
 } from '@/shell/edge/UI-edge/state/AgentTabsStore';
 import { getShortcutHintForTab } from '@/pure/agentTabs';
 import { createPinnedTab, createUnpinnedTab, type TabCreationDeps } from './agentTabElements';
-import type {} from '@/shell/electron';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
 import {
     startTerminalActivityPolling,
@@ -81,17 +80,19 @@ function updateDividerVisibility(terminals: TerminalData[]): void {
 /**
  * Unpin a terminal (move from pinned to unpinned section)
  * Exported for use by terminal traffic light buttons
+ * Phase 3: Routes through main process which is source of truth
  */
 export function unpinTerminal(terminalId: TerminalId): void {
-    updateTerminal(terminalId, { isPinned: false });
+    void window.electronAPI?.main.updateTerminalPinned(terminalId, false);
 }
 
 /**
  * Pin a terminal (move from unpinned to pinned section)
  * Exported for use by terminal traffic light buttons
+ * Phase 3: Routes through main process which is source of truth
  */
 export function pinTerminal(terminalId: TerminalId): void {
-    updateTerminal(terminalId, { isPinned: true });
+    void window.electronAPI?.main.updateTerminalPinned(terminalId, true);
 }
 
 // =============================================================================

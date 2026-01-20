@@ -2,7 +2,7 @@ import {getTerminalId, getShadowNodeId, type TerminalId} from "@/shell/edge/UI-e
 import type {CollectionReturnValue, Core, Position as CyPosition} from "cytoscape";
 import {getCyInstance} from "@/shell/edge/UI-edge/state/cytoscape-state";
 import {createFloatingTerminal} from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
-import {addTerminal, getTerminalByNodeId} from "@/shell/edge/UI-edge/state/TerminalStore";
+import {setTerminalUI, getTerminalByNodeId} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {vanillaFloatingWindowInstances} from "@/shell/edge/UI-edge/state/UIAppState";
 import {cySmartCenter} from "@/utils/responsivePadding";
 import * as O from "fp-ts/lib/Option.js";
@@ -39,18 +39,24 @@ export async function launchTerminalOntoUI(
     console.log("BEFORE LAUNCH UI")
     const cy: Core = getCyInstance();
 
-    // Check if a terminal already exists for this context node - only one allowed
+    // Check if a floating window already exists for this context node - only one allowed
+    // Phase 3: Terminal data may already be in store (via syncFromMain), but we check
+    // if the floating window UI exists - if so, focus it instead of creating a new one
     const existingTerminal: O.Option<TerminalData> = getTerminalByNodeId(contextNodeId as NodeIdAndFilePath);
     if (O.isSome(existingTerminal)) {
         const existingTerminalId: TerminalId = getTerminalId(existingTerminal.value);
-        console.log('[uiAPI] Terminal already exists for context node, focusing existing:', existingTerminalId);
-
-        // Focus the existing terminal instead of creating a new one
         const vanillaInstance: { dispose: () => void; focus?: () => void } | undefined = vanillaFloatingWindowInstances.get(existingTerminalId);
-        if (vanillaInstance?.focus) {
-            vanillaInstance.focus();
+
+        // Only skip creation if floating window actually exists
+        if (vanillaInstance) {
+            console.log('[uiAPI] Floating window already exists for context node, focusing:', existingTerminalId);
+            if (vanillaInstance.focus) {
+                vanillaInstance.focus();
+            }
+            return;
         }
-        return;
+        // Terminal data exists but no floating window - fall through to create it
+        console.log('[uiAPI] Terminal data exists but no floating window, creating for:', existingTerminalId);
     }
 
     const targetNode: CollectionReturnValue = cy.getElementById(contextNodeId);
@@ -69,7 +75,12 @@ export async function launchTerminalOntoUI(
     );
 
     if (terminalWithUI) {
-        addTerminal(terminalWithUI);
+        // Phase 3: Terminal data should be in store via syncFromMain from main process.
+        // Attach the UI reference (renderer-local state).
+        // Pass terminalWithUI as fallback for race condition where this arrives before syncTerminals.
+        if (terminalWithUI.ui) {
+            setTerminalUI(terminalId, terminalWithUI.ui, terminalWithUI);
+        }
 
         // Navigate to terminal neighborhood twice with delays to handle IPC race condition
         // (context node may not exist in Cytoscape yet when this runs)

@@ -44,11 +44,12 @@ describe('Terminal to created node edges', () => {
     })
 
     it('should create dotted edge from terminal shadow to new node with matching agent_name', () => {
-        // GIVEN: A terminal with title "Sam: Some task"
+        // GIVEN: A terminal with agentName "Sam"
         const terminal: TerminalData = createTerminalData({
             attachedToNodeId: 'context-node.md',
             terminalCount: 0,
             title: 'Sam: Some task',
+            agentName: 'Sam',  // Must match the node's agent_name in YAML
         })
         addTerminal(terminal)
 

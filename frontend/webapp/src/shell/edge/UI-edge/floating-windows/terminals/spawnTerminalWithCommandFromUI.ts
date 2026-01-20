@@ -427,6 +427,10 @@ export async function closeTerminal(terminal: TerminalData, cy: Core): Promise<v
     const terminalId: TerminalId = getTerminalId(terminal);
     console.log('[closeTerminal-v2] Closing terminal:', terminalId);
 
+    // Phase 3: Notify main process to remove from registry
+    // This ensures main stays in sync when terminal is closed from UI
+    void window.electronAPI?.main.removeTerminalFromRegistry(terminalId);
+
     // Analytics: Track terminal closed
     posthog.capture('terminal_closed', { terminalId: terminalId });
 
@@ -438,7 +442,7 @@ export async function closeTerminal(terminal: TerminalData, cy: Core): Promise<v
     }
 
     // Use disposeFloatingWindow from cytoscape-floating-windows.ts
-    // This removes shadow node, DOM elements, and from state
+    // This removes shadow node, DOM elements, and from state (local removal for immediate UI consistency)
     disposeFloatingWindow(cy, terminal);
 
     // Remove hasRunningTerminal flag from parent node if no other terminals are anchored to it
