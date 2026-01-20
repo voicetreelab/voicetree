@@ -10,6 +10,10 @@
       "env": {
         "GEMINI_API_KEY": "YOUR_GEMINI_API_KEY"
       }
+    },
+    "voicetree": {
+      "type": "http",
+      "url": "http://localhost:3001/mcp"
     }
   }
 }

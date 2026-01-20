@@ -15,6 +15,7 @@ import {updateFloatingEditors, createAnchoredFloatingEditor} from "@/shell/edge/
 import {getCyInstance} from "@/shell/edge/UI-edge/state/cytoscape-state";
 import {getResponsivePadding} from "@/utils/responsivePadding";
 import type {GraphDelta, NodeIdAndFilePath} from "@/pure/graph";
+import {isImageNode} from "@/pure/graph";
 import type {Core} from "cytoscape";
 
 /**
@@ -32,6 +33,10 @@ function updateFloatingEditorsFromExternal(delta: GraphDelta): void {
  * Called from main process FS watcher when it detects a new file was added externally.
  */
 function createEditorForExternalNode(nodeId: NodeIdAndFilePath): void {
+    // Don't auto-open floating editor for image nodes
+    if (isImageNode(nodeId)) {
+        return;
+    }
     const cy: Core = getCyInstance();
     void createAnchoredFloatingEditor(cy, nodeId, false, true);
 }

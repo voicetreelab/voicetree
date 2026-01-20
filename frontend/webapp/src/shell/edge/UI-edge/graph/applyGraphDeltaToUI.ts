@@ -9,6 +9,8 @@ import {markTerminalActivityForContextNode} from "@/shell/UI/views/AgentTabsBar"
 import type {} from '@/utils/types/cytoscape-layout-utilities';
 import {cyFitCollectionByAverageNodeSize} from "@/utils/responsivePadding";
 import {checkEngagementPrompts} from "./userEngagementPrompts";
+import {getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
+import {getShadowNodeId, getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 
 /**
  * Validates if a color value is a valid CSS color using the browser's CSS.supports API
@@ -111,6 +113,34 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                             y: pos.y
                         }
                     });
+
+                    // Create edge from terminal to node if agent_name matches
+                    const agentName: string | undefined = node.nodeUIMetadata.additionalYAMLProps.get('agent_name');
+                    if (agentName) {
+                        // Find terminal whose title starts with this agent name
+                        const terminals: Map<string, import('@/shell/edge/UI-edge/floating-windows/types').TerminalData> = getTerminals();
+                        // todo, make it O(1) with map
+                        for (const terminal of terminals.values()) {
+                            if (terminal.title.startsWith(agentName + ':') || terminal.title === agentName) {
+                                const shadowNodeId: string = getShadowNodeId(getTerminalId(terminal));
+                                const shadowNode: CollectionReturnValue = cy.getElementById(shadowNodeId);
+                                if (shadowNode.length > 0) {
+                                    const edgeId: string = `terminal-progress-${shadowNodeId}->${nodeId}`;
+                                    cy.add({
+                                        group: 'edges' as const,
+                                        data: {
+                                            id: edgeId,
+                                            source: shadowNodeId,
+                                            target: nodeId,
+                                        },
+                                        classes: 'terminal-progres-nodes-indicator'
+                                    });
+                                    console.log(`[applyGraphDeltaToUI] Created terminal->node edge: ${edgeId}`);
+                                    break; // Only link to first matching terminal
+                                }
+                            }
+                        }
+                    }
 
                     if (!hasPosition) {
                         nodesWithoutPositions.push(nodeId);

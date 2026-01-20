@@ -237,10 +237,13 @@ export function anchorToNode(
             id: `edge-${parentNode.id()}-${shadowNode.id()}`,
             source: parentNode.id(),
             target: shadowNode.id(),
-            isIndicatorEdge: true
+            // isIndicatorEdge: true FALSE FOR THESE ONES
         },
         classes: 'terminal-indicator'
     });
+
+    // Force render to ensure edge appears immediately (not deferred until pan/zoom)
+    cy.forceRender();
 
     // For terminals: fix context node position to top-left of terminal (no edge)
     // Context node follows terminal position at a fixed offset

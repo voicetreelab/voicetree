@@ -93,6 +93,7 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
     CONTEXT_NODE_PATH: contextNodeAbsolutePath,
     TASK_NODE_PATH: taskNodeAbsolutePath,
     CONTEXT_NODE_CONTENT: truncatedContextContent,
+    AGENT_NAME: agentName,
     ...resolvedEnvVars,
   };
   const expandedEnvVars: Record<string, string> = expandEnvVarsInValues(unexpandedEnvVars);

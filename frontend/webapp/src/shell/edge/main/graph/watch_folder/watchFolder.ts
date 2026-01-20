@@ -127,16 +127,15 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
     }
 
     // Try to acquire lock for the new folder
-    const lockResult: { success: true } | { success: false; error: string } = await acquireFolderLock(watchedFolderPath);
-    if (!lockResult.success) {
-        console.error('[loadFolder] Failed to acquire folder lock:', lockResult.error);
+    const lockResult: { success: true; warning?: string } = await acquireFolderLock(watchedFolderPath);
+    if (lockResult.warning) {
+        console.warn('[loadFolder] Folder lock warning:', lockResult.warning);
         void dialog.showMessageBox(mainWindow, {
-            type: 'error',
-            title: 'Folder Already Open',
-            message: 'Another instance of VoiceTree is already running in this folder.\n\nPlease close the other instance first, or choose a different folder.',
+            type: 'warning',
+            title: 'Folder May Be In Use',
+            message: 'Another instance of VoiceTree may already be using this folder.\n\nThis could also be a stale lock from a previous session. Continuing anyway.',
             buttons: ['OK']
         });
-        return { success: false };
     }
 
     // Update watchedDirectory FIRST
