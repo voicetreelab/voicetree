@@ -17,6 +17,8 @@ import {getResponsivePadding} from "@/utils/responsivePadding";
 import type {GraphDelta, NodeIdAndFilePath} from "@/pure/graph";
 import {isImageNode} from "@/pure/graph";
 import type {Core} from "cytoscape";
+import type {TerminalRecord} from "@/shell/edge/main/terminals/terminal-registry";
+import {syncFromMain} from "@/shell/edge/UI-edge/state/TerminalStore";
 
 /**
  * Update floating editors from external FS changes
@@ -52,6 +54,16 @@ function fitViewport(): void {
     }
 }
 
+/**
+ * Sync terminal state from main process to renderer.
+ * Called from main process after any terminal registry mutation.
+ * Phase 3: Main process is source of truth, renderer is display-only cache.
+ */
+function syncTerminals(records: TerminalRecord[]): void {
+    console.log('[uiAPI] syncTerminals received', records.length, 'records');
+    syncFromMain(records);
+}
+
 // Export as object (like mainAPI)
 // eslint-disable-next-line @typescript-eslint/typedef
 export const uiAPIHandler = {
@@ -59,6 +71,7 @@ export const uiAPIHandler = {
     updateFloatingEditorsFromExternal,
     createEditorForExternalNode,
     fitViewport,
+    syncTerminals,
 };
 
 export type UIAPIType = typeof uiAPIHandler;

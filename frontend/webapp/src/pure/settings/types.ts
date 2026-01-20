@@ -75,6 +75,8 @@ export interface VTSettings {
     readonly defaultAllowlistPatterns?: readonly string[];
     /** Whether the feedback dialog has been shown (persisted to avoid showing again) */
     readonly feedbackDialogShown?: boolean;
+    /** Dark mode preference */
+    readonly darkMode?: boolean;
 }
 
 /**

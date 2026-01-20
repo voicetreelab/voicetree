@@ -7,7 +7,7 @@
  */
 
 import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
-import { getTerminals, updateTerminalRunningState } from '@/shell/edge/UI-edge/state/TerminalStore';
+import { getTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
 import { isZoomSuppressed } from '@/shell/edge/UI-edge/state/AgentTabsStore';
 import {
     CHECK_INTERVAL_MS,
@@ -30,7 +30,8 @@ let inactivityCheckInterval: ReturnType<typeof setInterval> | null = null;
 
 /**
  * Check all terminals for inactivity and update their isDone state.
- * Uses targeted DOM update instead of full re-render.
+ * Phase 3: Routes state changes through main process (source of truth).
+ * Uses targeted DOM update for responsive UI.
  */
 function checkTerminalInactivity(): void {
     const now: number = Date.now();
@@ -39,7 +40,9 @@ function checkTerminalInactivity(): void {
     for (const [terminalId, terminal] of terminals) {
         const shouldBeDone: boolean = isTerminalInactive(terminal.lastOutputTime, now, INACTIVITY_THRESHOLD_MS);
         if (shouldBeDone !== terminal.isDone) {
-            updateTerminalRunningState(terminalId, { isDone: shouldBeDone });
+            // Phase 3: Update main process (source of truth)
+            void window.electronAPI?.main.updateTerminalIsDone(terminalId, shouldBeDone);
+            // Optimistic DOM update for responsive UI
             updateTerminalStatusDot(terminalId, shouldBeDone);
         }
     }
@@ -63,13 +66,17 @@ export function startTerminalActivityPolling(): () => void {
             return;
         }
         const now: number = Date.now();
-        // Terminal became active - update state without triggering re-render
-        const result: { terminal: TerminalData; previousIsDone: boolean } | undefined = updateTerminalRunningState(terminalId as TerminalId, {
-            lastOutputTime: now,
-            isDone: false,
-        });
-        // Only update DOM if isDone actually changed (was done, now running)
-        if (result && result.previousIsDone !== false) {
+        const terminals: Map<TerminalId, TerminalData> = getTerminals();
+        const terminal: TerminalData | undefined = terminals.get(terminalId as TerminalId);
+        if (!terminal) return;
+
+        // Phase 3: Update main process (source of truth)
+        void window.electronAPI?.main.updateTerminalActivityState(terminalId, { lastOutputTime: now });
+
+        // If terminal was previously marked as done, mark as running
+        if (terminal.isDone) {
+            void window.electronAPI?.main.updateTerminalIsDone(terminalId, false);
+            // Optimistic DOM update for responsive UI
             updateTerminalStatusDot(terminalId as TerminalId, false);
         }
     });

@@ -51,7 +51,7 @@ const isWindows: boolean = typeof process !== 'undefined' && process.platform ==
 const AGENT_PROMPT_VAR: string = isWindows ? '$env:AGENT_PROMPT' : '$AGENT_PROMPT';
 export const DEFAULT_SETTINGS: VTSettings = {
     terminalSpawnPathRelativeToWatchedDirectory: '/',
-    contextNodeMaxDistance: 6,
+    contextNodeMaxDistance: 5,
     askModeContextDistance: 3,
     emptyFolderTemplate: `# {{DATE}}
 
@@ -88,5 +88,6 @@ For the entire duration of this session, before you report completion to the use
 </TASK_NODES_INSTRUCTION>`,
     },
     hotkeys: DEFAULT_HOTKEYS,
-    defaultAllowlistPatterns: []
+    defaultAllowlistPatterns: [],
+    darkMode: false
 };

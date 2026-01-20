@@ -51,8 +51,8 @@ function createSettingsTitleBar(onClose: () => void): HTMLDivElement {
     titleText.className = 'settings-title-text';
     titleText.textContent = 'Settings';
 
-    titleBar.appendChild(closeBtn);
     titleBar.appendChild(titleText);
+    titleBar.appendChild(closeBtn);
 
     return titleBar;
 }
