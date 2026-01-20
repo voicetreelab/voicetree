@@ -1,6 +1,10 @@
 import { rgPath } from '@vscode/ripgrep';
 import { spawn } from 'child_process';
 
+// Transform asar path to unpacked path for Windows/Linux production builds
+// spawn() doesn't use Electron's asar interception, so we must manually redirect
+const actualRgPath: string = rgPath.replace('app.asar', 'app.asar.unpacked');
+
 /**
  * Find markdown files matching a suffix pattern using ripgrep.
  * Used to resolve relative wikilinks like [note] → /path/to/note.md
@@ -20,7 +24,7 @@ export async function findFileByName(
   const escapedPattern: string = pattern.replace(/[[\]*?{}]/g, '\\$&');
 
   return new Promise((resolve, reject) => {
-    const rg: ReturnType<typeof spawn> = spawn(rgPath, [
+    const rg: ReturnType<typeof spawn> = spawn(actualRgPath, [
       '--files',
       '--max-depth', String(maxDepth),
       '-g', `*${escapedPattern}*.md`,

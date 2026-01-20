@@ -1,8 +1,8 @@
 /**
- * Folder lock mechanism to prevent multiple VoiceTree instances from opening the same folder.
+ * Folder lock mechanism for VoiceTree.
  *
  * Uses a .voicetree.lock file containing the PID of the owning process.
- * Handles stale locks from crashed processes by checking if the PID is still running.
+ * Overwrites any existing lock (which may be stale from a crash).
  */
 
 import path from 'path'
@@ -14,60 +14,29 @@ const LOCK_FILENAME: string = '.voicetree.lock'
 let currentLockPath: string | null = null
 
 /**
- * Check if a process with the given PID is still running.
- */
-function isPidRunning(pid: number): boolean {
-    try {
-        // Signal 0 doesn't kill - just checks if process exists
-        process.kill(pid, 0)
-        return true
-    } catch {
-        // ESRCH = process doesn't exist, EPERM = exists but no permission (still running)
-        return false
-    }
-}
-
-/**
  * Try to acquire a lock for the given folder.
- * Always acquires the lock, but returns a warning if another process may be using the folder.
+ * Always acquires the lock, overwriting any existing lock (which may be stale from a crash).
  *
- * @returns { success: true, warning?: string } - always succeeds, warning present if potential conflict detected
+ * @returns { success: true } - always succeeds
  */
-export async function acquireFolderLock(folderPath: string): Promise<{ success: true; warning?: string }> {
+export async function acquireFolderLock(folderPath: string): Promise<{ success: true }> {
     const lockPath: string = path.join(folderPath, LOCK_FILENAME)
-    let warning: string | undefined
 
     try {
-        // Check if lock file exists
-        const lockContent: string | null = await fs.readFile(lockPath, 'utf-8').catch(() => null)
-
-        if (lockContent !== null) {
-            const pid: number = parseInt(lockContent.trim(), 10)
-
-            if (!isNaN(pid) && isPidRunning(pid)) {
-                // Lock is held by a running process - warn but continue
-                warning = `Another process may be using this folder (PID: ${pid}). This could be another VoiceTree instance or a stale lock from a crashed process.`
-                console.warn(`[folder-lock] ${warning}`)
-            } else {
-                // Stale lock from crashed process - remove it
-                console.log(`[folder-lock] Removing stale lock from PID ${pid}`)
-            }
-
-            await fs.unlink(lockPath).catch(() => {})
-        }
+        // Remove any existing lock (may be stale from a crash)
+        await fs.unlink(lockPath).catch(() => {})
 
         // Write our PID to the lock file
         await fs.writeFile(lockPath, process.pid.toString(), 'utf-8')
         currentLockPath = lockPath
         console.log(`[folder-lock] Acquired lock for ${folderPath} (PID: ${process.pid})`)
-
-        return { success: true, warning }
     } catch (error) {
         const errorMessage: string = error instanceof Error ? error.message : String(error)
         console.error(`[folder-lock] Failed to acquire lock: ${errorMessage}`)
-        // Still return success - lock is best-effort, don't block the user
-        return { success: true, warning: `Could not create lock file: ${errorMessage}` }
+        // Continue anyway - lock is best-effort, don't block the user
     }
+
+    return { success: true }
 }
 
 /**
