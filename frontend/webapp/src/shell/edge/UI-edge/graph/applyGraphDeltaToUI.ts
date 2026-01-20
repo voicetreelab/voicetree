@@ -114,14 +114,14 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                         }
                     });
 
-                    // Create edge from terminal to node if agent_name matches
-                    const agentName: string | undefined = node.nodeUIMetadata.additionalYAMLProps.get('agent_name');
-                    if (agentName) {
-                        // Find terminal whose title starts with this agent name
+                    // Create edge from terminal to node if agent_name matches terminal's agentName
+                    const nodeAgentName: string | undefined = node.nodeUIMetadata.additionalYAMLProps.get('agent_name');
+                    if (nodeAgentName) {
+                        // Find terminal with matching agentName
                         const terminals: Map<string, import('@/shell/edge/UI-edge/floating-windows/types').TerminalData> = getTerminals();
-                        // todo, make it O(1) with map
+                        // todo, make it O(1) with map by agentName
                         for (const terminal of terminals.values()) {
-                            if (terminal.title.startsWith(agentName + ':') || terminal.title === agentName) {
+                            if (terminal.agentName === nodeAgentName) {
                                 const shadowNodeId: string = getShadowNodeId(getTerminalId(terminal));
                                 const shadowNode: CollectionReturnValue = cy.getElementById(shadowNodeId);
                                 if (shadowNode.length > 0) {

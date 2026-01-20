@@ -8,7 +8,7 @@ import {getNodeTitle} from '@/pure/graph/markdown-parsing';
 import {findFirstParentNode} from '@/pure/graph/graph-operations/findFirstParentNode';
 import {resolveEnvVars, expandEnvVarsInValues} from '@/pure/settings';
 import type {VTSettings} from '@/pure/settings/types';
-import {getRandomAgentName} from '@/pure/settings/types';
+import {getNextAgentName} from '@/pure/settings/types';
 import {createTerminalData} from '@/shell/edge/UI-edge/floating-windows/types';
 import {getAppSupportPath} from '@/shell/edge/main/state/app-electron-state';
 import {getGraph} from '@/shell/edge/main/state/graph-store';
@@ -59,7 +59,7 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
   const resolvedEnvVars: Record<string, string> = resolveEnvVars(settings.INJECT_ENV_VARS);
   const contextNodeTitle: string = getNodeTitle(contextNode);
   const strippedTitle: string = contextNodeTitle.replace(/^ASK:\s*/i, '');
-  const agentName: string = getRandomAgentName();
+  const agentName: string = getNextAgentName();
   const title: string = `${agentName}: ${strippedTitle}`;
 
   const appSupportPath: string = getAppSupportPath();
@@ -107,6 +107,7 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
     executeCommand: true,
     initialSpawnDirectory: initialSpawnDirectory,
     initialEnvVars: expandedEnvVars,
+    agentName: agentName,
   });
 
   // 5. Launch terminal via UI API
