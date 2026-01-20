@@ -342,8 +342,8 @@
 }
 
 /* =============================================================================
- * Bottom-Right Expand Button (Phase 2B)
- * Small icon button in bottom-right corner for expanding/minimizing window
+ * Bottom-Left Expand Button (Phase 2B)
+ * Small icon button in bottom-left corner for expanding/minimizing window
  * Visually distinct from CSS resize handles
  * ============================================================================= */
 
@@ -352,7 +352,7 @@
   cursor: pointer;
   position: absolute;
   bottom: 0;
-  right: 0;
+  left: 0;
   width: 24px;
   height: 24px;
   display: flex;
@@ -561,9 +561,11 @@
 }
 
 /* Terminal windows should not have horizontal scroll - xterm.js manages its own rendering.
- * On Windows, scrollbars take up physical space causing FitAddon to miscalculate column width,
- * resulting in xterm content being slightly wider than the container. */
+ * On Windows, scrollbars take up physical space (~17px) causing FitAddon to miscalculate column width.
+ * Solution: scrollbar-gutter: stable reserves space for scrollbar before it appears, ensuring
+ * consistent width calculations. overflow-x: hidden as fallback for older browsers. */
 .cy-floating-window-terminal .cy-floating-window-content {
+  scrollbar-gutter: stable;
   overflow-x: hidden;
 }
 

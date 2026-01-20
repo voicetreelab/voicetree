@@ -167,6 +167,17 @@ export class TerminalVanilla {
         // Calling scrollToLine() immediately operates on stale dimensions, causing scrollbar desync.
         requestAnimationFrame(() => {
           if (!this.term) return;
+
+          // If user was near the bottom (within 10 lines), use scrollToBottom() to avoid
+          // phantom scrollable black lines that appear after resize when terminal gets taller.
+          // xterm.js doesn't automatically adjust scroll bounds when viewport rows increase.
+          // Threshold of 10 lines allows for small variance in scroll position.
+          if (scrollOffset < 10) {
+            this.term.scrollToBottom();
+            this.scrollOffsetBeforeZoom = null;
+            return;
+          }
+
           const newBaseY: number = this.term.buffer.active.baseY;
           const targetLine: number = newBaseY - scrollOffset;
           if (targetLine >= 0) {
@@ -214,6 +225,14 @@ export class TerminalVanilla {
         const scrollOffset: number = this.scrollOffsetBeforeZoom;
         requestAnimationFrame(() => {
           if (!this.term) return;
+
+          // If user was near the bottom (within 10 lines), use scrollToBottom() to avoid
+          // phantom scrollable black lines that appear after resize when terminal gets taller.
+          if (scrollOffset < 10) {
+            this.term.scrollToBottom();
+            return;
+          }
+
           const newBaseY: number = this.term.buffer.active.baseY;
           const targetLine: number = newBaseY - scrollOffset;
           if (targetLine >= 0) {

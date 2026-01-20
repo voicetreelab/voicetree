@@ -1,6 +1,7 @@
 import * as fs from 'fs/promises'
 import fsSync from 'fs'
 import * as path from 'path'
+import normalizePath from 'normalize-path'
 import * as E from "fp-ts/lib/Either.js";
 import * as O from "fp-ts/lib/Option.js";
 import type { Graph, FSUpdate, GraphDelta, GraphNode } from '@/pure/graph'
@@ -209,14 +210,15 @@ export async function scanMarkdownFiles(vaultPath: string): Promise<readonly str
 /**
  * Checks if a node ID (absolute path) belongs to one of the readPaths directories.
  *
- * @param nodeId - Absolute path to check
+ * @param nodeId - Absolute path to check (expected to be normalized with forward slashes)
  * @param readPaths - Array of absolute paths to readPaths directories
  * @returns true if the node is within a readPath directory
  */
 export function isReadPath(nodeId: string, readPaths: readonly string[]): boolean {
-    return readPaths.some((readPath: string) =>
-        nodeId.startsWith(readPath + path.sep) || nodeId === readPath
-    );
+    return readPaths.some((readPath: string) => {
+        const normalizedReadPath: string = normalizePath(readPath);
+        return nodeId.startsWith(normalizedReadPath + '/') || nodeId === normalizedReadPath;
+    });
 }
 
 /**
