@@ -3,15 +3,13 @@
  *
  * Flow:
  * 1. Creates task node with user description + wikilinks to selected nodes
- * 2. Creates context node containing selected nodes
- * 3. Spawns agent terminal attached to task node
+ * 2. Spawns agent terminal (which creates context node internally)
  */
 
 import type { Graph, GraphDelta, NodeIdAndFilePath, Position } from '@/pure/graph'
 import { getGraph } from '@/shell/edge/main/state/graph-store'
 import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { createTaskNode } from '@/pure/graph/graph-operations/createTaskNode'
-import { createContextNodeFromSelectedNodes } from '@/shell/edge/main/graph/context-nodes/createContextNodeFromSelectedNodes'
 import { spawnTerminalWithContextNode } from '@/shell/edge/main/terminals/spawnTerminalWithContextNode'
 import {
   applyGraphDeltaToDBThroughMemAndUIAndEditors
@@ -71,26 +69,22 @@ export async function runAgentOnSelectedNodes(
   // Apply task node to graph
   await applyGraphDeltaToDBThroughMemAndUIAndEditors(taskNodeDelta)
 
-  // 2. Create context node from selected nodes
-  const contextNodeId: NodeIdAndFilePath = await createContextNodeFromSelectedNodes(
-    taskNodeId,
-    selectedNodeIds
-  )
-
-  // 3. Spawn terminal with context node
-  // The terminal will be anchored to the task node (found via context node's parent)
+  // 2. Spawn terminal with task node and selected nodes
+  // spawnTerminalWithContextNode creates the context node internally
   const result: { terminalId: string; contextNodeId: NodeIdAndFilePath } =
     await spawnTerminalWithContextNode(
-      contextNodeId,
+      taskNodeId,
       undefined, // Use default agent command
       undefined, // Auto-assign terminal count
       false,     // Don't skip fit animation
-      false      // Start pinned
+      false,     // Start pinned
+      false,     // Not in new worktree
+      selectedNodeIds
     )
 
   return {
     taskNodeId,
-    contextNodeId,
+    contextNodeId: result.contextNodeId,
     terminalId: result.terminalId
   }
 }

@@ -18,6 +18,7 @@
 import path from 'path';
 import * as O from 'fp-ts/lib/Option.js';
 import { createContextNode } from '@/shell/edge/main/graph/context-nodes/createContextNode';
+import { createContextNodeFromSelectedNodes } from '@/shell/edge/main/graph/context-nodes/createContextNodeFromSelectedNodes';
 import { getGraph } from '@/shell/edge/main/state/graph-store';
 import { loadSettings } from '@/shell/edge/main/settings/settings_IO';
 import { getWatchStatus, getWritePath, getVaultPaths } from '@/shell/edge/main/graph/watch_folder/watchFolder';
@@ -41,24 +42,27 @@ import { generateWorktreeName } from '@/shell/edge/main/worktree/gitWorktreeComm
  * eliminating the setTimeout hack by keeping all orchestration in the
  * main process where graph state is immediately available.
  *
- * @param parentNodeId - The parent node to create context for
+ * @param taskNodeId - The task node to anchor terminal to (and create context for)
  * @param agentCommand - The agent command to run (already processed by renderer for permission mode)
  * @param terminalCount - Current terminal count from UI TerminalStore
  * @param skipFitAnimation - If true, skip navigating viewport to the terminal (used for MCP spawns)
  * @param startUnpinned - If true, terminal starts unpinned (used for MCP spawns)
+ * @param inNewWorktree - If true, spawn terminal in a new git worktree
+ * @param selectedNodeIds - If provided, creates context from these nodes instead of subgraph
  */
 export async function spawnTerminalWithContextNode(
-    parentNodeId: NodeIdAndFilePath,
+    taskNodeId: NodeIdAndFilePath,
     agentCommand: string | undefined,
     terminalCount?: number,
     skipFitAnimation?: boolean,
     startUnpinned?: boolean,
-    inNewWorktree?: boolean
+    inNewWorktree?: boolean,
+    selectedNodeIds?: readonly NodeIdAndFilePath[]
 ): Promise<{terminalId: string; contextNodeId: NodeIdAndFilePath}> {
     // Load settings to get agents
     const settings: VTSettings = await loadSettings();
     if (!settings) {
-        throw new Error(`Failed to load settings for ${parentNodeId}`);
+        throw new Error(`Failed to load settings for ${taskNodeId}`);
     }
 
     // Use provided command or default to first agent
@@ -68,34 +72,34 @@ export async function spawnTerminalWithContextNode(
         throw new Error('No agent command available - settings.agents is empty or undefined');
     }
 
-    // Get parent node from graph
+    // Get task node from graph
     const graph: Graph = getGraph();
-    const parentNode: GraphNode = graph.nodes[parentNodeId];
-    if (!parentNode) {
-        throw new Error(`Node ${parentNodeId} not found in graph`);
+    const taskNode: GraphNode = graph.nodes[taskNodeId];
+    if (!taskNode) {
+        throw new Error(`Node ${taskNodeId} not found in graph`);
     }
 
-    // Create or reuse context node, and determine task node for anchoring
+    // Create or reuse context node
     let contextNodeId: NodeIdAndFilePath;
-    let taskNodeId: NodeIdAndFilePath;
-    if (parentNode.nodeUIMetadata.isContextNode) {
-        // Reuse existing context node
-        contextNodeId = parentNodeId;
-        // Task node is the parent of the context node
-        const taskNode: GraphNode | undefined = findFirstParentNode(parentNode, graph);
-        taskNodeId = taskNode?.absoluteFilePathIsID ?? parentNodeId;
+    let resolvedTaskNodeId: NodeIdAndFilePath;
+    if (taskNode.nodeUIMetadata.isContextNode) {
+        // Passed a context node - reuse it and find the real task node
+        contextNodeId = taskNodeId;
+        const parentTaskNode: GraphNode | undefined = findFirstParentNode(taskNode, graph);
+        resolvedTaskNodeId = parentTaskNode?.absoluteFilePathIsID ?? taskNodeId;
     } else {
-        // Create context node for the parent
-        contextNodeId = await createContextNode(parentNodeId);
-        // The clicked node IS the task node
-        taskNodeId = parentNodeId;
+        // Create context node for the task node
+        contextNodeId = selectedNodeIds
+            ? await createContextNodeFromSelectedNodes(taskNodeId, selectedNodeIds)
+            : await createContextNode(taskNodeId);
+        resolvedTaskNodeId = taskNodeId;
     }
 
     // If worktree requested, prepend git worktree command to the agent command
     let finalCommand: string = command;
     if (inNewWorktree) {
-        const taskNode: GraphNode = graph.nodes[taskNodeId];
-        const nodeTitle: string = taskNode ? getNodeTitle(taskNode) : 'agent-task';
+        const resolvedTaskNode: GraphNode = graph.nodes[resolvedTaskNodeId];
+        const nodeTitle: string = resolvedTaskNode ? getNodeTitle(resolvedTaskNode) : 'agent-task';
         const worktreeName: string = generateWorktreeName(nodeTitle);
         // Prepend git worktree add and cd commands
         // Using .worktrees/ directory to keep worktrees organized
@@ -111,7 +115,7 @@ export async function spawnTerminalWithContextNode(
 
     const terminalData: TerminalData = await prepareTerminalDataInMain(
         contextNodeId,
-        taskNodeId,
+        resolvedTaskNodeId,
         resolvedTerminalCount,
         finalCommand,
         settings,
