@@ -29,7 +29,7 @@ import { getNodeTitle } from '@/pure/graph/markdown-parsing';
 import { findFirstParentNode } from '@/pure/graph/graph-operations/findFirstParentNode';
 import type { VTSettings } from '@/pure/settings';
 import { resolveEnvVars, expandEnvVarsInValues } from '@/pure/settings';
-import { getRandomAgentName } from '@/pure/settings/types';
+import { getNextAgentName } from '@/pure/settings/types';
 import { getNextTerminalCountForNode } from '@/shell/edge/main/terminals/terminal-registry';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import { generateWorktreeName } from '@/shell/edge/main/worktree/gitWorktreeCommands';
@@ -167,7 +167,7 @@ async function prepareTerminalDataInMain(
     const title: string = taskNode ? getNodeTitle(taskNode) : getNodeTitle(contextNode);
 
     // Generate agent name for env var (enables terminal-to-created-node edges)
-    const agentName: string = getRandomAgentName();
+    const agentName: string = getNextAgentName();
 
     // Compute initial_spawn_directory from watch directory + relative path setting
     let initialSpawnDirectory: string | undefined;
@@ -239,6 +239,7 @@ async function prepareTerminalDataInMain(
         initialSpawnDirectory: initialSpawnDirectory,
         initialEnvVars: expandedEnvVars,
         isPinned: !startUnpinned,
+        agentName: agentName,
     });
 
     return terminalData;

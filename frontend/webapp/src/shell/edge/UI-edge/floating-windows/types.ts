@@ -127,6 +127,8 @@ export function createTerminalData(params: CreateTerminalDataParams): TerminalDa
         activityCount: 0,
         // Parent-child relationship for tree-style tabs (null = root terminal)
         parentTerminalId: params.parentTerminalId ?? null,
+        // Agent name for terminal-to-node edge matching
+        agentName: params.agentName,
     };
 }
 

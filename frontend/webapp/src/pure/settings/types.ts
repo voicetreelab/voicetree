@@ -12,9 +12,12 @@ export const AGENT_NAMES: readonly string[] = [
     'Siti', 'Tao', 'Tara', 'Timi', 'Uma', 'Vic', 'Wei', 'Xan', 'Yan', 'Zoe',
 ] as const;
 
-export function getRandomAgentName(): string {
-    const randomIndex: number = Math.floor(Math.random() * AGENT_NAMES.length);
-    return AGENT_NAMES[randomIndex];
+// Round-robin agent name selection (no collisions until all 60 names used)
+const agentNameState: { index: number } = { index: -1 };
+
+export function getNextAgentName(): string {
+    agentNameState.index = (agentNameState.index + 1) % AGENT_NAMES.length;
+    return AGENT_NAMES[agentNameState.index];
 }
 
 export type EnvVarValue = string | readonly string[];

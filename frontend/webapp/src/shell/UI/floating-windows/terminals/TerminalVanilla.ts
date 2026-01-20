@@ -26,6 +26,7 @@ export class TerminalVanilla {
   private terminalData: TerminalData;
   private resizeObserver: ResizeObserver | null = null;
   private resizeFrameId: number | null = null;
+  private scrollCorrectionTimeout: ReturnType<typeof setTimeout> | null = null;
   private suppressNextEnter: boolean = false;
   private shiftEnterSendsOptionEnter: boolean = true;
   private unsubscribeZoom: (() => void) | null = null;
@@ -170,6 +171,17 @@ export class TerminalVanilla {
           const targetLine: number = newBaseY - scrollOffset;
           if (targetLine >= 0) {
             this.term.scrollToLine(targetLine);
+
+            // Schedule delayed correction to fix scrollbar desync race condition.
+            // Only re-apply if user hasn't scrolled (viewportY unchanged).
+            const expectedViewportY: number = this.term.buffer.active.viewportY;
+            if (this.scrollCorrectionTimeout) clearTimeout(this.scrollCorrectionTimeout);
+            this.scrollCorrectionTimeout = setTimeout(() => {
+              if (!this.term) return;
+              if (this.term.buffer.active.viewportY === expectedViewportY) {
+                this.term.scrollToLine(targetLine);
+              }
+            }, 100);
           }
           this.scrollOffsetBeforeZoom = null;
         });
@@ -206,6 +218,17 @@ export class TerminalVanilla {
           const targetLine: number = newBaseY - scrollOffset;
           if (targetLine >= 0) {
             this.term.scrollToLine(targetLine);
+
+            // Schedule delayed correction to fix scrollbar desync race condition.
+            // Only re-apply if user hasn't scrolled (viewportY unchanged).
+            const expectedViewportY: number = this.term.buffer.active.viewportY;
+            if (this.scrollCorrectionTimeout) clearTimeout(this.scrollCorrectionTimeout);
+            this.scrollCorrectionTimeout = setTimeout(() => {
+              if (!this.term) return;
+              if (this.term.buffer.active.viewportY === expectedViewportY) {
+                this.term.scrollToLine(targetLine);
+              }
+            }, 100);
           }
         });
       }
@@ -274,6 +297,10 @@ export class TerminalVanilla {
   dispose(): void {
     if (this.resizeFrameId !== null) {
       cancelAnimationFrame(this.resizeFrameId);
+    }
+
+    if (this.scrollCorrectionTimeout) {
+      clearTimeout(this.scrollCorrectionTimeout);
     }
 
     if (this.resizeObserver) {
