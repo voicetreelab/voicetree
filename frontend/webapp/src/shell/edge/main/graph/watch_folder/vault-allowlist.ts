@@ -57,10 +57,12 @@ export async function getVaultPaths(): Promise<readonly FilePath[]> {
     if (!watchedDir) return [];
     const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
     if (!config) return [];
-    // Return writePath + all readPaths (all normalized)
+    // Return writePath + all readPaths (all normalized, deduplicated)
     const resolvedWritePath: string = resolveWritePath(watchedDir, config.writePath);
     const normalizedReadPaths: readonly string[] = config.readPaths.map((p: string) => normalizePath(p));
-    return [resolvedWritePath, ...normalizedReadPaths];
+    // Deduplicate: filter out readPaths that match writePath
+    const uniqueReadPaths: readonly string[] = normalizedReadPaths.filter((p: string) => p !== resolvedWritePath);
+    return [resolvedWritePath, ...uniqueReadPaths];
 }
 
 /**
@@ -336,6 +338,8 @@ export async function resolveAllowlistForProject(
                 ? savedPath
                 : path.join(watchedDir, savedPath)
         );
+        // Skip if same as writePath (deduplicate)
+        if (absolutePath === absoluteWritePath) continue;
         try {
             await fs.access(absolutePath);
             validReadPaths.push(absolutePath);

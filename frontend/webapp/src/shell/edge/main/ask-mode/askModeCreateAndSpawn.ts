@@ -3,6 +3,7 @@
  */
 
 import path from 'path';
+import * as O from 'fp-ts/lib/Option.js';
 import type {Graph, GraphNode, NodeIdAndFilePath} from '@/pure/graph';
 import {getNodeTitle} from '@/pure/graph/markdown-parsing';
 import {findFirstParentNode} from '@/pure/graph/graph-operations/findFirstParentNode';
@@ -12,7 +13,7 @@ import {getNextAgentName} from '@/pure/settings/types';
 import {createTerminalData} from '@/shell/edge/UI-edge/floating-windows/types';
 import {getAppSupportPath} from '@/shell/edge/main/state/app-electron-state';
 import {getGraph} from '@/shell/edge/main/state/graph-store';
-import {getWatchedDirectory} from '@/shell/edge/main/graph/watch_folder/watchFolder';
+import {getWatchedDirectory, getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
 import {createContextNodeFromQuestion} from '@/shell/edge/main/graph/context-nodes/createContextNodeFromQuestion';
@@ -23,11 +24,18 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
   const graph: Graph = getGraph();
   const watchedDir: string | null = getWatchedDirectory();
 
+  // Use writePath for normalizing search results - this matches what the backend loads from
+  // (see watchFolder.ts:316 where notifyTextToTreeServerOfDirectory uses config.writePath)
+  const writePathOption: O.Option<string> = await getWritePath();
+  const basePath: string | null = O.isSome(writePathOption)
+    ? writePathOption.value
+    : watchedDir;
+
   // Normalize incoming node IDs to absolute paths
   // Backend returns relative paths like "voice/note.md" but graph uses absolute paths
   const normalizedNodeIds: readonly string[] = relevantNodeIds.map(id => {
     if (path.isAbsolute(id)) return id;
-    return watchedDir ? path.join(watchedDir, id) : id;
+    return basePath ? path.join(basePath, id) : id;
   });
 
   // Filter to only node IDs that exist in the graph
@@ -37,10 +45,13 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
   // 1. Create context node from relevant nodes
   const contextNodeId: NodeIdAndFilePath = await createContextNodeFromQuestion(adjustedNodeIds, question);
 
-  // 2. Get terminal count from UI (we'll use 0 as default since we don't track it here)
+  // 2. Get fresh graph - createContextNodeFromQuestion updates the graph store
+  const updatedGraph: Graph = getGraph();
+
+  // 3. Get terminal count from UI (we'll use 0 as default since we don't track it here)
   const terminalCount: number = 0;
 
-  // 3. Load settings
+  // 4. Load settings
   const settings: VTSettings = await loadSettings();
   const agents: readonly { readonly name: string; readonly command: string }[] = settings.agents ?? [];
   const command: string = agents[0]?.command ?? '';
@@ -49,8 +60,8 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
     throw new Error('No agent command available');
   }
 
-  // 4. Prepare terminal data
-  const contextNode: GraphNode = graph.nodes[contextNodeId];
+  // 5. Prepare terminal data
+  const contextNode: GraphNode = updatedGraph.nodes[contextNodeId];
   if (!contextNode) {
     throw new Error(`Context node ${contextNodeId} not found`);
   }
@@ -76,7 +87,7 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
 
   // Build absolute path for task node (parent of context node)
   // Node IDs are now absolute paths, so relativeFilePathIsID is the absolute path
-  const parentNode: GraphNode | undefined = findFirstParentNode(contextNode, graph);
+  const parentNode: GraphNode | undefined = findFirstParentNode(contextNode, updatedGraph);
   const taskNodeAbsolutePath: string = parentNode
     ? parentNode.absoluteFilePathIsID
     : '';
