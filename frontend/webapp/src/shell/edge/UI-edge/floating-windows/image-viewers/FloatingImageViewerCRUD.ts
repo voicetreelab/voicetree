@@ -16,6 +16,7 @@ import {
     disposeFloatingWindow,
     getCachedZoom,
     getOrCreateOverlay,
+    registerFloatingWindow,
 } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 
 import type { ImageViewerData } from '@/shell/edge/UI-edge/floating-windows/image-viewers/imageViewerDataType';
@@ -110,9 +111,10 @@ export async function createFloatingImageViewer(
         closeImageViewer(cy, viewerWithUI);
     });
 
-    // Add to overlay
+    // Add to overlay and register for efficient zoom/pan sync
     const overlay: HTMLElement = getOrCreateOverlay(cy);
     overlay.appendChild(ui.windowElement);
+    registerFloatingWindow(viewerId, ui.windowElement);
 
     // Add to state
     addImageViewer(viewerWithUI);

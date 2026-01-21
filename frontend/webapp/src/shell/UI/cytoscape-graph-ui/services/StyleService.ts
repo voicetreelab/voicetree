@@ -2,6 +2,7 @@ import cytoscape from 'cytoscape';
 import {
   DEFAULT_TEXT_WIDTH,
 } from '@/shell/UI/cytoscape-graph-ui/constants';
+import { updateNodeSizes as updateNodeSizesImpl } from './updateNodeSizes';
 
 export class StyleService {
   private fillColor = '#3f3f3f';
@@ -11,6 +12,7 @@ export class StyleService {
   private lineHighlightColor = '#7c7c7c';
   private textColor = '#dcddde';
   private danglingColor = '#683c3c';
+  private agentEdgeColor = '#100eb2';
   private font = '"Fira Code", Fira Code, "Fira Mono", Menlo, Consolas, "DejaVu - Sans Mono", monospace';
 
   constructor() {
@@ -77,7 +79,7 @@ export class StyleService {
     return false;
   }
 
-  private getGraphColors(): { fillColor: string; fillHighlightColor: string; accentBorderColor: string; lineColor: string; lineHighlightColor: string; textColor: string; danglingColor: string; } {
+  private getGraphColors(): { fillColor: string; fillHighlightColor: string; accentBorderColor: string; lineColor: string; lineHighlightColor: string; textColor: string; danglingColor: string; agentEdgeColor: string } {
     const isDark: boolean = this.isDarkMode();
 
     console.log('[StyleService] getGraphColors - isDark:', isDark, 'textColor:', isDark ? '#dcddde' : '#2a2a2a');
@@ -90,6 +92,7 @@ export class StyleService {
       lineHighlightColor: isDark ? '#a0a8b0' : '#7c7c7c', // Lighter highlight in dark mode
       textColor: isDark ? '#c5c8cc' : '#2a2a2a', // Soft off-white for dark mode
       danglingColor: '#683c3c',
+      agentEdgeColor: isDark ? '#6699ff' : '#100eb2', // Brighter blue in dark mode for visibility
     };
   }
 
@@ -280,9 +283,9 @@ export class StyleService {
             selector: 'edge.terminal-progres-nodes-indicator',
             style: {
                 'line-style': 'dotted',
-                'line-color': '#100eb2',
+                'line-color': this.agentEdgeColor,
                 'line-opacity': 0.5,
-                'width': 1,
+                'width': 3,
                 'target-arrow-shape': 'none',
                 'curve-style': 'straight',
             }
@@ -295,7 +298,7 @@ export class StyleService {
           'line-style': 'dotted',
           'line-color': '#888888',
           'line-opacity': 0.8,
-          'width': 1.5,
+          'width': 3,
           'target-arrow-shape': 'none',
           'curve-style': 'straight',
         }
@@ -471,57 +474,6 @@ export class StyleService {
    * @param nodes - Optional specific nodes to update. If not provided, updates all nodes.
    */
   updateNodeSizes(cy: cytoscape.Core, nodes?: cytoscape.NodeCollection): void {
-    if (!cy) return;
-
-    const nodesToUpdate: cytoscape.NodeCollection = nodes ?? cy.nodes();
-
-    // Helper to validate that a value is a healthy non-negative number
-    const isValidNumber: (val: number) => boolean = (val: number): boolean =>
-      typeof val === 'number' && !isNaN(val) && isFinite(val) && val >= 0;
-
-    nodesToUpdate.forEach(node => {
-      // Skip shadow nodes - they have fixed dimensions set by floating window system
-      if (node.data('isShadowNode')) return;
-
-      let degree: number = node.degree();
-
-      // Defensive check: ensure degree is a valid number, default to 0 if not
-      if (!isValidNumber(degree)) {
-        console.warn(`[StyleService] Invalid degree value for node ${node.id()}: ${degree}, defaulting to 0`);
-        degree = 0;
-      }
-
-      // Logarithmic + linear scaling
-      // This creates strong emphasis on low-to-mid degree differences
-      // while still rewarding high-degree nodes
-      const size: number = 5 + 15 * Math.log(degree + 3) + degree;
-
-      // Scale other properties proportionally to size
-      // Use size as base and scale others relative to it
-      const width: number = size*0.7; // nodes themselves don't care visual information, so scale smaller.
-      const height: number = size*0.7;
-      const fontSize: number = 10 + size / 7; // Font scales with size (increased from 8 + size/8)
-      const textWidth: number = size * 3 + 40; // Text width scales with size
-      const borderWidth: number = 1 + size / 15; // Border scales with size
-      const textOpacity: number = Math.min(1, 0.7 + degree / 100); // Slight opacity increase with degree
-
-      // Validate all calculated values before applying
-      if (!isValidNumber(width) || !isValidNumber(height) || !isValidNumber(fontSize) ||
-          !isValidNumber(textWidth) || !isValidNumber(borderWidth) || !isValidNumber(textOpacity)) {
-        console.error(`[StyleService] Calculated invalid style values for node ${node.id()}:`, {
-          degree, size, width, height, fontSize, textWidth, borderWidth, textOpacity
-        });
-        return; // Skip this node to prevent NaN styles
-      }
-
-      node.style({
-        'width': width,
-        'height': height,
-        'font-size': fontSize,
-        'text-max-width': textWidth,
-        'border-width': borderWidth,
-        'text-opacity': textOpacity
-      });
-    });
+    updateNodeSizesImpl(cy, nodes);
   }
 }
