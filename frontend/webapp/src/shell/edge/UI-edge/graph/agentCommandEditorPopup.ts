@@ -9,11 +9,14 @@
 
 export const AUTO_RUN_FLAG: string = '--dangerously-skip-permissions';
 
+export const DOCKER_COMMAND_TEMPLATE: string = 'docker build -t claude-code https://github.com/anthropics/claude-code.git#main:.devcontainer -q && docker run -it --cap-add=NET_ADMIN --cap-add=NET_RAW -v $(pwd):/workspace -v claude-auth:/home/node/.claude -w /workspace claude-code bash -c "claude --dangerously-skip-permissions"';
+
 export interface AgentCommandEditorResult {
     command: string;
     agentPrompt: string;
     mcpIntegrationEnabled: boolean;
     inNewWorktree: boolean;
+    useDocker: boolean;
 }
 
 /**
@@ -201,6 +204,34 @@ export function showAgentCommandEditor(command: string, agentPrompt: string, nod
                         </div>
                     </label>
                 </div>
+                <div style="
+                    padding: 12px;
+                    border: 1px solid var(--border);
+                    border-radius: calc(var(--radius) - 2px);
+                    background: var(--muted);
+                ">
+                    <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
+                        <input
+                            type="checkbox"
+                            id="docker-toggle"
+                            data-testid="docker-toggle"
+                            style="
+                                margin-top: 2px;
+                                width: 16px;
+                                height: 16px;
+                                cursor: pointer;
+                            "
+                        />
+                        <div style="display: flex; flex-direction: column; gap: 2px;">
+                            <span style="font-size: 0.85rem; font-weight: 500;">
+                                🐳 Run in Docker
+                            </span>
+                            <span style="font-size: 0.8rem; color: var(--muted-foreground);">
+                                Run Claude Code in sandboxed Docker container
+                            </span>
+                        </div>
+                    </label>
+                </div>
                 <div style="display: flex; gap: 8px; justify-content: flex-end; align-items: center;">
                     <div style="display: flex; gap: 8px;">
                         <button
@@ -244,6 +275,7 @@ export function showAgentCommandEditor(command: string, agentPrompt: string, nod
         const mcpToggle: HTMLInputElement = dialog.querySelector('#mcp-integration-toggle')!;
         const autoRunToggle: HTMLInputElement = dialog.querySelector('#auto-run-toggle')!;
         const worktreeToggle: HTMLInputElement = dialog.querySelector('#worktree-toggle')!;
+        const dockerToggle: HTMLInputElement = dialog.querySelector('#docker-toggle')!;
         const cancelButton: HTMLButtonElement = dialog.querySelector('#cancel-button')!;
 
         // Set values programmatically to avoid HTML escaping issues with quotes
@@ -289,6 +321,23 @@ export function showAgentCommandEditor(command: string, agentPrompt: string, nod
             }
         });
 
+        // Docker checkbox change handler - replaces command with Docker version
+        let savedNonDockerCommand: string = '';
+        dockerToggle.addEventListener('change', () => {
+            if (dockerToggle.checked) {
+                // Save current command and replace with Docker command
+                savedNonDockerCommand = input.value;
+                input.value = DOCKER_COMMAND_TEMPLATE;
+                // Docker command has auto-run flag built in
+                autoRunToggle.checked = true;
+            } else {
+                // Restore original command
+                input.value = savedNonDockerCommand || command;
+                // Sync auto-run checkbox with restored command
+                autoRunToggle.checked = input.value.includes(AUTO_RUN_FLAG);
+            }
+        });
+
         // Cancel button click handler
         cancelButton.addEventListener('click', () => {
             dialog.close();
@@ -306,7 +355,7 @@ export function showAgentCommandEditor(command: string, agentPrompt: string, nod
                 resolve(null);
                 return;
             }
-            resolve({ command: finalCommand, agentPrompt: finalPrompt, mcpIntegrationEnabled: mcpEnabled, inNewWorktree: worktreeToggle.checked });
+            resolve({ command: finalCommand, agentPrompt: finalPrompt, mcpIntegrationEnabled: mcpEnabled, inNewWorktree: worktreeToggle.checked, useDocker: dockerToggle.checked });
         });
 
         // Clean up dialog on close
