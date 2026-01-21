@@ -263,28 +263,14 @@ button.graph-button:disabled > svg > path {
     gap: 4px;
     overflow-x: auto;
     overflow-y: visible; /* Allow shortcut hints to appear below tabs */
-    scrollbar-width: thin;
-    scrollbar-color: var(--background-modifier-border, #444) transparent;
+    scrollbar-width: none; /* Firefox - hide scrollbar */
     -webkit-overflow-scrolling: touch;
     padding: 2px 4px 20px 4px; /* Extra bottom padding for shortcut hints */
 }
 
-/* Webkit scrollbar styling */
+/* Webkit scrollbar styling - hidden for clean look */
 .recent-tabs-scroll::-webkit-scrollbar {
-    height: 4px;
-}
-
-.recent-tabs-scroll::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.recent-tabs-scroll::-webkit-scrollbar-thumb {
-    background: var(--background-modifier-border, #444);
-    border-radius: 2px;
-}
-
-.recent-tabs-scroll::-webkit-scrollbar-thumb:hover {
-    background: var(--text-muted, #666);
+    display: none; /* Chrome/Safari - hide scrollbar */
 }
 
 /* Individual tab button */
@@ -415,35 +401,22 @@ button.graph-button:disabled > svg > path {
 }
 
 /* Pinned tabs container (left section, 90px tabs with title)
- * Wraps into new rows after 5 tabs (5 × 90px + gaps ≈ 470px) */
+ * Horizontally scrollable without visible scrollbar */
 .agent-tabs-pinned {
     display: flex;
     flex-direction: row;
-    flex-wrap: wrap; /* Wrap to new row after 5 tabs */
-    justify-content: flex-end; /* Right-align tabs in each row when wrapping */
-    column-gap: 4px;
-    row-gap: 14px; /* Row gap to accommodate activity dots (positioned at bottom: -11px) */
-    max-width: 470px; /* 5 tabs × 90px + 4 gaps × 4px + padding */
-    overflow-y: visible;
+    gap: 4px;
+    max-width: 470px; /* Limit width to allow unpinned section */
+    overflow-x: auto;
+    overflow-y: visible; /* Allow activity dots to extend below */
+    scrollbar-width: none; /* Firefox - hide scrollbar */
+    -webkit-overflow-scrolling: touch;
     padding: 0 4px 20px 4px; /* No top padding; bottom padding for shortcut hints */
 }
 
-/* Webkit scrollbar styling for pinned */
+/* Webkit scrollbar styling for pinned - hidden for clean look */
 .agent-tabs-pinned::-webkit-scrollbar {
-    height: 4px;
-}
-
-.agent-tabs-pinned::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.agent-tabs-pinned::-webkit-scrollbar-thumb {
-    background: var(--background-modifier-border, #444);
-    border-radius: 2px;
-}
-
-.agent-tabs-pinned::-webkit-scrollbar-thumb:hover {
-    background: var(--text-muted, #666);
+    display: none; /* Chrome/Safari - hide scrollbar */
 }
 
 /* Divider between pinned and unpinned sections */
