@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { showAgentCommandEditor, AUTO_RUN_FLAG, type AgentCommandEditorResult } from './agentCommandEditorPopup';
+import { showAgentCommandEditor, AUTO_RUN_FLAG, DOCKER_COMMAND_TEMPLATE, type AgentCommandEditorResult } from './agentCommandEditorPopup';
 
 const DEFAULT_AGENT_PROMPT: string = 'Test agent prompt';
 
@@ -239,5 +239,103 @@ describe('showAgentCommandEditor', () => {
         expect(result).not.toBeNull();
         expect(result!.command).toBe('claude modified');
         expect(result!.agentPrompt).toBe('Modified prompt');
+    });
+
+    // Docker toggle tests
+    it('has Docker toggle element in the dialog', async () => {
+        void showAgentCommandEditor('claude test', DEFAULT_AGENT_PROMPT);
+
+        const dialog: HTMLDialogElement = getDialog();
+        const dockerToggle: HTMLInputElement = dialog.querySelector('[data-testid="docker-toggle"]') as HTMLInputElement;
+        expect(dockerToggle).not.toBeNull();
+    });
+
+    it('Docker toggle is unchecked by default', async () => {
+        void showAgentCommandEditor('claude test', DEFAULT_AGENT_PROMPT);
+
+        const dialog: HTMLDialogElement = getDialog();
+        const dockerToggle: HTMLInputElement = dialog.querySelector('[data-testid="docker-toggle"]') as HTMLInputElement;
+        expect(dockerToggle.checked).toBe(false);
+    });
+
+    it('Docker toggle replaces command with Docker command when checked', async () => {
+        const promise: Promise<AgentCommandEditorResult | null> = showAgentCommandEditor('claude test', DEFAULT_AGENT_PROMPT);
+
+        const dialog: HTMLDialogElement = getDialog();
+        const input: HTMLInputElement = dialog.querySelector('#command-input') as HTMLInputElement;
+        const dockerToggle: HTMLInputElement = dialog.querySelector('[data-testid="docker-toggle"]') as HTMLInputElement;
+
+        expect(input.value).toBe('claude test');
+
+        // Check the Docker toggle
+        dockerToggle.checked = true;
+        dockerToggle.dispatchEvent(new Event('change'));
+
+        // Verify command was replaced with Docker command
+        expect(input.value).toBe(DOCKER_COMMAND_TEMPLATE);
+
+        const form: HTMLFormElement = dialog.querySelector('form') as HTMLFormElement;
+        form.dispatchEvent(new Event('submit', { cancelable: true }));
+
+        const result: AgentCommandEditorResult | null = await promise;
+        expect(result).not.toBeNull();
+        expect(result!.command).toBe(DOCKER_COMMAND_TEMPLATE);
+        expect(result!.useDocker).toBe(true);
+    });
+
+    it('Docker toggle restores original command when unchecked', async () => {
+        const promise: Promise<AgentCommandEditorResult | null> = showAgentCommandEditor('claude test', DEFAULT_AGENT_PROMPT);
+
+        const dialog: HTMLDialogElement = getDialog();
+        const input: HTMLInputElement = dialog.querySelector('#command-input') as HTMLInputElement;
+        const dockerToggle: HTMLInputElement = dialog.querySelector('[data-testid="docker-toggle"]') as HTMLInputElement;
+
+        // Check then uncheck the Docker toggle
+        dockerToggle.checked = true;
+        dockerToggle.dispatchEvent(new Event('change'));
+        expect(input.value).toBe(DOCKER_COMMAND_TEMPLATE);
+
+        dockerToggle.checked = false;
+        dockerToggle.dispatchEvent(new Event('change'));
+
+        // Verify original command was restored
+        expect(input.value).toBe('claude test');
+
+        const form: HTMLFormElement = dialog.querySelector('form') as HTMLFormElement;
+        form.dispatchEvent(new Event('submit', { cancelable: true }));
+
+        const result: AgentCommandEditorResult | null = await promise;
+        expect(result).not.toBeNull();
+        expect(result!.command).toBe('claude test');
+        expect(result!.useDocker).toBe(false);
+    });
+
+    it('Docker toggle enables auto-run toggle when checked', async () => {
+        void showAgentCommandEditor('claude test', DEFAULT_AGENT_PROMPT);
+
+        const dialog: HTMLDialogElement = getDialog();
+        const autoRunToggle: HTMLInputElement = dialog.querySelector('[data-testid="auto-run-toggle"]') as HTMLInputElement;
+        const dockerToggle: HTMLInputElement = dialog.querySelector('[data-testid="docker-toggle"]') as HTMLInputElement;
+
+        expect(autoRunToggle.checked).toBe(false);
+
+        // Check the Docker toggle
+        dockerToggle.checked = true;
+        dockerToggle.dispatchEvent(new Event('change'));
+
+        // Verify auto-run toggle is now checked (Docker command has --dangerously-skip-permissions)
+        expect(autoRunToggle.checked).toBe(true);
+    });
+
+    it('returns useDocker as false when not using Docker', async () => {
+        const promise: Promise<AgentCommandEditorResult | null> = showAgentCommandEditor('claude test', DEFAULT_AGENT_PROMPT);
+
+        const dialog: HTMLDialogElement = getDialog();
+        const form: HTMLFormElement = dialog.querySelector('form') as HTMLFormElement;
+        form.dispatchEvent(new Event('submit', { cancelable: true }));
+
+        const result: AgentCommandEditorResult | null = await promise;
+        expect(result).not.toBeNull();
+        expect(result!.useDocker).toBe(false);
     });
 });

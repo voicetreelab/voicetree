@@ -149,6 +149,8 @@ jobs:
 
       - name: Install frontend dependencies
         working-directory: frontend/webapp
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
 
       - name: Update file timestamps for codesign
@@ -285,6 +287,8 @@ jobs:
 
       - name: Install frontend dependencies
         working-directory: frontend/webapp
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
 
       - name: Rebuild native modules
@@ -358,6 +362,8 @@ jobs:
 
       - name: Install frontend dependencies
         working-directory: frontend/webapp
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
 
       - name: Build & Publish Electron
