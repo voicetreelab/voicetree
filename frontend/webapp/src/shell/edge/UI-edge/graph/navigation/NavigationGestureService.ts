@@ -2,11 +2,8 @@
  * NavigationGestureService - Handles trackpad and mouse gestures for graph navigation
  *
  * Provides:
- * - Trackpad two-finger scroll → pan
- * - Trackpad pinch / Cmd+wheel → zoom (ctrlKey detection)
+ * - Wheel / trackpad scroll → zoom (no modifier required)
  * - Middle-mouse drag → pan
- *
- * Follows Excalidraw's approach: wheel pans, Cmd/Ctrl+wheel zooms.
  */
 
 import type { Core } from 'cytoscape';
@@ -50,8 +47,7 @@ export class NavigationGestureService {
 
   /**
    * Wheel handler: takes full control of wheel events to prevent Cytoscape conflicts.
-   * - Cmd/Ctrl + wheel (includes trackpad pinch) → zoom
-   * - All other wheel events → pan
+   * Wheel scroll → zoom centered on cursor (no modifier required)
    */
   private onWheel(e: WheelEvent): void {
     if (!this.cy.userPanningEnabled()) return;
@@ -59,22 +55,17 @@ export class NavigationGestureService {
     e.preventDefault();
     e.stopImmediatePropagation();
 
-    if (e.ctrlKey || e.metaKey) {
-      // Pinch gesture or Cmd/Ctrl+wheel → zoom centered on cursor
-      const zoomFactor: number = 1 - e.deltaY * 0.01;
-      const newZoom: number = Math.max(
-        this.cy.minZoom(),
-        Math.min(this.cy.maxZoom(), this.cy.zoom() * zoomFactor)
-      );
-      const rect: DOMRect = this.container.getBoundingClientRect();
-      this.cy.zoom({
-        level: newZoom,
-        renderedPosition: { x: e.clientX - rect.left, y: e.clientY - rect.top }
-      });
-    } else {
-      // All other wheel events → pan (natural scrolling)
-      this.cy.panBy({ x: -e.deltaX, y: -e.deltaY });
-    }
+    // Zoom centered on cursor - no modifier key required
+    const zoomFactor: number = 1 - e.deltaY * 0.01;
+    const newZoom: number = Math.max(
+      this.cy.minZoom(),
+      Math.min(this.cy.maxZoom(), this.cy.zoom() * zoomFactor)
+    );
+    const rect: DOMRect = this.container.getBoundingClientRect();
+    this.cy.zoom({
+      level: newZoom,
+      renderedPosition: { x: e.clientX - rect.left, y: e.clientY - rect.top }
+    });
   }
 
   /**

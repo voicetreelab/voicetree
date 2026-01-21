@@ -164,12 +164,14 @@ function positionNodeIfNeeded(
         }
     }
 
-    // Preserve the existing incomingEdgesIndex since we're only updating node metadata, not edges
+    // Preserve all existing indexes since we're only updating node metadata, not edges
     return {
         nodes: {
             ...tree.nodes,
             [nodeId]: updatedNode
         },
-        incomingEdgesIndex: tree.incomingEdgesIndex
+        incomingEdgesIndex: tree.incomingEdgesIndex,
+        nodeByBaseName: tree.nodeByBaseName,
+        unresolvedLinksIndex: tree.unresolvedLinksIndex
     }
 }

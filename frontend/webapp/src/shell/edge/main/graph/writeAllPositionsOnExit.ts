@@ -1,4 +1,4 @@
-import type { Graph, FilePath } from '@/pure/graph'
+import type { Graph } from '@/pure/graph'
 import { fromNodeToMarkdownContent } from '@/pure/graph/markdown-writing/node_to_markdown'
 import { nodeIdToFilePathWithExtension } from '@/pure/graph/markdown-parsing/filename-utils'
 import * as fs from 'fs'
@@ -14,23 +14,19 @@ import * as path from 'path'
  * consider pausing the watcher before calling this function.
  *
  * @param graph - The graph containing nodes to persist
- * @param watchedFolderRoot - The root directory being watched (NOT the vault path).
- *   Node IDs include the vault suffix as part of their relative path, so we join
- *   with the watched folder root to get the correct absolute path.
  */
-export function writeAllPositionsSync(graph: Graph, watchedFolderRoot: FilePath): void {
+export function writeAllPositionsSync(graph: Graph): void {
     const nodes: readonly import('@/pure/graph').GraphNode[] = Object.values(graph.nodes)
     console.log('Writing node pos on close');
     for (const node of nodes) {
         const markdown: string = fromNodeToMarkdownContent(node)
-        const filename: string = nodeIdToFilePathWithExtension(node.absoluteFilePathIsID)
-        const fullPath: string = path.join(watchedFolderRoot, filename)
+        // Node ID is already the absolute file path
+        const fullPath: string = nodeIdToFilePathWithExtension(node.absoluteFilePathIsID)
 
         // Ensure parent directory exists
         const dir: string = path.dirname(fullPath)
         if (!fs.existsSync(dir)) {
             console.error("DIR DOESNT EXIST< SOMETHING IS WRONG")
-            // fs.mkdirSync(dir, { recursive: true })
         }
         fs.writeFileSync(fullPath, markdown, 'utf-8')
     }

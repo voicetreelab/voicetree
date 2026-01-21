@@ -9,6 +9,7 @@ import {markTerminalActivityForContextNode} from "@/shell/UI/views/AgentTabsBar"
 import type {} from '@/utils/types/cytoscape-layout-utilities';
 import {cyFitCollectionByAverageNodeSize} from "@/utils/responsivePadding";
 import {checkEngagementPrompts} from "./userEngagementPrompts";
+import {scheduleIdleWork} from "@/utils/scheduleIdleWork";
 import {getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {getShadowNodeId, getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 
@@ -248,8 +249,11 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                             });
                             // Mark terminal activity for both source and target nodes
                             // markTerminalActivityForContextNode checks both attachedToNodeId (context) and anchoredToNodeId (task)
-                            markTerminalActivityForContextNode(nodeId);
-                            markTerminalActivityForContextNode(edge.targetId);
+                            // Deferred via requestIdleCallback since activity dots are non-critical visual feedback
+                            scheduleIdleWork(() => {
+                                markTerminalActivityForContextNode(nodeId);
+                                markTerminalActivityForContextNode(edge.targetId);
+                            }, 500);
                         } else {
                             console.warn(`[applyGraphDeltaToUI] Skipping edge ${nodeId}->${edge.targetId}: target node does not exist`);
                         }
@@ -282,16 +286,19 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
         // Fit so average node takes target fraction of viewport (smart zoom: only zooms if needed)
         setTimeout(() => { if (!cy.destroyed()) cyFitCollectionByAverageNodeSize(cy, cy.nodes(), 0.15); }, 150);
     }
-    //analytics
-    posthog.capture('graphDelta');
-    const userId: string = posthog.get_distinct_id()
-    console.log("UUID", userId);
     console.log('[applyGraphDeltaToUI] Complete. Total nodes:', cy.nodes().length, 'Total edges:', cy.edges().length);
 
-    // Show engagement prompts after enough deltas created in session
-    if (newNodeCount){
-        checkEngagementPrompts();
-    }
+    // Defer non-critical analytics and engagement prompts to idle time
+    scheduleIdleWork(() => {
+        posthog.capture('graphDelta');
+        const userId: string = posthog.get_distinct_id();
+        console.log("UUID", userId);
+
+        // Show engagement prompts after enough deltas created in session
+        if (newNodeCount) {
+            checkEngagementPrompts();
+        }
+    }, 2000);
 
     return { newNodeIds };
 }

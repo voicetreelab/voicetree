@@ -43,5 +43,10 @@ export function saveNodePositions(cyNodes: readonly NodeDefinition[]): void {
 
     console.log("Saved node positions to graph");
 
-    setGraph({nodes: updatedNodes, incomingEdgesIndex: graph.incomingEdgesIndex});
+    setGraph({
+        nodes: updatedNodes,
+        incomingEdgesIndex: graph.incomingEdgesIndex,
+        nodeByBaseName: graph.nodeByBaseName,
+        unresolvedLinksIndex: graph.unresolvedLinksIndex
+    });
 }

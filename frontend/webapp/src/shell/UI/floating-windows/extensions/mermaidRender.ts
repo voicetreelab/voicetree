@@ -1,16 +1,23 @@
 import {Decoration, WidgetType, EditorView, type DecorationSet} from '@codemirror/view';
 import {RangeSet, StateField, type EditorState, type Range} from '@codemirror/state';
 import {syntaxTree} from '@codemirror/language';
-import mermaid from 'mermaid';
 import type { RenderResult } from 'mermaid';
 
-// Initialize Mermaid with default config
-mermaid.initialize({
-    startOnLoad: false,
-    theme: 'default',
-    securityLevel: 'loose',
-    suppressErrorRendering: true, // annoying html
-});
+// Lazy-loaded mermaid module (65MB!) - only loaded when first diagram renders
+let mermaidModule: typeof import('mermaid') | null = null;
+
+async function getMermaid(): Promise<typeof import('mermaid')['default']> {
+    if (!mermaidModule) {
+        mermaidModule = await import('mermaid');
+        mermaidModule.default.initialize({
+            startOnLoad: false,
+            theme: 'default',
+            securityLevel: 'loose',
+            suppressErrorRendering: true,
+        });
+    }
+    return mermaidModule.default;
+}
 
 /**
  * Widget that renders Mermaid diagrams as SVG
@@ -35,6 +42,7 @@ class MermaidBlockWidget extends WidgetType {
 
     private async renderMermaid(diagramSource: string): Promise<void> {
         try {
+            const mermaid = await getMermaid();
             const id: string = 'mermaid-' + Math.random().toString(36).substring(2, 11);
             const result: RenderResult = await mermaid.render(id, diagramSource);
             this.rendered = result.svg;
