@@ -5,7 +5,7 @@ import fs from 'fs';
 import fixPath from 'fix-path';
 import electronUpdater, {type UpdateCheckResult} from 'electron-updater';
 import log from 'electron-log';
-import {getWatchedDirectory, setStartupFolderOverride, setOnFolderSwitchCleanup, releaseCurrentLock} from '@/shell/edge/main/graph/watch_folder/watchFolder';
+import {setStartupFolderOverride, setOnFolderSwitchCleanup, releaseCurrentLock} from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import {setupApplicationMenu} from '@/shell/edge/main/electron/application-menu';
 
 // Redirect all console.* to electron-log in production (handles EPIPE errors on Linux AppImage)
@@ -290,12 +290,8 @@ function createWindow(): void {
     mainWindow.on('closed', () => {
         terminalManager.cleanupForWindow(windowId);
         // Persist node positions to disk before exit
-        // Use watchedDirectory (not vaultPath) because node IDs include the vault suffix
-        const watchedDir: string | null = getWatchedDirectory();
-        if (watchedDir !== null) {
-            console.log('[App] Saving node positions to disk...');
-            writeAllPositionsSync(getGraph(), watchedDir);
-        }
+        console.log('[App] Saving node positions to disk...');
+        writeAllPositionsSync(getGraph());
     });
 }
 

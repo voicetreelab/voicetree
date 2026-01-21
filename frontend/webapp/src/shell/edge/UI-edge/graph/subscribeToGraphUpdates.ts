@@ -23,6 +23,7 @@ import {setWatchedFolder} from '@/shell/edge/UI-edge/state/WatchedFolderStore';
 import type {RecentNodeHistory} from '@/pure/graph/recentNodeHistoryV2';
 import type {GraphNavigationService} from './navigation/GraphNavigationService';
 import type {SearchService} from '@/shell/UI/views/SearchService';
+import {scheduleIdleWork} from '@/utils/scheduleIdleWork';
 
 /**
  * Subscribe to graph delta updates from main process via electronAPI.
@@ -62,14 +63,17 @@ export function subscribeToGraphUpdates(
         // Update navigator visibility based on node count
         updateNavigatorVisibility();
 
-        // Update recent node history from delta and re-render tabs
-        const updatedHistory: RecentNodeHistory = updateRecentNodeHistoryFromDelta(delta);
+        // Defer recent node history update and tab rendering to idle time
+        // This is non-critical visual feedback that can wait for browser idle
+        scheduleIdleWork(() => {
+            const updatedHistory: RecentNodeHistory = updateRecentNodeHistoryFromDelta(delta);
 
-        renderRecentNodeTabsV2(
-            updatedHistory,
-            (nodeId) => navigationService.handleSearchSelect(nodeId),
-            (nodeId) => cy.getElementById(nodeId).data('label') as string | undefined
-        );
+            renderRecentNodeTabsV2(
+                updatedHistory,
+                (nodeId) => navigationService.handleSearchSelect(nodeId),
+                (nodeId) => cy.getElementById(nodeId).data('label') as string | undefined
+            );
+        }, 500);
     };
 
     const handleGraphClear: () => void = (): void => {

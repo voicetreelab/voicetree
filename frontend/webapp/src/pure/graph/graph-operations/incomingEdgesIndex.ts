@@ -50,6 +50,10 @@ export function updateIndexForUpsert(
 ): IncomingEdgesIndex {
   const nodeId: NodeIdAndFilePath = node.absoluteFilePathIsID
 
+  // Defensive: handle undefined index
+  const indexEntries: readonly (readonly [NodeIdAndFilePath, readonly NodeIdAndFilePath[]])[] =
+    index ? Array.from(index.entries()) : []
+
   // Step 1: Remove old references if this is an update
   const indexAfterRemovals: Map<NodeIdAndFilePath, readonly NodeIdAndFilePath[]> = O.isSome(previousNode)
     ? previousNode.value.outgoingEdges.reduce<Map<NodeIdAndFilePath, readonly NodeIdAndFilePath[]>>(
@@ -66,9 +70,9 @@ export function updateIndexForUpsert(
           }
           return acc
         },
-        new Map(Array.from(index.entries()).map(([k, v]) => [k, [...v]]))
+        new Map(indexEntries.map(([k, v]) => [k, [...v]]))
       )
-    : new Map(Array.from(index.entries()).map(([k, v]) => [k, [...v]]))
+    : new Map(indexEntries.map(([k, v]) => [k, [...v]]))
 
   // Step 2: Add new references
   return node.outgoingEdges.reduce<Map<NodeIdAndFilePath, readonly NodeIdAndFilePath[]>>(
@@ -97,6 +101,10 @@ export function updateIndexForDelete(
 ): IncomingEdgesIndex {
   const deletedNodeId: NodeIdAndFilePath = deletedNode.absoluteFilePathIsID
 
+  // Defensive: handle undefined index
+  const indexEntries: readonly (readonly [NodeIdAndFilePath, readonly NodeIdAndFilePath[]])[] =
+    index ? Array.from(index.entries()) : []
+
   // Step 1: Remove references from this node's outgoing edges
   const indexAfterEdgeRemovals: Map<NodeIdAndFilePath, readonly NodeIdAndFilePath[]> =
     deletedNode.outgoingEdges.reduce<Map<NodeIdAndFilePath, readonly NodeIdAndFilePath[]>>(
@@ -113,7 +121,7 @@ export function updateIndexForDelete(
         }
         return acc
       },
-      new Map(Array.from(index.entries()).map(([k, v]) => [k, [...v]]))
+      new Map(indexEntries.map(([k, v]) => [k, [...v]]))
     )
 
   // Step 2: Also remove the deleted node's own entry (nodes pointing to it)

@@ -1,6 +1,6 @@
 import {describe, it, expect, vi, beforeEach} from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
-import type {Graph, GraphNode, NodeIdAndFilePath} from '@/pure/graph'
+import type {GraphNode, NodeIdAndFilePath} from '@/pure/graph'
 import {createTerminalData} from '@/shell/edge/UI-edge/floating-windows/types'
 import type {TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 
@@ -79,8 +79,10 @@ describe('MCP spawn_agent tool', () => {
             nodes: {
                 'node-1.md': buildGraphNode('node-1.md', '# Node One')
             },
-            incomingEdgesIndex: new Map()
-        } as Graph)
+            incomingEdgesIndex: new Map(),
+            nodeByBaseName: new Map(),
+            unresolvedLinksIndex: new Map()
+        })
 
         vi.mocked(spawnTerminalWithContextNode).mockResolvedValue({
             terminalId: 'node-1-terminal-0',
@@ -114,8 +116,10 @@ describe('MCP spawn_agent tool', () => {
         vi.mocked(getWritePath).mockResolvedValue(O.some('/vault'))
         vi.mocked(getGraph).mockReturnValue({
             nodes: {},
-            incomingEdgesIndex: new Map()
-        } as Graph)
+            incomingEdgesIndex: new Map(),
+            nodeByBaseName: new Map(),
+            unresolvedLinksIndex: new Map()
+        })
 
         const response: McpToolResponse = await spawnAgentTool({nodeId: 'missing-node.md', callerTerminalId: 'caller-terminal-99'})
         const payload: {success: boolean; error: string} = parsePayload(response) as {success: boolean; error: string}
@@ -145,8 +149,10 @@ describe('MCP spawn_agent tool', () => {
             nodes: {
                 'node-1.md': buildGraphNode('node-1.md', '# Node One')
             },
-            incomingEdgesIndex: new Map()
-        } as Graph)
+            incomingEdgesIndex: new Map(),
+            nodeByBaseName: new Map(),
+            unresolvedLinksIndex: new Map()
+        })
 
         vi.mocked(spawnTerminalWithContextNode).mockResolvedValue({
             terminalId: 'node-1-terminal-0',
@@ -209,8 +215,10 @@ describe('MCP list_agents tool', () => {
                 'new-node-a.md': buildGraphNode('new-node-a.md', '# Node A'),
                 'new-node-b.md': buildGraphNode('new-node-b.md', '# Node B')
             },
-            incomingEdgesIndex: new Map()
-        } as Graph)
+            incomingEdgesIndex: new Map(),
+            nodeByBaseName: new Map(),
+            unresolvedLinksIndex: new Map()
+        })
 
         const response: McpToolResponse = await listAgentsTool()
         const payload: {
@@ -261,7 +269,7 @@ describe('MCP list_agents tool', () => {
 
         vi.mocked(getTerminalRecords).mockReturnValue(records)
         vi.mocked(getUnseenNodesAroundContextNode).mockResolvedValue([])
-        vi.mocked(getGraph).mockReturnValue({nodes: {}, incomingEdgesIndex: new Map()} as Graph)
+        vi.mocked(getGraph).mockReturnValue({nodes: {}, incomingEdgesIndex: new Map(), nodeByBaseName: new Map(), unresolvedLinksIndex: new Map()})
 
         const response: McpToolResponse = await listAgentsTool()
         const payload: {agents: Array<{status: string}>} = parsePayload(response) as {agents: Array<{status: string}>}

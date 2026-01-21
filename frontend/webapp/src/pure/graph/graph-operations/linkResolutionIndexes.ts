@@ -146,8 +146,9 @@ export function updateNodeByBaseNameIndexForUpsert(
   const nodeId: NodeIdAndFilePath = node.absoluteFilePathIsID
   const newBasename: string = getBaseName(nodeId)
 
+  // Defensive: handle undefined index (can happen if graph was partially initialized)
   const initialEntries: readonly (readonly [string, readonly NodeIdAndFilePath[]])[] =
-    Array.from(index.entries())
+    index ? Array.from(index.entries()) : []
 
   // If update, remove old entry if basename changed
   const afterRemoval: readonly (readonly [string, readonly NodeIdAndFilePath[]])[] = O.isSome(previousNode)
@@ -176,6 +177,8 @@ export function updateNodeByBaseNameIndexForDelete(
   const deletedNodeId: NodeIdAndFilePath = deletedNode.absoluteFilePathIsID
   const basename: string = getBaseName(deletedNodeId)
 
+  // Defensive: handle undefined index
+  if (!index) return new Map()
   if (basename === '') return index
 
   const entries: readonly (readonly [string, readonly NodeIdAndFilePath[]])[] =
@@ -204,8 +207,9 @@ export function updateUnresolvedLinksIndexForUpsert(
   const nodeId: NodeIdAndFilePath = node.absoluteFilePathIsID
   const nodeBasename: string = getBaseName(nodeId)
 
+  // Defensive: handle undefined index
   const initialEntries: readonly (readonly [string, readonly NodeIdAndFilePath[]])[] =
-    Array.from(index.entries())
+    index ? Array.from(index.entries()) : []
 
   // Step 1: If this is an update, remove old unresolved links from this node
   const afterOldRemoval: readonly (readonly [string, readonly NodeIdAndFilePath[]])[] = O.isSome(previousNode)
@@ -247,8 +251,9 @@ export function updateUnresolvedLinksIndexForDelete(
   const deletedNodeId: NodeIdAndFilePath = deletedNode.absoluteFilePathIsID
   const deletedBasename: string = getBaseName(deletedNodeId)
 
+  // Defensive: handle undefined index
   const initialEntries: readonly (readonly [string, readonly NodeIdAndFilePath[]])[] =
-    Array.from(index.entries())
+    index ? Array.from(index.entries()) : []
 
   // Step 1: Remove deleted node from any unresolved link tracking
   const afterRemoval: readonly (readonly [string, readonly NodeIdAndFilePath[]])[] =

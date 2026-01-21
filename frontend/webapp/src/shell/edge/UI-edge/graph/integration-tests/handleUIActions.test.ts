@@ -15,6 +15,7 @@ import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
 import { createNewChildNodeFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions'
 import type { Graph, GraphNode, GraphDelta } from '@/pure/graph'
+import { createGraph } from '@/pure/graph/createGraph'
 import { getNodeTitle } from '@/pure/graph/markdown-parsing'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
 import {modifyNodeContentFromUI} from "@/shell/edge/UI-edge/floating-windows/editors/modifyNodeContentFromFloatingEditor";
@@ -52,32 +53,30 @@ describe('createNewChildNodeFromUI - Integration', () => {
     beforeEach(() => {
         // Create a minimal graph with 2 nodes
         // NOTE: title is derived via getNodeTitle from contentWithoutYamlOrLinks
-        mockGraph = {
-            nodes: {
-                'parent.md': {
-                    absoluteFilePathIsID: 'parent.md',
-                    contentWithoutYamlOrLinks: '# Parent GraphNode',
-                    outgoingEdges: [{ targetId: 'child1.md', label: '' }],
-                    nodeUIMetadata: {
-                        color: O.none,
-                        position: O.some({ x: 100, y: 100 }),
-                        additionalYAMLProps: new Map(),
-                        isContextNode: false
-                    }
-                },
-                'child1.md': {
-                    absoluteFilePathIsID: 'child1.md',
-                    contentWithoutYamlOrLinks: '# Child 1',
-                    outgoingEdges: [],
-                    nodeUIMetadata: {
-                        color: O.none,
-                        position: O.some({ x: 200, y: 200 }),
-                        additionalYAMLProps: new Map(),
-                        isContextNode: false
-                    }
+        mockGraph = createGraph({
+            'parent.md': {
+                absoluteFilePathIsID: 'parent.md',
+                contentWithoutYamlOrLinks: '# Parent GraphNode',
+                outgoingEdges: [{ targetId: 'child1.md', label: '' }],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            },
+            'child1.md': {
+                absoluteFilePathIsID: 'child1.md',
+                contentWithoutYamlOrLinks: '# Child 1',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 200, y: 200 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
-        }
+        })
 
         // Initialize headless cytoscape with the 2 nodes
         // Labels should match what markdownToTitle would extract from content
@@ -234,21 +233,19 @@ describe('modifyNodeContentFromUI - Integration', () => {
     beforeEach(() => {
         // Create a minimal graph with 1 node
         // NOTE: title is derived via getNodeTitle from contentWithoutYamlOrLinks
-        mockGraph = {
-            nodes: {
-                'test.md': {
-                    absoluteFilePathIsID: 'test.md',
-                    contentWithoutYamlOrLinks: '# Old Title\n\nSome content',
-                    outgoingEdges: [],
-                    nodeUIMetadata: {
-                        color: O.some('#FF0000'),
-                        position: O.some({ x: 100, y: 100 }),
-                        additionalYAMLProps: new Map(),
-                        isContextNode: false
-                    }
+        mockGraph = createGraph({
+            'test.md': {
+                absoluteFilePathIsID: 'test.md',
+                contentWithoutYamlOrLinks: '# Old Title\n\nSome content',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.some('#FF0000'),
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
-        }
+        })
 
         // Initialize headless cytoscape with the node
         cy = cytoscape({
