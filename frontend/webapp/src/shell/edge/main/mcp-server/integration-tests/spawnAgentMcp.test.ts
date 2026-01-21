@@ -129,6 +129,43 @@ describe('MCP spawn_agent tool', () => {
         expect(payload.error).toContain('not found')
     })
 
+    it('resolves short nodeId to full path via nodeByBaseName index', async () => {
+        mockCallerTerminal()
+        vi.mocked(getWritePath).mockResolvedValue(O.some('/vault'))
+
+        // Full path as key in nodes, but we'll pass just the basename
+        const fullPath: NodeIdAndFilePath = '/Users/test/vault/voicetree/fix-test.md'
+        vi.mocked(getGraph).mockReturnValue({
+            nodes: {
+                [fullPath]: buildGraphNode(fullPath, '# Fix Test')
+            },
+            incomingEdgesIndex: new Map(),
+            nodeByBaseName: new Map([['fix-test', [fullPath]]]),
+            unresolvedLinksIndex: new Map()
+        })
+
+        vi.mocked(spawnTerminalWithContextNode).mockResolvedValue({
+            terminalId: 'fix-test-terminal-0',
+            contextNodeId: 'ctx-nodes/fix-test_context.md'
+        })
+
+        // Pass just the short name - should resolve to full path
+        const response: McpToolResponse = await spawnAgentTool({nodeId: 'fix-test.md', callerTerminalId: 'caller-terminal-99'})
+        const payload: {
+            success: boolean
+            nodeId: string
+            terminalId: string
+        } = parsePayload(response) as {
+            success: boolean
+            nodeId: string
+            terminalId: string
+        }
+
+        expect(payload.success).toBe(true)
+        expect(payload.nodeId).toBe(fullPath)
+        expect(spawnTerminalWithContextNode).toHaveBeenCalledWith(fullPath, undefined, undefined, true, false)
+    })
+
     it('returns an error when vault path is not set', async () => {
         mockCallerTerminal()
         vi.mocked(getWritePath).mockResolvedValue(O.none)

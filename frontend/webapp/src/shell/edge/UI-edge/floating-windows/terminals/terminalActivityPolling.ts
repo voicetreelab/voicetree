@@ -7,7 +7,7 @@
  */
 
 import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
-import { getTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
+import { getTerminals, updateTerminalRunningState } from '@/shell/edge/UI-edge/state/TerminalStore';
 import { isZoomSuppressed } from '@/shell/edge/UI-edge/state/AgentTabsStore';
 import {
     CHECK_INTERVAL_MS,
@@ -70,13 +70,12 @@ export function startTerminalActivityPolling(): () => void {
         const terminal: TerminalData | undefined = terminals.get(terminalId as TerminalId);
         if (!terminal) return;
 
-        // Phase 3: Update main process (source of truth)
-        void window.electronAPI?.main.updateTerminalActivityState(terminalId, { lastOutputTime: now });
+        // Update local lastOutputTime for inactivity calculation (no IPC, no re-render)
+        updateTerminalRunningState(terminalId as TerminalId, { lastOutputTime: now });
 
-        // If terminal was previously marked as done, mark as running
+        // State transition: inactive -> active (send ONE update)
         if (terminal.isDone) {
             void window.electronAPI?.main.updateTerminalIsDone(terminalId, false);
-            // Optimistic DOM update for responsive UI
             updateTerminalStatusDot(terminalId as TerminalId, false);
         }
     });

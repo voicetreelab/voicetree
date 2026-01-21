@@ -92,6 +92,9 @@ const test = base.extend<{
     await window.waitForLoadState('domcontentloaded');
     await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 5000 });
 
+    // Wait a bit longer to ensure graph is ready (matches settings-integration test pattern)
+    await window.waitForTimeout(1000);
+
     await use(window);
   }
 });
@@ -109,8 +112,14 @@ test.describe('Smoke Test', () => {
     expect(appReady).toBe(true);
     console.log('✓ App loaded successfully');
 
-    // Wait for auto-load to complete (initialLoad() is called during VoiceTreeGraphView construction)
-    await appWindow.waitForTimeout(500);
+    // Wait for auto-load to complete by polling for cytoscape nodes (synchronous check)
+    // initialLoad() is called during VoiceTreeGraphView construction via loadPreviousFolder()
+    await appWindow.waitForFunction(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return false;
+      return cy.nodes().length > 1;
+    }, { timeout: 8000 });
+    console.log('✓ Cytoscape nodes loaded');
 
     // Verify graph was automatically loaded into main process state
     const graph = await appWindow.evaluate(async () => {

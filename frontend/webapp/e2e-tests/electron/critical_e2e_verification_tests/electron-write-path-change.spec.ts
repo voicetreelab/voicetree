@@ -194,7 +194,7 @@ test.describe('Write Path Change Bug', () => {
     const addResult = await appWindow.evaluate(async (secondPath: string) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.main.addReadOnLinkPath(secondPath);
+      return await api.main.addReadPath(secondPath);
     }, secondVaultPath);
 
     console.log('Add vault path result:', addResult);

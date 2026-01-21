@@ -296,12 +296,13 @@ describe('Terminal Registry - Phase 1: Expand Registry', () => {
 })
 
 /**
- * Phase 2A: syncTerminals is called after mutations
+ * Phase 2A: syncTerminals is called after mutations (except activity updates)
  *
  * BEHAVIOR TESTED:
  * - syncTerminals is called after recordTerminalSpawn
  * - syncTerminals is called after markTerminalExited
- * - syncTerminals is called after any state update (isDone, isPinned, activity)
+ * - syncTerminals is called after structural state updates (isDone, isPinned)
+ * - syncTerminals is NOT called after activity updates (performance: avoids re-renders)
  *
  * Spec Reference: consolidate-terminal-registry phase 2A
  */
@@ -401,7 +402,7 @@ describe('Terminal Registry - Phase 2A: syncTerminals', () => {
             expect(records[0].terminalData.isPinned).toBe(true)
         })
 
-        it('calls syncTerminals after updateTerminalActivityState', async () => {
+        it('does NOT call syncTerminals after updateTerminalActivityState (performance: avoids re-renders)', async () => {
             const terminalData: TerminalData = createTerminalData({
                 attachedToNodeId: 'sync-activity-node.md',
                 terminalCount: 0,
@@ -413,9 +414,10 @@ describe('Terminal Registry - Phase 2A: syncTerminals', () => {
             // WHEN: Updating activity state
             updateTerminalActivityState('sync-activity-node.md-terminal-0', {activityCount: 5})
 
-            // THEN: syncTerminals should be called
-            expect(mockSyncTerminals).toHaveBeenCalledTimes(1)
-            const records: TerminalRecord[] = mockSyncTerminals.mock.calls[0][0]
+            // THEN: syncTerminals should NOT be called (activity updates are high frequency)
+            expect(mockSyncTerminals).not.toHaveBeenCalled()
+            // But state should still be updated locally
+            const records: TerminalRecord[] = getTerminalRecords()
             expect(records[0].terminalData.activityCount).toBe(5)
         })
 

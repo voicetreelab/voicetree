@@ -566,6 +566,13 @@
   overflow-x: hidden;
 }
 
+/* Hide horizontal scrollbar on xterm's internal viewport element.
+ * xterm.css only sets overflow-y: scroll, leaving overflow-x at default which can show scrollbar.
+ * Content wider than terminal columns (e.g. long prompts before fitAddon.fit() runs) triggers this. */
+.cy-floating-window-terminal .xterm-viewport {
+  overflow-x: hidden;
+}
+
 /* Windows-only: scrollbars take physical space (~17px) causing FitAddon to miscalculate column width.
  * scrollbar-gutter: stable reserves space for vertical scrollbar, ensuring consistent width.
  * On macOS, overlay scrollbars don't need this - it would actually cause layout issues. */

@@ -144,15 +144,20 @@ export class TerminalVanilla {
         if (!this.term || !this.fitAddon) return;
 
         const zoom: number = getCachedZoom();
+        // Determine scaling strategy BEFORE checking isZoomActive
+        // In dimension-scaling mode, container dimensions change during zoom and fit() is required
+        // In css-transform mode, visual scaling is handled by CSS transform so fit() can be skipped
+        const strategy: 'css-transform' | 'dimension-scaling' = getScalingStrategy('Terminal', zoom);
 
-        if (isZoomActive()) {
-          // During zoom: skip fit() to avoid PTY resize/shell redraws
+        if (isZoomActive() && strategy === 'css-transform') {
+          // During zoom with CSS transform: skip fit() to avoid PTY resize/shell redraws
           // Visual scaling is handled by the parent floating window's CSS transform
           return;
         }
+        // In dimension-scaling mode (zoom >= 0.5), container dimensions change during zoom
+        // so fit() must be called to keep xterm in sync with its container
 
         // Update fontSize based on current zoom level
-        const strategy: 'css-transform' | 'dimension-scaling' = getScalingStrategy('Terminal', zoom);
         this.term.options.fontSize = getTerminalFontSize(zoom, strategy);
 
         // Use pre-captured scroll if available (from zoomStart or expand button click),
@@ -174,7 +179,16 @@ export class TerminalVanilla {
           // Threshold of 10 lines allows for small variance in scroll position.
           if (scrollOffset < 10) {
             this.term.scrollToBottom();
-            this.scrollOffsetBeforeZoom = null;
+            // Schedule delayed correction to fix scrollbar desync race condition.
+            // Delay must be >300ms to run after zoom animation completes.
+            // Clear scrollOffsetBeforeZoom inside timeout so subsequent ResizeObserver
+            // callbacks during the zoom animation use the same uncorrupted value.
+            if (this.scrollCorrectionTimeout) clearTimeout(this.scrollCorrectionTimeout);
+            this.scrollCorrectionTimeout = setTimeout(() => {
+              if (!this.term) return;
+              this.term.scrollToBottom();
+              this.scrollOffsetBeforeZoom = null;
+            }, 350);
             return;
           }
 
@@ -185,6 +199,7 @@ export class TerminalVanilla {
 
             // Schedule delayed correction to fix scrollbar desync race condition.
             // Only re-apply if user hasn't scrolled (viewportY unchanged).
+            // Delay must be >300ms to run after zoom animation completes.
             const expectedViewportY: number = this.term.buffer.active.viewportY;
             if (this.scrollCorrectionTimeout) clearTimeout(this.scrollCorrectionTimeout);
             this.scrollCorrectionTimeout = setTimeout(() => {
@@ -192,9 +207,9 @@ export class TerminalVanilla {
               if (this.term.buffer.active.viewportY === expectedViewportY) {
                 this.term.scrollToLine(targetLine);
               }
-            }, 100);
+              this.scrollOffsetBeforeZoom = null;
+            }, 350);
           }
-          this.scrollOffsetBeforeZoom = null;
         });
       });
     });
@@ -217,6 +232,14 @@ export class TerminalVanilla {
 
       this.fitAddon.fit();
 
+      // Schedule a delayed fit() to catch any dimension mismatches from layout timing issues.
+      // The container dimensions might not have stabilized when the first fit() runs,
+      // causing the terminal to have wrong row count (visible as extra black rows).
+      setTimeout(() => {
+        if (!this.fitAddon || !this.term) return;
+        this.fitAddon.fit();
+      }, 150);
+
       // Defer scroll restoration to next frame - xterm's internal _sync()
       // schedules dimension updates via addRefreshCallback() which runs at next animation frame.
       // DON'T clear scrollOffsetBeforeZoom here - ResizeObserver may fire later
@@ -230,6 +253,13 @@ export class TerminalVanilla {
           // phantom scrollable black lines that appear after resize when terminal gets taller.
           if (scrollOffset < 10) {
             this.term.scrollToBottom();
+            // Schedule delayed correction to fix scrollbar desync race condition.
+            // Delay must be >300ms to run after zoom animation completes.
+            if (this.scrollCorrectionTimeout) clearTimeout(this.scrollCorrectionTimeout);
+            this.scrollCorrectionTimeout = setTimeout(() => {
+              if (!this.term) return;
+              this.term.scrollToBottom();
+            }, 350);
             return;
           }
 
@@ -240,6 +270,7 @@ export class TerminalVanilla {
 
             // Schedule delayed correction to fix scrollbar desync race condition.
             // Only re-apply if user hasn't scrolled (viewportY unchanged).
+            // Delay must be >300ms to run after zoom animation completes.
             const expectedViewportY: number = this.term.buffer.active.viewportY;
             if (this.scrollCorrectionTimeout) clearTimeout(this.scrollCorrectionTimeout);
             this.scrollCorrectionTimeout = setTimeout(() => {
@@ -247,7 +278,7 @@ export class TerminalVanilla {
               if (this.term.buffer.active.viewportY === expectedViewportY) {
                 this.term.scrollToLine(targetLine);
               }
-            }, 100);
+            }, 350);
           }
         });
       }
@@ -308,6 +339,14 @@ export class TerminalVanilla {
     this.term?.scrollToBottom();
     // Update saved scroll offset so zoom restoration respects this intentional scroll
     this.scrollOffsetBeforeZoom = 0;
+    // Schedule delayed correction to fix scrollbar desync race condition.
+    // xterm.js scrollbar position can desync from internal state after scroll operations.
+    // Delay must be >300ms to run after zoom animation completes.
+    if (this.scrollCorrectionTimeout) clearTimeout(this.scrollCorrectionTimeout);
+    this.scrollCorrectionTimeout = setTimeout(() => {
+      if (!this.term) return;
+      this.term.scrollToBottom();
+    }, 350);
   }
 
   /**

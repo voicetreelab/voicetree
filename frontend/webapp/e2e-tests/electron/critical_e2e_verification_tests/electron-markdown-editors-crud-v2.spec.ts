@@ -206,11 +206,13 @@ test.describe('Markdown Editor CRUD Tests', () => {
     console.log(`✓ Found node with ID: ${nodeId}`);
 
     // Read original file content for restoration later
-    // Note: nodeId is relative to watched directory and already includes vault suffix (e.g., "voicetree/2025-09-30/file.md")
-    // So we join directly with FIXTURE_VAULT_PATH (the watched directory)
-    const testFilePath = nodeId.endsWith('.md')
-      ? path.join(FIXTURE_VAULT_PATH, nodeId)
-      : path.join(FIXTURE_VAULT_PATH, `${nodeId}.md`);
+    // Note: nodeId may be absolute path or relative to watched directory (e.g., "voicetree/2025-09-30/file.md")
+    // If absolute, use directly; if relative, join with FIXTURE_VAULT_PATH
+    const testFilePath = path.isAbsolute(nodeId)
+      ? (nodeId.endsWith('.md') ? nodeId : `${nodeId}.md`)
+      : (nodeId.endsWith('.md')
+          ? path.join(FIXTURE_VAULT_PATH, nodeId)
+          : path.join(FIXTURE_VAULT_PATH, `${nodeId}.md`));
     const originalContent = await fs.readFile(testFilePath, 'utf-8');
     console.log('Original file content length:', originalContent.length);
 
@@ -289,7 +291,7 @@ test.describe('Markdown Editor CRUD Tests', () => {
     await appWindow.evaluate((winId) => {
       // Escape dots in winId for querySelector
       const escapedWinId = CSS.escape(winId);
-      const closeButton = document.querySelector(`#${escapedWinId} .cy-floating-window-close`) as HTMLButtonElement | null;
+      const closeButton = document.querySelector(`#${escapedWinId} .traffic-light-close`) as HTMLButtonElement | null;
       if (!closeButton) throw new Error('Close button not found!');
       closeButton.click();
     }, editorWindowId);
@@ -348,7 +350,7 @@ test.describe('Markdown Editor CRUD Tests', () => {
     // Close the editor before restoring file (to prevent auto-save from overwriting)
     await appWindow.evaluate((winId) => {
       const escapedWinId = CSS.escape(winId);
-      const closeButton = document.querySelector(`#${escapedWinId} .cy-floating-window-close`) as HTMLButtonElement | null;
+      const closeButton = document.querySelector(`#${escapedWinId} .traffic-light-close`) as HTMLButtonElement | null;
       if (closeButton) closeButton.click();
     }, editorWindowId);
     await appWindow.waitForTimeout(200); // Wait for editor to fully close
@@ -383,11 +385,13 @@ test.describe('Markdown Editor CRUD Tests', () => {
 
     const nodeId = 'introduction';
     // Read original file content for restoration
-    // Note: nodeId is relative to watched directory and already includes vault suffix (e.g., "voicetree/file.md")
-    // So we join directly with FIXTURE_VAULT_PATH (the watched directory)
-    const testFilePath = nodeId.endsWith('.md')
-      ? path.join(FIXTURE_VAULT_PATH, nodeId)
-      : path.join(FIXTURE_VAULT_PATH, `${nodeId}.md`);
+    // Note: nodeId may be absolute path or relative to watched directory (e.g., "voicetree/file.md")
+    // If absolute, use directly; if relative, join with FIXTURE_VAULT_PATH
+    const testFilePath = path.isAbsolute(nodeId)
+      ? (nodeId.endsWith('.md') ? nodeId : `${nodeId}.md`)
+      : (nodeId.endsWith('.md')
+          ? path.join(FIXTURE_VAULT_PATH, nodeId)
+          : path.join(FIXTURE_VAULT_PATH, `${nodeId}.md`));
     const originalContent = await fs.readFile(testFilePath, 'utf-8');
 
     // Get initial edge count for node
@@ -560,11 +564,13 @@ test.describe('Markdown Editor CRUD Tests', () => {
     console.log(`✓ Found node with ID: ${nodeId}`);
 
     // Read original file content for restoration
-    // Note: nodeId is relative to watched directory and already includes vault suffix (e.g., "voicetree/2025-09-30/file.md")
-    // So we join directly with FIXTURE_VAULT_PATH (the watched directory)
-    const testFilePath = nodeId.endsWith('.md')
-      ? path.join(FIXTURE_VAULT_PATH, nodeId)
-      : path.join(FIXTURE_VAULT_PATH, `${nodeId}.md`);
+    // Note: nodeId may be absolute path or relative to watched directory (e.g., "voicetree/2025-09-30/file.md")
+    // If absolute, use directly; if relative, join with FIXTURE_VAULT_PATH
+    const testFilePath = path.isAbsolute(nodeId)
+      ? (nodeId.endsWith('.md') ? nodeId : `${nodeId}.md`)
+      : (nodeId.endsWith('.md')
+          ? path.join(FIXTURE_VAULT_PATH, nodeId)
+          : path.join(FIXTURE_VAULT_PATH, `${nodeId}.md`));
     const originalContent = await fs.readFile(testFilePath, 'utf-8');
     console.log('Original file content:', originalContent.substring(0, 50) + '...');
 
@@ -649,7 +655,7 @@ test.describe('Markdown Editor CRUD Tests', () => {
     // Close the editor before restoring file (to prevent auto-save from overwriting)
     await appWindow.evaluate((winId) => {
       const escapedWinId = CSS.escape(winId);
-      const closeButton = document.querySelector(`#${escapedWinId} .cy-floating-window-close`) as HTMLButtonElement | null;
+      const closeButton = document.querySelector(`#${escapedWinId} .traffic-light-close`) as HTMLButtonElement | null;
       if (closeButton) closeButton.click();
     }, editorWindowId);
     await appWindow.waitForTimeout(200); // Wait for editor to fully close

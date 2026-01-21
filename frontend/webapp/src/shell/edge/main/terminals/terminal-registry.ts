@@ -54,6 +54,11 @@ export function updateTerminalPinned(terminalId: string, isPinned: boolean): voi
     pushStateToRenderer()
 }
 
+/**
+ * Update activity state (lastOutputTime, activityCount) in the registry.
+ * Does NOT push to renderer - activity updates happen frequently and
+ * should not trigger full re-renders. Renderer tracks this locally.
+ */
 export function updateTerminalActivityState(
     terminalId: string,
     updates: Partial<Pick<TerminalData, 'lastOutputTime' | 'activityCount'>>
@@ -66,7 +71,8 @@ export function updateTerminalActivityState(
         ...record,
         terminalData: {...record.terminalData, ...updates}
     })
-    pushStateToRenderer()
+    // NOTE: No pushStateToRenderer() - activity updates are high frequency
+    // and should not trigger full re-renders. Renderer updates local state directly.
 }
 
 export function markTerminalExited(terminalId: string): void {
