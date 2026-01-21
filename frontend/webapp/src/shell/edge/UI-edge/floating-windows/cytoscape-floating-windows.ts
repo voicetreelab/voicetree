@@ -27,48 +27,6 @@ import {removeImageViewer} from "@/shell/edge/UI-edge/state/ImageViewerStore";
 import {updateWindowFromZoom} from "@/shell/edge/UI-edge/floating-windows/update-window-from-zoom";
 import {suppressInactivityDuringZoom} from "@/shell/UI/views/AgentTabsBar";
 
-// =============================================================================
-// Zoom Change Subscription
-// =============================================================================
-
-type ZoomChangeCallback = (zoom: number) => void;
-const zoomChangeCallbacks: Set<ZoomChangeCallback> = new Set();
-
-/**
- * Subscribe to zoom changes for floating windows
- * Used by terminals to adjust font size on zoom
- */
-export function subscribeToZoomChange(callback: ZoomChangeCallback): () => void {
-    zoomChangeCallbacks.add(callback);
-    return () => zoomChangeCallbacks.delete(callback);
-}
-
-// =============================================================================
-// Zoom Start Subscription
-// =============================================================================
-
-type ZoomStartCallback = () => void;
-const zoomStartCallbacks: Set<ZoomStartCallback> = new Set();
-let wasZoomActive: boolean = false;
-
-/**
- * Subscribe to zoom start events
- * Used by terminals to capture scroll position before any zoom-related corruption
- */
-export function subscribeToZoomStart(callback: ZoomStartCallback): () => void {
-    zoomStartCallbacks.add(callback);
-    return () => zoomStartCallbacks.delete(callback);
-}
-
-/**
- * Trigger scroll position capture for all terminals.
- * Call this BEFORE any operation that will resize terminal containers
- * (e.g., expand button click) to avoid race condition with auto-scroll.
- */
-export function captureTerminalScrollPositions(): void {
-    zoomStartCallbacks.forEach(callback => callback());
-}
-
 /**
  * Get current zoom level from cytoscape instance
  * Used by terminals to get initial zoom on mount
@@ -185,9 +143,6 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
 
         parent.appendChild(overlay);
 
-        // Debounce zoom change callbacks to avoid excessive re-renders
-        let zoomDebounceTimeout: ReturnType<typeof setTimeout> | null = null;
-
         const syncTransform: () => void = () => {
             const pan: cytoscape.Position = cy.pan();
             const zoom: number = cy.zoom();
@@ -195,12 +150,6 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
 
             // Suppress terminal inactivity detection during zoom (resize triggers shell redraws)
             suppressInactivityDuringZoom();
-
-            // Detect zoom start and notify subscribers (for scroll position capture)
-            if (!wasZoomActive) {
-                wasZoomActive = true;
-                zoomStartCallbacks.forEach(callback => callback());
-            }
 
             // Mark zoom as active for CSS transform scaling decisions
             markZoomActive();
@@ -223,15 +172,6 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
                 menu.style.top = `${menuScreenPos.y}px`;
                 menu.style.transform = getWindowTransform('css-transform', zoom, 'center');
             }
-
-            // Debounced notification to terminals for font size adjustment
-            if (zoomDebounceTimeout) {
-                clearTimeout(zoomDebounceTimeout);
-            }
-            zoomDebounceTimeout = setTimeout(() => {
-                wasZoomActive = false;
-                zoomChangeCallbacks.forEach(callback => callback(zoom));
-            }, 200);
         };
 
         syncTransform();

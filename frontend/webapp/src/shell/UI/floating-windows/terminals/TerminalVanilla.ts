@@ -6,7 +6,7 @@ import { SearchAddon } from '@xterm/addon-search';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import '@xterm/xterm/css/xterm.css';
 import type { VTSettings } from '@/pure/settings';
-import { getCachedZoom, isZoomActive, subscribeToZoomChange, subscribeToZoomStart } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
+import { getCachedZoom } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 import { getScalingStrategy, getTerminalFontSize } from '@/pure/floatingWindowScaling';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 
@@ -26,12 +26,8 @@ export class TerminalVanilla {
   private terminalData: TerminalData;
   private resizeObserver: ResizeObserver | null = null;
   private resizeFrameId: number | null = null;
-  private scrollCorrectionTimeout: ReturnType<typeof setTimeout> | null = null;
   private suppressNextEnter: boolean = false;
   private shiftEnterSendsOptionEnter: boolean = true;
-  private unsubscribeZoom: (() => void) | null = null;
-  private unsubscribeZoomStart: (() => void) | null = null;
-  private scrollOffsetBeforeZoom: number | null = null;
 
   constructor(config: TerminalVanillaConfig) {
     this.container = config.container;
@@ -134,155 +130,34 @@ export class TerminalVanilla {
     });
 
     // Set up ResizeObserver for container resize with scroll preservation
-    // This is the single code path for all terminal resizing (zoom changes, manual resize, etc.)
-    // Uses requestAnimationFrame to sync with browser paint cycle (~16ms) instead of fixed 50ms delay
+    // Uses requestAnimationFrame to sync with browser paint cycle
     this.resizeObserver = new ResizeObserver(() => {
       if (this.resizeFrameId !== null) {
         cancelAnimationFrame(this.resizeFrameId);
       }
       this.resizeFrameId = requestAnimationFrame(() => {
-        if (!this.term || !this.fitAddon) return;
+        if (this.term && this.fitAddon) {
+          // Update fontSize based on current zoom level
+          const zoom: number = getCachedZoom();
+          const strategy: 'css-transform' | 'dimension-scaling' = getScalingStrategy('Terminal', zoom);
+          this.term.options.fontSize = getTerminalFontSize(zoom, strategy);
 
-        const zoom: number = getCachedZoom();
-        // Determine scaling strategy BEFORE checking isZoomActive
-        // In dimension-scaling mode, container dimensions change during zoom and fit() is required
-        // In css-transform mode, visual scaling is handled by CSS transform so fit() can be skipped
-        const strategy: 'css-transform' | 'dimension-scaling' = getScalingStrategy('Terminal', zoom);
+          // Save scroll position before fit (fit changes row count which can reset scroll)
+          const buffer: { baseY: number; viewportY: number } = this.term.buffer.active;
+          const scrollOffset: number = buffer.baseY - buffer.viewportY; // lines scrolled up from bottom
 
-        if (isZoomActive() && strategy === 'css-transform') {
-          // During zoom with CSS transform: skip fit() to avoid PTY resize/shell redraws
-          // Visual scaling is handled by the parent floating window's CSS transform
-          return;
-        }
-        // In dimension-scaling mode (zoom >= 0.5), container dimensions change during zoom
-        // so fit() must be called to keep xterm in sync with its container
+          this.fitAddon.fit();
 
-        // Update fontSize based on current zoom level
-        this.term.options.fontSize = getTerminalFontSize(zoom, strategy);
-
-        // Use pre-captured scroll if available (from zoomStart or expand button click),
-        // otherwise capture inline. Pre-captured value is immune to auto-scroll race.
-        const buffer: { baseY: number; viewportY: number } = this.term.buffer.active;
-        const scrollOffset: number = this.scrollOffsetBeforeZoom ?? (buffer.baseY - buffer.viewportY);
-
-        this.fitAddon.fit();
-
-        // Defer scroll restoration to next frame - xterm's internal _sync()
-        // schedules dimension updates via addRefreshCallback() which runs at next animation frame.
-        // Calling scrollToLine() immediately operates on stale dimensions, causing scrollbar desync.
-        requestAnimationFrame(() => {
-          if (!this.term) return;
-
-          // If user was near the bottom (within 10 lines), use scrollToBottom() to avoid
-          // phantom scrollable black lines that appear after resize when terminal gets taller.
-          // xterm.js doesn't automatically adjust scroll bounds when viewport rows increase.
-          // Threshold of 10 lines allows for small variance in scroll position.
-          if (scrollOffset < 10) {
-            this.term.scrollToBottom();
-            // Schedule delayed correction to fix scrollbar desync race condition.
-            // Delay must be >300ms to run after zoom animation completes.
-            // Clear scrollOffsetBeforeZoom inside timeout so subsequent ResizeObserver
-            // callbacks during the zoom animation use the same uncorrupted value.
-            if (this.scrollCorrectionTimeout) clearTimeout(this.scrollCorrectionTimeout);
-            this.scrollCorrectionTimeout = setTimeout(() => {
-              if (!this.term) return;
-              this.term.scrollToBottom();
-              this.scrollOffsetBeforeZoom = null;
-            }, 350);
-            return;
-          }
-
+          // Restore scroll position after fit
           const newBaseY: number = this.term.buffer.active.baseY;
           const targetLine: number = newBaseY - scrollOffset;
           if (targetLine >= 0) {
             this.term.scrollToLine(targetLine);
-
-            // Schedule delayed correction to fix scrollbar desync race condition.
-            // Only re-apply if user hasn't scrolled (viewportY unchanged).
-            // Delay must be >300ms to run after zoom animation completes.
-            const expectedViewportY: number = this.term.buffer.active.viewportY;
-            if (this.scrollCorrectionTimeout) clearTimeout(this.scrollCorrectionTimeout);
-            this.scrollCorrectionTimeout = setTimeout(() => {
-              if (!this.term) return;
-              if (this.term.buffer.active.viewportY === expectedViewportY) {
-                this.term.scrollToLine(targetLine);
-              }
-              this.scrollOffsetBeforeZoom = null;
-            }, 350);
           }
-        });
+        }
       });
     });
     this.resizeObserver.observe(this.container);
-
-    // Subscribe to zoom start to capture scroll position before any corruption
-    this.unsubscribeZoomStart = subscribeToZoomStart(() => {
-      if (!this.term) return;
-      const buffer: { baseY: number; viewportY: number } = this.term.buffer.active;
-      this.scrollOffsetBeforeZoom = buffer.baseY - buffer.viewportY;
-    });
-
-    // Subscribe to zoom end for guaranteed final fit after zoom stops
-    this.unsubscribeZoom = subscribeToZoomChange((zoom: number) => {
-      if (!this.term || !this.fitAddon) return;
-
-      // Update font size
-      const strategy: 'css-transform' | 'dimension-scaling' = getScalingStrategy('Terminal', zoom);
-      this.term.options.fontSize = getTerminalFontSize(zoom, strategy);
-
-      this.fitAddon.fit();
-
-      // Schedule a delayed fit() to catch any dimension mismatches from layout timing issues.
-      // The container dimensions might not have stabilized when the first fit() runs,
-      // causing the terminal to have wrong row count (visible as extra black rows).
-      setTimeout(() => {
-        if (!this.fitAddon || !this.term) return;
-        this.fitAddon.fit();
-      }, 150);
-
-      // Defer scroll restoration to next frame - xterm's internal _sync()
-      // schedules dimension updates via addRefreshCallback() which runs at next animation frame.
-      // DON'T clear scrollOffsetBeforeZoom here - ResizeObserver may fire later
-      // and needs the same uncorrupted value to avoid race with auto-scroll
-      if (this.scrollOffsetBeforeZoom !== null) {
-        const scrollOffset: number = this.scrollOffsetBeforeZoom;
-        requestAnimationFrame(() => {
-          if (!this.term) return;
-
-          // If user was near the bottom (within 10 lines), use scrollToBottom() to avoid
-          // phantom scrollable black lines that appear after resize when terminal gets taller.
-          if (scrollOffset < 10) {
-            this.term.scrollToBottom();
-            // Schedule delayed correction to fix scrollbar desync race condition.
-            // Delay must be >300ms to run after zoom animation completes.
-            if (this.scrollCorrectionTimeout) clearTimeout(this.scrollCorrectionTimeout);
-            this.scrollCorrectionTimeout = setTimeout(() => {
-              if (!this.term) return;
-              this.term.scrollToBottom();
-            }, 350);
-            return;
-          }
-
-          const newBaseY: number = this.term.buffer.active.baseY;
-          const targetLine: number = newBaseY - scrollOffset;
-          if (targetLine >= 0) {
-            this.term.scrollToLine(targetLine);
-
-            // Schedule delayed correction to fix scrollbar desync race condition.
-            // Only re-apply if user hasn't scrolled (viewportY unchanged).
-            // Delay must be >300ms to run after zoom animation completes.
-            const expectedViewportY: number = this.term.buffer.active.viewportY;
-            if (this.scrollCorrectionTimeout) clearTimeout(this.scrollCorrectionTimeout);
-            this.scrollCorrectionTimeout = setTimeout(() => {
-              if (!this.term) return;
-              if (this.term.buffer.active.viewportY === expectedViewportY) {
-                this.term.scrollToLine(targetLine);
-              }
-            }, 350);
-          }
-        });
-      }
-    });
 
     // Initialize terminal backend connection
     await this.initTerminal();
@@ -337,16 +212,6 @@ export class TerminalVanilla {
    */
   scrollToBottom(): void {
     this.term?.scrollToBottom();
-    // Update saved scroll offset so zoom restoration respects this intentional scroll
-    this.scrollOffsetBeforeZoom = 0;
-    // Schedule delayed correction to fix scrollbar desync race condition.
-    // xterm.js scrollbar position can desync from internal state after scroll operations.
-    // Delay must be >300ms to run after zoom animation completes.
-    if (this.scrollCorrectionTimeout) clearTimeout(this.scrollCorrectionTimeout);
-    this.scrollCorrectionTimeout = setTimeout(() => {
-      if (!this.term) return;
-      this.term.scrollToBottom();
-    }, 350);
   }
 
   /**
@@ -357,20 +222,8 @@ export class TerminalVanilla {
       cancelAnimationFrame(this.resizeFrameId);
     }
 
-    if (this.scrollCorrectionTimeout) {
-      clearTimeout(this.scrollCorrectionTimeout);
-    }
-
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
-    }
-
-    if (this.unsubscribeZoom) {
-      this.unsubscribeZoom();
-    }
-
-    if (this.unsubscribeZoomStart) {
-      this.unsubscribeZoomStart();
     }
 
     // Kill terminal process
