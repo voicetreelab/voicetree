@@ -3,75 +3,28 @@
  *
  * Displays node titles instead of node IDs inside wikilinks [[nodeId]]
  * When cursor enters the wikilink, it reveals the raw nodeId for editing.
+ *
+ * Uses ViewPlugin pattern for:
+ * - Viewport-only rendering (only decorates visible wikilinks)
+ * - Debounced updates (avoids rebuilding on every keystroke)
  */
 
 import {
     Decoration,
     WidgetType,
     EditorView,
+    ViewPlugin,
+    ViewUpdate,
     type DecorationSet,
 } from '@codemirror/view';
-import { RangeSet, StateField, type EditorState, type Range, type Text, type Line, type Transaction } from '@codemirror/state';
+import { RangeSet, type Range, type Line } from '@codemirror/state';
 import type { Core, NodeSingular } from 'cytoscape';
 
 // Regex to match wikilinks: [[nodeId]]
 const WIKILINK_REGEX: RegExp = /\[\[([^\]]+)\]\]/g;
 
-/**
- * Check if a transaction's document changes involve bracket characters.
- * If no brackets changed, no wikilinks were affected.
- */
-function transactionHasBracketChanges(transaction: Transaction): boolean {
-    let hasBrackets: boolean = false;
-    transaction.changes.iterChanges((_fromA, _toA, _fromB, _toB, inserted) => {
-        const insertedText: string = inserted.toString();
-        if (insertedText.includes('[') || insertedText.includes(']')) {
-            hasBrackets = true;
-        }
-    });
-    if (hasBrackets) return true;
-
-    // Also check deleted text by examining the original document ranges
-    transaction.changes.iterChanges((fromA, toA) => {
-        if (fromA < toA) {
-            const deletedText: string = transaction.startState.doc.sliceString(fromA, toA);
-            if (deletedText.includes('[') || deletedText.includes(']')) {
-                hasBrackets = true;
-            }
-        }
-    });
-    return hasBrackets;
-}
-
-/**
- * Check if a position is inside a wikilink in the document.
- * Returns the wikilink range if inside, null otherwise.
- */
-function isInsideWikilink(doc: Text, pos: number): boolean {
-    const line: Line = doc.lineAt(pos);
-    const lineText: string = line.text;
-
-    WIKILINK_REGEX.lastIndex = 0;
-    let match: RegExpExecArray | null;
-    while ((match = WIKILINK_REGEX.exec(lineText)) !== null) {
-        const wikilinkStart: number = line.from + match.index;
-        const wikilinkEnd: number = wikilinkStart + match[0].length;
-        if (pos >= wikilinkStart && pos <= wikilinkEnd) {
-            return true;
-        }
-    }
-    return false;
-}
-
-/**
- * Check if cursor moved into or out of a wikilink region.
- * Returns true if the decoration for any wikilink needs to change visibility.
- */
-function cursorCrossedWikilinkBoundary(doc: Text, oldPos: number, newPos: number): boolean {
-    const wasInside: boolean = isInsideWikilink(doc, oldPos);
-    const isNowInside: boolean = isInsideWikilink(doc, newPos);
-    return wasInside !== isNowInside;
-}
+// Debounce delay for decoration updates (ms)
+const DEBOUNCE_DELAY_MS: number = 50;
 
 /**
  * Get Cytoscape instance from window
@@ -125,95 +78,120 @@ class WikilinkTitleWidget extends WidgetType {
 }
 
 /**
- * Find wikilinks and create decorations to display titles
- * Skips decoration when cursor is inside the wikilink
+ * Find wikilinks in visible ranges and create decorations to display titles.
+ * Only processes lines within the provided visible ranges (viewport optimization).
+ * Skips decoration when cursor is inside the wikilink.
  */
-function createWikilinkDecorations(state: EditorState): Range<Decoration>[] {
+function buildViewportDecorations(view: EditorView): DecorationSet {
     const decorations: Range<Decoration>[] = [];
+    const state: EditorView['state'] = view.state;
     const [cursor] = state.selection.ranges;
 
-    // Process each line in visible range
-    const doc: Text = state.doc;
-    for (let i: number = 1; i <= doc.lines; i++) {
-        const line: Line = doc.line(i);
-        const lineText: string = line.text;
+    // Only iterate lines in visible ranges (viewport optimization)
+    for (const { from, to } of view.visibleRanges) {
+        const startLine: number = state.doc.lineAt(from).number;
+        const endLine: number = state.doc.lineAt(to).number;
 
-        // Find all wikilinks in this line
-        let match: RegExpExecArray | null;
-        WIKILINK_REGEX.lastIndex = 0; // Reset regex state
+        for (let lineNum: number = startLine; lineNum <= endLine; lineNum++) {
+            const line: Line = state.doc.line(lineNum);
+            const lineText: string = line.text;
 
-        while ((match = WIKILINK_REGEX.exec(lineText)) !== null) {
-            const nodeId: string = match[1];
-            const wikilinkStart: number = line.from + match.index;
-            const wikilinkEnd: number = wikilinkStart + match[0].length;
+            // Find all wikilinks in this line
+            let match: RegExpExecArray | null;
+            WIKILINK_REGEX.lastIndex = 0; // Reset regex state
 
-            // Skip if cursor is inside or adjacent to this wikilink
-            if (cursor.from >= wikilinkStart && cursor.from <= wikilinkEnd) {
-                continue;
+            while ((match = WIKILINK_REGEX.exec(lineText)) !== null) {
+                const nodeId: string = match[1];
+                const wikilinkStart: number = line.from + match.index;
+                const wikilinkEnd: number = wikilinkStart + match[0].length;
+
+                // Skip if cursor is inside or adjacent to this wikilink
+                if (cursor.from >= wikilinkStart && cursor.from <= wikilinkEnd) {
+                    continue;
+                }
+                if (cursor.to >= wikilinkStart && cursor.to <= wikilinkEnd) {
+                    continue;
+                }
+
+                // Look up title - fallback to nodeId if not found
+                const title: string | null = getNodeTitle(nodeId);
+                if (!title) {
+                    continue; // No decoration needed - show raw ID
+                }
+
+                // Create decoration to replace the nodeId text with title widget
+                // Keep the [[ and ]] visible, only replace the inner nodeId
+                const innerStart: number = wikilinkStart + 2; // After [[
+                const innerEnd: number = wikilinkEnd - 2; // Before ]]
+
+                const decoration: Decoration = Decoration.replace({
+                    widget: new WikilinkTitleWidget(title, nodeId),
+                });
+
+                decorations.push(decoration.range(innerStart, innerEnd));
             }
-            if (cursor.to >= wikilinkStart && cursor.to <= wikilinkEnd) {
-                continue;
-            }
-
-            // Look up title - fallback to nodeId if not found
-            const title: string | null = getNodeTitle(nodeId);
-            if (!title) {
-                continue; // No decoration needed - show raw ID
-            }
-
-            // Create decoration to replace the nodeId text with title widget
-            // Keep the [[ and ]] visible, only replace the inner nodeId
-            const innerStart: number = wikilinkStart + 2; // After [[
-            const innerEnd: number = wikilinkEnd - 2; // Before ]]
-
-            const decoration: Decoration = Decoration.replace({
-                widget: new WikilinkTitleWidget(title, nodeId),
-            });
-
-            decorations.push(decoration.range(innerStart, innerEnd));
         }
     }
 
-    return decorations;
+    return RangeSet.of(decorations, true);
 }
 
 /**
- * CodeMirror StateField extension for wikilink title display
+ * ViewPlugin class for wikilink title display with debouncing
  */
-export function wikilinkTitleDisplay(): StateField<DecorationSet> {
-    return StateField.define<DecorationSet>({
-        create(state) {
-            return RangeSet.of(createWikilinkDecorations(state), true);
-        },
+class WikilinkTitlePlugin {
+    decorations: DecorationSet;
+    private debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    private pendingView: EditorView | null = null;
 
-        update(decorations, transaction) {
-            const oldPos: number = transaction.startState.selection.main.from;
-            const newPos: number = transaction.state.selection.main.from;
-            const selectionChanged: boolean = oldPos !== newPos;
+    constructor(view: EditorView) {
+        this.decorations = buildViewportDecorations(view);
+    }
 
-            // Fast path: no changes at all
-            if (!transaction.docChanged && !selectionChanged) {
-                return decorations;
+    update(update: ViewUpdate): void {
+        // Always rebuild immediately for selection changes (cursor entered/exited wikilink)
+        // This ensures the raw ID is shown when editing
+        if (update.selectionSet && !update.docChanged) {
+            this.decorations = buildViewportDecorations(update.view);
+            return;
+        }
+
+        // For doc changes, debounce to avoid rebuilding on every keystroke
+        if (update.docChanged || update.viewportChanged) {
+            this.scheduleRebuild(update.view);
+        }
+    }
+
+    private scheduleRebuild(view: EditorView): void {
+        this.pendingView = view;
+
+        if (this.debounceTimer !== null) {
+            clearTimeout(this.debounceTimer);
+        }
+
+        this.debounceTimer = setTimeout(() => {
+            if (this.pendingView) {
+                this.decorations = buildViewportDecorations(this.pendingView);
+                this.pendingView.dispatch({}); // Trigger re-render with new decorations
+                this.pendingView = null;
             }
+            this.debounceTimer = null;
+        }, DEBOUNCE_DELAY_MS);
+    }
 
-            // Check if doc change involves brackets (wikilink syntax)
-            if (transaction.docChanged && transactionHasBracketChanges(transaction)) {
-                return RangeSet.of(createWikilinkDecorations(transaction.state), true);
-            }
+    destroy(): void {
+        if (this.debounceTimer !== null) {
+            clearTimeout(this.debounceTimer);
+        }
+    }
+}
 
-            // Selection-only change: check if cursor entered/exited a wikilink
-            if (selectionChanged) {
-                if (cursorCrossedWikilinkBoundary(transaction.state.doc, oldPos, newPos)) {
-                    return RangeSet.of(createWikilinkDecorations(transaction.state), true);
-                }
-            }
-
-            // No wikilink-relevant changes - keep existing decorations
-            return decorations;
-        },
-
-        provide(field) {
-            return EditorView.decorations.from(field);
-        },
+/**
+ * CodeMirror ViewPlugin extension for wikilink title display
+ * Uses viewport-only rendering and debounced updates for performance.
+ */
+export function wikilinkTitleDisplay(): ViewPlugin<WikilinkTitlePlugin> {
+    return ViewPlugin.fromClass(WikilinkTitlePlugin, {
+        decorations: (plugin) => plugin.decorations,
     });
 }

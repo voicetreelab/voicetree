@@ -104,7 +104,7 @@ function App(): JSX.Element {
             {isStatsPanelOpen && (
                 <div
                     data-testid="agent-stats-panel-container"
-                    className="fixed right-0 top-0 bottom-0 w-96 bg-card border-l border-border shadow-lg z-[1100] overflow-y-auto"
+                    className="fixed right-0 top-0 bottom-0 w-96 bg-card border-l border-border shadow-lg z-[1200] overflow-y-auto"
                 >
                     <div className="sticky top-0 bg-card border-b border-border p-2 flex items-center justify-between">
                         <h2 className="font-mono text-sm font-semibold text-foreground">Agent Statistics</h2>

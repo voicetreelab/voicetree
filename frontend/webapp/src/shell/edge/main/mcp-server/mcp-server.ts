@@ -16,8 +16,9 @@ import {StreamableHTTPServerTransport} from '@modelcontextprotocol/sdk/server/st
 import {z} from 'zod'
 import express, {type Express} from 'express'
 import * as O from 'fp-ts/lib/Option.js'
-import type {Graph, GraphNode} from '@/pure/graph'
+import type {Graph, GraphNode, NodeIdAndFilePath} from '@/pure/graph'
 import {getNodeTitle} from '@/pure/graph/markdown-parsing'
+import {findBestMatchingNode} from '@/pure/graph/markdown-parsing/extract-edges'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getUnseenNodesAroundContextNode, type UnseenNode} from '@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode'
@@ -26,7 +27,7 @@ import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/termina
 import {findAvailablePort} from '@/shell/edge/main/electron/port-utils'
 
 const MCP_BASE_PORT: 3001 = 3001 as const
-let mcpPort: number = MCP_BASE_PORT // eslint-disable-line prefer-const -- reassigned in startMcpServer
+let mcpPort: number = MCP_BASE_PORT  
 
 type McpToolResponse = {
     content: Array<{type: 'text'; text: string}>
@@ -68,7 +69,14 @@ export async function spawnAgentTool({nodeId, callerTerminalId}: {nodeId: string
     }
 
     const graph: Graph = getGraph()
-    if (!graph.nodes[nodeId]) {
+
+    // Resolve nodeId: support both full absolute paths and short names (e.g., "fix-test.md")
+    // First try direct lookup, then fall back to findBestMatchingNode for short names
+    const resolvedNodeId: NodeIdAndFilePath | undefined = graph.nodes[nodeId]
+        ? nodeId
+        : findBestMatchingNode(nodeId, graph.nodes, graph.nodeByBaseName)
+
+    if (!resolvedNodeId || !graph.nodes[resolvedNodeId]) {
         return buildJsonResponse({
             success: false,
             error: `Node ${nodeId} not found.`
@@ -78,14 +86,14 @@ export async function spawnAgentTool({nodeId, callerTerminalId}: {nodeId: string
     try {
         // Pass skipFitAnimation: true for MCP spawns to avoid interrupting user's viewport
         const {terminalId, contextNodeId}: {terminalId: string; contextNodeId: string} =
-            await spawnTerminalWithContextNode(nodeId, undefined, undefined, true, false)
+            await spawnTerminalWithContextNode(resolvedNodeId, undefined, undefined, true, false)
 
         return buildJsonResponse({
             success: true,
             terminalId,
-            nodeId,
+            nodeId: resolvedNodeId,
             contextNodeId,
-            message: `Spawned agent for node ${nodeId}`
+            message: `Spawned agent for node ${resolvedNodeId}`
         })
     } catch (error) {
         const errorMessage: string = error instanceof Error ? error.message : String(error)
