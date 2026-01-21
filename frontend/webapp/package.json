@@ -80,7 +80,7 @@
     "ninja-keys": "^1.2.2",
     "node-pty": "^1.1.0",
     "normalize-path": "^3.0.0",
-    "posthog-js": "^1.290.0",
+    "posthog-js": "^1.331.0",
     "re-resizable": "^6.11.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
