@@ -11,7 +11,7 @@
 import type {} from '@/shell/electron';
 import type cytoscape from 'cytoscape';
 import type {Core, Position} from 'cytoscape';
-import {getOrCreateOverlay, getCachedZoom} from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
+import {getOrCreateOverlay, getCachedZoom, registerFloatingWindow, unregisterFloatingWindow} from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 import type {VTSettings} from '@/pure/settings/types';
 import {CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
 import type {FloatingWindowFields, EditorId, ShadowNodeId} from '@/shell/edge/UI-edge/floating-windows/types';
@@ -76,6 +76,9 @@ export function closeSettingsEditor(cy: Core): void {
 
     // Remove from global state
     vanillaFloatingWindowInstances.delete(SETTINGS_EDITOR_ID);
+
+    // Remove from floating windows registry (for zoom/pan sync)
+    unregisterFloatingWindow(SETTINGS_EDITOR_ID);
 
     // Remove shadow node
     const shadowNode: cytoscape.CollectionReturnValue = cy.getElementById(SETTINGS_SHADOW_NODE_ID);
@@ -212,8 +215,9 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
         windowElement.style.transformOrigin = 'center';
         windowElement.dataset.usingCssTransform = strategy === 'css-transform' ? 'true' : 'false';
 
-        // Add to overlay
+        // Add to overlay and register for efficient zoom/pan sync
         overlay.appendChild(windowElement);
+        registerFloatingWindow(SETTINGS_EDITOR_ID, windowElement);
 
         // Navigate to settings editor using delayed double-animation pattern
         // This ensures animation happens after DOM is fully settled

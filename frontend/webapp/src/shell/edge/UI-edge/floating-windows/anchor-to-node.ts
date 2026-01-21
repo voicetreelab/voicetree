@@ -77,9 +77,13 @@ export function anchorToNode(
         return a.x1 < b.x2 && a.x2 > b.x1 && a.y1 < b.y2 && a.y2 > b.y1;
     };
 
-    // Get all nodes to check for collisions (including shadow nodes for other floating windows)
-    const existingNodes: cytoscape.NodeCollection = cy.nodes();
-    // todo, need to make this just neighborhood, not O(N)
+    // Get nearby nodes to check for collisions (including shadow nodes for other floating windows)
+    // O(k) where k = nodes within distance 3 from parent, instead of O(N) for all nodes
+    const existingNodes: cytoscape.NodeCollection = parentNode
+        .closedNeighborhood()  // distance 1
+        .closedNeighborhood()  // distance 2
+        .closedNeighborhood()  // distance 3
+        .filter('node');       // filter to just nodes, exclude edges
     // // DEBUG: Log all existing nodes and their dimensions for collision detection
     // console.log('[anchorToNode] Checking collisions. Total nodes:', existingNodes.length);
     // existingNodes.forEach((node: cytoscape.NodeSingular) => {
@@ -261,9 +265,10 @@ export function anchorToNode(
                 const terminalHeight: number = shadowNode.height();
                 const contextWidth: number = contextNode.width();
                 const contextHeight: number = contextNode.height();
-                // Position context node flush with terminal left edge, tops aligned
+                // Position context node to the left of terminal with small gap, tops aligned
+                const contextTerminalGap: number = 10;
                 contextNode.position({
-                    x: shadowPos.x - terminalWidth / 2 - contextWidth / 2,
+                    x: shadowPos.x - terminalWidth / 2 - contextWidth / 2 - contextTerminalGap,
                     y: shadowPos.y - terminalHeight / 2 + contextHeight / 2
                 });
             };

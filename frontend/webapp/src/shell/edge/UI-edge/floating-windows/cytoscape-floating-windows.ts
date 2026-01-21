@@ -124,6 +124,32 @@ type CleanupFunctions = {
 export const cleanupRegistry: WeakMap<HTMLElement, CleanupFunctions> = new WeakMap();
 
 // =============================================================================
+// Floating Window Registry (Map for O(1) iteration during zoom/pan)
+// =============================================================================
+
+/**
+ * Map of floating window IDs to their HTMLElements.
+ * Maintained on window create/destroy to avoid O(W) DOM queries per frame.
+ * Use registerFloatingWindow() after appending to overlay.
+ */
+const floatingWindowsMap: Map<string, HTMLElement> = new Map();
+
+/**
+ * Register a floating window for efficient zoom/pan updates.
+ * Call after appending windowElement to overlay.
+ */
+export function registerFloatingWindow(windowId: string, windowElement: HTMLElement): void {
+    floatingWindowsMap.set(windowId, windowElement);
+}
+
+/**
+ * Unregister a floating window. Called by disposeFloatingWindow and closeSettingsEditor.
+ */
+export function unregisterFloatingWindow(windowId: string): void {
+    floatingWindowsMap.delete(windowId);
+}
+
+// =============================================================================
 // Overlay Management (unchanged from v1)
 // =============================================================================
 
@@ -182,9 +208,8 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
             // Only translate, no scale - windows handle their own sizing
             overlay.style.transform = `translate(${pan.x}px, ${pan.y}px)`;
 
-            // Update all floating window positions and sizes
-            const windows: NodeListOf<HTMLElement> = overlay.querySelectorAll('.cy-floating-window');
-            windows.forEach((windowEl: HTMLElement) => {
+            // Update all floating window positions and sizes (O(W) iteration, O(1) map access)
+            floatingWindowsMap.forEach((windowEl: HTMLElement) => {
                 updateWindowFromZoom(cy, windowEl, zoom);
             });
 
@@ -210,7 +235,17 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
         };
 
         syncTransform();
-        cy.on('pan zoom resize', syncTransform);
+
+        // RAF coalescing: ensures at most 1 update per frame even with multiple events
+        let rafPending: boolean = false;
+        cy.on('pan zoom resize', () => {
+            if (rafPending) return;
+            rafPending = true;
+            requestAnimationFrame(() => {
+                rafPending = false;
+                syncTransform();
+            });
+        });
     }
 
     return overlay;
@@ -232,6 +267,9 @@ export function disposeFloatingWindow(
     const shadowNodeId: ShadowNodeId = getShadowNodeId(fwId);
 
     console.log('[disposeFloatingWindow-v2] Disposing:', fwId);
+
+    // Remove from floating windows registry (for zoom/pan sync)
+    unregisterFloatingWindow(fwId);
 
     // Run cleanup for event listeners and observers
     if (fw.ui) {

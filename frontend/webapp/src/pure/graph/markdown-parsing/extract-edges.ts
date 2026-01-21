@@ -1,4 +1,6 @@
 import type { NodeIdAndFilePath, GraphNode, Edge } from '@/pure/graph'
+import { getBaseName } from '@/pure/graph/graph-operations/linkResolutionIndexes'
+import type { NodeByBaseNameIndex } from '@/pure/graph/graph-operations/linkResolutionIndexes'
 
 /**
  * Extracts path components, normalizing for comparison.
@@ -81,18 +83,29 @@ export function linkMatchScore(linkText: string, nodeId: string): number {
  *
  * @param linkText - The link text to match (can be absolute path, relative path, or filename)
  * @param nodes - All available nodes
+ * @param nodeByBaseName - Optional index for O(1) candidate lookup. When provided, only scores
+ *                         candidates from the index instead of all nodes. O(1) vs O(N).
  * @returns The best matching node ID, or undefined if no match
  */
 export function findBestMatchingNode(
   linkText: string,
-  nodes: Record<NodeIdAndFilePath, GraphNode>
+  nodes: Record<NodeIdAndFilePath, GraphNode>,
+  nodeByBaseName?: NodeByBaseNameIndex
 ): NodeIdAndFilePath | undefined {
   const linkComponents: readonly string[] = getPathComponents(linkText)
   if (linkComponents.length === 0) return undefined
 
+  // Get candidate node IDs to check
+  // With index: O(1) lookup of nodes with matching basename
+  // Without index: O(N) check all nodes
+  const basename: string = getBaseName(linkText)
+  const candidateNodeIds: readonly string[] = nodeByBaseName
+    ? (nodeByBaseName.get(basename) ?? [])
+    : Object.keys(nodes)
+
   type BestMatch = { readonly nodeId: NodeIdAndFilePath | undefined; readonly score: number }
 
-  const result: BestMatch = Object.keys(nodes).reduce<BestMatch>(
+  const result: BestMatch = candidateNodeIds.reduce<BestMatch>(
     (best: BestMatch, nodeId: string) => {
       const score: number = linkMatchScore(linkText, nodeId)
       // Higher score wins; on tie, prefer shorter path (more specific)
@@ -123,6 +136,8 @@ export function findBestMatchingNode(
  *
  * @param content - Markdown content with wikilinks
  * @param nodes - Record of all available nodes to resolve links against
+ * @param nodeByBaseName - Optional index for O(1) link resolution. When provided,
+ *                         uses O(1) candidate lookup instead of O(N) scan.
  * @returns Array of edges with targetId and label (duplicates removed, order preserved)
  *
  * @example
@@ -139,7 +154,8 @@ export function findBestMatchingNode(
  */
 export function extractEdges(
   content: string,
-  nodes: Record<NodeIdAndFilePath, GraphNode>
+  nodes: Record<NodeIdAndFilePath, GraphNode>,
+  nodeByBaseName?: NodeByBaseNameIndex
 ): readonly Edge[] {
   const wikilinkRegex: RegExp = /\[\[([^\]\n\r]+)\]\]/g
   const matches: readonly RegExpExecArray[] = [...content.matchAll(wikilinkRegex)]
@@ -161,7 +177,7 @@ export function extractEdges(
 
       // Find best matching node, preferring longer path matches
       // If no match found, use raw link text to preserve for future node creation
-      const targetId: string = nodes ? findBestMatchingNode(rawLinkText, nodes) ?? rawLinkText : rawLinkText
+      const targetId: string = nodes ? findBestMatchingNode(rawLinkText, nodes, nodeByBaseName) ?? rawLinkText : rawLinkText
 
       return { targetId, label }
     })

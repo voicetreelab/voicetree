@@ -8,6 +8,13 @@ import posthog from 'posthog-js'
 import { SseStatusPanel } from '@/shell/UI/sse-status-panel'
 import { setupUIRpcHandler } from '@/shell/edge/UI-edge/ui-rpc-handler'
 
+// Add platform class to document for platform-specific CSS (e.g., scrollbar handling)
+// Windows: scrollbars take physical space, macOS: overlay scrollbars
+const platform: string = navigator.platform.toLowerCase()
+if (platform.includes('win')) {
+  document.documentElement.classList.add('platform-windows')
+}
+
 // Initialize PostHog (skip in dev mode - npm run electron)
 const posthogKey: string | undefined = import.meta.env.VITE_POSTHOG_API_KEY
 const posthogHost: string | undefined = import.meta.env.VITE_POSTHOG_HOST

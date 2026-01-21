@@ -131,7 +131,8 @@ export function parseMarkdownToGraphNode(content: string, filename: string, grap
 
 
     // Extract edges from original content (before stripping wikilinks)
-    const edges: readonly Edge[] = extractEdges(content, graph.nodes)
+    // Pass nodeByBaseName index for O(1) link resolution
+    const edges: readonly Edge[] = extractEdges(content, graph.nodes, graph.nodeByBaseName)
 
     // Replace [[link]] with [link]* (strip wikilink syntax)
     const contentWithoutYamlOrLinks: string = contentWithoutFrontmatter.replace(/\[\[([^\]]+)\]\]/g, '[$1]*')

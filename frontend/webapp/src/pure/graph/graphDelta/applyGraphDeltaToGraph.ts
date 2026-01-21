@@ -1,6 +1,13 @@
 import type {Graph, GraphDelta, GraphNode} from '@/pure/graph'
 import { updateIndexForUpsert, updateIndexForDelete } from '@/pure/graph/graph-operations/incomingEdgesIndex'
 import type { IncomingEdgesIndex } from '@/pure/graph/graph-operations/incomingEdgesIndex'
+import {
+  updateNodeByBaseNameIndexForUpsert,
+  updateNodeByBaseNameIndexForDelete,
+  updateUnresolvedLinksIndexForUpsert,
+  updateUnresolvedLinksIndexForDelete
+} from '@/pure/graph/graph-operations/linkResolutionIndexes'
+import type { NodeByBaseNameIndex, UnresolvedLinksIndex } from '@/pure/graph/graph-operations/linkResolutionIndexes'
 import * as O from 'fp-ts/lib/Option.js'
 
 /**
@@ -29,13 +36,13 @@ import * as O from 'fp-ts/lib/Option.js'
  */
 export function applyGraphDeltaToGraph(graph: Graph, delta: GraphDelta): Graph {
     // Process each node delta sequentially
-    return delta.reduce((currentGraph, nodeDelta) => {
+    return delta.reduce<Graph>((currentGraph, nodeDelta) => {
         if (nodeDelta.type === 'UpsertNode') {
             // Upsert node: add new or update existing
             const existingNode: GraphNode | undefined = currentGraph.nodes[nodeDelta.nodeToUpsert.absoluteFilePathIsID]
             const newNode: GraphNode = nodeDelta.nodeToUpsert
 
-            // TODO: This position-preservation logic is a workaround. It should be moved to a more
+            // TODO: This position-preservation logic is a workaround. It should be moved to a more //human
             // suitable location (e.g., dedicated position management layer) or replaced with better
             // overall position saving logic that writes positions to disk proactively.
             // See: saveNodePositions.test.ts "BUG DEMONSTRATION" for context.
@@ -43,29 +50,43 @@ export function applyGraphDeltaToGraph(graph: Graph, delta: GraphDelta): Graph {
                 ? { ...newNode, nodeUIMetadata: { ...newNode.nodeUIMetadata, position: existingNode.nodeUIMetadata.position } }
                 : newNode
 
-            // Update incoming edges index
             const previousNode: O.Option<GraphNode> = existingNode ? O.some(existingNode) : O.none
-            const newIndex: IncomingEdgesIndex = updateIndexForUpsert(currentGraph.incomingEdgesIndex, mergedNode, previousNode)
+
+            // Build new nodes record
+            const newNodes: Record<string, GraphNode> = {
+                ...currentGraph.nodes,
+                [mergedNode.absoluteFilePathIsID]: mergedNode
+            }
+
+            // Update all indexes
+            const newIncomingEdgesIndex: IncomingEdgesIndex = updateIndexForUpsert(currentGraph.incomingEdgesIndex, mergedNode, previousNode)
+            const newNodeByBaseName: NodeByBaseNameIndex = updateNodeByBaseNameIndexForUpsert(currentGraph.nodeByBaseName, mergedNode, previousNode)
+            const newUnresolvedLinksIndex: UnresolvedLinksIndex = updateUnresolvedLinksIndexForUpsert(currentGraph.unresolvedLinksIndex, mergedNode, previousNode, newNodes)
 
             return {
-                nodes: {
-                    ...currentGraph.nodes,
-                    [mergedNode.absoluteFilePathIsID]: mergedNode
-                },
-                incomingEdgesIndex: newIndex
+                nodes: newNodes,
+                incomingEdgesIndex: newIncomingEdgesIndex,
+                nodeByBaseName: newNodeByBaseName,
+                unresolvedLinksIndex: newUnresolvedLinksIndex
             }
         } else if (nodeDelta.type === 'DeleteNode') {
             // Simple delete - just remove the node
             const { [nodeDelta.nodeId]: deletedNode, ...remaining } = currentGraph.nodes
 
-            // Update incoming edges index if node existed
-            const newIndex: IncomingEdgesIndex = deletedNode
-                ? updateIndexForDelete(currentGraph.incomingEdgesIndex, deletedNode)
-                : currentGraph.incomingEdgesIndex
+            if (!deletedNode) {
+                return currentGraph
+            }
+
+            // Update all indexes
+            const newIncomingEdgesIndex: IncomingEdgesIndex = updateIndexForDelete(currentGraph.incomingEdgesIndex, deletedNode)
+            const newNodeByBaseName: NodeByBaseNameIndex = updateNodeByBaseNameIndexForDelete(currentGraph.nodeByBaseName, deletedNode)
+            const newUnresolvedLinksIndex: UnresolvedLinksIndex = updateUnresolvedLinksIndexForDelete(currentGraph.unresolvedLinksIndex, deletedNode, remaining)
 
             return {
                 nodes: remaining,
-                incomingEdgesIndex: newIndex
+                incomingEdgesIndex: newIncomingEdgesIndex,
+                nodeByBaseName: newNodeByBaseName,
+                unresolvedLinksIndex: newUnresolvedLinksIndex
             }
         }
 

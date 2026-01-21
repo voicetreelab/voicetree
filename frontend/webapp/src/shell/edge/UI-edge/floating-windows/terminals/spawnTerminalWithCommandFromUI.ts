@@ -5,7 +5,7 @@ import { deleteNodesFromUI } from "@/shell/edge/UI-edge/graph/handleUIActions";
 import { showAgentCommandEditor, AUTO_RUN_FLAG } from "@/shell/edge/UI-edge/graph/agentCommandEditorPopup";
 import type { Core, NodeCollection, CollectionReturnValue } from "cytoscape";
 import '@/shell/electron.d.ts';
-import { disposeFloatingWindow, getOrCreateOverlay } from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
+import { disposeFloatingWindow, getOrCreateOverlay, registerFloatingWindow } from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import { TerminalVanilla } from "@/shell/UI/floating-windows/terminals/TerminalVanilla";
 import posthog from "posthog-js";
 import { getTerminalId, type TerminalId, type FloatingWindowUIData } from "@/shell/edge/UI-edge/floating-windows/types";
@@ -53,6 +53,7 @@ interface AgentLaunchConfig {
     updatedAgentPrompt: string;
     mcpIntegrationEnabled: boolean;
     inNewWorktree: boolean;
+    useDocker: boolean;
 }
 
 /** Shows first-run popup if needed. Returns resolved agent launch configuration. */
@@ -70,7 +71,7 @@ async function resolveAgentLaunchConfig(
     if (settings.agentPermissionModeChosen || !isClaudeAgent) {
         return {
             finalCommand: command, popupWasShown: false, updatedAgents: settings.agents,
-            updatedAgentPrompt: currentAgentPrompt, mcpIntegrationEnabled: true, inNewWorktree: false,
+            updatedAgentPrompt: currentAgentPrompt, mcpIntegrationEnabled: true, inNewWorktree: false, useDocker: false,
         };
     }
 
@@ -81,7 +82,7 @@ async function resolveAgentLaunchConfig(
     if (result === null) {
         return {
             finalCommand: command, popupWasShown: true, updatedAgents: settings.agents,
-            updatedAgentPrompt: currentAgentPrompt, mcpIntegrationEnabled: true, inNewWorktree: false,
+            updatedAgentPrompt: currentAgentPrompt, mcpIntegrationEnabled: true, inNewWorktree: false, useDocker: false,
         };
     }
 
@@ -111,7 +112,7 @@ async function resolveAgentLaunchConfig(
     return {
         finalCommand: result.command, popupWasShown: true, updatedAgents,
         updatedAgentPrompt: result.agentPrompt, mcpIntegrationEnabled: result.mcpIntegrationEnabled,
-        inNewWorktree: result.inNewWorktree,
+        inNewWorktree: result.inNewWorktree, useDocker: result.useDocker,
     };
 }
 
@@ -161,7 +162,7 @@ export async function spawnTerminalWithCommandEditor(
         : '';
 
     // Always show the popup (user explicitly requested edit)
-    const result: { command: string; agentPrompt: string; mcpIntegrationEnabled: boolean; inNewWorktree: boolean } | null = await showAgentCommandEditor(command, currentAgentPrompt);
+    const result: { command: string; agentPrompt: string; mcpIntegrationEnabled: boolean; inNewWorktree: boolean; useDocker: boolean } | null = await showAgentCommandEditor(command, currentAgentPrompt);
 
     // User cancelled
     if (result === null) {
@@ -414,8 +415,9 @@ export function createFloatingTerminalWindow(
         void closeTerminal(terminalWithUI, cy);
     });
 
-    // Add to overlay
+    // Add to overlay and register for efficient zoom/pan sync
     overlay.appendChild(ui.windowElement);
+    registerFloatingWindow(terminalId, ui.windowElement);
 
     return terminalWithUI;
 }

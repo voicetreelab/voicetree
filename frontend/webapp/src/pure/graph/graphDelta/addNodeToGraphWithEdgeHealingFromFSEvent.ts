@@ -1,10 +1,11 @@
 import type {FSUpdate, Graph, GraphDelta, GraphNode, NodeIdAndFilePath, Position, UpsertNodeDelta} from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
 import {parseMarkdownToGraphNode} from '@/pure/graph/markdown-parsing/parse-markdown-to-node'
-import {linkMatchScore, findBestMatchingNode} from '@/pure/graph/markdown-parsing/extract-edges'
+import {findBestMatchingNode} from '@/pure/graph/markdown-parsing/extract-edges'
 import {setOutgoingEdges} from '@/pure/graph/graph-operations/graph-edge-operations'
 import {filenameToNodeId} from '@/pure/graph/markdown-parsing/filename-utils'
 import {calculateInitialPositionForChild} from "@/pure/graph/positioning/calculateInitialPosition";
+import {getBaseName, updateNodeByBaseNameIndexForUpsert, updateUnresolvedLinksIndexForUpsert} from '@/pure/graph/graph-operations/linkResolutionIndexes'
 
 /**
  * Resolve position for a node based on priority:
@@ -44,12 +45,13 @@ function healNodeEdges(affectedNodeIds: readonly NodeIdAndFilePath[], currentGra
         const affectedNode: GraphNode = currentGraph.nodes[affectedNodeId]
 
         // Re-resolve the existing edges against the updated graph
+        // Pass nodeByBaseName index for O(1) link resolution
         const healedEdges: readonly {
             readonly targetId: string;
             readonly label: string;
         }[] = affectedNode.outgoingEdges.map((edge) => {
-            // Try to resolve the raw targetId to an actual node using linkMatchScore-based matching
-            const resolvedTargetId: string | undefined = findBestMatchingNode(edge.targetId, graphWithNewNode.nodes)
+            // Try to resolve the raw targetId to an actual node
+            const resolvedTargetId: string | undefined = findBestMatchingNode(edge.targetId, graphWithNewNode.nodes, graphWithNewNode.nodeByBaseName)
             return {
                 ...edge,
                 targetId: resolvedTargetId ?? edge.targetId
@@ -128,6 +130,7 @@ export function addNodeToGraphWithEdgeHealingFromFSEvent(
     console.log(`nodeId: ${nodeId}, relativeFilePathIsID: ${parsedNode.absoluteFilePathIsID}`)
     const previousNode: O.Option<GraphNode> = O.fromNullable(currentGraph.nodes[parsedNode.absoluteFilePathIsID])
 
+    // Use unresolvedLinksIndex for O(1) lookup of nodes with dangling edges to this new node
     const affectedNodeIds: readonly string[] = findNodesWithPotentialEdgesToNode(parsedNode, currentGraph)
 
     // Position resolution priority:
@@ -141,24 +144,29 @@ export function addNodeToGraphWithEdgeHealingFromFSEvent(
         ? { ...parsedNode, nodeUIMetadata: { ...parsedNode.nodeUIMetadata, position: resolvedPosition } }
         : parsedNode
 
-    // Step 6: Create temporary graph with new node for edge re-validation
-    // Note: incomingEdgesIndex is not used for edge healing (only .nodes is accessed), so we reuse the existing index
+    // Build new nodes record
+    const newNodes: Record<string, GraphNode> = {
+        ...currentGraph.nodes,
+        [newNode.absoluteFilePathIsID]: newNode
+    }
+
+    // Create temporary graph with new node for edge re-validation
+    // Update indexes to include the new node for O(1) lookups
     const graphWithNewNode: Graph = {
-        nodes: {
-            ...currentGraph.nodes,
-            [newNode.absoluteFilePathIsID]: newNode
-        },
-        incomingEdgesIndex: currentGraph.incomingEdgesIndex
+        nodes: newNodes,
+        incomingEdgesIndex: currentGraph.incomingEdgesIndex,
+        nodeByBaseName: updateNodeByBaseNameIndexForUpsert(currentGraph.nodeByBaseName, newNode, previousNode),
+        unresolvedLinksIndex: updateUnresolvedLinksIndexForUpsert(currentGraph.unresolvedLinksIndex, newNode, previousNode, newNodes)
     }
 
 
-    // Step 7: Re-validate edges for each affected node (healing)
+    // Re-validate edges for each affected node (healing)
     // Nodes already have edges with raw targetIds from parseMarkdownToGraphNode
     // We just need to re-resolve those raw targetIds against the updated graph
     // Only nodes with actually changed edges are included
     const healedNodes: readonly UpsertNodeDelta[] = healNodeEdges(affectedNodeIds, currentGraph, graphWithNewNode);
 
-    // Step 8: Return GraphDelta with new node + all healed nodes
+    // Return GraphDelta with new node + all healed nodes
     return [
         {type: 'UpsertNode', nodeToUpsert: newNode, previousNode},
         ...healedNodes
@@ -168,8 +176,7 @@ export function addNodeToGraphWithEdgeHealingFromFSEvent(
 /**
  * Finds all nodes that have edges potentially pointing to the newly added node.
  *
- * Uses linkMatchScore to check if any existing node has an edge with a raw targetId
- * that matches the new node's ID (handles ./, ../, and .md normalization).
+ * Uses unresolvedLinksIndex for O(1) lookup instead of scanning all nodes.
  *
  * @param newNode - The newly added node
  * @param currentGraph - Current graph state
@@ -178,24 +185,17 @@ export function addNodeToGraphWithEdgeHealingFromFSEvent(
  * @example
  * ```typescript
  * // New node: "ctx-nodes/VT/foo.md"
- * // Existing nodes: { "other.md": { edges: [{ targetId: "./foo.md", ... }] } }
- * //
- * // linkMatchScore("./foo.md", "ctx-nodes/VT/foo.md") => 1 (baseNames match)
- * // => Returns ["other.md"]
+ * // unresolvedLinksIndex: { "foo": ["/vault/other.md"] }
+ * // => Returns ["/vault/other.md"]
  * ```
  */
 function findNodesWithPotentialEdgesToNode(
     newNode: GraphNode,
     currentGraph: Graph
 ): readonly NodeIdAndFilePath[] {
-    const newNodeId: string = newNode.absoluteFilePathIsID
-
-    // Find all nodes that have edges with targetId matching the new node
-    return Object.values(currentGraph.nodes)
-        .filter((node: GraphNode) =>
-            node.outgoingEdges.some((edge) => linkMatchScore(edge.targetId, newNodeId) > 0)
-        )
-        .map((node: GraphNode) => node.absoluteFilePathIsID)
+    const newNodeBasename: string = getBaseName(newNode.absoluteFilePathIsID)
+    // O(1) lookup using unresolvedLinksIndex
+    return currentGraph.unresolvedLinksIndex.get(newNodeBasename) ?? []
 }
 
 /**

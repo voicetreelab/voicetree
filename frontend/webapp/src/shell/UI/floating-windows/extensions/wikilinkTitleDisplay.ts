@@ -11,11 +11,67 @@ import {
     EditorView,
     type DecorationSet,
 } from '@codemirror/view';
-import { RangeSet, StateField, type EditorState, type Range, type Text, type Line } from '@codemirror/state';
+import { RangeSet, StateField, type EditorState, type Range, type Text, type Line, type Transaction } from '@codemirror/state';
 import type { Core, NodeSingular } from 'cytoscape';
 
 // Regex to match wikilinks: [[nodeId]]
 const WIKILINK_REGEX: RegExp = /\[\[([^\]]+)\]\]/g;
+
+/**
+ * Check if a transaction's document changes involve bracket characters.
+ * If no brackets changed, no wikilinks were affected.
+ */
+function transactionHasBracketChanges(transaction: Transaction): boolean {
+    let hasBrackets: boolean = false;
+    transaction.changes.iterChanges((_fromA, _toA, _fromB, _toB, inserted) => {
+        const insertedText: string = inserted.toString();
+        if (insertedText.includes('[') || insertedText.includes(']')) {
+            hasBrackets = true;
+        }
+    });
+    if (hasBrackets) return true;
+
+    // Also check deleted text by examining the original document ranges
+    transaction.changes.iterChanges((fromA, toA) => {
+        if (fromA < toA) {
+            const deletedText: string = transaction.startState.doc.sliceString(fromA, toA);
+            if (deletedText.includes('[') || deletedText.includes(']')) {
+                hasBrackets = true;
+            }
+        }
+    });
+    return hasBrackets;
+}
+
+/**
+ * Check if a position is inside a wikilink in the document.
+ * Returns the wikilink range if inside, null otherwise.
+ */
+function isInsideWikilink(doc: Text, pos: number): boolean {
+    const line: Line = doc.lineAt(pos);
+    const lineText: string = line.text;
+
+    WIKILINK_REGEX.lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = WIKILINK_REGEX.exec(lineText)) !== null) {
+        const wikilinkStart: number = line.from + match.index;
+        const wikilinkEnd: number = wikilinkStart + match[0].length;
+        if (pos >= wikilinkStart && pos <= wikilinkEnd) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Check if cursor moved into or out of a wikilink region.
+ * Returns true if the decoration for any wikilink needs to change visibility.
+ */
+function cursorCrossedWikilinkBoundary(doc: Text, oldPos: number, newPos: number): boolean {
+    const wasInside: boolean = isInsideWikilink(doc, oldPos);
+    const isNowInside: boolean = isInsideWikilink(doc, newPos);
+    return wasInside !== isNowInside;
+}
 
 /**
  * Get Cytoscape instance from window
@@ -130,9 +186,30 @@ export function wikilinkTitleDisplay(): StateField<DecorationSet> {
             return RangeSet.of(createWikilinkDecorations(state), true);
         },
 
-        update(_decorations, transaction) {
-            // Rebuild decorations on any change (doc, selection, viewport)
-            return RangeSet.of(createWikilinkDecorations(transaction.state), true);
+        update(decorations, transaction) {
+            const oldPos: number = transaction.startState.selection.main.from;
+            const newPos: number = transaction.state.selection.main.from;
+            const selectionChanged: boolean = oldPos !== newPos;
+
+            // Fast path: no changes at all
+            if (!transaction.docChanged && !selectionChanged) {
+                return decorations;
+            }
+
+            // Check if doc change involves brackets (wikilink syntax)
+            if (transaction.docChanged && transactionHasBracketChanges(transaction)) {
+                return RangeSet.of(createWikilinkDecorations(transaction.state), true);
+            }
+
+            // Selection-only change: check if cursor entered/exited a wikilink
+            if (selectionChanged) {
+                if (cursorCrossedWikilinkBoundary(transaction.state.doc, oldPos, newPos)) {
+                    return RangeSet.of(createWikilinkDecorations(transaction.state), true);
+                }
+            }
+
+            // No wikilink-relevant changes - keep existing decorations
+            return decorations;
         },
 
         provide(field) {

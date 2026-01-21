@@ -17,6 +17,8 @@ import { mapFSEventsToGraphDelta } from './mapFSEventsToGraphDelta'
 export interface Graph {
     readonly nodes: Record<NodeIdAndFilePath, GraphNode>
     readonly incomingEdgesIndex: ReadonlyMap<NodeIdAndFilePath, readonly NodeIdAndFilePath[]>
+    readonly nodeByBaseName: ReadonlyMap<string, readonly NodeIdAndFilePath[]>
+    readonly unresolvedLinksIndex: ReadonlyMap<string, readonly NodeIdAndFilePath[]>
 }
 
 

@@ -20,6 +20,7 @@ import {
     disposeFloatingWindow,
     getCachedZoom,
     getOrCreateOverlay,
+    registerFloatingWindow,
 } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 
 import {type EditorData, vanillaFloatingWindowInstances,} from '@/shell/edge/UI-edge/state/UIAppState';
@@ -159,9 +160,10 @@ export async function createFloatingEditor(
         closeEditor(cy, editorWithUI);
     });
 
-    // Add to overlay
+    // Add to overlay and register for efficient zoom/pan sync
     const overlay: HTMLElement = getOrCreateOverlay(cy);
     overlay.appendChild(ui.windowElement);
+    registerFloatingWindow(editorId, ui.windowElement);
 
     // Add to state
     addEditor(editorWithUI);
