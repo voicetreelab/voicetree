@@ -561,12 +561,16 @@
 }
 
 /* Terminal windows should not have horizontal scroll - xterm.js manages its own rendering.
- * On Windows, scrollbars take up physical space (~17px) causing FitAddon to miscalculate column width.
- * Solution: scrollbar-gutter: stable reserves space for scrollbar before it appears, ensuring
- * consistent width calculations. overflow-x: hidden as fallback for older browsers. */
+ * overflow-x: hidden prevents any horizontal scrollbar from appearing. */
 .cy-floating-window-terminal .cy-floating-window-content {
-  scrollbar-gutter: stable;
   overflow-x: hidden;
+}
+
+/* Windows-only: scrollbars take physical space (~17px) causing FitAddon to miscalculate column width.
+ * scrollbar-gutter: stable reserves space for vertical scrollbar, ensuring consistent width.
+ * On macOS, overlay scrollbars don't need this - it would actually cause layout issues. */
+.platform-windows .cy-floating-window-terminal .cy-floating-window-content {
+  scrollbar-gutter: stable;
 }
 
 /* =============================================================================
