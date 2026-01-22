@@ -9,7 +9,7 @@ import type {Core} from 'cytoscape';
 import type {TerminalData} from '@/shell/electron';
 import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/types';
 import type {GraphNavigationService} from './navigation/GraphNavigationService';
-import {subscribeToTerminalChanges} from '@/shell/edge/UI-edge/state/TerminalStore';
+import {subscribeToTerminalChanges, subscribeToActiveTerminalChange} from '@/shell/edge/UI-edge/state/TerminalStore';
 import {renderAgentTabs, setActiveTerminal, clearActivityForTerminal} from '@/shell/UI/views/AgentTabsBar';
 import {getTerminalId, getShadowNodeId} from '@/shell/edge/UI-edge/floating-windows/types';
 import {renderRecentNodeTabsV2} from '@/shell/UI/views/RecentNodeTabsBar';
@@ -48,7 +48,7 @@ export function setupViewSubscriptions(deps: ViewSubscriptionDeps): ViewSubscrip
     });
 
     // Active terminal subscription - highlights active tab and terminal edges/outline
-    const activeTerminalSubscription: () => void = navigationService.onActiveTerminalChange(
+    const activeTerminalSubscription: () => void = subscribeToActiveTerminalChange(
         (terminalId: TerminalId | null) => {
             setActiveTerminal(terminalId);
 

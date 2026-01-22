@@ -14,14 +14,11 @@ import type { Core, CollectionReturnValue } from 'cytoscape';
 import { cyFitWithRelativeZoom } from '@/utils/responsivePadding';
 import { addRecentlyVisited } from '@/shell/edge/UI-edge/state/RecentlyVisitedStore';
 import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
-import { getTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
+import { getTerminals, setActiveTerminalId } from '@/shell/edge/UI-edge/state/TerminalStore';
 import { getTerminalId, getShadowNodeId, type TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import { getDisplayOrderForNavigation } from '@/shell/UI/views/AgentTabsBar';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import * as O from 'fp-ts/lib/Option.js';
-
-// Callback type for terminal change notifications
-type TerminalChangeCallback = (terminalId: TerminalId | null) => void;
 
 /**
  * Manages all user-triggered navigation actions for the graph
@@ -32,31 +29,9 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
   // Navigation state
   private lastCreatedNodeId: string | null = null;
   private currentTerminalIndex = 0;
-  private activeTerminalId: TerminalId | null = null;
-
-  // Callbacks for terminal change notifications
-  private terminalChangeCallbacks: Set<TerminalChangeCallback> = new Set();
 
   constructor(cy: Core) {
     this.cy = cy;
-  }
-
-  /**
-   * Subscribe to active terminal changes
-   * @returns unsubscribe function
-   */
-  onActiveTerminalChange(callback: TerminalChangeCallback): () => void {
-    this.terminalChangeCallbacks.add(callback);
-    return () => {
-      this.terminalChangeCallbacks.delete(callback);
-    };
-  }
-
-  /**
-   * Get the currently active terminal ID
-   */
-  getActiveTerminalId(): TerminalId | null {
-    return this.activeTerminalId;
   }
 
   /**
@@ -64,15 +39,6 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
    */
   getCy(): Core {
     return this.cy;
-  }
-
-  /**
-   * Notify all callbacks of terminal change
-   */
-  private notifyTerminalChange(): void {
-    for (const callback of this.terminalChangeCallbacks) {
-      callback(this.activeTerminalId);
-    }
   }
 
   // ============================================================================
@@ -109,8 +75,8 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
     const terminalId: TerminalId = getTerminalId(terminal);
     const shadowNodeId: string = getShadowNodeId(terminalId);
 
-    // Update active terminal state
-    this.activeTerminalId = terminalId;
+    // Update active terminal state (notifies listeners for gold outline highlighting)
+    setActiveTerminalId(terminalId);
 
     // Note: Activity dots are NOT cleared here - they are cleared only when
     // the user explicitly clicks a tab (not when cycling through terminals).
@@ -162,9 +128,6 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
       // Additional delayed scroll to ensure content is fully loaded
       setTimeout(() => vanillaInstance.scrollToBottom?.(), 800);
     }
-
-    // Notify listeners of active terminal change
-    this.notifyTerminalChange();
   }
 
   /**

@@ -282,10 +282,10 @@ export class StyleService {
       {
         selector: 'node.terminal-active',
         style: {
-          'outline-width': 4,
+          'outline-width': 3,
           'outline-color': '#FFD700',
           'outline-offset': 8,
-          'outline-opacity': 0.8,
+          'outline-opacity': 0.4,
         }
       },
 

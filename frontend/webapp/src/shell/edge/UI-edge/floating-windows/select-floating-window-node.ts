@@ -3,11 +3,13 @@ import {
     type FloatingWindowData,
     type FloatingWindowFields,
     isEditorData,
-    isTerminalData
+    isTerminalData,
+    getTerminalId
 } from "@/shell/edge/UI-edge/floating-windows/types";
 import type {NodeIdAndFilePath} from "@/pure/graph";
 import * as O from "fp-ts/lib/Option.js";
 import {addRecentlyVisited} from "@/shell/edge/UI-edge/state/RecentlyVisitedStore";
+import {setActiveTerminalId} from "@/shell/edge/UI-edge/state/TerminalStore";
 
 /**
  * Select the graph node associated with a floating window.
@@ -30,6 +32,7 @@ export function selectFloatingWindowNode(
             nodeIdToSelect = fwData.contentLinkedToNodeId;
         } else if (isTerminalData(fwData)) {
             nodeIdToSelect = fwData.attachedToNodeId;
+            setActiveTerminalId(getTerminalId(fwData));
         }
     } else if (O.isSome(fw.anchoredToNodeId)) {
         nodeIdToSelect = fw.anchoredToNodeId.value;
