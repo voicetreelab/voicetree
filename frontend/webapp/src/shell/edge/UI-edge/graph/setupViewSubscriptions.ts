@@ -11,9 +11,10 @@ import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/types';
 import type {GraphNavigationService} from './navigation/GraphNavigationService';
 import {subscribeToTerminalChanges} from '@/shell/edge/UI-edge/state/TerminalStore';
 import {renderAgentTabs, setActiveTerminal, clearActivityForTerminal} from '@/shell/UI/views/AgentTabsBar';
-import {getTerminalId} from '@/shell/edge/UI-edge/floating-windows/types';
+import {getTerminalId, getShadowNodeId} from '@/shell/edge/UI-edge/floating-windows/types';
 import {renderRecentNodeTabsV2} from '@/shell/UI/views/RecentNodeTabsBar';
 import {getRecentNodeHistory} from '@/shell/edge/UI-edge/state/RecentNodeHistoryStore';
+import {TERMINAL_ACTIVE_CLASS} from '@/shell/UI/cytoscape-graph-ui/constants';
 
 export interface ViewSubscriptionDeps {
     cy: Core;
@@ -46,10 +47,22 @@ export function setupViewSubscriptions(deps: ViewSubscriptionDeps): ViewSubscrip
         );
     });
 
-    // Active terminal subscription - highlights active tab
+    // Active terminal subscription - highlights active tab and terminal edges/outline
     const activeTerminalSubscription: () => void = navigationService.onActiveTerminalChange(
         (terminalId: TerminalId | null) => {
             setActiveTerminal(terminalId);
+
+            // Clear previous terminal highlighting
+            cy.$('.' + TERMINAL_ACTIVE_CLASS).removeClass(TERMINAL_ACTIVE_CLASS);
+
+            // Apply highlighting to new active terminal
+            if (terminalId) {
+                const shadowNodeId: string = getShadowNodeId(terminalId);
+                // Highlight the shadow node (gold outline)
+                cy.$id(shadowNodeId).addClass(TERMINAL_ACTIVE_CLASS);
+                // Highlight the task node → terminal edge (gold color)
+                cy.edges(`[target = "${shadowNodeId}"]`).addClass(TERMINAL_ACTIVE_CLASS);
+            }
         }
     );
 

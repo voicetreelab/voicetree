@@ -1,6 +1,9 @@
 ---
+position:
+  x: -671.863355441165
+  y: 314.80140738864156
+isContextNode: false
 node_id: 7
-title: Bug in Agent Conversation Demonstration (7)
 ---
 ### A bug in the 'backup and reset' command incorrectly removes a folder instead of moving its files, requiring a minor fix.
 

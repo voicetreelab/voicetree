@@ -12,3 +12,6 @@ export const CLASS_CONNECTED_HOVER: "connected-hover" = 'connected-hover' as con
 // CSS class names for context node highlighting
 export const CONTEXT_CONTAINED_CLASS: "context-contained" = 'context-contained' as const;
 export const CONTEXT_EDGE_CLASS: "context-edge" = 'context-edge' as const;
+
+// CSS class name for active terminal highlighting
+export const TERMINAL_ACTIVE_CLASS: "terminal-active" = 'terminal-active' as const;

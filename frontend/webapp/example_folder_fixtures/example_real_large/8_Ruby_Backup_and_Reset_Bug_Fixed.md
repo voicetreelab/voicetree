@@ -1,7 +1,10 @@
 ---
-node_id: 8
-title: (Ruby) Backup and Reset Bug Fixed (8)
 color: indigo
+position:
+  x: -633.6316452664086
+  y: 4.219009660437124
+isContextNode: false
+node_id: 8
 agent_name: Ruby
 ---
 ## Summary

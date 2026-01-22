@@ -1,7 +1,10 @@
 ---
-node_id: 14
-title: '(Tara) Tara_Status_Smoke_Test_Investigation_Needed (14)'
 color: navy
+position:
+  x: 1251.012282502955
+  y: 1097.122279489887
+isContextNode: false
+node_id: 14
 agent_name: Tara
 ---
 ** Progress Completed**

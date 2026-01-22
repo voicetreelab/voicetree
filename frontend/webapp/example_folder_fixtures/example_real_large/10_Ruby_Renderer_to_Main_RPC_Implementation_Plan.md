@@ -1,7 +1,10 @@
 ---
-node_id: 10
-title: (Ruby) Renderer to Main RPC Implementation Plan (10)
 color: cyan
+position:
+  x: 1247.3989305575553
+  y: 94.98943151156679
+isContextNode: false
+node_id: 10
 agent_name: Ruby
 ---
 ** Summary**

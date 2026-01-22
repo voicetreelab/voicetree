@@ -189,4 +189,57 @@ describe('MCP wait_for_agents tool', () => {
         expect(payload.success).toBe(false)
         expect(payload.error).toContain('Unknown caller: unknown-caller')
     })
+
+    it('returns timeout error with partial results when timeout exceeded', async () => {
+        const terminalDataA: TerminalData = createTerminalData({
+            attachedToNodeId: 'ctx-nodes/agent-a.md',
+            terminalCount: 0,
+            title: 'Agent A',
+            executeCommand: true
+        })
+        const callerTerminalData: TerminalData = createTerminalData({
+            attachedToNodeId: 'ctx-nodes/caller.md',
+            terminalCount: 1,
+            title: 'Caller',
+            executeCommand: true
+        })
+
+        const runningRecords: TerminalRecord[] = [
+            {terminalId: 'agent-a-terminal-0', terminalData: terminalDataA, status: 'running'},
+            {terminalId: 'caller-terminal-1', terminalData: callerTerminalData, status: 'running'}
+        ]
+
+        // Always return running records to force timeout
+        vi.mocked(getTerminalRecords).mockReturnValue(runningRecords)
+
+        const responsePromise: Promise<McpToolResponse> = waitForAgentsTool({
+            terminalIds: ['agent-a-terminal-0'],
+            callerTerminalId: 'caller-terminal-1',
+            pollIntervalMs: 100,
+            timeoutMs: 250 // Short timeout for test
+        })
+
+        // Advance timers past timeout
+        await vi.advanceTimersByTimeAsync(300)
+
+        const response: McpToolResponse = await responsePromise
+        const payload: {
+            success: boolean
+            error: string
+            stillRunning: string[]
+            agents: Array<{terminalId: string; title: string; status: string}>
+        } = parsePayload(response) as {
+            success: boolean
+            error: string
+            stillRunning: string[]
+            agents: Array<{terminalId: string; title: string; status: string}>
+        }
+
+        expect(response.isError).toBe(true)
+        expect(payload.success).toBe(false)
+        expect(payload.error).toContain('Timeout waiting for agents')
+        expect(payload.stillRunning).toContain('agent-a-terminal-0')
+        expect(payload.agents).toHaveLength(1)
+        expect(payload.agents[0].status).toBe('running')
+    })
 })

@@ -13,7 +13,7 @@ import type {EditorData} from "@/shell/edge/UI-edge/floating-windows/editors/edi
 import type {Core} from 'cytoscape';
 import {getScalingStrategy, getScreenDimensions, type ScalingStrategy} from "@/pure/floatingWindowScaling";
 import {selectFloatingWindowNode} from "@/shell/edge/UI-edge/floating-windows/select-floating-window-node";
-import {getCachedZoom} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
+import {getCachedZoom, getOrCreateOverlay} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import * as O from 'fp-ts/lib/Option.js';
 import {
     getNodeMenuItems,
@@ -110,12 +110,22 @@ export function createWindowChrome(
         // Check if node is a context node (has .context_node. in path)
         const isContextNode: boolean = nodeId.includes('.context_node.');
 
+        // Get overlay for floating slider
+        const overlay: HTMLElement = getOrCreateOverlay(cy);
+
+        // Create menu wrapper first so it can be passed as menuAnchor for floating slider positioning
+        const menuWrapper: HTMLDivElement = document.createElement('div');
+        menuWrapper.className = 'cy-floating-window-horizontal-menu';
+
+        // Get menu items with menuAnchor and overlay for floating slider
         const menuInput: NodeMenuItemsInput = {
             nodeId,
             cy,
             agents: options.agents ?? [],
             isContextNode,
             currentDistance: options.currentDistance,
+            menuAnchor: menuWrapper,
+            overlay,
         };
         const menuItems: HorizontalMenuItem[] = getNodeMenuItems(menuInput);
 
@@ -141,9 +151,7 @@ export function createWindowChrome(
             trafficLights
         );
 
-        // Create menu wrapper to group menu pills together
-        const menuWrapper: HTMLDivElement = document.createElement('div');
-        menuWrapper.className = 'cy-floating-window-horizontal-menu';
+        // Assemble menu wrapper
         menuWrapper.appendChild(leftGroup);
         menuWrapper.appendChild(spacer);
         menuWrapper.appendChild(rightGroup);

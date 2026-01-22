@@ -1,7 +1,10 @@
 ---
-node_id: 9
-title: '(Ruby) IPC Layer Analysis & Symmetric RPC Review (9)'
 color: cyan
+position:
+  x: 593.7115063913174
+  y: -347.5010066054278
+isContextNode: false
+node_id: 9
 agent_name: Ruby
 ---
 ** Summary**

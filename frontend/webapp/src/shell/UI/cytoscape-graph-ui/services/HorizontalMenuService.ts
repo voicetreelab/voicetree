@@ -23,6 +23,81 @@ const SLIDER_SQUARE_GAP: number = 2;
 const SLIDER_GOLD_COLOR: string = 'rgba(251, 191, 36, 0.9)';
 const SLIDER_GRAY_COLOR: string = 'rgba(255, 255, 255, 0.2)';
 
+/** Module-level state for floating slider */
+let activeSlider: HTMLDivElement | null = null;
+let sliderHideTimeout: number | null = null;
+
+/** Options for showing the floating slider */
+interface FloatingSliderOptions {
+    readonly anchorElement: HTMLElement;      // The menu wrapper to position above
+    readonly currentDistance: number;
+    readonly onDistanceChange: (distance: number) => void;
+    readonly overlay: HTMLElement;            // cy-floating-overlay to append to
+}
+
+/**
+ * Show the floating distance slider above the menu anchor.
+ * Creates a single shared slider element appended to cy-floating-overlay.
+ */
+export function showFloatingSlider(options: FloatingSliderOptions): void {
+    // Clear any pending hide
+    if (sliderHideTimeout !== null) {
+        clearTimeout(sliderHideTimeout);
+        sliderHideTimeout = null;
+    }
+
+    // Reuse or create slider
+    if (!activeSlider) {
+        activeSlider = createDistanceSlider(options.currentDistance, options.onDistanceChange);
+        activeSlider.style.position = 'absolute';
+        activeSlider.style.zIndex = '10002'; // Above menus
+        options.overlay.appendChild(activeSlider);
+    }
+
+    // Position above the anchor (menu wrapper)
+    const rect: DOMRect = options.anchorElement.getBoundingClientRect();
+    const overlayRect: DOMRect = options.overlay.getBoundingClientRect();
+    activeSlider.style.left = `${rect.left + rect.width / 2 - overlayRect.left}px`;
+    activeSlider.style.bottom = `${overlayRect.height - (rect.top - overlayRect.top) + 8}px`;
+    activeSlider.style.transform = 'translateX(-50%)';
+    activeSlider.style.display = 'flex';
+
+    // Keep visible when hovering slider
+    activeSlider.onmouseenter = (): void => {
+        if (sliderHideTimeout !== null) {
+            clearTimeout(sliderHideTimeout);
+            sliderHideTimeout = null;
+        }
+    };
+    activeSlider.onmouseleave = (): void => hideFloatingSlider();
+}
+
+/**
+ * Hide the floating slider with a small delay for mouse transition.
+ */
+export function hideFloatingSlider(): void {
+    sliderHideTimeout = window.setTimeout(() => {
+        if (activeSlider) {
+            activeSlider.style.display = 'none';
+        }
+    }, 100); // Small delay for mouse transition
+}
+
+/**
+ * Remove the floating slider completely from the DOM.
+ * Call this when the menu/editor is destroyed.
+ */
+export function destroyFloatingSlider(): void {
+    if (sliderHideTimeout !== null) {
+        clearTimeout(sliderHideTimeout);
+        sliderHideTimeout = null;
+    }
+    if (activeSlider) {
+        activeSlider.remove();
+        activeSlider = null;
+    }
+}
+
 /**
  * Create a horizontal distance slider with 10 squares.
  * Updates contextNodeMaxDistance setting on hover and triggers preview refresh.
@@ -108,6 +183,8 @@ import type {ImageViewerData} from "@/shell/edge/UI-edge/floating-windows/image-
 export interface SliderConfig {
     readonly currentDistance: number;
     readonly onDistanceChange: (newDistance: number) => void;
+    readonly menuAnchor: HTMLElement;  // Element to position slider above
+    readonly overlay: HTMLElement;      // Overlay to append slider to
 }
 
 /** Menu item interface for the custom horizontal menu */
@@ -210,16 +287,8 @@ function createMenuItemElement(item: HorizontalMenuItem, onClose: () => void, al
     button.appendChild(labelContainer);
     container.appendChild(button);
 
-    // Create slider if configured (hidden by default, shown on hover)
-    let slider: HTMLDivElement | null = null;
-    if (item.sliderConfig) {
-        slider = createDistanceSlider(item.sliderConfig.currentDistance, item.sliderConfig.onDistanceChange);
-        slider.style.display = 'none'; // Hidden by default
-        container.appendChild(slider);
-    }
-
     // Hover effect - for horizontal menu, show label; for vertical, just highlight
-    // Also show/hide slider on hover
+    // Also show/hide floating slider on hover (slider is appended to overlay, not container)
     // Use CSS variable for dark mode support
     button.addEventListener('mouseenter', () => {
         button.style.background = 'var(--accent)';
@@ -227,8 +296,13 @@ function createMenuItemElement(item: HorizontalMenuItem, onClose: () => void, al
             labelContainer.style.visibility = 'visible';
             labelContainer.style.opacity = '1';
         }
-        if (slider) {
-            slider.style.display = 'flex';
+        if (item.sliderConfig) {
+            showFloatingSlider({
+                anchorElement: item.sliderConfig.menuAnchor,
+                currentDistance: item.sliderConfig.currentDistance,
+                onDistanceChange: item.sliderConfig.onDistanceChange,
+                overlay: item.sliderConfig.overlay,
+            });
         }
         if (item.onHoverEnter) {
             void item.onHoverEnter();
@@ -240,36 +314,13 @@ function createMenuItemElement(item: HorizontalMenuItem, onClose: () => void, al
             labelContainer.style.visibility = 'hidden';
             labelContainer.style.opacity = '0';
         }
-        if (slider) {
-            slider.style.display = 'none';
+        if (item.sliderConfig) {
+            hideFloatingSlider();
         }
         if (item.onHoverLeave) {
             item.onHoverLeave();
         }
     });
-
-    // Keep slider visible when hovering over it
-    if (slider) {
-        slider.addEventListener('mouseenter', () => {
-            button.style.background = 'var(--accent)';
-            if (!alwaysShowLabel) {
-                labelContainer.style.visibility = 'visible';
-                labelContainer.style.opacity = '1';
-            }
-            slider!.style.display = 'flex';
-        });
-        slider.addEventListener('mouseleave', () => {
-            button.style.background = 'transparent';
-            if (!alwaysShowLabel) {
-                labelContainer.style.visibility = 'hidden';
-                labelContainer.style.opacity = '0';
-            }
-            slider!.style.display = 'none';
-            if (item.onHoverLeave) {
-                item.onHoverLeave();
-            }
-        });
-    }
 
     // Click handler
     button.addEventListener('click', (e) => {
@@ -295,8 +346,13 @@ function createSubMenuElement(items: HorizontalMenuItem[], onClose: () => void):
         menuItem.style.flexDirection = 'row';
         menuItem.style.justifyContent = 'flex-start';
         menuItem.style.gap = '8px';
-        menuItem.style.padding = '4px 12px';
         menuItem.style.whiteSpace = 'nowrap';
+        // Target the button inside container to reduce its padding for submenu context
+        const button: HTMLButtonElement | null = menuItem.querySelector('button');
+        if (button) {
+            button.style.padding = '4px 8px';
+            button.style.margin = '0';
+        }
         submenu.appendChild(menuItem);
     }
 
@@ -310,6 +366,8 @@ export interface NodeMenuItemsInput {
     readonly agents: readonly AgentConfig[];
     readonly isContextNode: boolean;
     readonly currentDistance?: number; // Current context retrieval distance (for slider)
+    readonly menuAnchor?: HTMLElement;  // Element to position slider above (required for slider)
+    readonly overlay?: HTMLElement;      // Overlay to append slider to (required for slider)
 }
 
 /**
@@ -319,7 +377,9 @@ export interface NodeMenuItemsInput {
 function createRunButtonSliderConfig(
     cy: Core,
     nodeId: string,
-    currentDistance: number
+    currentDistance: number,
+    menuAnchor: HTMLElement,
+    overlay: HTMLElement
 ): SliderConfig {
     return {
         currentDistance,
@@ -333,6 +393,8 @@ function createRunButtonSliderConfig(
                 await highlightPreviewNodes(cy, nodeId);
             })();
         },
+        menuAnchor,
+        overlay,
     };
 }
 
@@ -341,12 +403,13 @@ function createRunButtonSliderConfig(
  * Extracted for reuse by floating window chrome.
  */
 export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[] {
-    const { nodeId, cy, agents, isContextNode, currentDistance } = input;
+    const { nodeId, cy, agents, isContextNode, currentDistance, menuAnchor, overlay } = input;
     const menuItems: HorizontalMenuItem[] = [];
 
     // Create slider config for non-context nodes (context nodes don't need distance slider)
-    const sliderConfig: SliderConfig | undefined = !isContextNode && currentDistance !== undefined
-        ? createRunButtonSliderConfig(cy, nodeId, currentDistance)
+    // Only create if menuAnchor and overlay are provided (required for floating slider)
+    const sliderConfig: SliderConfig | undefined = !isContextNode && currentDistance !== undefined && menuAnchor && overlay
+        ? createRunButtonSliderConfig(cy, nodeId, currentDistance, menuAnchor, overlay)
         : undefined;
 
     // LEFT SIDE: Delete, Copy, Add (3 buttons)
@@ -577,16 +640,9 @@ export class HorizontalMenuService {
 
         const nodeId: string = node.id();
         const isContextNode: boolean = node.data('isContextNode') === true;
-        const menuItems: HorizontalMenuItem[] = getNodeMenuItems({
-            nodeId,
-            cy: this.cy,
-            agents,
-            isContextNode,
-            currentDistance,
-        });
         const overlay: HTMLElement = getOrCreateOverlay(this.cy);
 
-        // Create menu container (transparent, just for positioning)
+        // Create menu container first (transparent, just for positioning)
         // pointer-events: none so the gap in the middle allows clicking the node
         const menu: HTMLDivElement = document.createElement('div');
         menu.className = 'cy-horizontal-context-menu';
@@ -599,6 +655,17 @@ export class HorizontalMenuService {
             pointer-events: none;
             z-index: 10000;
         `;
+
+        // Get menu items with menuAnchor and overlay for floating slider
+        const menuItems: HorizontalMenuItem[] = getNodeMenuItems({
+            nodeId,
+            cy: this.cy,
+            agents,
+            isContextNode,
+            currentDistance,
+            menuAnchor: menu,
+            overlay,
+        });
 
         // Store graph position for zoom updates (menu uses CSS transform scaling)
         const zoom: number = this.cy.zoom();
@@ -642,6 +709,9 @@ export class HorizontalMenuService {
     }
 
     private hideMenu(): void {
+        // Destroy floating slider when menu closes
+        destroyFloatingSlider();
+
         if (this.currentMenu) {
             this.currentMenu.remove();
             this.currentMenu = null;

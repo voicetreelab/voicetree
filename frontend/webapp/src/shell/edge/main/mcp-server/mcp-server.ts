@@ -258,11 +258,13 @@ export async function listAgentsTool(): Promise<McpToolResponse> {
 export async function waitForAgentsTool({
     terminalIds,
     callerTerminalId,
-    pollIntervalMs = 500
+    pollIntervalMs = 5000,
+    timeoutMs = 1200000 // 20 minute default
 }: {
     terminalIds: string[]
     callerTerminalId: string
     pollIntervalMs?: number
+    timeoutMs?: number
 }): Promise<McpToolResponse> {
     // 1. Validate caller terminal exists
     const records: TerminalRecord[] = getTerminalRecords()
@@ -277,8 +279,9 @@ export async function waitForAgentsTool({
         }
     }
 
-    // 3. Poll until all are exited
-    while (true) {
+    // 3. Poll until all are exited or timeout reached
+    const startTime: number = Date.now()
+    while (Date.now() - startTime < timeoutMs) {
         const currentRecords: TerminalRecord[] = getTerminalRecords()
         const targetRecords: TerminalRecord[] = currentRecords.filter(
             (r: TerminalRecord) => terminalIds.includes(r.terminalId)
@@ -298,6 +301,26 @@ export async function waitForAgentsTool({
 
         await new Promise(resolve => setTimeout(resolve, pollIntervalMs))
     }
+
+    // Timeout reached - return partial results
+    const finalRecords: TerminalRecord[] = getTerminalRecords()
+    const targetRecords: TerminalRecord[] = finalRecords.filter(
+        (r: TerminalRecord) => terminalIds.includes(r.terminalId)
+    )
+    const stillRunning: string[] = targetRecords
+        .filter((r: TerminalRecord) => r.status !== 'exited')
+        .map((r: TerminalRecord) => r.terminalId)
+
+    return buildJsonResponse({
+        success: false,
+        error: `Timeout waiting for agents after ${timeoutMs}ms`,
+        stillRunning,
+        agents: targetRecords.map((r: TerminalRecord) => ({
+            terminalId: r.terminalId,
+            title: r.terminalData.title,
+            status: r.status
+        }))
+    }, true)
 }
 
 /**
@@ -468,11 +491,12 @@ export function createMcpServer(): McpServer {
             inputSchema: {
                 terminalIds: z.array(z.string()).describe('Array of terminal IDs to wait for'),
                 callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),
-                pollIntervalMs: z.number().optional().describe('Poll interval in ms (default: 500)')
+                pollIntervalMs: z.number().optional().describe('Poll interval in ms (default: 5000)'),
+                timeoutMs: z.number().optional().describe('Max wait time in ms (default: 1200000)')
             }
         },
-        async ({terminalIds, callerTerminalId, pollIntervalMs}) =>
-            waitForAgentsTool({terminalIds, callerTerminalId, pollIntervalMs})
+        async ({terminalIds, callerTerminalId, pollIntervalMs, timeoutMs}) =>
+            waitForAgentsTool({terminalIds, callerTerminalId, pollIntervalMs, timeoutMs})
     )
 
     return server
