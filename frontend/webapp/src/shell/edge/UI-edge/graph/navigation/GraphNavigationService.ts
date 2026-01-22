@@ -16,7 +16,7 @@ import { addRecentlyVisited } from '@/shell/edge/UI-edge/state/RecentlyVisitedSt
 import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
 import { getTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
 import { getTerminalId, getShadowNodeId, type TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
-import { getDisplayOrderForNavigation, clearActivityForTerminal } from '@/shell/UI/views/AgentTabsBar';
+import { getDisplayOrderForNavigation } from '@/shell/UI/views/AgentTabsBar';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import * as O from 'fp-ts/lib/Option.js';
 
@@ -112,8 +112,9 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
     // Update active terminal state
     this.activeTerminalId = terminalId;
 
-    // Clear activity dots when navigating to this terminal (same as clicking the tab)
-    clearActivityForTerminal(terminalId);
+    // Note: Activity dots are NOT cleared here - they are cleared only when
+    // the user explicitly clicks a tab (not when cycling through terminals).
+    // This preserves the blue activity indicators when cycling between agents.
 
     // Get the shadow node from cy for viewport fitting
     const terminalShadowNode: CollectionReturnValue = cy.getElementById(shadowNodeId);

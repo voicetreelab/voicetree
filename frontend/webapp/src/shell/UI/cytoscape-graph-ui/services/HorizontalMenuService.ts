@@ -12,9 +12,68 @@ import {getFilePathForNode, getNodeFromMainToUI} from "@/shell/edge/UI-edge/grap
 import {Plus, Play, Trash2, Clipboard, ChevronDown, Edit2, GitBranch, createElement, type IconNode} from 'lucide';
 import {getOrCreateOverlay} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import {graphToScreenPosition, getWindowTransform, getTransformOrigin} from '@/pure/floatingWindowScaling';
-import type {AgentConfig} from "@/pure/settings";
+import type {AgentConfig, VTSettings} from "@/pure/settings";
 import {highlightContainedNodes, highlightPreviewNodes, clearContainedHighlights} from '@/shell/UI/cytoscape-graph-ui/highlightContextNodes';
 import {createTrafficLights, createTrafficLightsForTarget} from "@/shell/edge/UI-edge/floating-windows/traffic-lights";
+
+/** Slider config */
+const SLIDER_SQUARE_COUNT: number = 10;
+const SLIDER_SQUARE_SIZE: number = 12;
+const SLIDER_SQUARE_GAP: number = 2;
+const SLIDER_GOLD_COLOR: string = 'rgba(251, 191, 36, 0.9)';
+const SLIDER_GRAY_COLOR: string = 'rgba(255, 255, 255, 0.2)';
+
+/**
+ * Create a horizontal distance slider with 10 squares.
+ * Updates contextNodeMaxDistance setting on hover and triggers preview refresh.
+ */
+function createDistanceSlider(
+    currentDistance: number,
+    onDistanceChange: (newDistance: number) => void
+): HTMLDivElement {
+    const container: HTMLDivElement = document.createElement('div');
+    container.className = 'distance-slider';
+    container.style.cssText = `
+        display: flex;
+        gap: ${SLIDER_SQUARE_GAP}px;
+        padding: 4px 8px;
+        justify-content: center;
+    `;
+
+    const squares: HTMLDivElement[] = [];
+
+    // Update visual state of all squares based on distance
+    const updateSquares: (distance: number) => void = (distance: number): void => {
+        squares.forEach((square, index) => {
+            const squareDistance: number = index + 1;
+            square.style.background = squareDistance <= distance ? SLIDER_GOLD_COLOR : SLIDER_GRAY_COLOR;
+        });
+    };
+
+    for (let i: number = 0; i < SLIDER_SQUARE_COUNT; i++) {
+        const square: HTMLDivElement = document.createElement('div');
+        const squareDistance: number = i + 1;
+
+        square.style.cssText = `
+            width: ${SLIDER_SQUARE_SIZE}px;
+            height: ${SLIDER_SQUARE_SIZE}px;
+            background: ${squareDistance <= currentDistance ? SLIDER_GOLD_COLOR : SLIDER_GRAY_COLOR};
+            cursor: pointer;
+            transition: background 0.1s ease;
+        `;
+
+        // On hover, update visual and trigger distance change
+        square.addEventListener('mouseenter', () => {
+            updateSquares(squareDistance);
+            onDistanceChange(squareDistance);
+        });
+
+        squares.push(square);
+        container.appendChild(square);
+    }
+
+    return container;
+}
 import type {EditorData} from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
 import type {ImageViewerData} from "@/shell/edge/UI-edge/floating-windows/image-viewers/imageViewerDataType";
 
@@ -401,9 +460,10 @@ export class HorizontalMenuService {
         // Close any existing menu
         this.hideMenu();
 
-        // Load settings to get agents list
-        const settings: { agents?: readonly AgentConfig[] } | null = await window.electronAPI?.main.loadSettings() ?? null;
+        // Load settings to get agents list and context distance
+        const settings: VTSettings | null = await window.electronAPI?.main.loadSettings() ?? null;
         const agents: readonly AgentConfig[] = settings?.agents ?? [];
+        const currentDistance: number = settings?.contextNodeMaxDistance ?? 5;
 
         const nodeId: string = node.id();
         const isContextNode: boolean = node.data('isContextNode') === true;
@@ -449,6 +509,26 @@ export class HorizontalMenuService {
         });
 
         const { leftGroup, spacer, rightGroup } = createHorizontalMenuElement(menuItems, closeMenu, trafficLights);
+
+        // Add distance slider to Run button container (first child of rightGroup) for non-context nodes
+        if (!isContextNode) {
+            const runButtonContainer: Element | null = rightGroup.firstElementChild;
+            if (runButtonContainer) {
+                const cyRef: Core = this.cy;
+                const slider: HTMLDivElement = createDistanceSlider(currentDistance, (newDistance: number) => {
+                    // Save setting and refresh preview
+                    void (async (): Promise<void> => {
+                        const currentSettings: VTSettings | null = await window.electronAPI?.main.loadSettings() ?? null;
+                        if (currentSettings && window.electronAPI) {
+                            await window.electronAPI.main.saveSettings({...currentSettings, contextNodeMaxDistance: newDistance});
+                        }
+                        clearContainedHighlights(cyRef);
+                        await highlightPreviewNodes(cyRef, nodeId);
+                    })();
+                });
+                runButtonContainer.appendChild(slider);
+            }
+        }
 
         // Assemble: left group, spacer, right group
         menu.appendChild(leftGroup);

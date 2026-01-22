@@ -64,11 +64,16 @@ async function applyAndBroadcast(delta: GraphDelta): Promise<void> {
     uiAPI.updateFloatingEditorsFromExternal(mergedDelta)
 
     // Auto-pin editor for external node upserts (created or updated, not context nodes)
+    // Agent nodes (with agent_name in YAML) are auto-pinned with no limit
     mergedDelta
         .filter((d) => d.type === 'UpsertNode' && !d.nodeToUpsert.nodeUIMetadata.isContextNode)
-        .map((d) => d.type === 'UpsertNode' ? d.nodeToUpsert.absoluteFilePathIsID : '')
-        .filter((id): id is NodeIdAndFilePath => id !== '')
-        .forEach((nodeId) => uiAPI.createEditorForExternalNode(nodeId))
+        .forEach((d) => {
+            if (d.type === 'UpsertNode') {
+                const nodeId: NodeIdAndFilePath = d.nodeToUpsert.absoluteFilePathIsID
+                const isAgentNode: boolean = d.nodeToUpsert.nodeUIMetadata.additionalYAMLProps.has('agent_name')
+                uiAPI.createEditorForExternalNode(nodeId, isAgentNode)
+            }
+        })
 
     // Log if any links were resolved
     if (mergedDelta.length > delta.length) {

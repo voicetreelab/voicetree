@@ -33,14 +33,18 @@ function updateFloatingEditorsFromExternal(delta: GraphDelta): void {
  * Create an editor for a node created by an external FS change.
  * This is the auto-pin path for truly external file additions.
  * Called from main process FS watcher when it detects a new file was added externally.
+ *
+ * @param nodeId - ID of the node to create editor for
+ * @param isAgentNode - If true, node was created by an agent (has agent_name in YAML)
+ *                      Agent nodes are auto-pinned with no limit.
  */
-function createEditorForExternalNode(nodeId: NodeIdAndFilePath): void {
+function createEditorForExternalNode(nodeId: NodeIdAndFilePath, isAgentNode: boolean = false): void {
     // Don't auto-open floating editor for image nodes
     if (isImageNode(nodeId)) {
         return;
     }
     const cy: Core = getCyInstance();
-    void createAnchoredFloatingEditor(cy, nodeId, false, true);
+    void createAnchoredFloatingEditor(cy, nodeId, false, true, isAgentNode);
 }
 
 /**
