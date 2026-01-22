@@ -26,8 +26,9 @@ const SLIDER_GRAY_COLOR: string = 'rgba(255, 255, 255, 0.2)';
 /**
  * Create a horizontal distance slider with 10 squares.
  * Updates contextNodeMaxDistance setting on hover and triggers preview refresh.
+ * @internal Exported for testing only
  */
-function createDistanceSlider(
+export function createDistanceSlider(
     currentDistance: number,
     onDistanceChange: (newDistance: number) => void
 ): HTMLDivElement {

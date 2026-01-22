@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import cytoscape from 'cytoscape';
 import type { Core } from 'cytoscape';
-import { getNodeMenuItems, createHorizontalMenuElement, type HorizontalMenuItem, type NodeMenuItemsInput } from '@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService';
+import { getNodeMenuItems, createHorizontalMenuElement, createDistanceSlider, type HorizontalMenuItem, type NodeMenuItemsInput } from '@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService';
 import { Trash2, Clipboard, Plus, Play, ChevronDown } from 'lucide';
 
 // Mock dependencies that require IPC
@@ -336,6 +336,69 @@ describe('HorizontalMenuService', () => {
                     expect(fullscreenBtn?.classList.contains('traffic-light')).toBe(true);
                 });
             });
+        });
+    });
+
+    describe('createDistanceSlider', () => {
+        it('should create a container with 10 squares', () => {
+            const onDistanceChange: (n: number) => void = vi.fn();
+            const slider: HTMLDivElement = createDistanceSlider(5, onDistanceChange);
+
+            expect(slider.className).toBe('distance-slider');
+            expect(slider.children.length).toBe(10);
+        });
+
+        it('should fill squares 1 through currentDistance with gold color', () => {
+            const onDistanceChange: (n: number) => void = vi.fn();
+            const slider: HTMLDivElement = createDistanceSlider(3, onDistanceChange);
+            const squares: HTMLDivElement[] = Array.from(slider.children) as HTMLDivElement[];
+
+            // First 3 should be gold, rest gray
+            expect(squares[0]?.style.background).toBe('rgba(251, 191, 36, 0.9)');
+            expect(squares[1]?.style.background).toBe('rgba(251, 191, 36, 0.9)');
+            expect(squares[2]?.style.background).toBe('rgba(251, 191, 36, 0.9)');
+            expect(squares[3]?.style.background).toBe('rgba(255, 255, 255, 0.2)');
+            expect(squares[9]?.style.background).toBe('rgba(255, 255, 255, 0.2)');
+        });
+
+        it('should call onDistanceChange with correct value on square hover', () => {
+            const onDistanceChange: (n: number) => void = vi.fn();
+            const slider: HTMLDivElement = createDistanceSlider(5, onDistanceChange);
+            const squares: HTMLDivElement[] = Array.from(slider.children) as HTMLDivElement[];
+
+            // Simulate mouseenter on square 7 (index 6)
+            const mouseenterEvent: Event = new Event('mouseenter');
+            squares[6]?.dispatchEvent(mouseenterEvent);
+
+            expect(onDistanceChange).toHaveBeenCalledWith(7);
+        });
+
+        it('should update all squares visual state on hover', () => {
+            const onDistanceChange: (n: number) => void = vi.fn();
+            const slider: HTMLDivElement = createDistanceSlider(2, onDistanceChange);
+            const squares: HTMLDivElement[] = Array.from(slider.children) as HTMLDivElement[];
+
+            // Initially: first 2 gold, rest gray
+            expect(squares[0]?.style.background).toBe('rgba(251, 191, 36, 0.9)');
+            expect(squares[4]?.style.background).toBe('rgba(255, 255, 255, 0.2)');
+
+            // Hover over square 5 (index 4)
+            const mouseenterEvent: Event = new Event('mouseenter');
+            squares[4]?.dispatchEvent(mouseenterEvent);
+
+            // Now first 5 should be gold
+            expect(squares[0]?.style.background).toBe('rgba(251, 191, 36, 0.9)');
+            expect(squares[4]?.style.background).toBe('rgba(251, 191, 36, 0.9)');
+            expect(squares[5]?.style.background).toBe('rgba(255, 255, 255, 0.2)');
+        });
+
+        it('should have squares with correct dimensions (12px)', () => {
+            const onDistanceChange: (n: number) => void = vi.fn();
+            const slider: HTMLDivElement = createDistanceSlider(5, onDistanceChange);
+            const squares: HTMLDivElement[] = Array.from(slider.children) as HTMLDivElement[];
+
+            expect(squares[0]?.style.width).toBe('12px');
+            expect(squares[0]?.style.height).toBe('12px');
         });
     });
 });

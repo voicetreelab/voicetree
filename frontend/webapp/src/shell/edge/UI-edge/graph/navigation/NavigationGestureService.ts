@@ -52,6 +52,13 @@ export class NavigationGestureService {
   private onWheel(e: WheelEvent): void {
     if (!this.cy.userPanningEnabled()) return;
 
+    // Allow native scrolling in tab containers
+    // TODO: if perf issue, add fast-path check for canvas tagName before closest() calls
+    const target: Element | null = e.target as Element | null;
+    if (target?.closest('.recent-tabs-scroll') || target?.closest('.agent-tabs-pinned')) {
+      return;
+    }
+
     e.preventDefault();
     e.stopImmediatePropagation();
 
