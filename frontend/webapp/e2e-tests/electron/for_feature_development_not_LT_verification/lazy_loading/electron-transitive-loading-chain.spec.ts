@@ -11,9 +11,16 @@
  * The key function is resolveLinkedNodesInWatchedFolder() in
  * src/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk.ts
  *
+ * TEST SETUP:
+ * - tempDir/writePath/A.md -> [[B]] (entry point, in writePath)
+ * - tempDir/chain/B.md -> [[C]] (outside writePath, inside watched folder)
+ * - tempDir/chain/C.md -> [[D]]
+ * - tempDir/chain/D.md (end of chain)
+ * - tempDir/chain/orphan.md (no links to it - should NOT be loaded)
+ *
  * EXPECTED OUTCOME:
- * - Loading ONLY file A initially results in all 4 nodes (A, B, C, D) being loaded
- * - Unlinked files remain NOT loaded (lazy loading)
+ * - Loading the folder results in A, B, C, D being loaded transitively
+ * - orphan.md is NOT loaded (nothing links to it)
  */
 
 import { test as base, expect, _electron as electron } from '@playwright/test';
@@ -36,6 +43,7 @@ const test = base.extend<{
   appWindow: Page;
   tempDir: string;
   writePath: string;
+  chainDir: string;
 }>({
   /**
    * Creates a temp directory structure for testing transitive wikilink loading:
@@ -60,7 +68,13 @@ const test = base.extend<{
     await fs.rm(tempDir, { recursive: true, force: true });
   },
 
-  writePath: async ({ tempDir }, use) => {
+  chainDir: async ({ tempDir }, use) => {
+    const chainDir: string = path.join(tempDir, 'chain');
+    await fs.mkdir(chainDir);
+    await use(chainDir);
+  },
+
+  writePath: async ({ tempDir, chainDir }, use) => {
     const writePath: string = path.join(tempDir, 'writePath');
     await fs.mkdir(writePath);
 
@@ -72,10 +86,6 @@ This is the entry point of the chain.
 Links to: [[B]]
 `
     );
-
-    // Create the chain folder (outside writePath)
-    const chainDir: string = path.join(tempDir, 'chain');
-    await fs.mkdir(chainDir);
 
     // B, C, D are outside writePath but inside watched folder
     await fs.writeFile(
@@ -269,7 +279,7 @@ test.describe('Transitive Wikilink Loading Chain', () => {
     expect(hasCtoD, 'Edge C -> D should exist').toBe(true);
   });
 
-  test('should handle deeper transitive chains (5+ hops)', async ({ appWindow, tempDir }) => {
+  test('should handle deeper transitive chains (5+ hops)', async ({ appWindow, tempDir, chainDir }) => {
     test.setTimeout(30000);
 
     console.log('');
@@ -277,7 +287,7 @@ test.describe('Transitive Wikilink Loading Chain', () => {
 
     // Add more nodes to create a deeper chain: E -> F -> G
     await fs.writeFile(
-      path.join(tempDir, 'E.md'),
+      path.join(chainDir, 'E.md'),
       `# Node E
 Fifth in extended chain.
 Links to: [[F]]
@@ -285,7 +295,7 @@ Links to: [[F]]
     );
 
     await fs.writeFile(
-      path.join(tempDir, 'F.md'),
+      path.join(chainDir, 'F.md'),
       `# Node F
 Sixth in extended chain.
 Links to: [[G]]
@@ -293,7 +303,7 @@ Links to: [[G]]
     );
 
     await fs.writeFile(
-      path.join(tempDir, 'G.md'),
+      path.join(chainDir, 'G.md'),
       `# Node G
 End of extended chain.
 `
@@ -301,7 +311,7 @@ End of extended chain.
 
     // Modify D to link to E (extending the chain)
     await fs.writeFile(
-      path.join(tempDir, 'D.md'),
+      path.join(chainDir, 'D.md'),
       `# Node D
 Originally end of chain, now links to E.
 Links to: [[E]]
@@ -345,7 +355,7 @@ Links to: [[E]]
     expect(nodeState.labels).not.toContain('Orphan Node');
   });
 
-  test('should handle branching transitive links', async ({ appWindow, tempDir }) => {
+  test('should handle branching transitive links', async ({ appWindow, tempDir, writePath, chainDir }) => {
     test.setTimeout(30000);
 
     console.log('');
@@ -354,7 +364,7 @@ Links to: [[E]]
 
     // Modify A to have two outgoing links (branching)
     await fs.writeFile(
-      path.join(tempDir, 'A.md'),
+      path.join(writePath, 'A.md'),
       `# Node A
 This is the entry point with branching links.
 Links to: [[B]] and [[D]]
@@ -363,7 +373,7 @@ Links to: [[B]] and [[D]]
 
     // B still links to C
     await fs.writeFile(
-      path.join(tempDir, 'B.md'),
+      path.join(chainDir, 'B.md'),
       `# Node B
 Branch 1: links to C.
 Links to: [[C]]
@@ -372,7 +382,7 @@ Links to: [[C]]
 
     // C is end of branch 1
     await fs.writeFile(
-      path.join(tempDir, 'C.md'),
+      path.join(chainDir, 'C.md'),
       `# Node C
 End of branch 1.
 `
@@ -380,7 +390,7 @@ End of branch 1.
 
     // D is end of branch 2 (separate from B->C chain)
     await fs.writeFile(
-      path.join(tempDir, 'D.md'),
+      path.join(chainDir, 'D.md'),
       `# Node D
 End of branch 2. No further links.
 `
@@ -438,7 +448,7 @@ End of branch 2. No further links.
     expect(hasBtoC, 'Edge B -> C should exist').toBe(true);
   });
 
-  test('should handle circular links without infinite loop', async ({ appWindow, tempDir }) => {
+  test('should handle circular links without infinite loop', async ({ appWindow, tempDir, writePath, chainDir }) => {
     test.setTimeout(30000);
 
     console.log('');
@@ -447,7 +457,7 @@ End of branch 2. No further links.
 
     // Create a circular chain: A -> B -> C -> A
     await fs.writeFile(
-      path.join(tempDir, 'A.md'),
+      path.join(writePath, 'A.md'),
       `# Node A
 Start of circular chain.
 Links to: [[B]]
@@ -455,7 +465,7 @@ Links to: [[B]]
     );
 
     await fs.writeFile(
-      path.join(tempDir, 'B.md'),
+      path.join(chainDir, 'B.md'),
       `# Node B
 Middle of circular chain.
 Links to: [[C]]
@@ -463,7 +473,7 @@ Links to: [[C]]
     );
 
     await fs.writeFile(
-      path.join(tempDir, 'C.md'),
+      path.join(chainDir, 'C.md'),
       `# Node C
 Links back to A (circular).
 Links to: [[A]]
@@ -471,7 +481,7 @@ Links to: [[A]]
     );
 
     // Delete D for this test (not part of the circular chain)
-    await fs.rm(path.join(tempDir, 'D.md'));
+    await fs.rm(path.join(chainDir, 'D.md'));
 
     // Wait for FS to settle
     await appWindow.waitForTimeout(500);
@@ -490,7 +500,7 @@ Links to: [[A]]
       const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not available');
       const ids: string[] = cy.nodes().map(n => n.id());
-      const uniqueIds: string[] = [...new Set(ids)];
+      const uniqueIds: string[] = Array.from(new Set(ids));
       return {
         labels: cy.nodes().map(n => n.data('label') as string),
         total: ids.length,

@@ -260,10 +260,10 @@ export class StyleService {
       {
         selector: 'node.context-contained',
         style: {
-          'outline-width': 4,
+          'outline-width': 2,
           'outline-color': '#FFD700',  // Gold
-          'outline-offset': 10,
-          'outline-opacity': 1,
+          'outline-offset': 6,
+          'outline-opacity': 0.6,
         }
       },
 

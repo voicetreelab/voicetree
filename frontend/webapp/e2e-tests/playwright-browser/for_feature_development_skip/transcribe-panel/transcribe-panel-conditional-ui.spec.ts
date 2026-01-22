@@ -5,6 +5,7 @@
 
 import { test as base, expect } from '@playwright/test';
 import {
+  setupMockElectronAPI,
   waitForCytoscapeReady,
   sendGraphDelta,
   createTestGraphDelta,
@@ -12,145 +13,31 @@ import {
 
 const test = base.extend({});
 
-/**
- * Sets up the mock Electron API with watched directory for full UI state
- */
-async function setupMockWithWatchedDirectory(page: import('@playwright/test').Page): Promise<void> {
-  await page.addInitScript(() => {
-    const mockElectronAPI = {
-      main: {
-        applyGraphDeltaToDBAndMem: async () => ({ success: true }),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        applyGraphDeltaToDBThroughMem: async (delta: any) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          delta.forEach((nodeDelta: any) => {
-            if (nodeDelta.type === 'UpsertNode') {
-              const node = nodeDelta.nodeToUpsert;
-              mockElectronAPI.graph._graphState.nodes[node.absoluteFilePathIsID] = node;
-            } else if (nodeDelta.type === 'DeleteNode') {
-              delete mockElectronAPI.graph._graphState.nodes[nodeDelta.nodeId];
-            }
-          });
-          if (mockElectronAPI.graph._updateCallback) {
-            setTimeout(() => {
-              mockElectronAPI.graph._updateCallback?.(delta);
-            }, 10);
-          }
-          return { success: true };
-        },
-        getGraph: async () => mockElectronAPI.graph._graphState,
-        loadSettings: async () => ({
-          terminalSpawnPathRelativeToWatchedDirectory: '../',
-          agents: [{ name: 'Claude', command: './claude.sh' }],
-          shiftEnterSendsOptionEnter: true
-        }),
-        saveSettings: async () => ({ success: true }),
-        saveNodePositions: async () => ({ success: true }),
-        startFileWatching: async (dir: string) => {
-          console.log('[Mock] startFileWatching called with:', dir);
-          return { success: true, directory: dir };
-        },
-        stopFileWatching: async () => ({ success: true }),
-        getWatchStatus: async () => ({ isWatching: true, directory: '/Users/demo/projects/my-notes' }),
-        loadPreviousFolder: async () => ({ success: false }),
-        getBackendPort: async () => 5001,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: any) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          delta.forEach((nodeDelta: any) => {
-            if (nodeDelta.type === 'UpsertNode') {
-              const node = nodeDelta.nodeToUpsert;
-              mockElectronAPI.graph._graphState.nodes[node.absoluteFilePathIsID] = node;
-            } else if (nodeDelta.type === 'DeleteNode') {
-              delete mockElectronAPI.graph._graphState.nodes[nodeDelta.nodeId];
-            }
-          });
-          if (mockElectronAPI.graph._updateCallback) {
-            setTimeout(() => {
-              mockElectronAPI.graph._updateCallback?.(delta);
-            }, 10);
-          }
-          return { success: true };
-        },
-      },
-      onWatchingStarted: (callback: (data: { directory: string; vaultSuffix: string }) => void) => {
-        setTimeout(() => {
-          callback({ directory: '/Users/demo/projects/my-notes', vaultSuffix: 'voicetree' });
-        }, 50);
-      },
-      onFileWatchingStopped: () => {},
-      removeAllListeners: () => {},
-      terminal: {
-        spawn: async () => ({ success: false }),
-        write: async () => {},
-        resize: async () => {},
-        kill: async () => {},
-        onData: () => {},
-        onExit: () => {}
-      },
-      positions: {
-        save: async () => ({ success: true }),
-        load: async () => ({ success: false, positions: {} })
-      },
-      onBackendLog: () => {},
-      graph: {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        _graphState: { nodes: {}, edges: [] } as any,
-        applyGraphDelta: async () => ({ success: true }),
-        getState: async () => mockElectronAPI.graph._graphState,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        onGraphUpdate: (callback: (delta: any) => void) => {
-          mockElectronAPI.graph._updateCallback = callback;
-          return () => {};
-        },
-        onGraphClear: () => () => {},
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        _updateCallback: undefined as ((delta: any) => void) | undefined
-      },
-      invoke: async () => {},
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      _ipcListeners: {} as Record<string, ((event: unknown, ...args: any[]) => void)[]>,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      on: (channel: string, callback: (event: unknown, ...args: any[]) => void) => {
-        if (!mockElectronAPI._ipcListeners[channel]) {
-          mockElectronAPI._ipcListeners[channel] = [];
-        }
-        mockElectronAPI._ipcListeners[channel].push(callback);
-        return () => {};
-      },
-      off: () => {},
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      _triggerIpc: (channel: string, ...args: any[]) => {
-        const listeners = mockElectronAPI._ipcListeners[channel] || [];
-        listeners.forEach(cb => cb(null, ...args));
-      }
-    };
-
-    (window as unknown as { electronAPI: typeof mockElectronAPI }).electronAPI = mockElectronAPI;
-  });
-}
-
 test.describe('Transcription Panel Conditional UI Elements', () => {
   test('should only show blur and collapse arrow when text is present', async ({ page }) => {
     console.log('\n=== Starting transcription panel conditional UI test ===');
 
-    // Setup mock Electron API
-    await setupMockWithWatchedDirectory(page);
+    // Setup mock Electron API (uses shared test utilities)
+    await setupMockElectronAPI(page);
 
-    // Navigate to app
+    // Navigate to app and wait for React to render
     await page.goto('/');
     await page.waitForSelector('#root', { timeout: 5000 });
     await page.waitForTimeout(100);
 
-    // Wait for Cytoscape
+    // Wait for Cytoscape to be ready (indicates app is fully loaded)
     await waitForCytoscapeReady(page);
 
     // Add test nodes for minimap
     await sendGraphDelta(page, createTestGraphDelta());
     await page.waitForTimeout(200);
 
+    // Wait for the transcribe panel to be rendered
+    await page.waitForSelector('.flex.flex-col.relative', { timeout: 5000 });
+
     // Locators for conditional UI elements
-    const blurLayer = page.locator('div[style*="backdropFilter"]').first();
+    // Note: React inline styles use camelCase but DOM uses kebab-case (backdrop-filter)
+    const blurLayer = page.locator('div[style*="backdrop-filter"]').first();
     const collapseButton = page.locator('button[title="Collapse transcription"]');
     const expandButton = page.locator('button[title="Expand transcription"]');
 
@@ -167,9 +54,25 @@ test.describe('Transcription Panel Conditional UI Elements', () => {
     });
     console.log('✓ Screenshot: transcribe-panel-empty-state.png');
 
+    // Debug: Check current HTML structure
+    const domDebug = await page.evaluate(() => {
+      // Look for the flex.justify-center container that holds VoiceTreeTranscribe
+      const transcribeContainer = document.querySelector('.flex.justify-center');
+      // Look for the VoiceTreeTranscribe component's root div
+      const transcribeRoot = document.querySelector('.flex.flex-col.relative');
+      // Get the body inner HTML to see what's rendered
+      const bodyHtml = document.body.innerHTML.substring(0, 1500);
+      return {
+        transcribeContainerFound: !!transcribeContainer,
+        transcribeRootFound: !!transcribeRoot,
+        bodyHtmlPreview: bodyHtml,
+      };
+    });
+    console.log('DOM Debug:', JSON.stringify(domDebug, null, 2));
+
     // === TEST 2: Add text via TranscriptionStore ===
     console.log('=== Adding text to transcription store ===');
-    await page.evaluate(() => {
+    const storeResult = await page.evaluate(() => {
       // TranscriptionStore exposes appendManualText on window.__TRANSCRIPTION_STORE__
       interface TranscriptionStoreAPI {
         appendManualText: (text: string) => void;
@@ -179,13 +82,16 @@ test.describe('Transcription Panel Conditional UI Elements', () => {
       const store = (window as Window & { __TRANSCRIPTION_STORE__?: TranscriptionStoreAPI }).__TRANSCRIPTION_STORE__;
       if (store) {
         store.appendManualText('Test transcription text for visual verification');
+        const count = store.getDisplayTokenCount();
+        return { success: true, tokenCount: count };
       } else {
-        console.error('TranscriptionStore not exposed on window');
+        return { success: false, error: 'TranscriptionStore not exposed on window' };
       }
     });
+    console.log('Store result:', storeResult);
 
     // Wait for React to update
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(500);
 
     // === TEST 3: With text - blur layer AND collapse arrow should be visible ===
     console.log('=== Verifying state with text ===');
