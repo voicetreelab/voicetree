@@ -33,7 +33,6 @@ import { resolveEnvVars, expandEnvVarsInValues } from '@/pure/settings';
 import { getNextAgentName } from '@/pure/settings/types';
 import { getNextTerminalCountForNode } from '@/shell/edge/main/terminals/terminal-registry';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
-import { generateWorktreeName } from '@/shell/edge/main/worktree/gitWorktreeCommands';
 
 /**
  * Spawn a terminal with a context node, orchestrated from main process
@@ -43,11 +42,10 @@ import { generateWorktreeName } from '@/shell/edge/main/worktree/gitWorktreeComm
  * main process where graph state is immediately available.
  *
  * @param taskNodeId - The task node to anchor terminal to (and create context for)
- * @param agentCommand - The agent command to run (already processed by renderer for permission mode)
+ * @param agentCommand - The agent command to run (may include worktree prefix if user enabled it)
  * @param terminalCount - Current terminal count from UI TerminalStore
  * @param skipFitAnimation - If true, skip navigating viewport to the terminal (used for MCP spawns)
  * @param startUnpinned - If true, terminal starts unpinned (used for MCP spawns)
- * @param inNewWorktree - If true, spawn terminal in a new git worktree
  * @param selectedNodeIds - If provided, creates context from these nodes instead of subgraph
  */
 export async function spawnTerminalWithContextNode(
@@ -56,7 +54,6 @@ export async function spawnTerminalWithContextNode(
     terminalCount?: number,
     skipFitAnimation?: boolean,
     startUnpinned?: boolean,
-    inNewWorktree?: boolean,
     selectedNodeIds?: readonly NodeIdAndFilePath[]
 ): Promise<{terminalId: string; contextNodeId: NodeIdAndFilePath}> {
     // Load settings to get agents
@@ -95,20 +92,8 @@ export async function spawnTerminalWithContextNode(
         resolvedTaskNodeId = taskNodeId;
     }
 
-    // If worktree requested, prepend git worktree command to the agent command
-    let finalCommand: string = command;
-    if (inNewWorktree) {
-        const resolvedTaskNode: GraphNode = graph.nodes[resolvedTaskNodeId];
-        const nodeTitle: string = resolvedTaskNode ? getNodeTitle(resolvedTaskNode) : 'agent-task';
-        const worktreeName: string = generateWorktreeName(nodeTitle);
-        // Prepend git worktree add and cd commands
-        // Using .worktrees/ directory to keep worktrees organized
-        const worktreePrefix: string = `git worktree add -b "${worktreeName}" ".worktrees/${worktreeName}" && cd ".worktrees/${worktreeName}" && `;
-        finalCommand = worktreePrefix + command;
-        console.log(`[spawnTerminalWithContextNode] Prepending worktree command: ${worktreePrefix}`);
-    }
-
     // Prepare terminal data (main has immediate access to all state)
+    // Note: Worktree prefix is now embedded directly in command if user enabled it in the popup
     const resolvedTerminalCount: number = typeof terminalCount === 'number'
         ? terminalCount
         : getNextTerminalCountForNode(contextNodeId)
@@ -117,7 +102,7 @@ export async function spawnTerminalWithContextNode(
         contextNodeId,
         resolvedTaskNodeId,
         resolvedTerminalCount,
-        finalCommand,
+        command,
         settings,
         startUnpinned
     );

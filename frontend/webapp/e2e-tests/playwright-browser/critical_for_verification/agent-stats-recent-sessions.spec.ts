@@ -85,6 +85,8 @@ async function setupMockElectronAPIWithSessions(page: Page, sessions: SessionMet
         loadPreviousFolder: async () => ({ success: false }),
         getBackendPort: async () => 5001,
         getMetrics: async () => ({ sessions: sessionsData }),
+        // Frontend ready signal (no-op for tests)
+        markFrontendReady: async () => {},
         applyGraphDeltaToDBThroughMemUIAndEditorExposed: async () => ({ success: true }),
         applyGraphDeltaToDBThroughMemAndUIExposed: async () => ({ success: true }),
       },

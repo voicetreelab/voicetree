@@ -65,6 +65,9 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
         // Image loading
         readImageAsDataUrl: async (): Promise<string> => 'data:image/png;base64,test',
 
+        // Frontend ready signal (no-op for tests)
+        markFrontendReady: async () => {},
+
         // UI-edge graph delta operations
         applyGraphDeltaToDBThroughMemUIAndEditorExposed: async () => ({ success: true }),
         applyGraphDeltaToDBThroughMemAndUIExposed: async () => ({ success: true }),
@@ -297,8 +300,8 @@ test.describe('VaultPathSelector without showAll toggle', () => {
     await expect(dropdown).toBeVisible({ timeout: 3000 });
     console.log('✓ Dropdown opened');
 
-    // Find the "Add read-on-link path" section
-    const addPathSection = dropdown.locator('text=Add read-on-link path');
+    // Find the "Add read folder" section (UI text changed from "Add read-on-link path")
+    const addPathSection = dropdown.locator('text=Add read folder');
     await expect(addPathSection).toBeVisible();
     console.log('✓ Add path section visible');
 

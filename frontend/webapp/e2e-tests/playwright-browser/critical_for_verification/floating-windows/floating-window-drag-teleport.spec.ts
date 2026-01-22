@@ -138,28 +138,29 @@ test.describe('Floating Window Drag Teleportation Bug', () => {
     console.log(`  Initial position: left=${initialPosition.left}, top=${initialPosition.top}`);
     console.log(`  Initial style: left=${initialPosition.styleLeft}px, top=${initialPosition.styleTop}px`);
 
-    console.log('=== Step 9: Get title bar position for dragging ===');
-    const titleBarSelector = `${editorSelector} .cy-floating-window-title`;
-    const titleBarBounds = await page.evaluate((selector) => {
-      const titleBar = document.querySelector(selector) as HTMLElement;
-      if (!titleBar) throw new Error('Title bar not found');
-      const rect = titleBar.getBoundingClientRect();
+    console.log('=== Step 9: Get horizontal menu position for dragging ===');
+    // Phase 1 refactor: editors no longer have title bars, drag is done via the horizontal menu
+    const menuBarSelector = `${editorSelector} .cy-floating-window-horizontal-menu`;
+    const menuBarBounds = await page.evaluate((selector) => {
+      const menuBar = document.querySelector(selector) as HTMLElement;
+      if (!menuBar) throw new Error('Horizontal menu bar not found');
+      const rect = menuBar.getBoundingClientRect();
       return {
         x: rect.left + rect.width / 2,
         y: rect.top + rect.height / 2
       };
-    }, titleBarSelector);
-    console.log(`  Title bar center: x=${titleBarBounds.x}, y=${titleBarBounds.y}`);
+    }, menuBarSelector);
+    console.log(`  Menu bar center: x=${menuBarBounds.x}, y=${menuBarBounds.y}`);
 
     console.log('=== Step 10: Perform small drag (5 pixels right, 5 pixels down) ===');
     const dragDeltaX = 5;
     const dragDeltaY = 5;
 
-    // Simulate drag: mousedown at title bar center, mousemove by delta, mouseup
-    await page.mouse.move(titleBarBounds.x, titleBarBounds.y);
+    // Simulate drag: mousedown at menu bar center, mousemove by delta, mouseup
+    await page.mouse.move(menuBarBounds.x, menuBarBounds.y);
     await page.mouse.down();
     await page.waitForTimeout(50);
-    await page.mouse.move(titleBarBounds.x + dragDeltaX, titleBarBounds.y + dragDeltaY);
+    await page.mouse.move(menuBarBounds.x + dragDeltaX, menuBarBounds.y + dragDeltaY);
     await page.waitForTimeout(50);
     await page.mouse.up();
     await page.waitForTimeout(100);
@@ -275,25 +276,25 @@ test.describe('Floating Window Drag Teleportation Bug', () => {
     }, editorSelector);
     console.log(`  Position after zoom: left=${initialPosition.left}, top=${initialPosition.top}`);
 
-    // Get title bar position
-    const titleBarSelector = `${editorSelector} .cy-floating-window-title`;
-    const titleBarBounds = await page.evaluate((selector) => {
-      const titleBar = document.querySelector(selector) as HTMLElement;
-      if (!titleBar) throw new Error('Title bar not found');
-      const rect = titleBar.getBoundingClientRect();
+    // Get horizontal menu position (Phase 1 refactor: editors no longer have title bars)
+    const menuBarSelector = `${editorSelector} .cy-floating-window-horizontal-menu`;
+    const menuBarBounds = await page.evaluate((selector) => {
+      const menuBar = document.querySelector(selector) as HTMLElement;
+      if (!menuBar) throw new Error('Horizontal menu bar not found');
+      const rect = menuBar.getBoundingClientRect();
       return {
         x: rect.left + rect.width / 2,
         y: rect.top + rect.height / 2
       };
-    }, titleBarSelector);
+    }, menuBarSelector);
 
     // Drag window
     const dragDeltaX = 10;
     const dragDeltaY = 10;
-    await page.mouse.move(titleBarBounds.x, titleBarBounds.y);
+    await page.mouse.move(menuBarBounds.x, menuBarBounds.y);
     await page.mouse.down();
     await page.waitForTimeout(50);
-    await page.mouse.move(titleBarBounds.x + dragDeltaX, titleBarBounds.y + dragDeltaY);
+    await page.mouse.move(menuBarBounds.x + dragDeltaX, menuBarBounds.y + dragDeltaY);
     await page.waitForTimeout(50);
     await page.mouse.up();
     await page.waitForTimeout(100);

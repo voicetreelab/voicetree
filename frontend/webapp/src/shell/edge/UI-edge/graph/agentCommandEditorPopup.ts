@@ -15,7 +15,6 @@ export interface AgentCommandEditorResult {
     command: string;
     agentPrompt: string;
     mcpIntegrationEnabled: boolean;
-    inNewWorktree: boolean;
     useDocker: boolean;
 }
 
@@ -282,10 +281,28 @@ export function showAgentCommandEditor(command: string, agentPrompt: string, nod
         promptTextarea.value = agentPrompt;
         input.value = command;
 
-        // Update auto-run checkbox state when input changes
+        // Track state for order-invariant command composition
+        // baseCommand is either the original command or Docker template (without worktree prefix)
+        let baseCommand: string = command;
+        const worktreePrefix: string = generateWorktreePrefix(nodeTitle);
+
+        // Compose and display the final command based on current state
+        function updateDisplayedCommand(): void {
+            const commandToUse: string = dockerToggle.checked ? DOCKER_COMMAND_TEMPLATE : baseCommand;
+            input.value = worktreeToggle.checked ? worktreePrefix + commandToUse : commandToUse;
+            // Sync auto-run checkbox with displayed command
+            autoRunToggle.checked = input.value.includes(AUTO_RUN_FLAG);
+        }
+
+        // Update auto-run checkbox state when input changes manually
         input.addEventListener('input', () => {
-            const currentHasFlag: boolean = input.value.includes(AUTO_RUN_FLAG);
-            autoRunToggle.checked = currentHasFlag;
+            // When user manually edits, update baseCommand to track their changes
+            if (worktreeToggle.checked && input.value.startsWith(worktreePrefix)) {
+                baseCommand = input.value.slice(worktreePrefix.length);
+            } else if (!worktreeToggle.checked) {
+                baseCommand = input.value;
+            }
+            autoRunToggle.checked = input.value.includes(AUTO_RUN_FLAG);
         });
 
         // Auto-run checkbox change handler
@@ -305,37 +322,22 @@ export function showAgentCommandEditor(command: string, agentPrompt: string, nod
                 // Remove the flag from the command
                 input.value = input.value.replace(new RegExp(`\\s*${AUTO_RUN_FLAG}\\s*`), ' ').trim();
             }
+            // Update baseCommand to reflect the change
+            if (worktreeToggle.checked && input.value.startsWith(worktreePrefix)) {
+                baseCommand = input.value.slice(worktreePrefix.length);
+            } else if (!worktreeToggle.checked) {
+                baseCommand = input.value;
+            }
         });
 
-        // Worktree checkbox change handler - shows actual git worktree command
-        let currentWorktreePrefix: string = '';
+        // Worktree checkbox change handler - order-invariant
         worktreeToggle.addEventListener('change', () => {
-            if (worktreeToggle.checked) {
-                // Generate and prepend the actual git worktree command
-                currentWorktreePrefix = generateWorktreePrefix(nodeTitle);
-                input.value = currentWorktreePrefix + input.value;
-            } else if (currentWorktreePrefix && input.value.startsWith(currentWorktreePrefix)) {
-                // Remove the worktree prefix
-                input.value = input.value.slice(currentWorktreePrefix.length);
-                currentWorktreePrefix = '';
-            }
+            updateDisplayedCommand();
         });
 
-        // Docker checkbox change handler - replaces command with Docker version
-        let savedNonDockerCommand: string = '';
+        // Docker checkbox change handler - order-invariant
         dockerToggle.addEventListener('change', () => {
-            if (dockerToggle.checked) {
-                // Save current command and replace with Docker command
-                savedNonDockerCommand = input.value;
-                input.value = DOCKER_COMMAND_TEMPLATE;
-                // Docker command has auto-run flag built in
-                autoRunToggle.checked = true;
-            } else {
-                // Restore original command
-                input.value = savedNonDockerCommand || command;
-                // Sync auto-run checkbox with restored command
-                autoRunToggle.checked = input.value.includes(AUTO_RUN_FLAG);
-            }
+            updateDisplayedCommand();
         });
 
         // Cancel button click handler
@@ -355,7 +357,7 @@ export function showAgentCommandEditor(command: string, agentPrompt: string, nod
                 resolve(null);
                 return;
             }
-            resolve({ command: finalCommand, agentPrompt: finalPrompt, mcpIntegrationEnabled: mcpEnabled, inNewWorktree: worktreeToggle.checked, useDocker: dockerToggle.checked });
+            resolve({ command: finalCommand, agentPrompt: finalPrompt, mcpIntegrationEnabled: mcpEnabled, useDocker: dockerToggle.checked });
         });
 
         // Clean up dialog on close

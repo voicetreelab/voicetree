@@ -338,4 +338,273 @@ describe('showAgentCommandEditor', () => {
         expect(result).not.toBeNull();
         expect(result!.useDocker).toBe(false);
     });
+
+    // Worktree toggle tests
+    describe('Worktree toggle', () => {
+        it('has Worktree toggle element in the dialog', async () => {
+            void showAgentCommandEditor('claude test', DEFAULT_AGENT_PROMPT);
+
+            const dialog: HTMLDialogElement = getDialog();
+            const worktreeToggle: HTMLInputElement = dialog.querySelector('[data-testid="worktree-toggle"]') as HTMLInputElement;
+            expect(worktreeToggle).not.toBeNull();
+        });
+
+        it('Worktree toggle is unchecked by default', async () => {
+            void showAgentCommandEditor('claude test', DEFAULT_AGENT_PROMPT);
+
+            const dialog: HTMLDialogElement = getDialog();
+            const worktreeToggle: HTMLInputElement = dialog.querySelector('[data-testid="worktree-toggle"]') as HTMLInputElement;
+            expect(worktreeToggle.checked).toBe(false);
+        });
+
+        it('Worktree toggle prepends git worktree command when checked', async () => {
+            const promise: Promise<AgentCommandEditorResult | null> = showAgentCommandEditor('claude test', DEFAULT_AGENT_PROMPT, 'my-test-task');
+
+            const dialog: HTMLDialogElement = getDialog();
+            const input: HTMLInputElement = dialog.querySelector('#command-input') as HTMLInputElement;
+            const worktreeToggle: HTMLInputElement = dialog.querySelector('[data-testid="worktree-toggle"]') as HTMLInputElement;
+
+            expect(input.value).toBe('claude test');
+
+            // Check the Worktree toggle
+            worktreeToggle.checked = true;
+            worktreeToggle.dispatchEvent(new Event('change'));
+
+            // Verify worktree prefix was prepended
+            expect(input.value).toMatch(/^git worktree add -b "wt-my-test-task-[a-z0-9]{4}" "\.worktrees\/wt-my-test-task-[a-z0-9]{4}" && cd "\.worktrees\/wt-my-test-task-[a-z0-9]{4}" && claude test$/);
+
+            const form: HTMLFormElement = dialog.querySelector('form') as HTMLFormElement;
+            form.dispatchEvent(new Event('submit', { cancelable: true }));
+
+            const result: AgentCommandEditorResult | null = await promise;
+            expect(result).not.toBeNull();
+            // Worktree prefix is now embedded in the command string
+            expect(result!.command).toMatch(/^git worktree add/);
+        });
+
+        it('Worktree toggle removes prefix when unchecked', async () => {
+            const promise: Promise<AgentCommandEditorResult | null> = showAgentCommandEditor('claude test', DEFAULT_AGENT_PROMPT, 'test-task');
+
+            const dialog: HTMLDialogElement = getDialog();
+            const input: HTMLInputElement = dialog.querySelector('#command-input') as HTMLInputElement;
+            const worktreeToggle: HTMLInputElement = dialog.querySelector('[data-testid="worktree-toggle"]') as HTMLInputElement;
+
+            // Check then uncheck the Worktree toggle
+            worktreeToggle.checked = true;
+            worktreeToggle.dispatchEvent(new Event('change'));
+            expect(input.value).toMatch(/^git worktree add/);
+
+            worktreeToggle.checked = false;
+            worktreeToggle.dispatchEvent(new Event('change'));
+
+            // Verify original command was restored
+            expect(input.value).toBe('claude test');
+
+            const form: HTMLFormElement = dialog.querySelector('form') as HTMLFormElement;
+            form.dispatchEvent(new Event('submit', { cancelable: true }));
+
+            const result: AgentCommandEditorResult | null = await promise;
+            expect(result).not.toBeNull();
+            // Command should not have worktree prefix
+            expect(result!.command).toBe('claude test');
+        });
+
+        it('returns command without worktree prefix when worktree not enabled', async () => {
+            const promise: Promise<AgentCommandEditorResult | null> = showAgentCommandEditor('claude test', DEFAULT_AGENT_PROMPT);
+
+            const dialog: HTMLDialogElement = getDialog();
+            const form: HTMLFormElement = dialog.querySelector('form') as HTMLFormElement;
+            form.dispatchEvent(new Event('submit', { cancelable: true }));
+
+            const result: AgentCommandEditorResult | null = await promise;
+            expect(result).not.toBeNull();
+            expect(result!.command).toBe('claude test');
+            expect(result!.command).not.toMatch(/^git worktree/);
+        });
+    });
+
+    // Checkbox combination tests - order-invariant behavior
+    describe('Checkbox combinations', () => {
+        it('Auto-run + Worktree: both are applied correctly', async () => {
+            const promise: Promise<AgentCommandEditorResult | null> = showAgentCommandEditor('claude test', DEFAULT_AGENT_PROMPT, 'combo-task');
+
+            const dialog: HTMLDialogElement = getDialog();
+            const input: HTMLInputElement = dialog.querySelector('#command-input') as HTMLInputElement;
+            const autoRunToggle: HTMLInputElement = dialog.querySelector('[data-testid="auto-run-toggle"]') as HTMLInputElement;
+            const worktreeToggle: HTMLInputElement = dialog.querySelector('[data-testid="worktree-toggle"]') as HTMLInputElement;
+
+            // Enable auto-run first
+            autoRunToggle.checked = true;
+            autoRunToggle.dispatchEvent(new Event('change'));
+            expect(input.value).toBe(`claude ${AUTO_RUN_FLAG} test`);
+
+            // Then enable worktree
+            worktreeToggle.checked = true;
+            worktreeToggle.dispatchEvent(new Event('change'));
+
+            // Should have both: worktree prefix AND auto-run flag
+            expect(input.value).toMatch(/^git worktree add.*&& claude --dangerously-skip-permissions test$/);
+
+            const form: HTMLFormElement = dialog.querySelector('form') as HTMLFormElement;
+            form.dispatchEvent(new Event('submit', { cancelable: true }));
+
+            const result: AgentCommandEditorResult | null = await promise;
+            expect(result).not.toBeNull();
+            expect(result!.command).toMatch(/^git worktree add/);
+            expect(result!.command).toContain(AUTO_RUN_FLAG);
+        });
+
+        it('Worktree first, then Docker: order-invariant - both are combined', async () => {
+            const promise: Promise<AgentCommandEditorResult | null> = showAgentCommandEditor('claude test', DEFAULT_AGENT_PROMPT, 'test-task');
+
+            const dialog: HTMLDialogElement = getDialog();
+            const input: HTMLInputElement = dialog.querySelector('#command-input') as HTMLInputElement;
+            const worktreeToggle: HTMLInputElement = dialog.querySelector('[data-testid="worktree-toggle"]') as HTMLInputElement;
+            const dockerToggle: HTMLInputElement = dialog.querySelector('[data-testid="docker-toggle"]') as HTMLInputElement;
+
+            // Enable worktree first
+            worktreeToggle.checked = true;
+            worktreeToggle.dispatchEvent(new Event('change'));
+            expect(input.value).toMatch(/^git worktree add/);
+
+            // Then enable Docker - should combine both (order-invariant)
+            dockerToggle.checked = true;
+            dockerToggle.dispatchEvent(new Event('change'));
+
+            // Command should have worktree prefix + docker command
+            expect(input.value).toMatch(/^git worktree add/);
+            expect(input.value).toContain('docker build');
+
+            const form: HTMLFormElement = dialog.querySelector('form') as HTMLFormElement;
+            form.dispatchEvent(new Event('submit', { cancelable: true }));
+
+            const result: AgentCommandEditorResult | null = await promise;
+            expect(result).not.toBeNull();
+            expect(result!.command).toMatch(/^git worktree add.*docker build/);
+            expect(result!.useDocker).toBe(true);
+        });
+
+        it('Worktree first then Docker, then uncheck Docker: worktree-prefixed original command is restored', async () => {
+            const promise: Promise<AgentCommandEditorResult | null> = showAgentCommandEditor('claude test', DEFAULT_AGENT_PROMPT, 'test-task');
+
+            const dialog: HTMLDialogElement = getDialog();
+            const input: HTMLInputElement = dialog.querySelector('#command-input') as HTMLInputElement;
+            const worktreeToggle: HTMLInputElement = dialog.querySelector('[data-testid="worktree-toggle"]') as HTMLInputElement;
+            const dockerToggle: HTMLInputElement = dialog.querySelector('[data-testid="docker-toggle"]') as HTMLInputElement;
+
+            // Enable worktree first
+            worktreeToggle.checked = true;
+            worktreeToggle.dispatchEvent(new Event('change'));
+            const worktreePrefixedOriginal: string = input.value;
+            expect(worktreePrefixedOriginal).toMatch(/^git worktree add.*claude test$/);
+
+            // Then enable Docker
+            dockerToggle.checked = true;
+            dockerToggle.dispatchEvent(new Event('change'));
+            expect(input.value).toMatch(/^git worktree add.*docker build/);
+
+            // Uncheck Docker
+            dockerToggle.checked = false;
+            dockerToggle.dispatchEvent(new Event('change'));
+
+            // The worktree-prefixed original command should be restored
+            expect(input.value).toBe(worktreePrefixedOriginal);
+
+            const form: HTMLFormElement = dialog.querySelector('form') as HTMLFormElement;
+            form.dispatchEvent(new Event('submit', { cancelable: true }));
+
+            const result: AgentCommandEditorResult | null = await promise;
+            expect(result).not.toBeNull();
+            expect(result!.command).toBe(worktreePrefixedOriginal);
+            expect(result!.useDocker).toBe(false);
+        });
+
+        it('Docker first, then Worktree: order-invariant - same result as Worktree first', async () => {
+            const promise: Promise<AgentCommandEditorResult | null> = showAgentCommandEditor('claude test', DEFAULT_AGENT_PROMPT, 'test-task');
+
+            const dialog: HTMLDialogElement = getDialog();
+            const input: HTMLInputElement = dialog.querySelector('#command-input') as HTMLInputElement;
+            const worktreeToggle: HTMLInputElement = dialog.querySelector('[data-testid="worktree-toggle"]') as HTMLInputElement;
+            const dockerToggle: HTMLInputElement = dialog.querySelector('[data-testid="docker-toggle"]') as HTMLInputElement;
+
+            // Enable Docker first
+            dockerToggle.checked = true;
+            dockerToggle.dispatchEvent(new Event('change'));
+            expect(input.value).toBe(DOCKER_COMMAND_TEMPLATE);
+
+            // Then enable Worktree
+            worktreeToggle.checked = true;
+            worktreeToggle.dispatchEvent(new Event('change'));
+
+            // Worktree prefix should be prepended to Docker command
+            expect(input.value).toMatch(/^git worktree add/);
+            expect(input.value).toContain(DOCKER_COMMAND_TEMPLATE);
+
+            const form: HTMLFormElement = dialog.querySelector('form') as HTMLFormElement;
+            form.dispatchEvent(new Event('submit', { cancelable: true }));
+
+            const result: AgentCommandEditorResult | null = await promise;
+            expect(result).not.toBeNull();
+            // Command has both: worktree prefix AND docker command
+            expect(result!.command).toMatch(/^git worktree add.*docker build/);
+            expect(result!.useDocker).toBe(true);
+        });
+
+        it('All toggles enabled (MCP, Auto-run, Worktree, Docker): order Docker→Worktree', async () => {
+            const promise: Promise<AgentCommandEditorResult | null> = showAgentCommandEditor('claude test', DEFAULT_AGENT_PROMPT, 'all-toggles');
+
+            const dialog: HTMLDialogElement = getDialog();
+            const input: HTMLInputElement = dialog.querySelector('#command-input') as HTMLInputElement;
+            const mcpToggle: HTMLInputElement = dialog.querySelector('#mcp-integration-toggle') as HTMLInputElement;
+            const autoRunToggle: HTMLInputElement = dialog.querySelector('[data-testid="auto-run-toggle"]') as HTMLInputElement;
+            const worktreeToggle: HTMLInputElement = dialog.querySelector('[data-testid="worktree-toggle"]') as HTMLInputElement;
+            const dockerToggle: HTMLInputElement = dialog.querySelector('[data-testid="docker-toggle"]') as HTMLInputElement;
+
+            // MCP is on by default
+            expect(mcpToggle.checked).toBe(true);
+
+            // Enable Docker (also enables auto-run)
+            dockerToggle.checked = true;
+            dockerToggle.dispatchEvent(new Event('change'));
+            expect(autoRunToggle.checked).toBe(true);
+
+            // Enable Worktree
+            worktreeToggle.checked = true;
+            worktreeToggle.dispatchEvent(new Event('change'));
+
+            // Final command should have worktree prefix + docker command
+            expect(input.value).toMatch(/^git worktree add.*docker build/);
+
+            const form: HTMLFormElement = dialog.querySelector('form') as HTMLFormElement;
+            form.dispatchEvent(new Event('submit', { cancelable: true }));
+
+            const result: AgentCommandEditorResult | null = await promise;
+            expect(result).not.toBeNull();
+            expect(result!.mcpIntegrationEnabled).toBe(true);
+            expect(result!.command).toMatch(/^git worktree add.*docker build/);
+            expect(result!.useDocker).toBe(true);
+        });
+
+        it('Docker + Auto-run toggle interaction: unchecking auto-run removes flag from Docker command', async () => {
+            void showAgentCommandEditor('claude test', DEFAULT_AGENT_PROMPT);
+
+            const dialog: HTMLDialogElement = getDialog();
+            const input: HTMLInputElement = dialog.querySelector('#command-input') as HTMLInputElement;
+            const autoRunToggle: HTMLInputElement = dialog.querySelector('[data-testid="auto-run-toggle"]') as HTMLInputElement;
+            const dockerToggle: HTMLInputElement = dialog.querySelector('[data-testid="docker-toggle"]') as HTMLInputElement;
+
+            // Enable Docker (enables auto-run automatically)
+            dockerToggle.checked = true;
+            dockerToggle.dispatchEvent(new Event('change'));
+            expect(autoRunToggle.checked).toBe(true);
+            expect(input.value).toContain(AUTO_RUN_FLAG);
+
+            // Uncheck auto-run manually
+            autoRunToggle.checked = false;
+            autoRunToggle.dispatchEvent(new Event('change'));
+
+            // Flag should be removed from the Docker command
+            expect(input.value).not.toContain(AUTO_RUN_FLAG);
+        });
+    });
 });

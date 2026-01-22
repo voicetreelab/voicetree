@@ -127,12 +127,14 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                                 const shadowNode: CollectionReturnValue = cy.getElementById(shadowNodeId);
                                 if (shadowNode.length > 0) {
                                     const edgeId: string = `terminal-progress-${shadowNodeId}->${nodeId}`;
+                                    // isIndicatorEdge: true excludes this edge from Cola layout forces
                                     cy.add({
                                         group: 'edges' as const,
                                         data: {
                                             id: edgeId,
                                             source: shadowNodeId,
                                             target: nodeId,
+                                            isIndicatorEdge: true
                                         },
                                         classes: 'terminal-progres-nodes-indicator'
                                     });

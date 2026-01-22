@@ -12,6 +12,35 @@ const terminals: Map<TerminalId, TerminalData> = new Map<TerminalId, TerminalDat
 type TerminalChangeCallback = (terminals: TerminalData[]) => void;
 const subscribers: Set<TerminalChangeCallback> = new Set();
 
+// Active terminal state (which terminal has gold outline/is selected)
+let activeTerminalId: TerminalId | null = null;
+
+// Subscription callbacks for active terminal changes
+type ActiveTerminalCallback = (terminalId: TerminalId | null) => void;
+const activeTerminalSubscribers: Set<ActiveTerminalCallback> = new Set();
+
+function notifyActiveTerminalChange(): void {
+    for (const callback of activeTerminalSubscribers) {
+        callback(activeTerminalId);
+    }
+}
+
+export function subscribeToActiveTerminalChange(callback: ActiveTerminalCallback): () => void {
+    activeTerminalSubscribers.add(callback);
+    return () => {
+        activeTerminalSubscribers.delete(callback);
+    };
+}
+
+export function setActiveTerminalId(terminalId: TerminalId | null): void {
+    activeTerminalId = terminalId;
+    notifyActiveTerminalChange();
+}
+
+export function getActiveTerminalId(): TerminalId | null {
+    return activeTerminalId;
+}
+
 /**
  * Subscribe to terminal changes (add/remove)
  * @returns unsubscribe function

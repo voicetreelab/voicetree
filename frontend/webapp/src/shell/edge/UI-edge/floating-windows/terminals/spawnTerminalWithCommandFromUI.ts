@@ -52,7 +52,6 @@ interface AgentLaunchConfig {
     updatedAgents: readonly AgentConfig[];
     updatedAgentPrompt: string;
     mcpIntegrationEnabled: boolean;
-    inNewWorktree: boolean;
     useDocker: boolean;
 }
 
@@ -71,7 +70,7 @@ async function resolveAgentLaunchConfig(
     if (settings.agentPermissionModeChosen || !isClaudeAgent) {
         return {
             finalCommand: command, popupWasShown: false, updatedAgents: settings.agents,
-            updatedAgentPrompt: currentAgentPrompt, mcpIntegrationEnabled: true, inNewWorktree: false, useDocker: false,
+            updatedAgentPrompt: currentAgentPrompt, mcpIntegrationEnabled: true, useDocker: false,
         };
     }
 
@@ -82,7 +81,7 @@ async function resolveAgentLaunchConfig(
     if (result === null) {
         return {
             finalCommand: command, popupWasShown: true, updatedAgents: settings.agents,
-            updatedAgentPrompt: currentAgentPrompt, mcpIntegrationEnabled: true, inNewWorktree: false, useDocker: false,
+            updatedAgentPrompt: currentAgentPrompt, mcpIntegrationEnabled: true, useDocker: false,
         };
     }
 
@@ -112,7 +111,7 @@ async function resolveAgentLaunchConfig(
     return {
         finalCommand: result.command, popupWasShown: true, updatedAgents,
         updatedAgentPrompt: result.agentPrompt, mcpIntegrationEnabled: result.mcpIntegrationEnabled,
-        inNewWorktree: result.inNewWorktree, useDocker: result.useDocker,
+        useDocker: result.useDocker,
     };
 }
 
@@ -162,7 +161,7 @@ export async function spawnTerminalWithCommandEditor(
         : '';
 
     // Always show the popup (user explicitly requested edit)
-    const result: { command: string; agentPrompt: string; mcpIntegrationEnabled: boolean; inNewWorktree: boolean; useDocker: boolean } | null = await showAgentCommandEditor(command, currentAgentPrompt);
+    const result: { command: string; agentPrompt: string; mcpIntegrationEnabled: boolean; useDocker: boolean } | null = await showAgentCommandEditor(command, currentAgentPrompt);
 
     // User cancelled
     if (result === null) {
@@ -210,13 +209,11 @@ export async function spawnTerminalWithCommandEditor(
     const terminalCount: number = getNextTerminalCount(terminalsMap, parentNodeId);
 
     // Spawn terminal with the (possibly modified) command
+    // Worktree prefix is already in result.command if user enabled worktree toggle
     await window.electronAPI?.main.spawnTerminalWithContextNode(
         parentNodeId,
         result.command,
-        terminalCount,
-        undefined, // skipFitAnimation
-        undefined, // startUnpinned
-        result.inNewWorktree
+        terminalCount
     );
 }
 
@@ -230,13 +227,11 @@ export async function spawnTerminalWithCommandEditor(
  * @param parentNodeId - The parent node to create context for
  * @param cy - Cytoscape instance (used to flush pending editor content)
  * @param agentCommand - Optional agent command. If not provided, uses the default (first) agent from settings.
- * @param inWorktree - If true, spawn the terminal in a new git worktree
  */
 export async function spawnTerminalWithNewContextNode(
     parentNodeId: NodeIdAndFilePath,
     cy: Core,
     agentCommand?: string,
-    inWorktree?: boolean,
 ): Promise<void> {
     // Flush any pending editor content for this node before creating context
     // This ensures the context node has the latest typed content (bypasses 300ms debounce)
@@ -288,12 +283,11 @@ export async function spawnTerminalWithNewContextNode(
     await window.electronAPI?.main.setMcpIntegration(launchConfig.mcpIntegrationEnabled);
 
     const terminalCount: number = getNextTerminalCount(terminalsMap, parentNodeId);
-    // Use popup's worktree choice if popup was shown, otherwise use the parameter
-    const useWorktree: boolean = launchConfig.popupWasShown ? launchConfig.inNewWorktree : (inWorktree ?? false);
 
     // Delegate to main process which has immediate graph access
+    // Worktree prefix is already in command if user enabled worktree toggle in popup
     await window.electronAPI?.main.spawnTerminalWithContextNode(
-        parentNodeId, command, terminalCount, undefined, undefined, useWorktree
+        parentNodeId, command, terminalCount
     );
 }
 

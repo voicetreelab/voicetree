@@ -243,7 +243,7 @@ test.describe('Hover Editor (Browser)', () => {
 
     // Close editor for next test
     await page.evaluate((sel) => {
-      document.querySelector(`${sel} .cy-floating-window-close`)?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      document.querySelector(`${sel} .traffic-light-close`)?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     }, nodeAEditorSelector);
     await page.waitForSelector(nodeAEditorSelector, { state: 'detached', timeout: 1000 });
 
@@ -291,7 +291,7 @@ test.describe('Hover Editor (Browser)', () => {
 
     // Close permanent editor
     await page.evaluate((sel) => {
-      document.querySelector(`${sel} .cy-floating-window-close`)?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      document.querySelector(`${sel} .traffic-light-close`)?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     }, nodeAEditorSelector);
     await page.waitForSelector(nodeAEditorSelector, { state: 'detached', timeout: 1000 });
 

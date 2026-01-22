@@ -141,15 +141,13 @@ test.describe('Agent tabs click vs drag behavior (real mouse events)', () => {
         await expect(firstTab).toHaveClass(/agent-tab-active/);
     });
 
-    test('drag with 10px movement: dragstart fires but click also fires (potential issue)', async ({ page }) => {
-        // This test documents what happens when user moves mouse 10px during click.
-        // With the current implementation:
-        // - dragstart DOES fire (movement > 5px threshold)
-        // - BUT click ALSO fires
+    test('drag with 10px movement: Playwright mouse API does not trigger HTML5 drag events', async ({ page }) => {
+        // This test documents what happens when user moves mouse 10px during click
+        // using Playwright's mouse API.
         //
-        // This might be expected: the user initiated a drag gesture but didn't
-        // complete it with a drop, so both events fire. However, this could
-        // cause unwanted navigation during drag attempts.
+        // IMPORTANT: Playwright's mouse API does NOT trigger HTML5 drag events.
+        // The draggable attribute and dragstart/dragend events only work with
+        // real user gestures or synthetic DragEvent dispatching.
 
         const firstTab = page.locator('.agent-tab').first();
         const box = await firstTab.boundingBox();
@@ -195,14 +193,14 @@ test.describe('Agent tabs click vs drag behavior (real mouse events)', () => {
         });
 
         // Document actual behavior with Playwright's mouse API:
-        // dragstart fires when movement > threshold
-        expect(events.dragStartFired).toBe(true);
-        // dragend does NOT fire - Playwright's mouse.up() doesn't complete the drag cycle
+        // dragstart does NOT fire - Playwright mouse API doesn't trigger HTML5 drag
+        expect(events.dragStartFired).toBe(false);
+        // dragend does NOT fire either
         expect(events.dragEndFired).toBe(false);
-        // click fires because drag wasn't completed properly
+        // click still fires (mousedown + mousemove + mouseup = click with movement)
         expect(events.clickFired).toBe(true);
 
-        // CONCLUSION: Playwright's mouse API starts but doesn't complete HTML5 drag.
+        // CONCLUSION: Playwright's mouse API cannot trigger HTML5 drag events.
         // For testing actual drag behavior, use synthetic DragEvents (as in agent-tabs-drag-reorder.spec.ts)
     });
 

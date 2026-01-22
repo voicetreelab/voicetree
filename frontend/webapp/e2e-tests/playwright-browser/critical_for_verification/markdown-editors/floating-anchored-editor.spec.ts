@@ -230,7 +230,7 @@ test.describe('Floating Anchored Editor (Browser)', () => {
     console.log('=== Step 10: Close editor and verify cleanup ===');
     // Close the editor by clicking the close button via DOM (avoids viewport issues)
     await page.evaluate((selector) => {
-      const closeBtn = document.querySelector(`${selector} .cy-floating-window-close`) as HTMLButtonElement;
+      const closeBtn = document.querySelector(`${selector} .traffic-light-close`) as HTMLButtonElement;
       if (closeBtn) closeBtn.click();
     }, editorSelector);
     await page.waitForTimeout(30);

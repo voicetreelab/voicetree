@@ -103,6 +103,21 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
         // Agent metrics
         getMetrics: async () => ({ sessions: [] }),
 
+        // Frontend ready signal (no-op for tests)
+        markFrontendReady: async () => {},
+
+        // Vault path methods (required for VaultPathSelector and node creation)
+        getVaultPaths: async (): Promise<readonly string[]> => ['/mock/watched/directory'],
+        getWritePath: async () => ({
+          _tag: 'Some' as const,
+          value: '/mock/watched/directory'
+        }),
+        setWritePath: async () => ({ success: true }),
+        getShowAllPaths: async (): Promise<readonly string[]> => [],
+        toggleShowAll: async () => ({ success: true, showAll: false }),
+        addReadOnLinkPath: async () => ({ success: true }),
+        removeReadOnLinkPath: async () => ({ success: true }),
+
         // Image loading - returns a placeholder test image (100x100 blue square)
         readImageAsDataUrl: async (_filePath: string): Promise<string> => {
           // 100x100 light blue (#4A90D9) PNG as base64 (placeholder for tests)
@@ -151,6 +166,12 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
           }
           return { success: true };
         },
+
+        // Terminal state mutations (renderer -> main for MCP and tests)
+        updateTerminalIsDone: async () => {},
+        updateTerminalPinned: async () => {},
+        updateTerminalActivityState: async () => {},
+        removeTerminalFromRegistry: async () => {},
 
       },
 

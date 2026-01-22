@@ -22,8 +22,9 @@ test.describe('Transcription Panel Conditional UI Elements', () => {
 
     // Navigate to app and wait for React to render
     await page.goto('/');
-    await page.waitForSelector('#root', { timeout: 5000 });
-    await page.waitForTimeout(100);
+    // Wait for React app to mount by checking for content inside #root
+    await page.waitForSelector('#root > *', { timeout: 10000 });
+    await page.waitForTimeout(200);
 
     // Wait for Cytoscape to be ready (indicates app is fully loaded)
     await waitForCytoscapeReady(page);
@@ -53,22 +54,6 @@ test.describe('Transcription Panel Conditional UI Elements', () => {
       path: 'e2e-tests/screenshots/transcribe-panel-empty-state.png',
     });
     console.log('✓ Screenshot: transcribe-panel-empty-state.png');
-
-    // Debug: Check current HTML structure
-    const domDebug = await page.evaluate(() => {
-      // Look for the flex.justify-center container that holds VoiceTreeTranscribe
-      const transcribeContainer = document.querySelector('.flex.justify-center');
-      // Look for the VoiceTreeTranscribe component's root div
-      const transcribeRoot = document.querySelector('.flex.flex-col.relative');
-      // Get the body inner HTML to see what's rendered
-      const bodyHtml = document.body.innerHTML.substring(0, 1500);
-      return {
-        transcribeContainerFound: !!transcribeContainer,
-        transcribeRootFound: !!transcribeRoot,
-        bodyHtmlPreview: bodyHtml,
-      };
-    });
-    console.log('DOM Debug:', JSON.stringify(domDebug, null, 2));
 
     // === TEST 2: Add text via TranscriptionStore ===
     console.log('=== Adding text to transcription store ===');
