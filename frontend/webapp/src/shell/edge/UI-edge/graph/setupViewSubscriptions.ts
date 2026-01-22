@@ -52,16 +52,25 @@ export function setupViewSubscriptions(deps: ViewSubscriptionDeps): ViewSubscrip
         (terminalId: TerminalId | null) => {
             setActiveTerminal(terminalId);
 
-            // Clear previous terminal highlighting
+            // Clear previous terminal highlighting (cytoscape elements)
             cy.$('.' + TERMINAL_ACTIVE_CLASS).removeClass(TERMINAL_ACTIVE_CLASS);
+
+            // Clear previous terminal highlighting (DOM elements)
+            document.querySelectorAll('.cy-floating-window-terminal.' + TERMINAL_ACTIVE_CLASS)
+                .forEach((el: Element) => el.classList.remove(TERMINAL_ACTIVE_CLASS));
 
             // Apply highlighting to new active terminal
             if (terminalId) {
                 const shadowNodeId: string = getShadowNodeId(terminalId);
-                // Highlight the shadow node (gold outline)
+                // Highlight the shadow node (gold outline on cytoscape canvas)
                 cy.$id(shadowNodeId).addClass(TERMINAL_ACTIVE_CLASS);
                 // Highlight the task node → terminal edge (gold color)
                 cy.edges(`[target = "${shadowNodeId}"]`).addClass(TERMINAL_ACTIVE_CLASS);
+                // Highlight the terminal DOM element (gold border)
+                const terminalElement: Element | null = document.querySelector(`[data-floating-window-id="${terminalId}"]`);
+                if (terminalElement) {
+                    terminalElement.classList.add(TERMINAL_ACTIVE_CLASS);
+                }
             }
         }
     );

@@ -15,4 +15,3 @@ _Links:_
 Parent:
 - expresses_an_intention_for [[39_Speaker_s_Self-Correction_Informal_Remarks.md]]
 
-[[ctx-nodes/47_Addressing_Technical_Debt.md_context_1763890639556.md]]

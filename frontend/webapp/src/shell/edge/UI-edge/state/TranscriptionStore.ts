@@ -87,3 +87,16 @@ export function subscribe(listener: () => void): () => void {
 function notifyListeners(): void {
     listeners.forEach(l => l());
 }
+
+// Expose store for e2e testing
+if (typeof window !== 'undefined') {
+    (window as unknown as { __TRANSCRIPTION_STORE__: {
+        appendManualText: typeof appendManualText;
+        reset: typeof reset;
+        getDisplayTokenCount: typeof getDisplayTokenCount;
+    } }).__TRANSCRIPTION_STORE__ = {
+        appendManualText,
+        reset,
+        getDisplayTokenCount,
+    };
+}

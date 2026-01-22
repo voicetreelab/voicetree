@@ -272,19 +272,20 @@ export class StyleService {
         selector: 'edge.context-edge',
         style: {
           'line-color': '#FFD700',
-          'line-opacity': 1,
-          'width': 6,
+          'line-opacity': 0.6,
+          'width': 3,
         }
       },
 
-      // Active terminal highlighting - thin gold outline on shadow node
+      // Active terminal highlighting - subtle gold outline on shadow node (behind terminal window)
+      // Primary gold border is applied to terminal DOM element in floating-windows.css
       {
         selector: 'node.terminal-active',
         style: {
-          'outline-width': 2,
+          'outline-width': 4,
           'outline-color': '#FFD700',
-          'outline-offset': 3,
-          'outline-opacity': 1,
+          'outline-offset': 8,
+          'outline-opacity': 0.8,
         }
       },
 
@@ -293,7 +294,8 @@ export class StyleService {
             selector: 'edge.terminal-progres-nodes-indicator',
             style: {
                 'line-style': 'dashed',
-                'line-dash-pattern': [2, 6],
+                'line-dash-pattern': [1, 8],
+                'line-cap': 'round',
                 'line-color': this.agentEdgeColor,
                 'line-opacity': 0.5,
                 'width': 4,

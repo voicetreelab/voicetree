@@ -211,9 +211,3 @@ _Links:_
 Parent:
 - is_progress_of [[./6_VoiceTree_IPC_Layer_Boilerplate_Removal.md]]
 [[6_VoiceTree_IPC_Layer_Boilerplate_Removal.md]]
-[[ctx-nodes/10_Ruby_Renderer_to_Main_RPC_Implementation_Plan_context_1765023670686.md]]
-[[ctx-nodes/10_Ruby_Renderer_to_Main_RPC_Implementation_Plan_context_1765023820804.md]]
-[[ctx-nodes/10_Ruby_Renderer_to_Main_RPC_Implementation_Plan_context_1765024536966.md]]
-[[ctx-nodes/10_Ruby_Renderer_to_Main_RPC_Implementation_Plan_context_1765024819314.md]]
-[[ctx-nodes/10_Ruby_Renderer_to_Main_RPC_Implementation_Plan_context_1765067409992.md]]
-[[ctx-nodes/10_Ruby_Renderer_to_Main_RPC_Implementation_Plan_context_1765067678580.md]]

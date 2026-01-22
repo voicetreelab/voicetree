@@ -484,7 +484,7 @@ button.graph-button:disabled > svg > path {
 }
 
 .agent-tab-unpinned.agent-tab-active {
-    box-shadow: 0 0 0 2px #7c3aed;
+    box-shadow: 0 0 0 2px rgba(255, 200, 80, 0.55);
 }
 
 .agent-tab:hover {
@@ -497,25 +497,26 @@ button.graph-button:disabled > svg > path {
 }
 
 /* Active terminal highlight - uses box-shadow so it renders outside inactive border */
+/* Uses subtle soft gold to match terminal window gold border */
 .agent-tab-active {
-    box-shadow: 0 0 0 3px #7c3aed;
+    box-shadow: 0 0 0 3px rgba(255, 200, 80, 0.55);
     border-radius: 3px;
     background: #252525;
 }
 
 .agent-tab-active:hover {
-    box-shadow: 0 0 0 3px #8b5cf6;
+    box-shadow: 0 0 0 3px rgba(255, 200, 80, 0.7);
     border-radius: 3px;
 }
 
-/* Combined state: both active (purple) and inactive (green) - purple outside, green inside */
+/* Combined state: both active (gold) and inactive (green) - gold outside, green inside */
 .agent-tab-active.agent-tab-inactive {
-    box-shadow: 0 0 0 5px #7c3aed, 0 0 6px rgba(34, 197, 94, 0.4);
+    box-shadow: 0 0 0 5px rgba(255, 200, 80, 0.55), 0 0 6px rgba(34, 197, 94, 0.4);
     animation: none;
 }
 
 .agent-tab-active.agent-tab-inactive:hover {
-    box-shadow: 0 0 0 5px #8b5cf6, 0 0 10px rgba(34, 197, 94, 0.6);
+    box-shadow: 0 0 0 5px rgba(255, 200, 80, 0.7), 0 0 10px rgba(34, 197, 94, 0.6);
 }
 
 /* Agent tab text - horizontally scrollable within fixed width */
@@ -589,9 +590,9 @@ button.graph-button:disabled > svg > path {
     min-width: 90px;
     max-width: 90px;
     height: 16px;
-    border: 2px dashed #7c3aed;
+    border: 2px dashed rgba(255, 200, 80, 0.7);
     border-radius: 4px;
-    background: rgba(124, 58, 237, 0.1);
+    background: rgba(255, 200, 80, 0.1);
     flex-shrink: 0;
     box-sizing: border-box;
 }
