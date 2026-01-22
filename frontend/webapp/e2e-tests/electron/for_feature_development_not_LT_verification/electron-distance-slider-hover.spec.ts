@@ -176,10 +176,10 @@ function getSlider(appWindow: Page) {
 }
 
 /**
- * Get all square elements in the slider
+ * Get all square elements in the slider (squares are inside a row container)
  */
 function getSliderSquares(appWindow: Page) {
-  return appWindow.locator('.cy-horizontal-context-menu .distance-slider > div');
+  return appWindow.locator('.cy-horizontal-context-menu .distance-slider > div:last-child > div');
 }
 
 /**
@@ -189,7 +189,10 @@ async function getSquareColors(appWindow: Page): Promise<string[]> {
   return appWindow.evaluate(() => {
     const slider = document.querySelector('.cy-horizontal-context-menu .distance-slider');
     if (!slider) return [];
-    const squares = slider.querySelectorAll(':scope > div');
+    // Squares are now inside a row container (last child div after the tooltip span)
+    const squaresRow = slider.querySelector(':scope > div:last-child');
+    if (!squaresRow) return [];
+    const squares = squaresRow.querySelectorAll(':scope > div');
     return Array.from(squares).map(sq => (sq as HTMLElement).style.background);
   });
 }

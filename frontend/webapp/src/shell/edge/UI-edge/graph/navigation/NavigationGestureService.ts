@@ -2,11 +2,14 @@
  * NavigationGestureService - Handles trackpad and mouse gestures for graph navigation
  *
  * Provides:
- * - Wheel / trackpad scroll → zoom (no modifier required)
+ * - Trackpad two-finger scroll → pan
+ * - Trackpad pinch (ctrlKey) → zoom
+ * - Mouse wheel → zoom
  * - Middle-mouse drag → pan
  */
 
 import type { Core } from 'cytoscape';
+import { getIsTrackpadScrolling } from '@/shell/edge/UI-edge/state/trackpad-state';
 
 export class NavigationGestureService {
   private cy: Core;
@@ -47,13 +50,14 @@ export class NavigationGestureService {
 
   /**
    * Wheel handler: takes full control of wheel events to prevent Cytoscape conflicts.
-   * Wheel scroll → zoom centered on cursor (no modifier required)
+   * - ctrlKey (trackpad pinch) → zoom
+   * - trackpad scrolling (via uiAPI state from main process) → pan
+   * - else (mouse wheel) → zoom
    */
   private onWheel(e: WheelEvent): void {
     if (!this.cy.userPanningEnabled()) return;
 
     // Allow native scrolling in tab containers
-    // TODO: if perf issue, add fast-path check for canvas tagName before closest() calls
     const target: Element | null = e.target as Element | null;
     if (target?.closest('.recent-tabs-scroll') || target?.closest('.agent-tabs-pinned')) {
       return;
@@ -62,8 +66,24 @@ export class NavigationGestureService {
     e.preventDefault();
     e.stopImmediatePropagation();
 
-    // Zoom centered on cursor - no modifier key required
-    const zoomFactor: number = 1 - e.deltaY * 0.01;
+    if (e.ctrlKey) {
+      // Trackpad pinch gesture → zoom (ctrlKey is set by macOS for pinch)
+      this.zoomAtCursor(e, 0.013);
+    } else if (getIsTrackpadScrolling() || e.deltaX !== 0) {
+      // Trackpad two-finger scroll → pan
+      // Detection: uiAPI state (gestureScrollBegin) OR horizontal component (mouse wheels are vertical-only)
+      this.cy.panBy({ x: -e.deltaX, y: -e.deltaY });
+    } else {
+      // Mouse wheel (vertical-only, no gesture event) → zoom
+      this.zoomAtCursor(e, 0.01);
+    }
+  }
+
+  /**
+   * Zoom centered on cursor position
+   */
+  private zoomAtCursor(e: WheelEvent, sensitivity: number): void {
+    const zoomFactor: number = 1 - e.deltaY * sensitivity;
     const newZoom: number = Math.max(
       this.cy.minZoom(),
       Math.min(this.cy.maxZoom(), this.cy.zoom() * zoomFactor)
