@@ -249,10 +249,22 @@ test.describe('Distance Slider Hover', () => {
     await expect(menu).toBeVisible({ timeout: 5000 });
     console.log('✓ Horizontal menu appeared');
 
-    // Verify slider is visible
+    // Slider should NOT be visible yet (only appears on Run button hover)
     const slider = getSlider(appWindow);
+    await expect(slider).not.toBeVisible({ timeout: 1000 });
+    console.log('✓ Distance slider is hidden initially');
+
+    // Hover over the Run button (green play icon)
+    const runButton = appWindow.locator('.cy-horizontal-context-menu .horizontal-menu-item').filter({
+      has: appWindow.locator('svg[stroke="#22c55e"]')
+    });
+    await expect(runButton).toBeVisible({ timeout: 5000 });
+    await runButton.hover();
+    await appWindow.waitForTimeout(300);
+
+    // Now slider should be visible
     await expect(slider).toBeVisible({ timeout: 5000 });
-    console.log('✓ Distance slider is visible');
+    console.log('✓ Distance slider appears on Run button hover');
 
     // Verify slider has 10 squares
     const squares = getSliderSquares(appWindow);
@@ -272,6 +284,13 @@ test.describe('Distance Slider Hover', () => {
     console.log(`✓ Found non-context node: ${nodeId}`);
 
     await hoverOverNode(appWindow, nodeId);
+    await appWindow.waitForTimeout(300);
+
+    // Hover over Run button to show slider
+    const runButton = appWindow.locator('.cy-horizontal-context-menu .horizontal-menu-item').filter({
+      has: appWindow.locator('svg[stroke="#22c55e"]')
+    });
+    await runButton.hover();
     await appWindow.waitForTimeout(300);
 
     const slider = getSlider(appWindow);
@@ -341,6 +360,13 @@ test.describe('Distance Slider Hover', () => {
     await hoverOverNode(appWindow, nodeId);
     await appWindow.waitForTimeout(300);
 
+    // Hover over Run button to show slider
+    const runButton = appWindow.locator('.cy-horizontal-context-menu .horizontal-menu-item').filter({
+      has: appWindow.locator('svg[stroke="#22c55e"]')
+    });
+    await runButton.hover();
+    await appWindow.waitForTimeout(300);
+
     const slider = getSlider(appWindow);
     await expect(slider).toBeVisible({ timeout: 5000 });
 
@@ -365,6 +391,13 @@ test.describe('Distance Slider Hover', () => {
 
     // Hover over same node again
     await hoverOverNode(appWindow, nodeId);
+    await appWindow.waitForTimeout(300);
+
+    // Hover over Run button to show slider again
+    const runButton2 = appWindow.locator('.cy-horizontal-context-menu .horizontal-menu-item').filter({
+      has: appWindow.locator('svg[stroke="#22c55e"]')
+    });
+    await runButton2.hover();
     await appWindow.waitForTimeout(300);
 
     // Verify slider shows 5 squares filled
@@ -405,12 +438,7 @@ test.describe('Distance Slider Hover', () => {
     await hoverOverNode(appWindow, nodeId);
     await appWindow.waitForTimeout(300);
 
-    const slider = getSlider(appWindow);
-    await expect(slider).toBeVisible({ timeout: 5000 });
-
-    const squares = getSliderSquares(appWindow);
-
-    // First, hover over Run button to trigger preview highlighting
+    // First, hover over Run button to trigger preview highlighting and show slider
     const runButton = appWindow.locator('.cy-horizontal-context-menu .horizontal-menu-item').filter({
       has: appWindow.locator('svg[stroke="#22c55e"]')
     });
@@ -418,6 +446,12 @@ test.describe('Distance Slider Hover', () => {
 
     await runButton.hover();
     await appWindow.waitForTimeout(300);
+
+    // Now slider should be visible
+    const slider = getSlider(appWindow);
+    await expect(slider).toBeVisible({ timeout: 5000 });
+
+    const squares = getSliderSquares(appWindow);
 
     // Check highlights with initial distance
     let highlightCount1 = (await getNodesWithClass(appWindow, 'context-contained')).length;

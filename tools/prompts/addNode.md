@@ -88,4 +88,4 @@ This creates graph edges connecting your progress node to related artifacts.
 - **Minimize edges.** Every `[[wikilink]]` creates a visible edge in the graph. Too many edges = visual clutter. Use sparingly.
 - Optional relationship labels: `- solves build failure [[path]]` Omit unless the relationship is specific and meaningful.
 
-
+ALL mentioned $VARS are environment variables which are already set for you. Please check them now.

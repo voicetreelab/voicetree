@@ -94,8 +94,8 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
       const cy: Core = this.cy;
       const node: CollectionReturnValue = cy.getElementById(this.lastCreatedNodeId);
       if (node.length > 0) {
-        // Node takes ~60% of viewport (comfortable zoom on new nodes)
-        cyFitWithRelativeZoom(cy, node, 0.6);
+        // Node takes ~10% of viewport (matches tab click / Cmd-1 behavior)
+        cyFitWithRelativeZoom(cy, node, 0.1);
       }
     }
   }

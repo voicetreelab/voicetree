@@ -104,6 +104,12 @@ export function createDistanceSlider(
 import type {EditorData} from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
 import type {ImageViewerData} from "@/shell/edge/UI-edge/floating-windows/image-viewers/imageViewerDataType";
 
+/** Config for attaching a distance slider to a menu item */
+export interface SliderConfig {
+    readonly currentDistance: number;
+    readonly onDistanceChange: (newDistance: number) => void;
+}
+
 /** Menu item interface for the custom horizontal menu */
 export interface HorizontalMenuItem {
     icon: IconNode;
@@ -114,6 +120,7 @@ export interface HorizontalMenuItem {
     hotkey?: string; // e.g., "⌘⏎" for cmd+enter
     onHoverEnter?: () => void | Promise<void>; // Optional callback on mouseenter
     onHoverLeave?: () => void; // Optional callback on mouseleave
+    sliderConfig?: SliderConfig; // Optional distance slider shown on hover
 }
 
 /** Render a Lucide icon to SVG element with optional color */
@@ -127,8 +134,13 @@ function createIconElement(icon: IconNode, color?: string): SVGElement {
 
 /** Create a menu item button element
  * @param alwaysShowLabel - if true, label is always visible (for vertical submenus)
+ * @returns container element with button (and slider if configured)
  */
 function createMenuItemElement(item: HorizontalMenuItem, onClose: () => void, alwaysShowLabel: boolean = false): HTMLElement {
+    // Wrap button in container for slider positioning
+    const container: HTMLDivElement = document.createElement('div');
+    container.style.cssText = 'position: relative; display: inline-flex; flex-direction: column; align-items: center;';
+
     const button: HTMLButtonElement = document.createElement('button');
     button.className = 'horizontal-menu-item';
     button.style.cssText = `
@@ -196,14 +208,27 @@ function createMenuItemElement(item: HorizontalMenuItem, onClose: () => void, al
     }
 
     button.appendChild(labelContainer);
+    container.appendChild(button);
+
+    // Create slider if configured (hidden by default, shown on hover)
+    let slider: HTMLDivElement | null = null;
+    if (item.sliderConfig) {
+        slider = createDistanceSlider(item.sliderConfig.currentDistance, item.sliderConfig.onDistanceChange);
+        slider.style.display = 'none'; // Hidden by default
+        container.appendChild(slider);
+    }
 
     // Hover effect - for horizontal menu, show label; for vertical, just highlight
+    // Also show/hide slider on hover
     // Use CSS variable for dark mode support
     button.addEventListener('mouseenter', () => {
         button.style.background = 'var(--accent)';
         if (!alwaysShowLabel) {
             labelContainer.style.visibility = 'visible';
             labelContainer.style.opacity = '1';
+        }
+        if (slider) {
+            slider.style.display = 'flex';
         }
         if (item.onHoverEnter) {
             void item.onHoverEnter();
@@ -215,10 +240,36 @@ function createMenuItemElement(item: HorizontalMenuItem, onClose: () => void, al
             labelContainer.style.visibility = 'hidden';
             labelContainer.style.opacity = '0';
         }
+        if (slider) {
+            slider.style.display = 'none';
+        }
         if (item.onHoverLeave) {
             item.onHoverLeave();
         }
     });
+
+    // Keep slider visible when hovering over it
+    if (slider) {
+        slider.addEventListener('mouseenter', () => {
+            button.style.background = 'var(--accent)';
+            if (!alwaysShowLabel) {
+                labelContainer.style.visibility = 'visible';
+                labelContainer.style.opacity = '1';
+            }
+            slider!.style.display = 'flex';
+        });
+        slider.addEventListener('mouseleave', () => {
+            button.style.background = 'transparent';
+            if (!alwaysShowLabel) {
+                labelContainer.style.visibility = 'hidden';
+                labelContainer.style.opacity = '0';
+            }
+            slider!.style.display = 'none';
+            if (item.onHoverLeave) {
+                item.onHoverLeave();
+            }
+        });
+    }
 
     // Click handler
     button.addEventListener('click', (e) => {
@@ -229,7 +280,7 @@ function createMenuItemElement(item: HorizontalMenuItem, onClose: () => void, al
         }
     });
 
-    return button;
+    return container;
 }
 
 /** Create submenu container (vertical dropdown)
@@ -258,6 +309,31 @@ export interface NodeMenuItemsInput {
     readonly cy: Core;
     readonly agents: readonly AgentConfig[];
     readonly isContextNode: boolean;
+    readonly currentDistance?: number; // Current context retrieval distance (for slider)
+}
+
+/**
+ * Create slider config for run buttons (non-context nodes only).
+ * The slider allows adjusting context retrieval distance and shows preview.
+ */
+function createRunButtonSliderConfig(
+    cy: Core,
+    nodeId: string,
+    currentDistance: number
+): SliderConfig {
+    return {
+        currentDistance,
+        onDistanceChange: (newDistance: number): void => {
+            void (async (): Promise<void> => {
+                const currentSettings: VTSettings | null = await window.electronAPI?.main.loadSettings() ?? null;
+                if (currentSettings && window.electronAPI) {
+                    await window.electronAPI.main.saveSettings({...currentSettings, contextNodeMaxDistance: newDistance});
+                }
+                clearContainedHighlights(cy);
+                await highlightPreviewNodes(cy, nodeId);
+            })();
+        },
+    };
 }
 
 /**
@@ -265,8 +341,13 @@ export interface NodeMenuItemsInput {
  * Extracted for reuse by floating window chrome.
  */
 export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[] {
-    const { nodeId, cy, agents, isContextNode } = input;
+    const { nodeId, cy, agents, isContextNode, currentDistance } = input;
     const menuItems: HorizontalMenuItem[] = [];
+
+    // Create slider config for non-context nodes (context nodes don't need distance slider)
+    const sliderConfig: SliderConfig | undefined = !isContextNode && currentDistance !== undefined
+        ? createRunButtonSliderConfig(cy, nodeId, currentDistance)
+        : undefined;
 
     // LEFT SIDE: Delete, Copy, Add (3 buttons)
     menuItems.push({
@@ -296,6 +377,7 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
             ? () => highlightContainedNodes(cy, nodeId)
             : () => highlightPreviewNodes(cy, nodeId),
         onHoverLeave: () => clearContainedHighlights(cy),
+        sliderConfig, // Show distance slider on hover for non-context nodes
         subMenu: [
             { icon: GitBranch, label: 'Run in Worktree', action: () => spawnTerminalWithNewContextNode(nodeId, cy, undefined, true) },
             { icon: Edit2, label: 'Edit Command', action: () => spawnTerminalWithCommandEditor(nodeId, cy) },
@@ -328,6 +410,7 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
                 ? () => highlightContainedNodes(cy, nodeId)
                 : () => highlightPreviewNodes(cy, nodeId),
             onHoverLeave: () => clearContainedHighlights(cy),
+            sliderConfig, // Show distance slider on hover for non-context nodes
         });
     }
     menuItems.push({
@@ -499,6 +582,7 @@ export class HorizontalMenuService {
             cy: this.cy,
             agents,
             isContextNode,
+            currentDistance,
         });
         const overlay: HTMLElement = getOrCreateOverlay(this.cy);
 
@@ -536,26 +620,6 @@ export class HorizontalMenuService {
         });
 
         const { leftGroup, spacer, rightGroup } = createHorizontalMenuElement(menuItems, closeMenu, trafficLights);
-
-        // Add distance slider to Run button container (first child of rightGroup) for non-context nodes
-        if (!isContextNode) {
-            const runButtonContainer: Element | null = rightGroup.firstElementChild;
-            if (runButtonContainer) {
-                const cyRef: Core = this.cy;
-                const slider: HTMLDivElement = createDistanceSlider(currentDistance, (newDistance: number) => {
-                    // Save setting and refresh preview
-                    void (async (): Promise<void> => {
-                        const currentSettings: VTSettings | null = await window.electronAPI?.main.loadSettings() ?? null;
-                        if (currentSettings && window.electronAPI) {
-                            await window.electronAPI.main.saveSettings({...currentSettings, contextNodeMaxDistance: newDistance});
-                        }
-                        clearContainedHighlights(cyRef);
-                        await highlightPreviewNodes(cyRef, nodeId);
-                    })();
-                });
-                runButtonContainer.appendChild(slider);
-            }
-        }
 
         // Assemble: left group, spacer, right group
         menu.appendChild(leftGroup);

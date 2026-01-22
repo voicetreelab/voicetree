@@ -561,7 +561,14 @@
 }
 
 /* Terminal windows should not have horizontal scroll - xterm.js manages its own rendering.
- * overflow-x: hidden prevents any horizontal scrollbar from appearing. */
+ * overflow-x: hidden prevents any horizontal scrollbar from appearing.
+ * Apply to both the window wrapper AND the content container to prevent x-overflow at all levels.
+ * Use higher specificity (.cy-floating-window.cy-floating-window-terminal) to override
+ * the .cy-floating-window.resizable { overflow: auto } rule. */
+.cy-floating-window.cy-floating-window-terminal {
+  overflow-x: hidden;
+}
+
 .cy-floating-window-terminal .cy-floating-window-content {
   overflow-x: hidden;
 }
