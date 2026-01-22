@@ -74,7 +74,7 @@ import {setupBasicCytoscapeEventListeners, setupCytoscape, initializeCytoscapeIn
 import {setupViewSubscriptions, cleanupViewSubscriptions, type ViewSubscriptionCleanups} from '@/shell/edge/UI-edge/graph/setupViewSubscriptions';
 import {subscribeToGraphUpdates} from '@/shell/edge/UI-edge/graph/subscribeToGraphUpdates';
 import {createSettingsEditor, closeSettingsEditor, isSettingsEditorOpen} from "@/shell/edge/UI-edge/settings/createSettingsEditor";
-import type {TerminalData, ElectronAPI} from '@/shell/electron';
+import type {TerminalData} from '@/shell/electron';
 
 import {GraphNavigationService} from "@/shell/edge/UI-edge/graph/navigation/GraphNavigationService";
 import {NavigationGestureService} from "@/shell/edge/UI-edge/graph/navigation/NavigationGestureService";
@@ -183,7 +183,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // Setup event listeners
         this.setupEventListeners();
 
-        this.autoLoadPreviousFolder();
+        // Signal to main process that frontend is ready to receive graph data
+        void window.electronAPI?.main?.markFrontendReady();
 
         // Setup command-hover mode
         // TEMP: Disabled to test if this is causing editor tap issues
@@ -203,31 +204,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             this.searchService,
             this.updateNavigatorVisibility
         );
-    }
-
-    /**
-     * Auto-load the last watched folder (if one exists)
-     */
-    private autoLoadPreviousFolder(): void {
-        const electronAPI: ElectronAPI | undefined = window.electronAPI;
-
-        if (!electronAPI?.main?.loadPreviousFolder) {
-            console.warn('[VoiceTreeGraphView] loadPreviousFolder not available');
-            return;
-        }
-
-        console.log('[VoiceTreeGraphView] Auto-loading previous folder...');
-        electronAPI.main.loadPreviousFolder()
-            .then((result: { success: boolean; directory?: string; error?: string }) => {
-                if (result.success && result.directory) {
-                    console.log('[VoiceTreeGraphView] Successfully auto-loaded folder:', result.directory);
-                } else {
-                    console.log('[VoiceTreeGraphView] No previous folder to load:', result.error);
-                }
-            })
-            .catch((error: unknown) => {
-                console.error('[VoiceTreeGraphView] Error auto-loading previous folder:', error);
-            });
     }
 
     // ============================================================================
