@@ -29,6 +29,8 @@ import {createTrafficLightsForTarget} from "@/shell/edge/UI-edge/floating-window
 export interface CreateWindowChromeOptions {
     /** Agents list for horizontal menu (editors only) */
     readonly agents?: readonly AgentConfig[];
+    /** Current context retrieval distance for slider (editors only) */
+    readonly currentDistance?: number;
     /** Close callback for terminals (required when fw is TerminalData) */
     readonly closeTerminal?: (terminal: TerminalData, cy: Core) => Promise<void>;
     /** Close callback for editors (required when fw is EditorData) */
@@ -113,6 +115,7 @@ export function createWindowChrome(
             cy,
             agents: options.agents ?? [],
             isContextNode,
+            currentDistance: options.currentDistance,
         };
         const menuItems: HorizontalMenuItem[] = getNodeMenuItems(menuInput);
 

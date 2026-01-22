@@ -104,9 +104,10 @@ export async function createFloatingEditor(
     const editorId: EditorId = getEditorId(editorData);
 
     // Create window chrome (returns FloatingWindowUIData)
-    // Pass agents for horizontal menu (editors only)
+    // Pass agents and currentDistance for horizontal menu (editors only)
     const ui: FloatingWindowUIData = createWindowChrome(cy, editorData, editorId, {
         agents: settings.agents ?? [],
+        currentDistance: settings.contextNodeMaxDistance ?? 5,
     });
 
     // Create EditorData with ui populated (immutable update)
