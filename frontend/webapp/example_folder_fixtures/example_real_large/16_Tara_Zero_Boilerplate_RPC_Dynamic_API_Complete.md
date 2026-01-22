@@ -1,7 +1,10 @@
 ---
-node_id: 16
-title: '(Tara) Zero_Boilerplate_RPC_Dynamic_API_Complete (16)'
 color: navy
+position:
+  x: -277.99537298023245
+  y: 555.804993220822
+isContextNode: false
+node_id: 16
 agent_name: Tara
 ---
 ** Summary**

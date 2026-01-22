@@ -20,8 +20,7 @@ export const uiAPI: UIAPIType = new Proxy({} as UIAPIType, {
     get(_target, prop: string) {
         return (...args: unknown[]) => {
             const mainWindow: ReturnType<typeof getMainWindow> = getMainWindow();
-            if (!mainWindow) {
-                console.error('[uiAPI] Cannot call UI function - no main window');
+            if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) {
                 return;
             }
             // Send IPC call to renderer

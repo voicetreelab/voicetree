@@ -277,30 +277,53 @@ export class StyleService {
         }
       },
 
+      // Active terminal highlighting - thin gold outline on shadow node
+      {
+        selector: 'node.terminal-active',
+        style: {
+          'outline-width': 2,
+          'outline-color': '#FFD700',
+          'outline-offset': 3,
+          'outline-opacity': 1,
+        }
+      },
 
         // terminal -> created nodes indicator edges.
         {
             selector: 'edge.terminal-progres-nodes-indicator',
             style: {
-                'line-style': 'dotted',
+                'line-style': 'dashed',
+                'line-dash-pattern': [2, 6],
                 'line-color': this.agentEdgeColor,
                 'line-opacity': 0.5,
-                'width': 3,
+                'width': 4,
                 'target-arrow-shape': 'none',
                 'curve-style': 'straight',
             }
         },
 
-      // floating-window indicator edges.
+      // floating-window indicator edges (base style - inactive state)
+      // IMPORTANT: Must come BEFORE terminal-active style so gold can override
       {
         selector: 'edge.terminal-indicator',
         style: {
           'line-style': 'dotted',
           'line-color': '#888888',
           'line-opacity': 0.8,
-          'width': 3,
+          'width': 4,
           'target-arrow-shape': 'none',
           'curve-style': 'straight',
+        }
+      },
+
+      // Active terminal highlighting - gold color for task node → terminal edge
+      // Must come AFTER base terminal-indicator style to override it
+      {
+        selector: 'edge.terminal-indicator.terminal-active',
+        style: {
+          'line-color': '#FFD700',
+          'line-opacity': 1,
+          'width': 5,
         }
       },
 

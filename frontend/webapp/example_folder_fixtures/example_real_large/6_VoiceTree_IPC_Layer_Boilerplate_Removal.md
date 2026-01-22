@@ -1,9 +1,9 @@
 ---
-node_id: 6
-title: VoiceTree IPC Layer Boilerplate Removal (6)
 position:
-  x: -500
-  y: 6.123233995736766e-14
+  x: 1013.24640728514
+  y: 258.45623348331964
+isContextNode: false
+node_id: 6
 ---
 ### Task to remove boilerplate from VoiceTree's IPC layer using TypeScript for simplified bidirectional function calls.
 

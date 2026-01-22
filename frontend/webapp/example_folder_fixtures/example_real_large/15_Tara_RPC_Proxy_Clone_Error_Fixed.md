@@ -1,11 +1,11 @@
 ---
-node_id: 15
-title: (Tara) RPC_Proxy_Clone_Error_Fixed (15)
 color: navy
-agent_name: Tara
 position:
-  x: 853.5533905932739
-  y: 1353.5533905932734
+  x: 728.4673953522883
+  y: 1141.6938994417594
+isContextNode: false
+node_id: 15
+agent_name: Tara
 ---
 ** Summary**
 Fixed critical preload script error where electronAPI was undefined due to Proxy objects not being clonable through Electron's contextBridge.
