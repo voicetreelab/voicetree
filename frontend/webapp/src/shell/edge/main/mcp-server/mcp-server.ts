@@ -16,11 +16,13 @@ import {StreamableHTTPServerTransport} from '@modelcontextprotocol/sdk/server/st
 import {z} from 'zod'
 import express, {type Express} from 'express'
 import * as O from 'fp-ts/lib/Option.js'
-import type {Graph, GraphNode, NodeIdAndFilePath} from '@/pure/graph'
+import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath, Position} from '@/pure/graph'
 import {getNodeTitle} from '@/pure/graph/markdown-parsing'
 import {findBestMatchingNode} from '@/pure/graph/markdown-parsing/extract-edges'
+import {createTaskNode} from '@/pure/graph/graph-operations/createTaskNode'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange'
 import {getUnseenNodesAroundContextNode, type UnseenNode} from '@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode'
 import {spawnTerminalWithContextNode} from '@/shell/edge/main/terminals/spawnTerminalWithContextNode'
 import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
@@ -41,7 +43,15 @@ function buildJsonResponse(payload: unknown, isError?: boolean): McpToolResponse
     }
 }
 
-export async function spawnAgentTool({nodeId, callerTerminalId}: {nodeId: string; callerTerminalId: string}): Promise<McpToolResponse> {
+export interface SpawnAgentParams {
+    nodeId?: string
+    callerTerminalId: string
+    task?: string
+    details?: string
+    parentNodeId?: string
+}
+
+export async function spawnAgentTool({nodeId, callerTerminalId, task, details, parentNodeId}: SpawnAgentParams): Promise<McpToolResponse> {
     console.log(`[MCP] spawn_agent called by terminal: ${callerTerminalId}`)
 
     // Validate caller terminal exists
@@ -67,8 +77,96 @@ export async function spawnAgentTool({nodeId, callerTerminalId}: {nodeId: string
             error: 'No vault loaded. Please load a folder in the UI first.'
         }, true)
     }
+    const writePath: string = vaultPathOpt.value
 
     const graph: Graph = getGraph()
+
+    // Branch: If task is provided, create a new task node first
+    if (task) {
+        // Validate parentNodeId is required when task is provided
+        if (!parentNodeId) {
+            return buildJsonResponse({
+                success: false,
+                error: 'parentNodeId is required when task is provided'
+            }, true)
+        }
+
+        // Resolve parent node
+        const resolvedParentId: NodeIdAndFilePath | undefined = graph.nodes[parentNodeId]
+            ? parentNodeId
+            : findBestMatchingNode(parentNodeId, graph.nodes, graph.nodeByBaseName)
+
+        if (!resolvedParentId || !graph.nodes[resolvedParentId]) {
+            return buildJsonResponse({
+                success: false,
+                error: `Parent node ${parentNodeId} not found.`
+            }, true)
+        }
+
+        const parentNode: GraphNode = graph.nodes[resolvedParentId]
+
+        // Compute position near parent node
+        const parentPosition: Position = O.getOrElse(() => ({x: 0, y: 0}))(parentNode.nodeUIMetadata.position)
+        const taskNodePosition: Position = {
+            x: parentPosition.x + 200,
+            y: parentPosition.y + 100
+        }
+
+        // Build task description: title with optional details
+        const taskDescription: string = details ? `${task}\n\n${details}` : task
+
+        try {
+            // Create task node
+            const taskNodeDelta: GraphDelta = createTaskNode({
+                taskDescription,
+                selectedNodeIds: [resolvedParentId],
+                graph,
+                writePath,
+                position: taskNodePosition
+            })
+
+            // Extract task node ID from delta
+            const taskNodeId: NodeIdAndFilePath = taskNodeDelta[0].type === 'UpsertNode'
+                ? taskNodeDelta[0].nodeToUpsert.absoluteFilePathIsID
+                : '' as NodeIdAndFilePath
+
+            if (!taskNodeId) {
+                return buildJsonResponse({
+                    success: false,
+                    error: 'Failed to create task node'
+                }, true)
+            }
+
+            // Apply task node to graph
+            await applyGraphDeltaToDBThroughMemAndUIAndEditors(taskNodeDelta)
+
+            // Spawn terminal on the new task node
+            const {terminalId, contextNodeId}: {terminalId: string; contextNodeId: string} =
+                await spawnTerminalWithContextNode(taskNodeId, undefined, undefined, true, false)
+
+            return buildJsonResponse({
+                success: true,
+                terminalId,
+                taskNodeId,
+                contextNodeId,
+                message: `Created task node and spawned agent for "${task}"`
+            })
+        } catch (error) {
+            const errorMessage: string = error instanceof Error ? error.message : String(error)
+            return buildJsonResponse({
+                success: false,
+                error: errorMessage
+            }, true)
+        }
+    }
+
+    // Original behavior: spawn on existing node
+    if (!nodeId) {
+        return buildJsonResponse({
+            success: false,
+            error: 'Either nodeId or task (with parentNodeId) must be provided'
+        }, true)
+    }
 
     // Resolve nodeId: support both full absolute paths and short names (e.g., "fix-test.md")
     // First try direct lookup, then fall back to findBestMatchingNode for short names
@@ -338,13 +436,16 @@ export function createMcpServer(): McpServer {
         'spawn_agent',
         {
             title: 'Spawn Agent',
-            description: 'Spawn a coding agent terminal attached to an existing graph node.',
+            description: 'Spawn an agent in the VoiceTree graph to perform a task. Prefer this over your Task or subagent tool for tasks involving code modifications where the user would benefit from visibility and control over the changes. If you already have a node detailing the task, use nodeId. Otherwise, use task+parentNodeId to create a new task node first.',
             inputSchema: {
-                nodeId: z.string().describe('Target node ID to attach the spawned agent'),
-                callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var')
+                nodeId: z.string().optional().describe('Target node ID to attach the spawned agent (use this OR task+parentNodeId)'),
+                callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),
+                task: z.string().optional().describe('Task title for creating a new task node (requires parentNodeId)'),
+                details: z.string().optional().describe('Detailed description of the task (used with task parameter)'),
+                parentNodeId: z.string().optional().describe('Parent node ID under which to create the new task node (required when task is provided)')
             }
         },
-        async ({nodeId, callerTerminalId}) => spawnAgentTool({nodeId, callerTerminalId})
+        async ({nodeId, callerTerminalId, task, details, parentNodeId}) => spawnAgentTool({nodeId, callerTerminalId, task, details, parentNodeId})
     )
 
     // Tool: list_agents

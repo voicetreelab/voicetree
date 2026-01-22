@@ -1,3 +1,9 @@
+---
+position:
+  x: -955.254738401684
+  y: -308.9893848931892
+isContextNode: false
+---
 First fixup electron e2e playwright tests.
 
 see `npm run test:smoke` for the most simple one. 

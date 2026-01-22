@@ -19,6 +19,7 @@ import {isImageNode} from "@/pure/graph";
 import type {Core} from "cytoscape";
 import type {TerminalRecord} from "@/shell/edge/main/terminals/terminal-registry";
 import {syncFromMain} from "@/shell/edge/UI-edge/state/TerminalStore";
+import {setIsTrackpadScrolling} from "@/shell/edge/UI-edge/state/trackpad-state";
 
 /**
  * Update floating editors from external FS changes
@@ -76,6 +77,7 @@ export const uiAPIHandler = {
     createEditorForExternalNode,
     fitViewport,
     syncTerminals,
+    setIsTrackpadScrolling,
 };
 
 export type UIAPIType = typeof uiAPIHandler;

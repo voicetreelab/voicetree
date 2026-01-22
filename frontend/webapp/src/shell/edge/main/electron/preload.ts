@@ -1,5 +1,19 @@
-// todo this needs to be cleaned up, use similar pattern to main -> render
-
+// =============================================================================
+// STOP! Before adding custom IPC handlers here, use the zero-boilerplate RPC patterns:
+//
+// RENDERER → MAIN (request/response):
+//   1. Add your function to mainAPI in src/shell/edge/main/api.ts
+//   2. Call it via window.electronAPI.main.yourFunction() - types flow automatically
+//   See: src/shell/edge/main/edge-auto-rpc/rpc-handler.ts
+//
+// MAIN → RENDERER (push events):
+//   1. Add your function to uiAPIHandler in src/shell/edge/UI-edge/api.ts
+//   2. Call it from main via uiAPI.yourFunction() - types flow automatically
+//   See: src/shell/edge/main/ui-api-proxy.ts, src/shell/edge/UI-edge/ui-rpc-handler.ts
+//
+// Only add custom handlers here for complex patterns that don't fit the above
+// (e.g., graph.onGraphUpdate which returns an unsubscribe function).
+// =============================================================================
 
 import {contextBridge, ipcRenderer} from 'electron';
 import type {GraphDelta} from "@/pure/graph";

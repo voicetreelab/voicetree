@@ -40,10 +40,29 @@ export function createDistanceSlider(
         left: 50%;
         transform: translateX(-50%);
         display: flex;
-        gap: ${SLIDER_SQUARE_GAP}px;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
         padding: 4px 8px;
-        justify-content: center;
         pointer-events: auto;
+    `;
+
+    // Add tooltip label above the squares
+    const tooltip: HTMLSpanElement = document.createElement('span');
+    tooltip.textContent = 'Select context-retrieval distance';
+    tooltip.style.cssText = `
+        font-size: 11px;
+        color: var(--foreground);
+        white-space: nowrap;
+    `;
+    container.appendChild(tooltip);
+
+    // Container for the squares themselves
+    const squaresRow: HTMLDivElement = document.createElement('div');
+    squaresRow.style.cssText = `
+        display: flex;
+        gap: ${SLIDER_SQUARE_GAP}px;
+        justify-content: center;
     `;
 
     const squares: HTMLDivElement[] = [];
@@ -64,6 +83,7 @@ export function createDistanceSlider(
             width: ${SLIDER_SQUARE_SIZE}px;
             height: ${SLIDER_SQUARE_SIZE}px;
             background: ${squareDistance <= currentDistance ? SLIDER_GOLD_COLOR : SLIDER_GRAY_COLOR};
+            border: 1px solid var(--muted-foreground);
             cursor: pointer;
             transition: background 0.1s ease;
         `;
@@ -75,9 +95,10 @@ export function createDistanceSlider(
         });
 
         squares.push(square);
-        container.appendChild(square);
+        squaresRow.appendChild(square);
     }
 
+    container.appendChild(squaresRow);
     return container;
 }
 import type {EditorData} from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
