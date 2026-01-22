@@ -8,7 +8,7 @@ import useVoiceTreeClient from "@/shell/UI/views/hooks/useVoiceTreeClient";
 import { useTranscriptionSender } from "@/shell/edge/UI-edge/text_to_tree_server_communication/useTranscriptionSender";
 import getAPIKey from "@/utils/get-api-key";
 import { TranscriptionDisplay } from "@/shell/UI/views/TranscriptionDisplay";
-import { onVoiceResult, appendManualText, reset as resetTranscriptionStore } from "@/shell/edge/UI-edge/state/TranscriptionStore";
+import { onVoiceResult, appendManualText, reset as resetTranscriptionStore, subscribe as subscribeToTranscription, getDisplayTokenCount } from "@/shell/edge/UI-edge/state/TranscriptionStore";
 import type {} from "@/shell/electron";
 import { ChevronDown } from "lucide-react";
 import { initVoiceRecording, disposeVoiceRecording } from "@/shell/edge/UI-edge/state/VoiceRecordingController";
@@ -25,6 +25,9 @@ export default function VoiceTreeTranscribe(): JSX.Element {
     if (stored === 'add') return 'add';
     return null;
   });
+
+  // Track if there's text in the transcription to conditionally show blur/collapse
+  const [hasTranscriptionText, setHasTranscriptionText] = useState(false);
 
   // Ref for vanilla TranscriptionDisplay mount point
   const displayContainerRef: RefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);
@@ -78,6 +81,13 @@ export default function VoiceTreeTranscribe(): JSX.Element {
       displayInstanceRef.current?.dispose();
       displayInstanceRef.current = null;
     };
+  }, []);
+
+  // Subscribe to TranscriptionStore to track if there's text
+  useEffect(() => {
+    const updateHasText: () => void = () => setHasTranscriptionText(getDisplayTokenCount() > 0);
+    updateHasText(); // Initial check
+    return subscribeToTranscription(updateHasText);
   }, []);
 
   // Start transcription with reset
@@ -225,20 +235,22 @@ export default function VoiceTreeTranscribe(): JSX.Element {
           {/* Transcription Display - positioned absolutely above input, aligned to input width */}
           <div
             className="absolute bottom-full left-0 right-0 transition-all duration-200"
-            style={{ height: isTranscriptionExpanded ? '68px' : '0px', overflow: 'hidden' }}
+            style={{ height: isTranscriptionExpanded && hasTranscriptionText ? '68px' : '0px', overflow: 'hidden' }}
           >
-            {/* Smooth gradient blur layer - single element with gradient mask */}
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                zIndex: 0,
-                backdropFilter: 'blur(8px)',
-                WebkitBackdropFilter: 'blur(8px)',
-                borderRadius: '12px',
-                maskImage: 'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0.2) 70%, rgba(0,0,0,0) 100%)',
-                WebkitMaskImage: 'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0.2) 70%, rgba(0,0,0,0) 100%)',
-              }}
-            />
+            {/* Smooth gradient blur layer - only shown when there's text */}
+            {hasTranscriptionText && (
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  zIndex: 0,
+                  backdropFilter: 'blur(8px)',
+                  WebkitBackdropFilter: 'blur(8px)',
+                  borderRadius: '12px',
+                  maskImage: 'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0.2) 70%, rgba(0,0,0,0) 100%)',
+                  WebkitMaskImage: 'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0.2) 70%, rgba(0,0,0,0) 100%)',
+                }}
+              />
+            )}
             {/* Scrollable text content - vanilla TranscriptionDisplay mounts here */}
             <div
               ref={displayContainerRef}
@@ -250,21 +262,23 @@ export default function VoiceTreeTranscribe(): JSX.Element {
               }}
             />
           </div>
-          {/* Expand/Collapse toggle button - positioned just above input row */}
-          <button
-            onClick={() => setIsTranscriptionExpanded(!isTranscriptionExpanded)}
-            className="absolute right-0 p-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-            style={{ zIndex: 2, bottom: '100%', marginBottom: '-14px' }}
-            title={isTranscriptionExpanded ? "Collapse transcription" : "Expand transcription"}
-          >
-            <ChevronDown
-              size={16}
-              className={cn(
-                "transition-transform duration-200",
-                isTranscriptionExpanded ? "" : "rotate-180"
-              )}
-            />
-          </button>
+          {/* Expand/Collapse toggle button - only shown when there's text */}
+          {hasTranscriptionText && (
+            <button
+              onClick={() => setIsTranscriptionExpanded(!isTranscriptionExpanded)}
+              className="absolute right-0 p-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              style={{ zIndex: 2, bottom: '100%', marginBottom: '-14px' }}
+              title={isTranscriptionExpanded ? "Collapse transcription" : "Expand transcription"}
+            >
+              <ChevronDown
+                size={16}
+                className={cn(
+                  "transition-transform duration-200",
+                  isTranscriptionExpanded ? "" : "rotate-180"
+                )}
+              />
+            </button>
+          )}
 
 
           {/* Offset left by half minimap width to center controls relative to full viewport */}

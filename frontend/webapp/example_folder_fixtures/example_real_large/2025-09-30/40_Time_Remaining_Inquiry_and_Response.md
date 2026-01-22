@@ -15,4 +15,3 @@ _Links:_
 Parent:
 - contains_a_discussion_about [[39_Speaker_s_Self-Correction_Informal_Remarks.md]]
 
-[[ctx-nodes/40_Time_Remaining_Inquiry_and_Response.md_context_1763890620241.md]]

@@ -560,6 +560,17 @@
   color: var(--primary-foreground);
 }
 
+/* =============================================================================
+ * Active Terminal Highlighting (Gold Border)
+ * Applied when terminal is selected/navigated to
+ * This renders ON the DOM element, not behind it on cytoscape canvas
+ * ============================================================================= */
+
+.cy-floating-window-terminal.terminal-active {
+  border: 3px solid #FFD700;
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.6), 0 4px 12px rgba(0,0,0,0.15);
+}
+
 /* Terminal windows should not have horizontal scroll - xterm.js manages its own rendering.
  * overflow-x: hidden prevents any horizontal scrollbar from appearing.
  * Apply to both the window wrapper AND the content container to prevent x-overflow at all levels.

@@ -192,77 +192,36 @@ test.describe('Terminal Selection Highlighting E2E', () => {
       const activeShadowNodes = cy.nodes('.terminal-active');
       const activeEdges = cy.edges('.terminal-active');
 
-      // Check for terminal-indicator edges (required for gold highlight style)
-      const indicatorEdges = cy.edges('.terminal-indicator');
       // Check for edges with BOTH classes (gold highlight selector)
       const goldEdges = cy.edges('.terminal-indicator.terminal-active');
-      // All shadow nodes
-      const allShadowNodes = cy.nodes('[?isShadowNode]');
-      // All edges targeting shadow nodes
-      const allEdgesToShadow = cy.edges().filter((e: {target: () => {data: (key: string) => boolean}}) => e.target().data('isShadowNode') === true);
+
+      // Get the computed line color of the gold edge
+      const goldEdge = goldEdges.first();
+      const goldEdgeLineColor = goldEdge.length > 0 ? goldEdge.style('line-color') : null;
 
       // Get details about the highlighted elements
       const shadowNodeIds = activeShadowNodes.map((n: {id: () => string}) => n.id());
       const edgeIds = activeEdges.map((e: {source: () => {id: () => string}; target: () => {id: () => string}}) => `${e.source().id()} -> ${e.target().id()}`);
-      const indicatorEdgeIds = indicatorEdges.map((e: {source: () => {id: () => string}; target: () => {id: () => string}; classes: () => string[]}) =>
-        `${e.source().id()} -> ${e.target().id()} [classes: ${e.classes().join(', ')}]`
-      );
-      const goldEdgeIds = goldEdges.map((e: {source: () => {id: () => string}; target: () => {id: () => string}}) =>
-        `${e.source().id()} -> ${e.target().id()}`
-      );
 
       return {
         shadowNodeCount: activeShadowNodes.length,
         edgeCount: activeEdges.length,
-        indicatorEdgeCount: indicatorEdges.length,
         goldEdgeCount: goldEdges.length,
-        allShadowNodeCount: allShadowNodes.length,
-        allEdgesToShadowCount: allEdgesToShadow.length,
+        goldEdgeLineColor,
         shadowNodeIds,
-        edgeIds,
-        indicatorEdgeIds,
-        goldEdgeIds
+        edgeIds
       };
     });
 
-    const debugOutput = [
-      'Highlighting state:',
-      `  All shadow nodes: ${highlightState.allShadowNodeCount}`,
-      `  All edges to shadow nodes: ${highlightState.allEdgesToShadowCount}`,
-      `  Shadow nodes with terminal-active: ${highlightState.shadowNodeCount}`,
-      `  Shadow node IDs: ${highlightState.shadowNodeIds.join(', ')}`,
-      `  Edges with terminal-active: ${highlightState.edgeCount}`,
-      `  Edge connections: ${highlightState.edgeIds.join(', ')}`,
-      `  terminal-indicator edges: ${highlightState.indicatorEdgeCount}`,
-      `  Indicator edge details: ${highlightState.indicatorEdgeIds.join('; ')}`,
-      `  GOLD edges (indicator + active): ${highlightState.goldEdgeCount}`,
-      `  Gold edge details: ${highlightState.goldEdgeIds.join('; ')}`
-    ].join('\n');
-    console.log(debugOutput);
-    // Write to file for debugging
-    await fs.writeFile(path.join(SCREENSHOTS_DIR, 'debug-output.txt'), debugOutput, 'utf8');
+    console.log('Highlighting state:');
+    console.log(`  Shadow nodes with terminal-active: ${highlightState.shadowNodeCount}`);
+    console.log(`  Shadow node IDs: ${highlightState.shadowNodeIds.join(', ')}`);
+    console.log(`  Edges with terminal-active: ${highlightState.edgeCount}`);
+    console.log(`  Edge connections: ${highlightState.edgeIds.join(', ')}`);
+    console.log(`  GOLD edges (indicator + active): ${highlightState.goldEdgeCount}`);
+    console.log(`  Gold edge line color: ${highlightState.goldEdgeLineColor}`);
 
     console.log('=== STEP 7: Take screenshot for visual verification ===');
-    // Debug: Check computed styles of the gold edge
-    const edgeStyles = await appWindow.evaluate(() => {
-      const cy = (window as ExtendedWindow).cytoscapeInstance;
-      if (!cy) return null;
-      const goldEdge = cy.edges('.terminal-indicator.terminal-active').first();
-      if (goldEdge.length === 0) return { error: 'No gold edge found' };
-      return {
-        classes: goldEdge.classes(),
-        lineColor: goldEdge.style('line-color'),
-        lineOpacity: goldEdge.style('line-opacity'),
-        width: goldEdge.style('width'),
-        display: goldEdge.style('display'),
-        visibility: goldEdge.style('visibility'),
-        sourcePos: goldEdge.source().position(),
-        targetPos: goldEdge.target().position(),
-      };
-    });
-    console.log('Gold edge styles:', JSON.stringify(edgeStyles, null, 2));
-    await fs.writeFile(path.join(SCREENSHOTS_DIR, 'edge-styles.txt'), JSON.stringify(edgeStyles, null, 2), 'utf8');
-
     // Pan/zoom to show the terminal and its connection clearly
     await appWindow.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
@@ -309,6 +268,15 @@ test.describe('Terminal Selection Highlighting E2E', () => {
     // Verify that at least one edge has the terminal-active class
     expect(highlightState.edgeCount).toBeGreaterThan(0);
     console.log('Edge has terminal-active class');
+
+    // Verify the edge with both terminal-indicator and terminal-active classes exists
+    // This is the edge that should have gold highlighting
+    expect(highlightState.goldEdgeCount).toBeGreaterThan(0);
+    console.log('Gold edge (terminal-indicator + terminal-active) exists');
+
+    // Verify the gold edge is actually rendering with gold color (#FFD700 = rgb(255,215,0))
+    expect(highlightState.goldEdgeLineColor).toBe('rgb(255,215,0)');
+    console.log('Gold edge is rendering with gold color (#FFD700)');
 
     console.log('');
     console.log('TERMINAL SELECTION HIGHLIGHTING TEST PASSED');

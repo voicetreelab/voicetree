@@ -15,4 +15,3 @@ _Links:_
 Parent:
 - raises_a_question_about_the [[3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation.md]]
 
-[[ctx-nodes/6_Question_Scope_of_G_Cloud_CLI.md_context_1764805476514.md]]
