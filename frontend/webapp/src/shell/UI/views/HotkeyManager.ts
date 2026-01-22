@@ -12,7 +12,8 @@
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
 import { MAX_RECENT_NODES } from '@/pure/graph/recentNodeHistoryV2';
-import type { HotkeySettings, HotkeyBinding } from '@/pure/settings/types';
+import type { HotkeySettings, HotkeyBinding, VTSettings } from '@/pure/settings/types';
+import { DEFAULT_HOTKEYS } from '@/pure/settings/DEFAULT_SETTINGS';
 
 export type Modifier = 'Meta' | 'Control' | 'Alt' | 'Shift';
 
@@ -234,6 +235,31 @@ export class HotkeyManager {
       modifiers: [...binding.modifiers] as Modifier[],
       onPress: onToggle
     });
+  }
+
+  /**
+   * Initialize hotkeys with settings loaded from electron
+   * Handles async settings loading internally, with platform-aware defaults as fallback
+   */
+  async initializeWithSettings(
+    callbacks: {
+      fitToLastNode: () => void;
+      cycleTerminal: (direction: 1 | -1) => void;
+      createNewNode: () => void;
+      runTerminal: () => void;
+      deleteSelectedNodes: () => void;
+      navigateToRecentNode: (index: number) => void;
+      closeSelectedWindow: () => void;
+      openSettings: () => void;
+      openSearch: () => void;
+    },
+    voiceAction: () => void
+  ): Promise<void> {
+    const settings: VTSettings | null = await window.electronAPI?.main.loadSettings() ?? null;
+    const hotkeys: HotkeySettings = settings?.hotkeys ?? DEFAULT_HOTKEYS;
+
+    this.setupGraphHotkeys(callbacks, hotkeys);
+    this.registerVoiceHotkey(voiceAction, hotkeys.voiceRecording);
   }
 
   /**

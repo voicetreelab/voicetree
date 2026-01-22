@@ -360,12 +360,15 @@ export function setupCommandHover(cy: Core): void {
  * @param focusAtEnd - If true, focus editor with cursor at end of content (for new nodes)
  * @param isAutoPin - If true, this is an auto-pinned editor (for new nodes) that will be
  *                    auto-closed when the next new node is created
+ * @param isAgentNode - If true, node was created by an agent. Agent nodes bypass the
+ *                      auto-pin queue and remain open until manually closed.
  */
 export async function createAnchoredFloatingEditor(
     cy: Core,
     nodeId: NodeIdAndFilePath,
     focusAtEnd: boolean = false,
-    isAutoPin: boolean = false
+    isAutoPin: boolean = false,
+    isAgentNode: boolean = false
 ): Promise<void> {
     try {
         // Early exit if editor already exists - don't close previous auto-pin or set new tracking
@@ -388,7 +391,8 @@ export async function createAnchoredFloatingEditor(
         }
 
         // FIFO auto-pin: add to queue, close oldest if over limit
-        if (isAutoPin) {
+        // Agent nodes bypass the queue entirely - they remain open until manually closed
+        if (isAutoPin && !isAgentNode) {
             const oldestToClose: NodeIdAndFilePath | null = addToAutoPinQueue(nodeId);
             if (oldestToClose !== null) {
                 const oldestEditor: O.Option<EditorData> = getEditorByNodeId(oldestToClose);

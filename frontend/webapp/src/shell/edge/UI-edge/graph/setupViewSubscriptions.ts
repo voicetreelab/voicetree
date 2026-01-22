@@ -10,7 +10,8 @@ import type {TerminalData} from '@/shell/electron';
 import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/types';
 import type {GraphNavigationService} from './navigation/GraphNavigationService';
 import {subscribeToTerminalChanges} from '@/shell/edge/UI-edge/state/TerminalStore';
-import {renderAgentTabs, setActiveTerminal} from '@/shell/UI/views/AgentTabsBar';
+import {renderAgentTabs, setActiveTerminal, clearActivityForTerminal} from '@/shell/UI/views/AgentTabsBar';
+import {getTerminalId} from '@/shell/edge/UI-edge/floating-windows/types';
 import {renderRecentNodeTabsV2} from '@/shell/UI/views/RecentNodeTabsBar';
 import {getRecentNodeHistory} from '@/shell/edge/UI-edge/state/RecentNodeHistoryStore';
 
@@ -34,40 +35,44 @@ export function setupViewSubscriptions(deps: ViewSubscriptionDeps): ViewSubscrip
     const {cy, navigationService} = deps;
 
     // Terminal changes subscription - updates agent tabs bar
-    const terminalSubscription = subscribeToTerminalChanges((terminals: TerminalData[]) => {
+    const terminalSubscription: () => void = subscribeToTerminalChanges((terminals: TerminalData[]) => {
         renderAgentTabs(
             terminals,
-            (terminal: TerminalData) => navigationService.fitToTerminal(terminal)
+            (terminal: TerminalData) => {
+                // Clear activity dots when user explicitly clicks a tab (not when cycling)
+                clearActivityForTerminal(getTerminalId(terminal));
+                navigationService.fitToTerminal(terminal);
+            }
         );
     });
 
     // Active terminal subscription - highlights active tab
-    const activeTerminalSubscription = navigationService.onActiveTerminalChange(
+    const activeTerminalSubscription: () => void = navigationService.onActiveTerminalChange(
         (terminalId: TerminalId | null) => {
             setActiveTerminal(terminalId);
         }
     );
 
     // Navigation event listener - handles SSE activity panel navigation
-    const handleNavigateEvent = (event: Event): void => {
-        const customEvent = event as CustomEvent<{nodeId: string}>;
+    const handleNavigateEvent: (event: Event) => void = (event: Event): void => {
+        const customEvent: CustomEvent<{nodeId: string}> = event as CustomEvent<{nodeId: string}>;
         navigationService.handleSearchSelect(customEvent.detail.nodeId);
     };
     window.addEventListener('voicetree-navigate', handleNavigateEvent);
-    const navigationListener = (): void => {
+    const navigationListener: () => void = (): void => {
         window.removeEventListener('voicetree-navigate', handleNavigateEvent);
     };
 
     // Pinned editors change listener - re-renders tabs bar
-    const handlePinnedEditorsChange = (): void => {
+    const handlePinnedEditorsChange: () => void = (): void => {
         renderRecentNodeTabsV2(
             getRecentNodeHistory(),
-            (nodeId) => navigationService.handleSearchSelect(nodeId),
-            (nodeId) => cy.getElementById(nodeId).data('label') as string | undefined
+            (nodeId: string) => navigationService.handleSearchSelect(nodeId),
+            (nodeId: string) => cy.getElementById(nodeId).data('label') as string | undefined
         );
     };
     document.addEventListener('pinned-editors-changed', handlePinnedEditorsChange);
-    const pinnedEditorsListener = (): void => {
+    const pinnedEditorsListener: () => void = (): void => {
         document.removeEventListener('pinned-editors-changed', handlePinnedEditorsChange);
     };
 

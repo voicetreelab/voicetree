@@ -84,8 +84,11 @@ import {getTerminalByNodeId} from '@/shell/edge/UI-edge/state/TerminalStore';
 import {closeTerminal} from '@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI';
 import * as O from 'fp-ts/lib/Option.js';
 import {toggleVoiceRecording} from '@/shell/edge/UI-edge/state/VoiceRecordingController';
-import {DEFAULT_HOTKEYS} from '@/pure/settings/DEFAULT_SETTINGS';
-import type {HotkeySettings, VTSettings} from '@/pure/settings/types';
+import {
+    initializeDarkMode,
+    toggleDarkMode as toggleDarkModeAction,
+    isDarkMode as isDarkModeState
+} from '@/shell/edge/UI-edge/state/DarkModeManager';
 import type {EditorData} from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
 
 /**
@@ -112,7 +115,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     private gestureService: NavigationGestureService;
 
     // State
-    private _isDarkMode = false;
     private currentGraphState: Graph = createEmptyGraph();
 
     // Graph subscription cleanup
@@ -144,8 +146,11 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         this.container = container;
         this.options = options;
 
-        // Initialize dark mode
-        this.setupDarkMode();
+        // Initialize dark mode via DarkModeManager (handles async settings load)
+        void initializeDarkMode(this.options.initialDarkMode, {
+            updateGraphStyles: () => this.updateGraphStyles(),
+            updateSpeedDialMenu: (isDark) => this.speedDialMenu?.updateDarkMode(isDark)
+        });
 
         // Render DOM structure
         this.render();
@@ -190,6 +195,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
     /**
      * Subscribe to graph delta updates from main process via electronAPI
+     * Delegates to GraphUpdateHandler module for the actual subscription logic
      */
     private subscribeToGraphUpdates(): void {
         this.cleanupGraphSubscription = subscribeToGraphUpdates(
@@ -228,43 +234,14 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // INITIALIZATION
     // ============================================================================
 
-    private setupDarkMode(): void {
-        // Start with option default, then async load from settings
-        if (this.options.initialDarkMode !== undefined) {
-            this._isDarkMode = this.options.initialDarkMode;
-        }
-
-        // Apply initial state to document
-        if (this._isDarkMode) {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
-
-        // Async load from settings (source of truth)
-        void this.loadDarkModeFromSettings();
-    }
-
-    private async loadDarkModeFromSettings(): Promise<void> {
-        const settings: VTSettings | null = await window.electronAPI?.main.loadSettings() ?? null;
-        if (settings?.darkMode !== undefined && settings.darkMode !== this._isDarkMode) {
-            this._isDarkMode = settings.darkMode;
-            if (this._isDarkMode) {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
-            // Update graph styles if already initialized
-            if (this.cy) {
-                const styleService: StyleService = new StyleService();
-                const newStyles: { selector: string; style: Record<string, unknown>; }[] = styleService.getCombinedStylesheet();
-                this.cy.style().clear().fromJson(newStyles).update();
-            }
-            // Update speed dial menu icon
-            if (this.speedDialMenu) {
-                this.speedDialMenu.updateDarkMode(this._isDarkMode);
-            }
-        }
+    /**
+     * Update graph styles (called by DarkModeManager on mode change)
+     */
+    private updateGraphStyles(): void {
+        if (!this.cy) return;
+        const styleService: StyleService = new StyleService();
+        const newStyles: { selector: string; style: Record<string, unknown>; }[] = styleService.getCombinedStylesheet();
+        this.cy.style().clear().fromJson(newStyles).update();
     }
 
     private render(): void {
@@ -273,7 +250,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // so we pass callbacks that will access cy at call time
         const domElements: GraphViewDOMElements = setupGraphViewDOM({
             container: this.container,
-            isDarkMode: this._isDarkMode,
+            isDarkMode: isDarkModeState(),
             speedDialCallbacks: {
                 onToggleDarkMode: () => this.toggleDarkMode(),
                 onSettings: () => void createSettingsEditor(this.cy),
@@ -388,13 +365,9 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // Focus container to ensure it receives keyboard events
         this.container.focus();
 
-        // Setup hotkeys with settings (async load with platform-aware defaults as fallback)
-        void (async (): Promise<void> => {
-            const settings: VTSettings | null = await window.electronAPI?.main.loadSettings() ?? null;
-            const hotkeys: HotkeySettings = settings?.hotkeys ?? DEFAULT_HOTKEYS;
-
-            // Setup graph-specific hotkeys via HotkeyManager
-            this.hotkeyManager.setupGraphHotkeys({
+        // Setup hotkeys with settings (async load handled internally by HotkeyManager)
+        void this.hotkeyManager.initializeWithSettings(
+            {
                 fitToLastNode: () => this.navigationService.fitToLastNode(),
                 cycleTerminal: (direction) => this.navigationService.cycleTerminal(direction),
                 createNewNode: createNewNodeAction(this.cy),
@@ -404,11 +377,9 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
                 closeSelectedWindow: () => this.closeSelectedWindow(),
                 openSettings: () => void createSettingsEditor(this.cy),
                 openSearch: () => this.searchService.open()
-            }, hotkeys);
-
-            // Register voice recording hotkey
-            this.hotkeyManager.registerVoiceHotkey(toggleVoiceRecording, hotkeys.voiceRecording);
-        })();
+            },
+            toggleVoiceRecording
+        );
 
         // Note: Wheel events (pan/zoom) are handled by NavigationGestureService
     }
@@ -503,41 +474,15 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
 
     toggleDarkMode(): void {
-        this._isDarkMode = !this._isDarkMode;
-
-        if (this._isDarkMode) {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
-
-        // Save to settings (source of truth)
-        void this.saveDarkModeToSettings();
-
-        // Update graph styles
-        const styleService: StyleService = new StyleService();
-        const newStyles: { selector: string; style: Record<string, unknown>; }[] = styleService.getCombinedStylesheet();
-        this.cy.style().clear().fromJson(newStyles).update();
-
-        // Update search service theme
-        this.searchService.updateTheme(this._isDarkMode);
-
-        // Update speed dial menu icon
-        if (this.speedDialMenu) {
-            this.speedDialMenu.updateDarkMode(this._isDarkMode);
-        }
-    }
-
-    private async saveDarkModeToSettings(): Promise<void> {
-        const settings: VTSettings | null = await window.electronAPI?.main.loadSettings() ?? null;
-        if (settings && window.electronAPI) {
-            const updatedSettings: VTSettings = { ...settings, darkMode: this._isDarkMode };
-            await window.electronAPI.main.saveSettings(updatedSettings);
-        }
+        toggleDarkModeAction({
+            updateGraphStyles: () => this.updateGraphStyles(),
+            updateSpeedDialMenu: (isDark) => this.speedDialMenu?.updateDarkMode(isDark),
+            updateSearchTheme: (isDark) => this.searchService.updateTheme(isDark)
+        });
     }
 
     isDarkMode(): boolean {
-        return this._isDarkMode;
+        return isDarkModeState();
     }
 
     getStats(): { nodeCount: number; edgeCount: number } {
