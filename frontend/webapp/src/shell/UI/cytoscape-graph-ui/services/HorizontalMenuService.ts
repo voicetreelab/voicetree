@@ -35,10 +35,15 @@ export function createDistanceSlider(
     const container: HTMLDivElement = document.createElement('div');
     container.className = 'distance-slider';
     container.style.cssText = `
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
         display: flex;
         gap: ${SLIDER_SQUARE_GAP}px;
         padding: 4px 8px;
         justify-content: center;
+        pointer-events: auto;
     `;
 
     const squares: HTMLDivElement[] = [];

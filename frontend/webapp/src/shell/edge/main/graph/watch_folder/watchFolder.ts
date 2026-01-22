@@ -439,3 +439,12 @@ export async function loadPreviousFolder(): Promise<{ readonly success: boolean;
     }
 }
 
+/**
+ * Called by renderer when frontend is ready to receive graph data.
+ * Triggers initial folder load - main process decides what folder to load.
+ */
+export async function markFrontendReady(): Promise<void> {
+    console.log('[watchFolder] Frontend ready, loading initial folder...');
+    await initialLoad();
+}
+
