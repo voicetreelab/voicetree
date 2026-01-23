@@ -61,6 +61,7 @@ dependencies = [
     "pydantic>=2.0.0",
     "pytest>=8.4.2",
     "requests>=2.32.5",
+    "termcolor>=2.0.0",
 ]
 
 [project.optional-dependencies]

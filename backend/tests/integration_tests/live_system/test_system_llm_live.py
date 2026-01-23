@@ -32,8 +32,7 @@ class TestIntegration:
         self.cleanUp()
         self.converter = TreeToMarkdownConverter(self.decision_tree.tree)
         self.processor = ChunkProcessor(self.decision_tree,
-                                       converter=self.converter,
-                                       output_dir=self.output_dir)
+                                       converter=self.converter)
         os.makedirs(self.output_dir, exist_ok=True)
         log_file_path = "voicetree.log"
         if os.path.exists(log_file_path):
@@ -388,8 +387,7 @@ class TestIntegrationWithCloudFunctions(TestIntegration):
         self.converter = TreeToMarkdownConverter(self.decision_tree.tree)
         self.processor = ChunkProcessor(
             self.decision_tree,
-            converter=self.converter,
-            output_dir=self.output_dir
+            converter=self.converter
         )
         os.makedirs(self.output_dir, exist_ok=True)
         log_file_path = "voicetree.log"

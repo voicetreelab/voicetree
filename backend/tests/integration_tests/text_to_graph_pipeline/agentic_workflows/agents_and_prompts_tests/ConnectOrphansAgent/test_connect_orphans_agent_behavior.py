@@ -73,20 +73,8 @@ class TestConnectOrphansAgentBehavior:
 
             return tree
 
-        # Load the actual qa_example tree (returns dict)
-        tree_dict = load_markdown_tree(str(tree_path))
-
-        # Convert to DecisionTree object
-        tree = MarkdownTree()
-        tree.tree = tree_dict
-
-        # Set next_node_id to max existing + 1
-        if tree_dict:
-            tree.next_node_id = max(tree_dict.keys()) + 1
-        else:
-            tree.next_node_id = 1
-
-        return tree
+        # Load the actual qa_example tree (returns MarkdownTree)
+        return load_markdown_tree(str(tree_path))
 
     @pytest.fixture
     def connect_orphans_agent(self) -> ConnectOrphansAgent:
