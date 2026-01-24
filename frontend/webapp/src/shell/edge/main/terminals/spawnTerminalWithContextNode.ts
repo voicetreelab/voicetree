@@ -54,7 +54,8 @@ export async function spawnTerminalWithContextNode(
     terminalCount?: number,
     skipFitAnimation?: boolean,
     startUnpinned?: boolean,
-    selectedNodeIds?: readonly NodeIdAndFilePath[]
+    selectedNodeIds?: readonly NodeIdAndFilePath[],
+    spawnDirectory?: string
 ): Promise<{terminalId: string; contextNodeId: NodeIdAndFilePath}> {
     // Load settings to get agents
     const settings: VTSettings = await loadSettings();
@@ -104,7 +105,8 @@ export async function spawnTerminalWithContextNode(
         resolvedTerminalCount,
         command,
         settings,
-        startUnpinned
+        startUnpinned,
+        spawnDirectory
     );
 
     // TODO, HERE WE NEED TO WAIT FOR CONTEXT NODE TO EXIST IN UI
@@ -136,7 +138,8 @@ async function prepareTerminalDataInMain(
     terminalCount: number,
     command: string,
     settings: VTSettings,
-    startUnpinned?: boolean
+    startUnpinned?: boolean,
+    spawnDirectory?: string
 ): Promise<TerminalData> {
     // Get context node from graph (main has immediate access)
     const graph: Graph = getGraph();
@@ -171,6 +174,11 @@ async function prepareTerminalDataInMain(
         // Use path.join for cross-platform path handling
         const relativePath: string = settings.terminalSpawnPathRelativeToWatchedDirectory.replace(/^\.\//, '');
         initialSpawnDirectory = path.join(watchStatus.directory, relativePath);
+    }
+
+    // Override with explicit spawnDirectory if provided (e.g., for MCP spawns in worktrees)
+    if (spawnDirectory) {
+        initialSpawnDirectory = spawnDirectory;
     }
 
     // Get app support path for VOICETREE_APP_SUPPORT env var

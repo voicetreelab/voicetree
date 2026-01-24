@@ -1,10 +1,13 @@
 import type {NodeDefinition} from "cytoscape";
-import type {Graph, GraphNode} from "@/pure/graph";
+import type {Graph, GraphNode, GraphDelta} from "@/pure/graph";
 import {getGraph, setGraph} from "@/shell/edge/main/state/graph-store";
+import {getTerminalRecords} from "@/shell/edge/main/terminals/terminal-registry";
+import {applyGraphDeltaToDBThroughMemAndUI} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI";
 import * as O from "fp-ts/lib/Option.js";
 
 /**
  * Save node positions from Cytoscape UI back to graph state.
+ * Also cleans up orphaned context nodes (those not attached to any active terminal).
  * Lightweight update - only touches in-memory state, no filesystem writes.
  * Positions will persist to disk when nodes are saved for other reasons.
  *
@@ -49,4 +52,50 @@ export function saveNodePositions(cyNodes: readonly NodeDefinition[]): void {
         nodeByBaseName: graph.nodeByBaseName,
         unresolvedLinksIndex: graph.unresolvedLinksIndex
     });
+
+    // Cleanup orphaned context nodes
+    void cleanupOrphanedContextNodes();
+}
+
+/**
+ * Find and delete context nodes that are not attached to any active terminal.
+ * Context nodes are temporary - they should be cleaned up when their terminal closes.
+ */
+async function cleanupOrphanedContextNodes(): Promise<void> {
+    const graph: Graph = getGraph();
+
+    // Get all context nodes
+    const contextNodeIds: string[] = Object.entries(graph.nodes)
+        .filter(([_, node]) => node.nodeUIMetadata.isContextNode === true)
+        .map(([nodeId, _]) => nodeId);
+
+    if (contextNodeIds.length === 0) {
+        return;
+    }
+
+    // Get all node IDs attached to active terminals
+    const activeTerminalNodeIds: Set<string> = new Set(
+        getTerminalRecords().map(record => record.terminalData.attachedToNodeId)
+    );
+
+    // Find orphaned context nodes (not attached to any terminal)
+    const orphanedContextNodeIds: string[] = contextNodeIds.filter(
+        nodeId => !activeTerminalNodeIds.has(nodeId)
+    );
+
+    if (orphanedContextNodeIds.length === 0) {
+        return;
+    }
+
+    console.log(`[saveNodePositions] Cleaning up ${orphanedContextNodeIds.length} orphaned context nodes`);
+
+    // Create delete deltas for orphaned context nodes
+    const deleteDelta: GraphDelta = orphanedContextNodeIds.map(nodeId => ({
+        type: 'DeleteNode' as const,
+        nodeId,
+        deletedNode: O.some(graph.nodes[nodeId])
+    }));
+
+    // Apply deltas (deletes from filesystem and updates graph state)
+    await applyGraphDeltaToDBThroughMemAndUI(deleteDelta, false);
 }

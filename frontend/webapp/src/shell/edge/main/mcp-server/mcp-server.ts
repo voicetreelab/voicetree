@@ -49,9 +49,10 @@ export interface SpawnAgentParams {
     task?: string
     details?: string
     parentNodeId?: string
+    spawnDirectory?: string
 }
 
-export async function spawnAgentTool({nodeId, callerTerminalId, task, details, parentNodeId}: SpawnAgentParams): Promise<McpToolResponse> {
+export async function spawnAgentTool({nodeId, callerTerminalId, task, details, parentNodeId, spawnDirectory}: SpawnAgentParams): Promise<McpToolResponse> {
     console.log(`[MCP] spawn_agent called by terminal: ${callerTerminalId}`)
 
     // Validate caller terminal exists
@@ -142,7 +143,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, details, p
 
             // Spawn terminal on the new task node
             const {terminalId, contextNodeId}: {terminalId: string; contextNodeId: string} =
-                await spawnTerminalWithContextNode(taskNodeId, undefined, undefined, true, false)
+                await spawnTerminalWithContextNode(taskNodeId, undefined, undefined, true, false, undefined, spawnDirectory)
 
             return buildJsonResponse({
                 success: true,
@@ -184,7 +185,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, details, p
     try {
         // Pass skipFitAnimation: true for MCP spawns to avoid interrupting user's viewport
         const {terminalId, contextNodeId}: {terminalId: string; contextNodeId: string} =
-            await spawnTerminalWithContextNode(resolvedNodeId, undefined, undefined, true, false)
+            await spawnTerminalWithContextNode(resolvedNodeId, undefined, undefined, true, false, undefined, spawnDirectory)
 
         return buildJsonResponse({
             success: true,
@@ -343,10 +344,11 @@ export function createMcpServer(): McpServer {
                 callerTerminalId: z.string().describe('Your terminal ID, you must echo $VOICETREE_TERMINAL_ID to retrieve it if you have not yet.'),
                 task: z.string().optional().describe('Task title for creating a new task node (requires parentNodeId)'),
                 details: z.string().optional().describe('Detailed description of the task (used with task parameter)'),
-                parentNodeId: z.string().optional().describe('Parent node ID under which to create the new task node (required when task is provided)')
+                parentNodeId: z.string().optional().describe('Parent node ID under which to create the new task node (required when task is provided)'),
+                spawnDirectory: z.string().optional().describe('Absolute path to spawn the agent in. Use this to spawn subagents in the same worktree as the parent (pass your current working directory).')
             }
         },
-        async ({nodeId, callerTerminalId, task, details, parentNodeId}) => spawnAgentTool({nodeId, callerTerminalId, task, details, parentNodeId})
+        async ({nodeId, callerTerminalId, task, details, parentNodeId, spawnDirectory}) => spawnAgentTool({nodeId, callerTerminalId, task, details, parentNodeId, spawnDirectory})
     )
 
     // Tool: list_agents

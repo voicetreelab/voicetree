@@ -85,26 +85,9 @@ async function resolveAgentLaunchConfig(
         };
     }
 
-    // Check if user modified the command
-    const commandChanged: boolean = result.command !== command;
-
-    // Update the agent's command in settings if it was modified
-    let updatedAgents: readonly AgentConfig[] = settings.agents;
-    if (commandChanged) {
-        updatedAgents = settings.agents.map((agent: AgentConfig): AgentConfig => {
-            // Update the agent whose command matches the original command
-            if (agent.command === command) {
-                return {
-                    ...agent,
-                    command: result.command,
-                };
-            }
-            return agent;
-        });
-    }
-
+    // Don't save command changes to settings - worktree prefixes are dynamic and would break on next run
     return {
-        finalCommand: result.command, popupWasShown: true, updatedAgents,
+        finalCommand: result.command, popupWasShown: true, updatedAgents: settings.agents,
         updatedAgentPrompt: result.agentPrompt, mcpIntegrationEnabled: result.mcpIntegrationEnabled,
         useDocker: result.useDocker,
     };
@@ -163,30 +146,12 @@ export async function spawnTerminalWithCommandEditor(
         return;
     }
 
-    // Check if user modified the command
-    const commandChanged: boolean = result.command !== command;
-
-    // Update the agent's command in settings if it was modified
-    let updatedAgents: readonly AgentConfig[] = settings.agents;
-    if (commandChanged) {
-        updatedAgents = settings.agents.map((agent: AgentConfig): AgentConfig => {
-            // Update the agent whose command matches the original command
-            if (agent.command === command) {
-                return {
-                    ...agent,
-                    command: result.command,
-                };
-            }
-            return agent;
-        });
-    }
-
-    // Save settings if agent prompt changed or command was modified
+    // Don't save command changes to settings - worktree prefixes are dynamic and would break on next run
+    // Only save if agent prompt changed
     const promptChanged: boolean = result.agentPrompt !== currentAgentPrompt;
-    if (promptChanged || commandChanged) {
+    if (promptChanged) {
         const updatedSettings: VTSettings = {
             ...settings,
-            agents: updatedAgents,
             agentPermissionModeChosen: true,
             INJECT_ENV_VARS: {
                 ...settings.INJECT_ENV_VARS,

@@ -39,7 +39,7 @@ If you're planning upfront and need a dependency graph with phases:
 
 ## When to Create a Technical Plan
 
-If creating a technical plan, read `prompts/SUBAGENT_PROMPT.md` as well for a flexible starting point. (Ignore this if you are using openspec)
+If creating a technical plan, additionally read `prompts/SUBAGENT_PROMPT.md` for a flexible starting template. (Ignore this if you are using openspec)
 
 ## When a Single Progress Node is Fine
 
