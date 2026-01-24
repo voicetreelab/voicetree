@@ -7,7 +7,7 @@ import { EditorView, ViewUpdate, ViewPlugin, keymap, tooltips } from '@codemirro
 import { indentWithTab } from '@codemirror/commands';
 import { basicSetup } from 'codemirror';
 import { startCompletion } from '@codemirror/autocomplete';
-import { foldGutter, syntaxHighlighting, foldEffect, foldable, foldService, HighlightStyle, defaultHighlightStyle } from '@codemirror/language';
+import { syntaxHighlighting, foldEffect, foldable, foldService, HighlightStyle, defaultHighlightStyle } from '@codemirror/language';
 import type { LanguageSupport } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
 import type { Tree } from '@lezer/common';
@@ -219,8 +219,7 @@ export class CodeMirrorEditorView extends Disposable {
       wikilinkCompletion(), // Autocomplete for [[wikilinks]] - shows nodes ordered by recency
       wikilinkTitleDisplay(), // Display node titles instead of IDs in [[wikilinks]]
       tooltips({ parent: document.body }), // Render tooltips (including autocomplete) in body to avoid overflow clipping
-      frontmatterFoldService, // Custom fold service for frontmatter
-      foldGutter(), // Add fold gutter for collapsing sections
+      frontmatterFoldService, // Custom fold service for frontmatter (foldGutter is already in basicSetup)
       EditorView.lineWrapping, // Enable text wrapping
       this.setupUpdateListener(),
       this.setupImagePasteHandler(), // Handle pasting images from clipboard
