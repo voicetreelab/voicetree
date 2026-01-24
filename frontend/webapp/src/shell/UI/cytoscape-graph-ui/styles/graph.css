@@ -317,44 +317,16 @@ button.graph-button:disabled > svg > path {
 .recent-tab-text {
     display: block;
     white-space: nowrap;
-    width: max-content; /* Natural text width for translateX animation */
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none; /* Firefox */
     font-size: 12px;
     color: var(--foreground);
     line-height: 1.2;
 }
 
-/* Hover-to-carousel animation for tab text overflow */
-@keyframes tab-scroll {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(var(--overflow-amount)); }
-}
-
-.recent-tab-text.scrolling {
-    animation: tab-scroll var(--scroll-duration, 2s) linear forwards;
-}
-
-/* Mini scroll indicator - shows scroll progress */
-.scroll-indicator {
-    position: absolute;
-    bottom: 1px;
-    left: 4px;
-    right: 4px;
-    height: 2px;
-    background: rgba(128, 128, 128, 0.3);
-    border-radius: 1px;
-    overflow: hidden;
-}
-
-.scroll-indicator-thumb {
-    height: 100%;
-    background: rgba(255, 255, 255, 0.6);
-    border-radius: 1px;
-    animation: scroll-thumb var(--scroll-duration, 2s) linear forwards;
-}
-
-@keyframes scroll-thumb {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(var(--thumb-travel, 0)); }
+.recent-tab-text::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
 }
 
 /* Tab wrapper - positions tab and hint together */
@@ -475,8 +447,7 @@ button.graph-button:disabled > svg > path {
     border: 1px solid #404040;
     border-radius: 4px;
     cursor: pointer;
-    overflow-x: hidden; /* Clip text horizontally for scroll animation */
-    overflow-y: visible; /* Allow activity dots to extend below */
+    overflow: visible; /* Allow activity dots to extend below */
     flex-shrink: 0;
     transition: background-color 0.15s ease, border-color 0.15s ease;
     color: #e5e7eb;
@@ -547,14 +518,16 @@ button.graph-button:disabled > svg > path {
 .agent-tab-text {
     display: block;
     white-space: nowrap;
-    width: max-content; /* Natural text width for translateX animation */
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none; /* Firefox */
     font-size: 12px;
     color: #e5e7eb;
     line-height: 1.2;
 }
 
-.agent-tab-text.scrolling {
-    animation: tab-scroll var(--scroll-duration, 2s) linear forwards;
+.agent-tab-text::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
 }
 
 /* Agent tabs stay dark in all themes (like terminals) - no light mode overrides */

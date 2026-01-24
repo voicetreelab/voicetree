@@ -51,3 +51,10 @@ export function isTerminalInactive(
 ): boolean {
     return (now - lastOutputTime) >= threshold;
 }
+
+/**
+ * Truncate a title for display in a pinned tab
+ */
+export function truncateTabTitle(title: string, maxLength: number = 12): string {
+    return title.length > maxLength ? title.slice(0, maxLength) + '…' : title;
+}

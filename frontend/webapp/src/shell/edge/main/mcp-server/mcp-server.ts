@@ -280,21 +280,24 @@ export async function waitForAgentsTool({
         }
     }
 
-    // 3. Poll until all are done (idle or exited) or timeout reached
-    // An agent is "done" when isDone=true (idle/ready) OR status='exited' (terminal closed)
-    const isAgentDone: (r: TerminalRecord) => boolean = (r: TerminalRecord): boolean =>
-        r.status === 'exited' || r.terminalData.isDone
-
+    // 3. Poll until all are exited or timeout reached
     const startTime: number = Date.now()
     while (Date.now() - startTime < timeoutMs) {
         const currentRecords: TerminalRecord[] = getTerminalRecords()
         const targetRecords: TerminalRecord[] = currentRecords.filter(
             (r: TerminalRecord) => terminalIds.includes(r.terminalId)
         )
-        const allDone: boolean = targetRecords.every(isAgentDone)
+        const allExited: boolean = targetRecords.every((r: TerminalRecord) => r.status === 'exited')
 
-        if (allDone) {
-            return buildWaitForAgentsResponse(targetRecords, true)
+        if (allExited) {
+            return buildJsonResponse({
+                success: true,
+                agents: targetRecords.map((r: TerminalRecord) => ({
+                    terminalId: r.terminalId,
+                    title: r.terminalData.title,
+                    status: 'exited'
+                }))
+            })
         }
 
         await new Promise(resolve => setTimeout(resolve, pollIntervalMs))
@@ -306,69 +309,19 @@ export async function waitForAgentsTool({
         (r: TerminalRecord) => terminalIds.includes(r.terminalId)
     )
     const stillRunning: string[] = targetRecords
-        .filter((r: TerminalRecord) => !isAgentDone(r))
+        .filter((r: TerminalRecord) => r.status !== 'exited')
         .map((r: TerminalRecord) => r.terminalId)
 
-    const response: McpToolResponse = await buildWaitForAgentsResponse(targetRecords, false)
     return buildJsonResponse({
-        ...JSON.parse(response.content[0].text),
+        success: false,
         error: `Timeout waiting for agents after ${timeoutMs}ms`,
-        stillRunning
+        stillRunning,
+        agents: targetRecords.map((r: TerminalRecord) => ({
+            terminalId: r.terminalId,
+            title: r.terminalData.title,
+            status: r.status
+        }))
     }, true)
-}
-
-/**
- * Build response for wait_for_agents with agent details and newly created nodes.
- * Mirrors list_agents response structure for consistency.
- */
-async function buildWaitForAgentsResponse(
-    targetRecords: TerminalRecord[],
-    success: boolean
-): Promise<McpToolResponse> {
-    const graph: Graph = getGraph()
-    const agents: Array<{
-        terminalId: string
-        title: string
-        contextNodeId: string
-        status: 'running' | 'idle' | 'exited'
-        newNodes: Array<{nodeId: string; title: string}>
-    }> = []
-
-    for (const record of targetRecords) {
-        const contextNodeId: string = record.terminalData.attachedToNodeId
-        let unseenNodes: readonly UnseenNode[] = []
-
-        try {
-            unseenNodes = await getUnseenNodesAroundContextNode(contextNodeId)
-        } catch (error) {
-            console.warn(`[MCP] Failed to fetch unseen nodes for ${contextNodeId}:`, error)
-        }
-
-        const newNodes: Array<{nodeId: string; title: string}> = unseenNodes.map((node: UnseenNode) => {
-            const graphNode: GraphNode | undefined = graph.nodes[node.nodeId]
-            return {
-                nodeId: node.nodeId,
-                title: graphNode ? getNodeTitle(graphNode) : node.nodeId
-            }
-        })
-
-        // Determine status: exited > idle (isDone) > running
-        const status: 'running' | 'idle' | 'exited' = record.status === 'exited'
-            ? 'exited'
-            : record.terminalData.isDone
-                ? 'idle'
-                : 'running'
-
-        agents.push({
-            terminalId: record.terminalId,
-            title: record.terminalData.title,
-            contextNodeId,
-            status,
-            newNodes
-        })
-    }
-
-    return buildJsonResponse({success, agents})
 }
 
 /**

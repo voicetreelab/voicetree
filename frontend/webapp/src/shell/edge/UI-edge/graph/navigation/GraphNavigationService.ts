@@ -102,17 +102,17 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
     // Start with terminal shadow node
     let nodesToFit: CollectionReturnValue = cy.collection().union(terminalShadowNode);
 
-    // Add context node and its d=1 neighbors if it exists (excluding shadow nodes)
+    // Add context node and its d=1 neighbors if it exists
     if (contextNode.length > 0) {
-      nodesToFit = nodesToFit.union(contextNode.closedNeighborhood().nodes().filter('[!isShadowNode]'));
+      nodesToFit = nodesToFit.union(contextNode.closedNeighborhood().nodes());
     }
 
-    // Add task node (anchoredToNodeId) and its neighbors (excluding shadow nodes)
+    // Add task node (anchoredToNodeId) and its neighbors (both incoming and outgoing)
     if (O.isSome(terminal.anchoredToNodeId)) {
       const taskNodeId: string = terminal.anchoredToNodeId.value;
       const taskNode: CollectionReturnValue = cy.getElementById(taskNodeId);
       if (taskNode.length > 0) {
-        nodesToFit = nodesToFit.union(taskNode.closedNeighborhood().nodes().filter('[!isShadowNode]'));
+        nodesToFit = nodesToFit.union(taskNode.closedNeighborhood().nodes());
       }
     }
 

@@ -29,9 +29,6 @@ export async function createContextNodeFromSelectedNodes(
   taskNodeId: NodeIdAndFilePath,
   selectedNodeIds: readonly NodeIdAndFilePath[]
 ): Promise<NodeIdAndFilePath> {
-  const startTime: number = performance.now()
-  console.log(`[createContextNodeFromSelectedNodes] Starting with ${selectedNodeIds.length} nodes`)
-
   const currentGraph: Graph = getGraph()
 
   // Validate task node exists
@@ -86,12 +83,7 @@ export async function createContextNodeFromSelectedNodes(
   ]
 
   // Apply to graph
-  const applyStart: number = performance.now()
   await applyGraphDeltaToDBThroughMemAndUIAndEditors(contextNodeDelta)
-  const applyEnd: number = performance.now()
-
-  console.log(`[createContextNodeFromSelectedNodes] applyGraphDelta took ${(applyEnd - applyStart).toFixed(1)}ms`)
-  console.log(`[createContextNodeFromSelectedNodes] Total time: ${(applyEnd - startTime).toFixed(1)}ms`)
 
   return contextNodeId
 }
