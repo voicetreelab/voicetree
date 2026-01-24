@@ -190,22 +190,22 @@ export default function VoiceTreeTranscribe(): JSX.Element {
 
   // Check microphone permissions on mount
   useEffect(() => {
-    console.log('🎤 [VoiceTree] Checking microphone permissions...');
+    //console.log('🎤 [VoiceTree] Checking microphone permissions...');
     navigator.mediaDevices.getUserMedia({
       audio: {
         autoGainControl: false  // Prevent system volume changes
       }
     })
       .then(stream => {
-        console.log('✅ [VoiceTree] Microphone permission granted');
-        console.log('🔊 [VoiceTree] Audio tracks:', stream.getAudioTracks().map(track => ({
-          id: track.id,
-          label: track.label,
-          enabled: track.enabled,
-          muted: track.muted,
-          readyState: track.readyState,
-          settings: track.getSettings()
-        })));
+        //console.log('✅ [VoiceTree] Microphone permission granted');
+        //console.log('🔊 [VoiceTree] Audio tracks:', stream.getAudioTracks().map(track => ({
+        //  id: track.id,
+        //  label: track.label,
+        //  enabled: track.enabled,
+        //  muted: track.muted,
+        //  readyState: track.readyState,
+        //  settings: track.getSettings()
+        //})));
         stream.getTracks().forEach(track => track.stop()); // Stop the stream
       })
       .catch(err => {

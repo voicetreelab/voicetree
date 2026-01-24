@@ -37,12 +37,12 @@ export class HorizontalMenuService {
         if (!this.cy) return;
 
         if (!this.cy.container()) {
-            console.log('[HorizontalMenuService] Skipping - cytoscape is in headless mode');
+            //console.log('[HorizontalMenuService] Skipping - cytoscape is in headless mode');
             return;
         }
 
         if (typeof document === 'undefined' || !document.body || !document.documentElement) {
-            console.log('[HorizontalMenuService] Skipping - DOM not available');
+            //console.log('[HorizontalMenuService] Skipping - DOM not available');
             return;
         }
 

@@ -66,7 +66,7 @@ export async function setupOnboardingDirectory(): Promise<void> {
 
   // Skip entirely in test mode
   if (!config.shouldCopyTools) {
-    console.log('[Setup] Skipping onboarding setup in test mode');
+    //console.log('[Setup] Skipping onboarding setup in test mode');
     return;
   }
 
@@ -99,15 +99,15 @@ async function setupOnboardingDirectoryInternal(): Promise<void> {
     if (destExists) {
       const entries: string[] = await fs.readdir(onboardingDest);
       if (entries.length > 1) {
-        console.log('[Setup] Onboarding directory already exists with user content, preserving modifications');
+        //console.log('[Setup] Onboarding directory already exists with user content, preserving modifications');
         return;
       }
-      console.log('[Setup] Onboarding directory exists but has <=1 file, refreshing...');
+      //console.log('[Setup] Onboarding directory exists but has <=1 file, refreshing...');
     }
 
-    console.log('[Setup] Setting up onboarding directory...');
-    console.log('[Setup] Source path:', onboardingSource);
-    console.log('[Setup] Destination path:', onboardingDest);
+    //console.log('[Setup] Setting up onboarding directory...');
+    //console.log('[Setup] Source path:', onboardingSource);
+    //console.log('[Setup] Destination path:', onboardingDest);
 
     // Verify source directory exists
     let onboardingExist: boolean = false;
@@ -125,15 +125,15 @@ async function setupOnboardingDirectoryInternal(): Promise<void> {
 
     // Always create onboarding directory
     await fs.mkdir(onboardingDest, { recursive: true });
-    console.log('[Setup] ✓ Created onboarding directory at:', onboardingDest);
+    //console.log('[Setup] ✓ Created onboarding directory at:', onboardingDest);
 
     // Copy onboarding directory if source exists
     if (onboardingExist) {
       await copyDir(onboardingSource, onboardingDest);
-      console.log('[Setup] ✓ Copied onboarding files to:', onboardingDest);
+      //console.log('[Setup] ✓ Copied onboarding files to:', onboardingDest);
     }
 
-    console.log('[Setup] Onboarding setup complete!');
+    //console.log('[Setup] Onboarding setup complete!');
   } catch (error_) {
     console.error('[Setup] Error setting up onboarding directory:', error_);
     throw error_; // Fail fast

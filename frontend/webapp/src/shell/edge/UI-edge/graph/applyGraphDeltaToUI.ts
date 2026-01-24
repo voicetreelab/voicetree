@@ -71,8 +71,8 @@ export interface ApplyGraphDeltaResult {
  *
  */
 export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDeltaResult {
-    console.log("applyGraphDeltaToUI", delta.length);
-    console.log('[applyGraphDeltaToUI] Starting\n' + prettyPrintGraphDelta(delta));
+    //console.log("applyGraphDeltaToUI", delta.length);
+    //console.log('[applyGraphDeltaToUI] Starting\n' + prettyPrintGraphDelta(delta));
     const newNodeIds: string[] = [];
     const nodesWithoutPositions: string[] = [];
 
@@ -97,7 +97,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                         ? node.nodeUIMetadata.color.value
                         : generateVaultColor(vaultPrefix);
 
-                    console.log(`[applyGraphDeltaToUI] Creating node ${nodeId} with color:`, colorValue);
+                    //console.log(`[applyGraphDeltaToUI] Creating node ${nodeId} with color:`, colorValue);
 
                     cy.add({
                         group: 'nodes' as const,
@@ -138,7 +138,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                                         },
                                         classes: 'terminal-progres-nodes-indicator'
                                     });
-                                    console.log(`[applyGraphDeltaToUI] Created terminal->node edge: ${edgeId}`);
+                                    //console.log(`[applyGraphDeltaToUI] Created terminal->node edge: ${edgeId}`);
                                     break; // Only link to first matching terminal
                                 }
                             }
@@ -202,10 +202,10 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                         const targetNode: NodeSingular = cy.getElementById(target);
                         const isShadowNode: boolean = targetNode.length > 0 && targetNode.data('isShadowNode') === true;
                         if (isShadowNode) {
-                            console.log(`[applyGraphDeltaToUI] Keeping edge to shadow node: ${nodeId}->${target}`);
+                            //console.log(`[applyGraphDeltaToUI] Keeping edge to shadow node: ${nodeId}->${target}`);
                             return;
                         }
-                        console.log(`[applyGraphDeltaToUI] Removing edge no longer in graph: ${nodeId}->${target}`);
+                        //console.log(`[applyGraphDeltaToUI] Removing edge no longer in graph: ${nodeId}->${target}`);
                         edge.remove();
                     }
                 });
@@ -239,7 +239,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
 
 
                         if (targetNode.length > 0) {
-                            console.log(`[applyGraphDeltaToUI] Adding new edge: ${edgeId} with label ${edge.label}`);
+                            //console.log(`[applyGraphDeltaToUI] Adding new edge: ${edgeId} with label ${edge.label}`);
                             cy.add({
                                 group: 'edges' as const,
                                 data: {
@@ -271,7 +271,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
         nodesWithoutPositions.forEach((nodeId: string) => {
             nodesCollection = nodesCollection.merge(cy.getElementById(nodeId));
         });
-        console.log('[applyGraphDeltaToUI] Placing', nodesWithoutPositions.length, 'nodes without positions');
+        //console.log('[applyGraphDeltaToUI] Placing', nodesWithoutPositions.length, 'nodes without positions');
         const layoutUtils: ReturnType<Core['layoutUtilities']> = cy.layoutUtilities({ idealEdgeLength: 100, offset: 10 });
         layoutUtils.placeNewNodes(nodesCollection);
     }
@@ -288,13 +288,13 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
         // Fit so average node takes target fraction of viewport (smart zoom: only zooms if needed)
         setTimeout(() => { if (!cy.destroyed()) cyFitCollectionByAverageNodeSize(cy, cy.nodes(), 0.15); }, 150);
     }
-    console.log('[applyGraphDeltaToUI] Complete. Total nodes:', cy.nodes().length, 'Total edges:', cy.edges().length);
+    //console.log('[applyGraphDeltaToUI] Complete. Total nodes:', cy.nodes().length, 'Total edges:', cy.edges().length);
 
     // Defer non-critical analytics and engagement prompts to idle time
     scheduleIdleWork(() => {
         posthog.capture('graphDelta');
         const userId: string = posthog.get_distinct_id();
-        console.log("UUID", userId);
+        //console.log("UUID", userId);
 
         // Show engagement prompts after enough deltas created in session
         if (newNodeCount) {

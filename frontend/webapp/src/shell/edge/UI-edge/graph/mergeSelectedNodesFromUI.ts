@@ -17,7 +17,7 @@ export async function mergeSelectedNodesFromUI(
     _cy: Core
 ): Promise<void> {
     if (selectedNodeIds.length < 2) {
-        console.log('[mergeSelectedNodesFromUI] Need at least 2 nodes to merge');
+        //console.log('[mergeSelectedNodesFromUI] Need at least 2 nodes to merge');
         return;
     }
 
@@ -36,7 +36,7 @@ export async function mergeSelectedNodesFromUI(
     const graphDelta: GraphDelta = computeMergeGraphDelta(selectedNodeIds, currentGraph, writePath);
 
     if (graphDelta.length === 0) {
-        console.log('[mergeSelectedNodesFromUI] No valid merge delta generated');
+        //console.log('[mergeSelectedNodesFromUI] No valid merge delta generated');
         return;
     }
 

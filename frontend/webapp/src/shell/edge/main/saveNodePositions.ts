@@ -14,7 +14,7 @@ import * as O from "fp-ts/lib/Option.js";
  * @param cyNodes - Result of cy.nodes().jsons() (note: @types/cytoscape incorrectly types this as string[])
  */
 export function saveNodePositions(cyNodes: readonly NodeDefinition[]): void {
-    console.log("Saving node positions to graph");
+    //console.log("Saving node positions to graph");
     const graph: Graph = getGraph();
 
     // Build lookup from cytoscape node JSON
@@ -44,7 +44,7 @@ export function saveNodePositions(cyNodes: readonly NodeDefinition[]): void {
         {}
     );
 
-    console.log("Saved node positions to graph");
+    //console.log("Saved node positions to graph");
 
     setGraph({
         nodes: updatedNodes,
@@ -87,7 +87,7 @@ async function cleanupOrphanedContextNodes(): Promise<void> {
         return;
     }
 
-    console.log(`[saveNodePositions] Cleaning up ${orphanedContextNodeIds.length} orphaned context nodes`);
+    //console.log(`[saveNodePositions] Cleaning up ${orphanedContextNodeIds.length} orphaned context nodes`);
 
     // Create delete deltas for orphaned context nodes
     const deleteDelta: GraphDelta = orphanedContextNodeIds.map(nodeId => ({

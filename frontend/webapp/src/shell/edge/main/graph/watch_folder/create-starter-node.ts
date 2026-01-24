@@ -68,7 +68,7 @@ export async function createStarterNode(vaultPath: string): Promise<Graph> {
     await fs.mkdir(dirPath, { recursive: true })
     await fs.writeFile(absolutePath, content, 'utf-8')
 
-    console.log('[createStarterNode] Created starter node:', nodeId)
+    //console.log('[createStarterNode] Created starter node:', nodeId)
 
     return graph
 }

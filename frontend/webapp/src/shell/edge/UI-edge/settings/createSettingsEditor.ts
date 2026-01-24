@@ -92,7 +92,7 @@ export function closeSettingsEditor(cy: Core): void {
         windowElement.remove();
     }
 
-    console.log('[createSettingsEditor] Settings editor closed');
+    //console.log('[createSettingsEditor] Settings editor closed');
 }
 
 export async function createSettingsEditor(cy: Core): Promise<void> {
@@ -156,7 +156,7 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
                     // Save to IPC
                     if (window.electronAPI) {
                         await window.electronAPI.main.saveSettings(parsedSettings);
-                        console.log('[createSettingsEditor] Settings saved successfully');
+                        //console.log('[createSettingsEditor] Settings saved successfully');
                     }
                 } catch (error) {
                     // Show error to user for invalid JSON
@@ -225,7 +225,7 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
         setTimeout(() => cySmartCenter(cy, shadowNode), 300);
         setTimeout(() => cySmartCenter(cy, shadowNode), 1200);
 
-        console.log('[createSettingsEditor] Settings editor created successfully');
+        //console.log('[createSettingsEditor] Settings editor created successfully');
     } catch (error) {
         console.error('[createSettingsEditor] Failed to create settings editor:', error);
     }

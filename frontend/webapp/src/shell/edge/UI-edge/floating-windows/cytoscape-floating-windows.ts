@@ -206,7 +206,7 @@ export function disposeFloatingWindow(
     const fwId: EditorId | TerminalId | ImageViewerId = getFloatingWindowId(fw);
     const shadowNodeId: ShadowNodeId = getShadowNodeId(fwId);
 
-    console.log('[disposeFloatingWindow-v2] Disposing:', fwId);
+    //console.log('[disposeFloatingWindow-v2] Disposing:', fwId);
 
     // Remove from floating windows registry (for zoom/pan sync)
     unregisterFloatingWindow(fwId);

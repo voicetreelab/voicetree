@@ -75,9 +75,6 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
     const terminalId: TerminalId = getTerminalId(terminal);
     const shadowNodeId: string = getShadowNodeId(terminalId);
 
-    // Update active terminal state (notifies listeners for gold outline highlighting)
-    setActiveTerminalId(terminalId);
-
     // Note: Activity dots are NOT cleared here - they are cleared only when
     // the user explicitly clicks a tab (not when cycling through terminals).
     // This preserves the blue activity indicators when cycling between agents.
@@ -90,11 +87,17 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
     const contextNode: CollectionReturnValue = cy.getElementById(contextNodeId);
 
     // Select the context node (matching behavior when clicking inside a terminal)
+    // Note: unselect triggers an event handler that sets activeTerminalId to null,
+    // so we must set activeTerminalId AFTER the unselect/select operations
     cy.$(':selected').unselect();
     if (contextNode.length > 0) {
       contextNode.select();
       addRecentlyVisited(contextNodeId);
     }
+
+    // Update active terminal state (notifies listeners for gold outline highlighting)
+    // This must come AFTER unselect/select to avoid being overwritten by the unselect handler
+    setActiveTerminalId(terminalId);
 
     // Start with terminal shadow node
     let nodesToFit: CollectionReturnValue = cy.collection().union(terminalShadowNode);
@@ -139,11 +142,11 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
     const terminalsMap: Map<TerminalId, TerminalData> = getTerminals();
     const terminals: TerminalData[] = Array.from(terminalsMap.values());
 
-    console.log('[GraphNavigationService] cycleTerminal called:', {
-      direction,
-      terminalsFromStore: terminals.length,
-      terminalIds: terminals.map(t => getTerminalId(t))
-    });
+    //console.log('[GraphNavigationService] cycleTerminal called:', {
+    //  direction,
+    //  terminalsFromStore: terminals.length,
+    //  terminalIds: terminals.map(t => getTerminalId(t))
+    //});
 
     if (terminals.length === 0) {
       console.warn('[GraphNavigationService] No terminals found. Create a terminal first!');
@@ -176,7 +179,7 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
    * Handle search result selection
    */
   handleSearchSelect(nodeId: string): void {
-    console.log('[GraphNavigationService] handleSearchSelect called with nodeId:', nodeId);
+    //console.log('[GraphNavigationService] handleSearchSelect called with nodeId:', nodeId);
     const cy: Core = this.cy;
     let node: CollectionReturnValue = cy.getElementById(nodeId);
     let resolvedNodeId: string = nodeId;
@@ -189,18 +192,18 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
       if (fallbackNode.length > 0) {
         node = fallbackNode;
         resolvedNodeId = withoutFirstSegment;
-        console.log('[GraphNavigationService] Used fallback nodeId:', resolvedNodeId);
+        //console.log('[GraphNavigationService] Used fallback nodeId:', resolvedNodeId);
       }
     }
 
-    console.log('[GraphNavigationService] Found node:', node.length > 0, node);
+    //console.log('[GraphNavigationService] Found node:', node.length > 0, node);
 
     if (node.length > 0) {
       // Track as recently visited for command palette ordering
       addRecentlyVisited(resolvedNodeId);
 
       // Animate to node - node takes 10% of viewport (comfortable with lots of context)
-      console.log('[GraphNavigationService] Calling cyFitWithRelativeZoom on node');
+      //console.log('[GraphNavigationService] Calling cyFitWithRelativeZoom on node');
       cyFitWithRelativeZoom(cy, node, 0.1);
 
       // Select the node (deselect others first for clean single-selection)
@@ -212,7 +215,7 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
       setTimeout(() => {
         node.removeClass('highlighted');
       }, 1000);
-      console.log('[GraphNavigationService] GraphNode fitted, selected, and highlighted');
+      //console.log('[GraphNavigationService] GraphNode fitted, selected, and highlighted');
     } else {
       console.warn('[GraphNavigationService] GraphNode not found for relativeFilePathIsID:', nodeId);
     }

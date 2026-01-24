@@ -36,11 +36,11 @@ async function handleMetricsRequest(
 
       const parsedMetrics = parseOTLPMetrics(payload);
 
-      console.log('[OTLP Receiver] Received metrics:', {
-        sessionId: parsedMetrics.sessionId,
-        tokens: parsedMetrics.tokens,
-        costUsd: parsedMetrics.costUsd,
-      });
+      //console.log('[OTLP Receiver] Received metrics:', {
+      //  sessionId: parsedMetrics.sessionId,
+      //  tokens: parsedMetrics.tokens,
+      //  costUsd: parsedMetrics.costUsd,
+      //});
 
       // Append token metrics to agent_metrics.json
       await appendTokenMetrics({
@@ -87,8 +87,8 @@ function tryListenOnPort(port: number): Promise<boolean> {
     testServer.listen(port, OTLP_HOST, () => {
       server = testServer;
       activePort = port;
-      console.log(`[OTLP Receiver] Listening on ${OTLP_HOST}:${port}`);
-      console.log(`[OTLP Receiver] Metrics endpoint: POST http://${OTLP_HOST}:${port}/v1/metrics`);
+      //console.log(`[OTLP Receiver] Listening on ${OTLP_HOST}:${port}`);
+      //console.log(`[OTLP Receiver] Metrics endpoint: POST http://${OTLP_HOST}:${port}/v1/metrics`);
       resolve(true);
     });
   });
@@ -96,7 +96,7 @@ function tryListenOnPort(port: number): Promise<boolean> {
 
 export async function startOTLPReceiver(): Promise<void> {
   if (server) {
-    console.log('[OTLP Receiver] Server already running');
+    //console.log('[OTLP Receiver] Server already running');
     return;
   }
 
@@ -119,9 +119,9 @@ export function stopOTLPReceiver(): Promise<void> {
       return;
     }
 
-    console.log('[OTLP Receiver] Shutting down server...');
+    //console.log('[OTLP Receiver] Shutting down server...');
     server.close(() => {
-      console.log('[OTLP Receiver] Server stopped');
+      //console.log('[OTLP Receiver] Server stopped');
       server = null;
       activePort = null;
       resolve();

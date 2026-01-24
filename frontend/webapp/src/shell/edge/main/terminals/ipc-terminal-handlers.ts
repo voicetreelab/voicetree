@@ -14,14 +14,14 @@ export function registerTerminalIpcHandlers(
   // ============================================================================
 
   ipcMain.handle('terminal:spawn', async (event, terminalData) => {
-    console.log('[MAIN] terminal:spawn IPC called, event.sender.id:', event.sender.id)
+    //console.log('[MAIN] terminal:spawn IPC called, event.sender.id:', event.sender.id)
     const result: TerminalSpawnResult = await terminalManager.spawn(
       event.sender,
       terminalData,
       () => getWatchedDirectory(),
       getToolsDirectory
     )
-    console.log('[MAIN] terminal:spawn result:', result)
+    //console.log('[MAIN] terminal:spawn result:', result)
     return result
   })
 

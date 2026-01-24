@@ -364,9 +364,9 @@ export class CodeMirrorEditorView extends Disposable {
                 selection: { anchor: cursor + imageRef.length },
                 userEvent: 'input.paste'
               });
-              console.log('[CodeMirrorEditorView] Pasted image:', filename);
+              //console.log('[CodeMirrorEditorView] Pasted image:', filename);
             } else {
-              console.log('[CodeMirrorEditorView] No image in clipboard');
+              //console.log('[CodeMirrorEditorView] No image in clipboard');
             }
           } catch (error) {
             console.error('[CodeMirrorEditorView] Error saving pasted image:', error);

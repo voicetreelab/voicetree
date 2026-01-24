@@ -59,7 +59,7 @@ export class SearchService {
     // Build initial data
     this.updateSearchData();
 
-    console.log('[SearchService] Initialized with ninja-keys');
+    //console.log('[SearchService] Initialized with ninja-keys');
   }
 
   /**
@@ -151,7 +151,7 @@ export class SearchService {
         description: description ?? undefined,
         keywords: content.substring(0, 500),
         handler: () => {
-          console.log('[SearchService] Handler called for nodeId:', nodeId);
+          //console.log('[SearchService] Handler called for nodeId:', nodeId);
           this.onNodeSelect(nodeId);
         }
       };
@@ -188,7 +188,7 @@ export class SearchService {
 
     this.ninjaKeys.data = prefixedSearchData;
 
-    console.log(`[SearchService] Updated search data: ${searchData.length} nodes`);
+    //console.log(`[SearchService] Updated search data: ${searchData.length} nodes`);
   }
 
   /**
@@ -221,7 +221,7 @@ export class SearchService {
           description: description ?? undefined,
           keywords: content.substring(0, 500),
           handler: () => {
-            console.log('[SearchService] Handler called for nodeId:', nodeId);
+            //console.log('[SearchService] Handler called for nodeId:', nodeId);
             this.onNodeSelect(nodeId);
           }
         };
@@ -243,7 +243,7 @@ export class SearchService {
     }
 
     this.ninjaKeys.data = currentData;
-    console.log(`[SearchService] Incremental update: ${delta.length} deltas processed`);
+    //console.log(`[SearchService] Incremental update: ${delta.length} deltas processed`);
   }
 
   /**
@@ -264,6 +264,6 @@ export class SearchService {
     if (this.ninjaKeys.parentNode) {
       this.ninjaKeys.parentNode.removeChild(this.ninjaKeys);
     }
-    console.log('[SearchService] Disposed');
+    //console.log('[SearchService] Disposed');
   }
 }

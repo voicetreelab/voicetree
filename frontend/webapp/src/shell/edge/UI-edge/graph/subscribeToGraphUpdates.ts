@@ -44,7 +44,7 @@ export function subscribeToGraphUpdates(
     const cy: Core = navigationService.getCy();
 
     const handleGraphDelta: (delta: GraphDelta) => void = (delta: GraphDelta): void => {
-        console.log('[subscribeToGraphUpdates] Received graph delta, length:', delta.length);
+        //console.log('[subscribeToGraphUpdates] Received graph delta, length:', delta.length);
 
         setLoadingState(false);
         setEmptyStateVisible(false);
@@ -77,7 +77,7 @@ export function subscribeToGraphUpdates(
     };
 
     const handleGraphClear: () => void = (): void => {
-        console.log('[subscribeToGraphUpdates] Received graph:clear event');
+        //console.log('[subscribeToGraphUpdates] Received graph:clear event');
         setLoadingState(true, 'Loading VoiceTree...');
 
         // Close all open terminals (UI cleanup - PTY processes already killed by main process)

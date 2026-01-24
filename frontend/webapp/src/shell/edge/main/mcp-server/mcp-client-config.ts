@@ -89,7 +89,7 @@ export async function enableMcpIntegration(): Promise<void> {
     };
 
     await writeMcpJson(config);
-    console.log('[MCP] Enabled VoiceTree MCP integration in .mcp.json');
+    //console.log('[MCP] Enabled VoiceTree MCP integration in .mcp.json');
 }
 
 /**
@@ -108,7 +108,7 @@ export async function disableMcpIntegration(): Promise<void> {
         }
 
         await writeMcpJson(config);
-        console.log('[MCP] Disabled VoiceTree MCP integration in .mcp.json');
+        //console.log('[MCP] Disabled VoiceTree MCP integration in .mcp.json');
     }
 }
 

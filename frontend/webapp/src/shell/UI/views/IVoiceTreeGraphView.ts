@@ -114,7 +114,7 @@ export interface IVoiceTreeGraphView {
    *
    * @example
    * const selected = graphView.getSelectedNodes();
-   * console.log(selected); // ['introduction', 'overview']
+   * //console.log(selected); // ['introduction', 'overview']
    */
   getSelectedNodes(): string[];
 
@@ -199,7 +199,7 @@ export interface IVoiceTreeGraphView {
    *
    * @example
    * const unsubscribe = graphView.onNodeSelected((nodeId) => {
-   *   console.log('Selected:', nodeId);
+   *   //console.log('Selected:', nodeId);
    * });
    * // Later:
    * unsubscribe();
@@ -219,7 +219,7 @@ export interface IVoiceTreeGraphView {
    *
    * @example
    * graphView.onNodeDoubleClick((nodeId) => {
-   *   console.log('Double-clicked:', nodeId);
+   *   //console.log('Double-clicked:', nodeId);
    * });
    */
   onNodeDoubleClick(callback: (nodeId: string) => void): () => void;

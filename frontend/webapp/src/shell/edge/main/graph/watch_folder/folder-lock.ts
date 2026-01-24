@@ -29,7 +29,7 @@ export async function acquireFolderLock(folderPath: string): Promise<{ success: 
         // Write our PID to the lock file
         await fs.writeFile(lockPath, process.pid.toString(), 'utf-8')
         currentLockPath = lockPath
-        console.log(`[folder-lock] Acquired lock for ${folderPath} (PID: ${process.pid})`)
+        //console.log(`[folder-lock] Acquired lock for ${folderPath} (PID: ${process.pid})`)
     } catch (error) {
         const errorMessage: string = error instanceof Error ? error.message : String(error)
         console.error(`[folder-lock] Failed to acquire lock: ${errorMessage}`)
@@ -55,7 +55,7 @@ export async function releaseFolderLock(folderPath: string): Promise<void> {
             // Only release if we own it
             if (pid === process.pid) {
                 await fs.unlink(lockPath)
-                console.log(`[folder-lock] Released lock for ${folderPath}`)
+                //console.log(`[folder-lock] Released lock for ${folderPath}`)
             }
         }
     } catch (error) {

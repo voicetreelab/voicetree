@@ -60,7 +60,7 @@ export async function createWorktree(repoRoot: string, worktreeName: string): Pr
 
     try {
         await execAsync(command, { cwd: repoRoot });
-        console.log(`[createWorktree] Created worktree at ${worktreePath}`);
+        //console.log(`[createWorktree] Created worktree at ${worktreePath}`);
         return worktreePath;
     } catch (error) {
         const errorMessage: string = error instanceof Error ? error.message : String(error);

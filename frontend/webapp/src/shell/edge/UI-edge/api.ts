@@ -65,7 +65,6 @@ function fitViewport(): void {
  * Phase 3: Main process is source of truth, renderer is display-only cache.
  */
 function syncTerminals(records: TerminalRecord[]): void {
-    console.log('[uiAPI] syncTerminals received', records.length, 'records');
     syncFromMain(records);
 }
 

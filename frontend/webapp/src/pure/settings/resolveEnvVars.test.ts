@@ -71,12 +71,12 @@ Third line`,
 describe('expandEnvVarsInValues', () => {
   it('should expand $VAR_NAME references within values', () => {
     const input: Record<string, string> = {
-      CONTEXT_NODE_CONTENT: 'This is the content',
-      AGENT_PROMPT: 'Task: $CONTEXT_NODE_CONTENT',
+      CONTEXT_NODE_PATH: '/path/to/context/node.md',
+      AGENT_PROMPT: 'Task at: $CONTEXT_NODE_PATH',
     };
     const result: Record<string, string> = expandEnvVarsInValues(input);
-    expect(result.AGENT_PROMPT).toBe('Task: This is the content');
-    expect(result.CONTEXT_NODE_CONTENT).toBe('This is the content');
+    expect(result.AGENT_PROMPT).toBe('Task at: /path/to/context/node.md');
+    expect(result.CONTEXT_NODE_PATH).toBe('/path/to/context/node.md');
   });
 
   it('should expand multiple references in one value', () => {

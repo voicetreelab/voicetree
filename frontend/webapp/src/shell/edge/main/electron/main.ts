@@ -19,13 +19,13 @@ if (app.isPackaged) {
 // ============================================================================
 // Log process.cwd() early to diagnose ENOTDIR issues when spawn() inherits it
 const startupCwd: string = process.cwd();
-console.log(`[Startup] process.cwd(): ${startupCwd}`);
-console.log(`[Startup] process.execPath: ${process.execPath}`);
-console.log(`[Startup] process.argv: ${JSON.stringify(process.argv)}`);
+//console.log(`[Startup] process.cwd(): ${startupCwd}`);
+//console.log(`[Startup] process.execPath: ${process.execPath}`);
+//console.log(`[Startup] process.argv: ${JSON.stringify(process.argv)}`);
 
 try {
     fs.accessSync(startupCwd, fs.constants.R_OK);
-    console.log('[Startup] cwd is valid and readable');
+    //console.log('[Startup] cwd is valid and readable');
 } catch (cwdError: unknown) {
     const errorMessage: string = cwdError instanceof Error ? cwdError.message : String(cwdError);
     console.error(`[Startup] WARNING: cwd is INVALID - ${errorMessage}`);
@@ -34,7 +34,7 @@ try {
     const fallbackCwd: string = os.homedir();
     try {
         process.chdir(fallbackCwd);
-        console.log(`[Startup] Changed cwd to fallback: ${fallbackCwd}`);
+        //console.log(`[Startup] Changed cwd to fallback: ${fallbackCwd}`);
     } catch (chdirError: unknown) {
         const chdirErrorMessage: string = chdirError instanceof Error ? chdirError.message : String(chdirError);
         console.error(`[Startup] Failed to change to fallback cwd: ${chdirErrorMessage}`);
@@ -73,7 +73,7 @@ const isDev: boolean = process.env.NODE_ENV === 'development' || process.env.NOD
 if (process.env.VOICETREE_PERSIST_STATE !== '1' && isDev) {
     const tempDir: string = path.join(os.tmpdir(), `voicetree-fresh-${Date.now()}`);
     app.setPath('userData', tempDir);
-    console.log(`[Fresh Start] Using temporary userData: ${tempDir}`);
+    //console.log(`[Fresh Start] Using temporary userData: ${tempDir}`);
 }
 
 // Parse CLI arguments for --open-folder (used by "Open Folder in New Instance")
@@ -244,7 +244,7 @@ function createWindow(): void {
         const levelName: string = levels[level] || 'LOG';
 
         try {
-            console.log(`[Renderer ${levelName}] ${message} (${sourceId}:${line})`);
+            //console.log(`[Renderer ${levelName}] ${message} (${sourceId}:${line})`);
         } catch (error) {
             // Silently ignore EPIPE errors when stdout/stderr is closed
             // This can happen when the terminal that launched Electron is closed
@@ -302,7 +302,7 @@ function createWindow(): void {
     mainWindow.on('closed', () => {
         terminalManager.cleanupForWindow(windowId);
         // Persist node positions to disk before exit
-        console.log('[App] Saving node positions to disk...');
+        //console.log('[App] Saving node positions to disk...');
         writeAllPositionsSync(getGraph());
     });
 }
@@ -315,7 +315,7 @@ registerTerminalIpcHandlers(
 
 // Register terminal cleanup for when folders are switched
 setOnFolderSwitchCleanup(() => {
-    console.log('[main] Cleaning up terminals on folder switch');
+    //console.log('[main] Cleaning up terminals on folder switch');
     terminalManager.cleanup();
 });
 
@@ -356,7 +356,7 @@ void app.whenReady().then(async () => {
     console.time('[Startup] textToTreeServer.start');
     textToTreeServerPort = await textToTreeServerManager.start();
     console.timeEnd('[Startup] textToTreeServer.start');
-    console.log(`[App] Server started on port ${textToTreeServerPort}`);
+    //console.log(`[App] Server started on port ${textToTreeServerPort}`);
 
     // Inject backend port into mainAPI
     setBackendPort(textToTreeServerPort);
@@ -372,13 +372,13 @@ void app.whenReady().then(async () => {
     // Start re-engagement notification scheduler
     startNotificationScheduler();
 
-    console.log(`[AutoUpdate] CL Check`);
+    //console.log(`[AutoUpdate] CL Check`);
     log.info(`[AutoUpdate] Check)`);
     // Check for updates
     autoUpdater.checkForUpdatesAndNotify()
         .then((result: UpdateCheckResult | null) => {
             if (result) {
-                console.log(`[AutoUpdate] CL Check result: ${result.updateInfo.version} (current: ${app.getVersion()})`);
+                //console.log(`[AutoUpdate] CL Check result: ${result.updateInfo.version} (current: ${app.getVersion()})`);
                 log.info(`[AutoUpdate] Check result: ${result.updateInfo.version} (current: ${app.getVersion()})`);
             } else {
                 log.info('[AutoUpdate] Check returned null (likely dev mode or no-op)');
@@ -396,7 +396,7 @@ let isQuitting: boolean = false;
 // IMPORTANT: before-quit fires on hot reload, window-all-closed does not
 app.on('before-quit', () => {
     isQuitting = true;
-    console.log('[App] before-quit event - cleaning up resources...');
+    //console.log('[App] before-quit event - cleaning up resources...');
 
     // Release folder lock
     void releaseCurrentLock();
@@ -434,9 +434,9 @@ app.on('activate', () => {
         if (windows.length === 0) {
             // Restart server if it's not running (macOS dock click after window close)
             if (!textToTreeServerManager.isRunning()) {
-                console.log('[App] Reactivating - restarting server...');
+                //console.log('[App] Reactivating - restarting server...');
                 textToTreeServerPort = await textToTreeServerManager.start();
-                console.log(`[App] Server restarted on port ${textToTreeServerPort}`);
+                //console.log(`[App] Server restarted on port ${textToTreeServerPort}`);
                 // Inject backend port into mainAPI
                 setBackendPort(textToTreeServerPort);
             }

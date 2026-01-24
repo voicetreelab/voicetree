@@ -15,7 +15,7 @@ export class StubTextToTreeServerManager implements ITextToTreeServerManager {
     const port: number = await findAvailablePort(8001);
     this.actualPort = port;
 
-    console.log(`[StubTextToTreeServer] Starting on port ${port}...`);
+    //console.log(`[StubTextToTreeServer] Starting on port ${port}...`);
 
     const server: http.Server<typeof http.IncomingMessage, typeof http.ServerResponse> = http.createServer((req, res) => {
       const method: string = req.method ?? 'GET';
@@ -40,7 +40,7 @@ export class StubTextToTreeServerManager implements ITextToTreeServerManager {
             const parsed: any = JSON.parse(body);
             directoryPath = parsed.directory_path ?? directoryPath;
           } catch {
-            console.log('[StubTextToTreeServer] Failed to parse load-directory payload');
+            //console.log('[StubTextToTreeServer] Failed to parse load-directory payload');
           }
 
           res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -76,13 +76,13 @@ export class StubTextToTreeServerManager implements ITextToTreeServerManager {
     });
 
     this.stubServer = server;
-    console.log(`[StubTextToTreeServer] Listening on 127.0.0.1:${port}`);
+    //console.log(`[StubTextToTreeServer] Listening on 127.0.0.1:${port}`);
     return port;
   }
 
   stop(): void {
     if (this.stubServer) {
-      console.log('[StubTextToTreeServer] Shutting down...');
+      //console.log('[StubTextToTreeServer] Shutting down...');
       try {
         this.stubServer.close();
       } catch (error) {

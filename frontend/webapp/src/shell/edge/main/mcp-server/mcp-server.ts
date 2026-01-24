@@ -53,7 +53,7 @@ export interface SpawnAgentParams {
 }
 
 export async function spawnAgentTool({nodeId, callerTerminalId, task, details, parentNodeId, spawnDirectory}: SpawnAgentParams): Promise<McpToolResponse> {
-    console.log(`[MCP] spawn_agent called by terminal: ${callerTerminalId}`)
+    //console.log(`[MCP] spawn_agent called by terminal: ${callerTerminalId}`)
 
     // Validate caller terminal exists
     // BUG: Currently fails for valid terminals because renderer's TerminalStore and main's
@@ -409,7 +409,7 @@ export async function startMcpServer(): Promise<void> {
     mcpPort = await findAvailablePort(MCP_BASE_PORT)
 
     app.listen(mcpPort, '127.0.0.1', () => {
-        console.log(`[MCP] VoiceTree MCP Server running on http://localhost:${mcpPort}/mcp`)
+        //console.log(`[MCP] VoiceTree MCP Server running on http://localhost:${mcpPort}/mcp`)
     })
 }
 

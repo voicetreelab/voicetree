@@ -148,8 +148,6 @@ async function prepareTerminalDataInMain(
         throw new Error(`Context node ${contextNodeId} not found in graph`);
     }
 
-    const contextContent: string = contextNode.contentWithoutYamlOrLinks;
-
     // Resolve env vars (including random AGENT_NAME selection)
     const resolvedEnvVars: Record<string, string> = resolveEnvVars(settings.INJECT_ENV_VARS);
 
@@ -192,14 +190,6 @@ async function prepareTerminalDataInMain(
         ? taskNode.absoluteFilePathIsID
         : '';
 
-    // Build env vars then expand $VAR_NAME references within values
-    // Truncate context content to avoid posix_spawnp failure from env size limits
-    // Full content is available at CONTEXT_NODE_PATH
-    const MAX_CONTEXT_CONTENT_LENGTH: number = 64000;
-    const truncatedContextContent: string = contextContent.length > MAX_CONTEXT_CONTENT_LENGTH
-        ? contextContent.slice(0, MAX_CONTEXT_CONTENT_LENGTH) + '\n\n[Content truncated - full content available at $CONTEXT_NODE_PATH]'
-        : contextContent;
-
     // Get write path (where new nodes are created)
     const vaultPath: string = O.getOrElse(() => '')(await getWritePath());
 
@@ -216,7 +206,6 @@ async function prepareTerminalDataInMain(
         ALL_MARKDOWN_READ_PATHS: allMarkdownReadPaths,
         CONTEXT_NODE_PATH: contextNodeAbsolutePath,
         TASK_NODE_PATH: taskNodeAbsolutePath,
-        CONTEXT_NODE_CONTENT: truncatedContextContent,
         VOICETREE_TERMINAL_ID: terminalId,
         AGENT_NAME: agentName,
         ...resolvedEnvVars,

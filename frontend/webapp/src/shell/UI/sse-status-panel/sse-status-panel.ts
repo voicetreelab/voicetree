@@ -64,7 +64,7 @@ export class SseStatusPanel {
     static init(): void {
         const mountPoint: HTMLElement | null = document.getElementById(STATUS_PANEL_MOUNT_ID);
         if (mountPoint) {
-            console.log('[SseStatusPanel] Initializing');
+            //console.log('[SseStatusPanel] Initializing');
             new SseStatusPanel(mountPoint);
             return;
         }
@@ -74,7 +74,7 @@ export class SseStatusPanel {
             const el: HTMLElement | null = document.getElementById(STATUS_PANEL_MOUNT_ID);
             if (el) {
                 obs.disconnect();
-                console.log('[SseStatusPanel] Initializing (after DOM ready)');
+                //console.log('[SseStatusPanel] Initializing (after DOM ready)');
                 new SseStatusPanel(el);
             }
         });
@@ -84,14 +84,14 @@ export class SseStatusPanel {
     private initSSEConnection(): void {
         window.electronAPI?.main.getBackendPort().then((port: number | null) => {
             if (port) {
-                console.log('[SseStatusPanel] Creating SSE connection on port', port);
+                //console.log('[SseStatusPanel] Creating SSE connection on port', port);
                 this.disconnectSSE = createSSEConnection(port, event => this.addEvent(event));
             }
         }).catch(() => console.error('[SseStatusPanel] Failed to get backend port'));
     }
 
     addEvent(event: SSEEvent): void {
-        console.log('[SSE] Received event:', event.type, event.data);
+        //console.log('[SSE] Received event:', event.type, event.data);
 
         // Handle workflow_complete with individual node cards
         if (event.type === 'workflow_complete') {
@@ -105,13 +105,13 @@ export class SseStatusPanel {
         }
 
         const message: string = this.getEventMessage(event);
-        console.log('[SSE] getEventMessage returned:', JSON.stringify(message), 'for event type:', event.type);
+        //console.log('[SSE] getEventMessage returned:', JSON.stringify(message), 'for event type:', event.type);
         if (!message){
-            console.log('[SSE] FILTERED OUT:', event.type);
+            //console.log('[SSE] FILTERED OUT:', event.type);
             return; // to allow ignoring certain sse events
         }
 
-        console.log('[SSE] Creating card for:', event.type);
+        //console.log('[SSE] Creating card for:', event.type);
         const card: HTMLDivElement = document.createElement('div');
         card.className = `server-activity-card event-${event.type}`;
         card.innerHTML = this.formatEventCard(event);
@@ -256,7 +256,7 @@ export class SseStatusPanel {
 
     dispose(): void {
         if (this.disconnectSSE) {
-            console.log('[SseStatusPanel] Disconnecting SSE');
+            //console.log('[SseStatusPanel] Disconnecting SSE');
             this.disconnectSSE();
         }
         this.container.remove();

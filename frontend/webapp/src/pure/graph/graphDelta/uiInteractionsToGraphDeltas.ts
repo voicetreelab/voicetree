@@ -74,7 +74,7 @@ export function fromCreateChildToUpsertNode(
     // Create updated parent node with edge to new child
     const updatedParentNode: GraphNode = addOutgoingEdge(parentNode, newNode.absoluteFilePathIsID)
 
-    console.log("new node / parent node", newNode.absoluteFilePathIsID, parentNode.absoluteFilePathIsID)
+    //console.log("new node / parent node", newNode.absoluteFilePathIsID, parentNode.absoluteFilePathIsID)
 
     // Return deltas for both the new child and the updated parent
     return [

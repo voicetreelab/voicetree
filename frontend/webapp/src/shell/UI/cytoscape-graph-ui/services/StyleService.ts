@@ -28,29 +28,29 @@ export class StyleService {
     if (typeof document !== 'undefined') {
       this.initializeColors();
     }
-    console.log('[StyleService] Using font:', this.font);
+    //console.log('[StyleService] Using font:', this.font);
   }
 
   public debugThemeDetection(): void {
-    console.log('=== StyleService Theme Detection Debug ===');
-    console.log('Current textColor:', this.textColor);
-    console.log('isDarkMode():', this.isDarkMode());
+    //console.log('=== StyleService Theme Detection Debug ===');
+    //console.log('Current textColor:', this.textColor);
+    //console.log('isDarkMode():', this.isDarkMode());
 
     if (typeof window !== 'undefined' && window.matchMedia) {
       const darkModeQuery: MediaQueryList = window.matchMedia('(prefers-color-scheme: dark)');
-      console.log('prefers-color-scheme: dark matches:', darkModeQuery.matches);
+      //console.log('prefers-color-scheme: dark matches:', darkModeQuery.matches);
     } else {
-      console.log('window.matchMedia not available');
+      //console.log('window.matchMedia not available');
     }
 
     if (typeof document !== 'undefined') {
-      console.log('html.classList.contains("dark"):', document.documentElement.classList.contains('dark'));
-      console.log('body.classList.contains("dark"):', document.body.classList.contains('dark'));
+      //console.log('html.classList.contains("dark"):', document.documentElement.classList.contains('dark'));
+      //console.log('body.classList.contains("dark"):', document.body.classList.contains('dark'));
     }
 
-    console.log('Expected textColor for dark mode: #dcddde (light grey)');
-    console.log('Expected textColor for light mode: #2a2a2a (dark grey)');
-    console.log('==========================================');
+    //console.log('Expected textColor for dark mode: #dcddde (light grey)');
+    //console.log('Expected textColor for light mode: #2a2a2a (dark grey)');
+    //console.log('==========================================');
   }
 
   private initializeColors(): void {
@@ -90,7 +90,7 @@ export class StyleService {
   private getGraphColors(): { fillColor: string; fillHighlightColor: string; accentBorderColor: string; lineColor: string; lineHighlightColor: string; textColor: string; danglingColor: string; agentEdgeColor: string } {
     const isDark: boolean = this.isDarkMode();
 
-    console.log('[StyleService] getGraphColors - isDark:', isDark, 'textColor:', isDark ? '#dcddde' : '#2a2a2a');
+    //console.log('[StyleService] getGraphColors - isDark:', isDark, 'textColor:', isDark ? '#dcddde' : '#2a2a2a');
 
     return {
       fillColor: isDark ? '#5a6065' :'#3f3f3f', // Darker nodes in dark mode for softer contrast
@@ -504,8 +504,8 @@ export class StyleService {
       ...this.getDefaultStylesheet(),
       ...this.getFrontmatterStylesheet(),
     ];
-    console.log('[StyleService] Combined stylesheet font-family:',
-      stylesheet.find(s => s.selector === 'node')?.style['font-family']);
+    //console.log('[StyleService] Combined stylesheet font-family:',
+    //  stylesheet.find(s => s.selector === 'node')?.style['font-family']);
     return stylesheet;
   }
 

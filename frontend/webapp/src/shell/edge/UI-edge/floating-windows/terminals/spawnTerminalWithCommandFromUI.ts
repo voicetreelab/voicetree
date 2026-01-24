@@ -35,7 +35,7 @@ async function waitForNode(
         const node: CollectionReturnValue = cy.getElementById(nodeId);
         if (node.length > 0) {
             if (attempt > 0) {
-                console.log(`[waitForNode] Node ${nodeId} appeared after ${attempt * pollIntervalMs}ms`);
+                //console.log(`[waitForNode] Node ${nodeId} appeared after ${attempt * pollIntervalMs}ms`);
             }
             return node;
         }
@@ -85,9 +85,26 @@ async function resolveAgentLaunchConfig(
         };
     }
 
-    // Don't save command changes to settings - worktree prefixes are dynamic and would break on next run
+    // Check if user modified the command
+    const commandChanged: boolean = result.command !== command;
+
+    // Update the agent's command in settings if it was modified
+    let updatedAgents: readonly AgentConfig[] = settings.agents;
+    if (commandChanged) {
+        updatedAgents = settings.agents.map((agent: AgentConfig): AgentConfig => {
+            // Update the agent whose command matches the original command
+            if (agent.command === command) {
+                return {
+                    ...agent,
+                    command: result.command,
+                };
+            }
+            return agent;
+        });
+    }
+
     return {
-        finalCommand: result.command, popupWasShown: true, updatedAgents: settings.agents,
+        finalCommand: result.command, popupWasShown: true, updatedAgents,
         updatedAgentPrompt: result.agentPrompt, mcpIntegrationEnabled: result.mcpIntegrationEnabled,
         useDocker: result.useDocker,
     };
@@ -146,12 +163,30 @@ export async function spawnTerminalWithCommandEditor(
         return;
     }
 
-    // Don't save command changes to settings - worktree prefixes are dynamic and would break on next run
-    // Only save if agent prompt changed
+    // Check if user modified the command
+    const commandChanged: boolean = result.command !== command;
+
+    // Update the agent's command in settings if it was modified
+    let updatedAgents: readonly AgentConfig[] = settings.agents;
+    if (commandChanged) {
+        updatedAgents = settings.agents.map((agent: AgentConfig): AgentConfig => {
+            // Update the agent whose command matches the original command
+            if (agent.command === command) {
+                return {
+                    ...agent,
+                    command: result.command,
+                };
+            }
+            return agent;
+        });
+    }
+
+    // Save settings if agent prompt changed or command was modified
     const promptChanged: boolean = result.agentPrompt !== currentAgentPrompt;
-    if (promptChanged) {
+    if (promptChanged || commandChanged) {
         const updatedSettings: VTSettings = {
             ...settings,
+            agents: updatedAgents,
             agentPermissionModeChosen: true,
             INJECT_ENV_VARS: {
                 ...settings.INJECT_ENV_VARS,
@@ -284,12 +319,12 @@ export async function createFloatingTerminal(
     _nodePos: Position
 ): Promise<TerminalData | undefined> {
     const terminalId: TerminalId = getTerminalId(terminalData);
-    console.log('[FloatingWindowManager-v2] Creating floating terminal:', terminalId);
+    //console.log('[FloatingWindowManager-v2] Creating floating terminal:', terminalId);
 
     // Check if already exists (use cy.$id to avoid CSS selector escaping issues with / in IDs)
     const existing: NodeCollection = cy.$id(terminalId) as NodeCollection;
     if (existing && existing.length > 0) {
-        console.log('[FloatingWindowManager-v2] Terminal already exists');
+        //console.log('[FloatingWindowManager-v2] Terminal already exists');
         return undefined;
     }
 
@@ -302,20 +337,20 @@ export async function createFloatingTerminal(
         const terminalWithUI: TerminalData = createFloatingTerminalWindow(cy, terminalData);
 
         // Anchor to parent node if it exists (creates shadow node in cytoscape graph)
-        console.log('[FloatingWindowManager-v2] anchoredToNodeId:', JSON.stringify(terminalWithUI.anchoredToNodeId));
-        console.log('[FloatingWindowManager-v2] O.isSome check:', O.isSome(terminalWithUI.anchoredToNodeId));
+        //console.log('[FloatingWindowManager-v2] anchoredToNodeId:', JSON.stringify(terminalWithUI.anchoredToNodeId));
+        //console.log('[FloatingWindowManager-v2] O.isSome check:', O.isSome(terminalWithUI.anchoredToNodeId));
         if (terminalWithUI.ui && O.isSome(terminalWithUI.anchoredToNodeId)) {
             anchorToNode(cy, terminalWithUI);
             // Mark the parent node as having a running terminal (changes shape to square)
             const parentNodeId: string = terminalWithUI.anchoredToNodeId.value;
-            console.log('[FloatingWindowManager-v2] Looking for parent node:', parentNodeId);
+            //console.log('[FloatingWindowManager-v2] Looking for parent node:', parentNodeId);
             const parentNode: CollectionReturnValue = cy.getElementById(parentNodeId);
-            console.log('[FloatingWindowManager-v2] Parent node found:', parentNode.length > 0);
+            //console.log('[FloatingWindowManager-v2] Parent node found:', parentNode.length > 0);
             if (parentNode.length > 0) {
                 parentNode.data('hasRunningTerminal', true);
-                console.log('[FloatingWindowManager-v2] Marked parent node as task node:', parentNodeId);
+                //console.log('[FloatingWindowManager-v2] Marked parent node as task node:', parentNodeId);
             } else {
-                console.log('[FloatingWindowManager-v2] Parent node NOT found in Cytoscape!');
+                //console.log('[FloatingWindowManager-v2] Parent node NOT found in Cytoscape!');
             }
         } else if (terminalWithUI.ui) {
             // Fallback: position at a default location if no parent node
@@ -379,7 +414,7 @@ export function createFloatingTerminalWindow(
  */
 export async function closeTerminal(terminal: TerminalData, cy: Core): Promise<void> {
     const terminalId: TerminalId = getTerminalId(terminal);
-    console.log('[closeTerminal-v2] Closing terminal:', terminalId);
+    //console.log('[closeTerminal-v2] Closing terminal:', terminalId);
 
     // Phase 3: Notify main process to remove from registry
     // This ensures main stays in sync when terminal is closed from UI
@@ -413,7 +448,7 @@ export async function closeTerminal(terminal: TerminalData, cy: Core): Promise<v
             const parentNode: CollectionReturnValue = cy.getElementById(parentNodeId);
             if (parentNode.length > 0) {
                 parentNode.data('hasRunningTerminal', false);
-                console.log('[closeTerminal-v2] Removed task node indicator from:', parentNodeId);
+                //console.log('[closeTerminal-v2] Removed task node indicator from:', parentNodeId);
             }
         }
     }
@@ -444,13 +479,13 @@ async function deleteContextNodeIfLastTerminal(nodeId: NodeIdAndFilePath, cy: Co
             .filter((t: TerminalData) => t.attachedToNodeId === nodeId);
 
         if (remainingTerminals.length > 0) {
-            console.log('[closeTerminal] Other terminals still attached, not deleting context node:', nodeId);
+            //console.log('[closeTerminal] Other terminals still attached, not deleting context node:', nodeId);
             return;
         }
 
         // Use the canonical delete path with transitive edge preservation
         await deleteNodesFromUI([nodeId], cy);
-        console.log('[closeTerminal] Deleted context node:', nodeId);
+        //console.log('[closeTerminal] Deleted context node:', nodeId);
     } catch (error) {
         console.error('[closeTerminal] Failed to delete context node:', error);
     }
@@ -461,7 +496,7 @@ async function deleteContextNodeIfLastTerminal(nodeId: NodeIdAndFilePath, cy: Co
  * Used when switching folders - does not delete context nodes since the graph is being cleared.
  */
 export function closeAllTerminals(cy: Core): void {
-    console.log('[closeAllTerminals] Closing all terminals');
+    //console.log('[closeAllTerminals] Closing all terminals');
     const terminals: Map<TerminalId, TerminalData> = getTerminals();
 
     for (const terminal of terminals.values()) {

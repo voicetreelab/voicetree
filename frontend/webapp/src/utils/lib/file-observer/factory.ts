@@ -9,10 +9,10 @@ import { validateConfig, createDefaultConfig } from './utils';
  */
 export function createFileObserver(): FileObserverApi {
   if (isElectronEnvironment()) {
-    console.log('Creating Electron file observer');
+    //console.log('Creating Electron file observer');
     return createElectronFileObserver();
   } else {
-    console.log('Creating mock file observer (non-Electron environment)');
+    //console.log('Creating mock file observer (non-Electron environment)');
     return createMockFileObserver();
   }
 }

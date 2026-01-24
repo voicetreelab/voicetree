@@ -78,7 +78,7 @@ export async function setupToolsDirectory(): Promise<void> {
 
   // Skip entirely in test mode
   if (!config.shouldCopyTools) {
-    console.log('[Setup] Skipping tools setup in test mode');
+    //console.log('[Setup] Skipping tools setup in test mode');
     return;
   }
 
@@ -100,29 +100,29 @@ async function setupToolsDirectoryInternal(config: ReturnType<typeof getBuildCon
 
     // Skip if current version already installed
     if (await isCurrentVersionInstalled(toolsDest)) {
-      console.log(`[Setup] Tools already installed for version ${app.getVersion()}, skipping copy`);
+      //console.log(`[Setup] Tools already installed for version ${app.getVersion()}, skipping copy`);
       return;
     }
 
     // Remove existing directories if they exist to ensure fresh copy
     try {
       await fs.rm(toolsDest, { recursive: true, force: true });
-      console.log('[Setup] Removed existing tools directory');
+      //console.log('[Setup] Removed existing tools directory');
     } catch {
       // Directory doesn't exist, which is fine
     }
 
     try {
       await fs.rm(backendDest, { recursive: true, force: true });
-      console.log('[Setup] Removed existing backend directory');
+      //console.log('[Setup] Removed existing backend directory');
     } catch {
       // Directory doesn't exist, which is fine
     }
 
-    console.log('[Setup] Setting up tools and backend directories...');
-    console.log('[Setup] Source paths from build-config:');
-    console.log('[Setup]   Tools:', toolsSource);
-    console.log('[Setup]   Backend:', backendSource);
+    //console.log('[Setup] Setting up tools and backend directories...');
+    //console.log('[Setup] Source paths from build-config:');
+    //console.log('[Setup]   Tools:', toolsSource);
+    //console.log('[Setup]   Backend:', backendSource);
 
     // Verify source directories exist
     let toolsExist: boolean = false;
@@ -148,12 +148,12 @@ async function setupToolsDirectoryInternal(config: ReturnType<typeof getBuildCon
 
     // Always create tools directory (for terminal cwd)
     await fs.mkdir(toolsDest, { recursive: true });
-    console.log('[Setup] ✓ Created tools directory at:', toolsDest);
+    //console.log('[Setup] ✓ Created tools directory at:', toolsDest);
 
     // Copy tools directory if source exists
     if (toolsExist) {
       await copyDir(toolsSource, toolsDest);
-      console.log('[Setup] ✓ Copied tools to:', toolsDest);
+      //console.log('[Setup] ✓ Copied tools to:', toolsDest);
     }
 
     // Create backend directory if needed
@@ -162,14 +162,14 @@ async function setupToolsDirectoryInternal(config: ReturnType<typeof getBuildCon
     // Copy backend directory if source exists
     if (backendExist) {
       await copyDir(backendSource, backendDest);
-      console.log('[Setup] ✓ Copied backend to:', backendDest);
+      //console.log('[Setup] ✓ Copied backend to:', backendDest);
     }
 
     // Write version file so we skip copy on next launch
     await writeVersionFile(toolsDest);
-    console.log(`[Setup] ✓ Wrote version file for ${app.getVersion()}`);
+    //console.log(`[Setup] ✓ Wrote version file for ${app.getVersion()}`);
 
-    console.log('[Setup] Setup complete!');
+    //console.log('[Setup] Setup complete!');
   } catch (error) {
     console.error('[Setup] Error setting up directories:', error);
     throw error; // Fail fast

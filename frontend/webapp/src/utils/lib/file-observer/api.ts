@@ -69,10 +69,10 @@ export interface FileObserverConfig {
  * ```typescript
  * const observer = new FileObserverImpl();
  *
- * observer.on('ready', () => console.log('Observer ready'));
- * observer.on('add', (file) => console.log('File added:', file.absolutePath));
- * observer.on('change', (file) => console.log('File changed:', file.absolutePath));
- * observer.on('delete', (absolutePath) => console.log('File deleted:', absolutePath));
+ * observer.on('ready', () => //console.log('Observer ready'));
+ * observer.on('add', (file) => //console.log('File added:', file.absolutePath));
+ * observer.on('change', (file) => //console.log('File changed:', file.absolutePath));
+ * observer.on('delete', (absolutePath) => //console.log('File deleted:', absolutePath));
  * observer.on('error', (error) => console.error('Observer error:', error));
  *
  * await observer.start({

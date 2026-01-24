@@ -60,12 +60,12 @@ export class VerticalMenuService {
         if (!this.cy) return;
 
         if (!this.cy.container()) {
-            console.log('[VerticalMenuService] Skipping canvas context menu setup - cytoscape is in headless mode');
+            //console.log('[VerticalMenuService] Skipping canvas context menu setup - cytoscape is in headless mode');
             return;
         }
 
         if (typeof document === 'undefined' || !document.body || !document.documentElement) {
-            console.log('[VerticalMenuService] Skipping canvas context menu setup - DOM not available');
+            //console.log('[VerticalMenuService] Skipping canvas context menu setup - DOM not available');
             return;
         }
 
@@ -101,7 +101,7 @@ export class VerticalMenuService {
             menuItems.push({
                 html: '<span style="display: flex; justify-content: space-between; align-items: center; gap: 16px; white-space: nowrap;">Add Node Here <span style="font-size: 10px; color: #888; opacity: 0.7;">⌘N</span></span>',
                 action: async () => {
-                    console.log('[VerticalMenuService] Creating node at position:', position);
+                    //console.log('[VerticalMenuService] Creating node at position:', position);
                     await this.deps!.handleAddNodeAtPosition(position);
                 },
             });

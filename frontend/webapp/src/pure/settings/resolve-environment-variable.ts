@@ -27,7 +27,7 @@ export function resolveEnvVars(envVarDefs: Record<string, EnvVarValue>): Record<
 
 /**
  * Expand $VAR_NAME references within env var values using other vars in the same record.
- * This allows AGENT_PROMPT to reference $CONTEXT_NODE_CONTENT, etc.
+ * This allows AGENT_PROMPT to reference $AGENT_NAME, $CONTEXT_NODE_PATH, etc.
  */
 export function expandEnvVarsInValues(envVars: Record<string, string>): Record<string, string> {
     return Object.fromEntries(
