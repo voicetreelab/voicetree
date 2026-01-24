@@ -2,13 +2,14 @@
  * NavigationGestureService - Handles trackpad and mouse gestures for graph navigation
  *
  * Provides:
- * - Trackpad two-finger scroll → pan (like draw.io/Excalidraw)
- * - Trackpad pinch → zoom (ctrlKey detection)
- * - Mouse wheel → zoom (heuristic: deltaX=0 && |deltaY|>=4)
+ * - Trackpad two-finger scroll → pan
+ * - Trackpad pinch (ctrlKey) → zoom
+ * - Mouse wheel → zoom
  * - Middle-mouse drag → pan
  */
 
 import type { Core } from 'cytoscape';
+import { getIsTrackpadScrolling } from '@/shell/edge/UI-edge/state/trackpad-state';
 
 export class NavigationGestureService {
   private cy: Core;
@@ -48,10 +49,9 @@ export class NavigationGestureService {
   }
 
   /**
-   * Wheel handler: takes full control of wheel events to prevent Cytoscape conflicts.
-   * - Trackpad pinch (ctrlKey) → zoom
-   * - Mouse wheel (large deltaY, no deltaX) → zoom
-   * - Trackpad two-finger scroll → pan
+   * Wheel handler: intercepts only trackpad scroll for panning.
+   * All zoom events (mouse wheel, trackpad pinch) use Cytoscape's native handling
+   * with default wheelSensitivity for consistent cross-platform behavior.
    */
   private onWheel(e: WheelEvent): void {
     if (!this.cy.userPanningEnabled()) return;
@@ -62,29 +62,23 @@ export class NavigationGestureService {
       return;
     }
 
-    e.preventDefault();
-    e.stopImmediatePropagation();
+    // Trackpad two-finger scroll → pan
+    // Detection: gestureScrollBegin state from main process OR horizontal component (mouse wheels are vertical-only)
+    // ctrlKey = trackpad pinch (macOS sets this), let Cytoscape handle for zoom
+    const isTrackpad: boolean = getIsTrackpadScrolling();
+    const hasHorizontal: boolean = e.deltaX !== 0;
+    console.log('[Wheel] ctrlKey:', e.ctrlKey, 'isTrackpad:', isTrackpad, 'deltaX:', e.deltaX, 'deltaY:', e.deltaY);
 
-    // Heuristic: mouse wheel has no horizontal component and discrete deltas
-    const isMouseWheel: boolean = e.deltaX === 0 && Math.abs(e.deltaY) >= 4;
-
-    if (e.ctrlKey || isMouseWheel) {
-      // Pinch gesture or mouse wheel → zoom centered on cursor
-      const sensitivity: number = e.ctrlKey ? 0.013 : 0.01;
-      const zoomFactor: number = 1 - e.deltaY * sensitivity;
-      const newZoom: number = Math.max(
-        this.cy.minZoom(),
-        Math.min(this.cy.maxZoom(), this.cy.zoom() * zoomFactor)
-      );
-      const rect: DOMRect = this.container.getBoundingClientRect();
-      this.cy.zoom({
-        level: newZoom,
-        renderedPosition: { x: e.clientX - rect.left, y: e.clientY - rect.top }
-      });
-    } else {
-      // Trackpad two-finger scroll → pan (natural scrolling)
+    if (!e.ctrlKey && (isTrackpad || hasHorizontal)) {
+      console.log('[Wheel] → Intercepting for PAN');
+      e.preventDefault();
+      e.stopImmediatePropagation();
       this.cy.panBy({ x: -e.deltaX, y: -e.deltaY });
+      return;
     }
+
+    console.log('[Wheel] → Letting Cytoscape handle (zoom)');
+    // Mouse wheel and trackpad pinch → Cytoscape native zoom (default sensitivity)
   }
 
   /**

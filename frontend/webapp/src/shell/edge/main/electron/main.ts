@@ -55,6 +55,7 @@ import {setupRPCHandlers} from '@/shell/edge/main/edge-auto-rpc/rpc-handler';
 import {writeAllPositionsSync} from '@/shell/edge/main/graph/writeAllPositionsOnExit';
 import {getGraph} from '@/shell/edge/main/state/graph-store';
 import {startMcpServer} from '@/shell/edge/main/mcp-server/mcp-server';
+import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
 
 
 // Fix PATH for macOS/Linux GUI apps
@@ -223,6 +224,18 @@ function createWindow(): void {
     // Set global main window reference (used by handlers)
     setMainWindow(mainWindow);
 
+    // Trackpad gesture detection for pan vs zoom
+    // gestureScrollBegin/End only fire for trackpad, not mouse wheel (macOS specific)
+    // Uses uiAPI (main→renderer RPC) to set trackpad state in renderer
+    mainWindow.webContents.on('input-event', (_event, inputEvent) => {
+        if (inputEvent.type === 'gestureScrollBegin') {
+            console.log('[Main] gestureScrollBegin detected, sending IPC');
+            uiAPI.setIsTrackpadScrolling(true);
+        } else if (inputEvent.type === 'gestureScrollEnd') {
+            console.log('[Main] gestureScrollEnd detected, sending IPC');
+            uiAPI.setIsTrackpadScrolling(false);
+        }
+    });
 
     // Pipe renderer console logs to electron terminal
     mainWindow.webContents.on('console-message', (_event, _level, message, _line, _sourceId) => {
