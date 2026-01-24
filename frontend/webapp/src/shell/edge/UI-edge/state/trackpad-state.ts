@@ -12,6 +12,5 @@ export function getIsTrackpadScrolling(): boolean {
 }
 
 export function setIsTrackpadScrolling(value: boolean): void {
-    console.log('[Renderer] setIsTrackpadScrolling called with:', value);
     isTrackpadScrolling = value;
 }

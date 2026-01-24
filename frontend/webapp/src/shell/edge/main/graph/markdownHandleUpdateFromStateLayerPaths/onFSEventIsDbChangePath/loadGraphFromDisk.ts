@@ -262,11 +262,14 @@ export async function loadGraphFromDiskWithLazyLoading(
  *
  * @param graph - Current graph with nodes
  * @param watchedFolder - The root folder to search for linked files
+ * @param nodesToProcess - Optional list of node IDs to check. If undefined, checks all nodes.
+ *                         Pass delta node IDs for incremental updates to avoid O(N) on every change.
  * @returns GraphDelta containing all resolved nodes (caller applies to graph)
  */
 export async function resolveLinkedNodesInWatchedFolder(
     graph: Graph,
-    watchedFolder: string
+    watchedFolder: string,
+    nodesToProcess?: readonly string[]
 ): Promise<GraphDelta> {
     // Track which nodes we've already processed to avoid infinite loops
     const processedNodeIds: Set<string> = new Set();
@@ -323,8 +326,11 @@ export async function resolveLinkedNodesInWatchedFolder(
     };
 
     // Find all unresolved links from nodes in the graph
-    const findUnresolvedLinks: (currentGraph: Graph) => Promise<void> = async (currentGraph: Graph): Promise<void> => {
-        for (const nodeId of Object.keys(currentGraph.nodes)) {
+    // On first call, use nodesToProcess if provided (incremental mode), otherwise all nodes (initial load)
+    // On subsequent calls (transitive resolution), newly loaded nodes are checked via the while loop
+    const findUnresolvedLinks: (currentGraph: Graph, nodeIds?: readonly string[]) => Promise<void> = async (currentGraph: Graph, nodeIds?: readonly string[]): Promise<void> => {
+        const idsToCheck: readonly string[] = nodeIds ?? Object.keys(currentGraph.nodes);
+        for (const nodeId of idsToCheck) {
             if (processedNodeIds.has(nodeId)) continue;
             processedNodeIds.add(nodeId);
 
@@ -344,8 +350,8 @@ export async function resolveLinkedNodesInWatchedFolder(
         }
     };
 
-    // Initial pass: find all unresolved links
-    await findUnresolvedLinks(workingGraph);
+    // Initial pass: find unresolved links (only from nodesToProcess if provided)
+    await findUnresolvedLinks(workingGraph, nodesToProcess);
 
     // Iteratively load files and resolve their transitive links
     while (filesToLoad.size > 0) {
