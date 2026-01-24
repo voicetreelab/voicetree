@@ -31,35 +31,18 @@ function normalizeContent(content: string): string {
     return stripBracketedContent(content).replace(/\s+/g, '')
 }
 
-/**
- * Levenshtein distance - minimum edits (insert/delete/substitute) to transform a into b.
- * Early exits if distance exceeds maxDistance for performance.
- */
-function editDistance(a: string, b: string, maxDistance: number): number {
-    if (Math.abs(a.length - b.length) > maxDistance) return maxDistance + 1
-
-    const m: number = a.length
-    const n: number = b.length
-    let prev: number[] = Array.from({ length: n + 1 }, (_: unknown, i: number) => i)
-    let curr: number[] = new Array<number>(n + 1)
-
-    for (let i: number = 1; i <= m; i++) {
-        curr[0] = i
-        let minInRow: number = i
-        for (let j: number = 1; j <= n; j++) {
-            const cost: number = a[i - 1] === b[j - 1] ? 0 : 1
-            curr[j] = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost)
-            minInRow = Math.min(minInRow, curr[j])
-        }
-        if (minInRow > maxDistance) return maxDistance + 1
-        ;[prev, curr] = [curr, prev]
-    }
-    return prev[n]
-}
-
-// Tolerance for edit distance comparison - allows small differences in content
+// Tolerance for length comparison - allows small differences in content length
 // to still be recognized as "our" write (handles minor FS/encoding discrepancies)
-export const EDIT_DISTANCE_TOLERANCE: number = 20
+const LENGTH_TOLERANCE_RATIO: number = 0.02 // 2%
+
+/**
+ * Check if two content lengths are within tolerance.
+ * O(1) complexity - replaces O(n²) edit distance for regular nodes.
+ */
+function isLengthWithinTolerance(lenA: number, lenB: number): boolean {
+    const maxLen: number = Math.max(lenA, lenB, 1)
+    return Math.abs(lenA - lenB) / maxLen < LENGTH_TOLERANCE_RATIO
+}
 
 /**
  * Get nodeId from a NodeDelta.
@@ -127,15 +110,25 @@ export function isOurRecentDelta(incomingDelta: GraphDelta): boolean {
             const hasMatchingDelete: boolean = validEntries.some(e => e.delta.type === 'DeleteNode')
             if (!hasMatchingDelete) return false
         } else {
-            // For upsert, compare normalized contentWithoutYamlOrLinks
-            const incomingContent: string = normalizeContent(nodeDelta.nodeToUpsert.contentWithoutYamlOrLinks)
+            // For upsert: context nodes skip content check, regular nodes use length comparison
+            const isContextNode: boolean = nodeDelta.nodeToUpsert.nodeUIMetadata.isContextNode === true
 
-            const hasMatchingUpsert: boolean = validEntries.some(e => {
-                if (e.delta.type !== 'UpsertNode') return false
-                const storedContent: string = normalizeContent(e.delta.nodeToUpsert.contentWithoutYamlOrLinks)
-                return editDistance(storedContent, incomingContent, EDIT_DISTANCE_TOLERANCE) <= EDIT_DISTANCE_TOLERANCE
-            })
-            if (!hasMatchingUpsert) return false
+            if (isContextNode) {
+                // Context nodes: just check if we have any recent upsert for this nodeId
+                // Skip content comparison - context nodes are large and app-generated
+                const hasMatchingUpsert: boolean = validEntries.some(e => e.delta.type === 'UpsertNode')
+                if (!hasMatchingUpsert) return false
+            } else {
+                // Regular nodes: use O(1) length comparison instead of O(n²) edit distance
+                const incomingLen: number = normalizeContent(nodeDelta.nodeToUpsert.contentWithoutYamlOrLinks).length
+
+                const hasMatchingUpsert: boolean = validEntries.some(e => {
+                    if (e.delta.type !== 'UpsertNode') return false
+                    const storedLen: number = normalizeContent(e.delta.nodeToUpsert.contentWithoutYamlOrLinks).length
+                    return isLengthWithinTolerance(storedLen, incomingLen)
+                })
+                if (!hasMatchingUpsert) return false
+            }
         }
     }
 
