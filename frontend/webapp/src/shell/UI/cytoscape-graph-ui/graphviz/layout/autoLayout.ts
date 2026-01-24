@@ -46,14 +46,14 @@ export interface AutoLayoutOptions {
 
 const DEFAULT_OPTIONS: AutoLayoutOptions = {
   animate: true,
-  maxSimulationTime: 1750,
+  maxSimulationTime: 2000,
   avoidOverlap: true,
   nodeSpacing: 10,
   handleDisconnected: true, // handles disconnected components
-  convergenceThreshold: 0.5,
-  unconstrIter: 10, // TODO SOMETHINIG ABOUT THIS IS VERY IMPORTANT LAYOUT BREAK WITHOUT
-  userConstIter: 10,
-  allConstIter: 20,
+  convergenceThreshold: 0.4,
+  unconstrIter: 15, // TODO SOMETHINIG ABOUT THIS IS VERY IMPORTANT LAYOUT BREAK WITHOUT
+  userConstIter: 15,
+  allConstIter: 25,
   edgeLength: (edge: EdgeSingular) => {
     const source: NodeSingular = edge.source();
     const target: NodeSingular = edge.target();
