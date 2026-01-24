@@ -24,10 +24,13 @@ export async function applyGraphDeltaToMemState(delta: GraphDelta): Promise<Grap
     const currentGraph: Graph = getGraph();
     let newGraph: Graph = applyGraphDeltaToGraph(currentGraph, delta);
 
-    // Resolve any new wikilinks (lazy resolution)
+    // Resolve any new wikilinks (lazy resolution) - only for nodes in this delta
     const watchedDir: string | null = getWatchedDirectory();
     if (watchedDir) {
-        const resolutionDelta: GraphDelta = await resolveLinkedNodesInWatchedFolder(newGraph, watchedDir);
+        const affectedNodeIds: readonly string[] = delta
+            .filter((d): d is Extract<GraphDelta[number], { type: 'UpsertNode' }> => d.type === 'UpsertNode')
+            .map(d => d.nodeToUpsert.absoluteFilePathIsID);
+        const resolutionDelta: GraphDelta = await resolveLinkedNodesInWatchedFolder(newGraph, watchedDir, affectedNodeIds);
         if (resolutionDelta.length > 0) {
             newGraph = applyGraphDeltaToGraph(newGraph, resolutionDelta);
             // Merge resolution delta into original for caller
