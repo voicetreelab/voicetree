@@ -6,10 +6,10 @@ import { spawn, type ChildProcessWithoutNullStreams } from 'child_process';
 const actualRgPath: string = rgPath.replace('app.asar', 'app.asar.unpacked');
 
 /**
- * Find markdown files matching a suffix pattern using ripgrep.
+ * Find markdown files matching an exact filename using ripgrep.
  * Used to resolve relative wikilinks like [note] → /path/to/note.md
  *
- * @param pattern - The filename pattern to match (e.g., "note" matches "*note*.md")
+ * @param pattern - The filename to match exactly (e.g., "note" matches "note.md" in any directory)
  * @param searchPath - The directory to search in
  * @param maxDepth - Maximum directory depth to search (default 10)
  * @returns Array of absolute file paths matching the pattern
@@ -23,11 +23,14 @@ export async function findFileByName(
   // Square brackets, asterisks, question marks need escaping
   const escapedPattern: string = pattern.replace(/[[\]*?{}]/g, '\\$&');
 
+  // Empty pattern matches all .md files, otherwise exact filename match only
+  const globPattern: string = escapedPattern === '' ? '**/*.md' : `**/${escapedPattern}.md`;
+
   return new Promise((resolve, reject) => {
     const rg: ChildProcessWithoutNullStreams = spawn(actualRgPath, [
       '--files',
       '--max-depth', String(maxDepth),
-      '-g', `*${escapedPattern}*.md`,
+      '-g', globPattern,
       searchPath
     ], {
       cwd: searchPath  // Explicitly set cwd to avoid ENOTDIR if process.cwd() is invalid

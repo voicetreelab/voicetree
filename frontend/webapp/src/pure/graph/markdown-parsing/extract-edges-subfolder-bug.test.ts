@@ -83,6 +83,65 @@ describe('getPathComponents', () => {
   })
 })
 
+describe('extractEdges - empty wikilink handling', () => {
+  const createNode: (id: string, content?: string) => GraphNode = (id: string, content = ''): GraphNode => ({
+    absoluteFilePathIsID: id,
+    contentWithoutYamlOrLinks: content,
+    outgoingEdges: [],
+    nodeUIMetadata: {
+      color: O.none,
+      position: O.none,
+      additionalYAMLProps: new Map(),
+      isContextNode: false
+    }
+  })
+
+  it('should ignore empty wikilinks [[]]', () => {
+    const nodes: Record<string, GraphNode> = {
+      'a/file': createNode('a/file', 'content')
+    }
+    const content: string = 'Text with [[]] empty link'
+    const result: readonly Edge[] = extractEdges(content, nodes)
+    expect(result).toEqual([])
+  })
+
+  it('should ignore dot-only wikilinks [[.]]', () => {
+    const nodes: Record<string, GraphNode> = {
+      'a/file': createNode('a/file', 'content')
+    }
+    const content: string = 'Text with [[.]] dot link'
+    const result: readonly Edge[] = extractEdges(content, nodes)
+    expect(result).toEqual([])
+  })
+
+  it('should ignore whitespace-only wikilinks [[ ]]', () => {
+    const nodes: Record<string, GraphNode> = {
+      'a/file': createNode('a/file', 'content')
+    }
+    const content: string = 'Text with [[ ]] space link'
+    const result: readonly Edge[] = extractEdges(content, nodes)
+    expect(result).toEqual([])
+  })
+
+  it('should extract valid links while ignoring empty ones', () => {
+    const nodes: Record<string, GraphNode> = {
+      'a/target': createNode('a/target', 'content')
+    }
+    const content: string = 'Valid [[target.md]] and empty [[]] mixed'
+    const result: readonly Edge[] = extractEdges(content, nodes)
+    expect(result).toEqual([{ targetId: 'a/target', label: 'Valid' }])
+  })
+
+  it('should ignore multiple empty wikilinks in same content', () => {
+    const nodes: Record<string, GraphNode> = {
+      'a/file': createNode('a/file', 'content')
+    }
+    const content: string = 'First [[]] second [[.]] third [[ ]] end'
+    const result: readonly Edge[] = extractEdges(content, nodes)
+    expect(result).toEqual([])
+  })
+})
+
 describe('extractEdges - subfolder bug reproduction', () => {
   const createNode: (id: string, content?: string) => GraphNode = (id: string, content = ''): GraphNode => ({
     absoluteFilePathIsID: id,

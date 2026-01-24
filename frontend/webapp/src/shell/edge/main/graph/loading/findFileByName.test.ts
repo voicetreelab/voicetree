@@ -63,12 +63,21 @@ describe('findFileByName', () => {
     expect(result[0]).toContain('very-deep.md');
   });
 
-  it('should find multiple matching files', async () => {
-    // Both introduction.md and deep-introduction.md should match
+  it('should only match exact filenames, not partial matches', async () => {
+    // Exact matching: 'introduction' should only match 'introduction.md'
+    // NOT 'deep-introduction.md' (prevents fuzzy matching bugs like [object Object])
     const result: string[] = await findFileByName('introduction', testDir);
 
-    expect(result.length).toBe(2);
-    expect(result.some(f => f.endsWith('introduction.md'))).toBe(true);
-    expect(result.some(f => f.includes('deep-introduction.md'))).toBe(true);
+    expect(result.length).toBe(1);
+    expect(result[0]).toContain('introduction.md');
+    expect(result[0]).not.toContain('deep-introduction.md');
+  });
+
+  it('should find files in any directory with exact name', async () => {
+    // 'deep-introduction' should still be findable with exact name
+    const result: string[] = await findFileByName('deep-introduction', testDir);
+
+    expect(result.length).toBe(1);
+    expect(result[0]).toContain('deep-introduction.md');
   });
 });

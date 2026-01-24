@@ -101,7 +101,7 @@ export function createEditorData(params: CreateEditorDataParams): EditorData {
         anchoredToNodeId: params.anchoredToNodeId ? O.some(params.anchoredToNodeId) : O.none,
         initialContent: params.initialContent,
         resizable: params.resizable ?? true,
-        shadowNodeDimensions: params.shadowNodeDimensions ?? { width: 480, height: 400 }, // matches getDefaultDimensions('MarkdownEditor')
+        shadowNodeDimensions: params.shadowNodeDimensions ?? { width: 380, height: 400 }, // matches getDefaultDimensions('MarkdownEditor')
     };
 }
 
@@ -119,7 +119,7 @@ export function createTerminalData(params: CreateTerminalDataParams): TerminalDa
         initialCommand: params.initialCommand,
         executeCommand: params.executeCommand,
         resizable: params.resizable ?? true,
-        shadowNodeDimensions: params.shadowNodeDimensions ?? { width: 350, height: 450 }, // matches getDefaultDimensions('Terminal')
+        shadowNodeDimensions: params.shadowNodeDimensions ?? { width: 300, height: 450 }, // matches getDefaultDimensions('Terminal')
         // Tab UI state defaults
         isPinned: params.isPinned ?? true,  // New terminals start pinned by default
         isDone: false,          // Running initially

@@ -6,6 +6,7 @@ import type { Text, Line } from '@codemirror/state';
 import { EditorView, ViewUpdate, ViewPlugin, keymap, tooltips } from '@codemirror/view';
 import { indentWithTab } from '@codemirror/commands';
 import { basicSetup } from 'codemirror';
+import { startCompletion } from '@codemirror/autocomplete';
 import { foldGutter, syntaxHighlighting, foldEffect, foldable, foldService, HighlightStyle, defaultHighlightStyle } from '@codemirror/language';
 import type { LanguageSupport } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
@@ -17,6 +18,7 @@ import { json } from '@codemirror/lang-json';
 import { languages } from '@codemirror/language-data';
 import { oneDark } from '@codemirror/theme-one-dark';
 import tagParser from 'codemirror-rich-markdoc/src/tagParser';
+import ctxmenu from '@/shell/UI/lib/ctxmenu.js';
 
 // Combined highlight style: code syntax colors from defaultHighlightStyle + custom heading styles (no underlines)
 // We can't use defaultHighlightStyle directly because it has heading underlines we don't want
@@ -221,7 +223,8 @@ export class CodeMirrorEditorView extends Disposable {
       foldGutter(), // Add fold gutter for collapsing sections
       EditorView.lineWrapping, // Enable text wrapping
       this.setupUpdateListener(),
-      this.setupImagePasteHandler() // Handle pasting images from clipboard
+      this.setupImagePasteHandler(), // Handle pasting images from clipboard
+      this.setupContextMenuHandler() // Right-click menu with "Add Link" option
     ];
 
     // Add dark mode theme if active
@@ -373,6 +376,58 @@ export class CodeMirrorEditorView extends Disposable {
 
         return true; // We handled the paste event
       }
+    });
+  }
+
+  /**
+   * Setup context menu handler for right-click actions in the editor.
+   * Shows a menu with "Add Link" option to insert wikilink and trigger autocomplete.
+   */
+  private setupContextMenuHandler(): Extension {
+    return EditorView.domEventHandlers({
+      contextmenu: (event: MouseEvent, view: EditorView): boolean => {
+        // Only handle in markdown mode (not JSON)
+        if (this.options.language === 'json') {
+          return false;
+        }
+
+        event.preventDefault();
+
+        const menuItems: Array<{ text?: string; html?: string; action?: () => void }> = [
+          {
+            html: '<span style="display: flex; align-items: center; gap: 8px; white-space: nowrap;">🔗 Add Link</span>',
+            action: () => {
+              this.insertWikilinkAndTriggerCompletion(view);
+            },
+          },
+        ];
+
+        ctxmenu.show(menuItems, event);
+        return true;
+      }
+    });
+  }
+
+  /**
+   * Insert wikilink brackets at cursor and trigger autocomplete.
+   * Inserts [[]], positions cursor between brackets, and opens node picker.
+   */
+  private insertWikilinkAndTriggerCompletion(view: EditorView): void {
+    const cursor: number = view.state.selection.main.head;
+
+    // Insert [[]] and position cursor between the brackets
+    view.dispatch({
+      changes: { from: cursor, insert: '[[]]' },
+      selection: { anchor: cursor + 2 }, // Position cursor after [[
+      userEvent: 'input'
+    });
+
+    // Focus the editor and trigger autocomplete
+    view.focus();
+
+    // Use requestAnimationFrame to ensure the DOM update completes before triggering autocomplete
+    requestAnimationFrame(() => {
+      startCompletion(view);
     });
   }
 
