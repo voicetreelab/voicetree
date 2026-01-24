@@ -150,6 +150,9 @@ export function createWindowChrome(
             () => {}, // No-op onClose - menu is persistent
             trafficLights
         );
+        // TODO: Tech debt - spacer width should be configurable via createHorizontalMenuElement options
+        // Anchored editors don't have a node circle in the gap, so use smaller spacer
+        spacer.style.width = '10px';
 
         // Assemble menu wrapper
         menuWrapper.appendChild(leftGroup);
