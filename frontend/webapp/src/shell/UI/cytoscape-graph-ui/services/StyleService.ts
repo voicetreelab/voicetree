@@ -297,10 +297,11 @@ export class StyleService {
         }
       },
 
-        // terminal -> created nodes indicator edges.
+        // terminal -> created nodes indicator edges (hidden by default, shown when terminal active)
         {
             selector: 'edge.terminal-progres-nodes-indicator',
             style: {
+                'display': 'none',
                 'line-style': 'dashed',
                 'line-dash-pattern': [1, 8],
                 'line-cap': 'round',
@@ -309,6 +310,13 @@ export class StyleService {
                 'width': 4,
                 'target-arrow-shape': 'none',
                 'curve-style': 'straight',
+            }
+        },
+        // Show terminal -> created nodes edges when terminal is active
+        {
+            selector: 'edge.terminal-progres-nodes-indicator.terminal-active',
+            style: {
+                'display': 'element',
             }
         },
 

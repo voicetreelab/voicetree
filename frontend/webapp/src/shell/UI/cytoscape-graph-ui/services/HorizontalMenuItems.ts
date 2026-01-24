@@ -103,8 +103,8 @@ function createMenuItemElement(item: HorizontalMenuItem, onClose: () => void, al
             display: inline-flex;
             flex-direction: column;
             align-items: center;
-            padding: 6px 20px;
-            margin: 0 4px;
+            padding: 6px 10px;
+            margin: 0 2px;
             border: none;
             background: transparent;
             cursor: pointer;
@@ -419,7 +419,7 @@ export function createHorizontalMenuElement(
     const spacer: HTMLDivElement = document.createElement('div');
     spacer.className = 'horizontal-menu-spacer';
     spacer.style.cssText = `
-        width: 50px;
+        width: 35px;
         height: 1px;
         pointer-events: none;
     `;

@@ -66,6 +66,8 @@ export function setupViewSubscriptions(deps: ViewSubscriptionDeps): ViewSubscrip
                 cy.$id(shadowNodeId).addClass(TERMINAL_ACTIVE_CLASS);
                 // Highlight the task node → terminal edge (gold color)
                 cy.edges(`[target = "${shadowNodeId}"]`).addClass(TERMINAL_ACTIVE_CLASS);
+                // Show the terminal → created nodes edges (dotted blue, hidden by default)
+                cy.edges(`[source = "${shadowNodeId}"]`).addClass(TERMINAL_ACTIVE_CLASS);
                 // Highlight the terminal DOM element (gold border)
                 const terminalElement: Element | null = document.querySelector(`[data-floating-window-id="${terminalId}"]`);
                 if (terminalElement) {

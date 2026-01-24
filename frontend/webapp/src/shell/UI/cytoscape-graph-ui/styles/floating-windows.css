@@ -94,8 +94,7 @@
 
 /* Floating window chrome horizontal menu wrapper
  * Displays left and right pill groups with centered spacer for node circle gap
- * Draggable area for moving the floating window
- * JavaScript applies transform: scale() to fit menu contents to available width */
+ * Draggable area for moving the floating window */
 .cy-floating-window-horizontal-menu {
   display: flex;
   flex-direction: row;
