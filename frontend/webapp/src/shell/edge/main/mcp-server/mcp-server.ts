@@ -332,128 +332,6 @@ export function createMcpServer(): McpServer {
         version: '1.0.0'
     })
 
-    // Tool: add_node - COMMENTED OUT
-    // server.registerTool(
-    //     'add_node',
-    //     {
-    //         title: 'Add Node',
-    //         description: 'Add a new node to the graph. Creates a markdown file and updates the graph with bidirectional edge healing.',
-    //         inputSchema: {
-    //             nodeId: z.string().describe('Relative path/ID for the node (e.g., "my_node" or "subfolder/my_node")'),
-    //             content: z.string().describe('Markdown content for the node'),
-    //             parentNodeId: z.string().optional().describe('Optional parent node ID to create a link to')
-    //         }
-    //     },
-    //     async ({nodeId, content, parentNodeId}) => {
-    //         // Get default write path (where new nodes are created)
-    //         const vaultPathOpt: O.Option<string> = await getWritePath()
-    //         if (O.isNone(vaultPathOpt)) {
-    //             return {
-    //                 content: [{
-    //                     type: 'text',
-    //                     text: JSON.stringify({
-    //                         success: false,
-    //                         nodeId,
-    //                         message: 'No vault loaded. Please load a folder in the UI first.'
-    //                     })
-    //                 }],
-    //                 isError: true
-    //             }
-    //         }
-    //         const vaultPath: string = vaultPathOpt.value
-    //
-    //         // Get watched directory (base for node ID computation)
-    //         const watchedDirectory: string | null = getWatchedDirectory()
-    //         if (!watchedDirectory) {
-    //             return {
-    //                 content: [{
-    //                     type: 'text',
-    //                     text: JSON.stringify({
-    //                         success: false,
-    //                         nodeId,
-    //                         message: 'Watched directory not set.'
-    //                     })
-    //                 }],
-    //                 isError: true
-    //             }
-    //         }
-    //
-    //         // Build markdown content with optional parent link
-    //         let markdownContent: string = content
-    //         if (parentNodeId) {
-    //             markdownContent = `${content}\n\n-----------------\n_Links:_\nParent:\n- child_of [[${parentNodeId}]]\n`
-    //         }
-    //
-    //         // Create FSUpdate event - absolutePath uses vaultPath
-    //         const absolutePath: string = path.join(vaultPath, `${nodeId}.md`)
-    //         const fsEvent: FSUpdate = {
-    //             absolutePath,
-    //             content: markdownContent,
-    //             eventType: 'Added'
-    //         }
-    //
-    //         // Apply to graph using pure function - pass watchedDirectory for node ID computation
-    //         // Node IDs must be relative to watchedDirectory so paths reconstruct correctly
-    //         const currentGraph: Graph = getGraph()
-    //         const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, currentGraph)
-    //
-    //         // Persist to filesystem
-    //         await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta)
-    //
-    //         return {
-    //             content: [{
-    //                 type: 'text',
-    //                 text: JSON.stringify({
-    //                     success: true,
-    //                     nodeId,
-    //                     message: `Node created at ${absolutePath}`
-    //                 })
-    //             }]
-    //         }
-    //     }
-    // )
-
-    // Tool: get_graph - COMMENTED OUT (unnecessary, agents can just read the markdown folders directly)
-    // server.registerTool(
-    //     'get_graph',
-    //     {
-    //         title: 'Get Graph',
-    //         description: 'Get the current graph state with all nodes and edges.',
-    //         inputSchema: {}
-    //     },
-    //     async () => {
-    //         const graph: Graph = getGraph()
-    //         const nodes: Record<string, {
-    //             id: string
-    //             title: string
-    //             content: string
-    //             outgoingEdges: Array<{targetId: string; label: string}>
-    //         }> = {}
-    //
-    //         for (const [_nodeId, node] of Object.entries(graph.nodes)) {
-    //             nodes[node.absoluteFilePathIsID] = {
-    //                 id: node.absoluteFilePathIsID,
-    //                 title: getNodeTitle(node),
-    //                 content: node.contentWithoutYamlOrLinks,
-    //                 outgoingEdges: node.outgoingEdges.map(e => ({
-    //                     targetId: e.targetId,
-    //                     label: e.label
-    //                 }))
-    //             }
-    //         }
-    //
-    //         return {
-    //             content: [{
-    //                 type: 'text',
-    //                 text: JSON.stringify({
-    //                     nodeCount: Object.keys(nodes).length,
-    //                     nodes
-    //                 }, null, 2)
-    //             }]
-    //         }
-    //     }
-    // )
-
     // Tool: spawn_agent
     server.registerTool(
         'spawn_agent',
@@ -462,7 +340,7 @@ export function createMcpServer(): McpServer {
             description: 'Spawn an agent in the VoiceTree graph to perform a task. Prefer this over your Task or subagent tool for tasks involving code modifications where the user would benefit from visibility and control over the changes. If you already have a node detailing the task, use nodeId. Otherwise, use task+parentNodeId to create a new task node first.',
             inputSchema: {
                 nodeId: z.string().optional().describe('Target node ID to attach the spawned agent (use this OR task+parentNodeId)'),
-                callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),
+                callerTerminalId: z.string().describe('Your terminal ID, you must echo $VOICETREE_TERMINAL_ID to retrieve it if you have not yet.'),
                 task: z.string().optional().describe('Task title for creating a new task node (requires parentNodeId)'),
                 details: z.string().optional().describe('Detailed description of the task (used with task parameter)'),
                 parentNodeId: z.string().optional().describe('Parent node ID under which to create the new task node (required when task is provided)')

@@ -103,8 +103,8 @@ function createMenuItemElement(item: HorizontalMenuItem, onClose: () => void, al
             display: inline-flex;
             flex-direction: column;
             align-items: center;
-            padding: 6px 10px;
-            margin: 0 2px;
+            padding: 6px 14px;
+            margin: 0 3px;
             border: none;
             background: transparent;
             cursor: pointer;
