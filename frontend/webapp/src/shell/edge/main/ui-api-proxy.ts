@@ -21,9 +21,11 @@ export const uiAPI: UIAPIType = new Proxy({} as UIAPIType, {
         return (...args: unknown[]) => {
             const mainWindow: ReturnType<typeof getMainWindow> = getMainWindow();
             if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) {
+                console.log('[uiAPI] Window not available, skipping:', prop);
                 return;
             }
             // Send IPC call to renderer
+            console.log('[uiAPI] Sending IPC:', prop, args);
             mainWindow.webContents.send('ui:call', prop, args);
         };
     }

@@ -23,7 +23,10 @@ export function setupUIRpcHandler(): void {
         return;
     }
 
+    console.log('[UI RPC] Handler registered, listening for ui:call');
+
     electronAPI.on('ui:call', (_event: unknown, funcName: unknown, args: unknown) => {
+        console.log('[UI RPC] Received call:', funcName, args);
         const fnName: string = funcName as string;
         const fnArgs: unknown[] = args as unknown[];
 
