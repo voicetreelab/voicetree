@@ -4,7 +4,7 @@
  */
 import type { Core, NodeSingular, EdgeSingular, CollectionReturnValue, NodeCollection, NodeDefinition } from 'cytoscape';
 import type { StyleService } from '@/shell/UI/cytoscape-graph-ui/services/StyleService';
-import { CLASS_HOVER, CLASS_UNHOVER, CLASS_CONNECTED_HOVER } from '@/shell/UI/cytoscape-graph-ui/constants';
+import { CLASS_HOVER, CLASS_CONNECTED_HOVER } from '@/shell/UI/cytoscape-graph-ui/constants';
 import { addRecentlyVisited } from '@/shell/edge/UI-edge/state/RecentlyVisitedStore';
 import { highlightContainedNodes, clearContainedHighlights } from '@/shell/UI/cytoscape-graph-ui/highlightContextNodes';
 import { setActiveTerminalId } from '@/shell/edge/UI-edge/state/TerminalStore';
@@ -42,10 +42,6 @@ export function setupBasicCytoscapeEventListeners(
       }
     }
 
-    cy.elements()
-      .difference(node.closedNeighborhood())
-      .addClass(CLASS_UNHOVER);
-
     node.addClass(CLASS_HOVER)
       .connectedEdges()
       .addClass(CLASS_CONNECTED_HOVER)
@@ -58,7 +54,6 @@ export function setupBasicCytoscapeEventListeners(
 
     cy.elements().removeClass([
       CLASS_HOVER,
-      CLASS_UNHOVER,
       CLASS_CONNECTED_HOVER
     ]);
 
@@ -69,12 +64,6 @@ export function setupBasicCytoscapeEventListeners(
   // Focus handling
   cy.on('tap boxselect', () => {
     container.focus();
-  });
-
-  // Box selection end event - log selected nodes
-  cy.on('boxend', () => {
-    const selected: CollectionReturnValue = cy.$('node:selected');
-    //console.log(`[VoiceTreeGraphView] Box selection: ${selected.length} nodes selected`, selected.map(n => n.id()));
   });
 
   // Update node sizes when edges are added or removed

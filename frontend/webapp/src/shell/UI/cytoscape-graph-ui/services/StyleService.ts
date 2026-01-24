@@ -36,12 +36,7 @@ export class StyleService {
     //console.log('Current textColor:', this.textColor);
     //console.log('isDarkMode():', this.isDarkMode());
 
-    if (typeof window !== 'undefined' && window.matchMedia) {
-      const darkModeQuery: MediaQueryList = window.matchMedia('(prefers-color-scheme: dark)');
-      //console.log('prefers-color-scheme: dark matches:', darkModeQuery.matches);
-    } else {
-      //console.log('window.matchMedia not available');
-    }
+    // Debug: check window.matchMedia('(prefers-color-scheme: dark)').matches if needed
 
     if (typeof document !== 'undefined') {
       //console.log('html.classList.contains("dark"):', document.documentElement.classList.contains('dark'));
@@ -169,13 +164,6 @@ export class StyleService {
           'border-width': 2,
           'border-color': this.accentBorderColor,
           'opacity': 1,
-        }
-      },
-
-      {
-        selector: '.unhover',
-        style: {
-          'opacity': 0.3,
         }
       },
 

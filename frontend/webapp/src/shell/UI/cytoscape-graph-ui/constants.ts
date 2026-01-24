@@ -6,7 +6,6 @@ export const MAX_ZOOM: 3 = 3 as const;
 
 // CSS class names for node states
 export const CLASS_HOVER: "hover" = 'hover' as const;
-export const CLASS_UNHOVER: "unhover" = 'unhover' as const;
 export const CLASS_CONNECTED_HOVER: "connected-hover" = 'connected-hover' as const;
 
 // CSS class names for context node highlighting
