@@ -104,7 +104,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
     // Services
     private styleService!: StyleService; // Initialized in render()
-    private animationService!: BreathingAnimationService; // Initialized in render()
+    private animationService?: BreathingAnimationService; // Disabled for performance - see ama_cpu_profile_root_cause_analysis.md
     private horizontalMenuService?: HorizontalMenuService; // Initialized in setupCytoscape()
     private verticalMenuService?: VerticalMenuService; // Initialized in setupCytoscape()
 
@@ -260,8 +260,9 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // Expose voiceTreeGraphView to window for testing
         (window as unknown as { voiceTreeGraphView: VoiceTreeGraphView }).voiceTreeGraphView = this;
 
-        // Initialize animation service with cy instance (sets up event listeners)
-        this.animationService = new BreathingAnimationService(this.cy);
+        // DISABLED: Breathing animation causes 10s UI freeze with 60+ nodes
+        // See: sat/ama_cpu_profile_root_cause_analysis.md
+        // this.animationService = new BreathingAnimationService(this.cy);
 
         // Initialize navigator minimap (bottom-right corner, performance-optimized)
         const navigatorResult: NavigatorMinimapResult = initializeNavigatorMinimap(this.cy);

@@ -1,3 +1,9 @@
+---
+position:
+  x: 1878.9338711568582
+  y: 1136.8224658653842
+isContextNode: false
+---
 As you make progress on the task, create detailed visual updates by adding nodes to our Markdown tree.
 
 ## When to Create Multiple Linked Nodes (Prefer This)
