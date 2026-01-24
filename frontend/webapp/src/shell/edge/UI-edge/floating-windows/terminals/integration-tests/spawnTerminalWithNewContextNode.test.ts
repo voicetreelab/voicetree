@@ -19,7 +19,6 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { spawnTerminalWithNewContextNode } from '@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI'
 import { clearTerminals, addTerminal } from '@/shell/edge/UI-edge/state/TerminalStore'
 import { createTerminalData } from '@/shell/edge/UI-edge/floating-windows/types'
 import type { NodeIdAndFilePath } from '@/pure/graph'
@@ -27,6 +26,39 @@ import type { VTSettings } from '@/pure/settings'
 import cytoscape from 'cytoscape'
 import type { Core } from 'cytoscape'
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
+
+// Define the result type inline since we can't import it (would trigger ctxmenu.js)
+interface AgentCommandEditorResult {
+    command: string;
+    agentPrompt: string;
+    mcpIntegrationEnabled: boolean;
+    useDocker: boolean;
+}
+
+// Mock ctxmenu.js which has ES Module compatibility issues in test environment
+vi.mock('@/shell/UI/lib/ctxmenu.js', () => ({
+    default: { ctxmenu: { attach: vi.fn(), update: vi.fn(), delete: vi.fn() } },
+    ctxmenu: { attach: vi.fn(), update: vi.fn(), delete: vi.fn() }
+}))
+
+// Mock modules that transitively import ctxmenu.js to avoid loading issues
+vi.mock('@/shell/edge/UI-edge/graph/agentCommandEditorPopup', () => ({
+    showAgentCommandEditor: vi.fn(),
+    AUTO_RUN_FLAG: '--dangerously-skip-permissions'
+}))
+
+// Mock flushEditorForNode to avoid CodeMirrorEditorView -> ctxmenu.js chain
+vi.mock('@/shell/edge/UI-edge/floating-windows/editors/flushEditorForNode', () => ({
+    flushEditorForNode: vi.fn().mockResolvedValue(undefined)
+}))
+
+// Import the mocked module to get access to the mock function
+import { showAgentCommandEditor } from '@/shell/edge/UI-edge/graph/agentCommandEditorPopup'
+import type { Mock } from 'vitest'
+const mockShowAgentCommandEditor: Mock = vi.mocked(showAgentCommandEditor)
+
+// Import after mocks are set up
+import { spawnTerminalWithNewContextNode, spawnTerminalWithCommandEditor } from '@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI'
 
 describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
     let cy: Core
@@ -63,6 +95,7 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
                     spawnTerminalWithContextNode: mockSpawnTerminalWithContextNode,
                     loadSettings: mockLoadSettings,
                     saveSettings: mockSaveSettings,
+                    setMcpIntegration: vi.fn().mockResolvedValue(undefined),
                 }
             }
         } as unknown as Window & typeof globalThis
@@ -205,5 +238,78 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
                 0
             )
         })
+    })
+})
+
+describe('spawnTerminalWithCommandEditor - Settings Persistence', () => {
+    let cy: Core
+    let mockSpawnTerminalWithContextNode: ReturnType<typeof vi.fn>
+    let mockLoadSettings: ReturnType<typeof vi.fn>
+    let mockSaveSettings: ReturnType<typeof vi.fn>
+    let mockSetMcpIntegration: ReturnType<typeof vi.fn>
+
+    const originalCommand: string = 'claude "$AGENT_PROMPT"'
+    const modifiedCommand: string = 'claude --model opus "$AGENT_PROMPT"'
+
+    const defaultSettings: VTSettings = {
+        agents: [{ name: 'Claude', command: originalCommand }],
+        agentPermissionModeChosen: true,
+        INJECT_ENV_VARS: { AGENT_PROMPT: 'original prompt' },
+        terminalSpawnPathRelativeToWatchedDirectory: '',
+        shiftEnterSendsOptionEnter: false,
+        contextNodeMaxDistance: 2,
+        askModeContextDistance: 1,
+    } as unknown as VTSettings
+
+    beforeEach(() => {
+        cy = cytoscape({ headless: true, elements: [] })
+
+        mockSpawnTerminalWithContextNode = vi.fn().mockResolvedValue(undefined)
+        mockLoadSettings = vi.fn().mockResolvedValue(defaultSettings)
+        mockSaveSettings = vi.fn().mockResolvedValue(undefined)
+        mockSetMcpIntegration = vi.fn().mockResolvedValue(undefined)
+
+        global.window = {
+            electronAPI: {
+                main: {
+                    spawnTerminalWithContextNode: mockSpawnTerminalWithContextNode,
+                    loadSettings: mockLoadSettings,
+                    saveSettings: mockSaveSettings,
+                    setMcpIntegration: mockSetMcpIntegration,
+                }
+            }
+        } as unknown as Window & typeof globalThis
+
+        clearTerminals()
+    })
+
+    afterEach(() => {
+        cy.destroy()
+        clearTerminals()
+        vi.restoreAllMocks()
+    })
+
+    it('BUG: should save agent command to settings when manually modified in popup', async () => {
+        // GIVEN: User modifies the command in the popup (e.g., adds --model opus flag)
+        const popupResult: AgentCommandEditorResult = {
+            command: modifiedCommand,
+            agentPrompt: 'original prompt', // unchanged
+            mcpIntegrationEnabled: true,
+            useDocker: false
+        }
+        mockShowAgentCommandEditor.mockResolvedValue(popupResult)
+
+        const parentNodeId: NodeIdAndFilePath = 'test-node.md'
+
+        // WHEN: User spawns terminal with command editor
+        await spawnTerminalWithCommandEditor(parentNodeId, cy)
+
+        // THEN: Should save settings with the modified command
+        expect(mockSaveSettings).toHaveBeenCalled()
+        const savedSettings: VTSettings = mockSaveSettings.mock.calls[0][0] as VTSettings
+
+        // The Claude agent command should be updated to the modified command
+        const claudeAgent: { readonly name: string; readonly command: string } | undefined = savedSettings.agents.find(a => a.name === 'Claude')
+        expect(claudeAgent?.command).toBe(modifiedCommand)
     })
 })

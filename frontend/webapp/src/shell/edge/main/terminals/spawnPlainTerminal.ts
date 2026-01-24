@@ -9,7 +9,7 @@ import {createNewNodeNoParent} from '@/pure/graph/graphDelta/uiInteractionsToGra
 import {getNodeTitle} from '@/pure/graph/markdown-parsing';
 import {resolveEnvVars, expandEnvVarsInValues} from '@/pure/settings';
 import type {VTSettings} from '@/pure/settings/types';
-import {createTerminalData} from '@/shell/edge/UI-edge/floating-windows/types';
+import {createTerminalData, computeTerminalId} from '@/shell/edge/UI-edge/floating-windows/types';
 import {getAppSupportPath} from '@/shell/edge/main/state/app-electron-state';
 import {getGraph} from '@/shell/edge/main/state/graph-store';
 import {getWatchStatus, getVaultPaths, getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder';
@@ -22,6 +22,8 @@ import {
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 
 export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCount: number): Promise<void> {
+  // todo, tech debt. Most of this is duplicated with other terminal spawn paths.
+
   const settings: VTSettings = await loadSettings();
   const resolvedEnvVars: Record<string, string> = resolveEnvVars(settings.INJECT_ENV_VARS);
 
@@ -45,10 +47,19 @@ export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCoun
   const allVaultPaths: readonly string[] = await getVaultPaths();
   const allMarkdownReadPaths: string = allVaultPaths.join('\n');
 
+  // Get vault path for VOICETREE_VAULT_PATH
+  const vaultPath: string = O.getOrElse(() => '')(await getWritePath());
+
+  // Compute terminal ID for VOICETREE_TERMINAL_ID
+  const terminalId: string = computeTerminalId(nodeId, terminalCount);
+
   const unexpandedEnvVars: Record<string, string> = {
     VOICETREE_APP_SUPPORT: appSupportPath ?? '',
+    VOICETREE_VAULT_PATH: vaultPath,
     ALL_MARKDOWN_READ_PATHS: allMarkdownReadPaths,
     CONTEXT_NODE_PATH: nodeAbsolutePath,
+    TASK_NODE_PATH: nodeAbsolutePath,
+    VOICETREE_TERMINAL_ID: terminalId,
     ...resolvedEnvVars,
   };
   const expandedEnvVars: Record<string, string> = expandEnvVarsInValues(unexpandedEnvVars);

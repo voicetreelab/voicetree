@@ -2,7 +2,7 @@
 import type { NodeIdAndFilePath, Position, GraphNode } from "@/pure/graph";
 import type { VTSettings, AgentConfig } from "@/pure/settings";
 import { deleteNodesFromUI } from "@/shell/edge/UI-edge/graph/handleUIActions";
-import { showAgentCommandEditor, AUTO_RUN_FLAG } from "@/shell/edge/UI-edge/graph/agentCommandEditorPopup";
+import { showAgentCommandEditor } from "@/shell/edge/UI-edge/graph/agentCommandEditorPopup";
 import type { Core, NodeCollection, CollectionReturnValue } from "cytoscape";
 import '@/shell/electron.d.ts';
 import { disposeFloatingWindow, getOrCreateOverlay, registerFloatingWindow } from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
@@ -85,24 +85,19 @@ async function resolveAgentLaunchConfig(
         };
     }
 
-    // Check if user added the auto-run flag
-    const hasAutoRunFlag: boolean = result.command.includes(AUTO_RUN_FLAG);
+    // Check if user modified the command
+    const commandChanged: boolean = result.command !== command;
 
+    // Update the agent's command in settings if it was modified
     let updatedAgents: readonly AgentConfig[] = settings.agents;
-    if (hasAutoRunFlag) {
-        // Update Claude agent in settings to include the flag
+    if (commandChanged) {
         updatedAgents = settings.agents.map((agent: AgentConfig): AgentConfig => {
-            if (agent.name === 'Claude' || agent.command.toLowerCase().includes('claude')) {
-                // Only update if the agent command doesn't already have the flag
-                if (!agent.command.includes(AUTO_RUN_FLAG)) {
-                    return {
-                        ...agent,
-                        command: agent.command.replace(
-                            /^(claude)\s+(.*)$/,
-                            `$1 ${AUTO_RUN_FLAG} $2`
-                        ),
-                    };
-                }
+            // Update the agent whose command matches the original command
+            if (agent.command === command) {
+                return {
+                    ...agent,
+                    command: result.command,
+                };
             }
             return agent;
         });
@@ -168,29 +163,27 @@ export async function spawnTerminalWithCommandEditor(
         return;
     }
 
-    // Check if user added the auto-run flag to update settings
-    const hasAutoRunFlag: boolean = result.command.includes(AUTO_RUN_FLAG);
+    // Check if user modified the command
+    const commandChanged: boolean = result.command !== command;
+
+    // Update the agent's command in settings if it was modified
     let updatedAgents: readonly AgentConfig[] = settings.agents;
-    if (hasAutoRunFlag) {
+    if (commandChanged) {
         updatedAgents = settings.agents.map((agent: AgentConfig): AgentConfig => {
-            if (agent.name === 'Claude' || agent.command.toLowerCase().includes('claude')) {
-                if (!agent.command.includes(AUTO_RUN_FLAG)) {
-                    return {
-                        ...agent,
-                        command: agent.command.replace(
-                            /^(claude)\s+(.*)$/,
-                            `$1 ${AUTO_RUN_FLAG} $2`
-                        ),
-                    };
-                }
+            // Update the agent whose command matches the original command
+            if (agent.command === command) {
+                return {
+                    ...agent,
+                    command: result.command,
+                };
             }
             return agent;
         });
     }
 
-    // Save settings if agent prompt changed or auto-run flag was added
+    // Save settings if agent prompt changed or command was modified
     const promptChanged: boolean = result.agentPrompt !== currentAgentPrompt;
-    if (promptChanged || hasAutoRunFlag) {
+    if (promptChanged || commandChanged) {
         const updatedSettings: VTSettings = {
             ...settings,
             agents: updatedAgents,

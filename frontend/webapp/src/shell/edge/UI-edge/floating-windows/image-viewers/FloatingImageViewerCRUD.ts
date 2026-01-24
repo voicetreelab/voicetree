@@ -211,14 +211,17 @@ export async function openHoverImageViewer(
         // Hide the node's Cytoscape label (viewer shows the name)
         cy.getElementById(nodeId).addClass('hover-editor-open');
 
-        // Close on click outside
+        // Close on click outside (but allow clicks on menus that control this viewer)
         const handleClickOutside: (e: MouseEvent) => void = (e: MouseEvent): void => {
             const target: Node = e.target as Node;
             const isInsideViewer: boolean = viewer.ui !== undefined && viewer.ui.windowElement.contains(target);
             // Also allow clicks on the hover menu
             const hoverMenu: HTMLElement | null = document.querySelector('.cy-horizontal-context-menu');
             const isInsideHoverMenu: boolean = hoverMenu !== null && hoverMenu.contains(target);
-            if (!isInsideViewer && !isInsideHoverMenu) {
+            // Also allow clicks on context menus (right-click menus) - they may interact with this viewer
+            const contextMenu: HTMLElement | null = document.querySelector('.ctxmenu');
+            const isInsideContextMenu: boolean = contextMenu !== null && contextMenu.contains(target);
+            if (!isInsideViewer && !isInsideHoverMenu && !isInsideContextMenu) {
                 console.log('[HoverImageViewer] Click outside detected, closing viewer');
                 closeHoverImageViewer(cy);
                 document.removeEventListener('mousedown', handleClickOutside);

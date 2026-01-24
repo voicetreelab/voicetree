@@ -285,14 +285,17 @@ async function openHoverEditor(
         // Hide the node's Cytoscape label (editor title bar shows the name)
         cy.getElementById(nodeId).addClass('hover-editor-open');
 
-        // Close on click outside (but allow clicks on the hover menu which controls this editor)
+        // Close on click outside (but allow clicks on menus that control this editor)
         const handleClickOutside: (e: MouseEvent) => void = (e: MouseEvent): void => {
             const target: Node = e.target as Node;
             const isInsideEditor: boolean = editor.ui !== undefined && editor.ui.windowElement.contains(target);
             // Also allow clicks on the hover menu (traffic lights, etc.) - it controls this hover editor
             const hoverMenu: HTMLElement | null = document.querySelector('.cy-horizontal-context-menu');
             const isInsideHoverMenu: boolean = hoverMenu !== null && hoverMenu.contains(target);
-            if (!isInsideEditor && !isInsideHoverMenu) {
+            // Also allow clicks on context menus (right-click "Add Link", etc.) - they interact with this editor
+            const contextMenu: HTMLElement | null = document.querySelector('.ctxmenu');
+            const isInsideContextMenu: boolean = contextMenu !== null && contextMenu.contains(target);
+            if (!isInsideEditor && !isInsideHoverMenu && !isInsideContextMenu) {
                 console.log('[CommandHover-v2] Click outside detected, closing editor');
                 closeHoverEditor(cy);
                 document.removeEventListener('mousedown', handleClickOutside);

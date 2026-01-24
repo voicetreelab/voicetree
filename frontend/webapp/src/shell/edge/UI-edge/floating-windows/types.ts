@@ -91,8 +91,6 @@ export function getShadowNodeIdFromData(fw: FloatingWindowData): ShadowNodeId {
     return getShadowNodeId(getFloatingWindowId(fw));
 }
 
-
-
 export function createEditorData(params: CreateEditorDataParams): EditorData {
     return {
         type: 'Editor',
@@ -119,7 +117,7 @@ export function createTerminalData(params: CreateTerminalDataParams): TerminalDa
         initialCommand: params.initialCommand,
         executeCommand: params.executeCommand,
         resizable: params.resizable ?? true,
-        shadowNodeDimensions: params.shadowNodeDimensions ?? { width: 300, height: 450 }, // matches getDefaultDimensions('Terminal')
+        shadowNodeDimensions: params.shadowNodeDimensions ?? { width: 300, height: 420 }, // matches getDefaultDimensions('Terminal')
         // Tab UI state defaults
         isPinned: params.isPinned ?? true,  // New terminals start pinned by default
         isDone: false,          // Running initially
@@ -139,16 +137,9 @@ export function createImageViewerData(params: CreateImageViewerDataParams): Imag
         title: params.title,
         anchoredToNodeId: params.anchoredToNodeId ? O.some(params.anchoredToNodeId) : O.none,
         resizable: params.resizable ?? true,
-        shadowNodeDimensions: params.shadowNodeDimensions ?? { width: 480, height: 400 },
+        shadowNodeDimensions: params.shadowNodeDimensions ?? { width: 400, height: 400 },
     };
 }
-
-// =============================================================================
-// Callback Types
-// =============================================================================
-
-export type GetContentForEditor = (editor: EditorData) => string;
-export type EditorOnSave = (editor: EditorData, content: string) => Promise<void>;
 
 // =============================================================================
 // Type Guards & Helpers

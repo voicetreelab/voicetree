@@ -34,10 +34,15 @@ function generateWorktreeName(nodeTitle: string): string {
 
 /**
  * Generate the git worktree command prefix for a given node title.
+ * Captures the relative path from git root BEFORE creating the worktree,
+ * so the agent lands in the correct subdirectory (e.g., frontend/webapp/).
+ * This ensures the agent reads the correct .mcp.json and other config files.
  */
 function generateWorktreePrefix(nodeTitle: string): string {
     const worktreeName: string = generateWorktreeName(nodeTitle);
-    return `git worktree add -b "${worktreeName}" ".worktrees/${worktreeName}" && cd ".worktrees/${worktreeName}" && `;
+    // REL captures the current subdirectory path relative to git root (e.g., "frontend/webapp/")
+    // After worktree creation, we cd into worktree + REL to preserve the same relative position
+    return `REL=$(git rev-parse --show-prefix) && git worktree add -b "${worktreeName}" ".worktrees/${worktreeName}" && cd ".worktrees/${worktreeName}/$REL" && `;
 }
 
 /**

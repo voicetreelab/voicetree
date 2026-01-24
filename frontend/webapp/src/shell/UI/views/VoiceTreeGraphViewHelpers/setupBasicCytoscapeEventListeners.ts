@@ -7,6 +7,7 @@ import type { StyleService } from '@/shell/UI/cytoscape-graph-ui/services/StyleS
 import { CLASS_HOVER, CLASS_UNHOVER, CLASS_CONNECTED_HOVER } from '@/shell/UI/cytoscape-graph-ui/constants';
 import { addRecentlyVisited } from '@/shell/edge/UI-edge/state/RecentlyVisitedStore';
 import { highlightContainedNodes, clearContainedHighlights } from '@/shell/UI/cytoscape-graph-ui/highlightContextNodes';
+import { setActiveTerminalId } from '@/shell/edge/UI-edge/state/TerminalStore';
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
 
@@ -115,8 +116,13 @@ export function setupBasicCytoscapeEventListeners(
     }
   });
 
-  // Clear context node highlights when node is unselected
+  // Clear context node highlights when node is unselected.
+  // Cytoscape automatically deselects nodes when clicking on empty canvas (default behavior).
+  // We hook into that to also deselect the active terminal when no nodes remain selected.
   cy.on('unselect', 'node', () => {
     clearContainedHighlights(cy);
+    if (cy.$('node:selected').length === 0) {
+      setActiveTerminalId(null);
+    }
   });
 }

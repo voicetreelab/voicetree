@@ -324,6 +324,46 @@
   background-color: rgba(255, 255, 255, 0.05) !important;
 }
 
+/* =============================================================================
+ * Compact Gutter Styling
+ * Ultra-compact gutter with minimal padding
+ * ============================================================================= */
+
+/* Remove all gutter padding */
+.cm-editor .cm-gutters {
+  padding-right: 0 !important;
+  border-right: none !important;
+}
+
+/* Line numbers: tiny font, minimal padding */
+.cm-editor .cm-lineNumbers {
+  min-width: 18px !important;
+}
+
+.cm-editor .cm-lineNumbers .cm-gutterElement {
+  font-size: 9px !important;
+  padding: 0 1px 0 2px !important;
+  min-width: 14px !important;
+}
+
+/* Fold gutter: ultra-compact */
+.cm-editor .cm-foldGutter {
+  width: 8px !important;
+  min-width: 8px !important;
+}
+
+.cm-editor .cm-foldGutter .cm-gutterElement {
+  padding: 0 !important;
+  width: 8px !important;
+  font-size: 8px !important;
+}
+
+/* Fold placeholder (collapsed indicator) - smaller */
+.cm-editor .cm-foldPlaceholder {
+  font-size: 9px !important;
+  padding: 0 1px !important;
+}
+
 /* Fix: CM6 positions select-all rectangle at extreme negative top (-33Mpx) with huge height.
  * This causes it to end at y=0, not covering visible content.
  * The .cm-select-all class is added by JS when selection covers entire document.
@@ -362,8 +402,8 @@
   background-color: var(--muted);
   border: 1px solid var(--border);
   color: var(--muted-foreground);
-  opacity: 0.6;
-  transition: opacity 0.15s ease, background-color 0.15s ease;
+  opacity: 1;
+  transition: background-color 0.15s ease;
   z-index: 10; /* Above content but below menus */
 }
 
