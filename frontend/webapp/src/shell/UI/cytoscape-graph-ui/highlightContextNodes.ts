@@ -11,26 +11,52 @@ import { CONTEXT_CONTAINED_CLASS, CONTEXT_EDGE_CLASS } from './constants';
  * Adds CSS class to nodes and edges between them.
  */
 export async function highlightContainedNodes(cy: Core, contextNodeId: string): Promise<void> {
+  performance.mark('highlightContainedNodes:start');
+
   const node: Awaited<ReturnType<typeof getNodeFromMainToUI>> = await getNodeFromMainToUI(contextNodeId);
+  performance.mark('highlightContainedNodes:afterGetNode');
+
   const containedIds: readonly string[] = node.nodeUIMetadata.containedNodeIds ?? [];
   const containedIdSet: Set<string> = new Set(containedIds);
 
-  containedIds.forEach(id => {
-    // Use cy.$id() to avoid CSS selector escaping issues with special characters like /
-    cy.$id(id).addClass(CONTEXT_CONTAINED_CLASS);
-  });
+  performance.mark('highlightContainedNodes:beforeBatch');
+  cy.batch(() => {
+    performance.mark('highlightContainedNodes:batchStart');
 
-  // Highlight only edges where both source and target are in containedIds
-  cy.edges().forEach(edge => {
-    const sourceId: string = edge.data('source') as string;
-    const targetId: string = edge.data('target') as string;
-    if (containedIdSet.has(sourceId) && containedIdSet.has(targetId)) {
-      edge.addClass(CONTEXT_EDGE_CLASS);
-    }
-  });
+    containedIds.forEach(id => {
+      // Use cy.$id() to avoid CSS selector escaping issues with special characters like /
+      cy.$id(id).addClass(CONTEXT_CONTAINED_CLASS);
+    });
+    performance.mark('highlightContainedNodes:afterNodeClasses');
 
-  // Also highlight the edge from task node (parent) to this context node
-  cy.edges().filter(edge => edge.data('target') === contextNodeId).addClass(CONTEXT_EDGE_CLASS);
+    // Highlight only edges where both source and target are in containedIds
+    cy.edges().forEach(edge => {
+      const sourceId: string = edge.data('source') as string;
+      const targetId: string = edge.data('target') as string;
+      if (containedIdSet.has(sourceId) && containedIdSet.has(targetId)) {
+        edge.addClass(CONTEXT_EDGE_CLASS);
+      }
+    });
+    performance.mark('highlightContainedNodes:afterEdgeClasses');
+
+    // Also highlight the edge from task node (parent) to this context node
+    cy.edges().filter(edge => edge.data('target') === contextNodeId).addClass(CONTEXT_EDGE_CLASS);
+    performance.mark('highlightContainedNodes:batchEnd');
+  });
+  performance.mark('highlightContainedNodes:afterBatch');
+
+  // Log timing breakdown
+  const entries: PerformanceEntryList = performance.getEntriesByType('mark')
+    .filter(e => e.name.startsWith('highlightContainedNodes:'));
+  if (entries.length > 0) {
+    const start: number = entries.find(e => e.name === 'highlightContainedNodes:start')?.startTime ?? 0;
+    console.log(`[highlightContainedNodes] Timing for ${containedIds.length} nodes:`);
+    entries.forEach(e => {
+      console.log(`  ${e.name}: +${(e.startTime - start).toFixed(1)}ms`);
+    });
+    // Clear marks for next call
+    entries.forEach(e => performance.clearMarks(e.name));
+  }
 }
 
 /**
@@ -52,18 +78,20 @@ export async function highlightPreviewNodes(cy: Core, nodeId: string): Promise<v
   const containedIds: readonly string[] = result as readonly string[];
   const containedIdSet: Set<string> = new Set(containedIds);
 
-  containedIds.forEach(id => {
-    // Use cy.$id() to avoid CSS selector escaping issues with special characters like /
-    cy.$id(id).addClass(CONTEXT_CONTAINED_CLASS);
-  });
+  cy.batch(() => {
+    containedIds.forEach(id => {
+      // Use cy.$id() to avoid CSS selector escaping issues with special characters like /
+      cy.$id(id).addClass(CONTEXT_CONTAINED_CLASS);
+    });
 
-  // Highlight only edges where both source and target are in containedIds
-  cy.edges().forEach(edge => {
-    const sourceId: string = edge.data('source') as string;
-    const targetId: string = edge.data('target') as string;
-    if (containedIdSet.has(sourceId) && containedIdSet.has(targetId)) {
-      edge.addClass(CONTEXT_EDGE_CLASS);
-    }
+    // Highlight only edges where both source and target are in containedIds
+    cy.edges().forEach(edge => {
+      const sourceId: string = edge.data('source') as string;
+      const targetId: string = edge.data('target') as string;
+      if (containedIdSet.has(sourceId) && containedIdSet.has(targetId)) {
+        edge.addClass(CONTEXT_EDGE_CLASS);
+      }
+    });
   });
 }
 
@@ -71,6 +99,8 @@ export async function highlightPreviewNodes(cy: Core, nodeId: string): Promise<v
  * Removes all context-contained highlighting from the graph.
  */
 export function clearContainedHighlights(cy: Core): void {
-  cy.$('.' + CONTEXT_CONTAINED_CLASS).removeClass(CONTEXT_CONTAINED_CLASS);
-  cy.$('.' + CONTEXT_EDGE_CLASS).removeClass(CONTEXT_EDGE_CLASS);
+  cy.batch(() => {
+    cy.$('.' + CONTEXT_CONTAINED_CLASS).removeClass(CONTEXT_CONTAINED_CLASS);
+    cy.$('.' + CONTEXT_EDGE_CLASS).removeClass(CONTEXT_EDGE_CLASS);
+  });
 }

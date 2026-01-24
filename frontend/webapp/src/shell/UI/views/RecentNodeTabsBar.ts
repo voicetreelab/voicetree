@@ -17,6 +17,7 @@ import type { RecentNodeHistory } from '@/pure/graph/recentNodeHistoryV2'
 import type { UpsertNodeDelta } from '@/pure/graph'
 import { getNodeTitle } from '@/pure/graph/markdown-parsing'
 import { getPinnedEditors } from '@/shell/edge/UI-edge/state/EditorStore'
+import { setupHoverScroll } from '@/pure/ui/hoverScrollText'
 import { Pin, createElement } from 'lucide'
 
 const TAB_WIDTH: number = 90
@@ -136,10 +137,11 @@ function createTab(
     tab.title = label // Full title on hover
     tab.style.width = `${TAB_WIDTH}px`
 
-    // Create text span for horizontal scrolling within tab
+    // Create text span with hover-to-scroll animation
     const textSpan: HTMLSpanElement = document.createElement('span')
     textSpan.className = 'recent-tab-text'
     textSpan.textContent = label
+    setupHoverScroll(textSpan)
 
     tab.appendChild(textSpan)
 
@@ -182,10 +184,11 @@ function createPinnedTab(
     const pinIcon: SVGSVGElement = createElement(Pin) as unknown as SVGSVGElement
     pinIcon.classList.add('pinned-tab-icon')
 
-    // Create text span for horizontal scrolling within tab
+    // Create text span with hover-to-scroll animation
     const textSpan: HTMLSpanElement = document.createElement('span')
     textSpan.className = 'recent-tab-text'
     textSpan.textContent = label
+    setupHoverScroll(textSpan)
 
     tab.appendChild(pinIcon)
     tab.appendChild(textSpan)
