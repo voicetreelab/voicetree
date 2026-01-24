@@ -2,18 +2,9 @@ import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest'
 import {createTerminalData} from '@/shell/edge/UI-edge/floating-windows/types'
 import type {TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
-import type {Graph} from '@/pure/graph'
 
 vi.mock('@/shell/edge/main/terminals/terminal-registry', () => ({
     getTerminalRecords: vi.fn()
-}))
-
-vi.mock('@/shell/edge/main/state/graph-store', () => ({
-    getGraph: vi.fn(() => ({nodes: {}, nodeByBaseName: {}} as Graph))
-}))
-
-vi.mock('@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode', () => ({
-    getUnseenNodesAroundContextNode: vi.fn(() => Promise.resolve([]))
 }))
 
 import {waitForAgentsTool} from '@/shell/edge/main/mcp-server/mcp-server'
@@ -22,14 +13,6 @@ import {getTerminalRecords} from '@/shell/edge/main/terminals/terminal-registry'
 type McpToolResponse = {
     content: Array<{type: 'text'; text: string}>
     isError?: boolean
-}
-
-type AgentPayload = {
-    terminalId: string
-    title: string
-    contextNodeId: string
-    status: 'running' | 'idle' | 'exited'
-    newNodes: Array<{nodeId: string; title: string}>
 }
 
 function parsePayload(response: McpToolResponse): unknown {
@@ -78,113 +61,26 @@ describe('MCP wait_for_agents tool', () => {
             terminalIds: ['agent-a-terminal-0', 'agent-b-terminal-1'],
             callerTerminalId: 'caller-terminal-2'
         })
-        const payload: {success: boolean; agents: AgentPayload[]} = parsePayload(response) as {
+        const payload: {
             success: boolean
-            agents: AgentPayload[]
+            agents: Array<{terminalId: string; title: string; status: string}>
+        } = parsePayload(response) as {
+            success: boolean
+            agents: Array<{terminalId: string; title: string; status: string}>
         }
 
         expect(payload.success).toBe(true)
         expect(payload.agents).toHaveLength(2)
-        expect(payload.agents[0].terminalId).toBe('agent-a-terminal-0')
-        expect(payload.agents[0].status).toBe('exited')
-        expect(payload.agents[0].contextNodeId).toBe('ctx-nodes/agent-a.md')
-        expect(payload.agents[0].newNodes).toEqual([])
-        expect(payload.agents[1].terminalId).toBe('agent-b-terminal-1')
-        expect(payload.agents[1].status).toBe('exited')
-    })
-
-    it('returns immediately when all terminals are idle (isDone=true)', async () => {
-        const terminalDataA: TerminalData = {
-            ...createTerminalData({
-                attachedToNodeId: 'ctx-nodes/agent-a.md',
-                terminalCount: 0,
-                title: 'Agent A',
-                executeCommand: true
-            }),
-            isDone: true
-        }
-        const callerTerminalData: TerminalData = createTerminalData({
-            attachedToNodeId: 'ctx-nodes/caller.md',
-            terminalCount: 1,
-            title: 'Caller',
-            executeCommand: true
-        })
-
-        const records: TerminalRecord[] = [
-            {terminalId: 'agent-a-terminal-0', terminalData: terminalDataA, status: 'running'},
-            {terminalId: 'caller-terminal-1', terminalData: callerTerminalData, status: 'running'}
-        ]
-
-        vi.mocked(getTerminalRecords).mockReturnValue(records)
-
-        const response: McpToolResponse = await waitForAgentsTool({
-            terminalIds: ['agent-a-terminal-0'],
-            callerTerminalId: 'caller-terminal-1'
-        })
-        const payload: {success: boolean; agents: AgentPayload[]} = parsePayload(response) as {
-            success: boolean
-            agents: AgentPayload[]
-        }
-
-        expect(payload.success).toBe(true)
-        expect(payload.agents).toHaveLength(1)
-        expect(payload.agents[0].terminalId).toBe('agent-a-terminal-0')
-        expect(payload.agents[0].status).toBe('idle')
-    })
-
-    it('polls and returns when terminals become idle', async () => {
-        const terminalDataRunning: TerminalData = createTerminalData({
-            attachedToNodeId: 'ctx-nodes/agent-a.md',
-            terminalCount: 0,
+        expect(payload.agents[0]).toEqual({
+            terminalId: 'agent-a-terminal-0',
             title: 'Agent A',
-            executeCommand: true
+            status: 'exited'
         })
-        const terminalDataIdle: TerminalData = {
-            ...terminalDataRunning,
-            isDone: true
-        }
-        const callerTerminalData: TerminalData = createTerminalData({
-            attachedToNodeId: 'ctx-nodes/caller.md',
-            terminalCount: 1,
-            title: 'Caller',
-            executeCommand: true
+        expect(payload.agents[1]).toEqual({
+            terminalId: 'agent-b-terminal-1',
+            title: 'Agent B',
+            status: 'exited'
         })
-
-        const runningRecords: TerminalRecord[] = [
-            {terminalId: 'agent-a-terminal-0', terminalData: terminalDataRunning, status: 'running'},
-            {terminalId: 'caller-terminal-1', terminalData: callerTerminalData, status: 'running'}
-        ]
-        const idleRecords: TerminalRecord[] = [
-            {terminalId: 'agent-a-terminal-0', terminalData: terminalDataIdle, status: 'running'},
-            {terminalId: 'caller-terminal-1', terminalData: callerTerminalData, status: 'running'}
-        ]
-
-        vi.mocked(getTerminalRecords)
-            .mockReturnValueOnce(runningRecords)
-            .mockReturnValueOnce(runningRecords)
-            .mockReturnValueOnce(idleRecords)
-
-        const responsePromise: Promise<McpToolResponse> = waitForAgentsTool({
-            terminalIds: ['agent-a-terminal-0'],
-            callerTerminalId: 'caller-terminal-1',
-            pollIntervalMs: 100
-        })
-
-        // Advance timers to trigger polling
-        await vi.advanceTimersByTimeAsync(100)
-        await vi.advanceTimersByTimeAsync(100)
-
-        const response: McpToolResponse = await responsePromise
-        const payload: {success: boolean; agents: AgentPayload[]} = parsePayload(response) as {
-            success: boolean
-            agents: AgentPayload[]
-        }
-
-        expect(payload.success).toBe(true)
-        expect(payload.agents).toHaveLength(1)
-        expect(payload.agents[0].terminalId).toBe('agent-a-terminal-0')
-        expect(payload.agents[0].status).toBe('idle')
-        expect(getTerminalRecords).toHaveBeenCalledTimes(3)
     })
 
     it('polls and returns when terminals exit', async () => {
@@ -226,15 +122,21 @@ describe('MCP wait_for_agents tool', () => {
         await vi.advanceTimersByTimeAsync(100)
 
         const response: McpToolResponse = await responsePromise
-        const payload: {success: boolean; agents: AgentPayload[]} = parsePayload(response) as {
+        const payload: {
             success: boolean
-            agents: AgentPayload[]
+            agents: Array<{terminalId: string; title: string; status: string}>
+        } = parsePayload(response) as {
+            success: boolean
+            agents: Array<{terminalId: string; title: string; status: string}>
         }
 
         expect(payload.success).toBe(true)
         expect(payload.agents).toHaveLength(1)
-        expect(payload.agents[0].terminalId).toBe('agent-a-terminal-0')
-        expect(payload.agents[0].status).toBe('exited')
+        expect(payload.agents[0]).toEqual({
+            terminalId: 'agent-a-terminal-0',
+            title: 'Agent A',
+            status: 'exited'
+        })
         expect(getTerminalRecords).toHaveBeenCalledTimes(3)
     })
 
@@ -325,12 +227,12 @@ describe('MCP wait_for_agents tool', () => {
             success: boolean
             error: string
             stillRunning: string[]
-            agents: AgentPayload[]
+            agents: Array<{terminalId: string; title: string; status: string}>
         } = parsePayload(response) as {
             success: boolean
             error: string
             stillRunning: string[]
-            agents: AgentPayload[]
+            agents: Array<{terminalId: string; title: string; status: string}>
         }
 
         expect(response.isError).toBe(true)

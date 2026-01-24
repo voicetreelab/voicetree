@@ -10,8 +10,8 @@ import {
     TAB_WIDTH_PINNED,
     TAB_WIDTH_UNPINNED,
     getShortcutHintForTab,
+    truncateTabTitle,
 } from '@/pure/agentTabs';
-import { setupHoverScroll } from '@/pure/ui/hoverScrollText';
 
 /** Dependencies injected from AgentTabsBar */
 export interface TabCreationDeps {
@@ -29,6 +29,7 @@ export function createPinnedTab(
     deps: TabCreationDeps
 ): HTMLElement {
     const terminalId: TerminalId = getTerminalId(terminal);
+    const displayTitle: string = truncateTabTitle(terminal.title);
 
     // Create wrapper container for tab + hint
     const wrapper: HTMLDivElement = document.createElement('div');
@@ -49,11 +50,10 @@ export function createPinnedTab(
     statusDot.className = terminal.isDone ? 'agent-tab-status-done' : 'agent-tab-status-running';
     tab.appendChild(statusDot);
 
-    // Create text span with hover-to-scroll animation
+    // Create text span for title
     const textSpan: HTMLSpanElement = document.createElement('span');
     textSpan.className = 'agent-tab-text';
-    textSpan.textContent = terminal.title;
-    setupHoverScroll(textSpan);
+    textSpan.textContent = displayTitle;
     tab.appendChild(textSpan);
 
     // Add activity dots

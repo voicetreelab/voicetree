@@ -2,12 +2,12 @@
  * Pure factory function for creating a Cytoscape instance
  * Handles container-based initialization with headless fallback for testing environments
  */
-import cytoscape, {type Core, type CytoscapeOptions} from 'cytoscape';
+import cytoscape, {type Core, type CytoscapeOptions, type Stylesheet} from 'cytoscape';
 import {MIN_ZOOM, MAX_ZOOM} from '@/shell/UI/cytoscape-graph-ui/constants';
 
 export interface CytoscapeInitConfig {
     container: HTMLElement;
-    stylesheet: Array<{ selector: string; style: Record<string, unknown> }>;
+    stylesheet: Stylesheet[];
 }
 
 export interface CytoscapeInitResult {
@@ -27,19 +27,21 @@ export function initializeCytoscapeInstance(config: CytoscapeInitConfig): Cytosc
         style: stylesheet,
         minZoom: MIN_ZOOM,
         maxZoom: MAX_ZOOM,
-        boxSelectionEnabled: true
+        boxSelectionEnabled: true,
+        wheelSensitivity: 0 // Disable native wheel zoom - handled by NavigationGestureService
     };
 
     // Try container-based initialization first
     try {
-        const cy: Core = cytoscape({
+        const cy = cytoscape({
             ...baseOptions,
             container
         });
         return {cy, isHeadless: false};
-    } catch (_error) {
+    } catch (error) {
         // Fallback to headless mode (e.g., JSDOM without proper layout)
-        const cy: Core = cytoscape({
+        //console.log('[initializeCytoscapeInstance] Container-based init failed, using headless mode:', error);
+        const cy = cytoscape({
             ...baseOptions,
             container: undefined,
             headless: true

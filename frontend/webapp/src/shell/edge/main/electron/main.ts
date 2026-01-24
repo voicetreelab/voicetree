@@ -229,21 +229,22 @@ function createWindow(): void {
     // Uses uiAPI (main→renderer RPC) to set trackpad state in renderer
     mainWindow.webContents.on('input-event', (_event, inputEvent) => {
         if (inputEvent.type === 'gestureScrollBegin') {
-            console.log('[Main] gestureScrollBegin detected, sending IPC');
             uiAPI.setIsTrackpadScrolling(true);
         } else if (inputEvent.type === 'gestureScrollEnd') {
-            console.log('[Main] gestureScrollEnd detected, sending IPC');
             uiAPI.setIsTrackpadScrolling(false);
         }
     });
 
     // Pipe renderer console logs to electron terminal
-    mainWindow.webContents.on('console-message', (_event, _level, message, _line, _sourceId) => {
+    mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
         // Filter out Electron security warnings in dev mode
         if (message.includes('Electron Security Warning')) return;
 
+        const levels: string[] = ['LOG', 'WARNING', 'ERROR'];
+        const levelName: string = levels[level] || 'LOG';
+
         try {
-            // Uncomment for debugging: console.log(`[Renderer] ${message}`);
+            //console.log(`[Renderer ${levelName}] ${message} (${sourceId}:${line})`);
         } catch (error) {
             // Silently ignore EPIPE errors when stdout/stderr is closed
             // This can happen when the terminal that launched Electron is closed
