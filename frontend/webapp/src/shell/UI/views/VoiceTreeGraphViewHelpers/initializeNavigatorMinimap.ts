@@ -44,7 +44,7 @@ export function initializeNavigatorMinimap(cy: Core): NavigatorMinimapResult {
             rerenderDelay: 100 // Throttle rerenders
         });
 
-        console.log('[initializeNavigatorMinimap] Navigator minimap initialized');
+        //console.log('[initializeNavigatorMinimap] Navigator minimap initialized');
 
         // Initially hide minimap if there's only one node or less
         updateVisibility();

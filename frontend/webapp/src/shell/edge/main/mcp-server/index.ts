@@ -13,7 +13,7 @@
 
 import {startMcpServer, getMcpPort} from './mcp-server'
 
-console.log(`[MCP] Starting standalone MCP server on port ${getMcpPort()}...`)
+//console.log(`[MCP] Starting standalone MCP server on port ${getMcpPort()}...`)
 
 startMcpServer().catch((error: unknown) => {
     console.error('Failed to start MCP server:', error)

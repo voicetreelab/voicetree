@@ -36,7 +36,7 @@ import { findFileByName } from '@/shell/edge/main/graph/loading/findFileByName'
  * @example
  * ```typescript
  * const graph = await loadGraphFromDisk(['/path/to/vault', '/path/to/openspec'])
- * console.log(`Loaded ${Object.keys(graph.nodes).length} nodes`)
+ * //console.log(`Loaded ${Object.keys(graph.nodes).length} nodes`)
  * ```
  */
 export async function loadGraphFromDisk(

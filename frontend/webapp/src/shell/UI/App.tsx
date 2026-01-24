@@ -53,7 +53,7 @@ function App(): JSX.Element {
         if (!window.electronAPI?.onBackendLog) return;
 
         window.electronAPI.onBackendLog((log: string) => {
-            console.log('[Backend]', log);
+            //console.log('[Backend]', log);
         });
     }, []);
 
@@ -61,7 +61,7 @@ function App(): JSX.Element {
     useEffect(() => {
         if (!graphContainerRef.current) return;
 
-        console.log('[App] Initializing VoiceTreeGraphView');
+        //console.log('[App] Initializing VoiceTreeGraphView');
         console.trace('[App] VoiceTreeGraphView initialization stack trace'); // DEBUG: Track if called multiple times
 
         const graphView: VoiceTreeGraphView = new VoiceTreeGraphView(graphContainerRef.current, {
@@ -70,7 +70,7 @@ function App(): JSX.Element {
 
         // Cleanup on unmount
         return () => {
-            console.log('[App] Disposing VoiceTreeGraphView');
+            //console.log('[App] Disposing VoiceTreeGraphView');
             console.trace('[App] VoiceTreeGraphView disposal stack trace'); // DEBUG: Track cleanup
             graphView.dispose();
         };

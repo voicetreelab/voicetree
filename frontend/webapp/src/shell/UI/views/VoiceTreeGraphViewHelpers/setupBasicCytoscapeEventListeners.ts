@@ -74,7 +74,7 @@ export function setupBasicCytoscapeEventListeners(
   // Box selection end event - log selected nodes
   cy.on('boxend', () => {
     const selected: CollectionReturnValue = cy.$('node:selected');
-    console.log(`[VoiceTreeGraphView] Box selection: ${selected.length} nodes selected`, selected.map(n => n.id()));
+    //console.log(`[VoiceTreeGraphView] Box selection: ${selected.length} nodes selected`, selected.map(n => n.id()));
   });
 
   // Update node sizes when edges are added or removed
@@ -103,7 +103,7 @@ export function setupBasicCytoscapeEventListeners(
   cy.on('free', 'node', () => {
     // Restore grab cursor (still hovering over node after release)
     container.style.cursor = 'grab';
-    console.log('[VoiceTreeGraphView] Node drag released, saving positions...');
+    //console.log('[VoiceTreeGraphView] Node drag released, saving positions...');
     void window.electronAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);
   });
 

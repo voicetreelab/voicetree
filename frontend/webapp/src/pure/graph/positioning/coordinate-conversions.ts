@@ -21,7 +21,7 @@ export function toScreenCoords(
     y: (graphY * zoom) + pan.y + containerRect.top
   };
 
-  // console.log(`[DEBUG] toScreenCoords: graph(${graphX.toFixed(2)},${graphY.toFixed(2)}) zoom:${zoom.toFixed(2)} pan:(${pan.x.toFixed(2)},${pan.y.toFixed(2)}) rect:(${containerRect.left},${containerRect.top}) -> screen(${result.x.toFixed(2)},${result.y.toFixed(2)})`);
+  // //console.log(`[DEBUG] toScreenCoords: graph(${graphX.toFixed(2)},${graphY.toFixed(2)}) zoom:${zoom.toFixed(2)} pan:(${pan.x.toFixed(2)},${pan.y.toFixed(2)}) rect:(${containerRect.left},${containerRect.top}) -> screen(${result.x.toFixed(2)},${result.y.toFixed(2)})`);
 
   return result;
 }

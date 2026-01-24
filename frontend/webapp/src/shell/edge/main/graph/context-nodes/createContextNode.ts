@@ -30,11 +30,11 @@ import {trace, traceSync} from '@/shell/edge/main/tracing/trace'
 export async function createContextNode(
     parentNodeId: NodeIdAndFilePath
 ): Promise<NodeIdAndFilePath> {
-    console.log("[createContextNode] START - parentNodeId:", parentNodeId)
+    //console.log("[createContextNode] START - parentNodeId:", parentNodeId)
 
     // 1. EDGE: Read current graph from state
     const currentGraph: Graph = getGraph()
-    console.log("[createContextNode] Got graph with", Object.keys(currentGraph.nodes).length, "nodes")
+    //console.log("[createContextNode] Got graph with", Object.keys(currentGraph.nodes).length, "nodes")
 
     // Validate parent node exists
     if (!currentGraph.nodes[parentNodeId]) {
@@ -47,7 +47,7 @@ export async function createContextNode(
     const subgraph: Graph = traceSync('getSubgraphByDistance', () =>
         getSubgraphByDistance(currentGraph, parentNodeId, maxDistance)
     )
-    console.log("[createContextNode] Subgraph has", Object.keys(subgraph.nodes).length, "nodes")
+    //console.log("[createContextNode] Subgraph has", Object.keys(subgraph.nodes).length, "nodes")
 
     // 3. PURE: Convert subgraph to ASCII visualization
     // Make edges bidirectional so parents are shown as "children" in the tree.
@@ -57,7 +57,7 @@ export async function createContextNode(
         const bidirectionalSubgraph: Graph = makeBidirectionalEdges(subgraph)
         return graphToAscii(bidirectionalSubgraph, parentNodeId)
     })
-    console.log("[createContextNode] ASCII tree length:", asciiTree.length)
+    //console.log("[createContextNode] ASCII tree length:", asciiTree.length)
 
     // 4. EDGE: Generate unique context node ID
     const timestamp: number = Date.now()
@@ -77,7 +77,7 @@ export async function createContextNode(
     // Ensure unique ID by appending _2, _3, etc. if collision exists
     const existingIds: ReadonlySet<string> = new Set(Object.keys(currentGraph.nodes))
     const contextNodeId: string = ensureUniqueNodeId(candidateContextNodeId, existingIds)
-    console.log("[createContextNode] Generated contextNodeId:", contextNodeId)
+    //console.log("[createContextNode] Generated contextNodeId:", contextNodeId)
 
     // 5. EDGE: Get parent node info for context
     const parentNode: GraphNode = currentGraph.nodes[parentNodeId]
@@ -85,7 +85,7 @@ export async function createContextNode(
 
     // 6. EDGE: Build markdown content with frontmatter
     // Context node is orphaned (no edges to task node) - terminal shadow will connect to it
-    console.log("[createContextNode] Building content...")
+    //console.log("[createContextNode] Building content...")
     const content: string = buildContextNodeContent(
         parentNodeId,
         parentTitle,
@@ -93,11 +93,11 @@ export async function createContextNode(
         asciiTree,
         subgraph
     )
-    console.log("[createContextNode] Content length:", content.length)
+    //console.log("[createContextNode] Content length:", content.length)
 
     // 7. PURE: Create orphaned context node (no parent edge)
     // The terminal's shadow node will create a cytoscape edge to this context node
-    console.log("[createContextNode] Creating delta for orphaned context node...")
+    //console.log("[createContextNode] Creating delta for orphaned context node...")
     const parsedNode: GraphNode = parseMarkdownToGraphNode(content, contextNodeId, currentGraph)
     const contextNode: GraphNode = {
         absoluteFilePathIsID: contextNodeId,
@@ -115,19 +115,19 @@ export async function createContextNode(
             previousNode: O.none
         }
     ]
-    console.log("[createContextNode] Delta created with", contextNodeDelta.length, "actions (orphaned, no parent edge)")
+    //console.log("[createContextNode] Delta created with", contextNodeDelta.length, "actions (orphaned, no parent edge)")
 
     // 8a. Notify UI immediately (before DB write, ensures node exists in Cytoscape for terminal anchoring)
-    console.log("[createContextNode] BEFORE UIAPI")
+    //console.log("[createContextNode] BEFORE UIAPI")
     // void uiAPI.applyGraphDeltaToUI(contextNodeDelta) TODO
 
     // 8b. EDGE: Apply via GraphDelta pipeline (writes to disk)
-    console.log("[createContextNode] BEFORE applyGraphDeltaToDBThroughMem")
+    //console.log("[createContextNode] BEFORE applyGraphDeltaToDBThroughMem")
     await applyGraphDeltaToDBThroughMemAndUIAndEditors(contextNodeDelta)
-    console.log("[createContextNode] AFTER applyGraphDeltaToDBThroughMem")
+    //console.log("[createContextNode] AFTER applyGraphDeltaToDBThroughMem")
 
     // 9. Return the created node ID
-    console.log("[createContextNode] DONE - returning:", contextNodeId)
+    //console.log("[createContextNode] DONE - returning:", contextNodeId)
     return contextNodeId
 }
 

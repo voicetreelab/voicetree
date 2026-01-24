@@ -113,7 +113,7 @@ ColaLayout.prototype.run = function(){
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const bb: { x1: number; y1: number; w: any; h: any; x2: any; y2: any; } = { x1: 0, y1: 0, w: cy.width(), h: cy.height(), x2: cy.width(), y2: cy.height() };
 
-    // console.log('[Cola Debug] Bounding box:', bb);
+    // //console.log('[Cola Debug] Bounding box:', bb);
 
     let updatePositionCallCount: number = 0;
     const updateNodePositions: () => void = function(){
@@ -121,7 +121,7 @@ ColaLayout.prototype.run = function(){
         const isFirstThreeCalls: boolean = updatePositionCallCount <= 3;
 
         // if (isFirstThreeCalls) {
-        //     console.log(`[Cola Debug] updateNodePositions call #${updatePositionCallCount}`);
+        //     //console.log(`[Cola Debug] updateNodePositions call #${updatePositionCallCount}`);
         // }
 
         for( let i: number = 0; i < nodes.length; i++ ){
@@ -160,7 +160,7 @@ ColaLayout.prototype.run = function(){
                 }
 
                 if (isFirstThreeCalls && retPos) {
-                    // console.log(`[Cola Debug]   GraphNode ${node.relativeFilePathIsID()}: scratch=(${scratch.x.toFixed(2)}, ${scratch.y.toFixed(2)}) -> retPos=(${retPos.x.toFixed(2)}, ${retPos.y.toFixed(2)}) [was (${currentPos.x.toFixed(2)}, ${currentPos.y.toFixed(2)})]`);
+                    // //console.log(`[Cola Debug]   GraphNode ${node.relativeFilePathIsID()}: scratch=(${scratch.x.toFixed(2)}, ${scratch.y.toFixed(2)}) -> retPos=(${retPos.x.toFixed(2)}, ${retPos.y.toFixed(2)}) [was (${currentPos.x.toFixed(2)}, ${currentPos.y.toFixed(2)})]`);
                 }
             }
 
@@ -228,7 +228,7 @@ ColaLayout.prototype.run = function(){
 
                 case 'end':
                 case END:
-                    console.log('[Cola] Layout ended due to CONVERGENCE');
+                    //console.log('[Cola] Layout ended due to CONVERGENCE');
                     updateNodePositions();
                     if( !options.infinite ){ onDone(); }
                     break;
@@ -253,14 +253,14 @@ ColaLayout.prototype.run = function(){
                 const isFirstThreeTicks: boolean = tickCount <= 3;
 
                 if (isFirstThreeTicks) {
-                    // console.log(`[Cola Debug] ====== Tick #${tickCount} START ======`);
+                    // //console.log(`[Cola Debug] ====== Tick #${tickCount} START ======`);
                 }
 
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const ret: any = (adaptor as any).tick();
 
                 if (isFirstThreeTicks) {
-                    // console.log(`[Cola Debug] ====== Tick #${tickCount} END (converged: ${ret}) ======`);
+                    // //console.log(`[Cola Debug] ====== Tick #${tickCount} END (converged: ${ret}) ======`);
                 }
 
                 if( !options.infinite && !firstTick ){
@@ -269,7 +269,7 @@ ColaLayout.prototype.run = function(){
 
                 // Log convergence status every 50 ticks
                 if( !options.infinite && adaptor.alpha && Math.random() < 0.02 ){
-                    console.log('[Cola] Energy (alpha):', adaptor.alpha(), 'threshold:', options.convergenceThreshold);
+                    //console.log('[Cola] Energy (alpha):', adaptor.alpha(), 'threshold:', options.convergenceThreshold);
                 }
 
                 firstTick = false;
@@ -400,7 +400,7 @@ ColaLayout.prototype.run = function(){
             fixed: node.locked()
         };
 
-        // console.log(`[Cola Debug] Initial setup - GraphNode ${node.relativeFilePathIsID()}: cytoPos=(${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}) -> colaPos=(${struct.x.toFixed(2)}, ${struct.y.toFixed(2)}) [bb offset: (${bb.x1}, ${bb.y1})]`);
+        // //console.log(`[Cola Debug] Initial setup - GraphNode ${node.relativeFilePathIsID()}: cytoPos=(${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}) -> colaPos=(${struct.x.toFixed(2)}, ${struct.y.toFixed(2)}) [bb offset: (${bb.x1}, ${bb.y1})]`);
 
         return struct;
     }) );
@@ -648,7 +648,7 @@ ColaLayout.prototype.run = function(){
     if( !options.infinite ){
         setTimeout(function(){
             if( !layout.manuallyStopped ){
-                console.log('[Cola] Layout ended due to TIMEOUT after', options.maxSimulationTime, 'ms');
+                //console.log('[Cola] Layout ended due to TIMEOUT after', options.maxSimulationTime, 'ms');
                 adaptor.stop();
             }
         }, options.maxSimulationTime);

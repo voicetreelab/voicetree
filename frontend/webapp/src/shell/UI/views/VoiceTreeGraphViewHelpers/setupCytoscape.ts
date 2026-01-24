@@ -35,17 +35,17 @@ export function setupCytoscape(params: SetupCytoscapeParams): {
 
     // Enable auto-layout
     enableAutoLayout(cy);
-    console.log('[VoiceTreeGraphView] Auto-layout enabled with Cola');
+    //console.log('[VoiceTreeGraphView] Auto-layout enabled with Cola');
 
     // Listen to layout completion
     // cy.on('layoutstop', () => { # todo, this doesn't fire.
-    //     console.log('[VoiceTreeGraphView] Layout stopped, saving positions...');
+    //     //console.log('[VoiceTreeGraphView] Layout stopped, saving positions...');
     //     // Note: @types/cytoscape incorrectly types jsons() as string[] - it actually returns NodeDefinition[]
     //     onLayoutComplete();
     // });
 
     // Setup tap handler for nodes
-    console.log('[VoiceTreeGraphView] Registering tap handler for floating windows');
+    //console.log('[VoiceTreeGraphView] Registering tap handler for floating windows');
     cy.on('tap', 'node', (event) => {
         const node: NodeSingular = event.target;
         const nodeId: string = node.id();
@@ -58,8 +58,9 @@ export function setupCytoscape(params: SetupCytoscapeParams): {
             return;
         }
 
-        console.log('[VoiceTreeGraphView] Calling createAnchoredFloatingEditor');
-        void createAnchoredFloatingEditor(cy, nodeId, true).then(() => console.log('[VoiceTreeGraphView] Created editor'));
+        //console.log('[VoiceTreeGraphView] Calling createAnchoredFloatingEditor');
+        void createAnchoredFloatingEditor(cy, nodeId, true);
+        //console.log('[VoiceTreeGraphView] Created editor');
     });
 
     // Setup horizontal menu (node hover)

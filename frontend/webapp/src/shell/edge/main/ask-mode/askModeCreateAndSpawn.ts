@@ -66,7 +66,6 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
     throw new Error(`Context node ${contextNodeId} not found`);
   }
 
-  const contextContent: string = contextNode.contentWithoutYamlOrLinks;
   const resolvedEnvVars: Record<string, string> = resolveEnvVars(settings.INJECT_ENV_VARS);
   const contextNodeTitle: string = getNodeTitle(contextNode);
   const strippedTitle: string = contextNodeTitle.replace(/^ASK:\s*/i, '');
@@ -92,18 +91,10 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
     ? parentNode.absoluteFilePathIsID
     : '';
 
-  // Truncate context content to avoid posix_spawnp failure from env size limits
-  // Full content is available at CONTEXT_NODE_PATH
-  const MAX_CONTEXT_CONTENT_LENGTH: number = 64000;
-  const truncatedContextContent: string = contextContent.length > MAX_CONTEXT_CONTENT_LENGTH
-    ? contextContent.slice(0, MAX_CONTEXT_CONTENT_LENGTH) + '\n\n[Content truncated - full content available at $CONTEXT_NODE_PATH]'
-    : contextContent;
-
   const unexpandedEnvVars: Record<string, string> = {
     VOICETREE_APP_SUPPORT: appSupportPath ?? '',
     CONTEXT_NODE_PATH: contextNodeAbsolutePath,
     TASK_NODE_PATH: taskNodeAbsolutePath,
-    CONTEXT_NODE_CONTENT: truncatedContextContent,
     AGENT_NAME: agentName,
     ...resolvedEnvVars,
   };

@@ -97,7 +97,7 @@ export function useTranscriptionSender({
     const textToProcess: string = accumulatedPreviewText.current;
     const alreadySentOnTimeout: boolean = sentToServerOnTimeoutRef.current;
 
-    console.log(`[TranscriptionSender] Preview result - focused: ${focusedWindowType ?? 'none'}, inserted: ${inserted}, alreadySent: ${alreadySentOnTimeout}, text length: ${textToProcess.length}`);
+    //console.log(`[TranscriptionSender] Preview result - focused: ${focusedWindowType ?? 'none'}, inserted: ${inserted}, alreadySent: ${alreadySentOnTimeout}, text length: ${textToProcess.length}`);
 
     if (inserted && focusedWindowType === 'editor') {
       // Text was inserted into editor - don't send to server
@@ -159,7 +159,7 @@ export function useTranscriptionSender({
           if (textToSend.trim() && !sentToServerOnTimeoutRef.current) {
             sentToServerOnTimeoutRef.current = true;
             void sendToServer(textToSend, false);
-            console.log(`[TranscriptionSender] Timeout - sent to server, chip stays visible for user to insert`);
+            //console.log(`[TranscriptionSender] Timeout - sent to server, chip stays visible for user to insert`);
           }
         };
 

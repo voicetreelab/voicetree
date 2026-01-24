@@ -26,7 +26,7 @@ let isTracing: boolean = false
  */
 export async function startTracing(): Promise<void> {
     if (isTracing) {
-        console.log('[trace] Already tracing')
+        //console.log('[trace] Already tracing')
         return
     }
 
@@ -39,7 +39,7 @@ export async function startTracing(): Promise<void> {
         ]
     })
     isTracing = true
-    console.log('[trace] Started tracing')
+    //console.log('[trace] Started tracing')
 }
 
 /**
@@ -48,14 +48,14 @@ export async function startTracing(): Promise<void> {
  */
 export async function stopTracing(): Promise<string> {
     if (!isTracing) {
-        console.log('[trace] Not currently tracing')
+        //console.log('[trace] Not currently tracing')
         return ''
     }
 
     const tracePath: string = await contentTracing.stopRecording()
     isTracing = false
-    console.log('[trace] Stopped tracing. File:', tracePath)
-    console.log('[trace] Open chrome://tracing and load the file to analyze')
+    //console.log('[trace] Stopped tracing. File:', tracePath)
+    //console.log('[trace] Open chrome://tracing and load the file to analyze')
     return tracePath
 }
 
@@ -94,7 +94,7 @@ export async function trace<T>(label: string, fn: () => Promise<T>): Promise<T> 
         }
 
         // Always log to console for immediate feedback
-        console.log(`[trace] ${label}: ${duration.toFixed(2)}ms`)
+        //console.log(`[trace] ${label}: ${duration.toFixed(2)}ms`)
     }
 }
 
@@ -121,6 +121,6 @@ export function traceSync<T>(label: string, fn: () => T): T {
             // measure can fail if marks were cleared
         }
 
-        console.log(`[trace] ${label}: ${duration.toFixed(2)}ms`)
+        //console.log(`[trace] ${label}: ${duration.toFixed(2)}ms`)
     }
 }

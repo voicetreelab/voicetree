@@ -45,7 +45,7 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
       if (this.logStream) {
         this.logStream.write(logMessage);
       }
-      console.log(message);
+      //console.log(message);
     };
 
     try {
@@ -129,7 +129,7 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
 
   stop(): void {
     if (this.serverProcess) {
-      console.log('[TextToTreeServer] Shutting down server...');
+      //console.log('[TextToTreeServer] Shutting down server...');
       try {
         this.serverProcess.kill('SIGTERM');
         this.serverProcess.kill('SIGKILL');

@@ -62,7 +62,7 @@ export const runTerminalAction: (cy: Core) => () => void = (
   const selectedNodes: string[] = getSelectedGraphNodes(cy);
 
   if (selectedNodes.length === 0) {
-    console.log('[graphActions] No node selected for terminal');
+    //console.log('[graphActions] No node selected for terminal');
     return;
   }
 
@@ -86,7 +86,7 @@ export const deleteSelectedNodesAction: (cy: Core) => () => void = (
   const selectedNodes: string[] = getSelectedGraphNodes(cy);
 
   if (selectedNodes.length === 0) {
-    console.log('[graphActions] No nodes selected for deletion');
+    //console.log('[graphActions] No nodes selected for deletion');
     return;
   }
 

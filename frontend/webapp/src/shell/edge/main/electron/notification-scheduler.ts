@@ -66,7 +66,7 @@ export async function recordAppUsage(): Promise<void> {
     dismissCount: 0, // User returned, reset dismiss count
   };
   await saveNotificationState(updatedState);
-  console.log('[Notifications] Recorded app usage');
+  //console.log('[Notifications] Recorded app usage');
 }
 
 /**
@@ -75,7 +75,7 @@ export async function recordAppUsage(): Promise<void> {
  */
 function showNotification(): boolean {
   if (!Notification.isSupported()) {
-    console.log('[Notifications] Notifications not supported on this platform');
+    //console.log('[Notifications] Notifications not supported on this platform');
     return false;
   }
 
@@ -86,7 +86,7 @@ function showNotification(): boolean {
   });
 
   notification.on('click', () => {
-    console.log('[Notifications] User clicked notification');
+    //console.log('[Notifications] User clicked notification');
     // Bring app to foreground
     const windows: BrowserWindow[] = BrowserWindow.getAllWindows();
     if (windows.length > 0) {
@@ -101,7 +101,7 @@ function showNotification(): boolean {
   });
 
   notification.on('close', () => {
-    console.log('[Notifications] Notification dismissed');
+    //console.log('[Notifications] Notification dismissed');
     // Handle dismiss - increment counter
     void handleNotificationDismissed();
   });
@@ -126,7 +126,7 @@ async function handleNotificationDismissed(): Promise<void> {
   await saveNotificationState(updatedState);
 
   if (shouldDisable) {
-    console.log('[Notifications] Permanently disabled after repeated dismissals');
+    //console.log('[Notifications] Permanently disabled after repeated dismissals');
   }
 }
 
@@ -143,13 +143,13 @@ export async function checkAndShowNotification(): Promise<void> {
 
   // Check if permanently disabled
   if (state.permanentlyDisabled) {
-    console.log('[Notifications] Skipping - permanently disabled');
+    //console.log('[Notifications] Skipping - permanently disabled');
     return;
   }
 
   // Check if we've sent all notifications
   if (state.notificationsSent >= NOTIFICATION_INTERVALS_DAYS.length) {
-    console.log('[Notifications] Skipping - all notifications sent');
+    //console.log('[Notifications] Skipping - all notifications sent');
     return;
   }
 
@@ -157,7 +157,7 @@ export async function checkAndShowNotification(): Promise<void> {
   const currentIntervalDays: number = NOTIFICATION_INTERVALS_DAYS[state.notificationsSent];
   const daysSinceUse: number = daysSinceTimestamp(state.lastUsedTimestamp);
 
-  console.log(`[Notifications] Days since use: ${daysSinceUse.toFixed(2)}, threshold: ${currentIntervalDays}`);
+  //console.log(`[Notifications] Days since use: ${daysSinceUse.toFixed(2)}, threshold: ${currentIntervalDays}`);
 
   // Check if enough time has passed
   if (daysSinceUse < currentIntervalDays) {
@@ -172,7 +172,7 @@ export async function checkAndShowNotification(): Promise<void> {
       notificationsSent: state.notificationsSent + 1,
     };
     await saveNotificationState(updatedState);
-    console.log(`[Notifications] Showed notification ${updatedState.notificationsSent}/${NOTIFICATION_INTERVALS_DAYS.length}`);
+    //console.log(`[Notifications] Showed notification ${updatedState.notificationsSent}/${NOTIFICATION_INTERVALS_DAYS.length}`);
   }
 }
 
@@ -183,11 +183,11 @@ export async function checkAndShowNotification(): Promise<void> {
 export function startNotificationScheduler(): void {
   // Skip in test mode
   if (process.env.NODE_ENV === 'test' || process.env.HEADLESS_TEST === '1') {
-    console.log('[Notifications] Skipping scheduler in test mode');
+    //console.log('[Notifications] Skipping scheduler in test mode');
     return;
   }
 
-  console.log('[Notifications] Starting notification scheduler');
+  //console.log('[Notifications] Starting notification scheduler');
 
   // Check immediately on startup
   void checkAndShowNotification();
@@ -205,7 +205,7 @@ export function stopNotificationScheduler(): void {
   if (checkInterval !== null) {
     clearInterval(checkInterval);
     checkInterval = null;
-    console.log('[Notifications] Stopped notification scheduler');
+    //console.log('[Notifications] Stopped notification scheduler');
   }
 }
 

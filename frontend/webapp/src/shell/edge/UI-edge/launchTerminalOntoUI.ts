@@ -36,7 +36,7 @@ export async function launchTerminalOntoUI(
     terminalData: TerminalData,
     skipFitAnimation?: boolean
 ): Promise<void> {
-    console.log("BEFORE LAUNCH UI")
+    //console.log("BEFORE LAUNCH UI")
     const cy: Core = getCyInstance();
 
     // Check if a floating window already exists for this context node - only one allowed
@@ -49,14 +49,14 @@ export async function launchTerminalOntoUI(
 
         // Only skip creation if floating window actually exists
         if (vanillaInstance) {
-            console.log('[uiAPI] Floating window already exists for context node, focusing:', existingTerminalId);
+            //console.log('[uiAPI] Floating window already exists for context node, focusing:', existingTerminalId);
             if (vanillaInstance.focus) {
                 vanillaInstance.focus();
             }
             return;
         }
         // Terminal data exists but no floating window - fall through to create it
-        console.log('[uiAPI] Terminal data exists but no floating window, creating for:', existingTerminalId);
+        //console.log('[uiAPI] Terminal data exists but no floating window, creating for:', existingTerminalId);
     }
 
     const targetNode: CollectionReturnValue = cy.getElementById(contextNodeId);
@@ -65,7 +65,7 @@ export async function launchTerminalOntoUI(
         : {x: 100, y: 100};
 
     const terminalId: TerminalId = getTerminalId(terminalData);
-    console.log('[uiAPI] launchTerminalOntoUI:', terminalId);
+    //console.log('[uiAPI] launchTerminalOntoUI:', terminalId);
 
     const terminalWithUI: TerminalData | undefined = await createFloatingTerminal(
         cy,
@@ -98,7 +98,7 @@ export async function launchTerminalOntoUI(
             }
         }, 500);
 
-        console.log('[uiAPI] Terminal launched:', terminalId);
+        //console.log('[uiAPI] Terminal launched:', terminalId);
     } else {
         console.error('[uiAPI] Failed to create floating terminal');
     }

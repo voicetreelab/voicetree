@@ -28,7 +28,7 @@ export function markTerminalActivityForContextNode(nodeId: string): void {
             void window.electronAPI?.main.updateTerminalActivityState(terminalId, { activityCount: newCount });
             // Optimistic DOM update for responsive UI
             updateTerminalActivityDots(terminalId, newCount);
-            console.log(`[AgentTabsBar] Marked activity for terminal ${terminalId} (context match), count: ${newCount}`);
+            //console.log(`[AgentTabsBar] Marked activity for terminal ${terminalId} (context match), count: ${newCount}`);
             return;
         }
         // Check if node matches the anchored task node (anchoredToNodeId)
@@ -38,7 +38,7 @@ export function markTerminalActivityForContextNode(nodeId: string): void {
             void window.electronAPI?.main.updateTerminalActivityState(terminalId, { activityCount: newCount });
             // Optimistic DOM update for responsive UI
             updateTerminalActivityDots(terminalId, newCount);
-            console.log(`[AgentTabsBar] Marked activity for terminal ${terminalId} (anchor match), count: ${newCount}`);
+            //console.log(`[AgentTabsBar] Marked activity for terminal ${terminalId} (anchor match), count: ${newCount}`);
             return;
         }
     }

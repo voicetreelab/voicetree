@@ -9,9 +9,9 @@ import type {Core} from "cytoscape";
  * @param cy - Cytoscape instance
  */
 export function clearCytoscapeState(cy: Core): void {
-    console.log('[clearCytoscapeState] Clearing all cytoscape elements');
+    //console.log('[clearCytoscapeState] Clearing all cytoscape elements');
     cy.batch(() => {
         cy.elements().remove();
     });
-    console.log('[clearCytoscapeState] Cleared. Total nodes:', cy.nodes().length, 'Total edges:', cy.edges().length);
+    //console.log('[clearCytoscapeState] Cleared. Total nodes:', cy.nodes().length, 'Total edges:', cy.edges().length);
 }

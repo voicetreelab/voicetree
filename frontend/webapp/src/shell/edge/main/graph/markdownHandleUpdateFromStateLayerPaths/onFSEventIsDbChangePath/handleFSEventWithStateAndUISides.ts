@@ -30,7 +30,7 @@ export function handleFSEventWithStateAndUISides(
     _watchedDirectory: string,
     _mainWindow: BrowserWindow
 ): void {
-    console.log("[handleFSEvent] external write from: ", fsEvent.absolutePath)
+    //console.log("[handleFSEvent] external write from: ", fsEvent.absolutePath)
 
     // 2. Get current graph state to resolve wikilinks
     const currentGraph: Graph = getGraph()
@@ -40,7 +40,7 @@ export function handleFSEventWithStateAndUISides(
 
     //  Check if this is our own recent write - skip if so
     if (isOurRecentDelta(delta)) {
-        console.log("[handleFSEvent] Skipping our own recent write: ", fsEvent.absolutePath)
+        //console.log("[handleFSEvent] Skipping our own recent write: ", fsEvent.absolutePath)
         return
     }
 
@@ -79,6 +79,6 @@ async function applyAndBroadcast(delta: GraphDelta): Promise<void> {
     // Log if any links were resolved
     if (mergedDelta.length > delta.length) {
         const resolvedCount: number = mergedDelta.length - delta.length
-        console.log(`[handleFSEvent] Resolved ${resolvedCount} linked nodes from watched folder`)
+        //console.log(`[handleFSEvent] Resolved ${resolvedCount} linked nodes from watched folder`)
     }
 }

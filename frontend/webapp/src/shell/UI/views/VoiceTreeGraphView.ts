@@ -332,7 +332,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
         // Save positions before window closes
         const handleBeforeUnload: () => void = () => {
-            console.log('[VoiceTreeGraphView] Window closing, saving positions...');
+            //console.log('[VoiceTreeGraphView] Window closing, saving positions...');
             // Use synchronous IPC if available, otherwise just log
             // todo this.saveNodePositions();
         };
@@ -498,7 +498,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             return;
         }
 
-        console.log('[VoiceTreeGraphView] Disposing...');
+        //console.log('[VoiceTreeGraphView] Disposing...');
 
         // Remove window event listeners
         window.removeEventListener('resize', this.handleResize);

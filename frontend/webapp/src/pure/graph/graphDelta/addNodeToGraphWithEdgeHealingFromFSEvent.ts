@@ -127,7 +127,7 @@ export function addNodeToGraphWithEdgeHealingFromFSEvent(
     const parsedNode: GraphNode = parseMarkdownToGraphNode(fsEvent.content, nodeId, currentGraph)
 
     // Check if this is a new node or an update to an existing node
-    console.log(`nodeId: ${nodeId}, relativeFilePathIsID: ${parsedNode.absoluteFilePathIsID}`)
+    //console.log(`nodeId: ${nodeId}, relativeFilePathIsID: ${parsedNode.absoluteFilePathIsID}`)
     const previousNode: O.Option<GraphNode> = O.fromNullable(currentGraph.nodes[parsedNode.absoluteFilePathIsID])
 
     // Use unresolvedLinksIndex for O(1) lookup of nodes with dangling edges to this new node

@@ -44,7 +44,7 @@ export function anchorToNode(
     const parentNodeId: NodeIdAndFilePath = fw.anchoredToNodeId.value;
     const {windowElement} = fw.ui;
 
-    console.log('[anchorToNode-v2] Anchoring to parentNodeId:', parentNodeId);
+    //console.log('[anchorToNode-v2] Anchoring to parentNodeId:', parentNodeId);
 
     const parentNode: cytoscape.CollectionReturnValue = cy.getElementById(parentNodeId);
     if (parentNode.length === 0) {
@@ -85,16 +85,16 @@ export function anchorToNode(
         .closedNeighborhood()  // distance 3
         .filter('node');       // filter to just nodes, exclude edges
     // // DEBUG: Log all existing nodes and their dimensions for collision detection
-    // console.log('[anchorToNode] Checking collisions. Total nodes:', existingNodes.length);
+    // //console.log('[anchorToNode] Checking collisions. Total nodes:', existingNodes.length);
     // existingNodes.forEach((node: cytoscape.NodeSingular) => {
     //     if (node.id() === parentNodeId) return;
     //     const pos: cytoscape.Position = node.position();
     //     const w: number = node.width();
     //     const h: number = node.height();
     //     const isShadow: boolean = node.data('isShadowNode') === true;
-    //     console.log(`[anchorToNode]   Node: ${node.id()}, isShadow: ${isShadow}, pos: (${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}), dims: ${w.toFixed(1)}x${h.toFixed(1)}`);
+    //     //console.log(`[anchorToNode]   Node: ${node.id()}, isShadow: ${isShadow}, pos: (${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}), dims: ${w.toFixed(1)}x${h.toFixed(1)}`);
     // });
-    // console.log(`[anchorToNode] Terminal shadowDimensions: ${shadowDimensions.width}x${shadowDimensions.height}`);
+    // //console.log(`[anchorToNode] Terminal shadowDimensions: ${shadowDimensions.width}x${shadowDimensions.height}`);
     //
     // Calculate desired angle using angle continuation heuristic:
     // Find the grandparent (task node) and continue the angle from task -> context -> terminal
@@ -162,7 +162,7 @@ export function anchorToNode(
 
         // DEBUG: Log overlap detection result
         const dirName: string = dir.dx === 1 ? 'right' : dir.dx === -1 ? 'left' : dir.dy === 1 ? 'below' : 'above';
-        console.log(`[anchorToNode] Direction ${dirName}: hasOverlap=${hasOverlap}, candidatePos=(${actualPos.x.toFixed(1)}, ${actualPos.y.toFixed(1)})`);
+        //console.log(`[anchorToNode] Direction ${dirName}: hasOverlap=${hasOverlap}, candidatePos=(${actualPos.x.toFixed(1)}, ${actualPos.y.toFixed(1)})`);
 
         if (!hasOverlap) {
             // Calculate angle from context -> terminal candidate
@@ -182,14 +182,14 @@ export function anchorToNode(
         candidates.sort((a, b) => a.angleDiff - b.angleDiff);
         // Use the chosen position directly (already at DEFAULT_EDGE_LENGTH from parent)
         childPosition = candidates[0].pos;
-        console.log(`[anchorToNode] Chose position from ${candidates.length} candidates: (${childPosition.x.toFixed(1)}, ${childPosition.y.toFixed(1)})`);
+        //console.log(`[anchorToNode] Chose position from ${candidates.length} candidates: (${childPosition.x.toFixed(1)}, ${childPosition.y.toFixed(1)})`);
     } else {
         // Fallback to right if all directions blocked
         childPosition = {
             x: parentPos.x + DEFAULT_EDGE_LENGTH,
             y: parentPos.y
         };
-        console.log(`[anchorToNode] FALLBACK to right (all directions blocked): (${childPosition.x.toFixed(1)}, ${childPosition.y.toFixed(1)})`);
+        //console.log(`[anchorToNode] FALLBACK to right (all directions blocked): (${childPosition.x.toFixed(1)}, ${childPosition.y.toFixed(1)})`);
     }
 
     // Create shadow node (follows parent position via listener below)

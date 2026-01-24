@@ -65,7 +65,7 @@ export class HotkeyManager {
       isPressed: false
     });
 
-    console.log(`[HotkeyManager] Registered hotkey: ${key}`);
+    //console.log(`[HotkeyManager] Registered hotkey: ${key}`);
   }
 
   /**
@@ -78,7 +78,7 @@ export class HotkeyManager {
     if (hotkey) {
       this.stopRepeating(hotkey);
       this.hotkeys.delete(hotkeyKey);
-      console.log(`[HotkeyManager] Unregistered hotkey: ${hotkeyKey}`);
+      //console.log(`[HotkeyManager] Unregistered hotkey: ${hotkeyKey}`);
     }
   }
 
@@ -298,11 +298,11 @@ export class HotkeyManager {
    * Used when window loses focus to prevent stuck keys
    */
   private resetAllHotkeys(): void {
-    console.log('[HotkeyManager] Resetting all hotkeys (focus lost or visibility change)');
+    //console.log('[HotkeyManager] Resetting all hotkeys (focus lost or visibility change)');
 
     for (const [hotkeyKey, hotkey] of this.hotkeys.entries()) {
       if (hotkey.isPressed) {
-        console.log(`[HotkeyManager] Resetting stuck hotkey: ${hotkeyKey}`);
+        //console.log(`[HotkeyManager] Resetting stuck hotkey: ${hotkeyKey}`);
         hotkey.isPressed = false;
         this.stopRepeating(hotkey);
 
@@ -339,14 +339,14 @@ export class HotkeyManager {
       // DEBUG: Log hotkey attempts for Meta+W
       if (e.metaKey && e.key.toLowerCase() === 'w') {
         const isInput: boolean = this.isInputElement(e.target as HTMLElement, e);
-        console.log(`[HotkeyManager] Cmd+W pressed:`, {
-          hotkeyKey,
-          hotkeyFound: !!hotkey,
-          disabledInEditors: hotkey?.config.disabledInEditors,
-          isInputElement: isInput,
-          target: (e.target as HTMLElement)?.tagName,
-          targetClasses: (e.target as HTMLElement)?.className
-        });
+        //console.log(`[HotkeyManager] Cmd+W pressed:`, {
+        //  hotkeyKey,
+        //  hotkeyFound: !!hotkey,
+        //  disabledInEditors: hotkey?.config.disabledInEditors,
+        //  isInputElement: isInput,
+        //  target: (e.target as HTMLElement)?.tagName,
+        //  targetClasses: (e.target as HTMLElement)?.className
+        //});
       }
 
       // Ignore hotkeys when typing in input elements

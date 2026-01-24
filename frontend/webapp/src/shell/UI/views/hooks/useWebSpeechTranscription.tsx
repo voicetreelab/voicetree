@@ -25,7 +25,7 @@ export default function useWebSpeechTranscription(): {
   const recognitionRef: RefObject<SpeechRecognition | null> = useRef<SpeechRecognition | null>(null);
 
   const startTranscription: () => void = useCallback(() => {
-    console.log('Starting Web Speech API transcription...');
+    //console.log('Starting Web Speech API transcription...');
     setError(null);
     setFinalTokens([]);
     setNonFinalTokens([]);
@@ -44,12 +44,12 @@ export default function useWebSpeechTranscription(): {
       recognition.lang = 'en-US';
 
       recognition.onstart = () => {
-        console.log('Speech recognition started');
+        //console.log('Speech recognition started');
         setState('Running');
       };
 
       recognition.onresult = (event: SpeechRecognitionEvent) => {
-        console.log('Speech result received');
+        //console.log('Speech result received');
         const newFinalTokens: TranscriptionToken[] = [];
         const newNonFinalTokens: TranscriptionToken[] = [];
 
@@ -88,7 +88,7 @@ export default function useWebSpeechTranscription(): {
       };
 
       recognition.onend = () => {
-        console.log('Speech recognition ended');
+        //console.log('Speech recognition ended');
         setState('Stopped');
       };
 
@@ -103,7 +103,7 @@ export default function useWebSpeechTranscription(): {
   }, []);
 
   const stopTranscription: () => void = useCallback(() => {
-    console.log('Stopping transcription...');
+    //console.log('Stopping transcription...');
     setState('Stopping');
 
     if (recognitionRef.current) {

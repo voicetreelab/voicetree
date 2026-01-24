@@ -159,7 +159,7 @@ function getBuildConfigProd(commonEnv: CommonEnv): BuildConfig {
  */
 export function printConfig(): void {
   const config: BuildConfig = getBuildConfig();
-  console.log(JSON.stringify(config, null, 2));
+  //console.log(JSON.stringify(config, null, 2));
 }
 
 // CLI support removed - incompatible with ES modules

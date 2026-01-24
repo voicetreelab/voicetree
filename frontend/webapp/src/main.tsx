@@ -7,6 +7,7 @@ import App from '@/shell/UI/App'
 import posthog from 'posthog-js'
 import { SseStatusPanel } from '@/shell/UI/sse-status-panel'
 import { setupUIRpcHandler } from '@/shell/edge/UI-edge/ui-rpc-handler'
+import type { VTSettings } from '@/pure/settings'
 
 // Add platform class to document for platform-specific CSS (e.g., scrollbar handling)
 // Windows: scrollbars take physical space, macOS: overlay scrollbars
@@ -29,13 +30,15 @@ if (posthogKey && !import.meta.env.DEV) {
       maskAllInputs: true,
       // Mask user content in: CodeMirror editors, xterm terminals, floating window content
       maskTextSelector: '.cm-editor, .cm-content, .xterm, .cy-floating-window-content',
-    }
+    },
+    // Disable console log recording in session replay (errors still captured via error tracking)
+    enable_recording_console_log: false
   })
 
   // Identify user with email from settings if available (fixes UUID reset on app updates)
   void (async () => {
     if (window.electronAPI) {
-      const settings = await window.electronAPI.main.loadSettings()
+      const settings: VTSettings = await window.electronAPI.main.loadSettings()
       if (settings.userEmail) {
         posthog.identify(settings.userEmail, { email: settings.userEmail })
       }

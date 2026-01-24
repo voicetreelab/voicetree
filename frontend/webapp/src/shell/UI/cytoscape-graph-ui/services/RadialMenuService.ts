@@ -33,13 +33,13 @@ export class RadialMenuService {
 
         // Skip if cytoscape is in headless mode (no container)
         if (!this.cy.container()) {
-            console.log('[RadialMenuService] Skipping radial menu setup - cytoscape is in headless mode');
+            //console.log('[RadialMenuService] Skipping radial menu setup - cytoscape is in headless mode');
             return;
         }
 
         // Skip if DOM is not available (e.g., in test environment)
         if (typeof document === 'undefined' || !document.body || !document.documentElement) {
-            console.log('[RadialMenuService] Skipping radial menu setup - DOM not available');
+            //console.log('[RadialMenuService] Skipping radial menu setup - DOM not available');
             return;
         }
 
@@ -145,7 +145,7 @@ export class RadialMenuService {
 
     private createChildNodeFromContextMenu(nodeId: string) {
         return async () => {
-            console.log('[RadialMenuService] adding child node to:', nodeId);
+            //console.log('[RadialMenuService] adding child node to:', nodeId);
             // Editor auto-pinning handled by file watcher in VoiceTreeGraphView
             await createNewChildNodeFromUI(nodeId, this.cy!);
         };

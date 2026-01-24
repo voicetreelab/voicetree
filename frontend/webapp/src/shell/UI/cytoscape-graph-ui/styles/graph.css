@@ -401,22 +401,17 @@ button.graph-button:disabled > svg > path {
 }
 
 /* Pinned tabs container (left section, 90px tabs with title)
- * Horizontally scrollable without visible scrollbar */
+ * Wraps into new rows after 5 tabs (5 × 90px + gaps ≈ 470px) */
 .agent-tabs-pinned {
     display: flex;
     flex-direction: row;
-    gap: 4px;
-    max-width: 470px; /* Limit width to allow unpinned section */
-    overflow-x: auto;
-    overflow-y: visible; /* Allow activity dots to extend below */
-    scrollbar-width: none; /* Firefox - hide scrollbar */
-    -webkit-overflow-scrolling: touch;
+    flex-wrap: wrap; /* Wrap to new row after 5 tabs */
+    justify-content: flex-end; /* Right-align tabs in each row when wrapping */
+    column-gap: 4px;
+    row-gap: 14px; /* Row gap to accommodate activity dots (positioned at bottom: -11px) */
+    max-width: 470px; /* 5 tabs × 90px + 4 gaps × 4px + padding */
+    overflow-y: visible;
     padding: 0 4px 20px 4px; /* No top padding; bottom padding for shortcut hints */
-}
-
-/* Webkit scrollbar styling for pinned - hidden for clean look */
-.agent-tabs-pinned::-webkit-scrollbar {
-    display: none; /* Chrome/Safari - hide scrollbar */
 }
 
 /* Divider between pinned and unpinned sections */

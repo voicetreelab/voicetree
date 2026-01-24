@@ -17,9 +17,9 @@ export function notifyTextToTreeServerOfDirectory(directoryPath: FilePath): void
 async function attemptNotification(directoryPath: FilePath): Promise<void> {
     try {
         const response: LoadDirectoryResponse = await tellSTTServerToLoadDirectory(directoryPath);
-        console.log(`[NotifyServer] Backend loaded ${response.nodes_loaded} nodes from ${response.directory}`);
+        //console.log(`[NotifyServer] Backend loaded ${response.nodes_loaded} nodes from ${response.directory}`);
     } catch (_error) {
-        console.log('[NotifyServer] Failed to notify backend, will retry in 5 seconds...');
+        //console.log('[NotifyServer] Failed to notify backend, will retry in 5 seconds...');
         setTimeout(() => void attemptNotification(directoryPath), 5000);
     }
 }

@@ -17,7 +17,7 @@ import * as path from 'path'
  */
 export function writeAllPositionsSync(graph: Graph): void {
     const nodes: readonly import('@/pure/graph').GraphNode[] = Object.values(graph.nodes)
-    console.log('Writing node pos on close');
+    //console.log('Writing node pos on close');
     for (const node of nodes) {
         const markdown: string = fromNodeToMarkdownContent(node)
         // Node ID is already the absolute file path

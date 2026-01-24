@@ -4,7 +4,7 @@
  * Usage:
  * ```typescript
  * const emitter = new EventEmitter<string>();
- * const unsubscribe = emitter.on((data) => console.log(data));
+ * const unsubscribe = emitter.on((data) => //console.log(data));
  * emitter.emit('hello');
  * unsubscribe();
  * ```

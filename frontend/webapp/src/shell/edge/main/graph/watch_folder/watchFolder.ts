@@ -112,7 +112,7 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
     // IMPORTANT: watchedFolderPath is the folder the human chooses for the project
     // writePath (from vaultConfig) is where new files are created
 
-    console.log('[loadFolder] Starting for path:', watchedFolderPath);
+    //console.log('[loadFolder] Starting for path:', watchedFolderPath);
 
     const mainWindow: Electron.CrossProcessExports.BrowserWindow | null = getMainWindow();
     if (!mainWindow) {
@@ -142,13 +142,13 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
     // Clean up terminals and other resources before switching folders
     const folderCleanup: (() => void) | null = getOnFolderSwitchCleanup();
     if (folderCleanup) {
-        console.log('[loadFolder] Running folder switch cleanup (terminals, etc.)');
+        //console.log('[loadFolder] Running folder switch cleanup (terminals, etc.)');
         folderCleanup();
     }
 
     // Clear existing graph state in UI-edge before loading new folder
     if (!mainWindow.isDestroyed()) {
-        console.log('[loadFolder] Sending graph:clear event to UI-edge');
+        //console.log('[loadFolder] Sending graph:clear event to UI-edge');
         mainWindow.webContents.send('graph:clear');
     }
 
@@ -219,7 +219,7 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
 
     // File limit exceeded and no config - auto-create subfolder
     const fileCount: number = loadResult.left.fileCount;
-    console.log('[loadFolder] File limit exceeded:', fileCount, 'files. Creating subfolder.');
+    //console.log('[loadFolder] File limit exceeded:', fileCount, 'files. Creating subfolder.');
 
     const subfolder: string = generateDateSubfolder();
     const subfolderPath: string = path.join(watchedFolderPath, subfolder);
@@ -293,11 +293,11 @@ async function finishLoading(
     mainWindow: Electron.CrossProcessExports.BrowserWindow
 ): Promise<{ success: boolean }> {
     let currentGraph: Graph = graph;
-    console.log('[loadFolder] Graph loaded from disk, node count:', Object.keys(currentGraph.nodes).length);
+    //console.log('[loadFolder] Graph loaded from disk, node count:', Object.keys(currentGraph.nodes).length);
 
     // If folder is empty, create a starter node using the template from settings
     if (Object.keys(currentGraph.nodes).length === 0) {
-        console.log('[loadFolder] Empty folder detected, creating starter node');
+        //console.log('[loadFolder] Empty folder detected, creating starter node');
         currentGraph = await createStarterNode(config.writePath);
     }
 
@@ -307,7 +307,7 @@ async function finishLoading(
     if (resolutionDelta.length > 0) {
         currentGraph = applyGraphDeltaToGraph(currentGraph, resolutionDelta);
     }
-    console.log('[loadFolder] Resolved linked nodes, node count:', Object.keys(currentGraph.nodes).length);
+    //console.log('[loadFolder] Resolved linked nodes, node count:', Object.keys(currentGraph.nodes).length);
 
     // Update graph store directly (bypassing applyGraphDeltaToMemState to avoid double resolution)
     setGraph(currentGraph);
@@ -317,15 +317,15 @@ async function finishLoading(
 
     // Broadcast initial graph to UI-edge (different event from incremental updates)
     const graphDelta: GraphDelta = mapNewGraphToDelta(currentGraph);
-    console.log('[loadFolder] Created graph delta, length:', graphDelta.length);
+    //console.log('[loadFolder] Created graph delta, length:', graphDelta.length);
 
     // Initial load: broadcast directly to UI (skip applyGraphDeltaToMemState since graph is already set)
     broadcastGraphDeltaToUI(graphDelta);
-    console.log('[loadFolder] Graph delta broadcast to UI-edge');
+    //console.log('[loadFolder] Graph delta broadcast to UI-edge');
 
     // Setup file watcher - watch all paths in allowlist, use watchedFolderPath as base for node IDs
     await setupWatcher(config.allowlist, watchedFolderPath);
-    console.log('[loadFolder] File watcher setup complete for', config.allowlist.length, 'vault paths');
+    //console.log('[loadFolder] File watcher setup complete for', config.allowlist.length, 'vault paths');
 
     // Save as last directory for auto-start on next launch
     await saveLastDirectory(watchedFolderPath);
@@ -347,16 +347,16 @@ export function isWatching(): boolean {
 // API functions for file watching operations
 
 export async function startFileWatching(directoryPath?: string): Promise<{ readonly success: boolean; readonly directory?: string; readonly error?: string }> {
-    console.log('[watchFolder] startFileWatching called, directoryPath:', directoryPath);
+    //console.log('[watchFolder] startFileWatching called, directoryPath:', directoryPath);
 
     // Get selected directory (either from param or via dialog)
     const getDirectory: () => Promise<string | null> = async (): Promise<string | null> => {
         if (directoryPath) {
-            console.log('[watchFolder] Using provided directory path:', directoryPath);
+            //console.log('[watchFolder] Using provided directory path:', directoryPath);
             return directoryPath;
         }
 
-        console.log('[watchFolder] No directory provided, showing dialog...');
+        //console.log('[watchFolder] No directory provided, showing dialog...');
 
         const result: Electron.OpenDialogReturnValue = await dialog.showOpenDialog({
             properties: ['openDirectory', 'createDirectory'],
@@ -373,31 +373,31 @@ export async function startFileWatching(directoryPath?: string): Promise<{ reado
     };
 
     const selectedDirectory: string | null = await getDirectory();
-    console.log('[watchFolder] Selected directory:', selectedDirectory);
+    //console.log('[watchFolder] Selected directory:', selectedDirectory);
 
     if (!selectedDirectory) {
-        console.log('[watchFolder] No directory selected in picker, keeping same');
+        //console.log('[watchFolder] No directory selected in picker, keeping same');
         return { success: false, error: 'No new directory selected' };
     }
 
     // FAIL FAST: Validate directory exists before proceeding
-    console.log('[watchFolder] Validating directory exists...');
+    //console.log('[watchFolder] Validating directory exists...');
     if (!fsSync.existsSync(selectedDirectory)) {
         const error: string = `Directory does not exist: ${selectedDirectory}`;
         console.error('[watchFolder] startFileWatching failed:', error);
         return { success: false, error };
     }
 
-    console.log('[watchFolder] Validating path is a directory...');
+    //console.log('[watchFolder] Validating path is a directory...');
     if (!fsSync.statSync(selectedDirectory).isDirectory()) {
         const error: string = `Path is not a directory: ${selectedDirectory}`;
         console.error('[watchFolder] startFileWatching failed:', error);
         return { success: false, error };
     }
 
-    console.log('[watchFolder] Calling loadFolder...');
+    //console.log('[watchFolder] Calling loadFolder...');
     await loadFolder(selectedDirectory);
-    console.log('[watchFolder] loadFolder completed successfully');
+    //console.log('[watchFolder] loadFolder completed successfully');
     return { success: true, directory: selectedDirectory };
 }
 
@@ -422,19 +422,19 @@ export function getWatchStatus(): { readonly isWatching: boolean; readonly direc
         isWatching: isWatching(),
         directory: getWatchedDirectory() ?? undefined
     };
-    console.log('Watch status:', status);
+    //console.log('Watch status:', status);
     return status;
 }
 
 export async function loadPreviousFolder(): Promise<{ readonly success: boolean; readonly directory?: string; readonly error?: string }> {
-    console.log('[watchFolder] loadPreviousFolder called');
+    //console.log('[watchFolder] loadPreviousFolder called');
     await initialLoad();
     const watchedDir: string | null = getWatchedDirectory();
     if (watchedDir) {
-        console.log('[watchFolder] Successfully loaded previous folder:', watchedDir);
+        //console.log('[watchFolder] Successfully loaded previous folder:', watchedDir);
         return { success: true, directory: watchedDir };
     } else {
-        console.log('[watchFolder] No previous folder found to load');
+        //console.log('[watchFolder] No previous folder found to load');
         return { success: false, error: 'No previous folder found' };
     }
 }
@@ -444,7 +444,7 @@ export async function loadPreviousFolder(): Promise<{ readonly success: boolean;
  * Triggers initial folder load - main process decides what folder to load.
  */
 export async function markFrontendReady(): Promise<void> {
-    console.log('[watchFolder] Frontend ready, loading initial folder...');
+    //console.log('[watchFolder] Frontend ready, loading initial folder...');
     await initialLoad();
 }
 

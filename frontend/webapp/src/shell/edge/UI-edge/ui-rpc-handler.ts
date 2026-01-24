@@ -34,11 +34,9 @@ export function setupUIRpcHandler(): void {
             return;
         }
 
-        console.log(`[UI RPC] Calling ${fnName} with args:`, fnArgs);
-
         // Call the function with spread args
         void (fn as (...a: unknown[]) => unknown)(...fnArgs);
     });
 
-    console.log('[UI RPC] Handler initialized');
+    //console.log('[UI RPC] Handler initialized');
 }

@@ -34,7 +34,7 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
     const checkStatus: () => Promise<void> = async () => {
       try {
         const status: { readonly isWatching: boolean; readonly directory: string | undefined } = await window.electronAPI!.main.getWatchStatus();
-        console.log('[DEBUG] Initial watch status from electronAPI:', status);
+        //console.log('[DEBUG] Initial watch status from electronAPI:', status);
         // Convert null to undefined to match WatchStatus type
         setWatchStatus({ isWatching: status.isWatching, directory: status.directory ?? undefined });
       } catch (err) {
@@ -51,7 +51,7 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
     if (!isElectron || !window.electronAPI?.onWatchingStarted) return;
 
     const handleWatchingStarted: (data: { directory: string; timestamp: string }) => void = (data: { directory: string; timestamp: string }) => {
-      console.log('[useFolderWatcher] watching-started event received:', data.directory);
+      //console.log('[useFolderWatcher] watching-started event received:', data.directory);
       setWatchStatus({ isWatching: true, directory: data.directory });
       setIsLoading(false);
       setError(null);
@@ -73,14 +73,14 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
       return;
     }
 
-    console.log('[useFolderWatcher] startWatching called, current watchStatus:', watchStatus);
+    //console.log('[useFolderWatcher] startWatching called, current watchStatus:', watchStatus);
     setIsLoading(true);
     setError(null);
 
     try {
-      console.log('[useFolderWatcher] Calling window.electronAPI.startFileWatching()...');
+      //console.log('[useFolderWatcher] Calling window.electronAPI.startFileWatching()...');
       const result: { readonly success: boolean; readonly directory?: string; readonly error?: string; } = await window.electronAPI!.main.startFileWatching();
-      console.log('[useFolderWatcher] startFileWatching IPC result:', result);
+      //console.log('[useFolderWatcher] startFileWatching IPC result:', result);
       if (result.success) {
         // Reset state immediately after successful IPC call
         // Event will also sync state with directory info, but we do it here for UI-edge responsiveness
@@ -93,7 +93,7 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
         setIsLoading(false);
       }
     } catch (err) {
-      console.log('[DEBUG] startWatching error:', err);
+      //console.log('[DEBUG] startWatching error:', err);
       setError('Failed to start file watching');
       setIsLoading(false);
     }
@@ -103,13 +103,13 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
   const stopWatching: () => Promise<void> = useCallback(async () => {
     if (!isElectron) return;
 
-    console.log('[DEBUG] stopWatching called, current watchStatus:', watchStatus);
+    //console.log('[DEBUG] stopWatching called, current watchStatus:', watchStatus);
     setIsLoading(true);
     setError(null);
 
     try {
       const result: { readonly success: boolean; readonly error?: string; } = await window.electronAPI!.main.stopFileWatching();
-      console.log('[DEBUG] stopFileWatching result:', result);
+      //console.log('[DEBUG] stopFileWatching result:', result);
       if (result.success) {
         // Reset state immediately after successful IPC call
         // Event will also sync state, but we do it here to ensure UI-edge responsiveness
@@ -120,7 +120,7 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
         setIsLoading(false);
       }
     } catch (err) {
-      console.log('[DEBUG] stopWatching error:', err);
+      //console.log('[DEBUG] stopWatching error:', err);
       setError('Failed to stop file watching');
       setIsLoading(false);
     }

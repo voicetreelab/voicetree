@@ -108,7 +108,7 @@ export class ElectronFileObserver implements FileObserverApi {
       this._config = config;
       this._isWatching = true;
 
-      console.log(`Started watching directory: ${config.watchDirectory}`);
+      //console.log(`Started watching directory: ${config.watchDirectory}`);
 
     } catch (error) {
       throw new FileObserverError(
@@ -143,7 +143,7 @@ export class ElectronFileObserver implements FileObserverApi {
       this._isWatching = false;
       this._config = undefined;
 
-      console.log('Stopped file watching');
+      //console.log('Stopped file watching');
 
     } catch (error) {
       throw new FileObserverError(

@@ -14,7 +14,7 @@ import {getBackendPort} from "@/shell/edge/main/state/app-electron-state";
  */
 async function getBackendBaseUrl(): Promise<string> {
     const conectionURL: string = `http://localhost:${getBackendPort()}`;
-    console.log("connecting to", conectionURL);
+    //console.log("connecting to", conectionURL);
     return conectionURL;
 }
 
@@ -65,7 +65,7 @@ export async function tellSTTServerToLoadDirectory(directoryPath: string): Promi
     }
 
     const data: LoadDirectoryResponse = await response.json() as LoadDirectoryResponse;
-    console.log(`[Backend API] Load directory success:`, data);
+    //console.log(`[Backend API] Load directory success:`, data);
     return data;
   } catch (error) {
     console.error('[Backend API] Load directory failed:', error);

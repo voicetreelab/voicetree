@@ -56,7 +56,7 @@ export class MockFileObserver implements FileObserverApi {
       this._config = { ...config };
       this._isWatching = true;
 
-      console.log(`Mock: Started watching directory: ${config.watchDirectory}`);
+      //console.log(`Mock: Started watching directory: ${config.watchDirectory}`);
 
       // Simulate ready event after a short delay
       setTimeout(() => {
@@ -89,7 +89,7 @@ export class MockFileObserver implements FileObserverApi {
       this._config = undefined;
 
       this.stopSimulation();
-      console.log('Mock: Stopped file watching');
+      //console.log('Mock: Stopped file watching');
 
     } catch (error) {
       throw new FileObserverError(

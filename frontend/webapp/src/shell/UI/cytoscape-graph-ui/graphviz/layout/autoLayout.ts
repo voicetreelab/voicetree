@@ -116,7 +116,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
       return;
     }
 
-    console.log('[AutoLayout] Running Cola layout on', cy.nodes().length, 'nodes');
+    //console.log('[AutoLayout] Running Cola layout on', cy.nodes().length, 'nodes');
     layoutRunning = true;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -143,7 +143,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     });
 
     layout.one('layoutstop', () => {
-      console.log('[AutoLayout] Cola layout complete');
+      //console.log('[AutoLayout] Cola layout complete');
       void window.electronAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);
       layoutRunning = false;
 
@@ -184,7 +184,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
   // Register trigger for external callers (user-initiated resize)
   layoutTriggers.set(cy, debouncedRunLayout);
 
-  console.log('[AutoLayout] Auto-layout enabled');
+  //console.log('[AutoLayout] Auto-layout enabled');
 
   // Return cleanup function
   return () => {
@@ -198,6 +198,6 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
       clearTimeout(debounceTimeout);
     }
 
-    console.log('[AutoLayout] Auto-layout disabled');
+    //console.log('[AutoLayout] Auto-layout disabled');
   };
 }

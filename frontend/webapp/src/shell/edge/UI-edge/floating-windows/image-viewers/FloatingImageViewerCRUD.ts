@@ -53,7 +53,7 @@ export async function createFloatingImageViewer(
     // Check if viewer already exists for this node
     const existingViewer: O.Option<ImageViewerData> = getImageViewerByNodeId(nodeId);
     if (O.isSome(existingViewer)) {
-        console.log('[createFloatingImageViewer] Viewer already exists for node:', nodeId);
+        //console.log('[createFloatingImageViewer] Viewer already exists for node:', nodeId);
         return undefined;
     }
 
@@ -148,7 +148,7 @@ export function closeHoverImageViewer(cy: Core): void {
     const nodeId: string = hoverViewerOption.value.imageNodeId;
     cy.getElementById(nodeId).removeClass('hover-editor-open');
 
-    console.log('[FloatingImageViewerCRUD] Closing hover image viewer');
+    //console.log('[FloatingImageViewerCRUD] Closing hover image viewer');
     closeImageViewer(cy, hoverViewerOption.value);
 }
 
@@ -167,15 +167,15 @@ export async function openHoverImageViewer(
     // Skip if this node already has a viewer open (hover or permanent)
     const existingViewer: O.Option<ImageViewerData> = getImageViewerByNodeId(nodeId);
     if (O.isSome(existingViewer)) {
-        console.log('[HoverImageViewer] EARLY RETURN - node already has viewer:', nodeId);
+        //console.log('[HoverImageViewer] EARLY RETURN - node already has viewer:', nodeId);
         return;
     }
-    console.log('[HoverImageViewer] No existing viewer, will create new one for:', nodeId);
+    //console.log('[HoverImageViewer] No existing viewer, will create new one for:', nodeId);
 
     // Close any existing hover image viewer
     closeHoverImageViewer(cy);
 
-    console.log('[FloatingImageViewerCRUD] Creating hover image viewer for node:', nodeId);
+    //console.log('[FloatingImageViewerCRUD] Creating hover image viewer for node:', nodeId);
 
     try {
         // Create floating image viewer with anchoredToNodeId: undefined (hover mode, no shadow node)
@@ -186,7 +186,7 @@ export async function openHoverImageViewer(
         );
 
         if (!viewer || !viewer.ui) {
-            console.log('[FloatingImageViewerCRUD] Failed to create hover image viewer');
+            //console.log('[FloatingImageViewerCRUD] Failed to create hover image viewer');
             return;
         }
 
@@ -222,7 +222,7 @@ export async function openHoverImageViewer(
             const contextMenu: HTMLElement | null = document.querySelector('.ctxmenu');
             const isInsideContextMenu: boolean = contextMenu !== null && contextMenu.contains(target);
             if (!isInsideViewer && !isInsideHoverMenu && !isInsideContextMenu) {
-                console.log('[HoverImageViewer] Click outside detected, closing viewer');
+                //console.log('[HoverImageViewer] Click outside detected, closing viewer');
                 closeHoverImageViewer(cy);
                 document.removeEventListener('mousedown', handleClickOutside);
             }
@@ -268,7 +268,7 @@ export async function createAnchoredFloatingImageViewer(
 
         // Return early if viewer already exists
         if (!viewer) {
-            console.log('[FloatingImageViewerCRUD] Viewer already exists');
+            //console.log('[FloatingImageViewerCRUD] Viewer already exists');
             return;
         }
 

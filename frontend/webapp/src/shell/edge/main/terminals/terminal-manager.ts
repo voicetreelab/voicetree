@@ -5,6 +5,7 @@ import {getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 import {getOTLPReceiverPort} from "@/shell/edge/main/metrics/otlp-receiver";
 import {recordTerminalSpawn, markTerminalExited} from '@/shell/edge/main/terminals/terminal-registry';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
+import {trace} from '@/shell/edge/main/tracing/trace';
 
 export interface TerminalSpawnResult {
   success: boolean;
@@ -48,6 +49,7 @@ export default class TerminalManager {
     getWatchedDirectory: () => string | null,
     getToolsDirectory: () => string
   ): Promise<TerminalSpawnResult> {
+    return trace('terminal:spawn', async () => {
     try {
       const terminalId: string = getTerminalId(terminalData);
 
@@ -66,15 +68,15 @@ export default class TerminalManager {
       try {
         await fs.access(cwd);
       } catch {
-        console.log('[Terminal] Spawn directory not found, falling back to home directory');
+        //console.log('[Terminal] Spawn directory not found, falling back to home directory');
         cwd = process.env.HOME ?? process.cwd();
       }
 
       // Build custom environment with terminal data
       const customEnv: NodeJS.ProcessEnv = this.buildEnvironment(terminalData, getWatchedDirectory);
 
-      console.log(`Spawning PTY with shell: ${shell} in directory: ${cwd}`);
-      console.log(`Terminal data:`, terminalData);
+      //console.log(`Spawning PTY with shell: ${shell} in directory: ${cwd}`);
+      //console.log(`Terminal data:`, terminalData);
 
       // Create PTY instance
       // PATH is already fixed by fix-absolutePath in main.ts
@@ -98,7 +100,7 @@ export default class TerminalManager {
 
       // Write initial command if provided (without newline, so it's not executed)
       if (terminalData.initialCommand) {
-        console.log(`[TerminalManager] Writing initial command: ${terminalData.initialCommand}`);
+        //console.log(`[TerminalManager] Writing initial command: ${terminalData.initialCommand}`);
         const command: string = terminalData.executeCommand
           ? terminalData.initialCommand + '\r'
           : terminalData.initialCommand;
@@ -110,11 +112,11 @@ export default class TerminalManager {
 
       // Handle PTY data
       ptyProcess.onData((data: string) => {
-        // console.log(`[TerminalManager] onData called for ${terminalId}, data length: ${data.length}`);
-        // console.log(`[TerminalManager] sender.relativeFilePathIsID: ${sender.relativeFilePathIsID}, sender.isDestroyed: ${sender.isDestroyed()}`);
+        // //console.log(`[TerminalManager] onData called for ${terminalId}, data length: ${data.length}`);
+        // //console.log(`[TerminalManager] sender.relativeFilePathIsID: ${sender.relativeFilePathIsID}, sender.isDestroyed: ${sender.isDestroyed()}`);
         try {
           sender.send('terminal:data', terminalId, data);
-          // console.log(`[TerminalManager] Successfully sent data to renderer`);
+          // //console.log(`[TerminalManager] Successfully sent data to renderer`);
         } catch (error) {
           console.error(`Failed to send terminal data for ${terminalId}:`, error);
         }
@@ -132,8 +134,8 @@ export default class TerminalManager {
         this.terminalToWindow.delete(terminalId);
       });
 
-      console.log(`[TerminalManager] Terminal ${terminalId} spawned successfully with PID: ${ptyProcess.pid}`);
-      console.log(`[TerminalManager] sender.id at spawn time: ${sender.id}, isDestroyed: ${sender.isDestroyed()}`);
+      //console.log(`[TerminalManager] Terminal ${terminalId} spawned successfully with PID: ${ptyProcess.pid}`);
+      //console.log(`[TerminalManager] sender.id at spawn time: ${sender.id}, isDestroyed: ${sender.isDestroyed()}`);
       return { success: true, terminalId };
     } catch (error: unknown) {
       console.error('Failed to spawn terminal:', error);
@@ -155,6 +157,7 @@ export default class TerminalManager {
 
       return { success: true, terminalId }; // Return success with error terminal
     }
+    });
   }
 
   /**
@@ -196,7 +199,7 @@ export default class TerminalManager {
 
       // Resize PTY
       ptyProcess.resize(cols, rows);
-      // console.log(`Terminal ${terminalId} resized to ${cols}x${rows}`);
+      // //console.log(`Terminal ${terminalId} resized to ${cols}x${rows}`);
       return { success: true };
     } catch (error: unknown) {
       console.error(`Failed to resize terminal ${terminalId}:`, error);
@@ -236,12 +239,12 @@ export default class TerminalManager {
    * Clean up all terminals owned by a specific window
    */
   cleanupForWindow(windowId: number): void {
-    console.log(`Window ${windowId} closed, cleaning up terminals`);
+    //console.log(`Window ${windowId} closed, cleaning up terminals`);
 
     // Find and kill all terminals owned by this window
     for (const [terminalId, webContentsId] of this.terminalToWindow.entries()) {
       if (webContentsId === windowId) {
-        console.log(`Cleaning up terminal ${terminalId} for window ${windowId}`);
+        //console.log(`Cleaning up terminal ${terminalId} for window ${windowId}`);
         const ptyProcess: pty.IPty | undefined = this.terminals.get(terminalId);
         if (ptyProcess && ptyProcess.kill) {
           try {
@@ -261,7 +264,7 @@ export default class TerminalManager {
    */
   cleanup(): void {
     for (const [id, ptyProcess] of this.terminals) {
-      console.log(`Cleaning up terminal ${id}`);
+      //console.log(`Cleaning up terminal ${id}`);
       try {
         if (!id.startsWith('error-') && ptyProcess.kill) {
           ptyProcess.kill();
@@ -282,21 +285,21 @@ export default class TerminalManager {
     terminalData: TerminalData,
     getWatchedDirectory: () => string | null
   ): NodeJS.ProcessEnv {
-      console.log(`[TerminalManager] process.env.OBSIDIAN_VAULT_PATH BEFORE copy: ${process.env.OBSIDIAN_VAULT_PATH}`);
+      //console.log(`[TerminalManager] process.env.OBSIDIAN_VAULT_PATH BEFORE copy: ${process.env.OBSIDIAN_VAULT_PATH}`);
       const customEnv: { [key: string]: string | undefined; TZ?: string; } = {...process.env};
 
       // Extra env vars (e.g., agent info)
       if (terminalData.initialEnvVars) {
-          console.log(`[TerminalManager] initialEnvVars:`, terminalData.initialEnvVars);
+          //console.log(`[TerminalManager] initialEnvVars:`, terminalData.initialEnvVars);
           if (terminalData.initialEnvVars.OBSIDIAN_VAULT_PATH) {
-              console.log(`[TerminalManager] WARNING: initialEnvVars contains OBSIDIAN_VAULT_PATH: ${terminalData.initialEnvVars.OBSIDIAN_VAULT_PATH}`);
+              //console.log(`[TerminalManager] WARNING: initialEnvVars contains OBSIDIAN_VAULT_PATH: ${terminalData.initialEnvVars.OBSIDIAN_VAULT_PATH}`);
           }
           Object.assign(customEnv, terminalData.initialEnvVars);
       }
 
       // Always set vault path from watched directory (which IS the vault path, no suffix)
       const vaultPath: string | null = getWatchedDirectory();
-      console.log(`[TerminalManager] Using vault path: ${vaultPath}`);
+      //console.log(`[TerminalManager] Using vault path: ${vaultPath}`);
       customEnv.OBSIDIAN_VAULT_PATH = vaultPath ?? '';
       customEnv.WATCHED_FOLDER = vaultPath ?? undefined;
 
