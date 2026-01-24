@@ -350,6 +350,32 @@ describe('GraphNavigationService', () => {
       service.cycleTerminal(-1);
       expect(collectionIncludesTerminal(getAnimatedEles(2), terminal.shadowNodeId)).toBe(true);
     });
+
+    it('should exclude other shadow nodes from neighborhood collection when fitting to terminal', () => {
+      // This test verifies that when panning to a terminal, other terminals' shadow nodes
+      // are NOT included in the neighborhood collection (only regular nodes are included)
+      const animateSpy: MockInstance = vi.spyOn(cy, 'animate');
+
+      // Cycle to the second terminal (node2's terminal)
+      service.cycleTerminal(1); // 0->1: node2
+
+      const animateArgs: { center: { eles: Collection } } = animateSpy.mock.calls[0][0] as { center: { eles: Collection } };
+      const fittedIds: string[] = animateArgs.center.eles.map((n) => n.id());
+
+      // Should include:
+      // - The target terminal's shadow node (node2-terminal-0-anchor-shadowNode)
+      // - The context node (node2)
+      // - Regular neighbor nodes (node1, node3 via edges)
+      expect(fittedIds).toContain(getShadowNodeIdForContext('node2'));
+      expect(fittedIds).toContain('node2');
+      expect(fittedIds).toContain('node1');
+      expect(fittedIds).toContain('node3');
+
+      // Should NOT include other terminals' shadow nodes even though they are
+      // connected to neighbor nodes (node1 and node3 each have a shadow node)
+      expect(fittedIds).not.toContain(getShadowNodeIdForContext('node1'));
+      expect(fittedIds).not.toContain(getShadowNodeIdForContext('node3'));
+    });
   });
 
   describe('handleSearchSelect', () => {
