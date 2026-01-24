@@ -2,6 +2,18 @@ As you make progress on the task, create detailed visual updates by adding nodes
 
 ## When to Create Multiple Linked Nodes (Prefer This)
 
+**Core principle: One node = one concept.** If your work involves multiple distinct concepts, ideas, or options — create one node per concept, linked together.
+
+### Quick Split Test
+
+**Ask: "If the parent concept disappeared, would this content still make sense?"**
+- YES → It's independent. Give it its own node.
+- NO → It's an attribute. Keep it in the parent.
+
+**Split when independently referenceable**: Options you'll compare, decisions others might revisit, phases with different outcomes.
+
+**Keep together**: Tightly coupled problem/solution pairs, context that only makes sense with its parent.
+
 Create multiple progress nodes linked as a tree when ANY of these apply:
 
 - **Multiple concerns**: You addressed different logical concerns (e.g., bug fix + refactor + new feature)
