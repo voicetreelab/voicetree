@@ -13,7 +13,7 @@ import {
   waitForCytoscapeReady,
   exposeTerminalStoreAPI,
   type ExtendedWindow
-} from '@e2e/playwright-browser/graph-delta-test-utils.ts';
+} from '@e2e/playwright-browser/graph-delta-test-utils';
 
 // Custom fixture to capture console logs and only show on failure
 type ConsoleCapture = {
@@ -189,11 +189,8 @@ test.describe('Terminal Cycling (Browser)', () => {
 
     // Get initial active terminal state (should be null before first cycle)
     const initialActiveTerminal = await page.evaluate(() => {
-      const graphView = (window as ExtendedWindow).voiceTreeGraphView;
-      // Access private navigationService property (TypeScript privacy is runtime-ignored in JS)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const navService = (graphView as any)?.navigationService;
-      return navService?.getActiveTerminalId() ?? null;
+      const terminalStoreAPI = (window as ExtendedWindow).terminalStoreAPI;
+      return terminalStoreAPI?.getActiveTerminalId() ?? null;
     });
     console.log(`Initial active terminal: ${initialActiveTerminal}`);
 
@@ -202,11 +199,8 @@ test.describe('Terminal Cycling (Browser)', () => {
     await page.waitForTimeout(100);
 
     const activeTerminalAfterNext = await page.evaluate(() => {
-      const graphView = (window as ExtendedWindow).voiceTreeGraphView;
-      // Access private navigationService property (TypeScript privacy is runtime-ignored in JS)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const navService = (graphView as any)?.navigationService;
-      return navService?.getActiveTerminalId() ?? null;
+      const terminalStoreAPI = (window as ExtendedWindow).terminalStoreAPI;
+      return terminalStoreAPI?.getActiveTerminalId() ?? null;
     });
 
     console.log(`After Cmd+] active terminal: ${activeTerminalAfterNext}`);
@@ -221,11 +215,8 @@ test.describe('Terminal Cycling (Browser)', () => {
     await page.waitForTimeout(100);
 
     const activeTerminalAfterPrev = await page.evaluate(() => {
-      const graphView = (window as ExtendedWindow).voiceTreeGraphView;
-      // Access private navigationService property (TypeScript privacy is runtime-ignored in JS)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const navService = (graphView as any)?.navigationService;
-      return navService?.getActiveTerminalId() ?? null;
+      const terminalStoreAPI = (window as ExtendedWindow).terminalStoreAPI;
+      return terminalStoreAPI?.getActiveTerminalId() ?? null;
     });
 
     console.log(`After Cmd+[ active terminal: ${activeTerminalAfterPrev}`);

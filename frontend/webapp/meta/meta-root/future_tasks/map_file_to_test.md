@@ -1,3 +1,9 @@
+---
+position:
+  x: 11179.046316470141
+  y: -33.89266540427737
+isContextNode: false
+---
 │  > What would be a good way to map files to the tests that could potentially be dependent on them?  │
 ╰─────────────────────────────────────────────────────────────────────────────────────────────────────╯
 

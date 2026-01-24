@@ -258,8 +258,8 @@ test.describe('Terminal/Editor Collision TIMING Hypothesis', () => {
 
     if (editorShadowInDebug) {
       // 2. Editor shadow node dimensions should be reasonable (not 0, not tiny default)
-      // Note: Editors use auto-height with MIN_HEIGHT = 200
-      const EXPECTED_MIN_WIDTH = 400; // Should be around 480
+      // Note: Editors use auto-height with MIN_HEIGHT = 200, default width is 380
+      const EXPECTED_MIN_WIDTH = 380; // Default editor width from types.ts
       const EXPECTED_MIN_HEIGHT = 150; // Auto-height starts at 200, allow some margin
 
       const hasCorrectDimensions =
@@ -374,8 +374,8 @@ test.describe('Terminal/Editor Collision TIMING Hypothesis', () => {
     }
 
     // Both should be correct
-    // Note: Editors use auto-height with MIN_HEIGHT = 200, so we expect 200 not 400
-    expect(afterRafDims.width).toBeGreaterThanOrEqual(400);
+    // Note: Editors use auto-height with MIN_HEIGHT = 200, default width is 380
+    expect(afterRafDims.width).toBeGreaterThanOrEqual(380); // Default editor width from types.ts
     expect(afterRafDims.height).toBeGreaterThanOrEqual(200); // Auto-height min
   });
 });

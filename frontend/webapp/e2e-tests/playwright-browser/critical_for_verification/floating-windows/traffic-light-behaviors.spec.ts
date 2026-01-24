@@ -677,7 +677,12 @@ test.describe('Traffic Light Behaviors (Browser)', () => {
 
       // ============ STEP 4: Press fullscreen again (toggle back) ============
       console.log('=== STEP 4: Press fullscreen button again (zoom out/restore) ===');
-      await fullscreenButton.click();
+      // Use page.evaluate to click because after the zoom animation, the button may be
+      // positioned at the edge of the viewport where Playwright's click() has trouble
+      await page.evaluate(() => {
+        const btn = document.querySelector('.cy-floating-window-horizontal-menu .traffic-light-fullscreen') as HTMLButtonElement;
+        if (btn) btn.click();
+      });
       await page.waitForTimeout(400); // Wait for zoom animation
 
       const step4State = await page.evaluate(() => {

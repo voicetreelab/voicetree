@@ -19,6 +19,7 @@ export interface ExtendedWindow extends Window {
     createTerminalData: (params: { attachedToNodeId: string; terminalCount: number; title: string }) => unknown;
     getTerminalId: (data: unknown) => string;
     getShadowNodeId: (id: string) => string;
+    getActiveTerminalId: () => string | null;
   };
   voiceTreeGraphView?: {
     navigationService?: {
@@ -272,8 +273,9 @@ export async function exposeTerminalStoreAPI(page: Page): Promise<void> {
         createTerminalData: (params: { attachedToNodeId: string; terminalCount: number; title: string }) => unknown;
         getTerminalId: (data: unknown) => string;
         getShadowNodeId: (id: string) => string;
+        getActiveTerminalId: () => string | null;
       };
-       
+
     }).terminalStoreAPI = {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       addTerminal: (data: unknown) => terminalStore.addTerminal(data as any),
@@ -281,7 +283,8 @@ export async function exposeTerminalStoreAPI(page: Page): Promise<void> {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getTerminalId: (data: unknown) => types.getTerminalId(data as any),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      getShadowNodeId: (id: string) => types.getShadowNodeId(id as any)
+      getShadowNodeId: (id: string) => types.getShadowNodeId(id as any),
+      getActiveTerminalId: () => terminalStore.getActiveTerminalId()
     };
     console.log('[Mock] TerminalStore API exposed for browser tests');
   });
