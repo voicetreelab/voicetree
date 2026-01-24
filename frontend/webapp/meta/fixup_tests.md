@@ -1,7 +1,7 @@
 ---
 position:
-  x: -954.1902828719843
-  y: -308.8806246697935
+  x: -953.7877688812924
+  y: -308.8997608950879
 isContextNode: false
 ---
 First fixup electron e2e playwright tests.

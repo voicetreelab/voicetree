@@ -94,7 +94,8 @@
 
 /* Floating window chrome horizontal menu wrapper
  * Displays left and right pill groups with centered spacer for node circle gap
- * Draggable area for moving the floating window */
+ * Draggable area for moving the floating window
+ * JavaScript applies transform: scale() to fit menu contents to available width */
 .cy-floating-window-horizontal-menu {
   display: flex;
   flex-direction: row;
@@ -496,7 +497,7 @@
 .terminal-title-bar {
   position: relative;
   min-height: 28px;
-  padding: 4px 10px;
+  padding: 0;
   background-color: var(--muted);
   border-bottom: 1px solid var(--border);
   border-top-left-radius: 8px;
@@ -527,7 +528,7 @@
   border-radius: 12px;
   cursor: pointer;
   transition: background-color 0.15s ease;
-  max-width: 200px;
+  max-width: 80%;
 }
 
 .terminal-context-badge:hover {
@@ -567,8 +568,14 @@
  * ============================================================================= */
 
 .cy-floating-window-terminal.terminal-active {
-  border: 3px solid #FFD700;
-  box-shadow: 0 0 12px rgba(255, 215, 0, 0.6), 0 4px 12px rgba(0,0,0,0.15);
+  border: 2px solid rgba(218, 165, 32, 0.85);
+  box-shadow: 0 0 8px rgba(218, 165, 32, 0.4), 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Dark mode - much more subtle gold */
+.dark .cy-floating-window-terminal.terminal-active {
+  border: 2px solid rgba(184, 134, 11, 0.6);
+  box-shadow: 0 0 6px rgba(184, 134, 11, 0.25), 0 4px 12px rgba(0,0,0,0.3);
 }
 
 /* Terminal windows should not have horizontal scroll - xterm.js manages its own rendering.

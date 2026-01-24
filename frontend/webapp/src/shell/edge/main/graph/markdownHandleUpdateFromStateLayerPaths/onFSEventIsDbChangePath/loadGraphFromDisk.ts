@@ -12,7 +12,7 @@ import { applyPositions } from '@/pure/graph/positioning'
 import { addNodeToGraphWithEdgeHealingFromFSEvent } from '@/pure/graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent'
 import { applyGraphDeltaToGraph } from '@/pure/graph/graphDelta/applyGraphDeltaToGraph'
 import { linkMatchScore } from '@/pure/graph/markdown-parsing/extract-edges'
-import { findFileByName } from './findFileByName'
+import { findFileByName } from '@/shell/edge/main/graph/loading/findFileByName'
 
 /**
  * Loads a graph from the filesystem using progressive edge validation.

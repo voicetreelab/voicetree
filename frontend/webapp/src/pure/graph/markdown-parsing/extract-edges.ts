@@ -181,6 +181,8 @@ export function extractEdges(
 
       return { targetId, label }
     })
+    // Filter out invalid edges from empty/malformed wikilinks like [[]], [.], [ ]
+    .filter(edge => edge.targetId.trim() !== '' && edge.targetId !== '.')
 
   // Remove duplicates while preserving order (by targetId)
   type Accumulator = { readonly seen: ReadonlySet<string>; readonly result: readonly Edge[] }

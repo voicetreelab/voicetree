@@ -274,9 +274,9 @@ test.describe('Terminal Selection Highlighting E2E', () => {
     expect(highlightState.goldEdgeCount).toBeGreaterThan(0);
     console.log('Gold edge (terminal-indicator + terminal-active) exists');
 
-    // Verify the gold edge is actually rendering with gold color (#FFD700 = rgb(255,215,0))
-    expect(highlightState.goldEdgeLineColor).toBe('rgb(255,215,0)');
-    console.log('Gold edge is rendering with gold color (#FFD700)');
+    // Verify the gold edge is rendering with subtle goldenrod color (rgba(218,165,32,0.85) → rgb(218,165,32))
+    expect(highlightState.goldEdgeLineColor).toBe('rgb(218,165,32)');
+    console.log('Gold edge is rendering with subtle goldenrod color');
 
     console.log('');
     console.log('TERMINAL SELECTION HIGHLIGHTING TEST PASSED');

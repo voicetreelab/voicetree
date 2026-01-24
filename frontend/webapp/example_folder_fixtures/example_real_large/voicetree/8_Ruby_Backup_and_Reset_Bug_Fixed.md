@@ -1,8 +1,8 @@
 ---
 color: indigo
 position:
-  x: 493.0634144570001
-  y: -413.5941168231096
+  x: -27.513092556357563
+  y: -139.52085734579904
 isContextNode: false
 node_id: 8
 agent_name: Ruby

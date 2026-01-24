@@ -15,6 +15,14 @@ export class StyleService {
   private agentEdgeColor = '#100eb2';
   private font = '"Fira Code", Fira Code, "Fira Mono", Menlo, Consolas, "DejaVu - Sans Mono", monospace';
 
+  // Gold highlight colors - subtle for light mode, muted for dark mode
+  private getGoldColor(): string {
+    return this.isDarkMode() ? 'rgba(184, 134, 11, 0.5)' : 'rgba(218, 165, 32, 0.7)';
+  }
+  private getGoldEdgeColor(): string {
+    return this.isDarkMode() ? 'rgba(184, 134, 11, 0.6)' : 'rgba(218, 165, 32, 0.85)';
+  }
+
   constructor() {
     // Try to get colors from document if available
     if (typeof document !== 'undefined') {
@@ -261,9 +269,9 @@ export class StyleService {
         selector: 'node.context-contained',
         style: {
           'outline-width': 2,
-          'outline-color': '#FFD700',  // Gold
+          'outline-color': this.getGoldColor(),
           'outline-offset': 6,
-          'outline-opacity': 0.6,
+          'outline-opacity': 0.8,
         }
       },
 
@@ -271,8 +279,8 @@ export class StyleService {
       {
         selector: 'edge.context-edge',
         style: {
-          'line-color': '#FFD700',
-          'line-opacity': 0.6,
+          'line-color': this.getGoldEdgeColor(),
+          'line-opacity': 0.8,
           'width': 3,
         }
       },
@@ -283,9 +291,9 @@ export class StyleService {
         selector: 'node.terminal-active',
         style: {
           'outline-width': 3,
-          'outline-color': '#FFD700',
+          'outline-color': this.getGoldColor(),
           'outline-offset': 8,
-          'outline-opacity': 0.4,
+          'outline-opacity': 0.6,
         }
       },
 
@@ -323,7 +331,7 @@ export class StyleService {
       {
         selector: 'edge.terminal-indicator.terminal-active',
         style: {
-          'line-color': '#FFD700',
+          'line-color': this.getGoldEdgeColor(),
           'line-opacity': 1,
           'width': 5,
         }

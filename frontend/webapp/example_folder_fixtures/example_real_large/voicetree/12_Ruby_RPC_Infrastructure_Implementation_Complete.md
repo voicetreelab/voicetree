@@ -1,8 +1,8 @@
 ---
 color: cyancyan
 position:
-  x: 1835.193357573438
-  y: 562.5166244815713
+  x: 1773.8965171389643
+  y: 270.78073770862943
 isContextNode: false
 node_id: 12
 agent_name: Ruby
