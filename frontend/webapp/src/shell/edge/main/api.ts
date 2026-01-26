@@ -40,8 +40,9 @@ import path from 'path';
 /**
  * Wrapper for initializeProject that provides the onboarding source directory.
  * Copies onboarding .md files from Application Support into the project's voicetree folder.
+ * Returns the path to the voicetree subfolder (existing or newly created).
  */
-async function initializeProject(projectPath: string): Promise<boolean> {
+async function initializeProject(projectPath: string): Promise<string | null> {
     const onboardingSourceDir: string = path.join(getOnboardingDirectory(), 'voicetree');
     return initializeProjectCore(projectPath, onboardingSourceDir);
 }

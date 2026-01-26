@@ -40,9 +40,12 @@ async function exposeElectronAPI(): Promise<void> {
         // Directory selection
         // openDirectoryDialog: () => ipcRenderer.invoke('open-directory-dialog'),
 
-        // File watching event listeners
+        // File watching event listeners (returns cleanup function like onGraphUpdate)
         onWatchingStarted: (callback) => {
-            ipcRenderer.on('watching-started', (_event, data) => callback(data));
+            type WatchingStartedData = { directory: string; timestamp: string; positions?: Record<string, { x: number; y: number }> };
+            const handler: (_event: Electron.IpcRendererEvent, data: WatchingStartedData) => void = (_event, data) => callback(data);
+            ipcRenderer.on('watching-started', handler);
+            return () => ipcRenderer.off('watching-started', handler);
         },
 
         // Remove event listeners (cleanup)

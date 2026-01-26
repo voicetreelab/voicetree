@@ -66,6 +66,13 @@ export function setupBasicCytoscapeEventListeners(
     container.focus();
   });
 
+  // Close stats panel when clicking on canvas background (not on nodes)
+  cy.on('tap', (e) => {
+    if (e.target === cy) {
+      window.dispatchEvent(new Event('close-stats-panel'));
+    }
+  });
+
   // Update node sizes when edges are added or removed
   // Only update the source and target nodes of the affected edge for efficiency
   cy.on('add', 'edge', (e) => {

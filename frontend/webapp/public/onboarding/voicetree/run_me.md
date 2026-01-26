@@ -1,62 +1,21 @@
 ---
 color: green
 position:
-  x: 1066.797573497235
-  y: -1658.6428998501397
+  x: 1160.0130773638646
+  y: -1582.361462834373
 isContextNode: false
 ---
-# Run me (generates task tree)
+# Generate codebase graph (run me)
 
-Your task is to produce a small task dependency tree of nodes representing the actions (tasks) the user should attempt for a comprehensive onboarding to voicetree.
+Your task is to create a knowledge graph made out of Markdown nodes which represents this codebase at a high level. Each node should have a concise summary of the module's main purpose, and a sentence or two of gotchas or tech debt you found. You can use explore subagents to help you with exploring codebase.
 
-Create the following nodes as a DIAMOND-shaped dependency graph:
+The graph should be mostly a tree, so no more than one edge per node linking to its parent.
 
-```
-                CUSTOM AGENTS
-             /                  \
-TASK->VOICE INPUT                      OPENSPEC
-             \                  /
-                LINKED NODES
-```
+Limit to a maximum of 7 modules at any given level.  
 
-Voice Input links to both Custom Agents and Linked Nodes.
-Both Custom Agents and Linked Nodes link to OpenSpec.
+For each module you create, spawn a voicetree agent to run this exact same workflow on the given module to break it down further into a subgraph of submodules. Do not recurse more than one level deep. Subagents should not recurse further.
 
-Create the nodes with their content kept as is:
-
-# Voice Input Into Nodes & Terminals
-Select any node or terminal, then speak - your voice goes directly into it.
-
-How it works:
-- Click into an editor or terminal, while recording, transcription appears as a chip on the node
-
-This lets you talk to agents naturally while they're running.
-
-# Works Amazingly With OpenSpec
-VoiceTree pairs perfectly with OpenSpec for AI-assisted development.
-
-Just tell your agent: "Please create an OpenSpec change proposal for this feature" - the markdown files will appear in the graph.
-
-# Create Linked Nodes
-Now that you've created some nodes, link them together manually.
-
-How to link:
-1. Hover a node and click the "+" button to add a child
-2. Or type `[[other_node.md]]` in any node's content to create an edge
-3. Cmd+drag to select multiple nodes, then link them
-
-Tip: Wikilinks autocomplete - start typing `[[` and suggestions appear.
+**IMPORTANT:** When creating child nodes, link them ONLY to their direct parent node. Do NOT create links back to the grandparent or ancestor nodes - this creates transitive edges that clutter the graph.
 
 
-# Create Custom Agents
-Add your own agents via the settings file. Any CLI command can become an agent.
 
-How to add:
-1. Open settings (floating menu on right)
-2. Add an entry to the `agents` array with name and command
-3. New agents automatically appear in the horizontal menu dropdown
-
-Example agent entry:
-{ "name": "my-agent", "command": "claude --model sonnet" }
-
-The first agent in the array is the default (triggered by Cmd+Enter).

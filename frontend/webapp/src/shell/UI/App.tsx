@@ -34,10 +34,10 @@ function App(): JSX.Element {
     const handleProjectSelected: (project: SavedProject) => Promise<void> = useCallback(async (project: SavedProject): Promise<void> => {
         if (!window.electronAPI) return;
 
-        // Initialize project if needed (creates /voicetree folder)
+        // Initialize project if needed (creates /voicetree-{date} folder)
         if (!project.voicetreeInitialized) {
             try {
-                // initializeProject returns true if created, false if already exists
+                // initializeProject returns voicetree path if created, or existing path if already exists
                 await window.electronAPI.main.initializeProject(project.path);
                 // Mark as initialized regardless of whether we created it or it existed
                 const updatedProject: SavedProject = { ...project, voicetreeInitialized: true };
@@ -67,6 +67,13 @@ function App(): JSX.Element {
         const handleToggleStats: () => void = (): void => setIsStatsPanelOpen(prev => !prev);
         window.addEventListener('toggle-stats-panel', handleToggleStats);
         return () => window.removeEventListener('toggle-stats-panel', handleToggleStats);
+    }, []);
+
+    // Listen for stats panel close event (dispatched when clicking on graph canvas)
+    useEffect(() => {
+        const handleCloseStats: () => void = (): void => setIsStatsPanelOpen(false);
+        window.addEventListener('close-stats-panel', handleCloseStats);
+        return () => window.removeEventListener('close-stats-panel', handleCloseStats);
     }, []);
 
     // Start watching the project folder when entering graph view

@@ -109,11 +109,10 @@ export function subscribeToGraphUpdates(
 
     // Subscribe to watching-started to track the watched folder path
     // This enables wikilink autocomplete to insert relative paths
-    if (electronAPI.onWatchingStarted) {
-        electronAPI.onWatchingStarted((data: { directory: string; timestamp: string }) => {
-            setWatchedFolder(data.directory);
-        });
-    }
+    // Returns cleanup function to remove only THIS listener (not all listeners)
+    const cleanupWatchingStarted: (() => void) | undefined = electronAPI.onWatchingStarted?.((data: { directory: string; timestamp: string }) => {
+        setWatchedFolder(data.directory);
+    });
 
     // Also fetch initial watch status in case folder was already loaded
     void electronAPI.main.getWatchStatus().then((status: { readonly isWatching: boolean; readonly directory: string | undefined }) => {
@@ -126,6 +125,6 @@ export function subscribeToGraphUpdates(
     return (): void => {
         cleanupUpdate();
         cleanupClear();
-        electronAPI.removeAllListeners?.('watching-started');
+        cleanupWatchingStarted?.();
     };
 }

@@ -57,12 +57,12 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
       setError(null);
     };
 
-    // Register event listeners
-    window.electronAPI.onWatchingStarted(handleWatchingStarted);
+    // Register event listener (returns cleanup function)
+    const cleanupWatchingStarted: (() => void) | undefined = window.electronAPI.onWatchingStarted(handleWatchingStarted);
 
-    // Cleanup
+    // Cleanup - only removes THIS listener, not all listeners
     return () => {
-      window.electronAPI?.removeAllListeners?.('watching-started');
+      cleanupWatchingStarted?.();
     };
   }, [isElectron]);
 
@@ -92,12 +92,12 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
         setError(result.error ?? 'Failed to start watching');
         setIsLoading(false);
       }
-    } catch (err) {
-      //console.log('[DEBUG] startWatching error:', err);
+    } catch (_err) {
+      //console.log('[DEBUG] startWatching error:', _err);
       setError('Failed to start file watching');
       setIsLoading(false);
     }
-  }, [isElectron, watchStatus]);
+  }, [isElectron]);
 
   // Stop watching function
   const stopWatching: () => Promise<void> = useCallback(async () => {
@@ -119,12 +119,12 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
         setError(result.error ?? 'Failed to stop watching');
         setIsLoading(false);
       }
-    } catch (err) {
-      //console.log('[DEBUG] stopWatching error:', err);
+    } catch (_err) {
+      //console.log('[DEBUG] stopWatching error:', _err);
       setError('Failed to stop file watching');
       setIsLoading(false);
     }
-  }, [isElectron, watchStatus]);
+  }, [isElectron]);
 
   // Clear error function
   const clearError: () => void = useCallback(() => {

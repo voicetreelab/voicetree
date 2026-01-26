@@ -1,13 +1,17 @@
 ---
 position:
-  x: 1408.213101583245
-  y: -1479.9567176294865
+  x: 1438.2586227235515
+  y: -1504.699960288747
 isContextNode: false
 ---
 # Voicetree
 
-VoiceTree converts your voice or text into an organized graph of connected markdown notes. Each concept becomes a node you can explore and edit.
+## The spatial IDE for multi-agent orchestration
 
-ready? [[open_your_project_folder.md]]
+##### Build massive projects out of hundreds of agent sessions whose outputs are all saved, connected together, and turned into a Markdown mindmap. Spatially navigate the graph to hand-hold agents as they recursively fork themselves.
+
+Optimise for seeing only the most relevant information at the necessary level of abstraction.
+
+ready? [[run_me.md]]
 
 explore the features [[hover_over_me.md]]
