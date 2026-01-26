@@ -104,7 +104,7 @@ async function getObsidianVaultPaths(searchDirs: readonly string[]): Promise<str
 /**
  * Returns the default search directories for project discovery.
  * Uses os.homedir() for cross-platform support.
- * Filters to only directories that exist.
+ * Filters to only directories that exist AND are readable (have permission).
  */
 export function getDefaultSearchDirectories(): string[] {
     const home: string = os.homedir();
@@ -118,10 +118,15 @@ export function getDefaultSearchDirectories(): string[] {
         path.join(home, 'Documents'),
     ];
 
-    // Filter to only existing directories
+    // Filter to only existing directories that we have read access to
     return candidates.filter((dir) => {
         try {
-            return fs.existsSync(dir) && fs.statSync(dir).isDirectory();
+            if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
+                return false;
+            }
+            // Verify read access by attempting to read directory contents
+            fs.readdirSync(dir);
+            return true;
         } catch {
             return false;
         }
