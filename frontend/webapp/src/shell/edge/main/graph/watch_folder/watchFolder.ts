@@ -101,11 +101,8 @@ export async function initialLoad(): Promise<void> {
     const lastDirectory: O.Option<string> = await getLastDirectory();
     if (O.isSome(lastDirectory)) {
         await loadFolder(lastDirectory.value);
-    } else {
-        // First run: load onboarding directory
-        const onboardingPath: string = getOnboardingDirectory();
-        await loadFolder(onboardingPath);
     }
+    // No fallback - ProjectSelectionScreen handles first-run experience
 }
 
 export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success: boolean }> {
