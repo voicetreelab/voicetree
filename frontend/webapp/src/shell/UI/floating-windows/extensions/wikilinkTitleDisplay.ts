@@ -19,6 +19,7 @@ import {
 } from '@codemirror/view';
 import { RangeSet, type Range, type Line } from '@codemirror/state';
 import type { Core, NodeSingular } from 'cytoscape';
+import { linkMatchScore, getPathComponents } from '@/pure/graph/markdown-parsing/extract-edges';
 
 // Regex to match wikilinks: [[nodeId]]
 const WIKILINK_REGEX: RegExp = /\[\[([^\]]+)\]\]/g;
@@ -34,41 +35,88 @@ function getCytoscapeInstance(): Core | undefined {
 }
 
 /**
- * Look up a node's title from Cytoscape by its ID
- * Returns null if node not found
+ * Result of finding a node for a wikilink
  */
-function getNodeTitle(nodeId: string): string | null {
-    const cy: Core | undefined = getCytoscapeInstance();
-    if (!cy) return null;
-
-    const node: NodeSingular = cy.getElementById(nodeId);
-    if (node.empty()) return null;
-
-    return (node.data('label') as string) ?? null;
+interface WikilinkNodeMatch {
+    readonly title: string;
+    readonly resolvedId: string;
 }
 
 /**
- * Widget that displays a node title instead of its ID
+ * Find node matching the wikilink text using fuzzy suffix matching.
+ * Uses linkMatchScore for path resolution (same logic as edge resolution).
+ * Returns title and resolved ID for navigation.
+ */
+function findNodeForWikilink(linkText: string): WikilinkNodeMatch | null {
+    const cy: Core | undefined = getCytoscapeInstance();
+    if (!cy) return null;
+
+    // Try exact match first
+    const exactNode: NodeSingular = cy.getElementById(linkText);
+    if (!exactNode.empty()) {
+        const title: string | null = (exactNode.data('label') as string) ?? null;
+        return title ? { title, resolvedId: linkText } : null;
+    }
+
+    // Use linkMatchScore for fuzzy suffix matching (same logic as edge resolution)
+    const linkComponents: readonly string[] = getPathComponents(linkText);
+    if (linkComponents.length === 0) return null;
+
+    // Track best match using mutable state within forEach
+    const match: { node: NodeSingular | null; score: number } = { node: null, score: 0 };
+
+    cy.nodes().forEach((n: NodeSingular) => {
+        if (n.data('isShadowNode') || n.data('isContextNode')) return;
+
+        const score: number = linkMatchScore(linkText, n.id());
+        // Accept match only if ALL link components matched (same rule as findBestMatchingNode)
+        if (score >= linkComponents.length && score > match.score) {
+            match.score = score;
+            match.node = n;
+        }
+    });
+
+    if (!match.node) return null;
+
+    const title: string | null = (match.node.data('label') as string) ?? null;
+    return title ? { title, resolvedId: match.node.id() } : null;
+}
+
+/**
+ * Widget that displays a node title instead of its ID.
+ * Clickable - navigates to the resolved node on click.
  */
 class WikilinkTitleWidget extends WidgetType {
     readonly title: string;
-    readonly nodeId: string;
+    readonly rawLinkText: string;
+    readonly resolvedNodeId: string;
 
-    constructor(title: string, nodeId: string) {
+    constructor(title: string, rawLinkText: string, resolvedNodeId: string) {
         super();
         this.title = title;
-        this.nodeId = nodeId;
+        this.rawLinkText = rawLinkText;
+        this.resolvedNodeId = resolvedNodeId;
     }
 
     eq(other: WikilinkTitleWidget): boolean {
-        return other.title === this.title && other.nodeId === this.nodeId;
+        return other.title === this.title && other.resolvedNodeId === this.resolvedNodeId;
     }
 
     toDOM(): HTMLElement {
         const span: HTMLSpanElement = document.createElement('span');
         span.className = 'cm-wikilink-title';
         span.textContent = this.title;
-        span.title = this.nodeId; // Show nodeId on hover
+        span.title = this.rawLinkText; // Show raw wikilink path on hover
+
+        // Navigate to resolved node on click
+        span.addEventListener('click', (event: MouseEvent) => {
+            event.preventDefault();
+            event.stopPropagation();
+            window.dispatchEvent(new CustomEvent('voicetree-navigate', {
+                detail: { nodeId: this.resolvedNodeId }
+            }));
+        });
+
         return span;
     }
 
@@ -101,7 +149,7 @@ function buildViewportDecorations(view: EditorView): DecorationSet {
             WIKILINK_REGEX.lastIndex = 0; // Reset regex state
 
             while ((match = WIKILINK_REGEX.exec(lineText)) !== null) {
-                const nodeId: string = match[1];
+                const linkText: string = match[1];
                 const wikilinkStart: number = line.from + match.index;
                 const wikilinkEnd: number = wikilinkStart + match[0].length;
 
@@ -113,19 +161,19 @@ function buildViewportDecorations(view: EditorView): DecorationSet {
                     continue;
                 }
 
-                // Look up title - fallback to nodeId if not found
-                const title: string | null = getNodeTitle(nodeId);
-                if (!title) {
-                    continue; // No decoration needed - show raw ID
+                // Look up node using fuzzy matching - returns title and resolved ID
+                const nodeMatch: WikilinkNodeMatch | null = findNodeForWikilink(linkText);
+                if (!nodeMatch) {
+                    continue; // No decoration needed - show raw link text
                 }
 
-                // Create decoration to replace the nodeId text with title widget
-                // Keep the [[ and ]] visible, only replace the inner nodeId
+                // Create decoration to replace the link text with title widget
+                // Keep the [[ and ]] visible, only replace the inner link text
                 const innerStart: number = wikilinkStart + 2; // After [[
                 const innerEnd: number = wikilinkEnd - 2; // Before ]]
 
                 const decoration: Decoration = Decoration.replace({
-                    widget: new WikilinkTitleWidget(title, nodeId),
+                    widget: new WikilinkTitleWidget(nodeMatch.title, linkText, nodeMatch.resolvedId),
                 });
 
                 decorations.push(decoration.range(innerStart, innerEnd));

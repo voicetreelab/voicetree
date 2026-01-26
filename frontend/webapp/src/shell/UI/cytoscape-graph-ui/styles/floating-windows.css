@@ -257,11 +257,15 @@
   background-color: rgba(239, 68, 68, 0.25);
 }
 
-/* Wikilink title display - shows node title instead of ID */
+/* Wikilink title display - shows node title instead of ID, clickable for navigation */
 .cm-wikilink-title {
   color: var(--primary, #3b82f6);
   font-style: italic;
-  cursor: default;
+  cursor: pointer;
+}
+
+.cm-wikilink-title:hover {
+  text-decoration: underline;
 }
 
 .dark .cm-wikilink-title {

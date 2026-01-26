@@ -2,7 +2,7 @@ import '@/shell/UI/cytoscape-graph-ui/styles/floating-windows.css'; // VERY IMPO
 import type {} from "@/shell/electron"; // Import ElectronAPI type for window.electronAPI access
 import { vim } from '@replit/codemirror-vim';
 import { EditorState, type Extension } from '@codemirror/state';
-import type { Text, Line } from '@codemirror/state';
+import type { Line } from '@codemirror/state';
 import { EditorView, ViewUpdate, ViewPlugin, keymap, tooltips } from '@codemirror/view';
 import { indentWithTab } from '@codemirror/commands';
 import { basicSetup } from 'codemirror';
@@ -129,11 +129,6 @@ export class CodeMirrorEditorView extends Disposable {
       state,
       parent: container
     });
-
-    // Auto-fold frontmatter on initialization (only for markdown mode)
-    if (this.options.language !== 'json') {
-      this.autoFoldFrontmatter();
-    }
 
     // Setup dark mode observer if needed
     this.setupDarkModeObserver();
@@ -509,23 +504,15 @@ export class CodeMirrorEditorView extends Disposable {
    * @param content - New content
    */
   setValue(content: string): void {
-    // Check if current content has frontmatter (only for markdown mode)
-    const oldHasFrontmatter: boolean = this.options.language !== 'json' && this.hasFrontmatter(this.view.state.doc.toString());
-    const newHasFrontmatter: boolean = this.options.language !== 'json' && this.hasFrontmatter(content);
+    // Preserve cursor position before replacing content
+    const cursorPos: number = this.view.state.selection.main.head;
+    // Clamp to new content length (content may be shorter)
+    const newCursorPos: number = Math.min(cursorPos, content.length);
 
-    const doc: Text = this.view.state.doc;
     this.view.dispatch({
-      changes: {
-        from: 0,
-        to: doc.length,
-        insert: content
-      }
+      changes: { from: 0, to: this.view.state.doc.length, insert: content },
+      selection: { anchor: newCursorPos }
     });
-
-    // Only auto-fold if this is NEW frontmatter (wasn't there before) - markdown mode only
-    if (!oldHasFrontmatter && newHasFrontmatter) {
-      this.autoFoldFrontmatter();
-    }
   }
 
   /**
