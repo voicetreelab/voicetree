@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '{\"ok\":true,\"reason\":\"Remember to create a progress node before stopping!\"}'"
+            "command": "echo '{\"ok\":true,\"reason\":\"Remember to read instructions to create your progress node(s) before stopping!\"}'"
           }
         ]
       }

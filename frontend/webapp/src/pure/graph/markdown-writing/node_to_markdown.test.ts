@@ -75,6 +75,29 @@ describe('fromNodeToMarkdownContent', () => {
       expect(result).toContain('# Test Content')
     })
 
+    it('should round float positions to integers to avoid noisy diffs', () => {
+      const node: GraphNode = {
+        absoluteFilePathIsID: 'test.md',
+        contentWithoutYamlOrLinks: '# Test Content',
+        outgoingEdges: [],
+        nodeUIMetadata: {
+          color: O.none,
+          position: O.some({ x: 497.79198993276833, y: -19.08618457963695 }),
+          additionalYAMLProps: new Map(),
+          isContextNode: false
+        }
+      }
+
+      const result: string = fromNodeToMarkdownContent(node)
+
+      // Should round to integers: 497.79... -> 498, -19.08... -> -19
+      expect(result).toContain('x: 498')
+      expect(result).toContain('y: -19')
+      // Should NOT contain decimal values
+      expect(result).not.toMatch(/x: 497\.7/)
+      expect(result).not.toMatch(/y: -19\.0/)
+    })
+
     it('should include both color and position when nodeUIMetadata has both', () => {
       const node: GraphNode = {
         absoluteFilePathIsID: 'test.md',
