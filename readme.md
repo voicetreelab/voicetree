@@ -1,28 +1,78 @@
 # VoiceTree
 
-VoiceTree is a platform for creating abstraction graphs from content streams, such as live voice, or LLM chats. 
-Some popular use cases are:
-- Using VoiceTree for day to day work, organizing your tasks & decisions
-- Deep problem-solving: let the tree offload your working memory, free your cognition.
-- Human-Agent collaboration. Let agents continue building your tree in the background.
-- Compressing LLM context inputs. Solves the LLM long context problem.
+**The spatial IDE for recursive multi-agent orchestration.**
+You architect, agents build.
 
+## The Problem
 
-#### Agentic Workflow 
+You're running 4 coding agents across different terminal panes. You switch to one and have to scroll through terminal history to figure out what it's doing and why. Constantly rebuilding that mental model is exhausting.
 
-The Tree-Action-Decider-Agent processes small chunks of text (1-3 sentences) and updates a tree representation.
-**Core Pipeline Stages:**
-1. **Segmentation** - Breaks transcripts into atomic phrases
-2. **Target Node Identification** - Analyzes connections to existing nodes
-3. **Single Node optimisation** - Divides into abstractions
+## The Solution
 
-Future pipeline: Tree reorganization agent (transcript_history, modified_sub_tree) -> optimal_sub_tree
-### Key Configuration
-backend/settings.py
-backend/text_to_graph_pipeline/voice_to_text/voice_config.py
-backend/benchmarker/src/config.py
+VoiceTree is a canvas where every agent sits next to its task, planning documents, and progress updates. All visible at a glance. The closer something is, the more relevant it is.
 
-## Quick Start
+Now you can effortlessly switch between swarms of parallel agents across your project. Your project becomes an interactive graph view made of markdown files and terminals. All stored locally.
+
+### Divide and Conquer
+
+Long, complex tasks make agents unpredictable. Simple, isolated tasks make them reliable.
+
+VoiceTree lets you break work into subtasks: what needs to happen, in what order, and what can run in parallel. Each agent gets one clear job. When agents are reliable, their outputs become building blocks — you assemble massive projects fractally from tiny tasks.
+
+### Transparent Orchestration
+
+Agents can spawn their own subagents automatically. In other tools, this is invisible. In VoiceTree, every subagent is fully transparent and controllable, running live on the graph in its own terminal.
+
+### Built for Flow
+
+- **No cold starts**: Step away for a minute or a week. The graph will be exactly as you left it.
+- **Spatial navigation**: Your project becomes a map you can explore. Agents become landmarks, not just another terminal pane.
+- **Hackable**: Everything is stored on-device as markdown files. Keep your same Claude settings and workflows.
+- **Efficient**: Pruning context leads to fewer input tokens and more accurate responses.
+
+## Installation
+
+### macOS (Apple Silicon)
+
+Download directly or install via Homebrew:
+
+```bash
+brew tap voicetreelab/voicetree && brew install voicetree
+```
+
+### macOS (Intel)
+
+Download directly or install via Homebrew:
+
+```bash
+brew tap voicetreelab/voicetree && brew install voicetree
+```
+
+### Windows
+
+Download the Windows installer from [releases](https://github.com/voicetreelab/voicetree/releases).
+
+### Linux
+
+Download the AppImage or install via script:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/voicetreelab/voicetree/main/install.sh | sh
+```
+
+## Beyond Agents: Voice & Thinking
+
+VoiceTree also works as a tool for thinking. Use speech-to-graph mode to capture ideas hands-free — your voice becomes nodes on the canvas.
+
+**Use cases:**
+- **Day-to-day work**: Organize tasks and decisions as you think through them
+- **Deep problem-solving**: Let the graph offload your working memory, freeing your cognition
+- **Human-agent collaboration**: Build the graph yourself, then let agents continue in the background
+- **Context compression**: The graph structure naturally solves the LLM long-context problem
+
+Everything is local markdown files. Use it with agents, with voice, or just as a spatial thinking tool.
+
+## Development
 
 ### Prerequisites
 
@@ -52,10 +102,12 @@ python backend/benchmarker/src/quality_LLM_benchmarker.py
 
 All tests and scripts should always be run from the root directory for consistency.
 
+## Contact
 
-### Quality Debugging Workflow
-1. Run benchmarker to generate output: `python -m backend.benchmarker.src.quality_LLM_benchmarker`
-2. Check generated markdown files in `output/` directory
-3. Identify quality issues (missing content, poor structure)
-4. Review debug logs in `output/debug_output_[timestamp]/`
-5. Trace problems through the pipeline
+Need help? Reach out to us at hello@voicetree.io
+
+Feedback is immensely valuable. Email us with any thoughts, criticisms, or feature requests.
+
+## License
+
+This project is licensed under the AGPL-3.0 License - see the [LICENSE](LICENSE) file for details.
