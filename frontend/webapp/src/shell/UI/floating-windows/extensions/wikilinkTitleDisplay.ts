@@ -108,8 +108,15 @@ class WikilinkTitleWidget extends WidgetType {
         span.textContent = this.title;
         span.title = this.rawLinkText; // Show raw wikilink path on hover
 
-        // Navigate to resolved node on click
-        span.addEventListener('click', (event: MouseEvent) => {
+        // Ensure the span can receive pointer events (CodeMirror may block them otherwise)
+        span.style.pointerEvents = 'auto';
+
+        // Use mousedown instead of click - fires before CodeMirror's event handling
+        // which can intercept click events on replace decorations
+        span.addEventListener('mousedown', (event: MouseEvent) => {
+            // Only handle left mouse button clicks
+            if (event.button !== 0) return;
+
             event.preventDefault();
             event.stopPropagation();
             window.dispatchEvent(new CustomEvent('voicetree-navigate', {
