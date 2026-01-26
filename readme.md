@@ -11,23 +11,6 @@ Voicetree is a canvas where every agent sits next to its task, planning document
 
 Now you can effortlessly switch between swarms of parallel agents across your project. Your project becomes an interactive graph view made of markdown files and terminals. All stored locally.
 
-### Divide and Conquer
-
-Long, complex tasks make agents unpredictable. Simple, isolated tasks make them reliable.
-
-VoiceTree lets you break work into subtasks: what needs to happen, in what order, and what can run in parallel. Each agent gets one clear job. When agents are reliable, their outputs become building blocks — you assemble massive projects fractally from tiny tasks.
-
-### Transparent Orchestration
-
-Agents can spawn their own subagents automatically. In other tools, this is invisible. In VoiceTree, every subagent is fully transparent and controllable, running live on the graph in its own terminal.
-
-### Built for Flow
-
-- **No cold starts**: Step away for a minute or a week. The graph will be exactly as you left it.
-- **Spatial navigation**: Your project becomes a map you can explore. Agents become landmarks, not just another terminal pane.
-- **Hackable**: Everything is stored on-device as markdown files. Keep your same Claude settings and workflows.
-- **Efficient**: Pruning context leads to fewer input tokens and more accurate responses.
-
 ## Installation
 
 ### macOS (Apple Silicon)
@@ -57,6 +40,25 @@ Download the AppImage or install via script:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/voicetreelab/voicetree/main/install.sh | sh
 ```
+
+### Divide and Conquer
+
+Long, complex tasks make agents unpredictable. Simple, isolated tasks make them reliable.
+
+VoiceTree lets you break work into subtasks: what needs to happen, in what order, and what can run in parallel. Each agent gets one clear job. When agents are reliable, their outputs become building blocks — you assemble massive projects fractally from tiny tasks.
+
+### Transparent Orchestration
+
+Agents can spawn their own subagents automatically. In other tools, this is invisible. In VoiceTree, every subagent is fully transparent and controllable, running live on the graph in its own terminal.
+
+### Built for Flow
+
+- **No cold starts**: Step away for a minute or a week. The graph will be exactly as you left it.
+- **Spatial navigation**: Your project becomes a map you can explore. Agents become landmarks, not just another terminal pane.
+- **Hackable**: Everything is stored on-device as markdown files. Keep your same Claude settings and workflows.
+- **Efficient**: Pruning context leads to ammoritzed fewer input tokens and more accurate responses.
+
+
 
 ## Beyond Agents: Voice & Thinking
 
