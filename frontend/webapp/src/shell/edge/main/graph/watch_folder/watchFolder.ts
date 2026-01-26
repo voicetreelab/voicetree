@@ -84,6 +84,12 @@ export function setOnFolderSwitchCleanup(cleanup: () => void): void {
 }
 
 export async function initialLoad(): Promise<void> {
+    // If already watching a directory, don't reload
+    // This prevents race conditions when startFileWatching() is called before markFrontendReady()
+    if (getWatchedDirectory() !== null) {
+        return;
+    }
+
     // Check for CLI-specified folder first (from "Open Folder in New Instance")
     const startupFolder: string | null = getStartupFolderOverride();
     if (startupFolder !== null) {

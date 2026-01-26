@@ -224,17 +224,6 @@ function createWindow(): void {
     // Set global main window reference (used by handlers)
     setMainWindow(mainWindow);
 
-    // Trackpad gesture detection for pan vs zoom
-    // gestureScrollBegin/End only fire for trackpad, not mouse wheel (macOS specific)
-    // Uses uiAPI (main→renderer RPC) to set trackpad state in renderer
-    mainWindow.webContents.on('input-event', (_event, inputEvent) => {
-        if (inputEvent.type === 'gestureScrollBegin') {
-            uiAPI.setIsTrackpadScrolling(true);
-        } else if (inputEvent.type === 'gestureScrollEnd') {
-            uiAPI.setIsTrackpadScrolling(false);
-        }
-    });
-
     // Pipe renderer console logs to electron terminal
     mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
         // Filter out Electron security warnings in dev mode
