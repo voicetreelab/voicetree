@@ -5,11 +5,12 @@ You architect, agents build.
 
 ## The Problem
 
-You're running 4 coding agents across different terminal panes. You switch to one and have to scroll through terminal history to figure out what it's doing and why. Constantly rebuilding that mental model is exhausting.
+You're running 4 coding agents across different terminal panes. You switch to one and scroll through history trying to figure out what it's doing. Then the next. Constantly rebuilding that mental model is exhausting.
+When an agent finishes and your feature is still half-built, you start a fresh session to avoid context-rot. You write a HANDOVER.md to get the new agent up to speed. An hour later you have 20 handover files. What's the state of each feature? Which ones still need planning? What should the agents be doing next? It's an unorganized mess, and you're back to prompting from scratch, losing the context you and your agents had slowly built together
 
 ## The Solution
 
-VoiceTree is a canvas where every agent sits next to its task, planning documents, and progress updates. All visible at a glance. The closer something is, the more relevant it is.
+Voicetree is a canvas where every agent sits next to its task, planning documents, and progress updates. All visible at a glance. The closer something is, the more relevant it is.
 
 Now you can effortlessly switch between swarms of parallel agents across your project. Your project becomes an interactive graph view made of markdown files and terminals. All stored locally.
 
