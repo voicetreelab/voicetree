@@ -54,8 +54,8 @@ async function copyDir(src: string, dest: string): Promise<void> {
 
 /**
  * Set up onboarding directory
- * Copies onboarding tree from source to Application Support on first run only
- * Preserves user modifications on subsequent runs
+ * Always copies onboarding tree from source to Application Support
+ * This ensures users get updated onboarding files on app updates
  *
  * SKIPS entirely in test mode (HEADLESS_TEST=1) for fast test startup
  *
@@ -87,31 +87,8 @@ async function setupOnboardingDirectoryInternal(): Promise<void> {
     const onboardingSource: string = getOnboardingSource();
     const onboardingDest: string = getOnboardingDirectory();
 
-    // Check if destination directory already exists
-    let destExists: boolean = false;
-    try {
-      await fs.access(onboardingDest);
-      destExists = true;
-    } catch {
-      // Directory doesn't exist, which is fine
-    }
-
-    if (destExists) {
-      const entries: string[] = await fs.readdir(onboardingDest);
-      if (entries.length > 1) {
-        //console.log('[Setup] Onboarding directory already exists with user content, preserving modifications');
-        return;
-      }
-      //console.log('[Setup] Onboarding directory exists but has <=1 file, refreshing...');
-    }
-
-    //console.log('[Setup] Setting up onboarding directory...');
-    //console.log('[Setup] Source path:', onboardingSource);
-    //console.log('[Setup] Destination path:', onboardingDest);
-
     // Verify source directory exists
     let onboardingExist: boolean = false;
-
     try {
       await fs.access(onboardingSource);
       onboardingExist = true;
@@ -121,19 +98,13 @@ async function setupOnboardingDirectoryInternal(): Promise<void> {
 
     if (!onboardingExist) {
       console.warn('[Setup] Onboarding directory not found. Creating empty directory.');
+      await fs.mkdir(onboardingDest, { recursive: true });
+      return;
     }
 
-    // Always create onboarding directory
-    await fs.mkdir(onboardingDest, { recursive: true });
-    //console.log('[Setup] ✓ Created onboarding directory at:', onboardingDest);
-
-    // Copy onboarding directory if source exists
-    if (onboardingExist) {
-      await copyDir(onboardingSource, onboardingDest);
-      //console.log('[Setup] ✓ Copied onboarding files to:', onboardingDest);
-    }
-
-    //console.log('[Setup] Onboarding setup complete!');
+    // Always overwrite with fresh copy from source
+    await fs.rm(onboardingDest, { recursive: true, force: true });
+    await copyDir(onboardingSource, onboardingDest);
   } catch (error_) {
     console.error('[Setup] Error setting up onboarding directory:', error_);
     throw error_; // Fail fast
