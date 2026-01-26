@@ -15,7 +15,7 @@ Limit to a maximum of 7 modules at any given level.
 
 For each module you create, spawn a voicetree agent to run this exact same workflow on the given module to break it down further into a subgraph of submodules. Do not recurse more than one level deep. Subagents should not recurse further.
 
-**IMPORTANT:** When creating child nodes, link them ONLY to their direct parent node. Do NOT create links back to the grandparent or ancestor nodes - this creates transitive edges that clutter the graph.
+When creating child nodes, link them ONLY to their direct parent node. Do NOT create links back to the grandparent or ancestor nodes - this creates transitive edges that clutter the graph.
 
 
 
