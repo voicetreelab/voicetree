@@ -444,42 +444,6 @@ export class CodeMirrorEditorView extends Disposable {
   }
 
   /**
-   * Auto-fold YAML frontmatter block if present at the start of document
-   */
-  private autoFoldFrontmatter(): void {
-    // Use requestAnimationFrame to ensure the syntax tree is fully parsed
-    requestAnimationFrame(() => {
-      // Query the foldService at position 0 to see if there's a foldable range
-      // Our custom foldService will return the frontmatter fold range if present
-      const foldRange: { from: number; to: number; } | null = foldable(this.view.state, 0, this.view.state.doc.length);
-
-      if (foldRange) {
-        // Dispatch the fold effect to collapse the frontmatter
-        this.view.dispatch({
-          effects: foldEffect.of(foldRange)
-        });
-      }
-    });
-  }
-
-  /**
-   * Check if content contains YAML frontmatter
-   * @param content - The content to check
-   * @returns true if content has frontmatter (starts with --- and has closing ---)
-   */
-  private hasFrontmatter(content: string): boolean {
-    const lines: string[] = content.split('\n');
-    let yamlTagCount: number = 0;
-    for (let i: number = 0; i < Math.min(lines.length, 1000); i++) {
-      if (lines[i].trim() === '---') {
-        yamlTagCount +=1;
-      }
-    }
-
-    return yamlTagCount >= 2;
-  }
-
-  /**
    * Helper to register disposables without exposing addDisposable
    */
   private registerDisposable(fn: () => void): void {
