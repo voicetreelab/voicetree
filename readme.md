@@ -41,6 +41,9 @@ Download the AppImage or install via script:
 curl -fsSL https://raw.githubusercontent.com/voicetreelab/voicetree/main/install.sh | sh
 ```
 
+
+**Discord community:** https://discord.gg/3z4Gbquv
+
 ### Divide and Conquer
 
 Long, complex tasks make agents unpredictable. Simple, isolated tasks make them reliable.
@@ -57,7 +60,6 @@ Agents can spawn their own subagents automatically. In other tools, this is invi
 - **Spatial navigation**: Your project becomes a map you can explore. Agents become landmarks, not just another terminal pane.
 - **Hackable**: Everything is stored on-device as markdown files. Keep your same Claude settings and workflows.
 - **Efficient**: Pruning context leads to ammoritzed fewer input tokens and more accurate responses.
-
 
 
 ## Beyond Agents: Voice & Thinking
