@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
-import { initializeProject } from './project-initializer';
+import { initializeProject, generateDateSubfolder } from './project-initializer';
 
 describe('initializeProject', () => {
     let testProjectDir: string;
@@ -49,13 +49,15 @@ describe('initializeProject', () => {
         await fs.rm(testOnboardingDir, { recursive: true, force: true });
     });
 
-    it('should create voicetree folder on first open', async () => {
-        const result: boolean = await initializeProject(testProjectDir, testOnboardingDir);
+    it('should create voicetree-{date} folder on first open', async () => {
+        const result: string | null = await initializeProject(testProjectDir, testOnboardingDir);
 
-        expect(result).toBe(true);
+        // Should return the path to the created folder
+        expect(result).not.toBeNull();
+        expect(result).toContain('voicetree-');
 
-        const voicetreeDir: string = path.join(testProjectDir, 'voicetree');
-        const dirExists: boolean = await fs.access(voicetreeDir).then(
+        // Verify folder exists
+        const dirExists: boolean = await fs.access(result!).then(
             () => true,
             () => false
         );
@@ -63,10 +65,10 @@ describe('initializeProject', () => {
     });
 
     it('should copy onboarding .md files to voicetree folder', async () => {
-        await initializeProject(testProjectDir, testOnboardingDir);
+        const result: string | null = await initializeProject(testProjectDir, testOnboardingDir);
+        expect(result).not.toBeNull();
 
-        const voicetreeDir: string = path.join(testProjectDir, 'voicetree');
-        const files: string[] = await fs.readdir(voicetreeDir);
+        const files: string[] = await fs.readdir(result!);
 
         // Should have exactly 3 .md files copied
         expect(files).toContain('welcome_to_voicetree.md');
@@ -76,32 +78,30 @@ describe('initializeProject', () => {
 
         // Verify content is copied correctly
         const welcomeContent: string = await fs.readFile(
-            path.join(voicetreeDir, 'welcome_to_voicetree.md'),
+            path.join(result!, 'welcome_to_voicetree.md'),
             'utf-8'
         );
         expect(welcomeContent).toBe('# Welcome to VoiceTree\n\nThis is a test welcome file.');
     });
 
     it('should not copy non-.md files', async () => {
-        await initializeProject(testProjectDir, testOnboardingDir);
+        const result: string | null = await initializeProject(testProjectDir, testOnboardingDir);
+        expect(result).not.toBeNull();
 
-        const voicetreeDir: string = path.join(testProjectDir, 'voicetree');
-        const files: string[] = await fs.readdir(voicetreeDir);
-
+        const files: string[] = await fs.readdir(result!);
         expect(files).not.toContain('config.json');
     });
 
     it('should not copy subdirectories', async () => {
-        await initializeProject(testProjectDir, testOnboardingDir);
+        const result: string | null = await initializeProject(testProjectDir, testOnboardingDir);
+        expect(result).not.toBeNull();
 
-        const voicetreeDir: string = path.join(testProjectDir, 'voicetree');
-        const files: string[] = await fs.readdir(voicetreeDir);
-
+        const files: string[] = await fs.readdir(result!);
         expect(files).not.toContain('chromadb_data');
     });
 
-    it('should skip initialization if voicetree folder already exists', async () => {
-        // Pre-create the voicetree folder
+    it('should return existing voicetree folder if already exists', async () => {
+        // Pre-create a voicetree folder (old format)
         const voicetreeDir: string = path.join(testProjectDir, 'voicetree');
         await fs.mkdir(voicetreeDir, { recursive: true });
 
@@ -109,9 +109,10 @@ describe('initializeProject', () => {
         const customFile: string = path.join(voicetreeDir, 'custom.md');
         await fs.writeFile(customFile, 'custom content', 'utf-8');
 
-        const result: boolean = await initializeProject(testProjectDir, testOnboardingDir);
+        const result: string | null = await initializeProject(testProjectDir, testOnboardingDir);
 
-        expect(result).toBe(false);
+        // Should return path to existing folder
+        expect(result).toBe(voicetreeDir);
 
         // Verify custom file still exists and was not modified
         const content: string = await fs.readFile(customFile, 'utf-8');
@@ -122,14 +123,19 @@ describe('initializeProject', () => {
         expect(files).not.toContain('welcome_to_voicetree.md');
     });
 
-    it('should not overwrite existing voicetree folder contents', async () => {
-        // Pre-create the voicetree folder with custom file
-        const voicetreeDir: string = path.join(testProjectDir, 'voicetree');
+    it('should return existing voicetree-{date} folder if already exists', async () => {
+        // Pre-create a voicetree-{date} folder
+        const voicetreeDir: string = path.join(testProjectDir, 'voicetree-15-6');
         await fs.mkdir(voicetreeDir, { recursive: true });
+
+        // Create a custom file
         const customFile: string = path.join(voicetreeDir, 'my_notes.md');
         await fs.writeFile(customFile, 'my custom notes', 'utf-8');
 
-        await initializeProject(testProjectDir, testOnboardingDir);
+        const result: string | null = await initializeProject(testProjectDir, testOnboardingDir);
+
+        // Should return path to existing folder (not create a new one)
+        expect(result).toBe(voicetreeDir);
 
         // Verify custom file was not modified
         const content: string = await fs.readFile(customFile, 'utf-8');
@@ -137,37 +143,44 @@ describe('initializeProject', () => {
     });
 
     it('should create empty voicetree folder when no onboarding source provided', async () => {
-        const result: boolean = await initializeProject(testProjectDir);
+        const result: string | null = await initializeProject(testProjectDir);
 
-        expect(result).toBe(true);
+        expect(result).not.toBeNull();
+        expect(result).toContain('voicetree-');
 
-        const voicetreeDir: string = path.join(testProjectDir, 'voicetree');
-        const dirExists: boolean = await fs.access(voicetreeDir).then(
+        const dirExists: boolean = await fs.access(result!).then(
             () => true,
             () => false
         );
         expect(dirExists).toBe(true);
 
         // Should be empty
-        const files: string[] = await fs.readdir(voicetreeDir);
+        const files: string[] = await fs.readdir(result!);
         expect(files.length).toBe(0);
     });
 
     it('should create empty voicetree folder when onboarding source does not exist', async () => {
         const nonExistentPath: string = '/non/existent/path/to/onboarding';
-        const result: boolean = await initializeProject(testProjectDir, nonExistentPath);
+        const result: string | null = await initializeProject(testProjectDir, nonExistentPath);
 
-        expect(result).toBe(true);
+        expect(result).not.toBeNull();
+        expect(result).toContain('voicetree-');
 
-        const voicetreeDir: string = path.join(testProjectDir, 'voicetree');
-        const dirExists: boolean = await fs.access(voicetreeDir).then(
+        const dirExists: boolean = await fs.access(result!).then(
             () => true,
             () => false
         );
         expect(dirExists).toBe(true);
 
         // Should be empty since source doesn't exist
-        const files: string[] = await fs.readdir(voicetreeDir);
+        const files: string[] = await fs.readdir(result!);
         expect(files.length).toBe(0);
+    });
+});
+
+describe('generateDateSubfolder', () => {
+    it('should generate folder name in voicetree-{day}-{month} format', () => {
+        const result: string = generateDateSubfolder();
+        expect(result).toMatch(/^voicetree-\d{1,2}-\d{1,2}$/);
     });
 });

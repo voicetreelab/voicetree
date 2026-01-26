@@ -26,8 +26,8 @@ export interface ElectronAPI {
   // All RPC calls are async, so we promisify the mainAPI type
   main: Promisify<typeof mainAPI>;
 
-  // File system event listeners
-  onWatchingStarted?: (callback: (data: { directory: string; timestamp: string; positions?: Record<string, { x: number; y: number }> }) => void) => void;
+  // File system event listeners (returns cleanup function)
+  onWatchingStarted?: (callback: (data: { directory: string; timestamp: string; positions?: Record<string, { x: number; y: number }> }) => void) => () => void;
   removeAllListeners: (channel: string) => void;
 
   // Terminal operations
