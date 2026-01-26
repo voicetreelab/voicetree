@@ -8,7 +8,7 @@ As you make progress on the task, create detailed visual updates by adding nodes
 
 ## When to Create Multiple Linked Nodes (Prefer This)
 
-**Core principle: One node = one concept.** If your work involves multiple distinct concepts, ideas, or options — create one node per concept, linked together.
+**Core principle: One node = one concept.** If your work involves multiple distinct concepts, ideas, or options — create a graph/tree of MULITPLE nodes, one node per concept, linked together.
 
 ### Quick Split Test
 
@@ -125,12 +125,18 @@ If relevant, include how this change affects the overall system, dependencies, o
 If relevant, include difficulties you faced in achieving this task, for example technical debt which made it hard.
 </OPTIONAL>
 
-<IF YOU MODIFIED OPENSPEC FILES>
+<IF YOU CREATED OPENSPEC FILES>
 ## Related Files
-If you created any Openspec markdown files during this session (e.g. proposals, specs, documentation), link to them:
 
-- <optional_relationship_label> [[path/to/created_file.md]]
-This creates graph edges connecting your progress node to related artifacts.
+Link to key OpenSpec artifacts that should appear in the graph:
+
+```
+- proposal [[openspec/changes/add-auth/proposal.md]]
+- design [[openspec/changes/add-auth/design.md]]
+- tasks [[openspec/changes/add-auth/tasks.md]]
+```
+
+Only link files worth revisiting (proposal, design, tasks). Skip individual spec deltas unless they contain key decisions.
 </IF>
 
 <CRITICAL>

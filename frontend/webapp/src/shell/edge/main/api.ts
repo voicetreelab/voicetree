@@ -30,6 +30,21 @@ import {saveClipboardImage} from './clipboard/saveClipboardImage';
 import {readImageAsDataUrl} from './clipboard/readImageAsDataUrl';
 import {findFileByName} from './graph/loading/findFileByName';
 import {runAgentOnSelectedNodes} from './runAgentOnSelectedNodes';
+import {scanForProjects, getDefaultSearchDirectories} from './project-scanner';
+import {loadProjects, saveProject, removeProject} from './project-store';
+import {initializeProject as initializeProjectCore} from './project-initializer';
+import {showFolderPicker} from './show-folder-picker';
+import {getOnboardingDirectory} from './electron/onboarding-setup';
+import path from 'path';
+
+/**
+ * Wrapper for initializeProject that provides the onboarding source directory.
+ * Copies onboarding .md files from Application Support into the project's voicetree folder.
+ */
+async function initializeProject(projectPath: string): Promise<boolean> {
+    const onboardingSourceDir: string = path.join(getOnboardingDirectory(), 'voicetree');
+    return initializeProjectCore(projectPath, onboardingSourceDir);
+}
 
 // eslint-disable-next-line @typescript-eslint/typedef
 export const mainAPI = {
@@ -122,4 +137,13 @@ export const mainAPI = {
 
   // Run Agent on Selected Nodes
   runAgentOnSelectedNodes,
+
+  // Project selection operations
+  scanForProjects,
+  getDefaultSearchDirectories,
+  loadProjects,
+  saveProject,
+  removeProject,
+  initializeProject,
+  showFolderPicker,
 }

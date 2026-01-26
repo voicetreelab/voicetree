@@ -3,16 +3,25 @@ import {useFolderWatcher} from "@/shell/UI/views/hooks/useFolderWatcher";
 import {VoiceTreeGraphView} from "@/shell/UI/views/VoiceTreeGraphView";
 import {AgentStatsPanel} from "@/shell/UI/views/AgentStatsPanel";
 import {VaultPathSelector} from "@/shell/UI/views/components/VaultPathSelector";
-import {useEffect, useRef, useState} from "react";
+import {ProjectSelectionScreen} from "@/shell/UI/ProjectSelectionScreen";
+import {useEffect, useRef, useState, useCallback} from "react";
 import type { JSX } from "react/jsx-runtime";
 import type { RefObject } from "react";
 import type {} from "@/shell/electron";
+import type { SavedProject } from "@/pure/project/types";
+
+type AppView = 'project-selection' | 'graph-view';
 
 function App(): JSX.Element {
+    // App navigation state
+    const [currentView, setCurrentView] = useState<AppView>('project-selection');
+    const [currentProject, setCurrentProject] = useState<SavedProject | null>(null);
+
     // Use the folder watcher hook for file watching
     const {
         watchDirectory,
         startWatching,
+        stopWatching,
     } = useFolderWatcher();
 
     // Ref for graph container
@@ -21,6 +30,38 @@ function App(): JSX.Element {
     // State for agent stats panel visibility
     const [isStatsPanelOpen, setIsStatsPanelOpen] = useState(false);
 
+    // Handle project selection
+    const handleProjectSelected: (project: SavedProject) => Promise<void> = useCallback(async (project: SavedProject): Promise<void> => {
+        if (!window.electronAPI) return;
+
+        // Initialize project if needed (creates /voicetree folder)
+        if (!project.voicetreeInitialized) {
+            try {
+                // initializeProject returns true if created, false if already exists
+                await window.electronAPI.main.initializeProject(project.path);
+                // Mark as initialized regardless of whether we created it or it existed
+                const updatedProject: SavedProject = { ...project, voicetreeInitialized: true };
+                await window.electronAPI.main.saveProject(updatedProject);
+                setCurrentProject(updatedProject);
+            } catch (err) {
+                console.error('[App] Failed to initialize project:', err);
+                setCurrentProject(project);
+            }
+        } else {
+            setCurrentProject(project);
+        }
+
+        setCurrentView('graph-view');
+    }, []);
+
+    // Handle returning to project selection
+    const handleBackToProjects: () => Promise<void> = useCallback(async (): Promise<void> => {
+        // Stop watching the current folder
+        await stopWatching();
+        setCurrentProject(null);
+        setCurrentView('project-selection');
+    }, [stopWatching]);
+
     // Listen for stats panel toggle event from SpeedDial menu
     useEffect(() => {
         const handleToggleStats: () => void = (): void => setIsStatsPanelOpen(prev => !prev);
@@ -28,9 +69,25 @@ function App(): JSX.Element {
         return () => window.removeEventListener('toggle-stats-panel', handleToggleStats);
     }, []);
 
+    // Start watching the project folder when entering graph view
+    useEffect(() => {
+        if (currentView === 'graph-view' && currentProject && window.electronAPI) {
+            // Start file watching for the selected project
+            void window.electronAPI.main.startFileWatching(currentProject.path);
+        }
+    }, [currentView, currentProject]);
+
     // File Watching Control Panel Component - compact inline style matching activity panel
     const FileWatchingPanel: () => JSX.Element = () => (
         <div className="flex items-center gap-1 font-mono text-xs shrink-0">
+            {/* Back button */}
+            <button
+                onClick={() => void handleBackToProjects()}
+                className="text-muted-foreground px-1.5 py-1 rounded bg-muted hover:bg-accent transition-colors"
+                title="Back to project selection"
+            >
+                ←
+            </button>
             {watchDirectory && (
                 <>
                     <button
@@ -52,32 +109,34 @@ function App(): JSX.Element {
     useEffect(() => {
         if (!window.electronAPI?.onBackendLog) return;
 
-        window.electronAPI.onBackendLog((log: string) => {
-            //console.log('[Backend]', log);
+        window.electronAPI.onBackendLog((_log: string) => {
+            //console.log('[Backend]', _log);
         });
     }, []);
 
-    // Initialize VoiceTreeGraphView when container is ready
+    // Initialize VoiceTreeGraphView when container is ready and in graph view
     useEffect(() => {
-        if (!graphContainerRef.current) return;
+        if (currentView !== 'graph-view' || !graphContainerRef.current) return;
 
-        //console.log('[App] Initializing VoiceTreeGraphView');
         console.trace('[App] VoiceTreeGraphView initialization stack trace'); // DEBUG: Track if called multiple times
 
         const graphView: VoiceTreeGraphView = new VoiceTreeGraphView(graphContainerRef.current, {
             initialDarkMode: false
         });
 
-        // Cleanup on unmount
+        // Cleanup on unmount or view change
         return () => {
-            //console.log('[App] Disposing VoiceTreeGraphView');
             console.trace('[App] VoiceTreeGraphView disposal stack trace'); // DEBUG: Track cleanup
             graphView.dispose();
         };
-    }, []); // Empty deps - only run once on mount
+    }, [currentView]); // Reinitialize when view changes
 
+    // Render project selection screen
+    if (currentView === 'project-selection') {
+        return <ProjectSelectionScreen onProjectSelected={(project) => void handleProjectSelected(project)} />;
+    }
 
-    // Always render the full app UI-edge - no conditional rendering
+    // Render graph view
     return (
         <div className="h-screen flex flex-col overflow-hidden bg-background">
             {/* Graph Section (fills all space) */}
