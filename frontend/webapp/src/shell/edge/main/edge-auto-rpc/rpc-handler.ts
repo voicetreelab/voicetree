@@ -14,16 +14,15 @@ export function setupRPCHandlers(): void {
     const fn: MainAPIFunction = mainAPI[fnName as MainAPIKey]
 
     if (typeof fn !== 'function') {
-      return { error: `Function not found: ${fnName}` }
+      throw new Error(`Function not found: ${fnName}`)
     }
 
     const result: unknown = (fn as (...args: readonly unknown[]) => unknown)(...args)
     return Promise.resolve(result)
       .catch((error: unknown) => {
         console.error(`[RPC Error] ${fnName}:`, error)
-        return {
-          error: `RPC call failed: ${error instanceof Error ? error.message : String(error)}`,
-        }
+        // Re-throw to propagate error through IPC - returning error object breaks type contract
+        throw error instanceof Error ? error : new Error(String(error))
       })
   })
 }
