@@ -96,6 +96,37 @@ export async function getWritePath(): Promise<O.Option<FilePath>> {
 }
 
 /**
+ * Load files from a vault path and merge into the existing graph.
+ *
+ * Shared helper for setWritePath and addReadPath to reduce duplication.
+ * Handles: load, error check, graph update, UI broadcast.
+ */
+export async function loadAndMergeVaultPath(
+    vaultPath: FilePath,
+    existingGraph: Graph
+): Promise<{ success: boolean; error?: string }> {
+    const loadResult: E.Either<FileLimitExceededError, { graph: Graph; delta: GraphDelta }> =
+        await loadVaultPathAdditively(vaultPath, existingGraph);
+
+    if (E.isLeft(loadResult)) {
+        return {
+            success: false,
+            error: `File limit exceeded: ${loadResult.left.fileCount} files (max: ${loadResult.left.maxFiles})`
+        };
+    }
+
+    if (loadResult.right.delta.length > 0) {
+        // Update graph state with new nodes (bypass applyGraphDeltaToMemState - bulk load already complete)
+        setGraph(loadResult.right.graph);
+
+        // Broadcast new nodes to UI
+        broadcastGraphDeltaToUI(loadResult.right.delta);
+    }
+
+    return { success: true };
+}
+
+/**
  * Set the write path.
  *
  * When setting a new write path, all nodes from that path are fully loaded.
@@ -109,24 +140,20 @@ export async function setWritePath(vaultPath: FilePath): Promise<{ success: bool
 
     const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
 
-    // Save to config (source of truth)
+    // Fully load all nodes from the new write path FIRST
+    const existingGraph: Graph = getGraph();
+    const loadResult: { success: boolean; error?: string } =
+        await loadAndMergeVaultPath(vaultPath, existingGraph);
+
+    if (!loadResult.success) {
+        return loadResult;
+    }
+
+    // Save to config only AFTER successful load (atomic operation)
     await saveVaultConfigForDirectory(watchedDir, {
         writePath: vaultPath,
         readPaths: config?.readPaths ?? []
     });
-
-    // Fully load all nodes from the new write path
-    const existingGraph: Graph = getGraph();
-    const loadResult: E.Either<FileLimitExceededError, { graph: Graph; delta: GraphDelta }> =
-        await loadVaultPathAdditively(vaultPath, existingGraph);
-
-    if (E.isRight(loadResult) && loadResult.right.delta.length > 0) {
-        // Update graph state with new nodes (bypass applyGraphDeltaToMemState - bulk load already complete)
-        setGraph(loadResult.right.graph);
-
-        // Broadcast new nodes to UI
-        broadcastGraphDeltaToUI(loadResult.right.delta);
-    }
 
     // Note: Clearing the old write path is handled by the caller (VaultPathSelector)
     // which calls removeReadPath() after setWritePath()
@@ -170,31 +197,26 @@ export async function addReadPath(vaultPath: FilePath): Promise<{ success: boole
         return { success: false, error: `Failed to create directory: ${err instanceof Error ? err.message : 'Unknown error'}` };
     }
 
-    const newReadPaths: readonly string[] = [...currentReadPaths, vaultPath];
+    // Load ALL files from the new path immediately (not lazy)
+    // Do this BEFORE saving config or adding to watcher (atomic operation)
+    const existingGraph: Graph = getGraph();
+    const loadResult: { success: boolean; error?: string } =
+        await loadAndMergeVaultPath(vaultPath, existingGraph);
 
-    // Save to config FIRST (source of truth)
+    if (!loadResult.success) {
+        return loadResult;
+    }
+
+    // Only save config and add to watcher AFTER successful load
+    const newReadPaths: readonly string[] = [...currentReadPaths, vaultPath];
     await saveVaultConfigForDirectory(watchedDir, {
         writePath: currentWritePath,
         readPaths: newReadPaths
     });
 
-    // Add the new path to the watcher BEFORE loading
     const currentWatcher: FSWatcher | null = getWatcher();
     if (currentWatcher) {
         currentWatcher.add(vaultPath);
-    }
-
-    // Load ALL files from the new path immediately (not lazy)
-    const existingGraph: Graph = getGraph();
-    const loadResult: E.Either<FileLimitExceededError, { graph: Graph; delta: GraphDelta }> =
-        await loadVaultPathAdditively(vaultPath, existingGraph);
-
-    if (E.isRight(loadResult) && loadResult.right.delta.length > 0) {
-        // Update graph state with new nodes (bypass applyGraphDeltaToMemState - bulk load already complete)
-        setGraph(loadResult.right.graph);
-
-        // Broadcast new nodes to UI
-        broadcastGraphDeltaToUI(loadResult.right.delta);
     }
 
     return { success: true };

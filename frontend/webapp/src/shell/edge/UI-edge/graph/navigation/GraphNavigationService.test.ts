@@ -412,19 +412,19 @@ describe('GraphNavigationService', () => {
       expect(typeof animateArgs.duration).toBe('number');
     });
 
-    it('should fallback to stripped path when node not found with folder prefix', () => {
-      // Add a node without the folder prefix (simulates how frontend stores nodes)
-      cy.add({ data: { id: 'voice/test-node', label: 'Test Node' }, position: { x: 400, y: 400 } });
+    it('should fallback to fuzzy suffix matching when node not found with relative path', () => {
+      // Add a node with absolute path (how frontend stores nodes)
+      cy.add({ data: { id: '/Users/bob/repos/project/voicetree-bugs/voice/test-node.md', label: 'Test Node' }, position: { x: 400, y: 400 } });
 
       const animateSpy = vi.spyOn(cy, 'animate');
 
-      // Try to navigate with prefix (simulates SSE event with vault folder prefix)
-      service.handleSearchSelect('wed/voice/test-node');
+      // Try to navigate with relative path (simulates SSE event with vault-relative path)
+      service.handleSearchSelect('voicetree-bugs/voice/test-node.md');
 
-      // Should have found the node via fallback
+      // Should have found the node via fuzzy suffix matching
       expect(animateSpy).toHaveBeenCalled();
       const animateArgs = animateSpy.mock.calls[0][0] as { center: { eles: Collection } };
-      expect((animateArgs.center.eles.first()?.id() ?? "")).toBe('voice/test-node');
+      expect((animateArgs.center.eles.first()?.id() ?? "")).toBe('/Users/bob/repos/project/voicetree-bugs/voice/test-node.md');
     });
   });
 
