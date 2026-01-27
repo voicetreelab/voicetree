@@ -12,6 +12,7 @@ import { onVoiceResult, appendManualText, reset as resetTranscriptionStore, subs
 import type {} from "@/shell/electron";
 import { ChevronDown } from "lucide-react";
 import { initVoiceRecording, disposeVoiceRecording } from "@/shell/edge/UI-edge/state/VoiceRecordingController";
+import { SseStatusPanel } from "@/shell/UI/sse-status-panel";
 
 type InputMode = 'add' | 'ask' | null;
 
@@ -32,6 +33,10 @@ export default function VoiceTreeTranscribe(): JSX.Element {
   // Ref for vanilla TranscriptionDisplay mount point
   const displayContainerRef: RefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);
   const displayInstanceRef: RefObject<TranscriptionDisplay | null> = useRef<TranscriptionDisplay | null>(null);
+
+  // Ref for SSE status panel mount point and instance
+  const ssePanelMountRef: RefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);
+  const ssePanelInstanceRef: RefObject<SseStatusPanel | null> = useRef<SseStatusPanel | null>(null);
 
   // Persist mode changes
   useEffect(() => {
@@ -80,6 +85,17 @@ export default function VoiceTreeTranscribe(): JSX.Element {
     return () => {
       displayInstanceRef.current?.dispose();
       displayInstanceRef.current = null;
+    };
+  }, []);
+
+  // Mount SSE status panel - creates/disposes with component lifecycle
+  useEffect(() => {
+    if (ssePanelMountRef.current && !ssePanelInstanceRef.current) {
+      ssePanelInstanceRef.current = new SseStatusPanel(ssePanelMountRef.current);
+    }
+    return () => {
+      ssePanelInstanceRef.current?.dispose();
+      ssePanelInstanceRef.current = null;
     };
   }, []);
 
@@ -284,7 +300,7 @@ export default function VoiceTreeTranscribe(): JSX.Element {
           {/* Offset left by half minimap width to center controls relative to full viewport */}
           <div className="flex items-center justify-center gap-3 py-2">
             {/* SSE Activity Panel - shows server events for transcription processing */}
-            <div id="sse-status-panel-mount" className="w-[min(18vw,300px)] shrink-0 overflow-visible" />
+            <div ref={ssePanelMountRef} className="w-[min(18vw,300px)] shrink-0 overflow-visible" />
 
             {/* Status Section - just left of mic button */}
             <div className="flex items-center gap-2 text-xs">

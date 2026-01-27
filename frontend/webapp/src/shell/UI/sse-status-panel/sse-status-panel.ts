@@ -13,8 +13,6 @@ interface NodeInfo {
     is_new: boolean;
 }
 
-const STATUS_PANEL_MOUNT_ID: string = 'sse-status-panel-mount';
-
 /**
  * Server Activity Panel - horizontal bar at bottom of app.
  * Displays server events as horizontal cards, newest on right with autoscroll.
@@ -26,7 +24,8 @@ export class SseStatusPanel {
     private maxEvents = 2000;
     private disconnectSSE: (() => void) | null = null;
 
-    private constructor(mountPoint: HTMLElement) {
+    /** Create panel attached to the given mount point. Caller is responsible for calling dispose(). */
+    constructor(mountPoint: HTMLElement) {
         this.container = document.createElement('div');
         this.container.className = 'server-activity-panel';
 
@@ -58,27 +57,6 @@ export class SseStatusPanel {
 
         // Initialize SSE connection
         this.initSSEConnection();
-    }
-
-    /** Initialize SseStatusPanel by finding mount point in DOM, waiting if necessary */
-    static init(): void {
-        const mountPoint: HTMLElement | null = document.getElementById(STATUS_PANEL_MOUNT_ID);
-        if (mountPoint) {
-            //console.log('[SseStatusPanel] Initializing');
-            new SseStatusPanel(mountPoint);
-            return;
-        }
-
-        // Mount point not ready yet - watch for it
-        const observer: MutationObserver = new MutationObserver((_, obs) => {
-            const el: HTMLElement | null = document.getElementById(STATUS_PANEL_MOUNT_ID);
-            if (el) {
-                obs.disconnect();
-                //console.log('[SseStatusPanel] Initializing (after DOM ready)');
-                new SseStatusPanel(el);
-            }
-        });
-        observer.observe(document.body, { childList: true, subtree: true });
     }
 
     private initSSEConnection(): void {

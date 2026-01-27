@@ -5,7 +5,6 @@ import './index.css'
 import '@/shell/UI/sse-status-panel/status-panel.css'
 import App from '@/shell/UI/App'
 import posthog from 'posthog-js'
-import { SseStatusPanel } from '@/shell/UI/sse-status-panel'
 import { setupUIRpcHandler } from '@/shell/edge/UI-edge/ui-rpc-handler'
 import type { VTSettings } from '@/pure/settings'
 
@@ -53,6 +52,3 @@ setupUIRpcHandler();
 createRoot(document.getElementById('root')!).render(
     <App/>
 );
-
-// Initialize SseStatusPanel (waits for mount point via MutationObserver if needed)
-SseStatusPanel.init();
