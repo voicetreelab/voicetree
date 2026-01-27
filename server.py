@@ -22,9 +22,6 @@ from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import (
 )
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
 from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import load_markdown_tree
-from backend.text_to_graph_pipeline.agentic_workflows.core.debug_logger import (
-    clear_debug_logs,
-)
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import (
     ChunkProcessor,
 )
@@ -73,8 +70,6 @@ converter = None
 processor = None
 markdown_dir = None
 
-# Clear debug logs at startup
-clear_debug_logs()
 
 # todo, this whole thing needs to be rewritten. so messy.
 

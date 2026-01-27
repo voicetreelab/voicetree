@@ -30,13 +30,6 @@ from backend.settings import MAX_NODES_FOR_LLM_CONTEXT
 from backend.settings import OPTIMIZER_AGENT_URL
 from backend.settings import ORPHAN_AGENT_URL
 from backend.settings import TRANSCRIPT_HISTORY_MULTIPLIER
-from backend.text_to_graph_pipeline.agentic_workflows.agents.append_to_relevant_node_agent import AppendToRelevantNodeAgent
-from backend.text_to_graph_pipeline.agentic_workflows.agents.connect_orphans_agent import (
-    ConnectOrphansAgent,
-)
-from backend.text_to_graph_pipeline.agentic_workflows.agents.single_abstraction_optimizer_agent import (
-    SingleAbstractionOptimizerAgent,
-)
 from backend.text_to_graph_pipeline.agentic_workflows.models import AppendAction
 from backend.text_to_graph_pipeline.agentic_workflows.models import AppendAgentResult
 from backend.text_to_graph_pipeline.agentic_workflows.models import BaseTreeAction
@@ -66,14 +59,14 @@ async def log_tree_actions(append_or_create_actions):
         if isinstance(act, CreateAction):
             create_log = f"CREATING new node:'{act.new_node_name}' "
             # if len(act.content) > 10:
-                # create_log += f"with text: {act.content[0:10]}...{act.content[-10:]} "
+            # create_log += f"with text: {act.content[0:10]}...{act.content[-10:]} "
             print(colored(create_log, 'green'))
             logging.info(create_log)
 
         elif isinstance(act, AppendAction):
             append_log = f"APPENDING to:'{act.target_node_name}' "
             # if len(act.content) > 10:
-                # append_log += f"with text: {act.content[0:10]}...{act.content[-10:]} "
+            # append_log += f"with text: {act.content[0:10]}...{act.content[-10:]} "
             print(colored(append_log, 'cyan'))
             logging.info(append_log)
 
@@ -88,12 +81,12 @@ class TreeActionDeciderWorkflow:
     """
 
     def __init__(
-        self,
-        decision_tree: Optional[MarkdownTree] = None,
-        cloud_function_url: Optional[str] = None,
-        optimizer_url: Optional[str] = None,
-        orphan_url: Optional[str] = None,
-        use_cloud_functions: Optional[bool] = None
+            self,
+            decision_tree: Optional[MarkdownTree] = None,
+            cloud_function_url: Optional[str] = None,
+            optimizer_url: Optional[str] = None,
+            orphan_url: Optional[str] = None,
+            use_cloud_functions: Optional[bool] = None
     ) -> None:
         """
         Initialize the workflow
@@ -118,7 +111,7 @@ class TreeActionDeciderWorkflow:
         if orphan_url is None:
             orphan_url = ORPHAN_AGENT_URL
 
-        # Initialize agents based on configuration
+        # Initialize HTTP clients for cloud function agents
         from cloud_functions.agentic_workflows.http_client import (
             AppendToRelevantNodeAgentHTTPClient,
             SingleAbstractionOptimizerAgentHTTPClient,
@@ -168,10 +161,10 @@ class TreeActionDeciderWorkflow:
         return self._history_manager.get(max_length)
 
     async def process_text_chunk(
-        self,
-        text_chunk: str,
-        tree_action_applier: TreeActionApplier,
-        buffer_manager: TextBufferManager
+            self,
+            text_chunk: str,
+            tree_action_applier: TreeActionApplier,
+            buffer_manager: TextBufferManager
     ) -> set[int]:
         """
         Processes a text chunk through a single, deep, stateful workflow.
@@ -555,8 +548,8 @@ class TreeActionDeciderWorkflow:
             self.content_stuck_in_buffer[buffer_manager.getBuffer()] = 1
 
     def _convert_appends_to_children_for_long_nodes(
-        self,
-        actions: list[AppendAction | CreateAction]
+            self,
+            actions: list[AppendAction | CreateAction]
     ) -> list[AppendAction | CreateAction]:
         """
         Convert AppendActions targeting nodes > MAX_NODE_CONTENT_LENGTH_FOR_APPEND

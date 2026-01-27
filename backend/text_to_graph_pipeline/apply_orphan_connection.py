@@ -18,8 +18,8 @@ from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import (
 from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import (
     load_markdown_tree,
 )
-from backend.text_to_graph_pipeline.agentic_workflows.agents.connect_orphans_agent import (
-    ConnectOrphansAgent,
+from cloud_functions.agentic_workflows.http_client import (
+    ConnectOrphansAgentHTTPClient,
 )
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import (
     TreeActionApplier,
@@ -75,7 +75,7 @@ async def process_tree(tree_path: str, output_path: str = None):
     logger.info("Running Connect Orphans Agent...")
     logger.info("="*60)
 
-    agent = ConnectOrphansAgent()
+    agent = ConnectOrphansAgentHTTPClient()
     actions = await agent.run(
         tree=tree,
         max_roots_to_process=20  # Process up to 20 roots at once
