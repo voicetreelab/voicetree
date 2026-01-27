@@ -212,7 +212,7 @@ export class CodeMirrorEditorView extends Disposable {
       mermaidRender(), // Render Mermaid diagrams in live preview
       diffHighlight(), // Highlight diff lines (+/-) in code blocks with green/red backgrounds
       wikilinkCompletion(), // Autocomplete for [[wikilinks]] - shows nodes ordered by recency
-      wikilinkTitleDisplay(), // Display node titles instead of IDs in [[wikilinks]]
+      // wikilinkTitleDisplay(), // DISABLED: causes typing flicker - see wikilink-chip-handover.md
       tooltips({ parent: document.body }), // Render tooltips (including autocomplete) in body to avoid overflow clipping
       frontmatterFoldService, // Custom fold service for frontmatter (foldGutter is already in basicSetup)
       EditorView.lineWrapping, // Enable text wrapping
