@@ -7,8 +7,8 @@
 
 import { promises as fs } from 'fs';
 import path from 'path';
-import { getWatchedDirectory } from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import { getMcpPort } from './mcp-server';
+import {getWatchedDirectory} from "@/shell/edge/main/state/watch-folder-store";
 
 const VOICETREE_MCP_SERVER_NAME: 'voicetree' = 'voicetree' as const;
 

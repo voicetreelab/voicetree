@@ -2,7 +2,6 @@ import type {Graph, GraphDelta, NodeIdAndFilePath, GraphNode} from '@/pure/graph
 import {getSubgraphByDistance, graphToAscii, makeBidirectionalEdges, CONTEXT_NODES_FOLDER} from '@/pure/graph'
 import {getNodeTitle, parseMarkdownToGraphNode} from '@/pure/graph/markdown-parsing'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
-import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
 import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'
@@ -13,7 +12,8 @@ import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange";
 import {ensureUniqueNodeId} from "@/pure/graph/ensureUniqueNodeId";
-import {trace, traceSync} from '@/shell/edge/main/tracing/trace'
+import {traceSync} from '@/shell/edge/main/tracing/trace'
+import {getWritePath} from "@/shell/edge/main/graph/watch_folder/vault-allowlist";
 
 /**
  * Creates a context node for a given parent node.
