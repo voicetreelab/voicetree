@@ -28,8 +28,8 @@ if (posthogKey && !import.meta.env.DEV) {
     capture_pageview: true,
     session_recording: {
       maskAllInputs: true,
-      // Mask user content in: CodeMirror editors, xterm terminals, floating window content
-      maskTextSelector: '.cm-editor, .cm-content, .xterm, .cy-floating-window-content',
+      // Mask user content in: CodeMirror editors, xterm terminals, floating window content, transcription panel, tab titles
+      maskTextSelector: '.cm-editor, .cm-content, .xterm, .cy-floating-window-content, .vt-transcription-content, .recent-tab-text, .agent-tab-text',
     },
     // Disable console log recording in session replay (errors still captured via error tracking)
     enable_recording_console_log: false

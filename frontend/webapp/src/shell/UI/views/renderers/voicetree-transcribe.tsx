@@ -254,7 +254,7 @@ export default function VoiceTreeTranscribe(): JSX.Element {
             {/* Scrollable text content - vanilla TranscriptionDisplay mounts here */}
             <div
               ref={displayContainerRef}
-              className="absolute inset-0 overflow-y-auto"
+              className="absolute inset-0 overflow-y-auto vt-transcription-content"
               style={{
                 maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,1) 100%)',
                 WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,1) 100%)',

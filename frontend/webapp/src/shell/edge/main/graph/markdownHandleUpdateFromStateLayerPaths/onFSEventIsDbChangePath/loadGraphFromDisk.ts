@@ -114,9 +114,16 @@ export async function loadVaultPathAdditively(
     // Step 1: Scan the new vault path for markdown files
     const files: readonly string[] = await scanMarkdownFiles(vaultPath);
 
-    // Step 2: Check file limit (existing + new files)
+    // Step 2: Filter out files already in the graph (avoid double-counting)
+    const newFiles: readonly string[] = files.filter((relativePath: string) => {
+        const fullPath: string = path.join(vaultPath, relativePath);
+        const nodeId: string = normalizePath(fullPath);
+        return !(nodeId in existingGraph.nodes);
+    });
+
+    // Step 3: Check file limit (existing + genuinely new files)
     const existingCount: number = Object.keys(existingGraph.nodes).length;
-    const totalCount: number = existingCount + files.length;
+    const totalCount: number = existingCount + newFiles.length;
     const limitCheck: E.Either<FileLimitExceededError, void> = enforceFileLimit(totalCount);
     if (E.isLeft(limitCheck)) {
         return E.left(limitCheck.left);
@@ -222,29 +229,136 @@ export function isReadPath(nodeId: string, readPaths: readonly string[]): boolea
 }
 
 /**
- * Loads a graph with ALL files from both writePath and readPaths.
+ * Extracts link targets from a node's outgoing edges.
+ * Pure function - no I/O.
  *
- * Both writePath and readPaths load all files immediately.
- * Resolve-on-link behavior is handled separately for watched folder files
- * outside writePath/readPaths via resolveLinkedNodesInWatchedFolder.
- *
- * @param writePathPaths - Array of absolute paths to load (writePath)
- * @param readPaths - Array of absolute paths to load (readPaths - all files loaded immediately)
- * @returns Promise that resolves to a Graph with all nodes loaded
+ * @param node - Graph node to extract links from
+ * @returns Array of target IDs from outgoing edges
  */
-export async function loadGraphFromDiskWithLazyLoading(
-    writePathPaths: readonly string[],
-    readPaths: readonly string[]
-): Promise<E.Either<FileLimitExceededError, Graph>> {
-    // Load ALL files from both writePath and readPaths immediately
-    // (readPaths are no longer lazy-loaded)
-    const allPaths: readonly string[] = [...writePathPaths, ...readPaths];
+export function extractLinkTargets(node: GraphNode): readonly string[] {
+    return node.outgoingEdges.map(edge => edge.targetId);
+}
 
-    if (allPaths.length === 0) {
-        return E.right(createEmptyGraph());
+/**
+ * Resolves a single link target to an absolute file path.
+ * I/O function - checks filesystem for file existence and searches for matches.
+ *
+ * - Absolute path links (start with /): check if file exists using fs.existsSync
+ * - Relative path links: use findFileByName() to suffix-match in watchedFolder
+ *
+ * Uses linkMatchScore to pick the best match when multiple files match.
+ *
+ * @param linkTarget - The link target to resolve (from wikilink)
+ * @param watchedFolder - The root folder to search for linked files
+ * @returns Absolute file path if resolved, undefined if not found
+ */
+export async function resolveLinkTarget(
+    linkTarget: string,
+    watchedFolder: string
+): Promise<string | undefined> {
+    // Case 1: Absolute path - check if file exists
+    if (linkTarget.startsWith('/')) {
+        // Ensure .md extension
+        const targetPath: string = linkTarget.endsWith('.md') ? linkTarget : `${linkTarget}.md`;
+        if (fsSync.existsSync(targetPath)) {
+            return targetPath;
+        }
+        return undefined;
     }
 
-    return loadGraphFromDisk(allPaths);
+    // Case 2: Relative path - use findFileByName to suffix-match
+    // Extract the filename from the link (last component)
+    const linkComponents: readonly string[] = linkTarget.split(/[/\\]/);
+    const searchPattern: string = linkComponents[linkComponents.length - 1].replace(/\.md$/, '');
+
+    if (!searchPattern) return undefined;
+
+    const matchingFiles: readonly string[] = await findFileByName(searchPattern, watchedFolder);
+
+    if (matchingFiles.length === 0) return undefined;
+
+    if (matchingFiles.length === 1) return matchingFiles[0];
+
+    // Multiple matches - use linkMatchScore to pick the best one
+    let bestMatch: string = matchingFiles[0];
+    let bestScore: number = linkMatchScore(linkTarget, matchingFiles[0]);
+
+    for (let i: number = 1; i < matchingFiles.length; i++) {
+        const score: number = linkMatchScore(linkTarget, matchingFiles[i]);
+        if (score > bestScore) {
+            bestScore = score;
+            bestMatch = matchingFiles[i];
+        }
+    }
+
+    return bestMatch;
+}
+
+/**
+ * Finds all unresolved links from nodes in the graph.
+ * Returns the set of file paths that need to be loaded.
+ *
+ * @param currentGraph - Graph to scan for unresolved links
+ * @param processedNodeIds - Set of node IDs already processed (mutated)
+ * @param watchedFolder - The root folder to search for linked files
+ * @returns Set of absolute file paths to load
+ */
+async function findUnresolvedLinks(
+    currentGraph: Graph,
+    processedNodeIds: Set<string>,
+    watchedFolder: string
+): Promise<Set<string>> {
+    const filesToLoad: Set<string> = new Set();
+
+    for (const nodeId of Object.keys(currentGraph.nodes)) {
+        if (processedNodeIds.has(nodeId)) continue;
+        processedNodeIds.add(nodeId);
+
+        const node: GraphNode = currentGraph.nodes[nodeId];
+        const linkTargets: readonly string[] = extractLinkTargets(node);
+
+        for (const target of linkTargets) {
+            // Skip if already in graph
+            if (currentGraph.nodes[target]) continue;
+
+            // Try to resolve the link
+            const resolvedPath: string | undefined = await resolveLinkTarget(target, watchedFolder);
+            if (resolvedPath && !currentGraph.nodes[resolvedPath]) {
+                filesToLoad.add(resolvedPath);
+            }
+        }
+    }
+
+    return filesToLoad;
+}
+
+/**
+ * Loads a single file and returns the delta.
+ * I/O function - reads file from disk.
+ *
+ * @param filePath - Absolute path to file to load
+ * @param graph - Current graph (for edge healing)
+ * @returns GraphDelta for the loaded node, or empty array on error
+ */
+async function loadFileAsNode(
+    filePath: string,
+    graph: Graph
+): Promise<GraphDelta> {
+    try {
+        // Image files have empty content (don't read binary as UTF-8)
+        const content: string = isImageNode(filePath) ? '' : await fs.readFile(filePath, 'utf-8');
+
+        const fsEvent: FSUpdate = {
+            absolutePath: filePath,
+            content,
+            eventType: 'Added'
+        };
+
+        return addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, graph);
+    } catch {
+        // File might not exist or be inaccessible - skip
+        return [];
+    }
 }
 
 /**
@@ -270,113 +384,31 @@ export async function resolveLinkedNodesInWatchedFolder(
 ): Promise<GraphDelta> {
     // Track which nodes we've already processed to avoid infinite loops
     const processedNodeIds: Set<string> = new Set();
-    // Track which files need to be loaded
-    const filesToLoad: Set<string> = new Set();
     // Accumulate all deltas from resolution (mutable array, returned as GraphDelta)
     const accumulatedDelta: GraphDelta[number][] = [];
     // Working copy of graph for resolution
     let workingGraph: Graph = graph;
 
-    // Extract link targets from a node's outgoing edges
-    const extractLinkTargets: (node: GraphNode) => readonly string[] = (node: GraphNode): readonly string[] => {
-        return node.outgoingEdges.map(edge => edge.targetId);
-    };
-
-    // Resolve a single link target to an absolute file path
-    const resolveLinkTarget: (linkTarget: string) => Promise<string | undefined> = async (linkTarget: string): Promise<string | undefined> => {
-        // Case 1: Absolute path - check if file exists
-        if (linkTarget.startsWith('/')) {
-            // Ensure .md extension
-            const targetPath: string = linkTarget.endsWith('.md') ? linkTarget : `${linkTarget}.md`;
-            if (fsSync.existsSync(targetPath)) {
-                return targetPath;
-            }
-            return undefined;
-        }
-
-        // Case 2: Relative path - use findFileByName to suffix-match
-        // Extract the filename from the link (last component)
-        const linkComponents: readonly string[] = linkTarget.split(/[/\\]/);
-        const searchPattern: string = linkComponents[linkComponents.length - 1].replace(/\.md$/, '');
-
-        if (!searchPattern) return undefined;
-
-        const matchingFiles: readonly string[] = await findFileByName(searchPattern, watchedFolder);
-
-        if (matchingFiles.length === 0) return undefined;
-
-        if (matchingFiles.length === 1) return matchingFiles[0];
-
-        // Multiple matches - use linkMatchScore to pick the best one
-        let bestMatch: string = matchingFiles[0];
-        let bestScore: number = linkMatchScore(linkTarget, matchingFiles[0]);
-
-        for (let i: number = 1; i < matchingFiles.length; i++) {
-            const score: number = linkMatchScore(linkTarget, matchingFiles[i]);
-            if (score > bestScore) {
-                bestScore = score;
-                bestMatch = matchingFiles[i];
-            }
-        }
-
-        return bestMatch;
-    };
-
-    // Find all unresolved links from nodes in the graph
-    const findUnresolvedLinks: (currentGraph: Graph) => Promise<void> = async (currentGraph: Graph): Promise<void> => {
-        for (const nodeId of Object.keys(currentGraph.nodes)) {
-            if (processedNodeIds.has(nodeId)) continue;
-            processedNodeIds.add(nodeId);
-
-            const node: GraphNode = currentGraph.nodes[nodeId];
-            const linkTargets: readonly string[] = extractLinkTargets(node);
-
-            for (const target of linkTargets) {
-                // Skip if already in graph
-                if (currentGraph.nodes[target]) continue;
-
-                // Try to resolve the link
-                const resolvedPath: string | undefined = await resolveLinkTarget(target);
-                if (resolvedPath && !currentGraph.nodes[resolvedPath]) {
-                    filesToLoad.add(resolvedPath);
-                }
-            }
-        }
-    };
-
     // Initial pass: find all unresolved links
-    await findUnresolvedLinks(workingGraph);
+    let filesToLoad: Set<string> = await findUnresolvedLinks(workingGraph, processedNodeIds, watchedFolder);
 
     // Iteratively load files and resolve their transitive links
     while (filesToLoad.size > 0) {
         const pathsToLoad: readonly string[] = [...filesToLoad];
-        filesToLoad.clear();
 
         // Load each file
         for (const filePath of pathsToLoad) {
             if (workingGraph.nodes[filePath]) continue; // Already loaded
 
-            try {
-                // Image files have empty content (don't read binary as UTF-8)
-                const content: string = isImageNode(filePath) ? '' : await fs.readFile(filePath, 'utf-8');
-
-                const fsEvent: FSUpdate = {
-                    absolutePath: filePath,
-                    content,
-                    eventType: 'Added'
-                };
-
-                const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, workingGraph);
+            const delta: GraphDelta = await loadFileAsNode(filePath, workingGraph);
+            if (delta.length > 0) {
                 workingGraph = applyGraphDeltaToGraph(workingGraph, delta);
-                // Accumulate deltas for return
                 accumulatedDelta.push(...delta);
-            } catch {
-                // File might not exist or be inaccessible - skip
             }
         }
 
         // Find new unresolved links from the nodes we just loaded
-        await findUnresolvedLinks(workingGraph);
+        filesToLoad = await findUnresolvedLinks(workingGraph, processedNodeIds, watchedFolder);
     }
 
     // Return accumulated delta (caller handles positioning and applying to state)

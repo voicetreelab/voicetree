@@ -5,8 +5,21 @@ import fs from 'fs';
 import fixPath from 'fix-path';
 import electronUpdater, {type UpdateCheckResult} from 'electron-updater';
 import log from 'electron-log';
-import {setStartupFolderOverride, setOnFolderSwitchCleanup, releaseCurrentLock} from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import {setupApplicationMenu} from '@/shell/edge/main/electron/application-menu';
+import {StubTextToTreeServerManager} from './server/StubTextToTreeServerManager';
+import {RealTextToTreeServerManager} from './server/RealTextToTreeServerManager';
+import TerminalManager from '@/shell/edge/main/terminals/terminal-manager';
+import {setupToolsDirectory, getToolsDirectory} from './tools-setup';
+import {setupOnboardingDirectory} from './onboarding-setup';
+import {startNotificationScheduler, stopNotificationScheduler, recordAppUsage} from './notification-scheduler';
+import {setBackendPort, setMainWindow} from '@/shell/edge/main/state/app-electron-state';
+import {startOTLPReceiver, stopOTLPReceiver} from '@/shell/edge/main/metrics/otlp-receiver';
+import {registerTerminalIpcHandlers} from '@/shell/edge/main/terminals/ipc-terminal-handlers';
+import {setupRPCHandlers} from '@/shell/edge/main/edge-auto-rpc/rpc-handler';
+import {writeAllPositionsSync} from '@/shell/edge/main/graph/writeAllPositionsOnExit';
+import {getGraph} from '@/shell/edge/main/state/graph-store';
+import {startMcpServer} from '@/shell/edge/main/mcp-server/mcp-server';
+import {setOnFolderSwitchCleanup, setStartupFolderOverride} from "@/shell/edge/main/state/watch-folder-store";
 
 // Redirect all console.* to electron-log in production (handles EPIPE errors on Linux AppImage)
 // Writes asynchronously to ~/Library/Logs/Voicetree/ (macOS) or ~/.config/Voicetree/logs/ (Linux)
@@ -42,20 +55,7 @@ try {
 }
 
 const {autoUpdater} = electronUpdater;
-import {StubTextToTreeServerManager} from './server/StubTextToTreeServerManager';
-import {RealTextToTreeServerManager} from './server/RealTextToTreeServerManager';
-import TerminalManager from '@/shell/edge/main/terminals/terminal-manager';
-import {setupToolsDirectory, getToolsDirectory} from './tools-setup';
-import {setupOnboardingDirectory} from './onboarding-setup';
-import {startNotificationScheduler, stopNotificationScheduler, recordAppUsage} from './notification-scheduler';
-import {setBackendPort, setMainWindow} from '@/shell/edge/main/state/app-electron-state';
-import {startOTLPReceiver, stopOTLPReceiver} from '@/shell/edge/main/metrics/otlp-receiver';
-import {registerTerminalIpcHandlers} from '@/shell/edge/main/terminals/ipc-terminal-handlers';
-import {setupRPCHandlers} from '@/shell/edge/main/edge-auto-rpc/rpc-handler';
-import {writeAllPositionsSync} from '@/shell/edge/main/graph/writeAllPositionsOnExit';
-import {getGraph} from '@/shell/edge/main/state/graph-store';
-import {startMcpServer} from '@/shell/edge/main/mcp-server/mcp-server';
-import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
+
 
 
 // Fix PATH for macOS/Linux GUI apps
@@ -229,8 +229,8 @@ function createWindow(): void {
         // Filter out Electron security warnings in dev mode
         if (message.includes('Electron Security Warning')) return;
 
-        const levels: string[] = ['LOG', 'WARNING', 'ERROR'];
-        const levelName: string = levels[level] || 'LOG';
+        // const levels: string[] = ['LOG', 'WARNING', 'ERROR'];
+        // const levelName: string = levels[level] || 'LOG';
 
         try {
             //console.log(`[Renderer ${levelName}] ${message} (${sourceId}:${line})`);
@@ -386,10 +386,6 @@ let isQuitting: boolean = false;
 app.on('before-quit', () => {
     isQuitting = true;
     //console.log('[App] before-quit event - cleaning up resources...');
-
-    // Release folder lock
-    void releaseCurrentLock();
-
     // Clean up server process
     textToTreeServerManager.stop();
 

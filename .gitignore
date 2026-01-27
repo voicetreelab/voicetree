@@ -175,3 +175,4 @@ backend/text_to_graph_pipeline/debug_logs/**/*
 **/*.mp4
 **/*.mov
 **/*.gif
+**/chromadb_data/*

@@ -12,7 +12,7 @@
  * - file-watcher-setup.ts: File watcher setup
  */
 
-import { loadGraphFromDisk, loadGraphFromDiskWithLazyLoading, resolveLinkedNodesInWatchedFolder } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk";
+import { loadGraphFromDisk, resolveLinkedNodesInWatchedFolder } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk";
 import type { FilePath, Graph, GraphDelta } from "@/pure/graph";
 import { applyGraphDeltaToGraph, mapNewGraphToDelta } from "@/pure/graph";
 import type { FileLimitExceededError } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce";
@@ -39,9 +39,7 @@ import {
     getWatchedDirectory,
     setWatchedDirectory,
     getStartupFolderOverride,
-    setStartupFolderOverride as setStartupFolderOverrideStore,
     getOnFolderSwitchCleanup,
-    setOnFolderSwitchCleanup as setOnFolderSwitchCleanupStore,
 } from "@/shell/edge/main/state/watch-folder-store";
 
 // Import from extracted modules
@@ -54,35 +52,8 @@ import {
     resolveAllowlistForProject,
 } from "./vault-allowlist";
 import { setupWatcher } from "./file-watcher-setup";
-import { acquireFolderLock, releaseFolderLock } from "./folder-lock";
 import { createStarterNode } from "./create-starter-node";
 // Re-export for app quit cleanup
-export { releaseCurrentLock } from "./folder-lock";
-
-// Re-exports for backward compatibility
-export { getWatchedDirectory } from "@/shell/edge/main/state/watch-folder-store";
-export {
-    getVaultPaths,
-    getReadPaths,
-    getWritePath,
-    setWritePath,
-    addReadPath,
-    removeReadPath,
-    getVaultPath,
-    setVaultPath,
-    clearVaultPath,
-} from "./vault-allowlist";
-
-// CLI argument override for opening a specific folder on startup (used by "Open Folder in New Instance")
-// Re-export for backward compatibility - delegates to store
-export function setStartupFolderOverride(folderPath: string): void {
-    setStartupFolderOverrideStore(folderPath);
-}
-
-// Re-export for backward compatibility - delegates to store
-export function setOnFolderSwitchCleanup(cleanup: () => void): void {
-    setOnFolderSwitchCleanupStore(cleanup);
-}
 
 export async function initialLoad(): Promise<void> {
     // If already watching a directory, don't reload
@@ -105,76 +76,24 @@ export async function initialLoad(): Promise<void> {
     // No fallback - ProjectSelectionScreen handles first-run experience
 }
 
-export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success: boolean }> {
-    // TODO: Save current graph positions before switching folders (writeAllPositionsSync)
-    // IMPORTANT: watchedFolderPath is the folder the human chooses for the project
-    // writePath (from vaultConfig) is where new files are created
-
-    //console.log('[loadFolder] Starting for path:', watchedFolderPath);
-
-    const mainWindow: Electron.CrossProcessExports.BrowserWindow | null = getMainWindow();
-    if (!mainWindow) {
-        console.error('No main window available');
-        return { success: false };
-    }
-
-    // Release any existing lock before switching folders
-    const previousWatchedDir: string | null = getWatchedDirectory();
-    if (previousWatchedDir && previousWatchedDir !== watchedFolderPath) {
-        await releaseFolderLock(previousWatchedDir);
-    }
-
-    // Acquire lock for the new folder (overwrites any stale locks from crashes)
-    await acquireFolderLock(watchedFolderPath);
-
-    // Update watchedDirectory FIRST
-    setWatchedDirectory(watchedFolderPath);
-
-    // Close old watcher before attempting to load new folder
-    const oldWatcher: FSWatcher | null = getWatcher();
-    if (oldWatcher) {
-        await oldWatcher.close();
-        setWatcher(null);
-    }
-
-    // Clean up terminals and other resources before switching folders
-    const folderCleanup: (() => void) | null = getOnFolderSwitchCleanup();
-    if (folderCleanup) {
-        //console.log('[loadFolder] Running folder switch cleanup (terminals, etc.)');
-        folderCleanup();
-    }
-
-    // Clear existing graph state in UI-edge before loading new folder
-    if (!mainWindow.isDestroyed()) {
-        //console.log('[loadFolder] Sending graph:clear event to UI-edge');
-        mainWindow.webContents.send('graph:clear');
-    }
-
+/**
+ * Resolve or create vault configuration for a project.
+ *
+ * Handles both cases:
+ * 1. Saved config exists: return it (validated)
+ * 2. No saved config: find/create voicetree folder, copy onboarding, apply default patterns, save config
+ *
+ * This unifies the two code paths that were previously in loadFolder.
+ */
+async function resolveOrCreateConfig(
+    watchedFolderPath: string
+): Promise<{ writePath: string; readPaths: readonly string[]; allowlist: readonly string[] }> {
     // Try to resolve from saved vaultConfig first
-    const savedConfig: { allowlist: readonly string[]; writePath: string; readPaths: readonly string[] } | null = await resolveAllowlistForProject(watchedFolderPath);
+    const savedConfig: { allowlist: readonly string[]; writePath: string; readPaths: readonly string[] } | null =
+        await resolveAllowlistForProject(watchedFolderPath);
 
     if (savedConfig) {
-        // Use saved config with lazy loading
-        // Only writePath is loaded immediately, readPaths are lazy-loaded
-        const immediateLoadPaths: readonly string[] = [savedConfig.writePath];
-        const lazyLoadPaths: readonly string[] = savedConfig.readPaths;
-
-        const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDiskWithLazyLoading(
-            immediateLoadPaths,
-            lazyLoadPaths
-        );
-
-        if (E.isRight(loadResult)) {
-            // Successfully loaded within file limit - use saved config
-            return finishLoading(loadResult.right, savedConfig, watchedFolderPath, mainWindow);
-        }
-        // File limit exceeded - create new voicetree-{date} workspace, keeping readPaths for linking
-        return createNewWorkspaceOnFileLimitExceeded(
-            watchedFolderPath,
-            loadResult.left.fileCount,
-            mainWindow,
-            savedConfig.readPaths
-        );
+        return savedConfig;
     }
 
     // No saved config - find or create voicetree subfolder
@@ -216,20 +135,57 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
     }
 
     // Save config with subfolder as writePath
-    const subfolderReadOnLinkPaths: readonly string[] = allowlist.filter(p => p !== subfolderPath);
-    const newConfig: { allowlist: readonly string[]; writePath: string; readPaths: readonly string[] } = {
-        allowlist,
-        writePath: subfolderPath,
-        readPaths: subfolderReadOnLinkPaths
-    };
-    // Convert to VaultConfig structure for saving
+    const readPaths: readonly string[] = allowlist.filter(p => p !== subfolderPath);
     await saveVaultConfigForDirectory(watchedFolderPath, {
         writePath: subfolderPath,
-        readPaths: subfolderReadOnLinkPaths
+        readPaths
     });
 
-    // Load from the new allowlist (with onboarding files)
-    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(allowlist);
+    return {
+        allowlist,
+        writePath: subfolderPath,
+        readPaths
+    };
+}
+
+export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success: boolean }> {
+    // TODO: Save current graph positions before switching folders (writeAllPositionsSync)
+    // IMPORTANT: watchedFolderPath is the folder the human chooses for the project
+    // writePath (from vaultConfig) is where new files are created
+
+    const mainWindow: Electron.CrossProcessExports.BrowserWindow | null = getMainWindow();
+    if (!mainWindow) {
+        console.error('No main window available');
+        return { success: false };
+    }
+
+    // Update watchedDirectory FIRST
+    setWatchedDirectory(watchedFolderPath);
+
+    // Close old watcher before attempting to load new folder
+    const oldWatcher: FSWatcher | null = getWatcher();
+    if (oldWatcher) {
+        await oldWatcher.close();
+        setWatcher(null);
+    }
+
+    // Clean up terminals and other resources before switching folders
+    const folderCleanup: (() => void) | null = getOnFolderSwitchCleanup();
+    if (folderCleanup) {
+        folderCleanup();
+    }
+
+    // Clear existing graph state in UI-edge before loading new folder
+    if (!mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('graph:clear');
+    }
+
+    // Resolve or create config (unified path)
+    const config: { writePath: string; readPaths: readonly string[]; allowlist: readonly string[] } =
+        await resolveOrCreateConfig(watchedFolderPath);
+
+    // Load graph from all paths
+    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(config.allowlist);
 
     if (E.isLeft(loadResult)) {
         // File limit exceeded - create new voicetree-{date} workspace
@@ -237,11 +193,11 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
             watchedFolderPath,
             loadResult.left.fileCount,
             mainWindow,
-            []
+            config.readPaths
         );
     }
 
-    return finishLoading(loadResult.right, newConfig, watchedFolderPath, mainWindow);
+    return finishLoading(loadResult.right, config, watchedFolderPath, mainWindow);
 }
 
 /**
@@ -406,12 +362,6 @@ export async function startFileWatching(directoryPath?: string): Promise<{ reado
 }
 
 export async function stopFileWatching(): Promise<{ readonly success: boolean; readonly error?: string }> {
-    // Release folder lock before stopping
-    const watchedDir: string | null = getWatchedDirectory();
-    if (watchedDir) {
-        await releaseFolderLock(watchedDir);
-    }
-
     const currentWatcher: FSWatcher | null = getWatcher();
     if (currentWatcher) {
         await currentWatcher.close();

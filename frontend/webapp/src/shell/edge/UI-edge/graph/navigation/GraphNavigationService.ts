@@ -10,7 +10,7 @@
  * This class owns all user-triggered navigation state and operations.
  */
 
-import type { Core, CollectionReturnValue } from 'cytoscape';
+import type { Core, CollectionReturnValue, NodeSingular } from 'cytoscape';
 import { cyFitWithRelativeZoom } from '@/utils/responsivePadding';
 import { addRecentlyVisited } from '@/shell/edge/UI-edge/state/RecentlyVisitedStore';
 import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
@@ -19,6 +19,7 @@ import { getTerminalId, getShadowNodeId, type TerminalId } from '@/shell/edge/UI
 import { getDisplayOrderForNavigation } from '@/shell/UI/views/AgentTabsBar';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import * as O from 'fp-ts/lib/Option.js';
+import { linkMatchScore, getPathComponents } from '@/pure/graph/markdown-parsing/extract-edges';
 
 /**
  * Manages all user-triggered navigation actions for the graph
@@ -184,15 +185,24 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
     let node: CollectionReturnValue = cy.getElementById(nodeId);
     let resolvedNodeId: string = nodeId;
 
-    // Fallback: if node not found, try stripping first path segment
-    // This handles SSE events that include vault folder prefix
-    if (node.length === 0 && nodeId.includes('/')) {
-      const withoutFirstSegment: string = nodeId.substring(nodeId.indexOf('/') + 1);
-      const fallbackNode: CollectionReturnValue = cy.getElementById(withoutFirstSegment);
-      if (fallbackNode.length > 0) {
-        node = fallbackNode;
-        resolvedNodeId = withoutFirstSegment;
-        //console.log('[GraphNavigationService] Used fallback nodeId:', resolvedNodeId);
+    // Fallback: fuzzy suffix matching (same logic as wikilink resolution)
+    // Handles SSE events that send relative paths while cytoscape uses absolute paths
+    if (node.length === 0) {
+      const linkComponents: readonly string[] = getPathComponents(nodeId);
+      if (linkComponents.length > 0) {
+        const match: { node: NodeSingular | null; score: number } = { node: null, score: 0 };
+        cy.nodes().forEach((n: NodeSingular) => {
+          if (n.data('isShadowNode') || n.data('isContextNode')) return;
+          const score: number = linkMatchScore(nodeId, n.id());
+          if (score >= linkComponents.length && score > match.score) {
+            match.score = score;
+            match.node = n;
+          }
+        });
+        if (match.node) {
+          node = match.node;
+          resolvedNodeId = match.node.id();
+        }
       }
     }
 
