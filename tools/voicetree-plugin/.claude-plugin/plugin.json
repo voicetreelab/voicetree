@@ -1,0 +1,8 @@
+{
+  "name": "voicetree",
+  "description": "VoiceTree integration for Claude Code - stop hooks and context node awareness",
+  "version": "1.0.0",
+  "author": {
+    "name": "VoiceTree"
+  }
+}

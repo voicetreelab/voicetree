@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$VOICETREE_APP_SUPPORT/tools/stop-hook.cjs\""
+          }
+        ]
+      }
+    ]
+  }
+}
