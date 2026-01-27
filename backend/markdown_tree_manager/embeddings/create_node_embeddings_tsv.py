@@ -7,13 +7,10 @@ DO NOT use this for production vector search - use ChromaDBVectorStore instead.
 """
 
 import logging
-import os
 import sys
 from pathlib import Path
 from typing import Any
-from typing import cast
 
-import google.generativeai as genai
 import numpy as np
 from numpy.typing import NDArray
 
@@ -26,7 +23,10 @@ try:
 except ImportError:
     from backend.markdown_tree_manager.markdown_to_tree.node_loader import load_node
 
-from backend.types import GeminiEmbeddingResult, NodeData
+from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import (
+    embed_content,
+)
+from backend.types import NodeData
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -78,12 +78,6 @@ def generate_embeddings(nodes: dict[Any, Any]) -> dict[str, NDArray[Any]]:
     Returns:
         Dictionary of node_id -> embedding vector
     """
-    # Configure Gemini
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise ValueError("GEMINI_API_KEY environment variable not set")
-    genai.configure(api_key=api_key)
-
     embeddings = {}
 
     for node_id, node in nodes.items():
@@ -101,14 +95,12 @@ def generate_embeddings(nodes: dict[Any, Any]) -> dict[str, NDArray[Any]]:
 
             if combined_text.strip():
                 # Generate embedding using Gemini
-                result = genai.embed_content(
-                    model="models/gemini-embedding-001",
+                embedding = embed_content(
                     content=combined_text,
                     task_type="retrieval_document",
-                    title=f"Node {node_id}"
+                    title=f"Node {node_id}",
                 )
-                result_typed = cast(GeminiEmbeddingResult, result)
-                embeddings[node_id] = np.array(result_typed['embedding'])
+                embeddings[node_id] = np.array(embedding)
                 logger.info(f"Generated embedding for node {node_id}")
         except Exception as e:
             logger.error(f"Failed to generate embedding for node {node_id}: {e}")

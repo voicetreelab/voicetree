@@ -10,9 +10,9 @@ import statistics
 import sys
 import time
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import Any
+from typing import TypedDict
 
-import google.generativeai as genai
 from colorama import Fore
 from colorama import Style
 from colorama import init
@@ -24,6 +24,9 @@ from backend.context_retrieval.traverse_all_relevant_nodes import (
 )
 from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import (
     load_markdown_tree,
+)
+from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import (
+    generate_content,
 )
 
 # Initialize colorama for cross-platform colored output
@@ -84,44 +87,42 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 class GeminiClient:
     """Wrapper to make Gemini API compatible with pred.py's OpenAI-style interface."""
 
-    def __init__(self, api_key: str) -> None:
-        genai.configure(api_key=api_key)
-        self._model = genai.GenerativeModel('gemini-2.5-flash-lite')
+    def __init__(self) -> None:
+        # Client is configured via llm_integration module (uses env vars)
+        self._model_name = 'gemini-2.5-flash-lite'
         self.chat = type('obj', (object,), {
             'completions': type('obj', (object,), {
                 'create': self._create_completion
             })()
         })()
 
-    def _create_completion(self, model=None, messages=None, temperature=0.4):
+    def _create_completion(
+        self, model: str | None = None, messages: list[dict[str, str]] | None = None, temperature: float = 0.4
+    ) -> Any:
         """Create a completion using Gemini."""
         content_key = "content"
         prompt = messages[0][content_key] if messages else ""
 
-        response = self._model.generate_content(
-            prompt,
-            generation_config=genai.types.GenerationConfig(
-                temperature=temperature
-            )
+        response_text = generate_content(
+            prompt=prompt,
+            model=self._model_name,
+            temperature=temperature,
         )
 
         # Create OpenAI-style response structure
         class Completion:
-            def __init__(self, text):
+            def __init__(self, text: str) -> None:
                 self.choices = [type('obj', (object,), {
                     'message': type('obj', (object,), {'content': text})()
                 })()]
 
-        return Completion(response.text)
+        return Completion(response_text)
 
 
 class PerformanceComparatorV2:
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize using environment variables."""
-        # Get API key from environment
-        self.api_key = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
-        if not self.api_key:
-            raise ValueError("GEMINI_API_KEY or GOOGLE_API_KEY must be set in .env file")
+        # API authentication is handled by llm_integration module via env vars
 
         # Setup paths using environment variable
         voicetree_root = os.getenv('VOICETREE_ROOT')
@@ -139,7 +140,7 @@ class PerformanceComparatorV2:
             self.template = f.read()
 
         # Initialize Gemini client with OpenAI-compatible interface
-        self.client = GeminiClient(self.api_key)
+        self.client = GeminiClient()
 
         # Load tree as MarkdownTree object
         print(f"Loading tree from: {self.markdown_dir}")

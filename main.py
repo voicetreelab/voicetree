@@ -125,7 +125,7 @@ async def llm_processing_loop(text_queue, processor):
         """Synchronous wrapper to run our async processor function."""
         try:
             # asyncio.run() creates and manages a new event loop in this thread.
-            asyncio.run(processor.process_new_text_and_update_markdown(text_to_process))
+            asyncio.run(processor.process_new_text_and_update_markdown(text_to_process, forceFlush=False))
         except Exception as e:
             # Log errors that happen inside the thread
             logger.error(f"Error in LLM processing thread: {e}", exc_info=True)

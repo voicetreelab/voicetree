@@ -7,9 +7,7 @@ import logging
 import os
 from typing import Any
 from typing import Optional
-from typing import cast
 
-import google.generativeai as genai
 import numpy as np
 from numpy.typing import NDArray
 from dotenv import load_dotenv
@@ -18,28 +16,15 @@ from dotenv import load_dotenv
 from backend.markdown_tree_manager.embeddings.chromadb_vector_store import (
     ChromaDBVectorStore,
 )
-from backend.types import GeminiEmbeddingResult
+from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import (
+    embed_content,
+)
 
 # Load environment variables from .env file
 load_dotenv()
 
 # Enable embeddings - can be toggled via environment variable
 USE_EMBEDDINGS = os.getenv("VOICETREE_USE_EMBEDDINGS", "true").lower() == "true"
-
-# Configure Gemini API
-_gemini_configured = False
-
-def _configure_gemini() -> None:
-    """Configure Gemini API (call once)"""
-    global _gemini_configured
-    if not _gemini_configured:
-        # Try both possible env var names
-        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-        if not api_key:
-            raise ValueError("GEMINI_API_KEY or GOOGLE_API_KEY environment variable not set")
-        genai.configure(api_key=api_key)
-        _gemini_configured = True
-        logging.info("Configured Gemini API for embeddings")
 
 # TODO IMPORTANT THIS IS THE UNUSED ONE
 def get_node_embeddings(nodes: dict[int, Any]) -> dict[int, NDArray[np.float64]]:
@@ -56,7 +41,6 @@ def get_node_embeddings(nodes: dict[int, Any]) -> dict[int, NDArray[np.float64]]
         return {}
 
     try:
-        _configure_gemini()
         embeddings = {}
 
         # Prepare texts for batch encoding
@@ -81,16 +65,14 @@ def get_node_embeddings(nodes: dict[int, Any]) -> dict[int, NDArray[np.float64]]
 
         if texts:
             # Use Gemini's gemini-embedding-001 model (3072 dimensions)
-            # Batch process for efficiency
+            # Process one at a time for consistent behavior
             for text, node_id in zip(texts, node_ids):
-                result = genai.embed_content(
-                    model="models/gemini-embedding-001",
+                embedding = embed_content(
                     content=text,
                     task_type="retrieval_document",
-                    title=f"Node {node_id}"  # Optional title for better context
+                    title=f"Node {node_id}",
                 )
-                result_typed = cast(GeminiEmbeddingResult, result)
-                embeddings[node_id] = np.array(result_typed['embedding'])
+                embeddings[node_id] = np.array(embedding)
 
             logging.info(f"Generated Gemini embeddings for {len(embeddings)} nodes")
 
@@ -131,16 +113,12 @@ def find_similar_by_embedding(
         if not query.strip():
             return []
         try:
-            _configure_gemini()
-
             # Generate embedding for query using Gemini
-            result = genai.embed_content(
-                model="models/gemini-embedding-001",
+            embedding = embed_content(
                 content=query,
-                task_type="retrieval_query"  # Use query task type for search
+                task_type="retrieval_query",  # Use query task type for search
             )
-            result_typed = cast(GeminiEmbeddingResult, result)
-            query_embedding = np.array(result_typed['embedding'])
+            query_embedding = np.array(embedding)
         except Exception as e:
             logging.error(f"Failed to generate query embedding: {e}")
             return []

@@ -5,11 +5,7 @@ import os
 from datetime import datetime
 from typing import Optional
 
-import google.generativeai as genai
-from google.generativeai import GenerativeModel
-
 import tools.PackageProjectForLLM
-from backend import settings
 from backend.benchmarker.src.config import EVALUATION_MODEL
 from backend.benchmarker.src.config import LATEST_QUALITY_LOG_FILE
 from backend.benchmarker.src.config import OUTPUT_DIR
@@ -17,15 +13,17 @@ from backend.benchmarker.src.config import QUALITY_LOG_FILE
 from backend.benchmarker.src.evaluation_prompts import build_evaluation_prompt
 from backend.benchmarker.src.file_utils import get_git_info
 from backend.benchmarker.src.file_utils import save_run_context
+from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import (
+    generate_content,
+)
 
 
 class QualityEvaluator:
     """Evaluates the quality of generated trees using LLM."""
 
     def __init__(self) -> None:
-        # Configure Gemini API
-        genai.configure(api_key=settings.GOOGLE_API_KEY)
-        self.model = GenerativeModel(EVALUATION_MODEL)
+        # Model is configured via llm_integration module (uses env vars)
+        self.model_name = EVALUATION_MODEL
 
     def _package_output(self, output_subdirectory: Optional[str] = None) -> str:
         """Package the Markdown output for evaluation.
@@ -132,8 +130,7 @@ class QualityEvaluator:
         logging.info("Assess quality prompt:\n" + prompt)
 
         # Generate evaluation
-        response = self.model.generate_content(prompt)
-        evaluation = response.text.strip()
+        evaluation = generate_content(prompt, model=self.model_name).strip()
 
         # Generate and write log entries
         concise_entry, detailed_entry, commit_hash, commit_message = self._generate_log_entry(
