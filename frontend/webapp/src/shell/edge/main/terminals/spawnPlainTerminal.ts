@@ -12,7 +12,7 @@ import type {VTSettings} from '@/pure/settings/types';
 import {createTerminalData, computeTerminalId} from '@/shell/edge/UI-edge/floating-windows/types';
 import {getAppSupportPath} from '@/shell/edge/main/state/app-electron-state';
 import {getGraph} from '@/shell/edge/main/state/graph-store';
-import {getWatchStatus, getVaultPaths, getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder';
+import {getWatchStatus } from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import * as O from 'fp-ts/lib/Option.js';
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
@@ -20,6 +20,7 @@ import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
+import {getVaultPaths, getWritePath} from "@/shell/edge/main/graph/watch_folder/vault-allowlist";
 
 export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCount: number): Promise<void> {
   // todo, tech debt. Most of this is duplicated with other terminal spawn paths.

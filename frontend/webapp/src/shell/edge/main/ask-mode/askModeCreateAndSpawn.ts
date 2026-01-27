@@ -13,11 +13,12 @@ import {getNextAgentName} from '@/pure/settings/types';
 import {createTerminalData} from '@/shell/edge/UI-edge/floating-windows/types';
 import {getAppSupportPath} from '@/shell/edge/main/state/app-electron-state';
 import {getGraph} from '@/shell/edge/main/state/graph-store';
-import {getWatchedDirectory, getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
 import {createContextNodeFromQuestion} from '@/shell/edge/main/graph/context-nodes/createContextNodeFromQuestion';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
+import {getWritePath} from "@/shell/edge/main/graph/watch_folder/vault-allowlist";
+import {getWatchedDirectory} from "@/shell/edge/main/state/watch-folder-store";
 
 export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], question: string): Promise<void> {
   // Get graph - node IDs are now absolute paths that match graph keys directly

@@ -21,7 +21,6 @@ import { createContextNode } from '@/shell/edge/main/graph/context-nodes/createC
 import { createContextNodeFromSelectedNodes } from '@/shell/edge/main/graph/context-nodes/createContextNodeFromSelectedNodes';
 import { getGraph } from '@/shell/edge/main/state/graph-store';
 import { loadSettings } from '@/shell/edge/main/settings/settings_IO';
-import { getWatchStatus, getWritePath, getVaultPaths } from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import { getAppSupportPath } from '@/shell/edge/main/state/app-electron-state';
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy';
 import { createTerminalData, getTerminalId, computeTerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
@@ -33,6 +32,8 @@ import { resolveEnvVars, expandEnvVarsInValues } from '@/pure/settings';
 import { getNextAgentName } from '@/pure/settings/types';
 import { getNextTerminalCountForNode } from '@/shell/edge/main/terminals/terminal-registry';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
+import {getWatchStatus} from "@/shell/edge/main/graph/watch_folder/watchFolder";
+import {getVaultPaths, getWritePath} from "@/shell/edge/main/graph/watch_folder/vault-allowlist";
 
 /**
  * Spawn a terminal with a context node, orchestrated from main process
