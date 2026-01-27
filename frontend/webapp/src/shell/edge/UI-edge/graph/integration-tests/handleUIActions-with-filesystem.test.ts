@@ -116,7 +116,7 @@ vi.mock('@/shell/edge/main/state/watch-folder-store', () => {
 
 // Mock watchFolder for vault path functions
 vi.mock('@/shell/edge/main/graph/watch_folder/watchFolder', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('@/shell/edge/main/graph/watch_folder/watchFolder')>()
+    const actual: typeof import('@/shell/edge/main/graph/watch_folder/watchFolder') = await importOriginal<typeof import('@/shell/edge/main/graph/watch_folder/watchFolder')>()
     return {
         ...actual,
         getVaultPath: () => {

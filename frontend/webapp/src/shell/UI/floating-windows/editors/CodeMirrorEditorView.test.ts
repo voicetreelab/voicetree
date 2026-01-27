@@ -545,7 +545,7 @@ describe('Image paste handler', () => {
   // Polyfill ClipboardEvent for JSDOM (which doesn't have it natively)
   beforeAll(() => {
     if (typeof ClipboardEvent === 'undefined') {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       (global as Record<string, unknown>).ClipboardEvent = class ClipboardEvent extends Event {
         public clipboardData: DataTransfer | null;
         constructor(type: string, options?: { clipboardData?: DataTransfer; bubbles?: boolean; cancelable?: boolean }) {

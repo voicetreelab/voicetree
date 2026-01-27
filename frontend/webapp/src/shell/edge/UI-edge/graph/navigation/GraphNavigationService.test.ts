@@ -41,21 +41,21 @@ describe('GraphNavigationService', () => {
 
   describe('fitToLastNode', () => {
     it('should animate viewport to last created node when one is set', () => {
-      const animateSpy = vi.spyOn(cy, 'animate');
+      const animateSpy: MockInstance<typeof cy.animate> = vi.spyOn(cy, 'animate');
 
       service.setLastCreatedNodeId('node2');
       service.fitToLastNode();
 
       // Should have called animate with center on the node
       expect(animateSpy).toHaveBeenCalled();
-      const animateArgs = animateSpy.mock.calls[0][0] as { center: { eles: Collection }, zoom: number, duration: number };
+      const animateArgs: { center: { eles: Collection }, zoom?: number, duration?: number } = animateSpy.mock.calls[0][0] as { center: { eles: Collection }, zoom: number, duration: number };
       expect((animateArgs.center.eles.first()?.id() ?? "")).toBe('node2');
       expect(typeof animateArgs.zoom).toBe('number');
       expect(typeof animateArgs.duration).toBe('number');
     });
 
     it('should do nothing when no last node is set', () => {
-      const animateSpy = vi.spyOn(cy, 'animate');
+      const animateSpy: MockInstance<typeof cy.animate> = vi.spyOn(cy, 'animate');
 
       service.fitToLastNode();
 
@@ -63,7 +63,7 @@ describe('GraphNavigationService', () => {
     });
 
     it('should handle non-existent node gracefully', () => {
-      const animateSpy = vi.spyOn(cy, 'animate');
+      const animateSpy: MockInstance<typeof cy.animate> = vi.spyOn(cy, 'animate');
 
       service.setLastCreatedNodeId('nonexistent-node');
       service.fitToLastNode();
@@ -73,18 +73,18 @@ describe('GraphNavigationService', () => {
     });
 
     it('should update to new node when setLastCreatedNodeId is called multiple times', () => {
-      const animateSpy = vi.spyOn(cy, 'animate');
+      const animateSpy: MockInstance<typeof cy.animate> = vi.spyOn(cy, 'animate');
 
       service.setLastCreatedNodeId('node1');
       service.fitToLastNode();
 
-      const firstCall = animateSpy.mock.calls[0][0] as { center: { eles: Collection } };
+      const firstCall: { center: { eles: Collection } } = animateSpy.mock.calls[0][0] as { center: { eles: Collection } };
       expect((firstCall.center.eles.first()?.id() ?? "")).toBe('node1');
 
       service.setLastCreatedNodeId('node3');
       service.fitToLastNode();
 
-      const secondCall = animateSpy.mock.calls[1][0] as { center: { eles: Collection } };
+      const secondCall: { center: { eles: Collection } } = animateSpy.mock.calls[1][0] as { center: { eles: Collection } };
       expect((secondCall.center.eles.first()?.id() ?? "")).toBe('node3');
     });
   });
@@ -94,13 +94,13 @@ describe('GraphNavigationService', () => {
 
     // Helper to create and register a terminal
     function createTestTerminal(attachedToNodeId: string, terminalCount: number): { terminalData: ReturnType<typeof createTerminalData>, shadowNodeId: string } {
-      const terminalData = createTerminalData({
+      const terminalData: ReturnType<typeof createTerminalData> = createTerminalData({
         attachedToNodeId: attachedToNodeId as NodeIdAndFilePath,
         terminalCount,
         title: `Terminal ${terminalCount}`
       });
       addTerminal(terminalData);
-      const shadowNodeId = getShadowNodeId(getTerminalId(terminalData));
+      const shadowNodeId: string = getShadowNodeId(getTerminalId(terminalData));
       return { terminalData, shadowNodeId };
     }
 
@@ -109,9 +109,9 @@ describe('GraphNavigationService', () => {
       clearTerminals();
 
       // Create terminals in TerminalStore and add shadow nodes to cy
-      const terminal1 = createTestTerminal('node1', 0);
-      const terminal2 = createTestTerminal('node2', 0);
-      const terminal3 = createTestTerminal('node3', 0);
+      const terminal1: { terminalData: ReturnType<typeof createTerminalData>, shadowNodeId: string } = createTestTerminal('node1', 0);
+      const terminal2: { terminalData: ReturnType<typeof createTerminalData>, shadowNodeId: string } = createTestTerminal('node2', 0);
+      const terminal3: { terminalData: ReturnType<typeof createTerminalData>, shadowNodeId: string } = createTestTerminal('node3', 0);
 
       // Add shadow nodes to cytoscape (mimics what the UI does)
       cy.add([
@@ -167,19 +167,19 @@ describe('GraphNavigationService', () => {
     });
 
     // Helper to get expected shadow node ID for a context node
-    const getShadowNodeIdForContext = (contextNodeId: string): string => {
+    const getShadowNodeIdForContext: (contextNodeId: string) => string = (contextNodeId: string): string => {
       return `${contextNodeId}-terminal-0-anchor-shadowNode`;
     };
 
     it('should cycle to next terminal in forward direction', () => {
-      const animateSpy = vi.spyOn(cy, 'animate');
+      const animateSpy: MockInstance<typeof cy.animate> = vi.spyOn(cy, 'animate');
 
       service.cycleTerminal(1);
 
       // Increments from 0 to 1, sorted alphabetically by terminal ID
       // node1-terminal-0 < node2-terminal-0 < node3-terminal-0, so index 1 = node2
       expect(animateSpy).toHaveBeenCalled();
-      const animateArgs = animateSpy.mock.calls[0][0] as { center: { eles: Collection } };
+      const animateArgs: { center: { eles: Collection }, zoom?: number, duration?: number } = animateSpy.mock.calls[0][0] as { center: { eles: Collection } };
       const fittedIds: string[] = animateArgs.center.eles.map((n) => n.id());
       // Should include terminal shadow node and its context node's neighborhood (node2's neighbors: node1, node3)
       expect(fittedIds).toContain(getShadowNodeIdForContext('node2'));
@@ -190,12 +190,12 @@ describe('GraphNavigationService', () => {
     });
 
     it('should cycle through all terminals in forward direction', () => {
-      const animateSpy = vi.spyOn(cy, 'animate');
+      const animateSpy: MockInstance<typeof cy.animate> = vi.spyOn(cy, 'animate');
 
       // Helper to check if collection includes terminal shadow node
-      const getAnimatedEles = (callIndex: number): Collection =>
+      const getAnimatedEles: (callIndex: number) => Collection = (callIndex: number): Collection =>
         (animateSpy.mock.calls[callIndex][0] as { center: { eles: Collection } }).center.eles;
-      const collectionIncludesTerminal = (collection: Collection, shadowNodeId: string): boolean =>
+      const collectionIncludesTerminal: (collection: Collection, shadowNodeId: string) => boolean = (collection: Collection, shadowNodeId: string): boolean =>
         collection.map((n) => n.id()).includes(shadowNodeId);
 
       // Terminals sorted alphabetically: node1-terminal-0 < node2-terminal-0 < node3-terminal-0
@@ -210,11 +210,11 @@ describe('GraphNavigationService', () => {
     });
 
     it('should wrap around to first terminal after last one in forward direction', () => {
-      const animateSpy = vi.spyOn(cy, 'animate');
+      const animateSpy: MockInstance<typeof cy.animate> = vi.spyOn(cy, 'animate');
 
-      const getAnimatedEles = (callIndex: number): Collection =>
+      const getAnimatedEles: (callIndex: number) => Collection = (callIndex: number): Collection =>
         (animateSpy.mock.calls[callIndex][0] as { center: { eles: Collection } }).center.eles;
-      const collectionIncludesTerminal = (collection: Collection, shadowNodeId: string): boolean =>
+      const collectionIncludesTerminal: (collection: Collection, shadowNodeId: string) => boolean = (collection: Collection, shadowNodeId: string): boolean =>
         collection.map((n) => n.id()).includes(shadowNodeId);
 
       // Cycle through all terminals
@@ -229,23 +229,23 @@ describe('GraphNavigationService', () => {
     });
 
     it('should cycle to previous terminal in backward direction', () => {
-      const animateSpy = vi.spyOn(cy, 'animate');
+      const animateSpy: MockInstance<typeof cy.animate> = vi.spyOn(cy, 'animate');
 
       // Backward from initial position (0) wraps to last terminal (node3)
       service.cycleTerminal(-1);
 
       expect(animateSpy).toHaveBeenCalled();
-      const animateArgs = animateSpy.mock.calls[0][0] as { center: { eles: Collection } };
+      const animateArgs: { center: { eles: Collection }, zoom?: number, duration?: number } = animateSpy.mock.calls[0][0] as { center: { eles: Collection } };
       const fittedIds: string[] = animateArgs.center.eles.map((n) => n.id());
       expect(fittedIds).toContain(getShadowNodeIdForContext('node3'));
     });
 
     it('should cycle through all terminals in backward direction', () => {
-      const animateSpy = vi.spyOn(cy, 'animate');
+      const animateSpy: MockInstance<typeof cy.animate> = vi.spyOn(cy, 'animate');
 
-      const getAnimatedEles = (callIndex: number): Collection =>
+      const getAnimatedEles: (callIndex: number) => Collection = (callIndex: number): Collection =>
         (animateSpy.mock.calls[callIndex][0] as { center: { eles: Collection } }).center.eles;
-      const collectionIncludesTerminal = (collection: Collection, shadowNodeId: string): boolean =>
+      const collectionIncludesTerminal: (collection: Collection, shadowNodeId: string) => boolean = (collection: Collection, shadowNodeId: string): boolean =>
         collection.map((n) => n.id()).includes(shadowNodeId);
 
       service.cycleTerminal(-1); // 0->2: node3
@@ -259,11 +259,11 @@ describe('GraphNavigationService', () => {
     });
 
     it('should wrap around to last terminal after first one in backward direction', () => {
-      const animateSpy = vi.spyOn(cy, 'animate');
+      const animateSpy: MockInstance<typeof cy.animate> = vi.spyOn(cy, 'animate');
 
-      const getAnimatedEles = (callIndex: number): Collection =>
+      const getAnimatedEles: (callIndex: number) => Collection = (callIndex: number): Collection =>
         (animateSpy.mock.calls[callIndex][0] as { center: { eles: Collection } }).center.eles;
-      const collectionIncludesTerminal = (collection: Collection, shadowNodeId: string): boolean =>
+      const collectionIncludesTerminal: (collection: Collection, shadowNodeId: string) => boolean = (collection: Collection, shadowNodeId: string): boolean =>
         collection.map((n) => n.id()).includes(shadowNodeId);
 
       // Cycle backward to wrap to last
@@ -284,7 +284,7 @@ describe('GraphNavigationService', () => {
       // Clear TerminalStore to simulate no terminals
       clearTerminals();
 
-      const animateSpy = vi.spyOn(cy, 'animate');
+      const animateSpy: MockInstance<typeof cy.animate> = vi.spyOn(cy, 'animate');
 
       service.cycleTerminal(1);
 
@@ -304,11 +304,11 @@ describe('GraphNavigationService', () => {
         position: { x: 500, y: 100 }
       });
 
-      const animateSpy = vi.spyOn(cy, 'animate');
+      const animateSpy: MockInstance<typeof cy.animate> = vi.spyOn(cy, 'animate');
 
-      const getAnimatedEles = (callIndex: number): Collection =>
+      const getAnimatedEles: (callIndex: number) => Collection = (callIndex: number): Collection =>
         (animateSpy.mock.calls[callIndex][0] as { center: { eles: Collection } }).center.eles;
-      const collectionIncludesTerminal = (collection: Collection, shadowNodeId: string): boolean =>
+      const collectionIncludesTerminal: (collection: Collection, shadowNodeId: string) => boolean = (collection: Collection, shadowNodeId: string): boolean =>
         collection.map((n) => n.id()).includes(shadowNodeId);
 
       // Cycle through - should only hit the 3 terminals from TerminalStore
@@ -322,7 +322,7 @@ describe('GraphNavigationService', () => {
 
       // Fake terminal should never be cycled to
       for (const call of animateSpy.mock.calls) {
-        const ids = (call[0] as { center: { eles: Collection } }).center.eles.map((n) => n.id());
+        const ids: string[] = (call[0] as { center: { eles: Collection } }).center.eles.map((n) => n.id());
         expect(ids).not.toContain('fake-terminal-shadow');
       }
     });
@@ -330,15 +330,15 @@ describe('GraphNavigationService', () => {
     it('should handle single terminal correctly', () => {
       // Clear and add only one terminal
       clearTerminals();
-      const terminal = createTestTerminal('node1', 0);
+      const terminal: { terminalData: ReturnType<typeof createTerminalData>, shadowNodeId: string } = createTestTerminal('node1', 0);
       // Keep only the shadow node for this terminal in cy
       cy.remove(`#${getShadowNodeIdForContext('node2')}, #${getShadowNodeIdForContext('node3')}`);
 
-      const animateSpy = vi.spyOn(cy, 'animate');
+      const animateSpy: MockInstance<typeof cy.animate> = vi.spyOn(cy, 'animate');
 
-      const getAnimatedEles = (callIndex: number): Collection =>
+      const getAnimatedEles: (callIndex: number) => Collection = (callIndex: number): Collection =>
         (animateSpy.mock.calls[callIndex][0] as { center: { eles: Collection } }).center.eles;
-      const collectionIncludesTerminal = (collection: Collection, shadowNodeId: string): boolean =>
+      const collectionIncludesTerminal: (collection: Collection, shadowNodeId: string) => boolean = (collection: Collection, shadowNodeId: string): boolean =>
         collection.map((n) => n.id()).includes(shadowNodeId);
 
       service.cycleTerminal(1);
@@ -354,12 +354,12 @@ describe('GraphNavigationService', () => {
 
   describe('handleSearchSelect', () => {
     it('should animate viewport to selected node', () => {
-      const animateSpy = vi.spyOn(cy, 'animate');
+      const animateSpy: MockInstance<typeof cy.animate> = vi.spyOn(cy, 'animate');
 
       service.handleSearchSelect('node2');
 
       expect(animateSpy).toHaveBeenCalled();
-      const animateArgs = animateSpy.mock.calls[0][0] as { center: { eles: Collection } };
+      const animateArgs: { center: { eles: Collection }, zoom?: number, duration?: number } = animateSpy.mock.calls[0][0] as { center: { eles: Collection } };
       expect((animateArgs.center.eles.first()?.id() ?? "")).toBe('node2');
     });
 
@@ -391,7 +391,7 @@ describe('GraphNavigationService', () => {
     });
 
     it('should handle non-existent node gracefully without throwing', () => {
-      const animateSpy = vi.spyOn(cy, 'animate');
+      const animateSpy: MockInstance<typeof cy.animate> = vi.spyOn(cy, 'animate');
 
       expect(() => {
         service.handleSearchSelect('nonexistent-node');
@@ -402,12 +402,12 @@ describe('GraphNavigationService', () => {
     });
 
     it('should use relative zoom for search results', () => {
-      const animateSpy = vi.spyOn(cy, 'animate');
+      const animateSpy: MockInstance<typeof cy.animate> = vi.spyOn(cy, 'animate');
 
       service.handleSearchSelect('node1');
 
       // Should have zoom and duration in animate call
-      const animateArgs = animateSpy.mock.calls[0][0] as { zoom: number, duration: number };
+      const animateArgs: { center: { eles: Collection }, zoom?: number, duration?: number } = animateSpy.mock.calls[0][0] as { zoom: number, duration: number };
       expect(typeof animateArgs.zoom).toBe('number');
       expect(typeof animateArgs.duration).toBe('number');
     });
@@ -416,14 +416,14 @@ describe('GraphNavigationService', () => {
       // Add a node with absolute path (how frontend stores nodes)
       cy.add({ data: { id: '/Users/bob/repos/project/voicetree-bugs/voice/test-node.md', label: 'Test Node' }, position: { x: 400, y: 400 } });
 
-      const animateSpy = vi.spyOn(cy, 'animate');
+      const animateSpy: MockInstance<typeof cy.animate> = vi.spyOn(cy, 'animate');
 
       // Try to navigate with relative path (simulates SSE event with vault-relative path)
       service.handleSearchSelect('voicetree-bugs/voice/test-node.md');
 
       // Should have found the node via fuzzy suffix matching
       expect(animateSpy).toHaveBeenCalled();
-      const animateArgs = animateSpy.mock.calls[0][0] as { center: { eles: Collection } };
+      const animateArgs: { center: { eles: Collection }, zoom?: number, duration?: number } = animateSpy.mock.calls[0][0] as { center: { eles: Collection } };
       expect((animateArgs.center.eles.first()?.id() ?? "")).toBe('/Users/bob/repos/project/voicetree-bugs/voice/test-node.md');
     });
   });
@@ -434,12 +434,12 @@ describe('GraphNavigationService', () => {
       clearTerminals();
 
       // Create terminals in TerminalStore
-      const terminalA = createTerminalData({
+      const terminalA: ReturnType<typeof createTerminalData> = createTerminalData({
         attachedToNodeId: 'node1' as NodeIdAndFilePath,
         terminalCount: 0,
         title: 'Terminal A'
       });
-      const terminalB = createTerminalData({
+      const terminalB: ReturnType<typeof createTerminalData> = createTerminalData({
         attachedToNodeId: 'node2' as NodeIdAndFilePath,
         terminalCount: 0,
         title: 'Terminal B'
@@ -447,8 +447,8 @@ describe('GraphNavigationService', () => {
       addTerminal(terminalA);
       addTerminal(terminalB);
 
-      const shadowNodeA = getShadowNodeId(getTerminalId(terminalA));
-      const shadowNodeB = getShadowNodeId(getTerminalId(terminalB));
+      const shadowNodeA: string = getShadowNodeId(getTerminalId(terminalA));
+      const shadowNodeB: string = getShadowNodeId(getTerminalId(terminalB));
 
       // Add shadow nodes to cy
       cy.add([
@@ -456,11 +456,11 @@ describe('GraphNavigationService', () => {
         { data: { id: shadowNodeB, windowType: 'Terminal', isShadowNode: true, parentNodeId: 'node2' }, position: { x: 400, y: 200 } }
       ]);
 
-      const animateSpy = vi.spyOn(cy, 'animate');
+      const animateSpy: MockInstance<typeof cy.animate> = vi.spyOn(cy, 'animate');
 
-      const getAnimatedEles = (callIndex: number): Collection =>
+      const getAnimatedEles: (callIndex: number) => Collection = (callIndex: number): Collection =>
         (animateSpy.mock.calls[callIndex][0] as { center: { eles: Collection } }).center.eles;
-      const collectionIncludesNode = (collection: Collection, nodeId: string): boolean =>
+      const collectionIncludesNode: (collection: Collection, nodeId: string) => boolean = (collection: Collection, nodeId: string): boolean =>
         collection.map((n) => n.id()).includes(nodeId);
 
       // Set last node and fit to it

@@ -25,9 +25,9 @@ export function buildIncomingEdgesIndex(
     )
 
   // Group by targetId to build the index
-  return allEdgePairs.reduce<Map<NodeIdAndFilePath, NodeIdAndFilePath[]>>(
+  return allEdgePairs.reduce<ReadonlyMap<NodeIdAndFilePath, readonly NodeIdAndFilePath[]>>(
     (acc, [targetId, sourceId]) => {
-      const existingIncomers: NodeIdAndFilePath[] = acc.get(targetId) ?? []
+      const existingIncomers: readonly NodeIdAndFilePath[] = acc.get(targetId) ?? []
       acc.set(targetId, [...existingIncomers, sourceId])
       return acc
     },
@@ -55,8 +55,8 @@ export function updateIndexForUpsert(
     index ? Array.from(index.entries()) : []
 
   // Step 1: Remove old references if this is an update
-  const indexAfterRemovals: Map<NodeIdAndFilePath, readonly NodeIdAndFilePath[]> = O.isSome(previousNode)
-    ? previousNode.value.outgoingEdges.reduce<Map<NodeIdAndFilePath, readonly NodeIdAndFilePath[]>>(
+  const indexAfterRemovals: ReadonlyMap<NodeIdAndFilePath, readonly NodeIdAndFilePath[]> = O.isSome(previousNode)
+    ? previousNode.value.outgoingEdges.reduce<ReadonlyMap<NodeIdAndFilePath, readonly NodeIdAndFilePath[]>>(
         (acc, edge) => {
           const targetId: NodeIdAndFilePath = edge.targetId
           const incomers: readonly NodeIdAndFilePath[] | undefined = acc.get(targetId)
@@ -75,7 +75,7 @@ export function updateIndexForUpsert(
     : new Map(indexEntries.map(([k, v]) => [k, [...v]]))
 
   // Step 2: Add new references
-  return node.outgoingEdges.reduce<Map<NodeIdAndFilePath, readonly NodeIdAndFilePath[]>>(
+  return node.outgoingEdges.reduce<ReadonlyMap<NodeIdAndFilePath, readonly NodeIdAndFilePath[]>>(
     (acc, edge) => {
       const targetId: NodeIdAndFilePath = edge.targetId
       const existingIncomers: readonly NodeIdAndFilePath[] = acc.get(targetId) ?? []
@@ -106,8 +106,8 @@ export function updateIndexForDelete(
     index ? Array.from(index.entries()) : []
 
   // Step 1: Remove references from this node's outgoing edges
-  const indexAfterEdgeRemovals: Map<NodeIdAndFilePath, readonly NodeIdAndFilePath[]> =
-    deletedNode.outgoingEdges.reduce<Map<NodeIdAndFilePath, readonly NodeIdAndFilePath[]>>(
+  const indexAfterEdgeRemovals: ReadonlyMap<NodeIdAndFilePath, readonly NodeIdAndFilePath[]> =
+    deletedNode.outgoingEdges.reduce<ReadonlyMap<NodeIdAndFilePath, readonly NodeIdAndFilePath[]>>(
       (acc, edge) => {
         const targetId: NodeIdAndFilePath = edge.targetId
         const incomers: readonly NodeIdAndFilePath[] | undefined = acc.get(targetId)

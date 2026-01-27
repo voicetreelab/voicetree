@@ -23,11 +23,11 @@ export function aggregateTokensByDay(sessions: readonly SessionMetric[]): readon
 
   // Group by date (YYYY-MM-DD), tracking total tokens and session count
   interface DayAccumulator {
-    totalTokens: number;
-    sessionCount: number;
+    readonly totalTokens: number;
+    readonly sessionCount: number;
   }
-  const byDay: Map<string, DayAccumulator> = sessionsWithTokens.reduce(
-    (acc: Map<string, DayAccumulator>, session) => {
+  const byDay: ReadonlyMap<string, DayAccumulator> = sessionsWithTokens.reduce(
+    (acc: ReadonlyMap<string, DayAccumulator>, session) => {
       const date: string = session.startTime.slice(0, 10);
       const sessionTotal: number = session.tokens.input + session.tokens.output + (session.tokens.cacheRead ?? 0);
       const existing: DayAccumulator = acc.get(date) ?? { totalTokens: 0, sessionCount: 0 };
@@ -42,7 +42,7 @@ export function aggregateTokensByDay(sessions: readonly SessionMetric[]): readon
 
   // Convert to array and sort by date
   const result: readonly DayTokenAggregation[] = Array.from(byDay.entries())
-    .map(([date, { totalTokens, sessionCount }]: [string, DayAccumulator]) => ({
+    .map(([date, { totalTokens, sessionCount }]: readonly [string, DayAccumulator]) => ({
       date,
       totalTokens,
       averageTokens: sessionCount > 0 ? Math.round(totalTokens / sessionCount) : 0,

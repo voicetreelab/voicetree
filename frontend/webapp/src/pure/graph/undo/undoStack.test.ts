@@ -147,9 +147,9 @@ describe('undoStack', () => {
             const state1: UndoState = pushUndo(createEmptyUndoState(), delta1)
             const state2: UndoState = pushUndo(state1, delta2)
 
-            const result1: { newState: UndoState; deltaToReverse: GraphDelta | undefined; } = popUndo(state2)
+            const result1: { readonly newState: UndoState; readonly deltaToReverse: GraphDelta | undefined; } = popUndo(state2)
             const state3: UndoState = result1.newState
-            const result2: { newState: UndoState; deltaToReverse: GraphDelta | undefined; } = popUndo(state3)
+            const result2: { readonly newState: UndoState; readonly deltaToReverse: GraphDelta | undefined; } = popUndo(state3)
             const state4: UndoState = result2.newState
 
             expect(state4.undoStack).toHaveLength(0)

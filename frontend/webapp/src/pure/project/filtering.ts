@@ -8,6 +8,6 @@ export function filterDiscoveredProjects(
     discovered: readonly DiscoveredProject[],
     saved: readonly SavedProject[]
 ): readonly DiscoveredProject[] {
-    const savedPaths: Set<string> = new Set(saved.map((p) => p.path));
+    const savedPaths: ReadonlySet<string> = new Set(saved.map((p) => p.path));
     return discovered.filter((d) => !savedPaths.has(d.path));
 }

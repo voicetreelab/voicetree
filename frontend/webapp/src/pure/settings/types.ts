@@ -13,7 +13,7 @@ export const AGENT_NAMES: readonly string[] = [
 ] as const;
 
 // Round-robin agent name selection (no collisions until all 60 names used)
-const agentNameState: { index: number } = { index: -1 };
+const agentNameState: { readonly index: number } = { index: -1 };
 
 export function getNextAgentName(): string {
     agentNameState.index = (agentNameState.index + 1) % AGENT_NAMES.length;

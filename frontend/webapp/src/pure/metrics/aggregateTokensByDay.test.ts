@@ -9,7 +9,7 @@ describe('aggregateTokensByDay', () => {
   });
 
   it('should return empty array when no sessions have tokens', () => {
-    const sessions: SessionMetric[] = [
+    const sessions: readonly SessionMetric[] = [
       { sessionId: '1', agentName: 'Claude', contextNode: 'test', startTime: '2025-12-30T10:00:00Z' },
       { sessionId: '2', agentName: 'Claude', contextNode: 'test', startTime: '2025-12-30T11:00:00Z' },
     ];
@@ -18,7 +18,7 @@ describe('aggregateTokensByDay', () => {
   });
 
   it('should aggregate single session correctly', () => {
-    const sessions: SessionMetric[] = [
+    const sessions: readonly SessionMetric[] = [
       {
         sessionId: '1',
         agentName: 'Claude',
@@ -34,7 +34,7 @@ describe('aggregateTokensByDay', () => {
   });
 
   it('should sum tokens for multiple sessions on same day', () => {
-    const sessions: SessionMetric[] = [
+    const sessions: readonly SessionMetric[] = [
       {
         sessionId: '1',
         agentName: 'Claude',
@@ -57,7 +57,7 @@ describe('aggregateTokensByDay', () => {
   });
 
   it('should group sessions by day and sort by date ascending', () => {
-    const sessions: SessionMetric[] = [
+    const sessions: readonly SessionMetric[] = [
       {
         sessionId: '1',
         agentName: 'Claude',
@@ -89,7 +89,7 @@ describe('aggregateTokensByDay', () => {
   });
 
   it('should skip sessions without tokens', () => {
-    const sessions: SessionMetric[] = [
+    const sessions: readonly SessionMetric[] = [
       {
         sessionId: '1',
         agentName: 'Claude',
@@ -118,7 +118,7 @@ describe('aggregateTokensByDay', () => {
   });
 
   it('should handle zero token sessions', () => {
-    const sessions: SessionMetric[] = [
+    const sessions: readonly SessionMetric[] = [
       {
         sessionId: '1',
         agentName: 'Claude',
@@ -134,7 +134,7 @@ describe('aggregateTokensByDay', () => {
   });
 
   it('should include cacheRead tokens in total', () => {
-    const sessions: SessionMetric[] = [
+    const sessions: readonly SessionMetric[] = [
       {
         sessionId: '1',
         agentName: 'Claude',

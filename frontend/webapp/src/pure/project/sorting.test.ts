@@ -93,8 +93,8 @@ describe('sortProjectsByLastOpened', () => {
             voicetreeInitialized: false,
         };
 
-        const original: SavedProject[] = [oldest, newest];
-        const originalCopy: SavedProject[] = [...original];
+        const original: readonly SavedProject[] = [oldest, newest];
+        const originalCopy: readonly SavedProject[] = [...original];
         sortProjectsByLastOpened(original);
         expect(original).toEqual(originalCopy);
     });

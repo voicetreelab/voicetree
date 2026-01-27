@@ -142,13 +142,13 @@ export function graphToSpanningTree(
   // Construct the result graph with only tree edges
   const resultNodes: Record<NodeIdAndFilePath, GraphNode> = Object.fromEntries(
     Array.from(finalState.visited)
-      .map((nodeId): [NodeIdAndFilePath, GraphNode] | null => {
+      .map((nodeId): readonly [NodeIdAndFilePath, GraphNode] | null => {
         const originalNode: GraphNode | undefined = graph.nodes[nodeId]
         if (!originalNode) return null
         const nodeTreeEdges: readonly Edge[] = finalState.treeEdges.get(nodeId) ?? []
         return [nodeId, setOutgoingEdges(originalNode, nodeTreeEdges)]
       })
-      .filter((entry): entry is [NodeIdAndFilePath, GraphNode] => entry !== null)
+      .filter((entry): entry is readonly [NodeIdAndFilePath, GraphNode] => entry !== null)
   )
 
   return createGraph(resultNodes)

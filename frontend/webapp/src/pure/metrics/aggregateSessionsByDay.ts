@@ -21,19 +21,19 @@ export function aggregateSessionsByDay(sessions: readonly SessionMetric[]): read
   }
 
   // Group by date (YYYY-MM-DD) using reduce
-  const byDay: Map<string, readonly number[]> = sessionsWithDuration.reduce(
-    (acc: Map<string, number[]>, session) => {
+  const byDay: ReadonlyMap<string, readonly number[]> = sessionsWithDuration.reduce(
+    (acc: ReadonlyMap<string, readonly number[]>, session) => {
       const date: string = session.startTime.slice(0, 10);
-      const existing: number[] = acc.get(date) ?? [];
+      const existing: readonly number[] = acc.get(date) ?? [];
       acc.set(date, [...existing, session.durationMs]);
       return acc;
     },
-    new Map<string, number[]>()
+    new Map<string, readonly number[]>()
   );
 
   // Calculate averages and sort by date using Array.from + map
   const result: readonly DayAggregation[] = Array.from(byDay.entries())
-    .map(([date, durations]: [string, readonly number[]]) => {
+    .map(([date, durations]: readonly [string, readonly number[]]) => {
       const totalMs: number = durations.reduce((sum, d) => sum + d, 0);
       const avgMs: number = totalMs / durations.length;
       const avgMinutes: number = Math.round((avgMs / 60000) * 10) / 10;

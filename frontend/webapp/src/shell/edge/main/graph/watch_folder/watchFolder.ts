@@ -54,7 +54,7 @@ import {
 import { setupWatcher } from "./file-watcher-setup";
 import { createStarterNode } from "./create-starter-node";
 
-// Re-export vault-allowlist functions for api.ts
+// Re-export vault-allowlist functions for api.ts and tests
 export {
     getVaultPaths,
     getReadPaths,
@@ -62,6 +62,9 @@ export {
     setWritePath,
     addReadPath,
     removeReadPath,
+    getVaultPath,
+    setVaultPath,
+    clearVaultPath,
 } from "./vault-allowlist";
 
 export async function initialLoad(): Promise<void> {

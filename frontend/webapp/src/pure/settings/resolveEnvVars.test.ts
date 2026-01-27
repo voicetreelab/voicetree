@@ -29,8 +29,8 @@ Third line`,
     };
 
     // Run multiple times to verify it picks from the array
-    const results: Set<string> = Array.from({ length: 100 }).reduce(
-      (acc: Set<string>) => {
+    const results: ReadonlySet<string> = Array.from({ length: 100 }).reduce(
+      (acc: ReadonlySet<string>) => {
         const result: Record<string, string> = resolveEnvVars(input);
         acc.add(result.AGENT_NAME);
         expect(['TIMI', 'XAN', 'JAS']).toContain(result.AGENT_NAME);

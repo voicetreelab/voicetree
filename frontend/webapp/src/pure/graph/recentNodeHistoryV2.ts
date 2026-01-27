@@ -107,7 +107,7 @@ export function updateHistoryFromDelta(
     )
 
     // Update existing nodes if title changed
-    const upsertByNodeId: Map<string, UpsertNodeDelta> = new Map(
+    const upsertByNodeId: ReadonlyMap<string, UpsertNodeDelta> = new Map(
         delta
             .filter((a): a is UpsertNodeDelta => a.type === 'UpsertNode')
             .map(a => [a.nodeToUpsert.absoluteFilePathIsID, a])

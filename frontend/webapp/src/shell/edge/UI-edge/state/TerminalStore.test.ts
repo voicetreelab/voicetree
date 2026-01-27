@@ -45,12 +45,12 @@ describe('TerminalStore syncFromMain', () => {
     })
 
     it('should add new terminals from incoming records', () => {
-        const terminal = createMockTerminalData()
-        const records = [createMockRecord(terminal)]
+        const terminal: TerminalData = createMockTerminalData()
+        const records: TerminalRecord[] = [createMockRecord(terminal)]
 
         syncFromMain(records)
 
-        const result = getTerminal(terminal.terminalId)
+        const result: import('fp-ts/lib/Option.js').Option<TerminalData & { ui?: FloatingWindowUIData }> = getTerminal(terminal.terminalId)
         expect(O.isSome(result)).toBe(true)
         if (O.isSome(result)) {
             expect(result.value.title).toBe('Test Terminal')
@@ -59,21 +59,21 @@ describe('TerminalStore syncFromMain', () => {
 
     it('should update existing terminals while preserving UI reference', () => {
         // Setup: Add terminal with UI
-        const terminal = createMockTerminalData({ isPinned: true })
-        const ui = createMockUI()
+        const terminal: TerminalData = createMockTerminalData({ isPinned: true })
+        const ui: FloatingWindowUIData = createMockUI()
         syncFromMain([createMockRecord(terminal)])
         setTerminalUI(terminal.terminalId, ui)
 
         // Verify UI is attached
-        const beforeUpdate = getTerminal(terminal.terminalId)
+        const beforeUpdate: import('fp-ts/lib/Option.js').Option<TerminalData & { ui?: FloatingWindowUIData }> = getTerminal(terminal.terminalId)
         expect(O.isSome(beforeUpdate) && beforeUpdate.value.ui).toBe(ui)
 
         // Update: Sync with changed data
-        const updatedTerminal = createMockTerminalData({ isPinned: false })
+        const updatedTerminal: TerminalData = createMockTerminalData({ isPinned: false })
         syncFromMain([createMockRecord(updatedTerminal)])
 
         // Verify: Data updated, UI preserved
-        const afterUpdate = getTerminal(terminal.terminalId)
+        const afterUpdate: import('fp-ts/lib/Option.js').Option<TerminalData & { ui?: FloatingWindowUIData }> = getTerminal(terminal.terminalId)
         expect(O.isSome(afterUpdate)).toBe(true)
         if (O.isSome(afterUpdate)) {
             expect(afterUpdate.value.isPinned).toBe(false)
@@ -83,8 +83,8 @@ describe('TerminalStore syncFromMain', () => {
 
     it('should remove terminals not in incoming records', () => {
         // Setup: Add two terminals
-        const terminal1 = createMockTerminalData({ terminalCount: 0 })
-        const terminal2 = createTerminalData({
+        const terminal1: TerminalData = createMockTerminalData({ terminalCount: 0 })
+        const terminal2: TerminalData = createTerminalData({
             attachedToNodeId: 'other-node.md',
             terminalCount: 0,
             title: 'Other Terminal',
@@ -103,7 +103,7 @@ describe('TerminalStore syncFromMain', () => {
     })
 
     it('should notify subscribers after sync', () => {
-        const terminal = createMockTerminalData()
+        const terminal: TerminalData = createMockTerminalData()
         let notifiedTerminals: TerminalData[] = []
 
         subscribeToTerminalChanges((terminals) => {
@@ -123,20 +123,20 @@ describe('TerminalStore setTerminalUI', () => {
     })
 
     it('should attach UI to existing terminal', () => {
-        const terminal = createMockTerminalData()
-        const ui = createMockUI()
+        const terminal: TerminalData = createMockTerminalData()
+        const ui: FloatingWindowUIData = createMockUI()
 
         syncFromMain([createMockRecord(terminal)])
         setTerminalUI(terminal.terminalId, ui)
 
-        const result = getTerminal(terminal.terminalId)
+        const result: import('fp-ts/lib/Option.js').Option<TerminalData & { ui?: FloatingWindowUIData }> = getTerminal(terminal.terminalId)
         expect(O.isSome(result) && result.value.ui).toBe(ui)
     })
 
     it('should handle race condition: add terminal with UI if not in store', () => {
         // Simulate launchTerminalOntoUI arriving before syncTerminals
-        const terminal = createMockTerminalData()
-        const ui = createMockUI()
+        const terminal: TerminalData = createMockTerminalData()
+        const ui: FloatingWindowUIData = createMockUI()
 
         // Terminal not in store yet
         expect(getTerminals().size).toBe(0)
@@ -146,7 +146,7 @@ describe('TerminalStore setTerminalUI', () => {
 
         // Terminal should now be in store with UI
         expect(getTerminals().size).toBe(1)
-        const result = getTerminal(terminal.terminalId)
+        const result: import('fp-ts/lib/Option.js').Option<TerminalData & { ui?: FloatingWindowUIData }> = getTerminal(terminal.terminalId)
         expect(O.isSome(result)).toBe(true)
         if (O.isSome(result)) {
             expect(result.value.ui).toBe(ui)
@@ -155,7 +155,7 @@ describe('TerminalStore setTerminalUI', () => {
     })
 
     it('should do nothing if terminal not in store and no fallback data', () => {
-        const ui = createMockUI()
+        const ui: FloatingWindowUIData = createMockUI()
 
         setTerminalUI('nonexistent-terminal' as TerminalId, ui)
 
