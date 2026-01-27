@@ -10,6 +10,7 @@
 import { test as base, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
+  selectMockProject,
   sendGraphDelta,
   waitForCytoscapeReady,
   type ExtendedWindow
@@ -71,6 +72,10 @@ test.describe('Floating Editor Auto-Height (Browser)', () => {
     await page.goto('/');
     await page.waitForSelector('#root', { timeout: 5000 });
     console.log('✓ React rendered');
+
+    console.log('=== Step 2b: Select mock project ===');
+    await selectMockProject(page);
+    console.log('✓ Mock project selected');
 
     await page.waitForTimeout(50);
 
@@ -196,6 +201,7 @@ test.describe('Floating Editor Auto-Height (Browser)', () => {
     await setupMockElectronAPI(page);
     await page.goto('/');
     await page.waitForSelector('#root', { timeout: 5000 });
+    await selectMockProject(page);
     await page.waitForTimeout(50);
     await waitForCytoscapeReady(page);
 

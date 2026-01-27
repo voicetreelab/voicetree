@@ -6,6 +6,7 @@
 import { test, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
+  selectMockProject,
   waitForCytoscapeReady,
   type ExtendedWindow
 } from '@e2e/playwright-browser/graph-delta-test-utils.ts';
@@ -14,6 +15,7 @@ test.describe('Settings Editor Screenshot', () => {
   test('should open settings editor with fixed size and zoom to 75% viewport', async ({ page }) => {
     await setupMockElectronAPI(page);
     await page.goto('/');
+    await selectMockProject(page);
     await page.waitForSelector('#root', { timeout: 5000 });
     await page.waitForTimeout(50);
     await waitForCytoscapeReady(page);

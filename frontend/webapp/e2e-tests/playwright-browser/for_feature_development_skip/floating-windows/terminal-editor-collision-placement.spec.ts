@@ -17,6 +17,7 @@
 import { test as base, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
+  selectMockProject,
   sendGraphDelta,
   waitForCytoscapeReady,
   exposeTerminalStoreAPI,
@@ -76,6 +77,7 @@ test.describe('Terminal/Editor Collision Placement (Browser E2E)', () => {
 
     console.log('=== Step 2: Navigate to app ===');
     await page.goto('/');
+    await selectMockProject(page);
     await page.waitForSelector('#root', { timeout: 5000 });
     await page.waitForTimeout(50);
 

@@ -116,10 +116,21 @@ export function findBestMatchingNode(
     { nodeId: undefined, score: 0 }
   )
 
-  // Only accept match if ALL link components matched
-  // e.g., [a/b/tasks.md] (3 components) requires score >= 3
-  // This prevents [openspec/changes/foo/tasks.md] from matching [other/tasks.md]
-  if (result.score < linkComponents.length) {
+  // Require ALL of the shorter path's components to match.
+  // This allows absolute paths (longer than node IDs) to match via suffix,
+  // while still preventing [a/b/foo.md] from matching [x/foo.md].
+  //
+  // Examples:
+  // - [/Users/user/vault/folder/file.md] (5 components) matching [folder/file.md] (2):
+  //   score=2, minRequired=min(5,2)=2 → 2 >= 2 ✓ accepted
+  // - [a/b/foo.md] (3 components) vs [x/foo.md] (2):
+  //   score=1 (only 'foo'), minRequired=min(3,2)=2 → 1 < 2 ✗ rejected
+  if (result.nodeId === undefined) {
+    return undefined
+  }
+  const bestNodeComponents: readonly string[] = getPathComponents(result.nodeId)
+  const minRequiredScore: number = Math.min(linkComponents.length, bestNodeComponents.length)
+  if (result.score < minRequiredScore) {
     return undefined
   }
 

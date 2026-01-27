@@ -10,6 +10,7 @@
 import { test as base, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
+  selectMockProject,
   sendGraphDelta,
   waitForCytoscapeReady,
   type ExtendedWindow
@@ -67,6 +68,7 @@ test.describe('Image Viewer Floating Window', () => {
 
       await setupMockElectronAPI(page);
       await page.goto('/');
+    await selectMockProject(page);
       await page.waitForSelector('#root', { timeout: 5000 });
       await page.waitForTimeout(50);
       await waitForCytoscapeReady(page);
@@ -155,6 +157,7 @@ test.describe('Image Viewer Floating Window', () => {
 
       await setupMockElectronAPI(page);
       await page.goto('/');
+    await selectMockProject(page);
       await page.waitForSelector('#root', { timeout: 5000 });
       await page.waitForTimeout(50);
       await waitForCytoscapeReady(page);
@@ -208,6 +211,7 @@ test.describe('Image Viewer Floating Window', () => {
 
       await setupMockElectronAPI(page);
       await page.goto('/');
+    await selectMockProject(page);
       await page.waitForSelector('#root', { timeout: 5000 });
       await page.waitForTimeout(50);
       await waitForCytoscapeReady(page);
@@ -312,6 +316,7 @@ test.describe('Image Viewer Floating Window', () => {
         test(`should open image viewer for .${ext} file`, async ({ page, consoleCapture: _consoleCapture }) => {
           await setupMockElectronAPI(page);
           await page.goto('/');
+    await selectMockProject(page);
           await page.waitForSelector('#root', { timeout: 5000 });
           await page.waitForTimeout(50);
           await waitForCytoscapeReady(page);
@@ -368,6 +373,7 @@ test.describe('Image Viewer Floating Window', () => {
 
       await setupMockElectronAPI(page);
       await page.goto('/');
+    await selectMockProject(page);
       await page.waitForSelector('#root', { timeout: 5000 });
       await page.waitForTimeout(50);
       await waitForCytoscapeReady(page);

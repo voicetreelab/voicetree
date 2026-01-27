@@ -324,6 +324,60 @@ export async function waitForAgentsTool({
     }, true)
 }
 
+export async function getUnseenNodesNearbyTool({
+    callerTerminalId,
+    search_from_node
+}: {
+    callerTerminalId: string
+    search_from_node?: string
+}): Promise<McpToolResponse> {
+    // 1. Find the caller's terminal record
+    const terminalRecords: TerminalRecord[] = getTerminalRecords()
+    const callerRecord: TerminalRecord | undefined = terminalRecords.find(
+        (r: TerminalRecord) => r.terminalId === callerTerminalId
+    )
+
+    if (!callerRecord) {
+        return buildJsonResponse({
+            success: false,
+            error: `Unknown caller terminal: ${callerTerminalId}`
+        }, true)
+    }
+
+    // 2. Get the context node from the terminal
+    const contextNodeId: string = callerRecord.terminalData.attachedToNodeId
+
+    // 3. Get unseen nodes (with optional search_from_node override)
+    const graph: Graph = getGraph()
+    try {
+        const unseenNodes: readonly UnseenNode[] = await getUnseenNodesAroundContextNode(
+            contextNodeId,
+            search_from_node as NodeIdAndFilePath | undefined
+        )
+
+        const nodes: Array<{nodeId: string; title: string; content: string}> = unseenNodes.map((node: UnseenNode) => {
+            const graphNode: GraphNode | undefined = graph.nodes[node.nodeId]
+            return {
+                nodeId: node.nodeId,
+                title: graphNode ? getNodeTitle(graphNode) : node.nodeId,
+                content: node.content
+            }
+        })
+
+        return buildJsonResponse({
+            success: true,
+            contextNodeId,
+            unseenNodes: nodes
+        })
+    } catch (error) {
+        const errorMessage: string = error instanceof Error ? error.message : String(error)
+        return buildJsonResponse({
+            success: false,
+            error: errorMessage
+        }, true)
+    }
+}
+
 /**
  * Creates and configures the MCP server with VoiceTree tools.
  */
@@ -377,6 +431,21 @@ export function createMcpServer(): McpServer {
         },
         async ({terminalIds, callerTerminalId, pollIntervalMs, timeoutMs}) =>
             waitForAgentsTool({terminalIds, callerTerminalId, pollIntervalMs, timeoutMs})
+    )
+
+    // Tool: get_unseen_nodes_nearby
+    server.registerTool(
+        'get_unseen_nodes_nearby',
+        {
+            title: 'Get Unseen Nodes Nearby',
+            description: 'Get nodes near your context that were created after your context was generated. The user or other agents may have added nodes for you to read. Call this to check for new relevant information.',
+            inputSchema: {
+                callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),
+                search_from_node: z.string().optional().describe('Optional node ID to search from instead of your task node')
+            }
+        },
+        async ({callerTerminalId, search_from_node}) =>
+            getUnseenNodesNearbyTool({callerTerminalId, search_from_node})
     )
 
     return server

@@ -6,6 +6,7 @@
 import { test as base, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
+  selectMockProject,
   sendGraphDelta,
   waitForCytoscapeReady,
   type ExtendedWindow
@@ -67,7 +68,8 @@ test.describe('External Content Update (Browser)', () => {
     console.log('✓ Electron API mock prepared');
 
     console.log('=== Step 2: Navigate to app ===');
-    await page.goto('/'); // Vite dev server URL
+    await page.goto('/');
+    await selectMockProject(page); // Vite dev server URL
 
     // Wait for React to render
     await page.waitForSelector('#root', { timeout: 5000 });

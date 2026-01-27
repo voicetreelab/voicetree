@@ -6,6 +6,7 @@
 import { test, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
+  selectMockProject,
   waitForCytoscapeReady,
   sendGraphDelta,
   createTestGraphDelta,
@@ -16,6 +17,7 @@ test.describe('Dark Mode Toggle Screenshot', () => {
   test('should change edge color when toggling dark mode', async ({ page }) => {
     await setupMockElectronAPI(page);
     await page.goto('/');
+    await selectMockProject(page);
     await page.waitForSelector('#root', { timeout: 5000 });
     await page.waitForTimeout(50);
     await waitForCytoscapeReady(page);
@@ -63,6 +65,7 @@ test.describe('Dark Mode Toggle Screenshot', () => {
   test('should switch from light to dark mode with correct styling', async ({ page }) => {
     await setupMockElectronAPI(page);
     await page.goto('/');
+    await selectMockProject(page);
     await page.waitForSelector('#root', { timeout: 5000 });
     await page.waitForTimeout(50);
     await waitForCytoscapeReady(page);
@@ -210,6 +213,7 @@ test.describe('Dark Mode Toggle Screenshot', () => {
     });
 
     await page.goto('/');
+    await selectMockProject(page);
     await page.waitForSelector('#root', { timeout: 5000 });
     await waitForCytoscapeReady(page);
 

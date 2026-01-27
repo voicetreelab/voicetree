@@ -24,14 +24,19 @@ export async function applyGraphDeltaToMemState(delta: GraphDelta): Promise<Grap
     const currentGraph: Graph = getGraph();
     let newGraph: Graph = applyGraphDeltaToGraph(currentGraph, delta);
 
-    // Resolve any new wikilinks (lazy resolution)
-    const watchedDir: string | null = getWatchedDirectory();
-    if (watchedDir) {
-        const resolutionDelta: GraphDelta = await resolveLinkedNodesInWatchedFolder(newGraph, watchedDir);
-        if (resolutionDelta.length > 0) {
-            newGraph = applyGraphDeltaToGraph(newGraph, resolutionDelta);
-            // Merge resolution delta into original for caller
-            delta = [...delta, ...resolutionDelta];
+    // Only resolve wikilinks when delta contains AddNode or UpdateNode (which might introduce new links)
+    // Skip for delete-only deltas - we don't want to re-add deleted nodes via link resolution
+    const hasAddOrUpdate: boolean = delta.some(d => d.type === 'AddNode' || d.type === 'UpdateNode');
+
+    if (hasAddOrUpdate) {
+        const watchedDir: string | null = getWatchedDirectory();
+        if (watchedDir) {
+            const resolutionDelta: GraphDelta = await resolveLinkedNodesInWatchedFolder(newGraph, watchedDir);
+            if (resolutionDelta.length > 0) {
+                newGraph = applyGraphDeltaToGraph(newGraph, resolutionDelta);
+                // Merge resolution delta into original for caller
+                delta = [...delta, ...resolutionDelta];
+            }
         }
     }
 

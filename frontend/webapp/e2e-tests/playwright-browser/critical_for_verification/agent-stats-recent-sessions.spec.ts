@@ -9,6 +9,7 @@
 import { test as base, expect, type Page } from '@playwright/test';
 import {
   waitForCytoscapeReady,
+  selectMockProject,
 } from '@e2e/playwright-browser/graph-delta-test-utils';
 import type { SessionMetric } from '@/shell/UI/views/hooks/useAgentMetrics';
 
@@ -89,6 +90,38 @@ async function setupMockElectronAPIWithSessions(page: Page, sessions: SessionMet
         markFrontendReady: async () => {},
         applyGraphDeltaToDBThroughMemUIAndEditorExposed: async () => ({ success: true }),
         applyGraphDeltaToDBThroughMemAndUIExposed: async () => ({ success: true }),
+
+        // Vault path methods
+        getVaultPaths: async (): Promise<readonly string[]> => ['/mock'],
+        getWritePath: async () => ({ _tag: 'Some' as const, value: '/mock' }),
+        setWritePath: async () => ({ success: true }),
+        getShowAllPaths: async (): Promise<readonly string[]> => [],
+        toggleShowAll: async () => ({ success: true, showAll: false }),
+        addReadOnLinkPath: async () => ({ success: true }),
+        removeReadOnLinkPath: async () => ({ success: true }),
+        readImageAsDataUrl: async () => 'data:image/png;base64,test',
+
+        // Project selection operations
+        loadProjects: async () => [{
+          id: 'mock-project-1',
+          path: '/mock',
+          name: 'Mock Test Project',
+          type: 'folder' as const,
+          lastOpened: Date.now(),
+          voicetreeInitialized: true,
+        }],
+        saveProject: async () => {},
+        removeProject: async () => {},
+        getDefaultSearchDirectories: async () => [],
+        scanForProjects: async () => [],
+        initializeProject: async () => '/mock/voicetree',
+        showFolderPicker: async () => ({ success: false }),
+
+        // Terminal state mutations
+        updateTerminalIsDone: async () => {},
+        updateTerminalPinned: async () => {},
+        updateTerminalActivityState: async () => {},
+        removeTerminalFromRegistry: async () => {},
       },
       onWatchingStarted: () => {},
       onFileWatchingStopped: () => {},
@@ -191,6 +224,7 @@ test.describe('Agent Statistics Panel - Recent Sessions', () => {
 
     console.log('=== Step 2: Navigate to app ===');
     await page.goto('/');
+    await selectMockProject(page);
     await page.waitForSelector('#root', { timeout: 5000 });
     console.log('OK React rendered');
 
@@ -268,6 +302,7 @@ test.describe('Agent Statistics Panel - Recent Sessions', () => {
     await setupMockElectronAPIWithSessions(page, sessions);
 
     await page.goto('/');
+    await selectMockProject(page);
     await page.waitForSelector('#root', { timeout: 5000 });
     await page.waitForTimeout(50);
     await waitForCytoscapeReady(page);

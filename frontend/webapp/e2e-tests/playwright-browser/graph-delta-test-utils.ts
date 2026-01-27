@@ -174,6 +174,23 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
         updateTerminalActivityState: async () => {},
         removeTerminalFromRegistry: async () => {},
 
+        // Project selection operations (required for ProjectSelectionScreen initialization)
+        // Return a mock project so tests can select it to proceed to graph view
+        loadProjects: async () => [{
+          id: 'mock-project-1',
+          path: '/mock/watched/directory',
+          name: 'Mock Test Project',
+          type: 'folder' as const,
+          lastOpened: Date.now(),
+          voicetreeInitialized: true,
+        }],
+        saveProject: async () => {},
+        removeProject: async () => {},
+        getDefaultSearchDirectories: async () => [],
+        scanForProjects: async () => [],
+        initializeProject: async () => '/mock/watched/directory/voicetree',
+        showFolderPicker: async () => ({ success: false }),
+
       },
 
       // File watching event listeners (no-op callbacks)
@@ -253,6 +270,59 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
 
     (window as unknown as { electronAPI: typeof mockElectronAPI }).electronAPI = mockElectronAPI;
   });
+}
+
+/**
+ * Selects the mock project to bypass the ProjectSelectionScreen and proceed to the graph view.
+ * Call this AFTER page.goto() and BEFORE waitForCytoscapeReady().
+ *
+ * @param page - The Playwright page instance
+ */
+export async function selectMockProject(page: Page): Promise<void> {
+  // Wait for the project button to appear (the mock project we added)
+  const projectButton = page.locator('button:has-text("Mock Test Project")');
+
+  // Wait for the button to be visible (project list is loaded async)
+  await projectButton.waitFor({ state: 'visible', timeout: 5000 });
+
+  // Click the project to select it and proceed to graph view
+  await projectButton.click();
+
+  console.log('[Test] Mock project selected, transitioning to graph view');
+}
+
+/**
+ * Combined setup helper that does everything needed to get to the graph view:
+ * 1. Sets up the mock Electron API
+ * 2. Navigates to the app
+ * 3. Selects the mock project to bypass ProjectSelectionScreen
+ * 4. Waits for Cytoscape to be ready
+ *
+ * This is the recommended way to set up browser E2E tests.
+ *
+ * @param page - The Playwright page instance
+ * @param options - Optional configuration
+ */
+export async function setupTestAndNavigateToGraph(
+  page: Page,
+  options: { timeout?: number } = {}
+): Promise<void> {
+  const timeout = options.timeout ?? 10000;
+
+  // Step 1: Set up mock Electron API
+  await setupMockElectronAPI(page);
+
+  // Step 2: Navigate to app
+  await page.goto('/');
+  await page.waitForSelector('#root', { timeout: 5000 });
+
+  // Step 3: Select mock project to get past ProjectSelectionScreen
+  await selectMockProject(page);
+
+  // Step 4: Wait for Cytoscape to initialize
+  await waitForCytoscapeReady(page, timeout);
+
+  console.log('[Test] Setup complete, graph view ready');
 }
 
 /**

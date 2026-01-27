@@ -6,6 +6,7 @@
 import { test as base, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
+  selectMockProject,
   createTestGraphDelta,
   sendGraphDelta,
   waitForCytoscapeReady,
@@ -69,7 +70,8 @@ test.describe('Search Navigation (Browser)', () => {
     console.log('✓ Electron API mock prepared');
 
     console.log('=== Step 2: Navigate to app ===');
-    await page.goto('/'); // Vite dev server URL
+    await page.goto('/');
+    await selectMockProject(page); // Vite dev server URL
 
     // Wait for React to render
     await page.waitForSelector('#root', { timeout: 5000 });
@@ -271,6 +273,7 @@ test.describe('Search Navigation (Browser)', () => {
     // Step 1: Setup
     await setupMockElectronAPI(page);
     await page.goto('/');
+    await selectMockProject(page);
     await page.waitForSelector('#root', { timeout: 5000 });
     await page.waitForTimeout(50);
     await waitForCytoscapeReady(page);
@@ -335,6 +338,7 @@ test.describe('Search Navigation (Browser)', () => {
     // Step 1: Setup
     await setupMockElectronAPI(page);
     await page.goto('/');
+    await selectMockProject(page);
     await page.waitForSelector('#root', { timeout: 5000 });
     await page.waitForTimeout(50);
     await waitForCytoscapeReady(page);

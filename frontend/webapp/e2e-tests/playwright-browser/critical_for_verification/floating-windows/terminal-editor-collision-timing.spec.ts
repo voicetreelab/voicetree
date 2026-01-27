@@ -17,6 +17,7 @@
 import { test as base, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
+  selectMockProject,
   sendGraphDelta,
   waitForCytoscapeReady,
   exposeTerminalStoreAPI,
@@ -97,6 +98,7 @@ test.describe('Terminal/Editor Collision TIMING Hypothesis', () => {
     // Setup
     await setupMockElectronAPI(page);
     await page.goto('/');
+    await selectMockProject(page);
     await page.waitForSelector('#root', { timeout: 5000 });
     await waitForCytoscapeReady(page);
     await exposeTerminalStoreAPI(page);
@@ -302,6 +304,7 @@ test.describe('Terminal/Editor Collision TIMING Hypothesis', () => {
     // Setup
     await setupMockElectronAPI(page);
     await page.goto('/');
+    await selectMockProject(page);
     await page.waitForSelector('#root', { timeout: 5000 });
     await waitForCytoscapeReady(page);
     await exposeTerminalStoreAPI(page);

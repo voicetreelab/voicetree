@@ -6,6 +6,7 @@
 import { test as base, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
+  selectMockProject,
   waitForCytoscapeReady,
 } from '@e2e/playwright-browser/graph-delta-test-utils.ts';
 
@@ -116,6 +117,7 @@ test.describe('SSE Activity Panel Screenshot', () => {
 
     await setupMockElectronAPI(page);
     await page.goto('/');
+    await selectMockProject(page);
     await page.waitForSelector('#root', { timeout: 5000 });
     await page.waitForTimeout(50);
     await waitForCytoscapeReady(page);

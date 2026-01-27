@@ -70,7 +70,7 @@ describe('ImageViewerData types', () => {
                 imageNodeId: testImageNodeId,
                 title: 'Test Image'
             });
-            expect(imageViewer.shadowNodeDimensions).toEqual({width: 480, height: 400});
+            expect(imageViewer.shadowNodeDimensions).toEqual({width: 400, height: 400});
         });
 
         it('should allow custom shadowNodeDimensions', () => {

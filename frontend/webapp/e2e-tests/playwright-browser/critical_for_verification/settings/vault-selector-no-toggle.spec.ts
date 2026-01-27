@@ -12,7 +12,8 @@ import { test as base, expect, type Page } from '@playwright/test';
 import {
   waitForCytoscapeReady,
   createTestGraphDelta,
-  sendGraphDelta
+  sendGraphDelta,
+  selectMockProject
 } from '@e2e/playwright-browser/graph-delta-test-utils';
 
 /**
@@ -111,7 +112,29 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
             mockVaultPaths.splice(index, 1);
           }
           return { success: true };
-        }
+        },
+
+        // Project selection operations (required for ProjectSelectionScreen)
+        loadProjects: async () => [{
+          id: 'mock-project-1',
+          path: '/mock/write-vault',
+          name: 'Mock Test Project',
+          type: 'folder' as const,
+          lastOpened: Date.now(),
+          voicetreeInitialized: true,
+        }],
+        saveProject: async () => {},
+        removeProject: async () => {},
+        getDefaultSearchDirectories: async () => [],
+        scanForProjects: async () => [],
+        initializeProject: async () => '/mock/write-vault/voicetree',
+        showFolderPicker: async () => ({ success: false }),
+
+        // Terminal state mutations
+        updateTerminalIsDone: async () => {},
+        updateTerminalPinned: async () => {},
+        updateTerminalActivityState: async () => {},
+        removeTerminalFromRegistry: async () => {},
       },
 
       // File watching event listeners
@@ -218,6 +241,7 @@ test.describe('VaultPathSelector without showAll toggle', () => {
 
     // Step 2: Navigate to app
     await page.goto('/');
+    await selectMockProject(page);
     await page.waitForSelector('#root', { timeout: 5000 });
     console.log('✓ React rendered');
 
@@ -282,6 +306,7 @@ test.describe('VaultPathSelector without showAll toggle', () => {
     // Setup
     await setupMockElectronAPIWithVault(page);
     await page.goto('/');
+    await selectMockProject(page);
     await page.waitForSelector('#root', { timeout: 5000 });
     await waitForCytoscapeReady(page);
 
@@ -336,6 +361,7 @@ test.describe('VaultPathSelector without showAll toggle', () => {
     // Setup
     await setupMockElectronAPIWithVault(page);
     await page.goto('/');
+    await selectMockProject(page);
     await page.waitForSelector('#root', { timeout: 5000 });
     await waitForCytoscapeReady(page);
 

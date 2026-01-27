@@ -1,11 +1,13 @@
 import { test } from '@playwright/test';
 import {
     setupMockElectronAPI,
+  selectMockProject,
     waitForCytoscapeReady,
 } from '@e2e/playwright-browser/graph-delta-test-utils.ts';
 
 test('screenshot recent node tabs with shortcut hints on hover', async ({ page }) => {
     await page.goto('/');
+    await selectMockProject(page);
     await setupMockElectronAPI(page);
     await waitForCytoscapeReady(page);
 

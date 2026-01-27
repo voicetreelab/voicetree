@@ -8,6 +8,7 @@
 import { test as base, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
+  selectMockProject,
   createTestGraphDelta,
   sendGraphDelta,
   waitForCytoscapeReady,
@@ -71,6 +72,7 @@ test.describe('Terminal Cycling (Browser)', () => {
 
     console.log('=== Step 2: Navigate to app ===');
     await page.goto('/');
+    await selectMockProject(page);
     await page.waitForSelector('#root', { timeout: 5000 });
     await page.waitForTimeout(50);
 

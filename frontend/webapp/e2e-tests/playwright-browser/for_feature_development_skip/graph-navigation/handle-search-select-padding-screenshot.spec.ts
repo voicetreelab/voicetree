@@ -6,6 +6,7 @@
 import { test, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
+  selectMockProject,
   sendGraphDelta,
   waitForCytoscapeReady,
   getNodeCount,
@@ -76,6 +77,7 @@ test.describe('handleSearchSelect Padding Visual Test', () => {
     // Setup
     await setupMockElectronAPI(page);
     await page.goto('/');
+    await selectMockProject(page);
     await page.waitForSelector('#root', { timeout: 5000 });
     await page.waitForTimeout(50);
     await waitForCytoscapeReady(page);

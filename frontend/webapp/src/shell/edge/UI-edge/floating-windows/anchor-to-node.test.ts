@@ -80,9 +80,9 @@ describe('anchorToNode', () => {
     });
 
     describe('indicator edge creation for terminals', () => {
-        it('should create edge with isIndicatorEdge flag set to true', () => {
+        it('should create edge connecting parent to shadow node', () => {
             // Act: call anchorToNode to create shadow node and edge
-            anchorToNode(cy, terminalData);
+            const shadowNode: NodeSingular = anchorToNode(cy, terminalData);
 
             // Find the edge from parent to shadow node
             const edges: EdgeCollection = cy.edges();
@@ -90,8 +90,11 @@ describe('anchorToNode', () => {
 
             const edge: EdgeSingular = edges[0];
 
-            // Assert: edge has data.isIndicatorEdge === true
-            expect(edge.data('isIndicatorEdge')).toBe(true);
+            // Assert: edge connects parent to shadow node
+            // Note: isIndicatorEdge is NOT set - these edges SHOULD affect Cola layout
+            // to keep terminal positioned relative to its parent task node
+            expect(edge.source().id()).toBe('parent-node.md');
+            expect(edge.target().id()).toBe(shadowNode.id());
         });
 
         it('should create edge with terminal-indicator class', () => {
@@ -111,10 +114,9 @@ describe('anchorToNode', () => {
 
     describe('1C: indicator edge position following', () => {
         /**
-         * Test: Indicator edges should update their endpoint positions when nodes move.
+         * Test: Edges should update their endpoint positions when nodes move.
          *
-         * This verifies that edges with isIndicatorEdge flag behave the same as
-         * regular edges - cytoscape automatically updates edge positions when
+         * This verifies that cytoscape automatically updates edge positions when
          * connected nodes move.
          *
          * Reference: Scenario "Indicator lines follow terminal position" from spec
@@ -128,8 +130,8 @@ describe('anchorToNode', () => {
             expect(edges.length).toBe(1);
             const edge: EdgeSingular = edges[0];
 
-            // Verify edge has the indicator flag
-            expect(edge.data('isIndicatorEdge')).toBe(true);
+            // Verify edge has the terminal-indicator class
+            expect(edge.hasClass('terminal-indicator')).toBe(true);
 
             // WHEN: The shadow node is moved (simulating terminal drag)
             const newPosition: cytoscape.Position = { x: 100, y: 100 };
@@ -172,8 +174,8 @@ describe('anchorToNode', () => {
                 // Edge should still exist and be connected
                 expect(edge.removed()).toBe(false);
 
-                // Indicator flag should persist
-                expect(edge.data('isIndicatorEdge')).toBe(true);
+                // terminal-indicator class should persist
+                expect(edge.hasClass('terminal-indicator')).toBe(true);
             }
 
             // Final position should be reflected in node position

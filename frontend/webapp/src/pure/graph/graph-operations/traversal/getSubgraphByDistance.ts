@@ -105,11 +105,11 @@ function dfsTraversal(
     const node: GraphNode = graph.nodes[nodeId]
     const newVisited: ReadonlySet<NodeIdAndFilePath> = new Set([...visited, nodeId])
 
-    // Explore outgoing edges (children) with cost
+    // Explore outgoing edges (children) with cost 1.5
     const afterChildren: ReadonlySet<NodeIdAndFilePath> = node.outgoingEdges
-      .filter(() => distance + 1.0 < maxDistance)
+      .filter(() => distance + 1.5 < maxDistance)
       .reduce<ReadonlySet<NodeIdAndFilePath>>(
-        (acc, edge) => dfsVisit(edge.targetId, distance + 1.0, acc),
+        (acc, edge) => dfsVisit(edge.targetId, distance + 1.5, acc),
         newVisited
       )
 

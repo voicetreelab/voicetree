@@ -11,6 +11,7 @@
 import { test, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
+  selectMockProject,
   sendGraphDelta,
   waitForCytoscapeReady,
   type ExtendedWindow
@@ -21,6 +22,7 @@ test.describe('Run Button Dropdown', () => {
   test.beforeEach(async ({ page }) => {
     await setupMockElectronAPI(page);
     await page.goto('/');
+    await selectMockProject(page);
     await page.waitForSelector('#root', { timeout: 5000 });
     await waitForCytoscapeReady(page);
 

@@ -6,6 +6,7 @@
 import { test, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
+  selectMockProject,
   waitForCytoscapeReady,
   sendGraphDelta
 } from '@e2e/playwright-browser/graph-delta-test-utils';
@@ -42,6 +43,7 @@ test.describe('Feedback Dialog Screenshot', () => {
   test('should show centered feedback dialog and capture screenshot', async ({ page }) => {
     await setupMockElectronAPI(page);
     await page.goto('/');
+    await selectMockProject(page);
     await page.waitForSelector('#root', { timeout: 5000 });
     await waitForCytoscapeReady(page);
 
@@ -75,6 +77,7 @@ test.describe('Feedback Dialog Screenshot', () => {
   test('should only show feedback dialog once per session', async ({ page }) => {
     await setupMockElectronAPI(page);
     await page.goto('/');
+    await selectMockProject(page);
     await page.waitForSelector('#root', { timeout: 5000 });
     await waitForCytoscapeReady(page);
 

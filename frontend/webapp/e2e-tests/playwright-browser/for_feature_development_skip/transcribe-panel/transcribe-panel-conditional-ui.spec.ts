@@ -6,6 +6,7 @@
 import { test as base, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
+  selectMockProject,
   waitForCytoscapeReady,
   sendGraphDelta,
   createTestGraphDelta,
@@ -22,6 +23,7 @@ test.describe('Transcription Panel Conditional UI Elements', () => {
 
     // Navigate to app and wait for React to render
     await page.goto('/');
+    await selectMockProject(page);
     // Wait for React app to mount by checking for content inside #root
     await page.waitForSelector('#root > *', { timeout: 10000 });
     await page.waitForTimeout(200);

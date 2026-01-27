@@ -11,6 +11,7 @@
 import { test as base, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
+  selectMockProject,
   sendGraphDelta,
   waitForCytoscapeReady,
   type ExtendedWindow
@@ -68,6 +69,7 @@ test.describe('Traffic Light Behaviors (Browser)', () => {
 
       await setupMockElectronAPI(page);
       await page.goto('/');
+    await selectMockProject(page);
       await page.waitForSelector('#root', { timeout: 5000 });
       await page.waitForTimeout(50);
       await waitForCytoscapeReady(page);
@@ -164,6 +166,7 @@ test.describe('Traffic Light Behaviors (Browser)', () => {
 
       await setupMockElectronAPI(page);
       await page.goto('/');
+    await selectMockProject(page);
       await page.waitForSelector('#root', { timeout: 5000 });
       await page.waitForTimeout(50);
       await waitForCytoscapeReady(page);
@@ -258,6 +261,7 @@ test.describe('Traffic Light Behaviors (Browser)', () => {
 
       await setupMockElectronAPI(page);
       await page.goto('/');
+    await selectMockProject(page);
       await page.waitForSelector('#root', { timeout: 5000 });
       await page.waitForTimeout(50);
       await waitForCytoscapeReady(page);
@@ -353,6 +357,7 @@ test.describe('Traffic Light Behaviors (Browser)', () => {
 
       await setupMockElectronAPI(page);
       await page.goto('/');
+    await selectMockProject(page);
       await page.waitForSelector('#root', { timeout: 5000 });
       await page.waitForTimeout(50);
       await waitForCytoscapeReady(page);
@@ -454,6 +459,7 @@ test.describe('Traffic Light Behaviors (Browser)', () => {
 
       await setupMockElectronAPI(page);
       await page.goto('/');
+    await selectMockProject(page);
       await page.waitForSelector('#root', { timeout: 5000 });
       await page.waitForTimeout(50);
       await waitForCytoscapeReady(page);
@@ -566,6 +572,7 @@ test.describe('Traffic Light Behaviors (Browser)', () => {
 
       await setupMockElectronAPI(page);
       await page.goto('/');
+    await selectMockProject(page);
       await page.waitForSelector('#root', { timeout: 5000 });
       await page.waitForTimeout(50);
       await waitForCytoscapeReady(page);

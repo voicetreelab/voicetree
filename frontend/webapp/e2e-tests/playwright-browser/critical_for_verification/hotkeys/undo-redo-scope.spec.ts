@@ -9,6 +9,7 @@
 import { test as base, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
+  selectMockProject,
   sendGraphDelta,
   waitForCytoscapeReady,
   type ExtendedWindow
@@ -131,6 +132,7 @@ test.describe('Undo/Redo Hotkey Scope Isolation (Browser)', () => {
 
     console.log('=== Step 2: Navigate to app ===');
     await page.goto('/');
+    await selectMockProject(page);
     await page.waitForSelector('#root', { timeout: 5000 });
     await page.waitForTimeout(50);
     console.log('✓ React rendered');
@@ -285,6 +287,7 @@ test.describe('Undo/Redo Hotkey Scope Isolation (Browser)', () => {
 
     console.log('=== Step 2: Navigate to app ===');
     await page.goto('/');
+    await selectMockProject(page);
     await page.waitForSelector('#root', { timeout: 5000 });
     await page.waitForTimeout(50);
     console.log('✓ React rendered');
