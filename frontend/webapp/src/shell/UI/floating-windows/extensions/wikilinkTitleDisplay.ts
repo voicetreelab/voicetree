@@ -4,14 +4,14 @@
  * Displays node titles instead of node IDs inside wikilinks [[nodeId]]
  * When cursor enters the wikilink, it reveals the raw nodeId for editing.
  *
- * Uses ViewPlugin pattern for:
- * - Viewport-only rendering (only decorates visible wikilinks)
- * - Debounced updates (avoids rebuilding on every keystroke)
+ * Uses Mark decorations (not Replace) to avoid DOM restructuring:
+ * - Marks add classes/attributes to existing text nodes
+ * - CSS ::after pseudo-element displays the title
+ * - No DOM churn = no cursor position issues during typing
  */
 
 import {
     Decoration,
-    WidgetType,
     EditorView,
     ViewPlugin,
     ViewUpdate,
@@ -23,9 +23,6 @@ import { linkMatchScore, getPathComponents } from '@/pure/graph/markdown-parsing
 
 // Regex to match wikilinks: [[nodeId]]
 const WIKILINK_REGEX: RegExp = /\[\[([^\]]+)\]\]/g;
-
-// Debounce delay for decoration updates (ms)
-const DEBOUNCE_DELAY_MS: number = 50;
 
 /**
  * Get Cytoscape instance from window
@@ -83,64 +80,14 @@ function findNodeForWikilink(linkText: string): WikilinkNodeMatch | null {
 }
 
 /**
- * Widget that displays a node title instead of its ID.
- * Clickable - navigates to the resolved node on click.
- */
-class WikilinkTitleWidget extends WidgetType {
-    readonly title: string;
-    readonly rawLinkText: string;
-    readonly resolvedNodeId: string;
-
-    constructor(title: string, rawLinkText: string, resolvedNodeId: string) {
-        super();
-        this.title = title;
-        this.rawLinkText = rawLinkText;
-        this.resolvedNodeId = resolvedNodeId;
-    }
-
-    eq(other: WikilinkTitleWidget): boolean {
-        return other.title === this.title && other.resolvedNodeId === this.resolvedNodeId;
-    }
-
-    toDOM(): HTMLElement {
-        const span: HTMLSpanElement = document.createElement('span');
-        span.className = 'cm-wikilink-title';
-        span.textContent = this.title;
-        span.title = this.rawLinkText; // Show raw wikilink path on hover
-
-        // Ensure the span can receive pointer events (CodeMirror may block them otherwise)
-        span.style.pointerEvents = 'auto';
-
-        // Use mousedown instead of click - fires before CodeMirror's event handling
-        // which can intercept click events on replace decorations
-        span.addEventListener('mousedown', (event: MouseEvent) => {
-            // Only handle left mouse button clicks
-            if (event.button !== 0) return;
-
-            event.preventDefault();
-            event.stopPropagation();
-            window.dispatchEvent(new CustomEvent('voicetree-navigate', {
-                detail: { nodeId: this.resolvedNodeId }
-            }));
-        });
-
-        return span;
-    }
-
-    ignoreEvent(): boolean {
-        return false;
-    }
-}
-
-/**
- * Find wikilinks in visible ranges and create decorations to display titles.
- * Only processes lines within the provided visible ranges (viewport optimization).
- * Skips decoration when cursor is inside the wikilink.
+ * Find wikilinks in visible ranges and create mark decorations.
+ * Mark decorations add classes/attributes without changing DOM structure.
+ * Adds 'editing' class when cursor is inside the wikilink.
  */
 function buildViewportDecorations(view: EditorView): DecorationSet {
     const decorations: Range<Decoration>[] = [];
-    const state: EditorView['state'] = view.state;
-    const [cursor] = state.selection.ranges;
+    const state = view.state;
+    const cursor = state.selection.main;
 
     // Only iterate lines in visible ranges (viewport optimization)
     for (const { from, to } of view.visibleRanges) {
@@ -160,13 +107,10 @@ function buildViewportDecorations(view: EditorView): DecorationSet {
                 const wikilinkStart: number = line.from + match.index;
                 const wikilinkEnd: number = wikilinkStart + match[0].length;
 
-                // Skip if cursor is inside or adjacent to this wikilink
-                if (cursor.from >= wikilinkStart && cursor.from <= wikilinkEnd) {
-                    continue;
-                }
-                if (cursor.to >= wikilinkStart && cursor.to <= wikilinkEnd) {
-                    continue;
-                }
+                // Check if cursor is inside this wikilink
+                const cursorInside: boolean =
+                    cursor.from >= wikilinkStart && cursor.from <= wikilinkEnd ||
+                    cursor.to >= wikilinkStart && cursor.to <= wikilinkEnd;
 
                 // Look up node using fuzzy matching - returns title and resolved ID
                 const nodeMatch: WikilinkNodeMatch | null = findNodeForWikilink(linkText);
@@ -174,13 +118,17 @@ function buildViewportDecorations(view: EditorView): DecorationSet {
                     continue; // No decoration needed - show raw link text
                 }
 
-                // Create decoration to replace the link text with title widget
-                // Keep the [[ and ]] visible, only replace the inner link text
+                // Mark the inner content (between [[ and ]])
                 const innerStart: number = wikilinkStart + 2; // After [[
                 const innerEnd: number = wikilinkEnd - 2; // Before ]]
 
-                const decoration: Decoration = Decoration.replace({
-                    widget: new WikilinkTitleWidget(nodeMatch.title, linkText, nodeMatch.resolvedId),
+                // Use mark decoration - doesn't change DOM structure
+                const decoration: Decoration = Decoration.mark({
+                    class: cursorInside ? 'cm-wikilink-title cm-wikilink-editing' : 'cm-wikilink-title',
+                    attributes: {
+                        'data-title': nodeMatch.title,
+                        'data-node-id': nodeMatch.resolvedId,
+                    },
                 });
 
                 decorations.push(decoration.range(innerStart, innerEnd));
@@ -192,61 +140,101 @@ function buildViewportDecorations(view: EditorView): DecorationSet {
 }
 
 /**
- * ViewPlugin class for wikilink title display with debouncing
+ * ViewPlugin class for wikilink title display
+ * Rebuilds on selection and doc changes, but mark decorations
+ * don't cause DOM restructuring so cursor remains stable.
  */
 class WikilinkTitlePlugin {
     decorations: DecorationSet;
-    private debounceTimer: ReturnType<typeof setTimeout> | null = null;
-    private pendingView: EditorView | null = null;
 
     constructor(view: EditorView) {
         this.decorations = buildViewportDecorations(view);
     }
 
     update(update: ViewUpdate): void {
-        // Always rebuild immediately for selection changes (cursor entered/exited wikilink)
-        // This ensures the raw ID is shown when editing
-        if (update.selectionSet && !update.docChanged) {
+        // Rebuild when selection changes (to toggle editing class)
+        // or when document/viewport changes
+        if (update.selectionSet || update.docChanged || update.viewportChanged) {
             this.decorations = buildViewportDecorations(update.view);
-            return;
-        }
-
-        // For doc changes, debounce to avoid rebuilding on every keystroke
-        if (update.docChanged || update.viewportChanged) {
-            this.scheduleRebuild(update.view);
-        }
-    }
-
-    private scheduleRebuild(view: EditorView): void {
-        this.pendingView = view;
-
-        if (this.debounceTimer !== null) {
-            clearTimeout(this.debounceTimer);
-        }
-
-        this.debounceTimer = setTimeout(() => {
-            if (this.pendingView) {
-                this.decorations = buildViewportDecorations(this.pendingView);
-                this.pendingView.requestMeasure(); // Schedule DOM update without creating transaction
-                this.pendingView = null;
-            }
-            this.debounceTimer = null;
-        }, DEBOUNCE_DELAY_MS);
-    }
-
-    destroy(): void {
-        if (this.debounceTimer !== null) {
-            clearTimeout(this.debounceTimer);
         }
     }
 }
 
 /**
- * CodeMirror ViewPlugin extension for wikilink title display
- * Uses viewport-only rendering and debounced updates for performance.
+ * Click handler for wikilink navigation.
+ * Uses event delegation - listens on editor, checks if target is a wikilink.
  */
-export function wikilinkTitleDisplay(): ViewPlugin<WikilinkTitlePlugin> {
-    return ViewPlugin.fromClass(WikilinkTitlePlugin, {
-        decorations: (plugin) => plugin.decorations,
-    });
+const wikilinkClickHandler = EditorView.domEventHandlers({
+    mousedown(event: MouseEvent, view: EditorView): boolean {
+        // Only handle left clicks
+        if (event.button !== 0) return false;
+
+        const target = event.target as HTMLElement;
+
+        // Check if clicked on a wikilink title chip
+        if (!target.classList.contains('cm-wikilink-title')) return false;
+
+        // Don't navigate if in editing mode (cursor inside)
+        if (target.classList.contains('cm-wikilink-editing')) return false;
+
+        const nodeId = target.dataset.nodeId;
+        if (!nodeId) return false;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        window.dispatchEvent(new CustomEvent('voicetree-navigate', {
+            detail: { nodeId }
+        }));
+
+        return true;
+    }
+});
+
+/**
+ * CSS styles for wikilink title display.
+ * Uses ::after pseudo-element to show title without changing DOM structure.
+ */
+const wikilinkStyles = EditorView.baseTheme({
+    '.cm-wikilink-title': {
+        // Hide the original node ID text
+        fontSize: '0',
+        // Container for the ::after chip
+        position: 'relative',
+    },
+    '.cm-wikilink-title::after': {
+        // Show the title from data attribute
+        content: 'attr(data-title)',
+        fontSize: '14px',
+        // Chip styling
+        backgroundColor: 'rgba(59, 130, 246, 0.15)',
+        color: 'rgb(59, 130, 246)',
+        padding: '1px 6px',
+        borderRadius: '4px',
+        cursor: 'pointer',
+    },
+    '.cm-wikilink-title:hover::after': {
+        backgroundColor: 'rgba(59, 130, 246, 0.25)',
+    },
+    // When editing (cursor inside), show the original text
+    '.cm-wikilink-title.cm-wikilink-editing': {
+        fontSize: 'inherit',
+    },
+    '.cm-wikilink-title.cm-wikilink-editing::after': {
+        display: 'none',
+    },
+});
+
+/**
+ * CodeMirror extension for wikilink title display.
+ * Uses Mark decorations + CSS for stable cursor behavior.
+ */
+export function wikilinkTitleDisplay() {
+    return [
+        ViewPlugin.fromClass(WikilinkTitlePlugin, {
+            decorations: (plugin) => plugin.decorations,
+        }),
+        wikilinkClickHandler,
+        wikilinkStyles,
+    ];
 }
