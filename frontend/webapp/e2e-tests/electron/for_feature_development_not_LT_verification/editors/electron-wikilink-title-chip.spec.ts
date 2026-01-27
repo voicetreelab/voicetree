@@ -217,7 +217,6 @@ test.describe('Wikilink Title Chip Display', () => {
 
     // Wait for editor to open
     const editorWindowId = `window-${parentNodeId}-editor`;
-    const escapedEditorWindowId = CSS.escape(editorWindowId);
 
     await expect.poll(async () => {
       return appWindow.evaluate((winId) => {
@@ -274,15 +273,7 @@ test.describe('Wikilink Title Chip Display', () => {
     expect(chipInfo.found).toBe(true);
     expect(chipInfo.title).toBe('My Child Node'); // Title from the child node's # heading
 
-    // Screenshot 3: Close-up of editor with title chip
-    // Use evaluate to take screenshot of editor element
-    await appWindow.evaluate(async (args) => {
-      const { winId } = args;
-      const editorWindow = document.getElementById(winId);
-      if (editorWindow) {
-        // Screenshot taken at page level instead
-      }
-    }, { winId: editorWindowId });
+    // Screenshot 3: Editor with title chip
     await appWindow.screenshot({ path: path.join(screenshotsDir, '3-editor-with-title-chip.png') });
     console.log('[Test] Screenshot 3: Editor with title chip');
 
@@ -293,8 +284,7 @@ test.describe('Wikilink Title Chip Display', () => {
     await appWindow.evaluate((winId) => {
       const editorWindow = document.getElementById(winId);
       if (!editorWindow) throw new Error('Editor window not found');
-      const escapedWinId = winId; // Not used anymore
-      const editorElement = document.querySelector(`#${escapedWinId} .cm-content`) as CodeMirrorElement | null;
+      const editorElement = editorWindow.querySelector('.cm-content') as CodeMirrorElement | null;
       if (!editorElement) throw new Error('Editor not found');
       const cmView = editorElement.cmView?.view;
       if (!cmView) throw new Error('CodeMirror view not found');
@@ -313,8 +303,7 @@ test.describe('Wikilink Title Chip Display', () => {
       const { winId, text } = args;
       const editorWindow = document.getElementById(winId);
       if (!editorWindow) throw new Error('Editor window not found');
-      const escapedWinId = winId; // Not used anymore
-      const editorElement = document.querySelector(`#${escapedWinId} .cm-content`) as CodeMirrorElement | null;
+      const editorElement = editorWindow.querySelector('.cm-content') as CodeMirrorElement | null;
       if (!editorElement) throw new Error('Editor not found');
       const cmView = editorElement.cmView?.view;
       if (!cmView) throw new Error('CodeMirror view not found');
@@ -337,9 +326,8 @@ test.describe('Wikilink Title Chip Display', () => {
     // Verify content was added correctly
     const contentAfterTyping = await appWindow.evaluate((winId) => {
       const editorWindow = document.getElementById(winId);
-      if (!editorWindow) throw new Error('Editor window not found');
-      const escapedWinId = winId; // Not used anymore
-      const editorElement = document.querySelector(`#${escapedWinId} .cm-content`) as CodeMirrorElement | null;
+      if (!editorWindow) return null;
+      const editorElement = editorWindow.querySelector('.cm-content') as CodeMirrorElement | null;
       if (!editorElement) return null;
       const cmView = editorElement.cmView?.view;
       if (!cmView) return null;
@@ -353,9 +341,8 @@ test.describe('Wikilink Title Chip Display', () => {
     // Verify title chip is still present after typing
     const chipInfoAfterTyping = await appWindow.evaluate((winId) => {
       const editorWindow = document.getElementById(winId);
-      if (!editorWindow) throw new Error('Editor window not found');
-      const escapedWinId = winId; // Not used anymore
-      const editor = document.querySelector(`#${escapedWinId} .cm-editor`);
+      if (!editorWindow) return { found: false };
+      const editor = editorWindow.querySelector('.cm-editor');
       if (!editor) return { found: false };
       const wikilinkTitle = editor.querySelector('.cm-wikilink-title');
       return {
@@ -389,27 +376,40 @@ test.describe('Wikilink Title Chip Display', () => {
       });
     }, { timeout: 15000 }).toBeGreaterThanOrEqual(2);
 
-    // Open parent editor
-    await appWindow.evaluate(() => {
+    // Find parent node ID dynamically
+    const parentNodeId = await appWindow.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
-      const node = cy.getElementById('voicetree/parent.md');
-      node.trigger('tap');
+      const parentNode = cy.nodes().filter((n: NodeSingular) => n.data('label') === 'Parent Node').first();
+      if (parentNode.empty()) throw new Error('Parent node not found');
+      return parentNode.id();
     });
 
-    const editorWindowId = 'window-voicetree/parent.md-editor';
-    const escapedEditorWindowId = editorWindowId.replace(/\./g, '\\.').replace(/\//g, '\\/');
+    console.log('[Test] Parent node ID:', parentNodeId);
 
-    await appWindow.waitForSelector(`#${escapedEditorWindowId} .cm-editor`, { timeout: 5000 });
+    // Open parent editor
+    await appWindow.evaluate((nodeId) => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+      const node = cy.getElementById(nodeId);
+      node.trigger('tap');
+    }, parentNodeId);
+
+    const editorWindowId = `window-${parentNodeId}-editor`;
+
+    // Wait for editor to open
+    await appWindow.waitForFunction((winId) => {
+      const el = document.getElementById(winId);
+      return el && el.querySelector('.cm-editor') !== null;
+    }, editorWindowId, { timeout: 5000 });
     await appWindow.waitForTimeout(500);
 
     // Verify chip is showing (cursor not inside wikilink)
     const chipBeforeEdit = await appWindow.evaluate((winId) => {
       const editorWindow = document.getElementById(winId);
-      if (!editorWindow) throw new Error('Editor window not found');
-      const escapedWinId = winId; // Not used anymore
-      const editor = document.querySelector(`#${escapedWinId} .cm-editor`);
-      if (!editor) return { hasEditingClass: false };
+      if (!editorWindow) return { found: false, hasEditingClass: false };
+      const editor = editorWindow.querySelector('.cm-editor');
+      if (!editor) return { found: false, hasEditingClass: false };
       const wikilinkTitle = editor.querySelector('.cm-wikilink-title');
       return {
         found: !!wikilinkTitle,
@@ -428,8 +428,7 @@ test.describe('Wikilink Title Chip Display', () => {
     await appWindow.evaluate((winId) => {
       const editorWindow = document.getElementById(winId);
       if (!editorWindow) throw new Error('Editor window not found');
-      const escapedWinId = winId; // Not used anymore
-      const editorElement = document.querySelector(`#${escapedWinId} .cm-content`) as CodeMirrorElement | null;
+      const editorElement = editorWindow.querySelector('.cm-content') as CodeMirrorElement | null;
       if (!editorElement) throw new Error('Editor not found');
       const cmView = editorElement.cmView?.view;
       if (!cmView) throw new Error('CodeMirror view not found');
@@ -454,10 +453,9 @@ test.describe('Wikilink Title Chip Display', () => {
     // Verify editing class is now present
     const chipDuringEdit = await appWindow.evaluate((winId) => {
       const editorWindow = document.getElementById(winId);
-      if (!editorWindow) throw new Error('Editor window not found');
-      const escapedWinId = winId; // Not used anymore
-      const editor = document.querySelector(`#${escapedWinId} .cm-editor`);
-      if (!editor) return { hasEditingClass: false };
+      if (!editorWindow) return { found: false, hasEditingClass: false };
+      const editor = editorWindow.querySelector('.cm-editor');
+      if (!editor) return { found: false, hasEditingClass: false };
       const wikilinkTitle = editor.querySelector('.cm-wikilink-title');
       return {
         found: !!wikilinkTitle,
