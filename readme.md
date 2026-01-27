@@ -102,7 +102,9 @@ npm run electron
 uv sync
 
 # Run backend tests
-uv run pytest backend//unit_tests
+uv run pytest
+
+# add VITE_SONIOX_API_KEY to frontend/webapp/.env to have STT work 
 ``
 
 ## Contact
@@ -113,4 +115,4 @@ Feedback is immensely valuable. Email us with any thoughts, criticisms, or featu
 
 ## License
 
-This project is licensed under the AGPL-3.0 License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under BSL1.1
