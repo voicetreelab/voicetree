@@ -22,7 +22,7 @@ describe('Project types', () => {
         });
 
         it('should support all project types', () => {
-            const types: ProjectType[] = ['git', 'obsidian', 'folder'];
+            const types: readonly ProjectType[] = ['git', 'obsidian', 'folder'];
 
             types.forEach((type) => {
                 const project: SavedProject = {

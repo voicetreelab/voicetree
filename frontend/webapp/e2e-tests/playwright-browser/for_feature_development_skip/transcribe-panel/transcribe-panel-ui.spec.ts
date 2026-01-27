@@ -19,7 +19,7 @@ const test = base.extend({});
 async function setupMockWithWatchedDirectory(page: import('@playwright/test').Page): Promise<void> {
   await page.addInitScript(() => {
     // Store callback for watching-started event
-    let _watchingStartedCallback: ((data: { directory: string; vaultSuffix: string }) => void) | null = null;
+    const _watchingStartedCallback: ((data: { directory: string; vaultSuffix: string }) => void) | null = null;
 
     // Create a comprehensive mock of the Electron API
     const mockElectronAPI = {

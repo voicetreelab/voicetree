@@ -318,6 +318,125 @@ test.describe('Write Path Change Bug', () => {
     console.log(`- New node was created via Cmd+N`);
     console.log(`- File location: ${newFilesInSecondVault.length > 0 ? 'second-vault (CORRECT)' : 'primary (BUG)'}`);
   });
+
+  /**
+   * BUG: When EDITING the write path (not just selecting a different one),
+   * the old path's nodes should be removed from the graph.
+   *
+   * This simulates the VaultPathSelector "edit path" flow:
+   * 1. addReadPath(newPath)
+   * 2. setWritePath(newPath)
+   * 3. removeReadPath(oldPath)
+   *
+   * After this flow, nodes from oldPath should NOT be visible in the graph.
+   * Files should still exist on disk (we don't delete files).
+   */
+  test('editing write path should remove old path nodes from graph', async ({
+    appWindow,
+    primaryVaultPath,
+    secondVaultPath
+  }) => {
+    test.setTimeout(45000);
+
+    console.log('=== STEP 1: Verify initial state - primary vault has nodes ===');
+    await appWindow.waitForTimeout(500);
+
+    // Get initial node count and IDs
+    const initialNodeIds = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return [];
+      return cy.nodes().filter(n => !n.data('isShadowNode')).map(n => n.id());
+    });
+
+    console.log('Initial node IDs:', initialNodeIds);
+    expect(initialNodeIds.length).toBeGreaterThan(0);
+
+    // Verify initial node is from primary vault
+    const initialNodeInPrimary = initialNodeIds.some(id => id.includes('primary'));
+    console.log('Initial node is in primary vault:', initialNodeInPrimary);
+    expect(initialNodeInPrimary).toBe(true);
+
+    // Get initial write path
+    const initialWritePath = await appWindow.evaluate(async () => {
+      const api = (window as ExtendedWindow).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      const result = await api.main.getWritePath();
+      if (result && typeof result === 'object' && '_tag' in result) {
+        return (result as { _tag: string; value?: string })._tag === 'Some' ? (result as { value: string }).value : null;
+      }
+      return null;
+    });
+
+    console.log('Initial write path:', initialWritePath);
+    expect(initialWritePath).toBe(primaryVaultPath);
+
+    console.log('=== STEP 2: Simulate edit flow - change write path from primary to second-vault ===');
+
+    // Step 2a: Add new path first (what saveEditedPath does)
+    const addResult = await appWindow.evaluate(async (secondPath: string) => {
+      const api = (window as ExtendedWindow).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      return await api.main.addReadPath(secondPath);
+    }, secondVaultPath);
+
+    console.log('Add second-vault result:', addResult);
+    expect(addResult.success).toBe(true);
+
+    // Step 2b: Set new write path
+    const setResult = await appWindow.evaluate(async (secondPath: string) => {
+      const api = (window as ExtendedWindow).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      return await api.main.setWritePath(secondPath);
+    }, secondVaultPath);
+
+    console.log('Set write path to second-vault result:', setResult);
+    expect(setResult.success).toBe(true);
+
+    // Step 2c: Remove old path (this is what should remove the nodes from graph)
+    const removeResult = await appWindow.evaluate(async (primaryPath: string) => {
+      const api = (window as ExtendedWindow).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      return await api.main.removeReadPath(primaryPath);
+    }, primaryVaultPath);
+
+    console.log('Remove primary path result:', removeResult);
+    expect(removeResult.success).toBe(true);
+
+    // Wait for graph update to propagate
+    await appWindow.waitForTimeout(1000);
+
+    console.log('=== STEP 3: Verify old nodes are removed from graph ===');
+
+    // Get node IDs after the edit
+    const finalNodeIds = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return [];
+      return cy.nodes().filter(n => !n.data('isShadowNode')).map(n => n.id());
+    });
+
+    console.log('Final node IDs:', finalNodeIds);
+
+    // BUG ASSERTION: Nodes from primary vault should NOT be in the graph anymore
+    const nodesStillInPrimary = finalNodeIds.filter(id => id.includes('primary'));
+    console.log('Nodes still in primary (should be empty):', nodesStillInPrimary);
+
+    // This assertion should FAIL currently due to the bug
+    expect(nodesStillInPrimary.length).toBe(0);
+
+    console.log('=== STEP 4: Verify files still exist on disk ===');
+
+    // Files should NOT be deleted - just removed from graph
+    const primaryFiles = await fs.readdir(primaryVaultPath);
+    console.log('Files still on disk in primary:', primaryFiles);
+    expect(primaryFiles).toContain('initial-node.md');
+
+    console.log('');
+    console.log('=== TEST SUMMARY ===');
+    console.log('Edit write path test completed.');
+    console.log(`- Write path edited from 'primary' to 'second-vault'`);
+    console.log(`- Old nodes removed from graph: ${nodesStillInPrimary.length === 0 ? 'YES (CORRECT)' : 'NO (BUG)'}`);
+    console.log(`- Files preserved on disk: ${primaryFiles.includes('initial-node.md') ? 'YES' : 'NO'}`);
+  });
 });
 
 export { test };

@@ -15,7 +15,7 @@ function normalizeEnvValue(s: string): string {
  */
 export function resolveEnvVars(envVarDefs: Record<string, EnvVarValue>): Record<string, string> {
     return Object.fromEntries(
-        Object.entries(envVarDefs).map(([key, value]: [string, EnvVarValue]): [string, string] => {
+        Object.entries(envVarDefs).map(([key, value]: readonly [string, EnvVarValue]): readonly [string, string] => {
             if (typeof value === 'string') {
                 return [key, normalizeEnvValue(value)];
             }
@@ -31,7 +31,7 @@ export function resolveEnvVars(envVarDefs: Record<string, EnvVarValue>): Record<
  */
 export function expandEnvVarsInValues(envVars: Record<string, string>): Record<string, string> {
     return Object.fromEntries(
-        Object.entries(envVars).map(([key, value]: [string, string]): [string, string] => {
+        Object.entries(envVars).map(([key, value]: readonly [string, string]): readonly [string, string] => {
             const expanded: string = value.replace(/\$([A-Z_][A-Z0-9_]*)/g, (_match: string, varName: string): string => {
                 return envVars[varName] ?? `$${varName}`;
             });

@@ -38,7 +38,7 @@ describe('createTaskNode', () => {
 
       const params: TaskNodeCreationParams = {
         taskDescription: 'Implement feature X',
-        selectedNodeIds: ['/vault/a.md', '/vault/b.md'] as NodeIdAndFilePath[],
+        selectedNodeIds: ['/vault/a.md', '/vault/b.md'] as readonly NodeIdAndFilePath[],
         graph,
         writePath: '/vault',
         position: { x: 100, y: 100 }
@@ -61,7 +61,7 @@ describe('createTaskNode', () => {
       const position: Position = { x: 200, y: 300 }
       const params: TaskNodeCreationParams = {
         taskDescription: 'Test task',
-        selectedNodeIds: ['/vault/a.md'] as NodeIdAndFilePath[],
+        selectedNodeIds: ['/vault/a.md'] as readonly NodeIdAndFilePath[],
         graph,
         writePath: '/vault',
         position
@@ -88,7 +88,7 @@ describe('createTaskNode', () => {
 
       const params: TaskNodeCreationParams = {
         taskDescription: 'Process all nodes',
-        selectedNodeIds: ['/vault/a.md', '/vault/b.md', '/vault/c.md'] as NodeIdAndFilePath[],
+        selectedNodeIds: ['/vault/a.md', '/vault/b.md', '/vault/c.md'] as readonly NodeIdAndFilePath[],
         graph,
         writePath: '/vault',
         position: { x: 0, y: 0 }
@@ -115,7 +115,7 @@ describe('createTaskNode', () => {
 
       const params: TaskNodeCreationParams = {
         taskDescription: 'Work on single node',
-        selectedNodeIds: ['/vault/single.md'] as NodeIdAndFilePath[],
+        selectedNodeIds: ['/vault/single.md'] as readonly NodeIdAndFilePath[],
         graph,
         writePath: '/vault',
         position: { x: 0, y: 0 }
@@ -147,7 +147,7 @@ describe('createTaskNode', () => {
 
       const params: TaskNodeCreationParams = {
         taskDescription: 'Task for hub selection',
-        selectedNodeIds: ['/vault/a.md', '/vault/b.md', '/vault/hub.md'] as NodeIdAndFilePath[],
+        selectedNodeIds: ['/vault/a.md', '/vault/b.md', '/vault/hub.md'] as readonly NodeIdAndFilePath[],
         graph,
         writePath: '/vault',
         position: { x: 0, y: 0 }
@@ -172,7 +172,7 @@ describe('createTaskNode', () => {
 
       const params: TaskNodeCreationParams = {
         taskDescription: 'Task',
-        selectedNodeIds: ['/vault/a.md', '/vault/b.md'] as NodeIdAndFilePath[],
+        selectedNodeIds: ['/vault/a.md', '/vault/b.md'] as readonly NodeIdAndFilePath[],
         graph,
         writePath: '/vault',
         position: { x: 0, y: 0 }
@@ -186,7 +186,7 @@ describe('createTaskNode', () => {
       expect(targetIds).toContain('/vault/a.md')
       expect(targetIds).toContain('/vault/b.md')
       // No duplicate edges
-      const uniqueTargetIds: Set<string> = new Set(targetIds)
+      const uniqueTargetIds: ReadonlySet<string> = new Set(targetIds)
       expect(uniqueTargetIds.size).toBe(targetIds.length)
     })
 
@@ -200,7 +200,7 @@ describe('createTaskNode', () => {
 
       const params: TaskNodeCreationParams = {
         taskDescription: 'Task with tie',
-        selectedNodeIds: ['/vault/first.md', '/vault/second.md'] as NodeIdAndFilePath[],
+        selectedNodeIds: ['/vault/first.md', '/vault/second.md'] as readonly NodeIdAndFilePath[],
         graph,
         writePath: '/vault',
         position: { x: 0, y: 0 }
@@ -225,7 +225,7 @@ describe('createTaskNode', () => {
 
       const params: TaskNodeCreationParams = {
         taskDescription: 'New task',
-        selectedNodeIds: ['/vault/a.md'] as NodeIdAndFilePath[],
+        selectedNodeIds: ['/vault/a.md'] as readonly NodeIdAndFilePath[],
         graph,
         writePath: '/vault/tasks',
         position: { x: 0, y: 0 }
@@ -246,7 +246,7 @@ describe('createTaskNode', () => {
 
       const params: TaskNodeCreationParams = {
         taskDescription: 'New task',
-        selectedNodeIds: ['/vault/a.md'] as NodeIdAndFilePath[],
+        selectedNodeIds: ['/vault/a.md'] as readonly NodeIdAndFilePath[],
         graph,
         writePath: '/vault',
         position: { x: 0, y: 0 }

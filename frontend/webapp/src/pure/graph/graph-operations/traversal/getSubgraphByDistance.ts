@@ -90,7 +90,7 @@ function dfsTraversal(
   startNodeId: NodeIdAndFilePath,
   maxDistance: number
 ): ReadonlySet<NodeIdAndFilePath> {
-  const processed: Set<NodeIdAndFilePath> = new Set()
+  const processed: ReadonlySet<NodeIdAndFilePath> = new Set()
 
   const dfsVisit: DfsVisitFn = (
     nodeId: NodeIdAndFilePath,
@@ -132,7 +132,7 @@ function dfsTraversal(
  * Merge multiple graphs into one, preserving all edges.
  */
 function mergeGraphs(graphs: readonly Graph[]): Graph {
-  const allNodeIds: Set<NodeIdAndFilePath> = new Set()
+  const allNodeIds: ReadonlySet<NodeIdAndFilePath> = new Set()
   graphs.forEach(g => Object.keys(g.nodes).forEach(id => allNodeIds.add(id)))
 
   const mergedNodes: Record<NodeIdAndFilePath, GraphNode> = Object.fromEntries(

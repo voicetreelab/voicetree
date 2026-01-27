@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseOTLPMetrics, type OTLPMetricsRequest } from './otlp-parser';
+import { parseOTLPMetrics, type OTLPMetricsRequest, type ParsedMetrics } from './otlp-parser';
 
 // Real OTLP payload fixture captured from Claude Code (Phase 1)
 // Key attributes from Claude Code telemetry:
@@ -79,37 +79,37 @@ const REAL_OTLP_PAYLOAD: OTLPMetricsRequest = {
 
 describe('parseOTLPMetrics', () => {
   it('extracts session ID from dataPoint attributes', () => {
-    const result = parseOTLPMetrics(REAL_OTLP_PAYLOAD);
+    const result: ParsedMetrics = parseOTLPMetrics(REAL_OTLP_PAYLOAD);
     expect(result.sessionId).toBe('a602fe87-9207-4d27-a32a-c691ea7453d5');
   });
 
   it('extracts cost in USD', () => {
-    const result = parseOTLPMetrics(REAL_OTLP_PAYLOAD);
+    const result: ParsedMetrics = parseOTLPMetrics(REAL_OTLP_PAYLOAD);
     expect(result.costUsd).toBe(0.0234);
   });
 
   it('extracts input tokens', () => {
-    const result = parseOTLPMetrics(REAL_OTLP_PAYLOAD);
+    const result: ParsedMetrics = parseOTLPMetrics(REAL_OTLP_PAYLOAD);
     expect(result.tokens.input).toBe(1500);
   });
 
   it('extracts output tokens', () => {
-    const result = parseOTLPMetrics(REAL_OTLP_PAYLOAD);
+    const result: ParsedMetrics = parseOTLPMetrics(REAL_OTLP_PAYLOAD);
     expect(result.tokens.output).toBe(800);
   });
 
   it('extracts cacheRead tokens', () => {
-    const result = parseOTLPMetrics(REAL_OTLP_PAYLOAD);
+    const result: ParsedMetrics = parseOTLPMetrics(REAL_OTLP_PAYLOAD);
     expect(result.tokens.cacheRead).toBe(500);
   });
 
   it('extracts cacheWrite (cacheCreation) tokens', () => {
-    const result = parseOTLPMetrics(REAL_OTLP_PAYLOAD);
+    const result: ParsedMetrics = parseOTLPMetrics(REAL_OTLP_PAYLOAD);
     expect(result.tokens.cacheWrite).toBe(200);
   });
 
   it('handles empty payload gracefully', () => {
-    const result = parseOTLPMetrics({});
+    const result: ParsedMetrics = parseOTLPMetrics({});
     expect(result.sessionId).toBe('unknown');
     expect(result.costUsd).toBe(0);
     expect(result.tokens.input).toBe(0);
@@ -125,7 +125,7 @@ describe('parseOTLPMetrics', () => {
         },
       ],
     };
-    const result = parseOTLPMetrics(payload);
+    const result: ParsedMetrics = parseOTLPMetrics(payload);
     expect(result.sessionId).toBe('unknown');
     expect(result.costUsd).toBe(0);
   });
@@ -164,7 +164,7 @@ describe('parseOTLPMetrics', () => {
         },
       ],
     };
-    const result = parseOTLPMetrics(payload);
+    const result: ParsedMetrics = parseOTLPMetrics(payload);
     expect(result.tokens.input).toBe(250);
   });
 
@@ -195,7 +195,7 @@ describe('parseOTLPMetrics', () => {
         },
       ],
     };
-    const result = parseOTLPMetrics(payload);
+    const result: ParsedMetrics = parseOTLPMetrics(payload);
     expect(result.tokens.output).toBe(999);
   });
 });

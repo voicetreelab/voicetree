@@ -21,11 +21,11 @@ export function getIncomingEdgesToSubgraph(
   const subgraphNodeIdSet: ReadonlySet<NodeIdAndFilePath> = new Set(subgraphNodeIds)
 
   // Get all [nodeId, node] pairs from the graph
-  const allNodeEntries: readonly [string, GraphNode][] = Object.entries(graph.nodes)
+  const allNodeEntries: readonly (readonly [string, GraphNode])[] = Object.entries(graph.nodes)
 
   // Filter to only external nodes (not in subgraph, and not context nodes)
   // Context nodes are excluded because they're derived/temporary - we don't redirect their edges
-  const externalNodes: readonly [string, GraphNode][] = allNodeEntries.filter(
+  const externalNodes: readonly (readonly [string, GraphNode])[] = allNodeEntries.filter(
     ([nodeId, node]) => !subgraphNodeIdSet.has(nodeId) && !node.nodeUIMetadata.isContextNode
   )
 

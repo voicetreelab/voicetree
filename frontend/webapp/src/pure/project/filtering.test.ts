@@ -85,10 +85,10 @@ describe('filterDiscoveredProjects', () => {
     });
 
     it('should not mutate the original arrays', () => {
-        const discovered: DiscoveredProject[] = [
+        const discovered: readonly DiscoveredProject[] = [
             { path: '/test/project1', name: 'project1', type: 'git' },
         ];
-        const saved: SavedProject[] = [
+        const saved: readonly SavedProject[] = [
             {
                 id: '1',
                 path: '/test/project1',
@@ -98,8 +98,8 @@ describe('filterDiscoveredProjects', () => {
                 voicetreeInitialized: false,
             },
         ];
-        const discoveredCopy: DiscoveredProject[] = [...discovered];
-        const savedCopy: SavedProject[] = [...saved];
+        const discoveredCopy: readonly DiscoveredProject[] = [...discovered];
+        const savedCopy: readonly SavedProject[] = [...saved];
 
         filterDiscoveredProjects(discovered, saved);
 

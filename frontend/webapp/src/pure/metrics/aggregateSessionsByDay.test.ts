@@ -9,7 +9,7 @@ describe('aggregateSessionsByDay', () => {
   });
 
   it('should return empty array when no sessions have durationMs', () => {
-    const sessions: SessionMetric[] = [
+    const sessions: readonly SessionMetric[] = [
       { sessionId: '1', agentName: 'Claude', contextNode: 'test', startTime: '2025-12-30T10:00:00Z' },
       { sessionId: '2', agentName: 'Claude', contextNode: 'test', startTime: '2025-12-30T11:00:00Z' },
     ];
@@ -18,7 +18,7 @@ describe('aggregateSessionsByDay', () => {
   });
 
   it('should aggregate single session correctly', () => {
-    const sessions: SessionMetric[] = [
+    const sessions: readonly SessionMetric[] = [
       { sessionId: '1', agentName: 'Claude', contextNode: 'test', startTime: '2025-12-30T10:00:00Z', durationMs: 300000 },
     ];
     const result: readonly DayAggregation[] = aggregateSessionsByDay(sessions);
@@ -28,7 +28,7 @@ describe('aggregateSessionsByDay', () => {
   });
 
   it('should calculate average duration for multiple sessions on same day', () => {
-    const sessions: SessionMetric[] = [
+    const sessions: readonly SessionMetric[] = [
       { sessionId: '1', agentName: 'Claude', contextNode: 'test', startTime: '2025-12-30T09:00:00Z', durationMs: 600000 }, // 10 min
       { sessionId: '2', agentName: 'Claude', contextNode: 'test', startTime: '2025-12-30T14:00:00Z', durationMs: 1200000 }, // 20 min
     ];
@@ -39,7 +39,7 @@ describe('aggregateSessionsByDay', () => {
   });
 
   it('should group sessions by day and sort by date ascending', () => {
-    const sessions: SessionMetric[] = [
+    const sessions: readonly SessionMetric[] = [
       { sessionId: '1', agentName: 'Claude', contextNode: 'test', startTime: '2025-12-30T10:00:00Z', durationMs: 300000 }, // 5 min
       { sessionId: '2', agentName: 'Claude', contextNode: 'test', startTime: '2025-12-28T10:00:00Z', durationMs: 600000 }, // 10 min
       { sessionId: '3', agentName: 'Claude', contextNode: 'test', startTime: '2025-12-29T10:00:00Z', durationMs: 900000 }, // 15 min
@@ -53,7 +53,7 @@ describe('aggregateSessionsByDay', () => {
   });
 
   it('should skip sessions without durationMs in averages', () => {
-    const sessions: SessionMetric[] = [
+    const sessions: readonly SessionMetric[] = [
       { sessionId: '1', agentName: 'Claude', contextNode: 'test', startTime: '2025-12-30T09:00:00Z', durationMs: 600000 }, // 10 min
       { sessionId: '2', agentName: 'Claude', contextNode: 'test', startTime: '2025-12-30T14:00:00Z' }, // running, no duration
       { sessionId: '3', agentName: 'Claude', contextNode: 'test', startTime: '2025-12-30T16:00:00Z', durationMs: 1200000 }, // 20 min
@@ -65,7 +65,7 @@ describe('aggregateSessionsByDay', () => {
   });
 
   it('should handle zero duration sessions', () => {
-    const sessions: SessionMetric[] = [
+    const sessions: readonly SessionMetric[] = [
       { sessionId: '1', agentName: 'Claude', contextNode: 'test', startTime: '2025-12-30T10:00:00Z', durationMs: 0 },
     ];
     const result: readonly DayAggregation[] = aggregateSessionsByDay(sessions);
@@ -75,7 +75,7 @@ describe('aggregateSessionsByDay', () => {
   });
 
   it('should round avgDurationMinutes to 1 decimal place', () => {
-    const sessions: SessionMetric[] = [
+    const sessions: readonly SessionMetric[] = [
       { sessionId: '1', agentName: 'Claude', contextNode: 'test', startTime: '2025-12-30T09:00:00Z', durationMs: 100000 }, // 1.666... min
       { sessionId: '2', agentName: 'Claude', contextNode: 'test', startTime: '2025-12-30T14:00:00Z', durationMs: 200000 }, // 3.333... min
     ];

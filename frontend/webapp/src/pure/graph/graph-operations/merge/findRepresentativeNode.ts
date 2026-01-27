@@ -14,15 +14,17 @@ function countReachableNodesInSubgraph(
     if (!node) return 0
 
     // BFS to find all reachable nodes within the subgraph
-    const visited: Set<NodeIdAndFilePath> = new Set()
-    const queue: NodeIdAndFilePath[] = [nodeId]
+    const visited: ReadonlySet<NodeIdAndFilePath> = new Set()
+    const queue: readonly NodeIdAndFilePath[] = [nodeId]
     visited.add(nodeId)
 
+    // eslint-disable-next-line functional/no-loop-statements -- BFS requires iterative traversal
     while (queue.length > 0) {
         const current: NodeIdAndFilePath = queue.shift()!
         const currentNode: GraphNode | undefined = graph.nodes[current]
         if (!currentNode) continue
 
+        // eslint-disable-next-line functional/no-loop-statements -- BFS requires iterative traversal
         for (const edge of currentNode.outgoingEdges) {
             // Only follow edges to nodes within the subgraph
             if (!subgraphNodeIds.has(edge.targetId)) continue

@@ -178,11 +178,11 @@ describe('vault-allowlist: loadAndMergeVaultPath helper', () => {
     // GIVEN: A vault path and an existing graph
     const vaultPath: string = path.join(testTmpDir, 'vault')
     await fs.mkdir(vaultPath, { recursive: true })
-    const existingGraph = createEmptyGraph()
+    const existingGraph: import('@/pure/graph').Graph = createEmptyGraph()
 
     // AND: loadVaultPathAdditively returns success with a delta
-    const mockGraph = { nodes: { 'test-node': {} } }
-    const mockDelta = [{ type: 'CreateNode', nodeId: 'test-node' }]
+    const mockGraph: { nodes: { 'test-node': object } } = { nodes: { 'test-node': {} } }
+    const mockDelta: { type: string; nodeId: string }[] = [{ type: 'CreateNode', nodeId: 'test-node' }]
     vi.mocked(loadVaultPathAdditively).mockResolvedValueOnce({
       _tag: 'Right',
       right: { graph: mockGraph, delta: mockDelta }
@@ -190,7 +190,7 @@ describe('vault-allowlist: loadAndMergeVaultPath helper', () => {
 
     // WHEN: loadAndMergeVaultPath is called
     const { loadAndMergeVaultPath } = await import('./vault-allowlist')
-    const result = await loadAndMergeVaultPath(vaultPath, existingGraph)
+    const result: { success: boolean; error?: string } = await loadAndMergeVaultPath(vaultPath, existingGraph)
 
     // THEN: Should return success
     expect(result.success).toBe(true)
@@ -201,7 +201,7 @@ describe('vault-allowlist: loadAndMergeVaultPath helper', () => {
     // GIVEN: A vault path and an existing graph
     const vaultPath: string = path.join(testTmpDir, 'vault')
     await fs.mkdir(vaultPath, { recursive: true })
-    const existingGraph = createEmptyGraph()
+    const existingGraph: import('@/pure/graph').Graph = createEmptyGraph()
 
     // AND: loadVaultPathAdditively returns Left(FileLimitExceededError)
     const fileLimitError: FileLimitExceededError = {
@@ -217,7 +217,7 @@ describe('vault-allowlist: loadAndMergeVaultPath helper', () => {
 
     // WHEN: loadAndMergeVaultPath is called
     const { loadAndMergeVaultPath } = await import('./vault-allowlist')
-    const result = await loadAndMergeVaultPath(vaultPath, existingGraph)
+    const result: { success: boolean; error?: string } = await loadAndMergeVaultPath(vaultPath, existingGraph)
 
     // THEN: Should return error
     expect(result.success).toBe(false)
