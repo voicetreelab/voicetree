@@ -17,15 +17,17 @@ export interface UnseenNode {
  *
  * This function:
  * 1. Reads the context node's containedNodeIds from its metadata
- * 2. Uses the first containedNodeId as the starting point (the parent node)
+ * 2. Uses the first containedNodeId as the starting point (the parent/task node)
  * 3. Re-runs the same graph traversal (getSubgraphByDistance with contextNodeMaxDistance from settings)
  * 4. Returns nodes that are in the new traversal but NOT in containedNodeIds
  *
  * @param contextNodeId - The ID of the context node
+ * @param searchFromNode - Optional override for the starting node (defaults to task node from containedNodeIds[0])
  * @returns Array of unseen nodes with their content (without YAML/frontmatter)
  */
 export async function getUnseenNodesAroundContextNode(
-    contextNodeId: NodeIdAndFilePath
+    contextNodeId: NodeIdAndFilePath,
+    searchFromNode?: NodeIdAndFilePath
 ): Promise<readonly UnseenNode[]> {
     const currentGraph: Graph = getGraph()
 
@@ -41,14 +43,14 @@ export async function getUnseenNodesAroundContextNode(
         throw new Error(`Context node ${contextNodeId} has no containedNodeIds metadata`)
     }
 
-    // 3. The first containedNodeId is the parent node used to create the context
-    const parentNodeId: NodeIdAndFilePath = containedNodeIds[0]
+    // 3. Use override or default to the first containedNodeId (the task node)
+    const startNodeId: NodeIdAndFilePath = searchFromNode ?? containedNodeIds[0]
 
-    // 4. Re-run the graph traversal from the parent node
+    // 4. Re-run the graph traversal from the start node
     const settings: VTSettings = await loadSettings()
     const subgraph: Graph = getSubgraphByDistance(
         currentGraph,
-        parentNodeId,
+        startNodeId,
         settings.contextNodeMaxDistance
     )
 
