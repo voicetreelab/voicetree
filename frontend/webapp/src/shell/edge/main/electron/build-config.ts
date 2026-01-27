@@ -54,7 +54,7 @@ export type BuildConfig = {
  */
 export function getBuildConfig(): BuildConfig {
   const commonEnv: CommonEnv = getCommonEnv();
-  const useRealServer = process.env.USE_REAL_SERVER === '1';
+  const useRealServer: boolean = process.env.USE_REAL_SERVER === '1';
   return (commonEnv.nodeEnv === 'development' || useRealServer)
     ? getBuildConfigDev(commonEnv)
     : getBuildConfigProd(commonEnv);
@@ -158,7 +158,7 @@ function getBuildConfigProd(commonEnv: CommonEnv): BuildConfig {
  * Usage from bash: node -e "require('./electron/build-config').printConfig()"
  */
 export function printConfig(): void {
-  const config: BuildConfig = getBuildConfig();
+  const _config: BuildConfig = getBuildConfig();
   //console.log(JSON.stringify(config, null, 2));
 }
 

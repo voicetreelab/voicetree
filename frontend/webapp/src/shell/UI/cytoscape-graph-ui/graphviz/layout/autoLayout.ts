@@ -18,7 +18,7 @@ import {CONTEXT_NODE_EDGE_LENGTH, DEFAULT_EDGE_LENGTH} from './cytoscape-graph-c
 import type {} from '@/shell/electron';
 
 // Registry for layout triggers - allows external code to trigger layout via triggerLayout(cy)
-const layoutTriggers = new Map<Core, () => void>();
+const layoutTriggers: Map<Core, () => void> = new Map<Core, () => void>();
 
 /**
  * Trigger a debounced layout run for the given cytoscape instance.

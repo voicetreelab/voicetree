@@ -1,7 +1,7 @@
 ---
 position:
-  x: 497.84124504278543
-  y: -19.220295451780448
+  x: 498
+  y: -19
 isContextNode: false
 node_id: 2
 ---

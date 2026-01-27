@@ -111,7 +111,7 @@ describe('fromCreateChildToUpsertNode', () => {
     it('should generate child ID in same folder for regular nodes', () => {
         const parentNode: GraphNode = createTestNode('tuesday/some_node.md', 0)
 
-        const delta = fromCreateChildToUpsertNode(emptyGraph, parentNode)
+        const delta: readonly import('@/pure/graph').GraphDeltaItem[] = fromCreateChildToUpsertNode(emptyGraph, parentNode)
 
         expect(delta).toHaveLength(2) // child + updated parent
         expect(delta[0].type).toBe('UpsertNode')
@@ -123,7 +123,7 @@ describe('fromCreateChildToUpsertNode', () => {
     it('should strip ctx-nodes/ from child ID when parent is in ctx-nodes/', () => {
         const parentNode: GraphNode = createTestNode('tuesday/ctx-nodes/parent_context_123.md', 0)
 
-        const delta = fromCreateChildToUpsertNode(emptyGraph, parentNode)
+        const delta: readonly import('@/pure/graph').GraphDeltaItem[] = fromCreateChildToUpsertNode(emptyGraph, parentNode)
 
         expect(delta).toHaveLength(2)
         expect(delta[0].type).toBe('UpsertNode')
@@ -136,9 +136,9 @@ describe('fromCreateChildToUpsertNode', () => {
 
     it('should use provided newFilePathIsID when explicitly passed', () => {
         const parentNode: GraphNode = createTestNode('ctx-nodes/context.md', 0)
-        const explicitChildId = 'custom/path/child.md'
+        const explicitChildId: string = 'custom/path/child.md'
 
-        const delta = fromCreateChildToUpsertNode(emptyGraph, parentNode, '# Custom', explicitChildId)
+        const delta: readonly import('@/pure/graph').GraphDeltaItem[] = fromCreateChildToUpsertNode(emptyGraph, parentNode, '# Custom', explicitChildId)
 
         expect(delta[0].type).toBe('UpsertNode')
         if (delta[0].type === 'UpsertNode') {

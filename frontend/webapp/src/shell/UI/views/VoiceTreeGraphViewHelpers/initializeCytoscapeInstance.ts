@@ -33,15 +33,15 @@ export function initializeCytoscapeInstance(config: CytoscapeInitConfig): Cytosc
 
     // Try container-based initialization first
     try {
-        const cy = cytoscape({
+        const cy: Core = cytoscape({
             ...baseOptions,
             container
         });
         return {cy, isHeadless: false};
-    } catch (error) {
+    } catch (_error) {
         // Fallback to headless mode (e.g., JSDOM without proper layout)
         //console.log('[initializeCytoscapeInstance] Container-based init failed, using headless mode:', error);
-        const cy = cytoscape({
+        const cy: Core = cytoscape({
             ...baseOptions,
             container: undefined,
             headless: true

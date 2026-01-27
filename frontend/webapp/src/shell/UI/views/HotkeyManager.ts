@@ -300,7 +300,7 @@ export class HotkeyManager {
   private resetAllHotkeys(): void {
     //console.log('[HotkeyManager] Resetting all hotkeys (focus lost or visibility change)');
 
-    for (const [hotkeyKey, hotkey] of this.hotkeys.entries()) {
+    for (const [_hotkeyKey, hotkey] of this.hotkeys.entries()) {
       if (hotkey.isPressed) {
         //console.log(`[HotkeyManager] Resetting stuck hotkey: ${hotkeyKey}`);
         hotkey.isPressed = false;
@@ -338,7 +338,7 @@ export class HotkeyManager {
 
       // DEBUG: Log hotkey attempts for Meta+W
       if (e.metaKey && e.key.toLowerCase() === 'w') {
-        const isInput: boolean = this.isInputElement(e.target as HTMLElement, e);
+        const _isInput: boolean = this.isInputElement(e.target as HTMLElement, e);
         //console.log(`[HotkeyManager] Cmd+W pressed:`, {
         //  hotkeyKey,
         //  hotkeyFound: !!hotkey,

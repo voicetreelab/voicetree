@@ -42,7 +42,7 @@ class MermaidBlockWidget extends WidgetType {
 
     private async renderMermaid(diagramSource: string): Promise<void> {
         try {
-            const mermaid = await getMermaid();
+            const mermaid: typeof import('mermaid')['default'] = await getMermaid();
             const id: string = 'mermaid-' + Math.random().toString(36).substring(2, 11);
             const result: RenderResult = await mermaid.render(id, diagramSource);
             this.rendered = result.svg;

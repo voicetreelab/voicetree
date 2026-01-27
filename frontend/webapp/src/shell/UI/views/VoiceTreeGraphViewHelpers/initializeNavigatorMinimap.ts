@@ -17,13 +17,13 @@ export function initializeNavigatorMinimap(cy: Core): NavigatorMinimapResult {
     let navigatorInstance: { destroy: () => void } | null = null;
 
     // Visibility updater - shows minimap only when 2+ nodes exist
-    const updateVisibility = (): void => {
+    const updateVisibility: () => void = (): void => {
         if (!navigatorInstance) {
             return;
         }
 
-        const nodeCount = cy.nodes().length;
-        const navigatorElement = document.querySelector('.cytoscape-navigator') as HTMLElement;
+        const nodeCount: number = cy.nodes().length;
+        const navigatorElement: HTMLElement | null = document.querySelector('.cytoscape-navigator') as HTMLElement;
 
         if (navigatorElement) {
             navigatorElement.style.display = nodeCount <= 1 ? 'none' : 'block';

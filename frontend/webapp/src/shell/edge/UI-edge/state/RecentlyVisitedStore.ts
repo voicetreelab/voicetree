@@ -5,7 +5,7 @@
  * Nodes are stored in MRU (most recently used) order - most recent first.
  */
 
-const MAX_RECENT_NODES = 12;
+const MAX_RECENT_NODES: number = 12;
 
 let recentlyVisited: string[] = [];
 

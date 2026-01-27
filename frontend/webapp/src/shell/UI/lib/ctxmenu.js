@@ -377,11 +377,6 @@
     }();
     var ctxmenu = ContextMenu.getInstance();
     window.ctxmenu = ctxmenu;
-
-    // ES Module export
-    if (typeof module !== 'undefined' && module.exports) {
-        module.exports = ctxmenu;
-    }
 })();
 
 // ES Module default export

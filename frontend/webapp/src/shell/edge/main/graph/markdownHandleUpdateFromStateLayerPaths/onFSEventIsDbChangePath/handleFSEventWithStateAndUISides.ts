@@ -1,4 +1,4 @@
-import type {FSEvent, GraphDelta, Graph, NodeIdAndFilePath} from "@/pure/graph";
+import type {FSEvent, GraphDelta, Graph} from "@/pure/graph";
 import {mapFSEventsToGraphDelta} from "@/pure/graph";
 import type {BrowserWindow} from "electron";
 import {getGraph} from "@/shell/edge/main/state/graph-store";
@@ -78,7 +78,7 @@ async function applyAndBroadcast(delta: GraphDelta): Promise<void> {
 
     // Log if any links were resolved
     if (mergedDelta.length > delta.length) {
-        const resolvedCount: number = mergedDelta.length - delta.length
+        const _resolvedCount: number = mergedDelta.length - delta.length
         //console.log(`[handleFSEvent] Resolved ${resolvedCount} linked nodes from watched folder`)
     }
 }

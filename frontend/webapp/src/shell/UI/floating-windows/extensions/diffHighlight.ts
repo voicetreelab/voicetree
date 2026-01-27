@@ -5,12 +5,12 @@ import { syntaxTree } from '@codemirror/language';
 /**
  * Line decoration for added lines (starting with +)
  */
-const addedLineDecoration = Decoration.line({ class: 'cm-diff-added' });
+const addedLineDecoration: Decoration = Decoration.line({ class: 'cm-diff-added' });
 
 /**
  * Line decoration for removed lines (starting with -)
  */
-const removedLineDecoration = Decoration.line({ class: 'cm-diff-removed' });
+const removedLineDecoration: Decoration = Decoration.line({ class: 'cm-diff-removed' });
 
 /**
  * Find lines in code blocks that start with + or - and add decorations
@@ -27,19 +27,19 @@ function findDiffLines(state: EditorState): Range<Decoration>[] {
       }
 
       // Get line range for this code block
-      const startLine = state.doc.lineAt(node.from);
-      const endLine = state.doc.lineAt(node.to);
+      const startLine: { from: number; to: number; number: number; text: string } = state.doc.lineAt(node.from);
+      const endLine: { from: number; to: number; number: number; text: string } = state.doc.lineAt(node.to);
 
       // Iterate through lines in the code block (skip first and last which are ```)
-      for (let lineNum = startLine.number + 1; lineNum < endLine.number; lineNum++) {
-        const line = state.doc.line(lineNum);
-        const lineText = line.text;
+      for (let lineNum: number = startLine.number + 1; lineNum < endLine.number; lineNum++) {
+        const line: { from: number; to: number; number: number; text: string } = state.doc.line(lineNum);
+        const lineText: string = line.text;
 
         // Check if first non-whitespace character is + or -
-        const trimmed = lineText.trimStart();
+        const trimmed: string = lineText.trimStart();
         if (trimmed.length === 0) continue;
 
-        const firstChar = trimmed[0];
+        const firstChar: string = trimmed[0];
         if (firstChar === '+') {
           decorations.push(addedLineDecoration.range(line.from));
         } else if (firstChar === '-') {

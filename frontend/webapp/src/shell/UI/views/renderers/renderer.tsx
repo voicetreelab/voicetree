@@ -18,7 +18,7 @@ export default function Renderer({ tokens, placeholder, onPlaceholderClick, isRe
   let lastSpeaker: string | undefined;
   let lastLanguage: string | undefined;
 
-  const showPlaceholder = tokens.length === 0 && !isRecording;
+  const showPlaceholder: boolean = tokens.length === 0 && !isRecording;
 
   return (
     <>
