@@ -17,7 +17,9 @@ Now you can effortlessly switch between swarms of parallel agents across your pr
 
 ### macOS (Apple Silicon)
 
-Download directly or install via Homebrew:
+[Download for Mac (Apple Silicon)](https://github.com/voicetreelab/voicetree/releases/latest/download/voicetree-arm64.dmg)
+
+Or install via Homebrew:
 
 ```bash
 brew tap voicetreelab/voicetree && brew install voicetree
@@ -25,7 +27,9 @@ brew tap voicetreelab/voicetree && brew install voicetree
 
 ### macOS (Intel)
 
-Download directly or install via Homebrew:
+[Download for Mac (Intel)](https://github.com/voicetreelab/voicetree/releases/latest/download/voicetree-x64.dmg)
+
+Or install via Homebrew:
 
 ```bash
 brew tap voicetreelab/voicetree && brew install voicetree
@@ -33,11 +37,13 @@ brew tap voicetreelab/voicetree && brew install voicetree
 
 ### Windows
 
-Download the Windows installer from [releases](https://github.com/voicetreelab/voicetree/releases).
+[Download for Windows](https://github.com/voicetreelab/voicetree/releases/latest/download/voicetree.exe)
 
 ### Linux
 
-Download the AppImage or install via script:
+[Download AppImage](https://github.com/voicetreelab/voicetree/releases/latest/download/voicetree.AppImage)
+
+Or install via script:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/voicetreelab/voicetree/main/install.sh | sh
@@ -117,4 +123,8 @@ Feedback is immensely valuable. Email us with any thoughts, criticisms, or featu
 
 ## License
 
-This project is licensed under BSL1.1
+This project is licensed under the Business Source License 1.1 (BSL 1.1).
+
+The code automatically converts to Apache 2.0 after 4 years.
+
+See the [LICENSE](LICENSE) file for full details.

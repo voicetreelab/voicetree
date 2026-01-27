@@ -258,10 +258,10 @@ export function ProjectSelectionScreen({ onProjectSelected }: ProjectSelectionSc
                                             {getProjectTypeIcon(project.type)}
                                         </span>
                                         <div className="flex-1 min-w-0">
-                                            <div className="font-medium text-foreground truncate">
+                                            <div className="font-medium text-foreground truncate vt-project-name">
                                                 {project.name}
                                             </div>
-                                            <div className="text-xs text-muted-foreground truncate">
+                                            <div className="text-xs text-muted-foreground truncate vt-project-path">
                                                 {project.path}
                                             </div>
                                         </div>
@@ -308,10 +308,10 @@ export function ProjectSelectionScreen({ onProjectSelected }: ProjectSelectionSc
                                             {getProjectTypeIcon(project.type)}
                                         </span>
                                         <div className="flex-1 min-w-0">
-                                            <div className="font-medium text-foreground truncate">
+                                            <div className="font-medium text-foreground truncate vt-project-name">
                                                 {project.name}
                                             </div>
-                                            <div className="text-xs text-muted-foreground truncate">
+                                            <div className="text-xs text-muted-foreground truncate vt-project-path">
                                                 {project.path}
                                             </div>
                                         </div>

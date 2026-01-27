@@ -7,7 +7,7 @@
 
 import type { Core } from 'cytoscape';
 import * as O from 'fp-ts/lib/Option.js';
-import { X, Pin, Maximize, createElement } from 'lucide';
+import { Minus, Pin, Maximize, createElement } from 'lucide';
 import { isImageNode, type NodeIdAndFilePath } from '@/pure/graph';
 import type { ShadowNodeId, TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import { isAnchored, getShadowNodeIdFromData, getTerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
@@ -69,11 +69,11 @@ export function createTrafficLights(options: TrafficLightOptions): HTMLDivElemen
     container.style.alignItems = 'center';
     container.style.gap = '4px';
 
-    // Close button (red)
+    // Minimize button (orange)
     const closeBtn: HTMLButtonElement = document.createElement('button');
     closeBtn.className = 'traffic-light traffic-light-close';
     closeBtn.type = 'button';
-    const closeIcon: SVGElement = createElement(X);
+    const closeIcon: SVGElement = createElement(Minus);
     closeIcon.setAttribute('width', '10');
     closeIcon.setAttribute('height', '10');
     closeBtn.appendChild(closeIcon);
