@@ -64,10 +64,14 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
 
             // If this was the write path, update it
             if (editingPath === writePath) {
-                await window.electronAPI.main.setWritePath(newAbsPath);
+                const setResult: AddVaultResult = await window.electronAPI.main.setWritePath(newAbsPath);
+                if (!setResult.success) {
+                    setEditError(setResult.error ?? 'Failed to set write path');
+                    return;
+                }
             }
 
-            // Remove old path
+            // Only remove old path after successful setWritePath
             await window.electronAPI.main.removeReadPath(editingPath);
 
             setEditingPath(null);

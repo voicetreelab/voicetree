@@ -53,7 +53,6 @@ import {
 } from "./vault-allowlist";
 import { setupWatcher } from "./file-watcher-setup";
 import { createStarterNode } from "./create-starter-node";
-// Re-export for app quit cleanup
 
 export async function initialLoad(): Promise<void> {
     // If already watching a directory, don't reload
