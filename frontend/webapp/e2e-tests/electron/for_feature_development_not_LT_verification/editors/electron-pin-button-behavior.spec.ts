@@ -266,7 +266,7 @@ test.describe('Pin Button Behavior - Bug Reproduction Tests', () => {
         expect(pinnedSectionAfter.childCount).toBe(pinnedSectionBefore + 1);
 
         // Verify the pinned tab has the correct node ID
-        const pinnedTabNodeId = await appWindow.evaluate((expectedId: string) => {
+        const pinnedTabNodeId = await appWindow.evaluate((_expectedId: string) => {
             const pinnedSection = document.querySelector('[data-testid="pinned-tabs-section"]');
             const pinnedTab = pinnedSection?.querySelector('[data-node-id]');
             return pinnedTab?.getAttribute('data-node-id') ?? null;

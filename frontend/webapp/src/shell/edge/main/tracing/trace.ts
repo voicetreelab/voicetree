@@ -85,7 +85,7 @@ export async function trace<T>(label: string, fn: () => Promise<T>): Promise<T> 
         return result
     } finally {
         performance.mark(endMark)
-        const duration: number = performance.now() - startTime
+        const _duration: number = performance.now() - startTime
 
         try {
             performance.measure(label, startMark, endMark)
@@ -113,7 +113,7 @@ export function traceSync<T>(label: string, fn: () => T): T {
         return result
     } finally {
         performance.mark(endMark)
-        const duration: number = performance.now() - startTime
+        const _duration: number = performance.now() - startTime
 
         try {
             performance.measure(label, startMark, endMark)

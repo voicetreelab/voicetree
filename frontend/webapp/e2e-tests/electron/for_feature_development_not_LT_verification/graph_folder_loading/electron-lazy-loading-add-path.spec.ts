@@ -490,7 +490,7 @@ testFileChange.describe('Lazy Loading - File Change Triggers', () => {
   testFileChange('should lazy load nodes when a file change adds a new link to readPath', async ({
     appWindow,
     writePath,
-    readPath  // Include to ensure fixture runs and creates the directory
+    _readPath  // Include to ensure fixture runs and creates the directory
   }) => {
     testFileChange.setTimeout(30000);
 

@@ -11,7 +11,7 @@
  * URL: http://localhost:3001/mcp
  */
 
-import {startMcpServer, getMcpPort} from './mcp-server'
+import {startMcpServer} from './mcp-server'
 
 //console.log(`[MCP] Starting standalone MCP server on port ${getMcpPort()}...`)
 

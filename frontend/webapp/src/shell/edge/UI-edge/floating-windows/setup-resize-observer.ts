@@ -52,7 +52,7 @@ export function setupResizeObserver(
         return undefined;
     }
 
-    const resizeObserver = new ResizeObserver(() => {
+    const resizeObserver: ResizeObserver = new ResizeObserver(() => {
         // Capture old graph dimensions from shadow node (the source of truth)
         const oldWidth: number = shadowNode.width();
         const oldHeight: number = shadowNode.height();

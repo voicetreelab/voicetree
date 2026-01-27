@@ -94,7 +94,7 @@ export function attachDragReorderBehavior(
     const { ghostClass, draggingClass, onReorder, itemSelector } = config;
 
     // Get all draggable items
-    const getItems = (): HTMLElement[] => {
+    const getItems: () => HTMLElement[] = (): HTMLElement[] => {
         if (itemSelector) {
             return Array.from(container.querySelectorAll(itemSelector)) as HTMLElement[];
         }
@@ -102,7 +102,7 @@ export function attachDragReorderBehavior(
     };
 
     // Container-level dragover handler for dropping at the end
-    const onContainerDragOver = (e: DragEvent): void => {
+    const onContainerDragOver: (e: DragEvent) => void = (e: DragEvent): void => {
         e.preventDefault();
         if (e.dataTransfer) {
             e.dataTransfer.dropEffect = 'move';
@@ -121,7 +121,7 @@ export function attachDragReorderBehavior(
     };
 
     // Container-level drop handler
-    const onContainerDrop = (e: DragEvent): void => {
+    const onContainerDrop: (e: DragEvent) => void = (e: DragEvent): void => {
         e.preventDefault();
         const fromIndex: number = parseInt(e.dataTransfer?.getData('text/plain') ?? '-1');
         const targetIndex: number | null = state.ghostTargetIndex;
@@ -143,12 +143,12 @@ export function attachDragReorderBehavior(
     /**
      * Attach drag handlers to a single item
      */
-    const attachItemHandlers = (
+    const _attachItemHandlers: (item: HTMLElement, wrapper: HTMLElement, index: number) => () => void = (
         item: HTMLElement,
         wrapper: HTMLElement,
         index: number
     ): () => void => {
-        const onDragStart = (e: DragEvent): void => {
+        const onDragStart: (e: DragEvent) => void = (e: DragEvent): void => {
             e.stopPropagation();
             item.classList.add(draggingClass);
             e.dataTransfer?.setData('text/plain', String(index));
@@ -159,14 +159,14 @@ export function attachDragReorderBehavior(
             state.ghostElement = createGhostElement(ghostClass);
         };
 
-        const onDragEnd = (e: DragEvent): void => {
+        const onDragEnd: (e: DragEvent) => void = (e: DragEvent): void => {
             e.stopPropagation();
             item.classList.remove(draggingClass);
             removeGhostElement(state);
             state.draggingFromIndex = null;
         };
 
-        const onDragOver = (e: DragEvent): void => {
+        const onDragOver: (e: DragEvent) => void = (e: DragEvent): void => {
             e.preventDefault();
             e.stopPropagation();
             if (e.dataTransfer) {
@@ -194,11 +194,11 @@ export function attachDragReorderBehavior(
             }
         };
 
-        const onDragLeave = (e: DragEvent): void => {
+        const onDragLeave: (e: DragEvent) => void = (e: DragEvent): void => {
             e.stopPropagation();
         };
 
-        const onDrop = (e: DragEvent): void => {
+        const onDrop: (e: DragEvent) => void = (e: DragEvent): void => {
             e.preventDefault();
             e.stopPropagation();
             const fromIndex: number = parseInt(e.dataTransfer?.getData('text/plain') ?? '-1');
@@ -260,7 +260,7 @@ export function attachItemDragHandlers(
 ): () => void {
     const { ghostClass, draggingClass, onReorder } = config;
 
-    const onDragStart = (e: DragEvent): void => {
+    const onDragStart: (e: DragEvent) => void = (e: DragEvent): void => {
         e.stopPropagation();
         item.classList.add(draggingClass);
         e.dataTransfer?.setData('text/plain', String(index));
@@ -271,14 +271,14 @@ export function attachItemDragHandlers(
         state.ghostElement = createGhostElement(ghostClass);
     };
 
-    const onDragEnd = (e: DragEvent): void => {
+    const onDragEnd: (e: DragEvent) => void = (e: DragEvent): void => {
         e.stopPropagation();
         item.classList.remove(draggingClass);
         removeGhostElement(state);
         state.draggingFromIndex = null;
     };
 
-    const onDragOver = (e: DragEvent): void => {
+    const onDragOver: (e: DragEvent) => void = (e: DragEvent): void => {
         e.preventDefault();
         e.stopPropagation();
         if (e.dataTransfer) {
@@ -306,11 +306,11 @@ export function attachItemDragHandlers(
         }
     };
 
-    const onDragLeave = (e: DragEvent): void => {
+    const onDragLeave: (e: DragEvent) => void = (e: DragEvent): void => {
         e.stopPropagation();
     };
 
-    const onDrop = (e: DragEvent): void => {
+    const onDrop: (e: DragEvent) => void = (e: DragEvent): void => {
         e.preventDefault();
         e.stopPropagation();
         const fromIndex: number = parseInt(e.dataTransfer?.getData('text/plain') ?? '-1');

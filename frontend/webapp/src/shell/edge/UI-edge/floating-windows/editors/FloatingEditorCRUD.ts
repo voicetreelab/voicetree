@@ -583,7 +583,7 @@ export async function handleAddNodeAtPosition(cy: Core, position: Position): Pro
     try {
         // Pass position directly to Electron - it will save it immediately
         // Editor auto-pinning handled by file watcher in VoiceTreeGraphView
-        const nodeId: string = await createNewEmptyOrphanNodeFromUI(position, cy);
+        const _nodeId: string = await createNewEmptyOrphanNodeFromUI(position, cy);
         //console.log('[FloatingEditorManager-v2] Creating node:', nodeId);
     } catch (error) {
         console.error('[FloatingEditorManager-v2] Error creating standalone node:', error);

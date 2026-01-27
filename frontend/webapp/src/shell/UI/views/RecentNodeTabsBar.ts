@@ -103,8 +103,8 @@ export function renderRecentNodeTabsV2(
     }
 
     // Create tab for each recent node (right section)
-    for (let index = 0; index < history.length; index++) {
-        const entry = history[index]
+    for (let index: number = 0; index < history.length; index++) {
+        const entry: UpsertNodeDelta = history[index]
         const tab: HTMLElement = createTab(entry, onNavigate, index)
         state.tabsContainer.appendChild(tab)
     }

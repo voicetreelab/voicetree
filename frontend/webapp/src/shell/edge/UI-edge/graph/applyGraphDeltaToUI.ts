@@ -1,7 +1,6 @@
 import type {Core, NodeSingular, CollectionReturnValue, EdgeCollection} from "cytoscape";
 import type {GraphDelta, GraphNode} from "@/pure/graph";
 import * as O from 'fp-ts/lib/Option.js';
-import {prettyPrintGraphDelta} from "@/pure/graph";
 import {getNodeTitle} from "@/pure/graph/markdown-parsing";
 import {hasActualContentChanged} from "@/pure/graph/contentChangeDetection";
 import posthog from "posthog-js";
@@ -293,7 +292,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
     // Defer non-critical analytics and engagement prompts to idle time
     scheduleIdleWork(() => {
         posthog.capture('graphDelta');
-        const userId: string = posthog.get_distinct_id();
+        const _userId: string = posthog.get_distinct_id();
         //console.log("UUID", userId);
 
         // Show engagement prompts after enough deltas created in session

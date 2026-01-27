@@ -54,6 +54,16 @@ import {
 import { setupWatcher } from "./file-watcher-setup";
 import { createStarterNode } from "./create-starter-node";
 
+// Re-export vault-allowlist functions for api.ts
+export {
+    getVaultPaths,
+    getReadPaths,
+    getWritePath,
+    setWritePath,
+    addReadPath,
+    removeReadPath,
+} from "./vault-allowlist";
+
 export async function initialLoad(): Promise<void> {
     // If already watching a directory, don't reload
     // This prevents race conditions when startFileWatching() is called before markFrontendReady()

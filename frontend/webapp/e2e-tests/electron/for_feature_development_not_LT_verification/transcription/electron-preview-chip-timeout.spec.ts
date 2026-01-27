@@ -189,7 +189,7 @@ test.describe('Transcription Preview Chip Timeout', () => {
       };
 
       // Show the preview chip
-      showTranscriptionPreview(text, target, { onTimeout });
+      void showTranscriptionPreview(text, target, { onTimeout });
       console.log('[PreviewChip] Preview chip shown with text:', text);
       return true;
     }, { text, serverEndpoint });
@@ -317,7 +317,7 @@ test.describe('Transcription Preview Chip Timeout', () => {
     const endpoint = `http://localhost:${backendPort}/send-text`;
 
     // Get initial content
-    const initialContent = await getEditorContent(appWindow);
+    const _initialContent = await getEditorContent(appWindow);
 
     await showPreviewChipDirectly(appWindow, testText, endpoint);
     await expect(appWindow.locator('.transcription-preview-chip')).toBeVisible({ timeout: 2000 });
@@ -377,11 +377,11 @@ test.describe('Transcription Preview Chip Timeout', () => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text, force_flush: false })
-        });
+        }).catch(err => console.error('[PreviewChip] Server send failed:', err));
       };
 
       // The promise resolves when user presses Enter (true) or Escape (false)
-      showTranscriptionPreview(text, target, { onTimeout }).then(inserted => {
+      void showTranscriptionPreview(text, target, { onTimeout }).then(inserted => {
         // If Escape was pressed (not inserted) and timeout didn't fire, send to server
         if (!inserted && !sentOnTimeout) {
           console.log('[PreviewChip] Escape before timeout - sending to server');
@@ -389,7 +389,7 @@ test.describe('Transcription Preview Chip Timeout', () => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text, force_flush: false })
-          });
+          }).catch(err => console.error('[PreviewChip] Server send failed:', err));
         }
       });
 

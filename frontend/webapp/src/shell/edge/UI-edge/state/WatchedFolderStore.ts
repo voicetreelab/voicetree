@@ -35,8 +35,8 @@ export function toRelativePath(nodeId: string): string {
     }
 
     // Normalize paths to use forward slashes
-    const normalizedNodeId = nodeId.replace(/\\/g, '/');
-    const normalizedWatchedFolder = watchedFolder.replace(/\\/g, '/');
+    const normalizedNodeId: string = nodeId.replace(/\\/g, '/');
+    const normalizedWatchedFolder: string = watchedFolder.replace(/\\/g, '/');
 
     // Check if nodeId starts with watched folder path
     if (normalizedNodeId.startsWith(normalizedWatchedFolder + '/')) {

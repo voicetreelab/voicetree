@@ -7,7 +7,7 @@ import { EditorView, ViewUpdate, ViewPlugin, keymap, tooltips } from '@codemirro
 import { indentWithTab } from '@codemirror/commands';
 import { basicSetup } from 'codemirror';
 import { startCompletion } from '@codemirror/autocomplete';
-import { syntaxHighlighting, foldEffect, foldable, foldService, HighlightStyle, defaultHighlightStyle } from '@codemirror/language';
+import { syntaxHighlighting, foldService, HighlightStyle, defaultHighlightStyle } from '@codemirror/language';
 import type { LanguageSupport } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
 import type { Tree } from '@lezer/common';

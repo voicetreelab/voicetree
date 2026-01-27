@@ -79,43 +79,43 @@ function findAttribute(
   key: string
 ): AnyValue | undefined {
   if (!attributes) return undefined;
-  const attr = attributes.find((kv) => kv.key === key);
+  const attr: KeyValue | undefined = attributes.find((kv: KeyValue) => kv.key === key);
   return attr?.value;
 }
 
 export function parseOTLPMetrics(request: OTLPMetricsRequest): ParsedMetrics {
-  let sessionId = 'unknown';
-  const tokens = {
+  let sessionId: string = 'unknown';
+  const tokens: { input: number; output: number; cacheRead: number; cacheWrite: number } = {
     input: 0,
     output: 0,
     cacheRead: 0,
     cacheWrite: 0,
   };
-  let costUsd = 0;
+  let costUsd: number = 0;
 
   // Extract metrics (session ID comes from dataPoint attributes, not resource)
-  for (const resourceMetric of request.resourceMetrics || []) {
-    for (const scopeMetric of resourceMetric.scopeMetrics || []) {
-      for (const metric of scopeMetric.metrics || []) {
-        const metricName = metric.name;
+  for (const resourceMetric of request.resourceMetrics ?? []) {
+    for (const scopeMetric of resourceMetric.scopeMetrics ?? []) {
+      for (const metric of scopeMetric.metrics ?? []) {
+        const metricName: string | undefined = metric.name;
 
         if (metricName === 'claude_code.token.usage') {
-          const dataPoints = metric.sum?.dataPoints || metric.gauge?.dataPoints || [];
+          const dataPoints: NumberDataPoint[] = metric.sum?.dataPoints ?? metric.gauge?.dataPoints ?? [];
 
           for (const dataPoint of dataPoints) {
             // Extract session ID from dataPoint attributes (Claude sends 'session.id')
             if (sessionId === 'unknown') {
-              const sessionIdAttr = findAttribute(dataPoint.attributes, 'session.id');
+              const sessionIdAttr: AnyValue | undefined = findAttribute(dataPoint.attributes, 'session.id');
               if (sessionIdAttr) {
-                sessionId = getStringValue(sessionIdAttr) || sessionId;
+                sessionId = getStringValue(sessionIdAttr) ?? sessionId;
               }
             }
 
             // Claude sends 'type' attribute, not 'token_type'
-            const tokenType = getStringValue(
+            const tokenType: string | undefined = getStringValue(
               findAttribute(dataPoint.attributes, 'type')
             );
-            const value = getDataPointValue(dataPoint);
+            const value: number = getDataPointValue(dataPoint);
 
             // Claude sends 'cacheRead' and 'cacheCreation', not 'cache_read' / 'cache_write'
             switch (tokenType) {
@@ -134,14 +134,14 @@ export function parseOTLPMetrics(request: OTLPMetricsRequest): ParsedMetrics {
             }
           }
         } else if (metricName === 'claude_code.cost.usage') {
-          const dataPoints = metric.sum?.dataPoints || metric.gauge?.dataPoints || [];
+          const dataPoints: NumberDataPoint[] = metric.sum?.dataPoints ?? metric.gauge?.dataPoints ?? [];
 
           for (const dataPoint of dataPoints) {
             // Also extract session ID from cost metrics if not found yet
             if (sessionId === 'unknown') {
-              const sessionIdAttr = findAttribute(dataPoint.attributes, 'session.id');
+              const sessionIdAttr: AnyValue | undefined = findAttribute(dataPoint.attributes, 'session.id');
               if (sessionIdAttr) {
-                sessionId = getStringValue(sessionIdAttr) || sessionId;
+                sessionId = getStringValue(sessionIdAttr) ?? sessionId;
               }
             }
             costUsd += getDataPointValue(dataPoint);

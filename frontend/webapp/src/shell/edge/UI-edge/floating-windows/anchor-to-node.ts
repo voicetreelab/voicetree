@@ -161,7 +161,7 @@ export function anchorToNode(
         });
 
         // DEBUG: Log overlap detection result
-        const dirName: string = dir.dx === 1 ? 'right' : dir.dx === -1 ? 'left' : dir.dy === 1 ? 'below' : 'above';
+        const _dirName: string = dir.dx === 1 ? 'right' : dir.dx === -1 ? 'left' : dir.dy === 1 ? 'below' : 'above';
         //console.log(`[anchorToNode] Direction ${dirName}: hasOverlap=${hasOverlap}, candidatePos=(${actualPos.x.toFixed(1)}, ${actualPos.y.toFixed(1)})`);
 
         if (!hasOverlap) {

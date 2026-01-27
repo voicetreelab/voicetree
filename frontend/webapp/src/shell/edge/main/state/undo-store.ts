@@ -12,10 +12,10 @@ import {
 let undoState: UndoState = createEmptyUndoState()
 
 // Getter for current undo state (primarily for debugging/testing)
-export const getUndoState = (): UndoState => undoState
+export const getUndoState: () => UndoState = (): UndoState => undoState
 
 // Reset undo state (e.g., when changing vaults) todo
-export const resetUndoState = (): void => {
+export const resetUndoState: () => void = (): void => {
     undoState = createEmptyUndoState()
 }
 
@@ -23,7 +23,7 @@ export const resetUndoState = (): void => {
  * Records a user action for undo support.
  * Call this BEFORE applying the delta to the graph.
  */
-export const recordUserActionAndSetDeltaHistoryState = (delta: GraphDelta): void => {
+export const recordUserActionAndSetDeltaHistoryState: (delta: GraphDelta) => void = (delta: GraphDelta): void => {
     undoState = pushUndo(undoState, delta)
 }
 
@@ -31,7 +31,7 @@ export const recordUserActionAndSetDeltaHistoryState = (delta: GraphDelta): void
  * Pops from undo stack and returns the reversed delta to apply.
  * Returns undefined if nothing to undo.
  */
-export const popUndoDelta = (): GraphDelta | undefined => {
+export const popUndoDelta: () => GraphDelta | undefined = (): GraphDelta | undefined => {
     const { newState, deltaToReverse } = popUndo(undoState)
     undoState = newState
 
@@ -46,12 +46,12 @@ export const popUndoDelta = (): GraphDelta | undefined => {
  * Pops from redo stack and returns the delta to re-apply.
  * Returns undefined if nothing to redo.
  */
-export const popRedoDelta = (): GraphDelta | undefined => {
+export const popRedoDelta: () => GraphDelta | undefined = (): GraphDelta | undefined => {
     const { newState, deltaToApply } = popRedo(undoState)
     undoState = newState
     return deltaToApply
 }
 
 // Convenience getters for UI feedback
-export const canUndo = (): boolean => undoState.undoStack.length > 0
-export const canRedo = (): boolean => undoState.redoStack.length > 0
+export const canUndo: () => boolean = (): boolean => undoState.undoStack.length > 0
+export const canRedo: () => boolean = (): boolean => undoState.redoStack.length > 0

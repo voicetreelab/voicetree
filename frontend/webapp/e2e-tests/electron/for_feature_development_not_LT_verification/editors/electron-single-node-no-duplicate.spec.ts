@@ -12,7 +12,7 @@
 import { test as base, expect, _electron as electron } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
-import type { Core as CytoscapeCore, NodeSingular } from 'cytoscape';
+import type { Core as CytoscapeCore } from 'cytoscape';
 import type { ElectronAPI } from '@/shell/electron';
 import * as fs from 'fs/promises';
 import * as os from 'os';
@@ -313,7 +313,7 @@ test.describe('Single Node Creation - No Duplicate Files', () => {
     console.log('✅ Test complete!');
   });
 
-  test('should not create duplicate nodes when creating multiple nodes', async ({ appWindow, testVaultPath, watchedFolder }) => {
+  test('should not create duplicate nodes when creating multiple nodes', async ({ appWindow, _testVaultPath, watchedFolder }) => {
     test.setTimeout(90000);
     console.log('=== Testing multiple node creation (no duplicates) ===');
 

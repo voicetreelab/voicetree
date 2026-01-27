@@ -5,9 +5,9 @@ import http from 'http';
 import { parseOTLPMetrics, type OTLPMetricsRequest } from './otlp-parser';
 import { appendTokenMetrics } from './agent-metrics-store';
 
-const OTLP_BASE_PORT = 4318;
-const OTLP_MAX_PORT_ATTEMPTS = 10;
-const OTLP_HOST = 'localhost';
+const OTLP_BASE_PORT: number = 4318;
+const OTLP_MAX_PORT_ATTEMPTS: number = 10;
+const OTLP_HOST: string = 'localhost';
 
 let server: http.Server | null = null;
 let activePort: number | null = null;
@@ -29,12 +29,13 @@ async function handleMetricsRequest(
     chunks.push(chunk);
   });
 
-  req.on('end', async () => {
+  req.on('end', () => {
+    void (async (): Promise<void> => {
     try {
-      const body = Buffer.concat(chunks).toString('utf-8');
+      const body: string = Buffer.concat(chunks).toString('utf-8');
       const payload: OTLPMetricsRequest = JSON.parse(body);
 
-      const parsedMetrics = parseOTLPMetrics(payload);
+      const parsedMetrics: { sessionId: string; tokens: { input: number; output: number; cacheRead: number; cacheWrite?: number }; costUsd: number } = parseOTLPMetrics(payload);
 
       //console.log('[OTLP Receiver] Received metrics:', {
       //  sessionId: parsedMetrics.sessionId,
@@ -66,12 +67,13 @@ async function handleMetricsRequest(
         message: 'Failed to parse OTLP metrics',
       }));
     }
+    })();
   });
 }
 
 function tryListenOnPort(port: number): Promise<boolean> {
   return new Promise((resolve) => {
-    const testServer = http.createServer((req, res) => {
+    const testServer: http.Server = http.createServer((req: http.IncomingMessage, res: http.ServerResponse) => {
       void handleMetricsRequest(req, res);
     });
 
@@ -100,9 +102,9 @@ export async function startOTLPReceiver(): Promise<void> {
     return;
   }
 
-  for (let i = 0; i < OTLP_MAX_PORT_ATTEMPTS; i++) {
-    const port = OTLP_BASE_PORT + i;
-    const success = await tryListenOnPort(port);
+  for (let i: number = 0; i < OTLP_MAX_PORT_ATTEMPTS; i++) {
+    const port: number = OTLP_BASE_PORT + i;
+    const success: boolean = await tryListenOnPort(port);
     if (success) {
       return;
     }

@@ -225,7 +225,7 @@ function createWindow(): void {
     setMainWindow(mainWindow);
 
     // Pipe renderer console logs to electron terminal
-    mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    mainWindow.webContents.on('console-message', (_event, _level, message, _line, _sourceId) => {
         // Filter out Electron security warnings in dev mode
         if (message.includes('Electron Security Warning')) return;
 

@@ -7,8 +7,7 @@ import { test, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
   waitForCytoscapeReady,
-  sendGraphDelta,
-  type ExtendedWindow
+  sendGraphDelta
 } from '@e2e/playwright-browser/graph-delta-test-utils';
 import type { GraphDelta, NodeDelta } from '@/pure/graph';
 

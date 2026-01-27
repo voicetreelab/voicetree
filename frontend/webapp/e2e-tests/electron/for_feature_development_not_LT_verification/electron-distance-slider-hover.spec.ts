@@ -431,7 +431,7 @@ test.describe('Distance Slider Hover', () => {
     console.log(`✓ Found non-context node: ${nodeId}`);
 
     // First, ensure no highlights
-    let highlightedNodes = await getNodesWithClass(appWindow, 'context-contained');
+    const highlightedNodes = await getNodesWithClass(appWindow, 'context-contained');
     console.log(`Initial highlighted nodes: ${highlightedNodes.length}`);
 
     // Hover over the node to trigger horizontal menu
@@ -454,7 +454,7 @@ test.describe('Distance Slider Hover', () => {
     const squares = getSliderSquares(appWindow);
 
     // Check highlights with initial distance
-    let highlightCount1 = (await getNodesWithClass(appWindow, 'context-contained')).length;
+    const highlightCount1 = (await getNodesWithClass(appWindow, 'context-contained')).length;
     console.log(`Highlighted nodes at initial distance: ${highlightCount1}`);
 
     // Now hover over a different square (say, square 2 for distance 2)
@@ -463,7 +463,7 @@ test.describe('Distance Slider Hover', () => {
     await appWindow.waitForTimeout(400);
 
     // Check highlights - they may have changed based on the new distance
-    let highlightCount2 = (await getNodesWithClass(appWindow, 'context-contained')).length;
+    const highlightCount2 = (await getNodesWithClass(appWindow, 'context-contained')).length;
     console.log(`Highlighted nodes at distance 2: ${highlightCount2}`);
 
     // Now hover over square 8 for distance 8
@@ -471,7 +471,7 @@ test.describe('Distance Slider Hover', () => {
     await squares.nth(7).hover();
     await appWindow.waitForTimeout(400);
 
-    let highlightCount3 = (await getNodesWithClass(appWindow, 'context-contained')).length;
+    const highlightCount3 = (await getNodesWithClass(appWindow, 'context-contained')).length;
     console.log(`Highlighted nodes at distance 8: ${highlightCount3}`);
 
     // With a larger distance, we should have the same or more highlighted nodes

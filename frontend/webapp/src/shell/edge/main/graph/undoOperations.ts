@@ -2,13 +2,14 @@ import { popUndoDelta, popRedoDelta } from '@/shell/edge/main/state/undo-store'
 import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange";
+import type { GraphDelta } from '@/pure/graph';
 
 /**
  * Performs undo operation by reversing the last user action.
  * Returns true if undo was performed, false if nothing to undo.
  */
 export async function performUndo(): Promise<boolean> {
-    const reverseDelta = popUndoDelta()
+    const reverseDelta: GraphDelta | undefined = popUndoDelta()
     if (reverseDelta === undefined) {
         return false
     }
@@ -22,7 +23,7 @@ export async function performUndo(): Promise<boolean> {
  * Returns true if redo was performed, false if nothing to redo.
  */
 export async function performRedo(): Promise<boolean> {
-    const deltaToApply = popRedoDelta()
+    const deltaToApply: GraphDelta | undefined = popRedoDelta()
     if (deltaToApply === undefined) {
         return false
     }

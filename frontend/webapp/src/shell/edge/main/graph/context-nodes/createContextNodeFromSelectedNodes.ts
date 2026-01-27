@@ -10,13 +10,13 @@ import type { Graph, GraphDelta, NodeIdAndFilePath, GraphNode } from '@/pure/gra
 import { CONTEXT_NODES_FOLDER } from '@/pure/graph'
 import { getNodeTitle, parseMarkdownToGraphNode } from '@/pure/graph/markdown-parsing'
 import { getGraph } from '@/shell/edge/main/state/graph-store'
-import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import * as O from 'fp-ts/lib/Option.js'
 import { calculateInitialPositionForChild } from '@/pure/graph/positioning/calculateInitialPosition'
 import {
   applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange'
 import { ensureUniqueNodeId } from '@/pure/graph/ensureUniqueNodeId'
+import {getWritePath} from "@/shell/edge/main/graph/watch_folder/vault-allowlist";
 
 /**
  * Creates a context node from explicitly selected nodes.

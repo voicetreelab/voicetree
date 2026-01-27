@@ -34,16 +34,19 @@ import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaT
 let currentGraph: Graph | null = null
 let tempVault: string = ''
 
-// Mock Electron's ipcMain
-const ipcMain: { _handlers: Map<string, Function>; handle(channel: string, handler: Function): void; removeHandler(channel: string): void; } = {
-    _handlers: new Map<string, Function>(),
-    handle(channel: string, handler: Function) {
-        this._handlers.set(channel, handler)
-    },
-    removeHandler(channel: string) {
-        this._handlers.delete(channel)
+// Use vi.hoisted() for values that need to be available when vi.mock factory runs
+const { ipcMain } = vi.hoisted(() => {
+    const ipcMain: { _handlers: Map<string, Function>; handle(channel: string, handler: Function): void; removeHandler(channel: string): void; } = {
+        _handlers: new Map<string, Function>(),
+        handle(channel: string, handler: Function) {
+            this._handlers.set(channel, handler)
+        },
+        removeHandler(channel: string) {
+            this._handlers.delete(channel)
+        }
     }
-}
+    return { ipcMain }
+})
 
 // Mock electron module
 vi.mock('electron', () => ({
@@ -96,9 +99,26 @@ vi.mock('@/shell/edge/main/state/graph-store', () => {
     }
 })
 
-// Mock watchFolder for vault path functions
-vi.mock('@/shell/edge/main/graph/watchFolder', () => {
+// Mock watch-folder-store for watched directory state
+vi.mock('@/shell/edge/main/state/watch-folder-store', () => {
     return {
+        getWatcher: vi.fn(() => null),
+        setWatcher: vi.fn(),
+        getWatchedDirectory: () => tempVault || null,
+        setWatchedDirectory: vi.fn(),
+        getStartupFolderOverride: vi.fn(() => null),
+        setStartupFolderOverride: vi.fn(),
+        getOnFolderSwitchCleanup: vi.fn(() => null),
+        setOnFolderSwitchCleanup: vi.fn(),
+        clearWatchFolderState: vi.fn()
+    }
+})
+
+// Mock watchFolder for vault path functions
+vi.mock('@/shell/edge/main/graph/watch_folder/watchFolder', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@/shell/edge/main/graph/watch_folder/watchFolder')>()
+    return {
+        ...actual,
         getVaultPath: () => {
             return tempVault ? O.of(tempVault) : O.none
         },
@@ -115,7 +135,8 @@ vi.mock('@/shell/edge/main/graph/watchFolder', () => {
         loadPreviousFolder: vi.fn().mockResolvedValue({ success: false }),
         isWatching: vi.fn(() => false),
         getWatchedDirectory: () => tempVault || null,
-        loadFolder: vi.fn().mockResolvedValue(undefined)
+        loadFolder: vi.fn().mockResolvedValue(undefined),
+        markFrontendReady: vi.fn().mockResolvedValue(undefined)
     }
 })
 
