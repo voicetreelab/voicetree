@@ -1,5 +1,7 @@
 ## The spatial IDE for recursive multi-agent orchestration.
 
+![VoiceTree Demo](Self_spawn.gif)
+
 ### The Problem
 
 You're running 4 coding agents across different terminal panes. You switch to one and scroll through history trying to figure out what it's doing. Then the next. Constantly rebuilding that mental model is exhausting.
