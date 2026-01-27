@@ -227,7 +227,7 @@ class WikilinkTitlePlugin {
         this.debounceTimer = setTimeout(() => {
             if (this.pendingView) {
                 this.decorations = buildViewportDecorations(this.pendingView);
-                this.pendingView.dispatch({}); // Trigger re-render with new decorations
+                this.pendingView.requestMeasure(); // Schedule DOM update without creating transaction
                 this.pendingView = null;
             }
             this.debounceTimer = null;
