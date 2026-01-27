@@ -168,67 +168,32 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
             // Successfully loaded within file limit - use saved config
             return finishLoading(loadResult.right, savedConfig, watchedFolderPath, mainWindow);
         }
-        // File limit exceeded in saved writePath - create new voicetree-{date} subfolder (don't reuse existing)
-        const fileCount: number = loadResult.left.fileCount;
-        const subfolder: string = generateDateSubfolder();
-        const newSubfolderPath: string = path.join(watchedFolderPath, subfolder);
-        await fs.mkdir(newSubfolderPath, { recursive: true });
-
-        // Show info dialog (non-blocking)
-        void dialog.showMessageBox(mainWindow, {
-            type: 'info',
-            title: 'New Workspace Created',
-            message: `Previous workspace has ${fileCount} markdown files (limit: 300).\n\nCreated new workspace:\n${newSubfolderPath}`,
-            buttons: ['OK']
-        });
-
-        // Build new config with the new subfolder, keeping readPaths for linking
-        const newAllowlist: string[] = [newSubfolderPath, ...savedConfig.readPaths];
-        const newConfig: { allowlist: readonly string[]; writePath: string; readPaths: readonly string[] } = {
-            allowlist: newAllowlist,
-            writePath: newSubfolderPath,
-            readPaths: savedConfig.readPaths
-        };
-        await saveVaultConfigForDirectory(watchedFolderPath, {
-            writePath: newSubfolderPath,
-            readPaths: savedConfig.readPaths
-        });
-
-        // Load from the new subfolder (empty initially)
-        const retryResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([newSubfolderPath]);
-        if (E.isLeft(retryResult)) {
-            return { success: false };
-        }
-        return finishLoading(retryResult.right, newConfig, watchedFolderPath, mainWindow);
+        // File limit exceeded - create new voicetree-{date} workspace, keeping readPaths for linking
+        return createNewWorkspaceOnFileLimitExceeded(
+            watchedFolderPath,
+            loadResult.left.fileCount,
+            mainWindow,
+            savedConfig.readPaths
+        );
     }
 
-    // No saved config - determine the writePath based on folder being opened
-    const folderName: string = path.basename(watchedFolderPath);
-    // If folder name starts with 'voicetree', it's already a voicetree folder - use it directly
-    const isVoicetreeFolder: boolean = folderName === 'voicetree' || folderName.startsWith('voicetree-');
+    // No saved config - find or create voicetree subfolder
+    const existingVoicetreeDir: string | null = await findExistingVoicetreeDir(watchedFolderPath);
     let subfolderPath: string;
 
-    if (isVoicetreeFolder) {
-        // Folder being opened is already a voicetree folder - use it directly
-        subfolderPath = watchedFolderPath;
+    if (existingVoicetreeDir !== null) {
+        // Use existing voicetree directory (don't copy onboarding)
+        subfolderPath = existingVoicetreeDir;
     } else {
-        // Check for existing voicetree directory inside the project folder
-        const existingVoicetreeDir: string | null = await findExistingVoicetreeDir(watchedFolderPath);
+        // Create new voicetree-{date} subfolder
+        const subfolder: string = generateDateSubfolder();
+        subfolderPath = path.join(watchedFolderPath, subfolder);
+        await fs.mkdir(subfolderPath, { recursive: true });
 
-        if (existingVoicetreeDir !== null) {
-            // Use existing voicetree directory (don't copy onboarding)
-            subfolderPath = existingVoicetreeDir;
-        } else {
-            // Create new voicetree-{date} subfolder
-            const subfolder: string = generateDateSubfolder();
-            subfolderPath = path.join(watchedFolderPath, subfolder);
-            await fs.mkdir(subfolderPath, { recursive: true });
-
-            // Copy onboarding files into the new subfolder
-            const onboardingSourceDir: string = path.join(getOnboardingDirectory(), 'voicetree');
-            if (await pathExists(onboardingSourceDir)) {
-                await copyMarkdownFiles(onboardingSourceDir, subfolderPath);
-            }
+        // Copy onboarding files into the new subfolder
+        const onboardingSourceDir: string = path.join(getOnboardingDirectory(), 'voicetree');
+        if (await pathExists(onboardingSourceDir)) {
+            await copyMarkdownFiles(onboardingSourceDir, subfolderPath);
         }
     }
 
@@ -267,17 +232,59 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
     const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(allowlist);
 
     if (E.isLeft(loadResult)) {
-        // Shouldn't happen with new subfolder
-        void dialog.showMessageBox(mainWindow, {
-            type: 'error',
-            title: 'File Limit Exceeded',
-            message: `Unable to create workspace. File count: ${loadResult.left.fileCount}`,
-            buttons: ['OK']
-        });
-        return { success: false };
+        // File limit exceeded - create new voicetree-{date} workspace
+        return createNewWorkspaceOnFileLimitExceeded(
+            watchedFolderPath,
+            loadResult.left.fileCount,
+            mainWindow,
+            []
+        );
     }
 
     return finishLoading(loadResult.right, newConfig, watchedFolderPath, mainWindow);
+}
+
+/**
+ * Handle file limit exceeded by creating a new voicetree-{date} workspace.
+ * Used by both savedConfig and no-savedConfig paths to avoid duplication.
+ */
+async function createNewWorkspaceOnFileLimitExceeded(
+    watchedFolderPath: FilePath,
+    fileCount: number,
+    mainWindow: Electron.CrossProcessExports.BrowserWindow,
+    existingReadPaths: readonly string[]
+): Promise<{ success: boolean }> {
+    const subfolder: string = generateDateSubfolder();
+    const newSubfolderPath: string = path.join(watchedFolderPath, subfolder);
+    await fs.mkdir(newSubfolderPath, { recursive: true });
+
+    // Show info dialog (non-blocking)
+    void dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'New Workspace Created',
+        message: `Previous workspace has ${fileCount} markdown files (limit: 300).\n\nCreated new workspace:\n${newSubfolderPath}`,
+        buttons: ['OK']
+    });
+
+    // Build new config with the new subfolder, keeping readPaths for linking
+    const newAllowlist: string[] = [newSubfolderPath, ...existingReadPaths];
+    const newConfig: { allowlist: readonly string[]; writePath: string; readPaths: readonly string[] } = {
+        allowlist: newAllowlist,
+        writePath: newSubfolderPath,
+        readPaths: existingReadPaths
+    };
+    await saveVaultConfigForDirectory(watchedFolderPath, {
+        writePath: newSubfolderPath,
+        readPaths: existingReadPaths
+    });
+
+    // Load from the new subfolder (empty initially)
+    const retryResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([newSubfolderPath]);
+    if (E.isLeft(retryResult)) {
+        // Should not happen with empty folder, but handle gracefully
+        return { success: false };
+    }
+    return finishLoading(retryResult.right, newConfig, watchedFolderPath, mainWindow);
 }
 
 /**
