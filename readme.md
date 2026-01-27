@@ -78,31 +78,32 @@ Everything is local markdown files. Use it with agents, with voice, or just as a
 
 ### Prerequisites
 
-```bash
-# Install dependencies
-pip install -r requirements.txt
+- **Node.js 18+** - Required for the main app
+- **Python 3.13** - Required for the text-to-tree server 
+- **uv** - Python package manager 
 
-# Set up API key (save to .env)
-echo "GOOGLE_API_KEY=your_gemini_api_key" > .env
-```
-
-### Essential Commands
+### App Setup
 
 ```bash
-# Run the main system
-python backend/main.py
+# Navigate to frontend
+cd frontend/webapp
 
-# Run unit tests
-pytest backend/tests/unit_tests
+# Install npm dependencies
+npm install
 
-# Run integration tests
-pytest backend/tests/integration_tests/
-
-# Run benchmarker for quality testing
-python backend/benchmarker/src/quality_LLM_benchmarker.py
+# Start the Electron app in dev mode
+npm run electron
 ```
 
-All tests and scripts should always be run from the root directory for consistency.
+### Backend Text-To-Tree server Setup
+
+```bash
+# Install Python dependencies using uv, from project root 
+uv sync
+
+# Run backend tests
+uv run pytest backend//unit_tests
+``
 
 ## Contact
 
