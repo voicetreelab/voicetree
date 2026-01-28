@@ -327,6 +327,40 @@ describe('GraphNavigationService', () => {
       }
     });
 
+    it('should exclude floating editor shadow nodes from viewport fit', () => {
+      // Add a floating editor shadow node anchored to node2 (same as terminal's context node)
+      const editorShadowNodeId: string = 'node2-editor-anchor-shadowNode';
+      cy.add({
+        data: {
+          id: editorShadowNodeId,
+          windowType: 'Editor',
+          isShadowNode: true,
+          parentNodeId: 'node2',
+          label: 'Editor Shadow'
+        },
+        position: { x: 450, y: 200 }
+      });
+      // Add edge from context node to editor shadow node
+      cy.add({ data: { id: 'edge-node2-editor', source: 'node2', target: editorShadowNodeId } });
+
+      const animateSpy: MockInstance<typeof cy.animate> = vi.spyOn(cy, 'animate');
+
+      // Cycle to terminal on node2
+      service.cycleTerminal(1); // 0->1: node2
+
+      const animateArgs: { center: { eles: Collection } } = animateSpy.mock.calls[0][0] as { center: { eles: Collection } };
+      const fittedIds: string[] = animateArgs.center.eles.map((n) => n.id());
+
+      // Should include terminal's own shadow node and regular graph nodes
+      expect(fittedIds).toContain(getShadowNodeIdForContext('node2')); // terminal shadow node
+      expect(fittedIds).toContain('node2'); // context node
+      expect(fittedIds).toContain('node1'); // neighbor
+      expect(fittedIds).toContain('node3'); // neighbor
+
+      // Should NOT include the editor shadow node
+      expect(fittedIds).not.toContain(editorShadowNodeId);
+    });
+
     it('should handle single terminal correctly', () => {
       // Clear and add only one terminal
       clearTerminals();

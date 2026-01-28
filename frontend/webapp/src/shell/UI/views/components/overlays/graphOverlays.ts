@@ -21,7 +21,7 @@ export function createLoadingOverlay(): LoadingOverlayResult {
 
     const loadingMessage: HTMLParagraphElement = document.createElement('p');
     loadingMessage.className = 'text-base font-semibold text-foreground';
-    loadingMessage.textContent = 'Loading VoiceTree...';
+    loadingMessage.textContent = 'Loading Voicetree...';
 
     const loadingSubtext: HTMLParagraphElement = document.createElement('p');
     loadingSubtext.className = 'text-xs text-muted-foreground/80';

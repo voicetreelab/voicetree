@@ -1,5 +1,5 @@
 /**
- * Image file extensions supported by VoiceTree
+ * Image file extensions supported by Voicetree
  * Used to identify image nodes in the graph
  */
 export const IMAGE_EXTENSIONS: readonly string[] = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg']

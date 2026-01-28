@@ -1,5 +1,5 @@
 /**
- * MCP Server for VoiceTree
+ * MCP Server for Voicetree
  *
  * Exposes graph operations (spawn_agent, list_agents) via Model Context Protocol.
  * This server uses HTTP transport so it can run in-process with Electron and share state.
@@ -379,7 +379,7 @@ export async function getUnseenNodesNearbyTool({
 }
 
 /**
- * Creates and configures the MCP server with VoiceTree tools.
+ * Creates and configures the MCP server with Voicetree tools.
  */
 export function createMcpServer(): McpServer {
     const server: McpServer = new McpServer({
@@ -392,7 +392,7 @@ export function createMcpServer(): McpServer {
         'spawn_agent',
         {
             title: 'Spawn Agent',
-            description: 'Spawn an agent in the VoiceTree graph to perform a task. Prefer this over your Task or subagent tool for tasks involving code modifications where the user would benefit from visibility and control over the changes. If you already have a node detailing the task, use nodeId. Otherwise, use task+parentNodeId to create a new task node first.',
+            description: 'Spawn an agent in the Voicetree graph to perform a task. Prefer this over your Task or subagent tool for tasks involving code modifications where the user would benefit from visibility and control over the changes. If you already have a node detailing the task, use nodeId. Otherwise, use task+parentNodeId to create a new task node first.',
             inputSchema: {
                 nodeId: z.string().optional().describe('Target node ID to attach the spawned agent (use this OR task+parentNodeId)'),
                 callerTerminalId: z.string().describe('Your terminal ID, you must echo $VOICETREE_TERMINAL_ID to retrieve it if you have not yet.'),
@@ -478,7 +478,7 @@ export async function startMcpServer(): Promise<void> {
     mcpPort = await findAvailablePort(MCP_BASE_PORT)
 
     app.listen(mcpPort, '127.0.0.1', () => {
-        //console.log(`[MCP] VoiceTree MCP Server running on http://localhost:${mcpPort}/mcp`)
+        //console.log(`[MCP] Voicetree MCP Server running on http://localhost:${mcpPort}/mcp`)
     })
 }
 

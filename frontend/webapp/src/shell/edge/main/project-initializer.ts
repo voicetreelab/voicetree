@@ -6,11 +6,11 @@ import { promises as fs } from 'fs';
 export { generateDateSubfolder, pathExists, copyMarkdownFiles, findExistingVoicetreeDir } from './project-utils';
 
 /**
- * Initializes a project with VoiceTree scaffolding.
+ * Initializes a project with Voicetree scaffolding.
  * Creates a /voicetree-{date} folder and copies onboarding .md files from the source directory.
  *
  * @param projectPath - The root path of the project
- * @param onboardingSourceDir - Optional path to onboarding source files (e.g., ~/Library/Application Support/VoiceTree/onboarding/voicetree)
+ * @param onboardingSourceDir - Optional path to onboarding source files (e.g., ~/Library/Application Support/Voicetree/onboarding/voicetree)
  * @returns The path to the created voicetree subfolder, or null if skipped (already has a voicetree folder)
  */
 export async function initializeProject(

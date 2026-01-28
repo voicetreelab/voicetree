@@ -3,7 +3,7 @@ export type Language = {
   name: string;
 };
 
-// Minimal language support for VoiceTree transcription display
+// Minimal language support for Voicetree transcription display
 export const languages: Language[] = [
   { code: "en", name: "English" },
   { code: "es", name: "Spanish" },

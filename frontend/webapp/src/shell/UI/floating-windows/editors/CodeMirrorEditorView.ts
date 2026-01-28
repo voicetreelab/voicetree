@@ -75,7 +75,7 @@ export interface CodeMirrorEditorOptions {
 
 /**
  * CodeMirrorEditorView wraps CodeMirror 6 to provide a clean API for markdown editing
- * in the VoiceTree floating window system.
+ * in the Voicetree floating window system.
  *
  * Features:
  * - Rich Markdown editing with live preview (using codemirror-rich-markdoc)

@@ -2,7 +2,7 @@
  * MCP Client Configuration
  *
  * Manages the .mcp.json file in the watched directory to configure
- * MCP clients (like Claude Code) to connect to VoiceTree's MCP server.
+ * MCP clients (like Claude Code) to connect to Voicetree's MCP server.
  */
 
 import { promises as fs } from 'fs';
@@ -64,7 +64,7 @@ async function writeMcpJson(config: McpJsonConfig): Promise<void> {
 }
 
 /**
- * Check if VoiceTree MCP integration is enabled in .mcp.json
+ * Check if Voicetree MCP integration is enabled in .mcp.json
  */
 export async function isMcpIntegrationEnabled(): Promise<boolean> {
     const config: McpJsonConfig = await readMcpJson();
@@ -72,14 +72,14 @@ export async function isMcpIntegrationEnabled(): Promise<boolean> {
 }
 
 /**
- * Enable VoiceTree MCP integration by adding config to .mcp.json
+ * Enable Voicetree MCP integration by adding config to .mcp.json
  * Merges with existing config to preserve other MCP servers
  */
 export async function enableMcpIntegration(): Promise<void> {
     const config: McpJsonConfig = await readMcpJson();
     const port: number = getMcpPort();
 
-    // Merge VoiceTree server into existing config
+    // Merge Voicetree server into existing config
     config.mcpServers = {
         ...config.mcpServers,
         [VOICETREE_MCP_SERVER_NAME]: {
@@ -89,11 +89,11 @@ export async function enableMcpIntegration(): Promise<void> {
     };
 
     await writeMcpJson(config);
-    //console.log('[MCP] Enabled VoiceTree MCP integration in .mcp.json');
+    //console.log('[MCP] Enabled Voicetree MCP integration in .mcp.json');
 }
 
 /**
- * Disable VoiceTree MCP integration by removing config from .mcp.json
+ * Disable Voicetree MCP integration by removing config from .mcp.json
  * Preserves other MCP servers in the config
  */
 export async function disableMcpIntegration(): Promise<void> {
@@ -108,7 +108,7 @@ export async function disableMcpIntegration(): Promise<void> {
         }
 
         await writeMcpJson(config);
-        //console.log('[MCP] Disabled VoiceTree MCP integration in .mcp.json');
+        //console.log('[MCP] Disabled Voicetree MCP integration in .mcp.json');
     }
 }
 

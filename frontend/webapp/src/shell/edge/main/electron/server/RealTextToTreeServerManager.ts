@@ -53,7 +53,7 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
       const port: number = await findAvailablePort(8001);
       this.actualPort = port;
 
-      debugLog('=== VoiceTree Server Startup ===');
+      debugLog('=== Voicetree Server Startup ===');
       debugLog(`[TextToTreeServer] Found available port: ${port}`);
       debugLog(`App launched from: ${process.argv0}`);
       debugLog(`App packaged: ${app.isPackaged}`);
@@ -83,7 +83,7 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
       const args: string[] = [...config.pythonArgs, port.toString()];
       const cwd: string = config.pythonCwd;
 
-      debugLog(`[TextToTreeServer] Starting VoiceTree server on port ${port}...`);
+      debugLog(`[TextToTreeServer] Starting Voicetree server on port ${port}...`);
       debugLog(`[TextToTreeServer] Command: ${command}`);
       debugLog(`[TextToTreeServer] Args: ${args.join(' ')}`);
       debugLog(`[TextToTreeServer] Working directory: ${cwd}`);

@@ -75,7 +75,7 @@ export function setupGraphViewDOM(config: GraphViewDOMConfig): GraphViewDOMEleme
 
     // Initialize overlay store and show loading state
     initGraphViewOverlays(loadingOverlay, loadingMessageElement, emptyStateOverlay);
-    setLoadingState(true, 'Loading VoiceTree...');
+    setLoadingState(true, 'Loading Voicetree...');
 
     return {
         loadingOverlay,

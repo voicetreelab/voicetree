@@ -16,7 +16,7 @@ describe('initializeProject', () => {
         testOnboardingDir = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-onboarding-'));
         await fs.writeFile(
             path.join(testOnboardingDir, 'welcome_to_voicetree.md'),
-            '# Welcome to VoiceTree\n\nThis is a test welcome file.',
+            '# Welcome to Voicetree\n\nThis is a test welcome file.',
             'utf-8'
         );
         await fs.writeFile(
@@ -81,7 +81,7 @@ describe('initializeProject', () => {
             path.join(result!, 'welcome_to_voicetree.md'),
             'utf-8'
         );
-        expect(welcomeContent).toBe('# Welcome to VoiceTree\n\nThis is a test welcome file.');
+        expect(welcomeContent).toBe('# Welcome to Voicetree\n\nThis is a test welcome file.');
     });
 
     it('should not copy non-.md files', async () => {

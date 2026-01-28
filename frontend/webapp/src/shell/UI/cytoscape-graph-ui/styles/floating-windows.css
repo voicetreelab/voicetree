@@ -483,6 +483,11 @@
   stroke: rgba(0, 0, 0, 0.55);
 }
 
+/* Terminal close button - red (macOS style) instead of orange */
+.cy-floating-window-terminal .traffic-light-close {
+  background-color: rgba(255, 59, 48, 0.65);
+}
+
 /* Pin button - neutral gray filled circle (unpinned state) */
 .traffic-light-pin {
   background-color: rgba(150, 150, 150, 0.5);
