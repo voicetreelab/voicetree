@@ -176,3 +176,4 @@ backend/text_to_graph_pipeline/debug_logs/**/*
 **/*.mov
 **/*.gif
 **/chromadb_data/*
+/.mcp.json
