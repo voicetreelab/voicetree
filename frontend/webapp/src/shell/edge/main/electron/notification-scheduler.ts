@@ -80,8 +80,8 @@ function showNotification(): boolean {
   }
 
   const notification: Notification = new Notification({
-    title: 'VoiceTree',
-    body: 'Might VoiceTree help you here?',
+    title: 'Voicetree',
+    body: 'Might Voicetree help you here?',
     silent: false,
   });
 

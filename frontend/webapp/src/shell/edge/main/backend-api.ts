@@ -1,7 +1,7 @@
 /**
- * VoiceTree Backend API Client
+ * Voicetree Backend API Client
  *
- * Handles communication with the VoiceTree backend server
+ * Handles communication with the Voicetree backend server
  */
 
 // Module-level variable to store the backend port

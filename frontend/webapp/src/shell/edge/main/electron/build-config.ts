@@ -81,8 +81,8 @@ function getCommonEnv(): CommonEnv {
  * Development configuration - run Python directly from source
  */
 function getBuildConfigDev(commonEnv: CommonEnv): BuildConfig {
-  // Use process.cwd() which is /path/to/VoiceTree/frontend/webapp
-  // Go up 2 levels to get VoiceTree root (where server.py lives)
+  // Use process.cwd() which is /path/to/Voicetree/frontend/webapp
+  // Go up 2 levels to get Voicetree root (where server.py lives)
   // Note: app.getAppPath() returns dist-electron/main when running built version,
   // which would require going up 4 levels. Using cwd is more reliable.
   const rootDir: string = path.resolve(process.cwd(), '../..');
@@ -110,8 +110,8 @@ function getBuildConfigDev(commonEnv: CommonEnv): BuildConfig {
  */
 function getBuildConfigProd(commonEnv: CommonEnv): BuildConfig {
   // Compute repo root from app path
-  // In packaged: appPath = /path/to/VoiceTree.app/Contents/Resources/app.asar
-  // In unpackaged prod: appPath = /path/to/VoiceTree/frontend/webapp
+  // In packaged: appPath = /path/to/Voicetree.app/Contents/Resources/app.asar
+  // In unpackaged prod: appPath = /path/to/Voicetree/frontend/webapp
   const appPath: string = app.getAppPath();
   const rootDir: string = commonEnv.isPackaged
     ? path.dirname(process.resourcesPath)

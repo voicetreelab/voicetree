@@ -323,7 +323,7 @@ test.describe('Ask Mode End-to-End Integration', () => {
 
     // Get the node paths from the relevant search results
     const nodePaths = relevantNodes.map(n => n.node_path);
-    const testQuestion = 'How does RPC work in VoiceTree Electron app?';
+    const testQuestion = 'How does RPC work in Voicetree Electron app?';
 
     console.log(`Would create context node with ${nodePaths.length} node paths`);
     console.log(`Node paths from backend: ${nodePaths.slice(0, 3).join(', ')}...`);

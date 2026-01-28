@@ -40,7 +40,7 @@ beforeAll(() => {
         const message = args[0]?.toString() ?? '';
         // Suppress expected error messages
         if (
-            message.includes('Error sending to VoiceTree') ||
+            message.includes('Error sending to Voicetree') ||
             message.includes('Network error') ||
             message.includes('Failed to fetch')
         ) {

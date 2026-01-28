@@ -108,7 +108,7 @@ const test = base.extend<{
     await window.waitForLoadState('domcontentloaded');
 
     // Wait for project selection screen to load
-    await window.waitForSelector('text=VoiceTree', { timeout: 10000 });
+    await window.waitForSelector('text=Voicetree', { timeout: 10000 });
     console.log('[Smoke Test] Project selection screen loaded');
 
     // Wait for saved projects to load and display

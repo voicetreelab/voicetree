@@ -104,7 +104,7 @@ describe('build-config', () => {
   });
 
   describe('getBuildConfig - Production Mode (Packaged)', () => {
-    const mockResourcesPath: "/Applications/VoiceTree.app/Contents/Resources" = '/Applications/VoiceTree.app/Contents/Resources';
+    const mockResourcesPath: "/Applications/Voicetree.app/Contents/Resources" = '/Applications/Voicetree.app/Contents/Resources';
 
     beforeEach(() => {
       mockApp.isPackaged = true;
@@ -157,7 +157,7 @@ describe('build-config', () => {
     });
 
     it('should change source paths based on packaging', () => {
-      const mockResourcesPath: "/Applications/VoiceTree.app/Contents/Resources" = '/Applications/VoiceTree.app/Contents/Resources';
+      const mockResourcesPath: "/Applications/Voicetree.app/Contents/Resources" = '/Applications/Voicetree.app/Contents/Resources';
 
       // Unpackaged
       mockApp.isPackaged = false;

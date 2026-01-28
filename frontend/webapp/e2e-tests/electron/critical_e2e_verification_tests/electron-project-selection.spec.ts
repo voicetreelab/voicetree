@@ -125,8 +125,8 @@ test.describe('Project Selection Screen E2E', () => {
         console.log('=== TEST: Project selection screen shows on first launch ===');
 
         // Wait for the project selection screen to load
-        // The title "VoiceTree" and "Select a project to open" should be visible
-        await appWindow.waitForSelector('text=VoiceTree', { timeout: 10000 });
+        // The title "Voicetree" and "Select a project to open" should be visible
+        await appWindow.waitForSelector('text=Voicetree', { timeout: 10000 });
         await appWindow.waitForSelector('text=Select a project to open', { timeout: 5000 });
 
         console.log('✓ Project selection screen title visible');
@@ -163,7 +163,7 @@ test.describe('Project Selection Screen E2E', () => {
         console.log('Test project path:', testProjectPath);
 
         // Wait for project selection screen
-        await appWindow.waitForSelector('text=VoiceTree', { timeout: 10000 });
+        await appWindow.waitForSelector('text=Voicetree', { timeout: 10000 });
 
         // Use the electronAPI to directly call saveProject and then trigger project selection
         // (bypasses folder picker dialog which can't be automated easily)
@@ -189,7 +189,7 @@ test.describe('Project Selection Screen E2E', () => {
         // Reload the page to see the saved project
         await appWindow.reload();
         await appWindow.waitForLoadState('domcontentloaded');
-        await appWindow.waitForSelector('text=VoiceTree', { timeout: 10000 });
+        await appWindow.waitForSelector('text=Voicetree', { timeout: 10000 });
 
         // Wait for the saved project to appear in Recent Projects
         await appWindow.waitForSelector('text=Recent Projects', { timeout: 5000 });
@@ -242,7 +242,7 @@ test.describe('Project Selection Screen E2E', () => {
         console.log('=== TEST: Navigate back to project selection ===');
 
         // First, set up a project and navigate to graph view
-        await appWindow.waitForSelector('text=VoiceTree', { timeout: 10000 });
+        await appWindow.waitForSelector('text=Voicetree', { timeout: 10000 });
 
         await appWindow.evaluate(async (projectPath: string) => {
             const api = (window as ExtendedWindow).electronAPI;
@@ -346,7 +346,7 @@ test.describe('Project Selection Screen E2E', () => {
 
             const window1 = await app1.firstWindow({ timeout: 15000 });
             await window1.waitForLoadState('domcontentloaded');
-            await window1.waitForSelector('text=VoiceTree', { timeout: 10000 });
+            await window1.waitForSelector('text=Voicetree', { timeout: 10000 });
 
             // Wait for saved projects to load and display
             await window1.waitForSelector('text=Recent Projects', { timeout: 10000 });
@@ -382,7 +382,7 @@ test.describe('Project Selection Screen E2E', () => {
 
             const window2 = await app2.firstWindow({ timeout: 15000 });
             await window2.waitForLoadState('domcontentloaded');
-            await window2.waitForSelector('text=VoiceTree', { timeout: 10000 });
+            await window2.waitForSelector('text=Voicetree', { timeout: 10000 });
 
             // Wait for projects to load
             await window2.waitForSelector('text=Recent Projects', { timeout: 10000 });
@@ -460,7 +460,7 @@ test.describe('Watched Folder Panel Regression', () => {
             const appWindow = await electronApp.firstWindow({ timeout: 15000 });
             appWindow.on('console', msg => console.log(`BROWSER [${msg.type()}]:`, msg.text()));
             await appWindow.waitForLoadState('domcontentloaded');
-            await appWindow.waitForSelector('text=VoiceTree', { timeout: 10000 });
+            await appWindow.waitForSelector('text=Voicetree', { timeout: 10000 });
 
             // Click the project
             await appWindow.waitForSelector('text=Recent Projects', { timeout: 10000 });
@@ -601,7 +601,7 @@ test.describe('Watched Folder Panel Regression', () => {
             });
 
             await appWindow.waitForLoadState('domcontentloaded');
-            await appWindow.waitForSelector('text=VoiceTree', { timeout: 10000 });
+            await appWindow.waitForSelector('text=Voicetree', { timeout: 10000 });
             console.log('✓ App launched and project selection screen visible');
 
             // 5. Verify the project appears in Recent Projects
@@ -852,7 +852,7 @@ test.describe('Watched Folder Panel Regression', () => {
                 console.log(`BROWSER [${msg.type()}]:`, msg.text());
             });
             await appWindow.waitForLoadState('domcontentloaded');
-            await appWindow.waitForSelector('text=VoiceTree', { timeout: 10000 });
+            await appWindow.waitForSelector('text=Voicetree', { timeout: 10000 });
 
             // Test project WITH existing config
             console.log('\n--- Testing project WITH existing config ---');
@@ -926,7 +926,7 @@ test.describe('Project Scanner Integration', () => {
         console.log('=== TEST: Scanner detects git repositories ===');
 
         // Wait for project selection screen
-        await appWindow.waitForSelector('text=VoiceTree', { timeout: 10000 });
+        await appWindow.waitForSelector('text=Voicetree', { timeout: 10000 });
 
         // Get the parent directory of the test project
         const parentDir = path.dirname(testProjectPath);

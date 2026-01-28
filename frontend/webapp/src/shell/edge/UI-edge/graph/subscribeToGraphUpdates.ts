@@ -78,7 +78,7 @@ export function subscribeToGraphUpdates(
 
     const handleGraphClear: () => void = (): void => {
         //console.log('[subscribeToGraphUpdates] Received graph:clear event');
-        setLoadingState(true, 'Loading VoiceTree...');
+        setLoadingState(true, 'Loading Voicetree...');
 
         // Close all open terminals (UI cleanup - PTY processes already killed by main process)
         closeAllTerminals(cy);

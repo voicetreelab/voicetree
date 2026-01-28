@@ -154,7 +154,7 @@ describe('createContextNode - Integration Tests', () => {
         const fileContent: string = await fs.readFile(contextFilePath, 'utf-8')
 
         // Should contain information about the parent node
-        expect(fileContent).toContain('VoiceTree')
+        expect(fileContent).toContain('Voicetree')
 
         // Should have node details wrapped in XML-style tags
         expect(fileContent).toMatch(/<[^>]+>/)

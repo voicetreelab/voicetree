@@ -83,8 +83,8 @@ export function useTranscriptionSender({
         throw new Error(errorMsg);
       }
     } catch (err) {
-      console.error("Error sending to VoiceTree:", err);
-      const errorMsg: string = err instanceof Error ? err.message : "Cannot connect to VoiceTree server";
+      console.error("Error sending to Voicetree:", err);
+      const errorMsg: string = err instanceof Error ? err.message : "Cannot connect to Voicetree server";
       setConnectionError(errorMsg);
       throw err;
     } finally {

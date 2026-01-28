@@ -142,7 +142,7 @@ export async function appendTokenMetrics(data: {
 
   if (!session) {
     // Auto-create session for OTLP metrics from Claude Code
-    // Claude Code uses its own session IDs, not VoiceTree terminal IDs
+    // Claude Code uses its own session IDs, not Voicetree terminal IDs
     session = {
       sessionId: data.sessionId,
       agentName: 'Claude',

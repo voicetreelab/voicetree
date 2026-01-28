@@ -141,7 +141,7 @@ const test = base.extend<{
     await window.waitForLoadState('domcontentloaded', { timeout: 60000 });
 
     // Wait for project selection screen
-    await window.waitForSelector('text=VoiceTree', { timeout: 10000 });
+    await window.waitForSelector('text=Voicetree', { timeout: 10000 });
     console.log('[Test] Project selection screen loaded');
 
     // Wait for saved projects and click the test project

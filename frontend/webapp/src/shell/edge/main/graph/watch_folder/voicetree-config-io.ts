@@ -1,5 +1,5 @@
 /**
- * Config persistence for VoiceTree.
+ * Config persistence for Voicetree.
  *
  * Handles reading/writing the voicetree-config.json file which stores:
  * - Last watched directory (for auto-open on launch)

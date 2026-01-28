@@ -225,7 +225,7 @@ This is the only node in project 2.
     await window.waitForLoadState('domcontentloaded');
 
     // Wait for project selection screen to load
-    await window.waitForSelector('text=VoiceTree', { timeout: 10000 });
+    await window.waitForSelector('text=Voicetree', { timeout: 10000 });
     console.log('[Lazy Persist Test] Project selection screen loaded');
 
     // Wait for Recent Projects section to show our saved project

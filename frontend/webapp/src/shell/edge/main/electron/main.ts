@@ -64,7 +64,7 @@ const {autoUpdater} = electronUpdater;
 fixPath();
 
 // Set app name (shows in macOS menu bar, taskbar, etc.)
-app.setName('VoiceTree');
+app.setName('Voicetree');
 
 // Fresh start mode: use temporary userData to mimic first-time user experience
 // Only in development/test mode, opt-out with VOICETREE_PERSIST_STATE=1

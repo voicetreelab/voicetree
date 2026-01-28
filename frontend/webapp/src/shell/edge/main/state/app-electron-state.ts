@@ -18,5 +18,5 @@ export const setBackendPort: (port: number | null) => void = (port: number | nul
 }
 export const getBackendPort: () => number | null =  (): number | null => backendPort;
 
-/** Get the VoiceTree Application Support directory path */
+/** Get the Voicetree Application Support directory path */
 export const getAppSupportPath: () => string = (): string => app.getPath('userData');
