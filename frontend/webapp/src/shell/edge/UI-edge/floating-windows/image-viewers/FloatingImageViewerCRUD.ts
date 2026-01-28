@@ -221,7 +221,10 @@ export async function openHoverImageViewer(
             // Also allow clicks on context menus (right-click menus) - they may interact with this viewer
             const contextMenu: HTMLElement | null = document.querySelector('.ctxmenu');
             const isInsideContextMenu: boolean = contextMenu !== null && contextMenu.contains(target);
-            if (!isInsideViewer && !isInsideHoverMenu && !isInsideContextMenu) {
+            // Also allow clicks on the distance slider (context retrieval distance squares)
+            const distanceSlider: HTMLElement | null = document.querySelector('.distance-slider');
+            const isInsideDistanceSlider: boolean = distanceSlider !== null && distanceSlider.contains(target);
+            if (!isInsideViewer && !isInsideHoverMenu && !isInsideContextMenu && !isInsideDistanceSlider) {
                 //console.log('[HoverImageViewer] Click outside detected, closing viewer');
                 closeHoverImageViewer(cy);
                 document.removeEventListener('mousedown', handleClickOutside);

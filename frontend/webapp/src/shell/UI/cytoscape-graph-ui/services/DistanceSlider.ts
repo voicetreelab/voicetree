@@ -16,16 +16,15 @@ let sliderHideTimeout: number | null = null;
 
 /** Options for showing the floating slider */
 export interface FloatingSliderOptions {
-    readonly anchorElement: HTMLElement;      // The menu wrapper to position above
+    readonly menuElement: HTMLElement;        // The menu element to append slider to (becomes child of menu)
     readonly currentDistance: number;
     readonly onDistanceChange: (distance: number) => void;
     readonly onRun?: () => void | Promise<void>;  // Called when user clicks a slider square
-    readonly overlay: HTMLElement;            // cy-floating-overlay to append to
 }
 
 /**
- * Show the floating distance slider above the menu anchor.
- * Creates a single shared slider element appended to cy-floating-overlay.
+ * Show the floating distance slider above the menu.
+ * Slider is appended as a child of the menu element, so it inherits menu's hover behavior.
  */
 export function showFloatingSlider(options: FloatingSliderOptions): void {
     // Clear any pending hide
@@ -37,27 +36,12 @@ export function showFloatingSlider(options: FloatingSliderOptions): void {
     // Reuse or create slider
     if (!activeSlider) {
         activeSlider = createDistanceSlider(options.currentDistance, options.onDistanceChange, options.onRun);
-        activeSlider.style.position = 'absolute';
-        activeSlider.style.zIndex = '10002'; // Above menus
-        options.overlay.appendChild(activeSlider);
+        activeSlider.style.zIndex = '10002'; // Above menu content
+        options.menuElement.appendChild(activeSlider);
     }
 
-    // Position above the anchor (menu wrapper)
-    const rect: DOMRect = options.anchorElement.getBoundingClientRect();
-    const overlayRect: DOMRect = options.overlay.getBoundingClientRect();
-    activeSlider.style.left = `${rect.left + rect.width / 2 - overlayRect.left}px`;
-    activeSlider.style.bottom = `${overlayRect.height - (rect.top - overlayRect.top) + 8}px`;
-    activeSlider.style.transform = 'translateX(-50%)';
     activeSlider.style.display = 'flex';
-
-    // Keep visible when hovering slider
-    activeSlider.onmouseenter = (): void => {
-        if (sliderHideTimeout !== null) {
-            clearTimeout(sliderHideTimeout);
-            sliderHideTimeout = null;
-        }
-    };
-    activeSlider.onmouseleave = (): void => hideFloatingSlider();
+    // No mouseenter/mouseleave handlers needed - slider is part of menu DOM
 }
 
 /**
