@@ -2,6 +2,8 @@
 
 ![VoiceTree Demo](meta/Self_spawn.gif)
 
+#### Voicetree is an Obsidian-style mindmap of Markdown files and coding agents.
+
 ### The Problem
 
 <img align="right" width="45%" hspace="20" src="meta/10_terminals.jpg" alt="10 terminals">
@@ -11,7 +13,7 @@ Managing >4 terminals is claustrophobic and overwhelming. See image.
 It's a pain to memorize what each is doing. Scrolling through terminal history to keep track. 
 
 And then, when an agent stops with a half finished task you are faced with a dilemma: 
-- suffer context-rot if you reprompt it within the same session (decreasing quality by 50%^1). 
+- suffer context-rot if you reprompt it within the same session (decreasing performance by [30-60%](https://research.trychroma.com/context-rot)). 
 - Get the agent to save a handover document with its notes to warm up a new session. 10 sessions later and now you are lost in a another claustrophobic sea of unorganized notes.  
 
 ### The Solution
@@ -134,3 +136,5 @@ This project is licensed under the Business Source License 1.1 (BSL 1.1).
 The code automatically converts to Apache 2.0 after 4 years.
 
 See the [LICENSE](LICENSE) file for full details.
+
+[^1]: Chroma Research, "Context Rot: How Increasing Input Tokens Impacts LLM Performance" (July 2025). LongMemEval benchmark showed 30-60% performance gaps between focused (~300 token) and full (~113k token) prompts. https://research.trychroma.com/context-rot
