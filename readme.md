@@ -1,18 +1,24 @@
 ## The spatial IDE for recursive multi-agent orchestration.
 
-![VoiceTree Demo](Self_spawn.gif)
+![VoiceTree Demo](meta/Self_spawn.gif)
 
 ### The Problem
 
-You're running 4 coding agents across different terminal panes. You switch to one and scroll through history trying to figure out what it's doing. Then the next. Constantly rebuilding that mental model is exhausting.
-When an agent finishes and your feature is still half-built, you start a fresh session to avoid context-rot. You write a HANDOVER.md to get the new agent up to speed. An hour later you have 20 handover files. What's the state of each feature? Which ones still need planning? What should the agents be doing next? It's an unorganized mess, and you're back to prompting from scratch, losing the context you and your agents had slowly built together
+<img align="right" width="45%" hspace="20" src="meta/10_terminals.jpg" alt="10 terminals">
+
+Managing >4 terminals is claustrophobic and overwhelming. See image. 
+
+It's a pain to memorize what each is doing. Scrolling through terminal history to keep track. 
+
+And then, when an agent stops with a half finished task you are faced with a dilemma: 
+- suffer context-rot if you reprompt it within the same session (decreasing quality by 50%^1). 
+- Get the agent to save a handover document with its notes to warm up a new session. 10 sessions later and now you are lost in a another claustrophobic sea of unorganized notes.  
 
 ### The Solution
-
+![VT_branching_with_editor.png](meta/VT_branching_with_editor.png)
 Voicetree is a canvas where every agent sits next to its task, planning documents, and progress updates. All visible at a glance. The closer something is, the more relevant it is.
 
 Now you can effortlessly switch between swarms of parallel agents across your project. Your project becomes an interactive graph view made of markdown files and terminals. All stored locally.
-
 ## Installation
 
 ### macOS (Apple Silicon)
