@@ -6,8 +6,10 @@ import {
     getWindowTransform,
     graphToScreenPosition,
     type ScalingStrategy,
-    type TransformOrigin
+    type TransformOrigin,
+    TERMINAL_CSS_TRANSFORM_THRESHOLD
 } from "@/pure/floatingWindowScaling";
+import { isZoomActive } from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 
 /**
  * Update a floating window's scale and position based on zoom level
@@ -18,7 +20,19 @@ export function updateWindowFromZoom(cy: cytoscape.Core, windowElement: HTMLElem
     const baseHeight: number = parseFloat(windowElement.dataset.baseHeight ?? '400');
     const isTerminal: boolean = windowElement.classList.contains('cy-floating-window-terminal');
     const windowType: 'Terminal' | 'Editor' = isTerminal ? 'Terminal' : 'Editor';
-    const strategy: ScalingStrategy = getScalingStrategy(windowType, zoom);
+
+    // During active zoom, force CSS transform for terminals to prevent flickering
+    // Terminal dimension updates are deferred to handleZoomEnd in TerminalVanilla
+    const zoomIsActive: boolean = isZoomActive();
+    const strategy: ScalingStrategy = isTerminal && zoomIsActive
+        ? 'css-transform'
+        : getScalingStrategy(windowType, zoom);
+
+    // Flag terminals that need deferred dimension update after zoom settles
+    // Only flag if zoom level is high enough that dimension-scaling would normally be used
+    if (isTerminal && zoomIsActive && zoom >= TERMINAL_CSS_TRANSFORM_THRESHOLD) {
+        windowElement.dataset.pendingDimensionUpdate = 'true';
+    }
 
     // Apply dimensions based on strategy
     const baseDimensions: { readonly width: number; readonly height: number } = {width: baseWidth, height: baseHeight};

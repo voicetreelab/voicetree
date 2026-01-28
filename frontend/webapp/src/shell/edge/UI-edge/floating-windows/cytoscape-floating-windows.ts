@@ -51,12 +51,41 @@ export function isZoomActive(): boolean {
     return Date.now() < zoomActiveUntil;
 }
 
+// =============================================================================
+// Zoom End Callback System (for deferred terminal dimension updates)
+// =============================================================================
+
+type ZoomEndCallback = () => void;
+const zoomEndCallbacks: Set<ZoomEndCallback> = new Set();
+let zoomEndTimeoutId: ReturnType<typeof setTimeout> | null = null;
+const ZOOM_END_DEBOUNCE_MS: number = 100;
+
+/**
+ * Register a callback to be called when zoom ends (after debounce period)
+ * Returns an unsubscribe function
+ */
+export function onZoomEnd(callback: ZoomEndCallback): () => void {
+    zoomEndCallbacks.add(callback);
+    return () => zoomEndCallbacks.delete(callback);
+}
+
 /**
  * Mark zoom as active, extending the active window
  * Called by syncTransform on each zoom event
+ * Also triggers debounced zoom-end callbacks
  */
 export function markZoomActive(): void {
     zoomActiveUntil = Date.now() + ZOOM_ACTIVE_MS;
+
+    // Debounce zoom-end callbacks
+    if (zoomEndTimeoutId !== null) {
+        clearTimeout(zoomEndTimeoutId);
+    }
+
+    zoomEndTimeoutId = setTimeout(() => {
+        zoomEndTimeoutId = null;
+        zoomEndCallbacks.forEach(cb => cb());
+    }, ZOOM_END_DEBOUNCE_MS);
 }
 
 // =============================================================================
