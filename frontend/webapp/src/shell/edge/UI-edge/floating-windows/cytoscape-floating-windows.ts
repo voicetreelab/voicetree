@@ -58,7 +58,7 @@ export function isZoomActive(): boolean {
 type ZoomEndCallback = () => void;
 const zoomEndCallbacks: Set<ZoomEndCallback> = new Set();
 let zoomEndTimeoutId: ReturnType<typeof setTimeout> | null = null;
-const ZOOM_END_DEBOUNCE_MS: number = 100;
+const ZOOM_END_DEBOUNCE_MS: number = 300;
 
 /**
  * Register a callback to be called when zoom ends (after debounce period)
@@ -71,7 +71,7 @@ export function onZoomEnd(callback: ZoomEndCallback): () => void {
 
 /**
  * Mark zoom as active, extending the active window
- * Called by syncTransform on each zoom event
+ * Called by zoom event listener (not pan or resize)
  * Also triggers debounced zoom-end callbacks
  */
 export function markZoomActive(): void {
@@ -177,12 +177,6 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
             const zoom: number = cy.zoom();
             cachedZoom = zoom;
 
-            // Suppress terminal inactivity detection during zoom (resize triggers shell redraws)
-            suppressInactivityDuringZoom();
-
-            // Mark zoom as active for CSS transform scaling decisions
-            markZoomActive();
-
             // Only translate, no scale - windows handle their own sizing
             overlay.style.transform = `translate(${pan.x}px, ${pan.y}px)`;
 
@@ -214,6 +208,12 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
                 rafPending = false;
                 syncTransform();
             });
+        });
+
+        // Zoom-specific behavior - only fires on actual zoom, not pan
+        cy.on('zoom', () => {
+            suppressInactivityDuringZoom();
+            markZoomActive();
         });
     }
 
