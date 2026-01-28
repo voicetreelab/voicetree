@@ -182,6 +182,35 @@ export function getTransformOrigin(origin: TransformOrigin): string {
 }
 
 // =============================================================================
+// Terminal Scroll Preservation (pure calculations)
+// =============================================================================
+
+/**
+ * Terminal buffer state needed for scroll calculations
+ */
+export interface TerminalBufferState {
+    readonly baseY: number;
+    readonly viewportY: number;
+}
+
+/**
+ * Calculate scroll offset from buffer state.
+ * This represents how many lines the user has scrolled up from the bottom.
+ */
+export function getScrollOffset(buffer: TerminalBufferState): number {
+    return buffer.baseY - buffer.viewportY;
+}
+
+/**
+ * Calculate the target line to scroll to after a resize/fit operation.
+ * Returns the line that maintains the same relative scroll position.
+ */
+export function getScrollTargetLine(newBaseY: number, scrollOffset: number): number {
+    const targetLine: number = newBaseY - scrollOffset;
+    return targetLine >= 0 ? targetLine : 0;
+}
+
+// =============================================================================
 // Viewport/Mouse Coordinate Conversions (for drag handling)
 // =============================================================================
 
