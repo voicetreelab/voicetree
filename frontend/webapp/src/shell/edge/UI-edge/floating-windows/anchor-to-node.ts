@@ -14,8 +14,7 @@ import type {NodeIdAndFilePath} from "@/pure/graph";
 import {
     getWindowTransform,
     graphToScreenPosition,
-    type ScalingStrategy,
-    screenToGraphDimensions
+    type ScalingStrategy
 } from "@/pure/floatingWindowScaling";
 import {cleanupRegistry, getCachedZoom} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import {setupResizeObserver, updateShadowNodeDimensions} from "@/shell/edge/UI-edge/floating-windows/setup-resize-observer";
@@ -211,17 +210,9 @@ export function anchorToNode(
     windowElement.setAttribute('data-shadow-node-id', shadowNodeId);
     windowElement.dataset.shadowNodeId = shadowNodeId;
 
-    // Calculate shadow node dimensions (graph coordinates)
-    const strategy: ScalingStrategy = windowElement.dataset.usingCssTransform === 'true' ? 'css-transform' : 'dimension-scaling';
-    const currentZoom: number = getCachedZoom();
-    const screenDims: { readonly width: number; readonly height: number } = {
-        width: windowElement.offsetWidth,
-        height: windowElement.offsetHeight
-    };
-    const dimensions: {
-        readonly width: number;
-        readonly height: number
-    } = screenToGraphDimensions(screenDims, currentZoom, strategy);
+    // Shadow node dimensions come from fw.shadowNodeDimensions (already in graph coordinates)
+    // Do NOT read from windowElement.offsetWidth/offsetHeight - the element may not be
+    // in the DOM yet, causing a race condition where dimensions are 0.
 
     // Shadow node visible on minimap with subtle styling
     shadowNode.style({
@@ -231,8 +222,8 @@ export function anchorToNode(
         'border-color': 'black',
         'shape': 'rectangle',
         'events': 'yes',
-        'width': dimensions.width,
-        'height': dimensions.height
+        'width': shadowDimensions.width,
+        'height': shadowDimensions.height
     });
 
     // Create edge from parent (task node) to shadow

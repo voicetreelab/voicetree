@@ -11,9 +11,9 @@
  * second phase could still be quite janky which was what we were trying to avoid.
  */
 
-import type {Core, EdgeSingular, NodeDefinition, NodeSingular, Position} from 'cytoscape';
+import type {Core, EdgeSingular, NodeDefinition} from 'cytoscape';
 import ColaLayout from './cola';
-import {CONTEXT_NODE_EDGE_LENGTH, DEFAULT_EDGE_LENGTH} from './cytoscape-graph-constants';
+import { DEFAULT_EDGE_LENGTH} from './cytoscape-graph-constants';
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
 
@@ -55,34 +55,6 @@ const DEFAULT_OPTIONS: AutoLayoutOptions = {
   userConstIter: 15,
   allConstIter: 25,
   edgeLength: (edge: EdgeSingular) => {
-    const source: NodeSingular = edge.source();
-    const target: NodeSingular = edge.target();
-
-    // Dynamic edge length for terminal shadow nodes based on placement direction
-    const isTerminalShadow: boolean = target.data('isShadowNode') === true &&
-                             target.data('windowType') === 'Terminal';
-    const targetIsContextNode: boolean = target.data('isContextNode') === true;
-
-    if (isTerminalShadow) {
-      // Terminal only spawns in cardinal directions (right, left, above, below)
-      // so we just need to check if horizontal or vertical placement
-      const sourcePos: Position = source.position();
-      const targetPos: Position = target.position();
-      const dx: number = Math.abs(targetPos.x - sourcePos.x);
-      const dy: number = Math.abs(targetPos.y - sourcePos.y);
-      const gap: number = 20;
-
-      if (dx > dy) {
-        // Horizontal placement: use widths
-        return (target.width() / 2) + (source.width() / 2) + gap;
-      } else {
-        // Vertical placement: use heights
-        return (target.height() / 2) + (source.height() / 2) + gap;
-      }
-    }
-    if (targetIsContextNode){
-        return CONTEXT_NODE_EDGE_LENGTH;
-    }
     return DEFAULT_EDGE_LENGTH;
   },
   // edgeSymDiffLength: undefined,
@@ -122,7 +94,12 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const layout: any = new (ColaLayout as any)({
       cy: cy,
-      eles: cy.elements(),
+      // Exclude context nodes and their edges - position controlled by anchor-to-node.ts
+      eles: cy.elements().filter(ele => {
+        if (ele.isNode()) return !ele.data('isContextNode');
+        // Exclude edges connected to context nodes
+        return !ele.source().data('isContextNode') && !ele.target().data('isContextNode');
+      }),
       animate: colaOptions.animate,
       randomize: false, // Don't randomize - preserve existing positions
       avoidOverlap: colaOptions.avoidOverlap,
