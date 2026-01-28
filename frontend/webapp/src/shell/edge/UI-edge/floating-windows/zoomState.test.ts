@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { isZoomActive, markZoomActive } from './cytoscape-floating-windows'
+import { isZoomActive, markZoomActive, onZoomEnd } from './cytoscape-floating-windows'
 
 // The implementation uses ZOOM_ACTIVE_MS = 250ms
 const ZOOM_ACTIVE_MS: number = 250
+// Zoom-end callbacks fire after 100ms debounce
+const ZOOM_END_DEBOUNCE_MS: number = 100
 
 describe('zoomState', () => {
     beforeEach(() => {
@@ -63,6 +65,73 @@ describe('zoomState', () => {
             vi.advanceTimersByTime(150)
 
             expect(isZoomActive()).toBe(false)
+        })
+    })
+
+    describe('onZoomEnd', () => {
+        it('calls registered callback after 100ms debounce when zoom ends', () => {
+            const callback = vi.fn()
+            onZoomEnd(callback)
+
+            markZoomActive()
+
+            // Callback not called immediately
+            expect(callback).not.toHaveBeenCalled()
+
+            // Callback still not called before debounce period
+            vi.advanceTimersByTime(50)
+            expect(callback).not.toHaveBeenCalled()
+
+            // Callback called after 100ms debounce
+            vi.advanceTimersByTime(50)
+            expect(callback).toHaveBeenCalledTimes(1)
+        })
+
+        it('debounces rapid zoom events - callback fires once after last zoom', () => {
+            const callback = vi.fn()
+            onZoomEnd(callback)
+
+            // Simulate rapid zooming
+            markZoomActive()
+            vi.advanceTimersByTime(50)
+            markZoomActive() // Reset debounce
+            vi.advanceTimersByTime(50)
+            markZoomActive() // Reset debounce again
+            vi.advanceTimersByTime(50)
+
+            // Callback not called yet - debounce keeps resetting
+            expect(callback).not.toHaveBeenCalled()
+
+            // Wait for debounce to complete
+            vi.advanceTimersByTime(ZOOM_END_DEBOUNCE_MS)
+            expect(callback).toHaveBeenCalledTimes(1)
+        })
+
+        it('unsubscribe function removes callback', () => {
+            const callback = vi.fn()
+            const unsubscribe = onZoomEnd(callback)
+
+            // Unsubscribe before zoom
+            unsubscribe()
+
+            markZoomActive()
+            vi.advanceTimersByTime(ZOOM_END_DEBOUNCE_MS)
+
+            // Callback should not be called since we unsubscribed
+            expect(callback).not.toHaveBeenCalled()
+        })
+
+        it('calls multiple registered callbacks', () => {
+            const callback1 = vi.fn()
+            const callback2 = vi.fn()
+            onZoomEnd(callback1)
+            onZoomEnd(callback2)
+
+            markZoomActive()
+            vi.advanceTimersByTime(ZOOM_END_DEBOUNCE_MS)
+
+            expect(callback1).toHaveBeenCalledTimes(1)
+            expect(callback2).toHaveBeenCalledTimes(1)
         })
     })
 })
