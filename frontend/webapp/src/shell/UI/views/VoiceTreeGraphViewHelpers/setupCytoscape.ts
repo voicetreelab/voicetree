@@ -9,8 +9,9 @@ import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/Vertic
 import {enableAutoLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout';
 import {
     createAnchoredFloatingEditor,
-    handleAddNodeAtPosition,
+
 } from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
+import {handleAddNodeAtPosition} from "@/shell/edge/UI-edge/floating-windows/editors/OpenHoverEditor";
 
 export interface SetupCytoscapeParams {
     cy: Core;

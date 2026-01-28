@@ -16,15 +16,14 @@ import { getFilePathForNode, getNodeFromMainToUI } from "@/shell/edge/UI-edge/gr
 import type { AgentConfig, VTSettings } from "@/pure/settings";
 import { highlightContainedNodes, highlightPreviewNodes, clearContainedHighlights } from '@/shell/UI/cytoscape-graph-ui/highlightContextNodes';
 import { createTrafficLights } from "@/shell/edge/UI-edge/floating-windows/traffic-lights";
-import { showFloatingSlider, hideFloatingSlider } from './DistanceSlider';
+import { showFloatingSlider } from './DistanceSlider';
 
 /** Config for attaching a distance slider to a menu item */
 export interface SliderConfig {
     readonly currentDistance: number;
     readonly onDistanceChange: (newDistance: number) => void;
     readonly onRun?: () => void | Promise<void>;  // Called when user clicks a slider square
-    readonly menuAnchor: HTMLElement;  // Element to position slider above
-    readonly overlay: HTMLElement;      // Overlay to append slider to
+    readonly menuElement: HTMLElement;  // Menu element to append slider to (slider becomes child of menu)
 }
 
 /** Menu item interface for the custom horizontal menu */
@@ -47,8 +46,7 @@ export interface NodeMenuItemsInput {
     readonly agents: readonly AgentConfig[];
     readonly isContextNode: boolean;
     readonly currentDistance?: number; // Current context retrieval distance (for slider)
-    readonly menuAnchor?: HTMLElement;  // Element to position slider above (required for slider)
-    readonly overlay?: HTMLElement;      // Overlay to append slider to (required for slider)
+    readonly menuElement?: HTMLElement;  // Menu element to append slider to (required for slider)
 }
 
 /** Output from createHorizontalMenuElement */
@@ -176,11 +174,10 @@ function createMenuItemElement(item: HorizontalMenuItem, onClose: () => void, al
         }
         if (item.sliderConfig) {
             showFloatingSlider({
-                anchorElement: item.sliderConfig.menuAnchor,
+                menuElement: item.sliderConfig.menuElement,
                 currentDistance: item.sliderConfig.currentDistance,
                 onDistanceChange: item.sliderConfig.onDistanceChange,
                 onRun: item.sliderConfig.onRun ?? item.action,  // Use sliderConfig.onRun or fall back to item.action
-                overlay: item.sliderConfig.overlay,
             });
         }
         if (item.onHoverEnter) {
@@ -193,9 +190,8 @@ function createMenuItemElement(item: HorizontalMenuItem, onClose: () => void, al
             labelContainer.style.visibility = 'hidden';
             labelContainer.style.opacity = '0';
         }
-        if (item.sliderConfig) {
-            hideFloatingSlider();
-        }
+        // Note: slider is not hidden on button mouseleave - it stays visible as part of menu DOM
+        // and is destroyed when menu closes via destroyFloatingSlider() in hideMenu()
         if (item.onHoverLeave) {
             item.onHoverLeave();
         }
@@ -236,8 +232,7 @@ function createRunButtonSliderConfig(
     cy: Core,
     nodeId: string,
     currentDistance: number,
-    menuAnchor: HTMLElement,
-    overlay: HTMLElement
+    menuElement: HTMLElement
 ): SliderConfig {
     return {
         currentDistance,
@@ -251,8 +246,7 @@ function createRunButtonSliderConfig(
                 await highlightPreviewNodes(cy, nodeId);
             })();
         },
-        menuAnchor,
-        overlay,
+        menuElement,
     };
 }
 
@@ -261,13 +255,13 @@ function createRunButtonSliderConfig(
  * Extracted for reuse by floating window chrome.
  */
 export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[] {
-    const { nodeId, cy, agents, isContextNode, currentDistance, menuAnchor, overlay } = input;
+    const { nodeId, cy, agents, isContextNode, currentDistance, menuElement } = input;
     const menuItems: HorizontalMenuItem[] = [];
 
     // Create slider config for non-context nodes (context nodes don't need distance slider)
-    // Only create if menuAnchor and overlay are provided (required for floating slider)
-    const sliderConfig: SliderConfig | undefined = !isContextNode && currentDistance !== undefined && menuAnchor && overlay
-        ? createRunButtonSliderConfig(cy, nodeId, currentDistance, menuAnchor, overlay)
+    // Only create if menuElement is provided (required for slider to be appended as child)
+    const sliderConfig: SliderConfig | undefined = !isContextNode && currentDistance !== undefined && menuElement
+        ? createRunButtonSliderConfig(cy, nodeId, currentDistance, menuElement)
         : undefined;
 
     // LEFT SIDE: Delete, Copy, Add (3 buttons)

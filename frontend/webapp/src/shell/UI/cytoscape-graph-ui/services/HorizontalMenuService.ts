@@ -4,7 +4,7 @@
 
 import type { Core, NodeSingular, Position } from 'cytoscape';
 import * as O from 'fp-ts/lib/Option.js';
-import { getEditorByNodeId } from "@/shell/edge/UI-edge/state/EditorStore";
+import { getEditorByNodeId, getHoverEditor } from "@/shell/edge/UI-edge/state/EditorStore";
 import { getImageViewerByNodeId } from "@/shell/edge/UI-edge/state/ImageViewerStore";
 import type { EditorData } from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
 import type { ImageViewerData } from "@/shell/edge/UI-edge/floating-windows/image-viewers/imageViewerDataType";
@@ -18,6 +18,10 @@ import {
     createHorizontalMenuElement,
     type HorizontalMenuItem,
 } from './HorizontalMenuItems';
+import {
+    isMouseInHoverZone,
+    closeHoverEditor,
+} from "@/shell/edge/UI-edge/floating-windows/editors/HoverEditor";
 
 // Re-export types for consumers
 export type { SliderConfig, HorizontalMenuItem, NodeMenuItemsInput, HorizontalMenuElements } from './HorizontalMenuItems';
@@ -105,15 +109,14 @@ export class HorizontalMenuService {
             z-index: 10000;
         `;
 
-        // Get menu items with menuAnchor and overlay for floating slider
+        // Get menu items with menuElement for slider (slider becomes child of menu)
         const menuItems: HorizontalMenuItem[] = getNodeMenuItems({
             nodeId,
             cy: this.cy,
             agents,
             isContextNode,
             currentDistance,
-            menuAnchor: menu,
-            overlay,
+            menuElement: menu,
         });
 
         // Store graph position for zoom updates (menu uses CSS transform scaling)
@@ -144,6 +147,33 @@ export class HorizontalMenuService {
 
         overlay.appendChild(menu);
         this.currentMenu = menu;
+
+        // Listen for close-requested event from hover editor
+        menu.addEventListener('close-requested', () => {
+            this.hideMenu();
+        });
+
+        // Close on mouse leave (when mouse exits the hover zone)
+        const handleMouseLeave: (e: MouseEvent) => void = (e: MouseEvent): void => {
+            if (!this.cy) return;
+            // Get the hover editor window for zone check
+            const hoverEditorOption: O.Option<EditorData> = getHoverEditor();
+            const hoverEditorWindow: HTMLElement | null = O.isSome(hoverEditorOption)
+                ? hoverEditorOption.value.ui?.windowElement ?? null
+                : null;
+            const stillInZone: boolean = isMouseInHoverZone(
+                e.clientX,
+                e.clientY,
+                this.cy,
+                nodeId,
+                hoverEditorWindow
+            );
+            if (!stillInZone) {
+                this.hideMenu();
+                closeHoverEditor(this.cy);
+            }
+        };
+        menu.addEventListener('mouseleave', handleMouseLeave);
 
         // Setup click-outside handler (same logic as hover editors)
         // Add listener after a short delay to prevent immediate closure

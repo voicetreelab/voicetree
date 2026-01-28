@@ -1,4 +1,5 @@
-import type cytoscape, {Core} from 'cytoscape';
+import type {Core} from 'cytoscape';
+import type cytoscape from 'cytoscape';
 import * as O from 'fp-ts/lib/Option.js';
 
 import type {NodeIdAndFilePath} from '@/pure/graph';

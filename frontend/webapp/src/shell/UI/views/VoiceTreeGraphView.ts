@@ -46,10 +46,10 @@ import {BreathingAnimationService} from '@/shell/UI/cytoscape-graph-ui/services/
 import {HorizontalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService';
 import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService';
 import {
-    setupCommandHover,
     disposeEditorManager,
     closeEditor
 } from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
+import {setupCommandHover} from '@/shell/edge/UI-edge/floating-windows/editors/HoverEditor';
 import {HotkeyManager} from './HotkeyManager';
 import {SearchService} from './SearchService';
 // V2 recent node tabs - tracks recently added/modified nodes (not visited)
