@@ -14,14 +14,16 @@ It's a pain to memorize what each is doing. Scrolling through terminal history t
 
 And then, when an agent stops with a half finished task you are faced with a dilemma: 
 - suffer context-rot if you reprompt it within the same session (decreasing performance by [30-60%](https://research.trychroma.com/context-rot)). 
-- Get the agent to save a handover document with its notes to warm up a new session. 10 sessions later and now you are lost in a another claustrophobic sea of unorganized notes.  
+- save a handover document with the agent's notes to warm up a new session. But 10 sessions later and you are now lost in a another claustrophobic sea of unorganized notes.  
 
 ### The Solution
 ![VT_branching_with_editor.png](meta/VT_branching_with_editor.png)
 
 Voicetree is a peaceful canvas for agentic engineering. Every agent sits next to its task, planning documents, and progress updates. The closer something is, the more relevant it is.
 
-Now you can effortlessly switch between swarms of parallel agents across your project. Your project becomes an interactive graph view made of markdown files and terminals. All stored locally.
+Your project becomes an interactive graph view made of markdown files and terminals. All stored locally.
+
+Designed for effortlessly switching between swarms of parallel agents across your project.
 ## Installation
 
 ### macOS (Apple Silicon)
@@ -61,13 +63,11 @@ curl -fsSL https://raw.githubusercontent.com/voicetreelab/voicetree/main/install
 
 **Discord community:** https://discord.gg/3z4Gbquv
 
-### Divide and Conquer
+### Divide and Conquer with Transparent Subagent Orchestration
 
 Long, complex tasks make agents unpredictable. Simple, isolated tasks make them reliable.
 
 Voicetree lets you architect and then automatically break work into subtasks: what needs to happen, in what order, and what can run in parallel. Each agent gets one clear job. When agents are reliable, their outputs become building blocks — you assemble massive projects fractally from tiny tasks.
-
-### Transparent Orchestration
 
 Agents can spawn their own subagents automatically. In other tools, this is invisible. In Voicetree, every subagent is fully transparent and controllable, running live on the graph in its own terminal.
 
@@ -86,7 +86,7 @@ Voicetree also works as a tool for thinking. Use speech-to-graph mode to capture
 - **Day-to-day work**: Organize tasks and decisions as you think through them
 - **Deep problem-solving**: Let the graph offload your working memory, freeing your cognition
 - **Human-agent collaboration**: Build the graph yourself, then let agents continue in the background
-- **Context compression**: The graph structure naturally solves the LLM long-context problem
+- **Context compression**: The graph structure naturally solves the LLM long-context problem.
 
 Everything is local markdown files. Use it with agents, with voice, or just as a spatial thinking tool.
 
