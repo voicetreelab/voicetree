@@ -100,6 +100,9 @@ export function createWindowChrome(
     const hasAnchoredNode: boolean = O.isSome(fw.anchoredToNodeId);
     const hasAgents: boolean = options.agents !== undefined && options.agents.length > 0;
 
+    // Menu cleanup destroys floating slider when editor closes
+    let menuCleanup: (() => void) | undefined;
+
     if (isEditor && hasAnchoredNode && hasAgents) {
         const nodeId: string = 'contentLinkedToNodeId' in fw ? fw.contentLinkedToNodeId : '';
         const isContextNode: boolean = nodeId.includes('.context_node.');
@@ -111,7 +114,7 @@ export function createWindowChrome(
         }
 
         // Use factory function to create menu
-        const { wrapper: menuWrapper } = createNodeMenu({
+        const { wrapper: menuWrapper, cleanup } = createNodeMenu({
             nodeId,
             cy,
             agents: options.agents ?? [],
@@ -127,6 +130,7 @@ export function createWindowChrome(
             spacerWidth: 10,
         });
 
+        menuCleanup = cleanup;
         menuWrapper.className = 'cy-floating-window-horizontal-menu';
         windowElement.appendChild(menuWrapper);
     }
@@ -149,7 +153,7 @@ export function createWindowChrome(
         addResizeZones(windowElement);
     }
 
-    return {windowElement, contentContainer};
+    return {windowElement, contentContainer, menuCleanup};
 }
 
 /**

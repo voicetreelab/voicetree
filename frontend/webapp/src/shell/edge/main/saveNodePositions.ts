@@ -7,7 +7,6 @@ import * as O from "fp-ts/lib/Option.js";
 
 /**
  * Save node positions from Cytoscape UI back to graph state.
- * Also cleans up orphaned context nodes (those not attached to any active terminal).
  * Lightweight update - only touches in-memory state, no filesystem writes.
  * Positions will persist to disk when nodes are saved for other reasons.
  *
@@ -52,16 +51,16 @@ export function saveNodePositions(cyNodes: readonly NodeDefinition[]): void {
         nodeByBaseName: graph.nodeByBaseName,
         unresolvedLinksIndex: graph.unresolvedLinksIndex
     });
-
-    // Cleanup orphaned context nodes
-    void cleanupOrphanedContextNodes();
 }
 
 /**
  * Find and delete context nodes that are not attached to any active terminal.
  * Context nodes are temporary - they should be cleaned up when their terminal closes.
+ *
+ * Called on app quit to clean up any remaining context nodes.
+ * NOT called during normal operation to avoid race conditions with terminal spawning.
  */
-async function cleanupOrphanedContextNodes(): Promise<void> {
+export async function cleanupOrphanedContextNodes(): Promise<void> {
     const graph: Graph = getGraph();
 
     // Get all context nodes

@@ -29,7 +29,8 @@ export interface FloatingWindowUIData {
     readonly contentContainer: HTMLElement;
     // No titleBar - removed in Phase 1 of floating window chrome refactor
     // Traffic lights will be moved to horizontal menu in Phase 2A/3
-    // No cleanup stored - use disposeFloatingWindow(fw) function instead
+    // Menu cleanup destroys floating slider when editor closes
+    readonly menuCleanup?: () => void;
 }
 
 // =============================================================================

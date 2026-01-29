@@ -341,6 +341,7 @@ export function anchorToNode(
         dragMouseUp: handleMouseUp,
         resizeObserver,
         // parentPositionHandler: syncWithParent, // BUG: commented out - see above
+        menuCleanup: fw.ui?.menuCleanup,  // Destroys floating slider when editor closes
     });
 
     // Initial dimension sync
