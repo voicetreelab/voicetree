@@ -190,14 +190,14 @@ function generateNodeDetailsList(
         if (node.nodeUIMetadata.isContextNode) {
             continue
         }
-        // Strip [link]* markers to prevent them being converted back to [[link]] wikilinks when written to disk.
-        // Without this, fromNodeToMarkdownContent would create real edges from context node to all embedded nodes.
-        const contentWithoutLinkStars: string = node.contentWithoutYamlOrLinks.replace(/\[([^\]]+)\]\*/g, '[$1]')
+        // Convert [link]* markers to [\[link]\] to show they were wikilinks, while preventing them from
+        // being parsed as actual [[link]] wikilinks when written to disk.
+        const contentWithoutLinkStars: string = node.contentWithoutYamlOrLinks.replace(/\[([^\]]+)\]\*/g, '[\\[$1]\\]')
         lines.push(`<${node.absoluteFilePathIsID}> \n ${contentWithoutLinkStars} \n </${node.absoluteFilePathIsID}>`)
     }
 
-    // Strip [link]* markers from the start node content too
-    const startNodeContent: string = subgraph.nodes[_startNodeId].contentWithoutYamlOrLinks.replace(/\[([^\]]+)\]\*/g, '[$1]')
+    // Convert [link]* markers from the start node content too
+    const startNodeContent: string = subgraph.nodes[_startNodeId].contentWithoutYamlOrLinks.replace(/\[([^\]]+)\]\*/g, '[\\[$1]\\]')
 
     lines.push(`<TASK> IMPORTANT. YOUR specific task, and the most relevant context is the source note you were spawned from, which is:
         ${_startNodeId}: ${startNodeContent} </TASK>`)
