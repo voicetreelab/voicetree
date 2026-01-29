@@ -140,8 +140,9 @@ function generateNodeDetailsList(
       continue
     }
 
-    // Strip [link]* markers to prevent them being converted back to wikilinks
-    const contentWithoutLinkStars: string = node.contentWithoutYamlOrLinks.replace(/\[([^\]]+)\]\*/g, '[$1]')
+    // Convert [link]* markers to [\[link]\] to show they were wikilinks, while preventing them from
+    // being parsed as actual [[link]] wikilinks when written to disk.
+    const contentWithoutLinkStars: string = node.contentWithoutYamlOrLinks.replace(/\[([^\]]+)\]\*/g, '[\\[$1]\\]')
     lines.push(`<${node.absoluteFilePathIsID}> \n ${contentWithoutLinkStars} \n </${node.absoluteFilePathIsID}>`)
   }
 
