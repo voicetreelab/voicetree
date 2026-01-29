@@ -1,6 +1,6 @@
 ## The spatial IDE for recursive multi-agent orchestration.
 
-![VoiceTree Demo](meta/Self_spawn.gif)
+![Voicetree Demo](meta/Self_spawn.gif)
 
 #### Voicetree is an Obsidian-style mindmap of Markdown files and coding agents.
 
@@ -65,11 +65,11 @@ curl -fsSL https://raw.githubusercontent.com/voicetreelab/voicetree/main/install
 
 Long, complex tasks make agents unpredictable. Simple, isolated tasks make them reliable.
 
-VoiceTree lets you break work into subtasks: what needs to happen, in what order, and what can run in parallel. Each agent gets one clear job. When agents are reliable, their outputs become building blocks — you assemble massive projects fractally from tiny tasks.
+Voicetree lets you architect and then automatically break work into subtasks: what needs to happen, in what order, and what can run in parallel. Each agent gets one clear job. When agents are reliable, their outputs become building blocks — you assemble massive projects fractally from tiny tasks.
 
 ### Transparent Orchestration
 
-Agents can spawn their own subagents automatically. In other tools, this is invisible. In VoiceTree, every subagent is fully transparent and controllable, running live on the graph in its own terminal.
+Agents can spawn their own subagents automatically. In other tools, this is invisible. In Voicetree, every subagent is fully transparent and controllable, running live on the graph in its own terminal.
 
 ### Built for Flow
 
@@ -78,10 +78,9 @@ Agents can spawn their own subagents automatically. In other tools, this is invi
 - **Hackable**: Everything is stored on-device as markdown files. Keep your same Claude settings and workflows.
 - **Efficient**: Pruning context leads to ammoritzed fewer input tokens and more accurate responses.
 
-
 ## Beyond Agents: Voice & Thinking
 
-VoiceTree also works as a tool for thinking. Use speech-to-graph mode to capture ideas hands-free — your voice becomes nodes on the canvas.
+Voicetree also works as a tool for thinking. Use speech-to-graph mode to capture ideas hands-free — your voice becomes nodes on the canvas.
 
 **Use cases:**
 - **Day-to-day work**: Organize tasks and decisions as you think through them
