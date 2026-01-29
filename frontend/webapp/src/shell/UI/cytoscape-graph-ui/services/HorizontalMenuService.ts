@@ -11,13 +11,12 @@ import type { ImageViewerData } from "@/shell/edge/UI-edge/floating-windows/imag
 import { getOrCreateOverlay } from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import { graphToScreenPosition, getWindowTransform, getTransformOrigin } from '@/pure/floatingWindowScaling';
 import type { AgentConfig, VTSettings } from "@/pure/settings";
-import { createTrafficLightsForTarget } from "@/shell/edge/UI-edge/floating-windows/traffic-lights";
-import { destroyFloatingSlider } from './DistanceSlider';
 import {
     getNodeMenuItems,
     createHorizontalMenuElement,
     type HorizontalMenuItem,
 } from './HorizontalMenuItems';
+import { createNodeMenu, type MenuKind, type CreateNodeMenuOptions } from './createNodeMenu';
 import {
     isMouseInHoverZone,
     closeHoverEditor,
@@ -26,10 +25,13 @@ import {
 // Re-export types for consumers
 export type { SliderConfig, HorizontalMenuItem, NodeMenuItemsInput, HorizontalMenuElements } from './HorizontalMenuItems';
 export { getNodeMenuItems, createHorizontalMenuElement } from './HorizontalMenuItems';
+export type { MenuKind, CreateNodeMenuOptions } from './createNodeMenu';
+export { createNodeMenu } from './createNodeMenu';
 
 export class HorizontalMenuService {
     private cy: Core | null = null;
     private currentMenu: HTMLElement | null = null;
+    private menuCleanup: (() => void) | null = null;
     private clickOutsideHandler: ((e: MouseEvent) => void) | null = null;
 
     initialize(cy: Core): void {
@@ -95,29 +97,22 @@ export class HorizontalMenuService {
         const isContextNode: boolean = node.data('isContextNode') === true;
         const overlay: HTMLElement = getOrCreateOverlay(this.cy);
 
-        // Create menu container first (transparent, just for positioning)
-        // pointer-events: none so the gap in the middle allows clicking the node
-        const menu: HTMLDivElement = document.createElement('div');
-        menu.className = 'cy-horizontal-context-menu';
-        menu.style.cssText = `
-            position: absolute;
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-            background: transparent;
-            pointer-events: none;
-            z-index: 10000;
-        `;
-
-        // Get menu items with menuElement for slider (slider becomes child of menu)
-        const menuItems: HorizontalMenuItem[] = getNodeMenuItems({
+        // Create menu using factory function
+        const closeMenu: () => void = () => this.hideMenu();
+        const { wrapper: menu, cleanup: menuCleanup } = createNodeMenu({
             nodeId,
             cy: this.cy,
             agents,
             isContextNode,
             currentDistance,
-            menuElement: menu,
+            menuKind: { kind: 'hover-menu', closeMenu },
         });
+        this.menuCleanup = menuCleanup;
+
+        // Add positioning styles for hover menu
+        menu.className = 'cy-horizontal-context-menu';
+        menu.style.position = 'absolute';
+        menu.style.zIndex = '10000';
 
         // Store graph position for zoom updates (menu uses CSS transform scaling)
         const zoom: number = this.cy.zoom();
@@ -128,22 +123,6 @@ export class HorizontalMenuService {
         menu.style.top = `${screenPos.y}px`;
         menu.style.transform = getWindowTransform('css-transform', zoom, 'center');
         menu.style.transformOrigin = getTransformOrigin('center');
-
-        const closeMenu: () => void = () => this.hideMenu();
-
-        const trafficLights: HTMLDivElement = createTrafficLightsForTarget({
-            kind: 'hover-menu',
-            nodeId,
-            cy: this.cy,
-            closeMenu,
-        });
-
-        const { leftGroup, spacer, rightGroup } = createHorizontalMenuElement(menuItems, closeMenu, trafficLights);
-
-        // Assemble: left group, spacer, right group
-        menu.appendChild(leftGroup);
-        menu.appendChild(spacer);
-        menu.appendChild(rightGroup);
 
         overlay.appendChild(menu);
         this.currentMenu = menu;
@@ -188,8 +167,9 @@ export class HorizontalMenuService {
     }
 
     private hideMenu(): void {
-        // Destroy floating slider when menu closes
-        destroyFloatingSlider();
+        // Call cleanup function (destroys floating slider)
+        this.menuCleanup?.();
+        this.menuCleanup = null;
 
         if (this.currentMenu) {
             this.currentMenu.remove();
