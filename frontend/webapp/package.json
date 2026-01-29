@@ -22,6 +22,8 @@
     "electron:watch": "npx kill-port 3000 2>/dev/null || true && electron-vite dev --watch",
     "electron": "npx kill-port 3000 2>/dev/null || true && electron-vite dev",
     "electron:prod": "electron-vite build && npx @electron/rebuild && electron .",
+    "build:server": "cd ../.. && ./scripts/build_server.sh",
+    "electron:prod-full": "npm run build:server && npm run electron:prod",
     "electron:persist-state": "VOICETREE_PERSIST_STATE=1 electron-vite build && VOICETREE_PERSIST_STATE=1 electron .",
     "electron:build": "electron-vite build",
     "electron:pack": "electron-vite build && electron-builder",

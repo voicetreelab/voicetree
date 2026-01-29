@@ -174,6 +174,12 @@ if (process.env.MINIMIZE_TEST === '1') {
     app.commandLine.appendSwitch('disable-renderer-backgrounding');
 }
 
+// Enable remote debugging for Playwright MCP connections
+// This allows external Playwright instances to connect via CDP (Chrome DevTools Protocol)
+if (process.env.ENABLE_PLAYWRIGHT_DEBUG === '1') {
+    app.commandLine.appendSwitch('remote-debugging-port', '9222');
+}
+
 // Global manager instances
 // TextToTreeServer: Converts text input (voice/typed) to markdown tree structure
 // Select implementation based on environment (no fallbacks)
