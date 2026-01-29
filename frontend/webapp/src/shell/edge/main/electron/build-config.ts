@@ -121,7 +121,7 @@ function getBuildConfigProd(commonEnv: CommonEnv): BuildConfig {
   const serverBinaryName: string = process.platform === 'win32' ? 'voicetree-server.exe' : 'voicetree-server';
   const serverBinaryPath: string = commonEnv.isPackaged
     ? path.join(process.resourcesPath, 'server', serverBinaryName)
-    : path.join(rootDir, 'dist', 'resources', 'server', serverBinaryName);
+    : path.join(rootDir, 'out', 'resources', 'server', serverBinaryName);
 
   // Tools source depends on packaging state
   const toolsSource: string = commonEnv.isPackaged
