@@ -7,15 +7,18 @@ isContextNode: false
 ---
 # Generate codebase graph (run me)
 
-Your task is to create a knowledge graph made out of Markdown nodes which represents this codebase at a high level. Each node should have a concise summary of the module's main purpose, and a sentence or two of gotchas or tech debt you found. You can use explore subagents to help you with exploring codebase.
+### Your task is to run the following workflow
 
-The graph should be mostly a tree, so no more than one edge per node linking to its parent.
+1. **Explore** the codebase (use explore subagents)
+2. **Identify** the top ~7 major modules
+3. **Create a node** for each module containing:
+    - Concise purpose summary
+    - Mermaid diagrams for the core flow
+    - Notable gotchas or tech debt
+4. **Spawn voicetree agents** on each module to break it down one level further
 
-Limit to a maximum of 7 modules at any given level.  
+## Constraints
 
-For each module you create, spawn a voicetree agent to run this exact same workflow on the given module to break it down further into a subgraph of submodules. Do not recurse more than one level deep. Subagents should not recurse further.
-
-When creating child nodes, link them ONLY to their direct parent node. Do NOT create links back to the grandparent or ancestor nodes - this creates transitive edges that clutter the graph.
-
-
-
+- **Max 7 modules** per level
+- **Tree structure**: each node links only to its direct parent
+- **Depth limit**: subagents do NOT spawn further agents
