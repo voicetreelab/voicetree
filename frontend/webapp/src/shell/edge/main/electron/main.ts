@@ -19,6 +19,7 @@ import {setupRPCHandlers} from '@/shell/edge/main/edge-auto-rpc/rpc-handler';
 import {writeAllPositionsSync} from '@/shell/edge/main/graph/writeAllPositionsOnExit';
 import {getGraph} from '@/shell/edge/main/state/graph-store';
 import {startMcpServer} from '@/shell/edge/main/mcp-server/mcp-server';
+import {cleanupOrphanedContextNodes} from '@/shell/edge/main/saveNodePositions';
 import {setOnFolderSwitchCleanup, setStartupFolderOverride} from "@/shell/edge/main/state/watch-folder-store";
 
 // Redirect all console.* to electron-log in production (handles EPIPE errors on Linux AppImage)
@@ -397,6 +398,9 @@ app.on('before-quit', () => {
 
     // Clean up all terminals
     terminalManager.cleanup();
+
+    // Clean up orphaned context nodes (fire-and-forget, best effort on quit)
+    void cleanupOrphanedContextNodes();
 
     // Stop OTLP receiver
     void stopOTLPReceiver();

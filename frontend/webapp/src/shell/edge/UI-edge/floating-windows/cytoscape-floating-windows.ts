@@ -101,6 +101,7 @@ type CleanupFunctions = {
     dragMouseUp: () => void;
     resizeObserver?: ResizeObserver;
     parentPositionHandler?: () => void;
+    menuCleanup?: () => void;  // Destroys floating slider when editor closes
 };
 
 /**
@@ -261,6 +262,10 @@ export function disposeFloatingWindow(
                         parentNode.off('position', undefined, cleanup.parentPositionHandler);
                     }
                 }
+            }
+            // Destroy floating slider if menu cleanup was registered
+            if (cleanup.menuCleanup) {
+                cleanup.menuCleanup();
             }
             cleanupRegistry.delete(fw.ui.windowElement);
         }
