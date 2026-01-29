@@ -4,6 +4,7 @@ position:
   y: 1136.8224658653842
 isContextNode: false
 ---
+
 As you make progress on the task, create detailed visual updates by adding nodes to our Markdown tree.
 
 ## When to Create Multiple Linked Nodes (Prefer This)
@@ -66,8 +67,6 @@ Only use a single progress node when your work is:
 - Under ~30 lines of changes
 - Affects only 1-2 related files
 
----
-
 ## Progress Node Template
 
 When creating progress nodes, your content should:
@@ -94,8 +93,9 @@ agent_name: $AGENT_NAME
 
 Key details such as specifications, decisions made, plans, outcomes, etc.
 
-<OPTIONAL if files changed> ##DIFF 
-files changed: e.g. file1.md, file2.py, etc..
+<IF files changed> 
+## DIFF 
+
 ```<coding_language>
 <code_diff>
 ```
@@ -106,9 +106,10 @@ files changed: e.g. file1.md, file2.py, etc..
 ```
 </example_diff>
 
-</OPTIONAL>
+List of all additional files changed: e.g. `file1.md`, `file2.py`, etc.. with concise summary 
+</IF files changed>
 
-<optional>
+<IF diagram relevant>
 \```mermaid
 [Include relevant diagram type:
 - flowchart: for process flows
@@ -117,40 +118,39 @@ files changed: e.g. file1.md, file2.py, etc..
 - classDiagram: for code structure
 - gitGraph: for version changes]
 \```
-</optional>
+</IF diagram relevant>
 
-<OPTIONAL>
-- More notes, gotchas
-If relevant, include how this change affects the overall system, dependencies, or workflow.
-If relevant, include difficulties you faced in achieving this task, for example technical debt which made it hard.
-</OPTIONAL>
+<Notes>
+### NOTES
+If relevant, include how this change affects the overall system architecture, dependencies, or workflow.
+If relevant, include difficulties you faced in achieving this task, for example technical debt or gotchas which made it difficult.
+If relevant, Include a complexity score for the area of the codebase you had to work within, with a brief explanation of what makes it complex
+</Notes>
 
-<IF YOU CREATED OPENSPEC FILES>
-## Related Files
-
+<IF YOU CREATED SPECIFICATION FILES SUCH AS OPENSPEC>
+## Spec files
 Link to key OpenSpec artifacts that should appear in the graph:
-
 ```
 - proposal [[openspec/changes/add-auth/proposal.md]]
 - design [[openspec/changes/add-auth/design.md]]
 - tasks [[openspec/changes/add-auth/tasks.md]]
 ```
-
 Only link files worth revisiting (proposal, design, tasks). Skip individual spec deltas unless they contain key decisions.
-</IF>
+</IF YOU CREATED SPECIFICATION FILES SUCH AS OPENSPEC>
 
-<CRITICAL>
-- <optional_relationship_label> [[$TASK_NODE_PATH]]
-</CRITICAL>
+<CRITICAL PARENT LINK>
+<optional_relationship_label> [[$TASK_NODE_PATH]]
+<example> fixes circular dependency for [[windows_build_failing.md]]</example>
+</CRITICAL PARENT LINK>
 
 </MARKDOWN new node Format Template>
 ```
 
-- If `$AGENT_COLOR` is unset, default to `blue`
-- Wikilink paths are relative to `$VOICETREE_VAULT_PATH`, you must ensure your file is also saved here.
-- Use `[[$TASK_NODE_PATH]]` as the default parent to link your node to. Override when necessary.
-  **Important**: Use double brackets `[[link]]` for edges, not single `[link]`. Only `[[wikilinks]]` create graph edges.
-- **Minimize edges.** Every `[[wikilink]]` creates a visible edge in the graph. Too many edges = visual clutter. Use sparingly.
-- Optional relationship labels: `- solves build failure [[path]]` Omit unless the relationship is specific and meaningful.
+Before writing the file, ensure you have ticked off the following checklist:
+1. If `$AGENT_COLOR` is unset, default to `blue` unless there is a reason for a representative color
+2. Wikilink paths are relative to `$VOICETREE_VAULT_PATH`, you must ensure your file is also saved here.
+3. You linked the new file to its parent using the corrent path (env var $TASK_NODE_PATH) and double brackets. The link should be exactly `[[$TASK_NODE_PATH]]` Override only when necessary. Only double brackets create graph edges, single brackets don't.
+4. Meaningful specific relationship labels used, and you have ommitted relationship lable unless it's specific and meaningful.
+5. Edges are minimized: Every `[[wikilink]]` creates a visible edge in the graph. Too many edges = visual clutter. Use sparingly. Think, could I have avoided multiple wikilinks, and kept the representation as a tree/DAG?
 
 ALL mentioned $VARS are environment variables which are already set for you. Please check them now.
