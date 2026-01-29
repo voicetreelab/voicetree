@@ -1,0 +1,13 @@
+{
+  "name": "voicetree-plugins",
+  "owner": {
+    "name": "VoiceTree Team"
+  },
+  "plugins": [
+    {
+      "name": "playwright-debug",
+      "source": "./playwright-debug",
+      "description": "Live debugging of VoiceTree Electron app via Playwright MCP"
+    }
+  ]
+}

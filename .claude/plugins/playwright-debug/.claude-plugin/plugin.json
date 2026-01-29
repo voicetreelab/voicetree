@@ -1,0 +1,8 @@
+{
+  "name": "playwright-debug",
+  "version": "1.0.0",
+  "description": "Live debugging of VoiceTree Electron app via Playwright MCP",
+  "author": {
+    "name": "VoiceTree Team"
+  }
+}
