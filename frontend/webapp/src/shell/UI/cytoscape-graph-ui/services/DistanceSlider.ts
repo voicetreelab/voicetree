@@ -13,10 +13,11 @@ const SLIDER_GRAY_COLOR: string = 'rgba(255, 255, 255, 0.2)';
 /** Module-level state for floating slider */
 let activeSlider: HTMLDivElement | null = null;
 let sliderHideTimeout: number | null = null;
+let currentMenuElement: HTMLElement | null = null;
 
 /** Options for showing the floating slider */
 export interface FloatingSliderOptions {
-    readonly menuElement: HTMLElement;        // The menu element to append slider to (becomes child of menu)
+    readonly menuElement: HTMLElement;        // The menu element to position slider above
     readonly currentDistance: number;
     readonly onDistanceChange: (distance: number) => void;
     readonly onRun?: () => void | Promise<void>;  // Called when user clicks a slider square
@@ -24,7 +25,7 @@ export interface FloatingSliderOptions {
 
 /**
  * Show the floating distance slider above the menu.
- * Slider is appended as a child of the menu element, so it inherits menu's hover behavior.
+ * Uses position: fixed to escape stacking context issues with floating windows.
  */
 export function showFloatingSlider(options: FloatingSliderOptions): void {
     // Clear any pending hide
@@ -33,15 +34,31 @@ export function showFloatingSlider(options: FloatingSliderOptions): void {
         sliderHideTimeout = null;
     }
 
-    // Reuse or create slider
+    // Create slider if needed (appended to body for fixed positioning)
     if (!activeSlider) {
         activeSlider = createDistanceSlider(options.currentDistance, options.onDistanceChange, options.onRun);
-        activeSlider.style.zIndex = '10002'; // Above menu content
-        options.menuElement.appendChild(activeSlider);
+        document.body.appendChild(activeSlider);
+
+        // Since slider is not a child of the menu, add hover handlers to keep it visible
+        activeSlider.addEventListener('mouseenter', () => {
+            if (sliderHideTimeout !== null) {
+                clearTimeout(sliderHideTimeout);
+                sliderHideTimeout = null;
+            }
+        });
+        activeSlider.addEventListener('mouseleave', () => {
+            hideFloatingSlider();
+        });
     }
 
+    currentMenuElement = options.menuElement;
+
+    // Position above the menu using fixed positioning
+    const rect: DOMRect = options.menuElement.getBoundingClientRect();
+    activeSlider.style.left = `${rect.left + rect.width / 2}px`;
+    activeSlider.style.top = `${rect.top}px`;
+
     activeSlider.style.display = 'flex';
-    // No mouseenter/mouseleave handlers needed - slider is part of menu DOM
 }
 
 /**
@@ -84,16 +101,19 @@ export function createDistanceSlider(
     const container: HTMLDivElement = document.createElement('div');
     container.className = 'distance-slider';
     container.style.cssText = `
-        position: absolute;
-        bottom: 100%;
-        left: 50%;
-        transform: translateX(-50%);
+        position: fixed;
+        transform: translate(-50%, -100%);
         display: flex;
         flex-direction: column;
         align-items: center;
         gap: 4px;
         padding: 4px 8px;
         pointer-events: auto;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 99999;
     `;
 
     // Add tooltip label above the squares

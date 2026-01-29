@@ -13,14 +13,9 @@ import type {EditorData} from "@/shell/edge/UI-edge/floating-windows/editors/edi
 import type {Core} from 'cytoscape';
 import {getScalingStrategy, getScreenDimensions, type ScalingStrategy} from "@/pure/floatingWindowScaling";
 import {selectFloatingWindowNode} from "@/shell/edge/UI-edge/floating-windows/select-floating-window-node";
-import {getCachedZoom, getOrCreateOverlay} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
+import {getCachedZoom} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import * as O from 'fp-ts/lib/Option.js';
-import {
-    getNodeMenuItems,
-    createHorizontalMenuElement,
-    type NodeMenuItemsInput,
-    type HorizontalMenuItem
-} from "@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService";
+import { createNodeMenu } from "@/shell/UI/cytoscape-graph-ui/services/createNodeMenu";
 import type {AgentConfig} from "@/pure/settings";
 import {Maximize2, Minimize2, createElement} from 'lucide';
 import {createTrafficLightsForTarget} from "@/shell/edge/UI-edge/floating-windows/traffic-lights";
@@ -107,59 +102,32 @@ export function createWindowChrome(
 
     if (isEditor && hasAnchoredNode && hasAgents) {
         const nodeId: string = 'contentLinkedToNodeId' in fw ? fw.contentLinkedToNodeId : '';
-        // Check if node is a context node (has .context_node. in path)
         const isContextNode: boolean = nodeId.includes('.context_node.');
-
-        // Get overlay for floating slider
-        const overlay: HTMLElement = getOrCreateOverlay(cy);
-
-        // Create menu wrapper first so it can be passed as menuAnchor for floating slider positioning
-        const menuWrapper: HTMLDivElement = document.createElement('div');
-        menuWrapper.className = 'cy-floating-window-horizontal-menu';
-
-        // Get menu items with menuAnchor and overlay for floating slider
-        const menuInput: NodeMenuItemsInput = {
-            nodeId,
-            cy,
-            agents: options.agents ?? [],
-            isContextNode,
-            currentDistance: options.currentDistance,
-            menuAnchor: menuWrapper,
-            overlay,
-        };
-        const menuItems: HorizontalMenuItem[] = getNodeMenuItems(menuInput);
 
         // Type-narrow fw to EditorData for traffic lights
         const editorData: EditorData | undefined = 'type' in fw && isEditorData(fw) ? fw : undefined;
         if (!editorData) {
             throw new Error('Expected EditorData for editor-window traffic lights');
         }
-        const trafficLights: HTMLDivElement = createTrafficLightsForTarget({
-            kind: 'editor-window',
-            editor: editorData,
+
+        // Use factory function to create menu
+        const { wrapper: menuWrapper } = createNodeMenu({
+            nodeId,
             cy,
-            closeEditor: options.closeEditor ?? ((): void => {
-                windowElement.dispatchEvent(new CustomEvent('traffic-light-close', { bubbles: true }));
-            }),
+            agents: options.agents ?? [],
+            isContextNode,
+            currentDistance: options.currentDistance,
+            menuKind: {
+                kind: 'editor-window',
+                editor: editorData,
+                closeEditor: options.closeEditor ?? ((): void => {
+                    windowElement.dispatchEvent(new CustomEvent('traffic-light-close', { bubbles: true }));
+                }),
+            },
+            spacerWidth: 10,
         });
 
-        // Create menu elements (leftGroup, spacer, and rightGroup pills)
-        // The spacer creates a centered gap where the node circle appears visually
-        const { leftGroup, spacer, rightGroup } = createHorizontalMenuElement(
-            menuItems,
-            () => {}, // No-op onClose - menu is persistent
-            trafficLights
-        );
-        // TODO: Tech debt - spacer width should be configurable via createHorizontalMenuElement options
-        // Anchored editors don't have a node circle in the gap, so use smaller spacer
-        spacer.style.width = '10px';
-
-        // Assemble menu wrapper
-        menuWrapper.appendChild(leftGroup);
-        menuWrapper.appendChild(spacer);
-        menuWrapper.appendChild(rightGroup);
-
-        // Add menu to window element (before content container)
+        menuWrapper.className = 'cy-floating-window-horizontal-menu';
         windowElement.appendChild(menuWrapper);
     }
 
