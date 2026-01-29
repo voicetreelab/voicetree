@@ -278,18 +278,9 @@ export function ProjectSelectionScreen({ onProjectSelected }: ProjectSelectionSc
                 {/* Discovered Projects */}
                 {(hasDiscoveredProjects || isScanning) && (
                     <div className="mb-8">
-                        <div className="flex items-center justify-between mb-3">
-                            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                                Discovered Projects
-                            </h2>
-                            <button
-                                onClick={() => void scanForProjects()}
-                                disabled={isScanning}
-                                className="text-xs text-primary hover:text-primary/80 disabled:text-muted-foreground"
-                            >
-                                {isScanning ? 'Scanning...' : 'Scan Again'}
-                            </button>
-                        </div>
+                        <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-3">
+                            Discovered Projects
+                        </h2>
 
                         {isScanning && !hasDiscoveredProjects && (
                             <div className="p-4 text-center text-muted-foreground text-sm">
@@ -300,9 +291,10 @@ export function ProjectSelectionScreen({ onProjectSelected }: ProjectSelectionSc
                         {hasDiscoveredProjects && (
                             <div className="space-y-2">
                                 {discoveredProjects.map((project) => (
-                                    <div
+                                    <button
                                         key={project.path}
-                                        className="flex items-center gap-3 p-4 bg-card border border-border rounded-lg"
+                                        onClick={() => void handleAddDiscovered(project)}
+                                        className="w-full text-left flex items-center gap-3 p-4 bg-card hover:bg-accent border border-border rounded-lg transition-colors"
                                     >
                                         <span className="text-lg" title={project.type}>
                                             {getProjectTypeIcon(project.type)}
@@ -315,13 +307,7 @@ export function ProjectSelectionScreen({ onProjectSelected }: ProjectSelectionSc
                                                 {project.path}
                                             </div>
                                         </div>
-                                        <button
-                                            onClick={() => void handleAddDiscovered(project)}
-                                            className="px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
-                                        >
-                                            + Add
-                                        </button>
-                                    </div>
+                                    </button>
                                 ))}
                             </div>
                         )}

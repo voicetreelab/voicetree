@@ -414,7 +414,15 @@ export function createFloatingTerminalWindow(
  */
 export async function closeTerminal(terminal: TerminalData, cy: Core): Promise<void> {
     const terminalId: TerminalId = getTerminalId(terminal);
-    //console.log('[closeTerminal-v2] Closing terminal:', terminalId);
+
+    // DEBUG: Log UI state to diagnose floating window shell bug
+    // Issue: cmd-w sometimes leaves empty window frame after closing terminal
+    if (!terminal.ui) {
+        console.error('[closeTerminal] BUG: terminal.ui is undefined!', {
+            terminalId,
+            attachedToNodeId: terminal.attachedToNodeId,
+        });
+    }
 
     // Phase 3: Notify main process to remove from registry
     // This ensures main stays in sync when terminal is closed from UI
