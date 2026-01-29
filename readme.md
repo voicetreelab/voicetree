@@ -18,7 +18,8 @@ And then, when an agent stops with a half finished task you are faced with a dil
 
 ### The Solution
 ![VT_branching_with_editor.png](meta/VT_branching_with_editor.png)
-Voicetree is a canvas where every agent sits next to its task, planning documents, and progress updates. All visible at a glance. The closer something is, the more relevant it is.
+
+Voicetree is a peaceful canvas for agentic engineering. Every agent sits next to its task, planning documents, and progress updates. The closer something is, the more relevant it is.
 
 Now you can effortlessly switch between swarms of parallel agents across your project. Your project becomes an interactive graph view made of markdown files and terminals. All stored locally.
 ## Installation
