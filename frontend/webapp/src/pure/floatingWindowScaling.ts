@@ -36,7 +36,7 @@ export interface Dimensions {
 export const TERMINAL_CSS_TRANSFORM_THRESHOLD: number = 0.5;
 
 /** Base font size for terminal text (scaled by zoom in dimension-scaling mode) */
-export const TERMINAL_BASE_FONT_SIZE: number = 10;
+export const TERMINAL_BASE_FONT_SIZE: number = 8;
 
 // =============================================================================
 // Core Strategy Function
