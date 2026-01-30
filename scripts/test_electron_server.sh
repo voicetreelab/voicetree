@@ -18,7 +18,7 @@ echo "✅ Server executable found"
 
 # Build electron (fast, no server rebuild)
 echo "Building Electron app..."
-cd frontend/webapp
+cd webapp
 npm run electron:build > /dev/null 2>&1 || {
     echo "❌ Electron build failed"
     exit 1
@@ -61,7 +61,7 @@ sleep 2
 # Force kill if still running
 pkill -f "electron.*voicetree" 2>/dev/null || true
 
-cd ../..
+cd ..
 
 if [ $RESULT -eq 0 ]; then
     echo ""

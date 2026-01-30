@@ -23,7 +23,7 @@ module.exports = async function(context) {
   const arch = context.arch; // 1 = x64, 3 = arm64
   const archName = arch === 3 ? 'ARM' : 'Intel';
   const serverSourceDir = arch === 3 ? 'out/resources/server' : 'out/resources-intel/server';
-  const serverSource = path.resolve(__dirname, `../../../${serverSourceDir}`);
+  const serverSource = path.resolve(__dirname, `../../${serverSourceDir}`);
   const serverDest = path.join(resourcesPath, 'server');
 
   console.log(`🔄 Installing ${archName} server...`);

@@ -64,7 +64,7 @@ echo "   - types.py, settings.py, logging_config.py"
 echo ""
 echo "📱 Step 2: Building Electron frontend..."
 echo "----------------------------------------------"
-cd frontend/webapp
+cd webapp
 
 # Step 3: Install dependencies if needed
 if [ ! -d "node_modules" ]; then
@@ -114,11 +114,11 @@ echo "----------------------------------------------"
 echo "Building Electron distributable (this may take a few minutes)..."
 
 # Clean previous builds in root
-cd ../..
+cd ..
 rm -rf out/electron
 
 # Build the distributable from frontend
-cd frontend/webapp
+cd webapp
 
 
 npm run electron:dist

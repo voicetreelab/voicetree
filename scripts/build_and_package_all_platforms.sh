@@ -262,9 +262,9 @@ if [ "$PUBLISH" = true ]; then
     echo "Updating Homebrew tap with multi-arch cask..."
     echo "============================================================"
 
-    cd frontend/webapp
+    cd webapp
     VERSION=$(node -p "require('./package.json').version")
-    cd ../..
+    cd ..
 
     ARM_DMG=$(find out/electron-mac-universal -name "voicetree-arm64.dmg" 2>/dev/null | head -1)
     INTEL_DMG=$(find out/electron-mac-universal -name "voicetree-x64.dmg" 2>/dev/null | head -1)

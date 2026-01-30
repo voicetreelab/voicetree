@@ -22,7 +22,7 @@
     "electron:watch": "npx kill-port 3000 2>/dev/null || true && electron-vite dev --watch",
     "electron": "npx kill-port 3000 2>/dev/null || true && electron-vite dev",
     "electron:prod": "electron-vite build && npx @electron/rebuild && electron .",
-    "build:server": "cd ../.. && ./scripts/build_server.sh",
+    "build:server": "cd .. && ./scripts/build_server.sh",
     "electron:prod-full": "npm run build:server && npm run electron:prod",
     "electron:persist-state": "VOICETREE_PERSIST_STATE=1 electron-vite build && VOICETREE_PERSIST_STATE=1 electron .",
     "electron:build": "electron-vite build",
@@ -140,7 +140,7 @@
       "releaseType": "draft"
     },
     "directories": {
-      "output": "../../out/electron"
+      "output": "../out/electron"
     },
     "afterPack": "./scripts/after-pack.cjs",
     "asarUnpack": [
@@ -161,15 +161,15 @@
     ],
     "extraResources": [
       {
-        "from": "../../out/resources/server",
+        "from": "../out/resources/server",
         "to": "server"
       },
       {
-        "from": "../../out/resources/tools",
+        "from": "../out/resources/tools",
         "to": "tools"
       },
       {
-        "from": "../../out/resources/backend",
+        "from": "../out/resources/backend",
         "to": "backend"
       },
       {

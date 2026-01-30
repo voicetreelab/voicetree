@@ -36,7 +36,7 @@ describe('port-utils integration test', () => {
   });
 
   it('should launch 3 servers on consecutive ports and verify all are running', async () => {
-    const repoRoot = path.resolve(__dirname, '../../../..');
+    const repoRoot = path.resolve(__dirname, '../..');
     const serverScript = path.join(repoRoot, 'server.py');
 
     console.log(`\n[Test] Repository root: ${repoRoot}`);

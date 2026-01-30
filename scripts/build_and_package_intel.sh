@@ -68,7 +68,7 @@ cp ./backend/logging_config.py ./out/resources-intel/backend/
 echo "Backend modules copied to out/resources-intel/backend/"
 
 # Step 2: Create isolated staging folder for Intel build
-# This prevents corrupting the ARM node_modules in frontend/webapp
+# This prevents corrupting the ARM node_modules in webapp
 echo ""
 echo "Step 2: Creating isolated staging folder for Intel build..."
 echo "----------------------------------------------"
@@ -77,17 +77,17 @@ STAGING_DIR="build-intel-staging"
 rm -rf "$STAGING_DIR"
 mkdir -p "$STAGING_DIR"
 
-# Copy frontend/webapp to staging (excluding node_modules for fresh install)
-echo "Copying frontend/webapp to staging folder..."
-rsync -a --exclude='node_modules' frontend/webapp/ "$STAGING_DIR/webapp/"
+# Copy webapp to staging (excluding node_modules for fresh install)
+echo "Copying webapp to staging folder..."
+rsync -a --exclude='node_modules' webapp/ "$STAGING_DIR/webapp/"
 
 # Set up out structure that electron-builder expects (../../out/resources from webapp)
 mkdir -p "$STAGING_DIR/out"
 cp -r out/resources-intel "$STAGING_DIR/out/resources"
 
 # Copy .env if it exists (for code signing credentials)
-if [ -f "frontend/webapp/.env" ]; then
-    cp frontend/webapp/.env "$STAGING_DIR/webapp/.env"
+if [ -f "webapp/.env" ]; then
+    cp webapp/.env "$STAGING_DIR/webapp/.env"
 fi
 
 # Step 3: Install dependencies and rebuild for x64 in staging
@@ -138,7 +138,7 @@ else
 fi
 
 # Move back to project root
-cd ../..
+cd ..
 
 # Always move the output to intel-specific folder (even if publish failed)
 # Note: electron-builder outputs to ../../out/electron (relative to webapp),

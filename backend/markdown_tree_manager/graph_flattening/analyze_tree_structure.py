@@ -71,6 +71,6 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         fixture_dir = sys.argv[1]
     else:
-        fixture_dir = "/Users/bobbobby/repos/VoiceTree/frontend/webapp/tests/fixtures/example_real_large/2025-09-30"
+        fixture_dir = "/Users/bobbobby/repos/VoiceTree/webapp/tests/fixtures/example_real_large/2025-09-30"
 
     analyze_tree(fixture_dir)

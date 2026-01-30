@@ -81,11 +81,11 @@ function getCommonEnv(): CommonEnv {
  * Development configuration - run Python directly from source
  */
 function getBuildConfigDev(commonEnv: CommonEnv): BuildConfig {
-  // Use process.cwd() which is /path/to/Voicetree/frontend/webapp
-  // Go up 2 levels to get Voicetree root (where server.py lives)
+  // Use process.cwd() which is /path/to/voicetree-public/webapp
+  // Go up 1 level to get repo root (where server.py lives)
   // Note: app.getAppPath() returns dist-electron/main when running built version,
-  // which would require going up 4 levels. Using cwd is more reliable.
-  const rootDir: string = path.resolve(process.cwd(), '../..');
+  // which would require going up 3 levels. Using cwd is more reliable.
+  const rootDir: string = path.resolve(process.cwd(), '..');
 
   return {
     // Python: Run directly from source via uv (handles venv automatically)
@@ -111,11 +111,11 @@ function getBuildConfigDev(commonEnv: CommonEnv): BuildConfig {
 function getBuildConfigProd(commonEnv: CommonEnv): BuildConfig {
   // Compute repo root from app path
   // In packaged: appPath = /path/to/Voicetree.app/Contents/Resources/app.asar
-  // In unpackaged prod: appPath = /path/to/Voicetree/frontend/webapp
+  // In unpackaged prod: appPath = /path/to/voicetree-public/webapp
   const appPath: string = app.getAppPath();
   const rootDir: string = commonEnv.isPackaged
     ? path.dirname(process.resourcesPath)
-    : path.resolve(appPath, '../..');
+    : path.resolve(appPath, '..');
 
   // Binary location depends on packaging state
   const serverBinaryName: string = process.platform === 'win32' ? 'voicetree-server.exe' : 'voicetree-server';

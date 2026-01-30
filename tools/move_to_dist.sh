@@ -7,7 +7,7 @@ set -e
 VOICETREE_DIR="$HOME/repos/VoiceTree"
 TOOLS_DIR="$VOICETREE_DIR/tools"
 BACKEND_DIR="$VOICETREE_DIR/backend"
-DIST_DIR="$VOICETREE_DIR/frontend/webapp/dist/resources"
+DIST_DIR="$VOICETREE_DIR/webapp/dist/resources"
 APP_SUPPORT_DIR="$HOME/Library/Application Support/voicetree-webapp"
 APP_SUPPORT_DIR_2="$HOME/Library/Application Support/VoiceTree"
 

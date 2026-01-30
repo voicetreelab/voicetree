@@ -22,7 +22,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd $CLAUDE_PROJECT_DIR/frontend/webapp/ && node .claude/hooks/quality-check.cjs"
+            "command": "cd $CLAUDE_PROJECT_DIR/webapp/ && node .claude/hooks/quality-check.cjs"
           }
         ]
       }
