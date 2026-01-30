@@ -74,7 +74,7 @@ echo "----------------------------------------------"
 
 rm -rf out/electron
 
-cd frontend/webapp
+cd webapp
 
 if [ ! -d "node_modules" ]; then
     echo "Installing frontend dependencies..."

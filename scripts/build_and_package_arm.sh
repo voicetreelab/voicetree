@@ -79,7 +79,7 @@ echo "   - types.py, settings.py, logging_config.py"
 echo ""
 echo "📱 Step 2: Building Electron frontend..."
 echo "----------------------------------------------"
-cd frontend/webapp
+cd webapp
 
 # Step 3: Install dependencies if needed
 if [ ! -d "node_modules" ]; then
@@ -129,12 +129,12 @@ echo "----------------------------------------------"
 echo "Building Electron distributable (this may take a few minutes)..."
 
 # Clean previous ARM builds in root
-cd ../..
+cd ..
 rm -rf out/electron-arm
 rm -rf out/electron  # Also clean main electron folder to avoid mixing with other platform artifacts
 
 # Build the distributable from frontend
-cd frontend/webapp
+cd webapp
 
 # Load environment variables for code signing and notarization
 if [ -f ".env" ]; then
@@ -144,9 +144,9 @@ fi
 
 # Update file modification times to satisfy codesign timestamp validation
 echo "Updating file timestamps for codesign..."
-cd ../..
+cd ..
 find out/resources -type f -exec touch {} +
-cd frontend/webapp
+cd webapp
 echo "✅ File timestamps updated"
 
 # Capture exit code so mv always runs even if publish fails
@@ -159,7 +159,7 @@ else
 fi
 
 # Always move the output to arm-specific folder (even if publish failed)
-cd ../..
+cd ..
 if [ -d "out/electron" ]; then
     mv out/electron out/electron-arm
 fi
@@ -170,7 +170,7 @@ if [ $BUILD_EXIT_CODE -ne 0 ]; then
     exit $BUILD_EXIT_CODE
 fi
 
-cd frontend/webapp
+cd webapp
 
 # Step 7: Report results
 echo ""

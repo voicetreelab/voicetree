@@ -28,7 +28,7 @@ import type { BuildConfig } from '@/shell/edge/main/electron/build-config';
 describe('build-config', () => {
   const mockUserDataPath: "/Users/test/Library/Application Support/Electron" = '/Users/test/Library/Application Support/Electron';
   // Note: production code uses process.cwd() not app.getAppPath(), so repoRoot is derived from actual cwd
-  const repoRoot: string = path.resolve(process.cwd(), '../..');
+  const repoRoot: string = path.resolve(process.cwd(), '..');
 
   beforeEach(() => {
     vi.clearAllMocks();
