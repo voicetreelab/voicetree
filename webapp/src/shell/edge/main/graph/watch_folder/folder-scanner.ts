@@ -10,9 +10,41 @@ import path from 'path';
 import normalizePath from 'normalize-path';
 import type { AbsolutePath, AvailableFolderItem } from '@/pure/folders/types';
 import { toAbsolutePath } from '@/pure/folders/types';
-import { getAvailableFolders } from '@/pure/folders/transforms';
+import { getAvailableFolders, parseSearchQuery } from '@/pure/folders/transforms';
 import { getProjectRootWatchedDirectory } from '@/shell/edge/main/state/watch-folder-store';
 import { getVaultPaths } from './vault-allowlist';
+
+/**
+ * Security validation: ensure target path is within project root.
+ * Prevents directory traversal attacks (../ escapes) and symlink escapes.
+ *
+ * @param projectRoot - The trusted root directory
+ * @param targetPath - The path to validate
+ * @returns true if targetPath is a valid subdirectory of projectRoot
+ */
+export async function isValidSubdirectory(
+    projectRoot: string,
+    targetPath: string
+): Promise<boolean> {
+    try {
+        const realProjectRoot = await fs.realpath(projectRoot);
+        const realTargetPath = await fs.realpath(targetPath);
+
+        // Must be within project root (prevents "../" escapes)
+        if (
+            !realTargetPath.startsWith(realProjectRoot + '/') &&
+            realTargetPath !== realProjectRoot
+        ) {
+            return false;
+        }
+
+        // Must be a directory
+        const stat = await fs.stat(realTargetPath);
+        return stat.isDirectory();
+    } catch {
+        return false; // Path doesn't exist or can't access
+    }
+}
 
 /**
  * Scan project root for immediate subfolders with modification timestamps.
@@ -65,28 +97,12 @@ export async function getSubfoldersWithModifiedAt(
 }
 
 /**
- * Get available folders for the folder selector dropdown.
- * Returns folders not in loadedPaths, filtered by searchQuery.
- *
- * Internal function that combines:
- * 1. Filesystem scanning (shell layer)
- * 2. Pure filtering/sorting logic (from transforms)
- */
-async function getAvailableFoldersForSelectorCore(
-    projectRoot: AbsolutePath,
-    loadedPaths: readonly AbsolutePath[],
-    searchQuery: string
-): Promise<readonly AvailableFolderItem[]> {
-    // 1. Scan filesystem for subfolders with modification timestamps
-    const allSubfolders = await getSubfoldersWithModifiedAt(projectRoot);
-
-    // 2. Use pure transform to filter and sort
-    return getAvailableFolders(projectRoot, loadedPaths, allSubfolders, searchQuery);
-}
-
-/**
  * IPC-exposed function for getting available folders.
- * Gets project root and loaded paths from state, then delegates to core function.
+ * Supports lazy path expansion: typing "docs/" scans the docs subdirectory.
+ *
+ * Uses parseSearchQuery to determine:
+ * - Which directory to scan (basePath or project root)
+ * - What text to filter results by (filterText)
  */
 export async function getAvailableFoldersForSelector(
     searchQuery: string
@@ -97,9 +113,38 @@ export async function getAvailableFoldersForSelector(
     const vaultPaths = await getVaultPaths();
     const loadedPaths = vaultPaths.map(p => toAbsolutePath(p));
 
-    return getAvailableFoldersForSelectorCore(
-        toAbsolutePath(projectRoot),
+    // Parse the search query to determine scan target
+    const parsed = parseSearchQuery(searchQuery);
+
+    let scanRoot: AbsolutePath;
+    let filterText: string;
+
+    if (parsed.basePath) {
+        // User typed a path - scan that subdirectory
+        const targetPath = path.join(projectRoot, parsed.basePath);
+
+        // Security: validate path is within project
+        if (!(await isValidSubdirectory(projectRoot, targetPath))) {
+            return []; // Invalid or non-existent path
+        }
+
+        scanRoot = toAbsolutePath(targetPath);
+        filterText = parsed.filterText;
+    } else {
+        // No path separator - scan project root
+        scanRoot = toAbsolutePath(projectRoot);
+        filterText = searchQuery;
+    }
+
+    // Scan the determined directory
+    const subfolders = await getSubfoldersWithModifiedAt(scanRoot);
+
+    // Filter and format results
+    return getAvailableFolders(
+        toAbsolutePath(projectRoot), // projectRoot for display paths
         loadedPaths,
-        searchQuery
+        subfolders,
+        searchQuery,
+        filterText // Use filterText for actual filtering
     );
 }

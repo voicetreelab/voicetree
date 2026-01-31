@@ -35,6 +35,7 @@ import {loadProjects, saveProject, removeProject} from './project-store';
 import {initializeProject as initializeProjectCore} from './project-initializer';
 import {showFolderPicker} from './show-folder-picker';
 import {getOnboardingDirectory} from './electron/onboarding-setup';
+import {prettySetupAppForElectronDebugging} from './debug/prettySetupAppForElectronDebugging';
 import path from 'path';
 
 /**
@@ -148,4 +149,7 @@ export const mainAPI = {
   removeProject,
   initializeProject,
   showFolderPicker,
+
+  // Debug setup for Playwright MCP
+  prettySetupAppForElectronDebugging,
 }

@@ -13,6 +13,78 @@ import type {
 import type { VaultConfig } from '@/pure/settings/types';
 
 /**
+ * Result of parsing a search query for folder navigation.
+ */
+export interface ParsedQuery {
+    basePath: string | null;   // Directory to scan (e.g., "docs/projects")
+    filterText: string;         // Text after last slash (e.g., "au")
+    endsWithSlash: boolean;     // Whether query ends with "/"
+}
+
+/**
+ * Parse a search query to extract directory path and filter text.
+ * Used for lazy path expansion in folder navigation.
+ *
+ * Examples:
+ * - "" → { basePath: null, filterText: "", endsWithSlash: false }
+ * - "docs" → { basePath: null, filterText: "docs", endsWithSlash: false }
+ * - "docs/" → { basePath: "docs", filterText: "", endsWithSlash: true }
+ * - "docs/api" → { basePath: "docs", filterText: "api", endsWithSlash: false }
+ */
+export function parseSearchQuery(query: string): ParsedQuery {
+    // Normalize: convert backslashes to forward slashes
+    let normalized = query.replace(/\\/g, '/');
+
+    // Remove leading slashes
+    normalized = normalized.replace(/^\/+/, '');
+
+    // Collapse multiple consecutive slashes into one
+    normalized = normalized.replace(/\/+/g, '/');
+
+    // Check if ends with slash
+    const endsWithSlash = normalized.endsWith('/');
+
+    // Remove trailing slash for parsing
+    if (endsWithSlash) {
+        normalized = normalized.slice(0, -1);
+    }
+
+    // If ends with slash, the entire normalized path is the basePath
+    // "docs/" → basePath: "docs", filterText: ""
+    // "docs/projects/" → basePath: "docs/projects", filterText: ""
+    if (endsWithSlash) {
+        return {
+            basePath: normalized || null,
+            filterText: '',
+            endsWithSlash: true,
+        };
+    }
+
+    // Find last slash to split basePath and filterText
+    const lastSlashIndex = normalized.lastIndexOf('/');
+
+    if (lastSlashIndex === -1) {
+        // No slash in query: "docs" → basePath is null, filterText is "docs"
+        return {
+            basePath: null,
+            filterText: normalized,
+            endsWithSlash: false,
+        };
+    }
+
+    // Has slash: split into basePath and filterText
+    // "docs/api" → basePath: "docs", filterText: "api"
+    const basePath = normalized.slice(0, lastSlashIndex);
+    const filterText = normalized.slice(lastSlashIndex + 1);
+
+    return {
+        basePath: basePath || null,
+        filterText,
+        endsWithSlash: false,
+    };
+}
+
+/**
  * Convert absolute path to display-friendly relative path.
  * Returns "." for project root, otherwise returns relative path.
  */
@@ -40,12 +112,14 @@ export function toDisplayPath(projectRoot: AbsolutePath, absolutePath: AbsoluteP
  * - Filters out folders already in loadedPaths
  * - If searchQuery is empty: returns max 5 folders sorted by modifiedAt (desc), root "/" always first
  * - If searchQuery has text: filters by query (case-insensitive), no limit, sorted by modifiedAt
+ * - filterText: optional filter text to use instead of searchQuery for filtering (for nested path scanning)
  */
 export function getAvailableFolders(
     projectRoot: AbsolutePath,
     loadedPaths: readonly AbsolutePath[],
     allSubfolders: readonly { path: AbsolutePath; modifiedAt: number }[],
-    searchQuery: string
+    searchQuery: string,
+    filterText?: string  // If provided, use this for filtering instead of searchQuery
 ): readonly AvailableFolderItem[] {
     // Filter out already loaded paths
     const loadedPathSet = new Set<string>(loadedPaths);
@@ -53,9 +127,13 @@ export function getAvailableFolders(
         (folder) => !loadedPathSet.has(folder.path)
     );
 
-    // If searchQuery is provided, filter by query (case-insensitive)
-    if (searchQuery.trim() !== '') {
-        const lowerQuery: string = searchQuery.toLowerCase();
+    // Determine the actual filter to use
+    // If filterText is provided explicitly, use it; otherwise fall back to searchQuery
+    const actualFilter: string = filterText !== undefined ? filterText : searchQuery;
+
+    // If actualFilter is provided, filter by it (case-insensitive)
+    if (actualFilter.trim() !== '') {
+        const lowerQuery: string = actualFilter.toLowerCase();
         filtered = filtered.filter((folder) => {
             const displayPath: string = toDisplayPath(projectRoot, folder.path);
             return displayPath.toLowerCase().includes(lowerQuery);

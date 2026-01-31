@@ -221,7 +221,7 @@ export function ProjectSelectionScreen({ onProjectSelected }: ProjectSelectionSc
         <div className="h-screen flex flex-col bg-background p-8">
             {/* Header */}
             <div className="mb-8">
-                <h1 className="text-2xl font-semibold text-foreground">VoiceTree</h1>
+                <h1 className="text-2xl font-semibold text-foreground">Voicetree</h1>
                 <p className="text-muted-foreground mt-1">Select a project to open</p>
             </div>
 

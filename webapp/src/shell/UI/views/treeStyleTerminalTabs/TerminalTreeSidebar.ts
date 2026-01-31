@@ -22,7 +22,9 @@ import { buildTerminalTree, type TerminalTreeNode } from '@/pure/agentTabs/termi
 import {
     getActiveTerminalId,
     setActiveTerminalId,
+    resetAgentTabsStore,
 } from '@/shell/edge/UI-edge/state/AgentTabsStore';
+import { clearTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
 import {
     startTerminalActivityPolling,
     stopTerminalActivityPolling,
@@ -56,7 +58,7 @@ export function createTerminalTreeSidebar(container: HTMLElement): () => void {
     sidebarElement.setAttribute('data-testid', 'terminal-tree-sidebar');
 
     // Create header
-    const header = document.createElement('div');
+    const header: HTMLDivElement = document.createElement('div');
     header.className = 'terminal-tree-header';
     header.textContent = 'Terminals';
 
@@ -92,11 +94,11 @@ export function createTerminalTreeSidebar(container: HTMLElement): () => void {
 function setupResizeHandler(): void {
     if (!resizeHandle || !sidebarElement) return;
 
-    let isResizing = false;
-    let startX = 0;
-    let startWidth = 0;
+    let isResizing: boolean = false;
+    let startX: number = 0;
+    let startWidth: number = 0;
 
-    const onMouseDown = (e: MouseEvent): void => {
+    const onMouseDown: (e: MouseEvent) => void = (e: MouseEvent): void => {
         isResizing = true;
         startX = e.clientX;
         startWidth = sidebarElement!.offsetWidth;
@@ -106,14 +108,14 @@ function setupResizeHandler(): void {
         e.preventDefault();
     };
 
-    const onMouseMove = (e: MouseEvent): void => {
+    const onMouseMove: (e: MouseEvent) => void = (e: MouseEvent): void => {
         if (!isResizing || !sidebarElement) return;
-        const deltaX = e.clientX - startX;
-        const newWidth = Math.min(300, Math.max(60, startWidth + deltaX));
+        const deltaX: number = e.clientX - startX;
+        const newWidth: number = Math.min(300, Math.max(60, startWidth + deltaX));
         sidebarElement.style.width = `${newWidth}px`;
     };
 
-    const onMouseUp = (): void => {
+    const onMouseUp: () => void = (): void => {
         isResizing = false;
         resizeHandle?.classList.remove('dragging');
         document.removeEventListener('mousemove', onMouseMove);
@@ -149,7 +151,7 @@ export function renderTerminalTree(
 
     // Create DOM nodes for each tree node
     for (const treeNode of treeNodes) {
-        const nodeElement = createTreeNode(treeNode, activeTerminalId, onSelect);
+        const nodeElement: HTMLElement = createTreeNode(treeNode, activeTerminalId, onSelect);
         containerElement.appendChild(nodeElement);
     }
 
@@ -168,7 +170,7 @@ function createTreeNode(
     const { terminal, depth } = treeNode;
     const terminalId: TerminalId = getTerminalId(terminal);
 
-    const node = document.createElement('div');
+    const node: HTMLDivElement = document.createElement('div');
     node.className = 'terminal-tree-node';
     node.setAttribute('data-depth', String(depth));
     node.setAttribute('data-terminal-id', terminalId);
@@ -178,24 +180,24 @@ function createTreeNode(
     }
 
     // Status indicator
-    const status = document.createElement('span');
+    const status: HTMLSpanElement = document.createElement('span');
     status.className = `terminal-tree-status ${terminal.isDone ? 'done' : 'running'}`;
     node.appendChild(status);
 
     // Title
-    const title = document.createElement('span');
+    const title: HTMLSpanElement = document.createElement('span');
     title.className = 'terminal-tree-title';
     title.textContent = terminal.title;
     node.appendChild(title);
 
     // Close button
-    const closeBtn = document.createElement('button');
+    const closeBtn: HTMLButtonElement = document.createElement('button');
     closeBtn.className = 'terminal-tree-close';
     closeBtn.textContent = '×';
     closeBtn.addEventListener('click', (e: MouseEvent) => {
         e.stopPropagation();
         // Dispatch close event - terminal windows listen for this
-        const terminalElement = document.querySelector(`[data-floating-window-id="${terminalId}"]`);
+        const terminalElement: Element | null = document.querySelector(`[data-floating-window-id="${terminalId}"]`);
         if (terminalElement) {
             terminalElement.dispatchEvent(new CustomEvent('traffic-light-close', { bubbles: true }));
         }
@@ -228,10 +230,10 @@ export function setActiveTerminal(terminalId: TerminalId | null): void {
     if (!containerElement) return;
 
     // Update active class on all nodes
-    const nodes = containerElement.getElementsByClassName('terminal-tree-node');
-    for (let i = 0; i < nodes.length; i++) {
-        const node = nodes[i];
-        const nodeTerminalId = node.getAttribute('data-terminal-id');
+    const nodes: HTMLCollectionOf<Element> = containerElement.getElementsByClassName('terminal-tree-node');
+    for (let i: number = 0; i < nodes.length; i++) {
+        const node: Element = nodes[i];
+        const nodeTerminalId: string | null = node.getAttribute('data-terminal-id');
 
         if (nodeTerminalId === terminalId) {
             node.classList.add('active');
@@ -247,6 +249,7 @@ export function setActiveTerminal(terminalId: TerminalId | null): void {
 
 /**
  * Dispose the terminal tree sidebar and clean up resources.
+ * Also clears terminal stores to ensure clean state when switching projects.
  */
 export function disposeTerminalTreeSidebar(): void {
     // Stop activity polling
@@ -259,6 +262,10 @@ export function disposeTerminalTreeSidebar(): void {
     sidebarElement = null;
     containerElement = null;
     resizeHandle = null;
+
+    // Clear terminal stores to ensure clean state when switching projects
+    clearTerminals();
+    resetAgentTabsStore();
 }
 
 /**
