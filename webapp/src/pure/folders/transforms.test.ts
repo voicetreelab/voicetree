@@ -4,6 +4,7 @@ import {
     getAvailableFolders,
     reduceFolderConfig,
     toFolderSelectorState,
+    parseSearchQuery,
 } from './transforms';
 import { toAbsolutePath } from './types';
 import type { AbsolutePath, AvailableFolderItem, FolderAction } from './types';
@@ -144,6 +145,95 @@ describe('getAvailableFolders', () => {
             'folder'
         );
         expect(result).toHaveLength(10);
+    });
+
+    // Tests for filterText parameter (Phase 1B)
+    describe('with filterText parameter', () => {
+        it('uses filterText for filtering when provided', () => {
+            const loadedPaths: readonly AbsolutePath[] = [];
+            const allSubfolders: readonly { path: AbsolutePath; modifiedAt: number }[] = [
+                { path: toAbsolutePath('/Users/bob/project/docs/projects/auth'), modifiedAt: 3000 },
+                { path: toAbsolutePath('/Users/bob/project/docs/projects/core'), modifiedAt: 2000 },
+                { path: toAbsolutePath('/Users/bob/project/docs/projects/api'), modifiedAt: 1000 },
+            ];
+            // searchQuery is "docs/projects/", filterText is "au" - should filter by "au"
+            const result: readonly AvailableFolderItem[] = getAvailableFolders(
+                projectRoot,
+                loadedPaths,
+                allSubfolders,
+                'docs/projects/',
+                'au'  // filterText
+            );
+            expect(result).toHaveLength(1);
+            expect(result[0].displayPath).toBe('docs/projects/auth');
+        });
+
+        it('uses searchQuery for filtering when filterText is not provided (backwards compat)', () => {
+            const loadedPaths: readonly AbsolutePath[] = [];
+            const allSubfolders: readonly { path: AbsolutePath; modifiedAt: number }[] = [
+                { path: toAbsolutePath('/Users/bob/project/docs'), modifiedAt: 1000 },
+                { path: toAbsolutePath('/Users/bob/project/notes'), modifiedAt: 2000 },
+            ];
+            const result: readonly AvailableFolderItem[] = getAvailableFolders(
+                projectRoot,
+                loadedPaths,
+                allSubfolders,
+                'doc'
+            );
+            expect(result).toHaveLength(1);
+            expect(result[0].displayPath).toBe('docs');
+        });
+
+        it('empty filterText shows all folders when searchQuery has path', () => {
+            const loadedPaths: readonly AbsolutePath[] = [];
+            const allSubfolders: readonly { path: AbsolutePath; modifiedAt: number }[] = [
+                { path: toAbsolutePath('/Users/bob/project/docs/projects/auth'), modifiedAt: 3000 },
+                { path: toAbsolutePath('/Users/bob/project/docs/projects/core'), modifiedAt: 2000 },
+            ];
+            // searchQuery has path but filterText is empty - show all (no filtering)
+            const result: readonly AvailableFolderItem[] = getAvailableFolders(
+                projectRoot,
+                loadedPaths,
+                allSubfolders,
+                'docs/projects/',
+                ''  // empty filterText
+            );
+            expect(result).toHaveLength(2);
+        });
+
+        it('filterText case-insensitive filtering', () => {
+            const loadedPaths: readonly AbsolutePath[] = [];
+            const allSubfolders: readonly { path: AbsolutePath; modifiedAt: number }[] = [
+                { path: toAbsolutePath('/Users/bob/project/docs/Auth'), modifiedAt: 2000 },
+                { path: toAbsolutePath('/Users/bob/project/docs/core'), modifiedAt: 1000 },
+            ];
+            const result: readonly AvailableFolderItem[] = getAvailableFolders(
+                projectRoot,
+                loadedPaths,
+                allSubfolders,
+                'docs/',
+                'auth'  // lowercase filterText should match "Auth"
+            );
+            expect(result).toHaveLength(1);
+            expect(result[0].displayPath).toBe('docs/Auth');
+        });
+
+        it('display paths remain relative to projectRoot regardless of filterText', () => {
+            const loadedPaths: readonly AbsolutePath[] = [];
+            const allSubfolders: readonly { path: AbsolutePath; modifiedAt: number }[] = [
+                { path: toAbsolutePath('/Users/bob/project/docs/projects/auth'), modifiedAt: 1000 },
+            ];
+            const result: readonly AvailableFolderItem[] = getAvailableFolders(
+                projectRoot,
+                loadedPaths,
+                allSubfolders,
+                'docs/projects/',
+                ''
+            );
+            // Display path should be full relative path from projectRoot, not just "auth"
+            expect(result[0].displayPath).toBe('docs/projects/auth');
+            expect(result[0].absolutePath).toBe('/Users/bob/project/docs/projects/auth');
+        });
     });
 });
 
@@ -310,5 +400,117 @@ describe('toFolderSelectorState', () => {
         );
 
         expect(result.writeFolder?.displayPath).toBe('.');
+    });
+});
+
+describe('parseSearchQuery', () => {
+    // Core test cases from specification
+    it('parses empty string', () => {
+        const result = parseSearchQuery('');
+        expect(result).toEqual({
+            basePath: null,
+            filterText: '',
+            endsWithSlash: false,
+        });
+    });
+
+    it('parses simple text without slash', () => {
+        const result = parseSearchQuery('docs');
+        expect(result).toEqual({
+            basePath: null,
+            filterText: 'docs',
+            endsWithSlash: false,
+        });
+    });
+
+    it('parses text ending with slash', () => {
+        const result = parseSearchQuery('docs/');
+        expect(result).toEqual({
+            basePath: 'docs',
+            filterText: '',
+            endsWithSlash: true,
+        });
+    });
+
+    it('parses path with filter text', () => {
+        const result = parseSearchQuery('docs/api');
+        expect(result).toEqual({
+            basePath: 'docs',
+            filterText: 'api',
+            endsWithSlash: false,
+        });
+    });
+
+    it('parses nested path ending with slash', () => {
+        const result = parseSearchQuery('docs/projects/');
+        expect(result).toEqual({
+            basePath: 'docs/projects',
+            filterText: '',
+            endsWithSlash: true,
+        });
+    });
+
+    it('parses nested path with filter text', () => {
+        const result = parseSearchQuery('docs/projects/auth');
+        expect(result).toEqual({
+            basePath: 'docs/projects',
+            filterText: 'auth',
+            endsWithSlash: false,
+        });
+    });
+
+    // Edge cases
+    it('strips leading slash', () => {
+        const result = parseSearchQuery('/docs');
+        expect(result).toEqual({
+            basePath: null,
+            filterText: 'docs',
+            endsWithSlash: false,
+        });
+    });
+
+    it('handles leading slash with nested path', () => {
+        const result = parseSearchQuery('/docs/api');
+        expect(result).toEqual({
+            basePath: 'docs',
+            filterText: 'api',
+            endsWithSlash: false,
+        });
+    });
+
+    it('normalizes multiple consecutive slashes', () => {
+        const result = parseSearchQuery('docs//api');
+        expect(result).toEqual({
+            basePath: 'docs',
+            filterText: 'api',
+            endsWithSlash: false,
+        });
+    });
+
+    it('normalizes backslashes to forward slashes', () => {
+        const result = parseSearchQuery('docs\\api');
+        expect(result).toEqual({
+            basePath: 'docs',
+            filterText: 'api',
+            endsWithSlash: false,
+        });
+    });
+
+    it('handles Windows-style path with backslashes', () => {
+        const result = parseSearchQuery('docs\\projects\\auth');
+        expect(result).toEqual({
+            basePath: 'docs/projects',
+            filterText: 'auth',
+            endsWithSlash: false,
+        });
+    });
+
+    it('handles trailing backslash', () => {
+        const result = parseSearchQuery('docs\\');
+        expect(result).toEqual({
+            basePath: 'docs',
+            filterText: '',
+            endsWithSlash: true,
+        });
     });
 });

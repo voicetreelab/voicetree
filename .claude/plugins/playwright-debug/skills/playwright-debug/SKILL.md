@@ -75,6 +75,26 @@ await window.electronAPI.main.initializeProject('/path/to/folder');
 | `browser_wait_for` | Wait for text/elements |
 | `browser_take_screenshot` | Capture visual screenshot |
 
+## Quick Setup: Spawn Debug Terminals
+
+After connecting to a project, call `prettySetupAppForElectronDebugging()` to instantly spawn 3 terminals with tree-style hierarchy:
+
+```javascript
+// Via browser_evaluate
+const result = await window.electronAPI.main.prettySetupAppForElectronDebugging();
+// Returns: { terminalsSpawned: ['term-0', 'term-1', 'term-2'], nodeCount: 5 }
+```
+
+This creates:
+```
+Terminal Tree Sidebar
+├── parent (depth=0)     ← "hello from parent"
+│   └── child (depth=1)  ← "hello from child" (indented!)
+└── sibling (depth=0)    ← "hello from sibling"
+```
+
+The child terminal has `parentTerminalId` set, demonstrating tree-style tabs indentation.
+
 ## Accessing App APIs
 
 The app exposes `window.electronAPI` with useful methods:
@@ -84,6 +104,7 @@ The app exposes `window.electronAPI` with useful methods:
 Object.keys(window.electronAPI.main)
 
 // Key methods:
+window.electronAPI.main.prettySetupAppForElectronDebugging()  // Spawn debug terminals
 window.electronAPI.main.initializeProject(path)  // Open a folder
 window.electronAPI.main.getGraph()               // Get graph data
 window.electronAPI.main.getNode(id)              // Get node details

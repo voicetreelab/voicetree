@@ -356,11 +356,15 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
 
                             {/* Available folders list - suggestion style */}
                             <div className="max-h-[150px] overflow-y-auto">
-                                {/* Create folder option - show when no exact match exists */}
+                                {/* Create folder option - show when no exact match exists AND not already loaded */}
                                 {searchQuery.trim() &&
                                     watchDirectory &&
                                     !searchQuery.startsWith('.') &&
-                                    !availableFolders.some((f: AvailableFolderItem) => f.displayPath === searchQuery.trim()) && (
+                                    !availableFolders.some((f: AvailableFolderItem) => f.displayPath === searchQuery.trim()) &&
+                                    !readPaths.some((p: string) => {
+                                        const displayPath: string = toDisplayPath(toAbsolutePath(watchDirectory), toAbsolutePath(p));
+                                        return displayPath === searchQuery.trim();
+                                    }) && (
                                     <button
                                         onClick={() => void handleSetAsWrite(watchDirectory + '/' + searchQuery.trim())}
                                         className="group w-[calc(100%-1rem)] mx-2 mb-1 px-2 py-1.5 flex items-center gap-2 rounded-sm border border-dashed border-primary/40 hover:border-primary hover:bg-primary/10 transition-colors text-left"
