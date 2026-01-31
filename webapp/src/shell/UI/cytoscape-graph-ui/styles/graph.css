@@ -618,3 +618,134 @@ button.graph-button:disabled > svg > path {
 .agent-tab-wrapper:hover .agent-tab-shortcut-hint {
     opacity: 1;
 }
+
+/* ============================================================================
+ * Terminal Tree Sidebar - Vertical tree-style tabs for terminal navigation
+ * ============================================================================ */
+
+.terminal-tree-sidebar {
+    position: absolute;
+    top: 38px;  /* Below title bar */
+    left: 0;
+    bottom: 50px;  /* Above bottom bar */
+    width: 100px;  /* Initial width */
+    min-width: 60px;
+    max-width: 300px;
+    background: var(--card);
+    border-right: 1px solid var(--border);
+    z-index: 1050;
+    display: flex;
+    flex-direction: column;
+}
+
+.terminal-tree-container {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 4px 0;
+}
+
+/* Resize handle */
+.terminal-tree-resize-handle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 4px;
+    height: 100%;
+    cursor: ew-resize;
+    background: transparent;
+}
+
+.terminal-tree-resize-handle:hover,
+.terminal-tree-resize-handle.dragging {
+    background: var(--ring);
+}
+
+/* Tree node */
+.terminal-tree-node {
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    cursor: pointer;
+    transition: background 0.1s ease;
+}
+
+.terminal-tree-node:hover {
+    background: var(--accent);
+}
+
+.terminal-tree-node.active {
+    background: rgba(255, 200, 80, 0.15);
+    box-shadow: inset 2px 0 0 rgba(255, 200, 80, 0.7);
+}
+
+/* Depth indentation */
+.terminal-tree-node[data-depth="1"] { padding-left: 20px; }
+.terminal-tree-node[data-depth="2"] { padding-left: 32px; }
+.terminal-tree-node[data-depth="3"] { padding-left: 44px; }
+.terminal-tree-node[data-depth="4"] { padding-left: 56px; }
+
+/* Status indicator */
+.terminal-tree-status {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+    flex-shrink: 0;
+}
+
+.terminal-tree-status.running {
+    border: 2px dashed #f59e0b;
+    background: rgba(245, 158, 11, 0.15);
+    animation: terminal-pulse 1.5s ease-in-out infinite;
+}
+
+/* Light mode: stronger running indicator */
+:root:not(.dark) .terminal-tree-status.running {
+    border: 2px dashed #d97706;
+    background: rgba(217, 119, 6, 0.2);
+}
+
+.terminal-tree-status.done {
+    background: #22c55e;
+}
+
+/* Title */
+.terminal-tree-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+/* Close button */
+.terminal-tree-close {
+    opacity: 0;
+    width: 14px;
+    height: 14px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--muted-foreground);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+    flex-shrink: 0;
+    font-size: 14px;
+}
+
+.terminal-tree-node:hover .terminal-tree-close {
+    opacity: 1;
+}
+
+.terminal-tree-close:hover {
+    color: var(--destructive);
+}
+
+@keyframes terminal-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}

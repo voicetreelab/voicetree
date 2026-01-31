@@ -5,6 +5,10 @@ import wasm from 'vite-plugin-wasm'
 import topLevelAwait from 'vite-plugin-top-level-await'
 import path from 'path'
 
+// Detect if building for tests (npm run test:*, build:test, etc.)
+const npmScript = process.env.npm_lifecycle_event || ''
+const isTestBuild = npmScript.startsWith('test') || npmScript === 'build:test'
+
 /**
  * Electron-Vite configuration
  * This is the PRIMARY config for development (npm run electron)
@@ -125,6 +129,10 @@ export default defineConfig({
         include: [/node_modules/],
         transformMixedEsModules: true
       }
-    }
+    },
+    // Disable analytics in test builds
+    define: isTestBuild ? {
+      'import.meta.env.VITE_E2E_TEST': JSON.stringify('true')
+    } : {}
   }
 })

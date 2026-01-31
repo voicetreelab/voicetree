@@ -46,5 +46,8 @@ export default defineConfig({
     url: 'http://localhost:3000',
     reuseExistingServer: true, // Always reuse existing server
     timeout: 12 * 1000,
+    env: {
+      VITE_DISABLE_ANALYTICS: 'true',
+    },
   },
 });

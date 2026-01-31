@@ -23,7 +23,7 @@ import { getGraph } from '@/shell/edge/main/state/graph-store';
 import { loadSettings } from '@/shell/edge/main/settings/settings_IO';
 import { getAppSupportPath } from '@/shell/edge/main/state/app-electron-state';
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy';
-import { createTerminalData, getTerminalId, computeTerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
+import { createTerminalData, getTerminalId, computeTerminalId, type TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import type { NodeIdAndFilePath, GraphNode, Graph } from '@/pure/graph';
 import { getNodeTitle } from '@/pure/graph/markdown-parsing';
 import { findFirstParentNode } from '@/pure/graph/graph-operations/findFirstParentNode';
@@ -48,6 +48,7 @@ import {getVaultPaths, getWritePath} from "@/shell/edge/main/graph/watch_folder/
  * @param skipFitAnimation - If true, skip navigating viewport to the terminal (used for MCP spawns)
  * @param startUnpinned - If true, terminal starts unpinned (used for MCP spawns)
  * @param selectedNodeIds - If provided, creates context from these nodes instead of subgraph
+ * @param parentTerminalId - Parent terminal ID for tree-style tabs (used for MCP spawn_agent)
  */
 export async function spawnTerminalWithContextNode(
     taskNodeId: NodeIdAndFilePath,
@@ -56,7 +57,8 @@ export async function spawnTerminalWithContextNode(
     skipFitAnimation?: boolean,
     startUnpinned?: boolean,
     selectedNodeIds?: readonly NodeIdAndFilePath[],
-    spawnDirectory?: string
+    spawnDirectory?: string,
+    parentTerminalId?: string
 ): Promise<{terminalId: string; contextNodeId: NodeIdAndFilePath}> {
     // Load settings to get agents
     const settings: VTSettings = await loadSettings();
@@ -107,7 +109,8 @@ export async function spawnTerminalWithContextNode(
         command,
         settings,
         startUnpinned,
-        spawnDirectory
+        spawnDirectory,
+        parentTerminalId
     );
 
     // TODO, HERE WE NEED TO WAIT FOR CONTEXT NODE TO EXIST IN UI
@@ -132,6 +135,7 @@ export async function spawnTerminalWithContextNode(
  *
  * @param contextNodeId - The context node containing agent context (attachedToNodeId)
  * @param taskNodeId - The task node to anchor the terminal shadow to (anchoredToNodeId)
+ * @param parentTerminalId - Parent terminal ID for tree-style tabs (used for MCP spawn_agent)
  */
 async function prepareTerminalDataInMain(
     contextNodeId: NodeIdAndFilePath,
@@ -140,7 +144,8 @@ async function prepareTerminalDataInMain(
     command: string,
     settings: VTSettings,
     startUnpinned?: boolean,
-    spawnDirectory?: string
+    spawnDirectory?: string,
+    parentTerminalId?: string
 ): Promise<TerminalData> {
     // Get context node from graph (main has immediate access)
     const graph: Graph = getGraph();
@@ -227,6 +232,7 @@ async function prepareTerminalDataInMain(
         initialEnvVars: expandedEnvVars,
         isPinned: !startUnpinned,
         agentName: agentName,
+        parentTerminalId: parentTerminalId as TerminalId | null,
     });
 
     return terminalData;

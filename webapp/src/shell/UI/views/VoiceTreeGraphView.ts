@@ -57,11 +57,11 @@ import {
     createRecentNodeTabsBar,
     renderRecentNodeTabsV2 as _renderRecentNodeTabsV2
 } from './RecentNodeTabsBar';
-// Agent tabs - shows open terminals in top-right
+// Terminal tree sidebar - shows open terminals as vertical tree on LHS
 import {
-    createAgentTabsBar,
-    disposeAgentTabsBar
-} from './AgentTabsBar';
+    createTerminalTreeSidebar,
+    disposeTerminalTreeSidebar
+} from './treeStyleTerminalTabs/TerminalTreeSidebar';
 import {getRecentNodeHistory} from '@/shell/edge/UI-edge/state/RecentNodeHistoryStore';
 import type {RecentNodeHistory} from '@/pure/graph/recentNodeHistoryV2';
 import {disposeGraphViewOverlays} from '@/shell/edge/UI-edge/state/GraphViewUIStore';
@@ -168,8 +168,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // V2 tracks recently added/modified nodes (not visited nodes)
         createRecentNodeTabsBar(this.container);
 
-        // Initialize agent tabs bar in title bar area (right side)
-        createAgentTabsBar(this.container);
+        // Initialize terminal tree sidebar (left side)
+        createTerminalTreeSidebar(this.container);
 
         // Setup view subscriptions (terminals, navigation, pinned editors)
         this.viewSubscriptionCleanups = setupViewSubscriptions({
@@ -523,7 +523,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         this.searchService.dispose();
         // TODO: Recent tabs temporarily disabled until better UX is designed
         // disposeRecentNodeTabsBar();
-        disposeAgentTabsBar();
+        disposeTerminalTreeSidebar();
         disposeGraphViewOverlays();
 
         // Dispose menu services

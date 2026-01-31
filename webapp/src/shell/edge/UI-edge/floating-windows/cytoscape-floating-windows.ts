@@ -25,7 +25,7 @@ import {removeTerminal} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {removeEditor} from "@/shell/edge/UI-edge/state/EditorStore";
 import {removeImageViewer} from "@/shell/edge/UI-edge/state/ImageViewerStore";
 import {updateWindowFromZoom} from "@/shell/edge/UI-edge/floating-windows/update-window-from-zoom";
-import {suppressInactivityDuringZoom} from "@/shell/UI/views/AgentTabsBar";
+import {suppressInactivityDuringZoom} from "@/shell/UI/views/treeStyleTerminalTabs/AgentTabsBar";
 
 /**
  * Get current zoom level from cytoscape instance

@@ -68,7 +68,7 @@ vi.mock('posthog-js', () => ({
 
 // Mock AgentTabsBar
 vi.mock('@/shell/UI/views/AgentTabsBar', async () => {
-    const actual: typeof import('@/shell/UI/views/AgentTabsBar') = await vi.importActual('@/shell/UI/views/AgentTabsBar')
+    const actual: typeof import('@/shell/UI/views/treeStyleTerminalTabs/AgentTabsBar') = await vi.importActual('@/shell/UI/views/AgentTabsBar')
     return {
         ...actual,
         markTerminalActivityForContextNode: vi.fn()

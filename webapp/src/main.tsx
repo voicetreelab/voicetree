@@ -15,11 +15,13 @@ if (platform.includes('win')) {
   document.documentElement.classList.add('platform-windows')
 }
 
-// Initialize PostHog (skip in dev mode - npm run electron)
+// Initialize PostHog (skip in tests or if explicitly disabled)
 const posthogKey: string | undefined = import.meta.env.VITE_POSTHOG_API_KEY
 const posthogHost: string | undefined = import.meta.env.VITE_POSTHOG_HOST
+const isTestMode: boolean = import.meta.env.MODE === 'test' || import.meta.env.VITE_E2E_TEST === 'true'
+const analyticsDisabled: boolean = import.meta.env.VITE_DISABLE_ANALYTICS === 'true' || isTestMode
 
-if (posthogKey && !import.meta.env.DEV) {
+if (posthogKey && !analyticsDisabled) {
   posthog.init(posthogKey, {
     api_host: posthogHost,
     person_profiles: 'always',
