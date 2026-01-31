@@ -19,8 +19,8 @@ import type { FileLimitExceededError } from "@/shell/edge/main/graph/markdownHan
 import * as E from "fp-ts/lib/Either.js";
 import { setGraph, getGraph } from "@/shell/edge/main/state/graph-store";
 import {
-    getWatchedDirectory,
-    setWatchedDirectory,
+    getProjectRootWatchedDirectory,
+    setProjectRootWatchedDirectory,
     getWatcher,
 } from "@/shell/edge/main/state/watch-folder-store";
 import {
@@ -53,7 +53,7 @@ export function resolveWritePath(watchedFolder: string, writePath: string): stri
  * All paths are normalized to forward slashes for cross-platform consistency.
  */
 export async function getVaultPaths(): Promise<readonly FilePath[]> {
-    const watchedDir: FilePath | null = getWatchedDirectory();
+    const watchedDir: FilePath | null = getProjectRootWatchedDirectory();
     if (!watchedDir) return [];
     const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
     if (!config) return [];
@@ -71,7 +71,7 @@ export async function getVaultPaths(): Promise<readonly FilePath[]> {
  * All paths are normalized to forward slashes for cross-platform consistency.
  */
 export async function getReadPaths(): Promise<readonly FilePath[]> {
-    const watchedDir: FilePath | null = getWatchedDirectory();
+    const watchedDir: FilePath | null = getProjectRootWatchedDirectory();
     if (!watchedDir) return [];
     const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
     if (!config) return [];
@@ -85,7 +85,7 @@ export async function getReadPaths(): Promise<readonly FilePath[]> {
  * Path is normalized to forward slashes for cross-platform consistency.
  */
 export async function getWritePath(): Promise<O.Option<FilePath>> {
-    const watchedDir: FilePath | null = getWatchedDirectory();
+    const watchedDir: FilePath | null = getProjectRootWatchedDirectory();
     if (!watchedDir) return O.none;
     const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
     if (config?.writePath) {
@@ -133,7 +133,7 @@ export async function loadAndMergeVaultPath(
  * This ensures the write path behaves like an "immediate load" path.
  */
 export async function setWritePath(vaultPath: FilePath): Promise<{ success: boolean; error?: string }> {
-    const watchedDir: FilePath | null = getWatchedDirectory();
+    const watchedDir: FilePath | null = getProjectRootWatchedDirectory();
     if (!watchedDir) {
         return { success: false, error: 'No directory is being watched' };
     }
@@ -175,7 +175,7 @@ export async function setWritePath(vaultPath: FilePath): Promise<{ success: bool
  * - All files are loaded immediately (not lazy)
  */
 export async function addReadPath(vaultPath: FilePath): Promise<{ success: boolean; error?: string }> {
-    const watchedDir: FilePath | null = getWatchedDirectory();
+    const watchedDir: FilePath | null = getProjectRootWatchedDirectory();
     if (!watchedDir) {
         return { success: false, error: 'No directory is being watched' };
     }
@@ -228,7 +228,7 @@ export async function addReadPath(vaultPath: FilePath): Promise<{ success: boole
  * Immediately removes nodes from that path from the graph.
  */
 export async function removeReadPath(vaultPath: FilePath): Promise<{ success: boolean; error?: string }> {
-    const watchedDir: FilePath | null = getWatchedDirectory();
+    const watchedDir: FilePath | null = getProjectRootWatchedDirectory();
     if (!watchedDir) {
         return { success: false, error: 'No directory is being watched' };
     }
@@ -380,16 +380,16 @@ export async function resolveAllowlistForProject(
 // Returns the watched directory (project root), normalized to forward slashes.
 // For the actual write path where new files are created, use getWritePath() instead.
 export function getVaultPath(): O.Option<FilePath> {
-    const watchedDir: FilePath | null = getWatchedDirectory();
+    const watchedDir: FilePath | null = getProjectRootWatchedDirectory();
     if (!watchedDir) return O.none;
     return O.some(normalizePath(watchedDir));
 }
 
 // For external callers (MCP) - sets the vault path directly
 export function setVaultPath(vaultPath: FilePath): void {
-    setWatchedDirectory(vaultPath);
+    setProjectRootWatchedDirectory(vaultPath);
 }
 
 export function clearVaultPath(): void {
-    setWatchedDirectory(null);
+    setProjectRootWatchedDirectory(null);
 }

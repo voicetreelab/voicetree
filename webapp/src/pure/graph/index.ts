@@ -126,7 +126,7 @@ export interface DeleteNode {
 
 
 export interface Env {
-    readonly watchedDirectory: string
+    readonly projectRootWatchedDirectory: string
 }
 export type FilePath = string // todo enforce only / and chars
 

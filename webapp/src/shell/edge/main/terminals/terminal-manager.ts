@@ -22,7 +22,7 @@ interface TerminalOperationResult {
  * Deep module for managing PTY terminals in the Electron app.
  *
  * Public API:
- * - spawn(sender, terminalData, getWatchedDirectory, getToolsDirectory)
+ * - spawn(sender, terminalData, getProjectRootWatchedDirectory, getToolsDirectory)
  * - write(terminalId, data)
  * - resize(terminalId, cols, rows)
  * - kill(terminalId)

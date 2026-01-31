@@ -153,7 +153,7 @@ test.describe('Context Node Agent Terminal E2E', () => {
 
     expect(watchStatus.isWatching).toBe(true);
     expect(watchStatus.directory).toBeTruthy();
-    // Vault path = watchedDirectory + vaultSuffix (e.g., example_small + voicetree)
+    // Vault path = projectRootWatchedDirectory + vaultSuffix (e.g., example_small + voicetree)
     const vaultPath = path.join(watchStatus.directory!, watchStatus.vaultSuffix);
     console.log(`✓ Watch directory: ${watchStatus.directory}`);
     console.log(`✓ Vault suffix: ${watchStatus.vaultSuffix}`);

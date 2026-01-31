@@ -8,7 +8,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { getMcpPort } from './mcp-server';
-import {getWatchedDirectory} from "@/shell/edge/main/state/watch-folder-store";
+import {getProjectRootWatchedDirectory} from "@/shell/edge/main/state/watch-folder-store";
 
 const VOICETREE_MCP_SERVER_NAME: 'voicetree' = 'voicetree' as const;
 
@@ -25,7 +25,7 @@ interface McpJsonConfig {
  * Get the path to .mcp.json in the watched directory
  */
 function getMcpJsonPath(): string | null {
-    const watchedDir: string | null = getWatchedDirectory();
+    const watchedDir: string | null = getProjectRootWatchedDirectory();
     if (!watchedDir) {
         return null;
     }
