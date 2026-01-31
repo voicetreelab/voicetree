@@ -5,8 +5,6 @@ VoiceTree is a system which does online text stream to "abstraction graphs" conv
 Key files:
 
 - Driver for taking a full chunk of text, getting the resulting tree node actions (create, append, update), and executing them: backend/text_to_graph_pipeline/chunk_processing_pipeline/tree_action_decider_workflow.py
-- Agents: backend/text_to_graph_pipeline/agentic_workflows/agents
-  - Prompts for agents: backend/text_to_graph_pipeline/agentic_workflows/prompts
 - Tree data structure and functions: backend/markdown_tree_manager
 
 ## Essential Commands
