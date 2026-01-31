@@ -6,6 +6,7 @@ import {getOTLPReceiverPort} from "@/shell/edge/main/metrics/otlp-receiver";
 import {recordTerminalSpawn, markTerminalExited} from '@/shell/edge/main/terminals/terminal-registry';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import {trace} from '@/shell/edge/main/tracing/trace';
+import {getProjectRootWatchedDirectory} from "@/shell/edge/main/state/watch-folder-store";
 
 export interface TerminalSpawnResult {
   success: boolean;
@@ -22,7 +23,7 @@ interface TerminalOperationResult {
  * Deep module for managing PTY terminals in the Electron app.
  *
  * Public API:
- * - spawn(sender, terminalData, getProjectRootWatchedDirectory, getToolsDirectory)
+ * - spawn(sender, terminalData, getToolsDirectory)
  * - write(terminalId, data)
  * - resize(terminalId, cols, rows)
  * - kill(terminalId)
@@ -46,7 +47,6 @@ export default class TerminalManager {
   async spawn(
     sender: WebContents,
     terminalData: TerminalData,
-    getWatchedDirectory: () => string | null,
     getToolsDirectory: () => string
   ): Promise<TerminalSpawnResult> {
     return trace('terminal:spawn', async () => {
@@ -73,7 +73,7 @@ export default class TerminalManager {
       }
 
       // Build custom environment with terminal data
-      const customEnv: NodeJS.ProcessEnv = this.buildEnvironment(terminalData, getWatchedDirectory);
+      const customEnv: NodeJS.ProcessEnv = this.buildEnvironment(terminalData);
 
       //console.log(`Spawning PTY with shell: ${shell} in directory: ${cwd}`);
       //console.log(`Terminal data:`, terminalData);
@@ -282,8 +282,7 @@ export default class TerminalManager {
    * Note: PATH is already fixed by fix-absolutePath in main.ts
    */
   private buildEnvironment(
-    terminalData: TerminalData,
-    getWatchedDirectory: () => string | null
+    terminalData: TerminalData
   ): NodeJS.ProcessEnv {
       //console.log(`[TerminalManager] process.env.OBSIDIAN_VAULT_PATH BEFORE copy: ${process.env.OBSIDIAN_VAULT_PATH}`);
       const customEnv: { [key: string]: string | undefined; TZ?: string; } = {...process.env};
@@ -298,7 +297,7 @@ export default class TerminalManager {
       }
 
       // Always set vault path from watched directory (which IS the vault path, no suffix)
-      const vaultPath: string | null = getWatchedDirectory();
+      const vaultPath: string | null = getProjectRootWatchedDirectory();
       //console.log(`[TerminalManager] Using vault path: ${vaultPath}`);
       customEnv.OBSIDIAN_VAULT_PATH = vaultPath ?? '';
       customEnv.WATCHED_FOLDER = vaultPath ?? undefined;

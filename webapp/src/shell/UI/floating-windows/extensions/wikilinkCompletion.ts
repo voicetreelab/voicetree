@@ -17,7 +17,7 @@ import {
 import type { Extension } from '@codemirror/state';
 import type { Core, NodeSingular, NodeCollection } from 'cytoscape';
 import { getRecentlyVisited } from '@/shell/edge/UI-edge/state/RecentlyVisitedStore';
-import { toRelativePath } from '@/shell/edge/UI-edge/state/WatchedFolderStore';
+import { toRelativePath } from '@/pure/paths/toRelativePath';
 
 /**
  * Get Cytoscape instance from window
@@ -117,9 +117,22 @@ function getWikilinkContext(context: CompletionContext): { from: number; searchT
 }
 
 /**
- * Wikilink completion source
+ * Get project root from main process via IPC.
+ * Returns null if not watching a folder.
  */
-function wikilinkCompletionSource(context: CompletionContext): CompletionResult | null {
+async function getProjectRoot(): Promise<string | null> {
+    const electronAPI = window.electronAPI;
+    if (!electronAPI?.main?.getWatchStatus) {
+        return null;
+    }
+    const status = await electronAPI.main.getWatchStatus();
+    return status.directory ?? null;
+}
+
+/**
+ * Wikilink completion source (async to query main process for project root)
+ */
+async function wikilinkCompletionSource(context: CompletionContext): Promise<CompletionResult | null> {
     const wikilinkContext: { from: number; searchText: string } | null = getWikilinkContext(context);
 
     if (!wikilinkContext) {
@@ -141,12 +154,15 @@ function wikilinkCompletionSource(context: CompletionContext): CompletionResult 
           )
         : allNodes;
 
+    // Query main process for project root (single source of truth)
+    const projectRoot: string | null = await getProjectRoot();
+
     // Convert to CodeMirror completion format
-    // Insert relative path (from watched folder) instead of absolute path
+    // Insert relative path (from project root) instead of absolute path
     const options: Completion[] = filteredNodes.map((node: NodeCompletionData) => ({
         label: node.title,
         detail: node.firstLine !== node.title ? node.firstLine : undefined,
-        apply: toRelativePath(node.id), // Insert relative path for wikilink
+        apply: toRelativePath(projectRoot, node.id), // Insert relative path for wikilink
         type: 'text',
         boost: 0, // Maintain our custom order
     }));

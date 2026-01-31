@@ -19,7 +19,6 @@ import {
     updateRecentNodeHistoryFromDelta,
     clearRecentNodeHistory
 } from '@/shell/edge/UI-edge/state/RecentNodeHistoryStore';
-import {setWatchedFolder} from '@/shell/edge/UI-edge/state/WatchedFolderStore';
 import type {RecentNodeHistory} from '@/pure/graph/recentNodeHistoryV2';
 import type {GraphNavigationService} from './navigation/GraphNavigationService';
 import type {SearchService} from '@/shell/UI/views/SearchService';
@@ -107,24 +106,9 @@ export function subscribeToGraphUpdates(
     const cleanupUpdate: () => void = electronAPI.graph.onGraphUpdate(handleGraphDelta);
     const cleanupClear: () => void = electronAPI.graph.onGraphClear?.(handleGraphClear) ?? ((): void => {});
 
-    // Subscribe to watching-started to track the watched folder path
-    // This enables wikilink autocomplete to insert relative paths
-    // Returns cleanup function to remove only THIS listener (not all listeners)
-    const cleanupWatchingStarted: (() => void) | undefined = electronAPI.onWatchingStarted?.((data: { directory: string; timestamp: string }) => {
-        setWatchedFolder(data.directory);
-    });
-
-    // Also fetch initial watch status in case folder was already loaded
-    void electronAPI.main.getWatchStatus().then((status: { readonly isWatching: boolean; readonly directory: string | undefined }) => {
-        if (status.directory) {
-            setWatchedFolder(status.directory);
-        }
-    });
-
     // Return combined cleanup function
     return (): void => {
         cleanupUpdate();
         cleanupClear();
-        cleanupWatchingStarted?.();
     };
 }

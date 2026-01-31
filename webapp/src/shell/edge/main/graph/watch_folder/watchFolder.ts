@@ -67,6 +67,9 @@ export {
     clearVaultPath,
 } from "./vault-allowlist";
 
+// Re-export folder-scanner functions for api.ts
+export { getAvailableFoldersForSelector } from "./folder-scanner";
+
 export async function initialLoad(): Promise<void> {
     // If already watching a directory, don't reload
     // This prevents race conditions when startFileWatching() is called before markFrontendReady()

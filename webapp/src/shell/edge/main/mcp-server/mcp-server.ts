@@ -280,22 +280,28 @@ export async function waitForAgentsTool({
         }
     }
 
-    // 3. Poll until all are exited or timeout reached
+    // Helper to determine agent status: exited > idle (isDone) > running
+    const getAgentStatus = (r: TerminalRecord): 'running' | 'idle' | 'exited' =>
+        r.status === 'exited' ? 'exited' : r.terminalData.isDone ? 'idle' : 'running'
+
+    // 3. Poll until all are idle or exited, or timeout reached
     const startTime: number = Date.now()
     while (Date.now() - startTime < timeoutMs) {
         const currentRecords: TerminalRecord[] = getTerminalRecords()
         const targetRecords: TerminalRecord[] = currentRecords.filter(
             (r: TerminalRecord) => terminalIds.includes(r.terminalId)
         )
-        const allExited: boolean = targetRecords.every((r: TerminalRecord) => r.status === 'exited')
+        const allDone: boolean = targetRecords.every(
+            (r: TerminalRecord) => getAgentStatus(r) !== 'running'
+        )
 
-        if (allExited) {
+        if (allDone) {
             return buildJsonResponse({
                 success: true,
                 agents: targetRecords.map((r: TerminalRecord) => ({
                     terminalId: r.terminalId,
                     title: r.terminalData.title,
-                    status: 'exited'
+                    status: getAgentStatus(r)
                 }))
             })
         }
@@ -309,7 +315,7 @@ export async function waitForAgentsTool({
         (r: TerminalRecord) => terminalIds.includes(r.terminalId)
     )
     const stillRunning: string[] = targetRecords
-        .filter((r: TerminalRecord) => r.status !== 'exited')
+        .filter((r: TerminalRecord) => getAgentStatus(r) === 'running')
         .map((r: TerminalRecord) => r.terminalId)
 
     return buildJsonResponse({
@@ -319,7 +325,7 @@ export async function waitForAgentsTool({
         agents: targetRecords.map((r: TerminalRecord) => ({
             terminalId: r.terminalId,
             title: r.terminalData.title,
-            status: r.status
+            status: getAgentStatus(r)
         }))
     }, true)
 }
