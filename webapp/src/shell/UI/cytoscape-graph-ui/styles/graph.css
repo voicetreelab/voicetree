@@ -10,7 +10,6 @@
  * - ./floating-windows.css: Core floating window structure, menus, transcription chip
  * - ./traffic-lights.css: macOS-style traffic light buttons and settings chrome
  * - ../../views/title-bar-tabs.css: Title bar drag region and recent tabs
- * - ../../views/treeStyleTerminalTabs/agent-tabs.css: Agent/terminal tabs bar
  * - ../../views/treeStyleTerminalTabs/terminal-tree.css: Terminal tree sidebar
  */
 
@@ -19,5 +18,4 @@
 @import './floating-windows.css';
 @import './traffic-lights.css';
 @import '../../views/title-bar-tabs.css';
-@import '../../views/treeStyleTerminalTabs/agent-tabs.css';
 @import '../../views/treeStyleTerminalTabs/terminal-tree.css';

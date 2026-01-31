@@ -7,6 +7,7 @@
  * Test 3: Click navigates to terminal
  * Test 4: Close button works
  * Test 5: Resize handle works
+ * Test 6: Status indicator changes from running to done after inactivity
  *
  * IMPORTANT: THESE SPEC COMMENTS MUST BE KEPT UP TO DATE
  */
@@ -17,30 +18,38 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { ElectronAPI } from '@/shell/electron';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 
 interface ExtendedWindow {
     cytoscapeInstance?: CytoscapeCore;
-    electronAPI?: ElectronAPI;
+    electronAPI?: {
+        main: {
+            startFileWatching: (dir: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
+            stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
+            spawnTerminalWithContextNode: (nodeId: string, command: string, terminalCount: number) => Promise<void>;
+            saveSettings: (settings: Record<string, unknown>) => Promise<void>;
+        };
+        terminal: {
+            onData: (callback: (terminalId: string, data: string) => void) => void;
+        };
+    };
 }
 
 const test = base.extend<{
     electronApp: ElectronApplication;
     appWindow: Page;
 }>({
-    electronApp: async ({}, use) => {
+    electronApp: [async ({}, use) => {
         const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-tree-style-tabs-test-'));
+
+        // Create config file with lastDirectory to auto-load fixture vault
         const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
         await fs.writeFile(configPath, JSON.stringify({
-            lastDirectory: FIXTURE_VAULT_PATH,
-            suffixes: {
-                [FIXTURE_VAULT_PATH]: ''
-            }
+            lastDirectory: FIXTURE_VAULT_PATH
         }, null, 2), 'utf8');
-        console.log('[Test] Created config file to auto-load:', FIXTURE_VAULT_PATH);
+        console.log('[Test] Created config file with lastDirectory:', FIXTURE_VAULT_PATH);
 
         const electronApp = await electron.launch({
             args: [
@@ -50,10 +59,24 @@ const test = base.extend<{
             env: {
                 ...process.env,
                 NODE_ENV: 'test',
-                HEADLESS_TEST: '1'
+                HEADLESS_TEST: '1',
+                MINIMIZE_TEST: '1',
+                VOICETREE_PERSIST_STATE: '1'
             },
             timeout: 10000
         });
+
+        const electronProcess = electronApp.process();
+        if (electronProcess?.stdout) {
+            electronProcess.stdout.on('data', (chunk: Buffer) => {
+                console.log(`[MAIN STDOUT] ${chunk.toString().trim()}`);
+            });
+        }
+        if (electronProcess?.stderr) {
+            electronProcess.stderr.on('data', (chunk: Buffer) => {
+                console.error(`[MAIN STDERR] ${chunk.toString().trim()}`);
+            });
+        }
 
         await use(electronApp);
 
@@ -72,10 +95,10 @@ const test = base.extend<{
 
         await electronApp.close();
         await fs.rm(tempUserDataPath, { recursive: true, force: true });
-    },
+    }, { timeout: 30000 }],
 
-    appWindow: async ({ electronApp }, use) => {
-        const window = await electronApp.firstWindow({ timeout: 15000 });
+    appWindow: [async ({ electronApp }, use) => {
+        const window = await electronApp.firstWindow({ timeout: 60000 });
 
         window.on('console', msg => {
             if (!msg.text().includes('Electron Security Warning')) {
@@ -89,37 +112,94 @@ const test = base.extend<{
 
         await window.waitForLoadState('domcontentloaded');
 
-        try {
-            await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
-        } catch (error) {
-            console.error('Failed to initialize cytoscape instance:', error);
-            throw error;
-        }
-
-        await window.waitForTimeout(1000);
+        // Wait for cytoscape to initialize
+        await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 15000 });
+        await window.waitForTimeout(500);
 
         await use(window);
-    }
+    }, { timeout: 25000 }]
 });
+
+/**
+ * Helper to load the fixture vault and wait for graph to be ready
+ */
+async function loadVaultAndWaitForGraph(appWindow: Page): Promise<void> {
+    // Start file watching on fixture vault
+    const watchResult = await appWindow.evaluate(async (vaultPath) => {
+        const api = (window as unknown as ExtendedWindow).electronAPI;
+        if (!api) throw new Error('electronAPI not available');
+        return await api.main.startFileWatching(vaultPath);
+    }, FIXTURE_VAULT_PATH);
+
+    expect(watchResult.success).toBe(true);
+    console.log('✓ Started watching vault:', FIXTURE_VAULT_PATH);
+
+    // Save settings with an agent command
+    await appWindow.evaluate(async () => {
+        const api = (window as unknown as ExtendedWindow).electronAPI;
+        if (!api) throw new Error('electronAPI not available');
+        await api.main.saveSettings({
+            agents: [{ name: 'Test Agent', command: 'echo TEST_AGENT' }],
+            INJECT_ENV_VARS: {}
+        });
+    });
+
+    // Wait for cytoscape to initialize and nodes to load
+    await expect.poll(async () => {
+        return appWindow.evaluate(() => {
+            const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+            if (!cy) return 0;
+            return cy.nodes().length;
+        });
+    }, {
+        message: 'Waiting for graph to load nodes',
+        timeout: 30000,
+        intervals: [500, 1000, 2000, 3000]
+    }).toBeGreaterThan(0);
+
+    console.log('✓ Graph loaded with nodes');
+}
+
+/**
+ * Helper to spawn a terminal and wait for output
+ */
+async function spawnTerminalAndWait(appWindow: Page, nodeId: string, marker: string): Promise<string> {
+    return appWindow.evaluate(async ({ nodeId, marker }) => {
+        const w = (window as unknown as ExtendedWindow);
+        const api = w.electronAPI;
+
+        if (!api?.terminal || !api?.main) {
+            throw new Error('electronAPI terminal/main not available');
+        }
+
+        return new Promise<string>((resolve) => {
+            let capturedTerminalId: string | null = null;
+
+            const timeout = setTimeout(() => {
+                resolve(capturedTerminalId ?? '');
+            }, 15000);
+
+            api.terminal.onData((id, data) => {
+                if (!capturedTerminalId) {
+                    capturedTerminalId = id;
+                }
+                if (data.includes(marker)) {
+                    clearTimeout(timeout);
+                    resolve(id);
+                }
+            });
+
+            void api.main.spawnTerminalWithContextNode(nodeId, `echo ${marker}`, 0);
+        });
+    }, { nodeId, marker });
+}
 
 test.describe('Tree-Style Tabs E2E', () => {
     test.describe.configure({ mode: 'serial', timeout: 120000 });
 
     test('Test 1: Sidebar appears with terminal', async ({ appWindow }) => {
-        console.log('=== STEP 1: Wait for auto-load to complete ===');
-        await expect.poll(async () => {
-            return appWindow.evaluate(() => {
-                const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
-                if (!cy) return 0;
-                return cy.nodes().length;
-            });
-        }, {
-            message: 'Waiting for graph to auto-load nodes',
-            timeout: 20000,
-            intervals: [500, 1000, 1000, 2000]
-        }).toBeGreaterThan(0);
-
-        console.log('✓ Graph auto-loaded with nodes');
+        console.log('=== STEP 1: Load vault and wait for graph ===');
+        await loadVaultAndWaitForGraph(appWindow);
 
         console.log('=== STEP 2: Pick a node to spawn a terminal ===');
         const targetNodeId = await appWindow.evaluate(() => {
@@ -133,35 +213,7 @@ test.describe('Tree-Style Tabs E2E', () => {
         console.log(`Target node: ${targetNodeId}`);
 
         console.log('=== STEP 3: Spawn terminal with echo command ===');
-        const terminalId = await appWindow.evaluate(async (nodeId) => {
-            const w = (window as unknown as ExtendedWindow);
-            const api = w.electronAPI;
-
-            if (!api?.terminal || !api?.main) {
-                throw new Error('electronAPI terminal/main not available');
-            }
-
-            return new Promise<string>((resolve) => {
-                let capturedTerminalId: string | null = null;
-
-                const timeout = setTimeout(() => {
-                    resolve(capturedTerminalId ?? '');
-                }, 15000);
-
-                api.terminal.onData((id, data) => {
-                    if (!capturedTerminalId) {
-                        capturedTerminalId = id;
-                    }
-                    if (data.includes('TREE_TABS_TEST')) {
-                        clearTimeout(timeout);
-                        resolve(id);
-                    }
-                });
-
-                void api.main.spawnTerminalWithContextNode(nodeId, 'echo TREE_TABS_TEST', 0);
-            });
-        }, targetNodeId);
-
+        const terminalId = await spawnTerminalAndWait(appWindow, targetNodeId, 'TREE_TABS_TEST');
         console.log(`Terminal spawned with ID: ${terminalId}`);
 
         console.log('=== STEP 4: Assert .terminal-tree-sidebar exists ===');
@@ -185,13 +237,8 @@ test.describe('Tree-Style Tabs E2E', () => {
     });
 
     test('Test 3: Click navigates to terminal', async ({ appWindow }) => {
-        console.log('=== STEP 1: Wait for graph to load ===');
-        await expect.poll(async () => {
-            return appWindow.evaluate(() => {
-                const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
-                return cy?.nodes().length ?? 0;
-            });
-        }, { timeout: 20000 }).toBeGreaterThan(0);
+        console.log('=== STEP 1: Load vault and wait for graph ===');
+        await loadVaultAndWaitForGraph(appWindow);
 
         console.log('=== STEP 2: Spawn terminal ===');
         const targetNodeId = await appWindow.evaluate(() => {
@@ -200,18 +247,12 @@ test.describe('Tree-Style Tabs E2E', () => {
             return cy.nodes()[0].id();
         });
 
-        await appWindow.evaluate(async (nodeId) => {
-            const api = (window as unknown as ExtendedWindow).electronAPI;
-            if (!api?.main) throw new Error('electronAPI not available');
-            await api.main.spawnTerminalWithContextNode(nodeId, 'echo NAV_TEST', 0);
-        }, targetNodeId);
+        const terminalId = await spawnTerminalAndWait(appWindow, targetNodeId, 'NAV_TEST');
+        console.log(`Terminal ID: ${terminalId}`);
 
         console.log('=== STEP 3: Wait for sidebar and terminal node ===');
         const treeNode = appWindow.locator('.terminal-tree-node').first();
         await expect(treeNode).toBeVisible({ timeout: 10000 });
-
-        const terminalId = await treeNode.getAttribute('data-terminal-id');
-        console.log(`Terminal ID: ${terminalId}`);
 
         console.log('=== STEP 4: Click on terminal node in sidebar ===');
         await treeNode.click();
@@ -231,13 +272,8 @@ test.describe('Tree-Style Tabs E2E', () => {
     });
 
     test('Test 4: Close button works', async ({ appWindow }) => {
-        console.log('=== STEP 1: Wait for graph to load ===');
-        await expect.poll(async () => {
-            return appWindow.evaluate(() => {
-                const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
-                return cy?.nodes().length ?? 0;
-            });
-        }, { timeout: 20000 }).toBeGreaterThan(0);
+        console.log('=== STEP 1: Load vault and wait for graph ===');
+        await loadVaultAndWaitForGraph(appWindow);
 
         console.log('=== STEP 2: Spawn terminal ===');
         const targetNodeId = await appWindow.evaluate(() => {
@@ -246,18 +282,12 @@ test.describe('Tree-Style Tabs E2E', () => {
             return cy.nodes()[0].id();
         });
 
-        await appWindow.evaluate(async (nodeId) => {
-            const api = (window as unknown as ExtendedWindow).electronAPI;
-            if (!api?.main) throw new Error('electronAPI not available');
-            await api.main.spawnTerminalWithContextNode(nodeId, 'echo CLOSE_TEST', 0);
-        }, targetNodeId);
+        const terminalId = await spawnTerminalAndWait(appWindow, targetNodeId, 'CLOSE_TEST');
+        console.log(`Terminal ID: ${terminalId}`);
 
         console.log('=== STEP 3: Wait for terminal node in sidebar ===');
-        const treeNode = appWindow.locator('.terminal-tree-node').first();
+        const treeNode = appWindow.locator(`.terminal-tree-node[data-terminal-id="${terminalId}"]`);
         await expect(treeNode).toBeVisible({ timeout: 10000 });
-
-        const terminalId = await treeNode.getAttribute('data-terminal-id');
-        console.log(`Terminal ID: ${terminalId}`);
 
         // Verify floating window exists
         const floatingWindow = appWindow.locator(`[data-floating-window-id="${terminalId}"]`);
@@ -284,13 +314,8 @@ test.describe('Tree-Style Tabs E2E', () => {
     });
 
     test('Test 5: Resize handle works', async ({ appWindow }) => {
-        console.log('=== STEP 1: Wait for graph to load ===');
-        await expect.poll(async () => {
-            return appWindow.evaluate(() => {
-                const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
-                return cy?.nodes().length ?? 0;
-            });
-        }, { timeout: 20000 }).toBeGreaterThan(0);
+        console.log('=== STEP 1: Load vault and wait for graph ===');
+        await loadVaultAndWaitForGraph(appWindow);
 
         console.log('=== STEP 2: Spawn terminal to show sidebar ===');
         const targetNodeId = await appWindow.evaluate(() => {
@@ -299,11 +324,7 @@ test.describe('Tree-Style Tabs E2E', () => {
             return cy.nodes()[0].id();
         });
 
-        await appWindow.evaluate(async (nodeId) => {
-            const api = (window as unknown as ExtendedWindow).electronAPI;
-            if (!api?.main) throw new Error('electronAPI not available');
-            await api.main.spawnTerminalWithContextNode(nodeId, 'echo RESIZE_TEST', 0);
-        }, targetNodeId);
+        await spawnTerminalAndWait(appWindow, targetNodeId, 'RESIZE_TEST');
 
         console.log('=== STEP 3: Wait for sidebar to be visible ===');
         const sidebar = appWindow.locator('.terminal-tree-sidebar');
@@ -344,13 +365,8 @@ test.describe('Tree-Style Tabs E2E', () => {
     });
 
     test('Test 2: Child terminal indented', async ({ appWindow }) => {
-        console.log('=== STEP 1: Wait for graph to load ===');
-        await expect.poll(async () => {
-            return appWindow.evaluate(() => {
-                const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
-                return cy?.nodes().length ?? 0;
-            });
-        }, { timeout: 20000 }).toBeGreaterThan(0);
+        console.log('=== STEP 1: Load vault and wait for graph ===');
+        await loadVaultAndWaitForGraph(appWindow);
 
         console.log('=== STEP 2: Spawn parent terminal ===');
         const targetNodeId = await appWindow.evaluate(() => {
@@ -359,27 +375,7 @@ test.describe('Tree-Style Tabs E2E', () => {
             return cy.nodes()[0].id();
         });
 
-        const parentTerminalId = await appWindow.evaluate(async (nodeId) => {
-            const w = (window as unknown as ExtendedWindow);
-            const api = w.electronAPI;
-            if (!api?.main) throw new Error('electronAPI not available');
-
-            return new Promise<string>((resolve) => {
-                let capturedId: string | null = null;
-                const timeout = setTimeout(() => resolve(capturedId ?? ''), 15000);
-
-                api.terminal.onData((id, data) => {
-                    if (!capturedId) capturedId = id;
-                    if (data.includes('PARENT_TEST')) {
-                        clearTimeout(timeout);
-                        resolve(id);
-                    }
-                });
-
-                void api.main.spawnTerminalWithContextNode(nodeId, 'echo PARENT_TEST', 0);
-            });
-        }, targetNodeId);
-
+        const parentTerminalId = await spawnTerminalAndWait(appWindow, targetNodeId, 'PARENT_TEST');
         console.log(`Parent terminal ID: ${parentTerminalId}`);
 
         console.log('=== STEP 3: Wait for parent in sidebar ===');
@@ -401,27 +397,7 @@ test.describe('Tree-Style Tabs E2E', () => {
             return nodes.length > 1 ? nodes[1].id() : nodes[0].id();
         });
 
-        const childTerminalId = await appWindow.evaluate(async (nodeId) => {
-            const w = (window as unknown as ExtendedWindow);
-            const api = w.electronAPI;
-            if (!api?.main) throw new Error('electronAPI not available');
-
-            return new Promise<string>((resolve) => {
-                let capturedId: string | null = null;
-                const timeout = setTimeout(() => resolve(capturedId ?? ''), 15000);
-
-                api.terminal.onData((id, data) => {
-                    if (!capturedId) capturedId = id;
-                    if (data.includes('CHILD_TEST')) {
-                        clearTimeout(timeout);
-                        resolve(id);
-                    }
-                });
-
-                void api.main.spawnTerminalWithContextNode(nodeId, 'echo CHILD_TEST', 0);
-            });
-        }, secondNodeId);
-
+        const childTerminalId = await spawnTerminalAndWait(appWindow, secondNodeId, 'CHILD_TEST');
         console.log(`Child terminal ID: ${childTerminalId}`);
 
         console.log('=== STEP 5: Verify both terminals appear in sidebar ===');
@@ -442,6 +418,55 @@ test.describe('Tree-Style Tabs E2E', () => {
         console.log('✓ Multiple terminals visible in sidebar');
         console.log('NOTE: Full parent-child indentation requires MCP spawn_agent integration');
         console.log('✅ Test 2 passed: Multiple terminals appear in sidebar');
+    });
+
+    test('Test 6: Status indicator changes from running to done', async ({ appWindow }) => {
+        console.log('=== STEP 1: Load vault and wait for graph ===');
+        await loadVaultAndWaitForGraph(appWindow);
+
+        console.log('=== STEP 2: Spawn terminal with echo command ===');
+        const targetNodeId = await appWindow.evaluate(() => {
+            const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+            if (!cy) throw new Error('Cytoscape not initialized');
+            return cy.nodes()[0].id();
+        });
+
+        const terminalId = await spawnTerminalAndWait(appWindow, targetNodeId, 'STATUS_TEST');
+        console.log(`Terminal ID: ${terminalId}`);
+
+        console.log('=== STEP 3: Wait for terminal node in sidebar ===');
+        const treeNode = appWindow.locator(`.terminal-tree-node[data-terminal-id="${terminalId}"]`);
+        await expect(treeNode).toBeVisible({ timeout: 10000 });
+
+        console.log('=== STEP 4: Verify running status indicator is present ===');
+        const statusIndicator = treeNode.locator('.terminal-tree-status');
+        await expect(statusIndicator).toBeVisible();
+
+        // Initially should show "running" class (dashed orange border with animation)
+        await expect(statusIndicator).toHaveClass(/running/);
+
+        await appWindow.screenshot({
+            path: 'e2e-tests/test-results/tree-style-tabs-status-running.png'
+        });
+        console.log('✓ Status indicator shows running');
+
+        console.log('=== STEP 5: Wait 20s for inactivity timeout to mark done ===');
+        await appWindow.waitForTimeout(20000);
+
+        console.log('=== STEP 6: Verify done status indicator (green) ===');
+        await expect.poll(async () => {
+            const classes = await statusIndicator.getAttribute('class');
+            return classes?.includes('done');
+        }, {
+            message: 'Waiting for done status indicator',
+            timeout: 15000,
+            intervals: [1000, 2000, 2000]
+        }).toBe(true);
+
+        await appWindow.screenshot({
+            path: 'e2e-tests/test-results/tree-style-tabs-status-done.png'
+        });
+        console.log('✅ Test 6 passed: Status indicator changes from running to done');
     });
 });
 

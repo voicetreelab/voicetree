@@ -62,25 +62,31 @@
 .terminal-tree-node {
     display: flex;
     align-items: center;
-    padding: 4px 8px;
+    padding: 5px 8px;
+    margin: 2px 6px;
     cursor: pointer;
-    transition: background 0.1s ease;
+    border-radius: 6px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    transition: background 0.1s ease, border-color 0.1s ease;
 }
 
 .terminal-tree-node:hover {
     background: var(--accent);
+    border-color: var(--accent);
 }
 
 .terminal-tree-node.active {
     background: rgba(255, 200, 80, 0.15);
+    border-color: rgba(255, 200, 80, 0.4);
     box-shadow: inset 2px 0 0 rgba(255, 200, 80, 0.7);
 }
 
-/* Depth indentation */
-.terminal-tree-node[data-depth="1"] { padding-left: 20px; }
-.terminal-tree-node[data-depth="2"] { padding-left: 32px; }
-.terminal-tree-node[data-depth="3"] { padding-left: 44px; }
-.terminal-tree-node[data-depth="4"] { padding-left: 56px; }
+/* Depth indentation - accounts for margin */
+.terminal-tree-node[data-depth="1"] { margin-left: 18px; }
+.terminal-tree-node[data-depth="2"] { margin-left: 30px; }
+.terminal-tree-node[data-depth="3"] { margin-left: 42px; }
+.terminal-tree-node[data-depth="4"] { margin-left: 54px; }
 
 /* Status indicator */
 .terminal-tree-status {

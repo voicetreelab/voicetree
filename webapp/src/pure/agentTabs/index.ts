@@ -9,8 +9,8 @@
 
 export const TAB_WIDTH_PINNED: number = 90;
 export const TAB_WIDTH_UNPINNED: number = 16;
-export const INACTIVITY_THRESHOLD_MS: number = 10000;
-export const CHECK_INTERVAL_MS: number = 5000;
+export const INACTIVITY_THRESHOLD_MS: number = 5000;
+export const CHECK_INTERVAL_MS: number = 2400;
 
 // =============================================================================
 // Shortcut Hint Calculation

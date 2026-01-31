@@ -5,6 +5,7 @@ import { ClipboardAddon } from '@xterm/addon-clipboard';
 import { SearchAddon } from '@xterm/addon-search';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import '@xterm/xterm/css/xterm.css';
+import './terminal-chrome.css'; // Terminal title bar, context badge, active state styles
 import type { VTSettings } from '@/pure/settings';
 import { getCachedZoom, isZoomActive } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 import { getScalingStrategy, getTerminalFontSize, getScrollOffset, getScrollTargetLine } from '@/pure/floatingWindowScaling';
