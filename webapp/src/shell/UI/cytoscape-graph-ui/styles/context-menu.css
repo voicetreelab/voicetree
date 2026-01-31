@@ -1,0 +1,146 @@
+/*
+ * Context Menu Styles
+ *
+ * Styles for cxtmenu library and context menus in the graph view.
+ */
+
+/* Navigator view (legacy - unused) */
+/*div.cy-navigator {*/
+/*  width: 150px;*/
+/*  height: 150px;*/
+/*  position: fixed;*/
+/*  z-index: 3;*/
+/*  bottom: 10px;*/
+/*  right: 27px;*/
+/*  border: #828282 1px solid;*/
+/*  border-radius: 2px;*/
+/*  background-color: rgba(130, 130, 130, 0.1);*/
+/*  cursor: default;*/
+/*  overflow: hidden;*/
+/*}*/
+
+/*div.cy-navigator > img {*/
+/*  position: relative;*/
+/*  top: 0;*/
+/*  left: 0;*/
+/*  width: 100%;*/
+/*  height: 100%;*/
+/*  z-index: 0;*/
+/*  opacity: 0.8;*/
+/*}*/
+
+/*.cytoscape-navigatorView {*/
+/*  position: relative;*/
+/*  top: 0;*/
+/*  left: 0;*/
+/*  cursor: move;*/
+/*  background: #828282;*/
+/*  -moz-opacity: 0.20;*/
+/*  opacity: 0.20;*/
+/*  width: 50%;*/
+/*  height: 50%;*/
+/*  z-index: 0;*/
+/*}*/
+
+/*.cytoscape-navigatorOverlay {*/
+/*  position: relative;*/
+/*  top: 0;*/
+/*  left: 0;*/
+/*  z-index: 103;*/
+/*  width: 100%;*/
+/*  height: 100%;*/
+/*}*/
+
+/*!* Hide scrollbars in graph view *!*/
+/*.cy-content {*/
+/*  overflow: hidden !important;*/
+/*  -ms-overflow-style: none !important;*/
+/*  scrollbar-width: none !important;*/
+/*  padding: 0 !important;*/
+/*}*/
+
+/*.cy-content::-webkit-scrollbar {*/
+/*  display: none !important;*/
+/*}*/
+
+/* Context menu styles */
+div.cxtmenu-item {
+    opacity: 0.8;
+}
+
+/* Dark mode overrides for ctxmenu library (overrides injected inline styles) */
+.dark ul.ctxmenu {
+    background: var(--card) !important;
+    border-color: var(--border) !important;
+    color: var(--foreground) !important;
+    box-shadow: rgba(0, 0, 0, 0.3) 3px 3px 6px !important;
+}
+
+.dark ul.ctxmenu li.disabled {
+    color: var(--muted-foreground) !important;
+}
+
+.dark ul.ctxmenu li.divider {
+    border-bottom-color: var(--border) !important;
+}
+
+.dark ul.ctxmenu li.interactive:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.dark ul.ctxmenu li.submenu::after {
+    border-color: var(--foreground) !important;
+}
+
+.dark ul.ctxmenu li.submenu.disabled::after {
+    border-color: var(--muted-foreground) !important;
+}
+
+/* Horizontal context menu (ctxmenu library) - use !important to override injected styles */
+ul.ctxmenu.horizontal {
+    display: flex !important;
+    flex-direction: row !important;
+    padding: 0 2px !important;
+    height: auto !important;
+    width: auto !important;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    /* NOTE: Do NOT use transform here - it breaks fixed positioning for submenus */
+}
+
+ul.ctxmenu.horizontal > li {
+    display: inline-flex !important;
+    margin: 0 1px !important;
+}
+
+/* Target only inner spans (icon wrapper + label), not the outer flex container */
+ul.ctxmenu.horizontal > li > span > span {
+    display: inline-block !important;
+    white-space: nowrap !important;
+}
+
+/* Padding on the outer container span */
+ul.ctxmenu.horizontal > li > span {
+    padding: 4px 8px !important;
+}
+
+/* Submenus from horizontal menu expand vertically below */
+ul.ctxmenu.horizontal ul.ctxmenu {
+    flex-direction: column !important;
+    display: block !important;
+    background: var(--card) !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: rgba(0, 0, 0, 0.15) 3px 3px 6px !important;
+    padding: 2px 0 !important;
+    transform: none !important;
+}
+
+ul.ctxmenu.horizontal ul.ctxmenu li {
+    display: block !important;
+}
+
+/* Style the submenu trigger in horizontal menu */
+ul.ctxmenu.horizontal > li.submenu::after {
+    display: none !important; /* Hide default right arrow */
+}

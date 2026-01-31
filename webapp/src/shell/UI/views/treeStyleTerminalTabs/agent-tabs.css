@@ -1,0 +1,245 @@
+/*
+ * Agent Tabs Bar Styles
+ *
+ * Title bar area tabs for terminal/agent navigation (right side).
+ * Mirrors RecentNodeTabsBar but positioned on the right.
+ */
+
+/* ============================================================================
+ * Agent Tabs Bar - Title bar area tabs for terminal/agent navigation (right side)
+ * Mirrors RecentNodeTabsBar but positioned on the right
+ * ============================================================================ */
+
+.agent-tabs-bar {
+    position: absolute;
+    top: 8px;
+    right: 12px; /* Minimal spacing from window edge */
+    display: flex;
+    align-items: flex-start; /* Align to top for consistent vertical positioning with recent-tabs-bar */
+    z-index: 1100; /* Above floating windows (1000) so tabs aren't obscured */
+    height: 20px; /* Fixed height matching recent-tabs-bar */
+    max-width: calc(50% - 100px); /* Don't overlap with recent nodes tabs */
+    pointer-events: auto;
+    -webkit-app-region: no-drag; /* Allow clicking tabs instead of dragging window */
+    overflow: visible; /* Allow shortcut hints to extend below */
+    gap: 0; /* No gap - divider provides spacing */
+}
+
+/* Pinned tabs container (left section, 90px tabs with title)
+ * Wraps into new rows after 5 tabs (5 × 90px + gaps ≈ 470px) */
+.agent-tabs-pinned {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap; /* Wrap to new row after 5 tabs */
+    justify-content: flex-end; /* Right-align tabs in each row when wrapping */
+    column-gap: 4px;
+    row-gap: 14px; /* Row gap to accommodate activity dots (positioned at bottom: -11px) */
+    max-width: 470px; /* 5 tabs × 90px + 4 gaps × 4px + padding */
+    overflow-y: visible;
+    padding: 0 4px 20px 4px; /* No top padding; bottom padding for shortcut hints */
+}
+
+/* Divider between pinned and unpinned sections */
+.agent-tabs-divider {
+    width: 1px;
+    height: 12px;
+    background: #555;
+    margin: 0 8px;
+    flex-shrink: 0;
+}
+
+/* Unpinned tabs container (right section, 24px square tabs) */
+.agent-tabs-unpinned {
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+    padding: 2px 4px;
+}
+
+/* Individual agent tab button (pinned - 90px with title + status dot) */
+.agent-tab {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 4px;
+    width: 90px;
+    min-width: 90px;
+    max-width: 90px;
+    height: 16px;
+    padding: 0 4px;
+    background: #262626;
+    border: 1px solid #404040;
+    border-radius: 4px;
+    cursor: pointer;
+    overflow: visible; /* Allow activity dots to extend below */
+    flex-shrink: 0;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+    color: #e5e7eb;
+    -webkit-app-region: no-drag; /* Required for clicks in Electron title bar area */
+}
+
+/* Unpinned agent tab (16px tall with status dot only, matching pinned tab height) */
+.agent-tab-unpinned {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    min-width: 16px;
+    max-width: 16px;
+    height: 16px;
+    padding: 0;
+    background: #262626;
+    border: 1px solid #404040;
+    border-radius: 4px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+    -webkit-app-region: no-drag; /* Required for clicks in Electron title bar area */
+}
+
+.agent-tab-unpinned:hover {
+    background: #333;
+    border-color: #555;
+}
+
+.agent-tab-unpinned.agent-tab-active {
+    box-shadow: 0 0 0 2px rgba(255, 200, 80, 0.55);
+}
+
+.agent-tab:hover {
+    background: #333;
+    border-color: #555;
+}
+
+.agent-tab:active {
+    background: #3d3d3d;
+}
+
+/* Active terminal highlight - uses box-shadow so it renders outside inactive border */
+/* Uses subtle soft gold to match terminal window gold border */
+.agent-tab-active {
+    box-shadow: 0 0 0 3px rgba(255, 200, 80, 0.55);
+    border-radius: 3px;
+    background: #252525;
+}
+
+.agent-tab-active:hover {
+    box-shadow: 0 0 0 3px rgba(255, 200, 80, 0.7);
+    border-radius: 3px;
+}
+
+/* Combined state: both active (gold) and inactive (green) - gold outside, green inside */
+.agent-tab-active.agent-tab-inactive {
+    box-shadow: 0 0 0 5px rgba(255, 200, 80, 0.55), 0 0 6px rgba(34, 197, 94, 0.4);
+    animation: none;
+}
+
+.agent-tab-active.agent-tab-inactive:hover {
+    box-shadow: 0 0 0 5px rgba(255, 200, 80, 0.7), 0 0 10px rgba(34, 197, 94, 0.6);
+}
+
+/* Agent tab text - horizontally scrollable within fixed width */
+.agent-tab-text {
+    display: block;
+    white-space: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none; /* Firefox */
+    font-size: 12px;
+    color: #e5e7eb;
+    line-height: 1.2;
+}
+
+.agent-tab-text::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+}
+
+/* Agent tabs stay dark in all themes (like terminals) - no light mode overrides */
+
+/* Status dot - running state (transparent with dotted border, animated) */
+.agent-tab-status-running {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: 1.5px dotted #a1a1aa;
+    background: transparent;
+    flex-shrink: 0;
+    animation: status-running-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes status-running-pulse {
+    0%, 100% {
+        opacity: 0.6;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+/* Status dot - done state (green filled circle) */
+.agent-tab-status-done {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    flex-shrink: 0;
+}
+
+/* Activity dot indicator for agent tabs (shown when terminal produces a node) */
+.agent-tab-activity-dot {
+    position: absolute;
+    bottom: -11px;
+    left: 4px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #3b82f6;
+    pointer-events: none;
+}
+
+/* Drag-and-drop states for agent tab reordering */
+.agent-tab-dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+}
+
+/* Ghost tab outline showing drop position during drag */
+.agent-tab-ghost {
+    width: 90px;
+    min-width: 90px;
+    max-width: 90px;
+    height: 16px;
+    border: 2px dashed rgba(255, 200, 80, 0.7);
+    border-radius: 4px;
+    background: rgba(255, 200, 80, 0.1);
+    flex-shrink: 0;
+    box-sizing: border-box;
+}
+
+/* Agent tab wrapper - positions tab and hint together (mirrors recent-tab-wrapper) */
+.agent-tab-wrapper {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+/* Shortcut hint for agent tabs - shown below tab on hover */
+.agent-tab-shortcut-hint {
+    position: absolute;
+    bottom: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    color: #a1a1aa;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.agent-tab-wrapper:hover .agent-tab-shortcut-hint {
+    opacity: 1;
+}

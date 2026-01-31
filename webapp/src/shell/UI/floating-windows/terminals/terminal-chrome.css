@@ -1,0 +1,133 @@
+/**
+ * Terminal Window Chrome
+ *
+ * Terminal-specific window styling: title bar, context badge, active highlighting,
+ * and overflow fixes for xterm.js
+ */
+
+/* =============================================================================
+ * Terminal Title Bar
+ * Minimal height with traffic lights at far right
+ * Draggable area for moving the terminal window
+ * ============================================================================= */
+
+.terminal-title-bar {
+  position: relative;
+  min-height: 28px;
+  padding: 0;
+  background-color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  display: flex;
+  align-items: center;
+  cursor: grab;
+}
+
+.terminal-title-bar:active {
+  cursor: grabbing;
+}
+
+/* Traffic lights container - positioned at far right */
+.terminal-traffic-lights {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* =============================================================================
+ * Context Badge
+ * Pill shape with clipboard icon and truncated title
+ * Optional context for terminals with context nodes
+ * ============================================================================= */
+
+.terminal-context-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background-color: var(--accent);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  max-width: 80%;
+}
+
+.terminal-context-badge:hover {
+  background-color: var(--accent-foreground);
+}
+
+.terminal-context-badge svg {
+  flex-shrink: 0;
+  stroke: var(--muted-foreground);
+}
+
+.terminal-context-badge-title {
+  font-size: 12px;
+  color: var(--foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Context expanded state - visual indicator */
+.cy-floating-window-terminal.terminal-context-expanded .terminal-context-badge {
+  background-color: var(--primary);
+}
+
+.cy-floating-window-terminal.terminal-context-expanded .terminal-context-badge svg {
+  stroke: var(--primary-foreground);
+}
+
+.cy-floating-window-terminal.terminal-context-expanded .terminal-context-badge-title {
+  color: var(--primary-foreground);
+}
+
+/* =============================================================================
+ * Active Terminal Highlighting (Gold Border)
+ * Applied when terminal is selected/navigated to
+ * This renders ON the DOM element, not behind it on cytoscape canvas
+ * ============================================================================= */
+
+.cy-floating-window-terminal.terminal-active {
+  border: 2px solid rgba(218, 165, 32, 0.85);
+  box-shadow: 0 0 8px rgba(218, 165, 32, 0.4), 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Dark mode - much more subtle gold */
+.dark .cy-floating-window-terminal.terminal-active {
+  border: 2px solid rgba(184, 134, 11, 0.6);
+  box-shadow: 0 0 6px rgba(184, 134, 11, 0.25), 0 4px 12px rgba(0,0,0,0.3);
+}
+
+/* =============================================================================
+ * Terminal Overflow Fixes
+ * Prevent horizontal scrollbars - xterm.js manages its own rendering
+ * ============================================================================= */
+
+/* Terminal windows should not have horizontal scroll - xterm.js manages its own rendering.
+ * overflow-x: hidden prevents any horizontal scrollbar from appearing.
+ * Apply to both the window wrapper AND the content container to prevent x-overflow at all levels.
+ * Use higher specificity (.cy-floating-window.cy-floating-window-terminal) to override
+ * the .cy-floating-window.resizable { overflow: auto } rule. */
+.cy-floating-window.cy-floating-window-terminal {
+  overflow-x: hidden;
+}
+
+.cy-floating-window-terminal .cy-floating-window-content {
+  overflow-x: hidden;
+}
+
+/* Hide horizontal scrollbar on xterm's internal viewport element.
+ * xterm.css only sets overflow-y: scroll, leaving overflow-x at default which can show scrollbar.
+ * Content wider than terminal columns (e.g. long prompts before fitAddon.fit() runs) triggers this. */
+.cy-floating-window-terminal .xterm-viewport {
+  overflow-x: hidden;
+}
+
+/* Windows-only: scrollbars take physical space (~17px) causing FitAddon to miscalculate column width.
+ * scrollbar-gutter: stable reserves space for vertical scrollbar, ensuring consistent width.
+ * On macOS, overlay scrollbars don't need this - it would actually cause layout issues. */
+.platform-windows .cy-floating-window-terminal .cy-floating-window-content {
+  scrollbar-gutter: stable;
+}

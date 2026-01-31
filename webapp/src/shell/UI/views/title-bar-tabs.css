@@ -1,0 +1,162 @@
+/*
+ * Title Bar & Recent Tabs Styles
+ *
+ * macOS title bar drag region and recent node tabs bar.
+ */
+
+/* ============================================================================
+ * macOS Title Bar Drag Region
+ * When titleBarStyle: 'hiddenInset' is enabled, web content extends into the
+ * title bar. This region allows window dragging via double-click to maximize.
+ * ============================================================================ */
+
+.title-bar-drag-region {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 38px; /* macOS title bar height */
+    -webkit-app-region: drag; /* Make this region draggable */
+    z-index: 1099; /* Above floating windows (1000) but below tabs */
+    pointer-events: auto;
+}
+
+/* ============================================================================
+ * Recent Node Tabs Bar - Title bar area tabs for quick navigation
+ * ============================================================================ */
+
+.recent-tabs-bar {
+    position: absolute;
+    top: 8px;
+    left: 80px; /* Offset for macOS window controls (close/minimize/maximize) */
+    display: flex;
+    align-items: flex-start; /* Align to top for consistent vertical positioning */
+    z-index: 1100; /* Above floating windows (1000) so tabs aren't obscured */
+    height: 20px;
+    max-width: calc(100% - 200px); /* Leave space for window controls and other UI */
+    pointer-events: auto;
+    -webkit-app-region: no-drag; /* Allow clicking tabs instead of dragging window */
+}
+
+.recent-tabs-scroll {
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+    overflow-x: auto;
+    overflow-y: visible; /* Allow shortcut hints to appear below tabs */
+    scrollbar-width: none; /* Firefox - hide scrollbar */
+    -webkit-overflow-scrolling: touch;
+    padding: 2px 4px 20px 4px; /* Extra bottom padding for shortcut hints */
+}
+
+/* Webkit scrollbar styling - hidden for clean look */
+.recent-tabs-scroll::-webkit-scrollbar {
+    display: none; /* Chrome/Safari - hide scrollbar */
+}
+
+/* Individual tab button */
+.recent-tab {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: 70px;
+    min-width: 90px;
+    max-width: 90px;
+    height: 16px;
+    padding: 0 4px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    overflow: hidden;
+    flex-shrink: 0;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.recent-tab:hover {
+    background: var(--accent);
+    border-color: var(--ring);
+}
+
+.recent-tab:active {
+    background: var(--muted);
+}
+
+/* Recency gradient - most recent (leftmost) is fully opaque, fading toward older tabs */
+.recent-tabs-scroll .recent-tab-wrapper:nth-child(1) .recent-tab { opacity: 1.0; }
+.recent-tabs-scroll .recent-tab-wrapper:nth-child(2) .recent-tab { opacity: 0.85; }
+.recent-tabs-scroll .recent-tab-wrapper:nth-child(3) .recent-tab { opacity: 0.70; }
+.recent-tabs-scroll .recent-tab-wrapper:nth-child(4) .recent-tab { opacity: 0.58; }
+.recent-tabs-scroll .recent-tab-wrapper:nth-child(5) .recent-tab { opacity: 0.48; }
+
+/* Restore full opacity on hover for better interaction */
+.recent-tabs-scroll .recent-tab-wrapper:hover .recent-tab {
+    opacity: 1.0;
+}
+
+/* Tab text - horizontally scrollable within fixed width */
+.recent-tab-text {
+    display: block;
+    white-space: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none; /* Firefox */
+    font-size: 12px;
+    color: var(--foreground);
+    line-height: 1.2;
+}
+
+.recent-tab-text::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+}
+
+/* Tab wrapper - positions tab and hint together */
+.recent-tab-wrapper {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+/* Shortcut hint - shown below tab on hover */
+.recent-tab-shortcut-hint {
+    position: absolute;
+    bottom: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    color: var(--muted-foreground);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.recent-tab-wrapper:hover .recent-tab-shortcut-hint {
+    opacity: 1;
+}
+
+/* Pinned editors section - left side of recent tabs bar */
+.recent-tabs-pinned-section {
+    display: flex;
+    gap: 4px;
+    padding: 2px 8px 0 4px; /* Match vertical alignment with recent-tabs-scroll */
+    border-right: 1px solid var(--border);
+    margin-right: 4px;
+}
+
+.recent-tabs-pinned-section:empty {
+    display: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+.pinned-tab-icon {
+    width: 10px;
+    height: 10px;
+    margin-right: 4px;
+    stroke: var(--muted-foreground);
+    flex-shrink: 0;
+}

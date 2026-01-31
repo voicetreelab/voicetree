@@ -1,0 +1,160 @@
+/**
+ * Traffic Light Buttons
+ *
+ * macOS-style colored circles: Close (orange/red), Pin (gray/orange), Fullscreen (green outline)
+ * Also includes Settings Editor title bar styling
+ */
+
+/* =============================================================================
+ * Base Traffic Light Style
+ * 17px circles (20% larger than original 14px)
+ * ============================================================================= */
+
+.traffic-light {
+  all: unset;
+  cursor: pointer;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 4px;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+  flex-shrink: 0; /* Prevent squashing when inside flex containers */
+}
+
+/* First traffic light in a pill needs extra left margin to separate from menu items */
+.horizontal-menu-pill .traffic-light:first-of-type {
+  margin-left: -8px;
+}
+
+/* Compensate for 20% larger traffic light buttons (14px → 17px) overflowing pill container */
+.horizontal-menu-pill .traffic-lights {
+  margin-right: -4px;
+}
+
+.traffic-light:hover {
+  opacity: 0.85;
+  transform: scale(1.1);
+}
+
+.traffic-light:active {
+  transform: scale(0.95);
+}
+
+/* Traffic light icons - tiny (7px, 20% larger than original 6px) and subtle */
+.traffic-light svg {
+  width: 7px;
+  height: 7px;
+  stroke-width: 2.5;
+}
+
+/* =============================================================================
+ * Minimize/Close Button - Orange filled circle
+ * ============================================================================= */
+
+.traffic-light-close {
+  background-color: rgba(255, 165, 0, 0.65);
+}
+
+.traffic-light-close svg {
+  stroke: rgba(0, 0, 0, 0.35);
+}
+
+.traffic-light-close:hover svg {
+  stroke: rgba(0, 0, 0, 0.55);
+}
+
+/* Terminal close button - red (macOS style) instead of orange */
+.cy-floating-window-terminal .traffic-light-close {
+  background-color: rgba(255, 59, 48, 0.65);
+}
+
+/* =============================================================================
+ * Pin Button - Neutral gray filled circle (unpinned state)
+ * ============================================================================= */
+
+.traffic-light-pin {
+  background-color: rgba(150, 150, 150, 0.5);
+}
+
+.traffic-light-pin svg {
+  stroke: rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease;
+}
+
+.traffic-light-pin:hover svg {
+  stroke: rgba(0, 0, 0, 0.55);
+}
+
+/* Pin button - pinned state: orange background, rotated 45° */
+.traffic-light-pin.pinned {
+  background-color: rgba(255, 165, 0, 0.65);
+}
+
+.traffic-light-pin.pinned svg {
+  transform: rotate(45deg);
+  stroke: rgba(0, 0, 0, 0.5);
+}
+
+.traffic-light-pin.pinned:hover svg {
+  stroke: rgba(0, 0, 0, 0.7);
+}
+
+/* =============================================================================
+ * Fullscreen Button - Soft green outline only (not filled)
+ * ============================================================================= */
+
+.traffic-light-fullscreen {
+  background-color: transparent;
+  border: 1.5px solid rgba(80, 200, 100, 0.6);
+}
+
+.traffic-light-fullscreen svg {
+  stroke: rgba(80, 200, 100, 0.7);
+}
+
+.traffic-light-fullscreen:hover {
+  background-color: rgba(80, 200, 100, 0.12);
+}
+
+.traffic-light-fullscreen:hover svg {
+  stroke: rgba(60, 180, 80, 0.85);
+}
+
+/* =============================================================================
+ * Settings Editor Title Bar
+ * Simple title bar with close button - similar to terminal but simpler
+ * ============================================================================= */
+
+/* Settings title bar - minimal height with close button and title */
+.settings-title-bar {
+  position: relative;
+  min-height: 28px;
+  padding: 4px 10px;
+  background-color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: grab;
+}
+
+.settings-title-bar:active {
+  cursor: grabbing;
+}
+
+/* Settings title text */
+.settings-title-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+
+/* Settings close button - pushed to far right */
+.settings-title-bar .traffic-light-close {
+  margin-left: auto;
+}

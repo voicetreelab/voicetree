@@ -1,0 +1,251 @@
+/**
+ * CodeMirror Editor Styles
+ *
+ * Styles for the rich-markdoc markdown editor, diff highlighting,
+ * wikilinks, selection, gutters, and autocomplete
+ */
+
+/* =============================================================================
+ * Rich-Markdoc Styles
+ * Hide formatting marks when not editing
+ * ============================================================================= */
+
+/* CodeMirror Editor Styles */
+/*// TODO BROKEN, frontmatter styling is applying to titles as well*/
+/*!* YAML Frontmatter - Smaller, de-emphasized styling *!*/
+/*!* Target DashLine (---) and FrontmatterContent nodes *!*/
+/*.cm-content .cm-meta {*/
+/*  font-size: 0.75rem;*/
+/*  color: #888;*/
+/*}*/
+
+/* Ensure frontmatter delimiters (---) are visible */
+/*.cm-line .cm-meta {*/
+/*  display: inline;*/
+/*}*/
+
+/* rich-markdoc styles - hide formatting marks when not editing */
+.cm-markdoc-hidden {
+  display: none !important;
+}
+
+.cm-markdoc-bullet * {
+  display: none;
+}
+
+.cm-markdoc-bullet::after {
+  display: inline !important;
+  color: darkgray;
+  content: '•';
+}
+
+.cm-markdoc-renderBlock {
+  font-family: sans-serif;
+}
+
+.cm-markdoc-renderBlock table {
+  border-collapse: collapse;
+  margin-left: 5px;
+}
+
+.cm-markdoc-renderBlock th,
+.cm-markdoc-renderBlock td {
+  border: 1px solid lightgray;
+  padding: 5px 10px;
+}
+
+.cm-markdoc-renderBlock blockquote {
+  border-left: 3px solid lightgray;
+  padding-left: 10px;
+  margin: 0 0 0 15px;
+}
+
+.cm-markdoc-renderBlock p {
+  margin: 3px;
+}
+
+.cm-markdoc-tag {
+  color: darkgray;
+}
+
+.cm-markdoc-code {
+  font-family: monospace;
+}
+
+/* Heading 1 (single #) - Smaller size with underline retained */
+/* Override the highlightStyle from codemirror-rich-markdoc */
+/*.cm-content .cm-heading1 {*/
+/*  font-size: 18px !important;*/
+/*  text-decoration: underline !important;*/
+/*  font-weight: bold;*/
+/*  font-family: sans-serif;*/
+/*}*/
+
+/*THIS DOESNT WORK CodeMirror's auto-generated class names (`ͼo`, `ͼ7`) are  unstable and change between builds/loads.  Use CodeMirror's official `HighlightStyle.define()` API*/
+/*.ͼo .ͼ7 {*/
+/*    font-size: 18px !important;*/
+/*    text-decoration: underline !important;*/
+/*}*/
+
+/* =============================================================================
+ * Diff Highlighting
+ * Lines starting with + get green background
+ * Lines starting with - get red background
+ * ============================================================================= */
+
+.cm-diff-added {
+  background-color: rgba(34, 197, 94, 0.2); /* light green, 20% opacity */
+}
+
+.cm-diff-removed {
+  background-color: rgba(239, 68, 68, 0.2); /* light red, 20% opacity */
+}
+
+/* Dark mode adjustments for diff highlighting */
+.dark .cm-diff-added {
+  background-color: rgba(34, 197, 94, 0.25);
+}
+
+.dark .cm-diff-removed {
+  background-color: rgba(239, 68, 68, 0.25);
+}
+
+/* =============================================================================
+ * Wikilink Styles
+ * Title display - shows node title instead of ID, clickable for navigation
+ * ============================================================================= */
+
+.cm-wikilink-title {
+  color: var(--primary, #3b82f6);
+  font-style: italic;
+  cursor: pointer;
+}
+
+.cm-wikilink-title:hover {
+  text-decoration: underline;
+}
+
+.dark .cm-wikilink-title {
+  color: var(--primary, #60a5fa);
+}
+
+/* =============================================================================
+ * Selection Visibility Fix
+ *
+ * CM6 has a known issue where the selection highlight doesn't show properly:
+ * 1. The selection layer renders BEHIND the content layer
+ * 2. Selection rectangles for "select all" use extreme positioning (top: -1e9px)
+ *    which causes them to end just above the visible content area
+ *
+ * Solution:
+ * - Ensure transparent backgrounds so selection shows through
+ * - Override the first selection rectangle's position to cover visible content
+ * ============================================================================= */
+
+/* Ensure content area is transparent so selection layer shows through */
+.cm-editor .cm-content {
+  background-color: transparent !important;
+}
+
+/* Selection highlight colors */
+.cm-editor .cm-selectionBackground {
+  background-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+.cm-editor.cm-focused .cm-selectionBackground {
+  background-color: rgba(59, 130, 246, 0.4) !important;
+}
+
+/* Dark mode selection */
+.dark .cm-editor .cm-selectionBackground {
+  background-color: rgba(59, 130, 246, 0.4) !important;
+}
+
+.dark .cm-editor.cm-focused .cm-selectionBackground {
+  background-color: rgba(59, 130, 246, 0.5) !important;
+}
+
+/* Keep active line subtle so selection shows through */
+.cm-editor .cm-activeLine {
+  background-color: rgba(0, 0, 0, 0.03) !important;
+}
+
+/* =============================================================================
+ * Dark Mode Gutter Styling
+ * Force dark background and light text for gutters in dark mode
+ * ============================================================================= */
+
+.dark .cm-editor .cm-gutters {
+  background-color: var(--muted, #1e1e1e) !important;
+  border-right: 1px solid var(--border, #333) !important;
+}
+
+.dark .cm-editor .cm-lineNumbers .cm-gutterElement {
+  color: var(--muted-foreground, #6b7280) !important;
+}
+
+.dark .cm-editor .cm-activeLineGutter {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* =============================================================================
+ * Compact Gutter Styling
+ * Ultra-compact gutter with minimal padding
+ * ============================================================================= */
+
+/* Remove all gutter padding */
+.cm-editor .cm-gutters {
+  padding-right: 0 !important;
+  border-right: none !important;
+}
+
+/* Line numbers: tiny font, minimal padding */
+.cm-editor .cm-lineNumbers {
+  min-width: 18px !important;
+}
+
+.cm-editor .cm-lineNumbers .cm-gutterElement {
+  font-size: 9px !important;
+  padding: 0 1px 0 2px !important;
+  min-width: 14px !important;
+}
+
+/* Fold gutter: ultra-compact */
+.cm-editor .cm-foldGutter {
+  width: 8px !important;
+  min-width: 8px !important;
+}
+
+.cm-editor .cm-foldGutter .cm-gutterElement {
+  padding: 0 !important;
+  width: 8px !important;
+  font-size: 8px !important;
+}
+
+/* Fold placeholder (collapsed indicator) - smaller */
+.cm-editor .cm-foldPlaceholder {
+  font-size: 9px !important;
+  padding: 0 1px !important;
+}
+
+/* Fix: CM6 positions select-all rectangle at extreme negative top (-33Mpx) with huge height.
+ * This causes it to end at y=0, not covering visible content.
+ * The .cm-select-all class is added by JS when selection covers entire document.
+ * This avoids the duplicate overlay issue that :first-child caused during drag selection. */
+.cm-select-all .cm-editor .cm-selectionBackground:first-child {
+  top: 0 !important;
+  height: 100vh !important;
+}
+
+/* =============================================================================
+ * Autocomplete Tooltip
+ * Ensure it appears above floating windows
+ * ============================================================================= */
+
+/* Wikilink autocomplete tooltip - ensure it appears above floating windows
+ * The tooltip is rendered in document.body (via tooltips({ parent: document.body }))
+ * to escape the overflow:auto clipping of .cy-floating-window-content.
+ * Needs z-index > 1000 (.cy-floating-overlay) to appear on top. */
+.cm-tooltip-autocomplete {
+  z-index: 10001 !important;
+}
