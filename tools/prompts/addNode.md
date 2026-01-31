@@ -67,6 +67,10 @@ Only use a single progress node when your work is:
 - Under ~30 lines of changes
 - Affects only 1-2 related files
 
+## When to Skip the Progress Node Entirely
+Skip if the nodes you created ARE the deliverable. Progress nodes document work not otherwise visible in   
+the graph (code changes, refactors)—not node creation itself.     
+
 ## Progress Node Template
 
 When creating progress nodes, your content should:
