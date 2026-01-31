@@ -11,7 +11,7 @@ import {isTerminalData, isEditorData} from "@/shell/edge/UI-edge/floating-window
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import type {EditorData} from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
 import type {Core} from 'cytoscape';
-import {getScalingStrategy, getScreenDimensions, type ScalingStrategy} from "@/pure/floatingWindowScaling";
+import {getScalingStrategy, getScreenDimensions, type ScalingStrategy} from "@/pure/graph/floating-windows/floatingWindowScaling";
 import {selectFloatingWindowNode} from "@/shell/edge/UI-edge/floating-windows/select-floating-window-node";
 import {getCachedZoom} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import * as O from 'fp-ts/lib/Option.js';

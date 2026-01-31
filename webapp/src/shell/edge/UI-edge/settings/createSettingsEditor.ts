@@ -18,7 +18,7 @@ import type {FloatingWindowFields, EditorId, ShadowNodeId} from '@/shell/edge/UI
 import {cySmartCenter} from '@/utils/responsivePadding';
 import * as O from 'fp-ts/lib/Option.js';
 import {vanillaFloatingWindowInstances} from '@/shell/edge/UI-edge/state/UIAppState';
-import {graphToScreenPosition, getWindowTransform, getScalingStrategy, getScreenDimensions} from '@/pure/floatingWindowScaling';
+import {graphToScreenPosition, getWindowTransform, getScalingStrategy, getScreenDimensions} from '@/pure/graph/floating-windows/floatingWindowScaling';
 import {createWindowChrome} from "@/shell/edge/UI-edge/floating-windows/create-window-chrome";
 import {X, createElement} from 'lucide';
 

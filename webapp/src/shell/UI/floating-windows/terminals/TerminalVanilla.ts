@@ -8,7 +8,7 @@ import '@xterm/xterm/css/xterm.css';
 import './terminal-chrome.css'; // Terminal title bar, context badge, active state styles
 import type { VTSettings } from '@/pure/settings';
 import { getCachedZoom, isZoomActive } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
-import { getScalingStrategy, getTerminalFontSize, getScrollOffset, getScrollTargetLine } from '@/pure/floatingWindowScaling';
+import { getScalingStrategy, getTerminalFontSize, getScrollOffset, getScrollTargetLine } from '@/pure/graph/floating-windows/floatingWindowScaling';
 import { setupTerminalZoomSettleHandler } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalZoomSettleEdge';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 

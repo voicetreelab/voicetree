@@ -9,7 +9,7 @@ import { getImageViewerByNodeId } from "@/shell/edge/UI-edge/state/ImageViewerSt
 import type { EditorData } from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
 import type { ImageViewerData } from "@/shell/edge/UI-edge/floating-windows/image-viewers/imageViewerDataType";
 import { getOrCreateOverlay } from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
-import { graphToScreenPosition, getWindowTransform, getTransformOrigin } from '@/pure/floatingWindowScaling';
+import { graphToScreenPosition, getWindowTransform, getTransformOrigin } from '@/pure/graph/floating-windows/floatingWindowScaling';
 import type { AgentConfig, VTSettings } from "@/pure/settings";
 import {
     getNodeMenuItems,

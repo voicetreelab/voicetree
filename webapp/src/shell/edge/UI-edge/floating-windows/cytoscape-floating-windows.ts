@@ -6,7 +6,7 @@
  */
 
 import type cytoscape from 'cytoscape';
-import {getWindowTransform, graphToScreenPosition,} from '@/pure/floatingWindowScaling';
+import {getWindowTransform, graphToScreenPosition,} from '@/pure/graph/floating-windows/floatingWindowScaling';
 import {
     type EditorId,
     type FloatingWindowData,
@@ -222,7 +222,7 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
 }
 
 // Re-export for backward compatibility (TerminalVanilla imports this)
-export { TERMINAL_CSS_TRANSFORM_THRESHOLD } from '@/pure/floatingWindowScaling';
+export { TERMINAL_CSS_TRANSFORM_THRESHOLD } from '@/pure/graph/floating-windows/floatingWindowScaling';
 
 
 /**

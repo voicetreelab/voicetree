@@ -15,7 +15,7 @@ import {
     getWindowTransform,
     graphToScreenPosition,
     type ScalingStrategy
-} from "@/pure/floatingWindowScaling";
+} from "@/pure/graph/floating-windows/floatingWindowScaling";
 import {cleanupRegistry, getCachedZoom} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import {setupResizeObserver, updateShadowNodeDimensions} from "@/shell/edge/UI-edge/floating-windows/setup-resize-observer";
 import {DEFAULT_EDGE_LENGTH} from "@/shell/UI/cytoscape-graph-ui/graphviz/layout/cytoscape-graph-constants";

@@ -2,11 +2,13 @@ import type { JSX } from "react";
 
 interface AnimatedMicIconProps {
   isRecording: boolean;
+  isConnecting?: boolean;
   size?: number;
 }
 
 export default function AnimatedMicIcon({
   isRecording,
+  isConnecting = false,
   size = 24
 }: AnimatedMicIconProps): JSX.Element {
   return (
@@ -18,7 +20,43 @@ export default function AnimatedMicIcon({
       xmlns="http://www.w3.org/2000/svg"
       className="inline-block"
     >
-      {isRecording ? (
+      {isConnecting ? (
+        // Connecting state: pulsing circle to indicate waiting
+        <g className="transition-all duration-300 ease-in-out">
+          <circle
+            cx="12"
+            cy="12"
+            r="10"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeDasharray="31.4 31.4"
+            strokeLinecap="round"
+          >
+            <animateTransform
+              attributeName="transform"
+              type="rotate"
+              from="0 12 12"
+              to="360 12 12"
+              dur="1s"
+              repeatCount="indefinite"
+            />
+          </circle>
+          <circle
+            cx="12"
+            cy="12"
+            r="5"
+            fill="currentColor"
+          >
+            <animate
+              attributeName="opacity"
+              values="1;0.5;1"
+              dur="1s"
+              repeatCount="indefinite"
+            />
+          </circle>
+        </g>
+      ) : isRecording ? (
         // Recording state: smaller red square (iPhone-style)
         <rect
           x="5"
