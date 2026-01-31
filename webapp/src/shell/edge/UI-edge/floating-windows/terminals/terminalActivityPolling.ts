@@ -14,7 +14,7 @@ import {
     INACTIVITY_THRESHOLD_MS,
     isTerminalInactive,
 } from '@/pure/agentTabs';
-import { updateTerminalStatusDot } from '@/shell/UI/views/agentTabsDOMUpdates';
+import { updateTerminalStatusDot } from '@/shell/UI/views/treeStyleTerminalTabs/agentTabsDOMUpdates';
 import type {} from '@/shell/electron';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
 

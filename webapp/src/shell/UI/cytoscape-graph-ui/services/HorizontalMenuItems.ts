@@ -16,7 +16,7 @@ import { getFilePathForNode, getNodeFromMainToUI } from "@/shell/edge/UI-edge/gr
 import type { AgentConfig, VTSettings } from "@/pure/settings";
 import { highlightContainedNodes, highlightPreviewNodes, clearContainedHighlights } from '@/shell/UI/cytoscape-graph-ui/highlightContextNodes';
 import { createTrafficLights } from "@/shell/edge/UI-edge/floating-windows/traffic-lights";
-import { showFloatingSlider } from './DistanceSlider';
+import { showFloatingSlider, hideFloatingSlider } from './DistanceSlider';
 
 /** Config for attaching a distance slider to a menu item */
 export interface SliderConfig {
@@ -190,8 +190,11 @@ function createMenuItemElement(item: HorizontalMenuItem, onClose: () => void, al
             labelContainer.style.visibility = 'hidden';
             labelContainer.style.opacity = '0';
         }
-        // Note: slider is not hidden on button mouseleave - it stays visible as part of menu DOM
-        // and is destroyed when menu closes via destroyFloatingSlider() in hideMenu()
+        // Hide slider on button mouseleave - handles case where mouse leaves without
+        // passing through slider (especially important for anchored editor menus which don't close)
+        if (item.sliderConfig) {
+            hideFloatingSlider();
+        }
         if (item.onHoverLeave) {
             item.onHoverLeave();
         }

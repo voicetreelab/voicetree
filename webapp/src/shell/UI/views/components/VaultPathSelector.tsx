@@ -356,6 +356,22 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
 
                             {/* Available folders list - suggestion style */}
                             <div className="max-h-[150px] overflow-y-auto">
+                                {/* Create folder option - show when no exact match exists */}
+                                {searchQuery.trim() &&
+                                    watchDirectory &&
+                                    !searchQuery.startsWith('.') &&
+                                    !availableFolders.some((f: AvailableFolderItem) => f.displayPath === searchQuery.trim()) && (
+                                    <button
+                                        onClick={() => void handleSetAsWrite(watchDirectory + '/' + searchQuery.trim())}
+                                        className="group w-[calc(100%-1rem)] mx-2 mb-1 px-2 py-1.5 flex items-center gap-2 rounded-sm border border-dashed border-primary/40 hover:border-primary hover:bg-primary/10 transition-colors text-left"
+                                        title="Create folder and set as write destination"
+                                    >
+                                        <span className="text-primary/70 text-[10px]">+</span>
+                                        <span className="text-xs text-muted-foreground/70 group-hover:text-foreground transition-colors">
+                                            Create <span className="font-medium text-foreground">{searchQuery.trim()}/</span>
+                                        </span>
+                                    </button>
+                                )}
                                 {availableFolders.map((folder: AvailableFolderItem, index: number) => (
                                     <div
                                         key={folder.absolutePath}
@@ -388,9 +404,9 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                                         </div>
                                     </div>
                                 ))}
-                                {availableFolders.length === 0 && (
-                                    <div className="px-3 py-3 text-[11px] text-muted-foreground/50 italic text-center">
-                                        {searchQuery ? 'No matching folders' : 'Type to search folders...'}
+                                {availableFolders.length === 0 && !searchQuery && (
+                                    <div className="px-3 py-3 text-[11px] text-muted-foreground/50 text-center italic">
+                                        Type to search folders...
                                     </div>
                                 )}
                             </div>

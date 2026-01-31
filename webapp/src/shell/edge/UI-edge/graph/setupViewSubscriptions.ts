@@ -10,7 +10,7 @@ import type {TerminalData} from '@/shell/electron';
 import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/types';
 import type {GraphNavigationService} from './navigation/GraphNavigationService';
 import {subscribeToTerminalChanges, subscribeToActiveTerminalChange} from '@/shell/edge/UI-edge/state/TerminalStore';
-import {renderAgentTabs, setActiveTerminal, clearActivityForTerminal} from '@/shell/UI/views/AgentTabsBar';
+import {renderTerminalTree, setActiveTerminal, clearActivityForTerminal} from '@/shell/UI/views/treeStyleTerminalTabs/TerminalTreeSidebar';
 import {getTerminalId, getShadowNodeId} from '@/shell/edge/UI-edge/floating-windows/types';
 import {renderRecentNodeTabsV2} from '@/shell/UI/views/RecentNodeTabsBar';
 import {getRecentNodeHistory} from '@/shell/edge/UI-edge/state/RecentNodeHistoryStore';
@@ -35,9 +35,9 @@ export interface ViewSubscriptionCleanups {
 export function setupViewSubscriptions(deps: ViewSubscriptionDeps): ViewSubscriptionCleanups {
     const {cy, navigationService} = deps;
 
-    // Terminal changes subscription - updates agent tabs bar
+    // Terminal changes subscription - updates terminal tree sidebar
     const terminalSubscription: () => void = subscribeToTerminalChanges((terminals: TerminalData[]) => {
-        renderAgentTabs(
+        renderTerminalTree(
             terminals,
             (terminal: TerminalData) => {
                 // Clear activity dots when user explicitly clicks a tab (not when cycling)

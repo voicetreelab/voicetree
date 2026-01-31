@@ -104,6 +104,8 @@ declare global {
     readonly VITE_POSTHOG_HOST?: string;
     /** Set to 'true' in E2E tests to enable mock speech client */
     readonly VITE_E2E_TEST?: string;
+    /** Set to 'true' to disable PostHog analytics (automatically set in tests) */
+    readonly VITE_DISABLE_ANALYTICS?: string;
   }
 
   interface ImportMeta {

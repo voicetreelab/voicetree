@@ -119,8 +119,6 @@ uv sync
 
 # Run backend tests
 uv run pytest
-
-# add VITE_SONIOX_API_KEY to frontend/webapp/.env to have STT work 
 ```
 
 ## Contact
