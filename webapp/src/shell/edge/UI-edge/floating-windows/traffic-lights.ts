@@ -14,7 +14,7 @@ import { isAnchored, getShadowNodeIdFromData, getTerminalId } from '@/shell/edge
 import { getEditorByNodeId, isPinned, addToPinnedEditors, removeFromPinnedEditors } from '@/shell/edge/UI-edge/state/EditorStore';
 import { getTerminal } from '@/shell/edge/UI-edge/state/TerminalStore';
 import { attachFullscreenZoom } from '@/shell/edge/UI-edge/floating-windows/fullscreen-zoom';
-import { pinTerminal, unpinTerminal } from '@/shell/UI/views/treeStyleTerminalTabs/AgentTabsBar';
+import { pinTerminal, unpinTerminal } from '@/shell/UI/views/treeStyleTerminalTabs/terminalTabUtils';
 import type { EditorData } from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
 import type { TerminalData } from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import { closeHoverEditor, createAnchoredFloatingEditor } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";

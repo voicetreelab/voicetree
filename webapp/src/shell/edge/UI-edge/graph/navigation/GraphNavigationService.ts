@@ -16,7 +16,7 @@ import { addRecentlyVisited } from '@/shell/edge/UI-edge/state/RecentlyVisitedSt
 import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
 import { getTerminals, setActiveTerminalId } from '@/shell/edge/UI-edge/state/TerminalStore';
 import { getTerminalId, getShadowNodeId, type TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
-import { getDisplayOrderForNavigation } from '@/shell/UI/views/treeStyleTerminalTabs/AgentTabsBar';
+import { getDisplayOrderForNavigation } from '@/shell/UI/views/treeStyleTerminalTabs/terminalTabUtils';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import * as O from 'fp-ts/lib/Option.js';
 import { linkMatchScore, getPathComponents } from '@/pure/graph/markdown-parsing/extract-edges';

@@ -4,7 +4,7 @@ import * as O from 'fp-ts/lib/Option.js';
 import {getNodeTitle} from "@/pure/graph/markdown-parsing";
 import {hasActualContentChanged} from "@/pure/graph/contentChangeDetection";
 import posthog from "posthog-js";
-import {markTerminalActivityForContextNode} from "@/shell/UI/views/treeStyleTerminalTabs/AgentTabsBar";
+import {markTerminalActivityForContextNode} from "@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity";
 import type {} from '@/utils/types/cytoscape-layout-utilities';
 import {cyFitCollectionByAverageNodeSize} from "@/utils/responsivePadding";
 import {checkEngagementPrompts} from "./userEngagementPrompts";

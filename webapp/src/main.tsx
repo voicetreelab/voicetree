@@ -30,7 +30,7 @@ if (posthogKey && !analyticsDisabled) {
     session_recording: {
       maskAllInputs: true,
       // Mask user content in: CodeMirror editors, xterm terminals, floating window content, transcription panel, tab titles, project names/paths
-      maskTextSelector: '.cm-editor, .cm-content, .xterm, .cy-floating-window-content, .vt-transcription-content, .recent-tab-text, .agent-tab-text, .vt-project-name, .vt-project-path',
+      maskTextSelector: '.cm-editor, .cm-content, .xterm, .cy-floating-window-content, .vt-transcription-content, .recent-tab-text, .terminal-tree-title, .vt-project-name, .vt-project-path',
     },
     // Disable console log recording in session replay (errors still captured via error tracking)
     enable_recording_console_log: false

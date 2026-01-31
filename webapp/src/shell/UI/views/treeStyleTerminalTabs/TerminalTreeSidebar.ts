@@ -23,6 +23,10 @@ import {
     getActiveTerminalId,
     setActiveTerminalId,
 } from '@/shell/edge/UI-edge/state/AgentTabsStore';
+import {
+    startTerminalActivityPolling,
+    stopTerminalActivityPolling,
+} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalActivityPolling';
 // Re-export activity tracking functions for backwards compatibility
 export { markTerminalActivityForContextNode, clearActivityForTerminal } from './agentTabsActivity';
 
@@ -33,12 +37,6 @@ export { markTerminalActivityForContextNode, clearActivityForTerminal } from './
 let sidebarElement: HTMLElement | null = null;
 let containerElement: HTMLElement | null = null;
 let resizeHandle: HTMLElement | null = null;
-
-// Cached terminals for setActiveTerminal lookup
-let lastTerminals: TerminalData[] = [];
-
-// Store onSelect callback for close button access
-let currentOnSelect: ((terminal: TerminalData) => void) | null = null;
 
 // =============================================================================
 // Create/Mount Sidebar
@@ -57,6 +55,11 @@ export function createTerminalTreeSidebar(container: HTMLElement): () => void {
     sidebarElement.className = 'terminal-tree-sidebar';
     sidebarElement.setAttribute('data-testid', 'terminal-tree-sidebar');
 
+    // Create header
+    const header = document.createElement('div');
+    header.className = 'terminal-tree-header';
+    header.textContent = 'Terminals';
+
     // Create scrollable container for tree nodes
     containerElement = document.createElement('div');
     containerElement.className = 'terminal-tree-container';
@@ -65,6 +68,7 @@ export function createTerminalTreeSidebar(container: HTMLElement): () => void {
     resizeHandle = document.createElement('div');
     resizeHandle.className = 'terminal-tree-resize-handle';
 
+    sidebarElement.appendChild(header);
     sidebarElement.appendChild(containerElement);
     sidebarElement.appendChild(resizeHandle);
     container.appendChild(sidebarElement);
@@ -74,6 +78,9 @@ export function createTerminalTreeSidebar(container: HTMLElement): () => void {
 
     // Setup resize behavior
     setupResizeHandler();
+
+    // Start activity polling (marks terminals as done/running based on inactivity)
+    startTerminalActivityPolling();
 
     return disposeTerminalTreeSidebar;
 }
@@ -132,10 +139,6 @@ export function renderTerminalTree(
         console.warn('[TerminalTreeSidebar] Not mounted, cannot render');
         return;
     }
-
-    // Cache for setActiveTerminal and close handler
-    lastTerminals = terminals;
-    currentOnSelect = onSelect;
 
     // Clear existing nodes
     containerElement.innerHTML = '';
@@ -246,6 +249,9 @@ export function setActiveTerminal(terminalId: TerminalId | null): void {
  * Dispose the terminal tree sidebar and clean up resources.
  */
 export function disposeTerminalTreeSidebar(): void {
+    // Stop activity polling
+    stopTerminalActivityPolling();
+
     if (sidebarElement && sidebarElement.parentNode) {
         sidebarElement.parentNode.removeChild(sidebarElement);
     }
@@ -253,8 +259,6 @@ export function disposeTerminalTreeSidebar(): void {
     sidebarElement = null;
     containerElement = null;
     resizeHandle = null;
-    lastTerminals = [];
-    currentOnSelect = null;
 }
 
 /**

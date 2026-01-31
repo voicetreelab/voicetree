@@ -57,9 +57,9 @@ export class NavigationGestureService {
     private onWheel(e: WheelEvent): void {
         if (!this.cy.userPanningEnabled()) return;
 
-        // Allow native scrolling in tab containers
+        // Allow native scrolling in tab containers and terminal tree sidebar
         const target: Element | null = e.target as Element | null;
-        if (target?.closest('.recent-tabs-scroll') || target?.closest('.agent-tabs-pinned')) {
+        if (target?.closest('.recent-tabs-scroll') || target?.closest('.terminal-tree-sidebar')) {
             return;
         }
 

@@ -1,4 +1,5 @@
-import '@/shell/UI/cytoscape-graph-ui/styles/floating-windows.css'; // VERY IMPORTANT
+import '@/shell/UI/cytoscape-graph-ui/styles/floating-windows.css'; // Core floating window styles
+import './codemirror-editor.css'; // CodeMirror-specific styles (selection, gutters, markdoc, diff)
 import type {} from "@/shell/electron"; // Import ElectronAPI type for window.electronAPI access
 import { vim } from '@replit/codemirror-vim';
 import { EditorState, type Extension } from '@codemirror/state';
