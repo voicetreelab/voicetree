@@ -190,6 +190,108 @@ describe('MCP wait_for_agents tool', () => {
         expect(payload.error).toContain('Unknown caller: unknown-caller')
     })
 
+    it('returns immediately when all terminals are idle (isDone = true)', async () => {
+        const terminalDataA: TerminalData = createTerminalData({
+            attachedToNodeId: 'ctx-nodes/agent-a.md',
+            terminalCount: 0,
+            title: 'Agent A',
+            executeCommand: true
+        })
+        terminalDataA.isDone = true // Agent is idle (finished work but not exited)
+
+        const callerTerminalData: TerminalData = createTerminalData({
+            attachedToNodeId: 'ctx-nodes/caller.md',
+            terminalCount: 1,
+            title: 'Caller',
+            executeCommand: true
+        })
+
+        const records: TerminalRecord[] = [
+            {terminalId: 'agent-a-terminal-0', terminalData: terminalDataA, status: 'running'},
+            {terminalId: 'caller-terminal-1', terminalData: callerTerminalData, status: 'running'}
+        ]
+
+        vi.mocked(getTerminalRecords).mockReturnValue(records)
+
+        const response: McpToolResponse = await waitForAgentsTool({
+            terminalIds: ['agent-a-terminal-0'],
+            callerTerminalId: 'caller-terminal-1'
+        })
+        const payload: {
+            success: boolean
+            agents: Array<{terminalId: string; title: string; status: string}>
+        } = parsePayload(response) as {
+            success: boolean
+            agents: Array<{terminalId: string; title: string; status: string}>
+        }
+
+        expect(payload.success).toBe(true)
+        expect(payload.agents).toHaveLength(1)
+        expect(payload.agents[0]).toEqual({
+            terminalId: 'agent-a-terminal-0',
+            title: 'Agent A',
+            status: 'idle'
+        })
+    })
+
+    it('polls and returns when terminals become idle', async () => {
+        const terminalDataA: TerminalData = createTerminalData({
+            attachedToNodeId: 'ctx-nodes/agent-a.md',
+            terminalCount: 0,
+            title: 'Agent A',
+            executeCommand: true
+        })
+        const callerTerminalData: TerminalData = createTerminalData({
+            attachedToNodeId: 'ctx-nodes/caller.md',
+            terminalCount: 1,
+            title: 'Caller',
+            executeCommand: true
+        })
+
+        // First: running, then: idle (isDone = true)
+        const runningRecords: TerminalRecord[] = [
+            {terminalId: 'agent-a-terminal-0', terminalData: {...terminalDataA, isDone: false}, status: 'running'},
+            {terminalId: 'caller-terminal-1', terminalData: callerTerminalData, status: 'running'}
+        ]
+        const idleRecords: TerminalRecord[] = [
+            {terminalId: 'agent-a-terminal-0', terminalData: {...terminalDataA, isDone: true}, status: 'running'},
+            {terminalId: 'caller-terminal-1', terminalData: callerTerminalData, status: 'running'}
+        ]
+
+        vi.mocked(getTerminalRecords)
+            .mockReturnValueOnce(runningRecords)
+            .mockReturnValueOnce(runningRecords)
+            .mockReturnValueOnce(idleRecords)
+
+        const responsePromise: Promise<McpToolResponse> = waitForAgentsTool({
+            terminalIds: ['agent-a-terminal-0'],
+            callerTerminalId: 'caller-terminal-1',
+            pollIntervalMs: 100
+        })
+
+        // Advance timers to trigger polling
+        await vi.advanceTimersByTimeAsync(100)
+        await vi.advanceTimersByTimeAsync(100)
+
+        const response: McpToolResponse = await responsePromise
+        const payload: {
+            success: boolean
+            agents: Array<{terminalId: string; title: string; status: string}>
+        } = parsePayload(response) as {
+            success: boolean
+            agents: Array<{terminalId: string; title: string; status: string}>
+        }
+
+        expect(payload.success).toBe(true)
+        expect(payload.agents).toHaveLength(1)
+        expect(payload.agents[0]).toEqual({
+            terminalId: 'agent-a-terminal-0',
+            title: 'Agent A',
+            status: 'idle'
+        })
+        expect(getTerminalRecords).toHaveBeenCalledTimes(3)
+    })
+
     it('returns timeout error with partial results when timeout exceeded', async () => {
         const terminalDataA: TerminalData = createTerminalData({
             attachedToNodeId: 'ctx-nodes/agent-a.md',

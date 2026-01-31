@@ -1,7 +1,6 @@
 import { ipcMain } from 'electron'
 import type TerminalManager from '@/shell/edge/main/terminals/terminal-manager'
 import type { TerminalSpawnResult } from '@/shell/edge/main/terminals/terminal-manager'
-import {getProjectRootWatchedDirectory} from "@/shell/edge/main/state/watch-folder-store";
 
 // Import dependencies directly - functional programming style
 // terminalManager and getToolsDirectory will be passed as parameters since terminal handlers need event.sender
@@ -18,7 +17,6 @@ export function registerTerminalIpcHandlers(
     const result: TerminalSpawnResult = await terminalManager.spawn(
       event.sender,
       terminalData,
-      () => getProjectRootWatchedDirectory(),
       getToolsDirectory
     )
     //console.log('[MAIN] terminal:spawn result:', result)

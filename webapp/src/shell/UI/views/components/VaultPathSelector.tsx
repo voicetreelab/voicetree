@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { JSX, MouseEvent, RefObject, ChangeEvent, KeyboardEvent } from 'react';
 import type { FilePath } from '@/pure/graph';
+import type { AvailableFolderItem } from '@/pure/folders/types';
 import * as O from 'fp-ts/lib/Option.js';
 import type {} from '@/shell/electron';
 
@@ -14,87 +15,20 @@ interface AddVaultResult {
 }
 
 /**
- * Dropdown component for selecting the write path from read paths.
- * Design: Button shows "{folder-name}", dropdown lists all paths with checkmark on current.
- * Paths are editable inline. Also includes an input field to add additional read folders.
+ * Dropdown component for folder management with three sections:
+ * 1. WRITING TO - current write folder with reset button
+ * 2. ALSO READING - loaded read folders with remove/promote actions
+ * 3. ADD FOLDER - search and add new folders
  */
 export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): JSX.Element | null {
     const [isOpen, setIsOpen] = useState(false);
     const [readPaths, setReadPaths] = useState<readonly string[]>([]);
     const [writePath, setWritePathState] = useState<string | null>(null);
-    const [newReadPath, setNewReadPath] = useState<string>('');
-    const [addError, setAddError] = useState<string | null>(null);
-    const [isAdding, setIsAdding] = useState<boolean>(false);
-    const [editingPath, setEditingPath] = useState<string | null>(null);
-    const [editedValue, setEditedValue] = useState<string>('');
-    const [editError, setEditError] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [availableFolders, setAvailableFolders] = useState<readonly AvailableFolderItem[]>([]);
+    const [error, setError] = useState<string | null>(null);
     const dropdownRef: RefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);
-
-    // Start editing a read path
-    const startEditing: (path: string) => void = (path: string): void => {
-        const relativePath: string = watchDirectory && path.startsWith(watchDirectory)
-            ? path.slice(watchDirectory.length + 1)
-            : path;
-        setEditingPath(path);
-        setEditedValue(relativePath);
-        setEditError(null);
-    };
-
-    // Save edited read path
-    const saveEditedPath: () => Promise<void> = async (): Promise<void> => {
-        if (!window.electronAPI || !editingPath || !editedValue.trim() || !watchDirectory) return;
-
-        const newAbsPath: string = editedValue.startsWith('/')
-            ? editedValue
-            : `${watchDirectory}/${editedValue}`;
-
-        // If unchanged, just cancel
-        if (newAbsPath === editingPath) {
-            setEditingPath(null);
-            return;
-        }
-
-        try {
-            // Add new path first
-            const addResult: AddVaultResult = await window.electronAPI.main.addReadPath(newAbsPath);
-            if (!addResult.success) {
-                setEditError(addResult.error ?? 'Failed to add new path');
-                return;
-            }
-
-            // If this was the write path, update it
-            if (editingPath === writePath) {
-                const setResult: AddVaultResult = await window.electronAPI.main.setWritePath(newAbsPath);
-                if (!setResult.success) {
-                    setEditError(setResult.error ?? 'Failed to set write path');
-                    return;
-                }
-            }
-
-            // Only remove old path after successful setWritePath
-            await window.electronAPI.main.removeReadPath(editingPath);
-
-            setEditingPath(null);
-            await refreshPaths();
-        } catch (err) {
-            const errorMessage: string = err instanceof Error ? err.message : 'Unknown error';
-            setEditError(errorMessage);
-        }
-    };
-
-    const cancelEditing: () => void = (): void => {
-        setEditingPath(null);
-        setEditError(null);
-    };
-
-    const handleEditKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void = (e: KeyboardEvent<HTMLInputElement>): void => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            void saveEditedPath();
-        } else if (e.key === 'Escape') {
-            cancelEditing();
-        }
-    };
+    const searchInputRef: RefObject<HTMLInputElement | null> = useRef<HTMLInputElement>(null);
 
     // Fetch read paths and writePath
     const refreshPaths: () => Promise<void> = useCallback(async (): Promise<void> => {
@@ -115,17 +49,48 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
         }
     }, []);
 
+    // Fetch available folders based on search query
+    const fetchAvailableFolders: (query: string) => Promise<void> = useCallback(async (query: string): Promise<void> => {
+        if (!window.electronAPI) return;
+
+        try {
+            const folders: readonly AvailableFolderItem[] = await window.electronAPI.main.getAvailableFoldersForSelector(query);
+            setAvailableFolders(folders);
+        } catch (err) {
+            console.error('[VaultPathSelector] Failed to fetch available folders:', err);
+        }
+    }, []);
+
     // Refresh on mount and when watchDirectory changes
     useEffect(() => {
         void refreshPaths();
     }, [refreshPaths, watchDirectory]);
+
+    // Fetch available folders when dropdown opens or search changes
+    useEffect(() => {
+        if (isOpen) {
+            void fetchAvailableFolders(searchQuery);
+        }
+    }, [isOpen, searchQuery, fetchAvailableFolders]);
+
+    // Focus search input when dropdown opens
+    useEffect(() => {
+        if (isOpen && searchInputRef.current) {
+            // Small delay to ensure the dropdown is rendered
+            const timer = setTimeout(() => {
+                searchInputRef.current?.focus();
+            }, 50);
+            return () => clearTimeout(timer);
+        }
+    }, [isOpen]);
 
     // Close dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside: (event: Event) => void = (event: Event): void => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
                 setIsOpen(false);
-                setAddError(null);
+                setSearchQuery('');
+                setError(null);
             }
         };
 
@@ -135,110 +100,150 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [isOpen]);
 
-    // Handle selecting a new write path
-    const handleSelectPath: (path: string, e: MouseEvent) => Promise<void> = async (path: string, e: MouseEvent): Promise<void> => {
+    // Handle reset write path to project root
+    const handleResetToRoot: (e: MouseEvent) => Promise<void> = async (e: MouseEvent): Promise<void> => {
+        e.stopPropagation();
+        if (!window.electronAPI || !watchDirectory) return;
+
+        try {
+            const result: AddVaultResult = await window.electronAPI.main.setWritePath(watchDirectory);
+            if (result.success) {
+                await refreshPaths();
+            } else {
+                setError(result.error ?? 'Failed to reset write path');
+            }
+        } catch (err) {
+            console.error('[VaultPathSelector] Error resetting write path:', err);
+        }
+    };
+
+    // Handle promoting a read folder to write folder
+    const handlePromoteToWrite: (path: string, e: MouseEvent) => Promise<void> = async (path: string, e: MouseEvent): Promise<void> => {
         e.stopPropagation();
         if (!window.electronAPI) return;
 
         try {
-            const result: { success: boolean; error?: string } = await window.electronAPI.main.setWritePath(path);
+            const result: AddVaultResult = await window.electronAPI.main.setWritePath(path);
             if (result.success) {
-                setWritePathState(path);
+                await refreshPaths();
+                await fetchAvailableFolders(searchQuery);
             } else {
-                console.error('[VaultPathSelector] Failed to set write path:', result.error);
+                setError(result.error ?? 'Failed to set write path');
             }
         } catch (err) {
             console.error('[VaultPathSelector] Error setting write path:', err);
         }
-        setIsOpen(false);
-    };
-
-    // Handle adding a new read folder
-    const handleAddReadPath: () => Promise<void> = async (): Promise<void> => {
-        if (!window.electronAPI || !newReadPath.trim() || !watchDirectory) return;
-
-        setIsAdding(true);
-        setAddError(null);
-
-        try {
-            // Resolve relative path to absolute if needed
-            const pathToAdd: string = newReadPath.startsWith('/')
-                ? newReadPath
-                : `${watchDirectory}/${newReadPath}`;
-
-            const result: AddVaultResult = await window.electronAPI.main.addReadPath(pathToAdd);
-            if (result.success) {
-                setNewReadPath('');
-                await refreshPaths();
-            } else {
-                setAddError(result.error ?? 'Failed to add read folder');
-            }
-        } catch (err) {
-            const errorMessage: string = err instanceof Error ? err.message : 'Unknown error';
-            setAddError(errorMessage);
-            console.error('[VaultPathSelector] Error adding read folder:', err);
-        } finally {
-            setIsAdding(false);
-        }
-    };
-
-    const handleInputChange: (e: ChangeEvent<HTMLInputElement>) => void = (e: ChangeEvent<HTMLInputElement>): void => {
-        setNewReadPath(e.target.value);
-        setAddError(null);
-    };
-
-    const handleInputKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void = (e: KeyboardEvent<HTMLInputElement>): void => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            void handleAddReadPath();
-        }
     };
 
     // Handle removing a read folder
-    const handleRemovePath: (path: string, e: MouseEvent) => Promise<void> = async (path: string, e: MouseEvent): Promise<void> => {
+    const handleRemoveReadFolder: (path: string, e: MouseEvent) => Promise<void> = async (path: string, e: MouseEvent): Promise<void> => {
         e.stopPropagation();
         if (!window.electronAPI) return;
 
         try {
-            const result: { success: boolean; error?: string } = await window.electronAPI.main.removeReadPath(path);
+            const result: AddVaultResult = await window.electronAPI.main.removeReadPath(path);
             if (result.success) {
                 await refreshPaths();
+                await fetchAvailableFolders(searchQuery);
             } else {
-                console.error('[VaultPathSelector] Failed to remove read folder:', result.error);
+                setError(result.error ?? 'Failed to remove folder');
             }
         } catch (err) {
-            console.error('[VaultPathSelector] Error removing read folder:', err);
+            console.error('[VaultPathSelector] Error removing folder:', err);
         }
     };
 
-    // Extract folder name from path for display
-    const getFolderName: (fullPath: string) => string = (fullPath: string): string => {
-        return fullPath.split(/[/\\]/).pop() ?? fullPath;
+    // Handle adding folder as write destination
+    const handleSetAsWrite: (path: string) => Promise<void> = async (path: string): Promise<void> => {
+        if (!window.electronAPI) return;
+
+        try {
+            // First add to vault paths if not already
+            await window.electronAPI.main.addReadPath(path);
+            // Then set as write path
+            const result: AddVaultResult = await window.electronAPI.main.setWritePath(path);
+            if (result.success) {
+                await refreshPaths();
+                await fetchAvailableFolders(searchQuery);
+            } else {
+                setError(result.error ?? 'Failed to set write path');
+            }
+        } catch (err) {
+            console.error('[VaultPathSelector] Error setting write path:', err);
+        }
     };
 
-    // Get relative path from watchDirectory for display
-    // Returns "." for root path (when fullPath === watchDirectory) to avoid empty display
-    const getRelativePath: (fullPath: string) => string = (fullPath: string): string => {
+    // Handle adding folder as read source
+    const handleAddAsRead: (path: string) => Promise<void> = async (path: string): Promise<void> => {
+        if (!window.electronAPI) return;
+
+        try {
+            const result: AddVaultResult = await window.electronAPI.main.addReadPath(path);
+            if (result.success) {
+                await refreshPaths();
+                await fetchAvailableFolders(searchQuery);
+            } else {
+                setError(result.error ?? 'Failed to add read folder');
+            }
+        } catch (err) {
+            console.error('[VaultPathSelector] Error adding read folder:', err);
+        }
+    };
+
+    // Handle browse external folder
+    const handleBrowseExternal: () => Promise<void> = async (): Promise<void> => {
+        if (!window.electronAPI) return;
+
+        try {
+            const result = await window.electronAPI.main.showFolderPicker();
+            if (result.success && result.path) {
+                await handleAddAsRead(result.path);
+            }
+        } catch (err) {
+            console.error('[VaultPathSelector] Error browsing for folder:', err);
+        }
+    };
+
+    const handleSearchChange: (e: ChangeEvent<HTMLInputElement>) => void = (e: ChangeEvent<HTMLInputElement>): void => {
+        setSearchQuery(e.target.value);
+        setError(null);
+    };
+
+    const handleSearchKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void = (e: KeyboardEvent<HTMLInputElement>): void => {
+        if (e.key === 'Escape') {
+            setIsOpen(false);
+            setSearchQuery('');
+        }
+    };
+
+    // Get display path relative to watchDirectory
+    const getDisplayPath: (fullPath: string) => string = (fullPath: string): string => {
         if (!watchDirectory) return fullPath;
-        if (fullPath === watchDirectory) return '.';
+        if (fullPath === watchDirectory) return '/';
         if (fullPath.startsWith(watchDirectory)) {
             const relative: string = fullPath.slice(watchDirectory.length);
-            return relative.startsWith('/') ? relative.slice(1) : relative;
+            return relative.startsWith('/') ? relative : '/' + relative;
         }
         return fullPath;
     };
 
-    // Always show if we have at least one path (to allow adding more)
+    // Get folder name from path for button display
+    const getFolderName: (fullPath: string) => string = (fullPath: string): string => {
+        if (!watchDirectory) return fullPath.split(/[/\\]/).pop() ?? fullPath;
+        if (fullPath === watchDirectory) return '.';
+        return fullPath.split(/[/\\]/).pop() ?? fullPath;
+    };
+
+    // Filter read folders to exclude the write path
+    const readOnlyFolders: string[] = readPaths.filter((path): path is string => path !== writePath);
+
+    // Always show if we have at least one path
     if (readPaths.length === 0) {
         return null;
     }
 
-    // When writePath equals watchDirectory, show "." to avoid duplicating the root name
-    // (App.tsx already shows the project root name to the left of VaultPathSelector)
-    const isRootPath: boolean = Boolean(writePath && watchDirectory && writePath === watchDirectory);
-    const currentFolderName: string = writePath
-        ? (isRootPath ? '.' : getFolderName(writePath))
-        : 'Select vault';
+    const currentFolderName: string = writePath ? getFolderName(writePath) : 'Select vault';
+    const projectName: string = watchDirectory?.split(/[/\\]/).pop() ?? 'project root';
 
     return (
         <div ref={dropdownRef} className="relative">
@@ -254,119 +259,139 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
 
             {/* Dropdown menu */}
             {isOpen && (
-                <div className="absolute bottom-full left-0 mb-1 bg-card border border-border rounded shadow-lg min-w-[200px] max-w-[400px] z-[1200]">
+                <div className="absolute bottom-full left-0 mb-1 bg-card border border-border rounded shadow-lg min-w-[280px] max-w-[400px] z-[1200]">
                     <div className="py-1">
-                        <div className="px-3 py-1 text-[10px] text-muted-foreground uppercase tracking-wide border-b border-border">
-                            Markdown folders (select write destination)
-                        </div>
-                        {readPaths.map((path: string) => {
-                            const isDefault: boolean = path === writePath;
-                            const relativePath: string = getRelativePath(path);
-                            const isEditing: boolean = editingPath === path;
+                        {/* Error display */}
+                        {error && (
+                            <div className="px-3 py-1 text-[10px] text-destructive bg-destructive/10 border-b border-border">
+                                {error}
+                            </div>
+                        )}
 
-                            if (isEditing) {
-                                return (
-                                    <div key={path} className="px-2 py-1.5">
-                                        <div className="flex gap-1">
-                                            <input
-                                                type="text"
-                                                value={editedValue}
-                                                onChange={(e: ChangeEvent<HTMLInputElement>) => setEditedValue(e.target.value)}
-                                                onKeyDown={handleEditKeyDown}
-                                                autoFocus
-                                                className="flex-1 px-2 py-1 text-xs border border-ring rounded focus:outline-none focus:ring-1 focus:ring-ring bg-background text-foreground"
-                                            />
+                        {/* WRITING TO section */}
+                        <div className="px-3 py-1 text-[10px] text-muted-foreground uppercase tracking-wide border-b border-border">
+                            Writing to
+                        </div>
+                        <div className="px-3 py-1.5 flex items-center justify-between hover:bg-accent/50">
+                            <div className="flex items-center gap-2">
+                                <span className="text-primary">●</span>
+                                <span className="text-xs font-medium truncate max-w-[200px]" title={writePath ?? undefined}>
+                                    {writePath ? getDisplayPath(writePath) : 'None'}
+                                </span>
+                            </div>
+                            {writePath && writePath !== watchDirectory && (
+                                <button
+                                    onClick={handleResetToRoot}
+                                    className="px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted rounded"
+                                    title={`Reset to ${projectName}`}
+                                >
+                                    −
+                                </button>
+                            )}
+                        </div>
+
+                        {/* ALSO READING section - only show if there are read-only folders */}
+                        {readOnlyFolders.length > 0 && (
+                            <>
+                                <div className="px-3 py-1 text-[10px] text-muted-foreground uppercase tracking-wide border-t border-b border-border mt-1">
+                                    Also reading
+                                </div>
+                                {readOnlyFolders.map((path: string) => (
+                                    <div
+                                        key={path}
+                                        className="px-3 py-1.5 flex items-center justify-between hover:bg-accent/50"
+                                    >
+                                        <button
+                                            onClick={(e) => void handlePromoteToWrite(path, e)}
+                                            className="flex items-center gap-2 text-left flex-1 min-w-0"
+                                            title={`Click to set as write destination: ${path}`}
+                                        >
+                                            <span className="text-muted-foreground">○</span>
+                                            <span className="text-xs truncate hover:text-primary">
+                                                {getDisplayPath(path)}
+                                            </span>
+                                        </button>
+                                        <button
+                                            onClick={(e) => void handleRemoveReadFolder(path, e)}
+                                            className="px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded ml-2"
+                                            title="Remove from read list"
+                                        >
+                                            −
+                                        </button>
+                                    </div>
+                                ))}
+                            </>
+                        )}
+
+                        {/* ADD FOLDER section - styled as search/autocomplete panel */}
+                        <div className="border-t border-border mt-1 bg-muted/30">
+                            {/* Search input - prominent focal point */}
+                            <div className="px-2 pt-2 pb-1.5">
+                                <div className="relative">
+                                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground/60 text-[10px]">
+                                        +
+                                    </span>
+                                    <input
+                                        ref={searchInputRef}
+                                        type="text"
+                                        value={searchQuery}
+                                        onChange={handleSearchChange}
+                                        onKeyDown={handleSearchKeyDown}
+                                        placeholder="Add folder..."
+                                        className="w-full pl-5 pr-2 py-1.5 text-xs border border-dashed border-muted-foreground/30 rounded-sm focus:outline-none focus:border-primary/50 focus:bg-background bg-background/50 text-foreground placeholder:text-muted-foreground/50 placeholder:italic"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Available folders list - suggestion style */}
+                            <div className="max-h-[150px] overflow-y-auto">
+                                {availableFolders.map((folder: AvailableFolderItem, index: number) => (
+                                    <div
+                                        key={folder.absolutePath}
+                                        className="group mx-2 mb-1 px-2 py-1 flex items-center justify-between gap-1 rounded-sm border-l-2 border-dashed border-muted-foreground/20 hover:border-primary/40 hover:bg-background/80 transition-colors"
+                                        style={{
+                                            animationDelay: `${index * 20}ms`,
+                                        }}
+                                    >
+                                        <span
+                                            className="text-xs truncate flex-1 min-w-0 text-muted-foreground/70 group-hover:text-foreground transition-colors"
+                                            title={folder.absolutePath}
+                                        >
+                                            {folder.displayPath === '.' ? '/' : folder.displayPath}
+                                        </span>
+                                        <div className="flex gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button
-                                                onClick={() => void saveEditedPath()}
-                                                className="px-2 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90"
-                                                title="Save"
+                                                onClick={() => void handleSetAsWrite(folder.absolutePath)}
+                                                className="px-1.5 py-0.5 text-[10px] text-primary-foreground bg-primary/80 hover:bg-primary rounded-sm"
+                                                title="Set as write destination"
                                             >
-                                                ✓
+                                                Write
                                             </button>
                                             <button
-                                                onClick={cancelEditing}
-                                                className="px-2 py-1 text-xs bg-muted text-foreground rounded hover:bg-accent"
-                                                title="Cancel"
+                                                onClick={() => void handleAddAsRead(folder.absolutePath)}
+                                                className="px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/80 rounded-sm border border-dashed border-muted-foreground/30"
+                                                title="Add as read folder"
                                             >
-                                                ✕
+                                                Read
                                             </button>
                                         </div>
-                                        {editError && (
-                                            <div className="mt-1 text-[10px] text-destructive">{editError}</div>
-                                        )}
                                     </div>
-                                );
-                            }
-
-                            return (
-                                <div
-                                    key={path}
-                                    className={`w-full text-left px-3 py-1.5 text-xs text-foreground hover:bg-accent flex items-center gap-2 ${
-                                        isDefault ? 'bg-primary/10' : ''
-                                    }`}
-                                    title={path}
-                                >
-                                    {/* Checkmark selects as write destination */}
-                                    <button
-                                        onClick={(e) => void handleSelectPath(path, e)}
-                                        className="w-4 text-primary hover:bg-primary/20 rounded"
-                                        title="Set as write destination"
-                                    >
-                                        {isDefault ? '✓' : '○'}
-                                    </button>
-                                    {/* Clicking path text enters edit mode */}
-                                    <button
-                                        onClick={() => startEditing(path)}
-                                        className="flex-1 text-left font-medium truncate hover:text-primary flex items-center gap-1"
-                                        title="Click to edit path"
-                                    >
-                                        <span className="truncate">{relativePath}</span>
-                                        <span className="text-muted-foreground">✎</span>
-                                    </button>
-                                    {/* Remove button - hidden for default write path */}
-                                    {!isDefault && (
-                                        <button
-                                            onClick={(e) => void handleRemovePath(path, e)}
-                                            className="w-4 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded"
-                                            title="Remove read folder"
-                                        >
-                                            ✕
-                                        </button>
-                                    )}
-                                </div>
-                            );
-                        })}
-
-                        {/* Add read folder section */}
-                        <div className="border-t border-border mt-1 pt-1">
-                            <div className="px-3 py-1 text-[10px] text-muted-foreground uppercase tracking-wide">
-                                Add read folder
-                            </div>
-                            <div className="px-2 pb-2">
-                                <div className="flex gap-1">
-                                    <input
-                                        type="text"
-                                        value={newReadPath}
-                                        onChange={handleInputChange}
-                                        onKeyDown={handleInputKeyDown}
-                                        placeholder="folder or /abs/path"
-                                        className="flex-1 px-2 py-1 text-xs border border-input rounded focus:outline-none focus:border-ring bg-background text-foreground"
-                                        disabled={isAdding}
-                                    />
-                                    <button
-                                        onClick={() => void handleAddReadPath()}
-                                        disabled={isAdding || !newReadPath.trim()}
-                                        className="px-2 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed"
-                                        title="Add read folder"
-                                    >
-                                        {isAdding ? '...' : '+'}
-                                    </button>
-                                </div>
-                                {addError && (
-                                    <div className="mt-1 text-[10px] text-destructive">
-                                        {addError}
+                                ))}
+                                {availableFolders.length === 0 && (
+                                    <div className="px-3 py-3 text-[11px] text-muted-foreground/50 italic text-center">
+                                        {searchQuery ? 'No matching folders' : 'Type to search folders...'}
                                     </div>
                                 )}
+                            </div>
+
+                            {/* Browse external folder */}
+                            <div className="px-2 py-1.5 border-t border-dashed border-muted-foreground/15">
+                                <button
+                                    onClick={() => void handleBrowseExternal()}
+                                    className="w-full px-2 py-1 text-[11px] text-muted-foreground/60 hover:text-muted-foreground hover:bg-background/50 rounded-sm transition-colors"
+                                >
+                                    Browse external...
+                                </button>
                             </div>
                         </div>
                     </div>
