@@ -46,10 +46,7 @@ Should return JSON with `"Browser": "Chrome/..."`.
 
 Use `browser_snapshot` to connect. First attempt may timeout - retry once.
 
-**Important**: MCP initially connects to DevTools tab. Switch to VoiceTree:
-```
-browser_tabs action=select index=1
-```
+DevTools won't auto-open when `ENABLE_PLAYWRIGHT_DEBUG=1`, so you'll connect directly to VoiceTree.
 
 ### 4. Open a Project
 
@@ -111,6 +108,27 @@ window.electronAPI.main.getNode(id)              // Get node details
 window.electronAPI.main.loadSettings()           // App settings
 ```
 
+### Cytoscape Instance
+
+Access the graph directly via `window.cytoscapeInstance`:
+
+```javascript
+// Get all nodes in the graph
+const cy = window.cytoscapeInstance;
+cy.nodes().map(n => ({ id: n.id(), isContext: n.data('isContextNode') }));
+
+// Get node count
+cy.nodes().length;
+```
+
+## Cleanup
+
+Kill all Electron processes before restarting:
+
+```bash
+killall -9 Electron "Electron Helper" "Electron Helper (GPU)" "Electron Helper (Renderer)" 2>/dev/null
+```
+
 ## Troubleshooting
 
 | Issue | Solution |
@@ -119,6 +137,7 @@ window.electronAPI.main.loadSettings()           // App settings
 | Timeout on first connect | Retry - first connection can be slow |
 | Wrong tab selected | `browser_tabs action=select index=1` |
 | Native dialog opened | Use JavaScript APIs instead - native dialogs can't be automated |
+| Old Electron still running | Run the cleanup command above |
 
 ## Architecture
 
