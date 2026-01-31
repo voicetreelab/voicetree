@@ -63,7 +63,7 @@ export async function createContextNode(
     const timestamp: number = Date.now()
     const parentIdWithoutExtension: string = parentNodeId.replace(/\.md$/, '')
     // Don't prepend ctx-nodes/ if the parent path already contains it (prevents infinite nesting)
-    // Note: nodeIds are now relative to watchedDirectory (e.g., "monday/ctx-nodes/...") not vaultPath
+    // Note: nodeIds are now relative to projectRootWatchedDirectory (e.g., "monday/ctx-nodes/...") not vaultPath
     const alreadyInContextFolder: boolean = parentIdWithoutExtension.includes(`/${CONTEXT_NODES_FOLDER}/`)
         || parentIdWithoutExtension.startsWith(`${CONTEXT_NODES_FOLDER}/`)
 

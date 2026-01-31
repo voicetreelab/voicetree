@@ -8,7 +8,7 @@ import type {Either} from "fp-ts/es6/Either";
 import {getGraph, setGraph} from "@/shell/edge/main/state/graph-store";
 import {getMainWindow} from "@/shell/edge/main/state/app-electron-state";
 import {resolveLinkedNodesInWatchedFolder} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk";
-import {getWatchedDirectory} from "@/shell/edge/main/state/watch-folder-store";
+import {getProjectRootWatchedDirectory} from "@/shell/edge/main/state/watch-folder-store";
 
 /**
  * Applies a delta to the in-memory graph state and resolves any new wikilinks.
@@ -29,7 +29,7 @@ export async function applyGraphDeltaToMemState(delta: GraphDelta): Promise<Grap
     const hasAddOrUpdate: boolean = delta.some(d => d.type === 'AddNode' || d.type === 'UpdateNode');
 
     if (hasAddOrUpdate) {
-        const watchedDir: string | null = getWatchedDirectory();
+        const watchedDir: string | null = getProjectRootWatchedDirectory();
         if (watchedDir) {
             const resolutionDelta: GraphDelta = await resolveLinkedNodesInWatchedFolder(newGraph, watchedDir);
             if (resolutionDelta.length > 0) {
@@ -60,7 +60,7 @@ export async function applyGraphDeltaToDBThroughMemAndUI(
 ): Promise<void> {
     // Extract watched directory (fail fast at edge)
     const watchedDirectory: string = pipe(
-        O.fromNullable(getWatchedDirectory()),
+        O.fromNullable(getProjectRootWatchedDirectory()),
         O.getOrElseW(() => {
             throw new Error('Watched directory not initialized')
         })
@@ -78,7 +78,7 @@ export async function applyGraphDeltaToDBThroughMemAndUI(
     broadcastGraphDeltaToUI(mergedDelta)
 
     // Construct env and execute effect (only original delta goes to DB)
-    const env: Env = {watchedDirectory}
+    const env: Env = {projectRootWatchedDirectory: watchedDirectory}
     const result: Either<Error, GraphDelta> = await apply_graph_deltas_to_db(delta)(env)()
 
     // Handle errors (fail fast)

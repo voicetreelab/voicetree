@@ -615,7 +615,7 @@ describe('Fallback Behavior - getVaultPath vs getWritePath', () => {
   it('should have getVaultPath return None after clearVaultPath', () => {
     // GIVEN: clearVaultPath called (in beforeEach)
 
-    // THEN: getVaultPath should return None (watchedDirectory is null)
+    // THEN: getVaultPath should return None (projectRootWatchedDirectory is null)
     const vaultPath: O.Option<string> = getVaultPath()
     expect(O.isNone(vaultPath)).toBe(true)
   })

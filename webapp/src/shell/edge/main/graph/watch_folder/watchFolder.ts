@@ -36,8 +36,8 @@ import { type VTSettings } from "@/pure/settings/types";
 import {
     getWatcher,
     setWatcher,
-    getWatchedDirectory,
-    setWatchedDirectory,
+    getProjectRootWatchedDirectory,
+    setProjectRootWatchedDirectory,
     getStartupFolderOverride,
     getOnFolderSwitchCleanup,
 } from "@/shell/edge/main/state/watch-folder-store";
@@ -70,7 +70,7 @@ export {
 export async function initialLoad(): Promise<void> {
     // If already watching a directory, don't reload
     // This prevents race conditions when startFileWatching() is called before markFrontendReady()
-    if (getWatchedDirectory() !== null) {
+    if (getProjectRootWatchedDirectory() !== null) {
         return;
     }
 
@@ -171,8 +171,8 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
         return { success: false };
     }
 
-    // Update watchedDirectory FIRST
-    setWatchedDirectory(watchedFolderPath);
+    // Update projectRootWatchedDirectory FIRST
+    setProjectRootWatchedDirectory(watchedFolderPath);
 
     // Close old watcher before attempting to load new folder
     const oldWatcher: FSWatcher | null = getWatcher();
@@ -304,7 +304,7 @@ async function finishLoading(
 
     // Notify UI that watching has started
     mainWindow.webContents.send('watching-started', {
-        directory: getWatchedDirectory(),
+        directory: getProjectRootWatchedDirectory(),
         writePath: config.writePath,
         timestamp: new Date().toISOString()
     });
@@ -334,7 +334,7 @@ export async function startFileWatching(directoryPath?: string): Promise<{ reado
             properties: ['openDirectory', 'createDirectory'],
             title: 'Select Directory to Watch for Markdown Files',
             buttonLabel: 'Open',
-            defaultPath: getWatchedDirectory() ?? process.env.HOME ?? '/'
+            defaultPath: getProjectRootWatchedDirectory() ?? process.env.HOME ?? '/'
         });
 
         if (result.canceled || result.filePaths.length === 0) {
@@ -378,7 +378,7 @@ export async function stopFileWatching(): Promise<{ readonly success: boolean; r
     if (currentWatcher) {
         await currentWatcher.close();
         setWatcher(null);
-        setWatchedDirectory(null);
+        setProjectRootWatchedDirectory(null);
     }
     return { success: true };
 }
@@ -386,7 +386,7 @@ export async function stopFileWatching(): Promise<{ readonly success: boolean; r
 export function getWatchStatus(): { readonly isWatching: boolean; readonly directory: string | undefined } {
     const status: { isWatching: boolean; directory: string | undefined } = {
         isWatching: isWatching(),
-        directory: getWatchedDirectory() ?? undefined
+        directory: getProjectRootWatchedDirectory() ?? undefined
     };
     //console.log('Watch status:', status);
     return status;
@@ -395,7 +395,7 @@ export function getWatchStatus(): { readonly isWatching: boolean; readonly direc
 export async function loadPreviousFolder(): Promise<{ readonly success: boolean; readonly directory?: string; readonly error?: string }> {
     //console.log('[watchFolder] loadPreviousFolder called');
     await initialLoad();
-    const watchedDir: string | null = getWatchedDirectory();
+    const watchedDir: string | null = getProjectRootWatchedDirectory();
     if (watchedDir) {
         //console.log('[watchFolder] Successfully loaded previous folder:', watchedDir);
         return { success: true, directory: watchedDir };

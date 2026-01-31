@@ -23,14 +23,14 @@ export const setWatcher: (w: FSWatcher | null) => void = (w: FSWatcher | null): 
 };
 
 // Currently watched directory (the project root, not the vault path)
-let watchedDirectory: FilePath | null = null;
+let projectRootWatchedDirectory: FilePath | null = null;
 
-export const getWatchedDirectory: () => FilePath | null = (): FilePath | null => {
-    return watchedDirectory;
+export const getProjectRootWatchedDirectory: () => FilePath | null = (): FilePath | null => {
+    return projectRootWatchedDirectory;
 };
 
-export const setWatchedDirectory: (dir: FilePath | null) => void = (dir: FilePath | null): void => {
-    watchedDirectory = dir;
+export const setProjectRootWatchedDirectory: (dir: FilePath | null) => void = (dir: FilePath | null): void => {
+    projectRootWatchedDirectory = dir;
 };
 
 // CLI argument override for opening a specific folder on startup (used by "Open Folder in New Instance")
@@ -60,7 +60,7 @@ export const setOnFolderSwitchCleanup: (cleanup: (() => void) | null) => void = 
  */
 export const clearWatchFolderState: () => void = (): void => {
     watcher = null;
-    watchedDirectory = null;
+    projectRootWatchedDirectory = null;
     startupFolderOverride = null;
     onFolderSwitchCleanup = null;
 };

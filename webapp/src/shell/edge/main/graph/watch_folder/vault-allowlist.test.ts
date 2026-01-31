@@ -25,7 +25,7 @@ import {
   addReadPath,
 } from './vault-allowlist'
 import {
-  setWatchedDirectory,
+  setProjectRootWatchedDirectory,
   clearWatchFolderState,
   setWatcher,
 } from '@/shell/edge/main/state/watch-folder-store'
@@ -100,7 +100,7 @@ describe('vault-allowlist: duplicate writePath in dropdown bug', () => {
       // GIVEN: A watched directory
       const watchedDir: string = path.join(testTmpDir, 'project')
       await fs.mkdir(watchedDir, { recursive: true })
-      setWatchedDirectory(watchedDir)
+      setProjectRootWatchedDirectory(watchedDir)
 
       // AND: A config where writePath is also present in readPaths (buggy state)
       const vaultPath: string = path.join(watchedDir, 'fri')
@@ -124,7 +124,7 @@ describe('vault-allowlist: duplicate writePath in dropdown bug', () => {
       // GIVEN: A watched directory with initial config
       const watchedDir: string = path.join(testTmpDir, 'project')
       await fs.mkdir(watchedDir, { recursive: true })
-      setWatchedDirectory(watchedDir)
+      setProjectRootWatchedDirectory(watchedDir)
 
       // AND: Initial config with separate writePath and readPath
       const writePathA: string = path.join(watchedDir, 'pathA')
@@ -267,7 +267,7 @@ describe('vault-allowlist: file limit exceeded error handling', () => {
       const newReadPath: string = path.join(watchedDir, 'too-many-files')
       await fs.mkdir(writePath, { recursive: true })
       await fs.mkdir(newReadPath, { recursive: true })
-      setWatchedDirectory(watchedDir)
+      setProjectRootWatchedDirectory(watchedDir)
 
       const config: VaultConfig = {
         writePath: writePath,
@@ -307,7 +307,7 @@ describe('vault-allowlist: file limit exceeded error handling', () => {
       const newWritePath: string = path.join(watchedDir, 'too-many-files')
       await fs.mkdir(currentWritePath, { recursive: true })
       await fs.mkdir(newWritePath, { recursive: true })
-      setWatchedDirectory(watchedDir)
+      setProjectRootWatchedDirectory(watchedDir)
 
       const config: VaultConfig = {
         writePath: currentWritePath,
