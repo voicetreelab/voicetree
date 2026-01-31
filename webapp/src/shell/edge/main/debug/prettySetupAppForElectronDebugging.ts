@@ -1,7 +1,9 @@
 import { getGraph } from '@/shell/edge/main/state/graph-store';
 import { spawnTerminalWithContextNode } from '@/shell/edge/main/terminals/spawnTerminalWithContextNode';
 import { startFileWatching } from '@/shell/edge/main/graph/watch_folder/watchFolder';
+import { saveProject } from '@/shell/edge/main/project-store';
 import type { NodeIdAndFilePath } from '@/pure/graph';
+import type { SavedProject } from '@/pure/project/types';
 import path from 'path';
 import { app } from 'electron';
 
@@ -11,8 +13,22 @@ export interface DebugSetupResult {
     projectLoaded?: string;
 }
 
-// Default test project path (relative to webapp)
-const DEFAULT_TEST_PROJECT = 'example_folder_fixtures/example_small';
+// Default test project folder name (in public/ for dev, extraResources for prod)
+const DEFAULT_TEST_PROJECT = 'example_small';
+
+/**
+ * Get the example_small test fixture path.
+ * In dev: webapp/public/example_small
+ * In prod: resources/example_small (requires extraResources in package.json)
+ */
+function getTestProjectPath(): string {
+    const appPath = app.getAppPath();
+    if (app.isPackaged) {
+        return path.join(process.resourcesPath, DEFAULT_TEST_PROJECT);
+    } else {
+        return path.join(appPath, 'public', DEFAULT_TEST_PROJECT);
+    }
+}
 
 /**
  * Sets up a debug environment for Playwright MCP agents.
@@ -28,11 +44,21 @@ export async function prettySetupAppForElectronDebugging(): Promise<DebugSetupRe
 
     // If no nodes loaded, auto-load the test project
     if (nodeIds.length === 0) {
-        // Resolve path relative to app resources (webapp directory in dev)
-        const appPath = app.getAppPath();
-        const testProjectPath = path.join(appPath, DEFAULT_TEST_PROJECT);
+        const testProjectPath = getTestProjectPath();
 
         console.log('[DebugSetup] No project loaded, auto-loading:', testProjectPath);
+
+        // Create and save a real project (same flow as UI)
+        const project: SavedProject = {
+            id: `debug-example-small`,
+            path: testProjectPath,
+            name: 'example_small',
+            type: 'folder',
+            lastOpened: Date.now(),
+            voicetreeInitialized: true  // example_small is already a voicetree folder
+        };
+        await saveProject(project);
+        console.log('[DebugSetup] Saved project:', project.id);
 
         const result = await startFileWatching(testProjectPath);
         if (!result.success) {
