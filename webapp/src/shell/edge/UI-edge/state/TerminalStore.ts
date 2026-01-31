@@ -5,6 +5,7 @@ import * as O from "fp-ts/lib/Option.js";
 import {type Option} from "fp-ts/lib/Option.js";
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import type {TerminalRecord} from "@/shell/edge/main/terminals/terminal-registry";
+import {resetAgentTabsStore} from "@/shell/edge/UI-edge/state/AgentTabsStore";
 
 const terminals: Map<TerminalId, TerminalData> = new Map<TerminalId, TerminalData>();
 
@@ -225,10 +226,14 @@ export function getNextTerminalCount(
 }
 
 /**
- * Clear all terminals from state (for testing)
- * @internal - Only for test usage
+ * Clear all terminals from state.
+ * Also resets derived agent tabs state (activeTerminalId, displayOrder).
  */
 export function clearTerminals(): void {
     terminals.clear();
+    activeTerminalId = null;
     notifySubscribers();
+    notifyActiveTerminalChange();
+    // Reset derived agent tabs state
+    resetAgentTabsStore();
 }

@@ -20,6 +20,7 @@ function App(): JSX.Element {
     // Use the folder watcher hook for file watching
     const {
         watchDirectory,
+        isWatching,
         startWatching,
         stopWatching,
     } = useFolderWatcher();
@@ -76,13 +77,39 @@ function App(): JSX.Element {
         return () => window.removeEventListener('close-stats-panel', handleCloseStats);
     }, []);
 
-    // Start watching the project folder when entering graph view
+    // Listen for watching-started event from main process (e.g., when prettySetupAppForElectronDebugging loads a project)
+    // This switches the UI to graph view when a project is loaded programmatically
     useEffect(() => {
-        if (currentView === 'graph-view' && currentProject && window.electronAPI) {
+        if (!window.electronAPI?.onWatchingStarted) return;
+
+        const cleanup = window.electronAPI.onWatchingStarted((data: { directory: string; timestamp: string }) => {
+            // Only switch view if we're still on project selection screen
+            if (currentView === 'project-selection') {
+                // Look up the saved project by path (prettySetup saves it before starting file watching)
+                void (async () => {
+                    const projects = await window.electronAPI.main.loadProjects();
+                    const matchingProject = projects.find((p: SavedProject) => p.path === data.directory);
+                    if (matchingProject) {
+                        setCurrentProject(matchingProject);
+                        setCurrentView('graph-view');
+                    } else {
+                        console.warn('[App] watching-started for unknown project:', data.directory);
+                    }
+                })();
+            }
+        });
+
+        return cleanup;
+    }, [currentView]);
+
+    // Start watching the project folder when entering graph view
+    // Skip if already watching (e.g., when main process loaded project via prettySetupAppForElectronDebugging)
+    useEffect(() => {
+        if (currentView === 'graph-view' && currentProject && window.electronAPI && !isWatching) {
             // Start file watching for the selected project
             void window.electronAPI.main.startFileWatching(currentProject.path);
         }
-    }, [currentView, currentProject]);
+    }, [currentView, currentProject, isWatching]);
 
     // File Watching Control Panel Component - compact inline style matching activity panel
     const FileWatchingPanel: () => JSX.Element = () => (

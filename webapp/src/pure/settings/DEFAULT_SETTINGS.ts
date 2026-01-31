@@ -84,7 +84,13 @@ If your task has non-trivial ambiguity, stop and ask the user for clarifications
 </HANDLING_AMBIGUITY>
 
 <TASK_NODES_INSTRUCTION>
-For the entire duration of this session, before you report completion to the user for any query, task, sub-task, proposal, or other form of non-trivial progress, you MUST: 1. Read $VOICETREE_APP_SUPPORT/tools/prompts/addNode.md 2. Follow the instructions to create progress nodes documenting your work. If using a todolist, add 'Read instructions to create progress nodes' as an item. You must create a progress node before reporting completion to the user. You must continue to create progress nodes for any follow-ups by either updating existing progress nodes, or creating new ones.
+For the entire duration of this session, before you report completion to the user for any query, task, sub-task, proposal, or other form of non-trivial progress, you MUST:
+1. Read $VOICETREE_APP_SUPPORT/tools/prompts/addNode.md
+2. Follow the instructions to create progress nodes documenting your work
+
+If using a todolist, add "Read addNode.md instructions and create progress node" as an item.
+
+You must create a progress node before reporting completion to the user. You must continue to do this for any follow-ups by either updating existing progress nodes, or creating new ones.
 </TASK_NODES_INSTRUCTION>`,
     },
     hotkeys: DEFAULT_HOTKEYS,

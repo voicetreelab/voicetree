@@ -3,7 +3,7 @@ import pty, { type IPty } from 'node-pty';
 import type { WebContents } from 'electron';
 import {getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 import {getOTLPReceiverPort} from "@/shell/edge/main/metrics/otlp-receiver";
-import {recordTerminalSpawn, markTerminalExited} from '@/shell/edge/main/terminals/terminal-registry';
+import {recordTerminalSpawn, markTerminalExited, clearTerminalRecords} from '@/shell/edge/main/terminals/terminal-registry';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import {trace} from '@/shell/edge/main/tracing/trace';
 import {getProjectRootWatchedDirectory} from "@/shell/edge/main/state/watch-folder-store";
@@ -260,9 +260,14 @@ export default class TerminalManager {
   }
 
   /**
-   * Clean up all terminals (called on app shutdown)
+   * Clean up all terminals (called on app shutdown and folder switch)
    */
   cleanup(): void {
+    // Clear the terminal registry FIRST, before killing PTYs.
+    // This prevents onExit handlers from calling markTerminalExited → pushStateToRenderer,
+    // which would sync stale terminals to the newly mounted renderer during project switch.
+    clearTerminalRecords();
+
     for (const [id, ptyProcess] of this.terminals) {
       //console.log(`Cleaning up terminal ${id}`);
       try {

@@ -22,7 +22,6 @@ import { buildTerminalTree, type TerminalTreeNode } from '@/pure/agentTabs/termi
 import {
     getActiveTerminalId,
     setActiveTerminalId,
-    resetAgentTabsStore,
 } from '@/shell/edge/UI-edge/state/AgentTabsStore';
 import { clearTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
 import {
@@ -264,8 +263,8 @@ export function disposeTerminalTreeSidebar(): void {
     resizeHandle = null;
 
     // Clear terminal stores to ensure clean state when switching projects
+    // (clearTerminals also resets derived AgentTabsStore state)
     clearTerminals();
-    resetAgentTabsStore();
 }
 
 /**
