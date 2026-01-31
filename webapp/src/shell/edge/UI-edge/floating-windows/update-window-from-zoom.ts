@@ -8,7 +8,7 @@ import {
     type ScalingStrategy,
     type TransformOrigin,
     TERMINAL_CSS_TRANSFORM_THRESHOLD
-} from "@/pure/floatingWindowScaling";
+} from "@/pure/graph/floating-windows/floatingWindowScaling";
 import { isZoomActive } from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 
 /**

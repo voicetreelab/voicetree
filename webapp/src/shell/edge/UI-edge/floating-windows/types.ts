@@ -118,7 +118,7 @@ export function createTerminalData(params: CreateTerminalDataParams): TerminalDa
         initialCommand: params.initialCommand,
         executeCommand: params.executeCommand,
         resizable: params.resizable ?? true,
-        shadowNodeDimensions: params.shadowNodeDimensions ?? { width: 320, height: 400 }, // matches getDefaultDimensions('Terminal')
+        shadowNodeDimensions: params.shadowNodeDimensions ?? { width: 340, height: 380 }, // matches getDefaultDimensions('Terminal')
         // Tab UI state defaults
         isPinned: params.isPinned ?? true,  // New terminals start pinned by default
         isDone: false,          // Running initially

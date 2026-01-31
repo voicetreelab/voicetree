@@ -9,7 +9,7 @@ import type { DiscoveredProject } from '@/pure/project/types';
 // Transform asar path to unpacked path for production builds
 const actualRgPath: string = rgPath.replace('app.asar', 'app.asar.unpacked');
 
-// Directories to skip during scanning
+// Directories to skip during deep scanning (inside project folders)
 const SKIP_DIRS: readonly string[] = [
     'node_modules',
     'target',
@@ -23,6 +23,28 @@ const SKIP_DIRS: readonly string[] = [
     '.npm',
     '.yarn',
     '.pnpm-store',
+];
+
+// Directories in home folder that trigger OS permission prompts.
+// We skip these to avoid showing permission dialogs to users.
+// Other inaccessible folders are handled gracefully by ripgrep error handling.
+const PROTECTED_HOME_DIRS: readonly string[] = [
+    // macOS TCC protected (triggers permission dialog)
+    'Desktop',
+    'Documents',
+    'Downloads',
+    'Movies',
+    'Music',
+    'Pictures',
+    // macOS system
+    'Library',
+    'Applications',
+    'Public',
+    // Windows TCC-equivalent
+    'AppData',
+    'Videos',
+    '3D Objects',
+    'OneDrive',
 ];
 
 const MAX_DEPTH: number = 4;
@@ -103,34 +125,50 @@ async function getObsidianVaultPaths(searchDirs: readonly string[]): Promise<str
 
 /**
  * Returns the default search directories for project discovery.
- * Uses os.homedir() for cross-platform support.
- * Filters to only directories that exist AND are readable (have permission).
+ * Dynamically discovers directories in home folder, filtering out:
+ * - Hidden directories (starting with .)
+ * - Protected directories that trigger OS permission prompts (Desktop, Documents, etc.)
+ * - System directories (Library, AppData, etc.)
+ *
+ * This approach finds user-created project folders like ~/repos, ~/work, ~/clients
+ * without hardcoding and without triggering permission dialogs.
  */
 export function getDefaultSearchDirectories(): string[] {
     const home: string = os.homedir();
 
-    const candidates: string[] = [
-        path.join(home, 'repos'),
-        path.join(home, 'dev'),
-        path.join(home, 'work'),
-        path.join(home, 'code'),
-        path.join(home, 'projects'),
-        path.join(home, 'Documents'),
-    ];
+    try {
+        const entries: string[] = fs.readdirSync(home);
 
-    // Filter to only existing directories that we have read access to
-    return candidates.filter((dir) => {
-        try {
-            if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
+        return entries.filter((name) => {
+            // Skip hidden directories
+            if (name.startsWith('.')) {
                 return false;
             }
-            // Verify read access by attempting to read directory contents
-            fs.readdirSync(dir);
-            return true;
-        } catch {
-            return false;
-        }
-    });
+
+            // Skip protected/system directories (case-insensitive for Windows)
+            const nameLower: string = name.toLowerCase();
+            if (PROTECTED_HOME_DIRS.some((dir) => dir.toLowerCase() === nameLower)) {
+                return false;
+            }
+
+            const fullPath: string = path.join(home, name);
+
+            try {
+                // Must be a directory
+                if (!fs.statSync(fullPath).isDirectory()) {
+                    return false;
+                }
+                // Verify read access
+                fs.readdirSync(fullPath);
+                return true;
+            } catch {
+                return false;
+            }
+        }).map((name) => path.join(home, name));
+    } catch (err) {
+        console.error('[project-scanner] Failed to read home directory:', err);
+        return [];
+    }
 }
 
 /**
@@ -186,9 +224,17 @@ async function findMarkerFiles(
         });
 
         rg.on('close', (code) => {
+            // code 0 = matches found
+            // code 1 = no matches (not an error)
+            // code 2 = error, but may still have partial results (e.g., permission denied on some dirs)
             if (code === 0 || code === 1) {
-                // code 1 = no matches (not an error)
                 resolve(stdout.trim().split('\n').filter(Boolean));
+            } else if (code === 2 && stdout.trim().length > 0) {
+                // Got some results despite errors (e.g., permission denied on some subdirs) - use them
+                resolve(stdout.trim().split('\n').filter(Boolean));
+            } else if (code === 2 && stderr.includes('Permission denied')) {
+                // All errors were permission denied, no results - that's ok, just no projects there
+                resolve([]);
             } else {
                 reject(new Error(`ripgrep exited with code ${code}: ${stderr}`));
             }

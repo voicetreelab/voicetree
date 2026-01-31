@@ -14,7 +14,7 @@ import {
     getScreenDimensions,
     getWindowTransform,
     type ScalingStrategy,
-} from '@/pure/floatingWindowScaling';
+} from '@/pure/graph/floating-windows/floatingWindowScaling';
 
 /**
  * Apply window chrome updates after zoom settles.

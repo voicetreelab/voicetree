@@ -6,7 +6,7 @@ import AnimatedMicIcon from "@/shell/UI/views/components/animated-mic-icon";
 import StatusDisplay from "@/shell/UI/views/components/status-display";
 import useVoiceTreeClient from "@/shell/UI/views/hooks/useVoiceTreeClient";
 import { useTranscriptionSender } from "@/shell/edge/UI-edge/text_to_tree_server_communication/useTranscriptionSender";
-import getAPIKey from "@/utils/get-api-key";
+import getAPIKey, { prefetchAPIKey } from "@/utils/get-api-key";
 import { TranscriptionDisplay } from "@/shell/UI/views/TranscriptionDisplay";
 import { onVoiceResult, appendManualText, reset as resetTranscriptionStore, subscribe as subscribeToTranscription, getDisplayTokenCount } from "@/shell/edge/UI-edge/state/TranscriptionStore";
 import type {} from "@/shell/electron";
@@ -56,6 +56,11 @@ export default function VoiceTreeTranscribe(): JSX.Element {
     apiKey: getAPIKey,
     onPartialResult: onVoiceResult,  // Wire raw SDK events directly to store
   });
+
+  // Prefetch Soniox API key on mount - fire and forget, key will be cached for when user clicks mic
+  useEffect(() => {
+    void prefetchAPIKey();
+  }, []);
 
   // Fetch backend port on mount
   useEffect(() => {
@@ -112,6 +117,9 @@ export default function VoiceTreeTranscribe(): JSX.Element {
     resetSender();
     await startTranscription();
   };
+
+  // Derive connecting state - orange for any transitional state (not idle, not running)
+  const isConnecting = state !== 'Init' && state !== 'Finished' && state !== 'Error' && state !== 'Canceled' && state !== 'Running';
 
   // Initialize VoiceRecordingController to bridge React state with vanilla JS HotkeyManager
   useEffect(() => {
@@ -321,14 +329,17 @@ export default function VoiceTreeTranscribe(): JSX.Element {
             {/* Mic Button */}
             <button
               onClick={() => state === 'Running' ? stopTranscription() : void handleStartTranscription()}
+              disabled={isConnecting}
               className={cn(
                 "p-1 rounded-lg transition-all cursor-pointer",
                 state === 'Running'
                   ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  : "bg-primary text-primary-foreground hover:bg-primary/90"
+                  : isConnecting
+                    ? "bg-orange-500 text-white"
+                    : "bg-primary text-primary-foreground hover:bg-primary/90"
               )}
             >
-              <AnimatedMicIcon isRecording={state === 'Running'} size={28} />
+              <AnimatedMicIcon isRecording={state === 'Running'} isConnecting={isConnecting} size={28} />
             </button>
 
             {/* Divider */}

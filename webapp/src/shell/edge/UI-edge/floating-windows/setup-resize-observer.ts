@@ -6,7 +6,7 @@
  */
 
 import type cytoscape from "cytoscape";
-import {screenToGraphDimensions, type ScalingStrategy} from "@/pure/floatingWindowScaling";
+import {screenToGraphDimensions, type ScalingStrategy} from "@/pure/graph/floating-windows/floatingWindowScaling";
 import {getCachedZoom} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import {triggerLayout} from "@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout";
 
