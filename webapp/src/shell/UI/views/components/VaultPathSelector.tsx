@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { JSX, MouseEvent, RefObject, ChangeEvent, KeyboardEvent } from 'react';
 import type { FilePath } from '@/pure/graph';
 import type { AvailableFolderItem } from '@/pure/folders/types';
+import { toDisplayPath, toAbsolutePath } from '@/pure/folders';
 import * as O from 'fp-ts/lib/Option.js';
 import type {} from '@/shell/electron';
 
@@ -195,7 +196,11 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
         if (!window.electronAPI) return;
 
         try {
-            const result = await window.electronAPI.main.showFolderPicker();
+            const result = await window.electronAPI.main.showFolderPicker({
+                defaultPath: watchDirectory,
+                buttonLabel: 'Add Subfolder',
+                title: 'Select Subfolder to Add',
+            });
             if (result.success && result.path) {
                 await handleAddAsRead(result.path);
             }
@@ -216,15 +221,13 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
         }
     };
 
-    // Get display path relative to watchDirectory
+    // Get display path relative to watchDirectory using pure toDisplayPath
+    // Prefixes with "./" to indicate relativity to project root
     const getDisplayPath: (fullPath: string) => string = (fullPath: string): string => {
         if (!watchDirectory) return fullPath;
-        if (fullPath === watchDirectory) return '/';
-        if (fullPath.startsWith(watchDirectory)) {
-            const relative: string = fullPath.slice(watchDirectory.length);
-            return relative.startsWith('/') ? relative : '/' + relative;
-        }
-        return fullPath;
+        const displayPath: string = toDisplayPath(toAbsolutePath(watchDirectory), toAbsolutePath(fullPath));
+        // Use "./" prefix to show these are relative paths
+        return displayPath === '.' ? './' : './' + displayPath;
     };
 
     // Get folder name from path for button display
@@ -261,6 +264,14 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
             {isOpen && (
                 <div className="absolute bottom-full left-0 mb-1 bg-card border border-border rounded shadow-lg min-w-[280px] max-w-[400px] z-[1200]">
                     <div className="py-1">
+                        {/* Project root header */}
+                        <div className="px-3 py-1.5 text-[11px] text-muted-foreground/70 border-b border-border flex items-center gap-1.5">
+                            <span className="opacity-60">📁</span>
+                            <span className="truncate font-medium" title={watchDirectory}>
+                                {projectName}/
+                            </span>
+                        </div>
+
                         {/* Error display */}
                         {error && (
                             <div className="px-3 py-1 text-[10px] text-destructive bg-destructive/10 border-b border-border">
@@ -357,7 +368,7 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                                             className="text-xs truncate flex-1 min-w-0 text-muted-foreground/70 group-hover:text-foreground transition-colors"
                                             title={folder.absolutePath}
                                         >
-                                            {folder.displayPath === '.' ? '/' : folder.displayPath}
+                                            {folder.displayPath === '.' ? './' : './' + folder.displayPath}
                                         </span>
                                         <div className="flex gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button

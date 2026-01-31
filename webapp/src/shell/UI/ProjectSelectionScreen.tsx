@@ -176,7 +176,11 @@ export function ProjectSelectionScreen({ onProjectSelected }: ProjectSelectionSc
 
         try {
             const result: { success: boolean; path?: string; error?: string } =
-                await window.electronAPI.main.showFolderPicker();
+                await window.electronAPI.main.showFolderPicker({
+                    defaultPath: undefined,
+                    buttonLabel: 'Open Project',
+                    title: 'Select Project Folder',
+                });
 
             if (!result.success || !result.path) {
                 return;

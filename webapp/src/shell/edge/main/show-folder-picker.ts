@@ -7,16 +7,22 @@ export interface FolderPickerResult {
     readonly error?: string;
 }
 
+export interface FolderPickerOptions {
+    /** Starting directory. If undefined, defaults to home directory. */
+    readonly defaultPath: string | undefined;
+    readonly buttonLabel: string;
+    readonly title: string;
+}
+
 /**
  * Shows a folder picker dialog using Electron's native dialog.
- * Used for selecting a project folder to open.
  */
-export async function showFolderPicker(): Promise<FolderPickerResult> {
+export async function showFolderPicker(options: FolderPickerOptions): Promise<FolderPickerResult> {
     const result: Electron.OpenDialogReturnValue = await dialog.showOpenDialog({
         properties: ['openDirectory', 'createDirectory'],
-        title: 'Select Project Folder',
-        buttonLabel: 'Open Project',
-        defaultPath: os.homedir(),
+        title: options.title,
+        buttonLabel: options.buttonLabel,
+        defaultPath: options.defaultPath ?? os.homedir(),
     });
 
     if (result.canceled || result.filePaths.length === 0) {
