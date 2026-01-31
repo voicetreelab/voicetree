@@ -252,16 +252,17 @@ function createWindow(): void {
     });
 
     // Load the app
+    const skipDevTools = process.env.ENABLE_PLAYWRIGHT_DEBUG === '1';
     if (process.env.MINIMIZE_TEST === '1') {
         void mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'));
     } else if (process.env.VITE_DEV_SERVER_URL) {
         // electron-vite dev mode
         void mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
-        mainWindow.webContents.openDevTools();
+        if (!skipDevTools) mainWindow.webContents.openDevTools();
     } else if (process.env.NODE_ENV === 'development') {
         const devPort: string = process.env.DEV_SERVER_PORT ?? '3000';
         void mainWindow.loadURL(`http://localhost:${devPort}`);
-        mainWindow.webContents.openDevTools();
+        if (!skipDevTools) mainWindow.webContents.openDevTools();
     } else {
         // Production or test mode
         void mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'));
