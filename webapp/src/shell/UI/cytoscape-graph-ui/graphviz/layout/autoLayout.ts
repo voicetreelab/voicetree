@@ -48,7 +48,7 @@ const DEFAULT_OPTIONS: AutoLayoutOptions = {
   animate: true,
   maxSimulationTime: 2000,
   avoidOverlap: true,
-  nodeSpacing: 10,
+  nodeSpacing: 70,
   handleDisconnected: true, // handles disconnected components
   convergenceThreshold: 0.4,
   unconstrIter: 15, // TODO SOMETHINIG ABOUT THIS IS VERY IMPORTANT LAYOUT BREAK WITHOUT
