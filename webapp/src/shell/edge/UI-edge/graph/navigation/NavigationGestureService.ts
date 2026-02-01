@@ -1,29 +1,21 @@
 /**
  * NavigationGestureService - Handles trackpad scroll for panning and mouse wheel for zooming
  *
- * Strategy (Heuristic-Based Detection):
+ * Strategy (Native Detection via electron-trackpad-detect addon):
  * - Cytoscape's userZoomingEnabled is OFF permanently (we handle all zoom ourselves)
- * - Trackpad scroll (detected via heuristics) → pan
- * - Trackpad pinch (ctrlKey) → zoom via zoomAtCursor
- * - Mouse wheel (detected via heuristics) → zoom via zoomAtCursor
- *
- * This approach was chosen after 3 failed approaches:
- * 1. Electron gestureScrollBegin/End events are unreliable (fire for mouse too)
- * 2. cy.userZoomingEnabled() toggle is not bidirectional
- * 3. Event interception doesn't work (Cytoscape handlers still fire)
+ * - Native addon detects trackpad vs mouse via NSEvent.hasPreciseScrollingDeltas
+ * - Trackpad scroll → pan
+ * - Trackpad pinch (ctrlKey) → zoom
+ * - Mouse wheel → zoom
  */
 
 import type { Core } from 'cytoscape';
 import { getEditors } from '@/shell/edge/UI-edge/state/EditorStore';
 import { getTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
+import { getIsTrackpadScrolling } from '@/shell/edge/UI-edge/state/trackpad-state';
 import type { EditorId, TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import type { EditorData } from '@/shell/edge/UI-edge/floating-windows/editors/editorDataType';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
-
-// Timing thresholds for trackpad detection
-const RAPID_EVENT_THRESHOLD_MS: number = 50;  // Events closer than this = rapid firing
-const RAPID_EVENT_COUNT_THRESHOLD: number = 3; // Need this many rapid events to confirm trackpad
-const GESTURE_END_TIMEOUT_MS: number = 150;    // Gesture ends after this much silence
 
 export class NavigationGestureService {
     private cy: Core;
@@ -32,12 +24,6 @@ export class NavigationGestureService {
     // Middle-mouse pan state
     private isPanning: boolean = false;
     private lastPos: { x: number; y: number } = { x: 0, y: 0 };
-
-    // Trackpad detection state - track recent wheel events for timing analysis
-    private lastWheelTime: number = 0;
-    private rapidEventCount: number = 0;
-    private isInTrackpadGesture: boolean = false;
-    private gestureTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
     // Bound handlers for cleanup
     private handleWheel: (e: WheelEvent) => void;
@@ -74,9 +60,11 @@ export class NavigationGestureService {
     }
 
     /**
-     * Wheel handler - heuristic-based trackpad detection.
-     * Since Electron's gesture events are unreliable and Cytoscape's zoom toggle
-     * is not bidirectional, we keep userZoomingEnabled: false and handle everything ourselves.
+     * Wheel handler - native trackpad detection.
+     * Uses electron-trackpad-detect addon which reads NSEvent.hasPreciseScrollingDeltas.
+     * - Trackpad scroll → pan
+     * - Trackpad pinch (ctrlKey) → zoom
+     * - Mouse wheel → zoom
      */
     private onWheel(e: WheelEvent): void {
         if (!this.cy.userPanningEnabled()) return;
@@ -89,10 +77,10 @@ export class NavigationGestureService {
 
         e.preventDefault();
 
-        // Heuristic-based trackpad detection
-        const isLikelyTrackpad: boolean = this.isLikelyTrackpadScroll(e);
+        // Use native detection from main process (via IPC)
+        const isTrackpad: boolean = getIsTrackpadScrolling();
 
-        if (isLikelyTrackpad && !e.ctrlKey) {
+        if (isTrackpad && !e.ctrlKey) {
             // Trackpad scroll → pan
             this.cy.panBy({ x: -e.deltaX, y: -e.deltaY });
         } else {
@@ -103,89 +91,21 @@ export class NavigationGestureService {
     }
 
     /**
-     * Heuristic to detect trackpad scroll vs mouse wheel.
-     *
-     * Detection strategy:
-     * 1. deltaX !== 0 → definitely trackpad (mouse wheels are vertical-only)
-     * 2. deltaMode !== 0 → definitely mouse (line/page mode)
-     * 3. Timing analysis: trackpads fire many rapid events, mice fire fewer spaced events
-     * 4. Once we detect a trackpad gesture, stay in that mode until events stop
+     * Zoom the graph centered on the cursor position.
      */
-    private isLikelyTrackpadScroll(e: WheelEvent): boolean {
-        const now: number = performance.now();
-        const timeSinceLastEvent: number = now - this.lastWheelTime;
+    private zoomAtCursor(e: WheelEvent, sensitivity: number): void {
+        const currentZoom: number = this.cy.zoom();
+        const delta: number = -e.deltaY * sensitivity;
+        const newZoom: number = currentZoom * (1 + delta);
 
-        // Reset gesture timeout - will mark gesture as ended after silence
-        this.resetGestureTimeout();
+        const minZoom: number = this.cy.minZoom();
+        const maxZoom: number = this.cy.maxZoom();
+        const clampedZoom: number = Math.max(minZoom, Math.min(maxZoom, newZoom));
 
-        // Horizontal scroll = definitely trackpad (mouse wheels are vertical-only)
-        if (e.deltaX !== 0) {
-            this.markAsTrackpadGesture(now);
-            return true;
-        }
-
-        // deltaMode: 0 = pixels, 1 = lines (mouse), 2 = pages
-        // If not pixel mode, it's definitely a mouse
-        if (e.deltaMode !== 0) {
-            this.resetTrackpadState();
-            return false;
-        }
-
-        // If we're already in a trackpad gesture, continue treating as trackpad
-        if (this.isInTrackpadGesture) {
-            this.lastWheelTime = now;
-            return true;
-        }
-
-        // Timing analysis: rapid successive events suggest trackpad
-        if (timeSinceLastEvent < RAPID_EVENT_THRESHOLD_MS && this.lastWheelTime > 0) {
-            this.rapidEventCount++;
-            if (this.rapidEventCount >= RAPID_EVENT_COUNT_THRESHOLD) {
-                this.markAsTrackpadGesture(now);
-                return true;
-            }
-        } else {
-            // Event was spaced out - reset rapid count
-            this.rapidEventCount = 1;
-        }
-
-        this.lastWheelTime = now;
-
-        // Not enough evidence yet - default to mouse (zoom)
-        // This means the first few events of a trackpad scroll might zoom,
-        // but once we detect the rapid pattern, we switch to pan
-        return false;
-    }
-
-    /**
-     * Mark that we've detected a trackpad gesture
-     */
-    private markAsTrackpadGesture(now: number): void {
-        this.isInTrackpadGesture = true;
-        this.lastWheelTime = now;
-        this.rapidEventCount = 0;
-    }
-
-    /**
-     * Reset trackpad detection state (when we detect mouse or gesture ends)
-     */
-    private resetTrackpadState(): void {
-        this.isInTrackpadGesture = false;
-        this.rapidEventCount = 0;
-        this.lastWheelTime = 0;
-    }
-
-    /**
-     * Reset the gesture timeout - gesture ends after period of no events
-     */
-    private resetGestureTimeout(): void {
-        if (this.gestureTimeoutId) {
-            clearTimeout(this.gestureTimeoutId);
-        }
-        this.gestureTimeoutId = setTimeout(() => {
-            this.resetTrackpadState();
-            this.gestureTimeoutId = null;
-        }, GESTURE_END_TIMEOUT_MS);
+        this.cy.zoom({
+            level: clampedZoom,
+            renderedPosition: { x: e.clientX, y: e.clientY }
+        });
     }
 
     /**
@@ -209,63 +129,42 @@ export class NavigationGestureService {
 
     /**
      * Handle wheel events from unfocused floating windows.
-     * Intercepts at document level to catch events before xterm/CodeMirror.
+     * Redirects scroll to the graph instead of the floating window content.
      */
     private onFloatingWindowWheel(e: WheelEvent): void {
         const target: Element | null = e.target as Element | null;
         const floatingWindow: Element | null | undefined = target?.closest('[data-floating-window-id]');
 
-        // Not from a floating window - let existing handlers deal with it
+        // Not from a floating window - already handled by onWheel
         if (!floatingWindow) return;
 
         // Check if this floating window has focus
         const hasFocus: boolean = floatingWindow.contains(document.activeElement);
-        if (hasFocus) return; // Focused - allow native scroll
+        if (hasFocus) return; // Focused - allow native scroll in the floating window
 
-        // Check if this floating window's node is selected (e.g., hover editor on selected node)
+        // Check if this floating window's node is selected
         const floatingWindowId: string | null = floatingWindow.getAttribute('data-floating-window-id');
         if (floatingWindowId && this.isFloatingWindowNodeSelected(floatingWindowId, floatingWindow)) {
             return; // Node is selected - allow native scroll
         }
 
-        // Unfocused floating window - handle as graph navigation
+        // Unfocused floating window - redirect to graph
         if (!this.cy.userPanningEnabled()) return;
 
         e.preventDefault();
         e.stopImmediatePropagation();
 
-        // Use same heuristic-based detection
-        const isLikelyTrackpad: boolean = this.isLikelyTrackpadScroll(e);
+        // Use native detection from main process
+        const isTrackpad: boolean = getIsTrackpadScrolling();
 
-        if (e.ctrlKey) {
-            // Trackpad pinch zoom
-            this.zoomAtCursor(e, 0.013);
-        } else if (isLikelyTrackpad) {
+        if (isTrackpad && !e.ctrlKey) {
             // Trackpad scroll → pan
             this.cy.panBy({ x: -e.deltaX, y: -e.deltaY });
         } else {
-            // Mouse wheel → zoom
-            this.zoomAtCursor(e, 0.01);
+            // Mouse wheel OR trackpad pinch → zoom
+            const sensitivity: number = e.ctrlKey ? 0.013 : 0.01;
+            this.zoomAtCursor(e, sensitivity);
         }
-    }
-
-    /**
-     * Zoom the graph centered on the cursor position.
-     */
-    private zoomAtCursor(e: WheelEvent, sensitivity: number): void {
-        const currentZoom: number = this.cy.zoom();
-        const delta: number = -e.deltaY * sensitivity;
-        const newZoom: number = currentZoom * (1 + delta);
-
-        // Clamp to Cytoscape's zoom limits
-        const minZoom: number = this.cy.minZoom();
-        const maxZoom: number = this.cy.maxZoom();
-        const clampedZoom: number = Math.max(minZoom, Math.min(maxZoom, newZoom));
-
-        this.cy.zoom({
-            level: clampedZoom,
-            renderedPosition: { x: e.clientX, y: e.clientY }
-        });
     }
 
     /**
@@ -307,12 +206,9 @@ export class NavigationGestureService {
     }
 
     /**
-     * Cleanup all event listeners and timers
+     * Cleanup all event listeners
      */
     dispose(): void {
-        if (this.gestureTimeoutId) {
-            clearTimeout(this.gestureTimeoutId);
-        }
         this.container.removeEventListener('wheel', this.handleWheel, { capture: true });
         document.removeEventListener('wheel', this.handleFloatingWindowWheel, { capture: true });
         this.container.removeEventListener('mousedown', this.handleMouseDown);

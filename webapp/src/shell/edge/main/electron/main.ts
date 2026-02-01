@@ -22,6 +22,7 @@ import {getGraph} from '@/shell/edge/main/state/graph-store';
 import {startMcpServer} from '@/shell/edge/main/mcp-server/mcp-server';
 import {cleanupOrphanedContextNodes} from '@/shell/edge/main/saveNodePositions';
 import {setOnFolderSwitchCleanup, setStartupFolderOverride} from "@/shell/edge/main/state/watch-folder-store";
+import {startMonitoring as startTrackpadMonitoring, stopMonitoring as stopTrackpadMonitoring, isTrackpadScroll} from 'electron-trackpad-detect';
 
 // Redirect all console.* to electron-log in production (handles EPIPE errors on Linux AppImage)
 // Writes asynchronously to ~/Library/Logs/Voicetree/ (macOS) or ~/.config/Voicetree/logs/ (Linux)
@@ -253,7 +254,7 @@ function createWindow(): void {
     });
 
     // Load the app
-    const skipDevTools = process.env.ENABLE_PLAYWRIGHT_DEBUG === '1';
+    const skipDevTools: boolean = process.env.ENABLE_PLAYWRIGHT_DEBUG === '1';
     if (process.env.MINIMIZE_TEST === '1') {
         void mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'));
     } else if (process.env.VITE_DEV_SERVER_URL) {
@@ -304,17 +305,22 @@ function createWindow(): void {
         writeAllPositionsSync(getGraph());
     });
 
-    // Trackpad gesture detection for scroll vs zoom disambiguation (macOS only)
-    // Note: scroll-touch-begin/end were removed in Electron 23. Use input-event instead.
+    // Trackpad detection using native addon (macOS only)
+    // Uses NSEvent.hasPreciseScrollingDeltas - the authoritative signal for trackpad vs mouse
     if (process.platform === 'darwin') {
-        console.log('[Main] Registering input-event for gesture detection');
+        // Start monitoring scroll events for trackpad detection
+        const monitoringStarted: boolean = startTrackpadMonitoring();
+        if (monitoringStarted) {
+            console.log('[Main] Trackpad scroll detection enabled');
+        }
+
+        // Listen for scroll wheel events and update trackpad state
         mainWindow.webContents.on('input-event', (_, input) => {
-            if (input.type === 'gestureScrollBegin') {
-                console.log('[Main] gestureScrollBegin FIRED');
-                uiAPI.setIsTrackpadScrolling(true);
-            } else if (input.type === 'gestureScrollEnd') {
-                console.log('[Main] gestureScrollEnd FIRED');
-                uiAPI.setIsTrackpadScrolling(false);
+            if (input.type === 'mouseWheel') {
+                // Query the native addon for whether this was a trackpad scroll
+                // The addon monitors NSEvent and stores the hasPreciseScrollingDeltas value
+                const isTrackpad: boolean = isTrackpadScroll();
+                uiAPI.setIsTrackpadScrolling(isTrackpad);
             }
         });
     }
@@ -424,6 +430,11 @@ app.on('before-quit', () => {
 
     // Stop notification scheduler
     stopNotificationScheduler();
+
+    // Stop trackpad monitoring
+    if (process.platform === 'darwin') {
+        stopTrackpadMonitoring();
+    }
 });
 
 app.on('window-all-closed', () => {

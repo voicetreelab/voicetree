@@ -53,8 +53,9 @@
 }
 
 /* Resizable windows - Phase 2C: macOS-style edge resizing replaces CSS resize: both */
+/* overflow: visible allows resize zones to extend outside window bounds (avoiding scrollbar overlap) */
 .cy-floating-window.resizable {
-  overflow: auto;
+  overflow: visible;
 }
 
 /* Shadow nodes (invisible) */

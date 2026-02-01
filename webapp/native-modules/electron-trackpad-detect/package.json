@@ -1,0 +1,32 @@
+{
+  "name": "electron-trackpad-detect",
+  "version": "1.0.0",
+  "description": "Native addon for detecting trackpad vs mouse wheel scroll on macOS",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "scripts": {
+    "install": "node-gyp rebuild",
+    "build": "node-gyp rebuild",
+    "clean": "node-gyp clean"
+  },
+  "dependencies": {
+    "node-addon-api": "^8.0.0"
+  },
+  "devDependencies": {
+    "node-gyp": "^10.0.0"
+  },
+  "os": ["darwin"],
+  "cpu": ["x64", "arm64"],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "binding.gyp",
+    "src/",
+    "index.js",
+    "index.d.ts"
+  ],
+  "gypfile": true,
+  "private": true,
+  "license": "MIT"
+}
