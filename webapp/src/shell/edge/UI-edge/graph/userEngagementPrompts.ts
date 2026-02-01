@@ -3,8 +3,8 @@ import type {VTSettings} from "@/pure/settings/types";
 // Import ElectronAPI type for window.electronAPI access
 import type {} from "@/shell/electron";
 
-const FEEDBACK_DELTA_THRESHOLD: number = 80;
-const EMAIL_DELTA_THRESHOLD: number = 20;
+const FEEDBACK_DELTA_THRESHOLD: number = 25;
+const EMAIL_DELTA_THRESHOLD: number = 50;
 
 // Session-level state for tracking total nodes created
 let sessionDeltaCount: number = 0;
@@ -14,9 +14,23 @@ let emailPromptShown: boolean = false;
 let cachedUserEmail: string | null = null;
 
 /**
+ * Shows the feedback dialog and captures feedback to PostHog.
+ * Use this for manual feedback collection (e.g., from speed dial menu).
+ */
+export async function collectFeedback(): Promise<void> {
+    const feedback: string | null = await showFeedbackDialog();
+    if (feedback) {
+        posthog.capture('userFeedback', {
+            feedback,
+            source: 'manual-speed-dial'
+        });
+    }
+}
+
+/**
  * Creates and shows an HTML dialog for collecting user feedback.
  * Returns a promise that resolves with the feedback text or null if cancelled.
- * Exported so it can be called from the speed dial menu.
+ * For internal use - prefer collectFeedback() for manual feedback collection.
  */
 export function showFeedbackDialog(): Promise<string | null> {
     return new Promise((resolve) => {
@@ -52,6 +66,7 @@ export function showFeedbackDialog(): Promise<string | null> {
                     id="feedback-input"
                     rows="4"
                     placeholder="Type your feedback here..."
+                    data-ph-unmask
                     style="
                         width: 100%;
                         padding: 10px 12px;
@@ -154,8 +169,11 @@ function showEmailDialog(): Promise<string | null> {
 
         dialog.innerHTML = `
             <form method="dialog" style="display: flex; flex-direction: column; gap: 16px;">
+                <h2 style="margin: 0; font-size: 1.1rem; font-weight: 600;">
+                    Stay in the loop
+                </h2>
                 <p style="margin: 0; color: var(--muted-foreground); font-size: 0.9rem;">
-                    Enter your email to continue.
+                    I'll email you about early access for major updates and ask for feedback.
                 </p>
                 <input
                     type="email"
@@ -178,6 +196,19 @@ function showEmailDialog(): Promise<string | null> {
                 </p>
                 <div style="display: flex; gap: 8px; justify-content: flex-end;">
                     <button
+                        type="button"
+                        id="email-skip"
+                        style="
+                            padding: 8px 16px;
+                            border: 1px solid var(--border);
+                            border-radius: calc(var(--radius) - 2px);
+                            background: transparent;
+                            color: var(--muted-foreground);
+                            cursor: pointer;
+                            font-size: 0.9rem;
+                        "
+                    >Skip</button>
+                    <button
                         type="submit"
                         id="email-submit"
                         disabled
@@ -191,7 +222,7 @@ function showEmailDialog(): Promise<string | null> {
                             font-size: 0.9rem;
                             opacity: 0.5;
                         "
-                    >Continue</button>
+                    >Submit</button>
                 </div>
             </form>
         `;
@@ -200,6 +231,7 @@ function showEmailDialog(): Promise<string | null> {
 
         const input: HTMLInputElement = dialog.querySelector('#email-input')!;
         const submitBtn: HTMLButtonElement = dialog.querySelector('#email-submit')!;
+        const skipBtn: HTMLButtonElement = dialog.querySelector('#email-skip')!;
         const errorText: HTMLParagraphElement = dialog.querySelector('#email-error')!;
 
         // Enable submit button only when there's valid email content
@@ -227,9 +259,9 @@ function showEmailDialog(): Promise<string | null> {
             }
         });
 
-        // Prevent Escape key from closing dialog - user must submit
-        dialog.addEventListener('cancel', (e: Event) => {
-            e.preventDefault();
+        skipBtn.addEventListener('click', () => {
+            dialog.close();
+            resolve(null);
         });
 
         dialog.showModal();
@@ -244,7 +276,6 @@ function showEmailDialog(): Promise<string | null> {
  */
 async function maybeShowEmailPrompt(): Promise<void> {
     if (emailPromptShown) return;
-    emailPromptShown = true;
 
     // Skip if email already collected (cached or from settings)
     if (cachedUserEmail) return;
