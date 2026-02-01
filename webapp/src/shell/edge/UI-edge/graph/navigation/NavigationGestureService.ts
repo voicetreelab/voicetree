@@ -128,6 +128,31 @@ export class NavigationGestureService {
     }
 
     /**
+     * Check if a floating window has scrollable content (overflow).
+     * Returns true if content exceeds visible area, false otherwise.
+     */
+    private hasScrollableContent(floatingWindow: Element): boolean {
+        // Check for editor (CodeMirror)
+        if (floatingWindow.classList.contains('cy-floating-window-editor')) {
+            const scroller: HTMLElement | null = floatingWindow.querySelector('.cm-scroller');
+            if (scroller) {
+                return scroller.scrollHeight > scroller.clientHeight;
+            }
+        }
+
+        // Check for terminal (xterm.js)
+        if (floatingWindow.classList.contains('cy-floating-window-terminal')) {
+            const viewport: HTMLElement | null = floatingWindow.querySelector('.xterm-viewport');
+            if (viewport) {
+                return viewport.scrollHeight > viewport.clientHeight;
+            }
+        }
+
+        // Default: assume scrollable (conservative)
+        return true;
+    }
+
+    /**
      * Handle wheel events from unfocused floating windows.
      * Redirects scroll to the graph instead of the floating window content.
      */
@@ -142,10 +167,14 @@ export class NavigationGestureService {
         const hasFocus: boolean = floatingWindow.contains(document.activeElement);
         if (hasFocus) return; // Focused - allow native scroll in the floating window
 
-        // Check if this floating window's node is selected
+        // Check if this floating window's node is selected AND has scrollable content
         const floatingWindowId: string | null = floatingWindow.getAttribute('data-floating-window-id');
         if (floatingWindowId && this.isFloatingWindowNodeSelected(floatingWindowId, floatingWindow)) {
-            return; // Node is selected - allow native scroll
+            // Only allow native scroll if content actually has overflow
+            if (this.hasScrollableContent(floatingWindow)) {
+                return; // Node selected AND has overflow - allow native scroll
+            }
+            // Node selected but no overflow - fall through to graph zoom/pan
         }
 
         // Unfocused floating window - redirect to graph
