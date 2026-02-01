@@ -327,14 +327,6 @@ export function ProjectSelectionScreen({ onProjectSelected }: ProjectSelectionSc
                 >
                     Browse folders...
                 </button>
-                {!isScanning && !hasDiscoveredProjects && (
-                    <button
-                        onClick={() => void scanForProjects()}
-                        className="py-3 px-4 bg-muted text-foreground font-medium rounded-lg hover:bg-accent transition-colors"
-                    >
-                        Scan for Projects
-                    </button>
-                )}
             </div>
         </div>
     );

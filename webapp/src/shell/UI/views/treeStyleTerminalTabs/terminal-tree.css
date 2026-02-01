@@ -13,7 +13,7 @@
     top: 38px;  /* Below title bar */
     left: 0;
     bottom: 50px;  /* Above bottom bar */
-    width: 100px;  /* Initial width */
+    width: 130px;  /* Initial width */
     min-width: 60px;
     max-width: 300px;
     background: var(--background);
@@ -118,7 +118,6 @@
 .terminal-tree-title {
     flex: 1;
     overflow: hidden;
-    text-overflow: ellipsis;
     font-size: 11px;
     white-space: nowrap;
 }
