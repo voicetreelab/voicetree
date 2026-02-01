@@ -21,7 +21,6 @@ import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/termina
 import { buildTerminalTree, type TerminalTreeNode } from '@/pure/agentTabs/terminalTree';
 import { getShortcutHintForTab } from '@/pure/agentTabs';
 import {
-    setActiveTerminalId,
     getDisplayOrder,
     syncDisplayOrder,
 } from '@/shell/edge/UI-edge/state/AgentTabsStore';
@@ -254,8 +253,9 @@ function createTreeNode(
  * Also updates shortcut hint tooltips (they depend on which tab is active).
  */
 export function setActiveTerminal(terminalId: TerminalId | null): void {
-    setActiveTerminalId(terminalId);
-
+    // NOTE: Do NOT call setActiveTerminalId here - this function is called FROM
+    // a subscription to active terminal changes, so calling setActiveTerminalId
+    // would create an infinite loop (setActiveTerminalId → notifySubscribers → this function → repeat)
     if (!containerElement) return;
 
     // Get display order for tooltip calculation

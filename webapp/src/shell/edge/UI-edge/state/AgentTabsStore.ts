@@ -15,24 +15,11 @@ import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/termina
 // Module-level state
 // =============================================================================
 
-let activeTerminalId: TerminalId | null = null;
 let displayOrder: TerminalId[] = [];
 let zoomSuppressionUntil: number = 0;
 
 // Duration to suppress terminal data events after zoom (to ignore resize-triggered redraws)
 const ZOOM_SUPPRESSION_MS: number = 800;
-
-// =============================================================================
-// Active Terminal
-// =============================================================================
-
-export function getActiveTerminalId(): TerminalId | null {
-    return activeTerminalId;
-}
-
-export function setActiveTerminalId(id: TerminalId | null): void {
-    activeTerminalId = id;
-}
 
 // =============================================================================
 // Display Order
@@ -115,7 +102,6 @@ export function suppressInactivityDuringZoom(): void {
 // =============================================================================
 
 export function resetAgentTabsStore(): void {
-    activeTerminalId = null;
     displayOrder = [];
     zoomSuppressionUntil = 0;
 }

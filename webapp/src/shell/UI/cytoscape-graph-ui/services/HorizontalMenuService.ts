@@ -158,7 +158,12 @@ export class HorizontalMenuService {
         // Add listener after a short delay to prevent immediate closure
         setTimeout(() => {
             this.clickOutsideHandler = (e: MouseEvent) => {
-                if (this.currentMenu && !this.currentMenu.contains(e.target as Node)) {
+                const target: Node = e.target as Node;
+                const isInsideMenu: boolean = this.currentMenu !== null && this.currentMenu.contains(target);
+                // Also allow clicks on the distance slider (appended to body, not menu)
+                const distanceSlider: Element | null = document.querySelector('.distance-slider');
+                const isInsideSlider: boolean = distanceSlider !== null && distanceSlider.contains(target);
+                if (!isInsideMenu && !isInsideSlider) {
                     this.hideMenu();
                 }
             };
