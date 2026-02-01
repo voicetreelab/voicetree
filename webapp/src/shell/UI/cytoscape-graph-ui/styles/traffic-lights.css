@@ -141,6 +141,7 @@
   align-items: center;
   gap: 8px;
   cursor: grab;
+  z-index: 2; /* Above resize zones (z-index: 1) so traffic light buttons are clickable */
 }
 
 .settings-title-bar:active {

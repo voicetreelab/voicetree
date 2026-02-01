@@ -310,6 +310,10 @@ cask "voicetree" do
 
   app "VoiceTree.app"
 
+  postflight do
+    system_command "open", args: [appdir/"VoiceTree.app"]
+  end
+
   zap trash: [
     "~/Library/Application Support/VoiceTree",
     "~/Library/Preferences/com.voicetree.webapp.plist",

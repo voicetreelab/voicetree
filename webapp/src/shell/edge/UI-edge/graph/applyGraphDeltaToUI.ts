@@ -6,7 +6,7 @@ import {hasActualContentChanged} from "@/pure/graph/contentChangeDetection";
 import posthog from "posthog-js";
 import {markTerminalActivityForContextNode} from "@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity";
 import type {} from '@/utils/types/cytoscape-layout-utilities';
-import {cyFitCollectionByAverageNodeSize} from "@/utils/responsivePadding";
+import {cyFitCollectionByAverageNodeSize, getResponsivePadding} from "@/utils/responsivePadding";
 import {checkEngagementPrompts} from "./userEngagementPrompts";
 import {scheduleIdleWork} from "@/utils/scheduleIdleWork";
 import {getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
@@ -280,8 +280,8 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
     const changeRatio: number = totalNodes > 0 ? newNodeCount / totalNodes : 1;
 
     if (changeRatio > 0.3) {
-        // Large batch (>30% new nodes): fit all in view
-        setTimeout(() => { if (!cy.destroyed()) cy.fit(); }, 150);
+        // Large batch (>30% new nodes): fit all in view with padding
+        setTimeout(() => { if (!cy.destroyed()) cy.fit(undefined, getResponsivePadding(cy, 15)); }, 150);
     }
     else if (newNodeCount >= 1 && totalNodes <= 4) {
         // Fit so average node takes target fraction of viewport (smart zoom: only zooms if needed)
