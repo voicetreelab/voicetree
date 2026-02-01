@@ -30,6 +30,12 @@ export default function VoiceTreeTranscribe(): JSX.Element {
   // Track if there's text in the transcription to conditionally show blur/collapse
   const [hasTranscriptionText, setHasTranscriptionText] = useState(false);
 
+  // Track microphone permission denied state
+  const [micPermissionDenied, setMicPermissionDenied] = useState(false);
+
+  // Track if platform can open microphone settings (macOS only)
+  const [canOpenSettings, setCanOpenSettings] = useState(false);
+
   // Ref for vanilla TranscriptionDisplay mount point
   const displayContainerRef: RefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);
   const displayInstanceRef: RefObject<TranscriptionDisplay | null> = useRef<TranscriptionDisplay | null>(null);
@@ -60,6 +66,13 @@ export default function VoiceTreeTranscribe(): JSX.Element {
   // Prefetch Soniox API key on mount - fire and forget, key will be cached for when user clicks mic
   useEffect(() => {
     void prefetchAPIKey();
+  }, []);
+
+  // Check if platform can open microphone settings (macOS only)
+  useEffect(() => {
+    window.electronAPI?.main.canOpenMicrophoneSettings().then((canOpen: boolean) => {
+      setCanOpenSettings(canOpen);
+    }).catch(() => setCanOpenSettings(false));
   }, []);
 
   // Fetch backend port on mount
@@ -111,11 +124,51 @@ export default function VoiceTreeTranscribe(): JSX.Element {
     return subscribeToTranscription(updateHasText);
   }, []);
 
-  // Start transcription with reset
+  // Start transcription with permission check and reset
   const handleStartTranscription: () => Promise<void> = async () => {
+    // Check microphone permission before starting
+    const status = await window.electronAPI?.main.checkMicrophonePermission();
+
+    if (status === 'not-determined') {
+      // First time - show native permission dialog
+      const granted = await window.electronAPI?.main.requestMicrophonePermission();
+      if (!granted) {
+        setMicPermissionDenied(true);
+        return;
+      }
+    } else if (status === 'denied' || status === 'restricted') {
+      // Previously denied - show error with settings link
+      setMicPermissionDenied(true);
+      return;
+    }
+
+    // Permission granted - proceed with transcription
+    setMicPermissionDenied(false);
     resetTranscriptionStore();
     resetSender();
-    await startTranscription();
+
+    try {
+      await startTranscription();
+    } catch (err) {
+      // Catch getUserMedia failures (especially on Windows/Linux where Electron APIs return 'granted')
+      const errorName: string = err instanceof Error ? err.name : '';
+      const errorMessage: string = err instanceof Error ? err.message.toLowerCase() : '';
+
+      // Detect permission-related errors from getUserMedia
+      const isPermissionError: boolean =
+        errorName === 'NotAllowedError' ||
+        errorName === 'PermissionDeniedError' ||
+        errorMessage.includes('permission') ||
+        errorMessage.includes('not allowed') ||
+        errorMessage.includes('denied');
+
+      if (isPermissionError) {
+        setMicPermissionDenied(true);
+      } else {
+        // Re-throw non-permission errors to be handled by the existing error handler
+        throw err;
+      }
+    }
   };
 
   // Derive connecting state - orange for any transitional state (not idle, not running)
@@ -212,35 +265,6 @@ export default function VoiceTreeTranscribe(): JSX.Element {
     setTextInput("");
   };
 
-  // Check microphone permissions on mount
-  useEffect(() => {
-    //console.log('🎤 [VoiceTree] Checking microphone permissions...');
-    navigator.mediaDevices.getUserMedia({
-      audio: {
-        autoGainControl: false  // Prevent system volume changes
-      }
-    })
-      .then(stream => {
-        //console.log('✅ [VoiceTree] Microphone permission granted');
-        //console.log('🔊 [VoiceTree] Audio tracks:', stream.getAudioTracks().map(track => ({
-        //  id: track.id,
-        //  label: track.label,
-        //  enabled: track.enabled,
-        //  muted: track.muted,
-        //  readyState: track.readyState,
-        //  settings: track.getSettings()
-        //})));
-        stream.getTracks().forEach(track => track.stop()); // Stop the stream
-      })
-      .catch(err => {
-        console.error('❌ [VoiceTree] Microphone permission denied:', err);
-        console.error('❌ [VoiceTree] Error details:', {
-          name: err.name,
-          message: err.message,
-          constraint: err.constraint
-        });
-      });
-  }, []);
 
   // Handle Enter key press
   const handleKeyPress: (e: React.KeyboardEvent<HTMLInputElement>) => void = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -407,8 +431,25 @@ export default function VoiceTreeTranscribe(): JSX.Element {
           </div>
 
           {/* Error Messages */}
-          {(error ?? connectionError) && (
+          {(error ?? connectionError ?? micPermissionDenied) && (
             <div className="mt-3">
+              {/* Microphone Permission Error */}
+              {micPermissionDenied && (
+                <div className="text-xs bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg px-4 py-3">
+                  <p className="font-medium text-amber-800 dark:text-amber-200">
+                    Microphone access is blocked
+                  </p>
+                  <p className="text-amber-700 dark:text-amber-300 mt-1">
+                    VoiceTree needs microphone access to transcribe your voice.
+                  </p>
+                  <button
+                    onClick={() => window.electronAPI?.main.openMicrophoneSettings()}
+                    className="mt-2 text-amber-600 dark:text-amber-400 hover:underline font-medium cursor-pointer"
+                  >
+                    Open System Settings
+                  </button>
+                </div>
+              )}
               {connectionError && (
                 <div className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/30 rounded px-3 py-2">
                   {connectionError} - Transcription continues offline

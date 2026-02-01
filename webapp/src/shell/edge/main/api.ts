@@ -36,6 +36,12 @@ import {initializeProject as initializeProjectCore} from './project-initializer'
 import {showFolderPicker} from './show-folder-picker';
 import {getOnboardingDirectory} from './electron/onboarding-setup';
 import {prettySetupAppForElectronDebugging} from './debug/prettySetupAppForElectronDebugging';
+import {
+  checkMicrophonePermission,
+  requestMicrophonePermission,
+  openMicrophoneSettings,
+  canOpenMicrophoneSettings
+} from './microphone-permissions';
 import path from 'path';
 
 /**
@@ -152,4 +158,10 @@ export const mainAPI = {
 
   // Debug setup for Playwright MCP
   prettySetupAppForElectronDebugging,
+
+  // Microphone permissions (macOS)
+  checkMicrophonePermission,
+  requestMicrophonePermission,
+  openMicrophoneSettings,
+  canOpenMicrophoneSettings,
 }
