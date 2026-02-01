@@ -21,11 +21,11 @@ import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/termina
 import { buildTerminalTree, type TerminalTreeNode } from '@/pure/agentTabs/terminalTree';
 import { getShortcutHintForTab } from '@/pure/agentTabs';
 import {
-    getActiveTerminalId,
     setActiveTerminalId,
     getDisplayOrder,
+    syncDisplayOrder,
 } from '@/shell/edge/UI-edge/state/AgentTabsStore';
-import { clearTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
+import { clearTerminals, getActiveTerminalId } from '@/shell/edge/UI-edge/state/TerminalStore';
 import {
     startTerminalActivityPolling,
     stopTerminalActivityPolling,
@@ -150,7 +150,8 @@ export function renderTerminalTree(
     const treeNodes: TerminalTreeNode[] = buildTerminalTree(terminals);
     const activeTerminalId: TerminalId | null = getActiveTerminalId();
 
-    // Get display order for shortcut hints
+    // Sync and get display order for shortcut hints
+    syncDisplayOrder(terminals);
     const displayOrder: TerminalId[] = getDisplayOrder();
     const activeIndex: number = activeTerminalId ? displayOrder.indexOf(activeTerminalId) : -1;
     const totalTabs: number = displayOrder.length;
@@ -250,22 +251,50 @@ function createTreeNode(
 
 /**
  * Update which terminal is highlighted as active.
+ * Also updates shortcut hint tooltips (they depend on which tab is active).
  */
 export function setActiveTerminal(terminalId: TerminalId | null): void {
     setActiveTerminalId(terminalId);
 
     if (!containerElement) return;
 
-    // Update active class on all nodes
+    // Get display order for tooltip calculation
+    const displayOrder: TerminalId[] = getDisplayOrder();
+    const activeIndex: number = terminalId ? displayOrder.indexOf(terminalId) : -1;
+    const totalTabs: number = displayOrder.length;
+
+    // Update active class and tooltips on all nodes
     const nodes: HTMLCollectionOf<Element> = containerElement.getElementsByClassName('terminal-tree-node');
     for (let i: number = 0; i < nodes.length; i++) {
         const node: Element = nodes[i];
         const nodeTerminalId: string | null = node.getAttribute('data-terminal-id');
+        const tabIndex: number = nodeTerminalId ? displayOrder.indexOf(nodeTerminalId as TerminalId) : -1;
 
+        // Update active class
         if (nodeTerminalId === terminalId) {
             node.classList.add('active');
         } else {
             node.classList.remove('active');
+        }
+
+        // Update tooltip - remove existing and add new if needed
+        const existingTooltip: Element | null = node.querySelector('.terminal-tab-shortcut-hint');
+        if (existingTooltip) {
+            existingTooltip.remove();
+        }
+
+        const hint: string | null = getShortcutHintForTab(tabIndex, activeIndex, totalTabs);
+        if (hint) {
+            const tooltipSpan: HTMLSpanElement = document.createElement('span');
+            tooltipSpan.className = 'terminal-tab-shortcut-hint';
+            tooltipSpan.textContent = hint;
+            // Insert before close button (last child)
+            const closeBtn: Element | null = node.querySelector('.terminal-tree-close');
+            if (closeBtn) {
+                node.insertBefore(tooltipSpan, closeBtn);
+            } else {
+                node.appendChild(tooltipSpan);
+            }
         }
     }
 }

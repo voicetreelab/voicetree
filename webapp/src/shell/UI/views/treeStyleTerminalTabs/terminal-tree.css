@@ -170,21 +170,19 @@
     50% { opacity: 0.6; transform: scale(0.8); }
 }
 
-/* Shortcut hint tooltip - appears to the right of vertical tabs */
+/* Shortcut hint tooltip - appears inline at end of tab on hover */
 .terminal-tab-shortcut-hint {
-    position: absolute;
-    right: -28px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 10px;
+    font-size: 9px;
     color: var(--muted-foreground);
     opacity: 0;
     transition: opacity 0.15s ease;
     white-space: nowrap;
     pointer-events: none;
-    padding: 2px 4px;
-    background: var(--tooltip-background, rgba(0,0,0,0.8));
-    border-radius: 3px;
+    padding: 1px 3px;
+    background: var(--accent);
+    border-radius: 2px;
+    margin-left: 4px;
+    flex-shrink: 0;
 }
 
 .terminal-tree-node:hover .terminal-tab-shortcut-hint {
