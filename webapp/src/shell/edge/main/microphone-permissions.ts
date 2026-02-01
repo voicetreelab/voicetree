@@ -44,11 +44,3 @@ export function openMicrophoneSettings(): void {
   }
   // Windows/Linux: No equivalent system settings page for mic permissions
 }
-
-/**
- * Check if this platform supports opening microphone settings.
- * Only macOS has a direct link to the microphone permission panel.
- */
-export function canOpenMicrophoneSettings(): boolean {
-  return process.platform === 'darwin';
-}

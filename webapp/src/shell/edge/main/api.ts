@@ -39,8 +39,7 @@ import {prettySetupAppForElectronDebugging} from './debug/prettySetupAppForElect
 import {
   checkMicrophonePermission,
   requestMicrophonePermission,
-  openMicrophoneSettings,
-  canOpenMicrophoneSettings
+  openMicrophoneSettings
 } from './microphone-permissions';
 import path from 'path';
 
@@ -163,5 +162,4 @@ export const mainAPI = {
   checkMicrophonePermission,
   requestMicrophonePermission,
   openMicrophoneSettings,
-  canOpenMicrophoneSettings,
 }

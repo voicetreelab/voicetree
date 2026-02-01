@@ -33,9 +33,6 @@ export default function VoiceTreeTranscribe(): JSX.Element {
   // Track microphone permission denied state
   const [micPermissionDenied, setMicPermissionDenied] = useState(false);
 
-  // Track if platform can open microphone settings (macOS only)
-  const [canOpenSettings, setCanOpenSettings] = useState(false);
-
   // Ref for vanilla TranscriptionDisplay mount point
   const displayContainerRef: RefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);
   const displayInstanceRef: RefObject<TranscriptionDisplay | null> = useRef<TranscriptionDisplay | null>(null);
@@ -66,13 +63,6 @@ export default function VoiceTreeTranscribe(): JSX.Element {
   // Prefetch Soniox API key on mount - fire and forget, key will be cached for when user clicks mic
   useEffect(() => {
     void prefetchAPIKey();
-  }, []);
-
-  // Check if platform can open microphone settings (macOS only)
-  useEffect(() => {
-    window.electronAPI?.main.canOpenMicrophoneSettings().then((canOpen: boolean) => {
-      setCanOpenSettings(canOpen);
-    }).catch(() => setCanOpenSettings(false));
   }, []);
 
   // Fetch backend port on mount
@@ -146,29 +136,7 @@ export default function VoiceTreeTranscribe(): JSX.Element {
     setMicPermissionDenied(false);
     resetTranscriptionStore();
     resetSender();
-
-    try {
-      await startTranscription();
-    } catch (err) {
-      // Catch getUserMedia failures (especially on Windows/Linux where Electron APIs return 'granted')
-      const errorName: string = err instanceof Error ? err.name : '';
-      const errorMessage: string = err instanceof Error ? err.message.toLowerCase() : '';
-
-      // Detect permission-related errors from getUserMedia
-      const isPermissionError: boolean =
-        errorName === 'NotAllowedError' ||
-        errorName === 'PermissionDeniedError' ||
-        errorMessage.includes('permission') ||
-        errorMessage.includes('not allowed') ||
-        errorMessage.includes('denied');
-
-      if (isPermissionError) {
-        setMicPermissionDenied(true);
-      } else {
-        // Re-throw non-permission errors to be handled by the existing error handler
-        throw err;
-      }
-    }
+    await startTranscription();
   };
 
   // Derive connecting state - orange for any transitional state (not idle, not running)
@@ -442,12 +410,14 @@ export default function VoiceTreeTranscribe(): JSX.Element {
                   <p className="text-amber-700 dark:text-amber-300 mt-1">
                     VoiceTree needs microphone access to transcribe your voice.
                   </p>
-                  <button
-                    onClick={() => window.electronAPI?.main.openMicrophoneSettings()}
-                    className="mt-2 text-amber-600 dark:text-amber-400 hover:underline font-medium cursor-pointer"
-                  >
-                    Open System Settings
-                  </button>
+                  {navigator.platform.includes('Mac') && (
+                    <button
+                      onClick={() => window.electronAPI?.main.openMicrophoneSettings()}
+                      className="mt-2 text-amber-600 dark:text-amber-400 hover:underline font-medium cursor-pointer"
+                    >
+                      Open System Settings →
+                    </button>
+                  )}
                 </div>
               )}
               {connectionError && (
