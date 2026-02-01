@@ -60,6 +60,7 @@
 
 /* Tree node */
 .terminal-tree-node {
+    position: relative;  /* For absolute positioned tooltip */
     display: flex;
     align-items: center;
     padding: 5px 8px;
@@ -167,4 +168,25 @@
 @keyframes activity-dot-pulse {
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.6; transform: scale(0.8); }
+}
+
+/* Shortcut hint tooltip - appears to the right of vertical tabs */
+.terminal-tab-shortcut-hint {
+    position: absolute;
+    right: -28px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 10px;
+    color: var(--muted-foreground);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    white-space: nowrap;
+    pointer-events: none;
+    padding: 2px 4px;
+    background: var(--tooltip-background, rgba(0,0,0,0.8));
+    border-radius: 3px;
+}
+
+.terminal-tree-node:hover .terminal-tab-shortcut-hint {
+    opacity: 1;
 }

@@ -19,9 +19,11 @@ import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import { getTerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
 import { buildTerminalTree, type TerminalTreeNode } from '@/pure/agentTabs/terminalTree';
+import { getShortcutHintForTab } from '@/pure/agentTabs';
 import {
     getActiveTerminalId,
     setActiveTerminalId,
+    getDisplayOrder,
 } from '@/shell/edge/UI-edge/state/AgentTabsStore';
 import { clearTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
 import {
@@ -148,9 +150,23 @@ export function renderTerminalTree(
     const treeNodes: TerminalTreeNode[] = buildTerminalTree(terminals);
     const activeTerminalId: TerminalId | null = getActiveTerminalId();
 
+    // Get display order for shortcut hints
+    const displayOrder: TerminalId[] = getDisplayOrder();
+    const activeIndex: number = activeTerminalId ? displayOrder.indexOf(activeTerminalId) : -1;
+    const totalTabs: number = displayOrder.length;
+
     // Create DOM nodes for each tree node
     for (const treeNode of treeNodes) {
-        const nodeElement: HTMLElement = createTreeNode(treeNode, activeTerminalId, onSelect);
+        const terminalId: TerminalId = getTerminalId(treeNode.terminal);
+        const tabIndex: number = displayOrder.indexOf(terminalId);
+        const nodeElement: HTMLElement = createTreeNode(
+            treeNode,
+            activeTerminalId,
+            onSelect,
+            tabIndex,
+            activeIndex,
+            totalTabs
+        );
         containerElement.appendChild(nodeElement);
     }
 
@@ -164,7 +180,10 @@ export function renderTerminalTree(
 function createTreeNode(
     treeNode: TerminalTreeNode,
     activeTerminalId: TerminalId | null,
-    onSelect: (terminal: TerminalData) => void
+    onSelect: (terminal: TerminalData) => void,
+    tabIndex: number,
+    activeIndex: number,
+    totalTabs: number
 ): HTMLElement {
     const { terminal, depth } = treeNode;
     const terminalId: TerminalId = getTerminalId(terminal);
@@ -188,6 +207,15 @@ function createTreeNode(
     title.className = 'terminal-tree-title';
     title.textContent = terminal.title;
     node.appendChild(title);
+
+    // Shortcut hint tooltip (shows ⌘[ or ⌘] on hover)
+    const hint: string | null = getShortcutHintForTab(tabIndex, activeIndex, totalTabs);
+    if (hint) {
+        const tooltipSpan: HTMLSpanElement = document.createElement('span');
+        tooltipSpan.className = 'terminal-tab-shortcut-hint';
+        tooltipSpan.textContent = hint;
+        node.appendChild(tooltipSpan);
+    }
 
     // Close button
     const closeBtn: HTMLButtonElement = document.createElement('button');
