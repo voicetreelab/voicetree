@@ -1,5 +1,5 @@
 #!/bin/bash
-# Complete build and package script for VoiceTree with Electron
+# Complete build and package script for Voicetree with Electron
 # This script builds the Python server and packages it with the Electron app
 #
 # Usage: ./build_and_package_all.sh [--publish]
@@ -13,13 +13,13 @@
 set -e  # Exit on error
 
 echo "=========================================="
-echo "VoiceTree Complete Build & Package Script"
+echo "Voicetree Complete Build & Package Script"
 echo "=========================================="
 echo ""
 
 # Check we're in the VoiceTree directory
 if [ ! -f "server.py" ]; then
-    echo "❌ Error: This script must be run from the VoiceTree root directory"
+    echo "❌ Error: This script must be run from the Voicetree root directory"
     exit 1
 fi
 
@@ -143,7 +143,7 @@ if [ -d "../../out/electron" ]; then
             echo "🎉 Distributable package ready:"
             echo "   $DMG_FILE"
             echo ""
-            echo "   This DMG contains the complete VoiceTree app with integrated server!"
+            echo "   This DMG contains the complete Voicetree app with integrated server!"
             echo "   Users can install it without needing Python or any dependencies."
         fi
     elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then

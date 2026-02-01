@@ -1,9 +1,9 @@
 #!/bin/bash
-# Build script for VoiceTree server executable using UV and PyInstaller
+# Build script for Voicetree server executable using UV and PyInstaller
 
 set -e  # Exit on error
 
-echo "Building VoiceTree Server Executable..."
+echo "Building Voicetree Server Executable..."
 echo "======================================="
 
 # Step 1: Create isolated UV environment

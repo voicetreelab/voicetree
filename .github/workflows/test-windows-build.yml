@@ -46,7 +46,7 @@ jobs:
       - name: Build Python server (Windows)
         shell: pwsh
         run: |
-          Write-Host "Building VoiceTree Server Executable (Windows)..."
+          Write-Host "Building Voicetree Server Executable (Windows)..."
           $specPath = Join-Path $PWD "scripts/server.spec"
           Write-Host "Spec file path: $specPath"
           Write-Host "Spec file exists: $(Test-Path $specPath)"

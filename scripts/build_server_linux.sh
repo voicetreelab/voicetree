@@ -1,10 +1,10 @@
 #!/bin/bash
-# Build script for VoiceTree server executable on Linux using UV and PyInstaller
+# Build script for Voicetree server executable on Linux using UV and PyInstaller
 # This is a Linux-specific version that skips macOS framework fixes
 
 set -e  # Exit on error
 
-echo "Building VoiceTree Server Executable (Linux)..."
+echo "Building Voicetree Server Executable (Linux)..."
 echo "================================================"
 
 # Ensure uv is in PATH (installed via astral.sh)

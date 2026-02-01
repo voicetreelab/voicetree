@@ -16,13 +16,13 @@ for arg in "$@"; do
 done
 
 echo "==============================================="
-echo "VoiceTree macOS Universal Build & Package Script"
+echo "Voicetree macOS Universal Build & Package Script"
 echo "==============================================="
 echo ""
 
 # Check we're in the VoiceTree directory
 if [ ! -f "server.py" ]; then
-    echo "Error: This script must be run from the VoiceTree root directory"
+    echo "Error: This script must be run from the Voicetree root directory"
     exit 1
 fi
 

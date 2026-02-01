@@ -1,5 +1,5 @@
 #!/bin/bash
-# Complete build and package script for VoiceTree with Electron (Linux x86_64)
+# Complete build and package script for Voicetree with Electron (Linux x86_64)
 # This script builds the Python server and packages it with the Electron app for Linux x64
 # Uses an isolated staging folder to avoid macOS node_modules symlink issues
 #
@@ -20,13 +20,13 @@ for arg in "$@"; do
 done
 
 echo "=========================================="
-echo "VoiceTree Linux x86_64 Build & Package Script"
+echo "Voicetree Linux x86_64 Build & Package Script"
 echo "=========================================="
 echo ""
 
 # Check we're in the VoiceTree directory
 if [ ! -f "server.py" ]; then
-    echo "Error: This script must be run from the VoiceTree root directory"
+    echo "Error: This script must be run from the Voicetree root directory"
     exit 1
 fi
 
@@ -165,7 +165,7 @@ if [ -d "out/electron-linux-x64" ]; then
         echo "Distributable package ready:"
         echo "   $APPIMAGE_FILE"
         echo ""
-        echo "   This AppImage contains the complete VoiceTree app with integrated server!"
+        echo "   This AppImage contains the complete Voicetree app with integrated server!"
         echo "   Users can run it directly without needing Python or any dependencies."
     fi
 fi

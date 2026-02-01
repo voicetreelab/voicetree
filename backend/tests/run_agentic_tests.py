@@ -11,7 +11,7 @@ from pathlib import Path
 def run_tests():
     """Run all agentic workflow tests"""
 
-    print("🚀 Running VoiceTree Agentic Workflow Tests")
+    print("🚀 Running Voicetree Agentic Workflow Tests")
     print("=" * 60)
 
     # Change to project root

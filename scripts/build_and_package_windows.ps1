@@ -1,4 +1,4 @@
-# Complete build and package script for VoiceTree with Electron (Windows)
+# Complete build and package script for Voicetree with Electron (Windows)
 # This script builds the Python server and packages it with the Electron app
 #
 # Usage: .\scripts\build_and_package_windows.ps1 [-Publish]
@@ -11,13 +11,13 @@ param(
 $ErrorActionPreference = "Stop"
 
 Write-Host "=========================================="
-Write-Host "VoiceTree Complete Build & Package Script (Windows)"
+Write-Host "Voicetree Complete Build & Package Script (Windows)"
 Write-Host "=========================================="
 Write-Host ""
 
 # Check we're in the VoiceTree directory
 if (-not (Test-Path "server.py")) {
-    Write-Host "Error: This script must be run from the VoiceTree root directory" -ForegroundColor Red
+    Write-Host "Error: This script must be run from the Voicetree root directory" -ForegroundColor Red
     exit 1
 }
 
@@ -146,7 +146,7 @@ try {
             Write-Host "Distributable package ready:" -ForegroundColor Green
             Write-Host "   $($ExeFile.FullName)"
             Write-Host ""
-            Write-Host "   This installer contains the complete VoiceTree app with integrated server!"
+            Write-Host "   This installer contains the complete Voicetree app with integrated server!"
             Write-Host "   Users can install it without needing Python or any dependencies."
         }
     }

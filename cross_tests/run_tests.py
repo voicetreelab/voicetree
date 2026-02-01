@@ -16,7 +16,7 @@ def main():
     parent_dir = os.path.dirname(voicetree_dir)
     os.chdir(parent_dir)
 
-    print("Running VoiceTree Frontend-Backend Integration Tests...")
+    print("Running Voicetree Frontend-Backend Integration Tests...")
     print(f"Working directory: {os.getcwd()}")
 
     # Try to run tests with available pytest
