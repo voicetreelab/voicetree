@@ -141,16 +141,24 @@ export class TerminalVanilla {
       this.resizeFrameId = requestAnimationFrame(() => {
         if (!this.term || !this.fitAddon) return;
 
-        // Skip fit during active zoom or pending dimension update - handled by terminalZoomSettleEdge
         const windowElement: HTMLElement | null = this.container.closest('.cy-floating-window') as HTMLElement | null;
-        if (isZoomActive() || windowElement?.dataset.pendingDimensionUpdate === 'true') {
+        const zoomActive: boolean = isZoomActive();
+        const pendingUpdate: boolean = windowElement?.dataset.pendingDimensionUpdate === 'true';
+
+        // Always update fontSize to match current strategy
+        // During css-transform: base font (CSS scale handles visual)
+        // During dimension-scaling: base × zoom (matches perceived size)
+        const zoom: number = getCachedZoom();
+        // Use actual strategy from window element (accounts for forced css-transform during zoom)
+        const usingCssTransform: boolean = windowElement?.dataset.usingCssTransform === 'true';
+        const strategy: 'css-transform' | 'dimension-scaling' = usingCssTransform ? 'css-transform' : 'dimension-scaling';
+        this.term.options.fontSize = getTerminalFontSize(zoom, strategy);
+
+        // Skip fit during active zoom or pending dimension update
+        // fit() recalculates cols/rows which can cause content reflow
+        if (zoomActive || pendingUpdate) {
           return;
         }
-
-        // Update fontSize based on current zoom level
-        const zoom: number = getCachedZoom();
-        const strategy: 'css-transform' | 'dimension-scaling' = getScalingStrategy('Terminal', zoom);
-        this.term.options.fontSize = getTerminalFontSize(zoom, strategy);
 
         // Save scroll position before fit (fit changes row count which can reset scroll)
         const scrollOffset: number = getScrollOffset(this.term.buffer.active);

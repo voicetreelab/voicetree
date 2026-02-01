@@ -142,9 +142,12 @@ export function screenToGraphDimensions(
  */
 export function getTerminalFontSize(zoom: number, strategy: ScalingStrategy): number {
     if (strategy === 'css-transform') {
+        // CSS transform handles visual scaling, use base font
         return TERMINAL_BASE_FONT_SIZE;
     }
-    return Math.round(TERMINAL_BASE_FONT_SIZE * zoom);
+    // Dimension-scaling: font must match perceived size (base × zoom)
+    // No rounding - must exactly match CSS transform visual to avoid jump
+    return TERMINAL_BASE_FONT_SIZE * zoom;
 }
 
 // =============================================================================
