@@ -46,12 +46,7 @@ import {
     type LoadVaultPathResult,
 } from "./vault-allowlist";
 import { setupWatcher } from "./file-watcher-setup";
-import { createStarterNode } from "./create-starter-node";
-import { getGraph } from "@/shell/edge/main/state/graph-store";
-import type { Graph, GraphDelta } from "@/pure/graph";
 import { createEmptyGraph } from "@/pure/graph/createGraph";
-import { broadcastGraphDeltaToUI } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI";
-import { notifyTextToTreeServerOfDirectory } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/notifyTextToTreeServerOfDirectory";
 
 // Re-export vault-allowlist functions for api.ts and tests
 export {
@@ -201,11 +196,8 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
     // Clear graph in memory before loading paths
     setGraph(createEmptyGraph());
 
-    // Load write path first (pure computation)
-    let currentGraph: Graph = getGraph();
-    const writeResult: LoadVaultPathResult =
-        await loadAndMergeVaultPath(config.writePath, currentGraph, watchedFolderPath, { isWritePath: true });
-
+    // Load write path first (handles all side effects internally)
+    const writeResult: LoadVaultPathResult = await loadAndMergeVaultPath(config.writePath, { isWritePath: true });
     if (!writeResult.success) {
         // Check for file limit exceeded error
         if (writeResult.error?.includes('File limit exceeded')) {
@@ -221,37 +213,9 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
         return { success: false };
     }
 
-    // Handle starter node creation for empty write paths
-    let finalGraph: Graph = writeResult.graph;
-    let accumulatedDelta: GraphDelta = writeResult.delta;
-
-    if (writeResult.pathIsEmpty) {
-        const starterGraph: Graph = await createStarterNode(config.writePath);
-        finalGraph = { ...finalGraph, nodes: { ...finalGraph.nodes, ...starterGraph.nodes } };
-        const starterNodeId: string = Object.keys(starterGraph.nodes)[0];
-        if (starterNodeId) {
-            accumulatedDelta = [...accumulatedDelta, {
-                type: 'CreateNode' as const,
-                nodeId: starterNodeId,
-                createdNode: starterGraph.nodes[starterNodeId]
-            }];
-        }
-    }
-
-    // Commit write path side effects
-    setGraph(finalGraph);
-    if (accumulatedDelta.length > 0) {
-        broadcastGraphDeltaToUI(accumulatedDelta);
-    }
-    if (writeResult.shouldNotifyBackend) {
-        notifyTextToTreeServerOfDirectory(config.writePath);
-    }
-
-    // Load read paths (no starter nodes, no backend notification)
+    // Load read paths (handles all side effects internally)
     for (const readPath of config.readPaths) {
-        currentGraph = getGraph(); // Get latest graph state
-        const readResult: LoadVaultPathResult =
-            await loadAndMergeVaultPath(readPath, currentGraph, watchedFolderPath, { isWritePath: false });
+        const readResult: LoadVaultPathResult = await loadAndMergeVaultPath(readPath, { isWritePath: false });
         if (!readResult.success) {
             // Check for file limit exceeded error
             if (readResult.error?.includes('File limit exceeded')) {
@@ -267,11 +231,6 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
             // Log but continue with remaining paths for non-fatal errors
             console.warn(`[loadFolder] Failed to load read path ${readPath}: ${readResult.error}`);
             continue;
-        }
-        // Commit read path side effects (no starter node, no backend notification)
-        setGraph(readResult.graph);
-        if (readResult.delta.length > 0) {
-            broadcastGraphDeltaToUI(readResult.delta);
         }
     }
 
@@ -322,39 +281,11 @@ async function createNewWorkspaceOnFileLimitExceeded(
     // Clear graph before loading new workspace
     setGraph(createEmptyGraph());
 
-    // Load from the new subfolder (empty initially) - pure computation
-    const currentGraph: Graph = getGraph();
-    const writeResult: LoadVaultPathResult =
-        await loadAndMergeVaultPath(newSubfolderPath, currentGraph, watchedFolderPath, { isWritePath: true });
+    // Load from the new subfolder (handles all side effects internally, including starter node)
+    const writeResult: LoadVaultPathResult = await loadAndMergeVaultPath(newSubfolderPath, { isWritePath: true });
     if (!writeResult.success) {
         // Should not happen with empty folder, but handle gracefully
         return { success: false };
-    }
-
-    // Handle starter node creation for the empty new workspace
-    let finalGraph: Graph = writeResult.graph;
-    let finalDelta: GraphDelta = writeResult.delta;
-
-    if (writeResult.pathIsEmpty) {
-        const starterGraph: Graph = await createStarterNode(newSubfolderPath);
-        finalGraph = { ...finalGraph, nodes: { ...finalGraph.nodes, ...starterGraph.nodes } };
-        const starterNodeId: string = Object.keys(starterGraph.nodes)[0];
-        if (starterNodeId) {
-            finalDelta = [...finalDelta, {
-                type: 'CreateNode' as const,
-                nodeId: starterNodeId,
-                createdNode: starterGraph.nodes[starterNodeId]
-            }];
-        }
-    }
-
-    // Commit side effects
-    setGraph(finalGraph);
-    if (finalDelta.length > 0) {
-        broadcastGraphDeltaToUI(finalDelta);
-    }
-    if (writeResult.shouldNotifyBackend) {
-        notifyTextToTreeServerOfDirectory(newSubfolderPath);
     }
 
     // Setup file watcher for the new workspace
