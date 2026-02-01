@@ -131,9 +131,13 @@ export class TerminalVanilla {
       }
     });
 
-    // Set up ResizeObserver for container resize with scroll preservation
-    // Runs synchronously - ResizeObserver fires during browser's layout phase (before paint)
-    // and already batches multiple resize events. No RAF needed; it would add 1-frame delay.
+    // Set up ResizeObserver for container resize with scroll preservation.
+    // IMPORTANT: Runs synchronously (no RAF wrapper). ResizeObserver fires during the browser's
+    // layout phase (before paint) and already batches multiple resize events into one callback.
+    // Previously, wrapping in requestAnimationFrame caused a 1-frame visual flicker during zoom
+    // settle: the container would update in frame N, but the terminal font/fit in frame N+1,
+    // causing a momentary size mismatch and scrollbar flash. Running synchronously ensures
+    // both container and terminal update in the same paint frame.
     this.resizeObserver = new ResizeObserver(() => {
       if (!this.term || !this.fitAddon) return;
 

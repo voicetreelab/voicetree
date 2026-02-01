@@ -50,25 +50,12 @@ export interface LoadVaultPathOptions {
 }
 
 /**
- * Result of loading a vault path - returns computed state for callers to commit.
- * This follows the project's functional philosophy of pushing side effects to the edge.
+ * Simple result type for impure edge functions.
  */
-export type LoadVaultPathResult =
-  | {
-      success: true;
-      /** The computed graph after loading (caller should call setGraph) */
-      graph: Graph;
-      /** The delta representing changes (caller should call broadcastGraphDeltaToUI) */
-      delta: GraphDelta;
-      /** Whether backend should be notified (caller should call notifyTextToTreeServerOfDirectory) */
-      shouldNotifyBackend: boolean;
-      /** Whether the path had no nodes after loading (caller may want to create starter node) */
-      pathIsEmpty: boolean;
-    }
-  | {
-      success: false;
-      error: string;
-    };
+export type LoadVaultPathResult = {
+    success: boolean;
+    error?: string;
+};
 
 /**
  * Resolve a writePath to an absolute path with normalized separators.
@@ -134,29 +121,29 @@ export async function getWritePath(): Promise<O.Option<FilePath>> {
 /**
  * Load files from a vault path and merge into the existing graph.
  *
- * PURE FUNCTION: Returns computed state for callers to commit side effects.
- * Shared helper for setWritePath, addReadPath, and loadFolder.
+ * IMPURE EDGE FUNCTION: Handles all side effects internally.
+ * Shared by setWritePath, addReadPath, loadFolder, and createNewWorkspaceOnFileLimitExceeded.
  *
- * Handles: load, error check, wikilink resolution.
- * Does NOT: mutate global state (setGraph), broadcast to UI, or notify backend.
- *
- * Callers are responsible for:
- * - Calling setGraph(result.graph)
- * - Calling broadcastGraphDeltaToUI(result.delta)
- * - Conditionally calling notifyTextToTreeServerOfDirectory() based on shouldNotifyBackend
- * - Creating starter node if pathIsEmpty && isWritePath
+ * Handles internally:
+ * - Reads current graph from global state (getGraph)
+ * - Reads project root from global state (getProjectRootWatchedDirectory)
+ * - Loads files and resolves wikilinks
+ * - Creates starter node for empty write paths
+ * - Commits to graph store (setGraph)
+ * - Broadcasts to UI (broadcastGraphDeltaToUI)
+ * - Notifies backend for write paths (notifyTextToTreeServerOfDirectory)
  *
  * @param vaultPath - The path to load
- * @param existingGraph - The current graph state (dependency injection)
- * @param watchedFolderPath - The project root for wikilink resolution (dependency injection)
  * @param options - Loading options including isWritePath flag
  */
 export async function loadAndMergeVaultPath(
     vaultPath: FilePath,
-    existingGraph: Graph,
-    watchedFolderPath: FilePath | null,
     options: LoadVaultPathOptions = { isWritePath: false }
 ): Promise<LoadVaultPathResult> {
+    // Read dependencies from global state (impure edge)
+    const existingGraph: Graph = getGraph();
+    const watchedFolderPath: FilePath | null = getProjectRootWatchedDirectory();
+
     const loadResult: E.Either<FileLimitExceededError, { graph: Graph; delta: GraphDelta }> =
         await loadVaultPathAdditively(vaultPath, existingGraph);
 
@@ -170,13 +157,7 @@ export async function loadAndMergeVaultPath(
     let currentGraph: Graph = loadResult.right.graph;
     let accumulatedDelta: GraphDelta = loadResult.right.delta;
 
-    // Check if path is empty (caller may want to create starter node for write paths)
-    const nodesInPath: readonly string[] = Object.keys(currentGraph.nodes).filter(nodeId =>
-        nodeId.startsWith(vaultPath + '/') || nodeId === vaultPath
-    );
-    const pathIsEmpty: boolean = nodesInPath.length === 0;
-
-    // Resolve wikilinks for loaded files (pure computation)
+    // Resolve wikilinks for loaded files
     if (watchedFolderPath) {
         const resolutionDelta: GraphDelta = await resolveLinkedNodesInWatchedFolder(currentGraph, watchedFolderPath);
         if (resolutionDelta.length > 0) {
@@ -185,13 +166,35 @@ export async function loadAndMergeVaultPath(
         }
     }
 
-    return {
-        success: true,
-        graph: currentGraph,
-        delta: accumulatedDelta,
-        shouldNotifyBackend: options.isWritePath,
-        pathIsEmpty
-    };
+    // Handle starter node creation for empty write paths
+    if (options.isWritePath) {
+        const nodesInPath: readonly string[] = Object.keys(currentGraph.nodes).filter(nodeId =>
+            nodeId.startsWith(vaultPath + '/') || nodeId === vaultPath
+        );
+        if (nodesInPath.length === 0) {
+            const starterGraph: Graph = await createStarterNode(vaultPath);
+            currentGraph = { ...currentGraph, nodes: { ...currentGraph.nodes, ...starterGraph.nodes } };
+            const starterNodeId: string = Object.keys(starterGraph.nodes)[0];
+            if (starterNodeId) {
+                accumulatedDelta = [...accumulatedDelta, {
+                    type: 'CreateNode' as const,
+                    nodeId: starterNodeId,
+                    createdNode: starterGraph.nodes[starterNodeId]
+                }];
+            }
+        }
+    }
+
+    // Commit side effects (impure - this is the edge)
+    setGraph(currentGraph);
+    if (accumulatedDelta.length > 0) {
+        broadcastGraphDeltaToUI(accumulatedDelta);
+    }
+    if (options.isWritePath) {
+        notifyTextToTreeServerOfDirectory(vaultPath);
+    }
+
+    return { success: true };
 }
 
 /**
@@ -207,42 +210,11 @@ export async function setWritePath(vaultPath: FilePath): Promise<{ success: bool
     }
 
     const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
-    const existingGraph: Graph = getGraph();
 
-    // Fully load all nodes from the new write path FIRST (pure computation)
-    const loadResult: LoadVaultPathResult =
-        await loadAndMergeVaultPath(vaultPath, existingGraph, watchedDir, { isWritePath: true });
-
-    if (!loadResult.success) {
-        return { success: false, error: loadResult.error };
-    }
-
-    // Handle starter node creation for empty write paths
-    let finalGraph: Graph = loadResult.graph;
-    let finalDelta: GraphDelta = loadResult.delta;
-
-    if (loadResult.pathIsEmpty) {
-        const starterGraph: Graph = await createStarterNode(vaultPath);
-        finalGraph = { ...finalGraph, nodes: { ...finalGraph.nodes, ...starterGraph.nodes } };
-        const starterNodeId: string = Object.keys(starterGraph.nodes)[0];
-        if (starterNodeId) {
-            finalDelta = [...finalDelta, {
-                type: 'CreateNode' as const,
-                nodeId: starterNodeId,
-                createdNode: starterGraph.nodes[starterNodeId]
-            }];
-        }
-    }
-
-    // Commit side effects at the shell edge
-    if (finalDelta.length > 0) {
-        setGraph(finalGraph);
-        broadcastGraphDeltaToUI(finalDelta);
-    }
-
-    // Notify backend for write paths
-    if (loadResult.shouldNotifyBackend) {
-        notifyTextToTreeServerOfDirectory(vaultPath);
+    // Load and merge handles everything: graph state, UI broadcast, backend notification, starter node
+    const result: LoadVaultPathResult = await loadAndMergeVaultPath(vaultPath, { isWritePath: true });
+    if (!result.success) {
+        return result;
     }
 
     // Save to config only AFTER successful load (atomic operation)
@@ -290,24 +262,12 @@ export async function addReadPath(vaultPath: FilePath): Promise<{ success: boole
         return { success: false, error: `Failed to create directory: ${err instanceof Error ? err.message : 'Unknown error'}` };
     }
 
-    const existingGraph: Graph = getGraph();
-
-    // Load ALL files from the new path immediately (not lazy) - pure computation
-    // Do this BEFORE saving config or adding to watcher (atomic operation)
-    const loadResult: LoadVaultPathResult =
-        await loadAndMergeVaultPath(vaultPath, existingGraph, watchedDir, { isWritePath: false });
-
-    if (!loadResult.success) {
-        return { success: false, error: loadResult.error };
+    // Load and merge handles everything: graph state, UI broadcast
+    // Note: isWritePath: false means no starter node and no backend notification
+    const result: LoadVaultPathResult = await loadAndMergeVaultPath(vaultPath, { isWritePath: false });
+    if (!result.success) {
+        return result;
     }
-
-    // Commit side effects at the shell edge
-    // Note: No starter node creation for read paths (pathIsEmpty check not needed)
-    if (loadResult.delta.length > 0) {
-        setGraph(loadResult.graph);
-        broadcastGraphDeltaToUI(loadResult.delta);
-    }
-    // Note: shouldNotifyBackend is false for read paths, so no backend notification
 
     // Only save config and add to watcher AFTER successful load
     const newReadPaths: readonly string[] = [...currentReadPaths, vaultPath];
