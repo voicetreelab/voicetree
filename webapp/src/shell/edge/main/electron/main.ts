@@ -22,7 +22,17 @@ import {getGraph} from '@/shell/edge/main/state/graph-store';
 import {startMcpServer} from '@/shell/edge/main/mcp-server/mcp-server';
 import {cleanupOrphanedContextNodes} from '@/shell/edge/main/saveNodePositions';
 import {setOnFolderSwitchCleanup, setStartupFolderOverride} from "@/shell/edge/main/state/watch-folder-store";
-import {startMonitoring as startTrackpadMonitoring, stopMonitoring as stopTrackpadMonitoring, isTrackpadScroll} from 'electron-trackpad-detect';
+// Conditionally load trackpad detection (macOS only, optional dependency)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let trackpadDetect: { startMonitoring: () => boolean; stopMonitoring: () => void; isTrackpadScroll: () => boolean } | null = null;
+if (process.platform === 'darwin') {
+    try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        trackpadDetect = require('electron-trackpad-detect');
+    } catch {
+        console.warn('[Main] electron-trackpad-detect not available');
+    }
+}
 
 // Redirect all console.* to electron-log in production (handles EPIPE errors on Linux AppImage)
 // Writes asynchronously to ~/Library/Logs/Voicetree/ (macOS) or ~/.config/Voicetree/logs/ (Linux)
@@ -307,9 +317,9 @@ function createWindow(): void {
 
     // Trackpad detection using native addon (macOS only)
     // Uses NSEvent.hasPreciseScrollingDeltas - the authoritative signal for trackpad vs mouse
-    if (process.platform === 'darwin') {
+    if (trackpadDetect) {
         // Start monitoring scroll events for trackpad detection
-        const monitoringStarted: boolean = startTrackpadMonitoring();
+        const monitoringStarted: boolean = trackpadDetect.startMonitoring();
         if (monitoringStarted) {
             console.log('[Main] Trackpad scroll detection enabled');
         }
@@ -319,7 +329,7 @@ function createWindow(): void {
             if (input.type === 'mouseWheel') {
                 // Query the native addon for whether this was a trackpad scroll
                 // The addon monitors NSEvent and stores the hasPreciseScrollingDeltas value
-                const isTrackpad: boolean = isTrackpadScroll();
+                const isTrackpad: boolean = trackpadDetect!.isTrackpadScroll();
                 uiAPI.setIsTrackpadScrolling(isTrackpad);
             }
         });
@@ -432,8 +442,8 @@ app.on('before-quit', () => {
     stopNotificationScheduler();
 
     // Stop trackpad monitoring
-    if (process.platform === 'darwin') {
-        stopTrackpadMonitoring();
+    if (trackpadDetect) {
+        trackpadDetect.stopMonitoring();
     }
 });
 

@@ -29,7 +29,8 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: path.resolve(__dirname, 'src/shell/edge/main/electron/main.ts')
-        }
+        },
+        external: ['electron-trackpad-detect']
       }
     }
   },
