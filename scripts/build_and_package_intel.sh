@@ -1,5 +1,5 @@
 #!/bin/bash
-# Complete build and package script for VoiceTree Intel (x86_64) on Apple Silicon
+# Complete build and package script for Voicetree Intel (x86_64) on Apple Silicon
 # This script builds the Python server and packages it with the Electron app for Intel Macs
 #
 # Usage: ./build_and_package_intel.sh [--publish]
@@ -19,13 +19,13 @@ for arg in "$@"; do
 done
 
 echo "=================================================="
-echo "VoiceTree Intel (x86_64) Build & Package Script"
+echo "Voicetree Intel (x86_64) Build & Package Script"
 echo "=================================================="
 echo ""
 
 # Check we're in the VoiceTree directory
 if [ ! -f "server.py" ]; then
-    echo "Error: This script must be run from the VoiceTree root directory"
+    echo "Error: This script must be run from the Voicetree root directory"
     exit 1
 fi
 

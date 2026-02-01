@@ -1,10 +1,10 @@
 #!/bin/bash
-# Build script for VoiceTree server executable on Linux x86_64 using UV and PyInstaller
+# Build script for Voicetree server executable on Linux x86_64 using UV and PyInstaller
 # This is a Linux x64-specific version that skips macOS framework fixes
 
 set -e  # Exit on error
 
-echo "Building VoiceTree Server Executable (Linux x86_64)..."
+echo "Building Voicetree Server Executable (Linux x86_64)..."
 echo "======================================================="
 
 # Ensure uv is in PATH (installed via astral.sh)

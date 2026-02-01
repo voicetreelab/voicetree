@@ -1,6 +1,6 @@
 #!/bin/bash
-# VoiceTree Linux installer
-# Downloads and installs the latest VoiceTree AppImage for your architecture
+# Voicetree Linux installer
+# Downloads and installs the latest Voicetree AppImage for your architecture
 #
 # Usage: curl -fsSL https://raw.githubusercontent.com/voicetreelab/voicetree-releases/main/scripts/install-linux.sh | bash
 
@@ -28,16 +28,16 @@ if [ -z "$VERSION" ]; then
 fi
 
 # Download AppImage
-FILENAME="VoiceTree-${VERSION}${ARCH_SUFFIX}.AppImage"
+FILENAME="Voicetree-${VERSION}${ARCH_SUFFIX}.AppImage"
 URL="https://github.com/$REPO/releases/download/$LATEST/$FILENAME"
 
-echo "Downloading VoiceTree $VERSION for $ARCH..."
+echo "Downloading Voicetree $VERSION for $ARCH..."
 mkdir -p "$INSTALL_DIR"
 curl -fsSL "$URL" -o "$INSTALL_DIR/voicetree"
 chmod +x "$INSTALL_DIR/voicetree"
 
 echo ""
-echo "VoiceTree installed to $INSTALL_DIR/voicetree"
+echo "Voicetree installed to $INSTALL_DIR/voicetree"
 echo "Run with: voicetree"
 
 # Check PATH

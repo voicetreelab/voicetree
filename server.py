@@ -86,7 +86,7 @@ force_flush_next_processing_iteration: bool = False  # Flag to trigger force flu
 AUTO_FLUSH_INACTIVITY_SECONDS = 15.0  # Flush buffer after this many seconds of inactivity
 
 # FastAPI app setup
-app = FastAPI(title="VoiceTree Server", description="API for processing text into VoiceTree")
+app = FastAPI(title="Voicetree Server", description="API for processing text into Voicetree")
 
 # SSE event queue for streaming progress updates
 sse_event_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
@@ -195,8 +195,8 @@ async def buffer_processing_loop():
 async def startup_event():
     """Start the background buffer processing loop"""
     asyncio.create_task(buffer_processing_loop())
-    logger.info("VoiceTree server started with background processing")
-    print("VoiceTree server started - background processing loop is running")
+    logger.info("Voicetree server started with background processing")
+    print("Voicetree server started - background processing loop is running")
 
 
 # Add CORS middleware for web frontend

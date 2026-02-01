@@ -155,7 +155,7 @@ async def main():
 
 if __name__ == "__main__":
     print("\n" + "="*60)
-    print("VoiceTree Orphan Connection Tool")
+    print("Voicetree Orphan Connection Tool")
     print("="*60)
     print("\nUsage: python apply_orphan_connection.py [tree_path] [output_path]")
     print("Default tree_path: backend/benchmarker/output_backups/user_guide_qa_audio_processing")

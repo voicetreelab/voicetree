@@ -1,5 +1,5 @@
 #!/bin/bash
-# Complete build and package script for VoiceTree - ALL PLATFORMS
+# Complete build and package script for Voicetree - ALL PLATFORMS
 # Builds macOS universal (arm64 + x86_64), Linux ARM64, and Linux x86_64.
 #
 # Usage: ./build_and_package_all_platforms.sh [--publish]
@@ -29,7 +29,7 @@ for arg in "$@"; do
 done
 
 echo "============================================================"
-echo "VoiceTree Multi-Platform Build & Package Script"
+echo "Voicetree Multi-Platform Build & Package Script"
 echo "============================================================"
 echo ""
 echo "Build targets:"
@@ -42,7 +42,7 @@ echo ""
 
 # Check we're in the VoiceTree directory
 if [ ! -f "server.py" ]; then
-    echo "Error: This script must be run from the VoiceTree root directory"
+    echo "Error: This script must be run from the Voicetree root directory"
     exit 1
 fi
 
@@ -302,16 +302,16 @@ cask "voicetree" do
     url "https://github.com/voicetreelab/voicetree/releases/download/v#{version}/voicetree-x64.dmg"
   end
 
-  name "VoiceTree"
+  name "Voicetree"
   desc "Transform voice into navigable concept graphs"
   homepage "https://github.com/voicetreelab/voicetree"
 
   depends_on macos: ">= :monterey"
 
-  app "VoiceTree.app"
+  app "Voicetree.app"
 
   postflight do
-    system_command "open", args: [appdir/"VoiceTree.app"]
+    system_command "/usr/bin/open", args: ["#{appdir}/Voicetree.app"]
   end
 
   zap trash: [
@@ -323,7 +323,7 @@ CASK_EOF
 
     cd "$TEMP_TAP"
     git add -A
-    git commit -m "Update VoiceTree to v$VERSION (multi-arch)" || echo "No changes to commit"
+    git commit -m "Update Voicetree to v$VERSION (multi-arch)" || echo "No changes to commit"
     git push
     cd -
     rm -rf "$TEMP_TAP"

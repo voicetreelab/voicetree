@@ -1,9 +1,9 @@
-# Build script for VoiceTree server executable using UV and PyInstaller (Windows)
+# Build script for Voicetree server executable using UV and PyInstaller (Windows)
 # Usage: .\scripts\build_server_windows.ps1
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "Building VoiceTree Server Executable (Windows)..."
+Write-Host "Building Voicetree Server Executable (Windows)..."
 Write-Host "=================================================="
 
 # Step 1: Create isolated UV environment

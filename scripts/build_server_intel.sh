@@ -1,10 +1,10 @@
 #!/bin/bash
-# Build script for VoiceTree server executable for Intel (x86_64) on Apple Silicon
+# Build script for Voicetree server executable for Intel (x86_64) on Apple Silicon
 # This runs under Rosetta 2 to produce an Intel-compatible binary
 
 set -e  # Exit on error
 
-echo "Building VoiceTree Server Executable (Intel x86_64)..."
+echo "Building Voicetree Server Executable (Intel x86_64)..."
 echo "======================================================="
 
 # Check if running on Apple Silicon

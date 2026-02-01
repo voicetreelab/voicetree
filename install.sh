@@ -31,7 +31,7 @@ esac
 # Download AppImage
 URL="https://github.com/$REPO/releases/latest/download/voicetree.AppImage"
 
-info "Downloading VoiceTree..."
+info "Downloading Voicetree..."
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
 
@@ -54,5 +54,5 @@ case ":$PATH:" in
         ;;
 esac
 
-success "VoiceTree installed successfully!"
+success "Voicetree installed successfully!"
 echo "Run with: voicetree"

@@ -431,14 +431,14 @@ jobs:
               url "https://github.com/voicetreelab/voicetree/releases/download/v#{version}/voicetree-x64.dmg"
             end
 
-            name "VoiceTree"
+            name "Voicetree"
             desc "Transform voice into navigable concept graphs"
             homepage "https://github.com/voicetreelab/voicetree"
             depends_on macos: ">= :monterey"
-            app "VoiceTree.app"
+            app "Voicetree.app"
 
             postflight do
-              system_command "open", args: [appdir/"VoiceTree.app"]
+              system_command "/usr/bin/open", args: ["#{appdir}/Voicetree.app"]
             end
 
             zap trash: [
@@ -452,6 +452,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "Update VoiceTree to v$VERSION" || echo "No changes"
+          git commit -m "Update Voicetree to v$VERSION" || echo "No changes"
           git push
 
