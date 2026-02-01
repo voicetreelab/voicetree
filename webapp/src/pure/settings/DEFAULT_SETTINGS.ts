@@ -72,6 +72,10 @@ Highest priority task: `,
         {
             name: 'Rovodev',
             command: `acli rovodev run "${AGENT_PROMPT_VAR}"`,
+        },
+        {
+            name: 'Opencode',
+            command: `opencode --prompt "${AGENT_PROMPT_VAR}"`
         }
     ],
     shiftEnterSendsOptionEnter: true,
