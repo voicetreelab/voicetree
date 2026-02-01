@@ -4,7 +4,7 @@
   "description": "Transform voice into navigable concept graphs",
   "author": "Manu Masson",
   "private": true,
-  "version": "2.4.6",
+  "version": "2.4.7",
   "type": "module",
   "main": "dist-electron/main/index.js",
   "scripts": {
@@ -31,8 +31,10 @@
     "electron:dist-and-publish": "export $(cat .env | grep -v '^#' | xargs) && electron-vite build && electron-builder --mac --publish=always",
     "mcp": "npx tsx src/shell/edge/main/mcp-server/index.ts"
   },
+  "optionalDependencies": {
+    "electron-trackpad-detect": "file:native-modules/electron-trackpad-detect"
+  },
   "dependencies": {
-    "electron-trackpad-detect": "file:native-modules/electron-trackpad-detect",
     "@codemirror/autocomplete": "^6.20.0",
     "@codemirror/commands": "^6.10.0",
     "@codemirror/lang-java": "^6.0.2",
