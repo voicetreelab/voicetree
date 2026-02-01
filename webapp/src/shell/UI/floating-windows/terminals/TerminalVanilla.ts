@@ -27,7 +27,6 @@ export class TerminalVanilla {
   private container: HTMLElement;
   private terminalData: TerminalData;
   private resizeObserver: ResizeObserver | null = null;
-  private resizeFrameId: number | null = null;
   private suppressNextEnter: boolean = false;
   private shiftEnterSendsOptionEnter: boolean = true;
   private zoomEndUnsubscribe: (() => void) | null = null;
@@ -133,43 +132,39 @@ export class TerminalVanilla {
     });
 
     // Set up ResizeObserver for container resize with scroll preservation
-    // Uses requestAnimationFrame to sync with browser paint cycle
+    // Runs synchronously - ResizeObserver fires during browser's layout phase (before paint)
+    // and already batches multiple resize events. No RAF needed; it would add 1-frame delay.
     this.resizeObserver = new ResizeObserver(() => {
-      if (this.resizeFrameId !== null) {
-        cancelAnimationFrame(this.resizeFrameId);
+      if (!this.term || !this.fitAddon) return;
+
+      const windowElement: HTMLElement | null = this.container.closest('.cy-floating-window') as HTMLElement | null;
+      const zoomActive: boolean = isZoomActive();
+      const pendingUpdate: boolean = windowElement?.dataset.pendingDimensionUpdate === 'true';
+
+      // Always update fontSize to match current strategy
+      // During css-transform: base font (CSS scale handles visual)
+      // During dimension-scaling: base × zoom (matches perceived size)
+      const zoom: number = getCachedZoom();
+      // Use actual strategy from window element (accounts for forced css-transform during zoom)
+      const usingCssTransform: boolean = windowElement?.dataset.usingCssTransform === 'true';
+      const strategy: 'css-transform' | 'dimension-scaling' = usingCssTransform ? 'css-transform' : 'dimension-scaling';
+      this.term.options.fontSize = getTerminalFontSize(zoom, strategy);
+
+      // Skip fit during active zoom or pending dimension update
+      // fit() recalculates cols/rows which can cause content reflow
+      if (zoomActive || pendingUpdate) {
+        return;
       }
-      this.resizeFrameId = requestAnimationFrame(() => {
-        if (!this.term || !this.fitAddon) return;
 
-        const windowElement: HTMLElement | null = this.container.closest('.cy-floating-window') as HTMLElement | null;
-        const zoomActive: boolean = isZoomActive();
-        const pendingUpdate: boolean = windowElement?.dataset.pendingDimensionUpdate === 'true';
+      // Save scroll position before fit (fit changes row count which can reset scroll)
+      const scrollOffset: number = getScrollOffset(this.term.buffer.active);
 
-        // Always update fontSize to match current strategy
-        // During css-transform: base font (CSS scale handles visual)
-        // During dimension-scaling: base × zoom (matches perceived size)
-        const zoom: number = getCachedZoom();
-        // Use actual strategy from window element (accounts for forced css-transform during zoom)
-        const usingCssTransform: boolean = windowElement?.dataset.usingCssTransform === 'true';
-        const strategy: 'css-transform' | 'dimension-scaling' = usingCssTransform ? 'css-transform' : 'dimension-scaling';
-        this.term.options.fontSize = getTerminalFontSize(zoom, strategy);
+      this.fitAddon.fit();
 
-        // Skip fit during active zoom or pending dimension update
-        // fit() recalculates cols/rows which can cause content reflow
-        if (zoomActive || pendingUpdate) {
-          return;
-        }
-
-        // Save scroll position before fit (fit changes row count which can reset scroll)
-        const scrollOffset: number = getScrollOffset(this.term.buffer.active);
-
-        this.fitAddon.fit();
-
-        // Restore scroll position after fit
-        const newBaseY: number = this.term.buffer.active.baseY;
-        const targetLine: number = getScrollTargetLine(newBaseY, scrollOffset);
-        this.term.scrollToLine(targetLine);
-      });
+      // Restore scroll position after fit
+      const newBaseY: number = this.term.buffer.active.baseY;
+      const targetLine: number = getScrollTargetLine(newBaseY, scrollOffset);
+      this.term.scrollToLine(targetLine);
     });
     this.resizeObserver.observe(this.container);
 
@@ -236,10 +231,6 @@ export class TerminalVanilla {
    * Cleanup and destroy the terminal
    */
   dispose(): void {
-    if (this.resizeFrameId !== null) {
-      cancelAnimationFrame(this.resizeFrameId);
-    }
-
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
     }
