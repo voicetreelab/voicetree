@@ -23,6 +23,8 @@ import {
   getVaultPaths,
   setWritePath,
   addReadPath,
+  loadAndMergeVaultPath,
+  type LoadVaultPathResult,
 } from './vault-allowlist'
 import {
   setProjectRootWatchedDirectory,
@@ -37,13 +39,30 @@ import { createEmptyGraph } from '@/pure/graph/createGraph'
 import type { VaultConfig } from '@/pure/settings/types'
 
 // Mock graph loading - we'll control the return value per test
-import { loadVaultPathAdditively } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk'
+import { loadVaultPathAdditively, resolveLinkedNodesInWatchedFolder } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk'
 import type { FileLimitExceededError } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce'
+import { createStarterNode } from './create-starter-node'
+import { notifyTextToTreeServerOfDirectory } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/notifyTextToTreeServerOfDirectory'
 
 vi.mock('@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk', () => ({
   loadVaultPathAdditively: vi.fn().mockResolvedValue({
     _tag: 'Right',
     right: { graph: { nodes: {} }, delta: [] }
+  }),
+  resolveLinkedNodesInWatchedFolder: vi.fn().mockResolvedValue([])
+}))
+
+// Mock createStarterNode
+vi.mock('./create-starter-node', () => ({
+  createStarterNode: vi.fn().mockResolvedValue({
+    nodes: {
+      '/test/starter-node.md': {
+        absoluteFilePathIsID: '/test/starter-node.md',
+        outgoingEdges: [],
+        contentWithoutYamlOrLinks: '# Starter',
+        nodeUIMetadata: { color: { _tag: 'None' }, position: { _tag: 'Some', value: { x: 0, y: 0 } }, additionalYAMLProps: new Map(), isContextNode: false }
+      }
+    }
   })
 }))
 
@@ -160,6 +179,7 @@ describe('vault-allowlist: loadAndMergeVaultPath helper', () => {
     await fs.mkdir(mockUserDataPath, { recursive: true })
     setGraph(createEmptyGraph())
     clearWatchFolderState()
+    setProjectRootWatchedDirectory(testTmpDir)
   })
 
   afterEach(async () => {
@@ -174,11 +194,11 @@ describe('vault-allowlist: loadAndMergeVaultPath helper', () => {
     vi.clearAllMocks()
   })
 
-  it('returns success and updates graph when load succeeds with delta', async () => {
-    // GIVEN: A vault path and an existing graph
+  it('returns success with computed graph and delta when load succeeds', async () => {
+    // GIVEN: A vault path
     const vaultPath: string = path.join(testTmpDir, 'vault')
     await fs.mkdir(vaultPath, { recursive: true })
-    const existingGraph: import('@/pure/graph').Graph = createEmptyGraph()
+    const existingGraph = createEmptyGraph()
 
     // AND: loadVaultPathAdditively returns success with a delta
     const mockGraph: { nodes: { 'test-node': object } } = { nodes: { 'test-node': {} } }
@@ -188,20 +208,23 @@ describe('vault-allowlist: loadAndMergeVaultPath helper', () => {
       right: { graph: mockGraph, delta: mockDelta }
     })
 
-    // WHEN: loadAndMergeVaultPath is called
-    const { loadAndMergeVaultPath } = await import('./vault-allowlist')
-    const result: { success: boolean; error?: string } = await loadAndMergeVaultPath(vaultPath, existingGraph)
+    // WHEN: loadAndMergeVaultPath is called (pure function with dependency injection)
+    const result: LoadVaultPathResult = await loadAndMergeVaultPath(vaultPath, existingGraph, testTmpDir)
 
-    // THEN: Should return success
+    // THEN: Should return success with computed state
     expect(result.success).toBe(true)
-    expect(result.error).toBeUndefined()
+    if (result.success) {
+      expect(result.graph).toBeDefined()
+      expect(result.delta).toBeDefined()
+      expect(result.shouldNotifyBackend).toBe(false) // default isWritePath is false
+    }
   })
 
   it('returns error when file limit is exceeded', async () => {
-    // GIVEN: A vault path and an existing graph
+    // GIVEN: A vault path
     const vaultPath: string = path.join(testTmpDir, 'vault')
     await fs.mkdir(vaultPath, { recursive: true })
-    const existingGraph: import('@/pure/graph').Graph = createEmptyGraph()
+    const existingGraph = createEmptyGraph()
 
     // AND: loadVaultPathAdditively returns Left(FileLimitExceededError)
     const fileLimitError: FileLimitExceededError = {
@@ -215,15 +238,16 @@ describe('vault-allowlist: loadAndMergeVaultPath helper', () => {
       left: fileLimitError
     })
 
-    // WHEN: loadAndMergeVaultPath is called
-    const { loadAndMergeVaultPath } = await import('./vault-allowlist')
-    const result: { success: boolean; error?: string } = await loadAndMergeVaultPath(vaultPath, existingGraph)
+    // WHEN: loadAndMergeVaultPath is called (pure function with dependency injection)
+    const result: LoadVaultPathResult = await loadAndMergeVaultPath(vaultPath, existingGraph, testTmpDir)
 
     // THEN: Should return error
     expect(result.success).toBe(false)
-    expect(result.error).toContain('File limit exceeded')
-    expect(result.error).toContain('500')
-    expect(result.error).toContain('300')
+    if (!result.success) {
+      expect(result.error).toContain('File limit exceeded')
+      expect(result.error).toContain('500')
+      expect(result.error).toContain('300')
+    }
   })
 })
 
@@ -336,6 +360,217 @@ describe('vault-allowlist: file limit exceeded error handling', () => {
       expect(result.error).toContain('File limit exceeded')
       expect(result.error).toContain('450')
       expect(result.error).toContain('300')
+    })
+  })
+})
+
+/**
+ * Phase 2 Tests: loadAndMergeVaultPath with isWritePath option
+ * Updated for pure function signature that returns computed state
+ */
+describe('vault-allowlist: loadAndMergeVaultPath isWritePath behavior', () => {
+  let testTmpDir: string
+
+  beforeEach(async () => {
+    testTmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vault-isWritePath-test-'))
+    await fs.mkdir(mockUserDataPath, { recursive: true })
+    setGraph(createEmptyGraph())
+    clearWatchFolderState()
+    // Set project root for wikilink resolution
+    setProjectRootWatchedDirectory(testTmpDir)
+    vi.clearAllMocks()
+  })
+
+  afterEach(async () => {
+    await fs.rm(testTmpDir, { recursive: true, force: true })
+    try {
+      await fs.rm(path.join(mockUserDataPath, 'voicetree-config.json'), { force: true })
+    } catch {
+      // ignore
+    }
+    clearWatchFolderState()
+    setGraph(createEmptyGraph())
+    vi.clearAllMocks()
+  })
+
+  describe('when isWritePath is true', () => {
+    it('returns pathIsEmpty: true when folder is empty (caller should create starter node)', async () => {
+      // GIVEN: An empty vault path
+      const vaultPath: string = path.join(testTmpDir, 'empty-vault')
+      await fs.mkdir(vaultPath, { recursive: true })
+      const existingGraph = createEmptyGraph()
+
+      // AND: loadVaultPathAdditively returns empty graph (no files found)
+      vi.mocked(loadVaultPathAdditively).mockResolvedValueOnce({
+        _tag: 'Right',
+        right: { graph: { nodes: {} }, delta: [] }
+      })
+
+      // WHEN: loadAndMergeVaultPath is called with isWritePath: true
+      const result: LoadVaultPathResult = await loadAndMergeVaultPath(vaultPath, existingGraph, testTmpDir, { isWritePath: true })
+
+      // THEN: Should return success with pathIsEmpty: true
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.pathIsEmpty).toBe(true)
+        expect(result.shouldNotifyBackend).toBe(true)
+      }
+
+      // AND: createStarterNode should NOT have been called (pure function, caller creates it)
+      expect(createStarterNode).not.toHaveBeenCalled()
+    })
+
+    it('returns pathIsEmpty: false when folder has files', async () => {
+      // GIVEN: A vault path with existing files
+      const vaultPath: string = path.join(testTmpDir, 'non-empty-vault')
+      await fs.mkdir(vaultPath, { recursive: true })
+      const existingGraph = createEmptyGraph()
+
+      // AND: loadVaultPathAdditively returns graph with existing node
+      const existingNodeId: string = path.join(vaultPath, 'existing-file.md')
+      vi.mocked(loadVaultPathAdditively).mockResolvedValueOnce({
+        _tag: 'Right',
+        right: {
+          graph: { nodes: { [existingNodeId]: { absoluteFilePathIsID: existingNodeId } } },
+          delta: [{ type: 'CreateNode', nodeId: existingNodeId }]
+        }
+      })
+
+      // WHEN: loadAndMergeVaultPath is called with isWritePath: true
+      const result: LoadVaultPathResult = await loadAndMergeVaultPath(vaultPath, existingGraph, testTmpDir, { isWritePath: true })
+
+      // THEN: Should return success with pathIsEmpty: false
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.pathIsEmpty).toBe(false)
+      }
+
+      // AND: createStarterNode should NOT have been called
+      expect(createStarterNode).not.toHaveBeenCalled()
+    })
+
+    it('returns shouldNotifyBackend: true for write paths', async () => {
+      // GIVEN: A vault path
+      const vaultPath: string = path.join(testTmpDir, 'write-vault')
+      await fs.mkdir(vaultPath, { recursive: true })
+      const existingGraph = createEmptyGraph()
+
+      // AND: loadVaultPathAdditively returns success
+      vi.mocked(loadVaultPathAdditively).mockResolvedValueOnce({
+        _tag: 'Right',
+        right: { graph: { nodes: {} }, delta: [] }
+      })
+
+      // WHEN: loadAndMergeVaultPath is called with isWritePath: true
+      const result: LoadVaultPathResult = await loadAndMergeVaultPath(vaultPath, existingGraph, testTmpDir, { isWritePath: true })
+
+      // THEN: Should return shouldNotifyBackend: true (caller handles the notification)
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.shouldNotifyBackend).toBe(true)
+      }
+
+      // AND: notifyTextToTreeServerOfDirectory should NOT have been called (pure function)
+      expect(notifyTextToTreeServerOfDirectory).not.toHaveBeenCalled()
+    })
+
+    it('resolves wikilinks after loading', async () => {
+      // GIVEN: A vault path
+      const vaultPath: string = path.join(testTmpDir, 'vault-with-links')
+      await fs.mkdir(vaultPath, { recursive: true })
+      const existingGraph = createEmptyGraph()
+
+      // AND: loadVaultPathAdditively returns a graph with nodes
+      const nodeId: string = path.join(vaultPath, 'note.md')
+      vi.mocked(loadVaultPathAdditively).mockResolvedValueOnce({
+        _tag: 'Right',
+        right: {
+          graph: { nodes: { [nodeId]: { absoluteFilePathIsID: nodeId } } },
+          delta: [{ type: 'CreateNode', nodeId }]
+        }
+      })
+
+      // WHEN: loadAndMergeVaultPath is called
+      await loadAndMergeVaultPath(vaultPath, existingGraph, testTmpDir, { isWritePath: true })
+
+      // THEN: Wikilink resolution should have been called
+      expect(resolveLinkedNodesInWatchedFolder).toHaveBeenCalled()
+    })
+  })
+
+  describe('when isWritePath is false', () => {
+    it('returns pathIsEmpty but shouldNotifyBackend: false', async () => {
+      // GIVEN: An empty vault path
+      const vaultPath: string = path.join(testTmpDir, 'empty-read-vault')
+      await fs.mkdir(vaultPath, { recursive: true })
+      const existingGraph = createEmptyGraph()
+
+      // AND: loadVaultPathAdditively returns empty graph
+      vi.mocked(loadVaultPathAdditively).mockResolvedValueOnce({
+        _tag: 'Right',
+        right: { graph: { nodes: {} }, delta: [] }
+      })
+
+      // WHEN: loadAndMergeVaultPath is called with isWritePath: false
+      const result: LoadVaultPathResult = await loadAndMergeVaultPath(vaultPath, existingGraph, testTmpDir, { isWritePath: false })
+
+      // THEN: Should return success with shouldNotifyBackend: false
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.pathIsEmpty).toBe(true)
+        expect(result.shouldNotifyBackend).toBe(false)
+      }
+
+      // AND: createStarterNode should NOT have been called
+      expect(createStarterNode).not.toHaveBeenCalled()
+    })
+
+    it('returns shouldNotifyBackend: false for read paths', async () => {
+      // GIVEN: A vault path
+      const vaultPath: string = path.join(testTmpDir, 'read-vault')
+      await fs.mkdir(vaultPath, { recursive: true })
+      const existingGraph = createEmptyGraph()
+
+      // AND: loadVaultPathAdditively returns success
+      vi.mocked(loadVaultPathAdditively).mockResolvedValueOnce({
+        _tag: 'Right',
+        right: { graph: { nodes: {} }, delta: [] }
+      })
+
+      // WHEN: loadAndMergeVaultPath is called with isWritePath: false
+      const result: LoadVaultPathResult = await loadAndMergeVaultPath(vaultPath, existingGraph, testTmpDir, { isWritePath: false })
+
+      // THEN: Should return shouldNotifyBackend: false (pure function)
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.shouldNotifyBackend).toBe(false)
+      }
+
+      // AND: notifyTextToTreeServerOfDirectory should NOT have been called
+      expect(notifyTextToTreeServerOfDirectory).not.toHaveBeenCalled()
+    })
+
+    it('still resolves wikilinks for read paths', async () => {
+      // GIVEN: A vault path
+      const vaultPath: string = path.join(testTmpDir, 'read-vault-with-links')
+      await fs.mkdir(vaultPath, { recursive: true })
+      const existingGraph = createEmptyGraph()
+
+      // AND: loadVaultPathAdditively returns a graph with nodes
+      const nodeId: string = path.join(vaultPath, 'note.md')
+      vi.mocked(loadVaultPathAdditively).mockResolvedValueOnce({
+        _tag: 'Right',
+        right: {
+          graph: { nodes: { [nodeId]: { absoluteFilePathIsID: nodeId } } },
+          delta: [{ type: 'CreateNode', nodeId }]
+        }
+      })
+
+      // WHEN: loadAndMergeVaultPath is called with isWritePath: false
+      await loadAndMergeVaultPath(vaultPath, existingGraph, testTmpDir, { isWritePath: false })
+
+      // THEN: Wikilink resolution should still have been called
+      expect(resolveLinkedNodesInWatchedFolder).toHaveBeenCalled()
     })
   })
 })

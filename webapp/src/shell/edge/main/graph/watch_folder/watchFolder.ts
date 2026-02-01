@@ -12,25 +12,17 @@
  * - file-watcher-setup.ts: File watcher setup
  */
 
-import { loadGraphFromDisk, resolveLinkedNodesInWatchedFolder } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk";
-import type { FilePath, Graph, GraphDelta } from "@/pure/graph";
-import { applyGraphDeltaToGraph, mapNewGraphToDelta } from "@/pure/graph";
-import type { FileLimitExceededError } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce";
+import type { FilePath } from "@/pure/graph";
 import { setGraph } from "@/shell/edge/main/state/graph-store";
 import { dialog } from "electron";
 import path from "path";
 import * as O from "fp-ts/lib/Option.js";
-import * as E from "fp-ts/lib/Either.js";
 import { promises as fs } from "fs";
 import fsSync from "fs";
 import type { FSWatcher } from "chokidar";
 import { getMainWindow } from "@/shell/edge/main/state/app-electron-state";
-import { notifyTextToTreeServerOfDirectory } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/notifyTextToTreeServerOfDirectory";
 import { getOnboardingDirectory } from "@/shell/edge/main/electron/onboarding-setup";
 import { copyMarkdownFiles, pathExists, generateDateSubfolder, findExistingVoicetreeDir } from "@/shell/edge/main/project-utils";
-import {
-    broadcastGraphDeltaToUI
-} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI";
 import { loadSettings } from "@/shell/edge/main/settings/settings_IO";
 import { type VTSettings } from "@/pure/settings/types";
 import {
@@ -50,9 +42,16 @@ import {
 } from "./voicetree-config-io";
 import {
     resolveAllowlistForProject,
+    loadAndMergeVaultPath,
+    type LoadVaultPathResult,
 } from "./vault-allowlist";
 import { setupWatcher } from "./file-watcher-setup";
 import { createStarterNode } from "./create-starter-node";
+import { getGraph } from "@/shell/edge/main/state/graph-store";
+import type { Graph, GraphDelta } from "@/pure/graph";
+import { createEmptyGraph } from "@/pure/graph/createGraph";
+import { broadcastGraphDeltaToUI } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI";
+import { notifyTextToTreeServerOfDirectory } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/notifyTextToTreeServerOfDirectory";
 
 // Re-export vault-allowlist functions for api.ts and tests
 export {
@@ -199,20 +198,97 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
     const config: { writePath: string; readPaths: readonly string[]; allowlist: readonly string[] } =
         await resolveOrCreateConfig(watchedFolderPath);
 
-    // Load graph from all paths
-    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(config.allowlist);
+    // Clear graph in memory before loading paths
+    setGraph(createEmptyGraph());
 
-    if (E.isLeft(loadResult)) {
-        // File limit exceeded - create new voicetree-{date} workspace
-        return createNewWorkspaceOnFileLimitExceeded(
-            watchedFolderPath,
-            loadResult.left.fileCount,
-            mainWindow,
-            config.readPaths
-        );
+    // Load write path first (pure computation)
+    let currentGraph: Graph = getGraph();
+    const writeResult: LoadVaultPathResult =
+        await loadAndMergeVaultPath(config.writePath, currentGraph, watchedFolderPath, { isWritePath: true });
+
+    if (!writeResult.success) {
+        // Check for file limit exceeded error
+        if (writeResult.error?.includes('File limit exceeded')) {
+            const match: RegExpMatchArray | null = writeResult.error.match(/(\d+) files/);
+            const fileCount: number = match ? parseInt(match[1], 10) : 0;
+            return createNewWorkspaceOnFileLimitExceeded(
+                watchedFolderPath,
+                fileCount,
+                mainWindow,
+                config.readPaths
+            );
+        }
+        return { success: false };
     }
 
-    return finishLoading(loadResult.right, config, watchedFolderPath, mainWindow);
+    // Handle starter node creation for empty write paths
+    let finalGraph: Graph = writeResult.graph;
+    let accumulatedDelta: GraphDelta = writeResult.delta;
+
+    if (writeResult.pathIsEmpty) {
+        const starterGraph: Graph = await createStarterNode(config.writePath);
+        finalGraph = { ...finalGraph, nodes: { ...finalGraph.nodes, ...starterGraph.nodes } };
+        const starterNodeId: string = Object.keys(starterGraph.nodes)[0];
+        if (starterNodeId) {
+            accumulatedDelta = [...accumulatedDelta, {
+                type: 'CreateNode' as const,
+                nodeId: starterNodeId,
+                createdNode: starterGraph.nodes[starterNodeId]
+            }];
+        }
+    }
+
+    // Commit write path side effects
+    setGraph(finalGraph);
+    if (accumulatedDelta.length > 0) {
+        broadcastGraphDeltaToUI(accumulatedDelta);
+    }
+    if (writeResult.shouldNotifyBackend) {
+        notifyTextToTreeServerOfDirectory(config.writePath);
+    }
+
+    // Load read paths (no starter nodes, no backend notification)
+    for (const readPath of config.readPaths) {
+        currentGraph = getGraph(); // Get latest graph state
+        const readResult: LoadVaultPathResult =
+            await loadAndMergeVaultPath(readPath, currentGraph, watchedFolderPath, { isWritePath: false });
+        if (!readResult.success) {
+            // Check for file limit exceeded error
+            if (readResult.error?.includes('File limit exceeded')) {
+                const match: RegExpMatchArray | null = readResult.error.match(/(\d+) files/);
+                const fileCount: number = match ? parseInt(match[1], 10) : 0;
+                return createNewWorkspaceOnFileLimitExceeded(
+                    watchedFolderPath,
+                    fileCount,
+                    mainWindow,
+                    config.readPaths
+                );
+            }
+            // Log but continue with remaining paths for non-fatal errors
+            console.warn(`[loadFolder] Failed to load read path ${readPath}: ${readResult.error}`);
+            continue;
+        }
+        // Commit read path side effects (no starter node, no backend notification)
+        setGraph(readResult.graph);
+        if (readResult.delta.length > 0) {
+            broadcastGraphDeltaToUI(readResult.delta);
+        }
+    }
+
+    // Setup file watcher - watch all paths in allowlist
+    await setupWatcher(config.allowlist, watchedFolderPath);
+
+    // Save as last directory for auto-start on next launch
+    await saveLastDirectory(watchedFolderPath);
+
+    // Notify UI that watching has started
+    mainWindow.webContents.send('watching-started', {
+        directory: getProjectRootWatchedDirectory(),
+        writePath: config.writePath,
+        timestamp: new Date().toISOString()
+    });
+
+    return { success: true };
 }
 
 /**
@@ -237,70 +313,53 @@ async function createNewWorkspaceOnFileLimitExceeded(
         buttons: ['OK']
     });
 
-    // Build new config with the new subfolder, keeping readPaths for linking
-    const newAllowlist: string[] = [newSubfolderPath, ...existingReadPaths];
-    const newConfig: { allowlist: readonly string[]; writePath: string; readPaths: readonly string[] } = {
-        allowlist: newAllowlist,
-        writePath: newSubfolderPath,
-        readPaths: existingReadPaths
-    };
+    // Save new config with the new subfolder, keeping readPaths for linking
     await saveVaultConfigForDirectory(watchedFolderPath, {
         writePath: newSubfolderPath,
         readPaths: existingReadPaths
     });
 
-    // Load from the new subfolder (empty initially)
-    const retryResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([newSubfolderPath]);
-    if (E.isLeft(retryResult)) {
+    // Clear graph before loading new workspace
+    setGraph(createEmptyGraph());
+
+    // Load from the new subfolder (empty initially) - pure computation
+    const currentGraph: Graph = getGraph();
+    const writeResult: LoadVaultPathResult =
+        await loadAndMergeVaultPath(newSubfolderPath, currentGraph, watchedFolderPath, { isWritePath: true });
+    if (!writeResult.success) {
         // Should not happen with empty folder, but handle gracefully
         return { success: false };
     }
-    return finishLoading(retryResult.right, newConfig, watchedFolderPath, mainWindow);
-}
 
-/**
- * Complete the folder loading process after graph is loaded.
- */
-async function finishLoading(
-    graph: Graph,
-    config: { allowlist: readonly string[]; writePath: string; readPaths: readonly string[] },
-    watchedFolderPath: FilePath,
-    mainWindow: Electron.CrossProcessExports.BrowserWindow
-): Promise<{ success: boolean }> {
-    let currentGraph: Graph = graph;
-    //console.log('[loadFolder] Graph loaded from disk, node count:', Object.keys(currentGraph.nodes).length);
+    // Handle starter node creation for the empty new workspace
+    let finalGraph: Graph = writeResult.graph;
+    let finalDelta: GraphDelta = writeResult.delta;
 
-    // If folder is empty, create a starter node using the template from settings
-    if (Object.keys(currentGraph.nodes).length === 0) {
-        //console.log('[loadFolder] Empty folder detected, creating starter node');
-        currentGraph = await createStarterNode(config.writePath);
+    if (writeResult.pathIsEmpty) {
+        const starterGraph: Graph = await createStarterNode(newSubfolderPath);
+        finalGraph = { ...finalGraph, nodes: { ...finalGraph.nodes, ...starterGraph.nodes } };
+        const starterNodeId: string = Object.keys(starterGraph.nodes)[0];
+        if (starterNodeId) {
+            finalDelta = [...finalDelta, {
+                type: 'CreateNode' as const,
+                nodeId: starterNodeId,
+                createdNode: starterGraph.nodes[starterNodeId]
+            }];
+        }
     }
 
-    // Resolve any wikilinks that point to files in the watched folder
-    // This handles pre-existing links at load time (not just new links from file changes)
-    const resolutionDelta: GraphDelta = await resolveLinkedNodesInWatchedFolder(currentGraph, watchedFolderPath);
-    if (resolutionDelta.length > 0) {
-        currentGraph = applyGraphDeltaToGraph(currentGraph, resolutionDelta);
+    // Commit side effects
+    setGraph(finalGraph);
+    if (finalDelta.length > 0) {
+        broadcastGraphDeltaToUI(finalDelta);
     }
-    //console.log('[loadFolder] Resolved linked nodes, node count:', Object.keys(currentGraph.nodes).length);
+    if (writeResult.shouldNotifyBackend) {
+        notifyTextToTreeServerOfDirectory(newSubfolderPath);
+    }
 
-    // Update graph store directly (bypassing applyGraphDeltaToMemState to avoid double resolution)
-    setGraph(currentGraph);
-
-    // let backend know, call /load-directory non blocking
-    notifyTextToTreeServerOfDirectory(config.writePath);
-
-    // Broadcast initial graph to UI-edge (different event from incremental updates)
-    const graphDelta: GraphDelta = mapNewGraphToDelta(currentGraph);
-    //console.log('[loadFolder] Created graph delta, length:', graphDelta.length);
-
-    // Initial load: broadcast directly to UI (skip applyGraphDeltaToMemState since graph is already set)
-    broadcastGraphDeltaToUI(graphDelta);
-    //console.log('[loadFolder] Graph delta broadcast to UI-edge');
-
-    // Setup file watcher - watch all paths in allowlist, use watchedFolderPath as base for node IDs
-    await setupWatcher(config.allowlist, watchedFolderPath);
-    //console.log('[loadFolder] File watcher setup complete for', config.allowlist.length, 'vault paths');
+    // Setup file watcher for the new workspace
+    const newAllowlist: readonly string[] = [newSubfolderPath, ...existingReadPaths];
+    await setupWatcher(newAllowlist, watchedFolderPath);
 
     // Save as last directory for auto-start on next launch
     await saveLastDirectory(watchedFolderPath);
@@ -308,7 +367,7 @@ async function finishLoading(
     // Notify UI that watching has started
     mainWindow.webContents.send('watching-started', {
         directory: getProjectRootWatchedDirectory(),
-        writePath: config.writePath,
+        writePath: newSubfolderPath,
         timestamp: new Date().toISOString()
     });
 
