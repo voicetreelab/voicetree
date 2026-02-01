@@ -299,8 +299,8 @@ function createEdgeResizeZone(
         zone.style.bottom = '0px';
         zone.style.width = `${RESIZE_ZONE_SIZE}px`;
     } else {
-        // right
-        zone.style.right = '0px';
+        // right - positioned outside window bounds to avoid scrollbar overlap
+        zone.style.right = `-${RESIZE_ZONE_SIZE}px`;
         zone.style.top = '0px';
         zone.style.bottom = '0px';
         zone.style.width = `${RESIZE_ZONE_SIZE}px`;
@@ -329,15 +329,16 @@ function createCornerResizeZone(
         zone.style.top = '0px';
         zone.style.left = '0px';
     } else if (corner === 'ne') {
+        // Offset right to avoid scrollbar overlap
         zone.style.top = '0px';
-        zone.style.right = '0px';
+        zone.style.right = `-${RESIZE_ZONE_SIZE}px`;
     } else if (corner === 'sw') {
         zone.style.bottom = '0px';
         zone.style.left = '0px';
     } else {
-        // se
+        // se - Offset right to avoid scrollbar overlap
         zone.style.bottom = '0px';
-        zone.style.right = '0px';
+        zone.style.right = `-${RESIZE_ZONE_SIZE}px`;
     }
 
     return zone;

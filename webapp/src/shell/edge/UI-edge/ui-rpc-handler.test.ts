@@ -17,12 +17,12 @@ const mockOn: Mock = vi.fn((channel: string, callback: (_event: unknown, funcNam
 })
 
 // Mock uiAPIHandler functions
-const mockSetIsTrackpadScrolling: Mock = vi.fn()
+const mockFitViewport: Mock = vi.fn()
 const mockLaunchTerminalOntoUI: Mock = vi.fn()
 
 vi.mock('@/shell/edge/UI-edge/api', () => ({
     uiAPIHandler: {
-        setIsTrackpadScrolling: mockSetIsTrackpadScrolling,
+        fitViewport: mockFitViewport,
         launchTerminalOntoUI: mockLaunchTerminalOntoUI,
     },
 }))
@@ -59,9 +59,9 @@ describe('setupUIRpcHandler', () => {
 
         // Simulate receiving an IPC message
         expect(registeredCallback).not.toBeNull()
-        registeredCallback!({}, 'setIsTrackpadScrolling', [true])
+        registeredCallback!({}, 'fitViewport', [])
 
-        expect(mockSetIsTrackpadScrolling).toHaveBeenCalledWith(true)
+        expect(mockFitViewport).toHaveBeenCalled()
     })
 
     it('should handle multiple arguments correctly', async () => {
@@ -109,10 +109,10 @@ describe('setupUIRpcHandler', () => {
         // The callback signature is (_event, funcName, args)
         // Simulate what ipcRenderer.on passes: (event, arg1, arg2)
         const mockEvent: object = { sender: 'mock-sender' }
-        registeredCallback!(mockEvent, 'setIsTrackpadScrolling', [false])
+        registeredCallback!(mockEvent, 'fitViewport', [])
 
         // Function should still be called correctly despite event being passed
-        expect(mockSetIsTrackpadScrolling).toHaveBeenCalledWith(false)
+        expect(mockFitViewport).toHaveBeenCalled()
     })
 
     it('TIMING TEST: messages sent before setupUIRpcHandler are lost', async () => {
@@ -134,7 +134,7 @@ describe('setupUIRpcHandler', () => {
         expect(registeredCallback).not.toBeNull()
 
         // Messages sent AFTER setup work fine
-        registeredCallback!({}, 'setIsTrackpadScrolling', [true])
-        expect(mockSetIsTrackpadScrolling).toHaveBeenCalledWith(true)
+        registeredCallback!({}, 'fitViewport', [])
+        expect(mockFitViewport).toHaveBeenCalled()
     })
 })
