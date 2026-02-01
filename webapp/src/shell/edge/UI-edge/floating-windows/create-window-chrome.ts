@@ -224,8 +224,8 @@ function createExpandButton(
     return button;
 }
 
-/** Resize zone size in pixels (4-6px as per spec) */
-const RESIZE_ZONE_SIZE: number = 5;
+/** Resize zone size in pixels - larger for easier targeting */
+const RESIZE_ZONE_SIZE: number = 15;
 
 /** Minimum window dimensions during resize */
 const MIN_WIDTH: number = 300;

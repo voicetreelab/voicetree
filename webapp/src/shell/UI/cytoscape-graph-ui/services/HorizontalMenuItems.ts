@@ -413,12 +413,15 @@ export function createHorizontalMenuElement(
     });
 
     // Spacer in middle (gap for node circle, no background)
+    // Grabbable for dragging the floating window
+    // pointer-events: auto required because parent wrapper has pointer-events: none
     const spacer: HTMLDivElement = document.createElement('div');
     spacer.className = 'horizontal-menu-spacer';
     spacer.style.cssText = `
         width: 35px;
-        height: 1px;
-        pointer-events: none;
+        min-height: 32px;
+        cursor: grab;
+        pointer-events: auto;
     `;
 
     return { leftGroup, spacer, rightGroup };

@@ -284,7 +284,7 @@ describe('createWindowChrome', () => {
                 expect(resizeZones.length).toBe(0);
             });
 
-            it('should have resize zones with 4-6px width/height', () => {
+            it('should have resize zones with 12px width/height for easy targeting', () => {
                 const result: FloatingWindowUIData = createWindowChrome(cy, editorData, editorId);
 
                 // Append to document to get computed styles
@@ -298,8 +298,8 @@ describe('createWindowChrome', () => {
 
                 // The zones should exist with proper dimensions set via style
                 // Note: JSDOM doesn't compute actual styles, so we check the style properties
-                expect(topZone!.style.height).toMatch(/^[4-6]px$/);
-                expect(leftZone!.style.width).toMatch(/^[4-6]px$/);
+                expect(topZone!.style.height).toBe('15px');
+                expect(leftZone!.style.width).toBe('15px');
 
                 document.body.removeChild(result.windowElement);
             });
