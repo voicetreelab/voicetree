@@ -13,6 +13,7 @@ import {setupToolsDirectory, getToolsDirectory} from './tools-setup';
 import {setupOnboardingDirectory} from './onboarding-setup';
 import {startNotificationScheduler, stopNotificationScheduler, recordAppUsage} from './notification-scheduler';
 import {setBackendPort, setMainWindow} from '@/shell/edge/main/state/app-electron-state';
+import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
 import {startOTLPReceiver, stopOTLPReceiver} from '@/shell/edge/main/metrics/otlp-receiver';
 import {registerTerminalIpcHandlers} from '@/shell/edge/main/terminals/ipc-terminal-handlers';
 import {setupRPCHandlers} from '@/shell/edge/main/edge-auto-rpc/rpc-handler';
@@ -302,6 +303,21 @@ function createWindow(): void {
         //console.log('[App] Saving node positions to disk...');
         writeAllPositionsSync(getGraph());
     });
+
+    // Trackpad gesture detection for scroll vs zoom disambiguation (macOS only)
+    // Note: scroll-touch-begin/end were removed in Electron 23. Use input-event instead.
+    if (process.platform === 'darwin') {
+        console.log('[Main] Registering input-event for gesture detection');
+        mainWindow.webContents.on('input-event', (_, input) => {
+            if (input.type === 'gestureScrollBegin') {
+                console.log('[Main] gestureScrollBegin FIRED');
+                uiAPI.setIsTrackpadScrolling(true);
+            } else if (input.type === 'gestureScrollEnd') {
+                console.log('[Main] gestureScrollEnd FIRED');
+                uiAPI.setIsTrackpadScrolling(false);
+            }
+        });
+    }
 }
 
 // Inject dependencies into mainAPI (must be done before IPC handler registration)
