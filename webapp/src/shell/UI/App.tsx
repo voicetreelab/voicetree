@@ -173,16 +173,16 @@ function App(): JSX.Element {
     // Render graph view
     return (
         <div className="h-screen flex flex-col overflow-hidden bg-background">
-            {/* Graph Section (fills all space) */}
-            <div className="flex-1 min-h-0 border-r pr-4 relative">
+            {/* Graph Section (fills all space, with bottom padding for fixed bottom bar) */}
+            <div className="flex-1 min-h-0 border-r pr-4 relative pb-14">
                 {/* Graph container */}
                 <div className="h-full w-full relative">
                     <div ref={graphContainerRef} className="h-full w-full"/>
                 </div>
             </div>
 
-            {/* Bottom bar: Folder selector (left) | Transcription Panel (centered, includes SSE activity panel) | Stats toggle (right) */}
-            <div className="flex-shrink-0 relative z-[1050] py-1 bg-background">
+            {/* Bottom bar: Fixed to viewport bottom to prevent dropdown-induced layout shifts */}
+            <div className="fixed bottom-0 left-0 right-0 z-[1050] py-1 bg-background">
                 {/* File watching panel - anchored bottom left, vertically centered */}
                 <div className="absolute left-2 top-1/2 -translate-y-1/2">
                     <FileWatchingPanel/>

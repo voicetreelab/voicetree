@@ -92,6 +92,13 @@ export function createNodeMenu(options: CreateNodeMenuOptions): {
     const defaultSpacerWidth: number = menuKind.kind === 'hover-menu' ? 35 : 10;
     spacer.style.width = `${spacerWidth ?? defaultSpacerWidth}px`;
 
+    // Only enable grab behavior for anchored editor windows, not hover menus
+    // Hover menus need clicks to pass through so users can click to anchor the editor
+    if (menuKind.kind === 'editor-window') {
+        spacer.style.pointerEvents = 'auto';
+        spacer.style.cursor = 'grab';
+    }
+
     // Assemble wrapper
     wrapper.appendChild(leftGroup);
     wrapper.appendChild(spacer);
