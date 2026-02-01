@@ -78,7 +78,7 @@ import type {TerminalData} from '@/shell/electron';
 
 import {GraphNavigationService} from "@/shell/edge/UI-edge/graph/navigation/GraphNavigationService";
 import {NavigationGestureService} from "@/shell/edge/UI-edge/graph/navigation/NavigationGestureService";
-import {showFeedbackDialog} from "@/shell/edge/UI-edge/graph/userEngagementPrompts";
+import {collectFeedback} from "@/shell/edge/UI-edge/graph/userEngagementPrompts";
 import {getEditorByNodeId} from '@/shell/edge/UI-edge/state/EditorStore';
 import {getTerminalByNodeId} from '@/shell/edge/UI-edge/state/TerminalStore';
 import {closeTerminal} from '@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI';
@@ -232,7 +232,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
                 onSettings: () => void createSettingsEditor(this.cy),
                 onAbout: () => window.open('https://voicetree.io', '_blank'),
                 onStats: () => window.dispatchEvent(new Event('toggle-stats-panel')),
-                onFeedback: () => void showFeedbackDialog()
+                onFeedback: () => void collectFeedback()
             }
         });
 
