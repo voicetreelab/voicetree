@@ -67,24 +67,53 @@ function updateTitleBarCompensation(windowElement: HTMLElement, zoom: number): v
     titleBar.style.marginBottom = `${-titleBarBaseHeight * (1 - zoom)}px`;
 }
 
+// /** Delay for second zoom settle update (100ms + 450ms = 550ms total after zoom ends) */
+// const SECOND_SETTLE_DELAY_MS: number = 450;
+
 /**
  * Set up zoom settle handling for a terminal window.
  *
  * Subscribes to zoom-end events and applies window chrome updates
  * when the terminal has a pending update flag.
  *
+ * Update is applied once, 100ms after zoom ends.
+ * (Second 450ms timer removed - font size is now always base 8px so rounding drift no longer occurs)
+ *
  * @param container - The terminal container element
  * @returns Unsubscribe function for cleanup
  */
 export function setupTerminalZoomSettleHandler(container: HTMLElement): () => void {
-    return onZoomEnd(() => {
+    // let secondSettleTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const unsubscribe = onZoomEnd(() => {
         const windowElement: HTMLElement | null = container.closest('.cy-floating-window') as HTMLElement | null;
         if (!windowElement || windowElement.dataset.pendingDimensionUpdate !== 'true') return;
 
         // Clear the pending flag
         delete windowElement.dataset.pendingDimensionUpdate;
 
-        // Apply window chrome updates (dimension change triggers ResizeObserver for terminal fitting)
+        // Apply window chrome update (100ms after zoom ends)
         applyWindowChromeUpdate(windowElement);
+
+        // // Cancel any pending second update
+        // if (secondSettleTimeoutId !== null) {
+        //     clearTimeout(secondSettleTimeoutId);
+        // }
+
+        // // Second update: apply at 550ms total (450ms after first)
+        // // This ensures the terminal is properly settled even if font scaling caused minor drift
+        // secondSettleTimeoutId = setTimeout(() => {
+        //     secondSettleTimeoutId = null;
+        //     applyWindowChromeUpdate(windowElement);
+        // }, SECOND_SETTLE_DELAY_MS);
     });
+
+    // Return cleanup function
+    return () => {
+        unsubscribe();
+        // if (secondSettleTimeoutId !== null) {
+        //     clearTimeout(secondSettleTimeoutId);
+        //     secondSettleTimeoutId = null;
+        // }
+    };
 }

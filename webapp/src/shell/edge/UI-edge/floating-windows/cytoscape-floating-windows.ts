@@ -58,7 +58,7 @@ export function isZoomActive(): boolean {
 type ZoomEndCallback = () => void;
 const zoomEndCallbacks: Set<ZoomEndCallback> = new Set();
 let zoomEndTimeoutId: ReturnType<typeof setTimeout> | null = null;
-const ZOOM_END_DEBOUNCE_MS: number = 300;
+const ZOOM_END_DEBOUNCE_MS: number = 100;
 
 /**
  * Register a callback to be called when zoom ends (after debounce period)
