@@ -1,29 +1,56 @@
-## The spatial IDE for recursive multi-agent orchestration.
+## Voicetree
+
+**The spatial IDE for recursive multi-agent orchestration with human-in-the-loop**
+
+## Overview
+
+Voicetree is an Obsidian-style mindmap of Markdown files, a shared context-graph for you and your coding agents.
+It's an infinite canvas where you can add nodes 
 
 ![Voicetree Demo](meta/Self_spawn.gif)
 
-#### Voicetree is an Obsidian-style mindmap of Markdown files and coding agents.
+### What Problem Does This Solve?
+
+| Challenge                                                           | Voicetree Solution                                           |
+|---------------------------------------------------------------------|--------------------------------------------------------------|
+| Manual agent coordination                                           | Agents can recursively spawn children and subgraphs          |
+| 4-10 agent terminals is overwhelming                                | Spatial organisation on an infinite canvas                   |
+| Agents lose context on restart                                      | Agents automatically save progress to graph                  |
+| Agents suffer context-rot in long sessions                          | Defaults to short, focussed sessions with automatic handover |
+| Your working memory is overloaded                                   | Automatically externalise it 1:1 onto the mindmap            |
+| Agents don't know what you know                                     | You share the same memory pool with agents                   |
+| Context-switching is draining                                       | Zoom to a task to see only the relevant information          |
+
 
 ### The Problem
 
 <img align="right" width="45%" hspace="20" src="meta/10_terminals.jpg" alt="10 terminals">
 
-Managing >4 terminals is claustrophobic and overwhelming. See image. 
+Focus > multi-tasking. 
+But with agents able to handle long tasks autonomously, the productivity meta is increasingly more parallel agents.
+Even managing 4 terminals is claustrophobic, overwhelming and draining. Context-switching and context management sucks. Agents don't have memory.
 
-It's a pain to memorize what each is doing. Scrolling through terminal history to keep track. 
-
-And then, when an agent stops with a half finished task you are faced with a dilemma: 
+You have some options:
 - suffer context-rot if you reprompt it within the same session (decreasing performance by [30-60%](https://research.trychroma.com/context-rot)). 
-- save a handover document with the agent's notes to warm up a new session. But 10 sessions later and you are now lost in a another claustrophobic sea of unorganized notes.  
+- save handover documents of the previous agent's notes. Easily becomes an unorganised mess.
+- use Obsidian or a memory layer for the agents. These are either designed for the human or the AI, so there's a mismatch between what you know and what the agents know. 
+- share the same memory pool, represent it as a mindmap, the most efficient way for humans to interpret high level data, and whose underlying graph structure allows for smart context-retrieval into the agent.
 
 ### The Solution
 ![VT_branching_with_editor.png](meta/VT_branching_with_editor.png)
 
-Voicetree is a peaceful canvas for agentic engineering. Every agent sits next to its task, planning documents, and progress updates. The closer something is, the more relevant it is.
+Voicetree is a peaceful canvas for agentic engineering. Your agents (Claude Code, Codex, Opencode, Gemini etc.) live inside the graph, next to their tasks, plans, and progress updates. 
 
-Your project becomes an interactive graph view made of markdown files and terminals. All stored locally.
+Agents see all context within a distance around them, and can execute semantic search against local embeddings. This means agents see what you see. You share the same memory, the same second brain.
 
-Designed for effortlessly switching between swarms of parallel agents across your project.
+Agents can operate within the graph like you, building subgraphs to break their problems down into small chunks that are easy for you to review and glance at the high-level view. 
+
+The agents can spawn and orchestrate their own subagents into the graph, but as native terminals offering you full visibility and control.
+
+As your project & context grows, this scales. You use your brains most efficient form of memory: remembering where things are in space. 
+Each node can represent any concept at any level of abstraction. You can see and reason about the structure between these concepts more easily as it is represented exactly as your brain represented them.
+This lets you externalise your working memory, freeing up cognitive load for the real problem-solving. 
+
 ## Installation
 
 ### macOS (Apple Silicon)
@@ -121,12 +148,6 @@ uv sync
 uv run pytest
 ```
 
-## Contact
-
-Need help? Reach out to us at hello@voicetree.io
-
-Feedback is immensely valuable. Email us with any thoughts, criticisms, or feature requests.
-
 ## License
 
 This project is licensed under the Business Source License 1.1 (BSL 1.1).
@@ -134,5 +155,12 @@ This project is licensed under the Business Source License 1.1 (BSL 1.1).
 The code automatically converts to Apache 2.0 after 4 years.
 
 See the [LICENSE](LICENSE) file for full details.
+
+## Contact
+
+Need help? Join the discord. https://discord.gg/r2ZBtJ9zvk
+
+Feedback is immensely valuable. Ping us with any thoughts, criticisms, or feature requests.
+
 
 [^1]: Chroma Research, "Context Rot: How Increasing Input Tokens Impacts LLM Performance" (July 2025). LongMemEval benchmark showed 30-60% performance gaps between focused (~300 token) and full (~113k token) prompts. https://research.trychroma.com/context-rot
