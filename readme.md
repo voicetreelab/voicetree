@@ -7,9 +7,9 @@ Voicetree is an Obsidian-style mindmap of Markdown files - a shared context-grap
 ![Voicetree Demo](meta/Self_spawn.gif)
 
 [![Build](https://github.com/voicetreelab/voicetree/actions/workflows/release.yml/badge.svg)](https://github.com/voicetreelab/voicetree/actions/workflows/release.yml)
-![macOS](https://img.shields.io/badge/macOS-supported-blue)
-![Windows](https://img.shields.io/badge/Windows-supported-blue)
-![Linux](https://img.shields.io/badge/Linux-supported-blue)
+[![macOS](https://img.shields.io/badge/macOS-supported-blue)](https://github.com/voicetreelab/voicetree/releases/latest/download/voicetree-arm64.dmg)
+[![Windows](https://img.shields.io/badge/Windows-supported-blue)](https://github.com/voicetreelab/voicetree/releases/latest/download/voicetree.exe)
+[![Linux](https://img.shields.io/badge/Linux-supported-blue)](https://github.com/voicetreelab/voicetree/releases/latest/download/voicetree.AppImage)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?style=flat&logo=discord&logoColor=white)](https://discord.gg/r2ZBtJ9zvk)
 
 ### What Problem Does This Solve?
@@ -44,8 +44,6 @@ This lets you externalise your working memory, freeing up cognitive load for the
 
 [Download for Mac (Apple Silicon)](https://github.com/voicetreelab/voicetree/releases/latest/download/voicetree-arm64.dmg)
 
-Or install via Homebrew:
-
 ```bash
 brew tap voicetreelab/voicetree && brew install voicetree
 ```
@@ -53,8 +51,6 @@ brew tap voicetreelab/voicetree && brew install voicetree
 ### macOS (Intel)
 
 [Download for Mac (Intel)](https://github.com/voicetreelab/voicetree/releases/latest/download/voicetree-x64.dmg)
-
-Or install via Homebrew:
 
 ```bash
 brew tap voicetreelab/voicetree && brew install voicetree
