@@ -171,10 +171,9 @@
 
 /* Shortcut hint tooltip - appears inline at end of tab on hover */
 .terminal-tab-shortcut-hint {
+    display: none;
     font-size: 9px;
     color: var(--muted-foreground);
-    opacity: 0;
-    transition: opacity 0.15s ease;
     white-space: nowrap;
     pointer-events: none;
     padding: 1px 3px;
@@ -185,5 +184,5 @@
 }
 
 .terminal-tree-node:hover .terminal-tab-shortcut-hint {
-    opacity: 1;
+    display: inline;
 }
