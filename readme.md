@@ -2,13 +2,11 @@
 
 **The spatial IDE for recursive multi-agent orchestration with human-in-the-loop**
 
-## Overview
-
 Voicetree is an Obsidian-style mindmap of Markdown files - a shared context-graph for you and your coding agents.
 
 ![Voicetree Demo](meta/Self_spawn.gif)
 
-[![Build](https://github.com/voicetreelab/voicetree/actions/workflows/tests.yml/badge.svg)](https://github.com/voicetreelab/voicetree/actions/workflows/tests.yml)
+[![Build](https://github.com/voicetreelab/voicetree/actions/workflows/release.yml/badge.svg)](https://github.com/voicetreelab/voicetree/actions/workflows/release.yml)
 ![macOS](https://img.shields.io/badge/macOS-supported-blue)
 ![Windows](https://img.shields.io/badge/Windows-supported-blue)
 ![Linux](https://img.shields.io/badge/Linux-supported-blue)
