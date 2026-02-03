@@ -24,19 +24,15 @@ Voicetree is an Obsidian-style mindmap of Markdown files - a shared context-grap
 | Agents don't know what you know                                     | You share the same memory pool with agents                   |
 | Context-switching is draining                                       | Zoom to a task to see only the relevant information          |
 
-### How
+### How It Works
 
-Voicetree is a peaceful canvas for agentic engineering. Your agents (Claude Code, Codex, Opencode, Gemini etc.) live inside the graph, next to their tasks, plans, and progress updates. 
+Your agents (Claude Code, Codex, etc.) live inside the graph, next to their tasks and progress. When they spawn subagents, each one appears as a native terminal on the canvas.
 
-Agents see all context within a distance around them, and can execute semantic search against local embeddings. This means agents see what you see. You share the same memory, the same second brain.
+**Context retrieval:** Agents see all nodes within a configurable radius and can semantic search against local embeddings. The graph structure means context retrieval is targeted rather than dumping entire conversation history - avoiding the 30-60% performance degradation from context rot[^1].
 
-Agents can operate within the graph like you, building subgraphs to break their problems down into small chunks that are easy for you to review and glance at the high-level view. 
+**Spatial layout:** Location-based memory is more robust than sequential recall. The canvas maps directly to how you already organize information mentally - you remember where things are.
 
-The agents can spawn and orchestrate their own subagents into the graph, but as native terminals offering you full visibility and control.
-
-As your project & context grows, this scales. You use your brains most efficient form of memory: remembering where things are in space. 
-Each node can represent any concept at any level of abstraction. You can see and reason about the structure between these concepts more easily as it is represented exactly as your brain represented them.
-This lets you externalise your working memory, freeing up cognitive load for the real problem-solving. 
+**Externalized working memory:** Each node represents a concept at any level of abstraction. The graph structure mirrors your mental model - relationships between ideas are represented exactly as you think about them, offloading cognitive load to the canvas. 
 
 ## Installation
 
