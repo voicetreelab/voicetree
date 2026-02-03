@@ -4,17 +4,15 @@
 
 ## Overview
 
-Voicetree is an Obsidian-style mindmap of Markdown files, a shared context-graph for you and your coding agents.
-It's an infinite canvas where you can add nodes 
-
-![macOS](https://img.shields.io/badge/macOS-13%2B-blue)
-![Windows](https://img.shields.io/badge/Windows-10%2B-blue)
-![Linux](https://img.shields.io/badge/Linux-supported-blue)
-[![Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?style=flat&logo=discord&logoColor=white)](https://discord.gg/r2ZBtJ9zvk)
-
-**Star us on GitHub — your support motivates us a lot!**
+Voicetree is an Obsidian-style mindmap of Markdown files - a shared context-graph for you and your coding agents.
 
 ![Voicetree Demo](meta/Self_spawn.gif)
+
+[![Build](https://github.com/voicetreelab/voicetree/actions/workflows/tests.yml/badge.svg)](https://github.com/voicetreelab/voicetree/actions/workflows/tests.yml)
+![macOS](https://img.shields.io/badge/macOS-supported-blue)
+![Windows](https://img.shields.io/badge/Windows-supported-blue)
+![Linux](https://img.shields.io/badge/Linux-supported-blue)
+[![Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?style=flat&logo=discord&logoColor=white)](https://discord.gg/r2ZBtJ9zvk)
 
 ### What Problem Does This Solve?
 
