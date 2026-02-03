@@ -7,6 +7,13 @@
 Voicetree is an Obsidian-style mindmap of Markdown files, a shared context-graph for you and your coding agents.
 It's an infinite canvas where you can add nodes 
 
+![macOS](https://img.shields.io/badge/macOS-13%2B-blue)
+![Windows](https://img.shields.io/badge/Windows-10%2B-blue)
+![Linux](https://img.shields.io/badge/Linux-supported-blue)
+[![Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?style=flat&logo=discord&logoColor=white)](https://discord.gg/r2ZBtJ9zvk)
+
+**Star us on GitHub — your support motivates us a lot!**
+
 ![Voicetree Demo](meta/Self_spawn.gif)
 
 ### What Problem Does This Solve?
@@ -21,23 +28,7 @@ It's an infinite canvas where you can add nodes
 | Agents don't know what you know                                     | You share the same memory pool with agents                   |
 | Context-switching is draining                                       | Zoom to a task to see only the relevant information          |
 
-
-### The Problem
-
-<img align="right" width="45%" hspace="20" src="meta/10_terminals.jpg" alt="10 terminals">
-
-Focus > multi-tasking. 
-But with agents able to handle long tasks autonomously, the productivity meta is increasingly more parallel agents.
-Even managing 4 terminals is claustrophobic, overwhelming and draining. Context-switching and context management sucks. Agents don't have memory.
-
-You have some options:
-- suffer context-rot if you reprompt it within the same session (decreasing performance by [30-60%](https://research.trychroma.com/context-rot)). 
-- save handover documents of the previous agent's notes. Easily becomes an unorganised mess.
-- use Obsidian or a memory layer for the agents. These are either designed for the human or the AI, so there's a mismatch between what you know and what the agents know. 
-- share the same memory pool, represent it as a mindmap, the most efficient way for humans to interpret high level data, and whose underlying graph structure allows for smart context-retrieval into the agent.
-
-### The Solution
-![VT_branching_with_editor.png](meta/VT_branching_with_editor.png)
+### How
 
 Voicetree is a peaceful canvas for agentic engineering. Your agents (Claude Code, Codex, Opencode, Gemini etc.) live inside the graph, next to their tasks, plans, and progress updates. 
 
@@ -87,8 +78,6 @@ Or install via script:
 curl -fsSL https://raw.githubusercontent.com/voicetreelab/voicetree/main/install.sh | sh
 ```
 
-
-**Discord community:** https://discord.gg/3z4Gbquv
 
 ### Divide and Conquer with Transparent Subagent Orchestration
 
