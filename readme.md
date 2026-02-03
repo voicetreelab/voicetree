@@ -2,7 +2,7 @@
 
 **Obsidian meets Claude Code**
 
-Agents spawn and orchestrate subagents on the same context graph you use to think. Steer swarms of parallel agents as they grow your mindmap.
+Agents spawn subagents on the same context graph you use to think. Steer swarms of parallel agents as they grow your mindmap.
 
 ![Voicetree Demo](meta/Self_spawn.gif)
 
