@@ -6,8 +6,9 @@ import {hasActualContentChanged} from "@/pure/graph/contentChangeDetection";
 import posthog from "posthog-js";
 import {markTerminalActivityForContextNode} from "@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity";
 import type {} from '@/utils/types/cytoscape-layout-utilities';
-import {cyFitCollectionByAverageNodeSize, getResponsivePadding} from "@/utils/responsivePadding";
 import {checkEngagementPrompts} from "./userEngagementPrompts";
+import {setPendingPan, setPendingWikilinkPan} from "@/shell/edge/UI-edge/state/PendingPanStore";
+import {getEditorByNodeId} from "@/shell/edge/UI-edge/state/EditorStore";
 import {scheduleIdleWork} from "@/utils/scheduleIdleWork";
 import {getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {getShadowNodeId, getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
@@ -238,6 +239,12 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
 
 
                         if (targetNode.length > 0) {
+                            // Detect user-added wikilink: new edge from node with open editor
+                            const hasOpenEditor = O.isSome(getEditorByNodeId(nodeId));
+                            if (hasOpenEditor) {
+                                setPendingWikilinkPan(edge.targetId);
+                            }
+
                             //console.log(`[applyGraphDeltaToUI] Adding new edge: ${edgeId} with label ${edge.label}`);
                             cy.add({
                                 group: 'edges' as const,
@@ -279,13 +286,15 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
     const totalNodes: number = cy.nodes().length;
     const changeRatio: number = totalNodes > 0 ? newNodeCount / totalNodes : 1;
 
+    // Set pending pan to be executed when layout completes (instead of arbitrary timeout)
+    // This ensures we pan after layout positions are finalized, not before
     if (changeRatio > 0.3) {
-        // Large batch (>30% new nodes): fit all in view with padding
-        setTimeout(() => { if (!cy.destroyed()) cy.fit(undefined, getResponsivePadding(cy, 15)); }, 150);
+        // Large batch (>30% new nodes): will fit all in view with padding
+        setPendingPan('large-batch', newNodeIds, totalNodes);
     }
     else if (newNodeCount >= 1 && totalNodes <= 4) {
-        // Fit so average node takes target fraction of viewport (smart zoom: only zooms if needed)
-        setTimeout(() => { if (!cy.destroyed()) cyFitCollectionByAverageNodeSize(cy, cy.nodes(), 0.15); }, 150);
+        // Will fit so average node takes target fraction of viewport
+        setPendingPan('small-graph', newNodeIds, totalNodes);
     }
     //console.log('[applyGraphDeltaToUI] Complete. Total nodes:', cy.nodes().length, 'Total edges:', cy.edges().length);
 

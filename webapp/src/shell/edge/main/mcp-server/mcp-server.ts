@@ -27,6 +27,7 @@ import {getUnseenNodesAroundContextNode, type UnseenNode} from '@/shell/edge/mai
 import {spawnTerminalWithContextNode} from '@/shell/edge/main/terminals/spawnTerminalWithContextNode'
 import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 import {findAvailablePort} from '@/shell/edge/main/electron/port-utils'
+import {getTerminalManager} from '@/shell/edge/main/terminals/terminal-manager-instance'
 
 const MCP_BASE_PORT: 3001 = 3001 as const
 let mcpPort: number = MCP_BASE_PORT  
@@ -385,6 +386,173 @@ export async function getUnseenNodesNearbyTool({
     }
 }
 
+export async function sendMessageTool({
+    terminalId,
+    message,
+    callerTerminalId
+}: {
+    terminalId: string
+    message: string
+    callerTerminalId: string
+}): Promise<McpToolResponse> {
+    // 1. Validate caller terminal exists
+    const terminalRecords: TerminalRecord[] = getTerminalRecords()
+    if (!terminalRecords.some((r: TerminalRecord) => r.terminalId === callerTerminalId)) {
+        return buildJsonResponse({
+            success: false,
+            error: `Unknown caller terminal: ${callerTerminalId}`
+        }, true)
+    }
+
+    // 2. Find the target terminal
+    const targetRecord: TerminalRecord | undefined = terminalRecords.find(
+        (r: TerminalRecord) => r.terminalId === terminalId
+    )
+
+    if (!targetRecord) {
+        return buildJsonResponse({
+            success: false,
+            error: `Terminal not found: ${terminalId}`
+        }, true)
+    }
+
+    // 3. Write message to terminal (with carriage return to execute)
+    try {
+        const terminalManager = getTerminalManager()
+        const result = terminalManager.write(terminalId, message + '\r')
+
+        if (!result.success) {
+            return buildJsonResponse({
+                success: false,
+                error: result.error ?? 'Failed to send message'
+            }, true)
+        }
+
+        return buildJsonResponse({
+            success: true,
+            terminalId,
+            message: `Successfully sent message to terminal: ${terminalId}`
+        })
+    } catch (error) {
+        const errorMessage: string = error instanceof Error ? error.message : String(error)
+        return buildJsonResponse({
+            success: false,
+            error: errorMessage
+        }, true)
+    }
+}
+
+export async function closeAgentTool({
+    terminalId,
+    callerTerminalId
+}: {
+    terminalId: string
+    callerTerminalId: string
+}): Promise<McpToolResponse> {
+    // 1. Validate caller terminal exists
+    const terminalRecords: TerminalRecord[] = getTerminalRecords()
+    if (!terminalRecords.some((r: TerminalRecord) => r.terminalId === callerTerminalId)) {
+        return buildJsonResponse({
+            success: false,
+            error: `Unknown caller terminal: ${callerTerminalId}`
+        }, true)
+    }
+
+    // 2. Find the target terminal
+    const targetRecord: TerminalRecord | undefined = terminalRecords.find(
+        (r: TerminalRecord) => r.terminalId === terminalId
+    )
+
+    if (!targetRecord) {
+        return buildJsonResponse({
+            success: false,
+            error: `Terminal not found: ${terminalId}`
+        }, true)
+    }
+
+    // 3. Kill the terminal using the terminal manager
+    try {
+        const terminalManager = getTerminalManager()
+        const result = terminalManager.kill(terminalId)
+
+        if (!result.success) {
+            return buildJsonResponse({
+                success: false,
+                error: result.error ?? 'Failed to close terminal'
+            }, true)
+        }
+
+        return buildJsonResponse({
+            success: true,
+            terminalId,
+            message: `Successfully closed agent terminal: ${terminalId}`
+        })
+    } catch (error) {
+        const errorMessage: string = error instanceof Error ? error.message : String(error)
+        return buildJsonResponse({
+            success: false,
+            error: errorMessage
+        }, true)
+    }
+}
+
+export async function readTerminalOutputTool({
+    terminalId,
+    callerTerminalId,
+    nLines = 100
+}: {
+    terminalId: string
+    callerTerminalId: string
+    nLines?: number
+}): Promise<McpToolResponse> {
+    // 1. Validate caller terminal exists
+    const terminalRecords: TerminalRecord[] = getTerminalRecords()
+    if (!terminalRecords.some((r: TerminalRecord) => r.terminalId === callerTerminalId)) {
+        return buildJsonResponse({
+            success: false,
+            error: `Unknown caller terminal: ${callerTerminalId}`
+        }, true)
+    }
+
+    // 2. Find the target terminal
+    const targetRecord: TerminalRecord | undefined = terminalRecords.find(
+        (r: TerminalRecord) => r.terminalId === terminalId
+    )
+
+    if (!targetRecord) {
+        return buildJsonResponse({
+            success: false,
+            error: `Terminal not found: ${terminalId}`
+        }, true)
+    }
+
+    // 3. Get output from terminal manager
+    try {
+        const terminalManager = getTerminalManager()
+        const result = terminalManager.getOutput(terminalId, nLines)
+
+        if (!result.success) {
+            return buildJsonResponse({
+                success: false,
+                error: result.error ?? 'Failed to read terminal output'
+            }, true)
+        }
+
+        return buildJsonResponse({
+            success: true,
+            terminalId,
+            nLines,
+            output: result.output
+        })
+    } catch (error) {
+        const errorMessage: string = error instanceof Error ? error.message : String(error)
+        return buildJsonResponse({
+            success: false,
+            error: errorMessage
+        }, true)
+    }
+}
+
 /**
  * Creates and configures the MCP server with Voicetree tools.
  */
@@ -399,7 +567,20 @@ export function createMcpServer(): McpServer {
         'spawn_agent',
         {
             title: 'Spawn Agent',
-            description: 'Spawn an agent in the Voicetree graph to perform a task. Prefer this over your Task or subagent tool for tasks involving code modifications where the user would benefit from visibility and control over the changes. If you already have a node detailing the task, use nodeId. Otherwise, use task+parentNodeId to create a new task node first.',
+            description: `Spawn an agent in the Voicetree graph to perform a task. Unlike built-in subagents which are a black box, voicetree agents give users full visibility and control—they can see progress, read nodes, and intervene.
+
+**When to use (prefer this for complex work):**
+- Tasks with 3+ distinct concerns or phases
+- Work that can be parallelized (spawn multiple agents)
+- Any subtask where user visibility matters
+
+**Orchestration pattern:**
+1. Decompose task into dependency graph of nodes
+2. Spawn agents for parallelizable subtasks
+3. Use wait_for_agents to poll completion
+4. Review with get_unseen_nodes_nearby
+
+If you already have a node detailing the task, use nodeId. Otherwise, use task+parentNodeId to create a new task node first.`,
             inputSchema: {
                 nodeId: z.string().optional().describe('Target node ID to attach the spawned agent (use this OR task+parentNodeId)'),
                 callerTerminalId: z.string().describe('Your terminal ID, you must echo $VOICETREE_TERMINAL_ID to retrieve it if you have not yet.'),
@@ -453,6 +634,53 @@ export function createMcpServer(): McpServer {
         },
         async ({callerTerminalId, search_from_node}) =>
             getUnseenNodesNearbyTool({callerTerminalId, search_from_node})
+    )
+
+    // Tool: close_agent
+    server.registerTool(
+        'close_agent',
+        {
+            title: 'Close Agent',
+            description: 'Close an agent terminal. After waiting for an agent to finish, review its work. Close the agent if satisfied with its output. Leave the agent open if any tech debt was introduced or if human review would be beneficial - open terminals signal to the user that attention is needed.',
+            inputSchema: {
+                terminalId: z.string().describe('The terminal ID of the agent to close'),
+                callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var')
+            }
+        },
+        async ({terminalId, callerTerminalId}) =>
+            closeAgentTool({terminalId, callerTerminalId})
+    )
+
+    // Tool: send_message
+    server.registerTool(
+        'send_message',
+        {
+            title: 'Send Message to Agent',
+            description: 'Send a message directly to an agent terminal. The message is injected into the terminal and executed (carriage return appended). Use this to provide follow-up instructions, answer prompts, or inject commands into a running agent.',
+            inputSchema: {
+                terminalId: z.string().describe('The terminal ID of the agent to send the message to'),
+                message: z.string().describe('The message/command to send to the terminal'),
+                callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var')
+            }
+        },
+        async ({terminalId, message, callerTerminalId}) =>
+            sendMessageTool({terminalId, message, callerTerminalId})
+    )
+
+    // Tool: read_terminal_output
+    server.registerTool(
+        'read_terminal_output',
+        {
+            title: 'Read Terminal Output',
+            description: 'Read the last N lines of output from an agent terminal. Output has ANSI escape codes stripped for readability. Use this to check what an agent has printed, debug issues, or verify agent progress without waiting for completion.',
+            inputSchema: {
+                terminalId: z.string().describe('The terminal ID of the agent to read output from'),
+                callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),
+                nLines: z.number().optional().describe('Number of lines to return (default: 100)')
+            }
+        },
+        async ({terminalId, callerTerminalId, nLines}) =>
+            readTerminalOutputTool({terminalId, callerTerminalId, nLines})
     )
 
     return server

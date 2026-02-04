@@ -6,6 +6,16 @@ import {
   type Token,
   type TranslationConfig,
 } from "@soniox/speech-to-text-web";
+import {
+  type ReconnectionState,
+  createReconnectionState,
+  shouldRetry,
+  recordAttempt,
+  resetAttempts,
+  scheduleReconnection,
+  MAX_RECONNECT_ATTEMPTS,
+  RECONNECT_DELAY_MS,
+} from "./reconnectionManager";
 
 interface UseVoiceTreeClientOptions {
   apiKey: string | (() => Promise<string>);
@@ -24,8 +34,6 @@ type TranscriptionError = {
 
 // Proactive restart interval: 18 minutes (before the ~20-min Soniox timeout)
 const PROACTIVE_RESTART_INTERVAL_MS = 18 * 60 * 1000;
-// Reactive reconnection delay after error
-const REACTIVE_RECONNECT_DELAY_MS = 1000;
 
 // useTranscribe hook wraps VoiceTree speech-to-text functionality using Soniox SDK.
 export default function useVoiceTreeClient({
@@ -43,6 +51,8 @@ export default function useVoiceTreeClient({
   const sonioxClient: RefObject<SonioxClient | null> = useRef<SonioxClient | null>(null);
   const proactiveRestartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isRecordingRef = useRef<boolean>(false);
+  // Track reactive reconnection state using extracted reconnection manager
+  const reconnectionStateRef = useRef<ReconnectionState>(createReconnectionState());
   // Refs to hold latest function versions (avoids stale closure issues with mutual recursion)
   const startAndScheduleRef = useRef<() => void>(() => {});
 
@@ -94,6 +104,8 @@ export default function useVoiceTreeClient({
         onFinished?.();
       },
       onStarted: () => {
+        // Reset reconnection state on successful start
+        reconnectionStateRef.current = resetAttempts();
         onStarted?.();
       },
 
@@ -104,14 +116,16 @@ export default function useVoiceTreeClient({
       ) => {
         console.error('❌ [VoiceTree] Soniox Error - Status:', status, 'Message:', message, 'Code:', errorCode);
 
-        // Reactive reconnection: auto-recover from connection errors
-        if (isRecordingRef.current && (status === 'connection_closed' || status === 'network_error')) {
-          console.log('🔄 [VoiceTree] Connection lost, attempting reactive reconnection in 1s...');
-          setTimeout(() => {
-            if (isRecordingRef.current) {
-              startAndScheduleRef.current();
-            }
-          }, REACTIVE_RECONNECT_DELAY_MS);
+        // Reactive reconnection: auto-recover from ANY error (at least one attempt)
+        if (shouldRetry(reconnectionStateRef.current, isRecordingRef.current)) {
+          reconnectionStateRef.current = recordAttempt(reconnectionStateRef.current);
+          const attemptNum = reconnectionStateRef.current.attempts;
+          console.log(`🔄 [VoiceTree] Error occurred, attempting reactive reconnection in 1s... (attempt ${attemptNum}/${MAX_RECONNECT_ATTEMPTS})`);
+          scheduleReconnection(
+            () => isRecordingRef.current,
+            () => startAndScheduleRef.current(),
+            RECONNECT_DELAY_MS
+          );
           return;
         }
 
@@ -137,6 +151,7 @@ export default function useVoiceTreeClient({
 
   const startTranscription: () => Promise<void> = useCallback(async () => {
     isRecordingRef.current = true;
+    reconnectionStateRef.current = resetAttempts(); // Reset attempts on manual start
     await startTranscriptionInternal();
     scheduleProactiveRestart();
   }, [startTranscriptionInternal, scheduleProactiveRestart]);

@@ -37,9 +37,13 @@ interface TerminalOperationResult {
  * - Shell selection logic
  * - Error terminal handling
  */
+// Max characters to store per terminal (roughly 1000+ lines at 100 chars/line)
+const MAX_OUTPUT_BUFFER_SIZE: number = 100000
+
 export default class TerminalManager {
   private terminals = new Map<string, IPty>();
   private terminalToWindow = new Map<string, number>();
+  private terminalOutputBuffers = new Map<string, string>();
 
   /**
    * Spawn a new PTY terminal with terminal data for environment variables
@@ -110,10 +114,23 @@ export default class TerminalManager {
         }, 200);
       }
 
+      // Initialize output buffer for this terminal
+      this.terminalOutputBuffers.set(terminalId, '');
+
       // Handle PTY data
       ptyProcess.onData((data: string) => {
         // //console.log(`[TerminalManager] onData called for ${terminalId}, data length: ${data.length}`);
         // //console.log(`[TerminalManager] sender.relativeFilePathIsID: ${sender.relativeFilePathIsID}, sender.isDestroyed: ${sender.isDestroyed()}`);
+
+        // Capture output to buffer (ring buffer behavior - trim from start if too large)
+        const currentBuffer: string = this.terminalOutputBuffers.get(terminalId) ?? '';
+        let newBuffer: string = currentBuffer + data;
+        if (newBuffer.length > MAX_OUTPUT_BUFFER_SIZE) {
+          // Keep only the last MAX_OUTPUT_BUFFER_SIZE characters
+          newBuffer = newBuffer.slice(-MAX_OUTPUT_BUFFER_SIZE);
+        }
+        this.terminalOutputBuffers.set(terminalId, newBuffer);
+
         try {
           sender.send('terminal:data', terminalId, data);
           // //console.log(`[TerminalManager] Successfully sent data to renderer`);
@@ -132,6 +149,7 @@ export default class TerminalManager {
         markTerminalExited(terminalId);
         this.terminals.delete(terminalId);
         this.terminalToWindow.delete(terminalId);
+        this.terminalOutputBuffers.delete(terminalId);
       });
 
       //console.log(`[TerminalManager] Terminal ${terminalId} spawned successfully with PID: ${ptyProcess.pid}`);
@@ -228,6 +246,7 @@ export default class TerminalManager {
       markTerminalExited(terminalId);
       this.terminals.delete(terminalId);
       this.terminalToWindow.delete(terminalId);
+      this.terminalOutputBuffers.delete(terminalId);
       return { success: true };
     } catch (error: unknown) {
       console.error(`Failed to kill terminal ${terminalId}:`, error);
@@ -255,6 +274,7 @@ export default class TerminalManager {
         }
         this.terminals.delete(terminalId);
         this.terminalToWindow.delete(terminalId);
+        this.terminalOutputBuffers.delete(terminalId);
       }
     }
   }
@@ -280,6 +300,33 @@ export default class TerminalManager {
     }
     this.terminals.clear();
     this.terminalToWindow.clear();
+    this.terminalOutputBuffers.clear();
+  }
+
+  /**
+   * Get recent output from a terminal, with ANSI codes stripped.
+   * Returns the last N lines of output.
+   */
+  getOutput(terminalId: string, nLines: number = 100): {success: boolean; output?: string; error?: string} {
+    const buffer: string | undefined = this.terminalOutputBuffers.get(terminalId);
+
+    if (buffer === undefined) {
+      // Check if it's an error terminal
+      if (terminalId.startsWith('error-')) {
+        return { success: true, output: '' };
+      }
+      return { success: false, error: 'Terminal not found' };
+    }
+
+    // Strip ANSI escape codes
+    const ansiPattern: RegExp = /\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g;
+    const cleanedBuffer: string = buffer.replace(ansiPattern, '');
+
+    // Split into lines and get the last N lines
+    const lines: string[] = cleanedBuffer.split('\n');
+    const lastNLines: string[] = lines.slice(-nLines);
+
+    return { success: true, output: lastNLines.join('\n') };
   }
 
   /**

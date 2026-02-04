@@ -16,6 +16,7 @@ import ColaLayout from './cola';
 import { DEFAULT_EDGE_LENGTH} from './cytoscape-graph-constants';
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
+import { consumePendingPan } from '@/shell/edge/UI-edge/state/PendingPanStore';
 
 // Registry for layout triggers - allows external code to trigger layout via triggerLayout(cy)
 const layoutTriggers: Map<Core, () => void> = new Map<Core, () => void>();
@@ -123,6 +124,10 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
       //console.log('[AutoLayout] Cola layout complete');
       void window.electronAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);
       layoutRunning = false;
+
+      // Execute any pending pan after layout completes (instead of arbitrary timeout)
+      // This ensures viewport fits to new nodes only after their positions are finalized
+      consumePendingPan(cy);
 
       // If another layout was queued, run it now
       if (layoutQueued) {

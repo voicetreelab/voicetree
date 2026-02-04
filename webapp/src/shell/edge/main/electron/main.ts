@@ -8,7 +8,7 @@ import log from 'electron-log';
 import {setupApplicationMenu} from '@/shell/edge/main/electron/application-menu';
 import {StubTextToTreeServerManager} from './server/StubTextToTreeServerManager';
 import {RealTextToTreeServerManager} from './server/RealTextToTreeServerManager';
-import TerminalManager from '@/shell/edge/main/terminals/terminal-manager';
+import {getTerminalManager} from '@/shell/edge/main/terminals/terminal-manager-instance';
 import {setupToolsDirectory, getToolsDirectory} from './tools-setup';
 import {setupOnboardingDirectory} from './onboarding-setup';
 import {startNotificationScheduler, stopNotificationScheduler, recordAppUsage} from './notification-scheduler';
@@ -202,7 +202,7 @@ const textToTreeServerManager: StubTextToTreeServerManager | RealTextToTreeServe
     ((process.env.NODE_ENV === 'test' || process.env.HEADLESS_TEST === '1') && !useRealServer)
         ? new StubTextToTreeServerManager()
         : new RealTextToTreeServerManager();
-const terminalManager: TerminalManager = new TerminalManager();
+const terminalManager = getTerminalManager();
 
 // Store the TextToTreeServer port (set during app startup)
 let textToTreeServerPort: number | null = null;
