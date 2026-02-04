@@ -22,6 +22,11 @@ type TranscriptionError = {
   errorCode: number | undefined;
 };
 
+// Proactive restart interval: 18 minutes (before the ~20-min Soniox timeout)
+const PROACTIVE_RESTART_INTERVAL_MS = 18 * 60 * 1000;
+// Reactive reconnection delay after error
+const REACTIVE_RECONNECT_DELAY_MS = 1000;
+
 // useTranscribe hook wraps VoiceTree speech-to-text functionality using Soniox SDK.
 export default function useVoiceTreeClient({
   apiKey,
@@ -36,6 +41,10 @@ export default function useVoiceTreeClient({
   error: TranscriptionError | null;
 } {
   const sonioxClient: RefObject<SonioxClient | null> = useRef<SonioxClient | null>(null);
+  const proactiveRestartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isRecordingRef = useRef<boolean>(false);
+  // Refs to hold latest function versions (avoids stale closure issues with mutual recursion)
+  const startAndScheduleRef = useRef<() => void>(() => {});
 
   sonioxClient.current ??= new SonioxClient({
     apiKey,
@@ -44,7 +53,27 @@ export default function useVoiceTreeClient({
   const [state, setState] = useState<RecorderState>("Init");
   const [error, setError] = useState<TranscriptionError | null>(null);
 
-  const startTranscription: () => Promise<void> = useCallback(async () => {
+  // Clear the proactive restart timer
+  const clearProactiveTimer = useCallback(() => {
+    if (proactiveRestartTimerRef.current) {
+      clearTimeout(proactiveRestartTimerRef.current);
+      proactiveRestartTimerRef.current = null;
+    }
+  }, []);
+
+  // Schedule proactive restart to prevent ~20-min Soniox timeout
+  const scheduleProactiveRestart = useCallback(() => {
+    clearProactiveTimer();
+    proactiveRestartTimerRef.current = setTimeout(() => {
+      if (isRecordingRef.current) {
+        console.log('🔄 [VoiceTree] Proactive restart triggered (18-min interval)');
+        startAndScheduleRef.current();
+      }
+    }, PROACTIVE_RESTART_INTERVAL_MS);
+  }, [clearProactiveTimer]);
+
+  // Internal start function (used by both initial start and restarts)
+  const startTranscriptionInternal = useCallback(async () => {
     // Kill any existing client and create fresh one
     sonioxClient.current?.cancel();
     sonioxClient.current = new SonioxClient({ apiKey });
@@ -74,6 +103,18 @@ export default function useVoiceTreeClient({
         errorCode: number | undefined,
       ) => {
         console.error('❌ [VoiceTree] Soniox Error - Status:', status, 'Message:', message, 'Code:', errorCode);
+
+        // Reactive reconnection: auto-recover from connection errors
+        if (isRecordingRef.current && (status === 'connection_closed' || status === 'network_error')) {
+          console.log('🔄 [VoiceTree] Connection lost, attempting reactive reconnection in 1s...');
+          setTimeout(() => {
+            if (isRecordingRef.current) {
+              startAndScheduleRef.current();
+            }
+          }, REACTIVE_RECONNECT_DELAY_MS);
+          return;
+        }
+
         setError({ status, message, errorCode });
       },
 
@@ -88,12 +129,30 @@ export default function useVoiceTreeClient({
     });
   }, [apiKey, onFinished, onPartialResultCallback, onStarted, translationConfig]);
 
+  // Keep the ref up-to-date with latest functions
+  startAndScheduleRef.current = () => {
+    void startTranscriptionInternal();
+    scheduleProactiveRestart();
+  };
+
+  const startTranscription: () => Promise<void> = useCallback(async () => {
+    isRecordingRef.current = true;
+    await startTranscriptionInternal();
+    scheduleProactiveRestart();
+  }, [startTranscriptionInternal, scheduleProactiveRestart]);
+
   const stopTranscription: () => void = useCallback(() => {
+    isRecordingRef.current = false;
+    clearProactiveTimer();
     sonioxClient.current?.stop();
-  }, []);
+  }, [clearProactiveTimer]);
 
   useEffect(() => {
     return () => {
+      isRecordingRef.current = false;
+      if (proactiveRestartTimerRef.current) {
+        clearTimeout(proactiveRestartTimerRef.current);
+      }
       sonioxClient.current?.cancel();
     };
   }, []);
