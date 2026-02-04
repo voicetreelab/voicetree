@@ -41,7 +41,7 @@ function parsePayload(response: McpToolResponse): unknown {
     return JSON.parse(response.content[0].text)
 }
 
-function buildGraphNode(nodeId: NodeIdAndFilePath, content: string): GraphNode {
+function buildGraphNode(nodeId: NodeIdAndFilePath, content: string, agentName?: string): GraphNode {
     return {
         outgoingEdges: [],
         absoluteFilePathIsID: nodeId,
@@ -49,7 +49,7 @@ function buildGraphNode(nodeId: NodeIdAndFilePath, content: string): GraphNode {
         nodeUIMetadata: {
             color: O.none,
             position: O.none,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: agentName ? new Map([['agent_name', agentName]]) : new Map(),
             isContextNode: false
         }
     }
@@ -163,7 +163,7 @@ describe('MCP spawn_agent tool', () => {
 
         expect(payload.success).toBe(true)
         expect(payload.nodeId).toBe(fullPath)
-        expect(spawnTerminalWithContextNode).toHaveBeenCalledWith(fullPath, undefined, undefined, true, false)
+        expect(spawnTerminalWithContextNode).toHaveBeenCalledWith(fullPath, undefined, undefined, true, false, undefined, undefined, 'caller-terminal-99')
     })
 
     it('returns an error when vault path is not set', async () => {
@@ -211,17 +211,20 @@ describe('MCP list_agents tool', () => {
     })
 
     it('lists all agents with status and new nodes', async () => {
+        // Terminal data with agentName for matching
         const terminalDataA: TerminalData = createTerminalData({
             attachedToNodeId: 'ctx-nodes/agent-a.md',
             terminalCount: 0,
             title: 'Agent A',
-            executeCommand: true
+            executeCommand: true,
+            agentName: 'Sam'
         })
         const terminalDataB: TerminalData = createTerminalData({
             attachedToNodeId: 'ctx-nodes/agent-b.md',
             terminalCount: 1,
             title: 'Agent B',
-            executeCommand: true
+            executeCommand: true,
+            agentName: 'Max'
         })
         const terminalDataPlain: TerminalData = createTerminalData({
             attachedToNodeId: 'plain-node.md',
@@ -237,20 +240,12 @@ describe('MCP list_agents tool', () => {
         ]
 
         vi.mocked(getTerminalRecords).mockReturnValue(records)
-        vi.mocked(getUnseenNodesAroundContextNode).mockImplementation(async (contextNodeId: string) => {
-            if (contextNodeId === 'ctx-nodes/agent-a.md') {
-                return [{nodeId: 'new-node-a.md', content: 'A'}]
-            }
-            if (contextNodeId === 'ctx-nodes/agent-b.md') {
-                return [{nodeId: 'new-node-b.md', content: 'B'}]
-            }
-            return []
-        })
 
+        // Graph contains nodes with agent_name matching terminal's agentName
         vi.mocked(getGraph).mockReturnValue({
             nodes: {
-                'new-node-a.md': buildGraphNode('new-node-a.md', '# Node A'),
-                'new-node-b.md': buildGraphNode('new-node-b.md', '# Node B')
+                'new-node-a.md': buildGraphNode('new-node-a.md', '# Node A', 'Sam'),
+                'new-node-b.md': buildGraphNode('new-node-b.md', '# Node B', 'Max')
             },
             incomingEdgesIndex: new Map(),
             nodeByBaseName: new Map(),

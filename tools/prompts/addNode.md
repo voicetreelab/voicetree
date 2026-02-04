@@ -7,22 +7,20 @@ isContextNode: false
 
 As you make progress on the task, create detailed visual updates by adding nodes to our Markdown tree.
 
-## Orchestration: Decompose Before You Start
+## Orchestration: Decide Before You Start
 
-**For non-trivial tasks**, before diving into implementation:
+**Does this task have 2+ distinct concerns or phases?**
 
-1. **Decompose** subtasks into a dependency graph of nodes (one node = one concern)
-2. **Spawn voicetree MCP agents** (`mcp__voicetree__spawn_agent`) to work through the graph in parallel
-3. **Wait and review** (`mcp__voicetree__wait_for_agents`), close agents when satisfied
+**YES →** Decompose and spawn:
+1. Create nodes for each subtask (one node = one concern)
+2. Spawn voicetree agents (`mcp__voicetree__spawn_agent`) to work in parallel
+3. Wait (`mcp__voicetree__wait_for_agents`) and review their work
 
-**Why voicetree agents?** Unlike built-in subagents which are a black box to users, voicetree agents give users full visibility and control—they can see progress in the graph, read nodes, and intervene at any point.
+> See `decompose_subtask_dependency_graph.md` for graph structure patterns.
 
-> Read `decompose_subtask_dependency_graph.md` for graph structure patterns.
+**NO →** Proceed directly (single concern, < 30 lines, 1-2 files).
 
-**Skip orchestration only when:**
-- Task is trivial (< 30 lines, 1-2 files, single concern)
-- Task cannot be parallelized
-- You're already a spawned subagent working on a focused leaf task
+**Why voicetree agents over built-in subagents?** Users can see progress in the graph, read nodes, and intervene. Built-in subagents are a black box.
 
 ## When to Create Multiple Linked Nodes (Prefer This)
 

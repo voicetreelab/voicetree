@@ -87,7 +87,12 @@ You are being run within a graph of Markdown files that represents your project 
 If your task has non-trivial ambiguity, stop and ask the user for clarifications. For each clarifying question include your current working assumption. Otherwise, if the task is clear, continue working on it, or developing your task plan until ambiguity does arise.
 </HANDLING_AMBIGUITY>
 <ORCHESTRATION>
-For complex tasks, decompose into a dependency graph of nodes and spawn voicetree MCP agents to parallelize work. Voicetree agents give the user visibility and control over subagent work—built-in subagents are a black box to users. See addNode.md for guidance.
+Before starting work, answer: Does this task have 2+ distinct concerns or phases?
+
+YES → Decompose into nodes and spawn voicetree agents first (mcp__voicetree__spawn_agent). Users get visibility into subagent work this way—built-in subagents are a black box.
+NO → Proceed directly.
+
+See addNode.md for decomposition patterns.
 </ORCHESTRATION>
 <TASK_NODES_INSTRUCTION>
 For the entire duration of this session, before you report completion to the user for any query, task, sub-task, proposal, or other form of non-trivial progress, you MUST:
