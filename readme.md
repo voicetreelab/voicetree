@@ -84,7 +84,7 @@ Capture ideas hands-free with speech-to-graph.
 **Prerequisites:** Node.js 18+, Python 3.13, uv
 
 ```bash
-cd frontend/webapp && npm install && npm run electron  # App
+cd webapp && npm install && npm run electron  # App
 uv sync && uv run pytest                               # Backend
 ```
 
