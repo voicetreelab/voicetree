@@ -1,4 +1,4 @@
-import {app, BrowserWindow, nativeImage, dialog} from 'electron';
+import {app, BrowserWindow, nativeImage, dialog, screen} from 'electron';
 import path from 'path';
 import os from 'os';
 import fs from 'fs';
@@ -218,9 +218,13 @@ function createWindow(): void {
         ? path.join(__dirname, '../../build/icon.png')
         : path.join(__dirname, '../../build/icon.png');
 
+    // Get full screen dimensions (work area excludes dock/taskbar)
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
+
     const mainWindow: BrowserWindow = new BrowserWindow({
-        width: 1200,
-        height: 800,
+        width: screenWidth,
+        height: screenHeight,
         show: false,
         ...(process.platform !== 'darwin' && {icon: iconPath}),
         // macOS: extend web content into title bar (traffic lights remain visible)
