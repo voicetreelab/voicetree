@@ -5,9 +5,9 @@ import { vim } from '@replit/codemirror-vim';
 import { EditorState, type Extension } from '@codemirror/state';
 import type { Line } from '@codemirror/state';
 import { EditorView, ViewUpdate, ViewPlugin, keymap, tooltips } from '@codemirror/view';
-import { indentWithTab } from '@codemirror/commands';
+import { indentWithTab, indentMore, indentLess } from '@codemirror/commands';
 import { basicSetup } from 'codemirror';
-import { startCompletion } from '@codemirror/autocomplete';
+import { startCompletion, acceptCompletion } from '@codemirror/autocomplete';
 import { syntaxHighlighting, foldService, HighlightStyle, defaultHighlightStyle } from '@codemirror/language';
 import type { LanguageSupport } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
@@ -207,7 +207,12 @@ export class CodeMirrorEditorView extends Disposable {
       // VIM mode must come BEFORE basicSetup and other keymaps
       ...(this.options.vimMode ? [vim()] : []),
       basicSetup,
-      keymap.of([indentWithTab]), // Tab/Shift-Tab to indent/outdent bullet points
+      // Tab: first try accepting autocomplete, then indent. Shift-Tab always indents less.
+      // This fixes Tab not working to accept wikilink completions (indentWithTab was intercepting Tab first)
+      keymap.of([
+        { key: 'Tab', run: (view) => acceptCompletion(view) || indentMore(view) },
+        { key: 'Shift-Tab', run: indentLess }
+      ]),
       keymap.of(markdownKeymap), // Enter continues lists, Backspace removes list markers
       richMarkdocPlugin, // Rich markdown editing (provides markdown, decorations, and syntax highlighting inside provide())
       mermaidRender(), // Render Mermaid diagrams in live preview
