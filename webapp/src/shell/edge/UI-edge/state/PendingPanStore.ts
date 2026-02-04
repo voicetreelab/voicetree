@@ -36,10 +36,11 @@ export function setPendingPan(type: PendingPanType, nodeIds: string[], totalNode
 }
 
 /**
- * Set a pending pan to navigate to a wikilink target after layout.
- * Used when user adds a wikilink in an editor.
+ * Set a pending pan to navigate to a specific node after layout.
+ * Used when user adds a wikilink in an editor, clicks a node to open an editor,
+ * or creates a new node via UI.
  */
-export function setPendingWikilinkPan(targetNodeId: string): void {
+export function setPendingPanToNode(targetNodeId: string): void {
   pendingPan = { type: 'wikilink-target', nodeIds: [], totalNodes: 0, targetNodeId };
 }
 

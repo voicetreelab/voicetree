@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '{\"decision\":\"approve\",\"reason\":\"Before stopping: (1) The user or other agents may have created new nodes for you to read - call get_unseen_nodes_nearby with your $VOICETREE_TERMINAL_ID to check. (2) Remember to read addNode instructions for creating progress node(s)\"}'"
+            "command": "echo '{\"decision\":\"approve\",\"reason\":\"Before stopping: (1) The user or other agents may have created new nodes for you to read - call get_unseen_nodes_nearby with your $VOICETREE_TERMINAL_ID to check. (2) Remember to read addProgressTree.md instructions for creating progress node(s)\"}'"
           }
         ]
       }

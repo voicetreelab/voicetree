@@ -659,11 +659,20 @@ test.describe('Traffic Light Behaviors (Browser)', () => {
       console.log('=== STEP 3: Press fullscreen button (zoom in) ===');
 
       // After pinning, the editor becomes anchored and gets its own menu in the window chrome
-      // Wait for the anchored editor to have its menu
-      await page.waitForTimeout(100);
+      // Wait for the anchored editor to have its menu AND for the pending pan animation to complete
+      // (pending pan is triggered by setPendingPanToNode after anchoring, animates over 300ms)
+      await page.waitForTimeout(500);
       const anchoredEditorMenuSelector = '.cy-floating-window-horizontal-menu .traffic-light-fullscreen';
       const fullscreenButton = page.locator(anchoredEditorMenuSelector);
       await expect(fullscreenButton).toBeVisible({ timeout: 3000 });
+
+      // Measure zoom immediately before fullscreen click (after pending pan animation completes)
+      const zoomBeforeFullscreen = await page.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        return cy ? cy.zoom() : 0;
+      });
+      console.log(`Zoom before fullscreen: ${zoomBeforeFullscreen}`);
+
       await fullscreenButton.click();
       await page.waitForTimeout(400); // Wait for zoom animation
 
@@ -674,8 +683,9 @@ test.describe('Traffic Light Behaviors (Browser)', () => {
       });
       console.log(`Zoom after fullscreen: ${step3State.zoom}`);
 
-      // Zoom should have changed (likely increased to fit the editor)
-      expect(step3State.zoom).not.toBeCloseTo(zoomAfterPin, 1);
+      // Zoom should have changed after fullscreen click
+      // (comparing to zoom measured immediately before click, not to zoomAfterPin which may be stale)
+      expect(step3State.zoom).not.toBeCloseTo(zoomBeforeFullscreen, 1);
       console.log('OK Zoom changed after fullscreen click');
 
       // Screenshot after step 3

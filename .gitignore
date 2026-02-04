@@ -81,6 +81,7 @@ dmypy.json
 
 # Project specific
 test_output/*
+.claude/settings.local.json
 *vault*/*
 *Vault*/*
 voicetree.log
@@ -161,6 +162,7 @@ backend/text_to_graph_pipeline/debug_logs/**/*
 **/debug_logs/**/*
 
 **/*.md
+!tools/prompts/*.md
 /out/**/*
 /dist/**/*
 /dist-intel/**/*

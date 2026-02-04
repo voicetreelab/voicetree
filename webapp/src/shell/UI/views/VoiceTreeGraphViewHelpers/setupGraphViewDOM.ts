@@ -58,7 +58,7 @@ export function setupGraphViewDOM(config: GraphViewDOMConfig): GraphViewDOMEleme
         isDarkMode
     });
 
-    // Create overlays
+    // Create overlays (appended to container)
     const loadingResult: { overlay: HTMLElement; messageElement: HTMLElement } = createLoadingOverlay();
     const loadingOverlay: HTMLElement = loadingResult.overlay;
     const loadingMessageElement: HTMLElement = loadingResult.messageElement;

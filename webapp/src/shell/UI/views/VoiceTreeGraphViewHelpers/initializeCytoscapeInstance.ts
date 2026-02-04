@@ -28,7 +28,7 @@ export function initializeCytoscapeInstance(config: CytoscapeInitConfig): Cytosc
         minZoom: MIN_ZOOM,
         maxZoom: MAX_ZOOM,
         boxSelectionEnabled: true,
-        userZoomingEnabled: false
+        userZoomingEnabled: false // Custom zoom via NavigationGestureService.zoomAtCursor() for unified handling
     };
 
     // Try container-based initialization first

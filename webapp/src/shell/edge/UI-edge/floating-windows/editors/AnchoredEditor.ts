@@ -7,6 +7,7 @@ import {type EditorId, getEditorId, getShadowNodeId} from '@/shell/edge/UI-edge/
 import type {EditorData} from '@/shell/edge/UI-edge/state/UIAppState';
 import {addToAutoPinQueue, getEditorByNodeId} from '@/shell/edge/UI-edge/state/EditorStore';
 import {anchorToNode} from '@/shell/edge/UI-edge/floating-windows/anchor-to-node';
+import {setPendingPanToNode} from '@/shell/edge/UI-edge/state/PendingPanStore';
 import {cySmartCenter} from '@/utils/responsivePadding';
 import {closeEditor, createFloatingEditor} from './FloatingEditorCRUD';
 import {closeHoverEditor} from './HoverEditor';
@@ -72,12 +73,10 @@ export async function createAnchoredFloatingEditor(
         // Anchor to node using v2 function
         anchorToNode(cy, editor);
 
-        // TODO: Re-enable zoom for UI-initiated editor creation only.
-        // Currently disabled because both UI-created nodes and external filesystem nodes
-        // flow through the same file watcher path, so we can't distinguish them here.
-        // To fix: either track "pending UI nodes" or have UI path call this directly
-        // (with early-exit preventing duplicates from file watcher).
-        // See: tues/58_Dae_Fix_Prevent_Duplicate_Auto_Pin_Editors_3.md
+        // Pan to shadow node after layout completes
+        const editorId: EditorId = getEditorId(editor);
+        const shadowNodeId: string = getShadowNodeId(editorId);
+        setPendingPanToNode(shadowNodeId);
 
     } catch (error) {
         console.error('[FloatingEditorManager-v2] Error creating floating editor:', error);
@@ -146,10 +145,10 @@ export async function createFloatingEditorForUICreatedNode(
         // Anchor to node (creates shadow node for positioning)
         anchorToNode(cy, editor);
 
-        // Navigate to editor neighborhood with delay to handle IPC race condition
-        // (node may not be fully positioned in Cytoscape yet when this runs)
+        // Pan to shadow node after layout completes (replaces old 1200ms setTimeout hack)
         const editorId: EditorId = getEditorId(editor);
-        setTimeout(() => navigateToEditorNeighborhood(cy, nodeId, editorId), 1200);
+        const shadowNodeId: string = getShadowNodeId(editorId);
+        setPendingPanToNode(shadowNodeId);
 
     } catch (error) {
         console.error('[FloatingEditorManager-v2] Error creating editor for UI-created node:', error);

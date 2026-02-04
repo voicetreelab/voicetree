@@ -25,7 +25,7 @@ export const uiAPI: UIAPIType = new Proxy({} as UIAPIType, {
                 return;
             }
             // Send IPC call to renderer
-            console.log('[uiAPI] Sending IPC:', prop, args);
+            // console.log('[uiAPI] Sending IPC:', prop, args);
             mainWindow.webContents.send('ui:call', prop, args);
         };
     }

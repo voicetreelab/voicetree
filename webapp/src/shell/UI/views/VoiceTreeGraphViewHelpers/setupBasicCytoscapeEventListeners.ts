@@ -8,6 +8,9 @@ import { CLASS_HOVER, CLASS_CONNECTED_HOVER } from '@/shell/UI/cytoscape-graph-u
 import { addRecentlyVisited } from '@/shell/edge/UI-edge/state/RecentlyVisitedStore';
 import { highlightContainedNodes, clearContainedHighlights } from '@/shell/UI/cytoscape-graph-ui/highlightContextNodes';
 import { setActiveTerminalId } from '@/shell/edge/UI-edge/state/TerminalStore';
+import { areNodesVisibleInViewport } from '@/utils/viewportVisibility';
+import { showNoVisibleNodesToast, hideNoVisibleNodesToast, isNoVisibleNodesToastShown } from '@/shell/UI/views/components/overlays/noVisibleNodesToast';
+import { getResponsivePadding } from '@/utils/responsivePadding';
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
 
@@ -121,4 +124,45 @@ export function setupBasicCytoscapeEventListeners(
       setActiveTerminalId(null);
     }
   });
+
+  // No visible nodes toast - debounced check on pan/zoom
+  let visibilityDebounceTimeout: ReturnType<typeof setTimeout> | null = null;
+  let dismissCooldownActive: boolean = false;
+
+  const checkVisibility: () => void = () => {
+    if (visibilityDebounceTimeout) {
+      clearTimeout(visibilityDebounceTimeout);
+    }
+    visibilityDebounceTimeout = setTimeout(() => {
+      visibilityDebounceTimeout = null;
+
+      // Skip check if user recently dismissed the toast (5-second cooldown)
+      if (dismissCooldownActive) {
+        return;
+      }
+
+      const visible: boolean = areNodesVisibleInViewport(cy);
+
+      if (!visible && !isNoVisibleNodesToastShown()) {
+        showNoVisibleNodesToast({
+          onFit: () => {
+            cy.fit(undefined, getResponsivePadding(cy));
+            hideNoVisibleNodesToast();
+          },
+          onDismiss: () => {
+            hideNoVisibleNodesToast();
+            // Start 5-second cooldown after dismiss to prevent spam
+            dismissCooldownActive = true;
+            setTimeout(() => {
+              dismissCooldownActive = false;
+            }, 5000);
+          }
+        });
+      } else if (visible && isNoVisibleNodesToastShown()) {
+        hideNoVisibleNodesToast();
+      }
+    }, 200); // 200ms debounce
+  };
+
+  cy.on('pan zoom', checkVisibility);
 }

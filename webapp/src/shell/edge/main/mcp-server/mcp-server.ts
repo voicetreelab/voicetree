@@ -366,12 +366,11 @@ export async function getUnseenNodesNearbyTool({
             search_from_node as NodeIdAndFilePath | undefined
         )
 
-        const nodes: Array<{nodeId: string; title: string; content: string}> = unseenNodes.map((node: UnseenNode) => {
+        const nodes: Array<{nodeId: string; title: string}> = unseenNodes.map((node: UnseenNode) => {
             const graphNode: GraphNode | undefined = graph.nodes[node.nodeId]
             return {
                 nodeId: node.nodeId,
-                title: graphNode ? getNodeTitle(graphNode) : node.nodeId,
-                content: node.content
+                title: graphNode ? getNodeTitle(graphNode) : node.nodeId
             }
         })
 

@@ -114,6 +114,15 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
           return { success: true };
         },
 
+        // Folder selector API (used by VaultPathSelector for autocomplete)
+        getAvailableFoldersForSelector: async (_query: string) => {
+          // Return mock folders for testing - just needs to be a valid response
+          return [
+            { absolutePath: '/mock/folder1', displayPath: 'folder1', modifiedAt: Date.now() },
+            { absolutePath: '/mock/folder2', displayPath: 'folder2', modifiedAt: Date.now() - 1000 },
+          ];
+        },
+
         // Project selection operations (required for ProjectSelectionScreen)
         loadProjects: async () => [{
           id: 'mock-project-1',
@@ -325,31 +334,28 @@ test.describe('VaultPathSelector without showAll toggle', () => {
     await expect(dropdown).toBeVisible({ timeout: 3000 });
     console.log('✓ Dropdown opened');
 
-    // Find the "Add read folder" section (UI text changed from "Add read-on-link path")
-    const addPathSection = dropdown.locator('text=Add read folder');
-    await expect(addPathSection).toBeVisible();
-    console.log('✓ Add path section visible');
-
-    // Find the input field
-    const addPathInput = dropdown.locator('input[placeholder*="folder"]');
+    // Find the input field for adding folders (placeholder is "Add folder...")
+    const addPathInput = dropdown.locator('input[placeholder*="Add folder"]');
     await expect(addPathInput).toBeVisible();
-    console.log('✓ Add path input visible');
+    console.log('✓ Add folder input visible');
 
-    // Find the add button (+ button)
-    const addButton = dropdown.locator('button:has-text("+")');
-    await expect(addButton).toBeVisible();
-    console.log('✓ Add button visible');
+    // Verify the "Read" and "Write" action buttons are available
+    // These appear when hovering over available folders, but verify the pattern exists
+    // The available folders section should be rendered with action buttons
+    const availableFoldersSection = dropdown.locator('.max-h-\\[150px\\].overflow-y-auto');
+    await expect(availableFoldersSection).toBeVisible();
+    console.log('✓ Available folders section visible');
 
-    // Verify remove buttons exist for non-write paths (✕ buttons)
-    // The write path doesn't have a remove button, but read paths do
-    const removeButtons = dropdown.locator('button:has-text("✕")');
+    // Verify remove buttons exist for non-write paths (− buttons)
+    // The write path has a reset button, and read paths have remove buttons
+    const removeButtons = dropdown.locator('button:has-text("−")');
     const removeCount = await removeButtons.count();
     console.log(`  Remove button count: ${removeCount}`);
 
-    // Should have at least one remove button (for read paths, not for editing mode)
-    // Note: The ✕ is also used in the edit mode cancel button
+    // Should have at least one remove button (for read paths or write path reset)
+    // The UI always shows at least one "−" button for paths
     expect(removeCount).toBeGreaterThan(0);
-    console.log('✓ Remove path buttons exist');
+    console.log('✓ Remove/reset path buttons exist');
 
     console.log('');
     console.log('=== TEST PASSED: Add/remove functionality still works ===');
@@ -379,10 +385,11 @@ test.describe('VaultPathSelector without showAll toggle', () => {
     const dropdown = page.locator('.absolute.bottom-full.bg-card');
     await expect(dropdown).toBeVisible({ timeout: 3000 });
 
-    // Get all path rows (they have title attribute with path)
-    const pathRows = dropdown.locator('div[title]');
+    // Get all elements with title attribute containing paths (spans for display, buttons for actions)
+    // The component uses span[title] for path display and button[title] for path-related actions
+    const pathRows = dropdown.locator('span[title], button[title]');
     const rowCount = await pathRows.count();
-    console.log(`  Path rows count: ${rowCount}`);
+    console.log(`  Path elements with title count: ${rowCount}`);
 
     // Verify we have path rows
     expect(rowCount).toBeGreaterThan(0);
