@@ -153,8 +153,9 @@ export class NavigationGestureService {
     }
 
     /**
-     * Handle wheel events from unfocused floating windows.
-     * Redirects scroll to the graph instead of the floating window content.
+     * Handle wheel events from floating windows.
+     * - Pinch-to-zoom (ctrlKey) ALWAYS zooms the graph, even if window is focused
+     * - Scroll events redirect to graph if window is unfocused
      */
     private onFloatingWindowWheel(e: WheelEvent): void {
         const target: Element | null = e.target as Element | null;
@@ -163,9 +164,29 @@ export class NavigationGestureService {
         // Not from a floating window - already handled by onWheel
         if (!floatingWindow) return;
 
-        // Check if this floating window has focus
+        // Pinch-to-zoom (ctrlKey) should ALWAYS zoom the graph, even if window is focused
+        // macOS generates ctrlKey=true for trackpad pinch gestures
+        if (e.ctrlKey) {
+            if (!this.cy.userPanningEnabled()) return;
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            this.zoomAtCursor(e, 0.013);
+            return;
+        }
+
+        // Horizontal scroll should ALWAYS pan the graph (no horizontal scroll in floating windows)
+        const isHorizontalScroll: boolean = Math.abs(e.deltaX) > Math.abs(e.deltaY);
+        if (isHorizontalScroll && e.deltaX !== 0) {
+            if (!this.cy.userPanningEnabled()) return;
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            this.cy.panBy({ x: -e.deltaX, y: -e.deltaY });
+            return;
+        }
+
+        // For vertical scroll: check if this floating window has focus
         const hasFocus: boolean = floatingWindow.contains(document.activeElement);
-        if (hasFocus) return; // Focused - allow native scroll in the floating window
+        if (hasFocus) return; // Focused - allow native vertical scroll in the floating window
 
         // Check if this floating window's node is selected AND has scrollable content
         const floatingWindowId: string | null = floatingWindow.getAttribute('data-floating-window-id');
