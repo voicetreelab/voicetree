@@ -207,7 +207,8 @@ export function ProjectSelectionScreen({ onProjectSelected }: ProjectSelectionSc
     // Loading state
     if (isLoading) {
         return (
-            <div className="h-screen flex items-center justify-center bg-background">
+            <div className="h-screen flex items-center justify-center bg-background pt-14">
+                <div className="title-bar-drag-region" />
                 <div className="text-muted-foreground">Loading projects...</div>
             </div>
         );
@@ -218,7 +219,9 @@ export function ProjectSelectionScreen({ onProjectSelected }: ProjectSelectionSc
     const isEmpty: boolean = !hasSavedProjects && !hasDiscoveredProjects && !isScanning;
 
     return (
-        <div className="h-screen flex flex-col bg-background p-8">
+        <div className="h-screen flex flex-col bg-background px-8 pb-8 pt-14">
+            {/* macOS title bar drag region */}
+            <div className="title-bar-drag-region" />
             {/* Header */}
             <div className="mb-8">
                 <h1 className="text-2xl font-semibold text-foreground">Voicetree</h1>
