@@ -1,5 +1,6 @@
 import type {Graph, GraphDelta, NodeIdAndFilePath, GraphNode} from '@/pure/graph'
-import {getSubgraphByDistance, graphToAscii, makeBidirectionalEdges, CONTEXT_NODES_FOLDER} from '@/pure/graph'
+import {getSubgraphByDistance, getUnionSubgraphByDistance, graphToAscii, makeBidirectionalEdges, CONTEXT_NODES_FOLDER} from '@/pure/graph'
+import {askQuery, type SearchSimilarResult} from '@/shell/edge/main/backend-api'
 import {getNodeTitle, parseMarkdownToGraphNode} from '@/pure/graph/markdown-parsing'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
@@ -14,6 +15,42 @@ import {
 import {ensureUniqueNodeId} from "@/pure/graph/ensureUniqueNodeId";
 import {traceSync} from '@/shell/edge/main/tracing/trace'
 import {getWritePath} from "@/shell/edge/main/graph/watch_folder/vault-allowlist";
+
+/**
+ * Get semantically relevant nodes via vector search with timeout.
+ * Returns empty array on error/timeout (graceful fallback).
+ *
+ * @param query - The text to search for
+ * @param topK - Number of results to return
+ * @returns Array of node paths from semantic search
+ */
+async function getSemanticRelevantNodes(
+    query: string,
+    topK: number
+): Promise<readonly NodeIdAndFilePath[]> {
+    if (topK <= 0 || !query.trim()) return []
+
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 1000)
+
+    try {
+        // Race the askQuery against the abort signal
+        const response = await Promise.race([
+            askQuery(query, topK),
+            new Promise<never>((_, reject) => {
+                controller.signal.addEventListener('abort', () => {
+                    reject(new Error('Timeout'))
+                })
+            })
+        ])
+        clearTimeout(timeoutId)
+        return response.relevant_nodes.map((n: SearchSimilarResult) => n.node_path)
+    } catch {
+        // Timeout or error: graceful fallback to distance-only
+        clearTimeout(timeoutId)
+        return []
+    }
+}
 
 /**
  * Creates a context node for a given parent node.
@@ -44,8 +81,26 @@ export async function createContextNode(
     // 2. PURE: Extract subgraph within distance
     const settings: VTSettings = await loadSettings()
     const maxDistance: number = settings.contextNodeMaxDistance
+
+    // Reuse contextNodeMaxDistance for vector search top_k
+    const contextVectorSearchTopK: number = maxDistance
+    const parentNode: GraphNode = currentGraph.nodes[parentNodeId]
+
+    // Get semantically relevant nodes via vector search (with 1s timeout)
+    const semanticNodeIds: readonly NodeIdAndFilePath[] = await getSemanticRelevantNodes(
+        parentNode.contentWithoutYamlOrLinks,
+        contextVectorSearchTopK
+    )
+
+    // Get subgraph - union if we have semantic results, otherwise distance-only
     const subgraph: Graph = traceSync('getSubgraphByDistance', () =>
-        getSubgraphByDistance(currentGraph, parentNodeId, maxDistance)
+        semanticNodeIds.length > 0
+            ? getUnionSubgraphByDistance(
+                currentGraph,
+                [parentNodeId, ...semanticNodeIds],
+                maxDistance
+            )
+            : getSubgraphByDistance(currentGraph, parentNodeId, maxDistance)
     )
     //console.log("[createContextNode] Subgraph has", Object.keys(subgraph.nodes).length, "nodes")
 
@@ -80,7 +135,6 @@ export async function createContextNode(
     //console.log("[createContextNode] Generated contextNodeId:", contextNodeId)
 
     // 5. EDGE: Get parent node info for context
-    const parentNode: GraphNode = currentGraph.nodes[parentNodeId]
     const parentTitle: string = getNodeTitle(parentNode)
 
     // 6. EDGE: Build markdown content with frontmatter
@@ -91,7 +145,8 @@ export async function createContextNode(
         parentTitle,
         maxDistance,
         asciiTree,
-        subgraph
+        subgraph,
+        semanticNodeIds
     )
     //console.log("[createContextNode] Content length:", content.length)
 
@@ -139,10 +194,11 @@ function buildContextNodeContent(
     _parentTitle: string,
     _maxDistance: number,
     asciiTree: string,
-    subgraph: Graph
+    subgraph: Graph,
+    semanticNodeIds: readonly NodeIdAndFilePath[]
 ): string {
     // todo this should be done by creatingGraphNode, and then calling to markdown function on it.
-    const nodeDetailsList: string = generateNodeDetailsList(subgraph, parentNodeId)
+    const nodeDetailsList: string = generateNodeDetailsList(subgraph, parentNodeId, semanticNodeIds)
 
     // Collect all node IDs from the subgraph (excluding context nodes to prevent self-referencing)
     const containedNodeIds: readonly string[] = Object.keys(subgraph.nodes)
@@ -174,10 +230,12 @@ ${nodeDetailsList}
 /**
  * Generate markdown list of node details in depth-first traversal order.
  * Matches the order of nodes in the ASCII tree visualization.
+ * Nodes found via semantic search are marked with [SEMANTIC].
  */
 function generateNodeDetailsList(
     subgraph: Graph,
-    _startNodeId: NodeIdAndFilePath
+    _startNodeId: NodeIdAndFilePath,
+    semanticNodeIds: readonly NodeIdAndFilePath[]
 ): string {
     const lines: string[] = []
 
@@ -190,10 +248,13 @@ function generateNodeDetailsList(
         if (node.nodeUIMetadata.isContextNode) {
             continue
         }
+        // Mark nodes found via semantic search
+        const isSemantic: boolean = semanticNodeIds.includes(nodeId)
+        const marker: string = isSemantic ? ' [SEMANTIC]' : ''
         // Convert [link]* markers to [\[link]\] to show they were wikilinks, while preventing them from
         // being parsed as actual [[link]] wikilinks when written to disk.
         const contentWithoutLinkStars: string = node.contentWithoutYamlOrLinks.replace(/\[([^\]]+)\]\*/g, '[\\[$1]\\]')
-        lines.push(`<${node.absoluteFilePathIsID}> \n ${contentWithoutLinkStars} \n </${node.absoluteFilePathIsID}>`)
+        lines.push(`<${node.absoluteFilePathIsID}>${marker} \n ${contentWithoutLinkStars} \n </${node.absoluteFilePathIsID}>`)
     }
 
     // Convert [link]* markers from the start node content too

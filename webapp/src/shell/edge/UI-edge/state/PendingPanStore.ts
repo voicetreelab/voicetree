@@ -1,0 +1,92 @@
+/**
+ * PendingPanStore - Edge state for tracking nodes that need panning after layout completes
+ *
+ * Instead of panning to new nodes after an arbitrary timeout, we track which nodes
+ * need panning and execute the pan when layout finishes (on layoutstop).
+ * This ensures the pan happens at the right time regardless of how long layout takes.
+ */
+
+import type { Core } from 'cytoscape';
+import { cyFitCollectionByAverageNodeSize, cySmartCenter, getResponsivePadding } from '@/utils/responsivePadding';
+
+export type PendingPanType = 'large-batch' | 'small-graph' | 'wikilink-target' | null;
+
+interface PendingPanState {
+  type: PendingPanType;
+  nodeIds: string[];
+  totalNodes: number;
+  targetNodeId?: string;  // For wikilink-target type
+}
+
+// Module-level state (follows project pattern)
+let pendingPan: PendingPanState | null = null;
+
+/**
+ * Set a pending pan to be executed when layout completes.
+ * @param type The type of pan to execute ('large-batch' for cy.fit, 'small-graph' for smart zoom)
+ * @param nodeIds The IDs of the new nodes to potentially fit
+ * @param totalNodes Total number of nodes in the graph at time of setting
+ */
+export function setPendingPan(type: PendingPanType, nodeIds: string[], totalNodes: number): void {
+  if (type === null) {
+    pendingPan = null;
+    return;
+  }
+  pendingPan = { type, nodeIds, totalNodes };
+}
+
+/**
+ * Set a pending pan to navigate to a wikilink target after layout.
+ * Used when user adds a wikilink in an editor.
+ */
+export function setPendingWikilinkPan(targetNodeId: string): void {
+  pendingPan = { type: 'wikilink-target', nodeIds: [], totalNodes: 0, targetNodeId };
+}
+
+/**
+ * Check if there's a pending pan
+ */
+export function hasPendingPan(): boolean {
+  return pendingPan !== null;
+}
+
+/**
+ * Consume and execute the pending pan on the given cytoscape instance.
+ * Returns true if a pan was executed, false otherwise.
+ */
+export function consumePendingPan(cy: Core): boolean {
+  if (!pendingPan || cy.destroyed()) {
+    pendingPan = null;
+    return false;
+  }
+
+  const { type, targetNodeId } = pendingPan;
+  pendingPan = null;
+
+  if (type === 'large-batch') {
+    // Large batch (>30% new nodes): fit all in view with padding
+    cy.fit(undefined, getResponsivePadding(cy, 15));
+    return true;
+  } else if (type === 'small-graph') {
+    // Fit so average node takes target fraction of viewport (smart zoom: only zooms if needed)
+    cyFitCollectionByAverageNodeSize(cy, cy.nodes(), 0.15);
+    return true;
+  } else if (type === 'wikilink-target' && targetNodeId) {
+    const targetNode = cy.getElementById(targetNodeId);
+    if (targetNode.length > 0) {
+      // Include target + d=1 neighbors for spatial context
+      const nodesToCenter = targetNode.closedNeighborhood().nodes();
+      cySmartCenter(cy, nodesToCenter);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Clear any pending pan (for cleanup)
+ */
+export function clearPendingPan(): void {
+  pendingPan = null;
+}
