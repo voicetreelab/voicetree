@@ -18,7 +18,7 @@ export type TerminalData = FloatingWindowFields & {
     // Parent-child relationship for tree-style tabs (null = root terminal)
     readonly parentTerminalId: TerminalId | null;
     // Agent name for matching terminal to nodes it creates (via agent_name in YAML)
-    readonly agentName?: string;
+    readonly agentName: string;
 };
 export type CreateTerminalDataParams = {
     readonly attachedToNodeId: NodeIdAndFilePath;
@@ -33,5 +33,5 @@ export type CreateTerminalDataParams = {
     readonly shadowNodeDimensions?: { width: number; height: number };
     readonly isPinned?: boolean; // defaults to true
     readonly parentTerminalId?: TerminalId | null; // defaults to null (root terminal)
-    readonly agentName?: string; // Agent name for terminal-to-node edge matching
+    readonly agentName: string; // Agent name for terminal-to-node edge matching
 };

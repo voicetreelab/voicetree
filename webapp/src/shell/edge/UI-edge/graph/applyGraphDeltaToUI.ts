@@ -7,7 +7,7 @@ import posthog from "posthog-js";
 import {markTerminalActivityForContextNode} from "@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity";
 import type {} from '@/utils/types/cytoscape-layout-utilities';
 import {checkEngagementPrompts} from "./userEngagementPrompts";
-import {setPendingPan, setPendingWikilinkPan} from "@/shell/edge/UI-edge/state/PendingPanStore";
+import {setPendingPan, setPendingPanToNode} from "@/shell/edge/UI-edge/state/PendingPanStore";
 import {getEditorByNodeId} from "@/shell/edge/UI-edge/state/EditorStore";
 import {scheduleIdleWork} from "@/utils/scheduleIdleWork";
 import {getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
@@ -242,7 +242,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                             // Detect user-added wikilink: new edge from node with open editor
                             const hasOpenEditor = O.isSome(getEditorByNodeId(nodeId));
                             if (hasOpenEditor) {
-                                setPendingWikilinkPan(edge.targetId);
+                                setPendingPanToNode(edge.targetId);
                             }
 
                             //console.log(`[applyGraphDeltaToUI] Adding new edge: ${edgeId} with label ${edge.label}`);

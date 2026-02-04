@@ -1,12 +1,16 @@
 /**
- * NavigationGestureService - Handles trackpad scroll for panning and mouse wheel for zooming
+ * NavigationGestureService - Handles all wheel gestures for zoom and pan
  *
- * Strategy (Native Detection via electron-trackpad-detect addon):
- * - Cytoscape's userZoomingEnabled is OFF permanently (we handle all zoom ourselves)
- * - Native addon detects trackpad vs mouse via NSEvent.hasPreciseScrollingDeltas
- * - Trackpad scroll → pan
- * - Trackpad pinch (ctrlKey) → zoom
- * - Mouse wheel → zoom
+ * Strategy (Option A - Unified zoomAtCursor):
+ * - Cytoscape's userZoomingEnabled is OFF (custom zoom handling)
+ * - ALL zoom uses our zoomAtCursor() method which implements Cytoscape's algorithm:
+ *   - deltaMode handling for Firefox Linux/Windows
+ *   - Inaccurate device detection (mice reporting in chunks)
+ *   - Exponential zoom formula for natural feel
+ * - Trackpad scroll → pan (via panBy)
+ * - Trackpad pinch (ctrlKey) → zoom (via zoomAtCursor)
+ * - Mouse wheel → zoom (via zoomAtCursor)
+ * - This gives unified device detection state and simpler DOM (no wrapper div)
  */
 
 import type { Core } from 'cytoscape';
@@ -24,6 +28,12 @@ export class NavigationGestureService {
     // Middle-mouse pan state
     private isPanning: boolean = false;
     private lastPos: { x: number; y: number } = { x: 0, y: 0 };
+
+    // Inaccurate scroll device detection (matches Cytoscape's implementation)
+    // Mice often report wheel deltas in chunks (e.g., multiples of 5 or same magnitude)
+    private wheelDeltas: number[] = [];
+    private inaccurateScrollDevice: boolean | undefined = undefined;
+    private inaccurateScrollFactor: number = 100000;
 
     // Bound handlers for cleanup
     private handleWheel: (e: WheelEvent) => void;
@@ -60,11 +70,8 @@ export class NavigationGestureService {
     }
 
     /**
-     * Wheel handler - native trackpad detection.
-     * Uses electron-trackpad-detect addon which reads NSEvent.hasPreciseScrollingDeltas.
-     * - Trackpad scroll → pan
-     * - Trackpad pinch (ctrlKey) → zoom
-     * - Mouse wheel → zoom
+     * Wheel handler - handles all zoom and pan gestures.
+     * Uses unified zoomAtCursor() for all zoom (userZoomingEnabled: false).
      */
     private onWheel(e: WheelEvent): void {
         if (!this.cy.userPanningEnabled()) return;
@@ -80,27 +87,91 @@ export class NavigationGestureService {
         // Use native detection from main process (via IPC)
         const isTrackpad: boolean = getIsTrackpadScrolling();
 
+        // Trackpad scroll (non-pinch) → pan
         if (isTrackpad && !e.ctrlKey) {
-            // Trackpad scroll → pan
             this.cy.panBy({ x: -e.deltaX, y: -e.deltaY });
-        } else {
-            // Mouse wheel OR trackpad pinch (ctrlKey) → zoom
-            const sensitivity: number = e.ctrlKey ? 0.013 : 0.01;
-            this.zoomAtCursor(e, sensitivity);
+            return;
         }
+
+        // Mouse wheel or trackpad pinch (ctrlKey) → zoom using Cytoscape-compatible logic
+        this.zoomAtCursor(e);
+    }
+
+    // Helper functions for inaccurate device detection (from Cytoscape source)
+    private signum(x: number): number {
+        if (x > 0) return 1;
+        else if (x < 0) return -1;
+        else return 0;
+    }
+
+    private allAreDivisibleBy(list: number[], factor: number): boolean {
+        return list.every(v => v % factor === 0);
+    }
+
+    private allAreSameMagnitude(list: number[]): boolean {
+        const firstMag: number = Math.abs(list[0]);
+        return list.every(v => Math.abs(v) === firstMag);
     }
 
     /**
      * Zoom the graph centered on the cursor position.
+     * Uses Cytoscape's zoom logic for cross-platform consistency:
+     * - deltaMode handling for Firefox Linux/Windows (LINE units vs pixels)
+     * - Inaccurate device detection (mice reporting in chunks)
+     * - Exponential zoom formula for natural feel
      */
-    private zoomAtCursor(e: WheelEvent, sensitivity: number): void {
-        const currentZoom: number = this.cy.zoom();
-        const delta: number = -e.deltaY * sensitivity;
-        const newZoom: number = currentZoom * (1 + delta);
+    private zoomAtCursor(e: WheelEvent): void {
+        let delta: number = e.deltaY;
+        if (delta === 0) return;
 
-        const minZoom: number = this.cy.minZoom();
-        const maxZoom: number = this.cy.maxZoom();
-        const clampedZoom: number = Math.max(minZoom, Math.min(maxZoom, newZoom));
+        let clamp: boolean = false;
+        const wheelDeltaN: number = 4;
+
+        // Inaccurate device detection (sample first 4 events)
+        // Some mice report wheel deltas in chunks (e.g., multiples of 5)
+        if (this.inaccurateScrollDevice === undefined) {
+            if (this.wheelDeltas.length >= wheelDeltaN) {
+                const wds: number[] = this.wheelDeltas;
+                this.inaccurateScrollDevice = this.allAreDivisibleBy(wds, 5);
+                if (!this.inaccurateScrollDevice) {
+                    const firstMag: number = Math.abs(wds[0]);
+                    this.inaccurateScrollDevice = this.allAreSameMagnitude(wds) && firstMag > 5;
+                }
+                if (this.inaccurateScrollDevice) {
+                    for (const wd of wds) {
+                        this.inaccurateScrollFactor = Math.min(Math.abs(wd), this.inaccurateScrollFactor);
+                    }
+                }
+            } else {
+                this.wheelDeltas.push(delta);
+                clamp = true;
+            }
+        } else if (this.inaccurateScrollDevice) {
+            this.inaccurateScrollFactor = Math.min(Math.abs(delta), this.inaccurateScrollFactor);
+        }
+
+        // Clamp initial events while sampling to avoid jumpy zoom
+        if (clamp && Math.abs(delta) > 5) {
+            delta = this.signum(delta) * 5;
+        }
+
+        // Base calculation (matches Cytoscape's formula)
+        let diff: number = delta / -250;
+
+        // Normalize inaccurate devices
+        if (this.inaccurateScrollDevice) {
+            diff /= this.inaccurateScrollFactor;
+            diff *= 3;
+        }
+
+        // Firefox Linux/Windows fix: deltaMode=1 means LINE units, not pixels
+        if (e.deltaMode === 1) {
+            diff *= 33;
+        }
+
+        // Exponential zoom formula (matches Cytoscape for natural feel)
+        const newZoom: number = this.cy.zoom() * Math.pow(10, diff);
+        const clampedZoom: number = Math.max(this.cy.minZoom(), Math.min(this.cy.maxZoom(), newZoom));
 
         this.cy.zoom({
             level: clampedZoom,
@@ -170,7 +241,7 @@ export class NavigationGestureService {
             if (!this.cy.userPanningEnabled()) return;
             e.preventDefault();
             e.stopImmediatePropagation();
-            this.zoomAtCursor(e, 0.013);
+            this.zoomAtCursor(e);
             return;
         }
 
@@ -211,9 +282,8 @@ export class NavigationGestureService {
             // Trackpad scroll → pan
             this.cy.panBy({ x: -e.deltaX, y: -e.deltaY });
         } else {
-            // Mouse wheel OR trackpad pinch → zoom
-            const sensitivity: number = e.ctrlKey ? 0.013 : 0.01;
-            this.zoomAtCursor(e, sensitivity);
+            // Mouse wheel OR trackpad pinch → zoom (using Cytoscape-compatible logic)
+            this.zoomAtCursor(e);
         }
     }
 

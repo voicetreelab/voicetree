@@ -239,15 +239,15 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // Store speedDialMenu reference for lifecycle management (other overlays are in DOM)
         this.speedDialMenu = domElements.speedDialMenu;
 
-        // Initialize Cytoscape with the container directly
-        // Container serves as both the wrapper and the cytoscape rendering target
+        // Initialize Cytoscape directly on container (userZoomingEnabled: false)
+        // All zoom handled by NavigationGestureService.zoomAtCursor() for unified behavior
         this.container.style.opacity = '0.3';
         this.container.style.transition = 'opacity 0.3s ease-in-out';
 
         // Initialize StyleService
         this.styleService = new StyleService();
 
-        // Initialize cytoscape using extracted factory function
+        // Initialize cytoscape directly on container
         const {cy} = initializeCytoscapeInstance({
             container: this.container,
             stylesheet: this.styleService.getCombinedStylesheet()
