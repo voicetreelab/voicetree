@@ -103,13 +103,13 @@ function App(): JSX.Element {
     }, [currentView]);
 
     // Start watching the project folder when entering graph view
-    // Skip if already watching (e.g., when main process loaded project via prettySetupAppForElectronDebugging)
+    // Always call startFileWatching - loadFolder handles the reload case (e.g., after cmd-r)
     useEffect(() => {
-        if (currentView === 'graph-view' && currentProject && window.electronAPI && !isWatching) {
+        if (currentView === 'graph-view' && currentProject && window.electronAPI) {
             // Start file watching for the selected project
             void window.electronAPI.main.startFileWatching(currentProject.path);
         }
-    }, [currentView, currentProject, isWatching]);
+    }, [currentView, currentProject]);
 
     // File Watching Control Panel Component - compact inline style matching activity panel
     const FileWatchingPanel: () => JSX.Element = () => (
