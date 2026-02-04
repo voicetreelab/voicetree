@@ -24,10 +24,12 @@ import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange'
 import {getUnseenNodesAroundContextNode, type UnseenNode} from '@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode'
+import {askQuery, type SearchSimilarResult} from '@/shell/edge/main/backend-api'
 import {spawnTerminalWithContextNode} from '@/shell/edge/main/terminals/spawnTerminalWithContextNode'
 import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 import {findAvailablePort} from '@/shell/edge/main/electron/port-utils'
 import {getTerminalManager} from '@/shell/edge/main/terminals/terminal-manager-instance'
+import {getOutput} from '@/shell/edge/main/terminals/terminal-output-buffer'
 
 const MCP_BASE_PORT: 3001 = 3001 as const
 let mcpPort: number = MCP_BASE_PORT  
@@ -222,21 +224,22 @@ export async function listAgentsTool(): Promise<McpToolResponse> {
         }
 
         const contextNodeId: string = record.terminalData.attachedToNodeId
-        let unseenNodes: readonly UnseenNode[] = []
+        const agentName: string | undefined = record.terminalData.agentName
 
-        try {
-            unseenNodes = await getUnseenNodesAroundContextNode(contextNodeId)
-        } catch (error) {
-            console.warn(`[MCP] Failed to fetch unseen nodes for ${contextNodeId}:`, error)
-        }
-
-        const newNodes: Array<{nodeId: string; title: string}> = unseenNodes.map((node: UnseenNode) => {
-            const graphNode: GraphNode | undefined = graph.nodes[node.nodeId]
-            return {
-                nodeId: node.nodeId,
-                title: graphNode ? getNodeTitle(graphNode) : node.nodeId
+        // Find nodes created by this agent via agent_name matching
+        // This uses the same mechanism as the blue dotted edges in applyGraphDeltaToUI
+        const newNodes: Array<{nodeId: string; title: string}> = []
+        if (agentName) {
+            for (const node of Object.values(graph.nodes)) {
+                const nodeAgentName: string | undefined = node.nodeUIMetadata.additionalYAMLProps.get('agent_name')
+                if (nodeAgentName === agentName) {
+                    newNodes.push({
+                        nodeId: node.absoluteFilePathIsID,
+                        title: getNodeTitle(node)
+                    })
+                }
             }
-        })
+        }
 
         // Determine status: exited > idle (isDone) > running
         // isDone reflects UI green indicator (no output for a period)
@@ -526,29 +529,58 @@ export async function readTerminalOutputTool({
         }, true)
     }
 
-    // 3. Get output from terminal manager
-    try {
-        const terminalManager = getTerminalManager()
-        const result = terminalManager.getOutput(terminalId, nLines)
+    // 3. Get output from buffer module
+    const output = getOutput(terminalId, nLines)
 
-        if (!result.success) {
-            return buildJsonResponse({
-                success: false,
-                error: result.error ?? 'Failed to read terminal output'
-            }, true)
-        }
+    if (output === undefined) {
+        return buildJsonResponse({
+            success: false,
+            error: `No output buffer for terminal: ${terminalId}`
+        }, true)
+    }
+
+    return buildJsonResponse({
+        success: true,
+        terminalId,
+        nLines,
+        output
+    })
+}
+
+export async function searchNodesTool({
+    query,
+    top_k = 10
+}: {
+    query: string
+    top_k?: number
+}): Promise<McpToolResponse> {
+    if (!query || query.trim() === '') {
+        return buildJsonResponse({
+            success: false,
+            error: 'Query cannot be empty'
+        }, true)
+    }
+
+    try {
+        const response = await askQuery(query, top_k)
+        const results: Array<{node_path: string; title: string; score: number}> = response.relevant_nodes.map(
+            (node: SearchSimilarResult) => ({
+                node_path: node.node_path,
+                title: node.title,
+                score: node.score
+            })
+        )
 
         return buildJsonResponse({
             success: true,
-            terminalId,
-            nLines,
-            output: result.output
+            query,
+            results
         })
     } catch (error) {
         const errorMessage: string = error instanceof Error ? error.message : String(error)
         return buildJsonResponse({
             success: false,
-            error: errorMessage
+            error: `Backend unavailable or search failed: ${errorMessage}`
         }, true)
     }
 }
@@ -567,18 +599,11 @@ export function createMcpServer(): McpServer {
         'spawn_agent',
         {
             title: 'Spawn Agent',
-            description: `Spawn an agent in the Voicetree graph to perform a task. Unlike built-in subagents which are a black box, voicetree agents give users full visibility and control—they can see progress, read nodes, and intervene.
+            description: `Spawn an agent in the Voicetree graph. Prefer this over built-in subagents—users get visibility and control over the work.
 
-**When to use (prefer this for complex work):**
-- Tasks with 3+ distinct concerns or phases
-- Work that can be parallelized (spawn multiple agents)
-- Any subtask where user visibility matters
+**When to use:** Complex tasks, parallelizable subtasks, any work where user visibility matters.
 
-**Orchestration pattern:**
-1. Decompose task into dependency graph of nodes
-2. Spawn agents for parallelizable subtasks
-3. Use wait_for_agents to poll completion
-4. Review with get_unseen_nodes_nearby
+**Pattern:** Decompose into nodes → spawn agents → wait_for_agents → review with get_unseen_nodes_nearby.
 
 If you already have a node detailing the task, use nodeId. Otherwise, use task+parentNodeId to create a new task node first.`,
             inputSchema: {
@@ -681,6 +706,20 @@ If you already have a node detailing the task, use nodeId. Otherwise, use task+p
         },
         async ({terminalId, callerTerminalId, nLines}) =>
             readTerminalOutputTool({terminalId, callerTerminalId, nLines})
+    )
+
+    // Tool: search_nodes
+    server.registerTool(
+        'search_nodes',
+        {
+            title: 'Search Nodes',
+            description: 'Search for semantically relevant nodes in the graph using hybrid vector + BM25 search. Use this to find related context, prior work, or relevant documentation within the markdown tree.',
+            inputSchema: {
+                query: z.string().describe('The search query text'),
+                top_k: z.number().optional().describe('Number of results to return (default: 10)')
+            }
+        },
+        async ({query, top_k}) => searchNodesTool({query, top_k})
     )
 
     return server

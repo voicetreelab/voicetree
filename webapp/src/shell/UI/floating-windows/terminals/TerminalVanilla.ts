@@ -50,7 +50,7 @@ export class TerminalVanilla {
     // Create terminal instance with zoom-scaled font size
     const term: XTerm = new XTerm({
       cursorBlink: true,
-      scrollback: 9999,
+      scrollback: 10000,
       scrollOnEraseInDisplay: true,
       scrollOnUserInput: true,
       fontSize: initialFontSize,
