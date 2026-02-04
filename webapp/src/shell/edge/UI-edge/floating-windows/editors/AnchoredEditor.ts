@@ -35,8 +35,11 @@ export async function createAnchoredFloatingEditor(
     isAgentNode: boolean = false
 ): Promise<void> {
     try {
-        // Early exit if editor already exists - don't close previous auto-pin or set new tracking
-        if (O.isSome(getEditorByNodeId(nodeId))) {
+        // If editor already exists, center viewport on it and return
+        const existingEditor: O.Option<EditorData> = getEditorByNodeId(nodeId);
+        if (O.isSome(existingEditor)) {
+            const editorId: EditorId = getEditorId(existingEditor.value);
+            navigateToEditorNeighborhood(cy, nodeId, editorId);
             return;
         }
 
