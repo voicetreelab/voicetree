@@ -1,9 +1,22 @@
 const SONIOX_API_ENDPOINT: string =
   'https://us-central1-vocetree-alpha.cloudfunctions.net/soniox-temp-key';
 
-// Cached API key - fetched once on app startup, reused for all transcription sessions
+// Cached API key - refreshed every 18 minutes during proactive restart
 let cachedAPIKey: string | null = null;
 let fetchPromise: Promise<string> | null = null;
+
+// Clear cached API key to force a fresh fetch on next getAPIKey() call
+export function clearCachedAPIKey(): void {
+  cachedAPIKey = null;
+  fetchPromise = null;
+}
+
+// Force fetch a fresh API key, updating the cache
+// Use this before reconnection to ensure we don't reuse an expired key
+export async function forceRefreshAPIKey(): Promise<string> {
+  clearCachedAPIKey();
+  return prefetchAPIKey();
+}
 
 // Prefetch API key on app startup - call this early to have the key ready
 // Returns the promise so callers can await if needed, but typically fire-and-forget

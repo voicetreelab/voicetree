@@ -16,6 +16,7 @@ import {
   MAX_RECONNECT_ATTEMPTS,
   RECONNECT_DELAY_MS,
 } from "./reconnectionManager";
+import { forceRefreshAPIKey } from "../../../../utils/get-api-key";
 
 interface UseVoiceTreeClientOptions {
   apiKey: string | (() => Promise<string>);
@@ -76,8 +77,12 @@ export default function useVoiceTreeClient({
     clearProactiveTimer();
     proactiveRestartTimerRef.current = setTimeout(() => {
       if (isRecordingRef.current) {
-        console.log('🔄 [VoiceTree] Proactive restart triggered (18-min interval)');
-        startAndScheduleRef.current();
+        console.log('🔄 [VoiceTree] Proactive restart triggered (18-min interval), refreshing API key');
+        void forceRefreshAPIKey().then(() => {
+          if (isRecordingRef.current) {
+            startAndScheduleRef.current();
+          }
+        });
       }
     }, PROACTIVE_RESTART_INTERVAL_MS);
   }, [clearProactiveTimer]);
@@ -123,7 +128,13 @@ export default function useVoiceTreeClient({
           console.log(`🔄 [VoiceTree] Error occurred, attempting reactive reconnection in 1s... (attempt ${attemptNum}/${MAX_RECONNECT_ATTEMPTS})`);
           scheduleReconnection(
             () => isRecordingRef.current,
-            () => startAndScheduleRef.current(),
+            () => {
+              void forceRefreshAPIKey().then(() => {
+                if (isRecordingRef.current) {
+                  startAndScheduleRef.current();
+                }
+              });
+            },
             RECONNECT_DELAY_MS
           );
           return;
