@@ -7,7 +7,7 @@ import StatusDisplay from "@/shell/UI/views/components/status-display";
 import useVoiceTreeClient from "@/shell/UI/views/hooks/useVoiceTreeClient";
 import { useTranscriptionSender } from "@/shell/edge/UI-edge/text_to_tree_server_communication/useTranscriptionSender";
 import getAPIKey, { prefetchAPIKey } from "@/utils/get-api-key";
-import { TranscriptionDisplay } from "@/shell/UI/views/TranscriptionDisplay";
+import { TranscriptionDisplay } from "@/shell/UI/views/TranscriptionDisplay.tsx";
 import { onVoiceResult, appendManualText, reset as resetTranscriptionStore, subscribe as subscribeToTranscription, getDisplayTokenCount } from "@/shell/edge/UI-edge/state/TranscriptionStore";
 import type {} from "@/shell/electron";
 import { ChevronDown } from "lucide-react";
@@ -33,9 +33,8 @@ export default function VoiceTreeTranscribe(): JSX.Element {
   // Track microphone permission denied state
   const [micPermissionDenied, setMicPermissionDenied] = useState(false);
 
-  // Ref for vanilla TranscriptionDisplay mount point
-  const displayContainerRef: RefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);
-  const displayInstanceRef: RefObject<TranscriptionDisplay | null> = useRef<TranscriptionDisplay | null>(null);
+  // Ref for scroll container (passed to TranscriptionDisplay for auto-scroll)
+  const scrollContainerRef: RefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);
 
   // Ref for SSE status panel mount point and instance
   const ssePanelMountRef: RefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);
@@ -85,16 +84,6 @@ export default function VoiceTreeTranscribe(): JSX.Element {
     endpoint: backendPort ? `http://localhost:${backendPort}/send-text` : "http://localhost:8001/send-text",
   });
 
-  // Mount vanilla TranscriptionDisplay
-  useEffect(() => {
-    if (displayContainerRef.current && !displayInstanceRef.current) {
-      displayInstanceRef.current = new TranscriptionDisplay(displayContainerRef.current);
-    }
-    return () => {
-      displayInstanceRef.current?.dispose();
-      displayInstanceRef.current = null;
-    };
-  }, []);
 
   // Mount SSE status panel - creates/disposes with component lifecycle
   useEffect(() => {
@@ -267,16 +256,18 @@ export default function VoiceTreeTranscribe(): JSX.Element {
                 }}
               />
             )}
-            {/* Scrollable text content - vanilla TranscriptionDisplay mounts here */}
+            {/* Scrollable text content */}
             <div
-              ref={displayContainerRef}
+              ref={scrollContainerRef}
               className="absolute inset-0 overflow-y-auto vt-transcription-content"
               style={{
                 maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,1) 100%)',
                 WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,1) 100%)',
                 zIndex: 1,
               }}
-            />
+            >
+              <TranscriptionDisplay scrollContainerRef={scrollContainerRef} />
+            </div>
           </div>
           {/* Expand/Collapse toggle button - only shown when there's text */}
           {hasTranscriptionText && (
