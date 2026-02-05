@@ -21,6 +21,7 @@ export type TerminalData = FloatingWindowFields & {
     readonly agentName: string;
 };
 export type CreateTerminalDataParams = {
+    readonly terminalId: TerminalId; // Now passed directly (equals agentName)
     readonly attachedToNodeId: NodeIdAndFilePath;
     readonly terminalCount: number;
     readonly title: string;
@@ -33,5 +34,5 @@ export type CreateTerminalDataParams = {
     readonly shadowNodeDimensions?: { width: number; height: number };
     readonly isPinned?: boolean; // defaults to true
     readonly parentTerminalId?: TerminalId | null; // defaults to null (root terminal)
-    readonly agentName: string; // Agent name for terminal-to-node edge matching
+    readonly agentName: string; // Agent name for terminal-to-node edge matching (same as terminalId)
 };

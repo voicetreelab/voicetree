@@ -105,10 +105,10 @@ export function createEditorData(params: CreateEditorDataParams): EditorData {
 }
 
 export function createTerminalData(params: CreateTerminalDataParams): TerminalData {
-    const terminalId: TerminalId = computeTerminalId(params.attachedToNodeId, params.terminalCount);
+    // terminalId is now passed directly (equals agentName with collision handling)
     return {
         type: 'Terminal',
-        terminalId,
+        terminalId: params.terminalId,
         attachedToNodeId: params.attachedToNodeId,
         terminalCount: params.terminalCount,
         title: params.title,
@@ -126,7 +126,7 @@ export function createTerminalData(params: CreateTerminalDataParams): TerminalDa
         activityCount: 0,
         // Parent-child relationship for tree-style tabs (null = root terminal)
         parentTerminalId: params.parentTerminalId ?? null,
-        // Agent name for terminal-to-node edge matching
+        // Agent name for terminal-to-node edge matching (same as terminalId)
         agentName: params.agentName,
     };
 }

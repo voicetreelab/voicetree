@@ -215,6 +215,15 @@ export function getTerminalRecords(): TerminalRecord[] {
     return Array.from(terminalRecords.values())
 }
 
+/**
+ * Get all existing agent names from the terminal registry.
+ * Used for collision detection when spawning new terminals.
+ */
+export function getExistingAgentNames(): Set<string> {
+    const records: TerminalRecord[] = getTerminalRecords();
+    return new Set(records.map((r: TerminalRecord) => r.terminalData.agentName));
+}
+
 export function clearTerminalRecords(): void {
     terminalRecords.clear()
     notificationStateByTerminal.clear()

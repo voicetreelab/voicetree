@@ -20,6 +20,17 @@ export function getNextAgentName(): string {
     return AGENT_NAMES[agentNameState.index];
 }
 
+/**
+ * Get a unique agent name by appending _1 recursively until no collision.
+ * Example: Sam → Sam_1 → Sam_1_1 → Sam_1_1_1
+ */
+export function getUniqueAgentName(baseName: string, existingNames: Set<string>): string {
+    if (!existingNames.has(baseName)) {
+        return baseName;
+    }
+    return getUniqueAgentName(`${baseName}_1`, existingNames);
+}
+
 export type EnvVarValue = string | readonly string[];
 
 // Hotkey configuration types

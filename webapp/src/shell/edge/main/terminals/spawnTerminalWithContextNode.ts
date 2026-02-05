@@ -29,8 +29,8 @@ import { getNodeTitle } from '@/pure/graph/markdown-parsing';
 import { findFirstParentNode } from '@/pure/graph/graph-operations/findFirstParentNode';
 import type { VTSettings } from '@/pure/settings';
 import { resolveEnvVars, expandEnvVarsInValues } from '@/pure/settings';
-import { getNextAgentName } from '@/pure/settings/types';
-import { getNextTerminalCountForNode } from '@/shell/edge/main/terminals/terminal-registry';
+import { getNextAgentName, getUniqueAgentName } from '@/pure/settings/types';
+import { getNextTerminalCountForNode, getExistingAgentNames } from '@/shell/edge/main/terminals/terminal-registry';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import {getWatchStatus} from "@/shell/edge/main/graph/watch_folder/watchFolder";
 import {getVaultPaths, getWritePath} from "@/shell/edge/main/graph/watch_folder/vault-allowlist";
@@ -162,8 +162,11 @@ async function prepareTerminalDataInMain(
     const taskNode: GraphNode | undefined = graph.nodes[taskNodeId];
     const title: string = taskNode ? getNodeTitle(taskNode) : getNodeTitle(contextNode);
 
-    // Generate agent name for env var (enables terminal-to-created-node edges)
-    const agentName: string = getNextAgentName();
+    // Generate unique agent name with collision handling (enables terminal-to-created-node edges)
+    // terminalId now equals agentName for unified identification
+    const baseAgentName: string = getNextAgentName();
+    const existingNames: Set<string> = getExistingAgentNames();
+    const agentName: string = getUniqueAgentName(baseAgentName, existingNames);
 
     // Compute initial_spawn_directory from watch directory + relative path setting
     let initialSpawnDirectory: string | undefined;
@@ -203,8 +206,9 @@ async function prepareTerminalDataInMain(
     const allVaultPaths: readonly string[] = await getVaultPaths();
     const allMarkdownReadPaths: string = allVaultPaths.join('\n');
 
-    // Use computeTerminalId for consistent format (single source of truth)
-    const terminalId: string = computeTerminalId(contextNodeId, terminalCount);
+    // terminalId = agentName (unified identification)
+    // Both env vars now have the same collision-resolved value
+    const terminalId: TerminalId = agentName as TerminalId;
 
     const unexpandedEnvVars: Record<string, string> = {
         VOICETREE_APP_SUPPORT: appSupportPath ?? '',
@@ -212,7 +216,7 @@ async function prepareTerminalDataInMain(
         ALL_MARKDOWN_READ_PATHS: allMarkdownReadPaths,
         CONTEXT_NODE_PATH: contextNodeAbsolutePath,
         TASK_NODE_PATH: taskNodeAbsolutePath,
-        VOICETREE_TERMINAL_ID: terminalId,
+        VOICETREE_TERMINAL_ID: agentName, // Same as AGENT_NAME
         AGENT_NAME: agentName,
         ...resolvedEnvVars,
     };
@@ -222,6 +226,7 @@ async function prepareTerminalDataInMain(
     // anchoredToNodeId = taskNodeId (shadow node connects to task node)
     // attachedToNodeId = contextNodeId (for metadata, env vars, and shadow→context edge)
     const terminalData: TerminalData = createTerminalData({
+        terminalId: terminalId, // terminalId = agentName (unified)
         attachedToNodeId: contextNodeId,
         terminalCount: terminalCount,
         title: title,

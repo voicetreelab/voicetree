@@ -9,7 +9,9 @@ import {createNewNodeNoParent} from '@/pure/graph/graphDelta/uiInteractionsToGra
 import {getNodeTitle} from '@/pure/graph/markdown-parsing';
 import {resolveEnvVars, expandEnvVarsInValues} from '@/pure/settings';
 import type {VTSettings} from '@/pure/settings/types';
-import {createTerminalData, computeTerminalId} from '@/shell/edge/UI-edge/floating-windows/types';
+import {getNextAgentName, getUniqueAgentName} from '@/pure/settings/types';
+import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types';
+import {getExistingAgentNames} from '@/shell/edge/main/terminals/terminal-registry';
 import {getAppSupportPath} from '@/shell/edge/main/state/app-electron-state';
 import {getGraph} from '@/shell/edge/main/state/graph-store';
 import {getWatchStatus } from '@/shell/edge/main/graph/watch_folder/watchFolder';
@@ -51,8 +53,13 @@ export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCoun
   // Get vault path for VOICETREE_VAULT_PATH
   const vaultPath: string = O.getOrElse(() => '')(await getWritePath());
 
-  // Compute terminal ID for VOICETREE_TERMINAL_ID
-  const terminalId: string = computeTerminalId(nodeId, terminalCount);
+  // Generate unique agent name with collision handling for terminal identification
+  // Plain terminals still need unique IDs for registry tracking
+  const baseAgentName: string = getNextAgentName();
+  const existingNames: Set<string> = getExistingAgentNames();
+  const agentName: string = getUniqueAgentName(baseAgentName, existingNames);
+  // terminalId = agentName (unified identification)
+  const terminalId: TerminalId = agentName as TerminalId;
 
   const unexpandedEnvVars: Record<string, string> = {
     VOICETREE_APP_SUPPORT: appSupportPath ?? '',
@@ -60,12 +67,14 @@ export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCoun
     ALL_MARKDOWN_READ_PATHS: allMarkdownReadPaths,
     CONTEXT_NODE_PATH: nodeAbsolutePath,
     TASK_NODE_PATH: nodeAbsolutePath,
-    VOICETREE_TERMINAL_ID: terminalId,
+    VOICETREE_TERMINAL_ID: agentName, // Same as AGENT_NAME
+    AGENT_NAME: agentName,
     ...resolvedEnvVars,
   };
   const expandedEnvVars: Record<string, string> = expandEnvVarsInValues(unexpandedEnvVars);
 
   const terminalData: TerminalData = createTerminalData({
+    terminalId: terminalId, // terminalId = agentName (unified)
     attachedToNodeId: nodeId,
     terminalCount: terminalCount,
     title: title,
@@ -74,6 +83,7 @@ export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCoun
     executeCommand: false,
     initialSpawnDirectory: initialSpawnDirectory,
     initialEnvVars: expandedEnvVars,
+    agentName: agentName,
   });
 
   void uiAPI.launchTerminalOntoUI(nodeId, terminalData);

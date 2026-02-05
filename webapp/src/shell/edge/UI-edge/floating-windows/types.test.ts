@@ -110,9 +110,11 @@ describe('ImageViewerData types', () => {
 
         it('should return false for TerminalData', () => {
             const terminal: TerminalData = createTerminalData({
+                terminalId: 'TestAgent' as import('./types').TerminalId,
                 attachedToNodeId: testAnchorNodeId,
                 terminalCount: 1,
-                title: 'Test Terminal'
+                title: 'Test Terminal',
+                agentName: 'TestAgent'
             });
             expect(isImageViewerData(terminal)).toBe(false);
         });
