@@ -3,6 +3,11 @@ import { renderHook, act } from '@testing-library/react'
 import useVoiceTreeClient from './useVoiceTreeClient'
 import type { ErrorStatus } from '@soniox/speech-to-text-web'
 
+// Mock the forceRefreshAPIKey function
+vi.mock('../../../../utils/get-api-key', () => ({
+  forceRefreshAPIKey: vi.fn().mockResolvedValue('fresh-api-key'),
+}))
+
 // Track callbacks registered with SonioxClient
 type MockCallbacks = {
   onError?: (status: ErrorStatus, message: string, errorCode: number | undefined) => void
@@ -76,9 +81,10 @@ describe('useVoiceTreeClient', () => {
         mockCallbacks.onError?.('api_error', 'Invalid/expired temporary API key.', 401)
       })
 
-      // Wait for the reactive reconnection delay (1 second)
+      // Wait for the reactive reconnection delay (1 second) + flush promises for forceRefreshAPIKey
       await act(async () => {
         vi.advanceTimersByTime(1000)
+        await Promise.resolve() // Flush forceRefreshAPIKey promise
       })
 
       // Should have attempted ONE reconnection
@@ -106,6 +112,7 @@ describe('useVoiceTreeClient', () => {
 
       await act(async () => {
         vi.advanceTimersByTime(1000)
+        await Promise.resolve() // Flush forceRefreshAPIKey promise
       })
 
       // Should have attempted ONE reconnection
@@ -131,6 +138,7 @@ describe('useVoiceTreeClient', () => {
 
       await act(async () => {
         vi.advanceTimersByTime(1000)
+        await Promise.resolve() // Flush forceRefreshAPIKey promise
       })
 
       expect(mockStartCount).toBe(2)
@@ -159,6 +167,7 @@ describe('useVoiceTreeClient', () => {
 
       await act(async () => {
         vi.advanceTimersByTime(1000)
+        await Promise.resolve() // Flush forceRefreshAPIKey promise
       })
 
       // Reconnection was attempted (but failed - no onStarted called)
@@ -171,6 +180,7 @@ describe('useVoiceTreeClient', () => {
 
       await act(async () => {
         vi.advanceTimersByTime(1000)
+        await Promise.resolve()
       })
 
       // Should NOT have attempted another reconnection
@@ -204,6 +214,7 @@ describe('useVoiceTreeClient', () => {
 
       await act(async () => {
         vi.advanceTimersByTime(1000)
+        await Promise.resolve() // Flush forceRefreshAPIKey promise
       })
 
       // Reconnection succeeded (onStarted was called), counter should be reset
@@ -216,6 +227,7 @@ describe('useVoiceTreeClient', () => {
 
       await act(async () => {
         vi.advanceTimersByTime(1000)
+        await Promise.resolve() // Flush forceRefreshAPIKey promise
       })
 
       // Should have attempted another reconnection
@@ -319,6 +331,7 @@ describe('useVoiceTreeClient', () => {
       // Advance past 18 minute mark
       await act(async () => {
         vi.advanceTimersByTime(2 * 60 * 1000) // +2 more minutes = 19 total
+        await Promise.resolve() // Flush forceRefreshAPIKey promise
       })
 
       // Should have proactively restarted
