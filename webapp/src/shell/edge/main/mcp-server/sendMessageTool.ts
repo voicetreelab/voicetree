@@ -40,9 +40,12 @@ export async function sendMessageTool({
     }
 
     // 3. Write message to terminal (with carriage return to execute)
+    // Prefix message with sender info so recipient knows who sent it
     try {
         const terminalManager = getTerminalManager()
-        const result = terminalManager.write(terminalId, message + '\r')
+        const prefixedMessage: string = `[From: ${callerTerminalId}] ${message}`
+        // Use \r\n to ensure the message is submitted as input
+        const result = terminalManager.write(terminalId, prefixedMessage + '\r\n')
 
         if (!result.success) {
             return buildJsonResponse({
