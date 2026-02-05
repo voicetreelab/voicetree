@@ -68,6 +68,20 @@ export async function spawnTerminalWithContextNode(
 
     // Use provided command or default to first agent
     const agents: readonly { readonly name: string; readonly command: string }[] = settings.agents ?? [];
+
+    // SECURITY: Validate that agentCommand (if provided) is from settings.agents
+    // This prevents XSS attacks from executing arbitrary shell commands via IPC
+    if (agentCommand !== undefined) {
+        const validCommands = new Set(agents.map(a => a.command));
+        // Also allow commands that start with a valid command (for worktree prefix support)
+        const isValidCommand = validCommands.has(agentCommand) ||
+            Array.from(validCommands).some(valid => agentCommand.endsWith(valid));
+        if (!isValidCommand) {
+            console.error(`[SECURITY] Rejected unauthorized agent command: ${agentCommand.slice(0, 50)}...`);
+            throw new Error('Invalid agent command - must be defined in settings.agents');
+        }
+    }
+
     const command: string = agentCommand ?? agents[0]?.command ?? '';
     if (!command) {
         throw new Error('No agent command available - settings.agents is empty or undefined');
