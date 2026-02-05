@@ -1,0 +1,58 @@
+/**
+ * MCP Tool: read_terminal_output
+ * Reads the last N lines of output from an agent terminal.
+ */
+
+import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
+import {getOutput} from '@/shell/edge/main/terminals/terminal-output-buffer'
+import {type McpToolResponse, buildJsonResponse} from './types'
+
+export interface ReadTerminalOutputParams {
+    terminalId: string
+    callerTerminalId: string
+    nLines?: number
+}
+
+export async function readTerminalOutputTool({
+    terminalId,
+    callerTerminalId,
+    nLines = 100
+}: ReadTerminalOutputParams): Promise<McpToolResponse> {
+    // 1. Validate caller terminal exists
+    const terminalRecords: TerminalRecord[] = getTerminalRecords()
+    if (!terminalRecords.some((r: TerminalRecord) => r.terminalId === callerTerminalId)) {
+        return buildJsonResponse({
+            success: false,
+            error: `Unknown caller terminal: ${callerTerminalId}`
+        }, true)
+    }
+
+    // 2. Find the target terminal
+    const targetRecord: TerminalRecord | undefined = terminalRecords.find(
+        (r: TerminalRecord) => r.terminalId === terminalId
+    )
+
+    if (!targetRecord) {
+        return buildJsonResponse({
+            success: false,
+            error: `Terminal not found: ${terminalId}`
+        }, true)
+    }
+
+    // 3. Get output from buffer module
+    const output = getOutput(terminalId, nLines)
+
+    if (output === undefined) {
+        return buildJsonResponse({
+            success: false,
+            error: `No output buffer for terminal: ${terminalId}`
+        }, true)
+    }
+
+    return buildJsonResponse({
+        success: true,
+        terminalId,
+        nLines,
+        output
+    })
+}
