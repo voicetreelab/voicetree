@@ -12,6 +12,7 @@ import {getTerminalManager} from '@/shell/edge/main/terminals/terminal-manager-i
 import {setupToolsDirectory, getToolsDirectory} from './tools-setup';
 import {setupOnboardingDirectory} from './onboarding-setup';
 import {startNotificationScheduler, stopNotificationScheduler, recordAppUsage} from './notification-scheduler';
+import {migrateAgentPromptIfNeeded} from '@/shell/edge/main/settings/settings_IO';
 import {setBackendPort, setMainWindow} from '@/shell/edge/main/state/app-electron-state';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
 import {startOTLPReceiver, stopOTLPReceiver} from '@/shell/edge/main/metrics/otlp-receiver';
@@ -398,6 +399,23 @@ void app.whenReady().then(async () => {
     createWindow();
     console.timeEnd('[Startup] createWindow');
     console.timeEnd('[Startup] Total time to window');
+
+    // Check if AGENT_PROMPT needs migration to new default
+    // Shows dialog after window is ready to ensure proper parent
+    const migrationOccurred: boolean = await migrateAgentPromptIfNeeded();
+    if (migrationOccurred) {
+        const mainWindow: BrowserWindow = BrowserWindow.getAllWindows()[0];
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            void dialog.showMessageBox(mainWindow, {
+                type: 'info',
+                title: 'Agent Prompt Updated',
+                message: 'Agent prompt has been updated to the latest version.',
+                detail: 'Your previous prompt has been saved to AGENT_PROMPT_PREVIOUS_BACKUP in your settings.',
+                buttons: ['OK'],
+                defaultId: 0,
+            });
+        }
+    }
 
     // Start OTLP receiver for Claude Code metrics (port 4318)
     await startOTLPReceiver();
