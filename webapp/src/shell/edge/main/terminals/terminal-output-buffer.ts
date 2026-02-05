@@ -20,6 +20,7 @@ const partialLines = new Map<string, string>()
  * Sanitize terminal output to only include printable ASCII characters.
  * - Strips ANSI escape codes
  * - Removes carriage returns (\r)
+ * - Removes literal backslash-escape sequences (e.g., \n, \r, \t)
  * - Keeps only printable ASCII (32-126) and newlines (10)
  */
 function sanitizeOutput(data: string): string {
@@ -28,6 +29,9 @@ function sanitizeOutput(data: string): string {
 
     // Remove carriage returns
     cleaned = cleaned.replace(/\r/g, '')
+
+    // Remove literal backslash-escape sequences (e.g., \n, \r, \t, etc.)
+    cleaned = cleaned.replace(/\\./g, '')
 
     // Filter to printable ASCII (32-126) and newline (10)
     let result = ''
