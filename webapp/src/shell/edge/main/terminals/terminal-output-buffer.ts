@@ -16,9 +16,37 @@ const buffers = new Map<string, string[]>()
 // Partial line buffer for incomplete lines (data may arrive mid-line)
 const partialLines = new Map<string, string>()
 
+/**
+ * Sanitize terminal output to only include printable ASCII characters.
+ * - Strips ANSI escape codes
+ * - Removes carriage returns (\r)
+ * - Keeps only printable ASCII (32-126) and newlines (10)
+ */
+function sanitizeOutput(data: string): string {
+    // Strip ANSI escape codes first
+    let cleaned = data.replace(ANSI_PATTERN, '')
+
+    // Remove carriage returns
+    cleaned = cleaned.replace(/\r/g, '')
+
+    // Filter to printable ASCII (32-126) and newline (10)
+    let result = ''
+    for (let i = 0; i < cleaned.length; i++) {
+        const code = cleaned.charCodeAt(i)
+        if (code === 10 || (code >= 32 && code <= 126)) {
+            result += cleaned[i]
+        }
+    }
+
+    return result
+}
+
 export function captureOutput(terminalId: string, data: string): void {
+    // Sanitize input data before processing
+    const sanitized = sanitizeOutput(data)
+
     const partial = partialLines.get(terminalId) ?? ''
-    const combined = partial + data
+    const combined = partial + sanitized
 
     // Split on newlines, keeping partial line for next capture
     const lines = combined.split('\n')
@@ -43,10 +71,8 @@ export function getOutput(terminalId: string, nLines: number = MAX_LINES): strin
     if (!buffer) return undefined
 
     const linesToReturn = buffer.slice(-Math.min(nLines, MAX_LINES))
-    const output = linesToReturn.join('\n')
-
-    // Strip ANSI codes
-    return output.replace(ANSI_PATTERN, '')
+    // Output is already sanitized at capture time
+    return linesToReturn.join('\n')
 }
 
 export function clearBuffer(terminalId: string): void {
