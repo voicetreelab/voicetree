@@ -158,3 +158,38 @@ ninja-keys {
 ninja-keys.dark {
   --ninja-group-text-color: #9ca3af;
 }
+
+/* Minimal scrollbar for transcription panel */
+.vt-transcription-content {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+
+.vt-transcription-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.vt-transcription-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.vt-transcription-content::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+}
+
+.vt-transcription-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.dark .vt-transcription-content {
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+.dark .vt-transcription-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.dark .vt-transcription-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
