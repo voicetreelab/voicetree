@@ -9,8 +9,9 @@ import {getNodeTitle} from '@/pure/graph/markdown-parsing';
 import {findFirstParentNode} from '@/pure/graph/graph-operations/findFirstParentNode';
 import {resolveEnvVars, expandEnvVarsInValues} from '@/pure/settings';
 import type {VTSettings} from '@/pure/settings/types';
-import {getNextAgentName} from '@/pure/settings/types';
-import {createTerminalData} from '@/shell/edge/UI-edge/floating-windows/types';
+import {getNextAgentName, getUniqueAgentName} from '@/pure/settings/types';
+import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types';
+import {getExistingAgentNames} from '@/shell/edge/main/terminals/terminal-registry';
 import {getAppSupportPath} from '@/shell/edge/main/state/app-electron-state';
 import {getGraph} from '@/shell/edge/main/state/graph-store';
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
@@ -70,8 +71,13 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
   const resolvedEnvVars: Record<string, string> = resolveEnvVars(settings.INJECT_ENV_VARS);
   const contextNodeTitle: string = getNodeTitle(contextNode);
   const strippedTitle: string = contextNodeTitle.replace(/^ASK:\s*/i, '');
-  const agentName: string = getNextAgentName();
+  // Generate unique agent name with collision handling
+  const baseAgentName: string = getNextAgentName();
+  const existingNames: Set<string> = getExistingAgentNames();
+  const agentName: string = getUniqueAgentName(baseAgentName, existingNames);
   const title: string = `${agentName}: ${strippedTitle}`;
+  // terminalId = agentName (unified identification)
+  const terminalId: TerminalId = agentName as TerminalId;
 
   const appSupportPath: string = getAppSupportPath();
 
@@ -96,12 +102,14 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
     VOICETREE_APP_SUPPORT: appSupportPath ?? '',
     CONTEXT_NODE_PATH: contextNodeAbsolutePath,
     TASK_NODE_PATH: taskNodeAbsolutePath,
+    VOICETREE_TERMINAL_ID: agentName, // Same as AGENT_NAME
     AGENT_NAME: agentName,
     ...resolvedEnvVars,
   };
   const expandedEnvVars: Record<string, string> = expandEnvVarsInValues(unexpandedEnvVars);
 
   const terminalData: TerminalData = createTerminalData({
+    terminalId: terminalId, // terminalId = agentName (unified)
     attachedToNodeId: contextNodeId,
     terminalCount: terminalCount,
     title: title,
