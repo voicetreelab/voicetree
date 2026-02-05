@@ -4,7 +4,7 @@
 
 Agents spawn subagents on the same context graph you use to think. Steer swarms of parallel agents as they grow your mindmap.
 
-![Voicetree Demo](meta/Self_spawn.gif)
+![Voicetree Demo](meta/core_loop_only_agents.gif)
 
 [![Build](https://github.com/voicetreelab/voicetree/actions/workflows/release.yml/badge.svg)](https://github.com/voicetreelab/voicetree/actions/workflows/release.yml)
 [![macOS](https://img.shields.io/badge/macOS-supported-blue)](https://github.com/voicetreelab/voicetree/releases/latest/download/voicetree-arm64.dmg)
