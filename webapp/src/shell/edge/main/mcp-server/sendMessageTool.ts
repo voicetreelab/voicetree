@@ -39,28 +39,33 @@ export async function sendMessageTool({
         }, true)
     }
 
-    // 3. Write message to terminal
+    // 3. Write message to terminal character by character (mimics real typing)
     // Prefix message with sender info so recipient knows who sent it
     try {
         const terminalManager = getTerminalManager()
         const prefixedMessage: string = `[From: ${callerTerminalId}] ${message}`
 
-        // First send ESC to clear any current input state
+        // Send ESC twice to ensure we exit any mode and are in normal mode
         terminalManager.write(terminalId, '\x1b')
+        await new Promise(resolve => setTimeout(resolve, 100))
+        terminalManager.write(terminalId, '\x1b')
+        await new Promise(resolve => setTimeout(resolve, 100))
+        // Then 'i' to enter insert mode
+        terminalManager.write(terminalId, 'i')
+        await new Promise(resolve => setTimeout(resolve, 50))
 
-        // Then send message + carriage return
-        const result = terminalManager.write(terminalId, prefixedMessage + '\r')
-        if (!result.success) {
-            return buildJsonResponse({
-                success: false,
-                error: result.error ?? 'Failed to send message'
-            }, true)
+        // Write each character with small delay to mimic typing
+        const fullMessage: string = prefixedMessage + '\r'
+        for (let i = 0; i < fullMessage.length; i++) {
+            await new Promise(resolve => setTimeout(resolve, 5))
+            const result = terminalManager.write(terminalId, fullMessage[i])
+            if (!result.success) {
+                return buildJsonResponse({
+                    success: false,
+                    error: result.error ?? 'Failed to send character'
+                }, true)
+            }
         }
-
-        // After 1s delay, send additional \r\n as backup
-        setTimeout(() => {
-            terminalManager.write(terminalId, '\r\n')
-        }, 1000)
 
         return buildJsonResponse({
             success: true,
