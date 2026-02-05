@@ -30,6 +30,7 @@ import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/termina
 import {findAvailablePort} from '@/shell/edge/main/electron/port-utils'
 import {getTerminalManager} from '@/shell/edge/main/terminals/terminal-manager-instance'
 import {getOutput} from '@/shell/edge/main/terminals/terminal-output-buffer'
+import {uiAPI} from '@/shell/edge/main/ui-api-proxy'
 
 const MCP_BASE_PORT: 3001 = 3001 as const
 let mcpPort: number = MCP_BASE_PORT  
@@ -472,17 +473,10 @@ export async function closeAgentTool({
         }, true)
     }
 
-    // 3. Kill the terminal using the terminal manager
+    // 3. Close the terminal via UI API (mimics clicking red traffic light button)
+    // This properly: removes from registry, disposes floating window, deletes context node
     try {
-        const terminalManager = getTerminalManager()
-        const result = terminalManager.kill(terminalId)
-
-        if (!result.success) {
-            return buildJsonResponse({
-                success: false,
-                error: result.error ?? 'Failed to close terminal'
-            }, true)
-        }
+        uiAPI.closeTerminalById(terminalId)
 
         return buildJsonResponse({
             success: true,
