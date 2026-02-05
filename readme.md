@@ -2,9 +2,11 @@
 
 **Obsidian meets Claude Code**
 
-Voicetree is an interactive graph-view where nodes are either markdown notes, or terminal agents. 
+Voicetree is an interactive graph-view where nodes are either markdown notes, or terminal based agents. 
 Agents can spawn their own subagents onto the graph. Agents will have the nearby nodes injected into their context. 
 Agents can create their own sub-graphs, for example, turn a task into a planning tree, and then spawn subagents to work through it.
+
+This project aims to build from first principles the most possibly efficient human-AI interaction system. 
 
 ![Voicetree Demo](meta/core_loop_only_agents.gif)
 
