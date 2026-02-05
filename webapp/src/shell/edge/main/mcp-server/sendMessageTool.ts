@@ -39,31 +39,28 @@ export async function sendMessageTool({
         }, true)
     }
 
-    // 3. Write message to terminal, then send Enter separately
+    // 3. Write message to terminal
     // Prefix message with sender info so recipient knows who sent it
     try {
         const terminalManager = getTerminalManager()
         const prefixedMessage: string = `[From: ${callerTerminalId}] ${message}`
 
-        // Write message text first
-        const textResult = terminalManager.write(terminalId, prefixedMessage)
-        if (!textResult.success) {
+        // First send ESC to clear any current input state
+        terminalManager.write(terminalId, '\x1b')
+
+        // Then send message + carriage return
+        const result = terminalManager.write(terminalId, prefixedMessage + '\r')
+        if (!result.success) {
             return buildJsonResponse({
                 success: false,
-                error: textResult.error ?? 'Failed to send message text'
+                error: result.error ?? 'Failed to send message'
             }, true)
         }
 
-        // Small delay then send Enter (mimics user pressing Enter after typing)
-        await new Promise(resolve => setTimeout(resolve, 50))
-        const enterResult = terminalManager.write(terminalId, '\r')
-
-        if (!enterResult.success) {
-            return buildJsonResponse({
-                success: false,
-                error: enterResult.error ?? 'Failed to send Enter'
-            }, true)
-        }
+        // After 1s delay, send additional \r\n as backup
+        setTimeout(() => {
+            terminalManager.write(terminalId, '\r\n')
+        }, 1000)
 
         return buildJsonResponse({
             success: true,
