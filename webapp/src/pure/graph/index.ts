@@ -240,3 +240,6 @@ export { createGraph, createEmptyGraph } from './createGraph'
 
 // === NODE TYPE DETECTION ===
 export { isImageNode, IMAGE_EXTENSIONS } from './isImageNode'
+
+// === AGENT NODE QUERIES ===
+export { getNodesByAgentName } from './getNodesByAgentName'
