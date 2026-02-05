@@ -17,6 +17,7 @@ import {z} from 'zod'
 import express, {type Express} from 'express'
 import * as O from 'fp-ts/lib/Option.js'
 import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath, Position} from '@/pure/graph'
+import {getNodesByAgentName} from '@/pure/graph'
 import {getNodeTitle} from '@/pure/graph/markdown-parsing'
 import {findBestMatchingNode} from '@/pure/graph/markdown-parsing/extract-edges'
 import {createTaskNode} from '@/pure/graph/graph-operations/createTaskNode'
@@ -208,6 +209,22 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, details, p
     }
 }
 
+/**
+ * Find nodes created by an agent via agent_name matching.
+ * Uses pure function getNodesByAgentName and maps to {nodeId, title} format.
+ */
+function getNewNodesForAgent(
+    graph: Graph,
+    agentName: string | undefined
+): Array<{nodeId: string; title: string}> {
+    if (!agentName) return []
+
+    return getNodesByAgentName(graph, agentName).map((node: GraphNode) => ({
+        nodeId: node.absoluteFilePathIsID,
+        title: getNodeTitle(node)
+    }))
+}
+
 export async function listAgentsTool(): Promise<McpToolResponse> {
     const graph: Graph = getGraph()
     const agents: Array<{
@@ -228,19 +245,7 @@ export async function listAgentsTool(): Promise<McpToolResponse> {
         const agentName: string | undefined = record.terminalData.agentName
 
         // Find nodes created by this agent via agent_name matching
-        // This uses the same mechanism as the blue dotted edges in applyGraphDeltaToUI
-        const newNodes: Array<{nodeId: string; title: string}> = []
-        if (agentName) {
-            for (const node of Object.values(graph.nodes)) {
-                const nodeAgentName: string | undefined = node.nodeUIMetadata.additionalYAMLProps.get('agent_name')
-                if (nodeAgentName === agentName) {
-                    newNodes.push({
-                        nodeId: node.absoluteFilePathIsID,
-                        title: getNodeTitle(node)
-                    })
-                }
-            }
-        }
+        const newNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(graph, agentName)
 
         // Determine status: exited > idle (isDone) > running
         // isDone reflects UI green indicator (no output for a period)
@@ -290,25 +295,47 @@ export async function waitForAgentsTool({
     const getAgentStatus = (r: TerminalRecord): 'running' | 'idle' | 'exited' =>
         r.status === 'exited' ? 'exited' : r.terminalData.isDone ? 'idle' : 'running'
 
-    // 3. Poll until all are idle or exited, or timeout reached
+    // 3. Poll until all are idle/exited AND have created nodes, or timeout reached
     const startTime: number = Date.now()
     while (Date.now() - startTime < timeoutMs) {
         const currentRecords: TerminalRecord[] = getTerminalRecords()
         const targetRecords: TerminalRecord[] = currentRecords.filter(
             (r: TerminalRecord) => terminalIds.includes(r.terminalId)
         )
-        const allDone: boolean = targetRecords.every(
-            (r: TerminalRecord) => getAgentStatus(r) !== 'running'
-        )
+        const graph: Graph = getGraph()
+
+        const allDone: boolean = targetRecords.every((r: TerminalRecord) => {
+            const status: 'running' | 'idle' | 'exited' = getAgentStatus(r)
+            if (status === 'running') return false
+
+            // Agent must also have created at least one node
+            const agentName: string | undefined = r.terminalData.agentName
+            const newNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(graph, agentName)
+
+            // Exited without creating a node = error state, but consider it "done"
+            // (will be reported via exitedWithoutNode in response)
+            if (status === 'exited' && newNodes.length === 0) {
+                return true
+            }
+
+            return newNodes.length > 0
+        })
 
         if (allDone) {
             return buildJsonResponse({
                 success: true,
-                agents: targetRecords.map((r: TerminalRecord) => ({
-                    terminalId: r.terminalId,
-                    title: r.terminalData.title,
-                    status: getAgentStatus(r)
-                }))
+                agents: targetRecords.map((r: TerminalRecord) => {
+                    const agentName: string | undefined = r.terminalData.agentName
+                    const newNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(graph, agentName)
+                    const status: 'running' | 'idle' | 'exited' = getAgentStatus(r)
+                    return {
+                        terminalId: r.terminalId,
+                        title: r.terminalData.title,
+                        status,
+                        newNodes,
+                        exitedWithoutNode: status === 'exited' && newNodes.length === 0
+                    }
+                })
             })
         }
 
@@ -320,19 +347,36 @@ export async function waitForAgentsTool({
     const targetRecords: TerminalRecord[] = finalRecords.filter(
         (r: TerminalRecord) => terminalIds.includes(r.terminalId)
     )
+    const graph: Graph = getGraph()
     const stillRunning: string[] = targetRecords
         .filter((r: TerminalRecord) => getAgentStatus(r) === 'running')
+        .map((r: TerminalRecord) => r.terminalId)
+    const waitingForNodes: string[] = targetRecords
+        .filter((r: TerminalRecord) => {
+            const status: 'running' | 'idle' | 'exited' = getAgentStatus(r)
+            if (status === 'running') return false
+            const newNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(graph, r.terminalData.agentName)
+            return newNodes.length === 0
+        })
         .map((r: TerminalRecord) => r.terminalId)
 
     return buildJsonResponse({
         success: false,
         error: `Timeout waiting for agents after ${timeoutMs}ms`,
         stillRunning,
-        agents: targetRecords.map((r: TerminalRecord) => ({
-            terminalId: r.terminalId,
-            title: r.terminalData.title,
-            status: getAgentStatus(r)
-        }))
+        waitingForNodes,
+        agents: targetRecords.map((r: TerminalRecord) => {
+            const agentName: string | undefined = r.terminalData.agentName
+            const newNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(graph, agentName)
+            const status: 'running' | 'idle' | 'exited' = getAgentStatus(r)
+            return {
+                terminalId: r.terminalId,
+                title: r.terminalData.title,
+                status,
+                newNodes,
+                exitedWithoutNode: status === 'exited' && newNodes.length === 0
+            }
+        })
     }, true)
 }
 
