@@ -10,8 +10,11 @@
  * - Renderer: uiAPI[funcName](...args)  // actual implementation
  */
 
-import {launchTerminalOntoUI} from "@/shell/edge/UI-edge/launchTerminalOntoUI";
-import {updateFloatingEditors, createAnchoredFloatingEditor} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
+import {launchTerminalOntoUI} from "@/shell/edge/UI-edge/floating-windows/terminals/launchTerminalOntoUI";
+import {
+    createAnchoredFloatingEditor,
+    updateFloatingEditors
+} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 import {getCyInstance} from "@/shell/edge/UI-edge/state/cytoscape-state";
 import {getResponsivePadding} from "@/utils/responsivePadding";
 import type {GraphDelta, NodeIdAndFilePath} from "@/pure/graph";
@@ -20,6 +23,7 @@ import type {Core} from "cytoscape";
 import type {TerminalRecord} from "@/shell/edge/main/terminals/terminal-registry";
 import {syncFromMain} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {setIsTrackpadScrolling} from "@/shell/edge/UI-edge/state/trackpad-state";
+import {closeTerminalById} from "@/shell/edge/UI-edge/floating-windows/terminals/closeTerminalById";
 
 /**
  * Update floating editors from external FS changes
@@ -77,6 +81,7 @@ export const uiAPIHandler = {
     fitViewport,
     syncTerminals,
     setIsTrackpadScrolling,
+    closeTerminalById,
 };
 
 export type UIAPIType = typeof uiAPIHandler;
