@@ -2,7 +2,9 @@
 
 **Obsidian meets Claude Code**
 
-Agents spawn subagents on the same context graph you use to think. Steer swarms of parallel agents as they grow your mindmap.
+Voicetree is an interactive graph-view where nodes are either markdown notes, or terminal agents. 
+Agents can spawn their own subagents onto the graph. Agents will have the nearby nodes injected into their context. 
+Agents can create their own sub-graphs, for example, turn a task into a planning tree, and then spawn subagents to work through it.
 
 ![Voicetree Demo](meta/core_loop_only_agents.gif)
 
