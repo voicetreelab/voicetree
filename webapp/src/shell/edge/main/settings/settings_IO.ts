@@ -26,6 +26,51 @@ export async function loadSettings(): Promise<VTSettings> {
   }
 }
 
+/**
+ * Checks if AGENT_PROMPT differs from the current default.
+ * If so, backs up the old value as AGENT_PROMPT_PREVIOUS_BACKUP and updates to the new default.
+ * @returns true if migration occurred, false otherwise
+ */
+export async function migrateAgentPromptIfNeeded(): Promise<boolean> {
+  const settingsPath: string = getSettingsPath();
+
+  let userSettings: Partial<VTSettings>;
+  try {
+    const data: string = await fs.readFile(settingsPath, 'utf-8');
+    userSettings = JSON.parse(data) as Partial<VTSettings>;
+  } catch (error) {
+    // No settings file or parse error - nothing to migrate
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return false;
+    }
+    throw error;
+  }
+
+  const currentAgentPrompt: string | undefined = userSettings.INJECT_ENV_VARS?.AGENT_PROMPT as string | undefined;
+  const defaultAgentPrompt: string = DEFAULT_SETTINGS.INJECT_ENV_VARS.AGENT_PROMPT as string;
+
+  // No migration needed if:
+  // - User has no AGENT_PROMPT set (will use default anyway)
+  // - User's AGENT_PROMPT already matches the current default
+  if (!currentAgentPrompt || currentAgentPrompt === defaultAgentPrompt) {
+    return false;
+  }
+
+  // Migration needed: backup old value and update to new default
+  const updatedSettings: VTSettings = {
+    ...DEFAULT_SETTINGS,
+    ...userSettings,
+    INJECT_ENV_VARS: {
+      ...userSettings.INJECT_ENV_VARS,
+      AGENT_PROMPT: defaultAgentPrompt,
+      AGENT_PROMPT_PREVIOUS_BACKUP: currentAgentPrompt,
+    },
+  };
+
+  await saveSettings(updatedSettings);
+  return true;
+}
+
 export async function saveSettings(settings: VTSettings): Promise<boolean> {
   const settingsPath: string = getSettingsPath();
   const settingsDir: string = path.dirname(settingsPath);
