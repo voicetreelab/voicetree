@@ -13,8 +13,8 @@ export interface TaskNodeCreationParams {
 }
 
 /**
- * Creates a task node with the user's description and wikilinks to all selected nodes.
- * The task node will have an edge to the most-connected node from the selection.
+ * Creates a task node with the user's description and a parent edge to the most-connected
+ * node from the selection. Context node references are handled separately.
  *
  * @param params - Parameters for task node creation
  * @returns GraphDelta containing the new task node
@@ -32,16 +32,10 @@ export function createTaskNode(params: TaskNodeCreationParams): GraphDelta {
   // Find most-connected node for parent relationship
   const mostConnectedNodeId: NodeIdAndFilePath = findMostConnectedNode(selectedNodeIds, graph)
 
-  // Build wikilinks for all selected nodes
-  const wikilinks: string = selectedNodeIds
-    .map((id: NodeIdAndFilePath) => `[[${id}]]`)
-    .join('\n')
-
-  // Build markdown content with task description and wikilinks
+  // Build markdown content with task description and parent link only.
+  // Selected node references are stored in the context node, not here,
+  // to avoid duplicate edges cluttering the graph.
   const markdownContent: string = `# ${taskDescription}
-
-## Context Nodes
-${wikilinks}
 
 - parent [[${mostConnectedNodeId}]]
 `

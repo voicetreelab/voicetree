@@ -2,7 +2,7 @@ import type {Graph, GraphNode, NodeIdAndFilePath} from '@/pure/graph'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getUnseenNodesAroundContextNode, type UnseenNode} from '@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode'
 import {getNodeTitle} from '@/pure/graph/markdown-parsing'
-import {getTerminalManager} from './terminal-manager-instance'
+import {sendTextToTerminal} from './send-text-to-terminal'
 
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
@@ -98,9 +98,8 @@ async function notifyAgentOfUnseenNodes(terminalId: string, record: TerminalReco
 
         const message: string = `\n\n[VOICETREE] New nodes created nearby while you were working:\n${nodeList}\n\nReminder: If you haven't yet, create a progress tree to document your work (see addProgressTree.md).\n\n`
 
-        // Send directly to terminal (with \r to submit as input)
-        const terminalManager = getTerminalManager()
-        terminalManager.write(terminalId, message + '\r')
+        // Send to terminal using escape-code + char-by-char approach
+        await sendTextToTerminal(terminalId, message)
 
         // Update tracking state
         notificationState.lastNotificationTime = now
