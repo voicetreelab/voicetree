@@ -77,8 +77,8 @@ describe('createTaskNode', () => {
     })
   })
 
-  describe('task node contains wikilinks to all selected nodes', () => {
-    it('should include wikilinks to all selected nodes in content', () => {
+  describe('task node links only to parent, not all selected nodes', () => {
+    it('should only have parent edge, not edges to all selected nodes', () => {
       const nodes: Record<NodeIdAndFilePath, GraphNode> = {
         '/vault/a.md': createTestNode('/vault/a.md', [], '# Node A'),
         '/vault/b.md': createTestNode('/vault/b.md', [], '# Node B'),
@@ -97,17 +97,11 @@ describe('createTaskNode', () => {
       const result: GraphDelta = createTaskNode(params)
 
       const delta: UpsertNodeDelta = result[0] as UpsertNodeDelta
-      // Wikilinks are converted to [link]* format in contentWithoutYamlOrLinks
-      // So we check outgoingEdges instead, which are parsed from wikilinks
-      expect(delta.nodeToUpsert.outgoingEdges.length).toBeGreaterThanOrEqual(3)
-
-      const targetIds: readonly string[] = delta.nodeToUpsert.outgoingEdges.map(e => e.targetId)
-      expect(targetIds).toContain('/vault/a.md')
-      expect(targetIds).toContain('/vault/b.md')
-      expect(targetIds).toContain('/vault/c.md')
+      // Only the most-connected parent edge, not all selected nodes
+      expect(delta.nodeToUpsert.outgoingEdges.length).toBe(1)
     })
 
-    it('should handle single selected node', () => {
+    it('should handle single selected node with only parent edge', () => {
       const nodes: Record<NodeIdAndFilePath, GraphNode> = {
         '/vault/single.md': createTestNode('/vault/single.md', [])
       }
@@ -125,7 +119,7 @@ describe('createTaskNode', () => {
 
       const delta: UpsertNodeDelta = result[0] as UpsertNodeDelta
       const targetIds: readonly string[] = delta.nodeToUpsert.outgoingEdges.map(e => e.targetId)
-      expect(targetIds).toContain('/vault/single.md')
+      expect(targetIds).toEqual(['/vault/single.md'])
     })
   })
 
@@ -161,9 +155,8 @@ describe('createTaskNode', () => {
       expect(targetIds).toContain('/vault/hub.md')
     })
 
-    it('should create only ONE parent edge (the most-connected), but context links to all', () => {
-      // The "parent" edge is the same as the context link for the most-connected node
-      // All selected nodes get wikilinks for context reference
+    it('should create only ONE parent edge to the most-connected node', () => {
+      // a.md has 1 outgoing edge, b.md has 0 — a.md is most connected
       const nodes: Record<NodeIdAndFilePath, GraphNode> = {
         '/vault/a.md': createTestNode('/vault/a.md', [{ targetId: '/vault/b.md', label: '' }]),
         '/vault/b.md': createTestNode('/vault/b.md', [])
@@ -181,13 +174,9 @@ describe('createTaskNode', () => {
       const result: GraphDelta = createTaskNode(params)
 
       const delta: UpsertNodeDelta = result[0] as UpsertNodeDelta
-      // Both selected nodes should have edges (wikilinks for context)
       const targetIds: readonly string[] = delta.nodeToUpsert.outgoingEdges.map(e => e.targetId)
-      expect(targetIds).toContain('/vault/a.md')
-      expect(targetIds).toContain('/vault/b.md')
-      // No duplicate edges
-      const uniqueTargetIds: ReadonlySet<string> = new Set(targetIds)
-      expect(uniqueTargetIds.size).toBe(targetIds.length)
+      // Only the most-connected parent (a.md), not all selected nodes
+      expect(targetIds).toEqual(['/vault/a.md'])
     })
 
     it('should use selection order for tie-breaking when finding most-connected', () => {
@@ -209,10 +198,9 @@ describe('createTaskNode', () => {
       const result: GraphDelta = createTaskNode(params)
 
       const delta: UpsertNodeDelta = result[0] as UpsertNodeDelta
-      // Both should be in edges as context links
+      // Only the parent edge — first.md wins the tie
       const targetIds: readonly string[] = delta.nodeToUpsert.outgoingEdges.map(e => e.targetId)
-      expect(targetIds).toContain('/vault/first.md')
-      expect(targetIds).toContain('/vault/second.md')
+      expect(targetIds).toEqual(['/vault/first.md'])
     })
   })
 

@@ -4,7 +4,7 @@
  */
 
 import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
-import {getTerminalManager} from '@/shell/edge/main/terminals/terminal-manager-instance'
+import {sendTextToTerminal} from '@/shell/edge/main/terminals/send-text-to-terminal'
 import {type McpToolResponse, buildJsonResponse} from './types'
 
 export interface SendMessageParams {
@@ -39,32 +39,16 @@ export async function sendMessageTool({
         }, true)
     }
 
-    // 3. Write message to terminal character by character (mimics real typing)
-    // Prefix message with sender info so recipient knows who sent it
+    // 3. Send message to terminal with sender prefix
     try {
-        const terminalManager = getTerminalManager()
         const prefixedMessage: string = `[From: ${callerTerminalId}] ${message}`
+        const result = await sendTextToTerminal(terminalId, prefixedMessage)
 
-        // Send ESC twice to ensure we exit any mode and are in normal mode
-        terminalManager.write(terminalId, '\x1b')
-        await new Promise(resolve => setTimeout(resolve, 100))
-        terminalManager.write(terminalId, '\x1b')
-        await new Promise(resolve => setTimeout(resolve, 100))
-        // Then 'i' to enter insert mode
-        terminalManager.write(terminalId, 'i')
-        await new Promise(resolve => setTimeout(resolve, 50))
-
-        // Write each character with small delay to mimic typing
-        const fullMessage: string = prefixedMessage + '\r'
-        for (let i = 0; i < fullMessage.length; i++) {
-            await new Promise(resolve => setTimeout(resolve, 5))
-            const result = terminalManager.write(terminalId, fullMessage[i])
-            if (!result.success) {
-                return buildJsonResponse({
-                    success: false,
-                    error: result.error ?? 'Failed to send character'
-                }, true)
-            }
+        if (!result.success) {
+            return buildJsonResponse({
+                success: false,
+                error: result.error ?? 'Failed to send message'
+            }, true)
         }
 
         return buildJsonResponse({

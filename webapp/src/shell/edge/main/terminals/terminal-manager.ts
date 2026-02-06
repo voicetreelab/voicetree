@@ -15,7 +15,7 @@ export interface TerminalSpawnResult {
   error?: string;
 }
 
-interface TerminalOperationResult {
+export interface TerminalOperationResult {
   success: boolean;
   error?: string;
 }
