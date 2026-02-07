@@ -1,6 +1,16 @@
 import {createSSEConnection} from "@/shell/edge/UI-edge/text_to_tree_server_communication/sse-consumer";
 import type {} from "@/shell/electron"; // Side-effect import for global Window.electronAPI type
 
+/**
+ * Escapes HTML special characters to prevent XSS attacks.
+ * Use this for any user-controlled content before inserting into DOM.
+ */
+function escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 export interface SSEEvent {
     type: string;
     data: Record<string, unknown>;
@@ -118,11 +128,22 @@ export class SseStatusPanel {
             second: '2-digit'
         });
 
-        card.innerHTML = `
-            <span class="activity-icon">${icon}</span>
-            <span class="activity-node-title">${truncatedTitle}</span>
-            <span class="activity-time">${time}</span>
-        `;
+        // Use safe DOM APIs to prevent XSS - node titles come from user files
+        const iconSpan = document.createElement('span');
+        iconSpan.className = 'activity-icon';
+        iconSpan.textContent = icon;
+
+        const titleSpan = document.createElement('span');
+        titleSpan.className = 'activity-node-title';
+        titleSpan.textContent = truncatedTitle; // textContent is XSS-safe
+
+        const timeSpan = document.createElement('span');
+        timeSpan.className = 'activity-time';
+        timeSpan.textContent = time;
+
+        card.appendChild(iconSpan);
+        card.appendChild(titleSpan);
+        card.appendChild(timeSpan);
 
         // Click to navigate
         card.style.cursor = 'pointer';
@@ -153,10 +174,11 @@ export class SseStatusPanel {
         const message: string = this.getEventMessage(event);
         const nodeTitles: string = this.getNodeTitlesHtml(event);
 
+        // Escape message content to prevent XSS from user-controlled data
         return `
-            <span class="activity-icon">${icon}</span>
+            <span class="activity-icon">${escapeHtml(icon)}</span>
             <span class="activity-message">${message}</span>${nodeTitles}
-            <span class="activity-time">${time}</span>
+            <span class="activity-time">${escapeHtml(time)}</span>
         `;
     }
 
@@ -164,7 +186,9 @@ export class SseStatusPanel {
         if (event.type !== 'workflow_complete') return '';
         const titles: string[] | undefined = event.data.node_titles as string[] | undefined;
         if (!titles || titles.length === 0) return '';
-        return `<span class="activity-node-titles">${titles.join(', ')}</span>`;
+        // Escape each title to prevent XSS from user-controlled node titles
+        const escapedTitles = titles.map(t => escapeHtml(t)).join(', ');
+        return `<span class="activity-node-titles">${escapedTitles}</span>`;
     }
 
     private getEventIcon(type: string): string {
@@ -186,11 +210,11 @@ export class SseStatusPanel {
     private getEventMessage(event: SSEEvent): string {
         switch (event.type) {
             case 'phase_started': {
-                const phase: string = event.data.phase as string;
+                const phase: string = escapeHtml(event.data.phase as string);
                 if (phase === 'placement' && event.data.text_chunk) {
                     const text: string = event.data.text_chunk as string;
-                    const first30: string = text.slice(0, 30);
-                    const rest: string = text.length > 30 ? `<span class="activity-text-rest">${text.slice(30)}</span>` : '';
+                    const first30: string = escapeHtml(text.slice(0, 30));
+                    const rest: string = text.length > 30 ? `<span class="activity-text-rest">${escapeHtml(text.slice(30))}</span>` : '';
                     return `${phase}: ${first30}${rest} <span class="activity-processing-spinner">◌</span>`;
                 }
                 return `${phase}`;
@@ -199,8 +223,10 @@ export class SseStatusPanel {
                 return ""; // ignore phase_complete for now.
             case 'rate_limit_error':
                 return `Rate limit`;
-            case 'workflow_complete':
-                return `Done (${event.data.total_nodes} nodes)`;
+            case 'workflow_complete': {
+                const totalNodes = Number(event.data.total_nodes) || 0;
+                return `Done (${totalNodes} nodes)`;
+            }
             case 'connection_open':
                 return `Speech-to-tree server connected`;
             case 'connection_loading':
@@ -209,12 +235,12 @@ export class SseStatusPanel {
                 return 'Disconnected';
             case 'workflow_failed': {
                 const error: string = (event.data.error as string) || 'Unknown error';
-                const first50: string = error.slice(0, 35);
-                const rest: string = error.length > 35 ? `<span class="activity-text-rest">${error.slice(35)}</span>` : '';
+                const first50: string = escapeHtml(error.slice(0, 35));
+                const rest: string = error.length > 35 ? `<span class="activity-text-rest">${escapeHtml(error.slice(35))}</span>` : '';
                 return `${first50}${rest}`;
             }
             default:
-                return event.type.replace(/_/g, ' ');
+                return escapeHtml(event.type.replace(/_/g, ' '));
         }
     }
 
