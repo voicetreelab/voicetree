@@ -90,10 +90,56 @@ async function exposeElectronAPI(): Promise<void> {
             }
         },
 
-        // General IPC communication methods
-        invoke: (channel: string, ...args: unknown[]) => ipcRenderer.invoke(channel, ...args),
-        on: (channel: string, listener: (...args: unknown[]) => void) => ipcRenderer.on(channel, listener),
-        off: (channel: string, listener: (...args: unknown[]) => void) => ipcRenderer.off(channel, listener)
+        // General IPC communication methods - SECURITY: Restricted to allowlist
+        // These generic methods are kept for backwards compatibility but restricted to safe channels
+        invoke: (channel: string, ...args: unknown[]) => {
+            // Security: Only allow specific IPC channels to prevent XSS escalation to RCE
+            const ALLOWED_INVOKE_CHANNELS = new Set([
+                'rpc:call',
+                'rpc:getApiKeys',
+                'terminal:spawn',
+                'terminal:write',
+                'terminal:resize',
+                'terminal:kill',
+            ]);
+            if (!ALLOWED_INVOKE_CHANNELS.has(channel)) {
+                console.error(`[Preload] SECURITY: Blocked invoke to unauthorized channel: ${channel}`);
+                return Promise.reject(new Error(`IPC channel not allowed: ${channel}`));
+            }
+            return ipcRenderer.invoke(channel, ...args);
+        },
+        on: (channel: string, listener: (...args: unknown[]) => void) => {
+            // Security: Only allow subscribing to specific event channels
+            const ALLOWED_ON_CHANNELS = new Set([
+                'terminal:data',
+                'terminal:exit',
+                'backend-log',
+                'graph:stateChanged',
+                'graph:clear',
+                'watching-started',
+            ]);
+            if (!ALLOWED_ON_CHANNELS.has(channel)) {
+                console.error(`[Preload] SECURITY: Blocked subscription to unauthorized channel: ${channel}`);
+                return;
+            }
+            return ipcRenderer.on(channel, listener);
+        },
+        off: (channel: string, listener: (...args: unknown[]) => void) => {
+            // Security: Match the same allowlist as 'on'
+            const ALLOWED_OFF_CHANNELS = new Set([
+                'terminal:data',
+                'terminal:exit',
+                'backend-log',
+                'graph:stateChanged',
+                'graph:clear',
+                'watching-started',
+            ]);
+            if (!ALLOWED_OFF_CHANNELS.has(channel)) {
+                console.error(`[Preload] SECURITY: Blocked unsubscribe from unauthorized channel: ${channel}`);
+                return;
+            }
+            return ipcRenderer.off(channel, listener);
+        }
     }
 
     // Step 4: Expose the API to the renderer
