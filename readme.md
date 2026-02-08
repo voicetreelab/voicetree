@@ -97,6 +97,10 @@ uv sync && uv run pytest                               # Backend
 
 BSL 1.1, converts to Apache 2.0 after 4 years. See [LICENSE](LICENSE).
 
+### Telemetry
+
+We collect anonymous usage telemetry. You can disable this by setting `VITE_DISABLE_ANALYTICS=true` in `webapp/.env`. You can read more about this [here](https://voicetree.io/docs/Privacy+Policy).
+
 ## Contact
 
 Questions? [Join the Discord.](https://discord.gg/r2ZBtJ9zvk) Feedback is valuable - ping us with thoughts, criticisms, or feature requests.
