@@ -117,6 +117,7 @@ async function exposeElectronAPI(): Promise<void> {
                 'graph:stateChanged',
                 'graph:clear',
                 'watching-started',
+                'ui:call',
             ]);
             if (!ALLOWED_ON_CHANNELS.has(channel)) {
                 console.error(`[Preload] SECURITY: Blocked subscription to unauthorized channel: ${channel}`);
@@ -133,6 +134,7 @@ async function exposeElectronAPI(): Promise<void> {
                 'graph:stateChanged',
                 'graph:clear',
                 'watching-started',
+                'ui:call',
             ]);
             if (!ALLOWED_OFF_CHANNELS.has(channel)) {
                 console.error(`[Preload] SECURITY: Blocked unsubscribe from unauthorized channel: ${channel}`);
