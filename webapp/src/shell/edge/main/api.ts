@@ -30,6 +30,7 @@ import {saveClipboardImage} from './clipboard/saveClipboardImage';
 import {readImageAsDataUrl} from './clipboard/readImageAsDataUrl';
 import {findFileByName} from './graph/loading/findFileByName';
 import {runAgentOnSelectedNodes} from './runAgentOnSelectedNodes';
+import {listWorktrees, createWorktree, generateWorktreeName} from './worktree/gitWorktreeCommands';
 import {scanForProjects, getDefaultSearchDirectories} from './project-scanner';
 import {loadProjects, saveProject, removeProject} from './project-store';
 import {initializeProject as initializeProjectCore} from './project-initializer';
@@ -162,4 +163,9 @@ export const mainAPI = {
   checkMicrophonePermission,
   requestMicrophonePermission,
   openMicrophoneSettings,
+
+  // Worktree operations
+  listWorktrees,
+  createWorktree,
+  generateWorktreeName,
 }

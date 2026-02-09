@@ -43,7 +43,7 @@ import {getVaultPaths, getWritePath} from "@/shell/edge/main/graph/watch_folder/
  * main process where graph state is immediately available.
  *
  * @param taskNodeId - The task node to anchor terminal to (and create context for)
- * @param agentCommand - The agent command to run (may include worktree prefix if user enabled it)
+ * @param agentCommand - The agent command to run
  * @param terminalCount - Current terminal count from UI TerminalStore
  * @param skipFitAnimation - If true, skip navigating viewport to the terminal (used for MCP spawns)
  * @param startUnpinned - If true, terminal starts unpinned (used for MCP spawns)
@@ -73,9 +73,7 @@ export async function spawnTerminalWithContextNode(
     // This prevents XSS attacks from executing arbitrary shell commands via IPC
     if (agentCommand !== undefined) {
         const validCommands = new Set(agents.map(a => a.command));
-        // Also allow commands that start with a valid command (for worktree prefix support)
-        const isValidCommand = validCommands.has(agentCommand) ||
-            Array.from(validCommands).some(valid => agentCommand.endsWith(valid));
+        const isValidCommand = validCommands.has(agentCommand);
         if (!isValidCommand) {
             console.error(`[SECURITY] Rejected unauthorized agent command: ${agentCommand.slice(0, 50)}...`);
             throw new Error('Invalid agent command - must be defined in settings.agents');
@@ -111,7 +109,6 @@ export async function spawnTerminalWithContextNode(
     }
 
     // Prepare terminal data (main has immediate access to all state)
-    // Note: Worktree prefix is now embedded directly in command if user enabled it in the popup
     const resolvedTerminalCount: number = typeof terminalCount === 'number'
         ? terminalCount
         : getNextTerminalCountForNode(contextNodeId)

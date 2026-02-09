@@ -5,12 +5,13 @@
 
 import type { Core } from 'cytoscape';
 import type { IconNode } from 'lucide';
-import { Plus, Play, Trash2, Clipboard, ChevronDown, Edit2, createElement } from 'lucide';
+import { Plus, Play, Trash2, Clipboard, ChevronDown, Edit2, GitBranch, createElement } from 'lucide';
 import type { GraphNode } from "@/pure/graph";
 import { createNewChildNodeFromUI, deleteNodesFromUI } from "@/shell/edge/UI-edge/graph/handleUIActions";
 import {
     spawnTerminalWithNewContextNode,
     spawnTerminalWithCommandEditor,
+    spawnTerminalInNewWorktree,
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
 import { getFilePathForNode, getNodeFromMainToUI } from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
 import type { AgentConfig, VTSettings } from "@/pure/settings";
@@ -33,6 +34,7 @@ export interface HorizontalMenuItem {
     color?: string;
     action: () => void | Promise<void>;
     subMenu?: HorizontalMenuItem[];
+    getSubMenuItems?: () => Promise<HorizontalMenuItem[]>;
     hotkey?: string; // e.g., "⌘⏎" for cmd+enter
     onHoverEnter?: () => void | Promise<void>; // Optional callback on mouseenter
     onHoverLeave?: () => void; // Optional callback on mouseleave
@@ -204,7 +206,7 @@ function createMenuItemElement(item: HorizontalMenuItem, onClose: () => void, al
     button.addEventListener('click', (e) => {
         e.stopPropagation();
         void item.action();
-        if (!item.subMenu) {
+        if (!item.subMenu && !item.getSubMenuItems) {
             onClose();
         }
     });
@@ -296,10 +298,28 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
             : () => highlightPreviewNodes(cy, nodeId),
         onHoverLeave: () => clearContainedHighlights(cy),
         sliderConfig, // Show distance slider on hover for non-context nodes
-        subMenu: [
-            // Worktree toggle is now available in the Edit Command popup
-            { icon: Edit2, label: 'Edit Command', action: () => spawnTerminalWithCommandEditor(nodeId, cy) },
-        ],
+        getSubMenuItems: async (): Promise<HorizontalMenuItem[]> => {
+            const items: HorizontalMenuItem[] = [
+                { icon: GitBranch, label: 'New Worktree', action: () => { void spawnTerminalInNewWorktree(nodeId, cy); } },
+            ];
+
+            // Fetch existing worktrees dynamically
+            const watchStatus = await window.electronAPI?.main.getWatchStatus();
+            const repoRoot: string | undefined = watchStatus?.directory;
+            if (repoRoot) {
+                const worktrees = await window.electronAPI?.main.listWorktrees(repoRoot) ?? [];
+                for (const wt of worktrees) {
+                    items.push({
+                        icon: GitBranch,
+                        label: wt.name,
+                        action: () => { void spawnTerminalWithNewContextNode(nodeId, cy, undefined, wt.path); },
+                    });
+                }
+            }
+
+            items.push({ icon: Edit2, label: 'Edit Command', action: () => spawnTerminalWithCommandEditor(nodeId, cy) });
+            return items;
+        },
     });
 
     // Expandable "more" menu with Copy Content and additional agents
@@ -377,17 +397,34 @@ export function createHorizontalMenuElement(
         const menuItemEl: HTMLElement = createMenuItemElement(item, onClose);
         itemContainer.appendChild(menuItemEl);
 
-        // Handle submenu
-        if (item.subMenu) {
-            const submenu: HTMLElement = createSubMenuElement(item.subMenu, onClose);
-            itemContainer.appendChild(submenu);
+        // Handle submenu (static or dynamic)
+        if (item.subMenu || item.getSubMenuItems) {
+            let submenuEl: HTMLElement = item.subMenu
+                ? createSubMenuElement(item.subMenu, onClose)
+                : createSubMenuElement([], onClose);
+            itemContainer.appendChild(submenuEl);
 
-            // Show/hide submenu on hover
+            let isHovered: boolean = false;
+
+            // Show/hide submenu on hover, with dynamic loading support
             itemContainer.addEventListener('mouseenter', () => {
-                submenu.style.display = 'flex';
+                isHovered = true;
+                if (item.getSubMenuItems) {
+                    void item.getSubMenuItems().then((dynamicItems: HorizontalMenuItem[]) => {
+                        const newSubmenuEl: HTMLElement = createSubMenuElement(dynamicItems, onClose);
+                        itemContainer.replaceChild(newSubmenuEl, submenuEl);
+                        submenuEl = newSubmenuEl;
+                        if (isHovered) {
+                            newSubmenuEl.style.display = 'flex';
+                        }
+                    });
+                } else {
+                    submenuEl.style.display = 'flex';
+                }
             });
             itemContainer.addEventListener('mouseleave', () => {
-                submenu.style.display = 'none';
+                isHovered = false;
+                submenuEl.style.display = 'none';
             });
         }
 

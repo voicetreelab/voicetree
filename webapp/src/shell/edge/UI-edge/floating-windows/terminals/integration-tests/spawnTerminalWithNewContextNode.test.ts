@@ -124,7 +124,8 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
             expect(mockSpawnTerminalWithContextNode).toHaveBeenCalledWith(
                 parentNodeId,
                 'claude', // default command from settings
-                0 // terminal count starts at 0
+                0, // terminal count starts at 0
+                undefined, undefined, undefined, undefined // skipFitAnimation, startUnpinned, selectedNodeIds, spawnDirectory
             )
         })
 
@@ -140,7 +141,8 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
             expect(mockSpawnTerminalWithContextNode).toHaveBeenCalledWith(
                 parentNodeId,
                 agentCommand,
-                0
+                0,
+                undefined, undefined, undefined, undefined // skipFitAnimation, startUnpinned, selectedNodeIds, spawnDirectory
             )
         })
 
@@ -175,7 +177,8 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
             expect(mockSpawnTerminalWithContextNode).toHaveBeenCalledWith(
                 parentNodeId,
                 'claude', // default command from settings
-                2
+                2,
+                undefined, undefined, undefined, undefined // skipFitAnimation, startUnpinned, selectedNodeIds, spawnDirectory
             )
         })
 
@@ -209,7 +212,8 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
             expect(mockSpawnTerminalWithContextNode).toHaveBeenCalledWith(
                 parentNodeId,
                 'claude', // default command from settings
-                4
+                4,
+                undefined, undefined, undefined, undefined // skipFitAnimation, startUnpinned, selectedNodeIds, spawnDirectory
             )
         })
 
@@ -235,7 +239,8 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
             expect(mockSpawnTerminalWithContextNode).toHaveBeenCalledWith(
                 parentNodeId,
                 'claude', // default command from settings
-                0
+                0,
+                undefined, undefined, undefined, undefined // skipFitAnimation, startUnpinned, selectedNodeIds, spawnDirectory
             )
         })
     })

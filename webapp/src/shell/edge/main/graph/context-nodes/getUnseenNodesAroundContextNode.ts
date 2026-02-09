@@ -15,13 +15,18 @@ export interface UnseenNode {
 /**
  * Gets nodes around a context node that weren't included in the original context.
  *
+ * Note: Context nodes are orphans in the graph (no edges). They exist purely as data
+ * containers holding `containedNodeIds` (the "seen" set) and the ASCII context text.
+ * Graph traversal therefore starts from the task node (containedNodeIds[0]), not the
+ * context node itself — traversing from the context node would find nothing.
+ *
  * This function:
  * 1. Reads the context node's containedNodeIds from its metadata
  * 2. Uses the first containedNodeId as the starting point (the parent/task node)
  * 3. Re-runs the same graph traversal (getSubgraphByDistance with contextNodeMaxDistance from settings)
  * 4. Returns nodes that are in the new traversal but NOT in containedNodeIds
  *
- * @param contextNodeId - The ID of the context node
+ * @param contextNodeId - The ID of the context node (orphan, used only for containedNodeIds lookup)
  * @param searchFromNode - Optional override for the starting node (defaults to task node from containedNodeIds[0])
  * @returns Array of unseen nodes with their content (without YAML/frontmatter)
  */

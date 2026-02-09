@@ -88,6 +88,8 @@ export interface VTSettings {
     readonly feedbackDialogShown?: boolean;
     /** Dark mode preference */
     readonly darkMode?: boolean;
+    /** Scroll wheel zoom sensitivity (0.1 = very slow, 1.0 = default, 3.0 = very fast) */
+    readonly zoomSensitivity?: number;
 }
 
 /**
