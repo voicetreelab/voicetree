@@ -3,8 +3,8 @@ import type {VTSettings} from "@/pure/settings/types";
 // Import ElectronAPI type for window.electronAPI access
 import type {} from "@/shell/electron";
 
-const FEEDBACK_DELTA_THRESHOLD: number = 25;
-const EMAIL_DELTA_THRESHOLD: number = 50;
+const FEEDBACK_DELTA_THRESHOLD: number = 45;
+const EMAIL_DELTA_THRESHOLD: number = 500;
 
 // Session-level state for tracking total nodes created
 let sessionDeltaCount: number = 0;

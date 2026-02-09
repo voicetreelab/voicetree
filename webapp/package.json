@@ -4,7 +4,7 @@
   "description": "Transform voice into navigable concept graphs",
   "author": "Manu Masson",
   "private": true,
-  "version": "2.4.14",
+  "version": "2.4.15",
   "type": "module",
   "main": "dist-electron/main/index.js",
   "scripts": {
