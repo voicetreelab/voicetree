@@ -14,6 +14,8 @@ import { getNextTerminalCount, getTerminals } from "@/shell/edge/UI-edge/state/T
 import { createWindowChrome } from "@/shell/edge/UI-edge/floating-windows/create-window-chrome";
 import { flushEditorForNode } from "@/shell/edge/UI-edge/floating-windows/editors/flushEditorForNode";
 import { anchorToNode } from "@/shell/edge/UI-edge/floating-windows/anchor-to-node";
+import { getNodeFromMainToUI } from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
+import { getNodeTitle } from "@/pure/graph/markdown-parsing";
 import * as O from "fp-ts/lib/Option.js";
 import type { TerminalData } from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 
@@ -202,7 +204,6 @@ export async function spawnTerminalWithCommandEditor(
     const terminalCount: number = getNextTerminalCount(terminalsMap, parentNodeId);
 
     // Spawn terminal with the (possibly modified) command
-    // Worktree prefix is already in result.command if user enabled worktree toggle
     await window.electronAPI?.main.spawnTerminalWithContextNode(
         parentNodeId,
         result.command,
@@ -225,6 +226,7 @@ export async function spawnTerminalWithNewContextNode(
     parentNodeId: NodeIdAndFilePath,
     cy: Core,
     agentCommand?: string,
+    spawnDirectory?: string,
 ): Promise<void> {
     // Flush any pending editor content for this node before creating context
     // This ensures the context node has the latest typed content (bypasses 300ms debounce)
@@ -278,10 +280,37 @@ export async function spawnTerminalWithNewContextNode(
     const terminalCount: number = getNextTerminalCount(terminalsMap, parentNodeId);
 
     // Delegate to main process which has immediate graph access
-    // Worktree prefix is already in command if user enabled worktree toggle in popup
     await window.electronAPI?.main.spawnTerminalWithContextNode(
-        parentNodeId, command, terminalCount
+        parentNodeId, command, terminalCount, undefined, undefined, undefined, spawnDirectory
     );
+}
+
+/**
+ * Spawn a terminal in a new git worktree.
+ * Creates a worktree named after the node title, then spawns an agent in it.
+ */
+export async function spawnTerminalInNewWorktree(
+    parentNodeId: NodeIdAndFilePath,
+    cy: Core,
+): Promise<void> {
+    // Get node title for worktree name
+    const node: GraphNode = await getNodeFromMainToUI(parentNodeId);
+    const nodeTitle: string = getNodeTitle(node);
+
+    // Get repo root from watch status
+    const watchStatus = await window.electronAPI?.main.getWatchStatus();
+    const repoRoot: string | undefined = watchStatus?.directory;
+    if (!repoRoot) {
+        console.error('[spawnTerminalInNewWorktree] No watched directory available');
+        return;
+    }
+
+    // Create worktree: generate name from title, then create git worktree
+    const worktreeName: string = await window.electronAPI?.main.generateWorktreeName(nodeTitle) as string;
+    const worktreePath: string = await window.electronAPI?.main.createWorktree(repoRoot, worktreeName) as string;
+
+    // Delegate to existing spawn function with worktree as spawnDirectory
+    return spawnTerminalWithNewContextNode(parentNodeId, cy, undefined, worktreePath);
 }
 
 /**

@@ -19,41 +19,13 @@ export interface AgentCommandEditorResult {
 }
 
 /**
- * Generate a valid git branch/worktree name from a node title.
- * Mirrors the logic in gitWorktreeCommands.ts for preview purposes.
- */
-function generateWorktreeName(nodeTitle: string): string {
-    const sanitized: string = nodeTitle
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .slice(0, 30);
-    const suffix: string = Date.now().toString(36).slice(-4);
-    return `wt-${sanitized || 'agent'}-${suffix}`;
-}
-
-/**
- * Generate the git worktree command prefix for a given node title.
- * Captures the relative path from git root BEFORE creating the worktree,
- * so the agent lands in the correct subdirectory (e.g., webapp/).
- * This ensures the agent reads the correct .mcp.json and other config files.
- */
-function generateWorktreePrefix(nodeTitle: string): string {
-    const worktreeName: string = generateWorktreeName(nodeTitle);
-    // REL captures the current subdirectory path relative to git root (e.g., "webapp/")
-    // After worktree creation, we cd into worktree + REL to preserve the same relative position
-    return `REL=$(git rev-parse --show-prefix) && git worktree add -b "${worktreeName}" ".worktrees/${worktreeName}" && cd ".worktrees/${worktreeName}/$REL" && `;
-}
-
-/**
  * Shows a modal dialog for editing an agent command and prompt before execution.
  *
  * @param command - The initial command to display
  * @param agentPrompt - The initial agent prompt to display (editable)
- * @param nodeTitle - The title of the task node (used for worktree name generation)
  * @returns Promise resolving to the (possibly modified) command and prompt on Run click, or null if cancelled
  */
-export function showAgentCommandEditor(command: string, agentPrompt: string, nodeTitle: string = 'agent-task'): Promise<AgentCommandEditorResult | null> {
+export function showAgentCommandEditor(command: string, agentPrompt: string): Promise<AgentCommandEditorResult | null> {
     return new Promise((resolve: (value: AgentCommandEditorResult | null) => void) => {
         const dialog: HTMLDialogElement = document.createElement('dialog');
         dialog.id = 'agent-command-editor-dialog';
@@ -189,34 +161,6 @@ export function showAgentCommandEditor(command: string, agentPrompt: string, nod
                     <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
                         <input
                             type="checkbox"
-                            id="worktree-toggle"
-                            data-testid="worktree-toggle"
-                            style="
-                                margin-top: 2px;
-                                width: 16px;
-                                height: 16px;
-                                cursor: pointer;
-                            "
-                        />
-                        <div style="display: flex; flex-direction: column; gap: 2px;">
-                            <span style="font-size: 0.85rem; font-weight: 500;">
-                                🌿 Run in Worktree
-                            </span>
-                            <span style="font-size: 0.8rem; color: var(--muted-foreground);">
-                                Spawn agent in isolated git worktree branch
-                            </span>
-                        </div>
-                    </label>
-                </div>
-                <div style="
-                    padding: 12px;
-                    border: 1px solid var(--border);
-                    border-radius: calc(var(--radius) - 2px);
-                    background: var(--muted);
-                ">
-                    <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
-                        <input
-                            type="checkbox"
                             id="docker-toggle"
                             data-testid="docker-toggle"
                             style="
@@ -278,7 +222,6 @@ export function showAgentCommandEditor(command: string, agentPrompt: string, nod
         const input: HTMLInputElement = dialog.querySelector('#command-input')!;
         const mcpToggle: HTMLInputElement = dialog.querySelector('#mcp-integration-toggle')!;
         const autoRunToggle: HTMLInputElement = dialog.querySelector('#auto-run-toggle')!;
-        const worktreeToggle: HTMLInputElement = dialog.querySelector('#worktree-toggle')!;
         const dockerToggle: HTMLInputElement = dialog.querySelector('#docker-toggle')!;
         const cancelButton: HTMLButtonElement = dialog.querySelector('#cancel-button')!;
 
@@ -287,26 +230,19 @@ export function showAgentCommandEditor(command: string, agentPrompt: string, nod
         input.value = command;
 
         // Track state for order-invariant command composition
-        // baseCommand is either the original command or Docker template (without worktree prefix)
+        // baseCommand is either the original command or Docker template
         let baseCommand: string = command;
-        const worktreePrefix: string = generateWorktreePrefix(nodeTitle);
 
         // Compose and display the final command based on current state
         function updateDisplayedCommand(): void {
-            const commandToUse: string = dockerToggle.checked ? DOCKER_COMMAND_TEMPLATE : baseCommand;
-            input.value = worktreeToggle.checked ? worktreePrefix + commandToUse : commandToUse;
+            input.value = dockerToggle.checked ? DOCKER_COMMAND_TEMPLATE : baseCommand;
             // Sync auto-run checkbox with displayed command
             autoRunToggle.checked = input.value.includes(AUTO_RUN_FLAG);
         }
 
         // Update auto-run checkbox state when input changes manually
         input.addEventListener('input', () => {
-            // When user manually edits, update baseCommand to track their changes
-            if (worktreeToggle.checked && input.value.startsWith(worktreePrefix)) {
-                baseCommand = input.value.slice(worktreePrefix.length);
-            } else if (!worktreeToggle.checked) {
-                baseCommand = input.value;
-            }
+            baseCommand = input.value;
             autoRunToggle.checked = input.value.includes(AUTO_RUN_FLAG);
         });
 
@@ -327,17 +263,7 @@ export function showAgentCommandEditor(command: string, agentPrompt: string, nod
                 // Remove the flag from the command
                 input.value = input.value.replace(new RegExp(`\\s*${AUTO_RUN_FLAG}\\s*`), ' ').trim();
             }
-            // Update baseCommand to reflect the change
-            if (worktreeToggle.checked && input.value.startsWith(worktreePrefix)) {
-                baseCommand = input.value.slice(worktreePrefix.length);
-            } else if (!worktreeToggle.checked) {
-                baseCommand = input.value;
-            }
-        });
-
-        // Worktree checkbox change handler - order-invariant
-        worktreeToggle.addEventListener('change', () => {
-            updateDisplayedCommand();
+            baseCommand = input.value;
         });
 
         // Docker checkbox change handler - order-invariant

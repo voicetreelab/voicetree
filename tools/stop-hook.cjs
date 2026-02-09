@@ -45,7 +45,7 @@ async function main() {
 
   // If already blocked once (stop_hook_active=true), allow stopping
   if (input.stop_hook_active) {
-    console.error('Stop hook: Already reminded once, allowing stop.');
+    console.error('[ VT HOOK ] Already reminded once, allowing stop.');
     process.exit(0);
   }
 
@@ -68,7 +68,7 @@ async function main() {
   // Unseen nodes found → block and show them
   console.error('');
   console.error('════════════════════════════════════════════');
-  console.error('⚠️  UNSEEN NODES NEARBY - READ BEFORE STOPPING:');
+  console.error('[ VT HOOK ] ⚠️  UNSEEN NODES NEARBY - READ BEFORE STOPPING:');
   console.error('════════════════════════════════════════════');
   console.error('');
   unseenNodes.forEach((node, i) => {
