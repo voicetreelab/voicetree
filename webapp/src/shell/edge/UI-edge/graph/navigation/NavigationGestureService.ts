@@ -20,6 +20,7 @@ import { getIsTrackpadScrolling } from '@/shell/edge/UI-edge/state/trackpad-stat
 import type { EditorId, TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import type { EditorData } from '@/shell/edge/UI-edge/floating-windows/editors/editorDataType';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
+import type { VTSettings } from '@/pure/settings/types';
 
 export class NavigationGestureService {
     private cy: Core;
@@ -28,6 +29,9 @@ export class NavigationGestureService {
     // Middle-mouse pan state
     private isPanning: boolean = false;
     private lastPos: { x: number; y: number } = { x: 0, y: 0 };
+
+    // Zoom sensitivity multiplier (loaded from settings)
+    private zoomSensitivity: number = 1.0;
 
     // Inaccurate scroll device detection (matches Cytoscape's implementation)
     // Mice often report wheel deltas in chunks (e.g., multiples of 5 or same magnitude)
@@ -54,6 +58,11 @@ export class NavigationGestureService {
         this.handleFloatingWindowWheel = this.onFloatingWindowWheel.bind(this);
 
         this.setupEventListeners();
+
+        // Load zoom sensitivity from settings
+        void window.electronAPI?.main.loadSettings().then((s: VTSettings) => {
+            this.zoomSensitivity = s.zoomSensitivity ?? 1.0;
+        });
     }
 
     private setupEventListeners(): void {
@@ -155,8 +164,8 @@ export class NavigationGestureService {
             delta = this.signum(delta) * 5;
         }
 
-        // Base calculation (matches Cytoscape's formula)
-        let diff: number = delta / -250;
+        // Base calculation (matches Cytoscape's formula), scaled by user sensitivity
+        let diff: number = (delta / -250) * this.zoomSensitivity;
 
         // Normalize inaccurate devices
         if (this.inaccurateScrollDevice) {

@@ -106,5 +106,6 @@ You must create a progress node before reporting completion to the user. You mus
     },
     hotkeys: DEFAULT_HOTKEYS,
     defaultAllowlistPatterns: [],
-    darkMode: false
+    darkMode: false,
+    zoomSensitivity: 1.0
 };
