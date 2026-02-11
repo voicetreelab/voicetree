@@ -10,7 +10,7 @@ import {clearCytoscapeState} from './clearCytoscapeState';
 import {extractRecentNodesFromDelta} from '@/pure/graph/recentNodeHistoryV2';
 import {renderRecentNodeTabsV2} from '@/shell/UI/views/RecentNodeTabsBar';
 import {closeAllEditors} from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
-import {closeAllTerminals} from '@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI';
+import {closeAllTerminals} from '@/shell/edge/UI-edge/floating-windows/terminals/closeTerminal';
 import {
     setLoadingState,
     setEmptyStateVisible
