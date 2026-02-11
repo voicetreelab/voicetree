@@ -242,6 +242,28 @@
  * Ensure it appears above floating windows
  * ============================================================================= */
 
+/* =============================================================================
+ * Inline Video Rendering
+ * Video player widgets for ![[video.mp4]] wikilinks
+ * ============================================================================= */
+
+.cm-video-render {
+    margin: 8px 0;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #111;
+}
+
+.cm-video-render video {
+    display: block;
+    max-width: 100%;
+}
+
+/* =============================================================================
+ * Autocomplete Tooltip
+ * Ensure it appears above floating windows
+ * ============================================================================= */
+
 /* Wikilink autocomplete tooltip - ensure it appears above floating windows
  * The tooltip is rendered in document.body (via tooltips({ parent: document.body }))
  * to escape the overflow:auto clipping of .cy-floating-window-content.
