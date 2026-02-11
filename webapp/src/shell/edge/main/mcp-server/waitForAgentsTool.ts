@@ -9,18 +9,18 @@ import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/termina
 import {type McpToolResponse, buildJsonResponse} from './types'
 import {getNewNodesForAgent} from './getNewNodesForAgent'
 
+const TIMEOUT_MS: number = 1800000 // 30 minutes
+
 export interface WaitForAgentsParams {
     terminalIds: string[]
     callerTerminalId: string
     pollIntervalMs?: number
-    timeoutMs?: number
 }
 
 export async function waitForAgentsTool({
     terminalIds,
     callerTerminalId,
     pollIntervalMs = 5000,
-    timeoutMs = 1200000 // 20 minute default
 }: WaitForAgentsParams): Promise<McpToolResponse> {
     // 1. Validate caller terminal exists
     const records: TerminalRecord[] = getTerminalRecords()
@@ -41,7 +41,7 @@ export async function waitForAgentsTool({
 
     // 3. Poll until all are idle/exited AND have created nodes, or timeout reached
     const startTime: number = Date.now()
-    while (Date.now() - startTime < timeoutMs) {
+    while (Date.now() - startTime < TIMEOUT_MS) {
         const currentRecords: TerminalRecord[] = getTerminalRecords()
         const targetRecords: TerminalRecord[] = currentRecords.filter(
             (r: TerminalRecord) => terminalIds.includes(r.terminalId)
@@ -106,7 +106,7 @@ export async function waitForAgentsTool({
 
     return buildJsonResponse({
         success: false,
-        error: `Timeout waiting for agents after ${timeoutMs}ms`,
+        error: `Timeout waiting for agents after ${TIMEOUT_MS}ms`,
         stillRunning,
         waitingForNodes,
         agents: targetRecords.map((r: TerminalRecord) => {
