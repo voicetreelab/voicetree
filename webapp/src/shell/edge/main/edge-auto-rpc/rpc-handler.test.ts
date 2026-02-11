@@ -45,37 +45,30 @@ describe('setupRPCHandlers', () => {
     expect(mockIpcMainHandle).toHaveBeenCalledWith('rpc:call', expect.any(Function))
   })
 
-  it('should return error when function does not exist in mainAPI', async () => {
+  it('should throw error when function does not exist in mainAPI', async () => {
     const { setupRPCHandlers } = await import('./rpc-handler')
 
     setupRPCHandlers()
 
     const handler: (...args: unknown[]) => Promise<unknown> = getRegisteredHandler()
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result: any = await handler({}, 'nonExistentFunction', [])
-
-    expect(result).toEqual({ error: 'Function not found: nonExistentFunction' })
+    await expect(handler({}, 'nonExistentFunction', [])).rejects.toThrow('Function not found: nonExistentFunction')
   })
 
-  it('should handle promise rejections with Error and non-Error values', async () => {
+  it('should re-throw promise rejections for Error and non-Error values', async () => {
     const { setupRPCHandlers } = await import('./rpc-handler')
 
     setupRPCHandlers()
 
     const handler: (...args: unknown[]) => Promise<unknown> = getRegisteredHandler()
 
-    // Test promise rejection with Error object
+    // Test promise rejection with Error object — re-thrown as-is
     const testError: Error = new Error('Test error')
     mockGetGraph.mockRejectedValue(testError)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const errorResult: any = await handler({}, 'getGraph', [])
-    expect(errorResult).toEqual({ error: 'RPC call failed: Test error' })
+    await expect(handler({}, 'getGraph', [])).rejects.toThrow('Test error')
 
-    // Test promise rejection with non-Error value
+    // Test promise rejection with non-Error value — wrapped in Error
     mockGetGraph.mockRejectedValue('String error')
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const nonErrorResult: any = await handler({}, 'getGraph', [])
-    expect(nonErrorResult).toEqual({ error: 'RPC call failed: String error' })
+    await expect(handler({}, 'getGraph', [])).rejects.toThrow('String error')
   })
 })

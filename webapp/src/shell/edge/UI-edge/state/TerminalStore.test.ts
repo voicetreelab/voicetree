@@ -10,16 +10,18 @@ import {
     clearTerminals,
     subscribeToTerminalChanges,
 } from './TerminalStore'
-import { createTerminalData, type TerminalId, type FloatingWindowUIData } from '@/shell/edge/UI-edge/floating-windows/types'
+import { createTerminalData, computeTerminalId, type TerminalId, type FloatingWindowUIData } from '@/shell/edge/UI-edge/floating-windows/types'
 import type { TerminalRecord } from '@/shell/edge/main/terminals/terminal-registry'
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
 import * as O from 'fp-ts/lib/Option.js'
 
 function createMockTerminalData(overrides: Partial<TerminalData> = {}): TerminalData {
     return createTerminalData({
+        terminalId: computeTerminalId('test-node.md', 0),
         attachedToNodeId: 'test-node.md',
         terminalCount: 0,
         title: 'Test Terminal',
+        agentName: 'test-agent',
         ...overrides,
     })
 }
@@ -85,9 +87,11 @@ describe('TerminalStore syncFromMain', () => {
         // Setup: Add two terminals
         const terminal1: TerminalData = createMockTerminalData({ terminalCount: 0 })
         const terminal2: TerminalData = createTerminalData({
+            terminalId: computeTerminalId('other-node.md', 0),
             attachedToNodeId: 'other-node.md',
             terminalCount: 0,
             title: 'Other Terminal',
+            agentName: 'other-agent',
         })
         syncFromMain([createMockRecord(terminal1), createMockRecord(terminal2)])
 

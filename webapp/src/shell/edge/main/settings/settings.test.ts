@@ -51,7 +51,9 @@ describe('settings', () => {
       emptyFolderTemplate: '# Custom template',
       vimMode: true,
       hotkeys: DEFAULT_SETTINGS.hotkeys,
-      defaultAllowlistPatterns: ['openspec']
+      defaultAllowlistPatterns: ['openspec'],
+      darkMode: true,
+      zoomSensitivity: 2.0,
     };
 
     await saveSettings(customSettings);

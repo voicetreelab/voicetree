@@ -45,7 +45,7 @@ describe('Dark Mode Edge Color Toggle', () => {
 
     // Verify the specific expected colors
     expect(lightEdgeColor).toBe('#5e5e5e'); // Light mode edge color
-    expect(darkEdgeColor).toBe('#8a9099');  // Dark mode edge color - lighter for better visibility
+    expect(darkEdgeColor).toBe('#c0c5cc');  // Dark mode edge color - lighter for better visibility
   });
 
   it('should return DIFFERENT arrow colors for light vs dark mode', () => {
@@ -69,7 +69,7 @@ describe('Dark Mode Edge Color Toggle', () => {
 
     // Arrow colors must also be different
     expect(lightArrowColor).toBe('#5e5e5e');
-    expect(darkArrowColor).toBe('#8a9099'); // Lighter for better visibility
+    expect(darkArrowColor).toBe('#c0c5cc'); // Lighter for better visibility
   });
 
   it('should pick up dark class change immediately when creating new StyleService', () => {
@@ -89,7 +89,7 @@ describe('Dark Mode Edge Color Toggle', () => {
     const service2: StyleService = new StyleService();
     const sheet2: { selector: string; style: Record<string, unknown> }[] = service2.getDefaultStylesheet();
     const edgeColor2: unknown = sheet2.find(s => s.selector === 'edge')?.style['line-color'];
-    expect(edgeColor2).toBe('#8a9099'); // Dark mode - lighter for better visibility
+    expect(edgeColor2).toBe('#c0c5cc'); // Dark mode - lighter for better visibility
 
     // Toggle back to light mode
     document.documentElement.classList.remove('dark');

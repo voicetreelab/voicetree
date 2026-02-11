@@ -402,12 +402,12 @@ describe('createWindowChrome', () => {
                 expect(leftZone!.style.bottom).toBe('0px');
             });
 
-            it('should position right zone at the right edge', () => {
+            it('should position right zone outside window bounds to avoid scrollbar overlap', () => {
                 const result: FloatingWindowUIData = createWindowChrome(cy, editorData, editorId);
 
                 const rightZone: HTMLElement | null = result.windowElement.querySelector('.resize-zone-right');
                 expect(rightZone).not.toBeNull();
-                expect(rightZone!.style.right).toBe('0px');
+                expect(rightZone!.style.right).toBe('-15px');
                 expect(rightZone!.style.top).toBe('0px');
                 expect(rightZone!.style.bottom).toBe('0px');
             });
@@ -435,11 +435,13 @@ describe('createWindowChrome', () => {
         beforeEach(() => {
             // Plain terminal (no context node - attached to regular node)
             terminalData = createTerminalData({
+                terminalId: terminalId,
                 attachedToNodeId: 'test-node.md',
                 terminalCount: 0,
                 title: 'Test Terminal',
                 anchoredToNodeId: 'test-node.md',
                 resizable: true,
+                agentName: 'test-agent',
             });
         });
 
@@ -521,11 +523,13 @@ describe('createWindowChrome', () => {
             beforeEach(() => {
                 // Terminal with context node (has .context_node. or _context_ in path)
                 contextTerminalData = createTerminalData({
+                    terminalId: contextTerminalId,
                     attachedToNodeId: 'ctx-nodes/parent-node_context_1.md',
                     terminalCount: 0,
                     title: 'Context Terminal',
                     anchoredToNodeId: 'ctx-nodes/parent-node_context_1.md',
                     resizable: true,
+                    agentName: 'context-agent',
                 });
             });
 
@@ -565,11 +569,13 @@ describe('createWindowChrome', () => {
 
             beforeEach(() => {
                 contextTerminalData = createTerminalData({
+                    terminalId: contextTerminalId,
                     attachedToNodeId: 'ctx-nodes/parent-node_context_1.md',
                     terminalCount: 0,
                     title: 'Context Terminal',
                     anchoredToNodeId: 'ctx-nodes/parent-node_context_1.md',
                     resizable: true,
+                    agentName: 'context-agent',
                 });
             });
 
@@ -595,23 +601,29 @@ describe('createWindowChrome', () => {
 
             it('should identify context nodes by ctx-nodes/ prefix or _context_ in path', () => {
                 // Test with node that has ctx-nodes/ prefix
+                const ctxPrefixTerminalId: TerminalId = 'ctx-nodes/some-task.md-terminal-0' as TerminalId;
                 const ctxPrefixTerminal: TerminalData = createTerminalData({
+                    terminalId: ctxPrefixTerminalId,
                     attachedToNodeId: 'ctx-nodes/some-task.md',
                     terminalCount: 0,
                     title: 'Ctx Prefix Terminal',
                     anchoredToNodeId: 'ctx-nodes/some-task.md',
                     resizable: true,
+                    agentName: 'ctx-prefix-agent',
                 });
-                const result1: FloatingWindowUIData = createWindowChrome(cy, ctxPrefixTerminal, 'ctx-nodes/some-task.md-terminal-0' as TerminalId);
+                const result1: FloatingWindowUIData = createWindowChrome(cy, ctxPrefixTerminal, ctxPrefixTerminalId);
                 expect(result1.windowElement.querySelector('.terminal-context-badge')).not.toBeNull();
 
                 // Test with node that has _context_ in name
+                const ctxInNameTerminalId: TerminalId = 'folder/task_context_1.md-terminal-0' as TerminalId;
                 const contextInNameTerminal: TerminalData = createTerminalData({
+                    terminalId: ctxInNameTerminalId,
                     attachedToNodeId: 'folder/task_context_1.md',
                     terminalCount: 0,
                     title: 'Context In Name Terminal',
                     anchoredToNodeId: 'folder/task_context_1.md',
                     resizable: true,
+                    agentName: 'ctx-in-name-agent',
                 });
                 const result2: FloatingWindowUIData = createWindowChrome(cy, contextInNameTerminal, 'folder/task_context_1.md-terminal-0' as TerminalId);
                 expect(result2.windowElement.querySelector('.terminal-context-badge')).not.toBeNull();

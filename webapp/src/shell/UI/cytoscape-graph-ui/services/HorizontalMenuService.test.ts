@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import cytoscape from 'cytoscape';
 import type { Core } from 'cytoscape';
-import { getNodeMenuItems, createHorizontalMenuElement, createDistanceSlider, type HorizontalMenuItem, type NodeMenuItemsInput } from '@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService';
+import { getNodeMenuItems, createHorizontalMenuElement, type HorizontalMenuItem, type NodeMenuItemsInput } from '@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService';
+import { createDistanceSlider } from '@/shell/UI/cytoscape-graph-ui/services/DistanceSlider';
 import { Trash2, Clipboard, Plus, Play, ChevronDown } from 'lucide';
 
 // Mock dependencies that require IPC

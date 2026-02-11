@@ -21,9 +21,10 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { loadFolder, stopFileWatching, isWatching, getProjectRootWatchedDirectory } from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import { loadFolder, stopFileWatching, isWatching } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { getGraph, setGraph } from '@/shell/edge/main/state/graph-store'
 import { setVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import { getProjectRootWatchedDirectory } from '@/shell/edge/main/state/watch-folder-store'
 import type { GraphDelta, Graph, UpsertNodeDelta, DeleteNode, GraphNode, Edge } from '@/pure/graph'
 import { createGraph } from '@/pure/graph/createGraph'
 import { getNodeTitle } from '@/pure/graph/markdown-parsing'
@@ -46,7 +47,7 @@ const EXPECTED_LARGE_NODE_COUNT: 186 = 186 as const  // Includes ctx-nodes
 
 // State for mocks
 let broadcastCalls: Array<BroadcastCall> = []
-let mockMainWindow: { readonly webContents: { readonly send: (channel: string, data: GraphDelta) => void }, readonly isDestroyed: () => boolean }
+let mockMainWindow: { readonly webContents: { readonly send: (channel: string, data: GraphDelta) => void; readonly isDestroyed: () => boolean }, readonly isDestroyed: () => boolean }
 
 // Mock app-electron-state
 vi.mock('@/shell/edge/main/state/app-electron-state', () => ({
@@ -79,7 +80,8 @@ describe('Folder Loading - Integration Tests', () => {
       webContents: {
         send: vi.fn((channel: string, data: GraphDelta) => {
           broadcastCalls.push({ channel, delta: data })
-        })
+        }),
+        isDestroyed: vi.fn(() => false)
       },
       isDestroyed: vi.fn(() => false)
     }
@@ -558,27 +560,27 @@ describe('Folder Loading - Integration Tests', () => {
     it('should update projectRootWatchedDirectory immediately when loadFolder is called', async () => {
       // GIVEN: Load the first folder
       await loadFolder(EXAMPLE_SMALL_PATH)
-      expect(getWatchedDirectory()).toBe(EXAMPLE_SMALL_PATH)
+      expect(getProjectRootWatchedDirectory()).toBe(EXAMPLE_SMALL_PATH)
 
       // WHEN: Load a different folder
       await loadFolder(EXAMPLE_LARGE_PATH)
 
       // THEN: projectRootWatchedDirectory should be updated to the new folder
-      expect(getWatchedDirectory()).toBe(EXAMPLE_LARGE_PATH)
+      expect(getProjectRootWatchedDirectory()).toBe(EXAMPLE_LARGE_PATH)
     })
 
     it('should maintain projectRootWatchedDirectory even after switching folders multiple times', async () => {
       // Load folder A
       await loadFolder(EXAMPLE_SMALL_PATH)
-      expect(getWatchedDirectory()).toBe(EXAMPLE_SMALL_PATH)
+      expect(getProjectRootWatchedDirectory()).toBe(EXAMPLE_SMALL_PATH)
 
       // Load folder B
       await loadFolder(EXAMPLE_LARGE_PATH)
-      expect(getWatchedDirectory()).toBe(EXAMPLE_LARGE_PATH)
+      expect(getProjectRootWatchedDirectory()).toBe(EXAMPLE_LARGE_PATH)
 
       // Load folder A again
       await loadFolder(EXAMPLE_SMALL_PATH)
-      expect(getWatchedDirectory()).toBe(EXAMPLE_SMALL_PATH)
+      expect(getProjectRootWatchedDirectory()).toBe(EXAMPLE_SMALL_PATH)
     })
   })
 })

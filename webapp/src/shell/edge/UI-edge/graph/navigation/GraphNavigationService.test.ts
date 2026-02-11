@@ -4,7 +4,7 @@ import cytoscape, { type Core, type Collection } from 'cytoscape';
 import '@/shell/UI/cytoscape-graph-ui'; // Import to trigger extension registration
 import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
 import { addTerminal, clearTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
-import { createTerminalData, getShadowNodeId, getTerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
+import { createTerminalData, getShadowNodeId, getTerminalId, computeTerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import type { NodeIdAndFilePath } from '@/pure/graph';
 
 describe('GraphNavigationService', () => {
@@ -95,9 +95,11 @@ describe('GraphNavigationService', () => {
     // Helper to create and register a terminal
     function createTestTerminal(attachedToNodeId: string, terminalCount: number): { terminalData: ReturnType<typeof createTerminalData>, shadowNodeId: string } {
       const terminalData: ReturnType<typeof createTerminalData> = createTerminalData({
+        terminalId: computeTerminalId(attachedToNodeId, terminalCount),
         attachedToNodeId: attachedToNodeId as NodeIdAndFilePath,
         terminalCount,
-        title: `Terminal ${terminalCount}`
+        title: `Terminal ${terminalCount}`,
+        agentName: `terminal-${attachedToNodeId}-${terminalCount}`,
       });
       addTerminal(terminalData);
       const shadowNodeId: string = getShadowNodeId(getTerminalId(terminalData));
@@ -469,14 +471,18 @@ describe('GraphNavigationService', () => {
 
       // Create terminals in TerminalStore
       const terminalA: ReturnType<typeof createTerminalData> = createTerminalData({
+        terminalId: computeTerminalId('node1', 0),
         attachedToNodeId: 'node1' as NodeIdAndFilePath,
         terminalCount: 0,
-        title: 'Terminal A'
+        title: 'Terminal A',
+        agentName: 'terminal-a',
       });
       const terminalB: ReturnType<typeof createTerminalData> = createTerminalData({
+        terminalId: computeTerminalId('node2', 0),
         attachedToNodeId: 'node2' as NodeIdAndFilePath,
         terminalCount: 0,
-        title: 'Terminal B'
+        title: 'Terminal B',
+        agentName: 'terminal-b',
       });
       addTerminal(terminalA);
       addTerminal(terminalB);
