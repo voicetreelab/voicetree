@@ -271,3 +271,39 @@
 .cm-tooltip-autocomplete {
   z-index: 10001 !important;
 }
+
+/* =============================================================================
+ * Local Video Render
+ * Inline HTML5 video player for ![[video.mp4]] wikilinks
+ * ============================================================================= */
+
+.cm-video-render {
+  margin: 8px 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #111;
+}
+
+.cm-video-render video {
+  display: block;
+  max-width: 100%;
+}
+
+/* =============================================================================
+ * External Video Embed
+ * Inline YouTube/Vimeo/Loom iframe embeds
+ * ============================================================================= */
+
+.cm-external-video-render {
+  margin: 8px 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #000;
+  display: flex;
+  justify-content: center;
+}
+
+.cm-external-video-render iframe {
+  display: block;
+  max-width: 100%;
+}
