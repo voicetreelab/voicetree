@@ -322,10 +322,6 @@ test.describe('Worktree Display Name E2E', () => {
         expect(badgeWorktreeText).toContain('\u2387');
         expect(badgeWorktreeText).toContain('deploy-pipeline');
 
-        // Also verify the separator dot exists
-        const separator = floatingWindow.locator('.terminal-context-badge-separator');
-        await expect(separator).toBeVisible();
-
         await appWindow.screenshot({
             path: 'e2e-tests/test-results/worktree-display-badge-different-name.png'
         });

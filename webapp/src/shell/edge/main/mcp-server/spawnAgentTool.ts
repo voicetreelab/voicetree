@@ -42,6 +42,15 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, details, p
         }, true)
     }
 
+    // Inherit spawnDirectory from caller terminal if not explicitly provided
+    // This ensures child agents spawn in the same worktree as their parent
+    const resolvedSpawnDirectory: string | undefined = spawnDirectory ?? (() => {
+        const callerRecord: TerminalRecord | undefined = terminalRecords.find(
+            (r: TerminalRecord) => r.terminalId === callerTerminalId
+        )
+        return callerRecord?.terminalData.initialSpawnDirectory
+    })()
+
     const vaultPathOpt: O.Option<string> = await getWritePath()
     if (O.isNone(vaultPathOpt)) {
         return buildJsonResponse({
@@ -143,7 +152,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, details, p
 
             // Spawn terminal on the new task node (with parent terminal for tree-style tabs)
             const {terminalId, contextNodeId}: {terminalId: string; contextNodeId: string} =
-                await spawnTerminalWithContextNode(taskNodeId, undefined, undefined, true, false, undefined, spawnDirectory, callerTerminalId)
+                await spawnTerminalWithContextNode(taskNodeId, undefined, undefined, true, false, undefined, resolvedSpawnDirectory, callerTerminalId)
 
             return buildJsonResponse({
                 success: true,
@@ -186,7 +195,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, details, p
         // Pass skipFitAnimation: true for MCP spawns to avoid interrupting user's viewport
         // Pass callerTerminalId as parentTerminalId for tree-style tabs
         const {terminalId, contextNodeId}: {terminalId: string; contextNodeId: string} =
-            await spawnTerminalWithContextNode(resolvedNodeId, undefined, undefined, true, false, undefined, spawnDirectory, callerTerminalId)
+            await spawnTerminalWithContextNode(resolvedNodeId, undefined, undefined, true, false, undefined, resolvedSpawnDirectory, callerTerminalId)
 
         return buildJsonResponse({
             success: true,

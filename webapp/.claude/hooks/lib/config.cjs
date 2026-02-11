@@ -4,8 +4,19 @@
  */
 
 const path = require('path');
+const fs = require('fs');
 
-const projectRoot = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+function findProjectRoot(startDir) {
+  let dir = startDir;
+  while (true) {
+    if (fs.existsSync(path.join(dir, 'package.json'))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) throw new Error('Could not find project root (no package.json found)');
+    dir = parent;
+  }
+}
+
+const projectRoot = findProjectRoot(__dirname);
 
 const colors = {
   red: '\x1b[0;31m',
@@ -21,8 +32,8 @@ function loadConfig() {
 
   try {
     const configPath = path.join(__dirname, '..', 'hook-config.json');
-    if (require('fs').existsSync(configPath)) {
-      fileConfig = JSON.parse(require('fs').readFileSync(configPath, 'utf8'));
+    if (fs.existsSync(configPath)) {
+      fileConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
     }
   } catch (e) {
     // Config file not found or invalid, use defaults

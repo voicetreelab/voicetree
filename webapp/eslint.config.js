@@ -33,6 +33,7 @@ export default tseslint.config([
       globals: globals.browser,
       parserOptions: {
         project: './tsconfig.app.json',
+        tsconfigRootDir: import.meta.dirname,
       },
     },
     rules: {

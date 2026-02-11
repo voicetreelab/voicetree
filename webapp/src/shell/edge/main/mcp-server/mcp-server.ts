@@ -76,7 +76,7 @@ If you already have a node detailing the task, use nodeId. Otherwise, use task+p
                 task: z.string().optional().describe('Task title for creating a new task node (requires parentNodeId)'),
                 details: z.string().optional().describe('Detailed description of the task (used with task parameter)'),
                 parentNodeId: z.string().optional().describe('Parent node ID under which to create the new task node (required when task is provided)'),
-                spawnDirectory: z.string().optional().describe('Absolute path to spawn the agent in. Use this to spawn subagents in the same worktree as the parent (pass your current working directory).')
+                spawnDirectory: z.string().optional().describe('Absolute path to spawn the agent in. By default, inherits the parent terminal\'s directory (worktree-safe). Only needed to override, for example to contain child-agent to a subfolder')
             }
         },
         async ({nodeId, callerTerminalId, task, details, parentNodeId, spawnDirectory}) => spawnAgentTool({nodeId, callerTerminalId, task, details, parentNodeId, spawnDirectory})
