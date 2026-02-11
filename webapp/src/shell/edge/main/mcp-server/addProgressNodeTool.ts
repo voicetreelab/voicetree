@@ -406,15 +406,34 @@ export async function addProgressNodeTool({
 
     // Check total body length (lines after frontmatter + title)
     const bodyLines: number = markdownContent.split('\n').length
-    if (bodyLines > 60) {
+    const isNodeTooLong: boolean = bodyLines > 60
+    if (isNodeTooLong) {
         warnings.push(
-            `Node is long (${bodyLines} lines) — consider splitting into multiple nodes.\n\n`
+            `ERROR: NODE TOO LONG (${bodyLines} lines). You MUST split this into multiple smaller nodes.\n\n`
+            + `The node was created, but it likely violates the one-node-one-concept rule. `
+            + `Call add_progress_node multiple times with focused content instead of one large dump.\n\n`
             + `One node = one concept. Split when independently referenceable.\n`
             + `Quick test: "If the parent disappeared, would this content still make sense?" YES → own node.\n\n`
+            + `Example splits:\n`
+            + `\n`
+            + `  Split by concern:\n`
+            + `  Task: Review git diff\n`
+            + `  ├── Review: Collision-aware positioning refactor\n`
+            + `  └── Review: Prompt template cleanup\n`
+            + `\n`
+            + `  Split by phase:\n`
+            + `  Task\n`
+            + `  ├── High-level architecture\n`
+            + `  │   ├── Option A: Event-driven\n`
+            + `  │   └── Option B: Request-response\n`
+            + `  ├── Data types\n`
+            + `  └── Pure functions\n`
+            + `\n`
             + `Split when:\n`
             + `- Multiple concerns (bug fix + refactor + new feature)\n`
             + `- Changes span 3+ unrelated areas\n`
-            + `- Sequential phases (research → design → implement → validate)`
+            + `- Sequential phases (research → design → implement → validate)\n\n`
+            + `ACTION REQUIRED: Create additional focused nodes to break down this content, and then edit or remove the original file`
         )
     }
 
@@ -488,7 +507,7 @@ export async function addProgressNodeTool({
             nodeId,
             filePath: nodeId,
             warnings
-        })
+        }, isNodeTooLong ? true : undefined)
     } catch (error: unknown) {
         const errorMessage: string = error instanceof Error ? error.message : String(error)
         return buildJsonResponse({
