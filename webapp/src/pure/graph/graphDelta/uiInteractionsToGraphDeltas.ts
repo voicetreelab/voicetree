@@ -1,6 +1,7 @@
 import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath, Position} from '@/pure/graph'
 import {CONTEXT_NODES_FOLDER} from '@/pure/graph'
 import {calculateInitialPositionForChild} from "@/pure/graph/positioning/calculateInitialPosition";
+import {DEFAULT_EDGE_LENGTH} from "@/pure/graph/positioning/angularPositionSeeding";
 import {addOutgoingEdge} from "@/pure/graph/graph-operations/graph-edge-operations";
 import * as O from "fp-ts/lib/Option.js";
 // TODO: parseMarkdownToGraphNode uses gray-matter which requires Node.js Buffer - move parsing to main process
@@ -67,7 +68,7 @@ export function fromCreateChildToUpsertNode(
         nodeUIMetadata: {
             ...parsedNode.nodeUIMetadata,
             // Use calculated position (not specified by content)
-            position: calculateInitialPositionForChild(parentNode, graph, undefined, 100),
+            position: calculateInitialPositionForChild(parentNode, graph, undefined, DEFAULT_EDGE_LENGTH),
         },
     }
 
