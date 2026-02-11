@@ -95,11 +95,10 @@ NO → Proceed directly.
 See addProgressTree.md for decomposition patterns.
 </ORCHESTRATION>
 <TASK_NODES_INSTRUCTION>
-For the entire duration of this session, before you report completion to the user for any query, task, sub-task, proposal, or other form of non-trivial progress, you MUST:
-1. Read $VOICETREE_APP_SUPPORT/tools/prompts/addProgressTree.md
-2. Follow the instructions to create progress nodes documenting your work
+For the entire duration of this session, before you report completion to the user for any query, task, sub-task, proposal, or other form of non-trivial progress, you MUST create progress node(s) documenting your work.
 
-If using a todolist, add "Read addProgressTree.md instructions and create progress node" as an item.
+Primary method: Use the \`add_progress_node\` MCP tool with your $VOICETREE_TERMINAL_ID.
+Fallback: If the tool is unavailable, read $VOICETREE_APP_SUPPORT/tools/prompts/addProgressTree.md
 
 You must create a progress node before reporting completion to the user. You must continue to do this for any follow-ups by either updating existing progress nodes, or creating new ones.
 </TASK_NODES_INSTRUCTION>`,

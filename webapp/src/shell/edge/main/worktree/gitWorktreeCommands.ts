@@ -140,3 +140,41 @@ export async function listWorktrees(repoRoot: string): Promise<WorktreeInfo[]> {
 
     return withMtime.slice(0, 5).map((item: { info: WorktreeInfo; mtime: number }) => item.info);
 }
+
+/**
+ * Remove a git worktree and prune stale refs.
+ *
+ * @param repoRoot - The root directory of the git repository
+ * @param worktreePath - The path to the worktree to remove
+ * @param force - Whether to force removal (for worktrees with uncommitted changes)
+ * @returns Object with success status, command string, and optional error
+ */
+export async function removeWorktree(
+    repoRoot: string,
+    worktreePath: string,
+    force: boolean = false
+): Promise<{ success: boolean; command: string; error?: string }> {
+    const command: string = `git worktree remove ${force ? '--force ' : ''}"${worktreePath}"`;
+    try {
+        await execAsync(command, { cwd: repoRoot });
+        await execAsync('git worktree prune', { cwd: repoRoot });
+        return { success: true, command };
+    } catch (error) {
+        const errorMessage: string = error instanceof Error ? error.message : String(error);
+        return { success: false, command, error: errorMessage };
+    }
+}
+
+/**
+ * Get the command string that would be run to remove a worktree (for preview/confirmation UI).
+ *
+ * @param worktreePath - The path to the worktree to remove
+ * @param force - Whether to include the --force flag
+ * @returns The git command string (not executed)
+ */
+export function getRemoveWorktreeCommand(
+    worktreePath: string,
+    force: boolean = false
+): string {
+    return `git worktree remove ${force ? '--force ' : ''}"${worktreePath}"`;
+}

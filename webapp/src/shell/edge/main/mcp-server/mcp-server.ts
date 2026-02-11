@@ -26,6 +26,7 @@ import {sendMessageTool} from './sendMessageTool'
 import {closeAgentTool} from './closeAgentTool'
 import {readTerminalOutputTool} from './readTerminalOutputTool'
 import {searchNodesTool} from './searchNodesTool'
+import {addProgressNodeTool} from './addProgressNodeTool'
 
 // Re-export types and tool functions for external use
 export type {McpToolResponse} from './types'
@@ -45,6 +46,8 @@ export type {ReadTerminalOutputParams} from './readTerminalOutputTool'
 export {readTerminalOutputTool} from './readTerminalOutputTool'
 export type {SearchNodesParams} from './searchNodesTool'
 export {searchNodesTool} from './searchNodesTool'
+export type {AddProgressNodeParams} from './addProgressNodeTool'
+export {addProgressNodeTool} from './addProgressNodeTool'
 
 const MCP_BASE_PORT: 3001 = 3001 as const
 let mcpPort: number = MCP_BASE_PORT
@@ -183,6 +186,28 @@ If you already have a node detailing the task, use nodeId. Otherwise, use task+p
             }
         },
         async ({query, top_k}) => searchNodesTool({query, top_k})
+    )
+
+    // Tool: add_progress_node
+    server.registerTool(
+        'add_progress_node',
+        {
+            title: 'Add Progress Node',
+            description: `Create a progress node documenting your work. Automatically handles frontmatter (color, agent_name), parent linking, file path, graph positioning, and mermaid diagram validation.
+
+**When to use:** After completing any non-trivial work — document what you did, files changed, and key decisions.
+
+One node = one concept. If your work covers multiple independent concerns, call this tool multiple times.`,
+            inputSchema: {
+                callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),
+                title: z.string().describe('Node title — one concept per node, concise and descriptive'),
+                content: z.string().describe('Markdown body: summary, diffs, notes, diagrams. Mermaid code blocks are validated before creation.'),
+                filesChanged: z.array(z.string()).optional().describe('Array of file paths you modified'),
+                parentNodeId: z.string().optional().describe('Parent node ID to link to. Defaults to your task node.')
+            }
+        },
+        async ({callerTerminalId, title, content, filesChanged, parentNodeId}) =>
+            addProgressNodeTool({callerTerminalId, title, content, filesChanged, parentNodeId})
     )
 
     return server

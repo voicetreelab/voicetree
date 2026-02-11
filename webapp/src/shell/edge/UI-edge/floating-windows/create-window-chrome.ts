@@ -19,7 +19,6 @@ import { createNodeMenu } from "@/shell/UI/cytoscape-graph-ui/services/createNod
 import type {AgentConfig} from "@/pure/settings";
 import {Maximize2, Minimize2, createElement} from 'lucide';
 import {createTrafficLightsForTarget} from "@/shell/edge/UI-edge/floating-windows/traffic-lights";
-import {worktreeDisplayName} from "@/pure/agentTabs/worktreeDisplayName";
 
 /** Options for createWindowChrome */
 export interface CreateWindowChromeOptions {
@@ -540,11 +539,9 @@ function createContextBadge(title: string, _windowElement: HTMLDivElement, workt
 
     // Worktree indicator (below title)
     if (worktreeName) {
-        const displayName: string = worktreeDisplayName(worktreeName, title);
-
         const wtSpan: HTMLSpanElement = document.createElement('span');
         wtSpan.className = 'terminal-context-badge-worktree';
-        wtSpan.textContent = displayName;
+        wtSpan.textContent = `\u2387 ${worktreeName}`;
         wtSpan.title = worktreeName;
         badge.appendChild(wtSpan);
     }

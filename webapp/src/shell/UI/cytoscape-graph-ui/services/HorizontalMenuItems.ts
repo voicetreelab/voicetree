@@ -5,7 +5,7 @@
 
 import type { Core } from 'cytoscape';
 import type { IconNode } from 'lucide';
-import { Plus, Play, Trash2, Clipboard, ChevronDown, Edit2, GitBranch, createElement } from 'lucide';
+import { Plus, Play, Trash2, AlertTriangle, Clipboard, ChevronDown, Edit2, GitBranch, createElement } from 'lucide';
 import type { GraphNode } from "@/pure/graph";
 import { createNewChildNodeFromUI, deleteNodesFromUI } from "@/shell/edge/UI-edge/graph/handleUIActions";
 import {
@@ -18,6 +18,12 @@ import type { AgentConfig, VTSettings } from "@/pure/settings";
 import { highlightContainedNodes, highlightPreviewNodes, clearContainedHighlights } from '@/shell/UI/cytoscape-graph-ui/highlightContextNodes';
 import { createTrafficLights } from "@/shell/edge/UI-edge/floating-windows/traffic-lights";
 import { showFloatingSlider, hideFloatingSlider } from './DistanceSlider';
+import { getTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
+import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
+import type { WorktreeInfo } from '@/shell/edge/main/worktree/gitWorktreeCommands';
+import type { WatchStatus } from '@/shell/electron';
+import { showWorktreeDeleteConfirmation } from '@/shell/edge/UI-edge/graph/worktreeDeletePopup';
+import type { WorktreeDeleteResult } from '@/shell/edge/UI-edge/graph/worktreeDeletePopup';
 
 /** Config for attaching a distance slider to a menu item */
 export interface SliderConfig {
@@ -25,6 +31,14 @@ export interface SliderConfig {
     readonly onDistanceChange: (newDistance: number) => void;
     readonly onRun?: () => void | Promise<void>;  // Called when user clicks a slider square
     readonly menuElement: HTMLElement;  // Menu element to append slider to (slider becomes child of menu)
+}
+
+/** Secondary action button (e.g., trash icon) rendered at the right edge of a submenu item */
+export interface SecondaryAction {
+    icon: IconNode;
+    color?: string;
+    tooltip?: string;
+    action: () => void | Promise<void>;
 }
 
 /** Menu item interface for the custom horizontal menu */
@@ -39,6 +53,7 @@ export interface HorizontalMenuItem {
     onHoverEnter?: () => void | Promise<void>; // Optional callback on mouseenter
     onHoverLeave?: () => void; // Optional callback on mouseleave
     sliderConfig?: SliderConfig; // Optional distance slider shown on hover
+    secondaryAction?: SecondaryAction; // Optional action button at right edge (submenu items only)
 }
 
 /** Input parameters for getNodeMenuItems */
@@ -163,7 +178,55 @@ function createMenuItemElement(item: HorizontalMenuItem, onClose: () => void, al
     }
 
     button.appendChild(labelContainer);
+
+    // For submenu items with a secondary action, make the main button take available space
+    if (alwaysShowLabel && item.secondaryAction) {
+        button.style.flex = '1';
+    }
+
     container.appendChild(button);
+
+    // Render secondary action button (e.g., trash icon on worktree submenu items)
+    if (alwaysShowLabel && item.secondaryAction) {
+        const secondaryBtn: HTMLButtonElement = document.createElement('button');
+        secondaryBtn.style.cssText = `
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px;
+            margin-right: 4px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            color: inherit;
+            border-radius: 4px;
+            opacity: 0.5;
+            transition: opacity 0.15s ease, background 0.15s ease;
+        `;
+        if (item.secondaryAction.tooltip) {
+            secondaryBtn.title = item.secondaryAction.tooltip;
+        }
+        const secondaryIcon: SVGElement = createIconElement(item.secondaryAction.icon, item.secondaryAction.color);
+        secondaryIcon.setAttribute('width', '16');
+        secondaryIcon.setAttribute('height', '16');
+        secondaryBtn.appendChild(secondaryIcon);
+
+        secondaryBtn.addEventListener('mouseenter', () => {
+            secondaryBtn.style.opacity = '1';
+            secondaryBtn.style.background = 'var(--accent)';
+        });
+        secondaryBtn.addEventListener('mouseleave', () => {
+            secondaryBtn.style.opacity = '0.5';
+            secondaryBtn.style.background = 'transparent';
+        });
+        secondaryBtn.addEventListener('click', (e: MouseEvent) => {
+            e.stopPropagation();
+            void item.secondaryAction!.action();
+            onClose();
+        });
+
+        container.appendChild(secondaryBtn);
+    }
 
     // Hover effect - for horizontal menu, show label; for vertical, just highlight
     // Also show/hide floating slider on hover (slider is appended to overlay, not container)
@@ -304,15 +367,36 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
             ];
 
             // Fetch existing worktrees dynamically
-            const watchStatus = await window.electronAPI?.main.getWatchStatus();
+            const watchStatus: WatchStatus | undefined = await window.electronAPI?.main.getWatchStatus();
             const repoRoot: string | undefined = watchStatus?.directory;
             if (repoRoot) {
-                const worktrees = await window.electronAPI?.main.listWorktrees(repoRoot) ?? [];
+                const worktrees: WorktreeInfo[] = await window.electronAPI?.main.listWorktrees(repoRoot) ?? [];
+                // Check which worktrees have active (running) terminals
+                const terminalMap: Map<string, TerminalData> = getTerminals();
+                const activeWorktreeNames: Set<string> = new Set<string>();
+                for (const terminal of terminalMap.values()) {
+                    if (terminal.worktreeName && !terminal.isDone) {
+                        activeWorktreeNames.add(terminal.worktreeName);
+                    }
+                }
+
                 for (const wt of worktrees) {
+                    const hasActiveTerminal: boolean = activeWorktreeNames.has(wt.branch);
                     items.push({
                         icon: GitBranch,
                         label: wt.name,
                         action: () => { void spawnTerminalWithNewContextNode(nodeId, cy, undefined, wt.path); },
+                        secondaryAction: {
+                            icon: hasActiveTerminal ? AlertTriangle : Trash2,
+                            color: hasActiveTerminal ? '#f59e0b' : undefined, // amber warning for active worktrees
+                            tooltip: hasActiveTerminal ? 'Terminal active in this worktree' : 'Delete worktree',
+                            action: async () => {
+                                const result: WorktreeDeleteResult | null = await showWorktreeDeleteConfirmation(wt.name, wt.path, wt.branch);
+                                if (result && repoRoot) {
+                                    await window.electronAPI?.main.removeWorktree(repoRoot, wt.path, result.force);
+                                }
+                            },
+                        },
                     });
                 }
             }
