@@ -1,8 +1,6 @@
-import {app, BrowserWindow, nativeImage, dialog, screen} from 'electron';
+/// <reference types="node" />
+import {app, BrowserWindow, nativeImage, dialog} from 'electron';
 import path from 'path';
-import os from 'os';
-import fs from 'fs';
-import fixPath from 'fix-path';
 import electronUpdater, {type UpdateCheckResult} from 'electron-updater';
 import log from 'electron-log';
 import {setupApplicationMenu} from '@/shell/edge/main/electron/application-menu';
@@ -11,29 +9,19 @@ import {RealTextToTreeServerManager} from './server/RealTextToTreeServerManager'
 import {getTerminalManager} from '@/shell/edge/main/terminals/terminal-manager-instance';
 import {setupToolsDirectory, getToolsDirectory} from './tools-setup';
 import {setupOnboardingDirectory} from './onboarding-setup';
-import {startNotificationScheduler, stopNotificationScheduler, recordAppUsage} from './notification-scheduler';
+import {startNotificationScheduler, stopNotificationScheduler} from './notification-scheduler';
 import {migrateAgentPromptIfNeeded} from '@/shell/edge/main/settings/settings_IO';
-import {setBackendPort, setMainWindow} from '@/shell/edge/main/state/app-electron-state';
-import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
+import {setBackendPort} from '@/shell/edge/main/state/app-electron-state';
 import {startOTLPReceiver, stopOTLPReceiver} from '@/shell/edge/main/metrics/otlp-receiver';
 import {registerTerminalIpcHandlers} from '@/shell/edge/main/terminals/ipc-terminal-handlers';
 import {setupRPCHandlers} from '@/shell/edge/main/edge-auto-rpc/rpc-handler';
-import {writeAllPositionsSync} from '@/shell/edge/main/graph/writeAllPositionsOnExit';
-import {getGraph} from '@/shell/edge/main/state/graph-store';
 import {startMcpServer} from '@/shell/edge/main/mcp-server/mcp-server';
 import {cleanupOrphanedContextNodes} from '@/shell/edge/main/saveNodePositions';
-import {setOnFolderSwitchCleanup, setStartupFolderOverride} from "@/shell/edge/main/state/watch-folder-store";
-// Conditionally load trackpad detection (macOS only, optional dependency)
- 
-let trackpadDetect: { startMonitoring: () => boolean; stopMonitoring: () => void; isTrackpadScroll: () => boolean } | null = null;
-if (process.platform === 'darwin') {
-    try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        trackpadDetect = require('electron-trackpad-detect');
-    } catch {
-        console.warn('[Main] electron-trackpad-detect not available');
-    }
-}
+import {setOnFolderSwitchCleanup} from "@/shell/edge/main/state/watch-folder-store";
+import {validateStartupCwd} from './startup-diagnostics';
+import {configureEnvironment} from './environment-config';
+import {setupAutoUpdater} from './auto-updater-setup';
+import {createWindow, stopTrackpadMonitoring} from './create-window';
 
 // Redirect all console.* to electron-log in production (handles EPIPE errors on Linux AppImage)
 // Writes asynchronously to ~/Library/Logs/Voicetree/ (macOS) or ~/.config/Voicetree/logs/ (Linux)
@@ -42,163 +30,14 @@ if (app.isPackaged) {
 }
 
 // ============================================================================
-// Startup CWD Diagnostics
+// Startup
 // ============================================================================
-// Log process.cwd() early to diagnose ENOTDIR issues when spawn() inherits it
-const startupCwd: string = process.cwd();
-//console.log(`[Startup] process.cwd(): ${startupCwd}`);
-//console.log(`[Startup] process.execPath: ${process.execPath}`);
-//console.log(`[Startup] process.argv: ${JSON.stringify(process.argv)}`);
-
-try {
-    fs.accessSync(startupCwd, fs.constants.R_OK);
-    //console.log('[Startup] cwd is valid and readable');
-} catch (cwdError: unknown) {
-    const errorMessage: string = cwdError instanceof Error ? cwdError.message : String(cwdError);
-    console.error(`[Startup] WARNING: cwd is INVALID - ${errorMessage}`);
-    // Change to a known-good directory to prevent spawn ENOTDIR errors
-    // Use app.getPath('home') or '/' as fallback
-    const fallbackCwd: string = os.homedir();
-    try {
-        process.chdir(fallbackCwd);
-        //console.log(`[Startup] Changed cwd to fallback: ${fallbackCwd}`);
-    } catch (chdirError: unknown) {
-        const chdirErrorMessage: string = chdirError instanceof Error ? chdirError.message : String(chdirError);
-        console.error(`[Startup] Failed to change to fallback cwd: ${chdirErrorMessage}`);
-    }
-}
+validateStartupCwd();
 
 const {autoUpdater} = electronUpdater;
 
-
-
-// Fix PATH for macOS/Linux GUI apps
-// This ensures the Electron process and all child processes have access to
-// binaries installed via Homebrew, npm, etc. that are in the user's shell PATH
-fixPath();
-
-// Set app name (shows in macOS menu bar, taskbar, etc.)
-app.setName('Voicetree');
-
-// Fresh start mode: use temporary userData to mimic first-time user experience
-// Only in development/test mode, opt-out with VOICETREE_PERSIST_STATE=1
-// Production builds persist settings to real userData
-const isDev: boolean = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
-if (process.env.VOICETREE_PERSIST_STATE !== '1' && isDev) {
-    const tempDir: string = path.join(os.tmpdir(), `voicetree-fresh-${Date.now()}`);
-    app.setPath('userData', tempDir);
-    //console.log(`[Fresh Start] Using temporary userData: ${tempDir}`);
-}
-
-// Parse CLI arguments for --open-folder (used by "Open Folder in New Instance")
-const openFolderIndex: number = process.argv.indexOf('--open-folder');
-if (openFolderIndex !== -1 && process.argv[openFolderIndex + 1]) {
-    setStartupFolderOverride(process.argv[openFolderIndex + 1]);
-}
-
-// ============================================================================
-// Auto-Update Configuration
-// ============================================================================
-// Configure auto-updater logging
-autoUpdater.logger = log;
-if (autoUpdater.logger && 'transports' in autoUpdater.logger) {
-    (autoUpdater.logger as typeof log).transports.file.level = 'info';
-}
-// Ensure updates are installed when the app quits naturally
-autoUpdater.autoInstallOnAppQuit = true;
-
-// Send update status messages to renderer process
-function sendUpdateStatusToWindow(text: string): void {
-    log.info(text);
-    const mainWindow: Electron.BrowserWindow = BrowserWindow.getAllWindows()[0];
-    if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('update-message', text);
-    }
-}
-
-// Auto-update event handlers
-autoUpdater.on('checking-for-update', () => {
-    sendUpdateStatusToWindow('Checking for updates...');
-});
-
-autoUpdater.on('update-available', (info) => {
-    sendUpdateStatusToWindow(`Update available: ${info.version}`);
-});
-
-autoUpdater.on('update-not-available', () => {
-    sendUpdateStatusToWindow('App is up to date.');
-});
-
-autoUpdater.on('error', (err) => {
-    sendUpdateStatusToWindow(`Error in auto-updater: ${err.toString()}`);
-});
-
-autoUpdater.on('download-progress', (progressObj) => {
-    const message: string = `Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent}% (${progressObj.transferred}/${progressObj.total})`;
-    sendUpdateStatusToWindow(message);
-});
-
-autoUpdater.on('update-downloaded', (info) => {
-    sendUpdateStatusToWindow('Update downloaded. Will install on quit.');
-
-    // Show native dialog asking user if they want to install now
-    const mainWindow: Electron.BrowserWindow = BrowserWindow.getAllWindows()[0];
-    if (mainWindow && !mainWindow.isDestroyed()) {
-        void dialog.showMessageBox(mainWindow, {
-            type: 'info',
-            title: 'Update Ready',
-            message: `Version ${info.releaseName} is ready to install`,
-            detail: 'The update will be installed the next time you restart the app. Would you like to restart now?',
-            buttons: ['Restart Now', 'Later'],
-            defaultId: 0,
-            cancelId: 1
-        }).then((result) => {
-            if (result.response === 0) {
-                // User chose "Restart Now"
-                // Use setImmediate to ensure dialog is fully released before quit
-                // Remove window-all-closed listeners to prevent them blocking the quit
-                // See: https://github.com/electron-userland/electron-builder/issues/1604
-                setImmediate(() => {
-                    isQuitting = true; // Prevent macOS hide-on-close from blocking the quit
-                    app.removeAllListeners('window-all-closed');
-                    mainWindow.close();
-                    autoUpdater.quitAndInstall(false, true); // (isSilent=false, isForceRunAfter=true)
-                });
-            }
-            // If user chose "Later", update will install on next natural app restart
-        });
-    }
-});
-
-// Suppress Electron security warnings in development and test environments
-// These warnings are only shown in dev mode and don't appear in production
-if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
-    process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
-}
-
-// Default to minimized/headless mode in test environment (can override with MINIMIZE_TEST=0)
-if (process.env.NODE_ENV === 'test' && process.env.MINIMIZE_TEST === undefined) {
-    process.env.MINIMIZE_TEST = '1';
-}
-
-// Prevent focus stealing in test mode
-if (process.env.MINIMIZE_TEST === '1') {
-    // Add command line switches to run in background mode
-    app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
-    app.commandLine.appendSwitch('disable-renderer-backgrounding');
-}
-
-// Enable remote debugging for Playwright MCP connections
-// This allows external Playwright instances to connect via CDP (Chrome DevTools Protocol)
-// Port configurable via PLAYWRIGHT_MCP_CDP_ENDPOINT (e.g. http://localhost:9223) to avoid collisions between worktrees
-if (process.env.ENABLE_PLAYWRIGHT_DEBUG === '1') {
-    let cdpPort: string = '9222';
-    const cdpEndpoint: string | undefined = process.env.PLAYWRIGHT_MCP_CDP_ENDPOINT;
-    if (cdpEndpoint) {
-        try { cdpPort = new URL(cdpEndpoint).port || '9222'; } catch { /* default */ }
-    }
-    app.commandLine.appendSwitch('remote-debugging-port', cdpPort);
-}
+configureEnvironment();
+setupAutoUpdater(autoUpdater, () => isQuitting, (v: boolean) => { isQuitting = v; });
 
 // Global manager instances
 // TextToTreeServer: Converts text input (voice/typed) to markdown tree structure
@@ -213,139 +52,6 @@ const terminalManager: ReturnType<typeof getTerminalManager> = getTerminalManage
 
 // Store the TextToTreeServer port (set during app startup)
 let textToTreeServerPort: number | null = null;
-
-// ============================================================================
-// Functional Graph Architecture
-// ============================================================================
-
-function createWindow(): void {
-    // Note: BrowserWindow icon property only works on Windows/Linux
-    // macOS uses app.dock.setIcon() instead
-    const iconPath: string = process.platform === 'darwin'
-        ? path.join(__dirname, '../../build/icon.png')
-        : path.join(__dirname, '../../build/icon.png');
-
-    // Get full screen dimensions (work area excludes dock/taskbar)
-    const primaryDisplay: Electron.Display = screen.getPrimaryDisplay();
-    const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
-
-    const mainWindow: BrowserWindow = new BrowserWindow({
-        width: screenWidth,
-        height: screenHeight,
-        show: false,
-        ...(process.platform !== 'darwin' && {icon: iconPath}),
-        // macOS: extend web content into title bar (traffic lights remain visible)
-        // Requires -webkit-app-region: drag in CSS for draggable areas
-        ...(process.platform === 'darwin' && {titleBarStyle: 'hiddenInset'}),
-        ...(process.env.MINIMIZE_TEST === '1' && {
-            focusable: false,
-            skipTaskbar: true
-        }),
-        webPreferences: {
-            nodeIntegration: false,
-            contextIsolation: true,
-            preload: path.join(__dirname, '../preload/index.js')
-        }
-    });
-
-    // Capture window ID before it gets destroyed
-    const windowId: number = mainWindow.webContents.id;
-
-    // Set global main window reference (used by handlers)
-    setMainWindow(mainWindow);
-
-    // Pipe renderer console logs to electron terminal
-    mainWindow.webContents.on('console-message', (_event, _level, message, _line, _sourceId) => {
-        // Filter out Electron security warnings in dev mode
-        if (message.includes('Electron Security Warning')) return;
-
-        // const levels: string[] = ['LOG', 'WARNING', 'ERROR'];
-        // const levelName: string = levels[level] || 'LOG';
-
-        try {
-            //console.log(`[Renderer ${levelName}] ${message} (${sourceId}:${line})`);
-        } catch (error) {
-            // Silently ignore EPIPE errors when stdout/stderr is closed
-            // This can happen when the terminal that launched Electron is closed
-            if ((error as NodeJS.ErrnoException).code !== 'EPIPE') {
-                // Re-throw non-EPIPE errors
-                throw error;
-            }
-        }
-    });
-
-    // Load the app
-    const skipDevTools: boolean = process.env.ENABLE_PLAYWRIGHT_DEBUG === '1';
-    if (process.env.MINIMIZE_TEST === '1') {
-        void mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'));
-    } else if (process.env.VITE_DEV_SERVER_URL) {
-        // electron-vite dev mode
-        void mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
-        if (!skipDevTools) mainWindow.webContents.openDevTools();
-    } else if (process.env.NODE_ENV === 'development') {
-        const devPort: string = process.env.DEV_SERVER_PORT ?? '3000';
-        void mainWindow.loadURL(`http://localhost:${devPort}`);
-        if (!skipDevTools) mainWindow.webContents.openDevTools();
-    } else {
-        // Production or test mode
-        void mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'));
-    }
-
-    // Control window visibility after content is ready
-    mainWindow.once('ready-to-show', () => {
-        if (process.env.MINIMIZE_TEST === '1') {
-            // For e2e-tests: show window without stealing focus, then minimize
-            mainWindow.showInactive();
-            mainWindow.hide() // THIS IS THE FINAL THING THAT ACTUALLY WORKED?????????
-            // mainWindow.minimize(); // THIS IS ANNOYING IT CAUSES VISUAL ANMIATION
-        } else {
-            mainWindow.show();
-        }
-    });
-
-    // Track user activity for re-engagement notifications
-    mainWindow.on('focus', () => {
-        void recordAppUsage();
-    });
-
-    // macOS: Hide window instead of destroying on close (red X button)
-    // This preserves state (terminals, editors, graph) for quick reopen from dock
-    // Cmd+Q or menu Quit will still fully quit the app via before-quit event
-    mainWindow.on('close', (event) => {
-        if (process.platform === 'darwin' && !isQuitting) {
-            event.preventDefault();
-            mainWindow.hide();
-        }
-    });
-
-    // Clean up terminals when window closes
-    mainWindow.on('closed', () => {
-        terminalManager.cleanupForWindow(windowId);
-        // Persist node positions to disk before exit
-        //console.log('[App] Saving node positions to disk...');
-        writeAllPositionsSync(getGraph());
-    });
-
-    // Trackpad detection using native addon (macOS only)
-    // Uses NSEvent.hasPreciseScrollingDeltas - the authoritative signal for trackpad vs mouse
-    if (trackpadDetect) {
-        // Start monitoring scroll events for trackpad detection
-        const monitoringStarted: boolean = trackpadDetect.startMonitoring();
-        if (monitoringStarted) {
-            console.log('[Main] Trackpad scroll detection enabled');
-        }
-
-        // Listen for scroll wheel events and update trackpad state
-        mainWindow.webContents.on('input-event', (_, input) => {
-            if (input.type === 'mouseWheel') {
-                // Query the native addon for whether this was a trackpad scroll
-                // The addon monitors NSEvent and stores the hasPreciseScrollingDeltas value
-                const isTrackpad: boolean = trackpadDetect!.isTrackpadScroll();
-                uiAPI.setIsTrackpadScrolling(isTrackpad);
-            }
-        });
-    }
-}
 
 // Inject dependencies into mainAPI (must be done before IPC handler registration)
 registerTerminalIpcHandlers(
@@ -396,13 +102,12 @@ void app.whenReady().then(async () => {
     console.time('[Startup] textToTreeServer.start');
     textToTreeServerPort = await textToTreeServerManager.start();
     console.timeEnd('[Startup] textToTreeServer.start');
-    //console.log(`[App] Server started on port ${textToTreeServerPort}`);
 
     // Inject backend port into mainAPI
     setBackendPort(textToTreeServerPort);
 
     console.time('[Startup] createWindow');
-    createWindow();
+    createWindow({terminalManager, isQuitting: () => isQuitting});
     console.timeEnd('[Startup] createWindow');
     console.timeEnd('[Startup] Total time to window');
 
@@ -470,9 +175,7 @@ app.on('before-quit', () => {
     stopNotificationScheduler();
 
     // Stop trackpad monitoring
-    if (trackpadDetect) {
-        trackpadDetect.stopMonitoring();
-    }
+    stopTrackpadMonitoring();
 });
 
 app.on('window-all-closed', () => {
@@ -501,7 +204,7 @@ app.on('activate', () => {
                 // Inject backend port into mainAPI
                 setBackendPort(textToTreeServerPort);
             }
-            createWindow();
+            createWindow({terminalManager, isQuitting: () => isQuitting});
         } else {
             // Show the hidden window (macOS hide-on-close behavior)
             windows[0].show();
