@@ -28,20 +28,28 @@ async function handleWorktreeDelete(detail: WorktreeDeleteDetail): Promise<void>
     const repoRoot: string | undefined = watchStatus?.directory;
     if (!repoRoot) return;
 
-    const result: { force: boolean } | null = await showWorktreeDeleteConfirmation(
-        detail.name,
-        detail.path,
-        detail.branch,
-        {
-            onDelete: async (force: boolean): Promise<{ success: boolean; error?: string }> => {
-                const ipcResult: { success: boolean; command: string; error?: string } | undefined =
-                    await window.electronAPI?.main.removeWorktree(repoRoot, detail.path, force);
-                return ipcResult ?? { success: false, error: 'electronAPI not available' };
-            },
-        },
-    );
+    const result: { force: boolean } | null = await showWorktreeDeleteConfirmation(detail.name, detail.path, detail.branch);
+    if (!result) return;
 
-    if (result) {
+    const ipcResult: { success: boolean; command: string; error?: string } | undefined =
+        await window.electronAPI?.main.removeWorktree(repoRoot, detail.path, false);
+
+    if (ipcResult?.success) {
+        showToast(`Worktree "${detail.name}" deleted`);
+        return;
+    }
+
+    // Normal delete failed — offer force delete
+    const retryResult: { force: boolean } | null = await showWorktreeDeleteConfirmation(
+        detail.name, detail.path, detail.branch,
+        ipcResult?.error ?? 'Deletion failed',
+    );
+    if (!retryResult) return;
+
+    const forceResult: { success: boolean; command: string; error?: string } | undefined =
+        await window.electronAPI?.main.removeWorktree(repoRoot, detail.path, true);
+
+    if (forceResult?.success) {
         showToast(`Worktree "${detail.name}" deleted`);
     }
 }

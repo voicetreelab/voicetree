@@ -23,7 +23,6 @@ import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/termina
 import type { WorktreeInfo } from '@/shell/edge/main/worktree/gitWorktreeCommands';
 import type { WatchStatus } from '@/shell/electron';
 import { showWorktreeDeleteConfirmation } from '@/shell/edge/UI-edge/graph/worktreeDeletePopup';
-import type { WorktreeDeleteResult } from '@/shell/edge/UI-edge/graph/worktreeDeletePopup';
 
 /** Config for attaching a distance slider to a menu item */
 export interface SliderConfig {
@@ -391,10 +390,21 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
                             color: hasActiveTerminal ? '#f59e0b' : undefined, // amber warning for active worktrees
                             tooltip: hasActiveTerminal ? 'Terminal active in this worktree' : 'Delete worktree',
                             action: async () => {
-                                const result: WorktreeDeleteResult | null = await showWorktreeDeleteConfirmation(wt.name, wt.path, wt.branch);
-                                if (result && repoRoot) {
-                                    await window.electronAPI?.main.removeWorktree(repoRoot, wt.path, result.force);
-                                }
+                                if (!repoRoot) return;
+                                const confirmed: { force: boolean } | null = await showWorktreeDeleteConfirmation(wt.name, wt.path, wt.branch);
+                                if (!confirmed) return;
+
+                                const ipcResult: { success: boolean; command: string; error?: string } | undefined =
+                                    await window.electronAPI?.main.removeWorktree(repoRoot, wt.path, false);
+                                if (ipcResult?.success) return;
+
+                                // Normal delete failed — offer force delete
+                                const retry: { force: boolean } | null = await showWorktreeDeleteConfirmation(
+                                    wt.name, wt.path, wt.branch,
+                                    ipcResult?.error ?? 'Deletion failed',
+                                );
+                                if (!retry) return;
+                                await window.electronAPI?.main.removeWorktree(repoRoot, wt.path, true);
                             },
                         },
                     });

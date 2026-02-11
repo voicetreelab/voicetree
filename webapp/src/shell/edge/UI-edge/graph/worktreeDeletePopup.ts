@@ -1,20 +1,13 @@
 /**
  * Worktree Deletion Confirmation Popup
  *
- * Shows the exact git command that will be run before deleting a worktree.
- * Handles async deletion with inline error display and force-delete fallback.
- * Pattern follows agentCommandEditorPopup.ts
+ * Pure confirmation dialog — shows the exact git command that will be run.
+ * Returns the user's choice; caller handles actual deletion.
+ * Call again with previousError to offer force-delete after a failure.
  */
-
-// Import ElectronAPI type for window.electronAPI access
-import type {} from "@/shell/electron";
 
 export interface WorktreeDeleteResult {
     readonly force: boolean;
-}
-
-export interface WorktreeDeleteCallbacks {
-    readonly onDelete: (force: boolean) => Promise<{ success: boolean; error?: string }>;
 }
 
 /** Build the git worktree remove command string (pure, no IPC) */
@@ -30,23 +23,21 @@ function escapeHtml(text: string): string {
 
 /**
  * Shows a modal confirmation dialog for worktree deletion.
- * Displays the branch name, path, and exact git command that will be run.
- * On Delete, calls the onDelete callback and handles success/error inline.
+ * Returns { force } on confirm, or null if cancelled.
  *
  * @param worktreeName - Display name of the worktree
  * @param worktreePath - Path to the worktree
  * @param branch - Branch name associated with the worktree
- * @param callbacks - Async callbacks for deletion
- * @returns Promise resolving to { force: boolean } on successful delete, or null if cancelled
+ * @param previousError - If set, shows the error and offers force-delete instead of normal delete
  */
 export function showWorktreeDeleteConfirmation(
     worktreeName: string,
     worktreePath: string,
     branch: string,
-    callbacks: WorktreeDeleteCallbacks,
+    previousError?: string,
 ): Promise<WorktreeDeleteResult | null> {
-    const command: string = buildRemoveCommand(worktreePath, false);
-    const forceCommand: string = buildRemoveCommand(worktreePath, true);
+    const force: boolean = previousError != null;
+    const command: string = buildRemoveCommand(worktreePath, force);
 
     return new Promise((resolve: (value: WorktreeDeleteResult | null) => void) => {
         const dialog: HTMLDialogElement = document.createElement('dialog');
@@ -67,10 +58,22 @@ export function showWorktreeDeleteConfirmation(
             margin: 0;
         `;
 
+        const errorHtml: string = previousError
+            ? `<div style="
+                padding: 8px 12px;
+                background: hsl(0 84% 60% / 0.1);
+                border: 1px solid hsl(0 84% 60% / 0.3);
+                border-radius: calc(var(--radius) - 2px);
+                color: hsl(0 84% 60%);
+                font-size: 0.85rem;
+                white-space: pre-wrap;
+            ">${escapeHtml(previousError)}</div>`
+            : '';
+
         dialog.innerHTML = `
             <form method="dialog" style="display: flex; flex-direction: column; gap: 16px;">
                 <h2 style="margin: 0; font-size: 1.1rem; font-weight: 600;">
-                    Delete Worktree "${escapeHtml(worktreeName)}"?
+                    ${force ? 'Force delete' : 'Delete'} Worktree "${escapeHtml(worktreeName)}"?
                 </h2>
                 <div style="font-size: 0.9rem; display: flex; flex-direction: column; gap: 6px;">
                     <div><span style="color: var(--muted-foreground);">Branch:</span> ${escapeHtml(branch)}</div>
@@ -78,7 +81,7 @@ export function showWorktreeDeleteConfirmation(
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 6px;">
                     <span style="font-size: 0.85rem; color: var(--muted-foreground);">Command that will be run:</span>
-                    <code id="command-preview" style="
+                    <code style="
                         display: block;
                         padding: 8px 12px;
                         background: var(--muted);
@@ -90,16 +93,7 @@ export function showWorktreeDeleteConfirmation(
                     ">${escapeHtml(command)}
 &amp;&amp; git worktree prune</code>
                 </div>
-                <div id="error-message" style="
-                    display: none;
-                    padding: 8px 12px;
-                    background: hsl(0 84% 60% / 0.1);
-                    border: 1px solid hsl(0 84% 60% / 0.3);
-                    border-radius: calc(var(--radius) - 2px);
-                    color: hsl(0 84% 60%);
-                    font-size: 0.85rem;
-                    white-space: pre-wrap;
-                "></div>
+                ${errorHtml}
                 <div style="display: flex; gap: 8px; justify-content: flex-end; align-items: center;">
                     <button type="button" id="cancel-btn" style="
                         padding: 6px 16px;
@@ -110,25 +104,15 @@ export function showWorktreeDeleteConfirmation(
                         cursor: pointer;
                         font-size: 0.9rem;
                     ">Cancel</button>
-                    <button type="button" id="force-delete-btn" style="
-                        display: none;
-                        padding: 6px 16px;
-                        border: 1px solid hsl(0 84% 60% / 0.5);
-                        border-radius: var(--radius);
-                        background: hsl(0 84% 60% / 0.1);
-                        color: hsl(0 84% 60%);
-                        cursor: pointer;
-                        font-size: 0.9rem;
-                    ">Force Delete</button>
-                    <button type="button" id="delete-btn" style="
+                    <button type="button" id="confirm-btn" style="
                         padding: 6px 16px;
                         border: 1px solid hsl(0 84% 60%);
                         border-radius: var(--radius);
-                        background: hsl(0 84% 60%);
-                        color: white;
+                        background: ${force ? 'hsl(0 84% 60% / 0.1)' : 'hsl(0 84% 60%)'};
+                        color: ${force ? 'hsl(0 84% 60%)' : 'white'};
                         cursor: pointer;
                         font-size: 0.9rem;
-                    ">Delete</button>
+                    ">${force ? 'Force Delete' : 'Delete'}</button>
                 </div>
             </form>
         `;
@@ -136,62 +120,16 @@ export function showWorktreeDeleteConfirmation(
         document.body.appendChild(dialog);
 
         const cancelBtn: HTMLButtonElement = dialog.querySelector('#cancel-btn') as HTMLButtonElement;
-        const deleteBtn: HTMLButtonElement = dialog.querySelector('#delete-btn') as HTMLButtonElement;
-        const forceDeleteBtn: HTMLButtonElement = dialog.querySelector('#force-delete-btn') as HTMLButtonElement;
-        const errorMessage: HTMLDivElement = dialog.querySelector('#error-message') as HTMLDivElement;
-        const commandPreview: HTMLElement = dialog.querySelector('#command-preview') as HTMLElement;
-
-        function setButtonsDisabled(disabled: boolean): void {
-            cancelBtn.disabled = disabled;
-            deleteBtn.disabled = disabled;
-            forceDeleteBtn.disabled = disabled;
-            const opacity: string = disabled ? '0.5' : '1';
-            const cursor: string = disabled ? 'not-allowed' : 'pointer';
-            cancelBtn.style.opacity = opacity;
-            cancelBtn.style.cursor = cursor;
-            deleteBtn.style.opacity = opacity;
-            deleteBtn.style.cursor = cursor;
-            forceDeleteBtn.style.opacity = opacity;
-            forceDeleteBtn.style.cursor = cursor;
-        }
-
-        async function attemptDelete(force: boolean): Promise<void> {
-            setButtonsDisabled(true);
-            const btn: HTMLButtonElement = force ? forceDeleteBtn : deleteBtn;
-            const originalText: string = btn.textContent ?? '';
-            btn.textContent = 'Deleting\u2026';
-            errorMessage.style.display = 'none';
-
-            const result: { success: boolean; error?: string } = await callbacks.onDelete(force);
-
-            if (result.success) {
-                dialog.close();
-                resolve({ force });
-            } else {
-                errorMessage.textContent = result.error ?? 'Deletion failed';
-                errorMessage.style.display = 'block';
-                btn.textContent = originalText;
-                setButtonsDisabled(false);
-
-                if (!force) {
-                    // Reveal Force Delete and update command preview to show --force
-                    forceDeleteBtn.style.display = 'inline-block';
-                    commandPreview.textContent = `${forceCommand}\n&& git worktree prune`;
-                }
-            }
-        }
+        const confirmBtn: HTMLButtonElement = dialog.querySelector('#confirm-btn') as HTMLButtonElement;
 
         cancelBtn.addEventListener('click', () => {
             dialog.close();
             resolve(null);
         });
 
-        deleteBtn.addEventListener('click', () => {
-            void attemptDelete(false);
-        });
-
-        forceDeleteBtn.addEventListener('click', () => {
-            void attemptDelete(true);
+        confirmBtn.addEventListener('click', () => {
+            dialog.close();
+            resolve({ force });
         });
 
         dialog.addEventListener('close', () => {
