@@ -53,6 +53,7 @@
   cursor: pointer;
   transition: background-color 0.15s ease;
   max-width: 80%;
+  overflow: hidden;
 }
 
 .terminal-context-badge:hover {
@@ -70,6 +71,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .terminal-context-badge-worktree {
