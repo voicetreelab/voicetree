@@ -11,18 +11,63 @@ Connect to a running VoiceTree Electron app for live debugging via browser autom
 
 1. **CDP enabled in main.ts** (already configured):
 ```typescript
-// frontend/webapp/src/shell/edge/main/electron/main.ts
+// webapp/src/shell/edge/main/electron/main.ts
 if (process.env.ENABLE_PLAYWRIGHT_DEBUG === '1') {
-    app.commandLine.appendSwitch('remote-debugging-port', '9222');
+    let cdpPort = '9222';
+    const cdpEndpoint = process.env.PLAYWRIGHT_MCP_CDP_ENDPOINT;
+    if (cdpEndpoint) {
+        try { cdpPort = new URL(cdpEndpoint).port || '9222'; } catch { /* default */ }
+    }
+    app.commandLine.appendSwitch('remote-debugging-port', cdpPort);
 }
 ```
 
-2. **MCP configuration** in `.mcp.json`:
+2. **MCP configuration** in `.mcp.json` (already configured):
 ```json
 "playwright": {
   "command": "npx",
-  "args": ["@playwright/mcp@latest", "--cdp-endpoint", "http://localhost:9222"]
+  "args": ["@playwright/mcp@latest"]
 }
+```
+The Playwright MCP server natively reads `PLAYWRIGHT_MCP_CDP_ENDPOINT` from its environment. No `--cdp-endpoint` flag needed.
+
+## IMPORTANT: Port Configuration and Multi-Agent Collisions
+
+### How the CDP port works
+
+Both the Electron app and the Playwright MCP server read the same env var `PLAYWRIGHT_MCP_CDP_ENDPOINT` (e.g. `http://localhost:9223`). If unset, both default to port 9222.
+
+**The env var is read at process startup.** The Playwright MCP server is spawned when Claude Code starts, so the env var must be set in your shell *before* launching Claude Code:
+
+```bash
+# Set before starting Claude Code to use a non-default port
+PLAYWRIGHT_MCP_CDP_ENDPOINT=http://localhost:9223 claude
+```
+
+You **cannot** change the Playwright MCP's port mid-session by exporting the env var in a Bash tool call — that only affects the bash subprocess, not the already-running MCP server.
+
+### Multi-agent workaround: spawn a new agent
+
+If you're already in a session and need a different CDP port, use `spawn_agent` to create a new agent. The new agent starts a fresh Claude Code process, so you can set the env var in its environment and it will pick up the new port:
+
+1. Check which ports are in use:
+```bash
+lsof -iTCP:9222-9230 -sTCP:LISTEN -P 2>/dev/null
+```
+
+2. Start Electron on a free port (you CAN control this from bash since you're launching the process):
+```bash
+PLAYWRIGHT_MCP_CDP_ENDPOINT=http://localhost:9223 ENABLE_PLAYWRIGHT_DEBUG=1 npm run electron
+```
+
+3. Spawn a new agent with the matching port. The spawned agent will be a fresh Claude Code process that reads `PLAYWRIGHT_MCP_CDP_ENDPOINT` at startup.
+
+### Default single-agent usage
+
+If you're the only agent debugging, port 9222 (the default) is fine. Just launch Electron:
+```bash
+cd webapp
+ENABLE_PLAYWRIGHT_DEBUG=1 npm run electron
 ```
 
 ## Connection Steps
@@ -30,7 +75,7 @@ if (process.env.ENABLE_PLAYWRIGHT_DEBUG === '1') {
 ### 1. Start Electron with Debug Flag
 
 ```bash
-cd frontend/webapp
+cd webapp
 ENABLE_PLAYWRIGHT_DEBUG=1 npm run electron
 ```
 
@@ -134,6 +179,7 @@ killall -9 Electron "Electron Helper" "Electron Helper (GPU)" "Electron Helper (
 | Issue | Solution |
 |-------|----------|
 | Connection refused | Ensure Electron started with `ENABLE_PLAYWRIGHT_DEBUG=1` |
+| Another agent hijacked session | You're sharing CDP port 9222. Start Electron on a different port and spawn a new agent with `PLAYWRIGHT_MCP_CDP_ENDPOINT` set |
 | Timeout on first connect | Retry - first connection can be slow |
 | Wrong tab selected | `browser_tabs action=select index=1` |
 | Native dialog opened | Use JavaScript APIs instead - native dialogs can't be automated |
@@ -142,7 +188,7 @@ killall -9 Electron "Electron Helper" "Electron Helper (GPU)" "Electron Helper (
 ## Architecture
 
 ```
-Claude Code → @playwright/mcp → CDP:9222 → Electron App → VoiceTree Webapp
+Claude Code → @playwright/mcp (reads PLAYWRIGHT_MCP_CDP_ENDPOINT) → CDP → Electron App → VoiceTree Webapp
 ```
 
 ## Notes
@@ -150,3 +196,5 @@ Claude Code → @playwright/mcp → CDP:9222 → Electron App → VoiceTree Weba
 - CDP only accesses renderer process, not Electron main process
 - Hot reload works - no restart needed on code changes
 - Native file dialogs cannot be automated - use `electronAPI.main.initializeProject()` instead
+- `PLAYWRIGHT_MCP_CDP_ENDPOINT` is the official env var from `@playwright/mcp` — both the MCP server and Electron's main.ts read it
+- To use a non-default port, set the env var **before** starting Claude Code, or spawn a new agent
