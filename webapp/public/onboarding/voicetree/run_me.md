@@ -15,6 +15,7 @@ isContextNode: false
     - Concise purpose summary
     - Mermaid diagrams for the core flow
     - Notable gotchas or tech debt
+    - A distinct color per module, submodules inherit color 
 There is no need for you or the subagents to create an additional progress node, the module nodes already satisfy this requirement.
 4. **Spawn voicetree agents** on each module to break it down one level further
 
