@@ -12,6 +12,11 @@ import { getScalingStrategy, getTerminalFontSize, getScrollOffset, getScrollTarg
 import { setupTerminalZoomSettleHandler } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalZoomSettleEdge';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 
+// Chromium caps at ~16 WebGL contexts total; stay well under to leave headroom for
+// cytoscape minimap, extensions, etc. Terminals beyond this cap use the DOM renderer.
+let activeWebGLContextCount: number = 0;
+const MAX_WEBGL_CONTEXTS: number = 8;
+
 export interface TerminalVanillaConfig {
   terminalData: TerminalData;
   container: HTMLElement;
@@ -30,6 +35,7 @@ export class TerminalVanilla {
   private suppressNextEnter: boolean = false;
   private shiftEnterSendsOptionEnter: boolean = true;
   private zoomEndUnsubscribe: (() => void) | null = null;
+  private hasWebGLContext: boolean = false;
 
   constructor(config: TerminalVanillaConfig) {
     this.container = config.container;
@@ -67,16 +73,22 @@ export class TerminalVanilla {
     // Open terminal in the DOM
     term.open(this.container);
 
-    // Load WebGL2 addon for better rendering performance
-    try {
-      const webglAddon: WebglAddon = new WebglAddon();
-      term.loadAddon(webglAddon);
-      webglAddon.onContextLoss(() => {
-        console.warn('WebGL context lost, terminal will fall back to DOM renderer');
-        webglAddon.dispose();
-      });
-    } catch (e) {
-      console.warn('WebGL2 not supported, using default DOM renderer:', e);
+    // Load WebGL2 addon only if under the context limit (Chromium caps at ~16)
+    if (activeWebGLContextCount < MAX_WEBGL_CONTEXTS) {
+      try {
+        const webglAddon: WebglAddon = new WebglAddon();
+        term.loadAddon(webglAddon);
+        activeWebGLContextCount++;
+        this.hasWebGLContext = true;
+        webglAddon.onContextLoss(() => {
+          console.warn('WebGL context lost, terminal will fall back to DOM renderer');
+          webglAddon.dispose();
+          activeWebGLContextCount--;
+          this.hasWebGLContext = false;
+        });
+      } catch (e) {
+        console.warn('WebGL2 not supported, using default DOM renderer:', e);
+      }
     }
 
     // Load clipboard addon for proper copy/paste handling
@@ -246,6 +258,12 @@ export class TerminalVanilla {
     // Kill terminal process
     if (this.terminalId && window.electronAPI?.terminal) {
       void window.electronAPI.terminal.kill(this.terminalId);
+    }
+
+    // Release WebGL context slot so new terminals can use it
+    if (this.hasWebGLContext) {
+      activeWebGLContextCount--;
+      this.hasWebGLContext = false;
     }
 
     // Dispose terminal instance

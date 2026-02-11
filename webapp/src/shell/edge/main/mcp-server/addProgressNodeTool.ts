@@ -35,6 +35,7 @@ export interface AddProgressNodeParams {
     complexityScore?: ComplexityScore
     complexityExplanation?: string
     parentNodeId?: string
+    color?: string
 }
 
 /**
@@ -51,6 +52,21 @@ const MERMAID_TYPE_TO_PARSER_TYPE: ReadonlyMap<string, string> = new Map([
     ['radar-beta', 'radar'],
     ['treemap', 'treemap'],
 ])
+
+/**
+ * Count [[wikilink]] occurrences in a string.
+ */
+function countWikilinksInText(text: string): number {
+    const matches: RegExpMatchArray | null = text.match(/\[\[[^\]]+\]\]/g)
+    return matches ? matches.length : 0
+}
+
+/**
+ * Maximum allowed wikilinks per progress node.
+ * Each [[wikilink]] creates a visible graph edge — too many edges turn the tree into a tangled web.
+ * The parent link always uses one slot, leaving room for at most one additional link.
+ */
+const MAX_WIKILINKS: number = 2
 
 function slugify(text: string): string {
     return text
@@ -257,7 +273,8 @@ export async function addProgressNodeTool({
     linkedArtifacts,
     complexityScore,
     complexityExplanation,
-    parentNodeId
+    parentNodeId,
+    color: colorOverride
 }: AddProgressNodeParams): Promise<McpToolResponse> {
     // Validate caller terminal exists
     const terminalRecords: TerminalRecord[] = getTerminalRecords()
@@ -336,9 +353,27 @@ export async function addProgressNodeTool({
         }
     }
 
+    // Validate wikilink count: parent link (1) + linkedArtifacts + inline [[...]] in content
+    const parentLinkCount: number = 1
+    const artifactLinkCount: number = linkedArtifacts ? linkedArtifacts.length : 0
+    const inlineWikilinkCount: number = content ? countWikilinksInText(content) : 0
+    const totalWikilinks: number = parentLinkCount + artifactLinkCount + inlineWikilinkCount
+    if (totalWikilinks > MAX_WIKILINKS) {
+        const breakdown: string[] = [`parent link (1)`]
+        if (artifactLinkCount > 0) breakdown.push(`linkedArtifacts (${artifactLinkCount})`)
+        if (inlineWikilinkCount > 0) breakdown.push(`inline [[wikilinks]] in content (${inlineWikilinkCount})`)
+        return buildJsonResponse({
+            success: false,
+            error: `Too many wikilinks (${totalWikilinks}). Maximum is ${MAX_WIKILINKS}. `
+                + `Breakdown: ${breakdown.join(' + ')}. `
+                + `Each [[wikilink]] creates a visible graph edge — minimize links to keep the tree clean. `
+                + `Move extra links to separate nodes or remove them.`
+        }, true)
+    }
+
     // Auto-generate frontmatter values from terminal record
     const agentName: string = callerRecord.terminalData.agentName
-    const color: string = callerRecord.terminalData.initialEnvVars?.['AGENT_COLOR'] ?? 'blue'
+    const color: string = colorOverride ?? callerRecord.terminalData.initialEnvVars?.['AGENT_COLOR'] ?? 'blue'
 
     // Parent basename for wikilink (filename without extension, not full path)
     const parentBaseName: string = resolvedParentId.split('/').pop()?.replace(/\.md$/, '') ?? resolvedParentId

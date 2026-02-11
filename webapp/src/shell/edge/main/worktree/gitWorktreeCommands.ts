@@ -5,12 +5,17 @@
  * Worktrees allow agents to work on separate branches without conflicts.
  */
 
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 import fs from 'fs';
 
-const execAsync: (command: string, options?: { cwd?: string }) => Promise<{ stdout: string; stderr: string }> = promisify(exec);
+const execFileAsync: (file: string, args: readonly string[], options?: { cwd?: string }) => Promise<{ stdout: string; stderr: string }> = promisify(execFile);
+
+/** Normalize path separators to forward slashes (for cross-platform comparison) */
+function toForwardSlashes(p: string): string {
+    return p.replace(/\\/g, '/');
+}
 
 /**
  * Generate a valid git branch/worktree name from a node title.
@@ -57,11 +62,8 @@ export async function createWorktree(repoRoot: string, worktreeName: string): Pr
 
     // Create the worktree with a new branch based on current HEAD
     // -b creates a new branch with the worktree name
-    const command: string = `git worktree add -b "${worktreeName}" "${worktreePath}"`;
-
     try {
-        await execAsync(command, { cwd: repoRoot });
-        //console.log(`[createWorktree] Created worktree at ${worktreePath}`);
+        await execFileAsync('git', ['worktree', 'add', '-b', worktreeName, worktreePath], { cwd: repoRoot });
         return worktreePath;
     } catch (error) {
         const errorMessage: string = error instanceof Error ? error.message : String(error);
@@ -93,7 +95,7 @@ export async function listWorktrees(repoRoot: string): Promise<WorktreeInfo[]> {
 
     let stdout: string;
     try {
-        const result: { stdout: string; stderr: string } = await execAsync('git worktree list --porcelain', { cwd: repoRoot });
+        const result: { stdout: string; stderr: string } = await execFileAsync('git', ['worktree', 'list', '--porcelain'], { cwd: repoRoot });
         stdout = result.stdout;
     } catch {
         return [];
@@ -103,6 +105,9 @@ export async function listWorktrees(repoRoot: string): Promise<WorktreeInfo[]> {
     // Each block: "worktree <path>\nHEAD <hash>\nbranch refs/heads/<name>\n"
     const blocks: string[] = stdout.split('\n\n').filter((b: string) => b.trim());
     const worktrees: WorktreeInfo[] = [];
+    // Normalize worktreesDir to forward slashes for cross-platform comparison
+    // (git on Windows may output forward-slash paths while path.join uses backslashes)
+    const normalizedWorktreesDir: string = toForwardSlashes(worktreesDir);
 
     for (const block of blocks) {
         const lines: string[] = block.trim().split('\n');
@@ -117,7 +122,8 @@ export async function listWorktrees(repoRoot: string): Promise<WorktreeInfo[]> {
         const branch: string = branchLine.slice('branch refs/heads/'.length);
 
         // Filter: only include worktrees under .worktrees/
-        if (!wtPath.startsWith(worktreesDir)) continue;
+        // Normalize both sides for cross-platform comparison
+        if (!toForwardSlashes(wtPath).startsWith(normalizedWorktreesDir)) continue;
 
         // Extract display name: strip "wt-" prefix if present
         const name: string = branch.startsWith('wt-') ? branch.slice(3) : branch;
@@ -154,10 +160,13 @@ export async function removeWorktree(
     worktreePath: string,
     force: boolean = false
 ): Promise<{ success: boolean; command: string; error?: string }> {
-    const command: string = `git worktree remove ${force ? '--force ' : ''}"${worktreePath}"`;
+    const args: string[] = ['worktree', 'remove']
+    if (force) args.push('--force')
+    args.push(worktreePath)
+    const command: string = `git ${args.join(' ')}`;
     try {
-        await execAsync(command, { cwd: repoRoot });
-        await execAsync('git worktree prune', { cwd: repoRoot });
+        await execFileAsync('git', args, { cwd: repoRoot });
+        await execFileAsync('git', ['worktree', 'prune'], { cwd: repoRoot });
         return { success: true, command };
     } catch (error) {
         const errorMessage: string = error instanceof Error ? error.message : String(error);

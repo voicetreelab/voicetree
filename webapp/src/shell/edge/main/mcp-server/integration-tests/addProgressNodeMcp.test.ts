@@ -377,6 +377,96 @@ describe('MCP add_progress_node tool', () => {
     })
 
     // =========================================================================
+    // Wikilink count validation
+    // =========================================================================
+
+    describe('wikilink count validation', () => {
+        it('returns error when linkedArtifacts push total wikilinks over 2', async () => {
+            setupStandardMocks()
+
+            const response: McpToolResponse = await addProgressNodeTool({
+                callerTerminalId: CALLER_TERMINAL_ID,
+                title: 'Too Many Links',
+                summary: 'Some work.',
+                linkedArtifacts: ['spec-a', 'spec-b'],
+                parentNodeId: PARENT_NODE_ID
+            })
+            const payload: ErrorPayload = parsePayload(response) as ErrorPayload
+
+            expect(response.isError).toBe(true)
+            expect(payload.success).toBe(false)
+            expect(payload.error).toContain('Too many wikilinks')
+            expect(payload.error).toContain('3')
+        })
+
+        it('returns error when inline wikilinks in content push total over 2', async () => {
+            setupStandardMocks()
+
+            const response: McpToolResponse = await addProgressNodeTool({
+                callerTerminalId: CALLER_TERMINAL_ID,
+                title: 'Inline Links',
+                summary: 'Some work.',
+                content: 'See [[node-a]] and [[node-b]] for details.',
+                parentNodeId: PARENT_NODE_ID
+            })
+            const payload: ErrorPayload = parsePayload(response) as ErrorPayload
+
+            expect(response.isError).toBe(true)
+            expect(payload.success).toBe(false)
+            expect(payload.error).toContain('Too many wikilinks')
+            expect(payload.error).toContain('inline')
+        })
+
+        it('succeeds with exactly 2 wikilinks (parent + 1 linkedArtifact)', async () => {
+            setupStandardMocks()
+
+            const response: McpToolResponse = await addProgressNodeTool({
+                callerTerminalId: CALLER_TERMINAL_ID,
+                title: 'Two Links OK',
+                summary: 'Some work.',
+                linkedArtifacts: ['related-spec'],
+                parentNodeId: PARENT_NODE_ID
+            })
+            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
+
+            expect(payload.success).toBe(true)
+        })
+
+        it('succeeds with only parent wikilink (no artifacts, no inline)', async () => {
+            setupStandardMocks()
+
+            const response: McpToolResponse = await addProgressNodeTool({
+                callerTerminalId: CALLER_TERMINAL_ID,
+                title: 'Parent Only',
+                summary: 'Some work.',
+                parentNodeId: PARENT_NODE_ID
+            })
+            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
+
+            expect(payload.success).toBe(true)
+        })
+
+        it('returns error when combined artifacts and inline wikilinks exceed limit', async () => {
+            setupStandardMocks()
+
+            const response: McpToolResponse = await addProgressNodeTool({
+                callerTerminalId: CALLER_TERMINAL_ID,
+                title: 'Combined Excess',
+                summary: 'Some work.',
+                content: 'See [[inline-ref]] for context.',
+                linkedArtifacts: ['artifact-ref'],
+                parentNodeId: PARENT_NODE_ID
+            })
+            const payload: ErrorPayload = parsePayload(response) as ErrorPayload
+
+            expect(response.isError).toBe(true)
+            expect(payload.success).toBe(false)
+            expect(payload.error).toContain('Too many wikilinks')
+            expect(payload.error).toContain('3')
+        })
+    })
+
+    // =========================================================================
     // Core behavior
     // =========================================================================
 
@@ -777,7 +867,7 @@ describe('MCP add_progress_node tool', () => {
                 callerTerminalId: CALLER_TERMINAL_ID,
                 title: 'With Artifacts',
                 summary: 'Implemented feature.',
-                linkedArtifacts: ['design-proposal', 'api-spec'],
+                linkedArtifacts: ['design-proposal'],
                 parentNodeId: PARENT_NODE_ID
             })
             const payload: SuccessPayload = parsePayload(response) as SuccessPayload
@@ -789,7 +879,7 @@ describe('MCP add_progress_node tool', () => {
                 : (() => { throw new Error('Expected UpsertNode delta') })()
 
             // linkedArtifacts create wikilinks which become outgoing edges
-            // Check that at least the parent edge exists plus the artifacts
+            // Check that at least the parent edge exists plus the artifact
             expect(upsertedNode.outgoingEdges.length).toBeGreaterThanOrEqual(1)
         })
 
