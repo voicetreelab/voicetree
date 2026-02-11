@@ -233,6 +233,9 @@ async function prepareTerminalDataInMain(
     };
     const expandedEnvVars: Record<string, string> = expandEnvVarsInValues(unexpandedEnvVars);
 
+    // Extract worktree name from spawnDirectory if spawning in a .worktrees/ directory
+    const worktreeName: string | undefined = extractWorktreeNameFromPath(initialSpawnDirectory);
+
     // Create TerminalData using the factory function (flat type, no nested floatingWindow)
     // anchoredToNodeId = taskNodeId (shadow node connects to task node)
     // attachedToNodeId = contextNodeId (for metadata, env vars, and shadow→context edge)
@@ -249,7 +252,26 @@ async function prepareTerminalDataInMain(
         isPinned: !startUnpinned,
         agentName: agentName,
         parentTerminalId: parentTerminalId as TerminalId | null,
+        worktreeName: worktreeName,
     });
 
     return terminalData;
+}
+
+/**
+ * Extract worktree directory name from a spawn path, if it's inside a .worktrees/ directory.
+ * Returns undefined if the path is not a worktree path.
+ *
+ * Example: "/repo/.worktrees/wt-fix-auth-bug-a3k" → "wt-fix-auth-bug-a3k"
+ */
+function extractWorktreeNameFromPath(spawnDirectory: string | undefined): string | undefined {
+    if (!spawnDirectory) return undefined;
+    const marker: string = '.worktrees/';
+    const markerIndex: number = spawnDirectory.indexOf(marker);
+    if (markerIndex === -1) return undefined;
+    const afterMarker: string = spawnDirectory.slice(markerIndex + marker.length);
+    // Take just the first path segment (the worktree directory name)
+    const slashIndex: number = afterMarker.indexOf('/');
+    const dirName: string = slashIndex === -1 ? afterMarker : afterMarker.slice(0, slashIndex);
+    return dirName || undefined;
 }

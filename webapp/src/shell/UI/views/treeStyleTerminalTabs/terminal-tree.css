@@ -114,12 +114,31 @@
     background: #22c55e;
 }
 
-/* Title */
+/* Title container (supports optional worktree subtitle) */
 .terminal-tree-title {
     flex: 1;
     overflow: hidden;
     font-size: 11px;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.terminal-tree-title-text {
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Worktree indicator - shown below title when terminal runs in a git worktree */
+.terminal-tree-worktree {
+    font-size: 9px;
+    color: var(--muted-foreground);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0.7;
+    line-height: 1.2;
 }
 
 /* Close button */
