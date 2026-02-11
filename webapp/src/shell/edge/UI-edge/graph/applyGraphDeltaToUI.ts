@@ -256,7 +256,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                                 }
                             });
                             // Mark terminal activity for both source and target nodes
-                            // markTerminalActivityForContextNode checks both attachedToNodeId (context) and anchoredToNodeId (task)
+                            // markTerminalActivityForContextNode checks both attachedToContextNodeId (context) and anchoredToNodeId (task)
                             // Deferred via requestIdleCallback since activity dots are non-critical visual feedback
                             scheduleIdleWork(() => {
                                 markTerminalActivityForContextNode(nodeId);

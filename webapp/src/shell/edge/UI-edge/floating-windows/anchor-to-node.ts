@@ -136,8 +136,8 @@ export function anchorToNode(
 
     // For terminals: fix context node position to top-left of terminal (no edge)
     // Context node follows terminal position at a fixed offset
-    if (isTerminalData(fw) && fw.attachedToNodeId !== parentNodeId) {
-        const contextNodeId: NodeIdAndFilePath = fw.attachedToNodeId;
+    if (isTerminalData(fw) && fw.attachedToContextNodeId !== parentNodeId) {
+        const contextNodeId: NodeIdAndFilePath = fw.attachedToContextNodeId;
         const contextNode: cytoscape.CollectionReturnValue = cy.getElementById(contextNodeId);
 
         if (contextNode.length > 0) {

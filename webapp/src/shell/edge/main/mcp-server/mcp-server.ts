@@ -197,17 +197,26 @@ If you already have a node detailing the task, use nodeId. Otherwise, use task+p
 
 **When to use:** After completing any non-trivial work — document what you did, files changed, and key decisions.
 
-One node = one concept. If your work covers multiple independent concerns, call this tool multiple times.`,
+One node = one concept. If your work covers multiple independent concerns, call this tool multiple times.
+
+**Required when codeDiffs provided:** complexityScore and complexityExplanation must be included.`,
             inputSchema: {
                 callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),
                 title: z.string().describe('Node title — one concept per node, concise and descriptive'),
-                content: z.string().describe('Markdown body: summary, diffs, notes, diagrams. Mermaid code blocks are validated before creation.'),
+                summary: z.string().describe('Concise summary (1-3 lines) of what was accomplished. Always shown first.'),
+                content: z.string().optional().describe('Optional freeform markdown body for longer details beyond the summary.'),
+                codeDiffs: z.array(z.string()).optional().describe('Array of code diff strings. Each diff is rendered in a code block under ## DIFF. When provided, complexityScore and complexityExplanation are required.'),
                 filesChanged: z.array(z.string()).optional().describe('Array of file paths you modified'),
+                diagram: z.string().optional().describe('Mermaid diagram source (without ```mermaid fences — tool adds them). Validated before creation.'),
+                notes: z.array(z.string()).optional().describe('Array of notes: architecture impact, gotchas, tech debt, difficulties. Rendered as bulleted ### NOTES section.'),
+                linkedArtifacts: z.array(z.string()).optional().describe('Array of node basenames to wikilink in a ## Related section. Use for specs, proposals, related nodes.'),
+                complexityScore: z.enum(['low', 'medium', 'high']).optional().describe('Required when codeDiffs provided. Complexity of the area worked in.'),
+                complexityExplanation: z.string().optional().describe('Required when codeDiffs provided. Brief explanation of the complexity score.'),
                 parentNodeId: z.string().optional().describe('Parent node ID to link to. Defaults to your task node.')
             }
         },
-        async ({callerTerminalId, title, content, filesChanged, parentNodeId}) =>
-            addProgressNodeTool({callerTerminalId, title, content, filesChanged, parentNodeId})
+        async ({callerTerminalId, title, summary, content, codeDiffs, filesChanged, diagram, notes, linkedArtifacts, complexityScore, complexityExplanation, parentNodeId}) =>
+            addProgressNodeTool({callerTerminalId, title, summary, content, codeDiffs, filesChanged, diagram, notes, linkedArtifacts, complexityScore, complexityExplanation, parentNodeId})
     )
 
     return server

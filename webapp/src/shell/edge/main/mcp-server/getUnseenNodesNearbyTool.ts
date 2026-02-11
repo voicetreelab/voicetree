@@ -33,7 +33,7 @@ export async function getUnseenNodesNearbyTool({
     }
 
     // 2. Get the context node from the terminal
-    const contextNodeId: string = callerRecord.terminalData.attachedToNodeId
+    const contextNodeId: string = callerRecord.terminalData.attachedToContextNodeId
 
     // 3. Get unseen nodes (with optional search_from_node override)
     const graph: Graph = getGraph()

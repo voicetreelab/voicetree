@@ -495,7 +495,7 @@ function createTerminalTitleBar(
     titleBar.className = 'terminal-title-bar';
 
     // Get the attached node ID for context detection
-    const attachedNodeId: string = terminal.attachedToNodeId;
+    const attachedNodeId: string = terminal.attachedToContextNodeId;
     const hasContextNode: boolean = isContextNodeId(attachedNodeId);
 
     // Create context badge for terminals with context nodes

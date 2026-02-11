@@ -83,8 +83,8 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
     // Get the shadow node from cy for viewport fitting
     const terminalShadowNode: CollectionReturnValue = cy.getElementById(shadowNodeId);
 
-    // Get context node (attachedToNodeId) and its neighborhood
-    const contextNodeId: string = terminal.attachedToNodeId;
+    // Get context node (attachedToContextNodeId) and its neighborhood
+    const contextNodeId: string = terminal.attachedToContextNodeId;
     const contextNode: CollectionReturnValue = cy.getElementById(contextNodeId);
 
     // Select the context node (matching behavior when clicking inside a terminal)

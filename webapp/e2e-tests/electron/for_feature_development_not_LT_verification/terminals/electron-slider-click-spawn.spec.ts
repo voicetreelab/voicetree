@@ -250,7 +250,7 @@ async function getLastTerminalAttachedNodeId(appWindow: Page): Promise<string | 
 
     if (terminals.length === 0) return null;
 
-    // Return the attachedToNodeId of the last (most recent) terminal
+    // Return the attachedToContextNodeId of the last (most recent) terminal
     const lastTerminal = terminals.last();
     return lastTerminal.data('attachedToNodeId') ?? null;
   });

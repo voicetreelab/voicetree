@@ -190,7 +190,7 @@ export class NavigationGestureService {
 
     /**
      * Check if a floating window's corresponding node is selected.
-     * For editors: contentLinkedToNodeId; for terminals: attachedToNodeId
+     * For editors: contentLinkedToNodeId; for terminals: attachedToContextNodeId
      */
     private isFloatingWindowNodeSelected(floatingWindowId: string, floatingWindow: Element): boolean {
         if (floatingWindow.classList.contains('cy-floating-window-editor')) {
@@ -201,7 +201,7 @@ export class NavigationGestureService {
         } else if (floatingWindow.classList.contains('cy-floating-window-terminal')) {
             const terminal: TerminalData | undefined = getTerminals().get(floatingWindowId as TerminalId);
             if (terminal) {
-                return this.cy.getElementById(terminal.attachedToNodeId).selected();
+                return this.cy.getElementById(terminal.attachedToContextNodeId).selected();
             }
         }
         return false;

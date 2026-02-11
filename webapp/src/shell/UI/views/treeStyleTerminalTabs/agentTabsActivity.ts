@@ -14,15 +14,15 @@ import type {} from '@/shell/electron';
 
 /**
  * Mark a terminal as having activity (produced a node)
- * Checks both attachedToNodeId (context node) and anchoredToNodeId (task node)
+ * Checks both attachedToContextNodeId (context node) and anchoredToNodeId (task node)
  * Phase 3: Routes state changes through main process (source of truth).
  * Uses targeted DOM update for responsive UI.
  */
 export function markTerminalActivityForContextNode(nodeId: string): void {
     const terminals: Map<TerminalId, TerminalData> = getTerminals();
     for (const [terminalId, terminal] of terminals) {
-        // Check if node matches the context node (attachedToNodeId)
-        if (terminal.attachedToNodeId === nodeId) {
+        // Check if node matches the context node (attachedToContextNodeId)
+        if (terminal.attachedToContextNodeId === nodeId) {
             const newCount: number = terminal.activityCount + 1;
             // Phase 3: Update main process (source of truth)
             void window.electronAPI?.main.updateTerminalActivityState(terminalId, { activityCount: newCount });

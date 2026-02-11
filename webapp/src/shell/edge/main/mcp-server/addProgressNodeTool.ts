@@ -3,6 +3,10 @@
  * Creates a progress node documenting agent work in the Voicetree graph.
  * Automatically handles frontmatter (color, agent_name), parent linking,
  * file path slugification, graph positioning, and mermaid diagram validation.
+ *
+ * Structured sections (summary, codeDiffs, diagram, notes, linkedArtifacts)
+ * are assembled into consistent markdown. Complexity score is required when
+ * codeDiffs are provided.
  */
 
 import * as O from 'fp-ts/lib/Option.js'
@@ -16,11 +20,20 @@ import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@/shell/edge/main/gr
 import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 import {type McpToolResponse, buildJsonResponse} from './types'
 
+export type ComplexityScore = 'low' | 'medium' | 'high'
+
 export interface AddProgressNodeParams {
     callerTerminalId: string
     title: string
-    content: string
+    summary: string
+    content?: string
+    codeDiffs?: string[]
     filesChanged?: string[]
+    diagram?: string
+    notes?: string[]
+    linkedArtifacts?: string[]
+    complexityScore?: ComplexityScore
+    complexityExplanation?: string
     parentNodeId?: string
 }
 
@@ -77,6 +90,21 @@ function extractMermaidBlocks(content: string): readonly MermaidBlock[] {
 }
 
 /**
+ * Parse the diagram parameter to extract its type declaration from the first line.
+ * Returns a MermaidBlock for validation.
+ */
+function parseDiagramParam(diagramSource: string): MermaidBlock {
+    const lines: string[] = diagramSource.split('\n')
+    const firstLine: string = (lines[0] ?? '').trim()
+    const diagramType: string | undefined = firstLine.split(/\s+/)[0]
+    const parserType: string | undefined = diagramType
+        ? MERMAID_TYPE_TO_PARSER_TYPE.get(diagramType)
+        : undefined
+    const textWithoutFirstLine: string = lines.slice(1).join('\n')
+    return {index: 0, diagramType, parserType, textWithoutFirstLine}
+}
+
+/**
  * Validate mermaid blocks using @mermaid-js/parser (ESM-only, dynamic import).
  * Only validates diagram types the parser supports; unsupported types pass through.
  * Returns error message string on failure, null on success.
@@ -108,11 +136,127 @@ async function validateMermaidBlocks(blocks: readonly MermaidBlock[]): Promise<s
     return null
 }
 
+/**
+ * Build the markdown body from structured sections.
+ * Sections are assembled in a consistent order below the title.
+ */
+function buildMarkdownBody(params: {
+    readonly title: string
+    readonly summary: string
+    readonly content: string | undefined
+    readonly codeDiffs: readonly string[] | undefined
+    readonly filesChanged: readonly string[] | undefined
+    readonly diagram: string | undefined
+    readonly notes: readonly string[] | undefined
+    readonly linkedArtifacts: readonly string[] | undefined
+    readonly complexityScore: ComplexityScore | undefined
+    readonly complexityExplanation: string | undefined
+    readonly color: string
+    readonly agentName: string
+    readonly parentBaseName: string
+}): string {
+    const sections: string[] = []
+
+    // Frontmatter
+    sections.push('---')
+    sections.push(`color: ${params.color}`)
+    sections.push(`agent_name: ${params.agentName}`)
+    sections.push('---')
+    sections.push('')
+
+    // Title
+    sections.push(`# ${params.title}`)
+    sections.push('')
+
+    // Summary (always first after title)
+    sections.push(params.summary)
+    sections.push('')
+
+    // Content (optional freeform body)
+    if (params.content) {
+        sections.push(params.content)
+        sections.push('')
+    }
+
+    // Code Diffs
+    if (params.codeDiffs && params.codeDiffs.length > 0) {
+        sections.push('## DIFF')
+        sections.push('')
+        for (const diff of params.codeDiffs) {
+            sections.push('```')
+            sections.push(diff)
+            sections.push('```')
+            sections.push('')
+        }
+    }
+
+    // Complexity (rendered when codeDiffs are present)
+    if (params.complexityScore && params.complexityExplanation) {
+        sections.push(`## Complexity: ${params.complexityScore}`)
+        sections.push('')
+        sections.push(params.complexityExplanation)
+        sections.push('')
+    }
+
+    // Files Changed
+    if (params.filesChanged && params.filesChanged.length > 0) {
+        sections.push('## Files Changed')
+        sections.push('')
+        for (const f of params.filesChanged) {
+            sections.push(`- ${f}`)
+        }
+        sections.push('')
+    }
+
+    // Diagram
+    if (params.diagram) {
+        sections.push('## Diagram')
+        sections.push('')
+        sections.push('```mermaid')
+        sections.push(params.diagram)
+        sections.push('```')
+        sections.push('')
+    }
+
+    // Notes
+    if (params.notes && params.notes.length > 0) {
+        sections.push('### NOTES')
+        sections.push('')
+        for (const note of params.notes) {
+            sections.push(`- ${note}`)
+        }
+        sections.push('')
+    }
+
+    // Linked Artifacts
+    if (params.linkedArtifacts && params.linkedArtifacts.length > 0) {
+        sections.push('## Related')
+        sections.push('')
+        for (const artifact of params.linkedArtifacts) {
+            sections.push(`[[${artifact}]]`)
+        }
+        sections.push('')
+    }
+
+    // Parent wikilink
+    sections.push(`Progress on [[${params.parentBaseName}]]`)
+    sections.push('')
+
+    return sections.join('\n')
+}
+
 export async function addProgressNodeTool({
     callerTerminalId,
     title,
+    summary,
     content,
+    codeDiffs,
     filesChanged,
+    diagram,
+    notes,
+    linkedArtifacts,
+    complexityScore,
+    complexityExplanation,
     parentNodeId
 }: AddProgressNodeParams): Promise<McpToolResponse> {
     // Validate caller terminal exists
@@ -139,8 +283,12 @@ export async function addProgressNodeTool({
 
     const graph: Graph = getGraph()
 
-    // Resolve parent node: explicit parentNodeId or caller's attached task node
-    const rawParentId: string = parentNodeId ?? callerRecord.terminalData.attachedToNodeId
+    // Resolve parent node: explicit parentNodeId, or caller's task node (anchoredToNodeId),
+    // falling back to context node (attachedToContextNodeId) for terminals without a task node anchor
+    const defaultParentId: string = O.isSome(callerRecord.terminalData.anchoredToNodeId)
+        ? callerRecord.terminalData.anchoredToNodeId.value
+        : callerRecord.terminalData.attachedToContextNodeId
+    const rawParentId: string = parentNodeId ?? defaultParentId
     const resolvedParentId: NodeIdAndFilePath | undefined = graph.nodes[rawParentId]
         ? rawParentId
         : findBestMatchingNode(rawParentId, graph.nodes, graph.nodeByBaseName)
@@ -154,10 +302,32 @@ export async function addProgressNodeTool({
 
     const parentNode: GraphNode = graph.nodes[resolvedParentId]
 
-    // Validate mermaid blocks before creating node
-    const mermaidBlocks: readonly MermaidBlock[] = extractMermaidBlocks(content)
-    if (mermaidBlocks.length > 0) {
-        const validationError: string | null = await validateMermaidBlocks(mermaidBlocks)
+    // Validate: complexity is required when codeDiffs are provided
+    const hasCodeDiffs: boolean = codeDiffs !== undefined && codeDiffs.length > 0
+    if (hasCodeDiffs && (!complexityScore || !complexityExplanation)) {
+        return buildJsonResponse({
+            success: false,
+            error: 'complexityScore and complexityExplanation are required when codeDiffs are provided.'
+        }, true)
+    }
+
+    // Collect all mermaid blocks for validation: from content (inline) + diagram param
+    const allMermaidBlocks: MermaidBlock[] = []
+    if (content) {
+        const inlineBlocks: readonly MermaidBlock[] = extractMermaidBlocks(content)
+        allMermaidBlocks.push(...inlineBlocks)
+    }
+    if (diagram) {
+        const diagramBlock: MermaidBlock = parseDiagramParam(diagram)
+        // Offset index so diagram param errors are reported distinctly
+        allMermaidBlocks.push({
+            ...diagramBlock,
+            index: allMermaidBlocks.length
+        })
+    }
+
+    if (allMermaidBlocks.length > 0) {
+        const validationError: string | null = await validateMermaidBlocks(allMermaidBlocks)
         if (validationError) {
             return buildJsonResponse({
                 success: false,
@@ -173,31 +343,49 @@ export async function addProgressNodeTool({
     // Parent basename for wikilink (filename without extension, not full path)
     const parentBaseName: string = resolvedParentId.split('/').pop()?.replace(/\.md$/, '') ?? resolvedParentId
 
-    // Build files changed section
-    const filesChangedSection: string = filesChanged && filesChanged.length > 0
-        ? `\n## Files Changed\n${filesChanged.map((f: string) => `- ${f}`).join('\n')}\n`
-        : ''
-
-    // Build full markdown content
-    const markdownContent: string = [
-        '---',
-        `color: ${color}`,
-        `agent_name: ${agentName}`,
-        '---',
-        '',
-        `# ${title}`,
-        '',
+    // Build full markdown content from structured sections
+    const markdownContent: string = buildMarkdownBody({
+        title,
+        summary,
         content,
-        filesChangedSection,
-        `Progress on [[${parentBaseName}]]`,
-        ''
-    ].join('\n')
+        codeDiffs,
+        filesChanged,
+        diagram,
+        notes,
+        linkedArtifacts,
+        complexityScore,
+        complexityExplanation,
+        color,
+        agentName,
+        parentBaseName
+    })
 
-    // Check content length warning
+    // Warnings
     const warnings: string[] = []
-    const contentLineCount: number = content.split('\n').length
-    if (contentLineCount > 60) {
-        warnings.push(`Content is long (${contentLineCount} lines) — consider splitting into multiple nodes`)
+
+    // Check summary length
+    const summaryLineCount: number = summary.split('\n').length
+    if (summaryLineCount > 3) {
+        warnings.push(`Summary is long (${summaryLineCount} lines) — keep it to 1-3 lines. Put details in content.`)
+    }
+
+    // Check total body length (lines after frontmatter + title)
+    const bodyLines: number = markdownContent.split('\n').length
+    if (bodyLines > 60) {
+        warnings.push(
+            `Node is long (${bodyLines} lines) — consider splitting into multiple nodes.\n\n`
+            + `One node = one concept. Split when independently referenceable.\n`
+            + `Quick test: "If the parent disappeared, would this content still make sense?" YES → own node.\n\n`
+            + `Split when:\n`
+            + `- Multiple concerns (bug fix + refactor + new feature)\n`
+            + `- Changes span 3+ unrelated areas\n`
+            + `- Sequential phases (research → design → implement → validate)`
+        )
+    }
+
+    // Warn when files changed but no diffs provided
+    if (filesChanged && filesChanged.length > 0 && !hasCodeDiffs) {
+        warnings.push('You changed files but provided no codeDiffs — include key diffs for reviewability.')
     }
 
     // Generate unique node ID from slugified title
@@ -237,7 +425,7 @@ export async function addProgressNodeTool({
         await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta)
 
         // Update caller's context node to include new progress node in containedNodeIds
-        const callerContextNodeId: string = callerRecord.terminalData.attachedToNodeId
+        const callerContextNodeId: string = callerRecord.terminalData.attachedToContextNodeId
         const updatedGraph: Graph = getGraph()
         const callerContextNode: GraphNode | undefined = updatedGraph.nodes[callerContextNodeId]
         if (callerContextNode?.nodeUIMetadata.containedNodeIds) {

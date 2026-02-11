@@ -4,7 +4,7 @@ import type {FloatingWindowFields, TerminalId} from "@/shell/edge/UI-edge/floati
 export type TerminalData = FloatingWindowFields & {
     readonly type: 'Terminal';
     readonly terminalId: TerminalId; // Single source of truth for terminal identity
-    readonly attachedToNodeId: NodeIdAndFilePath;
+    readonly attachedToContextNodeId: NodeIdAndFilePath;
     readonly terminalCount: number; // Multiple terminals per parent node allowed
     readonly initialEnvVars?: Record<string, string>;
     readonly initialSpawnDirectory?: string;
@@ -27,7 +27,7 @@ export type CreateTerminalDataParams = {
     readonly attachedToNodeId: NodeIdAndFilePath;
     readonly terminalCount: number;
     readonly title: string;
-    readonly anchoredToNodeId?: NodeIdAndFilePath; // defaults to O.none
+    readonly anchoredToNodeId?: NodeIdAndFilePath; // IMPORTANT anchoredToNodeId is the task node for terminals (todo leakage)
     readonly initialEnvVars?: Record<string, string>;
     readonly initialSpawnDirectory?: string;
     readonly initialCommand?: string;
