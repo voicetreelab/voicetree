@@ -199,7 +199,9 @@ If you already have a node detailing the task, use nodeId. Otherwise, use task+p
 
 One node = one concept. If your work covers multiple independent concerns, call this tool multiple times.
 
-**Required when codeDiffs provided:** complexityScore and complexityExplanation must be included.`,
+**Required when codeDiffs provided:** complexityScore and complexityExplanation must be included.
+
+**Spec files:** If you created openspec artifacts (proposal, design, tasks) or similar specs, link the key ones via linkedArtifacts. Skip individual spec deltas unless they contain key decisions.`,
             inputSchema: {
                 callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),
                 title: z.string().describe('Node title — one concept per node, concise and descriptive'),
@@ -209,7 +211,7 @@ One node = one concept. If your work covers multiple independent concerns, call 
                 filesChanged: z.array(z.string()).optional().describe('Array of file paths you modified'),
                 diagram: z.string().optional().describe('Mermaid diagram source (without ```mermaid fences — tool adds them). Validated before creation.'),
                 notes: z.array(z.string()).optional().describe('Array of notes: architecture impact, gotchas, tech debt, difficulties. Rendered as bulleted ### NOTES section.'),
-                linkedArtifacts: z.array(z.string()).optional().describe('Array of node basenames to wikilink in a ## Related section. Use for specs, proposals, related nodes.'),
+                linkedArtifacts: z.array(z.string()).optional().describe('Array of node basenames to wikilink in a ## Related section. If you created openspec changes (proposal.md, tasks.md, design.md), link the proposal here. Use for specs, proposals, related nodes.'),
                 complexityScore: z.enum(['low', 'medium', 'high']).optional().describe('Required when codeDiffs provided. Complexity of the area worked in.'),
                 complexityExplanation: z.string().optional().describe('Required when codeDiffs provided. Brief explanation of the complexity score.'),
                 parentNodeId: z.string().optional().describe('Parent node ID to link to. Defaults to your task node.'),
