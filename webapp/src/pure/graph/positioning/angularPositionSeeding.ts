@@ -110,9 +110,8 @@ export function calculateChildAngle(
   childIndex: number,
   parentAngle?: number
 ): number {
-  // Determine angle range
-  // Default to 270° (down) for orphans so first child avoids editor shadow (which anchors right at 0°)
-  const rangeMin: number = parentAngle !== undefined ? parentAngle - 45 : 270;
+  // Determine angle range — collision-aware positioning (findBestPosition) handles shadow avoidance
+  const rangeMin: number = parentAngle !== undefined ? parentAngle - 45 : 0;
   const rangeSize: 180 | 360 = parentAngle !== undefined ? CHILD_ANGLE_CONE : 360;
 
   // Get normalized position [0, 1] for this child index

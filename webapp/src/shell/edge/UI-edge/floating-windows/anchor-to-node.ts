@@ -19,6 +19,8 @@ import {
 import {cleanupRegistry, getCachedZoom} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import {setupResizeObserver, updateShadowNodeDimensions} from "@/shell/edge/UI-edge/floating-windows/setup-resize-observer";
 import {DEFAULT_EDGE_LENGTH} from "@/shell/UI/cytoscape-graph-ui/graphviz/layout/cytoscape-graph-constants";
+import {findBestPosition} from "@/pure/graph/positioning/findBestPosition";
+import {extractObstaclesFromCytoscape} from "@/shell/edge/UI-edge/floating-windows/extractObstaclesFromCytoscape";
 
 /**
  * Anchor a floating window to a parent node
@@ -54,142 +56,32 @@ export function anchorToNode(
     const fwId: EditorId | TerminalId | ImageViewerId = getFloatingWindowId(fw);
     const shadowNodeId: ShadowNodeId = getShadowNodeId(fwId);
 
-    // Find best direction to spawn terminal based on available space and neighborhood
+    // Find best direction to spawn floating window based on available space and neighborhood
     const parentPos: cytoscape.Position = parentNode.position();
     const shadowDimensions: { width: number; height: number } = fw.shadowNodeDimensions;
-    const parentWidth: number = parentNode.width();
-    const parentHeight: number = parentNode.height();
-    const gap: number = 20;
 
-    // Cardinal directions
-    type Direction = { dx: number; dy: number };
-    const directions: Direction[] = [
-        {dx: 1, dy: 0},   // right
-        {dx: -1, dy: 0},  // left
-        {dx: 0, dy: 1},   // below
-        {dx: 0, dy: -1},  // above
-    ];
-
-    // AABB overlap check
-    type BBox = { x1: number; x2: number; y1: number; y2: number };
-    const rectsOverlap: (a: BBox, b: BBox) => boolean = (a: BBox, b: BBox): boolean => {
-        return a.x1 < b.x2 && a.x2 > b.x1 && a.y1 < b.y2 && a.y2 > b.y1;
-    };
-
-    // Get nearby nodes to check for collisions (including shadow nodes for other floating windows)
-    // O(k) where k = nodes within distance 3 from parent, instead of O(N) for all nodes
-    const existingNodes: cytoscape.NodeCollection = parentNode
-        .closedNeighborhood()  // distance 1
-        .closedNeighborhood()  // distance 2
-        .closedNeighborhood()  // distance 3
-        .filter('node');       // filter to just nodes, exclude edges
-    // // DEBUG: Log all existing nodes and their dimensions for collision detection
-    // //console.log('[anchorToNode] Checking collisions. Total nodes:', existingNodes.length);
-    // existingNodes.forEach((node: cytoscape.NodeSingular) => {
-    //     if (node.id() === parentNodeId) return;
-    //     const pos: cytoscape.Position = node.position();
-    //     const w: number = node.width();
-    //     const h: number = node.height();
-    //     const isShadow: boolean = node.data('isShadowNode') === true;
-    //     //console.log(`[anchorToNode]   Node: ${node.id()}, isShadow: ${isShadow}, pos: (${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}), dims: ${w.toFixed(1)}x${h.toFixed(1)}`);
-    // });
-    // //console.log(`[anchorToNode] Terminal shadowDimensions: ${shadowDimensions.width}x${shadowDimensions.height}`);
-    //
     // Calculate desired angle using angle continuation heuristic:
     // Find the grandparent (task node) and continue the angle from task -> context -> terminal
     const incomingEdges: cytoscape.EdgeCollection = parentNode.incomers('edge').filter(
         (e: cytoscape.EdgeSingular) => !e.source().data('isShadowNode')
     );
-    let desiredAngle: number;
-    if (incomingEdges.length > 0) {
-        // Use first incoming edge's source as grandparent (task node)
-        const grandparentNode: cytoscape.NodeSingular = incomingEdges[0].source();
-        const grandparentPos: cytoscape.Position = grandparentNode.position();
-        // Angle from grandparent -> context node, which we want to continue
-        desiredAngle = Math.atan2(parentPos.y - grandparentPos.y, parentPos.x - grandparentPos.x);
-    } else {
-        // No grandparent (context node is root), default to right (angle 0)
-        desiredAngle = 0;
-    }
+    const desiredAngleDeg: number = incomingEdges.length > 0
+        ? (Math.atan2(
+            parentPos.y - incomingEdges[0].source().position().y,
+            parentPos.x - incomingEdges[0].source().position().x
+        ) * 180) / Math.PI
+        : 0; // No grandparent (context node is root), default to right
 
-    // Calculate candidate positions and filter by no-overlap
-    // Position is calculated to ensure no overlap with parent node, using the larger of:
-    // - DEFAULT_EDGE_LENGTH (standard edge length for graph aesthetics)
-    // - dimension-based offset (ensures large windows don't overlap parent)
-    const candidates: { pos: { x: number; y: number }; angleDiff: number }[] = [];
-    for (const dir of directions) {
-        // Calculate minimum offset to avoid overlapping with parent node
-        const dimensionOffsetX: number = (shadowDimensions.width / 2) + (parentWidth / 2) + gap;
-        const dimensionOffsetY: number = (shadowDimensions.height / 2) + (parentHeight / 2) + gap;
-        // Use the larger of DEFAULT_EDGE_LENGTH or dimension-based offset
-        const offsetX: number = dir.dx * Math.max(DEFAULT_EDGE_LENGTH, dimensionOffsetX);
-        const offsetY: number = dir.dy * Math.max(DEFAULT_EDGE_LENGTH, dimensionOffsetY);
-        const actualPos: { x: number; y: number } = {
-            x: parentPos.x + offsetX,
-            y: parentPos.y + offsetY
-        };
-
-        // Calculate terminal bounding box at ACTUAL position (not candidate position)
-        const terminalBBox: BBox = {
-            x1: actualPos.x - shadowDimensions.width / 2,
-            x2: actualPos.x + shadowDimensions.width / 2,
-            y1: actualPos.y - shadowDimensions.height / 2,
-            y2: actualPos.y + shadowDimensions.height / 2
-        };
-
-        // Check overlap with existing nodes
-        // Note: Use node.width()/height() instead of boundingBox() because boundingBox()
-        // can return incorrect values for shadow nodes in certain scenarios
-        // TODO: If terminal/editor collision bug persists, it's likely a race condition
-        // where the context node position hasn't been set yet when this runs
-        let hasOverlap: boolean = false;
-        existingNodes.forEach((node: cytoscape.NodeSingular) => {
-            if (node.id() === parentNodeId) return;
-            const pos: cytoscape.Position = node.position();
-            const w: number = node.width();
-            const h: number = node.height();
-            const nodeBBox: BBox = {
-                x1: pos.x - w / 2,
-                x2: pos.x + w / 2,
-                y1: pos.y - h / 2,
-                y2: pos.y + h / 2
-            };
-            if (rectsOverlap(terminalBBox, nodeBBox)) {
-                hasOverlap = true;
-            }
-        });
-
-        // DEBUG: Log overlap detection result
-        const _dirName: string = dir.dx === 1 ? 'right' : dir.dx === -1 ? 'left' : dir.dy === 1 ? 'below' : 'above';
-        //console.log(`[anchorToNode] Direction ${dirName}: hasOverlap=${hasOverlap}, candidatePos=(${actualPos.x.toFixed(1)}, ${actualPos.y.toFixed(1)})`);
-
-        if (!hasOverlap) {
-            // Calculate angle from context -> terminal candidate
-            const candidateAngle: number = Math.atan2(actualPos.y - parentPos.y, actualPos.x - parentPos.x);
-            // Calculate absolute angle difference (normalized to [0, PI])
-            let angleDiff: number = Math.abs(candidateAngle - desiredAngle);
-            if (angleDiff > Math.PI) {
-                angleDiff = 2 * Math.PI - angleDiff;
-            }
-            candidates.push({pos: actualPos, angleDiff});
-        }
-    }
-
-    // Pick candidate with minimum angle difference (closest to continuation angle)
-    let childPosition: { x: number; y: number };
-    if (candidates.length > 0) {
-        candidates.sort((a, b) => a.angleDiff - b.angleDiff);
-        // Use the chosen position directly (already at DEFAULT_EDGE_LENGTH from parent)
-        childPosition = candidates[0].pos;
-        //console.log(`[anchorToNode] Chose position from ${candidates.length} candidates: (${childPosition.x.toFixed(1)}, ${childPosition.y.toFixed(1)})`);
-    } else {
-        // Fallback to right if all directions blocked
-        childPosition = {
-            x: parentPos.x + DEFAULT_EDGE_LENGTH,
-            y: parentPos.y
-        };
-        //console.log(`[anchorToNode] FALLBACK to right (all directions blocked): (${childPosition.x.toFixed(1)}, ${childPosition.y.toFixed(1)})`);
-    }
+    // Extract obstacles from cytoscape neighborhood and find best collision-free position
+    const obstacles: readonly import('@/pure/graph/positioning/findBestPosition').ObstacleBBox[] = extractObstaclesFromCytoscape(cy, parentNodeId);
+    const childPosition: import('@/pure/graph').Position = findBestPosition(
+        { x: parentPos.x, y: parentPos.y },
+        desiredAngleDeg,
+        DEFAULT_EDGE_LENGTH,
+        { width: shadowDimensions.width, height: shadowDimensions.height },
+        obstacles,
+        { parentWidth: parentNode.width(), parentHeight: parentNode.height(), gap: 20 }
+    );
 
     // Create shadow node (follows parent position via listener below)
     const shadowNode: cytoscape.CollectionReturnValue = cy.add({

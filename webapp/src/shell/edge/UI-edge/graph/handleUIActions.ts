@@ -20,6 +20,7 @@ import {
     createFloatingEditorForUICreatedNode
 } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 import * as O from 'fp-ts/lib/Option.js';
+import {calculateCollisionAwareChildPosition} from "@/shell/edge/UI-edge/floating-windows/extractObstaclesFromCytoscape";
 
 /**
  * Merges new metadata with old metadata, preferring new values when they are "present".
@@ -53,8 +54,11 @@ export async function createNewChildNodeFromUI(
     // Get parent node from graph
     const parentNode: GraphNode = currentGraph.nodes[parentNodeId];
 
+    // Calculate collision-aware position using live cytoscape data
+    const position: Position = calculateCollisionAwareChildPosition(cy, parentNodeId, currentGraph);
+
     // Create GraphDelta (contains both child and updated parent with edge)
-    const graphDelta: GraphDelta = fromCreateChildToUpsertNode(currentGraph, parentNode); //todo this only actually needs parent and grandparent, maybe we can have derived backlinks
+    const graphDelta: GraphDelta = fromCreateChildToUpsertNode(currentGraph, parentNode, "# ", undefined, O.some(position));
     const newNode: GraphNode = (graphDelta[0] as UpsertNodeDelta).nodeToUpsert;
 
     // GRAPH UI CHANGE path: update editor passively BEFORE writing to FS

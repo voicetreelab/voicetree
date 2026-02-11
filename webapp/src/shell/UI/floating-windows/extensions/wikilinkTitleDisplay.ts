@@ -17,7 +17,7 @@ import {
     ViewUpdate,
     type DecorationSet,
 } from '@codemirror/view';
-import { RangeSet, type Range, type Line } from '@codemirror/state';
+import { RangeSet, type Range, type Line, type EditorState, type SelectionRange, type Extension } from '@codemirror/state';
 import type { Core, NodeSingular } from 'cytoscape';
 import { linkMatchScore, getPathComponents } from '@/pure/graph/markdown-parsing/extract-edges';
 
@@ -86,8 +86,8 @@ function findNodeForWikilink(linkText: string): WikilinkNodeMatch | null {
  */
 function buildViewportDecorations(view: EditorView): DecorationSet {
     const decorations: Range<Decoration>[] = [];
-    const state = view.state;
-    const cursor = state.selection.main;
+    const state: EditorState = view.state;
+    const cursor: SelectionRange = state.selection.main;
 
     // Only iterate lines in visible ranges (viewport optimization)
     for (const { from, to } of view.visibleRanges) {
@@ -152,9 +152,13 @@ class WikilinkTitlePlugin {
     }
 
     update(update: ViewUpdate): void {
-        // Rebuild when selection changes (to toggle editing class)
-        // or when document/viewport changes
-        if (update.selectionSet || update.docChanged || update.viewportChanged) {
+        // Rebuild when selection changes (to toggle editing class),
+        // document/viewport changes, or focus changes.
+        // focusChanged is needed because when a child node is created, the parent editor
+        // gets the wikilink BEFORE the child exists in cytoscape. When the child editor
+        // steals focus, the parent's focusChanged fires and the child IS now in cytoscape,
+        // so the decoration resolves correctly.
+        if (update.selectionSet || update.docChanged || update.viewportChanged || update.focusChanged) {
             this.decorations = buildViewportDecorations(update.view);
         }
     }
@@ -164,12 +168,12 @@ class WikilinkTitlePlugin {
  * Click handler for wikilink navigation.
  * Uses event delegation - listens on editor, checks if target is a wikilink.
  */
-const wikilinkClickHandler = EditorView.domEventHandlers({
-    mousedown(event: MouseEvent, view: EditorView): boolean {
+const wikilinkClickHandler: Extension = EditorView.domEventHandlers({
+    mousedown(event: MouseEvent, _view: EditorView): boolean {
         // Only handle left clicks
         if (event.button !== 0) return false;
 
-        const target = event.target as HTMLElement;
+        const target: HTMLElement = event.target as HTMLElement;
 
         // Check if clicked on a wikilink title chip
         if (!target.classList.contains('cm-wikilink-title')) return false;
@@ -177,7 +181,7 @@ const wikilinkClickHandler = EditorView.domEventHandlers({
         // Don't navigate if in editing mode (cursor inside)
         if (target.classList.contains('cm-wikilink-editing')) return false;
 
-        const nodeId = target.dataset.nodeId;
+        const nodeId: string | undefined = target.dataset.nodeId;
         if (!nodeId) return false;
 
         event.preventDefault();
@@ -195,7 +199,7 @@ const wikilinkClickHandler = EditorView.domEventHandlers({
  * CSS styles for wikilink title display.
  * Uses ::after pseudo-element to show title without changing DOM structure.
  */
-const wikilinkStyles = EditorView.baseTheme({
+const wikilinkStyles: Extension = EditorView.baseTheme({
     '.cm-wikilink-title': {
         // Hide the original node ID text
         fontSize: '0',
@@ -229,7 +233,7 @@ const wikilinkStyles = EditorView.baseTheme({
  * CodeMirror extension for wikilink title display.
  * Uses Mark decorations + CSS for stable cursor behavior.
  */
-export function wikilinkTitleDisplay() {
+export function wikilinkTitleDisplay(): Extension[] {
     return [
         ViewPlugin.fromClass(WikilinkTitlePlugin, {
             decorations: (plugin) => plugin.decorations,

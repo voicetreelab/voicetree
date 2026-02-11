@@ -99,7 +99,7 @@ export default defineConfig({
     },
     server: {
       port: parseInt(process.env.DEV_SERVER_PORT || '3000'),
-      strictPort: true,
+      strictPort: false,
       host: true,
       hmr: false, // Disable HMR - use electron:watch script if you want hot reload
       watch: {

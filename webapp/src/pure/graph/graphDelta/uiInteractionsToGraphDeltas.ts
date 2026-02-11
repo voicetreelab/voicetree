@@ -52,6 +52,7 @@ export function fromCreateChildToUpsertNode(
     parentNode: GraphNode,
     newNodeContent: string = "# ",
     newFilePathIsID: NodeIdAndFilePath = generateChildNodeId(parentNode),
+    positionOverride?: O.Option<Position>,
 ): GraphDelta {
     // Ensure the node ID is unique by appending _2, _3, etc. if collision exists
     const existingIds: ReadonlySet<string> = new Set(Object.keys(graph.nodes))
@@ -67,8 +68,8 @@ export function fromCreateChildToUpsertNode(
         contentWithoutYamlOrLinks: parsedNode.contentWithoutYamlOrLinks,
         nodeUIMetadata: {
             ...parsedNode.nodeUIMetadata,
-            // Use calculated position (not specified by content)
-            position: calculateInitialPositionForChild(parentNode, graph, undefined, DEFAULT_EDGE_LENGTH),
+            // Use override if provided, otherwise calculate from pure graph data
+            position: positionOverride ?? calculateInitialPositionForChild(parentNode, graph, undefined, DEFAULT_EDGE_LENGTH),
         },
     }
 
