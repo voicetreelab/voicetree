@@ -111,7 +111,7 @@ async function notifyAgentOfUnseenNodes(terminalId: string, record: TerminalReco
             return `- ${title} (${node.nodeId})`
         }).join('\n')
 
-        const message: string = `\n\n[ voicetree-stop-hook ] New nodes created nearby while you were working:\n${nodeList}\n\nReminder: If you haven't yet, create a progress tree to document your work (see addProgressTree.md).\n\n`
+        const message: string = `\n\n[ voicetree-stop-hook ] New nodes created nearby while you were working:\n${nodeList}\n\nIf you don't have an up to date progress node, read addProgressTree.md to create multiple nodes to document your work.\n\n`
 
         // Send to terminal using escape-code + char-by-char approach
         await sendTextToTerminal(terminalId, message)
