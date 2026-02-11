@@ -1,7 +1,7 @@
 import {getTerminalId, getShadowNodeId, type TerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 import type {CollectionReturnValue, Core, Position as CyPosition} from "cytoscape";
 import {getCyInstance} from "@/shell/edge/UI-edge/state/cytoscape-state";
-import {createFloatingTerminal} from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
+import {createFloatingTerminal} from "@/shell/edge/UI-edge/floating-windows/terminals/createFloatingTerminal";
 import {setTerminalUI, getTerminalByNodeId} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {vanillaFloatingWindowInstances} from "@/shell/edge/UI-edge/state/UIAppState";
 import {cySmartCenter} from "@/utils/responsivePadding";
