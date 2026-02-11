@@ -102,12 +102,11 @@ If you already have a node detailing the task, use nodeId. Otherwise, use task+p
             inputSchema: {
                 terminalIds: z.array(z.string()).describe('Array of terminal IDs to wait for'),
                 callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),
-                pollIntervalMs: z.number().optional().describe('Poll interval in ms (default: 5000)'),
-                timeoutMs: z.number().optional().describe('Max wait time in ms (default: 1200000)')
+                pollIntervalMs: z.number().optional().describe('Poll interval in ms (default: 5000)')
             }
         },
-        async ({terminalIds, callerTerminalId, pollIntervalMs, timeoutMs}) =>
-            waitForAgentsTool({terminalIds, callerTerminalId, pollIntervalMs, timeoutMs})
+        async ({terminalIds, callerTerminalId, pollIntervalMs}) =>
+            waitForAgentsTool({terminalIds, callerTerminalId, pollIntervalMs})
     )
 
     // Tool: get_unseen_nodes_nearby

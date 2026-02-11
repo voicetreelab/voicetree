@@ -490,11 +490,10 @@ describe('MCP wait_for_agents tool', () => {
             terminalIds: ['agent-a-terminal-0'],
             callerTerminalId: 'caller-terminal-1',
             pollIntervalMs: 100,
-            timeoutMs: 250 // Short timeout for test
         })
 
-        // Advance timers past timeout
-        await vi.advanceTimersByTimeAsync(300)
+        // Advance timers past the 30 minute timeout
+        await vi.advanceTimersByTimeAsync(1800001)
 
         const response: McpToolResponse = await responsePromise
         const payload: {
