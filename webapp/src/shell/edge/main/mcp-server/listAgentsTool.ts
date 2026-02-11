@@ -25,7 +25,7 @@ export async function listAgentsTool(): Promise<McpToolResponse> {
             continue
         }
 
-        const contextNodeId: string = record.terminalData.attachedToNodeId
+        const contextNodeId: string = record.terminalData.attachedToContextNodeId
         const agentName: string | undefined = record.terminalData.agentName
 
         // Find nodes created by this agent via agent_name matching

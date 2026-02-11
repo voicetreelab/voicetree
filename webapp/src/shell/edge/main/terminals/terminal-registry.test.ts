@@ -100,7 +100,7 @@ describe('Terminal Registry - Phase 1: Expand Registry', () => {
             expect(record.terminalId).toBe('complete-node.md-terminal-1')
             expect(record.status).toBe('running')
             expect(record.terminalData.type).toBe('Terminal')
-            expect(record.terminalData.attachedToNodeId).toBe('complete-node.md')
+            expect(record.terminalData.attachedToContextNodeId).toBe('complete-node.md')
             expect(record.terminalData.terminalCount).toBe(1)
             expect(record.terminalData.title).toBe('Complete Terminal')
             expect(record.terminalData.isPinned).toBe(true)

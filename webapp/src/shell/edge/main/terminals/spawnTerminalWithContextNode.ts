@@ -144,7 +144,7 @@ export async function spawnTerminalWithContextNode(
  * Equivalent to the UI-side prepareTerminalData function, but using
  * main process state access (graph-store, settings, watchFolder).
  *
- * @param contextNodeId - The context node containing agent context (attachedToNodeId)
+ * @param contextNodeId - The context node containing agent context (attachedToContextNodeId)
  * @param taskNodeId - The task node to anchor the terminal shadow to (anchoredToNodeId)
  * @param parentTerminalId - Parent terminal ID for tree-style tabs (used for MCP spawn_agent)
  */
@@ -238,7 +238,7 @@ async function prepareTerminalDataInMain(
 
     // Create TerminalData using the factory function (flat type, no nested floatingWindow)
     // anchoredToNodeId = taskNodeId (shadow node connects to task node)
-    // attachedToNodeId = contextNodeId (for metadata, env vars, and shadow→context edge)
+    // attachedToContextNodeId = contextNodeId (for metadata, env vars, and shadow→context edge)
     const terminalData: TerminalData = createTerminalData({
         terminalId: terminalId, // terminalId = agentName (unified)
         attachedToNodeId: contextNodeId,

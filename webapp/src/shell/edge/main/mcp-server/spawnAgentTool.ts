@@ -126,7 +126,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, details, p
                 (r: TerminalRecord) => r.terminalId === callerTerminalId
             )
             if (callerRecord) {
-                const callerContextNodeId: string = callerRecord.terminalData.attachedToNodeId
+                const callerContextNodeId: string = callerRecord.terminalData.attachedToContextNodeId
                 const updatedGraph: Graph = getGraph()
                 const callerContextNode: GraphNode | undefined = updatedGraph.nodes[callerContextNodeId]
                 if (callerContextNode?.nodeUIMetadata.containedNodeIds) {

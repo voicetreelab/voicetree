@@ -109,7 +109,7 @@ export function createTerminalData(params: CreateTerminalDataParams): TerminalDa
     return {
         type: 'Terminal',
         terminalId: params.terminalId,
-        attachedToNodeId: params.attachedToNodeId,
+        attachedToContextNodeId: params.attachedToNodeId,
         terminalCount: params.terminalCount,
         title: params.title,
         anchoredToNodeId: params.anchoredToNodeId ? O.some(params.anchoredToNodeId) : O.none,
@@ -118,7 +118,7 @@ export function createTerminalData(params: CreateTerminalDataParams): TerminalDa
         initialCommand: params.initialCommand,
         executeCommand: params.executeCommand,
         resizable: params.resizable ?? true,
-        shadowNodeDimensions: params.shadowNodeDimensions ?? { width: 340, height: 380 }, // matches getDefaultDimensions('Terminal')
+        shadowNodeDimensions: params.shadowNodeDimensions ?? { width: 370, height: 380 }, // matches getDefaultDimensions('Terminal')
         // Tab UI state defaults
         isPinned: params.isPinned ?? true,  // New terminals start pinned by default
         isDone: false,          // Running initially

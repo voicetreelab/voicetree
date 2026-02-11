@@ -12,7 +12,7 @@ function createTerminal(
   return {
     type: 'Terminal',
     terminalId: terminalId as TerminalId,
-    attachedToNodeId: 'test-node.md',
+    attachedToContextNodeId: 'test-node.md',
     terminalCount: 1,
     title,
     isPinned: true,

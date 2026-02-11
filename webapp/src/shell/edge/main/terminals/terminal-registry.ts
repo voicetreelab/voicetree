@@ -56,7 +56,7 @@ function pushStateToRenderer(): void {
  */
 async function notifyAgentOfUnseenNodes(terminalId: string, record: TerminalRecord): Promise<void> {
     try {
-        const contextNodeId: NodeIdAndFilePath = record.terminalData.attachedToNodeId
+        const contextNodeId: NodeIdAndFilePath = record.terminalData.attachedToContextNodeId
         const agentName: string = record.terminalData.agentName
 
         // Get or initialize notification state
@@ -296,7 +296,7 @@ export function getIdleSince(terminalId: string): number | null {
 export function getNextTerminalCountForNode(nodeId: NodeIdAndFilePath): number {
     let maxCount: number = -1
     for (const record of terminalRecords.values()) {
-        if (record.terminalData.attachedToNodeId === nodeId) {
+        if (record.terminalData.attachedToContextNodeId === nodeId) {
             maxCount = Math.max(maxCount, record.terminalData.terminalCount)
         }
     }

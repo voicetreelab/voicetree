@@ -138,7 +138,7 @@ export function getTerminal(terminalId: TerminalId): Option<TerminalData> {
 
 export function getTerminalByNodeId(nodeId: NodeIdAndFilePath): Option<TerminalData> {
     for (const terminal of terminals.values()) {
-        if (terminal.attachedToNodeId === nodeId) {
+        if (terminal.attachedToContextNodeId === nodeId) {
             return O.some(terminal);
         }
     }
@@ -218,7 +218,7 @@ export function getNextTerminalCount(
 ): number {
     let maxCount: number = -1;
     for (const data of terminalsMap.values()) {
-        if (data.attachedToNodeId === nodeId && data.terminalCount > maxCount) {
+        if (data.attachedToContextNodeId === nodeId && data.terminalCount > maxCount) {
             maxCount = data.terminalCount;
         }
     }

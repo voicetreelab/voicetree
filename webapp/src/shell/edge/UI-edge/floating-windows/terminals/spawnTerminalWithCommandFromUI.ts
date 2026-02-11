@@ -449,7 +449,7 @@ export async function closeTerminal(terminal: TerminalData, cy: Core): Promise<v
     if (!terminal.ui) {
         console.error('[closeTerminal] BUG: terminal.ui is undefined!', {
             terminalId,
-            attachedToNodeId: terminal.attachedToNodeId,
+            attachedToNodeId: terminal.attachedToContextNodeId,
         });
     }
 
@@ -491,7 +491,7 @@ export async function closeTerminal(terminal: TerminalData, cy: Core): Promise<v
     }
 
     // Delete the context node if this was the last terminal attached to it
-    await deleteContextNodeIfLastTerminal(terminal.attachedToNodeId, cy);
+    await deleteContextNodeIfLastTerminal(terminal.attachedToContextNodeId, cy);
 }
 
 /**
@@ -513,7 +513,7 @@ async function deleteContextNodeIfLastTerminal(nodeId: NodeIdAndFilePath, cy: Co
         // Check if other terminals are still attached (current terminal already removed from store)
         const terminals: Map<TerminalId, TerminalData> = getTerminals();
         const remainingTerminals: TerminalData[] = Array.from(terminals.values())
-            .filter((t: TerminalData) => t.attachedToNodeId === nodeId);
+            .filter((t: TerminalData) => t.attachedToContextNodeId === nodeId);
 
         if (remainingTerminals.length > 0) {
             //console.log('[closeTerminal] Other terminals still attached, not deleting context node:', nodeId);

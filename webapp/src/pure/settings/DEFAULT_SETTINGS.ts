@@ -92,7 +92,7 @@ Before starting work, answer: Does this task have 2+ distinct concerns or phases
 YES → Decompose into nodes and spawn voicetree agents first (mcp__voicetree__spawn_agent). Users get visibility into subagent work this way—built-in subagents are a black box.
 NO → Proceed directly.
 
-See addProgressTree.md for decomposition patterns.
+See decompose_subtask_dependency_graph.md for decomposition / dependency graph patterns.
 </ORCHESTRATION>
 <TASK_NODES_INSTRUCTION>
 For the entire duration of this session, before you report completion to the user for any query, task, sub-task, proposal, or other form of non-trivial progress, you MUST create progress node(s) documenting your work.

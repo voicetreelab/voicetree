@@ -74,7 +74,7 @@ export async function cleanupOrphanedContextNodes(): Promise<void> {
 
     // Get all node IDs attached to active terminals
     const activeTerminalNodeIds: Set<string> = new Set(
-        getTerminalRecords().map(record => record.terminalData.attachedToNodeId)
+        getTerminalRecords().map(record => record.terminalData.attachedToContextNodeId)
     );
 
     // Find orphaned context nodes (not attached to any terminal)

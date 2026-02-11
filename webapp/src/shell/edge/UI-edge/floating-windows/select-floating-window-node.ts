@@ -31,7 +31,7 @@ export function selectFloatingWindowNode(
         if (isEditorData(fwData)) {
             nodeIdToSelect = fwData.contentLinkedToNodeId;
         } else if (isTerminalData(fwData)) {
-            nodeIdToSelect = fwData.attachedToNodeId;
+            nodeIdToSelect = fwData.attachedToContextNodeId;
             setActiveTerminalId(getTerminalId(fwData));
         }
     } else if (O.isSome(fw.anchoredToNodeId)) {

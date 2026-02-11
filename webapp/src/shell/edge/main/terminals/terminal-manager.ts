@@ -310,7 +310,7 @@ export default class TerminalManager {
       customEnv.OBSIDIAN_VAULT_PATH = vaultPath ?? '';
       customEnv.WATCHED_FOLDER = vaultPath ?? undefined;
 
-      // Set node-based environment variables from attachedToNodeId
+      // Set node-based environment variables from attachedToContextNodeId
 
       // OTEL telemetry env vars - enables Claude Code to send metrics to our OTLP receiver
       const otlpPort: number | null = getOTLPReceiverPort();
