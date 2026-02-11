@@ -5,38 +5,55 @@
  * Decoupled from TerminalManager for easy removal if feature proves not useful.
  */
 
-const MAX_LINES = 100
-
-// ANSI escape code pattern
-const ANSI_PATTERN = /\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g
+const MAX_LINES: number = 100
 
 // terminalId -> array of lines (ring buffer)
-const buffers = new Map<string, string[]>()
+const buffers: Map<string, string[]> = new Map<string, string[]>()
 
 // Partial line buffer for incomplete lines (data may arrive mid-line)
-const partialLines = new Map<string, string>()
+const partialLines: Map<string, string> = new Map<string, string>()
+
+/* eslint-disable no-control-regex */
+// These regexes intentionally match terminal control characters (ESC, BEL, C1 codes)
+const OSC_PATTERN: RegExp = /\x1B\][^\x07\x1B\n]*(?:\x07|\x1B\\)?/g
+const DCS_PATTERN: RegExp = /\x1B[PX^_][^\x1B\n]*(?:\x1B\\)?/g
+const CSI_PATTERN: RegExp = /\x1B\[[0-?]*[ -/]*[@-~]/g
+const ESC2_PATTERN: RegExp = /\x1B[@-Z\\-_]/g
+const C1_PATTERN: RegExp = /[\x80-\x9F]/g
+/* eslint-enable no-control-regex */
 
 /**
  * Sanitize terminal output to only include printable ASCII characters.
- * - Strips ANSI escape codes
- * - Removes carriage returns (\r)
- * - Removes literal backslash-escape sequences (e.g., \n, \r, \t)
- * - Keeps only printable ASCII (32-126) and newlines (10)
+ * Strips all ANSI/terminal escape sequences including OSC (hyperlinks, titles),
+ * CSI (cursor/color), DCS, and other control sequences.
  */
 function sanitizeOutput(data: string): string {
-    // Strip ANSI escape codes first
-    let cleaned = data.replace(ANSI_PATTERN, '')
+    let cleaned: string = data
 
-    // Remove carriage returns
+    // 1. Strip OSC sequences: ESC ] <body> BEL  or  ESC ] <body> ST
+    //    These carry hyperlinks (OSC 8), titles (OSC 0/2), shell integration (OSC 133), etc.
+    //    The body can be long — must consume it all, not just the ESC ] prefix.
+    cleaned = cleaned.replace(OSC_PATTERN, '')
+
+    // 2. Strip DCS/SOS/PM/APC sequences: ESC P/X/^/_ <body> ST
+    cleaned = cleaned.replace(DCS_PATTERN, '')
+
+    // 3. Strip CSI sequences: ESC [ <params> <intermediate> <final>
+    cleaned = cleaned.replace(CSI_PATTERN, '')
+
+    // 4. Strip remaining 2-char ESC sequences
+    cleaned = cleaned.replace(ESC2_PATTERN, '')
+
+    // 5. Strip 8-bit C1 control codes
+    cleaned = cleaned.replace(C1_PATTERN, '')
+
+    // 6. Remove carriage returns
     cleaned = cleaned.replace(/\r/g, '')
 
-    // Remove literal backslash-escape sequences (e.g., \n, \r, \t, etc.)
-    cleaned = cleaned.replace(/\\./g, '')
-
-    // Filter to printable ASCII (32-126) and newline (10)
-    let result = ''
-    for (let i = 0; i < cleaned.length; i++) {
-        const code = cleaned.charCodeAt(i)
+    // 7. Filter to printable ASCII (32-126) and newline (10)
+    let result: string = ''
+    for (let i: number = 0; i < cleaned.length; i++) {
+        const code: number = cleaned.charCodeAt(i)
         if (code === 10 || (code >= 32 && code <= 126)) {
             result += cleaned[i]
         }
@@ -47,19 +64,19 @@ function sanitizeOutput(data: string): string {
 
 export function captureOutput(terminalId: string, data: string): void {
     // Sanitize input data before processing
-    const sanitized = sanitizeOutput(data)
+    const sanitized: string = sanitizeOutput(data)
 
-    const partial = partialLines.get(terminalId) ?? ''
-    const combined = partial + sanitized
+    const partial: string = partialLines.get(terminalId) ?? ''
+    const combined: string = partial + sanitized
 
     // Split on newlines, keeping partial line for next capture
-    const lines = combined.split('\n')
-    const newPartial = lines.pop() ?? ''
+    const lines: string[] = combined.split('\n')
+    const newPartial: string = lines.pop() ?? ''
     partialLines.set(terminalId, newPartial)
 
     if (lines.length === 0) return
 
-    const buffer = buffers.get(terminalId) ?? []
+    const buffer: string[] = buffers.get(terminalId) ?? []
     buffer.push(...lines)
 
     // Keep only last MAX_LINES
@@ -71,12 +88,22 @@ export function captureOutput(terminalId: string, data: string): void {
 }
 
 export function getOutput(terminalId: string, nLines: number = MAX_LINES): string | undefined {
-    const buffer = buffers.get(terminalId)
+    const buffer: string[] | undefined = buffers.get(terminalId)
     if (!buffer) return undefined
 
-    const linesToReturn = buffer.slice(-Math.min(nLines, MAX_LINES))
-    // Output is already sanitized at capture time
-    return linesToReturn.join('\n')
+    const linesToReturn: string[] = buffer.slice(-Math.min(nLines, MAX_LINES))
+
+    // Collapse consecutive empty lines to reduce noise from stripped escape sequences
+    const collapsed: string[] = []
+    let prevEmpty: boolean = false
+    for (const line of linesToReturn) {
+        const isEmpty: boolean = line.trim() === ''
+        if (isEmpty && prevEmpty) continue
+        collapsed.push(line)
+        prevEmpty = isEmpty
+    }
+
+    return collapsed.join('\n')
 }
 
 export function clearBuffer(terminalId: string): void {

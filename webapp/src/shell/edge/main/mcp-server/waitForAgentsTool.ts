@@ -5,11 +5,12 @@
 
 import type {Graph} from '@/pure/graph'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
-import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
+import {getTerminalRecords, getIdleSince, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 import {type McpToolResponse, buildJsonResponse} from './types'
 import {getNewNodesForAgent} from './getNewNodesForAgent'
 
 const TIMEOUT_MS: number = 1800000 // 30 minutes
+const SUSTAINED_IDLE_MS: number = 15_000 // 15 seconds — agent must be idle this long before considered done
 
 export interface WaitForAgentsParams {
     terminalIds: string[]
@@ -36,12 +37,14 @@ export async function waitForAgentsTool({
     }
 
     // Helper to determine agent status: exited > idle (isDone) > running
-    const getAgentStatus = (r: TerminalRecord): 'running' | 'idle' | 'exited' =>
-        r.status === 'exited' ? 'exited' : r.terminalData.isDone ? 'idle' : 'running'
+    const getAgentStatus: (r: TerminalRecord) => 'running' | 'idle' | 'exited' =
+        (r: TerminalRecord): 'running' | 'idle' | 'exited' =>
+            r.status === 'exited' ? 'exited' : r.terminalData.isDone ? 'idle' : 'running'
 
     // 3. Poll until all are idle/exited AND have created nodes, or timeout reached
     const startTime: number = Date.now()
     while (Date.now() - startTime < TIMEOUT_MS) {
+        const now: number = Date.now()
         const currentRecords: TerminalRecord[] = getTerminalRecords()
         const targetRecords: TerminalRecord[] = currentRecords.filter(
             (r: TerminalRecord) => terminalIds.includes(r.terminalId)
@@ -56,13 +59,17 @@ export async function waitForAgentsTool({
             const agentName: string | undefined = r.terminalData.agentName
             const newNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(graph, agentName)
 
-            // Exited without creating a node = error state, but consider it "done"
-            // (will be reported via exitedWithoutNode in response)
-            if (status === 'exited' && newNodes.length === 0) {
+            // Exited agents are immediately done (can't come back)
+            if (status === 'exited') {
                 return true
             }
 
-            return newNodes.length > 0
+            // Idle agent without nodes — not done yet
+            if (newNodes.length === 0) return false
+
+            // Idle agent with nodes — only done if sustained idle for 15s
+            const idleSince: number | null = getIdleSince(r.terminalId)
+            return idleSince !== null && (now - idleSince) >= SUSTAINED_IDLE_MS
         })
 
         if (allDone) {

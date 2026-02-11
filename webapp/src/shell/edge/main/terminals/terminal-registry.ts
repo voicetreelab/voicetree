@@ -29,6 +29,16 @@ type UnseenNodesNotificationState = {
 const notificationStateByTerminal: Map<string, UnseenNodesNotificationState> = new Map()
 
 const NOTIFICATION_COOLDOWN_MS: number = 5 * 60 * 1000 // 5 minutes
+const STOP_HOOK_DELAY_MS: number = 30 * 1000 // 30 seconds — only notify after sustained idle
+
+const pendingNotificationTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map()
+
+/**
+ * Shared timestamp tracking when each terminal first became idle (isDone: false→true).
+ * Cleared when terminal becomes active again (isDone: true→false).
+ * Used by wait_for_agents (15s threshold) and notification hook (30s setTimeout).
+ */
+const idleSinceByTerminal: Map<string, number> = new Map()
 
 /**
  * Push current terminal state to renderer via uiAPI.
@@ -87,10 +97,15 @@ async function notifyAgentOfUnseenNodes(terminalId: string, record: TerminalReco
             (node: UnseenNode) => !notificationState.alertedNodeIds.has(node.nodeId)
         )
 
-        if (newUnseenNodes.length === 0) return
+        // Only notify about nodes in a voice folder
+        const voiceNodes: readonly UnseenNode[] = newUnseenNodes.filter(
+            (node: UnseenNode) => node.nodeId.includes('voice')
+        )
+
+        if (voiceNodes.length === 0) return
 
         // Format notification message (titles and file paths only)
-        const nodeList: string = newUnseenNodes.map((node: UnseenNode) => {
+        const nodeList: string = voiceNodes.map((node: UnseenNode) => {
             const graphNode: GraphNode | undefined = graph.nodes[node.nodeId]
             const title: string = graphNode ? getNodeTitle(graphNode) : node.nodeId
             return `- ${title} (${node.nodeId})`
@@ -103,7 +118,7 @@ async function notifyAgentOfUnseenNodes(terminalId: string, record: TerminalReco
 
         // Update tracking state
         notificationState.lastNotificationTime = now
-        for (const node of newUnseenNodes) {
+        for (const node of voiceNodes) {
             notificationState.alertedNodeIds.add(node.nodeId)
         }
     } catch (error) {
@@ -129,6 +144,37 @@ export function recordTerminalSpawn(terminalId: string, terminalData: TerminalDa
     pushStateToRenderer()
 }
 
+/**
+ * Wait N seconds, then check if the terminal is still idle before firing callback.
+ * Cancels any pending timeout for this terminal if it becomes active again.
+ */
+function wait_for_agent_to_still_be_done_after_n_seconds(
+    terminalId: string,
+    delayMs: number,
+    callback: (terminalId: string, record: TerminalRecord) => void
+): void {
+    // Clear any existing pending timeout for this terminal
+    const existing: ReturnType<typeof setTimeout> | undefined = pendingNotificationTimeouts.get(terminalId)
+    if (existing) clearTimeout(existing)
+
+    const timeout: ReturnType<typeof setTimeout> = setTimeout(() => {
+        pendingNotificationTimeouts.delete(terminalId)
+        const currentRecord: TerminalRecord | undefined = terminalRecords.get(terminalId)
+        if (currentRecord?.terminalData.isDone) {
+            callback(terminalId, currentRecord)
+        }
+    }, delayMs)
+    pendingNotificationTimeouts.set(terminalId, timeout)
+}
+
+function cancelPendingNotification(terminalId: string): void {
+    const existing: ReturnType<typeof setTimeout> | undefined = pendingNotificationTimeouts.get(terminalId)
+    if (existing) {
+        clearTimeout(existing)
+        pendingNotificationTimeouts.delete(terminalId)
+    }
+}
+
 export function updateTerminalIsDone(terminalId: string, isDone: boolean): void {
     const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
     if (!record) {
@@ -137,7 +183,6 @@ export function updateTerminalIsDone(terminalId: string, isDone: boolean): void 
 
     // Detect transition to idle (isDone: false -> true)
     const wasNotDone: boolean = !record.terminalData.isDone
-    const isNowDone: boolean = isDone
 
     terminalRecords.set(terminalId, {
         ...record,
@@ -145,9 +190,17 @@ export function updateTerminalIsDone(terminalId: string, isDone: boolean): void 
     })
     pushStateToRenderer()
 
-    // Hook: Notify agent of unseen nodes when transitioning to idle
-    if (wasNotDone && isNowDone) {
-        void notifyAgentOfUnseenNodes(terminalId, terminalRecords.get(terminalId)!)
+    if (wasNotDone && isDone) {
+        // Record when idle started — shared source of truth for wait_for_agents and notification hook
+        idleSinceByTerminal.set(terminalId, Date.now())
+        // Agent just became idle — wait 30s to confirm it's sustained before notifying
+        wait_for_agent_to_still_be_done_after_n_seconds(terminalId, STOP_HOOK_DELAY_MS, (tid, rec) => {
+            void notifyAgentOfUnseenNodes(tid, rec)
+        })
+    } else if (!isDone) {
+        // Agent became active again — clear idle timestamp and cancel any pending notification
+        idleSinceByTerminal.delete(terminalId)
+        cancelPendingNotification(terminalId)
     }
 }
 
@@ -206,6 +259,8 @@ export function removeTerminalFromRegistry(terminalId: string): void {
         terminalRecords.delete(terminalId)
         // Clean up notification tracking state
         notificationStateByTerminal.delete(terminalId)
+        idleSinceByTerminal.delete(terminalId)
+        cancelPendingNotification(terminalId)
         pushStateToRenderer()
     }
 }
@@ -224,8 +279,18 @@ export function getExistingAgentNames(): Set<string> {
 }
 
 export function clearTerminalRecords(): void {
+    // Cancel all pending notification timeouts
+    for (const timeout of pendingNotificationTimeouts.values()) {
+        clearTimeout(timeout)
+    }
+    pendingNotificationTimeouts.clear()
     terminalRecords.clear()
     notificationStateByTerminal.clear()
+    idleSinceByTerminal.clear()
+}
+
+export function getIdleSince(terminalId: string): number | null {
+    return idleSinceByTerminal.get(terminalId) ?? null
 }
 
 export function getNextTerminalCountForNode(nodeId: NodeIdAndFilePath): number {
