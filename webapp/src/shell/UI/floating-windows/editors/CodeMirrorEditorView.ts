@@ -5,7 +5,7 @@ import { vim } from '@replit/codemirror-vim';
 import { EditorState, type Extension } from '@codemirror/state';
 import type { Line } from '@codemirror/state';
 import { EditorView, ViewUpdate, ViewPlugin, keymap, tooltips } from '@codemirror/view';
-import { indentWithTab, indentMore, indentLess } from '@codemirror/commands';
+import { indentMore, indentLess } from '@codemirror/commands';
 import { basicSetup } from 'codemirror';
 import { startCompletion, acceptCompletion } from '@codemirror/autocomplete';
 import { syntaxHighlighting, foldService, HighlightStyle, defaultHighlightStyle } from '@codemirror/language';
@@ -55,6 +55,8 @@ import renderBlock from 'codemirror-rich-markdoc/src/renderBlock';
 import { Disposable } from '@/shell/UI/views/Disposable';
 import { EventEmitter } from '@/utils/EventEmitter';
 import { mermaidRender } from '@/shell/UI/floating-windows/extensions/mermaidRender';
+import { videoRender } from '@/shell/UI/floating-windows/extensions/videoRender';
+import { externalVideoRender } from '@/shell/UI/floating-windows/extensions/externalVideoRender';
 import { diffHighlight } from '@/shell/UI/floating-windows/extensions/diffHighlight';
 import { wikilinkCompletion } from '@/shell/UI/floating-windows/extensions/wikilinkCompletion';
 import { wikilinkTitleDisplay } from '@/shell/UI/floating-windows/extensions/wikilinkTitleDisplay';
@@ -216,6 +218,8 @@ export class CodeMirrorEditorView extends Disposable {
       keymap.of(markdownKeymap), // Enter continues lists, Backspace removes list markers
       richMarkdocPlugin, // Rich markdown editing (provides markdown, decorations, and syntax highlighting inside provide())
       mermaidRender(), // Render Mermaid diagrams in live preview
+      videoRender(), // Render ![[video.mp4]] wikilinks as inline video players
+      externalVideoRender(), // Render YouTube/Vimeo/Loom URLs as inline video embeds
       diffHighlight(), // Highlight diff lines (+/-) in code blocks with green/red backgrounds
       wikilinkCompletion(), // Autocomplete for [[wikilinks]] - shows nodes ordered by recency
       wikilinkTitleDisplay(), // Display node titles instead of IDs in [[wikilinks]] - uses Mark decorations + CSS
