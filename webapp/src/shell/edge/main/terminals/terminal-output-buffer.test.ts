@@ -46,9 +46,15 @@ describe('terminal-output-buffer', () => {
             expect(getOutput('t1', 10)).toBe('before\nafter')
         })
 
-        it('removes carriage returns', () => {
+        it('handles CRLF line endings', () => {
             captureOutput('t1', 'line one\r\nline two\r\n')
             expect(getOutput('t1', 10)).toBe('line one\nline two')
+        })
+
+        it('processes carriage return overwrites from TUI apps', () => {
+            // TUI apps use \r to overwrite the current line in-place
+            captureOutput('t1', 'Waiting for response...\rProcessing query...\rDone!\n')
+            expect(getOutput('t1', 10)).toBe('Done!')
         })
 
         it('strips 8-bit C1 control codes', () => {

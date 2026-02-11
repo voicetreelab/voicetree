@@ -3,7 +3,7 @@
  *
  * BEHAVIORAL SPEC:
  * Test 1: Worktree name (different from title) shows "⎇ display-name" in sidebar and floating badge
- * Test 2: Worktree name (matching title) shows just "⎇" in sidebar and floating badge (dedup)
+ * Test 2: Worktree name (matching title) still shows "⎇ display-name" in sidebar and floating badge (no dedup)
  *
  * Setup: Creates a temp git repo with worktrees, spawns terminals with spawnDirectory
  * pointing to worktree paths. Verifies DOM elements with correct display text.
@@ -295,10 +295,9 @@ test.describe('Worktree Display Name E2E', () => {
         const sidebarWorktreeText = await sidebarWorktree.textContent();
         console.log(`Sidebar worktree text: "${sidebarWorktreeText}"`);
 
-        // "wt-deploy-pipeline-x4f" → strip wt- prefix → "deploy-pipeline-x4f"
-        // The display name should be "⎇ deploy-pipeline-x4f" since it doesn't match the title
+        // "wt-deploy-pipeline-x4f" → displayed as "⎇ wt-deploy-pipeline-x4f"
         expect(sidebarWorktreeText).toContain('\u2387');
-        expect(sidebarWorktreeText).toContain('deploy-pipeline');
+        expect(sidebarWorktreeText).toContain('wt-deploy-pipeline-x4f');
 
         await appWindow.screenshot({
             path: 'e2e-tests/test-results/worktree-display-sidebar-different-name.png'
@@ -320,7 +319,7 @@ test.describe('Worktree Display Name E2E', () => {
         console.log(`Badge worktree text: "${badgeWorktreeText}"`);
 
         expect(badgeWorktreeText).toContain('\u2387');
-        expect(badgeWorktreeText).toContain('deploy-pipeline');
+        expect(badgeWorktreeText).toContain('wt-deploy-pipeline-x4f');
 
         await appWindow.screenshot({
             path: 'e2e-tests/test-results/worktree-display-badge-different-name.png'
@@ -330,7 +329,7 @@ test.describe('Worktree Display Name E2E', () => {
         console.log('PASSED: Different worktree name shows ⎇ display-name in both sidebar and badge');
     });
 
-    test('Test 2: Matching worktree name shows just ⎇ (dedup) in sidebar and floating badge', async ({ appWindow, tempGitRepoPath }) => {
+    test('Test 2: Matching worktree name still shows ⎇ display-name in sidebar and floating badge', async ({ appWindow, tempGitRepoPath }) => {
         test.setTimeout(60000);
 
         console.log('=== STEP 1: Wait for graph to load ===');
@@ -388,20 +387,20 @@ test.describe('Worktree Display Name E2E', () => {
         const treeNode = appWindow.locator(`.terminal-tree-node[data-terminal-id="${terminalId}"]`);
         await expect(treeNode).toBeVisible({ timeout: 10000 });
 
-        console.log('=== STEP 6: Assert .terminal-tree-worktree exists with just ⎇ ===');
+        console.log('=== STEP 6: Assert .terminal-tree-worktree exists with ⎇ display-name ===');
         const sidebarWorktree = treeNode.locator('.terminal-tree-worktree');
         await expect(sidebarWorktree).toBeVisible({ timeout: 5000 });
 
         const sidebarWorktreeText = await sidebarWorktree.textContent();
         console.log(`Sidebar worktree text: "${sidebarWorktreeText}"`);
 
-        // Also log the terminal title to verify the dedup comparison
+        // Also log the terminal title to verify both are shown
         const terminalTitle = await treeNode.locator('.terminal-tree-title-text').textContent();
         console.log(`Terminal title: "${terminalTitle}"`);
 
-        // Since we built the worktree name from the actual node title, dedup should trigger:
-        // worktreeDisplayName returns just "⎇" when names match
-        expect(sidebarWorktreeText).toBe('\u2387');
+        // Worktree name always shows full name (no dedup, no prefix stripping)
+        expect(sidebarWorktreeText).toContain('\u2387');
+        expect(sidebarWorktreeText).toContain(worktreeName);
 
         await appWindow.screenshot({
             path: 'e2e-tests/test-results/worktree-display-sidebar-matching-name.png'
@@ -411,7 +410,7 @@ test.describe('Worktree Display Name E2E', () => {
         await treeNode.click();
         await appWindow.waitForTimeout(500);
 
-        console.log('=== STEP 8: Assert floating terminal badge shows just ⎇ ===');
+        console.log('=== STEP 8: Assert floating terminal badge shows ⎇ with full name ===');
         const floatingWindow = appWindow.locator(`[data-floating-window-id="${terminalId}"]`);
         await expect(floatingWindow).toBeVisible({ timeout: 5000 });
 
@@ -421,13 +420,14 @@ test.describe('Worktree Display Name E2E', () => {
         const badgeWorktreeText = await badgeWorktree.textContent();
         console.log(`Badge worktree text: "${badgeWorktreeText}"`);
 
-        expect(badgeWorktreeText).toBe('\u2387');
+        expect(badgeWorktreeText).toContain('\u2387');
+        expect(badgeWorktreeText).toContain(worktreeName);
 
         await appWindow.screenshot({
             path: 'e2e-tests/test-results/worktree-display-badge-matching-name.png'
         });
 
-        console.log('PASSED: Matching worktree name shows just ⎇ in both sidebar and badge');
+        console.log('PASSED: Matching worktree name still shows ⎇ with full name in both sidebar and badge');
     });
 });
 

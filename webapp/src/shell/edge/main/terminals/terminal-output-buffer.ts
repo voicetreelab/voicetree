@@ -47,8 +47,16 @@ function sanitizeOutput(data: string): string {
     // 5. Strip 8-bit C1 control codes
     cleaned = cleaned.replace(C1_PATTERN, '')
 
-    // 6. Remove carriage returns
-    cleaned = cleaned.replace(/\r/g, '')
+    // 6. Process carriage returns
+    //    First normalize CRLF (\r\n) to LF — standard Windows line endings
+    cleaned = cleaned.replace(/\r\n/g, '\n')
+    //    Then process remaining \r as line-overwrite (TUI apps use \r to rewrite in-place)
+    //    Keep only the content after the last \r on each line
+    const crLines: string[] = cleaned.split('\n')
+    cleaned = crLines.map((line: string) => {
+        const parts: string[] = line.split('\r')
+        return parts[parts.length - 1]
+    }).join('\n')
 
     // 7. Filter to printable ASCII (32-126) and newline (10)
     let result: string = ''

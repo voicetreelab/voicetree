@@ -97,9 +97,9 @@ async function notifyAgentOfUnseenNodes(terminalId: string, record: TerminalReco
             (node: UnseenNode) => !notificationState.alertedNodeIds.has(node.nodeId)
         )
 
-        // Only notify about nodes in a voice folder
+        // Only notify about nodes in a /voice/ folder (not matching repo name like voicetree-public)
         const voiceNodes: readonly UnseenNode[] = newUnseenNodes.filter(
-            (node: UnseenNode) => node.nodeId.includes('voice')
+            (node: UnseenNode) => node.nodeId.includes('/voice/')
         )
 
         if (voiceNodes.length === 0) return

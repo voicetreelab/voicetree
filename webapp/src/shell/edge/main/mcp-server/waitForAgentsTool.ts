@@ -10,7 +10,7 @@ import {type McpToolResponse, buildJsonResponse} from './types'
 import {getNewNodesForAgent} from './getNewNodesForAgent'
 
 const TIMEOUT_MS: number = 1800000 // 30 minutes
-const SUSTAINED_IDLE_MS: number = 15_000 // 15 seconds — agent must be idle this long before considered done
+const SUSTAINED_IDLE_MS: number = 30_000 // 30 seconds — agent must be idle this long before considered done (LLM agents can think for 60s+ without output)
 
 export interface WaitForAgentsParams {
     terminalIds: string[]
@@ -55,19 +55,26 @@ export async function waitForAgentsTool({
             const status: 'running' | 'idle' | 'exited' = getAgentStatus(r)
             if (status === 'running') return false
 
-            // Agent must also have created at least one node
+            // Agent must also have created at least one non-context node (progress/result nodes)
+            // Context nodes are auto-generated and don't represent agent work completion
             const agentName: string | undefined = r.terminalData.agentName
             const newNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(graph, agentName)
+            const progressNodes: Array<{nodeId: string; title: string}> = newNodes.filter(
+                (n: {nodeId: string; title: string}) => {
+                    const graphNode: import('@/pure/graph').GraphNode | undefined = graph.nodes[n.nodeId]
+                    return graphNode && !graphNode.nodeUIMetadata.isContextNode
+                }
+            )
 
             // Exited agents are immediately done (can't come back)
             if (status === 'exited') {
                 return true
             }
 
-            // Idle agent without nodes — not done yet
-            if (newNodes.length === 0) return false
+            // Idle agent without progress nodes — not done yet
+            if (progressNodes.length === 0) return false
 
-            // Idle agent with nodes — only done if sustained idle for 15s
+            // Idle agent with progress nodes — only done if sustained idle for 90s
             const idleSince: number | null = getIdleSince(r.terminalId)
             return idleSince !== null && (now - idleSince) >= SUSTAINED_IDLE_MS
         })

@@ -20,7 +20,6 @@ import { getTerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
 import { buildTerminalTree, type TerminalTreeNode } from '@/pure/agentTabs/terminalTree';
 import { getShortcutHintForTab } from '@/pure/agentTabs';
-import { worktreeDisplayName } from '@/pure/agentTabs/worktreeDisplayName';
 import {
     getDisplayOrder,
     syncDisplayOrder,
@@ -213,10 +212,9 @@ function createTreeNode(
     titleContainer.appendChild(titleText);
 
     if (terminal.worktreeName) {
-        const displayName: string = worktreeDisplayName(terminal.worktreeName, terminal.title);
         const wtLabel: HTMLSpanElement = document.createElement('span');
         wtLabel.className = 'terminal-tree-worktree';
-        wtLabel.textContent = displayName;
+        wtLabel.textContent = `\u2387 ${terminal.worktreeName}`;
         wtLabel.title = terminal.worktreeName; // full name on hover tooltip
         titleContainer.appendChild(wtLabel);
     }
