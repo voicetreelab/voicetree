@@ -1,6 +1,6 @@
 /**
  * Shared constants for Cytoscape graph layout
+ * Re-exported from pure layer (source of truth)
  */
 
-/** Default edge length between nodes (in graph coordinates) */
-export const DEFAULT_EDGE_LENGTH: number = 250;
+export { DEFAULT_EDGE_LENGTH } from "@/pure/graph/positioning/angularPositionSeeding";
