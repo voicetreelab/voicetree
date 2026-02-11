@@ -10,3 +10,4 @@ export { setupGraphViewDOM } from './setupGraphViewDOM';
 export type { GraphViewDOMConfig, GraphViewDOMElements, SpeedDialCallbacks } from './setupGraphViewDOM';
 export { initializeNavigatorMinimap } from './initializeNavigatorMinimap';
 export type { NavigatorMinimapResult } from './initializeNavigatorMinimap';
+export { guardCytoscapeResize } from './guardCytoscapeResize';
