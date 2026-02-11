@@ -9,30 +9,18 @@
  * - Clean registration/cleanup API
  */
 
-// Import to make Window.electronAPI type available
-import type {} from '@/shell/electron';
-import { MAX_RECENT_NODES } from '@/pure/graph/recentNodeHistoryV2';
-import type { HotkeySettings, HotkeyBinding, VTSettings } from '@/pure/settings/types';
-import { DEFAULT_HOTKEYS } from '@/pure/settings/DEFAULT_SETTINGS';
+import type { HotkeySettings, HotkeyBinding } from '@/pure/settings/types';
+import type { Modifier, HotkeyConfig, RegisteredHotkey } from './hotkeyTypes';
+import { getHotkeyKey, getHotkeyKeyFromEvent, getModifierFromEvent } from './hotkeyKeyUtils';
+import { isInputElement } from './inputElementDetection';
+import {
+  setupGraphHotkeys as setupGraphHotkeysImpl,
+  registerVoiceHotkey as registerVoiceHotkeyImpl,
+  initializeWithSettings as initializeWithSettingsImpl
+} from './graphHotkeyBindings';
 
-export type Modifier = 'Meta' | 'Control' | 'Alt' | 'Shift';
-
-export interface HotkeyConfig {
-  key: string;
-  modifiers?: Modifier[];
-  onPress: () => void;
-  onRelease?: () => void;
-  repeatable?: boolean;
-  repeatDelay?: number; // milliseconds between repeats (default 150)
-  /** If true, this hotkey won't fire when focus is in an editor/input (default: false) */
-  disabledInEditors?: boolean;
-}
-
-interface RegisteredHotkey {
-  config: HotkeyConfig;
-  isPressed: boolean;
-  repeatInterval?: number;
-}
+// Re-export types for backward compatibility
+export type { Modifier, HotkeyConfig } from './hotkeyTypes';
 
 /**
  * Centralized hotkey management for the application
@@ -53,7 +41,7 @@ export class HotkeyManager {
    * Register a hotkey with optional modifiers
    */
   registerHotkey(config: HotkeyConfig): void {
-    const key: string = this.getHotkeyKey(config.key, config.modifiers);
+    const key: string = getHotkeyKey(config.key, config.modifiers);
 
     if (this.hotkeys.has(key)) {
       console.warn(`[HotkeyManager] Hotkey already registered: ${key}`);
@@ -72,7 +60,7 @@ export class HotkeyManager {
    * Unregister a hotkey
    */
   unregisterHotkey(key: string, modifiers?: Modifier[]): void {
-    const hotkeyKey: string = this.getHotkeyKey(key, modifiers);
+    const hotkeyKey: string = getHotkeyKey(key, modifiers);
     const hotkey: RegisteredHotkey | undefined = this.hotkeys.get(hotkeyKey);
 
     if (hotkey) {
@@ -110,119 +98,11 @@ export class HotkeyManager {
     },
     hotkeys: HotkeySettings
   ): void {
-    // Space: Fit to last created node (repeatable while held)
-    this.registerHotkey({
-      key: hotkeys.fitToLastNode.key,
-      modifiers: [...hotkeys.fitToLastNode.modifiers] as Modifier[],
-      repeatable: true,
-      repeatDelay: 150,
-      onPress: callbacks.fitToLastNode
-    });
-
-    // Next terminal
-    this.registerHotkey({
-      key: hotkeys.nextTerminal.key,
-      modifiers: [...hotkeys.nextTerminal.modifiers] as Modifier[],
-      onPress: () => callbacks.cycleTerminal(1)
-    });
-
-    // Previous terminal
-    this.registerHotkey({
-      key: hotkeys.prevTerminal.key,
-      modifiers: [...hotkeys.prevTerminal.modifiers] as Modifier[],
-      onPress: () => callbacks.cycleTerminal(-1)
-    });
-
-    // Create new node
-    this.registerHotkey({
-      key: hotkeys.createNewNode.key,
-      modifiers: [...hotkeys.createNewNode.modifiers] as Modifier[],
-      onPress: callbacks.createNewNode
-    });
-
-    // Run terminal/coding agent
-    this.registerHotkey({
-      key: hotkeys.runTerminal.key,
-      modifiers: [...hotkeys.runTerminal.modifiers] as Modifier[],
-      onPress: callbacks.runTerminal
-    });
-
-    // Undo - uses same modifier as other hotkeys for platform consistency
-    // Disabled in editors so CodeMirror/terminals handle their own undo
-    const primaryModifier: Modifier = hotkeys.closeWindow.modifiers[0] as Modifier ?? 'Meta';
-    this.registerHotkey({
-      key: 'z',
-      modifiers: [primaryModifier],
-      disabledInEditors: true,
-      onPress: () => {
-        void window.electronAPI?.main.performUndo();
-      }
-    });
-
-    // Redo - uses same modifier as other hotkeys for platform consistency
-    // Disabled in editors so CodeMirror/terminals handle their own redo
-    this.registerHotkey({
-      key: 'z',
-      modifiers: [primaryModifier, 'Shift'],
-      disabledInEditors: true,
-      onPress: () => {
-        void window.electronAPI?.main.performRedo();
-      }
-    });
-
-    // Delete selected nodes
-    this.registerHotkey({
-      key: hotkeys.deleteSelectedNodes.key,
-      modifiers: [...hotkeys.deleteSelectedNodes.modifiers] as Modifier[],
-      onPress: callbacks.deleteSelectedNodes
-    });
-
-    // Close editor/terminal for selected node
-    // NOTE: NOT disabled in editors - we want to close the editor/terminal even when focused inside it
-    this.registerHotkey({
-      key: hotkeys.closeWindow.key,
-      modifiers: [...hotkeys.closeWindow.modifiers] as Modifier[],
-      onPress: callbacks.closeSelectedWindow
-    });
-
-    // Navigate to recent node tabs (1-5)
-    const recentNodeBindings: HotkeyBinding[] = [
-      hotkeys.recentNode1,
-      hotkeys.recentNode2,
-      hotkeys.recentNode3,
-      hotkeys.recentNode4,
-      hotkeys.recentNode5
-    ];
-    for (let i: number = 0; i < Math.min(MAX_RECENT_NODES, recentNodeBindings.length); i++) {
-      const binding: HotkeyBinding = recentNodeBindings[i];
-      this.registerHotkey({
-        key: binding.key,
-        modifiers: [...binding.modifiers] as Modifier[],
-        onPress: () => callbacks.navigateToRecentNode(i)
-      });
-    }
-
-    // Open settings editor
-    this.registerHotkey({
-      key: hotkeys.openSettings.key,
-      modifiers: [...hotkeys.openSettings.modifiers] as Modifier[],
-      onPress: callbacks.openSettings
-    });
-
-    // Search - disabled in editors so CodeMirror can handle its own find
-    this.registerHotkey({
-      key: hotkeys.openSearch.key,
-      modifiers: [...hotkeys.openSearch.modifiers] as Modifier[],
-      disabledInEditors: true,
-      onPress: callbacks.openSearch
-    });
-
-    // Recent nodes ninja (alt search) - works everywhere including editors
-    this.registerHotkey({
-      key: hotkeys.openSearchAlt.key,
-      modifiers: [...hotkeys.openSearchAlt.modifiers] as Modifier[],
-      onPress: callbacks.openSearch
-    });
+    setupGraphHotkeysImpl(
+      (config: HotkeyConfig) => this.registerHotkey(config),
+      callbacks,
+      hotkeys
+    );
   }
 
   /**
@@ -230,11 +110,11 @@ export class HotkeyManager {
    * Separated from setupGraphHotkeys since it needs VoiceRecordingController which initializes later
    */
   registerVoiceHotkey(onToggle: () => void, binding: HotkeyBinding): void {
-    this.registerHotkey({
-      key: binding.key,
-      modifiers: [...binding.modifiers] as Modifier[],
-      onPress: onToggle
-    });
+    registerVoiceHotkeyImpl(
+      (config: HotkeyConfig) => this.registerHotkey(config),
+      onToggle,
+      binding
+    );
   }
 
   /**
@@ -255,11 +135,11 @@ export class HotkeyManager {
     },
     voiceAction: () => void
   ): Promise<void> {
-    const settings: VTSettings | null = await window.electronAPI?.main.loadSettings() ?? null;
-    const hotkeys: HotkeySettings = settings?.hotkeys ?? DEFAULT_HOTKEYS;
-
-    this.setupGraphHotkeys(callbacks, hotkeys);
-    this.registerVoiceHotkey(voiceAction, hotkeys.voiceRecording);
+    await initializeWithSettingsImpl(
+      (config: HotkeyConfig) => this.registerHotkey(config),
+      callbacks,
+      voiceAction
+    );
   }
 
   /**
@@ -333,26 +213,26 @@ export class HotkeyManager {
       this.handleModifierKeyDown(e);
 
       // Check for matching hotkey
-      const hotkeyKey: string = this.getHotkeyKeyFromEvent(e);
+      const hotkeyKey: string = getHotkeyKeyFromEvent(e);
       const hotkey: RegisteredHotkey | undefined = this.hotkeys.get(hotkeyKey);
 
       // DEBUG: Log hotkey attempts for Meta+W
-      if (e.metaKey && e.key.toLowerCase() === 'w') {
-        const _isInput: boolean = this.isInputElement(e.target as HTMLElement, e);
-        //console.log(`[HotkeyManager] Cmd+W pressed:`, {
-        //  hotkeyKey,
-        //  hotkeyFound: !!hotkey,
-        //  disabledInEditors: hotkey?.config.disabledInEditors,
-        //  isInputElement: isInput,
-        //  target: (e.target as HTMLElement)?.tagName,
-        //  targetClasses: (e.target as HTMLElement)?.className
-        //});
-      }
+      //if (e.metaKey && e.key.toLowerCase() === 'w') {
+      //  const isInput: boolean = isInputElement(e.target as HTMLElement, e);
+      //  console.log(`[HotkeyManager] Cmd+W pressed:`, {
+      //    hotkeyKey,
+      //    hotkeyFound: !!hotkey,
+      //    disabledInEditors: hotkey?.config.disabledInEditors,
+      //    isInputElement: isInput,
+      //    target: (e.target as HTMLElement)?.tagName,
+      //    targetClasses: (e.target as HTMLElement)?.className
+      //  });
+      //}
 
       // Ignore hotkeys when typing in input elements
       // Only intercept if we have a registered hotkey that's allowed in editors
       // This allows standard edit commands (Cmd+A, Cmd+C, Cmd+V, Cmd+Z, etc.) to pass through
-      if (this.isInputElement(e.target as HTMLElement, e)) {
+      if (isInputElement(e.target as HTMLElement, e)) {
         const hasModifier: boolean = e.metaKey || e.ctrlKey || e.altKey;
         if (!hasModifier) {
           return; // Block plain keys like Space when in input elements
@@ -406,7 +286,7 @@ export class HotkeyManager {
       // FIX: Reset ALL hotkeys that use this key OR modifier, regardless of current modifier state
       // This handles the case where either the main key OR a modifier is released before the other
       const releasedKey: string = e.key;
-      const releasedModifier: Modifier | null = this.getModifierFromEvent(e);
+      const releasedModifier: Modifier | null = getModifierFromEvent(e);
 
       for (const [_hotkeyKey, hotkey] of this.hotkeys.entries()) {
         if (!hotkey.isPressed) continue;
@@ -452,59 +332,8 @@ export class HotkeyManager {
     document.addEventListener('visibilitychange', this.visibilityHandler);
   }
 
-  /**
-   * Check if the event target is an input element (terminal, editor, textarea, etc.)
-   * Uses composedPath() to look through Shadow DOM boundaries for the actual target.
-   */
-  private isInputElement(element: HTMLElement | null, event?: KeyboardEvent): boolean {
-    if (!element) return false;
-
-    // Get all elements in the composed path (including Shadow DOM internals)
-    const elementsToCheck: HTMLElement[] = [element];
-    if (event) {
-      const composedPath: EventTarget[] = event.composedPath();
-      for (const target of composedPath) {
-        if (target instanceof HTMLElement) {
-          elementsToCheck.push(target);
-        }
-      }
-    }
-
-    for (const el of elementsToCheck) {
-      // Check if element is editable
-      if (
-        el.tagName === 'INPUT' ||
-        el.tagName === 'TEXTAREA' ||
-        el.isContentEditable ||
-        el.getAttribute('contenteditable') === 'true'
-      ) {
-        return true;
-      }
-
-      // Check for xterm terminal (has class 'xterm' or parent has class 'xterm-screen')
-      if (
-        el.classList.contains('xterm') ||
-        el.classList.contains('xterm-screen') ||
-        el.closest('.xterm')
-      ) {
-        return true;
-      }
-
-      // Check for CodeMirror editor
-      if (
-        el.classList.contains('cm-content') ||
-        el.classList.contains('cm-editor') ||
-        el.closest('.cm-editor')
-      ) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
   private handleModifierKeyDown(e: KeyboardEvent): void {
-    const modifier: Modifier | null = this.getModifierFromEvent(e);
+    const modifier: Modifier | null = getModifierFromEvent(e);
     if (modifier) {
       const callbacks: ((held: boolean) => void)[] | undefined = this.modifierCallbacks.get(modifier);
       if (callbacks) {
@@ -514,21 +343,13 @@ export class HotkeyManager {
   }
 
   private handleModifierKeyUp(e: KeyboardEvent): void {
-    const modifier: Modifier | null = this.getModifierFromEvent(e);
+    const modifier: Modifier | null = getModifierFromEvent(e);
     if (modifier) {
       const callbacks: ((held: boolean) => void)[] | undefined = this.modifierCallbacks.get(modifier);
       if (callbacks) {
         callbacks.forEach(cb => cb(false));
       }
     }
-  }
-
-  private getModifierFromEvent(e: KeyboardEvent): Modifier | null {
-    if (e.key === 'Meta') return 'Meta';
-    if (e.key === 'Control') return 'Control';
-    if (e.key === 'Alt') return 'Alt';
-    if (e.key === 'Shift') return 'Shift';
-    return null;
   }
 
   private startRepeating(hotkey: RegisteredHotkey): void {
@@ -546,36 +367,5 @@ export class HotkeyManager {
       clearInterval(hotkey.repeatInterval);
       hotkey.repeatInterval = undefined;
     }
-  }
-
-  private getHotkeyKey(key: string, modifiers?: Modifier[]): string {
-    const parts: string[] = [];
-
-    if (modifiers && modifiers.length > 0) {
-      // Sort modifiers for consistent keys
-      const sorted: Modifier[] = [...modifiers].sort();
-      parts.push(...sorted);
-    }
-
-    parts.push(key);
-    return parts.join('+');
-  }
-
-  private getHotkeyKeyFromEvent(e: KeyboardEvent): string {
-    const modifiers: Modifier[] = [];
-
-    if (e.metaKey) modifiers.push('Meta');
-    if (e.ctrlKey) modifiers.push('Control');
-    if (e.altKey) modifiers.push('Alt');
-    if (e.shiftKey) modifiers.push('Shift');
-
-    // On Mac, Option+letter produces special characters (e.g., Option+R = "®")
-    // Use e.code to get the physical key and extract the letter for Alt combinations
-    let key: string = e.key;
-    if (e.altKey && e.code.startsWith('Key')) {
-      key = e.code.slice(3).toLowerCase(); // "KeyR" -> "r"
-    }
-
-    return this.getHotkeyKey(key, modifiers);
   }
 }
