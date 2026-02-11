@@ -24,7 +24,7 @@ import {startMcpServer} from '@/shell/edge/main/mcp-server/mcp-server';
 import {cleanupOrphanedContextNodes} from '@/shell/edge/main/saveNodePositions';
 import {setOnFolderSwitchCleanup, setStartupFolderOverride} from "@/shell/edge/main/state/watch-folder-store";
 // Conditionally load trackpad detection (macOS only, optional dependency)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 let trackpadDetect: { startMonitoring: () => boolean; stopMonitoring: () => void; isTrackpadScroll: () => boolean } | null = null;
 if (process.platform === 'darwin') {
     try {
@@ -192,8 +192,8 @@ if (process.env.MINIMIZE_TEST === '1') {
 // This allows external Playwright instances to connect via CDP (Chrome DevTools Protocol)
 // Port configurable via PLAYWRIGHT_MCP_CDP_ENDPOINT (e.g. http://localhost:9223) to avoid collisions between worktrees
 if (process.env.ENABLE_PLAYWRIGHT_DEBUG === '1') {
-    let cdpPort = '9222';
-    const cdpEndpoint = process.env.PLAYWRIGHT_MCP_CDP_ENDPOINT;
+    let cdpPort: string = '9222';
+    const cdpEndpoint: string | undefined = process.env.PLAYWRIGHT_MCP_CDP_ENDPOINT;
     if (cdpEndpoint) {
         try { cdpPort = new URL(cdpEndpoint).port || '9222'; } catch { /* default */ }
     }
@@ -209,7 +209,7 @@ const textToTreeServerManager: StubTextToTreeServerManager | RealTextToTreeServe
     ((process.env.NODE_ENV === 'test' || process.env.HEADLESS_TEST === '1') && !useRealServer)
         ? new StubTextToTreeServerManager()
         : new RealTextToTreeServerManager();
-const terminalManager = getTerminalManager();
+const terminalManager: ReturnType<typeof getTerminalManager> = getTerminalManager();
 
 // Store the TextToTreeServer port (set during app startup)
 let textToTreeServerPort: number | null = null;
@@ -226,7 +226,7 @@ function createWindow(): void {
         : path.join(__dirname, '../../build/icon.png');
 
     // Get full screen dimensions (work area excludes dock/taskbar)
-    const primaryDisplay = screen.getPrimaryDisplay();
+    const primaryDisplay: Electron.Display = screen.getPrimaryDisplay();
     const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
 
     const mainWindow: BrowserWindow = new BrowserWindow({

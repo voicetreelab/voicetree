@@ -91,7 +91,7 @@ Should return JSON with `"Browser": "Chrome/..."`.
 
 Use `browser_snapshot` to connect. First attempt may timeout - retry once.
 
-DevTools won't auto-open when `ENABLE_PLAYWRIGHT_DEBUG=1`, so you'll connect directly to VoiceTree.
+DevTools won't auto-open when `PLAYWRIGHT_CDP_PORT` is set, so you'll connect directly to VoiceTree.
 
 ### 4. Open a Project
 
