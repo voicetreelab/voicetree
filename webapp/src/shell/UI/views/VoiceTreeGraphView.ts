@@ -45,10 +45,6 @@ import {StyleService} from '@/shell/UI/cytoscape-graph-ui/services/StyleService'
 import {BreathingAnimationService} from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService';
 import {HorizontalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService';
 import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService';
-import {
-    disposeEditorManager,
-    closeEditor
-} from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
 import {setupCommandHover} from '@/shell/edge/UI-edge/floating-windows/editors/HoverEditor';
 import {HotkeyManager} from './HotkeyManager';
 import {SearchService} from './SearchService';
@@ -58,38 +54,30 @@ import {
     renderRecentNodeTabsV2 as _renderRecentNodeTabsV2
 } from './RecentNodeTabsBar';
 // Terminal tree sidebar - shows open terminals as vertical tree on LHS
-import {
-    createTerminalTreeSidebar,
-    disposeTerminalTreeSidebar
-} from './treeStyleTerminalTabs/TerminalTreeSidebar';
+import {createTerminalTreeSidebar} from './treeStyleTerminalTabs/TerminalTreeSidebar';
 import {getRecentNodeHistory} from '@/shell/edge/UI-edge/state/RecentNodeHistoryStore';
 import type {RecentNodeHistory} from '@/pure/graph/recentNodeHistoryV2';
-import {disposeGraphViewOverlays} from '@/shell/edge/UI-edge/state/GraphViewUIStore';
 import {createNewNodeAction, runTerminalAction, deleteSelectedNodesAction} from '@/shell/UI/cytoscape-graph-ui/actions/graphActions';
 import {getResponsivePadding} from '@/utils/responsivePadding';
 import {SpeedDialSideGraphFloatingMenuView} from './SpeedDialSideGraphFloatingMenuView';
 import type {Graph} from '@/pure/graph';
 import {createEmptyGraph} from '@/pure/graph/createGraph';
-import {setupBasicCytoscapeEventListeners, setupCytoscape, initializeCytoscapeInstance, setupGraphViewDOM, initializeNavigatorMinimap, type GraphViewDOMElements, type NavigatorMinimapResult} from './VoiceTreeGraphViewHelpers';
-import {setupViewSubscriptions, cleanupViewSubscriptions, type ViewSubscriptionCleanups} from '@/shell/edge/UI-edge/graph/setupViewSubscriptions';
+import {setupBasicCytoscapeEventListeners, setupCytoscape, initializeCytoscapeInstance, setupGraphViewDOM, initializeNavigatorMinimap, guardCytoscapeResize, type GraphViewDOMElements, type NavigatorMinimapResult} from './VoiceTreeGraphViewHelpers';
+import {setupViewSubscriptions, type ViewSubscriptionCleanups} from '@/shell/edge/UI-edge/graph/setupViewSubscriptions';
 import {subscribeToGraphUpdates} from '@/shell/edge/UI-edge/graph/subscribeToGraphUpdates';
-import {createSettingsEditor, closeSettingsEditor, isSettingsEditorOpen} from "@/shell/edge/UI-edge/settings/createSettingsEditor";
-import type {TerminalData} from '@/shell/electron';
+import {createSettingsEditor} from "@/shell/edge/UI-edge/settings/createSettingsEditor";
 
 import {GraphNavigationService} from "@/shell/edge/UI-edge/graph/navigation/GraphNavigationService";
 import {NavigationGestureService} from "@/shell/edge/UI-edge/graph/navigation/NavigationGestureService";
 import {collectFeedback} from "@/shell/edge/UI-edge/graph/userEngagementPrompts";
-import {getEditorByNodeId} from '@/shell/edge/UI-edge/state/EditorStore';
-import {getTerminalByNodeId} from '@/shell/edge/UI-edge/state/TerminalStore';
-import {closeTerminal} from '@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI';
-import * as O from 'fp-ts/lib/Option.js';
 import {toggleVoiceRecording} from '@/shell/edge/UI-edge/state/VoiceRecordingController';
 import {
     initializeDarkMode,
     toggleDarkMode as toggleDarkModeAction,
     isDarkMode as isDarkModeState
 } from '@/shell/edge/UI-edge/state/DarkModeManager';
-import type {EditorData} from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
+import {disposeGraphView} from './disposeGraphView';
+import {closeSelectedWindow as closeSelectedWindowFn} from './closeSelectedWindow';
 
 /**
  * Main VoiceTreeGraphView implementation
@@ -254,6 +242,9 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         });
         this.cy = cy;
 
+        // Guard against canvas shrinking during layout instability (e.g. WebGL context loss cascade)
+        guardCytoscapeResize(this.cy);
+
         // Expose cytoscape instance to window for testing
         (window as unknown as { cytoscapeInstance: unknown }).cytoscapeInstance = this.cy;
 
@@ -408,30 +399,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
      * Also closes settings editor if open and no node is selected
      */
     private closeSelectedWindow(): void {
-        const selected: cytoscape.CollectionReturnValue = this.cy.$(':selected');
-
-        // If no node selected, try closing the settings editor
-        if (selected.length === 0) {
-            if (isSettingsEditorOpen()) {
-                closeSettingsEditor(this.cy);
-            }
-            return;
-        }
-
-        const nodeId: string = selected.first().id();
-
-        // Try closing editor first
-        const editor: O.Option<EditorData> = getEditorByNodeId(nodeId);
-        if (O.isSome(editor)) {
-            closeEditor(this.cy, editor.value);
-            return;
-        }
-
-        // Try closing terminal
-        const terminal: O.Option<TerminalData> = getTerminalByNodeId(nodeId);
-        if (O.isSome(terminal)) {
-            void closeTerminal(terminal.value, this.cy);
-        }
+        closeSelectedWindowFn(this.cy);
     }
 
     getSelectedNodes(): string[] {
@@ -447,8 +415,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // Use responsive padding instead of fixed pixels (default was 50px on 1440p)
         cy.fit(undefined, getResponsivePadding(cy, paddingPercentage));
     }
-
-
 
     toggleDarkMode(): void {
         toggleDarkModeAction({
@@ -499,65 +465,29 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             return;
         }
 
-        //console.log('[VoiceTreeGraphView] Disposing...');
+        disposeGraphView({
+            cy: this.cy,
+            handleResize: this.handleResize,
+            cleanupGraphSubscription: this.cleanupGraphSubscription,
+            viewSubscriptionCleanups: this.viewSubscriptionCleanups,
+            hotkeyManager: this.hotkeyManager,
+            gestureService: this.gestureService,
+            searchService: this.searchService,
+            horizontalMenuService: this.horizontalMenuService,
+            verticalMenuService: this.verticalMenuService,
+            speedDialMenu: this.speedDialMenu,
+            animationService: this.animationService,
+            navigator: this.navigator,
+            nodeSelectedEmitter: this.nodeSelectedEmitter,
+            nodeDoubleClickEmitter: this.nodeDoubleClickEmitter,
+            edgeSelectedEmitter: this.edgeSelectedEmitter,
+            layoutCompleteEmitter: this.layoutCompleteEmitter,
+        });
 
-        // Remove window event listeners
-        window.removeEventListener('resize', this.handleResize);
-
-        // Cleanup graph subscription
-        if (this.cleanupGraphSubscription) {
-            this.cleanupGraphSubscription();
-            this.cleanupGraphSubscription = null;
-        }
-
-        // Cleanup view subscriptions (terminals, navigation, pinned editors)
-        if (this.viewSubscriptionCleanups) {
-            cleanupViewSubscriptions(this.viewSubscriptionCleanups);
-            this.viewSubscriptionCleanups = null;
-        }
-
-        // Dispose managers
-        this.hotkeyManager.dispose();
-        this.gestureService.dispose();
-        disposeEditorManager(this.cy);
-        this.searchService.dispose();
-        // TODO: Recent tabs temporarily disabled until better UX is designed
-        // disposeRecentNodeTabsBar();
-        disposeTerminalTreeSidebar();
-        disposeGraphViewOverlays();
-
-        // Dispose menu services
-        if (this.horizontalMenuService) {
-            this.horizontalMenuService.destroy();
-        }
-        if (this.verticalMenuService) {
-            this.verticalMenuService.destroy();
-        }
-
-        // Dispose speed dial menu
-        if (this.speedDialMenu) {
-            this.speedDialMenu.dispose();
-            this.speedDialMenu = null;
-        }
-
-        // Destroy services
-        if (this.animationService) {
-            this.animationService.destroy();
-        }
-
-        // Destroy navigator minimap
-        if (this.navigator) {
-            this.navigator.destroy();
-        }
-
-        // Destroy Cytoscape
-        this.cy.destroy();
-
-        // Clear event emitters
-        this.nodeSelectedEmitter.clear();
-        this.nodeDoubleClickEmitter.clear();
-        this.edgeSelectedEmitter.clear();
-        this.layoutCompleteEmitter.clear();
+        // Null out references after disposal
+        this.cleanupGraphSubscription = null;
+        this.viewSubscriptionCleanups = null;
+        this.speedDialMenu = null;
 
         // Call parent dispose
         super.dispose();
