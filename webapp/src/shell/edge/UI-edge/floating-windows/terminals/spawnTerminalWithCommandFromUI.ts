@@ -198,8 +198,8 @@ export async function spawnTerminalWithCommandEditor(
         await window.electronAPI?.main.saveSettings(updatedSettings);
     }
 
-    // Update .mcp.json based on user's MCP integration toggle choice
-    await window.electronAPI?.main.setMcpIntegration(result.mcpIntegrationEnabled);
+    // Update MCP config files based on user's toggle choice and agent type
+    await window.electronAPI?.main.setMcpIntegration(result.mcpIntegrationEnabled, result.command);
 
     const terminalCount: number = getNextTerminalCount(terminalsMap, parentNodeId);
 
@@ -274,8 +274,8 @@ export async function spawnTerminalWithNewContextNode(
         await window.electronAPI?.main.saveSettings(updatedSettings);
     }
 
-    // Update .mcp.json based on user's MCP integration toggle choice
-    await window.electronAPI?.main.setMcpIntegration(launchConfig.mcpIntegrationEnabled);
+    // Update MCP config files based on user's toggle choice and agent type
+    await window.electronAPI?.main.setMcpIntegration(launchConfig.mcpIntegrationEnabled, command);
 
     const terminalCount: number = getNextTerminalCount(terminalsMap, parentNodeId);
 
@@ -298,7 +298,7 @@ export async function spawnTerminalInNewWorktree(
     const nodeTitle: string = getNodeTitle(node);
 
     // Get repo root from watch status
-    const watchStatus = await window.electronAPI?.main.getWatchStatus();
+    const watchStatus: { readonly isWatching: boolean; readonly directory: string | undefined } | undefined = await window.electronAPI?.main.getWatchStatus();
     const repoRoot: string | undefined = watchStatus?.directory;
     if (!repoRoot) {
         console.error('[spawnTerminalInNewWorktree] No watched directory available');
