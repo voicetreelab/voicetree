@@ -22,6 +22,26 @@ import { createImagePasteHandler, createContextMenuHandler } from './editorDomHa
 import { createUpdateListener } from './updateListener';
 
 /**
+ * Detect if content contains YAML frontmatter delimiters (---).
+ * Scans the first 1000 lines for 2+ lines that are exactly `---` (after trimming whitespace).
+ * Permissive: doesn't require delimiters at line 0.
+ */
+export function hasFrontmatter(content: string): boolean {
+  const lines: string[] = content.split(/\r?\n/);
+  const limit: number = Math.min(lines.length, 1000);
+  let yamlTagCount: number = 0;
+
+  for (let i: number = 0; i < limit; i++) {
+    if (lines[i].trim() === '---') {
+      yamlTagCount++;
+      if (yamlTagCount >= 2) return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Configuration options for CodeMirrorEditorView
  */
 export interface CodeMirrorEditorOptions {

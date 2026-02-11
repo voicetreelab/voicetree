@@ -944,7 +944,7 @@ describe('MCP add_progress_node tool', () => {
             expect(payload.warnings.some((w: string) => w.includes('codeDiffs'))).toBe(true)
         })
 
-        it('includes node length warning when total body exceeds 60 lines', async () => {
+        it('returns isError and loud error message when total body exceeds 60 lines', async () => {
             setupStandardMocks()
 
             const longContent: string = Array.from({length: 55}, (_, i) => `Line ${i + 1}`).join('\n')
@@ -958,8 +958,19 @@ describe('MCP add_progress_node tool', () => {
             })
             const payload: SuccessPayload = parsePayload(response) as SuccessPayload
 
+            // Node is still created (success: true) but MCP response is flagged as error
             expect(payload.success).toBe(true)
-            expect(payload.warnings.some((w: string) => w.includes('splitting'))).toBe(true)
+            expect(payload.nodeId).toBeDefined()
+            expect(response.isError).toBe(true)
+
+            // Error message is loud and actionable
+            const longWarning: string | undefined = payload.warnings.find((w: string) => w.includes('NODE TOO LONG'))
+            expect(longWarning).toBeDefined()
+            expect(longWarning).toContain('ACTION REQUIRED')
+            expect(longWarning).toContain('MUST split')
+            // Includes example tree structures
+            expect(longWarning).toContain('Split by concern')
+            expect(longWarning).toContain('Split by phase')
         })
     })
 

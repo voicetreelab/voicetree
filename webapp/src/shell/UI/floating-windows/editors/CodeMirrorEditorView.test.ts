@@ -11,7 +11,7 @@ beforeAll(() => {
   }
 });
 
-import { CodeMirrorEditorView } from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
+import { CodeMirrorEditorView, hasFrontmatter } from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
 
 describe('Frontmatter Parsing', () => {
   let container: HTMLElement;
@@ -190,16 +190,7 @@ describe('hasFrontmatter method', () => {
     }
   });
 
-  // Helper to access the private hasFrontmatter method
-  const hasFrontmatter: (content: string) => boolean = (content: string): boolean => {
-    // Create a temporary editor to test the method
-    const tempEditor: CodeMirrorEditorView = new CodeMirrorEditorView(container, content);
-    // Access the private method by using object index access
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result: boolean = (tempEditor as Record<string, any>).hasFrontmatter(content) as boolean;
-    tempEditor.dispose();
-    return result;
-  };
+  // hasFrontmatter is imported as a standalone function from the module
 
   describe('standard YAML frontmatter - SHOULD work', () => {
     it('should detect standard frontmatter starting on line 0', () => {

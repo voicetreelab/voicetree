@@ -80,9 +80,9 @@ describe('StyleService', () => {
       // In dark mode, text should be soft off-white (#c5c8cc)
       expect(nodeStyle?.style.color).toBe('#c5c8cc');
       expect(edgeStyle?.style.color).toBe('#c5c8cc');
-      // In dark mode, edge lines should be lighter (#8a9099) for better visibility
-      expect(edgeStyle?.style['line-color']).toBe('#8a9099');
-      expect(edgeStyle?.style['target-arrow-color']).toBe('#8a9099');
+      // In dark mode, edge lines should be lighter (#c0c5cc) for better visibility
+      expect(edgeStyle?.style['line-color']).toBe('#c0c5cc');
+      expect(edgeStyle?.style['target-arrow-color']).toBe('#c0c5cc');
 
       // Cleanup
       document.documentElement.classList.remove('dark');
@@ -179,12 +179,9 @@ describe('StyleService', () => {
 
       // Hover state styles
       const hoverStyle: { selector: string; style: Record<string, unknown>; } | undefined = stylesheet.find(s => s.selector === 'node.hover');
-      const unhoverStyle: { selector: string; style: Record<string, unknown>; } | undefined = stylesheet.find(s => s.selector === '.unhover');
       expect(hoverStyle).toBeDefined();
       expect(hoverStyle?.style).toHaveProperty('background-color');
       expect(hoverStyle?.style).toHaveProperty('font-weight', 'bold');
-      expect(unhoverStyle).toBeDefined();
-      expect(unhoverStyle?.style).toHaveProperty('opacity', 0.3);
 
       // Pinned node styles
       const pinnedStyle: { selector: string; style: Record<string, unknown>; } | undefined = stylesheet.find(s => s.selector === 'node.pinned');
@@ -230,7 +227,8 @@ describe('StyleService', () => {
       ];
 
       const mockCy: Core = {
-        nodes: () => mockNodes
+        nodes: () => mockNodes,
+        batch: (fn: () => void) => fn(),
       } as unknown as Core;
 
       styleService.updateNodeSizes(mockCy);
@@ -268,7 +266,8 @@ describe('StyleService', () => {
       };
 
       const mockCy: Core = {
-        nodes: () => [mockRegularNode, mockShadowNode]
+        nodes: () => [mockRegularNode, mockShadowNode],
+        batch: (fn: () => void) => fn(),
       } as unknown as Core;
 
       styleService.updateNodeSizes(mockCy);
