@@ -212,11 +212,12 @@ One node = one concept. If your work covers multiple independent concerns, call 
                 linkedArtifacts: z.array(z.string()).optional().describe('Array of node basenames to wikilink in a ## Related section. Use for specs, proposals, related nodes.'),
                 complexityScore: z.enum(['low', 'medium', 'high']).optional().describe('Required when codeDiffs provided. Complexity of the area worked in.'),
                 complexityExplanation: z.string().optional().describe('Required when codeDiffs provided. Brief explanation of the complexity score.'),
-                parentNodeId: z.string().optional().describe('Parent node ID to link to. Defaults to your task node.')
+                parentNodeId: z.string().optional().describe('Parent node ID to link to. Defaults to your task node.'),
+                color: z.string().optional().describe('Override node color. Use CSS named colors: red, blue, green, yellow, orange, purple, pink, cyan, teal, brown, gray, lime, magenta, navy, olive, maroon, coral, crimson, gold, indigo, lavender, salmon, tomato, turquoise, violet. Defaults to your agent color.')
             }
         },
-        async ({callerTerminalId, title, summary, content, codeDiffs, filesChanged, diagram, notes, linkedArtifacts, complexityScore, complexityExplanation, parentNodeId}) =>
-            addProgressNodeTool({callerTerminalId, title, summary, content, codeDiffs, filesChanged, diagram, notes, linkedArtifacts, complexityScore, complexityExplanation, parentNodeId})
+        async ({callerTerminalId, title, summary, content, codeDiffs, filesChanged, diagram, notes, linkedArtifacts, complexityScore, complexityExplanation, parentNodeId, color}) =>
+            addProgressNodeTool({callerTerminalId, title, summary, content, codeDiffs, filesChanged, diagram, notes, linkedArtifacts, complexityScore, complexityExplanation, parentNodeId, color})
     )
 
     return server
