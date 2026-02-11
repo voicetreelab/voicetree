@@ -190,8 +190,14 @@ if (process.env.MINIMIZE_TEST === '1') {
 
 // Enable remote debugging for Playwright MCP connections
 // This allows external Playwright instances to connect via CDP (Chrome DevTools Protocol)
+// Port configurable via PLAYWRIGHT_MCP_CDP_ENDPOINT (e.g. http://localhost:9223) to avoid collisions between worktrees
 if (process.env.ENABLE_PLAYWRIGHT_DEBUG === '1') {
-    app.commandLine.appendSwitch('remote-debugging-port', '9222');
+    let cdpPort = '9222';
+    const cdpEndpoint = process.env.PLAYWRIGHT_MCP_CDP_ENDPOINT;
+    if (cdpEndpoint) {
+        try { cdpPort = new URL(cdpEndpoint).port || '9222'; } catch { /* default */ }
+    }
+    app.commandLine.appendSwitch('remote-debugging-port', cdpPort);
 }
 
 // Global manager instances
