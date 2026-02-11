@@ -112,6 +112,35 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, details, p
             // Apply task node to graph
             await applyGraphDeltaToDBThroughMemAndUIAndEditors(taskNodeDelta)
 
+            // Update caller's context node to mark task node as "seen"
+            const callerRecord: TerminalRecord | undefined = terminalRecords.find(
+                (r: TerminalRecord) => r.terminalId === callerTerminalId
+            )
+            if (callerRecord) {
+                const callerContextNodeId: string = callerRecord.terminalData.attachedToNodeId
+                const updatedGraph: Graph = getGraph()
+                const callerContextNode: GraphNode | undefined = updatedGraph.nodes[callerContextNodeId]
+                if (callerContextNode?.nodeUIMetadata.containedNodeIds) {
+                    const updatedContainedNodeIds: readonly string[] = [
+                        ...callerContextNode.nodeUIMetadata.containedNodeIds,
+                        taskNodeId
+                    ]
+                    const updatedContextNode: GraphNode = {
+                        ...callerContextNode,
+                        nodeUIMetadata: {
+                            ...callerContextNode.nodeUIMetadata,
+                            containedNodeIds: updatedContainedNodeIds
+                        }
+                    }
+                    const updateDelta: GraphDelta = [{
+                        type: 'UpsertNode',
+                        nodeToUpsert: updatedContextNode,
+                        previousNode: O.some(callerContextNode)
+                    }]
+                    await applyGraphDeltaToDBThroughMemAndUIAndEditors(updateDelta)
+                }
+            }
+
             // Spawn terminal on the new task node (with parent terminal for tree-style tabs)
             const {terminalId, contextNodeId}: {terminalId: string; contextNodeId: string} =
                 await spawnTerminalWithContextNode(taskNodeId, undefined, undefined, true, false, undefined, spawnDirectory, callerTerminalId)
