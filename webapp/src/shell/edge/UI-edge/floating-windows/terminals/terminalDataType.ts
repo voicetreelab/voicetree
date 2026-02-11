@@ -19,6 +19,8 @@ export type TerminalData = FloatingWindowFields & {
     readonly parentTerminalId: TerminalId | null;
     // Agent name for matching terminal to nodes it creates (via agent_name in YAML)
     readonly agentName: string;
+    // Worktree directory name when terminal was spawned in a git worktree (undefined = not in worktree)
+    readonly worktreeName: string | undefined;
 };
 export type CreateTerminalDataParams = {
     readonly terminalId: TerminalId; // Now passed directly (equals agentName)
@@ -35,4 +37,5 @@ export type CreateTerminalDataParams = {
     readonly isPinned?: boolean; // defaults to true
     readonly parentTerminalId?: TerminalId | null; // defaults to null (root terminal)
     readonly agentName: string; // Agent name for terminal-to-node edge matching (same as terminalId)
+    readonly worktreeName?: string; // Worktree directory name (undefined = not in worktree)
 };

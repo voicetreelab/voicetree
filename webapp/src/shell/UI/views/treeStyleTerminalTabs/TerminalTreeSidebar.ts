@@ -20,6 +20,7 @@ import { getTerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
 import { buildTerminalTree, type TerminalTreeNode } from '@/pure/agentTabs/terminalTree';
 import { getShortcutHintForTab } from '@/pure/agentTabs';
+import { worktreeDisplayName } from '@/pure/agentTabs/worktreeDisplayName';
 import {
     getDisplayOrder,
     syncDisplayOrder,
@@ -202,11 +203,25 @@ function createTreeNode(
     status.className = `terminal-tree-status ${terminal.isDone ? 'done' : 'running'}`;
     node.appendChild(status);
 
-    // Title
-    const title: HTMLSpanElement = document.createElement('span');
-    title.className = 'terminal-tree-title';
-    title.textContent = terminal.title;
-    node.appendChild(title);
+    // Title (with optional worktree subtitle)
+    const titleContainer: HTMLSpanElement = document.createElement('span');
+    titleContainer.className = 'terminal-tree-title';
+
+    const titleText: HTMLSpanElement = document.createElement('span');
+    titleText.className = 'terminal-tree-title-text';
+    titleText.textContent = terminal.title;
+    titleContainer.appendChild(titleText);
+
+    if (terminal.worktreeName) {
+        const displayName: string = worktreeDisplayName(terminal.worktreeName, terminal.title);
+        const wtLabel: HTMLSpanElement = document.createElement('span');
+        wtLabel.className = 'terminal-tree-worktree';
+        wtLabel.textContent = displayName;
+        wtLabel.title = terminal.worktreeName; // full name on hover tooltip
+        titleContainer.appendChild(wtLabel);
+    }
+
+    node.appendChild(titleContainer);
 
     // Shortcut hint tooltip (shows ⌘[ or ⌘] on hover)
     const hint: string | null = getShortcutHintForTab(tabIndex, activeIndex, totalTabs);
@@ -330,3 +345,4 @@ export function disposeTerminalTreeSidebar(): void {
 export function isTerminalTreeSidebarMounted(): boolean {
     return sidebarElement !== null && sidebarElement.parentNode !== null;
 }
+

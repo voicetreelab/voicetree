@@ -128,6 +128,8 @@ export function createTerminalData(params: CreateTerminalDataParams): TerminalDa
         parentTerminalId: params.parentTerminalId ?? null,
         // Agent name for terminal-to-node edge matching (same as terminalId)
         agentName: params.agentName,
+        // Worktree name (undefined = not in worktree)
+        worktreeName: params.worktreeName,
     };
 }
 

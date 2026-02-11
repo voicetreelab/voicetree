@@ -19,6 +19,7 @@ import { createNodeMenu } from "@/shell/UI/cytoscape-graph-ui/services/createNod
 import type {AgentConfig} from "@/pure/settings";
 import {Maximize2, Minimize2, createElement} from 'lucide';
 import {createTrafficLightsForTarget} from "@/shell/edge/UI-edge/floating-windows/traffic-lights";
+import {worktreeDisplayName} from "@/pure/agentTabs/worktreeDisplayName";
 
 /** Options for createWindowChrome */
 export interface CreateWindowChromeOptions {
@@ -500,7 +501,7 @@ function createTerminalTitleBar(
 
     // Create context badge for terminals with context nodes
     if (hasContextNode) {
-        const contextBadge: HTMLDivElement = createContextBadge(terminal.title, windowElement);
+        const contextBadge: HTMLDivElement = createContextBadge(terminal.title, windowElement, terminal.worktreeName);
         titleBar.appendChild(contextBadge);
     }
 
@@ -525,9 +526,9 @@ function createTerminalTitleBar(
 
 /**
  * Create context badge for terminals with context nodes
- * Shows truncated title
+ * Shows truncated title, optionally with worktree indicator
  */
-function createContextBadge(title: string, _windowElement: HTMLDivElement): HTMLDivElement {
+function createContextBadge(title: string, _windowElement: HTMLDivElement, worktreeName?: string): HTMLDivElement {
     const badge: HTMLDivElement = document.createElement('div');
     badge.className = 'terminal-context-badge';
 
@@ -536,6 +537,17 @@ function createContextBadge(title: string, _windowElement: HTMLDivElement): HTML
     titleSpan.className = 'terminal-context-badge-title';
     titleSpan.textContent = truncateTitle(title, 100);
     badge.appendChild(titleSpan);
+
+    // Worktree indicator (below title)
+    if (worktreeName) {
+        const displayName: string = worktreeDisplayName(worktreeName, title);
+
+        const wtSpan: HTMLSpanElement = document.createElement('span');
+        wtSpan.className = 'terminal-context-badge-worktree';
+        wtSpan.textContent = displayName;
+        wtSpan.title = worktreeName;
+        badge.appendChild(wtSpan);
+    }
 
     return badge;
 }
