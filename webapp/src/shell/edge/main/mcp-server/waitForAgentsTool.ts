@@ -74,7 +74,7 @@ export async function waitForAgentsTool({
             // Idle agent without progress nodes — not done yet
             if (progressNodes.length === 0) return false
 
-            // Idle agent with progress nodes — only done if sustained idle for 90s
+            // Idle agent with progress nodes — only done if sustained idle for 30s
             const idleSince: number | null = getIdleSince(r.terminalId)
             return idleSince !== null && (now - idleSince) >= SUSTAINED_IDLE_MS
         })
