@@ -1,57 +1,14 @@
 import '@/shell/UI/cytoscape-graph-ui/styles/floating-windows.css'; // Core floating window styles
 import './codemirror-editor.css'; // CodeMirror-specific styles (selection, gutters, markdoc, diff)
-import type {} from "@/shell/electron"; // Import ElectronAPI type for window.electronAPI access
 import { vim } from '@replit/codemirror-vim';
 import { EditorState, type Extension } from '@codemirror/state';
-import type { Line } from '@codemirror/state';
-import { EditorView, ViewUpdate, ViewPlugin, keymap, tooltips } from '@codemirror/view';
+import { EditorView, keymap, tooltips } from '@codemirror/view';
 import { indentMore, indentLess } from '@codemirror/commands';
 import { basicSetup } from 'codemirror';
-import { startCompletion, acceptCompletion } from '@codemirror/autocomplete';
-import { syntaxHighlighting, foldService, HighlightStyle, defaultHighlightStyle } from '@codemirror/language';
-import type { LanguageSupport } from '@codemirror/language';
-import { tags as t } from '@lezer/highlight';
-import type { Tree } from '@lezer/common';
-import { syntaxTree } from '@codemirror/language';
-import { markdown, markdownKeymap } from '@codemirror/lang-markdown';
-import { yamlFrontmatter } from '@codemirror/lang-yaml';
+import { acceptCompletion } from '@codemirror/autocomplete';
+import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
 import { json } from '@codemirror/lang-json';
-import { languages } from '@codemirror/language-data';
 import { oneDark } from '@codemirror/theme-one-dark';
-import tagParser from 'codemirror-rich-markdoc/src/tagParser';
-import ctxmenu from '@/shell/UI/lib/ctxmenu.js';
-
-// Combined highlight style: code syntax colors from defaultHighlightStyle + custom heading styles (no underlines)
-// We can't use defaultHighlightStyle directly because it has heading underlines we don't want
-const combinedHighlightStyle: HighlightStyle = HighlightStyle.define([
-  // Heading styles (no underlines, proper size hierarchy)
-  { tag: t.heading, fontWeight: 'bold', fontFamily: 'sans-serif', textDecoration: 'none' },
-  { tag: t.heading1, fontWeight: 'bold', fontFamily: 'sans-serif', fontSize: '24px', textDecoration: 'none' },
-  { tag: t.heading2, fontWeight: 'bold', fontFamily: 'sans-serif', fontSize: '21px', textDecoration: 'none' },
-  { tag: t.heading3, fontWeight: 'bold', fontFamily: 'sans-serif', fontSize: '18px', textDecoration: 'none' },
-  { tag: t.heading4, fontWeight: 'bold', fontFamily: 'sans-serif', fontSize: '16px', textDecoration: 'none' },
-  // Code syntax highlighting (from defaultHighlightStyle)
-  { tag: t.meta, color: '#404740' },
-  { tag: t.link, textDecoration: 'underline' },
-  { tag: t.emphasis, fontStyle: 'italic' },
-  { tag: t.strong, fontWeight: 'bold' },
-  { tag: t.strikethrough, textDecoration: 'line-through' },
-  { tag: t.keyword, color: '#708' },
-  { tag: [t.atom, t.bool, t.url, t.contentSeparator, t.labelName], color: '#219' },
-  { tag: [t.literal, t.inserted], color: '#164' },
-  { tag: [t.string, t.deleted], color: '#a11' },
-  { tag: [t.regexp, t.escape, t.special(t.string)], color: '#e40' },
-  { tag: t.definition(t.variableName), color: '#00f' },
-  { tag: t.local(t.variableName), color: '#30a' },
-  { tag: [t.typeName, t.namespace], color: '#085' },
-  { tag: t.className, color: '#167' },
-  { tag: [t.special(t.variableName), t.macroName], color: '#256' },
-  { tag: t.definition(t.propertyName), color: '#00c' },
-  { tag: t.comment, color: '#940' },
-  { tag: t.invalid, color: '#f00' },
-]);
-import RichEditPlugin from 'codemirror-rich-markdoc/src/richEdit';
-import renderBlock from 'codemirror-rich-markdoc/src/renderBlock';
 import { Disposable } from '@/shell/UI/views/Disposable';
 import { EventEmitter } from '@/utils/EventEmitter';
 import { mermaidRender } from '@/shell/UI/floating-windows/extensions/mermaidRender';
@@ -60,6 +17,9 @@ import { externalVideoRender } from '@/shell/UI/floating-windows/extensions/exte
 import { diffHighlight } from '@/shell/UI/floating-windows/extensions/diffHighlight';
 import { wikilinkCompletion } from '@/shell/UI/floating-windows/extensions/wikilinkCompletion';
 import { wikilinkTitleDisplay } from '@/shell/UI/floating-windows/extensions/wikilinkTitleDisplay';
+import { createMarkdownExtensions } from './markdownExtensions';
+import { createImagePasteHandler, createContextMenuHandler } from './editorDomHandlers';
+import { createUpdateListener } from './updateListener';
 
 /**
  * Configuration options for CodeMirrorEditorView
@@ -101,7 +61,7 @@ export class CodeMirrorEditorView extends Disposable {
   private anyDocChangeEmitter: EventEmitter<void>; // Fires for ALL document changes (user + programmatic)
   private geometryChangeEmitter: EventEmitter<void>; // Fires when content geometry changes (after layout)
   private options: CodeMirrorEditorOptions;
-  private debounceTimeout: ReturnType<typeof setTimeout> | null = null;
+  private updateListenerDispose: () => void;
 
   /**
    * Creates a new CodeMirror editor instance
@@ -121,10 +81,20 @@ export class CodeMirrorEditorView extends Disposable {
     this.anyDocChangeEmitter = new EventEmitter<void>();
     this.geometryChangeEmitter = new EventEmitter<void>();
 
+    // Create update listener (debounced change detection)
+    const updateListener: { extension: Extension; dispose: () => void } = createUpdateListener({
+      autosaveDelay: this.options.autosaveDelay ?? 300,
+      changeEmitter: this.changeEmitter,
+      anyDocChangeEmitter: this.anyDocChangeEmitter,
+      geometryChangeEmitter: this.geometryChangeEmitter,
+      container: this.container,
+    });
+    this.updateListenerDispose = updateListener.dispose;
+
     // Create editor state with extensions
     const state: EditorState = EditorState.create({
       doc: initialContent,
-      extensions: this.createExtensions()
+      extensions: this.createExtensions(updateListener.extension)
     });
 
     // Create editor view
@@ -140,64 +110,11 @@ export class CodeMirrorEditorView extends Disposable {
   /**
    * Create CodeMirror extensions array
    */
-  private createExtensions(): Extension[] {
+  private createExtensions(updateListenerExtension: Extension): Extension[] {
     // For JSON mode, use a simpler set of extensions
     if (this.options.language === 'json') {
-      return this.createJsonExtensions();
+      return this.createJsonExtensions(updateListenerExtension);
     }
-
-    // Build markdown config with tagParser extension (for Markdoc {% %} tags)
-    // and codeLanguages for syntax highlighting in code blocks
-    const markdownConfig: Parameters<typeof markdown>[0] = {
-      extensions: [tagParser],
-      codeLanguages: languages
-    };
-
-    // Wrap markdown with yamlFrontmatter support
-    const markdownWithFrontmatter: LanguageSupport = yamlFrontmatter({
-      content: markdown(markdownConfig)
-    });
-
-    // Manually compose rich-markdoc plugin with syntaxHighlighting INSIDE provide()
-    // This is required for code block syntax coloring to work correctly
-    // (richEditor() includes syntaxHighlighting in provide, we do the same)
-    const richMarkdocPlugin: Extension = ViewPlugin.fromClass(RichEditPlugin, {
-      decorations: v => v.decorations,
-      provide: () => [
-        markdownWithFrontmatter,
-        renderBlock({}),
-        syntaxHighlighting(combinedHighlightStyle),  // Combined: heading styles (no underlines) + code syntax colors
-      ],
-      eventHandlers: {
-        mousedown({ target }, view) {
-          if (target instanceof Element && target.matches('.cm-markdoc-renderBlock *'))
-            view.dispatch({ selection: { anchor: view.posAtDOM(target) } });
-        }
-      }
-    });
-
-    // Add custom fold service for YAML frontmatter
-    const frontmatterFoldService: Extension = foldService.of((state, from, to) => {
-      const tree: Tree = syntaxTree(state);
-      let foldRange: { from: number; to: number } | null = null;
-
-      // Check if we're at the start of a Frontmatter node
-      tree.iterate({
-        from,
-        to: Math.min(to, from + 1000),
-        enter: (node) => {
-          if (node.name === 'Frontmatter' && node.from === from) {
-            // Fold from the opening --- to the closing ---
-            // We want to keep the first line visible (opening ---) and fold the rest
-            const firstLine: Line = state.doc.lineAt(node.from);
-            foldRange = { from: firstLine.to, to: node.to-1 };
-            return false; // Stop iterating
-          }
-        }
-      });
-
-      return foldRange;
-    });
 
     // Check if dark mode is active (either via option or from document class)
     const isDarkMode: boolean = this.options.darkMode ?? document.documentElement.classList.contains('dark');
@@ -215,8 +132,7 @@ export class CodeMirrorEditorView extends Disposable {
         { key: 'Tab', run: (view) => acceptCompletion(view) || indentMore(view) },
         { key: 'Shift-Tab', run: indentLess }
       ]),
-      keymap.of(markdownKeymap), // Enter continues lists, Backspace removes list markers
-      richMarkdocPlugin, // Rich markdown editing (provides markdown, decorations, and syntax highlighting inside provide())
+      ...createMarkdownExtensions(), // Rich markdown editing, frontmatter folding, markdown keybindings
       mermaidRender(), // Render Mermaid diagrams in live preview
       videoRender(), // Render ![[video.mp4]] wikilinks as inline video players
       externalVideoRender(), // Render YouTube/Vimeo/Loom URLs as inline video embeds
@@ -224,11 +140,10 @@ export class CodeMirrorEditorView extends Disposable {
       wikilinkCompletion(), // Autocomplete for [[wikilinks]] - shows nodes ordered by recency
       wikilinkTitleDisplay(), // Display node titles instead of IDs in [[wikilinks]] - uses Mark decorations + CSS
       tooltips({ parent: document.body }), // Render tooltips (including autocomplete) in body to avoid overflow clipping
-      frontmatterFoldService, // Custom fold service for frontmatter (foldGutter is already in basicSetup)
       EditorView.lineWrapping, // Enable text wrapping
-      this.setupUpdateListener(),
-      this.setupImagePasteHandler(), // Handle pasting images from clipboard
-      this.setupContextMenuHandler() // Right-click menu with "Add Link" option
+      updateListenerExtension,
+      createImagePasteHandler(this.options.nodeId), // Handle pasting images from clipboard
+      createContextMenuHandler(this.options.language) // Right-click menu with "Add Link" option
     ];
 
     // Add dark mode theme if active
@@ -243,7 +158,7 @@ export class CodeMirrorEditorView extends Disposable {
   /**
    * Create simplified extensions for JSON editing mode
    */
-  private createJsonExtensions(): Extension[] {
+  private createJsonExtensions(updateListenerExtension: Extension): Extension[] {
     // Check if dark mode is active (either via option or from document class)
     const isDarkMode: boolean = this.options.darkMode ?? document.documentElement.classList.contains('dark');
 
@@ -252,7 +167,7 @@ export class CodeMirrorEditorView extends Disposable {
       json(), // JSON language support with syntax highlighting
       syntaxHighlighting(defaultHighlightStyle), // Code coloring
       EditorView.lineWrapping, // Enable text wrapping
-      this.setupUpdateListener()
+      updateListenerExtension
     ];
 
     // Add dark mode theme if active
@@ -262,177 +177,6 @@ export class CodeMirrorEditorView extends Disposable {
     }
 
     return extensions;
-  }
-
-  /**
-   * Setup update listener to detect content changes
-   * Debounces emissions based on autosaveDelay option (default: 300ms)
-   *
-   * Emits to two channels:
-   * - changeEmitter: Only for user input (typing, paste, etc.) - used for autosave
-   * - anyDocChangeEmitter: For ALL document changes (user + programmatic) - used for auto-height
-   */
-  private setupUpdateListener(): Extension {
-    return EditorView.updateListener.of((viewUpdate: ViewUpdate) => {
-      // Emit geometry changes (used by auto-height) - fires after layout is complete
-      if (viewUpdate.geometryChanged) {
-        this.geometryChangeEmitter.emit();
-      }
-
-      // Detect "select all" state to apply CSS fix for CM6's extreme rectangle positioning
-      // CM6 positions select-all rectangles at top:-33Mpx with height:33Mpx, ending at y=0
-      // This causes the rectangle to not cover visible content. The CSS class triggers a fix.
-      if (viewUpdate.selectionSet) {
-        const state: EditorState = viewUpdate.state;
-        const selection: { from: number; to: number } = state.selection.main;
-        const isSelectAll: boolean = selection.from === 0 && selection.to === state.doc.length;
-        this.container.classList.toggle('cm-select-all', isSelectAll);
-      }
-
-      if (viewUpdate.docChanged) {
-        // Emit to anyDocChangeEmitter for ALL document changes
-        this.anyDocChangeEmitter.emit();
-
-        // Only emit to changeEmitter for user-initiated changes - not programmatic setValue() calls
-        // User events: input (typing/paste), delete (backspace/del), undo, redo
-        // This prevents feedback loops for autosave
-        const isUserChange: boolean = viewUpdate.transactions.some(
-          tr => tr.isUserEvent("input") || tr.isUserEvent("delete") || tr.isUserEvent("undo") || tr.isUserEvent("redo")
-        );
-
-        if (!isUserChange) {
-          return; // Skip programmatic changes for autosave
-        }
-
-        const delay: number = this.options.autosaveDelay ?? 300;
-
-        // Clear existing timeout
-        if (this.debounceTimeout) {
-          clearTimeout(this.debounceTimeout);
-        }
-
-        // Set new timeout to emit after delay
-        // Read current content at fire time, not captured content at debounce start
-        // This ensures external changes (e.g., appended links) are included in the save
-        this.debounceTimeout = setTimeout(() => {
-          this.changeEmitter.emit(this.view.state.doc.toString());
-          this.debounceTimeout = null;
-        }, delay);
-      }
-    });
-  }
-
-  /**
-   * Setup paste handler for images from clipboard.
-   * When an image is pasted:
-   * 1. Calls saveClipboardImage IPC to save image as sibling file
-   * 2. Inserts markdown image reference ![[filename.png]] at cursor
-   */
-  private setupImagePasteHandler(): Extension {
-    return EditorView.domEventHandlers({
-      paste: (event: ClipboardEvent, view: EditorView): boolean => {
-        // Only handle if we have a nodeId configured
-        if (!this.options.nodeId) {
-          return false; // Let default paste handling continue
-        }
-
-        // Check if clipboard contains an image
-        const clipboardData: DataTransfer | null = event.clipboardData;
-        if (!clipboardData) {
-          return false;
-        }
-
-        // Check for image data in clipboard items
-        const hasImage: boolean = Array.from(clipboardData.items).some(
-          (item: DataTransferItem) => item.type.startsWith('image/')
-        );
-
-        if (!hasImage) {
-          return false; // No image, let default paste handling continue
-        }
-
-        // Prevent default paste behavior for images
-        event.preventDefault();
-
-        // Call saveClipboardImage IPC to save the image
-        const nodeId: string = this.options.nodeId;
-        void (async (): Promise<void> => {
-          try {
-            const filename: string | null = await window.electronAPI?.main.saveClipboardImage(nodeId) ?? null;
-
-            if (filename) {
-              // Insert markdown image reference at cursor position
-              const imageRef: string = `![[${filename}]]`;
-              const cursor: number = view.state.selection.main.head;
-              view.dispatch({
-                changes: { from: cursor, insert: imageRef },
-                selection: { anchor: cursor + imageRef.length },
-                userEvent: 'input.paste'
-              });
-              //console.log('[CodeMirrorEditorView] Pasted image:', filename);
-            } else {
-              //console.log('[CodeMirrorEditorView] No image in clipboard');
-            }
-          } catch (error) {
-            console.error('[CodeMirrorEditorView] Error saving pasted image:', error);
-          }
-        })();
-
-        return true; // We handled the paste event
-      }
-    });
-  }
-
-  /**
-   * Setup context menu handler for right-click actions in the editor.
-   * Shows a menu with "Add Link" option to insert wikilink and trigger autocomplete.
-   */
-  private setupContextMenuHandler(): Extension {
-    return EditorView.domEventHandlers({
-      contextmenu: (event: MouseEvent, view: EditorView): boolean => {
-        // Only handle in markdown mode (not JSON)
-        if (this.options.language === 'json') {
-          return false;
-        }
-
-        event.preventDefault();
-
-        const menuItems: Array<{ text?: string; html?: string; action?: () => void }> = [
-          {
-            html: '<span style="display: flex; align-items: center; gap: 8px; white-space: nowrap;">🔗 Add Link</span>',
-            action: () => {
-              this.insertWikilinkAndTriggerCompletion(view);
-            },
-          },
-        ];
-
-        ctxmenu.show(menuItems, event);
-        return true;
-      }
-    });
-  }
-
-  /**
-   * Insert wikilink brackets at cursor and trigger autocomplete.
-   * Inserts [[]], positions cursor between brackets, and opens node picker.
-   */
-  private insertWikilinkAndTriggerCompletion(view: EditorView): void {
-    const cursor: number = view.state.selection.main.head;
-
-    // Insert [[]] and position cursor between the brackets
-    view.dispatch({
-      changes: { from: cursor, insert: '[[]]' },
-      selection: { anchor: cursor + 2 }, // Position cursor after [[
-      userEvent: 'input'
-    });
-
-    // Focus the editor and trigger autocomplete
-    view.focus();
-
-    // Use requestAnimationFrame to ensure the DOM update completes before triggering autocomplete
-    requestAnimationFrame(() => {
-      startCompletion(view);
-    });
   }
 
   /**
@@ -559,10 +303,7 @@ export class CodeMirrorEditorView extends Disposable {
    */
   dispose(): void {
     // Clear any pending debounce timeout
-    if (this.debounceTimeout) {
-      clearTimeout(this.debounceTimeout);
-      this.debounceTimeout = null;
-    }
+    this.updateListenerDispose();
 
     // Destroy the CodeMirror view
     this.view.destroy();
