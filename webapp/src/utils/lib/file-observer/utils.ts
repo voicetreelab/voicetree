@@ -269,10 +269,28 @@ export function extractMarkdownHeadings(content: string): Array<{ level: number;
  * @returns Sanitized content
  */
 export function sanitizeContent(content: string, maxLength: number = 10000): string {
+  // Allowlisted iframe embed domains for video players
+  const ALLOWED_IFRAME_DOMAINS: string[] = [
+    'youtube.com/embed',
+    'www.youtube.com/embed',
+    'player.vimeo.com',
+    'www.loom.com/embed',
+  ];
+
   // Remove potential script tags and other dangerous content
   let sanitized: string = content
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '[SCRIPT REMOVED]')
-    .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, '[IFRAME REMOVED]')
+    .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, (match: string) => {
+      // Allow iframes from trusted video embed domains
+      const srcMatch: RegExpMatchArray | null = match.match(/src=["']([^"']+)["']/i);
+      if (srcMatch?.[1]) {
+        const src: string = srcMatch[1];
+        if (ALLOWED_IFRAME_DOMAINS.some(domain => src.includes(domain))) {
+          return match; // Keep allowlisted iframe
+        }
+      }
+      return '[IFRAME REMOVED]';
+    })
     .replace(/javascript:/gi, '[JAVASCRIPT REMOVED]');
 
   // Truncate if too long
