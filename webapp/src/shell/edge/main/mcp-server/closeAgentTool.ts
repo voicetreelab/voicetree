@@ -3,9 +3,11 @@
  * Closes an agent terminal.
  */
 
+import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy'
 import {type McpToolResponse, buildJsonResponse} from './types'
+import {getNewNodesForAgent} from './getNewNodesForAgent'
 
 export interface CloseAgentParams {
     terminalId: string
@@ -37,7 +39,17 @@ export async function closeAgentTool({
         }, true)
     }
 
-    // 3. Close the terminal via UI API (mimics clicking red traffic light button)
+    // 3. Check if the agent has produced any nodes
+    const agentName: string | undefined = targetRecord.terminalData.agentName
+    const agentNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(getGraph(), agentName)
+    if (agentNodes.length === 0) {
+        return buildJsonResponse({
+            success: false,
+            error: `Cannot close agent terminal "${terminalId}": this agent has not produced any nodes yet. Agents should create progress nodes documenting their work before being closed.`
+        }, true)
+    }
+
+    // 4. Close the terminal via UI API (mimics clicking red traffic light button)
     // This properly: removes from registry, disposes floating window, deletes context node
     try {
         uiAPI.closeTerminalById(terminalId)
