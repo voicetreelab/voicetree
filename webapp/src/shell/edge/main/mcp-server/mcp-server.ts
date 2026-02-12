@@ -101,14 +101,14 @@ If you already have a node detailing the task, use nodeId. Otherwise, use task+p
         'wait_for_agents',
         {
             title: 'Wait for Agents',
-            description: 'Wait for specified agent terminals to complete. Returns when all agents have exited.',
+            description: 'Wait for specified agent terminals to complete. Returns immediately with a monitorId. The monitor polls in the background and sends a completion message to your terminal when all agents are done.',
             inputSchema: {
                 terminalIds: z.array(z.string()).describe('Array of terminal IDs to wait for'),
                 callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),
                 pollIntervalMs: z.number().optional().describe('Poll interval in ms (default: 5000)')
             }
         },
-        async ({terminalIds, callerTerminalId, pollIntervalMs}) =>
+        ({terminalIds, callerTerminalId, pollIntervalMs}) =>
             waitForAgentsTool({terminalIds, callerTerminalId, pollIntervalMs})
     )
 
