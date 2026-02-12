@@ -443,7 +443,7 @@ describe('GraphNavigationService', () => {
       service.handleSearchSelect('node1');
 
       // Should have zoom and duration in animate call
-      const animateArgs: { center: { eles: Collection }, zoom?: number, duration?: number } = animateSpy.mock.calls[0][0] as { zoom: number, duration: number };
+      const animateArgs: { center: { eles: Collection }, zoom?: number, duration?: number } = animateSpy.mock.calls[0][0] as { center: { eles: Collection }; zoom: number; duration: number };
       expect(typeof animateArgs.zoom).toBe('number');
       expect(typeof animateArgs.duration).toBe('number');
     });

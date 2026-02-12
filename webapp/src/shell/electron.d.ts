@@ -36,8 +36,8 @@ export interface ElectronAPI {
     write: (terminalId: string, data: string) => Promise<{ success: boolean; error?: string }>;
     resize: (terminalId: string, cols: number, rows: number) => Promise<{ success: boolean; error?: string }>;
     kill: (terminalId: string) => Promise<{ success: boolean; error?: string }>;
-    onData: (callback: (terminalId: string, data: string) => void) => void;
-    onExit: (callback: (terminalId: string, code: number) => void) => void;
+    onData: (callback: (terminalId: string, data: string) => void) => () => void;
+    onExit: (callback: (terminalId: string, code: number) => void) => () => void;
   };
 
   // Backend log streaming

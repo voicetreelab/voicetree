@@ -41,9 +41,9 @@ interface BroadcastCall {
 }
 
 // Expected counts (based on actual example_folder_fixtures)
-// Note: Loads entire directory including ctx-nodes
-const EXPECTED_SMALL_NODE_COUNT: 22 = 22 as const  // 11 root files + 11 in voicetree/ subfolder
-const EXPECTED_LARGE_NODE_COUNT: 186 = 186 as const  // Includes ctx-nodes
+// loadFolder now loads only the writePath (voicetree/ subfolder) via vault config
+const EXPECTED_SMALL_NODE_COUNT: 7 = 7 as const  // voicetree/ subfolder only
+const EXPECTED_LARGE_NODE_COUNT: 75 = 75 as const  // voicetree/ subfolder only
 
 // State for mocks
 let broadcastCalls: Array<BroadcastCall> = []
@@ -260,6 +260,9 @@ describe('Folder Loading - Integration Tests', () => {
 
       handleFSEventWithStateAndUISides(addEvent, EXAMPLE_SMALL_PATH, mockMainWindow as unknown as BrowserWindow)
 
+      // Wait for async broadcast to complete (handleFSEvent uses void fire-and-forget)
+      await new Promise(resolve => setTimeout(resolve, 0))
+
       // Verify the node was added to the graph - node IDs are now absolute paths
       const graphAfterAdd: Graph = getGraph()
       expect(graphAfterAdd.nodes[testFilePath]).toBeDefined()
@@ -297,6 +300,9 @@ describe('Folder Loading - Integration Tests', () => {
       }
 
       handleFSEventWithStateAndUISides(deleteEvent, EXAMPLE_SMALL_PATH, mockMainWindow as unknown as BrowserWindow)
+
+      // Wait for async broadcast to complete (handleFSEvent uses void fire-and-forget)
+      await new Promise(resolve => setTimeout(resolve, 0))
 
       // Verify the node was removed from the graph - node IDs are absolute paths
       const graphAfterDelete: Graph = getGraph()
@@ -390,8 +396,11 @@ describe('Folder Loading - Integration Tests', () => {
         eventType: 'Added' as const
       }
 
-       
+
       handleFSEventWithStateAndUISides(addEvent, EXAMPLE_SMALL_PATH, mockMainWindow as unknown as BrowserWindow)
+
+      // Wait for async broadcast to complete (handleFSEvent uses void fire-and-forget)
+      await new Promise(resolve => setTimeout(resolve, 0))
 
       // THEN: Graph should contain the new node - node IDs are absolute paths
       const graph: Graph = getGraph()
@@ -421,6 +430,9 @@ describe('Folder Loading - Integration Tests', () => {
 
 
       handleFSEventWithStateAndUISides(deleteEvent, EXAMPLE_SMALL_PATH, mockMainWindow as unknown as BrowserWindow)
+
+      // Wait for async broadcast to complete (handleFSEvent uses void fire-and-forget)
+      await new Promise(resolve => setTimeout(resolve, 0))
 
       // THEN: GraphNode should be removed from graph - node IDs are absolute paths
       const graphAfterDelete: Graph = getGraph()

@@ -6,12 +6,17 @@
  * During layout instability (e.g. WebGL context loss cascade), the container can
  * momentarily report smaller dimensions, which cy.resize() locks in permanently.
  *
- * This wraps cy.resize() to skip resize when the container is much smaller than
- * the screen — the graph canvas should be ~90% of the UI, so <60% signals a problem.
+ * The guard blocks resize when the container is smaller than 95% of the expected
+ * available area (viewport minus sidebar and chrome), which catches spurious shrinks
+ * while allowing legitimate window resizes.
  */
 import type {Core} from 'cytoscape';
 
-const MIN_SCREEN_RATIO: number = 0.6;
+/** Block resize if container is smaller than this fraction of expected dimensions */
+const RESIZE_THRESHOLD: number = 0.95;
+
+/** Title bar (38px) + bottom bar (50px) */
+const CHROME_HEIGHT_PX: number = 88;
 
 /**
  * Patch cy.resize() to reject suspiciously small container dimensions.
@@ -27,10 +32,18 @@ export function guardCytoscapeResize(cy: Core): void {
             const screenW: number = window.innerWidth;
             const screenH: number = window.innerHeight;
 
-            if (clientWidth < screenW * MIN_SCREEN_RATIO || clientHeight < screenH * MIN_SCREEN_RATIO) {
+            // Account for the terminal tree sidebar if visible
+            const sidebar: Element | null = document.querySelector('.terminal-tree-sidebar');
+            const sidebarWidth: number = sidebar instanceof HTMLElement ? sidebar.clientWidth : 0;
+
+            const expectedWidth: number = (screenW - sidebarWidth) * RESIZE_THRESHOLD;
+            const expectedHeight: number = (screenH - CHROME_HEIGHT_PX) * RESIZE_THRESHOLD;
+
+            if (clientWidth < expectedWidth || clientHeight < expectedHeight) {
                 console.warn(
                     `[guardCytoscapeResize] Blocked resize to ${clientWidth}x${clientHeight} `
-                    + `(screen: ${screenW}x${screenH}, threshold: ${MIN_SCREEN_RATIO * 100}%)`
+                    + `(expected ≥${Math.round(expectedWidth)}x${Math.round(expectedHeight)}, `
+                    + `screen: ${screenW}x${screenH}, sidebar: ${sidebarWidth}px)`
                 );
                 return cy;
             }

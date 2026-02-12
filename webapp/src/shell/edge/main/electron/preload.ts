@@ -60,10 +60,14 @@ async function exposeElectronAPI(): Promise<void> {
             resize: (terminalId, cols, rows) => ipcRenderer.invoke('terminal:resize', terminalId, cols, rows),
             kill: (terminalId) => ipcRenderer.invoke('terminal:kill', terminalId),
             onData: (callback) => {
-                ipcRenderer.on('terminal:data', (_event, terminalId, data) => callback(terminalId, data));
+                const handler: (_event: Electron.IpcRendererEvent, terminalId: string, data: string) => void = (_event, terminalId, data) => callback(terminalId, data);
+                ipcRenderer.on('terminal:data', handler);
+                return () => ipcRenderer.off('terminal:data', handler);
             },
             onExit: (callback) => {
-                ipcRenderer.on('terminal:exit', (_event, terminalId, code) => callback(terminalId, code));
+                const handler: (_event: Electron.IpcRendererEvent, terminalId: string, code: number) => void = (_event, terminalId, code) => callback(terminalId, code);
+                ipcRenderer.on('terminal:exit', handler);
+                return () => ipcRenderer.off('terminal:exit', handler);
             }
         },
 

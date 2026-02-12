@@ -217,14 +217,21 @@ export async function setWritePath(vaultPath: FilePath): Promise<{ success: bool
         return result;
     }
 
+    // Demote old write path to readPaths before overwriting
+    const oldWritePath: string = config?.writePath
+        ? resolveWritePath(watchedDir, config.writePath)
+        : normalizePath(watchedDir);
+
+    // Build new readPaths: remove new writePath if present, add old writePath
+    const newReadPaths: readonly string[] = (config?.readPaths ?? [])
+        .filter((p: string) => p !== vaultPath)
+        .concat(oldWritePath !== vaultPath ? [oldWritePath] : []);
+
     // Save to config only AFTER successful load (atomic operation)
     await saveVaultConfigForDirectory(watchedDir, {
         writePath: vaultPath,
-        readPaths: config?.readPaths ?? []
+        readPaths: newReadPaths
     });
-
-    // Note: Clearing the old write path is handled by the caller (VaultPathSelector)
-    // which calls removeReadPath() after setWritePath()
 
     return { success: true };
 }

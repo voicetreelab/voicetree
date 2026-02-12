@@ -295,6 +295,19 @@ Object.defineProperty(navigator, 'webdriver', {
 // Mock HTMLElement.scrollTo for TranscriptionDisplay auto-scroll
 HTMLElement.prototype.scrollTo = vi.fn();
 
+// Mock Range.getClientRects for CodeMirror — jsdom doesn't implement getClientRects on Range/Text nodes,
+// which causes uncaught errors when CodeMirror measures text in requestAnimationFrame callbacks.
+if (!Range.prototype.getClientRects) {
+    Range.prototype.getClientRects = () => ({
+        length: 0,
+        item: () => null,
+        [Symbol.iterator]: function* () {},
+    }) as DOMRectList;
+}
+if (!Range.prototype.getBoundingClientRect) {
+    Range.prototype.getBoundingClientRect = () => new DOMRect(0, 0, 0, 0);
+}
+
 // Mock window.electronAPI for tests that use Electron IPC
 Object.defineProperty(window, 'electronAPI', {
     value: {

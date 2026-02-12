@@ -199,14 +199,18 @@ If you already have a node detailing the task, use nodeId. Otherwise, use task+p
 
 One node = one concept. If your work covers multiple independent concerns, call this tool multiple times.
 
+**Self-containment:** Nodes must embed all artifacts produced (diagrams, ASCII mockups, code, analysis). Never summarize an artifact — include it verbatim. The node is the deliverable, not a pointer to it.
+
 **Required when codeDiffs provided:** complexityScore and complexityExplanation must be included.
+
+**Composition guidance:** Read addProgressTree.md before your first progress node for scope rules, when to split, and embedding standards.
 
 **Spec files:** If you created openspec artifacts (proposal, design, tasks) or similar specs, link the key ones via linkedArtifacts. Skip individual spec deltas unless they contain key decisions.`,
             inputSchema: {
                 callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),
                 title: z.string().describe('Node title — one concept per node, concise and descriptive'),
                 summary: z.string().describe('Concise summary (1-3 lines) of what was accomplished. Always shown first.'),
-                content: z.string().optional().describe('Optional freeform markdown body for longer details beyond the summary.'),
+                content: z.string().describe('Complete work output as markdown. MUST contain all artifacts produced: diagrams, ASCII mockups, code snippets, analysis, tables, proposals. Embed artifacts verbatim — do not summarize what you created. The node must be self-contained: a reader should never need to look elsewhere to see what was produced. Pass empty string if no artifacts were produced.'),
                 codeDiffs: z.array(z.string()).optional().describe('Array of code diff strings. Each diff is rendered in a code block under ## DIFF. When provided, complexityScore and complexityExplanation are required.'),
                 filesChanged: z.array(z.string()).optional().describe('Array of file paths you modified'),
                 diagram: z.string().optional().describe('Mermaid diagram source (without ```mermaid fences — tool adds them). Validated before creation.'),
@@ -215,11 +219,12 @@ One node = one concept. If your work covers multiple independent concerns, call 
                 complexityScore: z.enum(['low', 'medium', 'high']).optional().describe('Required when codeDiffs provided. Complexity of the area worked in.'),
                 complexityExplanation: z.string().optional().describe('Required when codeDiffs provided. Brief explanation of the complexity score.'),
                 parentNodeId: z.string().optional().describe('Parent node ID to link to. Defaults to your task node.'),
-                color: z.string().optional().describe('Override node color. Use CSS named colors: red, blue, green, yellow, orange, purple, pink, cyan, teal, brown, gray, lime, magenta, navy, olive, maroon, coral, crimson, gold, indigo, lavender, salmon, tomato, turquoise, violet. Defaults to your agent color.')
+                color: z.string().optional().describe('Override node color. Use CSS named colors: red, blue, green, yellow, orange, purple, pink, cyan, teal, brown, gray, lime, magenta, navy, olive, maroon, coral, crimson, gold, indigo, lavender, salmon, tomato, turquoise, violet. Defaults to your agent color.'),
+                override_warning_after_reading_instructions: z.boolean().optional().describe('Set to true to bypass warnings after reading addProgressTree.md. Only use after reading the instructions and confirming the warning does not apply.')
             }
         },
-        async ({callerTerminalId, title, summary, content, codeDiffs, filesChanged, diagram, notes, linkedArtifacts, complexityScore, complexityExplanation, parentNodeId, color}) =>
-            addProgressNodeTool({callerTerminalId, title, summary, content, codeDiffs, filesChanged, diagram, notes, linkedArtifacts, complexityScore, complexityExplanation, parentNodeId, color})
+        async ({callerTerminalId, title, summary, content, codeDiffs, filesChanged, diagram, notes, linkedArtifacts, complexityScore, complexityExplanation, parentNodeId, color, override_warning_after_reading_instructions}) =>
+            addProgressNodeTool({callerTerminalId, title, summary, content, codeDiffs, filesChanged, diagram, notes, linkedArtifacts, complexityScore, complexityExplanation, parentNodeId, color, override_warning_after_reading_instructions})
     )
 
     return server
