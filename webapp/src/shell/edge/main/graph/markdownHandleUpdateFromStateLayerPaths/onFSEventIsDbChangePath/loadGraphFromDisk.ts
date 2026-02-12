@@ -8,7 +8,7 @@ import type { Graph, FSUpdate, GraphDelta, GraphNode } from '@/pure/graph'
 import { createEmptyGraph, isImageNode } from '@/pure/graph'
 import type { Dirent } from 'fs'
 import { enforceFileLimit, type FileLimitExceededError } from './fileLimitEnforce'
-import { applyPositions } from '@/pure/graph/positioning'
+import { applyPositions, rebaseNewClusterPositions } from '@/pure/graph/positioning'
 import { addNodeToGraphWithEdgeHealingFromFSEvent } from '@/pure/graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent'
 import { applyGraphDeltaToGraph } from '@/pure/graph/graphDelta/applyGraphDeltaToGraph'
 import { linkMatchScore } from '@/pure/graph/markdown-parsing/extract-edges'
@@ -163,14 +163,19 @@ export async function loadVaultPathAdditively(
     // Step 4: Apply positions only to new nodes (existing nodes keep their positions)
     const graphWithPositions: Graph = applyPositions(mergedGraph);
 
+    // Step 4.5: Rebase new cluster positions relative to existing nodes
+    // This prevents viewport collapse when new nodes are far from existing ones
+    const existingNodeIds: readonly string[] = Object.keys(existingGraph.nodes);
+    const graphRebased: Graph = rebaseNewClusterPositions(graphWithPositions, existingNodeIds, newNodeIds);
+
     // Step 5: Build delta containing only the new nodes (for UI broadcast)
     const resultDelta: GraphDelta = newNodeIds.map(nodeId => ({
         type: 'UpsertNode' as const,
-        nodeToUpsert: graphWithPositions.nodes[nodeId],
+        nodeToUpsert: graphRebased.nodes[nodeId],
         previousNode: O.none  // All new nodes
     }));
 
-    return E.right({ graph: graphWithPositions, delta: resultDelta });
+    return E.right({ graph: graphRebased, delta: resultDelta });
 }
 
 /**
