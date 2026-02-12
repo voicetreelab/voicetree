@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useSyncExternalStore } from 'react';
 import type { JSX, MouseEvent, RefObject, ChangeEvent, KeyboardEvent } from 'react';
-import type { FilePath } from '@/pure/graph';
 import type { AvailableFolderItem } from '@/pure/folders/types';
 import { toDisplayPath, toAbsolutePath } from '@/pure/folders';
-import * as O from 'fp-ts/lib/Option.js';
+import { subscribeToVaultPaths, getVaultState } from '@/shell/edge/UI-edge/state/VaultPathStore';
+import type { VaultPathState } from '@/shell/edge/UI-edge/state/VaultPathStore';
 import type {} from '@/shell/electron';
 
 interface VaultPathSelectorProps {
@@ -16,39 +16,25 @@ interface AddVaultResult {
 }
 
 /**
- * Dropdown component for folder management with three sections:
+ * Dropdown component for folder management with four sections:
  * 1. WRITING TO - current write folder with reset button
  * 2. ALSO READING - loaded read folders with remove/promote actions
- * 3. ADD FOLDER - search and add new folders
+ * 3. STARRED - starred folders that appear across all projects
+ * 4. ADD FOLDER - search and add new folders
  */
 export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): JSX.Element | null {
+    // Push-based state from main process via VaultPathStore
+    const vaultState: VaultPathState = useSyncExternalStore(subscribeToVaultPaths, getVaultState);
+    const { readPaths, writePath, starredFolders } = vaultState;
+
+    // Local UI state
     const [isOpen, setIsOpen] = useState(false);
-    const [readPaths, setReadPaths] = useState<readonly string[]>([]);
-    const [writePath, setWritePathState] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [availableFolders, setAvailableFolders] = useState<readonly AvailableFolderItem[]>([]);
+    const [homeDir, setHomeDir] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const dropdownRef: RefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);
     const searchInputRef: RefObject<HTMLInputElement | null> = useRef<HTMLInputElement>(null);
-
-    // Fetch read paths and writePath
-    const refreshPaths: () => Promise<void> = useCallback(async (): Promise<void> => {
-        if (!window.electronAPI) return;
-
-        try {
-            const paths: readonly FilePath[] = await window.electronAPI.main.getVaultPaths();
-            setReadPaths(paths);
-
-            const currentWritePath: O.Option<FilePath> = await window.electronAPI.main.getWritePath();
-            if (O.isSome(currentWritePath)) {
-                setWritePathState(currentWritePath.value);
-            } else {
-                setWritePathState(null);
-            }
-        } catch (err) {
-            console.error('[VaultPathSelector] Failed to fetch paths:', err);
-        }
-    }, []);
 
     // Fetch available folders based on search query
     const fetchAvailableFolders: (query: string) => Promise<void> = useCallback(async (query: string): Promise<void> => {
@@ -62,10 +48,15 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
         }
     }, []);
 
-    // Refresh on mount and when watchDirectory changes
+    // Derive home directory from app support path on mount
     useEffect(() => {
-        void refreshPaths();
-    }, [refreshPaths, watchDirectory]);
+        if (!window.electronAPI) return;
+        void (async (): Promise<void> => {
+            const appSupportPath: string = await window.electronAPI!.main.getAppSupportPath();
+            const homeMatch: RegExpMatchArray | null = appSupportPath.match(/^(\/Users\/[^/]+|\/home\/[^/]+|[A-Z]:\\Users\\[^\\]+)/);
+            if (homeMatch) setHomeDir(homeMatch[1]);
+        })();
+    }, []);
 
     // Fetch available folders when dropdown opens or search changes
     useEffect(() => {
@@ -77,8 +68,7 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
     // Focus search input when dropdown opens
     useEffect(() => {
         if (isOpen && searchInputRef.current) {
-            // Small delay to ensure the dropdown is rendered
-            const timer = setTimeout(() => {
+            const timer: ReturnType<typeof setTimeout> = setTimeout(() => {
                 searchInputRef.current?.focus();
             }, 50);
             return () => clearTimeout(timer);
@@ -108,9 +98,7 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
 
         try {
             const result: AddVaultResult = await window.electronAPI.main.setWritePath(watchDirectory);
-            if (result.success) {
-                await refreshPaths();
-            } else {
+            if (!result.success) {
                 setError(result.error ?? 'Failed to reset write path');
             }
         } catch (err) {
@@ -126,7 +114,6 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
         try {
             const result: AddVaultResult = await window.electronAPI.main.setWritePath(path);
             if (result.success) {
-                await refreshPaths();
                 await fetchAvailableFolders(searchQuery);
             } else {
                 setError(result.error ?? 'Failed to set write path');
@@ -144,7 +131,6 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
         try {
             const result: AddVaultResult = await window.electronAPI.main.removeReadPath(path);
             if (result.success) {
-                await refreshPaths();
                 await fetchAvailableFolders(searchQuery);
             } else {
                 setError(result.error ?? 'Failed to remove folder');
@@ -164,7 +150,6 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
             // Then set as write path
             const result: AddVaultResult = await window.electronAPI.main.setWritePath(path);
             if (result.success) {
-                await refreshPaths();
                 await fetchAvailableFolders(searchQuery);
             } else {
                 setError(result.error ?? 'Failed to set write path');
@@ -181,7 +166,6 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
         try {
             const result: AddVaultResult = await window.electronAPI.main.addReadPath(path);
             if (result.success) {
-                await refreshPaths();
                 await fetchAvailableFolders(searchQuery);
             } else {
                 setError(result.error ?? 'Failed to add read folder');
@@ -196,7 +180,7 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
         if (!window.electronAPI) return;
 
         try {
-            const result = await window.electronAPI.main.showFolderPicker({
+            const result: { success: boolean; path?: string } = await window.electronAPI.main.showFolderPicker({
                 defaultPath: watchDirectory,
                 buttonLabel: 'Add Subfolder',
                 title: 'Select Subfolder to Add',
@@ -206,6 +190,22 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
             }
         } catch (err) {
             console.error('[VaultPathSelector] Error browsing for folder:', err);
+        }
+    };
+
+    // Handle toggling star on a folder
+    const handleToggleStar: (path: string, e: MouseEvent) => Promise<void> = async (path: string, e: MouseEvent): Promise<void> => {
+        e.stopPropagation();
+        if (!window.electronAPI) return;
+
+        try {
+            if (starredFolders.includes(path)) {
+                await window.electronAPI.main.removeStarredFolder(path);
+            } else {
+                await window.electronAPI.main.addStarredFolder(path);
+            }
+        } catch (err) {
+            console.error('[VaultPathSelector] Error toggling star:', err);
         }
     };
 
@@ -230,6 +230,17 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
         return displayPath === '.' ? './' : './' + displayPath;
     };
 
+    // Get display path with ~/prefix for external paths under home dir
+    const getSmartDisplayPath: (fullPath: string) => string = (fullPath: string): string => {
+        if (watchDirectory && (fullPath === watchDirectory || fullPath.startsWith(watchDirectory + '/'))) {
+            return getDisplayPath(fullPath);
+        }
+        if (homeDir && fullPath.startsWith(homeDir + '/')) {
+            return '~' + fullPath.slice(homeDir.length);
+        }
+        return fullPath;
+    };
+
     // Get folder name from path for button display
     const getFolderName: (fullPath: string) => string = (fullPath: string): string => {
         if (!watchDirectory) return fullPath.split(/[/\\]/).pop() ?? fullPath;
@@ -240,6 +251,10 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
     // Filter read folders to exclude the write path
     const readOnlyFolders: string[] = readPaths.filter((path): path is string => path !== writePath);
 
+    // Compute which starred folders are loaded vs unloaded
+    const loadedPathSet: Set<string> = new Set(readPaths);
+    const unloadedStarredFolders: readonly string[] = starredFolders.filter((p: string) => !loadedPathSet.has(p));
+
     // Always show if we have at least one path
     if (readPaths.length === 0) {
         return null;
@@ -247,6 +262,24 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
 
     const currentFolderName: string = writePath ? getFolderName(writePath) : 'Select vault';
     const projectName: string = watchDirectory?.split(/[/\\]/).pop() ?? 'project root';
+
+    // Star toggle button for folder rows
+    const renderStarButton: (path: string) => JSX.Element = (path: string): JSX.Element => {
+        const isStarred: boolean = starredFolders.includes(path);
+        return (
+            <button
+                onClick={(e: MouseEvent<HTMLButtonElement>) => void handleToggleStar(path, e)}
+                className={`px-1 py-0.5 text-sm rounded transition-colors ${
+                    isStarred
+                        ? 'text-amber-400 hover:text-amber-300'
+                        : 'text-muted-foreground/30 hover:text-amber-400/60'
+                }`}
+                title={isStarred ? 'Unstar folder' : 'Star folder'}
+            >
+                {isStarred ? '\u2605' : '\u2606'}
+            </button>
+        );
+    };
 
     return (
         <div ref={dropdownRef} className="relative">
@@ -257,7 +290,7 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                 title={`Write Path: ${writePath ?? 'None'}`}
             >
                 <span>{currentFolderName}</span>
-                <span className="text-[10px] ml-0.5">{isOpen ? '▼' : '▲'}</span>
+                <span className="text-[10px] ml-0.5">{isOpen ? '\u25BC' : '\u25B2'}</span>
             </button>
 
             {/* Dropdown menu */}
@@ -266,7 +299,7 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                     <div className="py-1">
                         {/* Project root header */}
                         <div className="px-3 py-1.5 text-[11px] text-muted-foreground/70 border-b border-border flex items-center gap-1.5">
-                            <span className="opacity-60">📁</span>
+                            <span className="opacity-60">{'\uD83D\uDCC1'}</span>
                             <span className="truncate font-medium" title={watchDirectory}>
                                 {projectName}/
                             </span>
@@ -283,22 +316,25 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                         <div className="px-3 py-1 text-[10px] text-muted-foreground uppercase tracking-wide border-b border-border">
                             Writing to
                         </div>
-                        <div className="px-3 py-1.5 flex items-center justify-between hover:bg-accent/50">
+                        <div className="group px-3 py-1.5 flex items-center justify-between hover:bg-accent/50">
                             <div className="flex items-center gap-2">
-                                <span className="text-primary">●</span>
+                                <span className="text-primary">{'\u25CF'}</span>
                                 <span className="text-xs font-medium truncate max-w-[200px]" title={writePath ?? undefined}>
-                                    {writePath ? getDisplayPath(writePath) : 'None'}
+                                    {writePath ? getSmartDisplayPath(writePath) : 'None'}
                                 </span>
                             </div>
-                            {writePath && writePath !== watchDirectory && (
-                                <button
-                                    onClick={handleResetToRoot}
-                                    className="px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted rounded"
-                                    title={`Reset to ${projectName}`}
-                                >
-                                    −
-                                </button>
-                            )}
+                            <div className="flex items-center gap-1">
+                                {writePath && renderStarButton(writePath)}
+                                {writePath && writePath !== watchDirectory && (
+                                    <button
+                                        onClick={(e: MouseEvent<HTMLButtonElement>) => void handleResetToRoot(e)}
+                                        className="px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted rounded"
+                                        title={`Reset to ${projectName}`}
+                                    >
+                                        {'\u2212'}
+                                    </button>
+                                )}
+                            </div>
                         </div>
 
                         {/* ALSO READING section - only show if there are read-only folders */}
@@ -310,29 +346,113 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                                 {readOnlyFolders.map((path: string) => (
                                     <div
                                         key={path}
-                                        className="px-3 py-1.5 flex items-center justify-between hover:bg-accent/50"
+                                        className="group px-3 py-1.5 flex items-center justify-between hover:bg-accent/50"
                                     >
                                         <button
-                                            onClick={(e) => void handlePromoteToWrite(path, e)}
+                                            onClick={(e: MouseEvent<HTMLButtonElement>) => void handlePromoteToWrite(path, e)}
                                             className="flex items-center gap-2 text-left flex-1 min-w-0"
                                             title={`Click to set as write destination: ${path}`}
                                         >
-                                            <span className="text-muted-foreground">○</span>
+                                            <span className="text-muted-foreground">{'\u25CB'}</span>
                                             <span className="text-xs truncate hover:text-primary">
-                                                {getDisplayPath(path)}
+                                                {getSmartDisplayPath(path)}
                                             </span>
                                         </button>
-                                        <button
-                                            onClick={(e) => void handleRemoveReadFolder(path, e)}
-                                            className="px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded ml-2"
-                                            title="Remove from read list"
-                                        >
-                                            −
-                                        </button>
+                                        <div className="flex items-center gap-1">
+                                            {renderStarButton(path)}
+                                            <button
+                                                onClick={(e: MouseEvent<HTMLButtonElement>) => void handleRemoveReadFolder(path, e)}
+                                                className="px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded ml-1"
+                                                title="Remove from read list"
+                                            >
+                                                {'\u2212'}
+                                            </button>
+                                        </div>
                                     </div>
                                 ))}
                             </>
                         )}
+
+                        {/* STARRED section */}
+                        <div className="border-t border-border mt-1">
+                            <div className="px-3 py-1 text-[10px] text-amber-400 uppercase tracking-wide border-b border-border flex items-center gap-1.5">
+                                <span>{'\u2605'} Starred</span>
+                                {starredFolders.length > 0 && (
+                                    <span className="text-[9px] bg-amber-400/15 text-amber-400 px-1 rounded">
+                                        {starredFolders.length}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="border-l-2 border-amber-400/20 ml-2 max-h-[120px] overflow-y-auto">
+                                {starredFolders.length === 0 ? (
+                                    <div className="px-3 py-2 text-[11px] text-muted-foreground/50 italic">
+                                        Star folders to see them here
+                                    </div>
+                                ) : (
+                                    <>
+                                        {/* Loaded starred folders */}
+                                        {starredFolders.filter((p: string) => loadedPathSet.has(p)).map((path: string) => (
+                                            <div
+                                                key={path}
+                                                className="group px-3 py-1 flex items-center justify-between hover:bg-accent/50"
+                                            >
+                                                <span className="text-xs truncate flex-1 min-w-0 text-muted-foreground" title={path}>
+                                                    {getSmartDisplayPath(path)}
+                                                </span>
+                                                <div className="flex items-center gap-1">
+                                                    <span className="text-[9px] text-emerald-400 ml-2 flex-shrink-0">
+                                                        {'\u2713'} loaded
+                                                    </span>
+                                                    <button
+                                                        onClick={(e: MouseEvent<HTMLButtonElement>) => void handleToggleStar(path, e)}
+                                                        className="px-1 py-0.5 text-sm text-amber-400 hover:text-amber-300 rounded transition-colors"
+                                                        title="Unstar folder"
+                                                    >
+                                                        {'\u2605'}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {/* Unloaded starred folders with Write/Read buttons */}
+                                        {unloadedStarredFolders.map((path: string) => (
+                                            <div
+                                                key={path}
+                                                className="group px-3 py-1 flex items-center justify-between hover:bg-accent/50"
+                                            >
+                                                <span className="text-xs truncate flex-1 min-w-0 text-muted-foreground/70 group-hover:text-foreground transition-colors" title={path}>
+                                                    {getSmartDisplayPath(path)}
+                                                </span>
+                                                <div className="flex gap-1 flex-shrink-0 items-center ml-2">
+                                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                                                        <button
+                                                            onClick={() => void handleSetAsWrite(path)}
+                                                            className="px-1.5 py-0.5 text-[10px] text-primary-foreground bg-primary/80 hover:bg-primary rounded-sm"
+                                                            title="Set as write destination"
+                                                        >
+                                                            Write
+                                                        </button>
+                                                        <button
+                                                            onClick={() => void handleAddAsRead(path)}
+                                                            className="px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/80 rounded-sm border border-dashed border-muted-foreground/30"
+                                                            title="Add as read folder"
+                                                        >
+                                                            Read
+                                                        </button>
+                                                    </div>
+                                                    <button
+                                                        onClick={(e: MouseEvent<HTMLButtonElement>) => void handleToggleStar(path, e)}
+                                                        className="px-1 py-0.5 text-sm text-amber-400 hover:text-amber-300 rounded transition-colors"
+                                                        title="Unstar folder"
+                                                    >
+                                                        {'\u2605'}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </>
+                                )}
+                            </div>
+                        </div>
 
                         {/* ADD FOLDER section - styled as search/autocomplete panel */}
                         <div className="border-t border-border mt-1 bg-muted/30">
@@ -366,7 +486,7 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                                         return displayPath === searchQuery.trim();
                                     }) && (
                                     <button
-                                        onClick={() => void handleSetAsWrite(watchDirectory + '/' + searchQuery.trim())}
+                                        onClick={() => void handleSetAsWrite(searchQuery.trim().startsWith('/') ? searchQuery.trim() : watchDirectory + '/' + searchQuery.trim())}
                                         className="group w-[calc(100%-1rem)] mx-2 mb-1 px-2 py-1.5 flex items-center gap-2 rounded-sm border border-dashed border-primary/40 hover:border-primary hover:bg-primary/10 transition-colors text-left"
                                         title="Create folder and set as write destination"
                                     >
