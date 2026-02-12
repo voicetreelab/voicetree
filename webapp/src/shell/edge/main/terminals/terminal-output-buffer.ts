@@ -1,17 +1,14 @@
 /**
- * Ring buffer for terminal output capture.
+ * Character-based ring buffer for terminal output capture.
  *
- * Stores last N lines per terminal for MCP read_terminal_output tool.
+ * Stores last N characters per terminal for MCP read_terminal_output tool.
  * Decoupled from TerminalManager for easy removal if feature proves not useful.
  */
 
-const MAX_LINES: number = 1000
+const MAX_CHARS: number = 10000
 
-// terminalId -> array of lines (ring buffer)
-const buffers: Map<string, string[]> = new Map<string, string[]>()
-
-// Partial line buffer for incomplete lines (data may arrive mid-line)
-const partialLines: Map<string, string> = new Map<string, string>()
+// terminalId -> string (character ring buffer)
+const buffers: Map<string, string> = new Map<string, string>()
 
 /* eslint-disable no-control-regex */
 // These regexes intentionally match terminal control characters (ESC, BEL, C1 codes)
@@ -71,54 +68,36 @@ function sanitizeOutput(data: string): string {
 }
 
 export function captureOutput(terminalId: string, data: string): void {
-    // Sanitize input data before processing
     const sanitized: string = sanitizeOutput(data)
+    if (sanitized.length === 0) return
 
-    const partial: string = partialLines.get(terminalId) ?? ''
-    const combined: string = partial + sanitized
+    let buffer: string = buffers.get(terminalId) ?? ''
+    buffer += sanitized
 
-    // Split on newlines, keeping partial line for next capture
-    const lines: string[] = combined.split('\n')
-    const newPartial: string = lines.pop() ?? ''
-    partialLines.set(terminalId, newPartial)
+    // Collapse consecutive empty lines (3+ newlines → 2 newlines) to prevent
+    // buffer pollution from stripped escape sequences (TUI-heavy output like
+    // Claude Code generates many empty lines after sanitization)
+    buffer = buffer.replace(/\n{3,}/g, '\n\n')
 
-    if (lines.length === 0) return
-
-    const buffer: string[] = buffers.get(terminalId) ?? []
-
-    // Collapse consecutive empty lines on write to prevent buffer pollution
-    // from stripped escape sequences (TUI-heavy output like Claude Code generates
-    // many empty lines after sanitization, which would waste buffer space)
-    for (const line of lines) {
-        const isEmpty: boolean = line.trim() === ''
-        const lastInBuffer: string | undefined = buffer[buffer.length - 1]
-        const lastIsEmpty: boolean = lastInBuffer !== undefined && lastInBuffer.trim() === ''
-        if (isEmpty && lastIsEmpty) continue
-        buffer.push(line)
-    }
-
-    // Keep only last MAX_LINES
-    if (buffer.length > MAX_LINES) {
-        buffer.splice(0, buffer.length - MAX_LINES)
+    // Keep only last MAX_CHARS
+    if (buffer.length > MAX_CHARS) {
+        buffer = buffer.slice(-MAX_CHARS)
     }
 
     buffers.set(terminalId, buffer)
 }
 
-export function getOutput(terminalId: string, nLines: number = MAX_LINES): string | undefined {
-    const buffer: string[] | undefined = buffers.get(terminalId)
-    if (!buffer) return undefined
+export function getOutput(terminalId: string, nChars: number = MAX_CHARS): string | undefined {
+    const buffer: string | undefined = buffers.get(terminalId)
+    if (buffer === undefined) return undefined
 
-    const linesToReturn: string[] = buffer.slice(-Math.min(nLines, MAX_LINES))
-    return linesToReturn.join('\n')
+    return buffer.slice(-Math.min(nChars, MAX_CHARS))
 }
 
 export function clearBuffer(terminalId: string): void {
     buffers.delete(terminalId)
-    partialLines.delete(terminalId)
 }
 
 export function clearAllBuffers(): void {
     buffers.clear()
-    partialLines.clear()
 }

@@ -26,7 +26,7 @@ vi.mock('@mermaid-js/parser', () => ({
     parse: vi.fn()
 }))
 
-import {addProgressNodeTool} from '@/shell/edge/main/mcp-server/mcp-server'
+import {createGraphTool} from '@/shell/edge/main/mcp-server/mcp-server'
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getTerminalRecords} from '@/shell/edge/main/terminals/terminal-registry'
@@ -44,9 +44,7 @@ function parsePayload(response: McpToolResponse): unknown {
 
 type SuccessPayload = {
     success: true
-    nodeId: string
-    filePath: string
-    warnings: string[]
+    nodes: Array<{id: string; path: string; status: 'ok' | 'warning'; warning?: string}>
 }
 
 type ErrorPayload = {
@@ -126,7 +124,7 @@ function setupStandardMocks(graphOverride?: Graph): void {
     vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mockResolvedValue(undefined)
 }
 
-describe('MCP add_progress_node tool', () => {
+describe('MCP create_graph tool', () => {
     beforeEach(() => {
         vi.clearAllMocks()
     })
@@ -139,10 +137,9 @@ describe('MCP add_progress_node tool', () => {
         it('returns error when caller terminal ID is unknown', async () => {
             vi.mocked(getTerminalRecords).mockReturnValue([])
 
-            const response: McpToolResponse = await addProgressNodeTool({
+            const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: 'unknown-terminal',
-                title: 'Test',
-                summary: 'Some summary'
+                nodes: [{id: 'a', title: 'Test', summary: 'Summary'}]
             })
             const payload: ErrorPayload = parsePayload(response) as ErrorPayload
 
@@ -155,10 +152,9 @@ describe('MCP add_progress_node tool', () => {
             mockCallerTerminal()
             vi.mocked(getWritePath).mockResolvedValue(O.none)
 
-            const response: McpToolResponse = await addProgressNodeTool({
+            const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Test',
-                summary: 'Some summary'
+                nodes: [{id: 'a', title: 'Test', summary: 'Summary'}]
             })
             const payload: ErrorPayload = parsePayload(response) as ErrorPayload
 
@@ -177,11 +173,10 @@ describe('MCP add_progress_node tool', () => {
                 unresolvedLinksIndex: new Map()
             })
 
-            const response: McpToolResponse = await addProgressNodeTool({
+            const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Test',
-                summary: 'Some summary',
-                parentNodeId: 'nonexistent-node.md'
+                parentNodeId: 'nonexistent-node.md',
+                nodes: [{id: 'a', title: 'Test', summary: 'Summary'}]
             })
             const payload: ErrorPayload = parsePayload(response) as ErrorPayload
 
@@ -189,23 +184,77 @@ describe('MCP add_progress_node tool', () => {
             expect(payload.success).toBe(false)
             expect(payload.error).toContain('not found')
         })
-    })
 
-    // =========================================================================
-    // Complexity validation
-    // =========================================================================
-
-    describe('complexity validation', () => {
-        it('returns error when codeDiffs provided without complexityScore', async () => {
+        it('returns error when nodes array is empty', async () => {
             setupStandardMocks()
 
-            const response: McpToolResponse = await addProgressNodeTool({
+            const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Missing Complexity',
-                summary: 'Did some work.',
-                codeDiffs: ['- old\n+ new'],
-                complexityExplanation: 'Simple change',
-                parentNodeId: PARENT_NODE_ID
+                nodes: []
+            })
+            const payload: ErrorPayload = parsePayload(response) as ErrorPayload
+
+            expect(response.isError).toBe(true)
+            expect(payload.success).toBe(false)
+            expect(payload.error).toContain('at least 1')
+        })
+
+        it('returns error when node has duplicate local id', async () => {
+            setupStandardMocks()
+
+            const response: McpToolResponse = await createGraphTool({
+                callerTerminalId: CALLER_TERMINAL_ID,
+                nodes: [
+                    {id: 'a', title: 'First', summary: 'Summary'},
+                    {id: 'a', title: 'Second', summary: 'Summary'}
+                ]
+            })
+            const payload: ErrorPayload = parsePayload(response) as ErrorPayload
+
+            expect(response.isError).toBe(true)
+            expect(payload.success).toBe(false)
+            expect(payload.error).toContain('Duplicate local id')
+        })
+
+        it('returns error when parent references undeclared local id', async () => {
+            setupStandardMocks()
+
+            const response: McpToolResponse = await createGraphTool({
+                callerTerminalId: CALLER_TERMINAL_ID,
+                nodes: [
+                    {id: 'a', title: 'Child', summary: 'Summary', parents: ['nonexistent']}
+                ]
+            })
+            const payload: ErrorPayload = parsePayload(response) as ErrorPayload
+
+            expect(response.isError).toBe(true)
+            expect(payload.success).toBe(false)
+            expect(payload.error).toContain('not a declared local id')
+        })
+
+        it('returns error when cycle detected in parent references', async () => {
+            setupStandardMocks()
+
+            const response: McpToolResponse = await createGraphTool({
+                callerTerminalId: CALLER_TERMINAL_ID,
+                nodes: [
+                    {id: 'a', title: 'A', summary: 'S', parents: ['b']},
+                    {id: 'b', title: 'B', summary: 'S', parents: ['a']}
+                ]
+            })
+            const payload: ErrorPayload = parsePayload(response) as ErrorPayload
+
+            expect(response.isError).toBe(true)
+            expect(payload.success).toBe(false)
+            expect(payload.error).toContain('Cycle detected')
+        })
+
+        it('returns error when codeDiffs provided without complexity', async () => {
+            setupStandardMocks()
+
+            const response: McpToolResponse = await createGraphTool({
+                callerTerminalId: CALLER_TERMINAL_ID,
+                nodes: [{id: 'a', title: 'Test', summary: 'Summary', codeDiffs: ['- old\n+ new']}]
             })
             const payload: ErrorPayload = parsePayload(response) as ErrorPayload
 
@@ -213,314 +262,293 @@ describe('MCP add_progress_node tool', () => {
             expect(payload.success).toBe(false)
             expect(payload.error).toContain('complexityScore')
         })
+    })
 
-        it('returns error when codeDiffs provided without complexityExplanation', async () => {
+    // =========================================================================
+    // Line length blocking
+    // =========================================================================
+
+    describe('line length blocking', () => {
+        it('blocks creation when a node exceeds 60 lines', async () => {
             setupStandardMocks()
+            const longContent: string = Array.from({length: 55}, (_, i) => `Line ${i + 1}`).join('\n')
 
-            const response: McpToolResponse = await addProgressNodeTool({
+            const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Missing Explanation',
-                summary: 'Did some work.',
-                codeDiffs: ['- old\n+ new'],
-                complexityScore: 'low',
-                parentNodeId: PARENT_NODE_ID
+                nodes: [{id: 'a', title: 'Long Node', summary: 'Summary.', content: longContent}]
             })
             const payload: ErrorPayload = parsePayload(response) as ErrorPayload
 
             expect(response.isError).toBe(true)
             expect(payload.success).toBe(false)
-            expect(payload.error).toContain('complexityExplanation')
+            expect(payload.error).toContain('too long')
+            expect(payload.error).toContain('limit is 60')
         })
 
-        it('succeeds when codeDiffs provided with both complexity fields', async () => {
+        it('exempts codeDiffs from line count', async () => {
             setupStandardMocks()
+            const largeDiff: string = Array.from({length: 40}, (_, i) => `- old ${i}\n+ new ${i}`).join('\n')
 
-            const response: McpToolResponse = await addProgressNodeTool({
+            const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'With Complexity',
-                summary: 'Did some work.',
-                codeDiffs: ['- old\n+ new'],
-                complexityScore: 'medium',
-                complexityExplanation: 'Touches shared state logic',
-                parentNodeId: PARENT_NODE_ID
+                nodes: [{
+                    id: 'a',
+                    title: 'With Diffs',
+                    summary: 'Short summary.',
+                    codeDiffs: [largeDiff],
+                    complexityScore: 'low',
+                    complexityExplanation: 'Simple'
+                }]
             })
             const payload: SuccessPayload = parsePayload(response) as SuccessPayload
 
             expect(payload.success).toBe(true)
         })
 
-        it('does not require complexity when codeDiffs is empty array', async () => {
+        it('exempts diagram from line count', async () => {
             setupStandardMocks()
+            const largeDiagram: string = Array.from({length: 40}, (_, i) => `A${i} --> B${i}`).join('\n')
 
-            const response: McpToolResponse = await addProgressNodeTool({
+            const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Empty Diffs',
-                summary: 'Just a note.',
-                codeDiffs: [],
-                parentNodeId: PARENT_NODE_ID
+                nodes: [{
+                    id: 'a',
+                    title: 'With Diagram',
+                    summary: 'Short summary.',
+                    diagram: `flowchart TD\n${largeDiagram}`
+                }]
             })
             const payload: SuccessPayload = parsePayload(response) as SuccessPayload
 
             expect(payload.success).toBe(true)
         })
 
-        it('does not require complexity when codeDiffs is not provided', async () => {
+        it('blocks all nodes if any single node is too long', async () => {
             setupStandardMocks()
+            const longContent: string = Array.from({length: 55}, (_, i) => `Line ${i + 1}`).join('\n')
 
-            const response: McpToolResponse = await addProgressNodeTool({
+            const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'No Diffs',
-                summary: 'Just a note.',
-                parentNodeId: PARENT_NODE_ID
+                nodes: [
+                    {id: 'a', title: 'Short', summary: 'OK.'},
+                    {id: 'b', title: 'Long', summary: 'Summary.', content: longContent, parents: ['a']}
+                ]
             })
-            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
+            const payload: ErrorPayload = parsePayload(response) as ErrorPayload
 
-            expect(payload.success).toBe(true)
+            expect(response.isError).toBe(true)
+            expect(payload.success).toBe(false)
+            expect(payload.error).toContain('"b"')
+            // No nodes should have been created
+            expect(applyGraphDeltaToDBThroughMemAndUIAndEditors).not.toHaveBeenCalled()
         })
     })
 
     // =========================================================================
-    // Mermaid validation
+    // Single node creation (replaces add_progress_node)
     // =========================================================================
 
-    describe('mermaid validation', () => {
-        it('returns error when content contains an invalid mermaid diagram for a supported type', async () => {
+    describe('single node creation', () => {
+        it('creates a single node successfully', async () => {
             setupStandardMocks()
-            vi.mocked(mermaidParse).mockRejectedValueOnce(new Error('Parse error at line 1: unexpected token'))
 
-            const response: McpToolResponse = await addProgressNodeTool({
+            const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Bad Mermaid',
-                summary: 'Testing mermaid.',
-                content: '```mermaid\npie\ninvalid syntax here\n```',
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: ErrorPayload = parsePayload(response) as ErrorPayload
-
-            expect(response.isError).toBe(true)
-            expect(payload.success).toBe(false)
-            expect(payload.error).toContain('Mermaid diagram error')
-            expect(payload.error).toContain('pie')
-        })
-
-        it('validates diagram parameter', async () => {
-            setupStandardMocks()
-            vi.mocked(mermaidParse).mockRejectedValueOnce(new Error('Parse error'))
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Bad Diagram Param',
-                summary: 'Testing diagram param.',
-                diagram: 'pie\ninvalid syntax',
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: ErrorPayload = parsePayload(response) as ErrorPayload
-
-            expect(response.isError).toBe(true)
-            expect(payload.success).toBe(false)
-            expect(payload.error).toContain('Mermaid diagram error')
-        })
-
-        it('succeeds when content contains a valid mermaid diagram', async () => {
-            setupStandardMocks()
-            vi.mocked(mermaidParse).mockResolvedValueOnce({} as Awaited<ReturnType<typeof mermaidParse>>)
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Valid Mermaid',
-                summary: 'Testing mermaid.',
-                content: '```mermaid\npie\n"A" : 30\n"B" : 70\n```',
-                parentNodeId: PARENT_NODE_ID
+                nodes: [{id: 'a', title: 'My Progress', summary: 'Did some work.'}]
             })
             const payload: SuccessPayload = parsePayload(response) as SuccessPayload
 
             expect(payload.success).toBe(true)
-            expect(payload.nodeId).toBeDefined()
+            expect(payload.nodes).toHaveLength(1)
+            expect(payload.nodes[0].id).toBe('a')
+            expect(payload.nodes[0].status).toBe('ok')
+            expect(payload.nodes[0].path).toContain('my-progress')
         })
 
-        it('succeeds when content contains unsupported mermaid types', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Flowchart Node',
-                summary: 'Testing unsupported type.',
-                content: '```mermaid\nflowchart TD\nA --> B\n```',
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
-
-            expect(payload.success).toBe(true)
-            // Parser should NOT have been called — flowchart is unsupported
-            expect(mermaidParse).not.toHaveBeenCalled()
-        })
-
-        it('succeeds when @mermaid-js/parser import fails — gracefully skips validation', async () => {
-            setupStandardMocks()
-            vi.mocked(mermaidParse).mockImplementation(() => {
-                throw new Error('Cannot find module @mermaid-js/parser')
-            })
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Parser Unavailable',
-                summary: 'Testing parser fallback.',
-                content: '```mermaid\npie\n"A" : 30\n```',
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: {success: boolean; error?: string} = parsePayload(response) as {success: boolean; error?: string}
-
-            // When parse throws synchronously inside the inner try, the inner catch
-            // fires and returns an error string. Both paths are defensive; verify the tool doesn't crash.
-            expect(payload.success).toBeDefined()
-        })
-    })
-
-    // =========================================================================
-    // Wikilink count validation
-    // =========================================================================
-
-    describe('wikilink count validation', () => {
-        it('returns error when linkedArtifacts push total wikilinks over 2', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Too Many Links',
-                summary: 'Some work.',
-                linkedArtifacts: ['spec-a', 'spec-b'],
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: ErrorPayload = parsePayload(response) as ErrorPayload
-
-            expect(response.isError).toBe(true)
-            expect(payload.success).toBe(false)
-            expect(payload.error).toContain('Too many wikilinks')
-            expect(payload.error).toContain('3')
-        })
-
-        it('returns error when inline wikilinks in content push total over 2', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Inline Links',
-                summary: 'Some work.',
-                content: 'See [[node-a]] and [[node-b]] for details.',
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: ErrorPayload = parsePayload(response) as ErrorPayload
-
-            expect(response.isError).toBe(true)
-            expect(payload.success).toBe(false)
-            expect(payload.error).toContain('Too many wikilinks')
-            expect(payload.error).toContain('inline')
-        })
-
-        it('succeeds with exactly 2 wikilinks (parent + 1 linkedArtifact)', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Two Links OK',
-                summary: 'Some work.',
-                linkedArtifacts: ['related-spec'],
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
-
-            expect(payload.success).toBe(true)
-        })
-
-        it('succeeds with only parent wikilink (no artifacts, no inline)', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Parent Only',
-                summary: 'Some work.',
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
-
-            expect(payload.success).toBe(true)
-        })
-
-        it('returns error when combined artifacts and inline wikilinks exceed limit', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Combined Excess',
-                summary: 'Some work.',
-                content: 'See [[inline-ref]] for context.',
-                linkedArtifacts: ['artifact-ref'],
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: ErrorPayload = parsePayload(response) as ErrorPayload
-
-            expect(response.isError).toBe(true)
-            expect(payload.success).toBe(false)
-            expect(payload.error).toContain('Too many wikilinks')
-            expect(payload.error).toContain('3')
-        })
-    })
-
-    // =========================================================================
-    // Core behavior
-    // =========================================================================
-
-    describe('core behavior', () => {
-        it('creates a progress node with correct frontmatter from terminal record', async () => {
+        it('uses agent color and name from terminal record', async () => {
             mockCallerTerminal({agentName: 'my-agent', color: 'green'})
             vi.mocked(getWritePath).mockResolvedValue(O.some(WRITE_PATH))
             vi.mocked(getGraph).mockReturnValue(buildGraph())
             vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mockResolvedValue(undefined)
 
-            const response: McpToolResponse = await addProgressNodeTool({
+            const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'My Progress',
-                summary: 'Did some work.',
-                parentNodeId: PARENT_NODE_ID
+                nodes: [{id: 'a', title: 'Colored Node', summary: 'Work.'}]
             })
             const payload: SuccessPayload = parsePayload(response) as SuccessPayload
 
             expect(payload.success).toBe(true)
 
-            // Verify the graph delta was called with node containing correct frontmatter
             const deltaCalls: GraphDelta[] = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls.map(
                 (call: [delta: GraphDelta, recordForUndo?: boolean | undefined]) => call[0]
             )
-            expect(deltaCalls.length).toBeGreaterThanOrEqual(1)
-
             const firstDelta: GraphDelta = deltaCalls[0]
             const upsertedNode: GraphNode = firstDelta[0].type === 'UpsertNode'
                 ? firstDelta[0].nodeToUpsert
                 : (() => { throw new Error('Expected UpsertNode delta') })()
 
-            // Frontmatter values are parsed by parseMarkdownToGraphNode into nodeUIMetadata
             expect(upsertedNode.nodeUIMetadata.color).toEqual(O.some('green'))
             expect(upsertedNode.nodeUIMetadata.additionalYAMLProps.get('agent_name')).toBe('my-agent')
         })
+    })
 
-        it('slugifies title into file path correctly', async () => {
+    // =========================================================================
+    // Multi-node tree creation
+    // =========================================================================
+
+    describe('multi-node tree creation', () => {
+        it('creates a tree of nodes with parent references', async () => {
             setupStandardMocks()
 
-            const response: McpToolResponse = await addProgressNodeTool({
+            const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'My Progress Node Title!',
-                summary: 'Content here.',
-                parentNodeId: PARENT_NODE_ID
+                nodes: [
+                    {id: 'root', title: 'Root Node', summary: 'Root.'},
+                    {id: 'child1', title: 'Child One', summary: 'First child.', parents: ['root']},
+                    {id: 'child2', title: 'Child Two', summary: 'Second child.', parents: ['root']}
+                ]
             })
             const payload: SuccessPayload = parsePayload(response) as SuccessPayload
 
             expect(payload.success).toBe(true)
-            // Slug: lowercase, spaces->hyphens, special chars removed
-            expect(payload.nodeId).toBe(`${WRITE_PATH}/my-progress-node-title.md`)
-            expect(payload.filePath).toBe(payload.nodeId)
+            expect(payload.nodes).toHaveLength(3)
+            expect(payload.nodes.every((n: {status: string}) => n.status === 'ok')).toBe(true)
         })
 
-        it('uses ensureUniqueNodeId when slug collides with existing node', async () => {
+        it('creates parents before children (topological order)', async () => {
+            setupStandardMocks()
+
+            // Provide nodes in reverse order — children before parent
+            const response: McpToolResponse = await createGraphTool({
+                callerTerminalId: CALLER_TERMINAL_ID,
+                nodes: [
+                    {id: 'child', title: 'Child', summary: 'Child.', parents: ['parent']},
+                    {id: 'parent', title: 'Parent', summary: 'Parent.'}
+                ]
+            })
+            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
+
+            expect(payload.success).toBe(true)
+            expect(payload.nodes).toHaveLength(2)
+
+            // Parent should be created first (first applyGraphDelta call)
+            const firstDelta: GraphDelta = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls[0][0]
+            const firstNode: GraphNode = firstDelta[0].type === 'UpsertNode'
+                ? firstDelta[0].nodeToUpsert
+                : (() => { throw new Error('Expected UpsertNode delta') })()
+            expect(firstNode.absoluteFilePathIsID).toContain('parent')
+        })
+
+        it('positions children spread vertically from parent', async () => {
+            setupStandardMocks()
+
+            await createGraphTool({
+                callerTerminalId: CALLER_TERMINAL_ID,
+                nodes: [
+                    {id: 'a', title: 'Root', summary: 'Root.'},
+                    {id: 'b', title: 'Child One', summary: 'C1.', parents: ['a']},
+                    {id: 'c', title: 'Child Two', summary: 'C2.', parents: ['a']}
+                ]
+            })
+
+            // Root is at graphParent (100,200) + offset (200, 0)
+            // Child 1: root position + (200, 0)
+            // Child 2: root position + (200, 150)
+            const calls: Array<[GraphDelta, boolean | undefined]> = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls as Array<[GraphDelta, boolean | undefined]>
+            // 3 node creations + 1 context update = 4 calls
+            expect(calls.length).toBeGreaterThanOrEqual(3)
+        })
+
+        it('updates context node with all new node IDs', async () => {
+            setupStandardMocks()
+
+            await createGraphTool({
+                callerTerminalId: CALLER_TERMINAL_ID,
+                nodes: [
+                    {id: 'a', title: 'Node A', summary: 'A.'},
+                    {id: 'b', title: 'Node B', summary: 'B.'}
+                ]
+            })
+
+            // Last call should be context node update
+            const calls: Array<[GraphDelta, boolean | undefined]> = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls as Array<[GraphDelta, boolean | undefined]>
+            const lastDelta: GraphDelta = calls[calls.length - 1][0]
+            expect(lastDelta[0].type).toBe('UpsertNode')
+
+            if (lastDelta[0].type === 'UpsertNode') {
+                const contextNode: GraphNode = lastDelta[0].nodeToUpsert
+                const containedIds: readonly string[] = contextNode.nodeUIMetadata.containedNodeIds ?? []
+                // Should have original 'existing-node.md' plus both new nodes
+                expect(containedIds).toContain('existing-node.md')
+                expect(containedIds.length).toBeGreaterThanOrEqual(3)
+            }
+        })
+    })
+
+    // =========================================================================
+    // Mermaid validation (non-blocking)
+    // =========================================================================
+
+    describe('mermaid validation', () => {
+        it('creates node with warning when mermaid is invalid', async () => {
+            setupStandardMocks()
+            vi.mocked(mermaidParse).mockRejectedValueOnce(new Error('Parse error'))
+
+            const response: McpToolResponse = await createGraphTool({
+                callerTerminalId: CALLER_TERMINAL_ID,
+                nodes: [{
+                    id: 'a',
+                    title: 'Bad Mermaid',
+                    summary: 'Testing.',
+                    diagram: 'pie\ninvalid syntax'
+                }]
+            })
+            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
+
+            expect(payload.success).toBe(true)
+            expect(payload.nodes[0].status).toBe('warning')
+            expect(payload.nodes[0].warning).toContain('Mermaid')
+        })
+
+        it('creates node without warning when mermaid is valid', async () => {
+            setupStandardMocks()
+            vi.mocked(mermaidParse).mockResolvedValueOnce({} as Awaited<ReturnType<typeof mermaidParse>>)
+
+            const response: McpToolResponse = await createGraphTool({
+                callerTerminalId: CALLER_TERMINAL_ID,
+                nodes: [{
+                    id: 'a',
+                    title: 'Valid Mermaid',
+                    summary: 'Testing.',
+                    diagram: 'pie\n"A" : 30\n"B" : 70'
+                }]
+            })
+            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
+
+            expect(payload.success).toBe(true)
+            expect(payload.nodes[0].status).toBe('ok')
+        })
+    })
+
+    // =========================================================================
+    // Slug and unique ID
+    // =========================================================================
+
+    describe('slug and unique ID', () => {
+        it('slugifies title into file path', async () => {
+            setupStandardMocks()
+
+            const response: McpToolResponse = await createGraphTool({
+                callerTerminalId: CALLER_TERMINAL_ID,
+                nodes: [{id: 'a', title: 'My Progress Node Title!', summary: 'Content.'}]
+            })
+            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
+
+            expect(payload.success).toBe(true)
+            expect(payload.nodes[0].path).toBe(`${WRITE_PATH}/my-progress-node-title.md`)
+        })
+
+        it('uses ensureUniqueNodeId when slug collides', async () => {
             const collidingNodeId: NodeIdAndFilePath = `${WRITE_PATH}/colliding-title.md`
             const graph: Graph = buildGraph({
                 [collidingNodeId]: buildGraphNode(collidingNodeId, '# Existing')
@@ -530,602 +558,14 @@ describe('MCP add_progress_node tool', () => {
             vi.mocked(getGraph).mockReturnValue(graph)
             vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mockResolvedValue(undefined)
 
-            const response: McpToolResponse = await addProgressNodeTool({
+            const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Colliding Title',
-                summary: 'Content here.',
-                parentNodeId: PARENT_NODE_ID
+                nodes: [{id: 'a', title: 'Colliding Title', summary: 'Content.'}]
             })
             const payload: SuccessPayload = parsePayload(response) as SuccessPayload
 
             expect(payload.success).toBe(true)
-            // Should have _2 suffix to avoid collision
-            expect(payload.nodeId).toBe(`${WRITE_PATH}/colliding-title_2.md`)
-        })
-
-        it('defaults parentNodeId to anchoredToNodeId (task node) when not provided', async () => {
-            // anchoredToNodeId = task node, attachedToNodeId = context node
-            // The tool should prefer the task node as default parent
-            mockCallerTerminal({attachedToNodeId: CALLER_CONTEXT_NODE_ID, anchoredToNodeId: PARENT_NODE_ID})
-            vi.mocked(getWritePath).mockResolvedValue(O.some(WRITE_PATH))
-            vi.mocked(getGraph).mockReturnValue(buildGraph())
-            vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mockResolvedValue(undefined)
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Default Parent',
-                summary: 'Content here.'
-                // parentNodeId intentionally omitted
-            })
-            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
-
-            expect(payload.success).toBe(true)
-
-            // Verify the node was created (applyGraphDelta was called)
-            expect(applyGraphDeltaToDBThroughMemAndUIAndEditors).toHaveBeenCalled()
-
-            // The first delta should contain a node whose content references the task node basename
-            const firstDelta: GraphDelta = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls[0][0]
-            const upsertedNode: GraphNode = firstDelta[0].type === 'UpsertNode'
-                ? firstDelta[0].nodeToUpsert
-                : (() => { throw new Error('Expected UpsertNode delta') })()
-
-            // The wikilink [[parent-task]] should have created an outgoing edge to the task node
-            const hasTaskNodeEdge: boolean = upsertedNode.outgoingEdges.some(
-                e => e.targetId === PARENT_NODE_ID
-            )
-            expect(hasTaskNodeEdge).toBe(true)
-        })
-
-        it('falls back to attachedToNodeId when anchoredToNodeId is not set', async () => {
-            // When terminal has no anchoredToNodeId (e.g. manually spawned), fall back to attachedToNodeId
-            mockCallerTerminal({attachedToNodeId: PARENT_NODE_ID})
-            vi.mocked(getWritePath).mockResolvedValue(O.some(WRITE_PATH))
-            vi.mocked(getGraph).mockReturnValue(buildGraph())
-            vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mockResolvedValue(undefined)
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Fallback Parent',
-                summary: 'Content here.'
-                // parentNodeId intentionally omitted
-            })
-            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
-
-            expect(payload.success).toBe(true)
-            expect(applyGraphDeltaToDBThroughMemAndUIAndEditors).toHaveBeenCalled()
-
-            const firstDelta: GraphDelta = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls[0][0]
-            const upsertedNode: GraphNode = firstDelta[0].type === 'UpsertNode'
-                ? firstDelta[0].nodeToUpsert
-                : (() => { throw new Error('Expected UpsertNode delta') })()
-
-            const hasParentEdge: boolean = upsertedNode.outgoingEdges.some(
-                e => e.targetId === PARENT_NODE_ID
-            )
-            expect(hasParentEdge).toBe(true)
-        })
-
-        it('appends Files Changed section when filesChanged is provided', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'With Files',
-                summary: 'Fixed a bug.',
-                filesChanged: ['src/foo.ts', 'src/bar.ts'],
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
-            expect(payload.success).toBe(true)
-
-            // Verify the created node content includes files changed
-            const firstDelta: GraphDelta = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls[0][0]
-            const upsertedNode: GraphNode = firstDelta[0].type === 'UpsertNode'
-                ? firstDelta[0].nodeToUpsert
-                : (() => { throw new Error('Expected UpsertNode delta') })()
-
-            // contentWithoutYamlOrLinks has frontmatter stripped but should contain Files Changed
-            expect(upsertedNode.contentWithoutYamlOrLinks).toContain('Files Changed')
-            expect(upsertedNode.contentWithoutYamlOrLinks).toContain('src/foo.ts')
-            expect(upsertedNode.contentWithoutYamlOrLinks).toContain('src/bar.ts')
-        })
-
-        it('omits files changed section when filesChanged is empty', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'No Files',
-                summary: 'Just a note.',
-                filesChanged: [],
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
-            expect(payload.success).toBe(true)
-
-            const firstDelta: GraphDelta = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls[0][0]
-            const upsertedNode: GraphNode = firstDelta[0].type === 'UpsertNode'
-                ? firstDelta[0].nodeToUpsert
-                : (() => { throw new Error('Expected UpsertNode delta') })()
-
-            expect(upsertedNode.contentWithoutYamlOrLinks).not.toContain('Files Changed')
-        })
-
-        it('omits files changed section when filesChanged is not provided', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'No Files Param',
-                summary: 'Just a note.',
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
-            expect(payload.success).toBe(true)
-
-            const firstDelta: GraphDelta = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls[0][0]
-            const upsertedNode: GraphNode = firstDelta[0].type === 'UpsertNode'
-                ? firstDelta[0].nodeToUpsert
-                : (() => { throw new Error('Expected UpsertNode delta') })()
-
-            expect(upsertedNode.contentWithoutYamlOrLinks).not.toContain('Files Changed')
-        })
-
-        it('appends Progress on [[parentBaseName]] wikilink', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'With Wikilink',
-                summary: 'Some work done.',
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
-            expect(payload.success).toBe(true)
-
-            // parseMarkdownToGraphNode will convert [[parent-task]] into an outgoing edge
-            // and strip it from contentWithoutYamlOrLinks. Check the edge instead.
-            const firstDelta: GraphDelta = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls[0][0]
-            const upsertedNode: GraphNode = firstDelta[0].type === 'UpsertNode'
-                ? firstDelta[0].nodeToUpsert
-                : (() => { throw new Error('Expected UpsertNode delta') })()
-
-            // The wikilink [[parent-task]] should result in an outgoing edge
-            const hasParentEdge: boolean = upsertedNode.outgoingEdges.some(
-                e => e.targetId === PARENT_NODE_ID
-            )
-            expect(hasParentEdge).toBe(true)
-        })
-
-        it('computes position near parent node (x+200, y+100)', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Positioned Node',
-                summary: 'Content.',
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
-            expect(payload.success).toBe(true)
-
-            const firstDelta: GraphDelta = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls[0][0]
-            const upsertedNode: GraphNode = firstDelta[0].type === 'UpsertNode'
-                ? firstDelta[0].nodeToUpsert
-                : (() => { throw new Error('Expected UpsertNode delta') })()
-
-            // Parent position is (100, 200), so node should be at (300, 300)
-            expect(upsertedNode.nodeUIMetadata.position).toEqual(O.some({x: 300, y: 300}))
-        })
-
-        it('returns success with nodeId, filePath, and empty warnings for short content', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Short Content',
-                summary: 'Brief note.',
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
-
-            expect(response.isError).toBeUndefined()
-            expect(payload.success).toBe(true)
-            expect(payload.nodeId).toContain('short-content')
-            expect(payload.filePath).toBe(payload.nodeId)
-            expect(payload.warnings).toEqual([])
-        })
-
-        it('defaults color to blue when terminal has no AGENT_COLOR env var', async () => {
-            mockCallerTerminal({agentName: 'no-color-agent'})
-            vi.mocked(getWritePath).mockResolvedValue(O.some(WRITE_PATH))
-            vi.mocked(getGraph).mockReturnValue(buildGraph())
-            vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mockResolvedValue(undefined)
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Blue Default',
-                summary: 'Content.',
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
-            expect(payload.success).toBe(true)
-
-            const firstDelta: GraphDelta = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls[0][0]
-            const upsertedNode: GraphNode = firstDelta[0].type === 'UpsertNode'
-                ? firstDelta[0].nodeToUpsert
-                : (() => { throw new Error('Expected UpsertNode delta') })()
-
-            expect(upsertedNode.nodeUIMetadata.color).toEqual(O.some('blue'))
-        })
-    })
-
-    // =========================================================================
-    // Structured sections
-    // =========================================================================
-
-    describe('structured sections', () => {
-        it('renders codeDiffs in ## DIFF section', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'With Diffs',
-                summary: 'Fixed bug.',
-                codeDiffs: ['- old line\n+ new line', '- another old\n+ another new'],
-                complexityScore: 'low',
-                complexityExplanation: 'Simple one-liner fix',
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
-            expect(payload.success).toBe(true)
-
-            const firstDelta: GraphDelta = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls[0][0]
-            const upsertedNode: GraphNode = firstDelta[0].type === 'UpsertNode'
-                ? firstDelta[0].nodeToUpsert
-                : (() => { throw new Error('Expected UpsertNode delta') })()
-
-            expect(upsertedNode.contentWithoutYamlOrLinks).toContain('DIFF')
-            expect(upsertedNode.contentWithoutYamlOrLinks).toContain('old line')
-            expect(upsertedNode.contentWithoutYamlOrLinks).toContain('new line')
-        })
-
-        it('renders complexity section when codeDiffs provided', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'With Complexity',
-                summary: 'Refactored state.',
-                codeDiffs: ['- old\n+ new'],
-                complexityScore: 'high',
-                complexityExplanation: 'Touches shared mutable state across 5 modules',
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
-            expect(payload.success).toBe(true)
-
-            const firstDelta: GraphDelta = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls[0][0]
-            const upsertedNode: GraphNode = firstDelta[0].type === 'UpsertNode'
-                ? firstDelta[0].nodeToUpsert
-                : (() => { throw new Error('Expected UpsertNode delta') })()
-
-            expect(upsertedNode.contentWithoutYamlOrLinks).toContain('Complexity: high')
-            expect(upsertedNode.contentWithoutYamlOrLinks).toContain('shared mutable state')
-        })
-
-        it('renders diagram parameter with mermaid fences', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'With Diagram',
-                summary: 'Added architecture diagram.',
-                diagram: 'flowchart TD\nA --> B\nB --> C',
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
-            expect(payload.success).toBe(true)
-
-            const firstDelta: GraphDelta = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls[0][0]
-            const upsertedNode: GraphNode = firstDelta[0].type === 'UpsertNode'
-                ? firstDelta[0].nodeToUpsert
-                : (() => { throw new Error('Expected UpsertNode delta') })()
-
-            expect(upsertedNode.contentWithoutYamlOrLinks).toContain('Diagram')
-            expect(upsertedNode.contentWithoutYamlOrLinks).toContain('A --> B')
-        })
-
-        it('renders notes as bulleted list', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'With Notes',
-                summary: 'Made changes.',
-                notes: ['Watch out for race condition in graph-store', 'Tech debt: need to extract shared helper'],
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
-            expect(payload.success).toBe(true)
-
-            const firstDelta: GraphDelta = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls[0][0]
-            const upsertedNode: GraphNode = firstDelta[0].type === 'UpsertNode'
-                ? firstDelta[0].nodeToUpsert
-                : (() => { throw new Error('Expected UpsertNode delta') })()
-
-            expect(upsertedNode.contentWithoutYamlOrLinks).toContain('NOTES')
-            expect(upsertedNode.contentWithoutYamlOrLinks).toContain('race condition')
-            expect(upsertedNode.contentWithoutYamlOrLinks).toContain('Tech debt')
-        })
-
-        it('renders linkedArtifacts as wikilinks in ## Related section', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'With Artifacts',
-                summary: 'Implemented feature.',
-                linkedArtifacts: ['design-proposal'],
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
-            expect(payload.success).toBe(true)
-
-            const firstDelta: GraphDelta = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls[0][0]
-            const upsertedNode: GraphNode = firstDelta[0].type === 'UpsertNode'
-                ? firstDelta[0].nodeToUpsert
-                : (() => { throw new Error('Expected UpsertNode delta') })()
-
-            // linkedArtifacts create wikilinks which become outgoing edges
-            // Check that at least the parent edge exists plus the artifact
-            expect(upsertedNode.outgoingEdges.length).toBeGreaterThanOrEqual(1)
-        })
-
-        it('renders summary before optional content', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Summary And Content',
-                summary: 'Quick summary here.',
-                content: 'Detailed explanation follows.',
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
-            expect(payload.success).toBe(true)
-
-            const firstDelta: GraphDelta = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls[0][0]
-            const upsertedNode: GraphNode = firstDelta[0].type === 'UpsertNode'
-                ? firstDelta[0].nodeToUpsert
-                : (() => { throw new Error('Expected UpsertNode delta') })()
-
-            const nodeContent: string = upsertedNode.contentWithoutYamlOrLinks
-            const summaryIdx: number = nodeContent.indexOf('Quick summary here')
-            const contentIdx: number = nodeContent.indexOf('Detailed explanation follows')
-            expect(summaryIdx).toBeLessThan(contentIdx)
-        })
-    })
-
-    // =========================================================================
-    // Warnings
-    // =========================================================================
-
-    describe('warnings', () => {
-        it('warns when summary exceeds 3 lines', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Long Summary',
-                summary: 'Line 1\nLine 2\nLine 3\nLine 4\nLine 5',
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
-
-            expect(payload.success).toBe(true)
-            expect(payload.warnings.some((w: string) => w.includes('Summary is long'))).toBe(true)
-        })
-
-        it('warns when filesChanged provided but no codeDiffs', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Missing Diffs',
-                summary: 'Changed some files.',
-                filesChanged: ['src/foo.ts'],
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
-
-            expect(payload.success).toBe(true)
-            expect(payload.warnings.some((w: string) => w.includes('codeDiffs'))).toBe(true)
-        })
-
-        it('warns when summary mentions artifacts but content is empty', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'UI Design',
-                summary: 'Designed 3 ASCII mockup options for the new diagram feature.',
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
-
-            expect(payload.success).toBe(true)
-            expect(payload.warnings.some((w: string) => w.includes('self-contained'))).toBe(true)
-            expect(payload.warnings.some((w: string) => w.includes('mockup') || w.includes('diagram'))).toBe(true)
-        })
-
-        it('does not warn about missing content when summary has no artifact keywords', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Deploy',
-                summary: 'Deployed to staging successfully.',
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
-
-            expect(payload.success).toBe(true)
-            expect(payload.warnings.every((w: string) => !w.includes('self-contained'))).toBe(true)
-        })
-
-        it('does not warn about artifacts when content is provided', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'UI Design',
-                summary: 'Designed 3 ASCII mockup options for the new diagram feature.',
-                content: '## Option A\n```\n┌──────┐\n│ Mock │\n└──────┘\n```',
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
-
-            expect(payload.success).toBe(true)
-            expect(payload.warnings.every((w: string) => !w.includes('self-contained'))).toBe(true)
-        })
-
-        it('warns when title contains "Phase N" pattern', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Phase 1 — Data Model & Settings Layer',
-                summary: 'Add starredFolders field to VTSettings.',
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
-
-            expect(payload.success).toBe(true)
-            expect(payload.warnings.some((w: string) => w.includes('planning/decomposition'))).toBe(true)
-            expect(payload.warnings.some((w: string) => w.includes('decompose_subtask_dependency_graph.md'))).toBe(true)
-        })
-
-        it('warns when title or summary contains planning compound terms', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Starred Folders Implementation Plan',
-                summary: 'Created a planning tree with 6 phases.',
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
-
-            expect(payload.success).toBe(true)
-            expect(payload.warnings.some((w: string) => w.includes('planning/decomposition'))).toBe(true)
-        })
-
-        it('does not warn about planning for normal progress nodes', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Fixed authentication bug',
-                summary: 'Resolved the token refresh issue as planned.',
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
-
-            expect(payload.success).toBe(true)
-            expect(payload.warnings.every((w: string) => !w.includes('planning/decomposition'))).toBe(true)
-        })
-
-        it('returns isError and loud error message when total body exceeds 60 lines', async () => {
-            setupStandardMocks()
-
-            const longContent: string = Array.from({length: 55}, (_, i) => `Line ${i + 1}`).join('\n')
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Long Content',
-                summary: 'Summary.',
-                content: longContent,
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
-
-            // Node is still created (success: true) but MCP response is flagged as error
-            expect(payload.success).toBe(true)
-            expect(payload.nodeId).toBeDefined()
-            expect(response.isError).toBe(true)
-
-            // Error message is loud and actionable
-            const longWarning: string | undefined = payload.warnings.find((w: string) => w.includes('NODE TOO LONG'))
-            expect(longWarning).toBeDefined()
-            expect(longWarning).toContain('ACTION REQUIRED')
-            expect(longWarning).toContain('MUST split')
-            // Includes example tree structures
-            expect(longWarning).toContain('Split by concern')
-            expect(longWarning).toContain('Split by phase')
-        })
-    })
-
-    // =========================================================================
-    // Graph integration
-    // =========================================================================
-
-    describe('graph integration', () => {
-        it('calls applyGraphDeltaToDBThroughMemAndUIAndEditors with UpsertNode delta', async () => {
-            setupStandardMocks()
-
-            await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Delta Test',
-                summary: 'Content.',
-                parentNodeId: PARENT_NODE_ID
-            })
-
-            // First call creates the progress node, second call updates context node
-            expect(applyGraphDeltaToDBThroughMemAndUIAndEditors).toHaveBeenCalled()
-
-            const firstDelta: GraphDelta = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls[0][0]
-            expect(firstDelta).toHaveLength(1)
-            expect(firstDelta[0].type).toBe('UpsertNode')
-
-            if (firstDelta[0].type === 'UpsertNode') {
-                expect(firstDelta[0].previousNode).toEqual(O.none) // New node, no previous
-                expect(firstDelta[0].nodeToUpsert.absoluteFilePathIsID).toContain('delta-test')
-            }
-        })
-
-        it('updates caller context node containedNodeIds to include new node', async () => {
-            setupStandardMocks()
-
-            const response: McpToolResponse = await addProgressNodeTool({
-                callerTerminalId: CALLER_TERMINAL_ID,
-                title: 'Context Update',
-                summary: 'Content.',
-                parentNodeId: PARENT_NODE_ID
-            })
-            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
-            expect(payload.success).toBe(true)
-
-            // applyGraphDelta should be called twice: once for progress node, once for context update
-            expect(applyGraphDeltaToDBThroughMemAndUIAndEditors).toHaveBeenCalledTimes(2)
-
-            const contextDelta: GraphDelta = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls[1][0]
-            expect(contextDelta).toHaveLength(1)
-            expect(contextDelta[0].type).toBe('UpsertNode')
-
-            if (contextDelta[0].type === 'UpsertNode') {
-                const updatedContextNode: GraphNode = contextDelta[0].nodeToUpsert
-                expect(updatedContextNode.absoluteFilePathIsID).toBe(CALLER_CONTEXT_NODE_ID)
-
-                // Should include the original 'existing-node.md' plus the new progress node
-                const containedIds: readonly string[] = updatedContextNode.nodeUIMetadata.containedNodeIds ?? []
-                expect(containedIds).toContain('existing-node.md')
-                expect(containedIds).toContain(payload.nodeId)
-
-                // Previous node should be the original context node (Some, not None)
-                expect(O.isSome(contextDelta[0].previousNode)).toBe(true)
-            }
+            expect(payload.nodes[0].path).toBe(`${WRITE_PATH}/colliding-title_2.md`)
         })
     })
 })
