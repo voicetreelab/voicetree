@@ -5,3 +5,5 @@ import type { Graph } from '@/pure/graph'
 
 export type ApplyPositions = (graph: Graph) => Graph
 export const applyPositions: ApplyPositions = applyPositionsImpl
+
+export { rebaseNewClusterPositions } from './rebaseNewClusterPositions'

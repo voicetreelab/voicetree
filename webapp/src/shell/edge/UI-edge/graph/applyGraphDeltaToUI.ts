@@ -56,112 +56,6 @@ function generateVaultColor(vaultPrefix: string): string | undefined {
     return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
 }
 
-interface PositionBBox {
-    x1: number;
-    y1: number;
-    x2: number;
-    y2: number;
-    w: number;
-    h: number;
-}
-
-/**
- * Compute bounding box from node center positions only (rendering-independent).
- * Safe to use inside cy.batch().
- */
-function computePositionBBox(nodes: ReturnType<Core['collection']>): PositionBBox | null {
-    if (nodes.length === 0) return null;
-    let x1: number = Infinity;
-    let y1: number = Infinity;
-    let x2: number = -Infinity;
-    let y2: number = -Infinity;
-    nodes.forEach((node: NodeSingular) => {
-        const pos: { x: number; y: number } = node.position();
-        x1 = Math.min(x1, pos.x);
-        y1 = Math.min(y1, pos.y);
-        x2 = Math.max(x2, pos.x);
-        y2 = Math.max(y2, pos.y);
-    });
-    return { x1, y1, x2, y2, w: x2 - x1, h: y2 - y1 };
-}
-
-/**
- * When newly loaded nodes with saved positions form a cluster far from existing nodes,
- * reposition the new cluster adjacent to existing nodes to prevent viewport collapse.
- * Preserves relative positions within the cluster. Also compresses oversized clusters
- * (bounding box > 50,000px).
- */
-function repositionDistantCluster(
-    cy: Core,
-    newNodeIds: string[],
-    nodesWithoutPositions: string[]
-): void {
-    // Only consider new nodes that have saved positions (exclude those at temp (0,0))
-    const nodesWithoutPosSet: Set<string> = new Set(nodesWithoutPositions);
-    const newNodesWithPositions: string[] = newNodeIds.filter((id: string) => !nodesWithoutPosSet.has(id));
-    if (newNodesWithPositions.length === 0) return;
-
-    const newNodeIdSet: Set<string> = new Set(newNodeIds);
-    const existingNodes: ReturnType<Core['collection']> = cy.nodes().filter((n: NodeSingular) => !newNodeIdSet.has(n.id()));
-    if (existingNodes.length === 0) return;
-
-    let newNodesCollection: ReturnType<Core['collection']> = cy.collection();
-    newNodesWithPositions.forEach((id: string) => {
-        newNodesCollection = newNodesCollection.merge(cy.getElementById(id));
-    });
-
-    const existingBB: PositionBBox | null = computePositionBBox(existingNodes);
-    let newBB: PositionBBox | null = computePositionBBox(newNodesCollection);
-    if (!existingBB || !newBB) return;
-
-    // Step 1: Compress oversized clusters (bounding box > 50,000px)
-    const MAX_CLUSTER_SIZE: number = 50000;
-    const maxDimension: number = Math.max(newBB.w, newBB.h);
-    if (maxDimension > MAX_CLUSTER_SIZE) {
-        const TARGET_SIZE: number = 5000;
-        const scale: number = TARGET_SIZE / maxDimension;
-        const centerX: number = (newBB.x1 + newBB.x2) / 2;
-        const centerY: number = (newBB.y1 + newBB.y2) / 2;
-
-        newNodesCollection.forEach((node: NodeSingular) => {
-            const pos: { x: number; y: number } = node.position();
-            node.position({
-                x: centerX + (pos.x - centerX) * scale,
-                y: centerY + (pos.y - centerY) * scale
-            });
-        });
-
-        newBB = computePositionBBox(newNodesCollection);
-        if (!newBB) return;
-    }
-
-    // Step 2: If gap between clusters exceeds threshold, translate new cluster adjacent
-    const gapX: number = Math.max(0, newBB.x1 - existingBB.x2, existingBB.x1 - newBB.x2);
-    const gapY: number = Math.max(0, newBB.y1 - existingBB.y2, existingBB.y1 - newBB.y2);
-    const gap: number = Math.max(gapX, gapY);
-
-    const MAX_GAP: number = 10000;
-    const ADJACENT_GAP: number = 500;
-
-    if (gap > MAX_GAP) {
-        const existingCenterY: number = (existingBB.y1 + existingBB.y2) / 2;
-        const newCenterX: number = (newBB.x1 + newBB.x2) / 2;
-        const newCenterY: number = (newBB.y1 + newBB.y2) / 2;
-
-        // Place new cluster to the right of existing nodes
-        const targetX: number = existingBB.x2 + ADJACENT_GAP + newBB.w / 2;
-        const targetY: number = existingCenterY;
-
-        const offsetX: number = targetX - newCenterX;
-        const offsetY: number = targetY - newCenterY;
-
-        newNodesCollection.forEach((node: NodeSingular) => {
-            const pos: { x: number; y: number } = node.position();
-            node.position({ x: pos.x + offsetX, y: pos.y + offsetY });
-        });
-    }
-}
-
 export interface ApplyGraphDeltaResult {
     newNodeIds: string[];
 }
@@ -287,10 +181,6 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                 }
             }
         });
-
-        // Reposition distant clusters: when new nodes form a cluster far from existing nodes,
-        // move them adjacent to prevent viewport collapse on cy.fit()
-        repositionDistantCluster(cy, newNodeIds, nodesWithoutPositions);
 
         // PASS 2: Sync edges for each node (add missing, remove stale)
         delta.forEach((nodeDelta) => {
