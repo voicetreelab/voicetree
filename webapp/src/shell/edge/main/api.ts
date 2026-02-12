@@ -18,6 +18,8 @@ import {saveNodePositions} from "@/shell/edge/main/saveNodePositions";
 import {performUndo, performRedo} from './graph/undoOperations'
 import {spawnTerminalWithContextNode} from './terminals/spawnTerminalWithContextNode'
 import {updateTerminalIsDone, updateTerminalPinned, updateTerminalActivityState, removeTerminalFromRegistry} from './terminals/terminal-registry'
+import {getUnseenNodesForTerminal} from './terminals/get-unseen-nodes-for-terminal'
+import {injectNodesIntoTerminal} from './terminals/inject-nodes-into-terminal'
 import {spawnPlainTerminal, spawnPlainTerminalWithNode} from './terminals/spawnPlainTerminal'
 import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
@@ -122,6 +124,10 @@ export const mainAPI = {
   updateTerminalPinned,
   updateTerminalActivityState,
   removeTerminalFromRegistry,
+
+  // Manual node injection (InjectBar UI)
+  getUnseenNodesForTerminal,
+  injectNodesIntoTerminal,
 
   // Ask mode operations
   askQuery,

@@ -1,4 +1,4 @@
-import type { Position } from "@/pure/graph";
+import type { NodeIdAndFilePath, Position } from "@/pure/graph";
 import type { Core, NodeCollection, CollectionReturnValue } from "cytoscape";
 import { getOrCreateOverlay, registerFloatingWindow } from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import { TerminalVanilla } from "@/shell/UI/floating-windows/terminals/TerminalVanilla";
@@ -10,6 +10,14 @@ import { anchorToNode } from "@/shell/edge/UI-edge/floating-windows/anchor-to-no
 import * as O from "fp-ts/lib/Option.js";
 import type { TerminalData } from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import { closeTerminal } from "@/shell/edge/UI-edge/floating-windows/terminals/closeTerminal";
+import { createInjectBar, registerInjectBar, type InjectBarHandle } from "@/shell/UI/floating-windows/terminals/InjectBar";
+
+// Typed interface for the main-process IPC method used by onInject callback.
+// Same pattern as InjectBarMainIPC in InjectBar.ts — cast through this to avoid
+// renderer tsconfig issues with Node.js dependencies in the main-process import chain.
+interface FloatingTerminalMainIPC {
+    injectNodesIntoTerminal(terminalId: string, nodeIds: readonly string[]): Promise<{ success: boolean; injectedCount: number }>;
+}
 
 /**
  * Wait for a node to appear in Cytoscape, polling until found or timeout
@@ -112,10 +120,36 @@ export function createFloatingTerminalWindow(
     // Create window chrome using the new v2 function
     const ui: FloatingWindowUIData = createWindowChrome(cy, terminalData, terminalId);
 
+    // Mount InjectBar for agent terminals with a context node.
+    // Inserted before contentContainer so it sits between the title bar and xterm content.
+    // Only shown for agent terminals (those with attachedToContextNodeId), not user-spawned shells.
+    if (terminalData.attachedToContextNodeId) {
+        // Cast main to typed IPC interface — injectNodesIntoTerminal exists on mainAPI
+        // but its type can't resolve in the renderer tsconfig due to Node.js dependencies.
+        const mainIPC: FloatingTerminalMainIPC | undefined = window.electronAPI?.main as unknown as FloatingTerminalMainIPC | undefined;
+        const injectBar: InjectBarHandle = createInjectBar({
+            terminalId,
+            onInject: async (nodeIds: NodeIdAndFilePath[]): Promise<void> => {
+                try {
+                    const result: { success: boolean; injectedCount: number } | undefined = await mainIPC?.injectNodesIntoTerminal(terminalId, nodeIds);
+                    if (result && !result.success) {
+                        console.warn('[createFloatingTerminal] injectNodesIntoTerminal returned success=false for', terminalId);
+                    }
+                } catch (err: unknown) {
+                    console.error('[createFloatingTerminal] injectNodesIntoTerminal failed:', err);
+                    throw err; // Re-throw so InjectBar's .catch() also fires
+                }
+            },
+        });
+        ui.windowElement.insertBefore(injectBar.element, ui.contentContainer);
+        registerInjectBar(terminalId, injectBar);
+        void injectBar.refresh();
+    }
+
     // Create TerminalData with ui populated (immutable)
     const terminalWithUI: TerminalData = { ...terminalData, ui };
 
-    // Create Terminal instance
+    // Create Terminal instance (after InjectBar so contentContainer height is final for fitAddon.fit())
     const terminal: TerminalVanilla = new TerminalVanilla({
         container: ui.contentContainer,
         terminalData: terminalData

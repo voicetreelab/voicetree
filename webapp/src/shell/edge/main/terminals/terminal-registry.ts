@@ -6,6 +6,7 @@ import {sendTextToTerminal} from './send-text-to-terminal'
 
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
+import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
 
 export type TerminalStatus = 'running' | 'exited'
 
@@ -194,8 +195,13 @@ export function updateTerminalIsDone(terminalId: string, isDone: boolean): void 
         // Record when idle started — shared source of truth for wait_for_agents and notification hook
         idleSinceByTerminal.set(terminalId, Date.now())
         // Agent just became idle — wait 30s to confirm it's sustained before notifying
+        // (only if autoNotifyUnseenNodes is enabled; disabled by default since InjectBar gives manual control)
         wait_for_agent_to_still_be_done_after_n_seconds(terminalId, STOP_HOOK_DELAY_MS, (tid, rec) => {
-            void notifyAgentOfUnseenNodes(tid, rec)
+            void loadSettings().then((settings: import('@/pure/settings/types').VTSettings) => {
+                if (settings.autoNotifyUnseenNodes) {
+                    void notifyAgentOfUnseenNodes(tid, rec)
+                }
+            })
         })
     } else if (!isDone) {
         // Agent became active again — clear idle timestamp and cancel any pending notification
