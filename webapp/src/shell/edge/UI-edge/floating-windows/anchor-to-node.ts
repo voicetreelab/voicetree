@@ -18,7 +18,7 @@ import {
 } from "@/pure/graph/floating-windows/floatingWindowScaling";
 import {cleanupRegistry, getCachedZoom} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import {setupResizeObserver, updateShadowNodeDimensions} from "@/shell/edge/UI-edge/floating-windows/setup-resize-observer";
-import {DEFAULT_EDGE_LENGTH} from "@/shell/UI/cytoscape-graph-ui/graphviz/layout/cytoscape-graph-constants";
+import {getEdgeDistance} from "@/shell/UI/cytoscape-graph-ui/graphviz/layout/cytoscape-graph-constants";
 import {findBestPosition} from "@/pure/graph/positioning/findBestPosition";
 import {extractObstaclesFromCytoscape} from "@/shell/edge/UI-edge/floating-windows/extractObstaclesFromCytoscape";
 
@@ -77,7 +77,7 @@ export function anchorToNode(
     const childPosition: import('@/pure/graph').Position = findBestPosition(
         { x: parentPos.x, y: parentPos.y },
         desiredAngleDeg,
-        DEFAULT_EDGE_LENGTH,
+        getEdgeDistance(fw.type),
         { width: shadowDimensions.width, height: shadowDimensions.height },
         obstacles,
         { parentWidth: parentNode.width(), parentHeight: parentNode.height(), gap: 20 }

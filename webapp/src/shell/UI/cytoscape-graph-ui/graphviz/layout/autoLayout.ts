@@ -13,7 +13,7 @@
 
 import type {Core, EdgeSingular, NodeDefinition} from 'cytoscape';
 import ColaLayout from './cola';
-import { DEFAULT_EDGE_LENGTH} from './cytoscape-graph-constants';
+import { getEdgeDistance } from './cytoscape-graph-constants';
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
 import { consumePendingPan } from '@/shell/edge/UI-edge/state/PendingPanStore';
@@ -56,7 +56,7 @@ const DEFAULT_OPTIONS: AutoLayoutOptions = {
   userConstIter: 15,
   allConstIter: 25,
   edgeLength: (edge: EdgeSingular) => {
-    return DEFAULT_EDGE_LENGTH;
+    return getEdgeDistance(edge.target().data('windowType'));
   },
   // edgeSymDiffLength: undefined,
   // edgeJaccardLength: undefined

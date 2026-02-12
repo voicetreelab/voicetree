@@ -13,7 +13,7 @@ export const AGENT_NAMES: readonly string[] = [
 ] as const;
 
 // Round-robin agent name selection (no collisions until all 60 names used)
-const agentNameState: { readonly index: number } = { index: -1 };
+const agentNameState: { index: number } = { index: -1 };
 
 export function getNextAgentName(): string {
     agentNameState.index = (agentNameState.index + 1) % AGENT_NAMES.length;
@@ -60,6 +60,11 @@ export interface HotkeySettings {
     readonly voiceRecording: HotkeyBinding; // Option+R toggle voice recording
 }
 
+export interface HookSettings {
+    /** Path to shell script run after a worktree is created */
+    readonly onWorktreeCreated?: string;
+}
+
 export interface VTSettings {
     readonly terminalSpawnPathRelativeToWatchedDirectory: string;
     readonly agents: readonly AgentConfig[];
@@ -95,6 +100,8 @@ export interface VTSettings {
     readonly zoomSensitivity?: number;
     /** Starred folder paths that appear as quick-load recommendations across all projects */
     readonly starredFolders?: readonly string[];
+    /** Hook scripts triggered by app events (e.g., worktree creation) */
+    readonly hooks?: HookSettings;
 }
 
 /**

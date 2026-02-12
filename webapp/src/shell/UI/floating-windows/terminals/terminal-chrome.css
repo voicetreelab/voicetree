@@ -161,8 +161,20 @@
   min-height: 0;
   padding: 0 8px;
   background-color: var(--muted);
-  border-bottom: 1px solid var(--border);
   z-index: 3; /* Above title bar (2) so popover renders on top */
+}
+
+/* When visible (has unseen nodes), show border and top radii */
+.inject-bar.inject-bar-visible {
+  border-bottom: 1px solid var(--border);
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+
+/* Remove title bar top radii when inject bar is visible above it */
+.inject-bar.inject-bar-visible + .terminal-title-bar {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
 }
 
 /* Badge button - pill shape with accent color */

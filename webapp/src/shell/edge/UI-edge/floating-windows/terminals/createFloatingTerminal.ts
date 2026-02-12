@@ -141,7 +141,13 @@ export function createFloatingTerminalWindow(
                 }
             },
         });
-        ui.windowElement.insertBefore(injectBar.element, ui.contentContainer);
+        // Insert above the terminal title bar (first child) instead of below it
+        const titleBar: Element | null = ui.windowElement.querySelector('.terminal-title-bar');
+        if (titleBar) {
+            ui.windowElement.insertBefore(injectBar.element, titleBar);
+        } else {
+            ui.windowElement.insertBefore(injectBar.element, ui.windowElement.firstChild);
+        }
         registerInjectBar(terminalId, injectBar);
         void injectBar.refresh();
     }
