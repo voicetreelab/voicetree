@@ -39,5 +39,6 @@ export function waitForAgentsTool({
         monitorId,
         status: 'monitoring',
         terminalIds,
+        message: `Background monitor started (${monitorId}). You do NOT need to poll or check on these agents — a completion message will be automatically injected into your terminal when all ${terminalIds.length} agent(s) finish. You are free to continue other work now. When agents complete, you will receive a "[WaitForAgents] All agents completed." message with details about each agent's status and the nodes they created.`,
     })
 }
