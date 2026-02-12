@@ -36,6 +36,7 @@ export interface AddProgressNodeParams {
     complexityExplanation?: string
     parentNodeId?: string
     color?: string
+    override_warning_after_reading_instructions?: boolean
 }
 
 /**
@@ -274,7 +275,8 @@ export async function addProgressNodeTool({
     complexityScore,
     complexityExplanation,
     parentNodeId,
-    color: colorOverride
+    color: colorOverride,
+    override_warning_after_reading_instructions: overrideWarning
 }: AddProgressNodeParams): Promise<McpToolResponse> {
     // Validate caller terminal exists
     const terminalRecords: TerminalRecord[] = getTerminalRecords()
@@ -395,7 +397,8 @@ export async function addProgressNodeTool({
         parentBaseName
     })
 
-    // Warnings
+    // Warnings — all warnings block node creation unless override is set.
+    // Agent must read addProgressTree.md and resubmit with override_warning_after_reading_instructions=true if needed.
     const warnings: string[] = []
 
     // Check summary length
@@ -406,40 +409,66 @@ export async function addProgressNodeTool({
 
     // Check total body length (lines after frontmatter + title)
     const bodyLines: number = markdownContent.split('\n').length
-    const isNodeTooLong: boolean = bodyLines > 60
-    if (isNodeTooLong) {
+    if (bodyLines > 60) {
         warnings.push(
-            `ERROR: NODE TOO LONG (${bodyLines} lines). You MUST split this into multiple smaller nodes.\n\n`
-            + `The node was created, but it likely violates the one-node-one-concept rule. `
-            + `Call add_progress_node multiple times with focused content instead of one large dump.\n\n`
-            + `One node = one concept. Split when independently referenceable.\n`
-            + `Quick test: "If the parent disappeared, would this content still make sense?" YES → own node.\n\n`
-            + `Example splits:\n`
-            + `\n`
-            + `  Split by concern:\n`
-            + `  Task: Review git diff\n`
-            + `  ├── Review: Collision-aware positioning refactor\n`
-            + `  └── Review: Prompt template cleanup\n`
-            + `\n`
-            + `  Split by phase:\n`
-            + `  Task\n`
-            + `  ├── High-level architecture\n`
-            + `  │   ├── Option A: Event-driven\n`
-            + `  │   └── Option B: Request-response\n`
-            + `  ├── Data types\n`
-            + `  └── Pure functions\n`
-            + `\n`
-            + `Split when:\n`
-            + `- Multiple concerns (bug fix + refactor + new feature)\n`
-            + `- Changes span 3+ unrelated areas\n`
-            + `- Sequential phases (research → design → implement → validate)\n\n`
-            + `ACTION REQUIRED: Create additional focused nodes to break down this content, and then edit or remove the original file`
+            `Node too long (${bodyLines} lines). Split into multiple smaller nodes — one concept per node.`
         )
     }
 
     // Warn when files changed but no diffs provided
     if (filesChanged && filesChanged.length > 0 && !hasCodeDiffs) {
         warnings.push('You changed files but provided no codeDiffs — include key diffs for reviewability.')
+    }
+
+    // Warn when content is empty but summary suggests artifacts were produced
+    if (!content) {
+        const artifactKeywords: readonly string[] = [
+            'diagram', 'mockup', 'ascii', 'wireframe', 'design', 'option',
+            'proposal', 'analysis', 'table', 'architecture', 'flowchart',
+            'schema', 'template', 'spec', 'plan', 'comparison', 'benchmark',
+        ]
+        const summaryLower: string = summary.toLowerCase()
+        const matchedKeywords: readonly string[] = artifactKeywords.filter(
+            (kw: string) => summaryLower.includes(kw)
+        )
+        if (matchedKeywords.length > 0) {
+            warnings.push(
+                `Summary mentions artifacts (${matchedKeywords.join(', ')}) but content is empty. `
+                + `The node must be self-contained — embed all artifacts verbatim in the content field.`
+            )
+        }
+    }
+
+    // Warn when title/summary suggests planning/decomposition content
+    const titleLower: string = title.toLowerCase()
+    const summaryLowerForPlanning: string = summary.toLowerCase()
+    const combinedText: string = `${titleLower} ${summaryLowerForPlanning}`
+    const planningCompoundTerms: readonly string[] = [
+        'planning tree', 'implementation plan', 'decomposition',
+        'task tree', 'dependency graph',
+    ]
+    const matchedPlanningTerms: readonly string[] = planningCompoundTerms.filter(
+        (term: string) => combinedText.includes(term)
+    )
+    const titleHasPhase: boolean = /\bphase\s+\d/i.test(title)
+    if (matchedPlanningTerms.length > 0 || titleHasPhase) {
+        const trigger: string = titleHasPhase
+            ? `title contains "phase N" pattern`
+            : `contains planning keywords (${matchedPlanningTerms.join(', ')})`
+        warnings.push(
+            `This looks like a planning/decomposition node (${trigger}). `
+            + `For planning and task decomposition, read decompose_subtask_dependency_graph.md and subtask_template.md.`
+        )
+    }
+
+    // Block node creation if any warnings fired and override not set
+    if (warnings.length > 0 && !overrideWarning) {
+        return buildJsonResponse({
+            success: false,
+            error: `Node not created. Read addProgressTree.md for instructions, fix the issues below, and resubmit. `
+                + `If the warning does not apply, resubmit with override_warning_after_reading_instructions=true.\n\n`
+                + warnings.map((w: string) => `- ${w}`).join('\n')
+        }, true)
     }
 
     // Generate unique node ID from slugified title
@@ -507,7 +536,7 @@ export async function addProgressNodeTool({
             nodeId,
             filePath: nodeId,
             warnings
-        }, isNodeTooLong ? true : undefined)
+        })
     } catch (error: unknown) {
         const errorMessage: string = error instanceof Error ? error.message : String(error)
         return buildJsonResponse({

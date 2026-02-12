@@ -23,6 +23,7 @@ import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/termina
 // =============================================================================
 
 let inactivityCheckInterval: ReturnType<typeof setInterval> | null = null;
+let unsubscribeOnData: (() => void) | null = null;
 
 // =============================================================================
 // Inactivity Checking
@@ -61,7 +62,7 @@ function checkTerminalInactivity(): void {
  */
 export function startTerminalActivityPolling(): () => void {
     // Subscribe to terminal data events
-    window.electronAPI?.terminal.onData((terminalId: string, _data: string) => {
+    unsubscribeOnData = window.electronAPI?.terminal.onData((terminalId: string, _data: string) => {
         if (isZoomSuppressed()) {
             return;
         }
@@ -78,7 +79,7 @@ export function startTerminalActivityPolling(): () => void {
             void window.electronAPI?.main.updateTerminalIsDone(terminalId, false);
             updateTerminalStatusDot(terminalId as TerminalId, false);
         }
-    });
+    }) ?? null;
 
     // Start interval to check for inactive terminals
     inactivityCheckInterval = setInterval(() => {
@@ -98,5 +99,6 @@ export function stopTerminalActivityPolling(): void {
         inactivityCheckInterval = null;
     }
 
-    window.electronAPI?.removeAllListeners('terminal:data');
+    unsubscribeOnData?.();
+    unsubscribeOnData = null;
 }

@@ -1,19 +1,6 @@
 {
-  "extraKnownMarketplaces": {
-    "voicetree-plugins": {
-      "source": {
-        "source": "directory",
-        "path": "./.claude/plugins"
-      }
-    }
-  },
-  "enabledPlugins": {
-    "playwright-debug@voicetree-plugins": true
-  },
   "permissions": {
-    "allow": [
-
-    ]
+    "allow": []
   },
   "hooks": {
     "PostToolUse": [
@@ -27,5 +14,18 @@
         ]
       }
     ]
-  }
+  },
+  "enabledPlugins": {
+    "playwright-debug@voicetree-plugins": true
+  },
+  "extraKnownMarketplaces": {
+    "voicetree-plugins": {
+      "source": {
+        "source": "directory",
+        "path": "./.claude/plugins"
+      }
+    }
+  },
+  "prefersReducedMotion": true,
+  "outputStyle": "default"
 }

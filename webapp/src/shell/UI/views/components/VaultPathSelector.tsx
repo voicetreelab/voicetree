@@ -218,6 +218,23 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
         if (e.key === 'Escape') {
             setIsOpen(false);
             setSearchQuery('');
+        } else if (e.key === 'Enter' && searchQuery.trim() && watchDirectory) {
+            e.preventDefault();
+            const trimmed: string = searchQuery.trim();
+            const exactMatch: AvailableFolderItem | undefined = availableFolders.find(
+                (f: AvailableFolderItem) => f.displayPath === trimmed
+            );
+            if (exactMatch) {
+                void handleSetAsWrite(exactMatch.absolutePath);
+            } else if (
+                !trimmed.startsWith('.') &&
+                !readPaths.some((p: string) => {
+                    const displayPath: string = toDisplayPath(toAbsolutePath(watchDirectory), toAbsolutePath(p));
+                    return displayPath === trimmed;
+                })
+            ) {
+                void handleSetAsWrite(watchDirectory + '/' + trimmed);
+            }
         }
     };
 

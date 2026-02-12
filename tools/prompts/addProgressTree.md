@@ -68,6 +68,8 @@ agent_name: $AGENT_NAME
 
 Key details: specifications, decisions, plans, outcomes.
 
+**Self-containment rule:** The node IS the deliverable. If your work produced visual artifacts (ASCII diagrams, code, tables, mockups, analysis), embed them verbatim — never summarize an artifact. A reader should never need to look elsewhere to understand what was produced.
+
 ## Files Changed (always include)
 
 ## DIFF (if files changed)

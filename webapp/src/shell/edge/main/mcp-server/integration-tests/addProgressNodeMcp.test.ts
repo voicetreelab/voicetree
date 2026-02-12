@@ -944,6 +944,99 @@ describe('MCP add_progress_node tool', () => {
             expect(payload.warnings.some((w: string) => w.includes('codeDiffs'))).toBe(true)
         })
 
+        it('warns when summary mentions artifacts but content is empty', async () => {
+            setupStandardMocks()
+
+            const response: McpToolResponse = await addProgressNodeTool({
+                callerTerminalId: CALLER_TERMINAL_ID,
+                title: 'UI Design',
+                summary: 'Designed 3 ASCII mockup options for the new diagram feature.',
+                parentNodeId: PARENT_NODE_ID
+            })
+            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
+
+            expect(payload.success).toBe(true)
+            expect(payload.warnings.some((w: string) => w.includes('self-contained'))).toBe(true)
+            expect(payload.warnings.some((w: string) => w.includes('mockup') || w.includes('diagram'))).toBe(true)
+        })
+
+        it('does not warn about missing content when summary has no artifact keywords', async () => {
+            setupStandardMocks()
+
+            const response: McpToolResponse = await addProgressNodeTool({
+                callerTerminalId: CALLER_TERMINAL_ID,
+                title: 'Deploy',
+                summary: 'Deployed to staging successfully.',
+                parentNodeId: PARENT_NODE_ID
+            })
+            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
+
+            expect(payload.success).toBe(true)
+            expect(payload.warnings.every((w: string) => !w.includes('self-contained'))).toBe(true)
+        })
+
+        it('does not warn about artifacts when content is provided', async () => {
+            setupStandardMocks()
+
+            const response: McpToolResponse = await addProgressNodeTool({
+                callerTerminalId: CALLER_TERMINAL_ID,
+                title: 'UI Design',
+                summary: 'Designed 3 ASCII mockup options for the new diagram feature.',
+                content: '## Option A\n```\n┌──────┐\n│ Mock │\n└──────┘\n```',
+                parentNodeId: PARENT_NODE_ID
+            })
+            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
+
+            expect(payload.success).toBe(true)
+            expect(payload.warnings.every((w: string) => !w.includes('self-contained'))).toBe(true)
+        })
+
+        it('warns when title contains "Phase N" pattern', async () => {
+            setupStandardMocks()
+
+            const response: McpToolResponse = await addProgressNodeTool({
+                callerTerminalId: CALLER_TERMINAL_ID,
+                title: 'Phase 1 — Data Model & Settings Layer',
+                summary: 'Add starredFolders field to VTSettings.',
+                parentNodeId: PARENT_NODE_ID
+            })
+            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
+
+            expect(payload.success).toBe(true)
+            expect(payload.warnings.some((w: string) => w.includes('planning/decomposition'))).toBe(true)
+            expect(payload.warnings.some((w: string) => w.includes('decompose_subtask_dependency_graph.md'))).toBe(true)
+        })
+
+        it('warns when title or summary contains planning compound terms', async () => {
+            setupStandardMocks()
+
+            const response: McpToolResponse = await addProgressNodeTool({
+                callerTerminalId: CALLER_TERMINAL_ID,
+                title: 'Starred Folders Implementation Plan',
+                summary: 'Created a planning tree with 6 phases.',
+                parentNodeId: PARENT_NODE_ID
+            })
+            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
+
+            expect(payload.success).toBe(true)
+            expect(payload.warnings.some((w: string) => w.includes('planning/decomposition'))).toBe(true)
+        })
+
+        it('does not warn about planning for normal progress nodes', async () => {
+            setupStandardMocks()
+
+            const response: McpToolResponse = await addProgressNodeTool({
+                callerTerminalId: CALLER_TERMINAL_ID,
+                title: 'Fixed authentication bug',
+                summary: 'Resolved the token refresh issue as planned.',
+                parentNodeId: PARENT_NODE_ID
+            })
+            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
+
+            expect(payload.success).toBe(true)
+            expect(payload.warnings.every((w: string) => !w.includes('planning/decomposition'))).toBe(true)
+        })
+
         it('returns isError and loud error message when total body exceeds 60 lines', async () => {
             setupStandardMocks()
 

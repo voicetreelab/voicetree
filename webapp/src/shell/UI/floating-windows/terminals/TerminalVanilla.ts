@@ -36,6 +36,8 @@ export class TerminalVanilla {
   private shiftEnterSendsOptionEnter: boolean = true;
   private zoomEndUnsubscribe: (() => void) | null = null;
   private hasWebGLContext: boolean = false;
+  private cleanupOnData: (() => void) | null = null;
+  private cleanupOnExit: (() => void) | null = null;
 
   constructor(config: TerminalVanillaConfig) {
     this.container = config.container;
@@ -210,14 +212,14 @@ export class TerminalVanilla {
       }
 
       // Handle terminal output
-      window.electronAPI.terminal.onData((id, data) => {
+      this.cleanupOnData = window.electronAPI.terminal.onData((id, data) => {
         if (id === result.terminalId && this.term) {
           this.term.write(data);
         }
       });
 
       // Handle terminal exit
-      window.electronAPI.terminal.onExit((id, code) => {
+      this.cleanupOnExit = window.electronAPI.terminal.onExit((id, code) => {
         if (id === result.terminalId && this.term) {
           this.term.writeln(`\r\nProcess exited with code ${code}`);
           this.terminalId = null;
@@ -250,6 +252,12 @@ export class TerminalVanilla {
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
     }
+
+    // Unsubscribe from IPC terminal listeners
+    this.cleanupOnData?.();
+    this.cleanupOnData = null;
+    this.cleanupOnExit?.();
+    this.cleanupOnExit = null;
 
     // Unsubscribe from zoom-end callbacks
     this.zoomEndUnsubscribe?.();

@@ -5,7 +5,7 @@
  * Decoupled from TerminalManager for easy removal if feature proves not useful.
  */
 
-const MAX_LINES: number = 100
+const MAX_LINES: number = 1000
 
 // terminalId -> array of lines (ring buffer)
 const buffers: Map<string, string[]> = new Map<string, string[]>()
@@ -85,7 +85,17 @@ export function captureOutput(terminalId: string, data: string): void {
     if (lines.length === 0) return
 
     const buffer: string[] = buffers.get(terminalId) ?? []
-    buffer.push(...lines)
+
+    // Collapse consecutive empty lines on write to prevent buffer pollution
+    // from stripped escape sequences (TUI-heavy output like Claude Code generates
+    // many empty lines after sanitization, which would waste buffer space)
+    for (const line of lines) {
+        const isEmpty: boolean = line.trim() === ''
+        const lastInBuffer: string | undefined = buffer[buffer.length - 1]
+        const lastIsEmpty: boolean = lastInBuffer !== undefined && lastInBuffer.trim() === ''
+        if (isEmpty && lastIsEmpty) continue
+        buffer.push(line)
+    }
 
     // Keep only last MAX_LINES
     if (buffer.length > MAX_LINES) {
@@ -100,18 +110,7 @@ export function getOutput(terminalId: string, nLines: number = MAX_LINES): strin
     if (!buffer) return undefined
 
     const linesToReturn: string[] = buffer.slice(-Math.min(nLines, MAX_LINES))
-
-    // Collapse consecutive empty lines to reduce noise from stripped escape sequences
-    const collapsed: string[] = []
-    let prevEmpty: boolean = false
-    for (const line of linesToReturn) {
-        const isEmpty: boolean = line.trim() === ''
-        if (isEmpty && prevEmpty) continue
-        collapsed.push(line)
-        prevEmpty = isEmpty
-    }
-
-    return collapsed.join('\n')
+    return linesToReturn.join('\n')
 }
 
 export function clearBuffer(terminalId: string): void {

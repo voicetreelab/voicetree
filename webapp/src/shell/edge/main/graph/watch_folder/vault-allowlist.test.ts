@@ -169,6 +169,59 @@ describe('vault-allowlist: duplicate writePath in dropdown bug', () => {
       expect(paths).toEqual(uniquePaths)
     })
   })
+
+  describe('setWritePath should demote old writePath to readPaths', () => {
+    it('should add old writePath to readPaths when setting a new writePath', async () => {
+      // GIVEN: A watched directory with writePath=A, readPaths=[B]
+      const watchedDir: string = path.join(testTmpDir, 'project')
+      const writePathA: string = path.join(watchedDir, 'pathA')
+      const readPathB: string = path.join(watchedDir, 'pathB')
+      const newWritePathC: string = path.join(watchedDir, 'pathC')
+      await fs.mkdir(writePathA, { recursive: true })
+      await fs.mkdir(readPathB, { recursive: true })
+      await fs.mkdir(newWritePathC, { recursive: true })
+      setProjectRootWatchedDirectory(watchedDir)
+
+      await saveVaultConfigForDirectory(watchedDir, {
+        writePath: writePathA,
+        readPaths: [readPathB]
+      })
+
+      // WHEN: setWritePath is called with a new path C
+      await setWritePath(newWritePathC)
+
+      // THEN: getVaultPaths should include all three paths: C (write), B (read), A (demoted)
+      const paths: readonly string[] = await getVaultPaths()
+      expect(paths).toContain(newWritePathC)
+      expect(paths).toContain(readPathB)
+      expect(paths).toContain(writePathA)
+    })
+
+    it('should demote old writePath when promoting a readPath to write', async () => {
+      // GIVEN: writePath=A, readPaths=[B]
+      const watchedDir: string = path.join(testTmpDir, 'project')
+      const writePathA: string = path.join(watchedDir, 'pathA')
+      const readPathB: string = path.join(watchedDir, 'pathB')
+      await fs.mkdir(writePathA, { recursive: true })
+      await fs.mkdir(readPathB, { recursive: true })
+      setProjectRootWatchedDirectory(watchedDir)
+
+      await saveVaultConfigForDirectory(watchedDir, {
+        writePath: writePathA,
+        readPaths: [readPathB]
+      })
+
+      // WHEN: setWritePath promotes B to write
+      await setWritePath(readPathB)
+
+      // THEN: A should be demoted to readPaths, B should not be duplicated
+      const paths: readonly string[] = await getVaultPaths()
+      expect(paths).toContain(readPathB)  // B is now writePath
+      expect(paths).toContain(writePathA) // A demoted to readPaths
+      const uniquePaths: string[] = [...new Set(paths)]
+      expect(paths.length).toBe(uniquePaths.length) // no duplicates
+    })
+  })
 })
 
 describe('vault-allowlist: loadAndMergeVaultPath helper', () => {
