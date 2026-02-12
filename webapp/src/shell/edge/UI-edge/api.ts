@@ -24,6 +24,8 @@ import type {TerminalRecord} from "@/shell/edge/main/terminals/terminal-registry
 import {syncFromMain} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {setIsTrackpadScrolling} from "@/shell/edge/UI-edge/state/trackpad-state";
 import {closeTerminalById} from "@/shell/edge/UI-edge/floating-windows/terminals/closeTerminalById";
+import {getInjectBarHandle} from "@/shell/UI/floating-windows/terminals/InjectBar";
+import type {TerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 
 /**
  * Update floating editors from external FS changes
@@ -72,6 +74,18 @@ function syncTerminals(records: TerminalRecord[]): void {
     syncFromMain(records);
 }
 
+/**
+ * Update InjectBar badge count for a terminal.
+ * Called from main process after graph deltas change the unseen node count.
+ * Renderer uses this to update the badge without polling.
+ */
+function updateInjectBadge(terminalId: string, count: number): void {
+    const handle: ReturnType<typeof getInjectBarHandle> = getInjectBarHandle(terminalId as TerminalId);
+    if (handle) {
+        handle.updateBadgeCount(count);
+    }
+}
+
 // Export as object (like mainAPI)
 // eslint-disable-next-line @typescript-eslint/typedef
 export const uiAPIHandler = {
@@ -82,6 +96,7 @@ export const uiAPIHandler = {
     syncTerminals,
     setIsTrackpadScrolling,
     closeTerminalById,
+    updateInjectBadge,
 };
 
 export type UIAPIType = typeof uiAPIHandler;
