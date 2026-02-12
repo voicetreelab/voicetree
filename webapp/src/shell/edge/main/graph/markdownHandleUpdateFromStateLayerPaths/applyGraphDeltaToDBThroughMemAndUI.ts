@@ -10,6 +10,8 @@ import {getMainWindow} from "@/shell/edge/main/state/app-electron-state";
 import {resolveLinkedNodesInWatchedFolder} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk";
 import {getProjectRootWatchedDirectory} from "@/shell/edge/main/state/watch-folder-store";
 import {refreshAllInjectBadges} from "@/shell/edge/main/terminals/inject-badge-refresh";
+import {loadSettings} from "@/shell/edge/main/settings/settings_IO";
+import {dispatchOnNewNodeHooks} from "@/shell/edge/main/hooks/onNewNodeHook";
 
 /**
  * Applies a delta to the in-memory graph state and resolves any new wikilinks.
@@ -88,4 +90,12 @@ export async function applyGraphDeltaToDBThroughMemAndUI(
     if (E.isLeft(result)) {
         throw result.left
     }
+
+    // Fire onNewNode hook (fire-and-forget, after successful DB write)
+    void loadSettings().then(settings => {
+        const hookPath: string | undefined = settings.hooks?.onNewNode
+        if (hookPath && !hookPath.startsWith('#')) {
+            dispatchOnNewNodeHooks(delta, hookPath, watchedDirectory)
+        }
+    })
 }

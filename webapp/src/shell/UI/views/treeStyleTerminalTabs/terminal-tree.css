@@ -141,6 +141,18 @@
     line-height: 1.2;
 }
 
+/* Agent ID indicator - shown below title (and worktree if present) */
+.terminal-tree-agent-id {
+    font-size: 9px;
+    color: var(--muted-foreground);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0.5;
+    line-height: 1.2;
+    font-family: monospace;
+}
+
 /* Close button */
 .terminal-tree-close {
     opacity: 0;

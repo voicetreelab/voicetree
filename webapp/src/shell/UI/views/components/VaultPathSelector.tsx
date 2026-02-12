@@ -15,6 +15,8 @@ interface AddVaultResult {
     error?: string;
 }
 
+const INITIAL_FOLDER_LIMIT: number = 10;
+
 /**
  * Dropdown component for folder management with four sections:
  * 1. WRITING TO - current write folder with reset button
@@ -33,6 +35,7 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
     const [availableFolders, setAvailableFolders] = useState<readonly AvailableFolderItem[]>([]);
     const [homeDir, setHomeDir] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [showAllFolders, setShowAllFolders] = useState(false);
     const dropdownRef: RefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);
     const searchInputRef: RefObject<HTMLInputElement | null> = useRef<HTMLInputElement>(null);
 
@@ -82,6 +85,7 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                 setIsOpen(false);
                 setSearchQuery('');
                 setError(null);
+                setShowAllFolders(false);
             }
         };
 
@@ -233,7 +237,7 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                     return displayPath === trimmed;
                 })
             ) {
-                void handleSetAsWrite(watchDirectory + '/' + trimmed);
+                void handleSetAsWrite(trimmed.startsWith('/') ? trimmed : watchDirectory + '/' + trimmed);
             }
         }
     };
@@ -279,6 +283,12 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
 
     const currentFolderName: string = writePath ? getFolderName(writePath) : 'Select vault';
     const projectName: string = watchDirectory?.split(/[/\\]/).pop() ?? 'project root';
+
+    // Compute visible folders for the available folders list
+    const visibleFolders: readonly AvailableFolderItem[] = showAllFolders || searchQuery
+        ? availableFolders
+        : availableFolders.slice(0, INITIAL_FOLDER_LIMIT);
+    const hiddenCount: number = availableFolders.length - INITIAL_FOLDER_LIMIT;
 
     // Star toggle button for folder rows
     const renderStarButton: (path: string) => JSX.Element = (path: string): JSX.Element => {
@@ -492,7 +502,7 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                             </div>
 
                             {/* Available folders list - suggestion style */}
-                            <div className="max-h-[150px] overflow-y-auto">
+                            <div className="max-h-[280px] overflow-y-auto">
                                 {/* Create folder option - show when no exact match exists AND not already loaded */}
                                 {searchQuery.trim() &&
                                     watchDirectory &&
@@ -513,7 +523,7 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                                         </span>
                                     </button>
                                 )}
-                                {availableFolders.map((folder: AvailableFolderItem, index: number) => (
+                                {visibleFolders.map((folder: AvailableFolderItem, index: number) => (
                                     <div
                                         key={folder.absolutePath}
                                         className="group mx-2 mb-1 px-2 py-1 flex items-center justify-between gap-1 rounded-sm border-l-2 border-dashed border-muted-foreground/20 hover:border-primary/40 hover:bg-background/80 transition-colors"
@@ -545,6 +555,14 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                                         </div>
                                     </div>
                                 ))}
+                                {!showAllFolders && !searchQuery && hiddenCount > 0 && (
+                                    <button
+                                        onClick={() => setShowAllFolders(true)}
+                                        className="w-full px-3 py-1.5 text-[11px] text-muted-foreground/70 hover:text-foreground hover:bg-accent/30 transition-colors text-center"
+                                    >
+                                        Show {hiddenCount} more...
+                                    </button>
+                                )}
                                 {availableFolders.length === 0 && !searchQuery && (
                                     <div className="px-3 py-3 text-[11px] text-muted-foreground/50 text-center italic">
                                         Type to search folders...

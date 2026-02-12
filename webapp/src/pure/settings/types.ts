@@ -63,6 +63,8 @@ export interface HotkeySettings {
 export interface HookSettings {
     /** Path to shell script run after a worktree is created */
     readonly onWorktreeCreated?: string;
+    /** Path to shell script run after a new node is created (receives node path as $1) */
+    readonly onNewNode?: string;
 }
 
 export interface VTSettings {

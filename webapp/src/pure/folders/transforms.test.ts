@@ -43,7 +43,7 @@ describe('getAvailableFolders', () => {
         const loadedPaths: readonly AbsolutePath[] = [
             toAbsolutePath('/Users/bob/project/notes'),
         ];
-        const allSubfolders: readonly { path: AbsolutePath; modifiedAt: number }[] = [
+        const allSubfolders: readonly { readonly path: AbsolutePath; readonly modifiedAt: number }[] = [
             { path: toAbsolutePath('/Users/bob/project/notes'), modifiedAt: 1000 },
             { path: toAbsolutePath('/Users/bob/project/drafts'), modifiedAt: 2000 },
         ];
@@ -57,9 +57,9 @@ describe('getAvailableFolders', () => {
         expect(result[0].absolutePath).toBe('/Users/bob/project/drafts');
     });
 
-    it('returns max 5 when no search query', () => {
+    it('returns all folders when no search query (UI handles display limiting)', () => {
         const loadedPaths: readonly AbsolutePath[] = [];
-        const allSubfolders: readonly { path: AbsolutePath; modifiedAt: number }[] = [
+        const allSubfolders: readonly { readonly path: AbsolutePath; readonly modifiedAt: number }[] = [
             { path: toAbsolutePath('/Users/bob/project/a'), modifiedAt: 1 },
             { path: toAbsolutePath('/Users/bob/project/b'), modifiedAt: 2 },
             { path: toAbsolutePath('/Users/bob/project/c'), modifiedAt: 3 },
@@ -74,12 +74,12 @@ describe('getAvailableFolders', () => {
             allSubfolders,
             ''
         );
-        expect(result).toHaveLength(5);
+        expect(result).toHaveLength(7);
     });
 
     it('root "/" appears first when no search query', () => {
         const loadedPaths: readonly AbsolutePath[] = [];
-        const allSubfolders: readonly { path: AbsolutePath; modifiedAt: number }[] = [
+        const allSubfolders: readonly { readonly path: AbsolutePath; readonly modifiedAt: number }[] = [
             { path: toAbsolutePath('/Users/bob/project/notes'), modifiedAt: 2000 },
             { path: toAbsolutePath('/Users/bob/project'), modifiedAt: 1000 }, // project root
         ];
@@ -95,7 +95,7 @@ describe('getAvailableFolders', () => {
 
     it('sorts by modifiedAt descending (most recent first)', () => {
         const loadedPaths: readonly AbsolutePath[] = [];
-        const allSubfolders: readonly { path: AbsolutePath; modifiedAt: number }[] = [
+        const allSubfolders: readonly { readonly path: AbsolutePath; readonly modifiedAt: number }[] = [
             { path: toAbsolutePath('/Users/bob/project/old'), modifiedAt: 1000 },
             { path: toAbsolutePath('/Users/bob/project/new'), modifiedAt: 3000 },
             { path: toAbsolutePath('/Users/bob/project/mid'), modifiedAt: 2000 },
@@ -113,7 +113,7 @@ describe('getAvailableFolders', () => {
 
     it('search query filters case-insensitively', () => {
         const loadedPaths: readonly AbsolutePath[] = [];
-        const allSubfolders: readonly { path: AbsolutePath; modifiedAt: number }[] = [
+        const allSubfolders: readonly { readonly path: AbsolutePath; readonly modifiedAt: number }[] = [
             { path: toAbsolutePath('/Users/bob/project/Notes'), modifiedAt: 1000 },
             { path: toAbsolutePath('/Users/bob/project/drafts'), modifiedAt: 2000 },
             { path: toAbsolutePath('/Users/bob/project/mynotes'), modifiedAt: 3000 },
@@ -131,7 +131,7 @@ describe('getAvailableFolders', () => {
 
     it('search removes the 5-item limit', () => {
         const loadedPaths: readonly AbsolutePath[] = [];
-        const allSubfolders: readonly { path: AbsolutePath; modifiedAt: number }[] = Array.from(
+        const allSubfolders: readonly { readonly path: AbsolutePath; readonly modifiedAt: number }[] = Array.from(
             { length: 10 },
             (_, i) => ({
                 path: toAbsolutePath(`/Users/bob/project/folder${i}`),
@@ -151,7 +151,7 @@ describe('getAvailableFolders', () => {
     describe('with filterText parameter', () => {
         it('uses filterText for filtering when provided', () => {
             const loadedPaths: readonly AbsolutePath[] = [];
-            const allSubfolders: readonly { path: AbsolutePath; modifiedAt: number }[] = [
+            const allSubfolders: readonly { readonly path: AbsolutePath; readonly modifiedAt: number }[] = [
                 { path: toAbsolutePath('/Users/bob/project/docs/projects/auth'), modifiedAt: 3000 },
                 { path: toAbsolutePath('/Users/bob/project/docs/projects/core'), modifiedAt: 2000 },
                 { path: toAbsolutePath('/Users/bob/project/docs/projects/api'), modifiedAt: 1000 },
@@ -170,7 +170,7 @@ describe('getAvailableFolders', () => {
 
         it('uses searchQuery for filtering when filterText is not provided (backwards compat)', () => {
             const loadedPaths: readonly AbsolutePath[] = [];
-            const allSubfolders: readonly { path: AbsolutePath; modifiedAt: number }[] = [
+            const allSubfolders: readonly { readonly path: AbsolutePath; readonly modifiedAt: number }[] = [
                 { path: toAbsolutePath('/Users/bob/project/docs'), modifiedAt: 1000 },
                 { path: toAbsolutePath('/Users/bob/project/notes'), modifiedAt: 2000 },
             ];
@@ -186,7 +186,7 @@ describe('getAvailableFolders', () => {
 
         it('empty filterText shows all folders when searchQuery has path', () => {
             const loadedPaths: readonly AbsolutePath[] = [];
-            const allSubfolders: readonly { path: AbsolutePath; modifiedAt: number }[] = [
+            const allSubfolders: readonly { readonly path: AbsolutePath; readonly modifiedAt: number }[] = [
                 { path: toAbsolutePath('/Users/bob/project/docs/projects/auth'), modifiedAt: 3000 },
                 { path: toAbsolutePath('/Users/bob/project/docs/projects/core'), modifiedAt: 2000 },
             ];
@@ -203,7 +203,7 @@ describe('getAvailableFolders', () => {
 
         it('filterText case-insensitive filtering', () => {
             const loadedPaths: readonly AbsolutePath[] = [];
-            const allSubfolders: readonly { path: AbsolutePath; modifiedAt: number }[] = [
+            const allSubfolders: readonly { readonly path: AbsolutePath; readonly modifiedAt: number }[] = [
                 { path: toAbsolutePath('/Users/bob/project/docs/Auth'), modifiedAt: 2000 },
                 { path: toAbsolutePath('/Users/bob/project/docs/core'), modifiedAt: 1000 },
             ];
@@ -220,7 +220,7 @@ describe('getAvailableFolders', () => {
 
         it('display paths remain relative to projectRoot regardless of filterText', () => {
             const loadedPaths: readonly AbsolutePath[] = [];
-            const allSubfolders: readonly { path: AbsolutePath; modifiedAt: number }[] = [
+            const allSubfolders: readonly { readonly path: AbsolutePath; readonly modifiedAt: number }[] = [
                 { path: toAbsolutePath('/Users/bob/project/docs/projects/auth'), modifiedAt: 1000 },
             ];
             const result: readonly AvailableFolderItem[] = getAvailableFolders(
