@@ -411,7 +411,7 @@ export async function addProgressNodeTool({
     const bodyLines: number = markdownContent.split('\n').length
     if (bodyLines > 60) {
         warnings.push(
-            `Node too long (${bodyLines} lines). Split into multiple smaller nodes — one concept per node.`
+            `Node too long (${bodyLines} lines). Split into a tree of multiple smaller nodes — one concept per node.`
         )
     }
 

@@ -8,10 +8,19 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { loadSettings, saveSettings } from '@/shell/edge/main/settings/settings_IO';
 import { getNode } from '@/shell/edge/main/state/graph-store';
-import { nodeIdToFilePathWithExtension } from '@/pure/graph/markdown-parsing';
+import { nodeIdToFilePathWithExtension, getNodeTitle } from '@/pure/graph/markdown-parsing';
 import { broadcastVaultState } from './broadcast-vault-state';
 import type { VTSettings } from '@/pure/settings/types';
 import type { GraphNode } from '@/pure/graph';
+
+function slugify(text: string): string {
+    return text
+        .toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9-]/g, '')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+}
 
 export async function getStarredFolders(): Promise<readonly string[]> {
     const settings: VTSettings = await loadSettings();
@@ -53,7 +62,9 @@ export async function copyNodeToFolder(
     }
 
     const sourceFilePath: string = nodeIdToFilePathWithExtension(nodeId);
-    const fileName: string = path.basename(sourceFilePath);
+    const title: string = getNodeTitle(node);
+    const slugged: string = slugify(title);
+    const fileName: string = slugged.length > 0 ? `${slugged}.md` : path.basename(sourceFilePath);
     const targetPath: string = path.join(targetFolderPath, fileName);
 
     try {
