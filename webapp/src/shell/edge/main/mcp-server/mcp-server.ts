@@ -26,7 +26,7 @@ import {sendMessageTool} from './sendMessageTool'
 import {closeAgentTool} from './closeAgentTool'
 import {readTerminalOutputTool} from './readTerminalOutputTool'
 import {searchNodesTool} from './searchNodesTool'
-import {addProgressNodeTool} from './addProgressNodeTool'
+import {createGraphTool} from './createGraphTool'
 
 // Re-export types and tool functions for external use
 export type {McpToolResponse} from './types'
@@ -46,8 +46,8 @@ export type {ReadTerminalOutputParams} from './readTerminalOutputTool'
 export {readTerminalOutputTool} from './readTerminalOutputTool'
 export type {SearchNodesParams} from './searchNodesTool'
 export {searchNodesTool} from './searchNodesTool'
-export type {AddProgressNodeParams} from './addProgressNodeTool'
-export {addProgressNodeTool} from './addProgressNodeTool'
+export type {CreateGraphParams, CreateGraphNodeInput} from './createGraphTool'
+export {createGraphTool} from './createGraphTool'
 
 const MCP_BASE_PORT: 3001 = 3001 as const
 let mcpPort: number = MCP_BASE_PORT
@@ -163,15 +163,15 @@ If you already have a node detailing the task, use nodeId. Otherwise, use task+p
         'read_terminal_output',
         {
             title: 'Read Terminal Output',
-            description: 'Read the last N lines of output from an agent terminal. Output has ANSI escape codes stripped for readability. Use this to check what an agent has printed, debug issues, or verify agent progress without waiting for completion.',
+            description: 'Read the last N characters of output from an agent terminal. Output has ANSI escape codes stripped for readability. Use this to check what an agent has printed, debug issues, or verify agent progress without waiting for completion.',
             inputSchema: {
                 terminalId: z.string().describe('The terminal ID of the agent to read output from'),
                 callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),
-                nLines: z.number().optional().describe('Number of lines to return (default: 100)')
+                nChars: z.number().optional().describe('Number of characters to return (default: 10000)')
             }
         },
-        async ({terminalId, callerTerminalId, nLines}) =>
-            readTerminalOutputTool({terminalId, callerTerminalId, nLines})
+        async ({terminalId, callerTerminalId, nChars}) =>
+            readTerminalOutputTool({terminalId, callerTerminalId, nChars})
     )
 
     // Tool: search_nodes
@@ -188,43 +188,48 @@ If you already have a node detailing the task, use nodeId. Otherwise, use task+p
         async ({query, top_k}) => searchNodesTool({query, top_k})
     )
 
-    // Tool: add_progress_node
+    // Tool: create_graph
     server.registerTool(
-        'add_progress_node',
+        'create_graph',
         {
-            title: 'Add Progress Node',
-            description: `Create a progress node documenting your work. Automatically handles frontmatter (color, agent_name), parent linking, file path, graph positioning, and mermaid diagram validation.
+            title: 'Create Graph',
+            description: `Create a graph of progress nodes in a single call. Supports trees, chains, fan-out, fan-in, and diamond dependencies (multiple parents per node). Automatically handles frontmatter, parent linking, file paths, graph positioning, and mermaid validation.
 
 **When to use:** After completing any non-trivial work — document what you did, files changed, and key decisions.
 
-One node = one concept. If your work covers multiple independent concerns, call this tool multiple times.
+One node = one concept. If your work covers multiple independent concerns, create multiple nodes in one call using local parent references.
 
-**Self-containment:** Nodes must embed all artifacts produced (diagrams, ASCII mockups, code, analysis). Never summarize an artifact — include it verbatim. The node is the deliverable, not a pointer to it.
+**Self-containment:** Nodes must embed all artifacts produced (diagrams, ASCII mockups, code, analysis). Never summarize an artifact — include it verbatim.
 
 **Required when codeDiffs provided:** complexityScore and complexityExplanation must be included.
 
 **Composition guidance:** Read addProgressTree.md before your first progress node for scope rules, when to split, and embedding standards.
 
-**Spec files:** If you created openspec artifacts (proposal, design, tasks) or similar specs, link the key ones via linkedArtifacts. Skip individual spec deltas unless they contain key decisions.`,
+**Node wiring:** Each node has a local \`id\`. Use \`parents\` (array) to reference other nodes' local ids — all parents are created before children. Nodes without \`parents\` attach to the top-level \`parentNodeId\` (or your task node by default). Diamond dependencies are supported: \`"parents": ["phase1", "phase2"]\`.
+
+**Line limit:** Each node is limited to 60 lines (excluding codeDiffs and diagram). Nodes exceeding this limit block creation — split further.`,
             inputSchema: {
                 callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),
-                title: z.string().describe('Node title — one concept per node, concise and descriptive'),
-                summary: z.string().describe('Concise summary (1-3 lines) of what was accomplished. Always shown first.'),
-                content: z.string().describe('Complete work output as markdown. MUST contain all artifacts produced: diagrams, ASCII mockups, code snippets, analysis, tables, proposals. Embed artifacts verbatim — do not summarize what you created. The node must be self-contained: a reader should never need to look elsewhere to see what was produced. Pass empty string if no artifacts were produced.'),
-                codeDiffs: z.array(z.string()).optional().describe('Array of code diff strings. Each diff is rendered in a code block under ## DIFF. When provided, complexityScore and complexityExplanation are required.'),
-                filesChanged: z.array(z.string()).optional().describe('Array of file paths you modified'),
-                diagram: z.string().optional().describe('Mermaid diagram source (without ```mermaid fences — tool adds them). Validated before creation.'),
-                notes: z.array(z.string()).optional().describe('Array of notes: architecture impact, gotchas, tech debt, difficulties. Rendered as bulleted ### NOTES section.'),
-                linkedArtifacts: z.array(z.string()).optional().describe('Array of node basenames to wikilink in a ## Related section. If you created openspec changes (proposal.md, tasks.md, design.md), link the proposal here. Use for specs, proposals, related nodes.'),
-                complexityScore: z.enum(['low', 'medium', 'high']).optional().describe('Required when codeDiffs provided. Complexity of the area worked in.'),
-                complexityExplanation: z.string().optional().describe('Required when codeDiffs provided. Brief explanation of the complexity score.'),
-                parentNodeId: z.string().optional().describe('Parent node ID to link to. Defaults to your task node.'),
-                color: z.string().optional().describe('Override node color. Use CSS named colors: red, blue, green, yellow, orange, purple, pink, cyan, teal, brown, gray, lime, magenta, navy, olive, maroon, coral, crimson, gold, indigo, lavender, salmon, tomato, turquoise, violet. Defaults to your agent color. Convention: use green for progress nodes that complete a task; use blue (default) for planning and in-progress work.'),
-                override_warning_after_reading_instructions: z.boolean().optional().describe('Set to true to bypass warnings after reading addProgressTree.md. Only use after reading the instructions and confirming the warning does not apply.')
+                parentNodeId: z.string().optional().describe('Existing graph node ID to attach root nodes to. Defaults to your task node.'),
+                nodes: z.array(z.object({
+                    id: z.string().describe('Local/temporary ID for wiring edges within this call'),
+                    title: z.string().describe('Node title — one concept per node, concise and descriptive'),
+                    summary: z.string().describe('Concise summary (1-3 lines) of what was accomplished'),
+                    content: z.string().optional().describe('Complete work output as markdown. Embed all artifacts verbatim. Pass empty string if no artifacts produced.'),
+                    color: z.string().optional().describe('Override node color. CSS named colors. Defaults to agent color.'),
+                    diagram: z.string().optional().describe('Mermaid diagram source (without ```mermaid fences — tool adds them). Validated but non-blocking.'),
+                    notes: z.array(z.string()).optional().describe('Array of notes: architecture impact, gotchas, tech debt.'),
+                    codeDiffs: z.array(z.string()).optional().describe('Array of code diff strings. When provided, complexityScore and complexityExplanation are required.'),
+                    filesChanged: z.array(z.string()).optional().describe('Array of file paths modified'),
+                    complexityScore: z.enum(['low', 'medium', 'high']).optional().describe('Required when codeDiffs provided.'),
+                    complexityExplanation: z.string().optional().describe('Required when codeDiffs provided.'),
+                    linkedArtifacts: z.array(z.string()).optional().describe('Array of node basenames to wikilink in ## Related section.'),
+                    parents: z.array(z.string()).optional().describe('Local ids of parent nodes within this call. Supports multiple parents for diamond dependencies. Nodes without parents become roots.'),
+                })).describe('Array of nodes to create. At least 1 required. Each node needs id + title + summary at minimum.'),
             }
         },
-        async ({callerTerminalId, title, summary, content, codeDiffs, filesChanged, diagram, notes, linkedArtifacts, complexityScore, complexityExplanation, parentNodeId, color, override_warning_after_reading_instructions}) =>
-            addProgressNodeTool({callerTerminalId, title, summary, content, codeDiffs, filesChanged, diagram, notes, linkedArtifacts, complexityScore, complexityExplanation, parentNodeId, color, override_warning_after_reading_instructions})
+        async ({callerTerminalId, parentNodeId, nodes}) =>
+            createGraphTool({callerTerminalId, parentNodeId, nodes})
     )
 
     return server

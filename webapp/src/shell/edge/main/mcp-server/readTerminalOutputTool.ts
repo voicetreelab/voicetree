@@ -1,6 +1,6 @@
 /**
  * MCP Tool: read_terminal_output
- * Reads the last N lines of output from an agent terminal.
+ * Reads the last N characters of output from an agent terminal.
  */
 
 import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
@@ -10,13 +10,13 @@ import {type McpToolResponse, buildJsonResponse} from './types'
 export interface ReadTerminalOutputParams {
     terminalId: string
     callerTerminalId: string
-    nLines?: number
+    nChars?: number
 }
 
 export async function readTerminalOutputTool({
     terminalId,
     callerTerminalId,
-    nLines = 100
+    nChars = 10000
 }: ReadTerminalOutputParams): Promise<McpToolResponse> {
     // 1. Validate caller terminal exists
     const terminalRecords: TerminalRecord[] = getTerminalRecords()
@@ -39,8 +39,8 @@ export async function readTerminalOutputTool({
         }, true)
     }
 
-    // 3. Get output from buffer module
-    const output = getOutput(terminalId, nLines)
+    // 3. Get output from character buffer
+    const output: string | undefined = getOutput(terminalId, nChars)
 
     if (output === undefined) {
         return buildJsonResponse({
@@ -52,7 +52,7 @@ export async function readTerminalOutputTool({
     return buildJsonResponse({
         success: true,
         terminalId,
-        nLines,
+        nChars,
         output
     })
 }

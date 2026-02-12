@@ -36,7 +36,6 @@ export interface AddProgressNodeParams {
     complexityExplanation?: string
     parentNodeId?: string
     color?: string
-    override_warning_after_reading_instructions?: boolean
 }
 
 /**
@@ -69,7 +68,7 @@ function countWikilinksInText(text: string): number {
  */
 const MAX_WIKILINKS: number = 2
 
-function slugify(text: string): string {
+export function slugify(text: string): string {
     return text
         .toLowerCase()
         .replace(/\s+/g, '-')
@@ -78,14 +77,14 @@ function slugify(text: string): string {
         .replace(/^-|-$/g, '')
 }
 
-type MermaidBlock = {
+export type MermaidBlock = {
     readonly index: number
     readonly diagramType: string | undefined
     readonly parserType: string | undefined
     readonly textWithoutFirstLine: string
 }
 
-function extractMermaidBlocks(content: string): readonly MermaidBlock[] {
+export function extractMermaidBlocks(content: string): readonly MermaidBlock[] {
     const regex: RegExp = /```mermaid\n([\s\S]*?)```/g
     const blocks: MermaidBlock[] = []
     let match: RegExpExecArray | null = regex.exec(content)
@@ -110,7 +109,7 @@ function extractMermaidBlocks(content: string): readonly MermaidBlock[] {
  * Parse the diagram parameter to extract its type declaration from the first line.
  * Returns a MermaidBlock for validation.
  */
-function parseDiagramParam(diagramSource: string): MermaidBlock {
+export function parseDiagramParam(diagramSource: string): MermaidBlock {
     const lines: string[] = diagramSource.split('\n')
     const firstLine: string = (lines[0] ?? '').trim()
     const diagramType: string | undefined = firstLine.split(/\s+/)[0]
@@ -126,7 +125,7 @@ function parseDiagramParam(diagramSource: string): MermaidBlock {
  * Only validates diagram types the parser supports; unsupported types pass through.
  * Returns error message string on failure, null on success.
  */
-async function validateMermaidBlocks(blocks: readonly MermaidBlock[]): Promise<string | null> {
+export async function validateMermaidBlocks(blocks: readonly MermaidBlock[]): Promise<string | null> {
     const validatableBlocks: readonly MermaidBlock[] = blocks.filter(
         (b: MermaidBlock) => b.parserType !== undefined
     )
@@ -157,7 +156,7 @@ async function validateMermaidBlocks(blocks: readonly MermaidBlock[]): Promise<s
  * Build the markdown body from structured sections.
  * Sections are assembled in a consistent order below the title.
  */
-function buildMarkdownBody(params: {
+export function buildMarkdownBody(params: {
     readonly title: string
     readonly summary: string
     readonly content: string | undefined
@@ -170,7 +169,7 @@ function buildMarkdownBody(params: {
     readonly complexityExplanation: string | undefined
     readonly color: string
     readonly agentName: string
-    readonly parentBaseName: string
+    readonly parentBaseNames: readonly string[]
 }): string {
     const sections: string[] = []
 
@@ -255,8 +254,10 @@ function buildMarkdownBody(params: {
         sections.push('')
     }
 
-    // Parent wikilink
-    sections.push(`Progress on [[${params.parentBaseName}]]`)
+    // Parent wikilinks
+    for (const parentBaseName of params.parentBaseNames) {
+        sections.push(`Progress on [[${parentBaseName}]]`)
+    }
     sections.push('')
 
     return sections.join('\n')
@@ -276,7 +277,6 @@ export async function addProgressNodeTool({
     complexityExplanation,
     parentNodeId,
     color: colorOverride,
-    override_warning_after_reading_instructions: overrideWarning
 }: AddProgressNodeParams): Promise<McpToolResponse> {
     // Validate caller terminal exists
     const terminalRecords: TerminalRecord[] = getTerminalRecords()
@@ -394,11 +394,11 @@ export async function addProgressNodeTool({
         complexityExplanation,
         color,
         agentName,
-        parentBaseName
+        parentBaseNames: [parentBaseName]
     })
 
-    // Warnings — all warnings block node creation unless override is set.
-    // Agent must read addProgressTree.md and resubmit with override_warning_after_reading_instructions=true if needed.
+    // Warnings — node is always created, but warnings are returned with isError flag.
+    // For big content, use create_graph to split into multiple nodes.
     const warnings: string[] = []
 
     // Check summary length
@@ -407,11 +407,26 @@ export async function addProgressNodeTool({
         warnings.push(`Summary is long (${summaryLineCount} lines) — keep it to 1-3 lines. Put details in content.`)
     }
 
-    // Check total body length (lines after frontmatter + title)
-    const bodyLines: number = markdownContent.split('\n').length
+    // Check total body length, excluding codeDiffs and diagram sections from the count.
+    // These sections can legitimately be large without indicating a node that needs splitting.
+    let exemptLines: number = 0
+    if (codeDiffs && codeDiffs.length > 0) {
+        exemptLines += 2 // "## DIFF" + empty line
+        for (const diff of codeDiffs) {
+            exemptLines += 3 + diff.split('\n').length // ``` + diff lines + ``` + empty line
+        }
+    }
+    if (diagram) {
+        exemptLines += 5 + diagram.split('\n').length // ## Diagram + empty + ```mermaid + diagram lines + ``` + empty
+    }
+    const bodyLines: number = markdownContent.split('\n').length - exemptLines
     if (bodyLines > 60) {
         warnings.push(
-            `Node too long (${bodyLines} lines). Split into a tree of multiple smaller nodes — one concept per node.`
+            `⚠ NODE TOO LONG (${bodyLines} lines, limit is 60). ACTION REQUIRED: You MUST split this into multiple smaller nodes — one concept per node. Use create_graph to create a tree of nodes in a single call.\n\n`
+            + `Split by concern:\n`
+            + `Task\n├── Bug fix\n├── Refactor\n└── New feature\n\n`
+            + `Split by phase:\n`
+            + `Task\n├── Research\n├── Design\n└── Implementation`
         )
     }
 
@@ -459,16 +474,6 @@ export async function addProgressNodeTool({
             `This looks like a planning/decomposition node (${trigger}). `
             + `For planning and task decomposition, read decompose_subtask_dependency_graph.md and subtask_template.md.`
         )
-    }
-
-    // Block node creation if any warnings fired and override not set
-    if (warnings.length > 0 && !overrideWarning) {
-        return buildJsonResponse({
-            success: false,
-            error: `Node not created. Read addProgressTree.md for instructions, fix the issues below, and resubmit. `
-                + `If the warning does not apply, resubmit with override_warning_after_reading_instructions=true.\n\n`
-                + warnings.map((w: string) => `- ${w}`).join('\n')
-        }, true)
     }
 
     // Generate unique node ID from slugified title
@@ -531,12 +536,13 @@ export async function addProgressNodeTool({
             await applyGraphDeltaToDBThroughMemAndUIAndEditors(contextDelta)
         }
 
+        const hasWarnings: boolean = warnings.length > 0
         return buildJsonResponse({
             success: true,
             nodeId,
             filePath: nodeId,
             warnings
-        })
+        }, hasWarnings || undefined)
     } catch (error: unknown) {
         const errorMessage: string = error instanceof Error ? error.message : String(error)
         return buildJsonResponse({

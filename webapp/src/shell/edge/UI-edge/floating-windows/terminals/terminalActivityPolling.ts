@@ -7,7 +7,7 @@
  */
 
 import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
-import { getTerminals, updateTerminalRunningState } from '@/shell/edge/UI-edge/state/TerminalStore';
+import { getTerminals, updateTerminalRunningState, getActiveTerminalId } from '@/shell/edge/UI-edge/state/TerminalStore';
 import { isZoomSuppressed } from '@/shell/edge/UI-edge/state/AgentTabsStore';
 import {
     CHECK_INTERVAL_MS,
@@ -15,6 +15,7 @@ import {
     isTerminalInactive,
 } from '@/pure/agentTabs';
 import { updateTerminalStatusDot } from '@/shell/UI/views/treeStyleTerminalTabs/agentTabsDOMUpdates';
+import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
 import type {} from '@/shell/electron';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
 
@@ -37,6 +38,7 @@ let unsubscribeOnData: (() => void) | null = null;
 function checkTerminalInactivity(): void {
     const now: number = Date.now();
     const terminals: Map<TerminalId, TerminalData> = getTerminals();
+    const activeId: TerminalId | null = getActiveTerminalId();
 
     for (const [terminalId, terminal] of terminals) {
         const shouldBeDone: boolean = isTerminalInactive(terminal.lastOutputTime, now, INACTIVITY_THRESHOLD_MS);
@@ -45,6 +47,14 @@ function checkTerminalInactivity(): void {
             void window.electronAPI?.main.updateTerminalIsDone(terminalId, shouldBeDone);
             // Optimistic DOM update for responsive UI
             updateTerminalStatusDot(terminalId, shouldBeDone);
+        }
+
+        // Auto-scroll idle terminals to bottom so latest output is visible when user switches to them.
+        // Skip the active terminal — the user might be scrolling manually.
+        if (terminal.isDone && terminalId !== activeId) {
+            const instance: { dispose: () => void; scrollToBottom?: () => void } | undefined =
+                vanillaFloatingWindowInstances.get(terminalId);
+            instance?.scrollToBottom?.();
         }
     }
 }

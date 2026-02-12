@@ -9,7 +9,7 @@ import type {TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry
 import {getIdleSince} from '@/shell/edge/main/terminals/terminal-registry'
 import {getNewNodesForAgent} from './getNewNodesForAgent'
 
-const SUSTAINED_IDLE_MS: number = 30_000 // 30 seconds — agent must be idle this long before considered done
+const SUSTAINED_IDLE_MS: number = 7_000 // 7 seconds — agent must be idle this long before considered done
 
 export type AgentStatus = 'running' | 'idle' | 'exited'
 
