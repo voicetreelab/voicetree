@@ -4,7 +4,7 @@
  */
 
 import type { Core } from 'cytoscape';
-import { Plus, Play, Trash2, AlertTriangle, Clipboard, ChevronDown, Edit2, GitBranch } from 'lucide';
+import { Plus, Play, Trash2, AlertTriangle, Clipboard, ChevronDown, Edit2, GitBranch, FolderOpen } from 'lucide';
 import type { GraphNode } from "@/pure/graph";
 import { createNewChildNodeFromUI, deleteNodesFromUI } from "@/shell/edge/UI-edge/graph/handleUIActions";
 import {
@@ -147,8 +147,36 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
         },
     });
 
-    // Expandable "more" menu with Copy Content and additional agents
+    // Expandable "more" menu with Copy to Starred, Copy Content, and additional agents
     const moreSubMenu: HorizontalMenuItem[] = [
+        {
+            icon: FolderOpen,
+            label: 'Copy to...',
+            action: () => {}, // No-op, submenu handles interaction
+            getSubMenuItems: async (): Promise<HorizontalMenuItem[]> => {
+                const starredFolders: readonly string[] = await window.electronAPI?.main.getStarredFolders() ?? [];
+                if (starredFolders.length === 0) {
+                    return [{
+                        icon: FolderOpen,
+                        label: 'No starred folders',
+                        action: () => {},
+                    }];
+                }
+                return starredFolders.map((folder: string): HorizontalMenuItem => ({
+                    icon: FolderOpen,
+                    label: folder.split('/').pop() ?? folder,
+                    action: async () => {
+                        const result: { success: boolean; targetPath: string; error?: string } | undefined =
+                            await window.electronAPI?.main.copyNodeToFolder(nodeId, folder);
+                        if (result?.success) {
+                            console.log(`Copied to ${result.targetPath}`);
+                        } else {
+                            console.error(`Copy failed: ${result?.error ?? 'Unknown error'}`);
+                        }
+                    },
+                }));
+            },
+        },
         {
             icon: Clipboard,
             label: 'Copy Content',
