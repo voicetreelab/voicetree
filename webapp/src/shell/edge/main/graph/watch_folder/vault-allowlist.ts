@@ -35,6 +35,7 @@ import {
     getVaultConfigForDirectory,
     saveVaultConfigForDirectory,
 } from "./voicetree-config-io";
+import { broadcastVaultState } from "./broadcast-vault-state";
 
 /**
  * Options for loading a vault path into the graph
@@ -177,9 +178,9 @@ export async function loadAndMergeVaultPath(
             const starterNodeId: string = Object.keys(starterGraph.nodes)[0];
             if (starterNodeId) {
                 accumulatedDelta = [...accumulatedDelta, {
-                    type: 'CreateNode' as const,
-                    nodeId: starterNodeId,
-                    createdNode: starterGraph.nodes[starterNodeId]
+                    type: 'UpsertNode' as const,
+                    nodeToUpsert: starterGraph.nodes[starterNodeId],
+                    previousNode: O.none,
                 }];
             }
         }
@@ -233,6 +234,10 @@ export async function setWritePath(vaultPath: FilePath): Promise<{ success: bool
         readPaths: newReadPaths
     });
 
+    // Note: Clearing the old write path is handled by the caller (VaultPathSelector)
+    // which calls removeReadPath() after setWritePath()
+
+    void broadcastVaultState();
     return { success: true };
 }
 
@@ -288,6 +293,7 @@ export async function addReadPath(vaultPath: FilePath): Promise<{ success: boole
         currentWatcher.add(vaultPath);
     }
 
+    void broadcastVaultState();
     return { success: true };
 }
 
@@ -376,6 +382,7 @@ export async function removeReadPath(vaultPath: FilePath): Promise<{ success: bo
         readPaths: newReadPaths
     });
 
+    void broadcastVaultState();
     return { success: true };
 }
 

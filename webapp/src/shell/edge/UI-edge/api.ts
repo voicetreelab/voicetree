@@ -22,6 +22,9 @@ import {isImageNode} from "@/pure/graph";
 import type {Core} from "cytoscape";
 import type {TerminalRecord} from "@/shell/edge/main/terminals/terminal-registry";
 import {syncFromMain} from "@/shell/edge/UI-edge/state/TerminalStore";
+import {syncVaultStateFromMain} from "@/shell/edge/UI-edge/state/VaultPathStore";
+import type {VaultPathState} from "@/shell/edge/UI-edge/state/VaultPathStore";
+
 import {setIsTrackpadScrolling} from "@/shell/edge/UI-edge/state/trackpad-state";
 import {closeTerminalById} from "@/shell/edge/UI-edge/floating-windows/terminals/closeTerminalById";
 import {getInjectBarHandle} from "@/shell/UI/floating-windows/terminals/InjectBar";
@@ -75,6 +78,14 @@ function syncTerminals(records: TerminalRecord[]): void {
 }
 
 /**
+ * Sync vault path state from main process to renderer.
+ * Called from main process after any vault path or starred folder mutation.
+ */
+function syncVaultState(state: VaultPathState): void {
+    syncVaultStateFromMain(state);
+}
+
+/**
  * Update InjectBar badge count for a terminal.
  * Called from main process after graph deltas change the unseen node count.
  * Renderer uses this to update the badge without polling.
@@ -94,6 +105,7 @@ export const uiAPIHandler = {
     createEditorForExternalNode,
     fitViewport,
     syncTerminals,
+    syncVaultState,
     setIsTrackpadScrolling,
     closeTerminalById,
     updateInjectBadge,

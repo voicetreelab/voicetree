@@ -93,6 +93,8 @@ export interface VTSettings {
     readonly darkMode?: boolean;
     /** Scroll wheel zoom sensitivity (0.1 = very slow, 1.0 = default, 3.0 = very fast) */
     readonly zoomSensitivity?: number;
+    /** Starred folder paths that appear as quick-load recommendations across all projects */
+    readonly starredFolders?: readonly string[];
 }
 
 /**
