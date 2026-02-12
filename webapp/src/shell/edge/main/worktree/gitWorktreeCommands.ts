@@ -17,11 +17,20 @@ function toForwardSlashes(p: string): string {
     return p.replace(/\\/g, '/');
 }
 
+/** Pick interpreter based on script file extension */
+function interpreterForScript(scriptPath: string): string {
+    const ext: string = path.extname(scriptPath)
+    if (ext === '.cjs' || ext === '.js' || ext === '.mjs') return 'node'
+    if (ext === '.py') return 'python3'
+    return '/bin/sh'
+}
+
 /**
- * Execute a user-defined shell script hook, passing arguments.
+ * Execute a user-defined hook script, passing arguments.
+ * Detects interpreter from file extension (.cjs/.js → node, .py → python3, else /bin/sh).
  * Catches all errors gracefully — logs a warning but never throws.
  *
- * @param scriptPath - Absolute path to a .sh script
+ * @param scriptPath - Absolute path to the hook script
  * @param args - Arguments to pass to the script (e.g. [worktreePath, worktreeName])
  * @param cwd - Working directory for script execution (e.g. repo root)
  * @returns Object indicating success or failure with optional error message
@@ -31,8 +40,9 @@ export async function runHook(
     args: string[],
     cwd: string
 ): Promise<{ success: boolean; error?: string }> {
+    const interpreter: string = interpreterForScript(scriptPath)
     return new Promise((resolve) => {
-        execFile('/bin/sh', [scriptPath, ...args], { cwd, timeout: 30000 }, (error: Error | null) => {
+        execFile(interpreter, [scriptPath, ...args], { cwd, timeout: 30000 }, (error: Error | null) => {
             if (error) {
                 const message: string = error instanceof Error ? error.message : String(error);
                 console.warn(`[runHook] Hook script failed (${scriptPath}): ${message}`);

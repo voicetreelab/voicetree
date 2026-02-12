@@ -16,9 +16,10 @@ import type { VaultConfig } from '@/pure/settings/types';
  * Result of parsing a search query for folder navigation.
  */
 export interface ParsedQuery {
-    basePath: string | null;   // Directory to scan (e.g., "docs/projects")
-    filterText: string;         // Text after last slash (e.g., "au")
-    endsWithSlash: boolean;     // Whether query ends with "/"
+    readonly basePath: string | null;   // Directory to scan (e.g., "docs/projects")
+    readonly filterText: string;         // Text after last slash (e.g., "au")
+    readonly endsWithSlash: boolean;     // Whether query ends with "/"
+    readonly isAbsolute: boolean;        // Whether the original query was an absolute path (started with /)
 }
 
 /**
@@ -26,61 +27,63 @@ export interface ParsedQuery {
  * Used for lazy path expansion in folder navigation.
  *
  * Examples:
- * - "" → { basePath: null, filterText: "", endsWithSlash: false }
- * - "docs" → { basePath: null, filterText: "docs", endsWithSlash: false }
- * - "docs/" → { basePath: "docs", filterText: "", endsWithSlash: true }
- * - "docs/api" → { basePath: "docs", filterText: "api", endsWithSlash: false }
+ * - "" → { basePath: null, filterText: "", endsWithSlash: false, isAbsolute: false }
+ * - "docs" → { basePath: null, filterText: "docs", endsWithSlash: false, isAbsolute: false }
+ * - "docs/" → { basePath: "docs", filterText: "", endsWithSlash: true, isAbsolute: false }
+ * - "/Users/bob/docs/" → { basePath: "/Users/bob/docs", filterText: "", endsWithSlash: true, isAbsolute: true }
  */
 export function parseSearchQuery(query: string): ParsedQuery {
-    // Normalize: convert backslashes to forward slashes
-    let normalized = query.replace(/\\/g, '/');
+    // Detect absolute paths before normalization
+    const isAbsolute: boolean = query.trimStart().startsWith('/');
 
-    // Remove leading slashes
-    normalized = normalized.replace(/^\/+/, '');
+    // Normalize: convert backslashes to forward slashes
+    const withForwardSlashes: string = query.replace(/\\/g, '/');
+
+    // For absolute paths, preserve the leading slash; for relative, strip it
+    const withoutLeadingSlash: string = isAbsolute
+        ? withForwardSlashes
+        : withForwardSlashes.replace(/^\/+/, '');
 
     // Collapse multiple consecutive slashes into one
-    normalized = normalized.replace(/\/+/g, '/');
+    const normalized: string = withoutLeadingSlash.replace(/\/+/g, '/');
 
     // Check if ends with slash
-    const endsWithSlash = normalized.endsWith('/');
+    const endsWithSlash: boolean = normalized.endsWith('/');
 
     // Remove trailing slash for parsing
-    if (endsWithSlash) {
-        normalized = normalized.slice(0, -1);
-    }
+    const trimmed: string = endsWithSlash ? normalized.slice(0, -1) : normalized;
 
     // If ends with slash, the entire normalized path is the basePath
-    // "docs/" → basePath: "docs", filterText: ""
-    // "docs/projects/" → basePath: "docs/projects", filterText: ""
     if (endsWithSlash) {
         return {
-            basePath: normalized || null,
+            basePath: trimmed || null,
             filterText: '',
             endsWithSlash: true,
+            isAbsolute,
         };
     }
 
     // Find last slash to split basePath and filterText
-    const lastSlashIndex = normalized.lastIndexOf('/');
+    const lastSlashIndex: number = trimmed.lastIndexOf('/');
 
     if (lastSlashIndex === -1) {
-        // No slash in query: "docs" → basePath is null, filterText is "docs"
         return {
             basePath: null,
-            filterText: normalized,
+            filterText: trimmed,
             endsWithSlash: false,
+            isAbsolute,
         };
     }
 
     // Has slash: split into basePath and filterText
-    // "docs/api" → basePath: "docs", filterText: "api"
-    const basePath = normalized.slice(0, lastSlashIndex);
-    const filterText = normalized.slice(lastSlashIndex + 1);
+    const basePath: string = trimmed.slice(0, lastSlashIndex);
+    const filterText: string = trimmed.slice(lastSlashIndex + 1);
 
     return {
         basePath: basePath || null,
         filterText,
         endsWithSlash: false,
+        isAbsolute,
     };
 }
 
@@ -110,58 +113,53 @@ export function toDisplayPath(projectRoot: AbsolutePath, absolutePath: AbsoluteP
 /**
  * Get available folders (not loaded), sorted by modification date.
  * - Filters out folders already in loadedPaths
- * - If searchQuery is empty: returns max 5 folders sorted by modifiedAt (desc), root "/" always first
+ * - If searchQuery is empty: returns all folders sorted by modifiedAt (desc), root "/" always first
  * - If searchQuery has text: filters by query (case-insensitive), no limit, sorted by modifiedAt
  * - filterText: optional filter text to use instead of searchQuery for filtering (for nested path scanning)
  */
 export function getAvailableFolders(
     projectRoot: AbsolutePath,
     loadedPaths: readonly AbsolutePath[],
-    allSubfolders: readonly { path: AbsolutePath; modifiedAt: number }[],
+    allSubfolders: readonly { readonly path: AbsolutePath; readonly modifiedAt: number }[],
     searchQuery: string,
     filterText?: string  // If provided, use this for filtering instead of searchQuery
 ): readonly AvailableFolderItem[] {
     // Filter out already loaded paths
-    const loadedPathSet = new Set<string>(loadedPaths);
-    let filtered: { path: AbsolutePath; modifiedAt: number }[] = allSubfolders.filter(
+    const loadedPathSet: ReadonlySet<string> = new Set<string>(loadedPaths);
+    const notLoaded: readonly { readonly path: AbsolutePath; readonly modifiedAt: number }[] = allSubfolders.filter(
         (folder) => !loadedPathSet.has(folder.path)
     );
 
     // Determine the actual filter to use
     // If filterText is provided explicitly, use it; otherwise fall back to searchQuery
-    const actualFilter: string = filterText !== undefined ? filterText : searchQuery;
+    const actualFilter: string = filterText ?? searchQuery;
 
     // If actualFilter is provided, filter by it (case-insensitive)
-    if (actualFilter.trim() !== '') {
-        const lowerQuery: string = actualFilter.toLowerCase();
-        filtered = filtered.filter((folder) => {
+    const filtered: readonly { readonly path: AbsolutePath; readonly modifiedAt: number }[] = actualFilter.trim() !== ''
+        ? notLoaded.filter((folder) => {
             const displayPath: string = toDisplayPath(projectRoot, folder.path);
-            return displayPath.toLowerCase().includes(lowerQuery);
-        });
-    }
+            return displayPath.toLowerCase().includes(actualFilter.toLowerCase());
+        })
+        : notLoaded;
 
     // Sort by modifiedAt descending (most recent first)
-    filtered.sort((a, b) => b.modifiedAt - a.modifiedAt);
+    const sorted: readonly { readonly path: AbsolutePath; readonly modifiedAt: number }[] =
+        [...filtered].sort((a: { readonly modifiedAt: number }, b: { readonly modifiedAt: number }) => b.modifiedAt - a.modifiedAt);
 
-    // If no search query, ensure root appears first and limit to 5
-    if (searchQuery.trim() === '') {
-        // Find root folder
-        const rootIndex: number = filtered.findIndex(
-            (folder) => folder.path === projectRoot
-        );
-
-        if (rootIndex > 0) {
-            // Move root to front
-            const [rootFolder] = filtered.splice(rootIndex, 1);
-            filtered.unshift(rootFolder);
-        }
-
-        // Limit to 5 items
-        filtered = filtered.slice(0, 5);
-    }
+    // If no search query, ensure root appears first (UI handles display limiting)
+    const result: readonly { readonly path: AbsolutePath; readonly modifiedAt: number }[] = searchQuery.trim() === ''
+        ? (() => {
+            const rootIndex: number = sorted.findIndex(
+                (folder) => folder.path === projectRoot
+            );
+            return rootIndex > 0
+                ? [sorted[rootIndex], ...sorted.slice(0, rootIndex), ...sorted.slice(rootIndex + 1)]
+                : sorted;
+        })()
+        : sorted;
 
     // Convert to AvailableFolderItem
-    return filtered.map((folder) => ({
+    return result.map((folder) => ({
         absolutePath: folder.path,
         displayPath: toDisplayPath(projectRoot, folder.path),
         modifiedAt: folder.modifiedAt,
@@ -203,13 +201,11 @@ export function reduceFolderConfig(
                 return config;
             }
 
-            // Remove new write path from readPaths if it was there
-            let newReadPaths: readonly string[] = config.readPaths.filter(
-                (path) => path !== newWritePath
-            );
-
-            // Add old write path to readPaths (if different from new)
-            newReadPaths = [...newReadPaths, oldWritePath];
+            // Remove new write path from readPaths, then add old write path
+            const newReadPaths: readonly string[] = [
+                ...config.readPaths.filter((path) => path !== newWritePath),
+                oldWritePath,
+            ];
 
             return {
                 ...config,

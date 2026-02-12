@@ -84,6 +84,20 @@
   max-width: 100%;
 }
 
+/* Agent ID label — always shown in title bar, pushed right before traffic lights */
+.terminal-title-bar-agent-id {
+  font-size: 9px;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.5;
+  font-family: monospace;
+  margin-left: auto;
+  margin-right: 8px;
+  max-width: 30%;
+}
+
 /* Context expanded state - visual indicator */
 .cy-floating-window-terminal.terminal-context-expanded .terminal-context-badge {
   background-color: var(--primary);

@@ -6,11 +6,13 @@
  */
 
 import { promises as fs } from 'fs';
+import type { Stats, Dirent } from 'fs';
 import path from 'path';
 import normalizePath from 'normalize-path';
 import type { AbsolutePath, AvailableFolderItem } from '@/pure/folders/types';
 import { toAbsolutePath } from '@/pure/folders/types';
 import { getAvailableFolders, parseSearchQuery } from '@/pure/folders/transforms';
+import type { ParsedQuery } from '@/pure/folders/transforms';
 import { getProjectRootWatchedDirectory } from '@/shell/edge/main/state/watch-folder-store';
 import { getVaultPaths } from './vault-allowlist';
 
@@ -27,8 +29,8 @@ export async function isValidSubdirectory(
     targetPath: string
 ): Promise<boolean> {
     try {
-        const realProjectRoot = await fs.realpath(projectRoot);
-        const realTargetPath = await fs.realpath(targetPath);
+        const realProjectRoot: string = await fs.realpath(projectRoot);
+        const realTargetPath: string = await fs.realpath(targetPath);
 
         // Must be within project root (prevents "../" escapes)
         if (
@@ -39,7 +41,7 @@ export async function isValidSubdirectory(
         }
 
         // Must be a directory
-        const stat = await fs.stat(realTargetPath);
+        const stat: Stats = await fs.stat(realTargetPath);
         return stat.isDirectory();
     } catch {
         return false; // Path doesn't exist or can't access
@@ -58,14 +60,14 @@ export async function getSubfoldersWithModifiedAt(
 
     try {
         // Include the root folder itself
-        const rootStat = await fs.stat(projectRoot);
+        const rootStat: Stats = await fs.stat(projectRoot);
         results.push({
             path: projectRoot,
             modifiedAt: rootStat.mtime.getTime(),
         });
 
         // Read directory entries
-        const entries = await fs.readdir(projectRoot, { withFileTypes: true });
+        const entries: Dirent[] = await fs.readdir(projectRoot, { withFileTypes: true });
 
         // Filter for directories only and get their stats
         for (const entry of entries) {
@@ -73,9 +75,9 @@ export async function getSubfoldersWithModifiedAt(
                 // Skip hidden directories (starting with .)
                 if (entry.name.startsWith('.')) continue;
 
-                const fullPath = normalizePath(path.join(projectRoot, entry.name));
+                const fullPath: string = normalizePath(path.join(projectRoot, entry.name));
                 try {
-                    const stat = await fs.stat(fullPath);
+                    const stat: Stats = await fs.stat(fullPath);
                     results.push({
                         path: toAbsolutePath(fullPath),
                         modifiedAt: stat.mtime.getTime(),
@@ -99,29 +101,52 @@ export async function getSubfoldersWithModifiedAt(
 /**
  * IPC-exposed function for getting available folders.
  * Supports lazy path expansion: typing "docs/" scans the docs subdirectory.
+ * Supports absolute paths: typing "/Users/bob/external/" scans that directory directly.
  *
  * Uses parseSearchQuery to determine:
  * - Which directory to scan (basePath or project root)
  * - What text to filter results by (filterText)
+ * - Whether the path is absolute (isAbsolute)
  */
 export async function getAvailableFoldersForSelector(
     searchQuery: string
 ): Promise<readonly AvailableFolderItem[]> {
-    const projectRoot = getProjectRootWatchedDirectory();
+    const projectRoot: string | null = getProjectRootWatchedDirectory();
     if (!projectRoot) return [];
 
-    const vaultPaths = await getVaultPaths();
-    const loadedPaths = vaultPaths.map(p => toAbsolutePath(p));
+    const vaultPaths: readonly string[] = await getVaultPaths();
+    const loadedPaths: readonly AbsolutePath[] = vaultPaths.map((p: string) => toAbsolutePath(p));
 
     // Parse the search query to determine scan target
-    const parsed = parseSearchQuery(searchQuery);
+    const parsed: ParsedQuery = parseSearchQuery(searchQuery);
 
+    // Absolute path: scan the directory directly (not relative to project root)
+    if (parsed.isAbsolute && parsed.basePath) {
+        try {
+            const stat: Stats = await fs.stat(parsed.basePath);
+            if (!stat.isDirectory()) return [];
+        } catch {
+            return []; // Path doesn't exist
+        }
+
+        const subfolders: readonly { path: AbsolutePath; modifiedAt: number }[] =
+            await getSubfoldersWithModifiedAt(toAbsolutePath(parsed.basePath));
+        return getAvailableFolders(
+            toAbsolutePath(parsed.basePath),
+            loadedPaths,
+            subfolders,
+            searchQuery,
+            parsed.filterText
+        );
+    }
+
+    // Relative path handling
     let scanRoot: AbsolutePath;
     let filterText: string;
 
     if (parsed.basePath) {
-        // User typed a path - scan that subdirectory
-        const targetPath = path.join(projectRoot, parsed.basePath);
+        // User typed a relative path - scan that subdirectory
+        const targetPath: string = path.join(projectRoot, parsed.basePath);
 
         // Security: validate path is within project
         if (!(await isValidSubdirectory(projectRoot, targetPath))) {
@@ -137,7 +162,8 @@ export async function getAvailableFoldersForSelector(
     }
 
     // Scan the determined directory
-    const subfolders = await getSubfoldersWithModifiedAt(scanRoot);
+    const subfolders: readonly { path: AbsolutePath; modifiedAt: number }[] =
+        await getSubfoldersWithModifiedAt(scanRoot);
 
     // Filter and format results
     return getAvailableFolders(

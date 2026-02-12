@@ -27,6 +27,6 @@
     }
   },
   "outputStyle": "default",
-  "spinnerTipsEnabled": false,
+  "spinnerTipsEnabled": true,
   "prefersReducedMotion": false
 }

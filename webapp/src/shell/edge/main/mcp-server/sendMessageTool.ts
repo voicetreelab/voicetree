@@ -41,8 +41,8 @@ export async function sendMessageTool({
 
     // 3. Send message to terminal with sender prefix
     try {
-        const prefixedMessage: string = `[From: ${callerTerminalId}] ${message}`
-        const result = await sendTextToTerminal(terminalId, prefixedMessage)
+        const prefixedMessage: string = `[From: ${callerTerminalId}] ${message}\n\nIf needed, you can reply directly with the send_message tool to ${callerTerminalId}.`
+        const result: Awaited<ReturnType<typeof sendTextToTerminal>> = await sendTextToTerminal(terminalId, prefixedMessage)
 
         if (!result.success) {
             return buildJsonResponse({

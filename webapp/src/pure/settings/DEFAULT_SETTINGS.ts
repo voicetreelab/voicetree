@@ -113,5 +113,6 @@ You must create a progress node before reporting completion to the user. You mus
     starredFolders: [],
     hooks: {
         onWorktreeCreated: '#scripts/on-worktree-created.sh',
+        onNewNode: '#scripts/on-new-node.cjs',
     },
 };

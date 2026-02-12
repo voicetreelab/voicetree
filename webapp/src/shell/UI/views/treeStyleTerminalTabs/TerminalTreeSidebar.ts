@@ -219,6 +219,13 @@ function createTreeNode(
         titleContainer.appendChild(wtLabel);
     }
 
+    // Agent ID indicator (below title/worktree)
+    const agentIdLabel: HTMLSpanElement = document.createElement('span');
+    agentIdLabel.className = 'terminal-tree-agent-id';
+    agentIdLabel.textContent = terminalId;
+    agentIdLabel.title = terminalId;
+    titleContainer.appendChild(agentIdLabel);
+
     node.appendChild(titleContainer);
 
     // Shortcut hint tooltip (shows ⌘[ or ⌘] on hover)
