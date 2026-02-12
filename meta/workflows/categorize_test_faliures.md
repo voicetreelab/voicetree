@@ -1,3 +1,9 @@
+---
+position:
+  x: 2594
+  y: 651
+isContextNode: false
+---
 TASK 1
 
 Run all tests for voicetree, run them as subagents, ask them to categorize all the failures

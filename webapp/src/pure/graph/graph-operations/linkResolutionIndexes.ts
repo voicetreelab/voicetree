@@ -33,57 +33,64 @@ export function getBaseName(path: string): string {
 }
 
 /**
- * Immutable helper: add a nodeId to a basename entry, returning new map.
+ * Mutable helper: add a nodeId to a basename entry in-place. O(1) via Map.get/set.
+ * Operates on mutable Map copy — callers create the copy, this mutates it.
  */
 function addToIndex(
-  entries: readonly (readonly [string, readonly NodeIdAndFilePath[]])[],
+  map: Map<string, NodeIdAndFilePath[]>,
   basename: string,
   nodeId: NodeIdAndFilePath
-): readonly (readonly [string, readonly NodeIdAndFilePath[]])[] {
-  if (basename === '') return entries
+): void {
+  if (basename === '') return
 
-  const existingEntry: readonly [string, readonly NodeIdAndFilePath[]] | undefined =
-    entries.find(([k]) => k === basename)
-
-  if (existingEntry) {
-    const [, existingList] = existingEntry
-    if (existingList.includes(nodeId)) return entries
-    return entries.map(([k, v]) =>
-      k === basename ? [k, [...v, nodeId]] as const : [k, v] as const
-    )
+  const existing: NodeIdAndFilePath[] | undefined = map.get(basename)
+  if (existing) {
+    if (!existing.includes(nodeId)) existing.push(nodeId)
+  } else {
+    map.set(basename, [nodeId])
   }
-
-  return [...entries, [basename, [nodeId]] as const]
 }
 
 /**
- * Immutable helper: remove a nodeId from a basename entry, returning new map.
+ * Mutable helper: remove a nodeId from a basename entry in-place. O(1) via Map.get/set/delete.
+ * Operates on mutable Map copy — callers create the copy, this mutates it.
  */
 function removeFromIndex(
-  entries: readonly (readonly [string, readonly NodeIdAndFilePath[]])[],
+  map: Map<string, NodeIdAndFilePath[]>,
   basename: string,
   nodeId: NodeIdAndFilePath
-): readonly (readonly [string, readonly NodeIdAndFilePath[]])[] {
-  if (basename === '') return entries
+): void {
+  if (basename === '') return
 
-  return entries
-    .map(([k, v]) => {
-      if (k !== basename) return [k, v] as const
-      const filtered: readonly NodeIdAndFilePath[] = v.filter(id => id !== nodeId)
-      return [k, filtered] as const
-    })
-    .filter(([, v]) => v.length > 0)
+  const existing: NodeIdAndFilePath[] | undefined = map.get(basename)
+  if (!existing) return
+
+  const filtered: NodeIdAndFilePath[] = existing.filter(id => id !== nodeId)
+  if (filtered.length === 0) {
+    map.delete(basename)
+  } else {
+    map.set(basename, filtered)
+  }
 }
 
 /**
- * Immutable helper: remove an entire basename key, returning new map.
+ * Mutable helper: remove an entire basename key in-place. O(1) via Map.delete.
  */
 function removeKey(
-  entries: readonly (readonly [string, readonly NodeIdAndFilePath[]])[],
+  map: Map<string, NodeIdAndFilePath[]>,
   basename: string
-): readonly (readonly [string, readonly NodeIdAndFilePath[]])[] {
-  if (basename === '') return entries
-  return entries.filter(([k]) => k !== basename)
+): void {
+  if (basename === '') return
+  map.delete(basename)
+}
+
+/**
+ * Create a mutable deep copy of a ReadonlyMap index.
+ * Each value array is shallow-copied so mutations don't affect the original.
+ */
+function mutableCopy(index: NodeByBaseNameIndex | UnresolvedLinksIndex | undefined): Map<string, NodeIdAndFilePath[]> {
+  if (!index) return new Map()
+  return new Map(Array.from(index.entries()).map(([k, v]) => [k, [...v]] as [string, NodeIdAndFilePath[]]))
 }
 
 /**
@@ -95,16 +102,13 @@ function removeKey(
 export function buildNodeByBaseNameIndex(
   nodes: Record<NodeIdAndFilePath, GraphNode>
 ): NodeByBaseNameIndex {
-  const nodeIds: readonly NodeIdAndFilePath[] = Object.keys(nodes)
+  const map: Map<string, NodeIdAndFilePath[]> = new Map()
 
-  const entries: readonly (readonly [string, readonly NodeIdAndFilePath[]])[] = nodeIds.reduce<
-    readonly (readonly [string, readonly NodeIdAndFilePath[]])[]
-  >(
-    (acc, nodeId) => addToIndex(acc, getBaseName(nodeId), nodeId),
-    []
-  )
+  Object.keys(nodes).forEach(nodeId => {
+    addToIndex(map, getBaseName(nodeId), nodeId)
+  })
 
-  return new Map(entries)
+  return map
 }
 
 /**
@@ -118,21 +122,17 @@ export function buildNodeByBaseNameIndex(
 export function buildUnresolvedLinksIndex(
   nodes: Record<NodeIdAndFilePath, GraphNode>
 ): UnresolvedLinksIndex {
-  const unresolvedPairs: readonly (readonly [string, NodeIdAndFilePath])[] =
-    Object.entries(nodes).flatMap(([nodeId, node]) =>
-      node.outgoingEdges
-        .filter(edge => nodes[edge.targetId] === undefined)
-        .map(edge => [getBaseName(edge.targetId), nodeId] as const)
-    )
+  const map: Map<string, NodeIdAndFilePath[]> = new Map()
 
-  const entries: readonly (readonly [string, readonly NodeIdAndFilePath[]])[] = unresolvedPairs.reduce<
-    readonly (readonly [string, readonly NodeIdAndFilePath[]])[]
-  >(
-    (acc, [basename, nodeId]) => addToIndex(acc, basename, nodeId),
-    []
-  )
+  Object.entries(nodes).forEach(([nodeId, node]) => {
+    node.outgoingEdges
+      .filter(edge => nodes[edge.targetId] === undefined)
+      .forEach(edge => {
+        addToIndex(map, getBaseName(edge.targetId), nodeId)
+      })
+  })
 
-  return new Map(entries)
+  return map
 }
 
 /**
@@ -146,25 +146,20 @@ export function updateNodeByBaseNameIndexForUpsert(
   const nodeId: NodeIdAndFilePath = node.absoluteFilePathIsID
   const newBasename: string = getBaseName(nodeId)
 
-  // Defensive: handle undefined index (can happen if graph was partially initialized)
-  const initialEntries: readonly (readonly [string, readonly NodeIdAndFilePath[]])[] =
-    index ? Array.from(index.entries()) : []
+  const map: Map<string, NodeIdAndFilePath[]> = mutableCopy(index)
 
   // If update, remove old entry if basename changed
-  const afterRemoval: readonly (readonly [string, readonly NodeIdAndFilePath[]])[] = O.isSome(previousNode)
-    ? (() => {
-        const oldBasename: string = getBaseName(previousNode.value.absoluteFilePathIsID)
-        return oldBasename !== newBasename && oldBasename !== ''
-          ? removeFromIndex(initialEntries, oldBasename, previousNode.value.absoluteFilePathIsID)
-          : initialEntries
-      })()
-    : initialEntries
+  if (O.isSome(previousNode)) {
+    const oldBasename: string = getBaseName(previousNode.value.absoluteFilePathIsID)
+    if (oldBasename !== newBasename && oldBasename !== '') {
+      removeFromIndex(map, oldBasename, previousNode.value.absoluteFilePathIsID)
+    }
+  }
 
   // Add new entry
-  const afterAddition: readonly (readonly [string, readonly NodeIdAndFilePath[]])[] =
-    addToIndex(afterRemoval, newBasename, nodeId)
+  addToIndex(map, newBasename, nodeId)
 
-  return new Map(afterAddition)
+  return map
 }
 
 /**
@@ -177,17 +172,13 @@ export function updateNodeByBaseNameIndexForDelete(
   const deletedNodeId: NodeIdAndFilePath = deletedNode.absoluteFilePathIsID
   const basename: string = getBaseName(deletedNodeId)
 
-  // Defensive: handle undefined index
   if (!index) return new Map()
   if (basename === '') return index
 
-  const entries: readonly (readonly [string, readonly NodeIdAndFilePath[]])[] =
-    Array.from(index.entries())
+  const map: Map<string, NodeIdAndFilePath[]> = mutableCopy(index)
+  removeFromIndex(map, basename, deletedNodeId)
 
-  const afterRemoval: readonly (readonly [string, readonly NodeIdAndFilePath[]])[] =
-    removeFromIndex(entries, basename, deletedNodeId)
-
-  return new Map(afterRemoval)
+  return map
 }
 
 /**
@@ -207,33 +198,26 @@ export function updateUnresolvedLinksIndexForUpsert(
   const nodeId: NodeIdAndFilePath = node.absoluteFilePathIsID
   const nodeBasename: string = getBaseName(nodeId)
 
-  // Defensive: handle undefined index
-  const initialEntries: readonly (readonly [string, readonly NodeIdAndFilePath[]])[] =
-    index ? Array.from(index.entries()) : []
+  const map: Map<string, NodeIdAndFilePath[]> = mutableCopy(index)
 
   // Step 1: If this is an update, remove old unresolved links from this node
-  const afterOldRemoval: readonly (readonly [string, readonly NodeIdAndFilePath[]])[] = O.isSome(previousNode)
-    ? previousNode.value.outgoingEdges.reduce<readonly (readonly [string, readonly NodeIdAndFilePath[]])[]>(
-        (acc, edge) => removeFromIndex(acc, getBaseName(edge.targetId), previousNode.value.absoluteFilePathIsID),
-        initialEntries
-      )
-    : initialEntries
+  if (O.isSome(previousNode)) {
+    previousNode.value.outgoingEdges.forEach(edge => {
+      removeFromIndex(map, getBaseName(edge.targetId), previousNode.value.absoluteFilePathIsID)
+    })
+  }
 
   // Step 2: Remove entries where this new node resolves the dangling link
-  const afterResolution: readonly (readonly [string, readonly NodeIdAndFilePath[]])[] =
-    removeKey(afterOldRemoval, nodeBasename)
+  removeKey(map, nodeBasename)
 
   // Step 3: Add new unresolved links from this node's edges
-  const unresolvedEdges: readonly { readonly targetId: string; readonly label: string }[] =
-    node.outgoingEdges.filter(edge => allNodes[edge.targetId] === undefined)
+  node.outgoingEdges
+    .filter(edge => allNodes[edge.targetId] === undefined)
+    .forEach(edge => {
+      addToIndex(map, getBaseName(edge.targetId), nodeId)
+    })
 
-  const afterAddition: readonly (readonly [string, readonly NodeIdAndFilePath[]])[] =
-    unresolvedEdges.reduce<readonly (readonly [string, readonly NodeIdAndFilePath[]])[]>(
-      (acc, edge) => addToIndex(acc, getBaseName(edge.targetId), nodeId),
-      afterResolution
-    )
-
-  return new Map(afterAddition)
+  return map
 }
 
 /**
@@ -251,32 +235,24 @@ export function updateUnresolvedLinksIndexForDelete(
   const deletedNodeId: NodeIdAndFilePath = deletedNode.absoluteFilePathIsID
   const deletedBasename: string = getBaseName(deletedNodeId)
 
-  // Defensive: handle undefined index
-  const initialEntries: readonly (readonly [string, readonly NodeIdAndFilePath[]])[] =
-    index ? Array.from(index.entries()) : []
+  const map: Map<string, NodeIdAndFilePath[]> = mutableCopy(index)
 
   // Step 1: Remove deleted node from any unresolved link tracking
-  const afterRemoval: readonly (readonly [string, readonly NodeIdAndFilePath[]])[] =
-    deletedNode.outgoingEdges.reduce<readonly (readonly [string, readonly NodeIdAndFilePath[]])[]>(
-      (acc, edge) => removeFromIndex(acc, getBaseName(edge.targetId), deletedNodeId),
-      initialEntries
-    )
+  deletedNode.outgoingEdges.forEach(edge => {
+    removeFromIndex(map, getBaseName(edge.targetId), deletedNodeId)
+  })
 
   // Step 2: Find nodes that have edges pointing to the deleted node
   // Their edges are now unresolved
   if (deletedBasename === '') {
-    return new Map(afterRemoval)
+    return map
   }
 
-  const nodesPointingToDeleted: readonly NodeIdAndFilePath[] = Object.entries(allNodes)
+  Object.entries(allNodes)
     .filter(([, n]) => n.outgoingEdges.some(e => e.targetId === deletedNodeId))
-    .map(([id]) => id)
+    .forEach(([id]) => {
+      addToIndex(map, deletedBasename, id)
+    })
 
-  const afterAddition: readonly (readonly [string, readonly NodeIdAndFilePath[]])[] =
-    nodesPointingToDeleted.reduce<readonly (readonly [string, readonly NodeIdAndFilePath[]])[]>(
-      (acc, id) => addToIndex(acc, deletedBasename, id),
-      afterRemoval
-    )
-
-  return new Map(afterAddition)
+  return map
 }

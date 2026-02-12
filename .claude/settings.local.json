@@ -26,6 +26,7 @@
       }
     }
   },
-  "prefersReducedMotion": true,
-  "outputStyle": "default"
+  "outputStyle": "default",
+  "spinnerTipsEnabled": false,
+  "prefersReducedMotion": false
 }
