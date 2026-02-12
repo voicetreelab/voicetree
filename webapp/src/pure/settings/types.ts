@@ -86,6 +86,9 @@ export interface VTSettings {
     readonly defaultAllowlistPatterns?: readonly string[];
     /** Whether the feedback dialog has been shown (persisted to avoid showing again) */
     readonly feedbackDialogShown?: boolean;
+    /** Whether to automatically notify idle agents about unseen nearby nodes (default: false).
+     * When false, users can manually inject context via the InjectBar instead. */
+    readonly autoNotifyUnseenNodes?: boolean;
     /** Dark mode preference */
     readonly darkMode?: boolean;
     /** Scroll wheel zoom sensitivity (0.1 = very slow, 1.0 = default, 3.0 = very fast) */

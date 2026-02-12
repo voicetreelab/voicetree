@@ -9,6 +9,7 @@ import { getTerminals } from "@/shell/edge/UI-edge/state/TerminalStore";
 import * as O from "fp-ts/lib/Option.js";
 import type { TerminalData } from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import type { GraphNode } from "@/pure/graph";
+import { unregisterInjectBar } from "@/shell/UI/floating-windows/terminals/InjectBar";
 
 /**
  * Close a terminal and clean up all resources
@@ -31,6 +32,9 @@ export async function closeTerminal(terminal: TerminalData, cy: Core): Promise<v
 
     // Analytics: Track terminal closed
     posthog.capture('terminal_closed', { terminalId: terminalId });
+
+    // Clean up InjectBar registry entry
+    unregisterInjectBar(terminalId);
 
     // Dispose vanilla instance
     const vanillaInstance: { dispose: () => void; } | undefined = vanillaFloatingWindowInstances.get(terminalId);
@@ -110,6 +114,9 @@ export function closeAllTerminals(cy: Core): void {
 
     for (const terminal of terminals.values()) {
         const terminalId: TerminalId = getTerminalId(terminal);
+
+        // Clean up InjectBar registry entry
+        unregisterInjectBar(terminalId);
 
         // Dispose vanilla instance
         const vanillaInstance: { dispose: () => void; } | undefined = vanillaFloatingWindowInstances.get(terminalId);

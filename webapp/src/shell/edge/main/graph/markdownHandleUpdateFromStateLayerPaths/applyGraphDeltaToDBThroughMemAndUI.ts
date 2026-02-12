@@ -9,6 +9,7 @@ import {getGraph, setGraph} from "@/shell/edge/main/state/graph-store";
 import {getMainWindow} from "@/shell/edge/main/state/app-electron-state";
 import {resolveLinkedNodesInWatchedFolder} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk";
 import {getProjectRootWatchedDirectory} from "@/shell/edge/main/state/watch-folder-store";
+import {refreshAllInjectBadges} from "@/shell/edge/main/terminals/inject-badge-refresh";
 
 /**
  * Applies a delta to the in-memory graph state and resolves any new wikilinks.
@@ -24,9 +25,9 @@ export async function applyGraphDeltaToMemState(delta: GraphDelta): Promise<Grap
     const currentGraph: Graph = getGraph();
     let newGraph: Graph = applyGraphDeltaToGraph(currentGraph, delta);
 
-    // Only resolve wikilinks when delta contains AddNode or UpdateNode (which might introduce new links)
+    // Only resolve wikilinks when delta contains UpsertNode (which might introduce new links)
     // Skip for delete-only deltas - we don't want to re-add deleted nodes via link resolution
-    const hasAddOrUpdate: boolean = delta.some(d => d.type === 'AddNode' || d.type === 'UpdateNode');
+    const hasAddOrUpdate: boolean = delta.some(d => d.type === 'UpsertNode');
 
     if (hasAddOrUpdate) {
         const watchedDir: string | null = getProjectRootWatchedDirectory();
@@ -50,6 +51,8 @@ export function broadcastGraphDeltaToUI(delta: GraphDelta): void {
     if (!mainWindow.isDestroyed()) {
         mainWindow.webContents.send('graph:stateChanged', delta);
     }
+    // Debounced push of unseen node counts to InjectBar badges
+    refreshAllInjectBadges();
 }
 
 
