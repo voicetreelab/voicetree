@@ -219,7 +219,7 @@ One node = one concept. If your work covers multiple independent concerns, call 
                 complexityScore: z.enum(['low', 'medium', 'high']).optional().describe('Required when codeDiffs provided. Complexity of the area worked in.'),
                 complexityExplanation: z.string().optional().describe('Required when codeDiffs provided. Brief explanation of the complexity score.'),
                 parentNodeId: z.string().optional().describe('Parent node ID to link to. Defaults to your task node.'),
-                color: z.string().optional().describe('Override node color. Use CSS named colors: red, blue, green, yellow, orange, purple, pink, cyan, teal, brown, gray, lime, magenta, navy, olive, maroon, coral, crimson, gold, indigo, lavender, salmon, tomato, turquoise, violet. Defaults to your agent color.'),
+                color: z.string().optional().describe('Override node color. Use CSS named colors: red, blue, green, yellow, orange, purple, pink, cyan, teal, brown, gray, lime, magenta, navy, olive, maroon, coral, crimson, gold, indigo, lavender, salmon, tomato, turquoise, violet. Defaults to your agent color. Convention: use green for progress nodes that complete a task; use blue (default) for planning and in-progress work.'),
                 override_warning_after_reading_instructions: z.boolean().optional().describe('Set to true to bypass warnings after reading addProgressTree.md. Only use after reading the instructions and confirming the warning does not apply.')
             }
         },

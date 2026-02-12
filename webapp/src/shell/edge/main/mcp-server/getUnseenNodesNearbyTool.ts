@@ -9,6 +9,7 @@ import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getUnseenNodesAroundContextNode, type UnseenNode} from '@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode'
 import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 import {type McpToolResponse, buildJsonResponse} from './types'
+import * as O from 'fp-ts/lib/Option.js'
 
 export interface GetUnseenNodesNearbyParams {
     callerTerminalId: string
@@ -43,7 +44,22 @@ export async function getUnseenNodesNearbyTool({
             search_from_node as NodeIdAndFilePath | undefined
         )
 
-        const nodes: Array<{nodeId: string; title: string}> = unseenNodes.map((node: UnseenNode) => {
+        // 4. Filter out nodes created by this agent and the agent's task node
+        const agentName: string = callerRecord.terminalData.agentName
+        const taskNodeId: NodeIdAndFilePath | undefined = O.isSome(callerRecord.terminalData.anchoredToNodeId)
+            ? callerRecord.terminalData.anchoredToNodeId.value
+            : undefined
+        const filteredNodes: readonly UnseenNode[] = unseenNodes.filter((node: UnseenNode) => {
+            // Exclude the agent's own task node
+            if (taskNodeId && node.nodeId === taskNodeId) return false
+            // Exclude nodes created by this agent (via agent_name YAML property)
+            const graphNode: GraphNode | undefined = graph.nodes[node.nodeId]
+            if (!graphNode) return true
+            const nodeAgentName: string | undefined = graphNode.nodeUIMetadata.additionalYAMLProps.get('agent_name')
+            return nodeAgentName !== agentName
+        })
+
+        const nodes: Array<{nodeId: string; title: string}> = filteredNodes.map((node: UnseenNode) => {
             const graphNode: GraphNode | undefined = graph.nodes[node.nodeId]
             return {
                 nodeId: node.nodeId,
