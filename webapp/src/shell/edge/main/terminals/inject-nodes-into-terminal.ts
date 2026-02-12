@@ -62,7 +62,7 @@ export async function injectNodesIntoTerminal(
         return { success: true, injectedCount: 0 }
     }
 
-    const payload: string = `\nHere are nodes manually injected by the user:\n\n${nodeBlocks.join('\n\n')}\n`
+    const payload: string = `\nPlease check these nodes that were created while you were working:\n\n${nodeBlocks.join('\n\n')}\n`
 
     try {
         // Send batched payload as single write to avoid PTY flooding

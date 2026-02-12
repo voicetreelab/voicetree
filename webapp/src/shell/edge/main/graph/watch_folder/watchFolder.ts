@@ -47,6 +47,7 @@ import {
 } from "./vault-allowlist";
 import { setupWatcher } from "./file-watcher-setup";
 import { createEmptyGraph } from "@/pure/graph/createGraph";
+import { broadcastVaultState } from "./broadcast-vault-state";
 
 // Re-export vault-allowlist functions for api.ts and tests
 export {
@@ -246,6 +247,9 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
         writePath: config.writePath,
         timestamp: new Date().toISOString()
     });
+
+    // Push initial vault state to renderer (readPaths, writePath, starredFolders)
+    void broadcastVaultState();
 
     return { success: true };
 }
