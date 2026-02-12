@@ -111,4 +111,7 @@ You must create a progress node before reporting completion to the user. You mus
     darkMode: false,
     zoomSensitivity: 1.0,
     starredFolders: [],
+    hooks: {
+        onWorktreeCreated: '#scripts/on-worktree-created.sh',
+    },
 };
