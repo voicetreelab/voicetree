@@ -99,7 +99,7 @@ For the entire duration of this session, before you report completion to the use
 
 Add "read addProgressTree.md and create progress node(s)" as an item on your todolist now.
 
-Primary method: Use the \`create_graph\` MCP tool with your $VOICETREE_TERMINAL_ID. Supports 1+ nodes per call — single concept nodes or multi-node trees.
+Primary method: Use the \`create_graph\` MCP tool with \$\VOICETREE_TERMINAL_ID=$VOICETREE_TERMINAL_ID. Supports 1+ nodes per call — single concept nodes or multi-node trees.
 Before creating your first progress node, read $VOICETREE_APP_SUPPORT/tools/prompts/addProgressTree.md for composition guidance (when to split, scope rules, what to embed).
 
 You must create a progress node before reporting completion to the user. You must continue to do this for any follow-ups by either updating existing progress nodes, or creating new ones.

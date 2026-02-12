@@ -89,7 +89,7 @@ async function enableMcpJsonIntegration(): Promise<void> {
         ...config.mcpServers,
         [VOICETREE_MCP_SERVER_NAME]: {
             type: 'http',
-            url: `http://localhost:${port}/mcp`
+            url: `http://127.0.0.1:${port}/mcp`
         }
     };
 
