@@ -54,7 +54,7 @@ fi
 echo "Selected CDP port: $PORT for worktree $WORKTREE_NAME"
 
 # --- Write .cdp-port file ---
-echo "$PORT" > "$WORKTREE_PATH/.cdp-port"
+echo "$PORT" > "$WORKTREE_PATH/webapp/.cdp-port"
 
 # --- Copy and patch .mcp.json ---
 MCP_TEMPLATE="$REPO_ROOT/.mcp.json"
@@ -79,5 +79,5 @@ else
 fi
 
 echo "Worktree $WORKTREE_NAME configured with CDP port $PORT"
-echo "  .cdp-port: $WORKTREE_PATH/.cdp-port"
+echo "  .cdp-port: $WORKTREE_PATH/webapp/.cdp-port"
 echo "  .mcp.json: $WORKTREE_PATH/.mcp.json"
