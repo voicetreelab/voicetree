@@ -42,6 +42,13 @@ import {
   requestMicrophonePermission,
   openMicrophoneSettings
 } from './microphone-permissions';
+import {
+  getStarredFolders,
+  addStarredFolder,
+  removeStarredFolder,
+  isStarred,
+  copyNodeToFolder,
+} from './graph/watch_folder/starred-folders';
 import path from 'path';
 
 /**
@@ -170,4 +177,11 @@ export const mainAPI = {
   generateWorktreeName,
   removeWorktree,
   getRemoveWorktreeCommand,
+
+  // Starred folders
+  getStarredFolders,
+  addStarredFolder,
+  removeStarredFolder,
+  isStarred,
+  copyNodeToFolder,
 }
