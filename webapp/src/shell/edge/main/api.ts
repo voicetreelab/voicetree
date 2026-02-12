@@ -71,7 +71,8 @@ async function initializeProject(projectPath: string): Promise<string | null> {
 async function createWorktree(repoRoot: string, worktreeName: string): Promise<string> {
     const settings: VTSettings = await loadSettings();
     const hookScriptPath: string | undefined = settings.hooks?.onWorktreeCreated;
-    return createWorktreeCore(repoRoot, worktreeName, hookScriptPath);
+    const effectivePath: string | undefined = hookScriptPath?.startsWith('#') ? undefined : hookScriptPath;
+    return createWorktreeCore(repoRoot, worktreeName, effectivePath);
 }
 
 // eslint-disable-next-line @typescript-eslint/typedef
