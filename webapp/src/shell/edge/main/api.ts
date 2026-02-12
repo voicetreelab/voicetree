@@ -10,6 +10,7 @@ import {
 } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI'
 import {getGraph, getNode} from '@/shell/edge/main/state/graph-store'
 import {loadSettings, saveSettings as saveSettings} from './settings/settings_IO'
+import type {VTSettings} from '@/pure/settings/types'
 import {getWatchStatus, loadPreviousFolder, markFrontendReady, startFileWatching, stopFileWatching, getVaultPaths, getReadPaths, getWritePath, setWritePath, addReadPath, removeReadPath, getAvailableFoldersForSelector} from './graph/watch_folder/watchFolder'
 import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/state/app-electron-state";
 import {createContextNode} from "@/shell/edge/main/graph/context-nodes/createContextNode";
@@ -32,7 +33,7 @@ import {saveClipboardImage} from './clipboard/saveClipboardImage';
 import {readImageAsDataUrl} from './clipboard/readImageAsDataUrl';
 import {findFileByName} from './graph/loading/findFileByName';
 import {runAgentOnSelectedNodes} from './runAgentOnSelectedNodes';
-import {listWorktrees, createWorktree, generateWorktreeName, removeWorktree, getRemoveWorktreeCommand} from './worktree/gitWorktreeCommands';
+import {listWorktrees, createWorktree as createWorktreeCore, generateWorktreeName, removeWorktree, getRemoveWorktreeCommand} from './worktree/gitWorktreeCommands';
 import {scanForProjects, getDefaultSearchDirectories} from './project-scanner';
 import {loadProjects, saveProject, removeProject} from './project-store';
 import {initializeProject as initializeProjectCore} from './project-initializer';
@@ -61,6 +62,16 @@ import path from 'path';
 async function initializeProject(projectPath: string): Promise<string | null> {
     const onboardingSourceDir: string = path.join(getOnboardingDirectory(), 'voicetree');
     return initializeProjectCore(projectPath, onboardingSourceDir);
+}
+
+/**
+ * Wrapper for createWorktree that reads hooks.onWorktreeCreated from settings
+ * and passes it to the core function. Hook failure is non-blocking.
+ */
+async function createWorktree(repoRoot: string, worktreeName: string): Promise<string> {
+    const settings: VTSettings = await loadSettings();
+    const hookScriptPath: string | undefined = settings.hooks?.onWorktreeCreated;
+    return createWorktreeCore(repoRoot, worktreeName, hookScriptPath);
 }
 
 // eslint-disable-next-line @typescript-eslint/typedef

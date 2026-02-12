@@ -1,6 +1,7 @@
 /// <reference types="node" />
 import path from 'path';
 import os from 'os';
+import fs from 'fs';
 import {app} from 'electron';
 import fixPath from 'fix-path';
 import {setStartupFolderOverride} from "@/shell/edge/main/state/watch-folder-store";
@@ -60,6 +61,14 @@ export function configureEnvironment(): void {
         const cdpEndpoint: string | undefined = process.env.PLAYWRIGHT_MCP_CDP_ENDPOINT;
         if (cdpEndpoint) {
             try { cdpPort = new URL(cdpEndpoint).port || '9222'; } catch { /* default */ }
+        } else {
+            // Fallback: read .cdp-port file written by on-worktree-created.sh hook
+            try {
+                const filePort: string = fs.readFileSync(path.join(process.cwd(), '.cdp-port'), 'utf-8').trim();
+                if (/^\d+$/.test(filePort)) {
+                    cdpPort = filePort;
+                }
+            } catch { /* file doesn't exist, use default */ }
         }
         app.commandLine.appendSwitch('remote-debugging-port', cdpPort);
     }

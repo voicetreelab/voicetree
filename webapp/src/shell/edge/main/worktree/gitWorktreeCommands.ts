@@ -18,6 +18,33 @@ function toForwardSlashes(p: string): string {
 }
 
 /**
+ * Execute a user-defined shell script hook, passing arguments.
+ * Catches all errors gracefully — logs a warning but never throws.
+ *
+ * @param scriptPath - Absolute path to a .sh script
+ * @param args - Arguments to pass to the script (e.g. [worktreePath, worktreeName])
+ * @param cwd - Working directory for script execution (e.g. repo root)
+ * @returns Object indicating success or failure with optional error message
+ */
+export async function runHook(
+    scriptPath: string,
+    args: string[],
+    cwd: string
+): Promise<{ success: boolean; error?: string }> {
+    return new Promise((resolve) => {
+        execFile('/bin/sh', [scriptPath, ...args], { cwd, timeout: 30000 }, (error: Error | null) => {
+            if (error) {
+                const message: string = error instanceof Error ? error.message : String(error);
+                console.warn(`[runHook] Hook script failed (${scriptPath}): ${message}`);
+                resolve({ success: false, error: message });
+            } else {
+                resolve({ success: true });
+            }
+        });
+    });
+}
+
+/**
  * Generate a valid git branch/worktree name from a node title.
  * Sanitizes the title to follow git branch naming conventions.
  *
@@ -51,24 +78,37 @@ export function getWorktreePath(repoRoot: string, worktreeName: string): string 
 
 /**
  * Create a new git worktree with a corresponding branch.
+ * Optionally runs a user-defined hook script after successful creation.
  *
  * @param repoRoot - The root directory of the git repository
  * @param worktreeName - The name for the worktree and branch
+ * @param hookScriptPath - Optional path to a shell script to run after worktree creation
  * @returns The absolute path to the created worktree directory
- * @throws Error if worktree creation fails
+ * @throws Error if worktree creation fails (hook failure does NOT throw)
  */
-export async function createWorktree(repoRoot: string, worktreeName: string): Promise<string> {
+export async function createWorktree(repoRoot: string, worktreeName: string, hookScriptPath?: string): Promise<string> {
     const worktreePath: string = getWorktreePath(repoRoot, worktreeName);
 
     // Create the worktree with a new branch based on current HEAD
     // -b creates a new branch with the worktree name
     try {
         await execFileAsync('git', ['worktree', 'add', '-b', worktreeName, worktreePath], { cwd: repoRoot });
-        return worktreePath;
     } catch (error) {
         const errorMessage: string = error instanceof Error ? error.message : String(error);
         throw new Error(`Failed to create git worktree: ${errorMessage}`);
     }
+
+    // Run post-creation hook if configured (failure is non-blocking)
+    if (hookScriptPath) {
+        const result: { success: boolean; error?: string } = await runHook(hookScriptPath, [worktreePath, worktreeName], repoRoot);
+        if (result.success) {
+            console.log(`[createWorktree] Hook succeeded for ${worktreeName}`);
+        } else {
+            console.warn(`[createWorktree] Hook failed for ${worktreeName}: ${result.error}`);
+        }
+    }
+
+    return worktreePath;
 }
 
 export interface WorktreeInfo {

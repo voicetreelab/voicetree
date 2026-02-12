@@ -73,6 +73,7 @@ export function createInjectBar(options: InjectBarOptions): InjectBarHandle {
 
     const bar: HTMLDivElement = document.createElement('div');
     bar.className = 'inject-bar';
+    bar.style.display = 'none'; // Hidden until unseen nodes found
 
     // Badge button
     const badge: HTMLButtonElement = document.createElement('button');
@@ -128,9 +129,13 @@ export function createInjectBar(options: InjectBarOptions): InjectBarHandle {
     function updateBadge(count: number): void {
         if (count === 0) {
             badge.style.display = 'none';
+            bar.style.display = 'none';
+            bar.classList.remove('inject-bar-visible');
             hidePopover();
         } else {
             badge.style.display = '';
+            bar.style.display = '';
+            bar.classList.add('inject-bar-visible');
             badgeText.textContent = `${count} unseen`;
         }
     }
