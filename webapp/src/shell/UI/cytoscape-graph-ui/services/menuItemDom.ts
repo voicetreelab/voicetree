@@ -221,6 +221,44 @@ export function createSubMenuElement(items: HorizontalMenuItem[], onClose: () =>
     for (const item of items) {
         // Pass alwaysShowLabel=true for vertical submenu items (row layout handled in createMenuItemElement)
         const menuItem: HTMLElement = createMenuItemElement(item, onClose, true);
+
+        // Handle nested submenu (static or dynamic) — mirrors hover logic from createHorizontalMenuElement
+        if (item.subMenu || item.getSubMenuItems) {
+            let nestedSubmenuEl: HTMLElement = item.subMenu
+                ? createSubMenuElement(item.subMenu, onClose)
+                : createSubMenuElement([], onClose);
+            // Position nested submenu to the right of the parent item (not below)
+            nestedSubmenuEl.style.left = '100%';
+            nestedSubmenuEl.style.top = '0';
+            nestedSubmenuEl.style.transform = 'none';
+            menuItem.appendChild(nestedSubmenuEl);
+
+            let isHovered: boolean = false;
+
+            menuItem.addEventListener('mouseenter', () => {
+                isHovered = true;
+                if (item.getSubMenuItems) {
+                    void item.getSubMenuItems().then((dynamicItems: HorizontalMenuItem[]) => {
+                        const newSubmenuEl: HTMLElement = createSubMenuElement(dynamicItems, onClose);
+                        newSubmenuEl.style.left = '100%';
+                        newSubmenuEl.style.top = '0';
+                        newSubmenuEl.style.transform = 'none';
+                        menuItem.replaceChild(newSubmenuEl, nestedSubmenuEl);
+                        nestedSubmenuEl = newSubmenuEl;
+                        if (isHovered) {
+                            newSubmenuEl.style.display = 'flex';
+                        }
+                    });
+                } else {
+                    nestedSubmenuEl.style.display = 'flex';
+                }
+            });
+            menuItem.addEventListener('mouseleave', () => {
+                isHovered = false;
+                nestedSubmenuEl.style.display = 'none';
+            });
+        }
+
         submenu.appendChild(menuItem);
     }
 
