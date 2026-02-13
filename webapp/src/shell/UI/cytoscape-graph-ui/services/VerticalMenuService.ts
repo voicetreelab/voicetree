@@ -8,6 +8,7 @@ import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals
 import {showTaskInputPopup, type SelectedNodeInfo, type TaskInputResult} from "@/shell/edge/UI-edge/graph/taskInputPopup";
 import type {NodeIdAndFilePath} from "@/pure/graph";
 import '@/shell/electron.d.ts';
+import { formatShortcut } from '@/pure/utils/keyboardShortcutDisplay';
 
 export interface Position {
     x: number;
@@ -99,7 +100,7 @@ export class VerticalMenuService {
 
         if (this.deps) {
             menuItems.push({
-                html: '<span style="display: flex; justify-content: space-between; align-items: center; gap: 16px; white-space: nowrap;">Add Node Here <span style="font-size: 10px; color: #888; opacity: 0.7;">⌘N</span></span>',
+                html: `<span style="display: flex; justify-content: space-between; align-items: center; gap: 16px; white-space: nowrap;">Add Node Here <span style="font-size: 10px; color: #888; opacity: 0.7;">${formatShortcut('N')}</span></span>`,
                 action: async () => {
                     //console.log('[VerticalMenuService] Creating node at position:', position);
                     await this.deps!.handleAddNodeAtPosition(position);
@@ -113,7 +114,7 @@ export class VerticalMenuService {
 
         const deleteText: string = noNodesSelected ? 'Delete (0 nodes selected)' : `Delete Selected (${selectedCount})`;
         menuItems.push({
-            html: `<span style="display: flex; justify-content: space-between; align-items: center; gap: 16px; white-space: nowrap;">${deleteText} <span style="font-size: 10px; color: #888; opacity: 0.7;">⌘⌫</span></span>`,
+            html: `<span style="display: flex; justify-content: space-between; align-items: center; gap: 16px; white-space: nowrap;">${deleteText} <span style="font-size: 10px; color: #888; opacity: 0.7;">${formatShortcut('Backspace')}</span></span>`,
             disabled: noNodesSelected,
             action: deleteSelectedNodesAction(this.cy!),
         });
