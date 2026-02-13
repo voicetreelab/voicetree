@@ -102,16 +102,6 @@ export async function createWorktree(
 ): Promise<string> {
     const worktreePath: string = getWorktreePath(repoRoot, worktreeName);
 
-    // Pre-hook: blocking, runs before git worktree add
-    if (blockingHookCommand) {
-        const result: { success: boolean; error?: string } = await runHook(blockingHookCommand, [repoRoot, worktreeName], repoRoot);
-        if (result.success) {
-            console.log(`[createWorktree] Blocking hook succeeded for ${worktreeName}`);
-        } else {
-            console.warn(`[createWorktree] Blocking hook failed for ${worktreeName}: ${result.error}`);
-        }
-    }
-
     // Create the worktree with a new branch based on current HEAD
     // -b creates a new branch with the worktree name
     try {
@@ -121,7 +111,17 @@ export async function createWorktree(
         throw new Error(`Failed to create git worktree: ${errorMessage}`);
     }
 
-    // Post-hook: fire-and-forget, runs after creation
+    // Blocking hook: awaited after creation, before returning worktreePath to caller
+    if (blockingHookCommand) {
+        const result: { success: boolean; error?: string } = await runHook(blockingHookCommand, [worktreePath, worktreeName], repoRoot);
+        if (result.success) {
+            console.log(`[createWorktree] Blocking hook succeeded for ${worktreeName}`);
+        } else {
+            console.warn(`[createWorktree] Blocking hook failed for ${worktreeName}: ${result.error}`);
+        }
+    }
+
+    // Async hook: fire-and-forget after creation, does not block terminal spawn
     if (asyncHookCommand) {
         void runHook(asyncHookCommand, [worktreePath, worktreeName], repoRoot).then(result => {
             if (result.success) {

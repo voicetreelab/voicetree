@@ -112,8 +112,8 @@ You must create a progress node before reporting completion to the user. You mus
     zoomSensitivity: 1.0,
     starredFolders: [],
     hooks: {
-        onWorktreeCreatedBlocking: '',
-        postWorktreeCreatedAsync: '#./scripts/on-worktree-created.sh',
+        onWorktreeCreatedBlocking: '#./scripts/on-worktree-created-blocking.sh',
+        postWorktreeCreatedAsync: '#./scripts/on-worktree-created-async.sh',
         onNewNode: '#node scripts/on-new-node.cjs',
     },
 };
