@@ -153,6 +153,14 @@
   font-size: 12px;
   font-weight: 500;
   color: var(--muted-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Settings title error state - red text when JSON is invalid */
+.settings-title-text.settings-title-error {
+  color: rgba(255, 59, 48, 0.9);
 }
 
 /* Settings close button - pushed to far right */

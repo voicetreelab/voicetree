@@ -1,4 +1,4 @@
-As you make progress on the task, create detailed visual updates by adding nodes to our Markdown tree.
+Use the `create_graph` MCP tool with `$VOICETREE_TERMINAL_ID` to add progress nodes. One call, 1+ nodes. The tool handles frontmatter, file paths, parent linking, and graph positioning automatically.
 
 ## Orchestration: Decide Before You Start
 Does this task have 2+ distinct concerns or phases?
@@ -14,7 +14,7 @@ NO → Proceed directly (single concern, < 30 lines, 1-2 files).
 
 Voicetree agents over built-in subagents: users can see progress, read nodes, and intervene.
 
-## When to Create Multiple Linked Nodes (Prefer This)
+## When to Split Into Multiple Nodes
 One node = one concept. Split when independently referenceable (options to compare, decisions to revisit, distinct phases). Keep together when tightly coupled.
 
 **Split rule: If your output covers N independent concerns, create N nodes.** Quick test: "If the parent disappeared, would this content still make sense?" YES → own node. NO → keep in parent.
@@ -39,7 +39,7 @@ Task
 └── Pure functions
 ```
 
-Each node: self-contained, focused on ONE concern, linked to parent with wikilinks.
+Wire multi-node graphs using `parents` (local ids within the same call). Nodes without `parents` attach to your task node by default.
 
 ## Scope Guidelines
 
@@ -50,59 +50,25 @@ Each node: self-contained, focused on ONE concern, linked to parent with wikilin
 | Small, one concern, <30 lines, 1-2 files | Single progress node |
 | Nodes you created ARE the deliverable | Skip — progress nodes document work not visible in the graph, not node creation itself |
 
-## Progress Node Format
-Create at: `$VOICETREE_VAULT_PATH/{node_title_sluggified}.md`
+## Content Rules
+- **Self-containment:** The node IS the deliverable. Embed all artifacts verbatim (diagrams, code, tables, mockups, analysis) — never summarize an artifact. A reader should never need to look elsewhere to understand what was produced.
+- **`summary`:** Concise summary of what was accomplished. Include key details: specifications, decisions, plans, outcomes.
+- **`filesChanged`:** Always include all file paths you modified.
+- **`codeDiffs`:** Include exact diffs for <40 lines of changes (production files only; omit test diffs unless tests are the main task). Over 40 lines, include only key changes. Requires `complexityScore` and `complexityExplanation`.
+- **`diagram`:** Mermaid diagram when relevant — prefer text when equally clear.
+- **60-line limit** per node (codeDiffs and diagram fields are exempt). If over, split into more nodes.
+- **Color convention:** `green` = task completed, `blue` (default) = in-progress or planning.
+- **`notes`:** Architecture impact, gotchas, tech debt, difficulties.
+- **`linkedArtifacts`:** Link openspec artifacts (proposal, design, tasks) by basename.
 
-Always include a list of all file paths you have modified.
-Include exact diff if <40 lines changed (production files only; omit test diffs unless tests are the main task). Over 40 lines, include only key changes.
+## Fallback
+If the `create_graph` MCP tool is unavailable, read `addProgressTreeManualFallback.md` for manual markdown file creation instructions.
 
-```markdown
----
-color: $AGENT_COLOR ?? blue
-agent_name: $AGENT_NAME
----
+## Pre-creation Checklist
+1. `$VOICETREE_TERMINAL_ID` is set (echo it if unsure)
+2. N concerns → N nodes (split by concern, not by size)
+3. All artifacts embedded verbatim in `content`
+4. Diffs included in `codeDiffs` for <40 lines changed (with `complexityScore`)
+5. `filesChanged` populated
 
-# {Title}
-
-## {Concise summary of progress / what was accomplished}
-
-Key details: specifications, decisions, plans, outcomes.
-
-**Self-containment rule:** The node IS the deliverable. If your work produced visual artifacts (ASCII diagrams, code, tables, mockups, analysis), embed them verbatim — never summarize an artifact. A reader should never need to look elsewhere to understand what was produced.
-
-## Files Changed (always include)
-
-## DIFF (if files changed)
-
-\```<language>
-- old
-+ new
-\```
-
-Additional files changed: `file1.md`, `file2.py` — with concise summaries.
-
-## Diagram (if relevant — prefer text when equally clear)
-
-\```mermaid
-[flowchart | graph | sequenceDiagram | classDiagram | gitGraph]
-\```
-
-### NOTES (if relevant)
-- System architecture impact, dependencies, workflow effects
-- Difficulties, technical debt, gotchas
-- Complexity score for the area worked in
-
-## Spec files (if created openspec/similar)
-Link key artifacts: proposal, design, tasks — skip individual deltas unless they contain key decisions.
-
-REQUIRED: {relationship_label} [[$TASK_NODE_PATH]]
-```
-
-## Pre-write Checklist
-1. `$AGENT_COLOR` unset → default `blue`
-2. Wikilink paths are relative to `$VOICETREE_VAULT_PATH`
-3. Parent linked via `[[$TASK_NODE_PATH]]` (only override when necessary). Only `[[double brackets]]` create graph edges — single brackets don't.
-4. Relationship labels: specific and meaningful, or omitted
-5. Minimize `[[wikilinks]]` — each creates a visible edge. Keep as tree/DAG.
-
-ALL `$VARS` are environment variables already set. Check them now.
+ALL `$VARS` (`VOICETREE_TERMINAL_ID`, `AGENT_COLOR`, `AGENT_NAME`, etc.) are environment variables already set. Check them now.

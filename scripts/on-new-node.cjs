@@ -131,71 +131,102 @@ function isPidAlive(pid) {
     }
 }
 
-/** Fire-and-forget HTTP POST to MCP (non-blocking) */
+/** POST to MCP and log the response. Returns a promise so the process stays alive until the response arrives. */
 function spawnAgentViaMcp(payload) {
     const data = JSON.stringify(payload)
-    const req = http.request({
-        hostname: '127.0.0.1',
-        port: parseInt(MCP_PORT, 10),
-        path: '/mcp',
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
+    return new Promise((resolve) => {
+        const req = http.request({
+            hostname: '127.0.0.1',
+            port: parseInt(MCP_PORT, 10),
+            path: '/mcp',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json, text/event-stream',
+                'Content-Length': Buffer.byteLength(data),
+            },
+        }, (res) => {
+            let body = ''
+            res.on('data', (chunk) => { body += chunk })
+            res.on('end', () => {
+                if (res.statusCode >= 400) {
+                    process.stderr.write(`[on-new-node] MCP HTTP ${res.statusCode}: ${body}\n`)
+                } else {
+                    // Check for JSON-RPC errors in 200 responses
+                    try {
+                        const parsed = JSON.parse(body)
+                        if (parsed.error || parsed.result?.isError) {
+                            process.stderr.write(`[on-new-node] MCP error: ${body}\n`)
+                        }
+                    } catch { /* not JSON, ignore */ }
+                }
+                resolve()
+            })
+        })
+        req.on('error', (err) => {
+            process.stderr.write(`[on-new-node] MCP request failed: ${err.message}\n`)
+            resolve()
+        })
+        req.write(data)
+        req.end()
     })
-    req.on('error', () => {}) // swallow — fire and forget
-    req.write(data)
-    req.end()
-    return req
 }
 
 // --- Main logic ---
 
-// Append to ALL batch files
-for (const agent of agents) {
-    appendLine(agent.batchFile, nodePath)
-}
+;(async () => {
+    // Append to ALL batch files
+    for (const agent of agents) {
+        appendLine(agent.batchFile, nodePath)
+    }
 
-// Check each agent independently
-for (const agent of agents) {
-    const lines = readLines(agent.batchFile)
-    if (lines.length < agent.threshold) continue
+    // Check each agent independently
+    const spawns = []
+    for (const agent of agents) {
+        const lines = readLines(agent.batchFile)
+        if (lines.length < agent.threshold) continue
 
-    // Threshold reached — consume batch
-    truncate(agent.batchFile)
+        // Threshold reached — consume batch
+        truncate(agent.batchFile)
 
-    // Rate limit: skip if previous agent still running
-    if (fs.existsSync(agent.lockFile)) {
-        const pidStr = fs.readFileSync(agent.lockFile, 'utf8').trim()
-        const pid = parseInt(pidStr, 10)
-        if (!isNaN(pid) && isPidAlive(pid)) {
-            // Re-queue paths so they aren't lost
-            for (const line of lines) appendLine(agent.batchFile, line)
-            continue
+        // Rate limit: skip if previous agent still running
+        if (fs.existsSync(agent.lockFile)) {
+            const pidStr = fs.readFileSync(agent.lockFile, 'utf8').trim()
+            const pid = parseInt(pidStr, 10)
+            if (!isNaN(pid) && isPidAlive(pid)) {
+                // Re-queue paths so they aren't lost
+                for (const line of lines) appendLine(agent.batchFile, line)
+                continue
+            }
+            fs.unlinkSync(agent.lockFile)
         }
-        fs.unlinkSync(agent.lockFile)
-    }
 
-    const firstNode = lines[0]
-    const vaultDir = path.dirname(firstNode)
-    const nodeList = lines.map((p) => '- ' + p).join('\n')
+        const firstNode = lines[0]
+        const vaultDir = path.dirname(firstNode)
+        const nodeList = lines.map((p) => '- ' + p).join('\n')
 
-    const payload = {
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'tools/call',
-        params: {
-            name: 'spawn_agent',
-            arguments: {
-                task: agent.taskTitle,
-                details: agent.buildPrompt(nodeList, vaultDir),
-                parentNodeId: firstNode,
-                callerTerminalId: TERMINAL_ID,
+        const payload = {
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'tools/call',
+            params: {
+                name: 'spawn_agent',
+                arguments: {
+                    task: agent.taskTitle,
+                    details: agent.buildPrompt(nodeList, vaultDir),
+                    parentNodeId: firstNode,
+                    callerTerminalId: TERMINAL_ID,
+                },
             },
-        },
+        }
+
+        spawns.push(spawnAgentViaMcp(payload))
+
+        // Store own PID for rate limiting (the node process itself is short-lived,
+        // but the HTTP request was fired — use process.pid as a proxy)
+        fs.writeFileSync(agent.lockFile, String(process.pid))
     }
 
-    spawnAgentViaMcp(payload)
-
-    // Store own PID for rate limiting (the node process itself is short-lived,
-    // but the HTTP request was fired — use process.pid as a proxy)
-    fs.writeFileSync(agent.lockFile, String(process.pid))
-}
+    // Wait for all MCP requests to complete before exiting
+    await Promise.all(spawns)
+})()

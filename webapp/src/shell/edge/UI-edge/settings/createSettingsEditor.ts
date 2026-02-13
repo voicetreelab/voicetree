@@ -29,7 +29,7 @@ const SETTINGS_SHADOW_NODE_ID: ShadowNodeId = `shadow-${SETTINGS_EDITOR_ID}` as 
  * Create a simple title bar with macOS-style close button for the settings editor
  * Settings editor only needs close functionality (no pin/fullscreen)
  */
-function createSettingsTitleBar(onClose: () => void): HTMLDivElement {
+function createSettingsTitleBar(onClose: () => void): { titleBar: HTMLDivElement; titleText: HTMLSpanElement } {
     const titleBar: HTMLDivElement = document.createElement('div');
     titleBar.className = 'settings-title-bar';
 
@@ -54,7 +54,7 @@ function createSettingsTitleBar(onClose: () => void): HTMLDivElement {
     titleBar.appendChild(titleText);
     titleBar.appendChild(closeBtn);
 
-    return titleBar;
+    return { titleBar, titleText };
 }
 
 /**
@@ -65,11 +65,23 @@ export function isSettingsEditorOpen(): boolean {
 }
 
 /**
- * Close the settings editor if it exists
+ * Close the settings editor if it exists.
+ * Validates JSON before closing - prompts user if content has parse errors.
  */
 export function closeSettingsEditor(cy: Core): void {
-    const editor: { dispose: () => void } | undefined = vanillaFloatingWindowInstances.get(SETTINGS_EDITOR_ID);
+    const editor: CodeMirrorEditorView | undefined = vanillaFloatingWindowInstances.get(SETTINGS_EDITOR_ID) as CodeMirrorEditorView | undefined;
     if (!editor) return;
+
+    // Validate JSON before closing
+    try {
+        JSON.parse(editor.getValue());
+    } catch (error) {
+        const errorMessage: string = error instanceof SyntaxError ? error.message : 'Unknown parse error';
+        const shouldClose: boolean = confirm(
+            `Settings contain invalid JSON and won't be saved.\n\n${errorMessage}\n\nClose anyway?`
+        );
+        if (!shouldClose) return;
+    }
 
     // Dispose CodeMirror instance
     editor.dispose();
@@ -132,7 +144,7 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
         const {windowElement, contentContainer} = createWindowChrome(cy, settingsWindowFields, SETTINGS_EDITOR_ID);
 
         // Add title bar with close button (prepend before content container)
-        const titleBar: HTMLDivElement = createSettingsTitleBar(() => closeSettingsEditor(cy));
+        const { titleBar, titleText }: { titleBar: HTMLDivElement; titleText: HTMLSpanElement } = createSettingsTitleBar(() => closeSettingsEditor(cy));
         windowElement.insertBefore(titleBar, contentContainer);
 
         // Create CodeMirror editor instance for JSON editing
@@ -146,12 +158,16 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
             }
         );
 
-        // Setup auto-save with validation
+        // Setup auto-save with validation + live title error indication
         editor.onChange((newContent: string) => {
             void (async () => {
                 try {
                     // Parse JSON to validate
                     const parsedSettings: VTSettings = JSON.parse(newContent) as VTSettings;
+
+                    // Clear error state in title
+                    titleText.textContent = 'Settings';
+                    titleText.classList.remove('settings-title-error');
 
                     // Save to IPC
                     if (window.electronAPI) {
@@ -159,8 +175,10 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
                         //console.log('[createSettingsEditor] Settings saved successfully');
                     }
                 } catch (error) {
-                    // Show error to user for invalid JSON
-                    console.error('[createSettingsEditor] Invalid JSON in settings:', error);
+                    // Show error in title bar
+                    const errorMessage: string = error instanceof SyntaxError ? error.message : 'Invalid JSON';
+                    titleText.textContent = `Settings - ${errorMessage}`;
+                    titleText.classList.add('settings-title-error');
                 }
             })();
         });
