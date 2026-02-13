@@ -306,10 +306,10 @@ export async function createGraphTool({
             parentBaseNames: [graphParentBaseName],
         })
         const bodyLines: number = countBodyLines(tempMarkdown, node)
-        if (bodyLines > 60) {
+        if (bodyLines > 65) {
             return buildJsonResponse({
                 success: false,
-                error: `Node "${node.id}" is too long (${bodyLines} lines, limit is 60). Split into smaller nodes — one concept per node.`
+                error: `Node "${node.id}" is too long (${bodyLines} lines, limit is 65). Don't shorten, spread across additional nodes — one concept per node.`
             }, true)
         }
     }

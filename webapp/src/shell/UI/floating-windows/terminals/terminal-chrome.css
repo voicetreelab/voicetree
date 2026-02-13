@@ -84,6 +84,28 @@
   max-width: 100%;
 }
 
+/* Subtitle row: agent ID + worktree on same line below title */
+.terminal-context-badge-subtitle {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* Agent ID inside context badge */
+.terminal-context-badge-agent-id {
+  font-size: 9px;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.5;
+  font-family: monospace;
+  max-width: 100%;
+}
+
 /* Agent ID label — always shown in title bar, pushed right before traffic lights */
 .terminal-title-bar-agent-id {
   font-size: 9px;

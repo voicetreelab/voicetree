@@ -45,7 +45,7 @@ export function createTerminalTitleBar(
 
     // Create context badge for terminals with context nodes
     if (hasContextNode) {
-        const contextBadge: HTMLDivElement = createContextBadge(terminal.title, windowElement, terminal.worktreeName);
+        const contextBadge: HTMLDivElement = createContextBadge(terminal.title, windowElement, terminal.worktreeName, terminal.terminalId);
         titleBar.appendChild(contextBadge);
     }
 
@@ -79,7 +79,7 @@ export function createTerminalTitleBar(
  * Create context badge for terminals with context nodes
  * Shows truncated title, optionally with worktree indicator
  */
-function createContextBadge(title: string, _windowElement: HTMLDivElement, worktreeName?: string): HTMLDivElement {
+function createContextBadge(title: string, _windowElement: HTMLDivElement, worktreeName?: string, terminalId?: string): HTMLDivElement {
     const badge: HTMLDivElement = document.createElement('div');
     badge.className = 'terminal-context-badge';
 
@@ -89,13 +89,28 @@ function createContextBadge(title: string, _windowElement: HTMLDivElement, workt
     titleSpan.textContent = truncateTitle(title, 100);
     badge.appendChild(titleSpan);
 
-    // Worktree indicator (below title)
-    if (worktreeName) {
-        const wtSpan: HTMLSpanElement = document.createElement('span');
-        wtSpan.className = 'terminal-context-badge-worktree';
-        wtSpan.textContent = `\u2387 ${worktreeName}`;
-        wtSpan.title = worktreeName;
-        badge.appendChild(wtSpan);
+    // Subtitle row: agent ID + worktree on same line
+    if (worktreeName || terminalId) {
+        const subtitleRow: HTMLSpanElement = document.createElement('span');
+        subtitleRow.className = 'terminal-context-badge-subtitle';
+
+        if (terminalId) {
+            const agentSpan: HTMLSpanElement = document.createElement('span');
+            agentSpan.className = 'terminal-context-badge-agent-id';
+            agentSpan.textContent = terminalId;
+            agentSpan.title = terminalId;
+            subtitleRow.appendChild(agentSpan);
+        }
+
+        if (worktreeName) {
+            const wtSpan: HTMLSpanElement = document.createElement('span');
+            wtSpan.className = 'terminal-context-badge-worktree';
+            wtSpan.textContent = `\u2387 ${worktreeName}`;
+            wtSpan.title = worktreeName;
+            subtitleRow.appendChild(wtSpan);
+        }
+
+        badge.appendChild(subtitleRow);
     }
 
     return badge;

@@ -27,10 +27,6 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, details, p
     //console.log(`[MCP] spawn_agent called by terminal: ${callerTerminalId}`)
 
     // Validate caller terminal exists
-    // BUG: Currently fails for valid terminals because renderer's TerminalStore and main's
-    // terminal-registry are separate registries that can get out of sync. The planned fix
-    // (openspec: consolidate-terminal-registry) makes terminal-registry the single source
-    // of truth. If this guard still fails after that change, remove it entirely.
     const terminalRecords: TerminalRecord[] = getTerminalRecords()
     const callerExists: boolean = terminalRecords.some(
         (record: TerminalRecord) => record.terminalId === callerTerminalId
