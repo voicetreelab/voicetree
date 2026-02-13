@@ -20,7 +20,7 @@ function App(): JSX.Element {
     // Use the folder watcher hook for file watching
     const {
         watchDirectory,
-        isWatching,
+        isWatching: _isWatching,
         startWatching,
         stopWatching,
     } = useFolderWatcher();
@@ -82,13 +82,13 @@ function App(): JSX.Element {
     useEffect(() => {
         if (!window.electronAPI?.onWatchingStarted) return;
 
-        const cleanup = window.electronAPI.onWatchingStarted((data: { directory: string; timestamp: string }) => {
+        const cleanup: (() => void) = window.electronAPI.onWatchingStarted((data: { directory: string; timestamp: string }) => {
             // Only switch view if we're still on project selection screen
             if (currentView === 'project-selection') {
                 // Look up the saved project by path (prettySetup saves it before starting file watching)
                 void (async () => {
-                    const projects = await window.electronAPI.main.loadProjects();
-                    const matchingProject = projects.find((p: SavedProject) => p.path === data.directory);
+                    const projects: SavedProject[] = await window.electronAPI!.main.loadProjects();
+                    const matchingProject: SavedProject | undefined = projects.find((p: SavedProject) => p.path === data.directory);
                     if (matchingProject) {
                         setCurrentProject(matchingProject);
                         setCurrentView('graph-view');
@@ -147,6 +147,7 @@ function App(): JSX.Element {
             //console.log('[Backend]', _log);
         });
     }, []);
+
 
     // Initialize VoiceTreeGraphView when container is ready and in graph view
     useEffect(() => {

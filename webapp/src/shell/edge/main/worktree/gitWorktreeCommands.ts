@@ -5,7 +5,7 @@
  * Worktrees allow agents to work on separate branches without conflicts.
  */
 
-import { execFile } from 'child_process';
+import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 import fs from 'fs';
@@ -17,38 +17,36 @@ function toForwardSlashes(p: string): string {
     return p.replace(/\\/g, '/');
 }
 
-/** Pick interpreter based on script file extension */
-function interpreterForScript(scriptPath: string): string {
-    const ext: string = path.extname(scriptPath)
-    if (ext === '.cjs' || ext === '.js' || ext === '.mjs') return 'node'
-    if (ext === '.py') return 'python3'
-    return '/bin/sh'
+/** Shell-quote a single argument (wrap in single quotes, escape existing single quotes) */
+function shellQuote(arg: string): string {
+    return "'" + arg.replace(/'/g, "'\\''") + "'"
 }
 
 /**
- * Execute a user-defined hook script, passing arguments.
- * Detects interpreter from file extension (.cjs/.js → node, .py → python3, else /bin/sh).
+ * Execute a user-defined hook command, appending arguments.
+ * The command is run through the shell as-is — same convention as npm scripts and git hooks.
  * Catches all errors gracefully — logs a warning but never throws.
  *
- * @param scriptPath - Absolute path to the hook script
- * @param args - Arguments to pass to the script (e.g. [worktreePath, worktreeName])
- * @param cwd - Working directory for script execution (e.g. repo root)
+ * @param command - Shell command to run (e.g. "node scripts/on-new-node.cjs", "./my-hook.sh")
+ * @param args - Arguments appended to the command (e.g. [nodePath])
+ * @param cwd - Working directory for execution (e.g. repo root)
  * @returns Object indicating success or failure with optional error message
  */
 export async function runHook(
-    scriptPath: string,
+    command: string,
     args: string[],
     cwd: string
-): Promise<{ success: boolean; error?: string }> {
-    const interpreter: string = interpreterForScript(scriptPath)
+): Promise<{ success: boolean; error?: string; stdout?: string; stderr?: string }> {
+    const quotedArgs: string = args.map(shellQuote).join(' ')
+    const fullCommand: string = quotedArgs ? `${command} ${quotedArgs}` : command
     return new Promise((resolve) => {
-        execFile(interpreter, [scriptPath, ...args], { cwd, timeout: 30000 }, (error: Error | null) => {
+        exec(fullCommand, { cwd, timeout: 30000 }, (error: Error | null, stdout: string, stderr: string) => {
             if (error) {
                 const message: string = error instanceof Error ? error.message : String(error);
-                console.warn(`[runHook] Hook script failed (${scriptPath}): ${message}`);
-                resolve({ success: false, error: message });
+                console.warn(`[runHook] Hook failed (${command}): ${message}`);
+                resolve({ success: false, error: message, stdout, stderr });
             } else {
-                resolve({ success: true });
+                resolve({ success: true, stdout, stderr });
             }
         });
     });
@@ -96,8 +94,23 @@ export function getWorktreePath(repoRoot: string, worktreeName: string): string 
  * @returns The absolute path to the created worktree directory
  * @throws Error if worktree creation fails (hook failure does NOT throw)
  */
-export async function createWorktree(repoRoot: string, worktreeName: string, hookScriptPath?: string): Promise<string> {
+export async function createWorktree(
+    repoRoot: string,
+    worktreeName: string,
+    blockingHookCommand?: string,
+    asyncHookCommand?: string,
+): Promise<string> {
     const worktreePath: string = getWorktreePath(repoRoot, worktreeName);
+
+    // Pre-hook: blocking, runs before git worktree add
+    if (blockingHookCommand) {
+        const result: { success: boolean; error?: string } = await runHook(blockingHookCommand, [repoRoot, worktreeName], repoRoot);
+        if (result.success) {
+            console.log(`[createWorktree] Blocking hook succeeded for ${worktreeName}`);
+        } else {
+            console.warn(`[createWorktree] Blocking hook failed for ${worktreeName}: ${result.error}`);
+        }
+    }
 
     // Create the worktree with a new branch based on current HEAD
     // -b creates a new branch with the worktree name
@@ -108,14 +121,15 @@ export async function createWorktree(repoRoot: string, worktreeName: string, hoo
         throw new Error(`Failed to create git worktree: ${errorMessage}`);
     }
 
-    // Run post-creation hook if configured (failure is non-blocking)
-    if (hookScriptPath) {
-        const result: { success: boolean; error?: string } = await runHook(hookScriptPath, [worktreePath, worktreeName], repoRoot);
-        if (result.success) {
-            console.log(`[createWorktree] Hook succeeded for ${worktreeName}`);
-        } else {
-            console.warn(`[createWorktree] Hook failed for ${worktreeName}: ${result.error}`);
-        }
+    // Post-hook: fire-and-forget, runs after creation
+    if (asyncHookCommand) {
+        void runHook(asyncHookCommand, [worktreePath, worktreeName], repoRoot).then(result => {
+            if (result.success) {
+                console.log(`[createWorktree] Async hook succeeded for ${worktreeName}`);
+            } else {
+                console.warn(`[createWorktree] Async hook failed for ${worktreeName}: ${result.error}`);
+            }
+        });
     }
 
     return worktreePath;

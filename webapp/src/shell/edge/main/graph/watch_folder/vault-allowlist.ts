@@ -83,7 +83,7 @@ export async function getVaultPaths(): Promise<readonly FilePath[]> {
     if (!config) return [];
     // Return writePath + all readPaths (all normalized, deduplicated)
     const resolvedWritePath: string = resolveWritePath(watchedDir, config.writePath);
-    const normalizedReadPaths: readonly string[] = config.readPaths.map((p: string) => normalizePath(p));
+    const normalizedReadPaths: readonly string[] = config.readPaths.map((p: string) => resolveWritePath(watchedDir, p));
     // Deduplicate: filter out readPaths that match writePath
     const uniqueReadPaths: readonly string[] = normalizedReadPaths.filter((p: string) => p !== resolvedWritePath);
     return [resolvedWritePath, ...uniqueReadPaths];
@@ -99,7 +99,7 @@ export async function getReadPaths(): Promise<readonly FilePath[]> {
     if (!watchedDir) return [];
     const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
     if (!config) return [];
-    return config.readPaths.map((p: string) => normalizePath(p));
+    return config.readPaths.map((p: string) => resolveWritePath(watchedDir, p));
 }
 
 /**

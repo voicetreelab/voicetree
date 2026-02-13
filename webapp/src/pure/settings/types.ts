@@ -61,9 +61,11 @@ export interface HotkeySettings {
 }
 
 export interface HookSettings {
-    /** Path to shell script run after a worktree is created */
-    readonly onWorktreeCreated?: string;
-    /** Path to shell script run after a new node is created (receives node path as $1) */
+    /** Shell command run BEFORE git worktree add — blocking, awaited (e.g. validation). Receives repo root as $1, worktree name as $2 */
+    readonly onWorktreeCreatedBlocking?: string;
+    /** Shell command run AFTER git worktree add — fire-and-forget (e.g. npm install). Receives worktree path as $1, worktree name as $2 */
+    readonly postWorktreeCreatedAsync?: string;
+    /** Shell command run after a new node is created (receives node path as $1) */
     readonly onNewNode?: string;
 }
 
