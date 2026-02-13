@@ -16,6 +16,8 @@ import type { FilePath, Graph, GraphDelta, DeleteNode } from "@/pure/graph";
 import { applyGraphDeltaToGraph } from "@/pure/graph";
 import type { VaultConfig } from "@/pure/settings/types";
 import { loadVaultPathAdditively, resolveLinkedNodesInWatchedFolder } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk";
+import { createDatedSubfolder } from "@/shell/edge/main/project-utils";
+import { getStarredFolders } from "./starred-folders";
 import { createStarterNode } from "./create-starter-node";
 import type { FileLimitExceededError } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce";
 import * as E from "fp-ts/lib/Either.js";
@@ -464,6 +466,23 @@ export function getVaultPath(): O.Option<FilePath> {
 // For external callers (MCP) - sets the vault path directly
 export function setVaultPath(vaultPath: FilePath): void {
     setProjectRootWatchedDirectory(vaultPath);
+}
+
+/**
+ * Create a new dated voicetree folder and set it as the write path.
+ * Also loads all starred folders as read paths.
+ */
+export async function createDatedVoiceTreeFolder(): Promise<{
+    success: boolean; path?: string; error?: string;
+}> {
+    const watchedDir: string | null = getProjectRootWatchedDirectory();
+    if (!watchedDir) return { success: false, error: 'No project open' };
+    const newPath: string = await createDatedSubfolder(watchedDir);
+    const result: { success: boolean; error?: string } = await setWritePath(newPath);
+    if (!result.success) return { ...result, path: newPath };
+    const starred: readonly string[] = await getStarredFolders();
+    for (const p of starred) await addReadPath(p);
+    return { success: true, path: newPath };
 }
 
 export function clearVaultPath(): void {

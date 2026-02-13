@@ -179,6 +179,24 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
         }
     };
 
+    // Handle creating a new dated voicetree folder
+    const handleCreateDatedFolder: () => Promise<void> = async (): Promise<void> => {
+        if (!window.electronAPI) return;
+
+        try {
+            const result: { success: boolean; path?: string; error?: string } = await window.electronAPI.main.createDatedVoiceTreeFolder();
+            if (result.success) {
+                setIsOpen(false);
+                setSearchQuery('');
+                setError(null);
+            } else {
+                setError(result.error ?? 'Failed to create folder');
+            }
+        } catch (err) {
+            console.error('[VaultPathSelector] Error creating dated folder:', err);
+        }
+    };
+
     // Handle browse external folder
     const handleBrowseExternal: () => Promise<void> = async (): Promise<void> => {
         if (!window.electronAPI) return;
@@ -571,10 +589,16 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                             </div>
 
                             {/* Browse external folder */}
-                            <div className="px-2 py-1.5 border-t border-dashed border-muted-foreground/15">
+                            <div className="px-2 py-1.5 border-t border-dashed border-muted-foreground/15 flex gap-1">
+                                <button
+                                    onClick={() => void handleCreateDatedFolder()}
+                                    className="flex-1 px-2 py-1 text-[11px] text-muted-foreground/60 hover:text-muted-foreground hover:bg-background/50 rounded-sm transition-colors"
+                                >
+                                    New voicetree
+                                </button>
                                 <button
                                     onClick={() => void handleBrowseExternal()}
-                                    className="w-full px-2 py-1 text-[11px] text-muted-foreground/60 hover:text-muted-foreground hover:bg-background/50 rounded-sm transition-colors"
+                                    className="flex-1 px-2 py-1 text-[11px] text-muted-foreground/60 hover:text-muted-foreground hover:bg-background/50 rounded-sm transition-colors"
                                 >
                                     Browse external...
                                 </button>

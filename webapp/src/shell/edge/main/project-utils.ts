@@ -8,10 +8,28 @@ import type { Dirent } from 'fs';
 
 /**
  * Generate date-based subfolder name: voicetree-{day}-{month}
+ * Appends -1, -2, etc. if the base name already exists in existingNames.
  */
-export function generateDateSubfolder(): string {
+export function generateDateSubfolder(existingNames: readonly string[] = []): string {
     const now: Date = new Date();
-    return `voicetree-${now.getDate()}-${now.getMonth() + 1}`;
+    const base: string = `voicetree-${now.getDate()}-${now.getMonth() + 1}`;
+    if (!existingNames.includes(base)) return base;
+    let i: number = 1;
+    while (existingNames.includes(`${base}-${i}`)) i++;
+    return `${base}-${i}`;
+}
+
+/**
+ * Create a dated voicetree subfolder inside parentDir.
+ * Reads existing directory names to avoid collisions.
+ */
+export async function createDatedSubfolder(parentDir: string): Promise<string> {
+    const entries: Dirent[] = await fs.readdir(parentDir, { withFileTypes: true });
+    const names: string[] = entries.filter((e: Dirent) => e.isDirectory()).map((e: Dirent) => e.name);
+    const folderName: string = generateDateSubfolder(names);
+    const fullPath: string = path.join(parentDir, folderName);
+    await fs.mkdir(fullPath, { recursive: true });
+    return fullPath;
 }
 
 // Pattern to match voicetree-{day}-{month} format

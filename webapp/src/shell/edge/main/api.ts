@@ -11,7 +11,7 @@ import {
 import {getGraph, getNode} from '@/shell/edge/main/state/graph-store'
 import {loadSettings, saveSettings as saveSettings} from './settings/settings_IO'
 import type {VTSettings} from '@/pure/settings/types'
-import {getWatchStatus, loadPreviousFolder, markFrontendReady, startFileWatching, stopFileWatching, getVaultPaths, getReadPaths, getWritePath, setWritePath, addReadPath, removeReadPath, getAvailableFoldersForSelector} from './graph/watch_folder/watchFolder'
+import {getWatchStatus, loadPreviousFolder, markFrontendReady, startFileWatching, stopFileWatching, getVaultPaths, getReadPaths, getWritePath, setWritePath, addReadPath, removeReadPath, getAvailableFoldersForSelector, createDatedVoiceTreeFolder} from './graph/watch_folder/watchFolder'
 import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/state/app-electron-state";
 import {createContextNode} from "@/shell/edge/main/graph/context-nodes/createContextNode";
 import {getPreviewContainedNodeIds} from "@/shell/edge/main/graph/context-nodes/getPreviewContainedNodeIds";
@@ -116,6 +116,7 @@ export const mainAPI = {
   addReadPath,
   removeReadPath,
   getAvailableFoldersForSelector,
+  createDatedVoiceTreeFolder,
 
   // Backend port
   getBackendPort,

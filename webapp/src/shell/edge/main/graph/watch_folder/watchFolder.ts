@@ -22,7 +22,7 @@ import fsSync from "fs";
 import type { FSWatcher } from "chokidar";
 import { getMainWindow } from "@/shell/edge/main/state/app-electron-state";
 import { getOnboardingDirectory } from "@/shell/edge/main/electron/onboarding-setup";
-import { copyMarkdownFiles, pathExists, generateDateSubfolder, findExistingVoicetreeDir } from "@/shell/edge/main/project-utils";
+import { copyMarkdownFiles, pathExists, createDatedSubfolder, findExistingVoicetreeDir } from "@/shell/edge/main/project-utils";
 import { loadSettings } from "@/shell/edge/main/settings/settings_IO";
 import { type VTSettings } from "@/pure/settings/types";
 import {
@@ -60,6 +60,7 @@ export {
     getVaultPath,
     setVaultPath,
     clearVaultPath,
+    createDatedVoiceTreeFolder,
 } from "./vault-allowlist";
 
 // Re-export folder-scanner functions for api.ts
@@ -115,9 +116,7 @@ async function resolveOrCreateConfig(
         subfolderPath = existingVoicetreeDir;
     } else {
         // Create new voicetree-{date} subfolder
-        const subfolder: string = generateDateSubfolder();
-        subfolderPath = path.join(watchedFolderPath, subfolder);
-        await fs.mkdir(subfolderPath, { recursive: true });
+        subfolderPath = await createDatedSubfolder(watchedFolderPath);
 
         // Copy onboarding files into the new subfolder
         const onboardingSourceDir: string = path.join(getOnboardingDirectory(), 'voicetree');
@@ -264,9 +263,7 @@ async function createNewWorkspaceOnFileLimitExceeded(
     mainWindow: Electron.CrossProcessExports.BrowserWindow,
     existingReadPaths: readonly string[]
 ): Promise<{ success: boolean }> {
-    const subfolder: string = generateDateSubfolder();
-    const newSubfolderPath: string = path.join(watchedFolderPath, subfolder);
-    await fs.mkdir(newSubfolderPath, { recursive: true });
+    const newSubfolderPath: string = await createDatedSubfolder(watchedFolderPath);
 
     // Show info dialog (non-blocking)
     void dialog.showMessageBox(mainWindow, {
