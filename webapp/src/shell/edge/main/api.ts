@@ -70,9 +70,11 @@ async function initializeProject(projectPath: string): Promise<string | null> {
  */
 async function createWorktree(repoRoot: string, worktreeName: string): Promise<string> {
     const settings: VTSettings = await loadSettings();
-    const hookScriptPath: string | undefined = settings.hooks?.onWorktreeCreated;
-    const effectivePath: string | undefined = hookScriptPath?.startsWith('#') ? undefined : hookScriptPath;
-    return createWorktreeCore(repoRoot, worktreeName, effectivePath);
+    const blockingHook: string | undefined = settings.hooks?.onWorktreeCreatedBlocking;
+    const asyncHook: string | undefined = settings.hooks?.postWorktreeCreatedAsync;
+    const effectiveBlocking: string | undefined = blockingHook?.startsWith('#') ? undefined : blockingHook ?? undefined;
+    const effectiveAsync: string | undefined = asyncHook?.startsWith('#') ? undefined : asyncHook ?? undefined;
+    return createWorktreeCore(repoRoot, worktreeName, effectiveBlocking, effectiveAsync);
 }
 
 // eslint-disable-next-line @typescript-eslint/typedef

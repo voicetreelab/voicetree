@@ -97,6 +97,14 @@ function updateInjectBadge(terminalId: string, count: number): void {
     }
 }
 
+/**
+ * Log a hook execution result to the renderer dev console.
+ * Called from main process after onNewNode (or other) hooks run.
+ */
+function logHookResult(message: string): void {
+    console.log(message);
+}
+
 // Export as object (like mainAPI)
 // eslint-disable-next-line @typescript-eslint/typedef
 export const uiAPIHandler = {
@@ -109,6 +117,7 @@ export const uiAPIHandler = {
     setIsTrackpadScrolling,
     closeTerminalById,
     updateInjectBadge,
+    logHookResult,
 };
 
 export type UIAPIType = typeof uiAPIHandler;

@@ -375,17 +375,17 @@ export function VaultPathSelector({ watchDirectory }: VaultPathSelectorProps): J
                                         key={path}
                                         className="group px-3 py-1.5 flex items-center justify-between hover:bg-accent/50"
                                     >
-                                        <button
-                                            onClick={(e: MouseEvent<HTMLButtonElement>) => void handlePromoteToWrite(path, e)}
-                                            className="flex items-center gap-2 text-left flex-1 min-w-0"
-                                            title={`Click to set as write destination: ${path}`}
-                                        >
-                                            <span className="text-muted-foreground">{'\u25CB'}</span>
-                                            <span className="text-xs truncate hover:text-primary">
-                                                {getSmartDisplayPath(path)}
-                                            </span>
-                                        </button>
-                                        <div className="flex items-center gap-1">
+                                        <span className="text-xs truncate flex-1 min-w-0 text-muted-foreground group-hover:text-foreground transition-colors" title={path}>
+                                            {getSmartDisplayPath(path)}
+                                        </span>
+                                        <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                                            <button
+                                                onClick={(e: MouseEvent<HTMLButtonElement>) => void handlePromoteToWrite(path, e)}
+                                                className="px-1.5 py-0.5 text-[10px] text-primary-foreground bg-primary/80 hover:bg-primary rounded-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                                                title="Set as write destination"
+                                            >
+                                                Write
+                                            </button>
                                             {renderStarButton(path)}
                                             <button
                                                 onClick={(e: MouseEvent<HTMLButtonElement>) => void handleRemoveReadFolder(path, e)}
