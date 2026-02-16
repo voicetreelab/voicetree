@@ -7,14 +7,12 @@ import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath} from '@/pure/graph
 import type {Position} from '@/pure/graph';
 import {createNewNodeNoParent} from '@/pure/graph/graphDelta/uiInteractionsToGraphDeltas';
 import {getNodeTitle} from '@/pure/graph/markdown-parsing';
-import {resolveEnvVars, expandEnvVarsInValues} from '@/pure/settings';
 import type {VTSettings} from '@/pure/settings/types';
 import {getNextAgentName, getUniqueAgentName} from '@/pure/settings/types';
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types';
 import {getExistingAgentNames} from '@/shell/edge/main/terminals/terminal-registry';
-import {getAppSupportPath} from '@/shell/edge/main/state/app-electron-state';
 import {getGraph} from '@/shell/edge/main/state/graph-store';
-import {getWatchStatus } from '@/shell/edge/main/graph/watch_folder/watchFolder';
+import {getWatchStatus} from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import * as O from 'fp-ts/lib/Option.js';
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
@@ -22,13 +20,11 @@ import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
-import {getVaultPaths, getWritePath} from "@/shell/edge/main/graph/watch_folder/vault-allowlist";
+import {getWritePath} from "@/shell/edge/main/graph/watch_folder/vault-allowlist";
+import {buildTerminalEnvVars} from '@/shell/edge/main/terminals/buildTerminalEnvVars';
 
 export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCount: number): Promise<void> {
-  // todo, tech debt. Most of this is duplicated with other terminal spawn paths.
-
   const settings: VTSettings = await loadSettings();
-  const resolvedEnvVars: Record<string, string> = resolveEnvVars(settings.INJECT_ENV_VARS);
 
   const graph: Graph = getGraph();
   const node: GraphNode | undefined = graph.nodes[nodeId];
@@ -42,17 +38,6 @@ export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCoun
     initialSpawnDirectory = path.join(watchStatus.directory, relativePath);
   }
 
-  const appSupportPath: string = getAppSupportPath();
-  // Node IDs are now absolute paths - use directly
-  const nodeAbsolutePath: string = nodeId;
-
-  // Get all vault paths for ALL_MARKDOWN_READ_PATHS
-  const allVaultPaths: readonly string[] = await getVaultPaths();
-  const allMarkdownReadPaths: string = allVaultPaths.join('\n');
-
-  // Get vault path for VOICETREE_VAULT_PATH
-  const vaultPath: string = O.getOrElse(() => '')(await getWritePath());
-
   // Generate unique agent name with collision handling for terminal identification
   // Plain terminals still need unique IDs for registry tracking
   const baseAgentName: string = getNextAgentName();
@@ -61,17 +46,13 @@ export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCoun
   // terminalId = agentName (unified identification)
   const terminalId: TerminalId = agentName as TerminalId;
 
-  const unexpandedEnvVars: Record<string, string> = {
-    VOICETREE_APP_SUPPORT: appSupportPath ?? '',
-    VOICETREE_VAULT_PATH: vaultPath,
-    ALL_MARKDOWN_READ_PATHS: allMarkdownReadPaths,
-    CONTEXT_NODE_PATH: nodeAbsolutePath,
-    TASK_NODE_PATH: nodeAbsolutePath,
-    VOICETREE_TERMINAL_ID: agentName, // Same as AGENT_NAME
-    AGENT_NAME: agentName,
-    ...resolvedEnvVars,
-  };
-  const expandedEnvVars: Record<string, string> = expandEnvVarsInValues(unexpandedEnvVars);
+  const expandedEnvVars: Record<string, string> = await buildTerminalEnvVars({
+    contextNodePath: nodeId,
+    taskNodePath: nodeId,
+    terminalId: agentName,
+    agentName,
+    settings,
+  });
 
   const terminalData: TerminalData = createTerminalData({
     terminalId: terminalId, // terminalId = agentName (unified)
