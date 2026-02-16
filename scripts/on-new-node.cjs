@@ -53,13 +53,19 @@ Consider: Are there missed angles, unstated assumptions, connections between ide
 - **7+**: Multiple important insights. Create multiple nodes (Step 3). Do NOT close yourself.
 
 ## Step 3: Create nodes (only if score >= 4)
-Use create_graph. Focus on what's most useful:
+Use create_graph. The node TITLE should name the single most important finding.
+
+**Node structure — most critical info first:**
+- **summary field**: 1-3 bullet points. Lead with your #1 finding. Include your importance score (e.g. "Score: 6/10"). No filler.
+- **content field**: Expand on each point with evidence/reasoning. Keep paragraphs short (2-3 sentences max).
+
+Focus on what's most useful:
 - Connections between nodes the user might not see
 - Unstated assumptions or risks worth flagging
 - Promising directions worth developing further
 - Alternative approaches not yet considered
 
-Be concise. Don't restate what's already in the nodes.
+Don't restate what's already in the nodes. No preamble ("I noticed that..."). Start with the insight.
 
 ## Step 4: Close yourself (only if score < 7)
 Use close_agent with your own terminal ID (from $VOICETREE_TERMINAL_ID) as both callerTerminalId and terminalId.`,
@@ -71,7 +77,7 @@ Use close_agent with your own terminal ID (from $VOICETREE_TERMINAL_ID) as both 
         taskTitle: 'Graph improver: fix connections in recent nodes',
         buildPrompt: (nodeList, vaultDir) => {
             const transcriptPath = path.join(vaultDir, 'transcript_history.txt')
-            return `You are a graph-improver agent. Voice-to-graph can produce messy results. Fix the recent batch of nodes.
+            return `You are a graph-improver agent. Voice-to-graph can produce messy results. Silently fix the recent batch of nodes.
 
 ## Step 1: Read transcript tail
 Read the TAIL (last 2000 chars) of: ${transcriptPath}
@@ -91,8 +97,9 @@ How messy is this batch? Orphans, wrong links, bad splits/merges?
 - **7+**: Significant structural problems. Fix them (Step 5). Do NOT close yourself.
 
 ## Step 5: Fix issues (only if score >= 4)
-Edit markdown files to fix: orphan nodes (add [[links]]), incorrect connections, wrong splits (merge), wrong merges (split).
-Use create_graph to document what you fixed.
+Edit markdown files directly to fix: orphan nodes (add [[links]]), incorrect connections, wrong splits (merge), wrong merges (split).
+Do NOT create progress nodes for your fixes — just fix the files silently.
+Only create a progress node if you hit a problem you cannot resolve (e.g. ambiguous structure needing user input, conflicting links you can't untangle).
 
 ## Step 6: Close yourself (only if score < 7)
 Use close_agent with your own terminal ID (from $VOICETREE_TERMINAL_ID) as both callerTerminalId and terminalId.`

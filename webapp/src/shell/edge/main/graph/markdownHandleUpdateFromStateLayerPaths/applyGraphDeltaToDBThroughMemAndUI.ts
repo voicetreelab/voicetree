@@ -44,6 +44,17 @@ export async function applyGraphDeltaToMemState(delta: GraphDelta): Promise<Grap
     }
 
     setGraph(newGraph);
+
+    // Fire onNewNode hook (fire-and-forget). Runs for both UI and FS-event paths.
+    // dispatchOnNewNodeHooks filters for UpsertNode with previousNode=None, so
+    // delete-only deltas (e.g. removeReadPath) are no-ops.
+    void loadSettings().then(settings => {
+        const hookPath: string | undefined = settings.hooks?.onNewNode
+        if (hookPath && !hookPath.startsWith('#')) {
+            dispatchOnNewNodeHooks(delta, hookPath)
+        }
+    })
+
     return delta;
 }
 
@@ -91,11 +102,4 @@ export async function applyGraphDeltaToDBThroughMemAndUI(
         throw result.left
     }
 
-    // Fire onNewNode hook (fire-and-forget, after successful DB write)
-    void loadSettings().then(settings => {
-        const hookPath: string | undefined = settings.hooks?.onNewNode
-        if (hookPath && !hookPath.startsWith('#')) {
-            dispatchOnNewNodeHooks(delta, hookPath)
-        }
-    })
 }

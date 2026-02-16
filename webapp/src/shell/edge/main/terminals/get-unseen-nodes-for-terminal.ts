@@ -39,12 +39,21 @@ export async function getUnseenNodesForTerminal(terminalId: string): Promise<rea
 
     const contextNodeId: NodeIdAndFilePath = record.terminalData.attachedToContextNodeId
 
+    // Only compute unseen nodes for terminals attached to actual context nodes
+    // (those with isContextNode metadata and containedNodeIds).
+    // Non-context-node terminals (e.g. the hook terminal) don't have this metadata.
+    const graph: Graph = getGraph()
+    const attachedNode: GraphNode | undefined = graph.nodes[contextNodeId]
+    if (!attachedNode || !attachedNode.nodeUIMetadata.isContextNode) {
+        return []
+    }
+
     try {
         const unseenNodes: readonly UnseenNode[] = await getUnseenNodesAroundContextNode(contextNodeId)
-        const graph: Graph = getGraph()
+        const updatedGraph: Graph = getGraph()
 
         return unseenNodes.map((node: UnseenNode): UnseenNodeInfo => {
-            const graphNode: GraphNode | undefined = graph.nodes[node.nodeId]
+            const graphNode: GraphNode | undefined = updatedGraph.nodes[node.nodeId]
             const title: string = graphNode ? getNodeTitle(graphNode) : node.nodeId
             const contentPreview: string = node.content.length > CONTENT_PREVIEW_MAX_LENGTH
                 ? node.content.slice(0, CONTENT_PREVIEW_MAX_LENGTH) + '...'
