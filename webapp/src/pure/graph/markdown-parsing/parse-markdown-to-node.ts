@@ -114,7 +114,7 @@ export function parseMarkdownToGraphNode(content: string, filename: string, grap
     const parseResult: E.Either<unknown, matter.GrayMatterFile<string>> = E.tryCatch(
         () => matter(content),
         (error) => {
-            console.warn(`[parseMarkdownToGraphNode] Invalid YAML in ${filename}, using fallback:`, error)
+            console.debug(`[parseMarkdownToGraphNode] Invalid YAML in ${filename}, using fallback:`, error)
             return error
         }
     )
