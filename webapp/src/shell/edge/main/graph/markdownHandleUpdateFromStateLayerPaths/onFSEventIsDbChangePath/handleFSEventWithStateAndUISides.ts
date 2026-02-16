@@ -77,8 +77,7 @@ async function applyAndBroadcast(delta: GraphDelta): Promise<void> {
     //     })
 
     // Log if any links were resolved
-    if (mergedDelta.length > delta.length) {
-        const _resolvedCount: number = mergedDelta.length - delta.length
-        //console.log(`[handleFSEvent] Resolved ${resolvedCount} linked nodes from watched folder`)
-    }
+    //if (mergedDelta.length > delta.length) {
+    //    console.log(`[handleFSEvent] Resolved ${mergedDelta.length - delta.length} linked nodes from watched folder`)
+    //}
 }
