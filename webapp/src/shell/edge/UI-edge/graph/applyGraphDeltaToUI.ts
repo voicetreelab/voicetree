@@ -263,7 +263,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                                 markTerminalActivityForContextNode(edge.targetId);
                             }, 500);
                         } else {
-                            console.warn(`[applyGraphDeltaToUI] Skipping edge ${nodeId}->${edge.targetId}: target node does not exist`);
+                            console.debug(`[applyGraphDeltaToUI] Skipping edge ${nodeId}->${edge.targetId}: target node does not exist`);
                         }
                     }
                 });
