@@ -16,24 +16,21 @@
  */
 
 import path from 'path';
-import * as O from 'fp-ts/lib/Option.js';
 import { createContextNode } from '@/shell/edge/main/graph/context-nodes/createContextNode';
 import { createContextNodeFromSelectedNodes } from '@/shell/edge/main/graph/context-nodes/createContextNodeFromSelectedNodes';
 import { getGraph } from '@/shell/edge/main/state/graph-store';
 import { loadSettings } from '@/shell/edge/main/settings/settings_IO';
-import { getAppSupportPath } from '@/shell/edge/main/state/app-electron-state';
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy';
-import { createTerminalData, getTerminalId, computeTerminalId, type TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
+import { createTerminalData, getTerminalId, type TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import type { NodeIdAndFilePath, GraphNode, Graph } from '@/pure/graph';
 import { getNodeTitle } from '@/pure/graph/markdown-parsing';
 import { findFirstParentNode } from '@/pure/graph/graph-operations/findFirstParentNode';
 import type { VTSettings } from '@/pure/settings';
-import { resolveEnvVars, expandEnvVarsInValues } from '@/pure/settings';
 import { getNextAgentName, getUniqueAgentName } from '@/pure/settings/types';
 import { getNextTerminalCountForNode, getExistingAgentNames } from '@/shell/edge/main/terminals/terminal-registry';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import {getWatchStatus} from "@/shell/edge/main/graph/watch_folder/watchFolder";
-import {getVaultPaths, getWritePath} from "@/shell/edge/main/graph/watch_folder/vault-allowlist";
+import {buildTerminalEnvVars} from '@/shell/edge/main/terminals/buildTerminalEnvVars';
 
 /**
  * Spawn a terminal with a context node, orchestrated from main process
@@ -72,8 +69,8 @@ export async function spawnTerminalWithContextNode(
     // SECURITY: Validate that agentCommand (if provided) is from settings.agents
     // This prevents XSS attacks from executing arbitrary shell commands via IPC
     if (agentCommand !== undefined) {
-        const validCommands = new Set(agents.map(a => a.command));
-        const isValidCommand = validCommands.has(agentCommand);
+        const validCommands: Set<string> = new Set(agents.map(a => a.command));
+        const isValidCommand: boolean = validCommands.has(agentCommand);
         if (!isValidCommand) {
             console.error(`[SECURITY] Rejected unauthorized agent command: ${agentCommand.slice(0, 50)}...`);
             throw new Error('Invalid agent command - must be defined in settings.agents');
@@ -165,9 +162,6 @@ async function prepareTerminalDataInMain(
         throw new Error(`Context node ${contextNodeId} not found in graph`);
     }
 
-    // Resolve env vars (including random AGENT_NAME selection)
-    const resolvedEnvVars: Record<string, string> = resolveEnvVars(settings.INJECT_ENV_VARS);
-
     // Build terminal title from task node title (the node that spawned this terminal)
     // Context nodes are orphaned (no edges), so we use the taskNodeId directly
     const taskNode: GraphNode | undefined = graph.nodes[taskNodeId];
@@ -199,39 +193,21 @@ async function prepareTerminalDataInMain(
         initialSpawnDirectory = spawnDirectory;
     }
 
-    // Get app support path for VOICETREE_APP_SUPPORT env var
-    const appSupportPath: string = getAppSupportPath();
-
-    // Node IDs are now absolute paths - use directly
-    const contextNodeAbsolutePath: string = contextNodeId;
-
     // Task node path (parent of context node) - also absolute
     const taskNodeAbsolutePath: string = taskNode
         ? taskNode.absoluteFilePathIsID
         : '';
 
-    // Get write path (where new nodes are created)
-    const vaultPath: string = O.getOrElse(() => '')(await getWritePath());
-
-    // Get all vault paths for ALL_MARKDOWN_READ_PATHS (newline-separated for readability in prompts)
-    const allVaultPaths: readonly string[] = await getVaultPaths();
-    const allMarkdownReadPaths: string = allVaultPaths.join('\n');
-
     // terminalId = agentName (unified identification)
-    // Both env vars now have the same collision-resolved value
     const terminalId: TerminalId = agentName as TerminalId;
 
-    const unexpandedEnvVars: Record<string, string> = {
-        VOICETREE_APP_SUPPORT: appSupportPath ?? '',
-        VOICETREE_VAULT_PATH: vaultPath,
-        ALL_MARKDOWN_READ_PATHS: allMarkdownReadPaths,
-        CONTEXT_NODE_PATH: contextNodeAbsolutePath,
-        TASK_NODE_PATH: taskNodeAbsolutePath,
-        VOICETREE_TERMINAL_ID: agentName, // Same as AGENT_NAME
-        AGENT_NAME: agentName,
-        ...resolvedEnvVars,
-    };
-    const expandedEnvVars: Record<string, string> = expandEnvVarsInValues(unexpandedEnvVars);
+    const expandedEnvVars: Record<string, string> = await buildTerminalEnvVars({
+        contextNodePath: contextNodeId,
+        taskNodePath: taskNodeAbsolutePath,
+        terminalId: agentName,
+        agentName,
+        settings,
+    });
 
     // Extract worktree name from spawnDirectory if spawning in a .worktrees/ directory
     const worktreeName: string | undefined = extractWorktreeNameFromPath(initialSpawnDirectory);
