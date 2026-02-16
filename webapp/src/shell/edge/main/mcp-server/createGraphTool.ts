@@ -30,7 +30,7 @@ import {
 } from './addProgressNodeTool'
 
 export interface CreateGraphNodeInput {
-    readonly id: string
+    readonly filename: string
     readonly title: string
     readonly summary: string
     readonly content?: string
@@ -62,7 +62,7 @@ function hasCycle(nodes: readonly CreateGraphNodeInput[]): boolean {
         if (node.parents) {
             for (const parentId of node.parents) {
                 const children: string[] = adjacency.get(parentId) ?? []
-                children.push(node.id)
+                children.push(node.filename)
                 adjacency.set(parentId, children)
             }
         }
@@ -87,8 +87,8 @@ function hasCycle(nodes: readonly CreateGraphNodeInput[]): boolean {
     }
 
     for (const node of nodes) {
-        if (!visited.has(node.id)) {
-            if (dfs(node.id)) return true
+        if (!visited.has(node.filename)) {
+            if (dfs(node.filename)) return true
         }
     }
 
@@ -103,7 +103,7 @@ function hasCycle(nodes: readonly CreateGraphNodeInput[]): boolean {
 function topologicalSort(nodes: readonly CreateGraphNodeInput[]): CreateGraphNodeInput[] {
     const nodeMap: Map<string, CreateGraphNodeInput> = new Map()
     for (const node of nodes) {
-        nodeMap.set(node.id, node)
+        nodeMap.set(node.filename, node)
     }
 
     const visited: Set<string> = new Set()
@@ -129,7 +129,7 @@ function topologicalSort(nodes: readonly CreateGraphNodeInput[]): CreateGraphNod
     }
 
     for (const node of nodes) {
-        visit(node.id)
+        visit(node.filename)
     }
 
     return result
@@ -154,7 +154,6 @@ function countBodyLines(markdown: string, node: CreateGraphNodeInput): number {
 }
 
 interface CreatedNodeInfo {
-    readonly localId: string
     readonly nodeId: NodeIdAndFilePath
     readonly baseName: string
 }
@@ -201,42 +200,42 @@ export async function createGraphTool({
         }, true)
     }
 
-    // Validate: each node has id + title + summary
+    // Validate: each node has filename + title + summary
     for (const node of nodes) {
-        if (!node.id) {
+        if (!node.filename) {
             return buildJsonResponse({
                 success: false,
-                error: 'Every node must have an id field.'
+                error: 'Every node must have a filename field.'
             }, true)
         }
         if (!node.title || !node.summary) {
             return buildJsonResponse({
                 success: false,
-                error: `Node "${node.id}" is missing required fields: title and summary.`
+                error: `Node "${node.filename}" is missing required fields: title and summary.`
             }, true)
         }
     }
 
-    // Validate: unique local IDs
-    const localIds: Set<string> = new Set()
+    // Validate: unique filenames
+    const filenames: Set<string> = new Set()
     for (const node of nodes) {
-        if (localIds.has(node.id)) {
+        if (filenames.has(node.filename)) {
             return buildJsonResponse({
                 success: false,
-                error: `Duplicate local id: "${node.id}".`
+                error: `Duplicate filename: "${node.filename}".`
             }, true)
         }
-        localIds.add(node.id)
+        filenames.add(node.filename)
     }
 
-    // Validate: every parent references a declared local id
+    // Validate: every parent references a declared filename
     for (const node of nodes) {
         if (node.parents) {
             for (const parentRef of node.parents) {
-                if (!localIds.has(parentRef)) {
+                if (!filenames.has(parentRef)) {
                     return buildJsonResponse({
                         success: false,
-                        error: `Node "${node.id}" references parent "${parentRef}" which is not a declared local id.`
+                        error: `Node "${node.filename}" references parent "${parentRef}" which is not a declared filename in this call.`
                     }, true)
                 }
             }
@@ -257,7 +256,7 @@ export async function createGraphTool({
         if (hasCodeDiffs && (!node.complexityScore || !node.complexityExplanation)) {
             return buildJsonResponse({
                 success: false,
-                error: `Node "${node.id}": complexityScore and complexityExplanation are required when codeDiffs are provided.`
+                error: `Node "${node.filename}": complexityScore and complexityExplanation are required when codeDiffs are provided.`
             }, true)
         }
     }
@@ -309,7 +308,7 @@ export async function createGraphTool({
         if (bodyLines > 65) {
             return buildJsonResponse({
                 success: false,
-                error: `Node "${node.id}" is too long (${bodyLines} lines, limit is 65). Don't shorten, spread across additional nodes — one concept per node.`
+                error: `Node "${node.filename}" is too long (${bodyLines} lines, limit is 65). Don't shorten, spread across additional nodes — one concept per node.`
             }, true)
         }
     }
@@ -395,8 +394,9 @@ export async function createGraphTool({
             }
         }
 
-        // Generate unique node ID
-        const nodeSlug: string = slugify(node.title)
+        // Generate unique node ID from filename (strip .md if provided)
+        const rawFilename: string = node.filename.replace(/\.md$/, '')
+        const nodeSlug: string = slugify(rawFilename)
         const candidateId: string = `${writePath}/${nodeSlug || 'graph-node'}.md`
         const nodeId: NodeIdAndFilePath = ensureUniqueNodeId(candidateId, existingIds)
         existingIds.add(nodeId)
@@ -426,11 +426,11 @@ export async function createGraphTool({
             await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta)
 
             allNewNodeIds.push(nodeId)
-            createdNodes.set(node.id, {localId: node.id, nodeId, baseName})
-            createdPositions.set(node.id, nodePosition)
+            createdNodes.set(node.filename, {nodeId, baseName})
+            createdPositions.set(node.filename, nodePosition)
 
             results.push({
-                id: node.id,
+                id: nodeId,
                 path: nodeId,
                 status: warning ? 'warning' : 'ok',
                 ...(warning ? {warning: `${warning} — fix at ${nodeId}`} : {}),
@@ -438,7 +438,7 @@ export async function createGraphTool({
         } catch (error: unknown) {
             const errorMessage: string = error instanceof Error ? error.message : String(error)
             results.push({
-                id: node.id,
+                id: nodeId,
                 path: nodeId,
                 status: 'warning',
                 warning: `Creation failed: ${errorMessage}`,
@@ -477,5 +477,6 @@ export async function createGraphTool({
     return buildJsonResponse({
         success: true,
         nodes: results,
+        hint: 'To update a node, edit the file directly at its path. Do not call create_graph again for updates.',
     })
 }
