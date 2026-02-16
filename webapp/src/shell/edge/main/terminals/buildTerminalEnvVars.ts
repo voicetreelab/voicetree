@@ -8,6 +8,7 @@ import {resolveEnvVars, expandEnvVarsInValues} from '@/pure/settings'
 import type {VTSettings} from '@/pure/settings/types'
 import {getAppSupportPath} from '@/shell/edge/main/state/app-electron-state'
 import {getVaultPaths, getWritePath} from '@/shell/edge/main/graph/watch_folder/vault-allowlist'
+import {getMcpPort} from '@/shell/edge/main/mcp-server/mcp-server'
 
 export async function buildTerminalEnvVars(params: {
     readonly contextNodePath: string
@@ -31,6 +32,7 @@ export async function buildTerminalEnvVars(params: {
         VOICETREE_TERMINAL_ID: params.terminalId,
         VOICETREE_CALLER_TERMINAL_ID: params.terminalId,
         AGENT_NAME: params.agentName,
+        VOICETREE_MCP_PORT: String(getMcpPort()),
         ...resolvedEnvVars,
     }
     return expandEnvVarsInValues(unexpandedEnvVars)
