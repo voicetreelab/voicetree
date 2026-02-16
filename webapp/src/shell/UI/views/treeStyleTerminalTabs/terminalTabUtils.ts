@@ -9,13 +9,12 @@
  */
 
 import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
-import { getTerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
 import {
-    getPinnedDisplayOrder,
     suppressInactivityDuringZoom as storeSuppress,
 } from '@/shell/edge/UI-edge/state/AgentTabsStore';
 import { getTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
+import { buildTerminalTree } from '@/pure/agentTabs/terminalTree';
 import type {} from '@/shell/electron';
 
 // =============================================================================
@@ -24,13 +23,14 @@ import type {} from '@/shell/electron';
 
 /**
  * Get the current display order for pinned terminals (for GraphNavigationService cycling)
- * Returns terminal IDs in display order (respects user's drag-drop ordering)
+ * Returns terminal IDs in tree order (DFS: parent before children) matching visual tree-style tabs
  */
 export function getDisplayOrderForNavigation(): TerminalId[] {
-    // Get current terminals from store
     const terminalsMap: Map<TerminalId, TerminalData> = getTerminals();
     const terminals: TerminalData[] = Array.from(terminalsMap.values());
-    return getPinnedDisplayOrder(terminals);
+    const pinnedTerminals: TerminalData[] = terminals.filter(t => t.isPinned);
+    const treeNodes: import('@/pure/agentTabs/terminalTree').TerminalTreeNode[] = buildTerminalTree(pinnedTerminals);
+    return treeNodes.map(node => node.terminal.terminalId);
 }
 
 // =============================================================================
