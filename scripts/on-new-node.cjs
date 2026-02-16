@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // on-new-node.cjs
-// Batches new node paths and spawns TWO agents via MCP at different thresholds.
+// Batches new node paths and spawns agents via MCP at different thresholds.
 //
 // Called by VoiceTree's onNewNode hook after a new graph node is written to disk.
-// Agent 1 (thinking): every 3 nodes — challenges assumptions, suggests alternatives
+// Agent 1 (muse): every 3 nodes — expands thinking, surfaces missed aspects
 // Agent 2 (gardener): every 5 nodes — fixes orphans, bad connections, wrong splits/merges
 //
 // Usage: node on-new-node.cjs <nodePath>
@@ -35,70 +35,67 @@ const TERMINAL_ID = process.env.VOICETREE_CALLER_TERMINAL_ID || 'hook-watcher'
 
 const agents = [
     {
-        name: 'thinking',
+        name: 'muse',
         batchFile: '/tmp/voicetree-new-nodes-thinking.txt',
-        lockFile: '/tmp/voicetree-thinking-agent.lock',
         threshold: 3,
-        taskTitle: 'Challenge assumptions in recent nodes',
+        taskTitle: 'Expand thinking on recent nodes',
         buildPrompt: (nodeList, _vaultDir) =>
-`You are a critical-thinking agent. Your job is to challenge assumptions and find problems in recent graph nodes.
+`You are a background thinking partner. Read recent nodes and decide if you have anything worth saying.
 
-## Step 1: Read the recent nodes
-Read each of these node files:
+## Step 1: Read these nodes
 ${nodeList}
-For each, note its title, claims, and reasoning.
 
-## Step 2: Challenge assumptions
-For each node, ask:
-- What assumptions are being made?
-- What evidence supports or contradicts these claims?
-- Are there alternative approaches not considered?
-- What could go wrong with the current direction?
+## Step 2: Score importance (1-10)
+Consider: Are there missed angles, unstated assumptions, connections between ideas, risks, or promising directions worth expanding?
 
-## Step 3: Create a progress node
-Use create_graph to document your analysis — what you challenged, what alternatives exist, and any problems found.
+- **1-3**: Nothing non-obvious to add. Skip to Step 4.
+- **4-6**: One meaningful insight. Create ONE concise node (Step 3), then Step 4.
+- **7+**: Multiple important insights. Create multiple nodes (Step 3). Do NOT close yourself.
 
-## Step 4: Close yourself
-When done, use close_agent to shut down your terminal. Pass your own terminal ID (from $VOICETREE_TERMINAL_ID env var) as both callerTerminalId and terminalId.`,
+## Step 3: Create nodes (only if score >= 4)
+Use create_graph. Focus on what's most useful:
+- Connections between nodes the user might not see
+- Unstated assumptions or risks worth flagging
+- Promising directions worth developing further
+- Alternative approaches not yet considered
+
+Be concise. Don't restate what's already in the nodes.
+
+## Step 4: Close yourself (only if score < 7)
+Use close_agent with your own terminal ID (from $VOICETREE_TERMINAL_ID) as both callerTerminalId and terminalId.`,
     },
     {
         name: 'gardener',
         batchFile: '/tmp/voicetree-new-nodes-gardening.txt',
-        lockFile: '/tmp/voicetree-graph-improver.lock',
         threshold: 5,
         taskTitle: 'Graph improver: fix connections in recent nodes',
         buildPrompt: (nodeList, vaultDir) => {
             const transcriptPath = path.join(vaultDir, 'transcript_history.txt')
-            return `You are a graph-improver agent. Voice-to-graph can produce messy results — orphan nodes, incorrect connections, wrong splits or merges. Your job is to fix the recent batch of nodes.
+            return `You are a graph-improver agent. Voice-to-graph can produce messy results. Fix the recent batch of nodes.
 
-## Step 1: Read the voice transcript (TAIL ONLY)
-Read the TAIL (last 2000 characters) of: ${transcriptPath}
-This is the raw voice-to-text that produced these nodes. Use it to understand the user's actual intent.
+## Step 1: Read transcript tail
+Read the TAIL (last 2000 chars) of: ${transcriptPath}
 
-## Step 2: Read the recent nodes
-Read each of these node files:
+## Step 2: Read recent nodes
 ${nodeList}
-For each, note its title, content, and wikilink connections ([[double bracket]] links and frontmatter parents).
+Note title, content, and connections ([[wikilinks]] and frontmatter parents).
 
 ## Step 3: Search for nearby nodes
-Use search_nodes to find related nodes in the graph that these might connect to.
+Use search_nodes to find related nodes these might connect to.
 
-## Step 4: Identify and fix issues
-Look for these problems and fix them by editing the markdown files:
+## Step 4: Score importance (1-10)
+How messy is this batch? Orphans, wrong links, bad splits/merges?
 
-**Orphan nodes** — nodes with no [[wikilink]] connections to any other node. Add appropriate [[parent-node]] links.
+- **1-3**: Graph looks fine. Skip to Step 6.
+- **4-6**: Minor fixes needed. Fix them (Step 5), then Step 6.
+- **7+**: Significant structural problems. Fix them (Step 5). Do NOT close yourself.
 
-**Incorrect connections** — [[wikilinks]] that don't make semantic sense given the transcript context. Remove wrong links, add correct ones.
+## Step 5: Fix issues (only if score >= 4)
+Edit markdown files to fix: orphan nodes (add [[links]]), incorrect connections, wrong splits (merge), wrong merges (split).
+Use create_graph to document what you fixed.
 
-**Wrong splits** — content that should be one node but got split into multiple. If two nodes cover the same single topic, merge the content into one and delete the other file.
-
-**Wrong merges** — a single node covering multiple unrelated topics that should be separate. Split into multiple files with appropriate links.
-
-## Step 5: Create a progress node
-Use create_graph to document what you fixed (or that no fixes were needed).
-
-## Step 6: Close yourself
-When done, use close_agent to shut down your terminal. Pass your own terminal ID (from $VOICETREE_TERMINAL_ID env var) as both callerTerminalId and terminalId.`
+## Step 6: Close yourself (only if score < 7)
+Use close_agent with your own terminal ID (from $VOICETREE_TERMINAL_ID) as both callerTerminalId and terminalId.`
         },
     },
 ]
@@ -119,16 +116,6 @@ function readLines(filePath) {
 /** Truncate a file to zero bytes */
 function truncate(filePath) {
     fs.writeFileSync(filePath, '')
-}
-
-/** Check if a PID is alive */
-function isPidAlive(pid) {
-    try {
-        process.kill(pid, 0)
-        return true
-    } catch {
-        return false
-    }
 }
 
 /** POST to MCP and log the response. Returns a promise so the process stays alive until the response arrives. */
@@ -152,7 +139,6 @@ function spawnAgentViaMcp(payload) {
                 if (res.statusCode >= 400) {
                     process.stderr.write(`[on-new-node] MCP HTTP ${res.statusCode}: ${body}\n`)
                 } else {
-                    // Check for JSON-RPC errors in 200 responses
                     try {
                         const parsed = JSON.parse(body)
                         if (parsed.error || parsed.result?.isError) {
@@ -189,18 +175,6 @@ function spawnAgentViaMcp(payload) {
         // Threshold reached — consume batch
         truncate(agent.batchFile)
 
-        // Rate limit: skip if previous agent still running
-        if (fs.existsSync(agent.lockFile)) {
-            const pidStr = fs.readFileSync(agent.lockFile, 'utf8').trim()
-            const pid = parseInt(pidStr, 10)
-            if (!isNaN(pid) && isPidAlive(pid)) {
-                // Re-queue paths so they aren't lost
-                for (const line of lines) appendLine(agent.batchFile, line)
-                continue
-            }
-            fs.unlinkSync(agent.lockFile)
-        }
-
         const firstNode = lines[0]
         const vaultDir = path.dirname(firstNode)
         const nodeList = lines.map((p) => '- ' + p).join('\n')
@@ -221,10 +195,6 @@ function spawnAgentViaMcp(payload) {
         }
 
         spawns.push(spawnAgentViaMcp(payload))
-
-        // Store own PID for rate limiting (the node process itself is short-lived,
-        // but the HTTP request was fired — use process.pid as a proxy)
-        fs.writeFileSync(agent.lockFile, String(process.pid))
     }
 
     // Wait for all MCP requests to complete before exiting
