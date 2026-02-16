@@ -197,7 +197,7 @@ If you already have a node detailing the task, use nodeId. Otherwise, use task+p
 
 **When to use:** After completing any non-trivial work — document what you did, files changed, and key decisions.
 
-One node = one concept. If your work covers multiple independent concerns, create multiple nodes in one call using local parent references.
+One node = one concept. If your work covers multiple independent concerns, create multiple nodes in one call using parent references.
 
 **Self-containment:** Nodes must embed all artifacts produced (diagrams, ASCII mockups, code, analysis). Never summarize an artifact — include it verbatim.
 
@@ -205,14 +205,14 @@ One node = one concept. If your work covers multiple independent concerns, creat
 
 **Composition guidance:** Read addProgressTree.md before your first progress node for scope rules, when to split, and embedding standards.
 
-**Node wiring:** Each node has a local \`id\`. Use \`parents\` (array) to reference other nodes' local ids — all parents are created before children. Nodes without \`parents\` attach to the top-level \`parentNodeId\` (or your task node by default). Diamond dependencies are supported: \`"parents": ["phase1", "phase2"]\`.
+**Node wiring:** Each node has a \`filename\` (with or without .md extension). Use \`parents\` (array) to reference other nodes' filenames — all parents are created before children. Nodes without \`parents\` attach to the top-level \`parentNodeId\` (or your task node by default). Diamond dependencies are supported: \`"parents": ["phase1", "phase2"]\`.
 
 **Line limit:** Each node is limited to 60 lines (excluding codeDiffs and diagram). Nodes exceeding this limit block creation — split further.`,
             inputSchema: {
                 callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),
                 parentNodeId: z.string().optional().describe('Existing graph node ID to attach root nodes to. Defaults to your task node.'),
                 nodes: z.array(z.object({
-                    id: z.string().describe('Local/temporary ID for wiring edges within this call'),
+                    filename: z.string().describe('Filename for this node (with or without .md extension). Also used in `parents` to reference other nodes in this call.'),
                     title: z.string().describe('Node title — one concept per node, concise and descriptive'),
                     summary: z.string().describe('Concise summary (1-3 lines) of what was accomplished. Always shown first.'),
                     content: z.string().optional().describe('Complete work output as markdown. MUST contain all artifacts produced (diagrams, ASCII mockups, code snippets, analysis, tables, proposals). Embed artifacts verbatim — do not summarize what you created. The node must be self-contained: a reader should never need to look elsewhere to see what was produced. Pass empty string if no artifacts were produced.'),
@@ -224,8 +224,8 @@ One node = one concept. If your work covers multiple independent concerns, creat
                     complexityScore: z.enum(['low', 'medium', 'high']).optional().describe('Required when codeDiffs provided. Complexity of the area worked in.'),
                     complexityExplanation: z.string().optional().describe('Required when codeDiffs provided. Brief explanation of the complexity score.'),
                     linkedArtifacts: z.array(z.string()).optional().describe('Array of node basenames to wikilink in a ## Related section. If you created openspec changes (proposal.md, tasks.md, design.md), link the proposal here. Use for specs, proposals, related nodes.'),
-                    parents: z.array(z.string()).optional().describe('Local ids of parent nodes within this call. Supports multiple parents for diamond dependencies. Nodes without parents become roots.'),
-                })).describe('Array of nodes to create. At least 1 required. Each node needs id + title + summary at minimum.'),
+                    parents: z.array(z.string()).optional().describe('Filenames of parent nodes within this call. Supports multiple parents for diamond dependencies. Nodes without parents become roots.'),
+                })).describe('Array of nodes to create. At least 1 required. Each node needs filename + title + summary at minimum.'),
             }
         },
         async ({callerTerminalId, parentNodeId, nodes}) =>
