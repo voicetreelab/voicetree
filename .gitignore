@@ -181,3 +181,5 @@ backend/text_to_graph_pipeline/debug_logs/**/*
 /.mcp.json
 /webapp/native-modules/electron-trackpad-detect/build/
 /webapp/native-modules/electron-trackpad-detect/node_modules/
+/webapp/dist-electron/**/*
+.worktrees/**/*

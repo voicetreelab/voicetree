@@ -15,9 +15,7 @@
       }
     ]
   },
-  "enabledPlugins": {
-    "playwright-debug@voicetree-plugins": true
-  },
+  "enabledPlugins": {},
   "extraKnownMarketplaces": {
     "voicetree-plugins": {
       "source": {
