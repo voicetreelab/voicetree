@@ -65,7 +65,8 @@ async function getSemanticRelevantNodes(
  * @returns The NodeId of the newly created context node
  */
 export async function createContextNode(
-    parentNodeId: NodeIdAndFilePath
+    parentNodeId: NodeIdAndFilePath,
+    agentInstructions?: string
 ): Promise<NodeIdAndFilePath> {
     //console.log("[createContextNode] START - parentNodeId:", parentNodeId)
 
@@ -146,7 +147,8 @@ export async function createContextNode(
         maxDistance,
         asciiTree,
         subgraph,
-        semanticNodeIds
+        semanticNodeIds,
+        agentInstructions
     )
     //console.log("[createContextNode] Content length:", content.length)
 
@@ -195,10 +197,11 @@ function buildContextNodeContent(
     _maxDistance: number,
     asciiTree: string,
     subgraph: Graph,
-    semanticNodeIds: readonly NodeIdAndFilePath[]
+    semanticNodeIds: readonly NodeIdAndFilePath[],
+    agentInstructions?: string
 ): string {
     // todo this should be done by creatingGraphNode, and then calling to markdown function on it.
-    const nodeDetailsList: string = generateNodeDetailsList(subgraph, parentNodeId, semanticNodeIds)
+    const nodeDetailsList: string = generateNodeDetailsList(subgraph, parentNodeId, semanticNodeIds, agentInstructions)
 
     // Collect all node IDs from the subgraph (excluding context nodes to prevent self-referencing)
     const containedNodeIds: readonly string[] = Object.keys(subgraph.nodes)
@@ -235,7 +238,8 @@ ${nodeDetailsList}
 function generateNodeDetailsList(
     subgraph: Graph,
     _startNodeId: NodeIdAndFilePath,
-    semanticNodeIds: readonly NodeIdAndFilePath[]
+    semanticNodeIds: readonly NodeIdAndFilePath[],
+    agentInstructions?: string
 ): string {
     const lines: string[] = []
 
@@ -262,6 +266,10 @@ function generateNodeDetailsList(
 
     lines.push(`<TASK> IMPORTANT. YOUR specific task, and the most relevant context is the source note you were spawned from, which is:
         ${_startNodeId}: ${startNodeContent} </TASK>`)
+
+    if (agentInstructions) {
+        lines.push(`<AGENT_INSTRUCTIONS>\n${agentInstructions}\n</AGENT_INSTRUCTIONS>`)
+    }
 
     return lines.join('\n')
 }
