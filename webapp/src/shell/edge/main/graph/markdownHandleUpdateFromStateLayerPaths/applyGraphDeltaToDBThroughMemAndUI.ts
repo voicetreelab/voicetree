@@ -95,7 +95,7 @@ export async function applyGraphDeltaToDBThroughMemAndUI(
     void loadSettings().then(settings => {
         const hookPath: string | undefined = settings.hooks?.onNewNode
         if (hookPath && !hookPath.startsWith('#')) {
-            dispatchOnNewNodeHooks(delta, hookPath, watchedDirectory)
+            dispatchOnNewNodeHooks(delta, hookPath)
         }
     })
 }
