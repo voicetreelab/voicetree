@@ -55,7 +55,8 @@ export async function spawnTerminalWithContextNode(
     startUnpinned?: boolean,
     selectedNodeIds?: readonly NodeIdAndFilePath[],
     spawnDirectory?: string,
-    parentTerminalId?: string
+    parentTerminalId?: string,
+    agentInstructions?: string
 ): Promise<{terminalId: string; contextNodeId: NodeIdAndFilePath}> {
     // Load settings to get agents
     const settings: VTSettings = await loadSettings();
@@ -101,7 +102,7 @@ export async function spawnTerminalWithContextNode(
         // Create context node for the task node
         contextNodeId = selectedNodeIds
             ? await createContextNodeFromSelectedNodes(taskNodeId, selectedNodeIds)
-            : await createContextNode(taskNodeId);
+            : await createContextNode(taskNodeId, agentInstructions);
         resolvedTaskNodeId = taskNodeId;
     }
 

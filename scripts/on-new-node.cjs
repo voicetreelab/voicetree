@@ -193,9 +193,8 @@ function spawnAgentViaMcp(payload) {
             params: {
                 name: 'spawn_agent',
                 arguments: {
-                    task: agent.taskTitle,
+                    nodeId: firstNode,
                     details: agent.buildPrompt(nodeList, vaultDir),
-                    parentNodeId: firstNode,
                     callerTerminalId: TERMINAL_ID,
                 },
             },
