@@ -16,6 +16,7 @@ import {StreamableHTTPServerTransport} from '@modelcontextprotocol/sdk/server/st
 import {z} from 'zod'
 import express, {type Express} from 'express'
 import {findAvailablePort} from '@/shell/edge/main/electron/port-utils'
+import {enableMcpJsonIntegration} from './mcp-client-config'
 
 // Import tool implementations
 import {spawnAgentTool} from './spawnAgentTool'
@@ -264,6 +265,14 @@ export async function startMcpServer(): Promise<void> {
     app.listen(mcpPort, '127.0.0.1', () => {
         //console.log(`[MCP] Voicetree MCP Server running on http://localhost:${mcpPort}/mcp`)
     })
+
+    // Auto-write .mcp.json so external agents (e.g. manually-launched Claude Code) can discover this server.
+    // Silently skips if no project folder is open yet (loadFolder will write it later).
+    try {
+        await enableMcpJsonIntegration()
+    } catch (_e) {
+        // No watched directory yet — loadFolder will call enableMcpJsonIntegration when one is set
+    }
 }
 
 /**

@@ -80,7 +80,7 @@ export async function isMcpIntegrationEnabled(): Promise<boolean> {
  * Enable Voicetree MCP integration by adding config to .mcp.json
  * Merges with existing config to preserve other MCP servers
  */
-async function enableMcpJsonIntegration(): Promise<void> {
+export async function enableMcpJsonIntegration(): Promise<void> {
     const config: McpJsonConfig = await readMcpJson();
     const port: number = getMcpPort();
 
@@ -100,7 +100,7 @@ async function enableMcpJsonIntegration(): Promise<void> {
  * Disable Voicetree MCP integration by removing config from .mcp.json
  * Preserves other MCP servers in the config
  */
-async function disableMcpJsonIntegration(): Promise<void> {
+export async function disableMcpJsonIntegration(): Promise<void> {
     const config: McpJsonConfig = await readMcpJson();
 
     if (config.mcpServers?.[VOICETREE_MCP_SERVER_NAME]) {
