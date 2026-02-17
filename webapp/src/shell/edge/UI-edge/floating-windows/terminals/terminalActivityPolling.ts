@@ -49,9 +49,9 @@ function checkTerminalInactivity(): void {
             updateTerminalStatusDot(terminalId, shouldBeDone);
         }
 
-        // Auto-scroll idle terminals to bottom so latest output is visible when user switches to them.
+        // Auto-scroll non-active terminals to bottom so latest output is visible.
         // Skip the active terminal — the user might be scrolling manually.
-        if (terminal.isDone && terminalId !== activeId) {
+        if (terminalId !== activeId) {
             const instance: { dispose: () => void; scrollToBottom?: () => void } | undefined =
                 vanillaFloatingWindowInstances.get(terminalId);
             instance?.scrollToBottom?.();
