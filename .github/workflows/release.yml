@@ -182,12 +182,14 @@ jobs:
         with:
           name: mac-${{ matrix.arch }}
           path: ${{ github.workspace }}/out/electron/voicetree-${{ matrix.arch }}.dmg
+          retention-days: 1
 
       - name: Upload update manifest
         uses: actions/upload-artifact@v4
         with:
           name: manifest-mac-${{ matrix.arch }}
           path: ${{ github.workspace }}/out/electron/latest-mac.yml
+          retention-days: 1
 
   merge-mac-manifests:
     needs: [check-version, build-mac]
