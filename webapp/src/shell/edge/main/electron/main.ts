@@ -16,6 +16,7 @@ import {startOTLPReceiver, stopOTLPReceiver} from '@/shell/edge/main/metrics/otl
 import {registerTerminalIpcHandlers} from '@/shell/edge/main/terminals/ipc-terminal-handlers';
 import {setupRPCHandlers} from '@/shell/edge/main/edge-auto-rpc/rpc-handler';
 import {startMcpServer} from '@/shell/edge/main/mcp-server/mcp-server';
+import {disableMcpJsonIntegration} from '@/shell/edge/main/mcp-server/mcp-client-config';
 import {cleanupOrphanedContextNodes} from '@/shell/edge/main/saveNodePositions';
 import {setOnFolderSwitchCleanup} from "@/shell/edge/main/state/watch-folder-store";
 import {validateStartupCwd} from './startup-diagnostics';
@@ -167,6 +168,9 @@ app.on('before-quit', () => {
 
     // Clean up orphaned context nodes (fire-and-forget, best effort on quit)
     void cleanupOrphanedContextNodes();
+
+    // Remove stale .mcp.json so external agents don't connect to a dead port
+    void disableMcpJsonIntegration();
 
     // Stop OTLP receiver
     void stopOTLPReceiver();

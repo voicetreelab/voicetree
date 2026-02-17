@@ -48,6 +48,7 @@ import {
 import { setupWatcher } from "./file-watcher-setup";
 import { createEmptyGraph } from "@/pure/graph/createGraph";
 import { broadcastVaultState } from "./broadcast-vault-state";
+import { enableMcpJsonIntegration } from "@/shell/edge/main/mcp-server/mcp-client-config";
 
 // Re-export vault-allowlist functions for api.ts and tests
 export {
@@ -170,6 +171,9 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
 
     // Update projectRootWatchedDirectory FIRST
     setProjectRootWatchedDirectory(watchedFolderPath);
+
+    // Write .mcp.json with current MCP port so external agents can discover the server
+    void enableMcpJsonIntegration().catch(() => { /* MCP server may not be ready yet */ });
 
     // Close old watcher before attempting to load new folder
     const oldWatcher: FSWatcher | null = getWatcher();
