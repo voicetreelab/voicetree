@@ -82,6 +82,19 @@ export function showFeedbackDialog(): Promise<string | null> {
                 ></textarea>
                 <div style="display: flex; gap: 8px; justify-content: flex-end;">
                     <button
+                        type="button"
+                        id="feedback-skip"
+                        style="
+                            padding: 8px 16px;
+                            border: 1px solid var(--border);
+                            border-radius: calc(var(--radius) - 2px);
+                            background: transparent;
+                            color: var(--muted-foreground);
+                            cursor: pointer;
+                            font-size: 0.9rem;
+                        "
+                    >Skip</button>
+                    <button
                         type="submit"
                         id="feedback-submit"
                         disabled
@@ -104,6 +117,16 @@ export function showFeedbackDialog(): Promise<string | null> {
 
         const textarea: HTMLTextAreaElement = dialog.querySelector('#feedback-input')!;
         const submitBtn: HTMLButtonElement = dialog.querySelector('#feedback-submit')!;
+        const skipBtn: HTMLButtonElement = dialog.querySelector('#feedback-skip')!;
+
+        // Track if promise has been settled to avoid double resolution
+        let settled: boolean = false;
+        const settle = (value: string | null): void => {
+            if (!settled) {
+                settled = true;
+                resolve(value);
+            }
+        };
 
         // Enable submit button only when there's content
         textarea.addEventListener('input', () => {
@@ -114,19 +137,21 @@ export function showFeedbackDialog(): Promise<string | null> {
         });
 
         dialog.addEventListener('close', () => {
+            // Ensure promise resolves even if dialog is closed by ESC or other means
+            settle(null);
             dialog.remove();
         });
 
         dialog.addEventListener('submit', (e: Event) => {
             e.preventDefault();
             const feedback: string = textarea.value.trim();
+            settle(feedback || null);
             dialog.close();
-            resolve(feedback || null);
         });
 
-        // Prevent Escape key from closing dialog - user must submit or cancel
-        dialog.addEventListener('cancel', (e: Event) => {
-            e.preventDefault();
+        skipBtn.addEventListener('click', () => {
+            settle(null);
+            dialog.close();
         });
 
         dialog.showModal();
