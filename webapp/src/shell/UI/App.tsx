@@ -27,6 +27,8 @@ function App(): JSX.Element {
 
     // Ref for graph container
     const graphContainerRef: RefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);
+    // Ref for UI overlay container (sidebar, overlays, title bar, tabs)
+    const uiContainerRef: RefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);
 
     // State for agent stats panel visibility
     const [isStatsPanelOpen, setIsStatsPanelOpen] = useState(false);
@@ -151,13 +153,15 @@ function App(): JSX.Element {
 
     // Initialize VoiceTreeGraphView when container is ready and in graph view
     useEffect(() => {
-        if (currentView !== 'graph-view' || !graphContainerRef.current) return;
+        if (currentView !== 'graph-view' || !graphContainerRef.current || !uiContainerRef.current) return;
 
         console.trace('[App] VoiceTreeGraphView initialization stack trace'); // DEBUG: Track if called multiple times
 
-        const graphView: VoiceTreeGraphView = new VoiceTreeGraphView(graphContainerRef.current, {
-            initialDarkMode: false
-        });
+        const graphView: VoiceTreeGraphView = new VoiceTreeGraphView(
+            graphContainerRef.current,
+            uiContainerRef.current,
+            { initialDarkMode: false }
+        );
 
         // Cleanup on unmount or view change
         return () => {
@@ -173,13 +177,13 @@ function App(): JSX.Element {
 
     // Render graph view
     return (
-        <div className="h-screen flex flex-col overflow-hidden bg-background">
+        <div className="h-screen flex flex-col bg-background">
             {/* Graph Section (fills all space, with bottom padding for fixed bottom bar) */}
-            <div className="flex-1 min-h-0 border-r pr-4 relative pb-14">
-                {/* Graph container */}
-                <div className="h-full w-full relative">
-                    <div ref={graphContainerRef} className="h-full w-full"/>
-                </div>
+            <div className="flex-1 min-h-0 relative pb-14">
+                {/* Graph canvas - Cytoscape only */}
+                <div ref={graphContainerRef} className="h-full w-full"/>
+                {/* UI overlay container - sidebar, overlays, title bar, tabs */}
+                <div ref={uiContainerRef} className="absolute inset-0 pointer-events-none"/>
             </div>
 
             {/* Bottom bar: Fixed to viewport bottom to prevent dropdown-induced layout shifts */}

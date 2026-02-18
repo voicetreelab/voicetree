@@ -88,6 +88,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     private navigator: { destroy: () => void } | null = null; // Navigator minimap instance
     private updateNavigatorVisibility: () => void = () => {}; // Updated by initializeNavigatorMinimap
     private container: HTMLElement;
+    private uiContainer: HTMLElement;
     private options: VoiceTreeGraphViewOptions;
 
     // Services
@@ -128,10 +129,12 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
     constructor(
         container: HTMLElement,
+        uiContainer: HTMLElement,
         options: VoiceTreeGraphViewOptions = {}
     ) {
         super();
         this.container = container;
+        this.uiContainer = uiContainer;
         this.options = options;
 
         // Initialize dark mode via DarkModeManager (handles async settings load)
@@ -154,10 +157,10 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
         // Initialize recent tabs bar V2 in title bar area
         // V2 tracks recently added/modified nodes (not visited nodes)
-        createRecentNodeTabsBar(this.container);
+        createRecentNodeTabsBar(this.uiContainer);
 
         // Initialize terminal tree sidebar (left side, React component)
-        createTerminalTreeSidebar(this.container, (terminal) => {
+        createTerminalTreeSidebar(this.uiContainer, (terminal) => {
             this.navigationService.fitToTerminal(terminal);
         });
 
@@ -216,6 +219,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // so we pass callbacks that will access cy at call time
         const domElements: GraphViewDOMElements = setupGraphViewDOM({
             container: this.container,
+            uiContainer: this.uiContainer,
             isDarkMode: isDarkModeState(),
             speedDialCallbacks: {
                 onToggleDarkMode: () => this.toggleDarkMode(),
