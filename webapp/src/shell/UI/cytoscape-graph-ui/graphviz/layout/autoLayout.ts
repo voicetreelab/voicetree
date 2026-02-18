@@ -1,5 +1,5 @@
 /**
- * Auto Layout: Automatically run Cola, fcose, ELK, or Dagre layout on graph changes
+ * Auto Layout: Automatically run Cola, fcose, or ELK layout on graph changes
  *
  * Simple approach: Listen to cytoscape events (add/remove node/edge) and trigger layout.
  * No state tracking, no complexity - just re-layout the whole graph each time.
@@ -20,9 +20,6 @@ import fcose from 'cytoscape-fcose';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore - cytoscape-elk has no bundled types; ambient declaration in utils/types/cytoscape-elk.d.ts
 import elk from 'cytoscape-elk';
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore - cytoscape-dagre has no bundled types; ambient declaration in utils/types/cytoscape-dagre.d.ts
-import dagre from 'cytoscape-dagre';
 import { getEdgeDistance } from './cytoscape-graph-constants';
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
@@ -43,14 +40,6 @@ function registerElk(): void {
   if (!elkRegistered) {
     cytoscape.use(elk);
     elkRegistered = true;
-  }
-}
-
-let dagreRegistered: boolean = false;
-function registerDagre(): void {
-  if (!dagreRegistered) {
-    cytoscape.use(dagre);
-    dagreRegistered = true;
   }
 }
 
@@ -90,9 +79,6 @@ export interface AutoLayoutOptions {
   edgeLength?: number | ((edge: EdgeSingular) => number);
   edgeSymDiffLength?: number | ((edge: EdgeSingular) => number);
   edgeJaccardLength?: number | ((edge: EdgeSingular) => number);
-  // Position anchoring - ghost nodes that softly anchor existing nodes to prior positions
-  anchorEnabled?: boolean;  // default true
-  anchorStrength?: number;  // 1-200, default 10 (lower = stronger anchor)
 }
 
 interface FcoseLayoutOptions {
@@ -129,23 +115,13 @@ interface ElkLayoutOptions {
   animationDuration: number;
 }
 
-interface DagreLayoutOptions {
-  rankDir: 'TB' | 'BT' | 'LR' | 'RL';
-  rankSep: number;
-  nodeSep: number;
-  edgeSep: number;
-  ranker: 'network-simplex' | 'tight-tree' | 'longest-path';
-  animationDuration: number;
-}
-
-type LayoutEngine = 'cola' | 'fcose' | 'elk' | 'dagre';
+type LayoutEngine = 'cola' | 'fcose' | 'elk';
 
 interface LayoutConfig {
   engine: LayoutEngine;
   cola: AutoLayoutOptions;
   fcose: FcoseLayoutOptions;
   elk: ElkLayoutOptions;
-  dagre: DagreLayoutOptions;
 }
 
 const DEFAULT_OPTIONS: AutoLayoutOptions = {
@@ -199,23 +175,14 @@ const DEFAULT_ELK_OPTIONS: ElkLayoutOptions = {
   animationDuration: 1000,
 };
 
-const DEFAULT_DAGRE_OPTIONS: DagreLayoutOptions = {
-  rankDir: 'TB',
-  rankSep: 100,
-  nodeSep: 70,
-  edgeSep: 10,
-  ranker: 'network-simplex',
-  animationDuration: 1000,
-};
-
-const VALID_ENGINES: readonly LayoutEngine[] = ['cola', 'fcose', 'elk', 'dagre'] as const;
+const VALID_ENGINES: readonly LayoutEngine[] = ['cola', 'fcose', 'elk'] as const;
 
 /**
  * Parse layoutConfig JSON string into typed layout options.
  * Falls back to cola defaults on any parse error.
  */
 function parseLayoutConfig(json: string | undefined): LayoutConfig {
-  const defaults: LayoutConfig = { engine: 'cola', cola: DEFAULT_OPTIONS, fcose: DEFAULT_FCOSE_OPTIONS, elk: DEFAULT_ELK_OPTIONS, dagre: DEFAULT_DAGRE_OPTIONS };
+  const defaults: LayoutConfig = { engine: 'cola', cola: DEFAULT_OPTIONS, fcose: DEFAULT_FCOSE_OPTIONS, elk: DEFAULT_ELK_OPTIONS };
   if (!json) {
     return defaults;
   }
@@ -234,9 +201,6 @@ function parseLayoutConfig(json: string | undefined): LayoutConfig {
       edgeLength: typeof parsed.edgeLength === 'number'
         ? parsed.edgeLength
         : DEFAULT_OPTIONS.edgeLength,
-      anchorEnabled: parsed['cola.anchorEnabled'] !== false,
-      anchorStrength: typeof parsed['cola.anchorStrength'] === 'number'
-        ? Math.max(1, Math.min(200, parsed['cola.anchorStrength'])) : 10,
     };
 
     const fcoseOpts: FcoseLayoutOptions = {
@@ -264,32 +228,20 @@ function parseLayoutConfig(json: string | undefined): LayoutConfig {
       coolingFactor: typeof parsed.coolingFactor === 'number' ? parsed.coolingFactor : DEFAULT_FCOSE_OPTIONS.coolingFactor,
     };
 
-    const validElkAlgorithms = ['layered', 'stress', 'mrtree', 'radial', 'force', 'disco', 'sporeOverlap', 'sporeCompaction', 'rectpacking'] as const;
-    const validElkDirections = ['DOWN', 'UP', 'LEFT', 'RIGHT'] as const;
-    const validElkRouting = ['POLYLINE', 'ORTHOGONAL', 'SPLINES'] as const;
+    const validElkAlgorithms: readonly string[] = ['layered', 'stress', 'mrtree', 'radial', 'force', 'disco', 'sporeOverlap', 'sporeCompaction', 'rectpacking'] as const;
+    const validElkDirections: readonly string[] = ['DOWN', 'UP', 'LEFT', 'RIGHT'] as const;
+    const validElkRouting: readonly string[] = ['POLYLINE', 'ORTHOGONAL', 'SPLINES'] as const;
 
     const elkOpts: ElkLayoutOptions = {
-      algorithm: validElkAlgorithms.includes(parsed['elk.algorithm'] as typeof validElkAlgorithms[number]) ? (parsed['elk.algorithm'] as ElkLayoutOptions['algorithm']) : DEFAULT_ELK_OPTIONS.algorithm,
-      'elk.direction': validElkDirections.includes(parsed['elk.direction'] as typeof validElkDirections[number]) ? (parsed['elk.direction'] as ElkLayoutOptions['elk.direction']) : DEFAULT_ELK_OPTIONS['elk.direction'],
+      algorithm: validElkAlgorithms.includes(parsed['elk.algorithm'] as string) ? (parsed['elk.algorithm'] as ElkLayoutOptions['algorithm']) : DEFAULT_ELK_OPTIONS.algorithm,
+      'elk.direction': validElkDirections.includes(parsed['elk.direction'] as string) ? (parsed['elk.direction'] as ElkLayoutOptions['elk.direction']) : DEFAULT_ELK_OPTIONS['elk.direction'],
       'elk.spacing.nodeNode': typeof parsed['elk.spacing.nodeNode'] === 'number' ? parsed['elk.spacing.nodeNode'] : DEFAULT_ELK_OPTIONS['elk.spacing.nodeNode'],
       'elk.layered.spacing.nodeNodeBetweenLayers': typeof parsed['elk.layered.spacing.nodeNodeBetweenLayers'] === 'number' ? parsed['elk.layered.spacing.nodeNodeBetweenLayers'] : DEFAULT_ELK_OPTIONS['elk.layered.spacing.nodeNodeBetweenLayers'],
-      'elk.edgeRouting': validElkRouting.includes(parsed['elk.edgeRouting'] as typeof validElkRouting[number]) ? (parsed['elk.edgeRouting'] as ElkLayoutOptions['elk.edgeRouting']) : DEFAULT_ELK_OPTIONS['elk.edgeRouting'],
+      'elk.edgeRouting': validElkRouting.includes(parsed['elk.edgeRouting'] as string) ? (parsed['elk.edgeRouting'] as ElkLayoutOptions['elk.edgeRouting']) : DEFAULT_ELK_OPTIONS['elk.edgeRouting'],
       animationDuration: typeof parsed.animationDuration === 'number' ? parsed.animationDuration : DEFAULT_ELK_OPTIONS.animationDuration,
     };
 
-    const validRankDirs = ['TB', 'BT', 'LR', 'RL'] as const;
-    const validRankers = ['network-simplex', 'tight-tree', 'longest-path'] as const;
-
-    const dagreOpts: DagreLayoutOptions = {
-      rankDir: validRankDirs.includes(parsed['dagre.rankDir'] as typeof validRankDirs[number]) ? (parsed['dagre.rankDir'] as DagreLayoutOptions['rankDir']) : DEFAULT_DAGRE_OPTIONS.rankDir,
-      rankSep: typeof parsed['dagre.rankSep'] === 'number' ? parsed['dagre.rankSep'] : DEFAULT_DAGRE_OPTIONS.rankSep,
-      nodeSep: typeof parsed['dagre.nodeSep'] === 'number' ? parsed['dagre.nodeSep'] : DEFAULT_DAGRE_OPTIONS.nodeSep,
-      edgeSep: typeof parsed['dagre.edgeSep'] === 'number' ? parsed['dagre.edgeSep'] : DEFAULT_DAGRE_OPTIONS.edgeSep,
-      ranker: validRankers.includes(parsed['dagre.ranker'] as typeof validRankers[number]) ? (parsed['dagre.ranker'] as DagreLayoutOptions['ranker']) : DEFAULT_DAGRE_OPTIONS.ranker,
-      animationDuration: typeof parsed.animationDuration === 'number' ? parsed.animationDuration : DEFAULT_DAGRE_OPTIONS.animationDuration,
-    };
-
-    return { engine, cola, fcose: fcoseOpts, elk: elkOpts, dagre: dagreOpts };
+    return { engine, cola, fcose: fcoseOpts, elk: elkOpts };
   } catch {
     return defaults;
   }
@@ -307,7 +259,7 @@ function parseLayoutConfig(json: string | undefined): LayoutConfig {
  */
 export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () => void {
   // Mutable config that gets updated when settings change
-  let currentConfig: LayoutConfig = { engine: 'cola', cola: { ...DEFAULT_OPTIONS, ...options }, fcose: DEFAULT_FCOSE_OPTIONS, elk: DEFAULT_ELK_OPTIONS, dagre: DEFAULT_DAGRE_OPTIONS };
+  let currentConfig: LayoutConfig = { engine: 'cola', cola: { ...DEFAULT_OPTIONS, ...options }, fcose: DEFAULT_FCOSE_OPTIONS, elk: DEFAULT_ELK_OPTIONS };
 
   // Load initial config from settings
   void window.electronAPI?.main.loadSettings().then(settings => {
@@ -374,8 +326,6 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
       edgeLength: colaOpts.edgeLength,
       edgeSymDiffLength: colaOpts.edgeSymDiffLength,
       edgeJaccardLength: colaOpts.edgeJaccardLength,
-      anchorEnabled: colaOpts.anchorEnabled,
-      anchorStrength: colaOpts.anchorStrength,
       centerGraph: false,
       fit: false,
       nodeDimensionsIncludeLabels: true,
@@ -448,29 +398,6 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     layout.run();
   };
 
-  const runDagreLayout: () => void = () => {
-    registerDagre();
-    const dagreOpts: DagreLayoutOptions = currentConfig.dagre;
-
-    const dagreLayoutOptions: { name: string } & Record<string, unknown> = {
-      name: 'dagre',
-      eles: getNonContextElements(),
-      animate: true,
-      animationDuration: dagreOpts.animationDuration,
-      fit: false,
-      nodeDimensionsIncludeLabels: true,
-      rankDir: dagreOpts.rankDir,
-      rankSep: dagreOpts.rankSep,
-      nodeSep: dagreOpts.nodeSep,
-      edgeSep: dagreOpts.edgeSep,
-      ranker: dagreOpts.ranker,
-    };
-    const layout: Layouts = cy.layout(dagreLayoutOptions);
-
-    layout.one('layoutstop', onLayoutComplete);
-    layout.run();
-  };
-
   const runLayout: () => void = () => {
     // If layout already running, queue another run for after it completes
     if (layoutRunning) {
@@ -491,8 +418,6 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
       runFcoseLayout(layoutCount % 7 === 0 ? 'proof' : undefined);
     } else if (currentConfig.engine === 'elk') {
       runElkLayout();
-    } else if (currentConfig.engine === 'dagre') {
-      runDagreLayout();
     } else {
       runColaLayout();
     }
