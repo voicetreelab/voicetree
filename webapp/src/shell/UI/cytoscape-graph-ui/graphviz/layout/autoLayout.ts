@@ -35,12 +35,23 @@ function registerFcose(): void {
 // Registry for layout triggers - allows external code to trigger layout via triggerLayout(cy)
 const layoutTriggers: Map<Core, () => void> = new Map<Core, () => void>();
 
+// Registry for cola layout triggers - allows external code to run cola layout on demand
+const colaLayoutTriggers: Map<Core, () => void> = new Map<Core, () => void>();
+
 /**
  * Trigger a debounced layout run for the given cytoscape instance.
  * Use this for user-initiated resize events (expand button, CSS drag resize).
  */
 export function triggerLayout(cy: Core): void {
   layoutTriggers.get(cy)?.();
+}
+
+/**
+ * Trigger a one-shot cola layout run for the given cytoscape instance.
+ * Use this for user-initiated "tidy up" / reorganize layout.
+ */
+export function triggerColaLayout(cy: Core): void {
+  colaLayoutTriggers.get(cy)?.();
 }
 
 export interface AutoLayoutOptions {
@@ -61,6 +72,8 @@ export interface AutoLayoutOptions {
 
 interface FcoseLayoutOptions {
   quality: 'default' | 'proof';
+  animationDuration: number;
+  numIter: number;
   initialEnergyOnIncremental: number;
   gravity: number;
   gravityRange: number;
@@ -98,6 +111,8 @@ const DEFAULT_OPTIONS: AutoLayoutOptions = {
 
 const DEFAULT_FCOSE_OPTIONS: FcoseLayoutOptions = {
   quality: 'default',
+  animationDuration: 1000,
+  numIter: 2500,
   initialEnergyOnIncremental: 0.3,
   gravity: 0.1,
   gravityRange: 3.8,
@@ -137,6 +152,8 @@ function parseLayoutConfig(json: string | undefined): LayoutConfig {
 
     const fcoseOpts: FcoseLayoutOptions = {
       quality: parsed.quality === 'default' || parsed.quality === 'proof' ? parsed.quality : DEFAULT_FCOSE_OPTIONS.quality,
+      animationDuration: typeof parsed.animationDuration === 'number' ? parsed.animationDuration : DEFAULT_FCOSE_OPTIONS.animationDuration,
+      numIter: typeof parsed.numIter === 'number' ? parsed.numIter : DEFAULT_FCOSE_OPTIONS.numIter,
       initialEnergyOnIncremental: typeof parsed.initialEnergyOnIncremental === 'number' ? parsed.initialEnergyOnIncremental : DEFAULT_FCOSE_OPTIONS.initialEnergyOnIncremental,
       gravity: typeof parsed.gravity === 'number' ? parsed.gravity : DEFAULT_FCOSE_OPTIONS.gravity,
       gravityRange: typeof parsed.gravityRange === 'number' ? parsed.gravityRange : DEFAULT_FCOSE_OPTIONS.gravityRange,
@@ -243,7 +260,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     layout.run();
   };
 
-  const runFcoseLayout: () => void = () => {
+  const runFcoseLayout: (qualityOverride?: 'default' | 'proof') => void = (qualityOverride) => {
     registerFcose();
     const fcoseOpts: FcoseLayoutOptions = currentConfig.fcose;
 
@@ -252,8 +269,10 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
       name: 'fcose',
       eles: getNonContextElements(),
       animate: true,
+      animationDuration: fcoseOpts.animationDuration,
       randomize: false,
-      quality: fcoseOpts.quality,
+      quality: qualityOverride ?? fcoseOpts.quality,
+      numIter: fcoseOpts.numIter,
       initialEnergyOnIncremental: fcoseOpts.initialEnergyOnIncremental,
       fit: false,
       nodeRepulsion: () => fcoseOpts.nodeRepulsion,
@@ -288,10 +307,9 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     layoutRunning = true;
     layoutCount++;
 
-    if (currentConfig.engine === 'fcose' && layoutCount % 7 === 0) {
-      runColaLayout(() => runFcoseLayout());
-    } else if (currentConfig.engine === 'fcose') {
-      runFcoseLayout();
+    if (currentConfig.engine === 'fcose') {
+      // Every 7th layout, run fcose with 'proof' quality for a more thorough pass
+      runFcoseLayout(layoutCount % 7 === 0 ? 'proof' : undefined);
     } else {
       runColaLayout();
     }
@@ -325,6 +343,17 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
   // Register trigger for external callers (user-initiated resize)
   layoutTriggers.set(cy, debouncedRunLayout);
 
+  // Register cola layout trigger for manual "tidy up" button
+  colaLayoutTriggers.set(cy, () => {
+    if (layoutRunning) {
+      layoutQueued = true;
+      return;
+    }
+    if (cy.nodes().length === 0) return;
+    layoutRunning = true;
+    runColaLayout();
+  });
+
   //console.log('[AutoLayout] Auto-layout enabled');
 
   // Return cleanup function
@@ -334,6 +363,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     cy.off('add', 'edge', debouncedRunLayout);
     cy.off('remove', 'edge', debouncedRunLayout);
     layoutTriggers.delete(cy);
+    colaLayoutTriggers.delete(cy);
     unsubSettings();
 
     if (debounceTimeout) {

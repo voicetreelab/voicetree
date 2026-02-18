@@ -21,6 +21,7 @@ import type { EditorId, TerminalId } from '@/shell/edge/UI-edge/floating-windows
 import type { EditorData } from '@/shell/edge/UI-edge/floating-windows/editors/editorDataType';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
 import type { VTSettings } from '@/pure/settings/types';
+import { onSettingsChange } from '@/shell/edge/UI-edge/api';
 
 export class NavigationGestureService {
     private cy: Core;
@@ -45,6 +46,7 @@ export class NavigationGestureService {
     private handleMouseMove: (e: MouseEvent) => void;
     private handleMouseUp: (e: MouseEvent) => void;
     private handleFloatingWindowWheel: (e: WheelEvent) => void;
+    private unsubSettingsChange: () => void;
 
     constructor(cy: Core, container: HTMLElement) {
         this.cy = cy;
@@ -59,10 +61,14 @@ export class NavigationGestureService {
 
         this.setupEventListeners();
 
-        // Load zoom sensitivity from settings
-        void window.electronAPI?.main.loadSettings().then((s: VTSettings) => {
-            this.zoomSensitivity = s.zoomSensitivity ?? 1.0;
-        });
+        // Load zoom sensitivity from settings and subscribe to changes
+        const loadSensitivity: () => void = (): void => {
+            void window.electronAPI?.main.loadSettings().then((s: VTSettings) => {
+                this.zoomSensitivity = s.zoomSensitivity ?? 1.0;
+            });
+        };
+        loadSensitivity();
+        this.unsubSettingsChange = onSettingsChange(loadSensitivity);
     }
 
     private setupEventListeners(): void {
@@ -336,6 +342,7 @@ export class NavigationGestureService {
      * Cleanup all event listeners
      */
     dispose(): void {
+        this.unsubSettingsChange();
         this.container.removeEventListener('wheel', this.handleWheel, { capture: true });
         document.removeEventListener('wheel', this.handleFloatingWindowWheel, { capture: true });
         this.container.removeEventListener('mousedown', this.handleMouseDown);

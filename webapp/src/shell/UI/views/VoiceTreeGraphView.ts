@@ -57,6 +57,7 @@ import type {RecentNodeHistory} from '@/pure/graph/recentNodeHistoryV2';
 import {createNewNodeAction, runTerminalAction, deleteSelectedNodesAction} from '@/shell/UI/cytoscape-graph-ui/actions/graphActions';
 import {getResponsivePadding} from '@/utils/responsivePadding';
 import {updateSpeedDialDarkMode} from './SpeedDialMenu';
+import {triggerColaLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout';
 import type {Graph} from '@/pure/graph';
 import {createEmptyGraph} from '@/pure/graph/createGraph';
 import {setupBasicCytoscapeEventListeners, setupCytoscape, initializeCytoscapeInstance, setupGraphViewDOM, initializeNavigatorMinimap, guardCytoscapeResize, type NavigatorMinimapResult} from './VoiceTreeGraphViewHelpers';
@@ -225,6 +226,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             isDarkMode: isDarkModeState(),
             speedDialCallbacks: {
                 onToggleDarkMode: () => this.toggleDarkMode(),
+                onColaLayout: () => { if (this.cy) triggerColaLayout(this.cy); },
                 onSettings: () => void createSettingsEditor(this.cy),
                 onAbout: () => window.open('https://voicetree.io', '_blank'),
                 onStats: () => window.dispatchEvent(new Event('toggle-stats-panel')),
@@ -506,8 +508,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         this.cleanupGraphSubscription = null;
         this.cleanupSettingsListener = null;
         this.viewSubscriptionCleanups = null;
-        this.speedDialMenu = null;
-
         // Call parent dispose
         super.dispose();
     }

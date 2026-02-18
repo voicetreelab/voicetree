@@ -1,8 +1,8 @@
 export const DEFAULT_TEXT_WIDTH: 180 = 180 as const;  // Default text-max-width for nodes without degree data
 
 // Zoom constants
-export const MIN_ZOOM: 0.1 = 0.1 as const;
-export const MAX_ZOOM: 3 = 3 as const;
+export const MIN_ZOOM: 0.001 = 0.001 as const;
+export const MAX_ZOOM: 500 = 500 as const;
 
 // CSS class names for node states
 export const CLASS_HOVER: "hover" = 'hover' as const;
