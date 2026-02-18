@@ -10,6 +10,7 @@
   align-items: center;
   gap: 2px;
   -webkit-app-region: no-drag; /* Opt out of macOS title bar drag region so buttons receive clicks */
+  transition: right 0.15s ease;
 }
 
 .speed-dial-item {
@@ -39,4 +40,10 @@
 /* Dark mode shadow adjustment */
 .dark .speed-dial-item:hover {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Shift speed dial left when stats panel is open to avoid collision with close button */
+[data-stats-panel-open] .speed-dial-container {
+  right: calc(24rem + 12px); /* w-96 (24rem) + original 12px gap */
+  transition: right 0.15s ease;
 }

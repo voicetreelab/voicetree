@@ -38,6 +38,10 @@ export function setupGraphViewDOM(config: GraphViewDOMConfig): GraphViewDOMEleme
     const {container, uiContainer, isDarkMode, speedDialCallbacks} = config;
 
     // React owns container className (absolute inset-0 pb-14 overflow-hidden bg-background)
+    // Cytoscape adds .__________cytoscape_container class with `position: relative` CSS rule
+    // which overrides Tailwind's `absolute` class, collapsing the container height to 0.
+    // Inline style ensures position: absolute always wins.
+    container.style.position = 'absolute';
     container.setAttribute('tabindex', '0'); // Allow keyboard events
 
     // Create title bar drag region for macOS - append to UI container

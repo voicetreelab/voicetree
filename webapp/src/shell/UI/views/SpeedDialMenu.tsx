@@ -2,11 +2,11 @@
 /**
  * SpeedDialMenu (React) - Top-right icon toolbar
  *
- * 3 icon buttons: Settings, Stats, Feedback.
+ * 4 icon buttons: Dark mode, Settings, Stats, Feedback.
  * Mounted/unmounted via createSpeedDialMenu / disposeSpeedDialMenu.
  */
 
-import { createElement } from 'react';
+import { createElement, useState } from 'react';
 import type { JSX } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 // @ts-expect-error CSS import - types declared in vite-env.d.ts
@@ -24,13 +24,21 @@ export interface SpeedDialCallbacks {
   onFeedback?: () => void;
 }
 
-type IconName = 'settings' | 'bar-chart' | 'message-square';
+type IconName = 'sun' | 'moon' | 'settings' | 'bar-chart' | 'message-square';
 
 // =============================================================================
 // SVG Icon Paths
 // =============================================================================
 
 const ICON_PATHS: Record<IconName, string[]> = {
+  sun: [
+    'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
+    'M12 2v2', 'M12 20v2', 'M4.93 4.93l1.41 1.41', 'M17.66 17.66l1.41 1.41',
+    'M2 12h2', 'M20 12h2', 'M6.34 17.66l-1.41 1.41', 'M19.07 4.93l-1.41 1.41',
+  ],
+  moon: [
+    'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z',
+  ],
   settings: [
     'M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z',
     'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
@@ -75,8 +83,19 @@ interface ToolbarItem {
   onClick: () => void;
 }
 
-function SpeedDialMenuInternal({ callbacks }: { readonly callbacks: SpeedDialCallbacks }): JSX.Element {
+function SpeedDialMenuInternal({ callbacks, initialDarkMode }: { readonly callbacks: SpeedDialCallbacks; readonly initialDarkMode: boolean }): JSX.Element {
+  const [isDark, setIsDark] = useState<boolean>(initialDarkMode);
+
   const items: ToolbarItem[] = [
+    {
+      id: 'dark-mode',
+      label: isDark ? 'Light mode' : 'Dark mode',
+      iconName: isDark ? 'sun' : 'moon',
+      onClick: (): void => {
+        setIsDark((prev: boolean) => !prev);
+        callbacks.onToggleDarkMode();
+      },
+    },
     {
       id: 'settings',
       label: 'Settings',
@@ -122,6 +141,7 @@ function SpeedDialMenuInternal({ callbacks }: { readonly callbacks: SpeedDialCal
 // =============================================================================
 
 let root: Root | null = null;
+let rerenderWithDarkMode: ((isDark: boolean) => void) | null = null;
 
 /**
  * Create and mount the speed dial menu into a parent container.
@@ -130,7 +150,7 @@ let root: Root | null = null;
 export function createSpeedDialMenu(
   container: HTMLElement,
   callbacks: SpeedDialCallbacks,
-  _isDarkMode: boolean,
+  isDarkMode: boolean,
 ): () => void {
   disposeSpeedDialMenu();
 
@@ -139,8 +159,20 @@ export function createSpeedDialMenu(
   container.appendChild(mountPoint);
 
   root = createRoot(mountPoint);
-  root.render(createElement(SpeedDialMenuInternal, { callbacks }));
 
+  // Mutable dark mode state for external updates via updateSpeedDialDarkMode
+  let currentDark: boolean = isDarkMode;
+
+  const render: () => void = (): void => {
+    root?.render(createElement(SpeedDialMenuInternal, { callbacks, initialDarkMode: currentDark }));
+  };
+
+  rerenderWithDarkMode = (isDark: boolean): void => {
+    currentDark = isDark;
+    render();
+  };
+
+  render();
   return disposeSpeedDialMenu;
 }
 
@@ -152,12 +184,12 @@ export function disposeSpeedDialMenu(): void {
     root.unmount();
     root = null;
   }
+  rerenderWithDarkMode = null;
 }
 
 /**
- * No-op — dark mode toggle removed from toolbar.
- * Kept for API compatibility with orchestration layer.
+ * Update the dark mode state of the speed dial menu from outside React.
  */
-export function updateSpeedDialDarkMode(_isDarkMode: boolean): void {
-  // no-op
+export function updateSpeedDialDarkMode(isDarkMode: boolean): void {
+  rerenderWithDarkMode?.(isDarkMode);
 }
