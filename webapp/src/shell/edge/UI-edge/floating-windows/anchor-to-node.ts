@@ -20,7 +20,7 @@ import {cleanupRegistry, getCachedZoom} from "@/shell/edge/UI-edge/floating-wind
 import {setupResizeObserver, updateShadowNodeDimensions} from "@/shell/edge/UI-edge/floating-windows/setup-resize-observer";
 import {getEdgeDistance} from "@/shell/UI/cytoscape-graph-ui/graphviz/layout/cytoscape-graph-constants";
 import {findBestPosition} from "@/pure/graph/positioning/findBestPosition";
-import {extractObstaclesFromCytoscape} from "@/shell/edge/UI-edge/floating-windows/extractObstaclesFromCytoscape";
+import {extractObstaclesFromCytoscape, extractEdgeSegmentsFromCytoscape} from "@/shell/edge/UI-edge/floating-windows/extractObstaclesFromCytoscape";
 
 /**
  * Anchor a floating window to a parent node
@@ -72,15 +72,17 @@ export function anchorToNode(
         ) * 180) / Math.PI
         : 0; // No grandparent (context node is root), default to right
 
-    // Extract obstacles from cytoscape neighborhood and find best collision-free position
+    // Extract obstacles and edge segments from cytoscape neighborhood and find best collision-free position
     const obstacles: readonly import('@/pure/graph/positioning/findBestPosition').ObstacleBBox[] = extractObstaclesFromCytoscape(cy, parentNodeId);
+    const edgeSegments: readonly import('@/pure/graph/positioning/findBestPosition').EdgeSegment[] = extractEdgeSegmentsFromCytoscape(cy, parentNodeId);
     const childPosition: import('@/pure/graph').Position = findBestPosition(
         { x: parentPos.x, y: parentPos.y },
         desiredAngleDeg,
         getEdgeDistance(fw.type),
         { width: shadowDimensions.width, height: shadowDimensions.height },
         obstacles,
-        { parentWidth: parentNode.width(), parentHeight: parentNode.height(), gap: 20 }
+        { parentWidth: parentNode.width(), parentHeight: parentNode.height(), gap: 20 },
+        edgeSegments
     );
 
     // Create shadow node (follows parent position via listener below)
