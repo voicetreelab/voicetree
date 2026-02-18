@@ -21,9 +21,10 @@ export interface SpawnAgentParams {
     details?: string
     parentNodeId?: string
     spawnDirectory?: string
+    promptTemplate?: string
 }
 
-export async function spawnAgentTool({nodeId, callerTerminalId, task, details, parentNodeId, spawnDirectory}: SpawnAgentParams): Promise<McpToolResponse> {
+export async function spawnAgentTool({nodeId, callerTerminalId, task, details, parentNodeId, spawnDirectory, promptTemplate}: SpawnAgentParams): Promise<McpToolResponse> {
     //console.log(`[MCP] spawn_agent called by terminal: ${callerTerminalId}`)
 
     // Validate caller terminal exists
@@ -148,7 +149,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, details, p
 
             // Spawn terminal on the new task node (with parent terminal for tree-style tabs)
             const {terminalId, contextNodeId}: {terminalId: string; contextNodeId: string} =
-                await spawnTerminalWithContextNode(taskNodeId, undefined, undefined, true, false, undefined, resolvedSpawnDirectory, callerTerminalId)
+                await spawnTerminalWithContextNode(taskNodeId, undefined, undefined, true, false, undefined, resolvedSpawnDirectory, callerTerminalId, undefined, promptTemplate)
 
             return buildJsonResponse({
                 success: true,
@@ -191,7 +192,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, details, p
         // Pass skipFitAnimation: true for MCP spawns to avoid interrupting user's viewport
         // Pass callerTerminalId as parentTerminalId for tree-style tabs
         const {terminalId, contextNodeId}: {terminalId: string; contextNodeId: string} =
-            await spawnTerminalWithContextNode(resolvedNodeId, undefined, undefined, true, false, undefined, resolvedSpawnDirectory, callerTerminalId, details)
+            await spawnTerminalWithContextNode(resolvedNodeId, undefined, undefined, true, false, undefined, resolvedSpawnDirectory, callerTerminalId, details, promptTemplate)
 
         return buildJsonResponse({
             success: true,

@@ -81,6 +81,9 @@ Highest priority task: `,
     shiftEnterSendsOptionEnter: true,
     vimMode: false,
     INJECT_ENV_VARS: {
+        AGENT_PROMPT_LIGHTWEIGHT: `First read and analyze the context of your task, which is stored at $CONTEXT_NODE_PATH
+You are being run within a graph of Markdown files that represents your project context. These markdown files are stored within $ALL_MARKDOWN_READ_PATHS
+Follow the <AGENT_INSTRUCTIONS> from your context node.`,
         AGENT_PROMPT: `First read and analyze the context of your task, which is stored at $CONTEXT_NODE_PATH
 You are being run within a graph of Markdown files that represents your project context. These markdown files are stored within $ALL_MARKDOWN_READ_PATHS
 <HANDLING_AMBIGUITY>
