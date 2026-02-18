@@ -79,6 +79,11 @@ function App(): JSX.Element {
         return () => window.removeEventListener('close-stats-panel', handleCloseStats);
     }, []);
 
+    // Sync stats panel open state to <html> so CSS can shift the speed dial
+    useEffect(() => {
+        document.documentElement.toggleAttribute('data-stats-panel-open', isStatsPanelOpen);
+    }, [isStatsPanelOpen]);
+
     // Listen for watching-started event from main process (e.g., when prettySetupAppForElectronDebugging loads a project)
     // This switches the UI to graph view when a project is loaded programmatically
     useEffect(() => {
