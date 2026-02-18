@@ -237,6 +237,13 @@ function createTreeNode(
         node.appendChild(tooltipSpan);
     }
 
+    // Activity dots (one per node created by this agent) - must be added before close button
+    for (let i: number = 0; i < terminal.activityCount; i++) {
+        const dot: HTMLSpanElement = document.createElement('span');
+        dot.className = 'terminal-tree-activity-dot';
+        node.appendChild(dot);
+    }
+
     // Close button
     const closeBtn: HTMLButtonElement = document.createElement('button');
     closeBtn.className = 'terminal-tree-close';
