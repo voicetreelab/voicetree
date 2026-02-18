@@ -61,19 +61,21 @@ function buildBBox(center: Position, dims: TargetDimensions): ObstacleBBox {
     };
 }
 
-// Cardinal directions: right, below, left, above
-const CARDINAL_DIRECTIONS: readonly { readonly dx: number; readonly dy: number }[] = [
-    { dx: 1, dy: 0 },   // right  (0°)
-    { dx: 0, dy: 1 },   // below  (270° in math coords / down on screen)
-    { dx: -1, dy: 0 },  // left   (180°)
-    { dx: 0, dy: -1 },  // above  (90° in math coords / up on screen)
+// 6 evenly-spaced directions (hexagonal, 60° apart) — better coverage around large editors
+const HEX_DIRECTIONS: readonly { readonly dx: number; readonly dy: number }[] = [
+    { dx: 1, dy: 0 },                        // 0°   right
+    { dx: 0.5, dy: Math.sqrt(3) / 2 },       // 60°  lower-right
+    { dx: -0.5, dy: Math.sqrt(3) / 2 },      // 120° lower-left
+    { dx: -1, dy: 0 },                        // 180° left
+    { dx: -0.5, dy: -(Math.sqrt(3) / 2) },   // 240° upper-left
+    { dx: 0.5, dy: -(Math.sqrt(3) / 2) },    // 300° upper-right
 ];
 
 /**
- * Calculate the position offset for a cardinal direction, accounting for
+ * Calculate the position offset for a unit direction vector, accounting for
  * directional distance when the target is large (e.g. a terminal window).
  */
-function cardinalOffset(
+function directionOffset(
     dir: { readonly dx: number; readonly dy: number },
     distance: number,
     targetDims: TargetDimensions,
@@ -94,7 +96,7 @@ function cardinalOffset(
 }
 
 /**
- * Try cardinal directions at a given distance, return overlap-free candidates
+ * Try candidate directions at a given distance, return overlap-free candidates
  * sorted by angular proximity to the desired angle.
  */
 function tryCandidateDirections(
@@ -111,7 +113,7 @@ function tryCandidateDirections(
 
     return directions
         .map(dir => {
-            const off: Position = cardinalOffset(dir, distance, targetDimensions, directionalDistance);
+            const off: Position = directionOffset(dir, distance, targetDimensions, directionalDistance);
             return { x: parentPos.x + off.x, y: parentPos.y + off.y };
         })
         .filter(candidatePos => !hasAnyOverlap(buildBBox(candidatePos, targetDimensions), obstacles))
@@ -127,9 +129,8 @@ function tryCandidateDirections(
  *
  * Algorithm:
  * 1. Try the desired angle at the given distance — if no AABB overlap, use it.
- * 2. If collision, try 4 cardinal directions and pick the closest to desired angle with no overlap.
- * 3. If all cardinals blocked, retry at 1.5× distance (large obstacles can cause marginal overlaps
- *    at the base distance that clear with a small increase).
+ * 2. If collision, try 6 hex directions (60° apart) at 1.5× distance, pick closest to desired angle.
+ * 3. If all blocked, retry 6 hex directions at 3.5× distance (clears large floating editors).
  * 4. Fallback: return the desired angle position anyway (better than nothing).
  *
  * @param parentPos - Center of the parent node
@@ -160,23 +161,24 @@ export function findBestPosition(
 
     const desiredRad: number = (desiredAngleDeg * Math.PI) / 180;
 
-    // 2. Try cardinal directions at base distance
+    // 2. Try 6 hex directions at 1.5× distance — clears most single-editor overlaps
+    const nearDistance: number = distance * 1.5;
     const candidates: readonly { readonly pos: Position; readonly angleDiff: number }[] =
-        tryCandidateDirections(parentPos, CARDINAL_DIRECTIONS, distance, targetDimensions, obstacles, desiredRad, directionalDistance);
+        tryCandidateDirections(parentPos, HEX_DIRECTIONS, nearDistance, targetDimensions, obstacles, desiredRad, directionalDistance);
 
     if (candidates.length > 0) {
         return [...candidates].sort((a, b) => a.angleDiff - b.angleDiff)[0].pos;
     }
 
-    // 3. All cardinals blocked at base distance — retry at 1.5× distance.
-    // Large floating windows (editors/terminals) can cause marginal overlaps at base distance
-    // that clear with a modest increase.
-    const escalatedDistance: number = distance * 1.5;
-    const escalatedCandidates: readonly { readonly pos: Position; readonly angleDiff: number }[] =
-        tryCandidateDirections(parentPos, CARDINAL_DIRECTIONS, escalatedDistance, targetDimensions, obstacles, desiredRad, directionalDistance);
+    // 3. All directions blocked at 1.5× — retry at 3.5× distance.
+    // Large floating windows (editors ~380×400) centered at ~285px from parent can have
+    // bboxes extending to ~475px, requiring a larger jump to clear.
+    const farDistance: number = distance * 3.5;
+    const farCandidates: readonly { readonly pos: Position; readonly angleDiff: number }[] =
+        tryCandidateDirections(parentPos, HEX_DIRECTIONS, farDistance, targetDimensions, obstacles, desiredRad, directionalDistance);
 
-    if (escalatedCandidates.length > 0) {
-        return [...escalatedCandidates].sort((a, b) => a.angleDiff - b.angleDiff)[0].pos;
+    if (farCandidates.length > 0) {
+        return [...farCandidates].sort((a, b) => a.angleDiff - b.angleDiff)[0].pos;
     }
 
     // 4. Fallback: desired angle position (all directions blocked)
