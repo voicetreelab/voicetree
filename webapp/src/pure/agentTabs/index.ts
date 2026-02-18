@@ -3,6 +3,8 @@
  * No side effects, no DOM, no state
  */
 
+import { formatShortcut } from '@/pure/utils/keyboardShortcutDisplay';
+
 // =============================================================================
 // Constants
 // =============================================================================
@@ -34,7 +36,7 @@ export function getShortcutHintForTab(
     const rightDistance: number = (tabIndex - activeIndex + totalTabs) % totalTabs;
 
     // If distances are equal, prefer right (])
-    return leftDistance <= rightDistance ? '⌘[' : '⌘]';
+    return leftDistance <= rightDistance ? formatShortcut('[') : formatShortcut(']');
 }
 
 // =============================================================================
