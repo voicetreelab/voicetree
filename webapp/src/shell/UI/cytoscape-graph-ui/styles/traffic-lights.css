@@ -124,6 +124,45 @@
 }
 
 /* =============================================================================
+ * Settings Overlay Popup
+ * Fixed-position popup decoupled from the graph canvas
+ * ============================================================================= */
+
+/* Semi-transparent backdrop — click to dismiss */
+.settings-overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 10001;
+}
+
+/* Centered popup container */
+.settings-overlay-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 800px;
+  max-width: 90vw;
+  height: 600px;
+  max-height: 85vh;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  color: var(--foreground);
+  z-index: 10002;
+}
+
+/* Scrollable content area inside the popup */
+.settings-overlay-content {
+  flex: 1;
+  overflow: auto;
+}
+
+/* =============================================================================
  * Settings Editor Title Bar
  * Simple title bar with close button - similar to terminal but simpler
  * ============================================================================= */
@@ -140,12 +179,11 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  cursor: grab;
-  z-index: 2; /* Above resize zones (z-index: 1) so traffic light buttons are clickable */
+  z-index: 2;
 }
 
 .settings-title-bar:active {
-  cursor: grabbing;
+  cursor: default;
 }
 
 /* Settings title text */
