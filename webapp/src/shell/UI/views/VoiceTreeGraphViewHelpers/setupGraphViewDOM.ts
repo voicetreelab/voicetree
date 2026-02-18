@@ -9,19 +9,11 @@ import {
     createStatsOverlay,
     createTitleBarDragRegion
 } from '@/shell/UI/views/components/overlays/graphOverlays';
-import {SpeedDialSideGraphFloatingMenuView} from '@/shell/UI/views/SpeedDialSideGraphFloatingMenuView';
+import {createSpeedDialMenu, type SpeedDialCallbacks} from '@/shell/UI/views/SpeedDialMenu';
 import {
     initGraphViewOverlays,
     setLoadingState
 } from '@/shell/edge/UI-edge/state/GraphViewUIStore';
-
-export interface SpeedDialCallbacks {
-    onToggleDarkMode: () => void;
-    onSettings: () => void;
-    onAbout: () => void;
-    onStats: () => void;
-    onFeedback: () => void;
-}
 
 export interface GraphViewDOMConfig {
     container: HTMLElement;
@@ -36,7 +28,6 @@ export interface GraphViewDOMElements {
     errorOverlay: HTMLElement;
     emptyStateOverlay: HTMLElement;
     statsOverlay: HTMLElement;
-    speedDialMenu: SpeedDialSideGraphFloatingMenuView;
 }
 
 /**
@@ -46,18 +37,14 @@ export interface GraphViewDOMElements {
 export function setupGraphViewDOM(config: GraphViewDOMConfig): GraphViewDOMElements {
     const {container, uiContainer, isDarkMode, speedDialCallbacks} = config;
 
-    // Configure container (Cytoscape canvas only)
-    container.className = 'h-full w-full bg-background relative';
+    // React owns container className (absolute inset-0 pb-14 overflow-hidden bg-background)
     container.setAttribute('tabindex', '0'); // Allow keyboard events
 
     // Create title bar drag region for macOS - append to UI container
     uiContainer.appendChild(createTitleBarDragRegion());
 
-    // Create speed dial menu - append to UI container
-    const speedDialMenu: SpeedDialSideGraphFloatingMenuView = new SpeedDialSideGraphFloatingMenuView(uiContainer, {
-        ...speedDialCallbacks,
-        isDarkMode
-    });
+    // Create speed dial menu (React) - append to UI container
+    createSpeedDialMenu(uiContainer, speedDialCallbacks, isDarkMode);
 
     // Create overlays (appended to uiContainer, not Cytoscape container)
     const loadingResult: { overlay: HTMLElement; messageElement: HTMLElement } = createLoadingOverlay();
@@ -84,6 +71,5 @@ export function setupGraphViewDOM(config: GraphViewDOMConfig): GraphViewDOMEleme
         errorOverlay,
         emptyStateOverlay,
         statsOverlay,
-        speedDialMenu
     };
 }

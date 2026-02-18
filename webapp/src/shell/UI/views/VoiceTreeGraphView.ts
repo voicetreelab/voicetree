@@ -49,20 +49,17 @@ import {setupCommandHover} from '@/shell/edge/UI-edge/floating-windows/editors/H
 import {HotkeyManager} from './HotkeyManager';
 import {SearchService} from './SearchService';
 // V2 recent node tabs - tracks recently added/modified nodes (not visited)
-import {
-    createRecentNodeTabsBar,
-    renderRecentNodeTabsV2 as _renderRecentNodeTabsV2
-} from './RecentNodeTabsBar';
+import {createRecentNodeTabsBar} from './RecentNodeTabsBar';
 // Terminal tree sidebar - shows open terminals as vertical tree on LHS
 import {createTerminalTreeSidebar} from './treeStyleTerminalTabs/TerminalTreeSidebar';
 import {getRecentNodeHistory} from '@/shell/edge/UI-edge/state/RecentNodeHistoryStore';
 import type {RecentNodeHistory} from '@/pure/graph/recentNodeHistoryV2';
 import {createNewNodeAction, runTerminalAction, deleteSelectedNodesAction} from '@/shell/UI/cytoscape-graph-ui/actions/graphActions';
 import {getResponsivePadding} from '@/utils/responsivePadding';
-import {SpeedDialSideGraphFloatingMenuView} from './SpeedDialSideGraphFloatingMenuView';
+import {updateSpeedDialDarkMode} from './SpeedDialMenu';
 import type {Graph} from '@/pure/graph';
 import {createEmptyGraph} from '@/pure/graph/createGraph';
-import {setupBasicCytoscapeEventListeners, setupCytoscape, initializeCytoscapeInstance, setupGraphViewDOM, initializeNavigatorMinimap, guardCytoscapeResize, type GraphViewDOMElements, type NavigatorMinimapResult} from './VoiceTreeGraphViewHelpers';
+import {setupBasicCytoscapeEventListeners, setupCytoscape, initializeCytoscapeInstance, setupGraphViewDOM, initializeNavigatorMinimap, guardCytoscapeResize, type NavigatorMinimapResult} from './VoiceTreeGraphViewHelpers';
 import {setupViewSubscriptions, type ViewSubscriptionCleanups} from '@/shell/edge/UI-edge/graph/setupViewSubscriptions';
 import {subscribeToGraphUpdates} from '@/shell/edge/UI-edge/graph/subscribeToGraphUpdates';
 import {createSettingsEditor} from "@/shell/edge/UI-edge/settings/createSettingsEditor";
@@ -116,9 +113,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // View subscriptions cleanup (terminals, navigation, pinned editors)
     private viewSubscriptionCleanups: ViewSubscriptionCleanups | null = null;
 
-    // DOM element reference (speedDialMenu needs lifecycle management for cleanup)
-    private speedDialMenu: SpeedDialSideGraphFloatingMenuView | null = null;
-
     // Event emitters
     private nodeSelectedEmitter = new EventEmitter<string>();
     private nodeDoubleClickEmitter = new EventEmitter<string>();
@@ -144,7 +138,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // Initialize dark mode via DarkModeManager (handles async settings load)
         void initializeDarkMode(this.options.initialDarkMode, {
             updateGraphStyles: () => this.updateGraphStyles(),
-            updateSpeedDialMenu: (isDark) => this.speedDialMenu?.updateDarkMode(isDark)
+            updateSpeedDialMenu: (isDark) => updateSpeedDialDarkMode(isDark)
         });
 
         // Render DOM structure
@@ -161,7 +155,11 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
         // Initialize recent tabs bar V2 in title bar area
         // V2 tracks recently added/modified nodes (not visited nodes)
-        createRecentNodeTabsBar(this.uiContainer);
+        createRecentNodeTabsBar(
+            this.uiContainer,
+            (nodeId: string) => this.navigationService.handleSearchSelect(nodeId),
+            (nodeId: string) => this.cy.getElementById(nodeId).data('label') as string | undefined
+        );
 
         // Initialize terminal tree sidebar (left side, React component)
         createTerminalTreeSidebar(this.uiContainer, (terminal) => {
@@ -221,7 +219,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // Setup DOM structure using extracted function
         // Note: speedDialCallbacks reference this.cy which isn't initialized yet,
         // so we pass callbacks that will access cy at call time
-        const domElements: GraphViewDOMElements = setupGraphViewDOM({
+        setupGraphViewDOM({
             container: this.container,
             uiContainer: this.uiContainer,
             isDarkMode: isDarkModeState(),
@@ -233,9 +231,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
                 onFeedback: () => void collectFeedback()
             }
         });
-
-        // Store speedDialMenu reference for lifecycle management (other overlays are in DOM)
-        this.speedDialMenu = domElements.speedDialMenu;
 
         // Initialize Cytoscape directly on container (userZoomingEnabled: false)
         // All zoom handled by NavigationGestureService.zoomAtCursor() for unified behavior
@@ -442,7 +437,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     toggleDarkMode(): void {
         toggleDarkModeAction({
             updateGraphStyles: () => this.updateGraphStyles(),
-            updateSpeedDialMenu: (isDark) => this.speedDialMenu?.updateDarkMode(isDark),
+            updateSpeedDialMenu: (isDark) => updateSpeedDialDarkMode(isDark),
             updateSearchTheme: (isDark) => this.searchService.updateTheme(isDark)
         });
     }
@@ -499,7 +494,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             searchService: this.searchService,
             horizontalMenuService: this.horizontalMenuService,
             verticalMenuService: this.verticalMenuService,
-            speedDialMenu: this.speedDialMenu,
             animationService: this.animationService,
             navigator: this.navigator,
             nodeSelectedEmitter: this.nodeSelectedEmitter,

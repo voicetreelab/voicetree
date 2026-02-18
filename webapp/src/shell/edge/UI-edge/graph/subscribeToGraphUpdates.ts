@@ -8,7 +8,6 @@ import type {ElectronAPI} from '@/shell/electron';
 import {applyGraphDeltaToUI} from './applyGraphDeltaToUI';
 import {clearCytoscapeState} from './clearCytoscapeState';
 import {extractRecentNodesFromDelta} from '@/pure/graph/recentNodeHistoryV2';
-import {renderRecentNodeTabsV2} from '@/shell/UI/views/RecentNodeTabsBar';
 import {closeAllEditors} from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
 import {closeAllTerminals} from '@/shell/edge/UI-edge/floating-windows/terminals/closeTerminal';
 import {
@@ -19,7 +18,6 @@ import {
     updateRecentNodeHistoryFromDelta,
     clearRecentNodeHistory
 } from '@/shell/edge/UI-edge/state/RecentNodeHistoryStore';
-import type {RecentNodeHistory} from '@/pure/graph/recentNodeHistoryV2';
 import type {GraphNavigationService} from './navigation/GraphNavigationService';
 import type {SearchService} from '@/shell/UI/views/SearchService';
 import {scheduleIdleWork} from '@/utils/scheduleIdleWork';
@@ -62,16 +60,10 @@ export function subscribeToGraphUpdates(
         // Update navigator visibility based on node count
         updateNavigatorVisibility();
 
-        // Defer recent node history update and tab rendering to idle time
-        // This is non-critical visual feedback that can wait for browser idle
+        // Defer recent node history update to idle time
+        // Store update triggers React re-render via subscribeToRecentNodeHistoryChange
         scheduleIdleWork(() => {
-            const updatedHistory: RecentNodeHistory = updateRecentNodeHistoryFromDelta(delta);
-
-            renderRecentNodeTabsV2(
-                updatedHistory,
-                (nodeId) => navigationService.handleSearchSelect(nodeId),
-                (nodeId) => cy.getElementById(nodeId).data('label') as string | undefined
-            );
+            updateRecentNodeHistoryFromDelta(delta);
         }, 500);
     };
 
@@ -87,14 +79,8 @@ export function subscribeToGraphUpdates(
         // Close all open floating editors
         closeAllEditors(cy);
 
-        // Clear recent node history and re-render (empty) tabs
-        const emptyHistory: RecentNodeHistory = clearRecentNodeHistory();
-
-        renderRecentNodeTabsV2(
-            emptyHistory,
-            (nodeId) => navigationService.handleSearchSelect(nodeId),
-            (nodeId) => cy.getElementById(nodeId).data('label') as string | undefined
-        );
+        // Clear recent node history — React component re-renders via store subscription
+        clearRecentNodeHistory();
 
         // Reset ninja-keys search data (now rebuilds from empty cytoscape)
         searchService.updateSearchData();

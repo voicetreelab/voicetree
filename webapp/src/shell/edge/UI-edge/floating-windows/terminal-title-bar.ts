@@ -49,13 +49,6 @@ export function createTerminalTitleBar(
         titleBar.appendChild(contextBadge);
     }
 
-    // Agent ID label — always shown in title bar
-    const agentIdLabel: HTMLSpanElement = document.createElement('span');
-    agentIdLabel.className = 'terminal-title-bar-agent-id';
-    agentIdLabel.textContent = terminal.terminalId;
-    agentIdLabel.title = terminal.terminalId;
-    titleBar.appendChild(agentIdLabel);
-
     const trafficLights: HTMLDivElement = createTrafficLightsForTarget({
         kind: 'terminal-window',
         terminal,

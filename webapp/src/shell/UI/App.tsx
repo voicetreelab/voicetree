@@ -179,7 +179,7 @@ function App(): JSX.Element {
     return (
         <div className="h-screen relative bg-background">
             {/* Layer 1: Graph canvas - Cytoscape only, absolutely positioned so it never causes overflow */}
-            <div ref={graphContainerRef} className="absolute inset-0 pb-14"/>
+            <div ref={graphContainerRef} className="absolute inset-0 pb-14 overflow-hidden bg-background"/>
             {/* Layer 2: UI overlay - sidebar, overlays, title bar, tabs */}
             <div ref={uiContainerRef} className="absolute inset-0 pb-14 pointer-events-none [&>*]:pointer-events-auto"/>
 
