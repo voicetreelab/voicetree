@@ -22,5 +22,8 @@ export function buildCompletionMessage(agentResults: AgentResult[]): string {
         lines.push(`- ${name} [${agent.status}]: ${nodeList}`)
     }
 
+    lines.push('')
+    lines.push('Tip: Use close_agent to close agents you are fully satisfied with. Leave agents open if their work has potential concerns that warrant human review.')
+
     return lines.join('\n')
 }
