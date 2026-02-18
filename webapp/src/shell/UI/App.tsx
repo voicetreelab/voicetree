@@ -177,14 +177,11 @@ function App(): JSX.Element {
 
     // Render graph view
     return (
-        <div className="h-screen flex flex-col bg-background">
-            {/* Graph Section (fills all space, with bottom padding for fixed bottom bar) */}
-            <div className="flex-1 min-h-0 relative pb-14">
-                {/* Graph canvas - Cytoscape only */}
-                <div ref={graphContainerRef} className="h-full w-full"/>
-                {/* UI overlay container - sidebar, overlays, title bar, tabs */}
-                <div ref={uiContainerRef} className="absolute inset-0 pointer-events-none"/>
-            </div>
+        <div className="h-screen relative bg-background">
+            {/* Layer 1: Graph canvas - Cytoscape only, absolutely positioned so it never causes overflow */}
+            <div ref={graphContainerRef} className="absolute inset-0 pb-14"/>
+            {/* Layer 2: UI overlay - sidebar, overlays, title bar, tabs */}
+            <div ref={uiContainerRef} className="absolute inset-0 pb-14 pointer-events-none [&>*]:pointer-events-auto"/>
 
             {/* Bottom bar: Fixed to viewport bottom to prevent dropdown-induced layout shifts */}
             <div className="fixed bottom-0 left-0 right-0 z-[1050] py-1 bg-background">
