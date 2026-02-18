@@ -20,7 +20,8 @@ import {
     createFloatingEditorForUICreatedNode
 } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 import * as O from 'fp-ts/lib/Option.js';
-import {calculateCollisionAwareChildPosition} from "@/shell/edge/UI-edge/floating-windows/extractObstaclesFromCytoscape";
+import {extractObstaclesFromCytoscape} from "@/shell/edge/UI-edge/floating-windows/extractObstaclesFromCytoscape";
+import {calculateCollisionAwareChildPosition} from "@/pure/graph/positioning/calculateInitialPosition";
 
 /**
  * Merges new metadata with old metadata, preferring new values when they are "present".
@@ -54,8 +55,10 @@ export async function createNewChildNodeFromUI(
     // Get parent node from graph
     const parentNode: GraphNode = currentGraph.nodes[parentNodeId];
 
-    // Calculate collision-aware position using live cytoscape data
-    const position: Position = calculateCollisionAwareChildPosition(cy, parentNodeId, currentGraph);
+    // Extract shell data (cytoscape positions) then delegate to pure positioning
+    const parentCyPos: Position = cy.getElementById(parentNodeId).position();
+    const obstacles: readonly import("@/pure/graph/positioning/findBestPosition").ObstacleBBox[] = extractObstaclesFromCytoscape(cy, parentNodeId);
+    const position: Position = calculateCollisionAwareChildPosition(parentCyPos, currentGraph, parentNodeId, obstacles);
 
     // Create GraphDelta (contains both child and updated parent with edge)
     const graphDelta: GraphDelta = fromCreateChildToUpsertNode(currentGraph, parentNode, "# ", undefined, O.some(position));

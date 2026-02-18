@@ -48,6 +48,18 @@ export function guardCytoscapeResize(cy: Core): void {
                 return cy;
             }
         }
-        return originalResize();
+        const zoomBefore: number = cy.zoom();
+        const widthBefore: number = cy.width();
+        const heightBefore: number = cy.height();
+        const result: Core = originalResize();
+        const zoomAfter: number = cy.zoom();
+        const widthAfter: number = cy.width();
+        const heightAfter: number = cy.height();
+        if (widthBefore !== widthAfter || heightBefore !== heightAfter) {
+            console.warn(
+                `[guardCytoscapeResize] Resize changed dimensions: ${widthBefore}x${heightBefore} → ${widthAfter}x${heightAfter}, zoom: ${zoomBefore} → ${zoomAfter}`
+            );
+        }
+        return result;
     };
 }

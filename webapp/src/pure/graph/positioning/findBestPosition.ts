@@ -20,6 +20,70 @@ export interface TargetDimensions {
     readonly height: number;
 }
 
+export interface EdgeSegment {
+    readonly p1: Position;
+    readonly p2: Position;
+}
+
+/** Cross product of vectors (p2-p1) × (p3-p1). */
+function cross(p1: Position, p2: Position, p3: Position): number {
+    return (p2.x - p1.x) * (p3.y - p1.y) - (p2.y - p1.y) * (p3.x - p1.x);
+}
+
+/** Check if point q lies on segment pr (when all three are collinear). */
+function onSegment(p: Position, q: Position, r: Position): boolean {
+    return q.x <= Math.max(p.x, r.x) && q.x >= Math.min(p.x, r.x) &&
+           q.y <= Math.max(p.y, r.y) && q.y >= Math.min(p.y, r.y);
+}
+
+const EPSILON: number = 1e-6;
+
+/** Check if two points are approximately equal. */
+function pointsEqual(a: Position, b: Position): boolean {
+    return Math.abs(a.x - b.x) < EPSILON && Math.abs(a.y - b.y) < EPSILON;
+}
+
+/**
+ * Check if two line segments properly intersect.
+ * Segments sharing an endpoint are NOT considered intersecting
+ * (handles parent→child edges sharing the parent node).
+ */
+function segmentsIntersect(a: EdgeSegment, b: EdgeSegment): boolean {
+    if (pointsEqual(a.p1, b.p1) || pointsEqual(a.p1, b.p2) ||
+        pointsEqual(a.p2, b.p1) || pointsEqual(a.p2, b.p2)) {
+        return false;
+    }
+
+    const d1: number = cross(b.p1, b.p2, a.p1);
+    const d2: number = cross(b.p1, b.p2, a.p2);
+    const d3: number = cross(a.p1, a.p2, b.p1);
+    const d4: number = cross(a.p1, a.p2, b.p2);
+
+    if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+        ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+        return true;
+    }
+
+    if (Math.abs(d1) < EPSILON && onSegment(b.p1, a.p1, b.p2)) return true;
+    if (Math.abs(d2) < EPSILON && onSegment(b.p1, a.p2, b.p2)) return true;
+    if (Math.abs(d3) < EPSILON && onSegment(a.p1, b.p1, a.p2)) return true;
+    if (Math.abs(d4) < EPSILON && onSegment(a.p1, b.p2, a.p2)) return true;
+
+    return false;
+}
+
+/**
+ * Check if a candidate edge (parent → candidate) crosses any existing edge.
+ */
+function hasEdgeCrossing(
+    parentPos: Position,
+    candidatePos: Position,
+    edges: readonly EdgeSegment[]
+): boolean {
+    const candidateEdge: EdgeSegment = { p1: parentPos, p2: candidatePos };
+    return edges.some(edge => segmentsIntersect(candidateEdge, edge));
+}
+
 /**
  * For large floating windows (terminals/editors), the offset from the parent
  * needs to account for the window's own dimensions so it doesn't overlap the parent.
@@ -106,21 +170,40 @@ function tryCandidateDirections(
     targetDimensions: TargetDimensions,
     obstacles: readonly ObstacleBBox[],
     desiredRad: number,
-    directionalDistance?: DirectionalDistanceConfig
+    directionalDistance?: DirectionalDistanceConfig,
+    label?: string,
+    edgeSegments?: readonly EdgeSegment[]
 ): readonly { readonly pos: Position; readonly angleDiff: number }[] {
     const normalizeAngleDiff: (raw: number) => number = (raw: number) =>
         raw > Math.PI ? 2 * Math.PI - raw : raw;
 
-    return directions
+    const allCandidates: readonly { readonly pos: Position; readonly bbox: ObstacleBBox; readonly blocked: boolean; readonly overlappingObstacles: readonly ObstacleBBox[]; readonly crossesEdge: boolean }[] = directions
         .map(dir => {
             const off: Position = directionOffset(dir, distance, targetDimensions, directionalDistance);
-            return { x: parentPos.x + off.x, y: parentPos.y + off.y };
-        })
-        .filter(candidatePos => !hasAnyOverlap(buildBBox(candidatePos, targetDimensions), obstacles))
-        .map(candidatePos => {
-            const candidateRad: number = Math.atan2(candidatePos.y - parentPos.y, candidatePos.x - parentPos.x);
+            const pos: Position = { x: parentPos.x + off.x, y: parentPos.y + off.y };
+            const bbox: ObstacleBBox = buildBBox(pos, targetDimensions);
+            const overlappingObstacles: readonly ObstacleBBox[] = obstacles.filter(obs => rectsOverlap(bbox, obs));
+            const crossesEdge: boolean = (edgeSegments?.length ?? 0) > 0 && hasEdgeCrossing(parentPos, pos, edgeSegments!);
+            return { pos, bbox, blocked: overlappingObstacles.length > 0 || crossesEdge, overlappingObstacles, crossesEdge };
+        });
+
+    const free: number = allCandidates.filter(c => !c.blocked).length;
+    const blocked: number = allCandidates.filter(c => c.blocked).length;
+    console.log(`[findBestPosition] ${label ?? 'candidates'} (dist=${distance.toFixed(0)}): ${free} free, ${blocked} blocked out of ${allCandidates.length}`);
+    allCandidates.forEach(c => {
+        const reasons: string[] = [];
+        if (c.overlappingObstacles.length > 0) reasons.push(`${c.overlappingObstacles.length} obstacle(s)`);
+        if (c.crossesEdge) reasons.push('edge crossing');
+        const status: string = c.blocked ? `BLOCKED by ${reasons.join(' + ')}` : 'FREE';
+        console.log(`  candidate (${c.pos.x.toFixed(0)}, ${c.pos.y.toFixed(0)}) bbox [${c.bbox.x1.toFixed(0)},${c.bbox.y1.toFixed(0)} → ${c.bbox.x2.toFixed(0)},${c.bbox.y2.toFixed(0)}]: ${status}`);
+    });
+
+    return allCandidates
+        .filter(c => !c.blocked)
+        .map(c => {
+            const candidateRad: number = Math.atan2(c.pos.y - parentPos.y, c.pos.x - parentPos.x);
             const angleDiff: number = normalizeAngleDiff(Math.abs(candidateRad - desiredRad));
-            return { pos: candidatePos, angleDiff };
+            return { pos: c.pos, angleDiff };
         });
 }
 
@@ -147,8 +230,14 @@ export function findBestPosition(
     distance: number,
     targetDimensions: TargetDimensions,
     obstacles: readonly ObstacleBBox[],
-    directionalDistance?: DirectionalDistanceConfig
+    directionalDistance?: DirectionalDistanceConfig,
+    edgeSegments?: readonly EdgeSegment[]
 ): Position {
+    console.log(`[findBestPosition] parentPos=(${parentPos.x.toFixed(0)}, ${parentPos.y.toFixed(0)}), angle=${desiredAngleDeg.toFixed(1)}°, dist=${distance}, target=${targetDimensions.width}×${targetDimensions.height}, obstacles=${obstacles.length}, edges=${edgeSegments?.length ?? 0}`);
+    obstacles.forEach((obs, i) => {
+        console.log(`  obstacle[${i}]: [${obs.x1.toFixed(0)},${obs.y1.toFixed(0)} → ${obs.x2.toFixed(0)},${obs.y2.toFixed(0)}]`);
+    });
+
     // 1. Try desired angle first
     const offset: { readonly x: number; readonly y: number } = polarToCartesian(desiredAngleDeg, distance);
     const desiredPos: Position = {
@@ -156,40 +245,54 @@ export function findBestPosition(
         y: parentPos.y + offset.y,
     };
 
-    if (!hasAnyOverlap(buildBBox(desiredPos, targetDimensions), obstacles)) {
+    const desiredBBox: ObstacleBBox = buildBBox(desiredPos, targetDimensions);
+    const desiredOverlap: boolean = hasAnyOverlap(desiredBBox, obstacles);
+    const desiredCrossesEdge: boolean = (edgeSegments?.length ?? 0) > 0 && hasEdgeCrossing(parentPos, desiredPos, edgeSegments!);
+    const desiredBlocked: boolean = desiredOverlap || desiredCrossesEdge;
+    const desiredBlockReason: string = desiredBlocked ? (desiredOverlap && desiredCrossesEdge ? 'BLOCKED (overlap + edge crossing)' : desiredOverlap ? 'BLOCKED (overlap)' : 'BLOCKED (edge crossing)') : 'FREE → using it';
+    console.log(`[findBestPosition] step 1 — desired angle (${desiredPos.x.toFixed(0)}, ${desiredPos.y.toFixed(0)}) bbox [${desiredBBox.x1.toFixed(0)},${desiredBBox.y1.toFixed(0)} → ${desiredBBox.x2.toFixed(0)},${desiredBBox.y2.toFixed(0)}]: ${desiredBlockReason}`);
+
+    if (!desiredBlocked) {
         return desiredPos;
     }
 
     const desiredRad: number = (desiredAngleDeg * Math.PI) / 180;
-
-    // 2. Try 6 hex directions at base distance
-    const baseCandidates: readonly { readonly pos: Position; readonly angleDiff: number }[] =
-        tryCandidateDirections(parentPos, HEX_DIRECTIONS, distance, targetDimensions, obstacles, desiredRad, directionalDistance);
-
-    if (baseCandidates.length > 0) {
-        return [...baseCandidates].sort((a, b) => a.angleDiff - b.angleDiff)[0].pos;
-    }
+        //no base dist
+    // // 2. Try 6 hex directions at base distance
+    // const baseCandidates: readonly { readonly pos: Position; readonly angleDiff: number }[] =
+    //     tryCandidateDirections(parentPos, HEX_DIRECTIONS, distance, targetDimensions, obstacles, desiredRad, directionalDistance);
+    //
+    // if (baseCandidates.length > 0) {
+    //     return [...baseCandidates].sort((a, b) => a.angleDiff - b.angleDiff)[0].pos;
+    // }
 
     // 3. All blocked at base — retry at 1.5× distance
+    console.log(`[findBestPosition] step 3 — trying 1.5× distance hex directions`);
     const nearDistance: number = distance * 1.5;
     const nearCandidates: readonly { readonly pos: Position; readonly angleDiff: number }[] =
-        tryCandidateDirections(parentPos, HEX_DIRECTIONS, nearDistance, targetDimensions, obstacles, desiredRad, directionalDistance);
+        tryCandidateDirections(parentPos, HEX_DIRECTIONS, nearDistance, targetDimensions, obstacles, desiredRad, directionalDistance, '1.5× hex', edgeSegments);
 
     if (nearCandidates.length > 0) {
-        return [...nearCandidates].sort((a, b) => a.angleDiff - b.angleDiff)[0].pos;
+        const best: { readonly pos: Position; readonly angleDiff: number } = [...nearCandidates].sort((a, b) => a.angleDiff - b.angleDiff)[0];
+        console.log(`[findBestPosition] → picked (${best.pos.x.toFixed(0)}, ${best.pos.y.toFixed(0)}) from 1.5× candidates`);
+        return best.pos;
     }
 
-    // 4. All blocked at 1.5× — retry at 3.5× distance.
+    // 4. All blocked at 1.5× — retry at 2.5× distance.
     // Large floating windows (editors ~380×400) centered at ~285px from parent can have
     // bboxes extending to ~475px, requiring a larger jump to clear.
-    const farDistance: number = distance * 3.5;
+    console.log(`[findBestPosition] step 4 — trying 2.5× distance hex directions`);
+    const farDistance: number = distance * 2.5;
     const farCandidates: readonly { readonly pos: Position; readonly angleDiff: number }[] =
-        tryCandidateDirections(parentPos, HEX_DIRECTIONS, farDistance, targetDimensions, obstacles, desiredRad, directionalDistance);
+        tryCandidateDirections(parentPos, HEX_DIRECTIONS, farDistance, targetDimensions, obstacles, desiredRad, directionalDistance, '2.5× hex', edgeSegments);
 
     if (farCandidates.length > 0) {
-        return [...farCandidates].sort((a, b) => a.angleDiff - b.angleDiff)[0].pos;
+        const best: { readonly pos: Position; readonly angleDiff: number } = [...farCandidates].sort((a, b) => a.angleDiff - b.angleDiff)[0];
+        console.log(`[findBestPosition] → picked (${best.pos.x.toFixed(0)}, ${best.pos.y.toFixed(0)}) from 2.5× candidates`);
+        return best.pos;
     }
 
     // 5. Fallback: desired angle position (all directions blocked)
+    console.log(`[findBestPosition] ⚠ FALLBACK — all directions blocked at all distances, returning desired pos (${desiredPos.x.toFixed(0)}, ${desiredPos.y.toFixed(0)}) WITH collisions`);
     return desiredPos;
 }
