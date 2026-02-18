@@ -1,5 +1,5 @@
 /**
- * Auto Layout: Automatically run Cola layout on graph changes
+ * Auto Layout: Automatically run Cola or fcose layout on graph changes
  *
  * Simple approach: Listen to cytoscape events (add/remove node/edge) and trigger layout.
  * No state tracking, no complexity - just re-layout the whole graph each time.
@@ -11,12 +11,26 @@
  * second phase could still be quite janky which was what we were trying to avoid.
  */
 
-import type {Core, EdgeSingular, NodeDefinition} from 'cytoscape';
+import cytoscape from 'cytoscape';
+import type {Core, EdgeSingular, NodeDefinition, CollectionReturnValue, Layouts} from 'cytoscape';
 import ColaLayout from './cola';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore - cytoscape-fcose has no bundled types; ambient declaration in utils/types/cytoscape-fcose.d.ts
+import fcose from 'cytoscape-fcose';
 import { getEdgeDistance } from './cytoscape-graph-constants';
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
 import { consumePendingPan } from '@/shell/edge/UI-edge/state/PendingPanStore';
+import { onSettingsChange } from '@/shell/edge/UI-edge/api';
+
+// Register fcose extension once
+let fcoseRegistered: boolean = false;
+function registerFcose(): void {
+  if (!fcoseRegistered) {
+    cytoscape.use(fcose);
+    fcoseRegistered = true;
+  }
+}
 
 // Registry for layout triggers - allows external code to trigger layout via triggerLayout(cy)
 const layoutTriggers: Map<Core, () => void> = new Map<Core, () => void>();
@@ -45,6 +59,24 @@ export interface AutoLayoutOptions {
   edgeJaccardLength?: number | ((edge: EdgeSingular) => number);
 }
 
+interface FcoseLayoutOptions {
+  gravity: number;
+  gravityRange: number;
+  tile: boolean;
+  tilingPaddingVertical: number;
+  tilingPaddingHorizontal: number;
+  nodeRepulsion: number;
+  idealEdgeLength: number;
+  edgeElasticity: number;
+  nodeSpacing: number;
+}
+
+interface LayoutConfig {
+  engine: 'cola' | 'fcose';
+  cola: AutoLayoutOptions;
+  fcose: FcoseLayoutOptions;
+}
+
 const DEFAULT_OPTIONS: AutoLayoutOptions = {
   animate: true,
   maxSimulationTime: 2000,
@@ -62,20 +94,175 @@ const DEFAULT_OPTIONS: AutoLayoutOptions = {
   // edgeJaccardLength: undefined
 };
 
+const DEFAULT_FCOSE_OPTIONS: FcoseLayoutOptions = {
+  gravity: 0.25,
+  gravityRange: 3.8,
+  tile: true,
+  tilingPaddingVertical: 10,
+  tilingPaddingHorizontal: 10,
+  nodeRepulsion: 4500,
+  idealEdgeLength: 250,
+  edgeElasticity: 0.45,
+  nodeSpacing: 70,
+};
+
+/**
+ * Parse layoutConfig JSON string into typed layout options.
+ * Falls back to cola defaults on any parse error.
+ */
+function parseLayoutConfig(json: string | undefined): LayoutConfig {
+  if (!json) {
+    return { engine: 'cola', cola: DEFAULT_OPTIONS, fcose: DEFAULT_FCOSE_OPTIONS };
+  }
+
+  try {
+    const parsed: Record<string, unknown> = JSON.parse(json) as Record<string, unknown>;
+    const engine: 'cola' | 'fcose' = parsed.engine === 'fcose' ? 'fcose' : 'cola';
+
+    const cola: AutoLayoutOptions = {
+      ...DEFAULT_OPTIONS,
+      nodeSpacing: typeof parsed.nodeSpacing === 'number' ? parsed.nodeSpacing : DEFAULT_OPTIONS.nodeSpacing,
+      convergenceThreshold: typeof parsed.convergenceThreshold === 'number' ? parsed.convergenceThreshold : DEFAULT_OPTIONS.convergenceThreshold,
+      unconstrIter: typeof parsed.unconstrIter === 'number' ? parsed.unconstrIter : DEFAULT_OPTIONS.unconstrIter,
+      allConstIter: typeof parsed.allConstIter === 'number' ? parsed.allConstIter : DEFAULT_OPTIONS.allConstIter,
+      handleDisconnected: typeof parsed.handleDisconnected === 'boolean' ? parsed.handleDisconnected : DEFAULT_OPTIONS.handleDisconnected,
+      edgeLength: typeof parsed.edgeLength === 'number'
+        ? parsed.edgeLength
+        : DEFAULT_OPTIONS.edgeLength,
+    };
+
+    const fcoseOpts: FcoseLayoutOptions = {
+      gravity: typeof parsed.gravity === 'number' ? parsed.gravity : DEFAULT_FCOSE_OPTIONS.gravity,
+      gravityRange: typeof parsed.gravityRange === 'number' ? parsed.gravityRange : DEFAULT_FCOSE_OPTIONS.gravityRange,
+      tile: typeof parsed.tile === 'boolean' ? parsed.tile : DEFAULT_FCOSE_OPTIONS.tile,
+      tilingPaddingVertical: typeof parsed.tilingPaddingVertical === 'number' ? parsed.tilingPaddingVertical : DEFAULT_FCOSE_OPTIONS.tilingPaddingVertical,
+      tilingPaddingHorizontal: typeof parsed.tilingPaddingHorizontal === 'number' ? parsed.tilingPaddingHorizontal : DEFAULT_FCOSE_OPTIONS.tilingPaddingHorizontal,
+      nodeRepulsion: typeof parsed.nodeRepulsion === 'number' ? parsed.nodeRepulsion : DEFAULT_FCOSE_OPTIONS.nodeRepulsion,
+      idealEdgeLength: typeof parsed.idealEdgeLength === 'number' ? parsed.idealEdgeLength : DEFAULT_FCOSE_OPTIONS.idealEdgeLength,
+      edgeElasticity: typeof parsed.edgeElasticity === 'number' ? parsed.edgeElasticity : DEFAULT_FCOSE_OPTIONS.edgeElasticity,
+      nodeSpacing: typeof parsed.nodeSpacing === 'number' ? parsed.nodeSpacing : DEFAULT_FCOSE_OPTIONS.nodeSpacing,
+    };
+
+    return { engine, cola, fcose: fcoseOpts };
+  } catch {
+    return { engine: 'cola', cola: DEFAULT_OPTIONS, fcose: DEFAULT_FCOSE_OPTIONS };
+  }
+}
+
 /**
  * Enable automatic layout on graph changes
  *
- * Listens to node/edge add/remove events and triggers Cola layout
+ * Listens to node/edge add/remove events and triggers Cola or fcose layout
+ * based on layoutConfig from settings.
  *
  * @param cy Cytoscape instance
- * @param options Cola layout options
+ * @param options Cola layout options (used as additional overrides)
  * @returns Cleanup function to disable auto-layout
  */
 export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () => void {
-  const colaOptions: { animate?: boolean; maxSimulationTime?: number; avoidOverlap?: boolean; nodeSpacing?: number; handleDisconnected?: boolean; convergenceThreshold?: number; unconstrIter?: number; userConstIter?: number; allConstIter?: number; edgeLength?: number | ((edge: EdgeSingular) => number); edgeSymDiffLength?: number | ((edge: EdgeSingular) => number); edgeJaccardLength?: number | ((edge: EdgeSingular) => number); } = { ...DEFAULT_OPTIONS, ...options };
+  // Mutable config that gets updated when settings change
+  let currentConfig: LayoutConfig = { engine: 'cola', cola: { ...DEFAULT_OPTIONS, ...options }, fcose: DEFAULT_FCOSE_OPTIONS };
+
+  // Load initial config from settings
+  void window.electronAPI?.main.loadSettings().then(settings => {
+    currentConfig = parseLayoutConfig(settings.layoutConfig);
+    // Merge any explicit options passed to enableAutoLayout into cola config
+    currentConfig.cola = { ...currentConfig.cola, ...options };
+  });
+
+  // Subscribe to settings changes to pick up layoutConfig edits
+  const unsubSettings: () => void = onSettingsChange(() => {
+    void window.electronAPI?.main.loadSettings().then(settings => {
+      currentConfig = parseLayoutConfig(settings.layoutConfig);
+      currentConfig.cola = { ...currentConfig.cola, ...options };
+      // Re-run layout with new config
+      debouncedRunLayout();
+    });
+  });
 
   let layoutRunning: boolean = false;
   let layoutQueued: boolean = false;
+
+  const onLayoutComplete: () => void = () => {
+    void window.electronAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);
+    layoutRunning = false;
+
+    // Execute any pending pan after layout completes (instead of arbitrary timeout)
+    // This ensures viewport fits to new nodes only after their positions are finalized
+    consumePendingPan(cy);
+
+    // If another layout was queued, run it now
+    if (layoutQueued) {
+      layoutQueued = false;
+      runLayout();
+    }
+  };
+
+  const getNonContextElements: () => CollectionReturnValue = () => {
+    return cy.elements().filter(ele => {
+      if (ele.isNode()) return !ele.data('isContextNode');
+      // Exclude edges connected to context nodes
+      return !ele.source().data('isContextNode') && !ele.target().data('isContextNode');
+    });
+  };
+
+  const runColaLayout: () => void = () => {
+    const colaOpts: AutoLayoutOptions = currentConfig.cola;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const layout: any = new (ColaLayout as any)({
+      cy: cy,
+      // Exclude context nodes and their edges - position controlled by anchor-to-node.ts
+      eles: getNonContextElements(),
+      animate: colaOpts.animate,
+      randomize: false, // Don't randomize - preserve existing positions
+      avoidOverlap: colaOpts.avoidOverlap,
+      handleDisconnected: colaOpts.handleDisconnected,
+      convergenceThreshold: colaOpts.convergenceThreshold,
+      maxSimulationTime: colaOpts.maxSimulationTime,
+      unconstrIter: colaOpts.unconstrIter,
+      userConstIter: colaOpts.userConstIter,
+      allConstIter: colaOpts.allConstIter,
+      nodeSpacing: colaOpts.nodeSpacing,
+      edgeLength: colaOpts.edgeLength,
+      edgeSymDiffLength: colaOpts.edgeSymDiffLength,
+      edgeJaccardLength: colaOpts.edgeJaccardLength,
+      centerGraph: false,
+      fit: false,
+      nodeDimensionsIncludeLabels: true,
+    });
+
+    layout.one('layoutstop', onLayoutComplete);
+    layout.run();
+  };
+
+  const runFcoseLayout: () => void = () => {
+    registerFcose();
+    const fcoseOpts: FcoseLayoutOptions = currentConfig.fcose;
+
+    // fcose options are not covered by cytoscape's built-in LayoutOptions type
+    const fcoseLayoutOptions: { name: string } & Record<string, unknown> = {
+      name: 'fcose',
+      eles: getNonContextElements(),
+      animate: true,
+      randomize: false,
+      fit: false,
+      nodeRepulsion: () => fcoseOpts.nodeRepulsion,
+      idealEdgeLength: () => fcoseOpts.idealEdgeLength,
+      edgeElasticity: () => fcoseOpts.edgeElasticity,
+      gravity: fcoseOpts.gravity,
+      gravityRange: fcoseOpts.gravityRange,
+      tile: fcoseOpts.tile,
+      tilingPaddingVertical: fcoseOpts.tilingPaddingVertical,
+      tilingPaddingHorizontal: fcoseOpts.tilingPaddingHorizontal,
+      nodeSeparation: fcoseOpts.nodeSpacing,
+      nodeDimensionsIncludeLabels: true,
+    };
+    const layout: Layouts = cy.layout(fcoseLayoutOptions);
+
+    layout.one('layoutstop', onLayoutComplete);
+    layout.run();
+  };
 
   const runLayout: () => void = () => {
     // If layout already running, queue another run for after it completes
@@ -89,53 +276,13 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
       return;
     }
 
-    //console.log('[AutoLayout] Running Cola layout on', cy.nodes().length, 'nodes');
     layoutRunning = true;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const layout: any = new (ColaLayout as any)({
-      cy: cy,
-      // Exclude context nodes and their edges - position controlled by anchor-to-node.ts
-      eles: cy.elements().filter(ele => {
-        if (ele.isNode()) return !ele.data('isContextNode');
-        // Exclude edges connected to context nodes
-        return !ele.source().data('isContextNode') && !ele.target().data('isContextNode');
-      }),
-      animate: colaOptions.animate,
-      randomize: false, // Don't randomize - preserve existing positions
-      avoidOverlap: colaOptions.avoidOverlap,
-      handleDisconnected: colaOptions.handleDisconnected,
-      convergenceThreshold: colaOptions.convergenceThreshold,
-      maxSimulationTime: colaOptions.maxSimulationTime,
-      unconstrIter: colaOptions.unconstrIter,
-      userConstIter: colaOptions.userConstIter,
-      allConstIter: colaOptions.allConstIter,
-      nodeSpacing: colaOptions.nodeSpacing,
-      edgeLength: colaOptions.edgeLength,
-      edgeSymDiffLength: colaOptions.edgeSymDiffLength,
-      edgeJaccardLength: colaOptions.edgeJaccardLength,
-      centerGraph: false,
-      fit: false,
-      // padding: 0,
-      nodeDimensionsIncludeLabels: true,
-    });
-
-    layout.one('layoutstop', () => {
-      //console.log('[AutoLayout] Cola layout complete');
-      void window.electronAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);
-      layoutRunning = false;
-
-      // Execute any pending pan after layout completes (instead of arbitrary timeout)
-      // This ensures viewport fits to new nodes only after their positions are finalized
-      consumePendingPan(cy);
-
-      // If another layout was queued, run it now
-      if (layoutQueued) {
-        layoutQueued = false;
-        runLayout();
-      }
-    });
-    layout.run();
+    if (currentConfig.engine === 'fcose') {
+      runFcoseLayout();
+    } else {
+      runColaLayout();
+    }
   };
 
   // Debounce helper to avoid rapid-fire layouts
@@ -175,6 +322,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     cy.off('add', 'edge', debouncedRunLayout);
     cy.off('remove', 'edge', debouncedRunLayout);
     layoutTriggers.delete(cy);
+    unsubSettings();
 
     if (debounceTimeout) {
       clearTimeout(debounceTimeout);

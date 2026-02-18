@@ -28,6 +28,7 @@ export function keyToLabel(key: string): string {
         'starredFolders': 'Starred Folders',
         'darkMode': 'Dark Mode',
         'vimMode': 'Vim Mode',
+        'layoutConfig': 'Layout Config',
     };
     if (overrides[key]) return overrides[key];
     return key.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()).trim();
@@ -46,4 +47,5 @@ export const SECTION_MAP: Record<string, Section> = {
     hooks: 'hooks',
     contextNodeMaxDistance: 'advanced', askModeContextDistance: 'advanced',
     defaultAllowlistPatterns: 'advanced', starredFolders: 'advanced',
+    layoutConfig: 'advanced',
 };
