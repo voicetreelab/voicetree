@@ -30,55 +30,60 @@ describe('findBestPosition', () => {
     });
 
     describe('single obstacle blocking desired angle', () => {
-        it('should avoid an obstacle at the desired angle and pick the closest cardinal', () => {
-            // Obstacle at (250, 0) blocking the right direction (0°)
+        it('should avoid an obstacle at the desired angle and pick the closest hex direction', () => {
+            // Obstacle at (250, 0) blocking the right direction (0°) at base distance
             const obstacle: ObstacleBBox = { x1: 200, x2: 300, y1: -30, y2: 30 };
             const result: Position = findBestPosition(parentPos, 0, distance, smallTarget, [obstacle]);
             // Should NOT be at (250, 0) since that overlaps
             expect(result.x !== 250 || result.y !== 0).toBe(true);
-            // Should pick a cardinal direction that doesn't overlap
-            const isCardinal: boolean =
-                (Math.abs(result.x) === distance && Math.abs(result.y) < 1) ||
-                (Math.abs(result.x) < 1 && Math.abs(result.y) === distance);
-            expect(isCardinal).toBe(true);
-        });
-
-        it('should prefer the closest cardinal direction to the desired angle', () => {
-            // Obstacle blocking right (0°), desired angle is 10° (close to right)
-            // Below (270° math = negative y) or above (90°) should be chosen — closest to 10° is above (90°)
-            // Actually for small targets at distance 250, "below" in screen (dy=1 → y=250) is 90° in atan2... no.
-            // atan2(250, 0) = PI/2 ≈ 90° and atan2(-250, 0) = -PI/2 ≈ -90° = 270°
-            // 10° is closest to 0° (right), but that's blocked. Next closest: above (90°) or below (270°)?
-            // |90 - 10| = 80, |270 - 10| = 260 → but normalized = min(260, 100) = 100. So 90° wins.
-            const obstacle: ObstacleBBox = { x1: 200, x2: 300, y1: -30, y2: 30 };
-            const result: Position = findBestPosition(parentPos, 10, distance, smallTarget, [obstacle]);
-            // Should pick direction with y > 0 (below on screen = 90° in math atan2 since dy > 0)
-            expect(result.y).toBeGreaterThan(0);
-        });
-    });
-
-    describe('all cardinal directions blocked', () => {
-        it('should try escalated distance (1.5×) when base distance is blocked', () => {
-            // Obstacles that block all 4 cardinals at base distance (250) but not at 1.5× (375)
-            const obstacles: readonly ObstacleBBox[] = [
-                { x1: 200, x2: 300, y1: -30, y2: 30 },    // right
-                { x1: -300, x2: -200, y1: -30, y2: 30 },   // left
-                { x1: -80, x2: 80, y1: 220, y2: 280 },     // below
-                { x1: -80, x2: 80, y1: -280, y2: -220 },   // above
-            ];
-            const result: Position = findBestPosition(parentPos, 0, distance, smallTarget, obstacles);
-            // At 1.5× distance (375), right direction clears the obstacle
+            // At 1.5× (375), right hex direction (375, 0) clears the obstacle (bbox x: [300, 450] vs obstacle x: [200, 300])
             expect(result.x).toBeCloseTo(375);
             expect(result.y).toBeCloseTo(0);
         });
 
-        it('should fall back to the desired angle when both base and escalated distances are blocked', () => {
-            // Large obstacles that block all 4 cardinals at both 1× and 1.5× distance
+        it('should prefer the closest hex direction to the desired angle', () => {
+            // Obstacle blocking a wide area around right (0°) at both 1× and 1.5× distance
+            const obstacle: ObstacleBBox = { x1: 100, x2: 500, y1: -30, y2: 30 };
+            const result: Position = findBestPosition(parentPos, 10, distance, smallTarget, [obstacle]);
+            // Right hex (375, 0) is blocked. Closest unblocked hex to 10° is 60° direction.
+            // At 1.5× (375): 60° → (187.5, 324.8)
+            expect(result.y).toBeGreaterThan(0);
+        });
+    });
+
+    describe('all hex directions blocked', () => {
+        it('should try 1.5× distance when desired angle is blocked', () => {
+            // Obstacle that blocks desired angle at base distance (250) but not at 1.5× (375)
             const obstacles: readonly ObstacleBBox[] = [
-                { x1: 100, x2: 500, y1: -30, y2: 30 },     // right (blocks both 250 and 375)
-                { x1: -500, x2: -100, y1: -30, y2: 30 },    // left
-                { x1: -80, x2: 80, y1: 200, y2: 400 },      // below
-                { x1: -80, x2: 80, y1: -400, y2: -200 },    // above
+                { x1: 200, x2: 300, y1: -30, y2: 30 },    // blocks right at 250
+            ];
+            const result: Position = findBestPosition(parentPos, 0, distance, smallTarget, obstacles);
+            // At 1.5× distance (375), right hex direction clears the obstacle
+            expect(result.x).toBeCloseTo(375);
+            expect(result.y).toBeCloseTo(0);
+        });
+
+        it('should try 3.5× distance when 1.5× is blocked', () => {
+            // Obstacles blocking desired angle at 1× AND all 6 hex directions at 1.5× (375)
+            // Hex at 1.5×: (375,0), (187.5,324.8), (-187.5,324.8), (-375,0), (-187.5,-324.8), (187.5,-324.8)
+            const obstacles: readonly ObstacleBBox[] = [
+                { x1: 100, x2: 500, y1: -30, y2: 30 },       // blocks right at 1× and 1.5×
+                { x1: 100, x2: 300, y1: 280, y2: 380 },      // blocks 60° at 1.5×
+                { x1: -300, x2: -100, y1: 280, y2: 380 },    // blocks 120° at 1.5×
+                { x1: -500, x2: -100, y1: -30, y2: 30 },     // blocks left at 1.5×
+                { x1: -300, x2: -100, y1: -380, y2: -280 },  // blocks 240° at 1.5×
+                { x1: 100, x2: 300, y1: -380, y2: -280 },    // blocks 300° at 1.5×
+            ];
+            const result: Position = findBestPosition(parentPos, 0, distance, smallTarget, obstacles);
+            // At 3.5× (875), right direction (875, 0) clears all obstacles
+            expect(result.x).toBeCloseTo(875);
+            expect(result.y).toBeCloseTo(0);
+        });
+
+        it('should fall back to the desired angle when all distances are blocked', () => {
+            // Massive obstacle blocking everything
+            const obstacles: readonly ObstacleBBox[] = [
+                { x1: -1000, x2: 1000, y1: -1000, y2: 1000 },
             ];
             const result: Position = findBestPosition(parentPos, 0, distance, smallTarget, obstacles);
             // Fallback to desired angle (0° = right)
