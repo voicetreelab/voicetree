@@ -129,9 +129,10 @@ function tryCandidateDirections(
  *
  * Algorithm:
  * 1. Try the desired angle at the given distance — if no AABB overlap, use it.
- * 2. If collision, try 6 hex directions (60° apart) at 1.5× distance, pick closest to desired angle.
- * 3. If all blocked, retry 6 hex directions at 3.5× distance (clears large floating editors).
- * 4. Fallback: return the desired angle position anyway (better than nothing).
+ * 2. If collision, try 6 hex directions (60° apart) at base distance, pick closest to desired angle.
+ * 3. If all blocked, retry at 1.5× distance.
+ * 4. If still blocked, retry at 3.5× distance (clears large floating editors).
+ * 5. Fallback: return the desired angle position anyway (better than nothing).
  *
  * @param parentPos - Center of the parent node
  * @param desiredAngleDeg - Preferred angle in degrees (0° = right, counter-clockwise)
@@ -161,16 +162,24 @@ export function findBestPosition(
 
     const desiredRad: number = (desiredAngleDeg * Math.PI) / 180;
 
-    // 2. Try 6 hex directions at 1.5× distance — clears most single-editor overlaps
-    const nearDistance: number = distance * 1.5;
-    const candidates: readonly { readonly pos: Position; readonly angleDiff: number }[] =
-        tryCandidateDirections(parentPos, HEX_DIRECTIONS, nearDistance, targetDimensions, obstacles, desiredRad, directionalDistance);
+    // 2. Try 6 hex directions at base distance
+    const baseCandidates: readonly { readonly pos: Position; readonly angleDiff: number }[] =
+        tryCandidateDirections(parentPos, HEX_DIRECTIONS, distance, targetDimensions, obstacles, desiredRad, directionalDistance);
 
-    if (candidates.length > 0) {
-        return [...candidates].sort((a, b) => a.angleDiff - b.angleDiff)[0].pos;
+    if (baseCandidates.length > 0) {
+        return [...baseCandidates].sort((a, b) => a.angleDiff - b.angleDiff)[0].pos;
     }
 
-    // 3. All directions blocked at 1.5× — retry at 3.5× distance.
+    // 3. All blocked at base — retry at 1.5× distance
+    const nearDistance: number = distance * 1.5;
+    const nearCandidates: readonly { readonly pos: Position; readonly angleDiff: number }[] =
+        tryCandidateDirections(parentPos, HEX_DIRECTIONS, nearDistance, targetDimensions, obstacles, desiredRad, directionalDistance);
+
+    if (nearCandidates.length > 0) {
+        return [...nearCandidates].sort((a, b) => a.angleDiff - b.angleDiff)[0].pos;
+    }
+
+    // 4. All blocked at 1.5× — retry at 3.5× distance.
     // Large floating windows (editors ~380×400) centered at ~285px from parent can have
     // bboxes extending to ~475px, requiring a larger jump to clear.
     const farDistance: number = distance * 3.5;
@@ -181,6 +190,6 @@ export function findBestPosition(
         return [...farCandidates].sort((a, b) => a.angleDiff - b.angleDiff)[0].pos;
     }
 
-    // 4. Fallback: desired angle position (all directions blocked)
+    // 5. Fallback: desired angle position (all directions blocked)
     return desiredPos;
 }
