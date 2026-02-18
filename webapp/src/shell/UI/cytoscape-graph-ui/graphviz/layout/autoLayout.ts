@@ -1,5 +1,5 @@
 /**
- * Auto Layout: Automatically run Cola, fcose, or ELK layout on graph changes
+ * Auto Layout: Automatically run Cola or fcose layout on graph changes
  *
  * Simple approach: Listen to cytoscape events (add/remove node/edge) and trigger layout.
  * No state tracking, no complexity - just re-layout the whole graph each time.
@@ -17,9 +17,6 @@ import ColaLayout from './cola';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore - cytoscape-fcose has no bundled types; ambient declaration in utils/types/cytoscape-fcose.d.ts
 import fcose from 'cytoscape-fcose';
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore - cytoscape-elk has no bundled types; ambient declaration in utils/types/cytoscape-elk.d.ts
-import elk from 'cytoscape-elk';
 import { getEdgeDistance } from './cytoscape-graph-constants';
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
@@ -32,14 +29,6 @@ function registerFcose(): void {
   if (!fcoseRegistered) {
     cytoscape.use(fcose);
     fcoseRegistered = true;
-  }
-}
-
-let elkRegistered: boolean = false;
-function registerElk(): void {
-  if (!elkRegistered) {
-    cytoscape.use(elk);
-    elkRegistered = true;
   }
 }
 
@@ -106,22 +95,12 @@ interface FcoseLayoutOptions {
   coolingFactor: number;
 }
 
-interface ElkLayoutOptions {
-  algorithm: 'layered' | 'stress' | 'mrtree' | 'radial' | 'force' | 'disco' | 'sporeOverlap' | 'sporeCompaction' | 'rectpacking';
-  'elk.direction': 'DOWN' | 'UP' | 'LEFT' | 'RIGHT';
-  'elk.spacing.nodeNode': number;
-  'elk.layered.spacing.nodeNodeBetweenLayers': number;
-  'elk.edgeRouting': 'POLYLINE' | 'ORTHOGONAL' | 'SPLINES';
-  animationDuration: number;
-}
-
-type LayoutEngine = 'cola' | 'fcose' | 'elk';
+type LayoutEngine = 'cola' | 'fcose';
 
 interface LayoutConfig {
   engine: LayoutEngine;
   cola: AutoLayoutOptions;
   fcose: FcoseLayoutOptions;
-  elk: ElkLayoutOptions;
 }
 
 const DEFAULT_OPTIONS: AutoLayoutOptions = {
@@ -166,23 +145,14 @@ const DEFAULT_FCOSE_OPTIONS: FcoseLayoutOptions = {
   coolingFactor: 0.3,
 };
 
-const DEFAULT_ELK_OPTIONS: ElkLayoutOptions = {
-  algorithm: 'layered',
-  'elk.direction': 'DOWN',
-  'elk.spacing.nodeNode': 70,
-  'elk.layered.spacing.nodeNodeBetweenLayers': 100,
-  'elk.edgeRouting': 'POLYLINE',
-  animationDuration: 1000,
-};
-
-const VALID_ENGINES: readonly LayoutEngine[] = ['cola', 'fcose', 'elk'] as const;
+const VALID_ENGINES: readonly LayoutEngine[] = ['cola', 'fcose'] as const;
 
 /**
  * Parse layoutConfig JSON string into typed layout options.
  * Falls back to cola defaults on any parse error.
  */
 function parseLayoutConfig(json: string | undefined): LayoutConfig {
-  const defaults: LayoutConfig = { engine: 'cola', cola: DEFAULT_OPTIONS, fcose: DEFAULT_FCOSE_OPTIONS, elk: DEFAULT_ELK_OPTIONS };
+  const defaults: LayoutConfig = { engine: 'cola', cola: DEFAULT_OPTIONS, fcose: DEFAULT_FCOSE_OPTIONS };
   if (!json) {
     return defaults;
   }
@@ -228,20 +198,7 @@ function parseLayoutConfig(json: string | undefined): LayoutConfig {
       coolingFactor: typeof parsed.coolingFactor === 'number' ? parsed.coolingFactor : DEFAULT_FCOSE_OPTIONS.coolingFactor,
     };
 
-    const validElkAlgorithms: readonly string[] = ['layered', 'stress', 'mrtree', 'radial', 'force', 'disco', 'sporeOverlap', 'sporeCompaction', 'rectpacking'] as const;
-    const validElkDirections: readonly string[] = ['DOWN', 'UP', 'LEFT', 'RIGHT'] as const;
-    const validElkRouting: readonly string[] = ['POLYLINE', 'ORTHOGONAL', 'SPLINES'] as const;
-
-    const elkOpts: ElkLayoutOptions = {
-      algorithm: validElkAlgorithms.includes(parsed['elk.algorithm'] as string) ? (parsed['elk.algorithm'] as ElkLayoutOptions['algorithm']) : DEFAULT_ELK_OPTIONS.algorithm,
-      'elk.direction': validElkDirections.includes(parsed['elk.direction'] as string) ? (parsed['elk.direction'] as ElkLayoutOptions['elk.direction']) : DEFAULT_ELK_OPTIONS['elk.direction'],
-      'elk.spacing.nodeNode': typeof parsed['elk.spacing.nodeNode'] === 'number' ? parsed['elk.spacing.nodeNode'] : DEFAULT_ELK_OPTIONS['elk.spacing.nodeNode'],
-      'elk.layered.spacing.nodeNodeBetweenLayers': typeof parsed['elk.layered.spacing.nodeNodeBetweenLayers'] === 'number' ? parsed['elk.layered.spacing.nodeNodeBetweenLayers'] : DEFAULT_ELK_OPTIONS['elk.layered.spacing.nodeNodeBetweenLayers'],
-      'elk.edgeRouting': validElkRouting.includes(parsed['elk.edgeRouting'] as string) ? (parsed['elk.edgeRouting'] as ElkLayoutOptions['elk.edgeRouting']) : DEFAULT_ELK_OPTIONS['elk.edgeRouting'],
-      animationDuration: typeof parsed.animationDuration === 'number' ? parsed.animationDuration : DEFAULT_ELK_OPTIONS.animationDuration,
-    };
-
-    return { engine, cola, fcose: fcoseOpts, elk: elkOpts };
+    return { engine, cola, fcose: fcoseOpts };
   } catch {
     return defaults;
   }
@@ -259,7 +216,7 @@ function parseLayoutConfig(json: string | undefined): LayoutConfig {
  */
 export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () => void {
   // Mutable config that gets updated when settings change
-  let currentConfig: LayoutConfig = { engine: 'cola', cola: { ...DEFAULT_OPTIONS, ...options }, fcose: DEFAULT_FCOSE_OPTIONS, elk: DEFAULT_ELK_OPTIONS };
+  let currentConfig: LayoutConfig = { engine: 'cola', cola: { ...DEFAULT_OPTIONS, ...options }, fcose: DEFAULT_FCOSE_OPTIONS };
 
   // Load initial config from settings
   void window.electronAPI?.main.loadSettings().then(settings => {
@@ -373,31 +330,6 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     layout.run();
   };
 
-  const runElkLayout: () => void = () => {
-    registerElk();
-    const elkOpts: ElkLayoutOptions = currentConfig.elk;
-
-    const elkLayoutOptions: { name: string } & Record<string, unknown> = {
-      name: 'elk',
-      eles: getNonContextElements(),
-      animate: true,
-      animationDuration: elkOpts.animationDuration,
-      fit: false,
-      nodeDimensionsIncludeLabels: true,
-      elk: {
-        algorithm: elkOpts.algorithm,
-        'elk.direction': elkOpts['elk.direction'],
-        'elk.spacing.nodeNode': elkOpts['elk.spacing.nodeNode'],
-        'elk.layered.spacing.nodeNodeBetweenLayers': elkOpts['elk.layered.spacing.nodeNodeBetweenLayers'],
-        'elk.edgeRouting': elkOpts['elk.edgeRouting'],
-      },
-    };
-    const layout: Layouts = cy.layout(elkLayoutOptions);
-
-    layout.one('layoutstop', onLayoutComplete);
-    layout.run();
-  };
-
   const runLayout: () => void = () => {
     // If layout already running, queue another run for after it completes
     if (layoutRunning) {
@@ -416,8 +348,6 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     if (currentConfig.engine === 'fcose') {
       // Every 7th layout, run fcose with 'proof' quality for a more thorough pass
       runFcoseLayout(layoutCount % 7 === 0 ? 'proof' : undefined);
-    } else if (currentConfig.engine === 'elk') {
-      runElkLayout();
     } else {
       runColaLayout();
     }
