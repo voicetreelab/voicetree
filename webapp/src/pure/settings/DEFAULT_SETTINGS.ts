@@ -121,7 +121,7 @@ You must create a progress node before reporting completion to the user. You mus
         onNewNode: '#node scripts/on-new-node.cjs',
     },
     layoutConfig: JSON.stringify({
-        engine: 'cola',
+        engine: 'fcose',
         nodeSpacing: 70,
         edgeLength: 250,
         convergenceThreshold: 0.4,
