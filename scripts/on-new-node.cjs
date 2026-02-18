@@ -5,6 +5,7 @@
 // Called by VoiceTree's onNewNode hook after a new graph node is written to disk.
 // Agent 1 (muse): every 3 nodes — expands thinking, surfaces missed aspects
 // Agent 2 (gardener): every 5 nodes — fixes orphans, bad connections, wrong splits/merges
+// Agent 3 (dispatcher): every 1 node — detects explicit user commands in transcript and executes them
 //
 // Usage: node on-new-node.cjs <nodePath>
 // Env:
@@ -106,6 +107,54 @@ Only create a progress node if you hit a problem you cannot resolve (e.g. ambigu
 
 ## Step 6: Close yourself (only if score < 7)
 Use close_agent with your own terminal ID (from $VOICETREE_TERMINAL_ID) as both callerTerminalId and terminalId.`
+        },
+    },
+    {
+        name: 'dispatcher',
+        batchFile: '/tmp/voicetree-new-nodes-dispatcher.txt',
+        threshold: 1,
+        taskTitle: 'Check transcript for user command',
+        buildPrompt: (nodeList, vaultDir) => {
+            const transcriptPath = path.join(vaultDir, 'transcript_history.txt')
+            return `You are a command dispatcher. Your ONLY job: detect if the user's voice transcript contains an explicit command that should be executed via voicetree MCP tools, and if so, execute it.
+
+## Step 1: Read transcript tail
+Read the TAIL (last 1500 chars) of: ${transcriptPath}
+
+## Step 2: Read the new node
+${nodeList}
+
+## Step 3: Score user action intent
+
+Analyze the transcript for an EXPLICIT user command directed at voicetree/agents. Score intent:
+
+- **non-existent**: No action requested at all. Normal thinking/discussion.
+- **low**: Vague language like "hmm let's look into that", "that's interesting", "we could maybe...". No clear directive.
+- **medium**: Somewhat directed but ambiguous. "we should probably check that" — unclear if talking to voicetree or thinking aloud.
+- **high**: Clear directive to take action. "okay spawn an agent to investigate that", "voicetree research X", "let's have an agent look at Y".
+- **obvious**: Unmistakable direct command. "spawn an agent now", "please search for X", "create a node about Y", "run search_nodes for Z".
+
+Examples:
+- "okay let's spawn an agent now to investigate that" → **obvious** (direct command to spawn)
+- "voicetree please research that" → **high** (directed at voicetree, clear action)
+- "hmm okay let's look into that" → **low** (vague, no clear directive)
+- "I think the architecture needs work" → **non-existent** (observation, not a command)
+- "we should search for related nodes" → **medium** (could be thinking aloud)
+
+## Step 4: Act ONLY if high or obvious
+
+If score is **non-existent, low, or medium**: Skip to Step 5 immediately. Do NOT create any nodes or take any action.
+
+If score is **high or obvious**: Execute the user's command using the appropriate voicetree MCP tool. Common mappings:
+- "spawn an agent" / "investigate" / "research" / "look into" → spawn_agent
+- "search for" / "find nodes about" → search_nodes
+- "create a node" → create_graph
+
+Use your best judgment to map the user's intent to the right MCP tool and parameters. If spawning an agent, extract the topic/task from the transcript context.
+
+## Step 5: Close yourself
+Use close_agent with your own terminal ID (from $VOICETREE_TERMINAL_ID) as both callerTerminalId and terminalId.
+ALWAYS close yourself — even after executing a command. You are a one-shot dispatcher.`
         },
     },
 ]
