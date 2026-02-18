@@ -182,7 +182,7 @@ function App(): JSX.Element {
 
     // Render graph view
     return (
-        <div className="h-screen relative overflow-hidden bg-background">
+        <div className="h-screen relative bg-background">
             {/* Layer 1: Graph canvas - Cytoscape only, absolutely positioned so it never causes overflow */}
             <div ref={graphContainerRef} className="absolute inset-0 pb-14 overflow-hidden bg-background"/>
             {/* Layer 2: UI overlay - sidebar, overlays, title bar, tabs */}

@@ -220,12 +220,10 @@ export class NavigationGestureService {
             }
         }
 
-        // Check for terminal (xterm.js)
+        // Terminals always allow scroll — fresh terminals with little output may not
+        // have viewport overflow yet, but blocking scroll feels broken to users
         if (floatingWindow.classList.contains('cy-floating-window-terminal')) {
-            const viewport: HTMLElement | null = floatingWindow.querySelector('.xterm-viewport');
-            if (viewport) {
-                return viewport.scrollHeight > viewport.clientHeight;
-            }
+            return true;
         }
 
         // Default: assume scrollable (conservative)
