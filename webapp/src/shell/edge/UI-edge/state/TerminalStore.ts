@@ -226,6 +226,21 @@ export function getNextTerminalCount(
 }
 
 /**
+ * Update activity count and notify subscribers.
+ * Unlike updateTerminalRunningState (which skips notification for high-frequency lastOutputTime),
+ * activity count changes are infrequent and visually important, so we notify.
+ */
+export function updateTerminalActivityAndNotify(
+    terminalId: TerminalId,
+    activityCount: number
+): void {
+    const existing: TerminalData | undefined = terminals.get(terminalId);
+    if (!existing) return;
+    terminals.set(terminalId, { ...existing, activityCount });
+    notifySubscribers();
+}
+
+/**
  * Clear all terminals from state.
  * Also resets derived agent tabs state (activeTerminalId, displayOrder).
  */
