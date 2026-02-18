@@ -6,7 +6,7 @@
  * This ensures the pan happens at the right time regardless of how long layout takes.
  */
 
-import type { Core } from 'cytoscape';
+import type { Core, CollectionReturnValue } from 'cytoscape';
 import { cyFitCollectionByAverageNodeSize, cySmartCenter, getResponsivePadding } from '@/utils/responsivePadding';
 
 export type PendingPanType = 'large-batch' | 'small-graph' | 'wikilink-target' | null;
@@ -64,19 +64,36 @@ export function consumePendingPan(cy: Core): boolean {
   const { type, targetNodeId } = pendingPan;
   pendingPan = null;
 
+  const zoomBefore: number = cy.zoom();
+  const panBefore: { x: number; y: number } = cy.pan();
+  const cyW: number = cy.width();
+  const cyH: number = cy.height();
+  const bb: { x1: number; y1: number; x2: number; y2: number; w: number; h: number } = cy.elements().boundingBox();
+
+  console.warn(
+    `[consumePendingPan] type=${type}, viewport=${cyW}x${cyH}, zoom=${zoomBefore.toFixed(4)}, pan=(${panBefore.x.toFixed(0)},${panBefore.y.toFixed(0)}), `
+    + `elementsBB: (${bb.x1.toFixed(0)},${bb.y1.toFixed(0)})→(${bb.x2.toFixed(0)},${bb.y2.toFixed(0)}) ${bb.w.toFixed(0)}x${bb.h.toFixed(0)}, `
+    + `nodes=${cy.nodes().length}, edges=${cy.edges().length}`
+  );
+
   if (type === 'large-batch') {
     // Large batch (>30% new nodes): fit all in view with padding
-    cy.fit(undefined, getResponsivePadding(cy, 15));
+    const padding: number = getResponsivePadding(cy, 15);
+    console.warn(`[consumePendingPan] large-batch: cy.fit(all, padding=${padding})`);
+    cy.fit(undefined, padding);
+    console.warn(`[consumePendingPan] after fit: zoom=${cy.zoom().toFixed(4)}, pan=(${cy.pan().x.toFixed(0)},${cy.pan().y.toFixed(0)})`);
     return true;
   } else if (type === 'small-graph') {
     // Fit so average node takes target fraction of viewport (smart zoom: only zooms if needed)
+    console.warn(`[consumePendingPan] small-graph: cyFitCollectionByAverageNodeSize`);
     cyFitCollectionByAverageNodeSize(cy, cy.nodes(), 0.15);
     return true;
   } else if (type === 'wikilink-target' && targetNodeId) {
-    const targetNode = cy.getElementById(targetNodeId);
+    const targetNode: CollectionReturnValue = cy.getElementById(targetNodeId);
     if (targetNode.length > 0) {
       // Include target + d=1 neighbors for spatial context
-      const nodesToCenter = targetNode.closedNeighborhood().nodes();
+      const nodesToCenter: CollectionReturnValue = targetNode.closedNeighborhood().nodes() as CollectionReturnValue;
+      console.warn(`[consumePendingPan] wikilink-target: centering on ${targetNodeId}`);
       cySmartCenter(cy, nodesToCenter);
       return true;
     }

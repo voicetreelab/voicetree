@@ -373,6 +373,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     }
 
     private handleResizeMethod(): void {
+        console.warn(`[VoiceTreeGraphView] window resize event, zoom=${this.cy.zoom().toFixed(4)}, cy.size=${this.cy.width()}x${this.cy.height()}`);
         this.cy.resize();
     }
 
@@ -433,7 +434,10 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     fit(paddingPercentage = 3): void {
         const cy: cytoscape.Core = this.cy;
         // Use responsive padding instead of fixed pixels (default was 50px on 1440p)
-        cy.fit(undefined, getResponsivePadding(cy, paddingPercentage));
+        const padding: number = getResponsivePadding(cy, paddingPercentage);
+        console.warn(`[VoiceTreeGraphView.fit] zoom=${cy.zoom().toFixed(4)}, padding=${padding}, cy.size=${cy.width()}x${cy.height()}`);
+        cy.fit(undefined, padding);
+        console.warn(`[VoiceTreeGraphView.fit] after: zoom=${cy.zoom().toFixed(4)}`);
     }
 
     toggleDarkMode(): void {

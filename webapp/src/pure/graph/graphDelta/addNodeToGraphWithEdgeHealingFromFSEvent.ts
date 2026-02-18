@@ -4,7 +4,8 @@ import {parseMarkdownToGraphNode} from '@/pure/graph/markdown-parsing/parse-mark
 import {findBestMatchingNode} from '@/pure/graph/markdown-parsing/extract-edges'
 import {setOutgoingEdges} from '@/pure/graph/graph-operations/graph-edge-operations'
 import {filenameToNodeId} from '@/pure/graph/markdown-parsing/filename-utils'
-import {calculateInitialPositionForChild} from "@/pure/graph/positioning/calculateInitialPosition";
+import {calculateCollisionAwareChildPosition} from "@/pure/graph/positioning/calculateInitialPosition";
+import {extractObstaclesFromGraph} from "@/pure/graph/positioning/extractObstaclesFromGraph";
 import {getBaseName, updateNodeByBaseNameIndexForUpsert, updateUnresolvedLinksIndexForUpsert} from '@/pure/graph/graph-operations/linkResolutionIndexes'
 
 /**
@@ -30,10 +31,16 @@ function resolveNodePosition(
         return parsedNode.nodeUIMetadata.position
     }
 
-    // Priority 3: Calculate from first parent if any exists
+    // Priority 3: Calculate from first parent with collision avoidance
+    // Uses graph-derived obstacles (approximate dimensions) since cytoscape isn't available in pure context
     if (affectedNodeIds.length >= 1) {
-        const parent: GraphNode = currentGraph.nodes[affectedNodeIds[0]]
-        return calculateInitialPositionForChild(parent, currentGraph, undefined, 200)
+        const parentId: NodeIdAndFilePath = affectedNodeIds[0]
+        const parent: GraphNode = currentGraph.nodes[parentId]
+        if (O.isSome(parent.nodeUIMetadata.position)) {
+            const obstacles: readonly import("@/pure/graph/positioning/findBestPosition").ObstacleBBox[] = extractObstaclesFromGraph(parentId, currentGraph)
+            return O.some(calculateCollisionAwareChildPosition(parent.nodeUIMetadata.position.value, currentGraph, parentId, obstacles, 200))
+        }
+        return O.none
     }
 
     // Priority 4: No position (defaults to 0,0 in UI layer)
