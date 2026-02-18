@@ -56,4 +56,10 @@ describe('buildCompletionMessage', () => {
         const msg: string = buildCompletionMessage(agents)
         expect(msg).toContain('- Carol [exited]: (no nodes created)')
     })
+
+    it('includes tip about closing agents', () => {
+        const msg: string = buildCompletionMessage([])
+        expect(msg).toContain('close_agent')
+        expect(msg).toContain('human review')
+    })
 })
