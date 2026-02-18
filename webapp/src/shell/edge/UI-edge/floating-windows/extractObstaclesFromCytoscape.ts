@@ -12,7 +12,7 @@ import { findBestPosition } from '@/pure/graph/positioning/findBestPosition';
 import { calculateChildAngle, calculateParentAngle, DEFAULT_EDGE_LENGTH } from '@/pure/graph/positioning/angularPositionSeeding';
 import { findFirstParentNode } from '@/pure/graph/graph-operations/findFirstParentNode';
 
-const CHILD_NODE_DIMENSIONS: { readonly width: number; readonly height: number } = { width: 150, height: 40 };
+const CHILD_NODE_DIMENSIONS: { readonly width: number; readonly height: number } = { width: 250, height: 250 };
 
 /**
  * Extract obstacle bounding boxes from the cytoscape neighborhood of a node.
