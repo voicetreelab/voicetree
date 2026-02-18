@@ -248,7 +248,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
       randomize: false,
       fit: false,
       nodeRepulsion: () => fcoseOpts.nodeRepulsion,
-      idealEdgeLength: () => fcoseOpts.idealEdgeLength,
+      idealEdgeLength: (edge: EdgeSingular) => getEdgeDistance(edge.target().data('windowType')),
       edgeElasticity: () => fcoseOpts.edgeElasticity,
       gravity: fcoseOpts.gravity,
       gravityRange: fcoseOpts.gravityRange,
