@@ -36,10 +36,6 @@ const defaults: { animate: boolean; refresh: number; maxSimulationTime: number; 
   userConstIter: undefined, // initial layout iterations with user-specified constraints
   allConstIter: undefined, // initial layout iterations with all constraints including non-overlap
 
-  // position anchoring - ghost nodes that softly anchor existing nodes to prior positions
-  anchorEnabled: true,
-  anchorStrength: 10, // 1-200; lower = stronger anchor (ghost edge length)
-
   // infinite layout options
   infinite: false // overrides all other options for a forces-all-the-time mode
 };
