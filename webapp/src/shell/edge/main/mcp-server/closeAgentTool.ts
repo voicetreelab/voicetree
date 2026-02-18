@@ -39,14 +39,17 @@ export async function closeAgentTool({
         }, true)
     }
 
-    // 3. Check if the agent has produced any nodes
-    const agentName: string | undefined = targetRecord.terminalData.agentName
-    const agentNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(getGraph(), agentName)
-    if (agentNodes.length === 0) {
-        return buildJsonResponse({
-            success: false,
-            error: `Cannot close agent terminal "${terminalId}": this agent has not produced any nodes yet. Agents should create progress nodes documenting their work before being closed.`
-        }, true)
+    // 3. If another agent is closing this terminal, require progress nodes
+    const isSelfClose: boolean = callerTerminalId === terminalId
+    if (!isSelfClose) {
+        const agentName: string | undefined = targetRecord.terminalData.agentName
+        const agentNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(getGraph(), agentName)
+        if (agentNodes.length === 0) {
+            return buildJsonResponse({
+                success: false,
+                error: `Cannot close agent terminal "${terminalId}": this agent has not produced any nodes yet. Agents should create progress nodes documenting their work before being closed.`
+            }, true)
+        }
     }
 
     // 4. Close the terminal via UI API (mimics clicking red traffic light button)

@@ -110,6 +110,7 @@ You must create a progress node before reporting completion to the user. You mus
     autoNotifyUnseenNodes: false,
     darkMode: false,
     zoomSensitivity: 1.0,
+    nodeLineLimit: 70,
     starredFolders: [],
     hooks: {
         onWorktreeCreatedBlocking: '#./scripts/on-worktree-created-blocking.sh',

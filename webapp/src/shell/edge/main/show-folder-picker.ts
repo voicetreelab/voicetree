@@ -1,5 +1,20 @@
 import { dialog } from 'electron';
 import os from 'os';
+import path from 'path';
+import fs from 'fs';
+import { createDatedSubfolder } from './project-utils';
+
+/**
+ * Creates a new dated project folder inside ~/Voicetree (e.g. ~/Voicetree/voicetree-18-2).
+ * Creates the parent ~/Voicetree directory if it doesn't exist.
+ */
+export async function createNewProject(): Promise<string> {
+    const parentDir: string = path.join(os.homedir(), 'Voicetree');
+    if (!fs.existsSync(parentDir)) {
+        fs.mkdirSync(parentDir, { recursive: true });
+    }
+    return createDatedSubfolder(parentDir);
+}
 
 export interface FolderPickerResult {
     readonly success: boolean;

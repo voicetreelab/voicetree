@@ -82,6 +82,8 @@ export async function initialLoad(): Promise<void> {
     }
 
     const lastDirectory: O.Option<string> = await getLastDirectory();
+    // Re-check after yield - startFileWatching may have set projectRootWatchedDirectory during the await
+    if (getProjectRootWatchedDirectory() !== null) return;
     if (O.isSome(lastDirectory)) {
         await loadFolder(lastDirectory.value);
     }

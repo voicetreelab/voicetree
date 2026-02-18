@@ -102,6 +102,8 @@ export interface VTSettings {
     readonly darkMode?: boolean;
     /** Scroll wheel zoom sensitivity (0.1 = very slow, 1.0 = default, 3.0 = very fast) */
     readonly zoomSensitivity?: number;
+    /** Maximum non-exempt lines per progress node (default: 70). Keeps nodes atomic. */
+    readonly nodeLineLimit?: number;
     /** Starred folder paths that appear as quick-load recommendations across all projects */
     readonly starredFolders?: readonly string[];
     /** Hook scripts triggered by app events (e.g., worktree creation) */

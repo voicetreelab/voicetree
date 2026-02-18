@@ -170,7 +170,31 @@ export function ProjectSelectionScreen({ onProjectSelected }: ProjectSelectionSc
         }
     };
 
-    // Handle browsing for a folder
+    // Handle creating a new project — auto-creates ~/Voicetree/voicetree-{day}-{month}
+    const handleCreateProject: () => Promise<void> = async (): Promise<void> => {
+        if (!window.electronAPI) return;
+
+        try {
+            const projectPath: string = await window.electronAPI.main.createNewProject();
+            const folderName: string = getFolderName(projectPath);
+            const newProject: SavedProject = {
+                id: generateId(),
+                path: projectPath,
+                name: folderName,
+                type: 'folder',
+                lastOpened: Date.now(),
+                voicetreeInitialized: false,
+            };
+
+            await window.electronAPI.main.saveProject(newProject);
+            onProjectSelected(newProject);
+        } catch (err) {
+            console.error('[ProjectSelectionScreen] Failed to create project:', err);
+            setError('Failed to create project');
+        }
+    };
+
+    // Handle browsing for an existing folder
     const handleBrowseFolder: () => Promise<void> = async (): Promise<void> => {
         if (!window.electronAPI) return;
 
@@ -242,7 +266,7 @@ export function ProjectSelectionScreen({ onProjectSelected }: ProjectSelectionSc
                     <div className="text-center py-12">
                         <p className="text-muted-foreground mb-4">No projects yet</p>
                         <p className="text-sm text-muted-foreground mb-6">
-                            Browse for a folder or scan for existing projects
+                            Create a new project or open an existing folder
                         </p>
                     </div>
                 )}
@@ -325,10 +349,16 @@ export function ProjectSelectionScreen({ onProjectSelected }: ProjectSelectionSc
             {/* Footer actions */}
             <div className="flex gap-3 pt-4 border-t border-border">
                 <button
-                    onClick={() => void handleBrowseFolder()}
+                    onClick={() => void handleCreateProject()}
                     className="flex-1 py-3 px-4 bg-primary text-primary-foreground font-medium rounded-lg hover:bg-primary/90 transition-colors"
                 >
-                    Browse folders...
+                    + New project
+                </button>
+                <button
+                    onClick={() => void handleBrowseFolder()}
+                    className="flex-1 py-3 px-4 bg-card text-foreground font-medium rounded-lg border border-border hover:bg-accent transition-colors"
+                >
+                    Open existing...
                 </button>
             </div>
         </div>

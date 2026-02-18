@@ -18,5 +18,7 @@ def extract_markdown_links(content: str) -> list[str]:
     Returns:
         List of linked markdown filenames
     """
+    # TODO: This regex requires .md extension — [[foo]] is silently ignored.
+    # Accept wikilinks without .md (e.g. [[foo]]) and append .md to extracted links for downstream consistency.
     pattern = r'\[\[([^\]|]+\.md)(?:\|[^\|]+)?\]\]'
     return re.findall(pattern, content)
