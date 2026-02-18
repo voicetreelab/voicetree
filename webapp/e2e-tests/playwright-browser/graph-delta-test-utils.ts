@@ -107,6 +107,9 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
         // Frontend ready signal (no-op for tests)
         markFrontendReady: async () => {},
 
+        // App support path (used by VaultPathSelector to derive home directory)
+        getAppSupportPath: async (): Promise<string> => '/Users/testuser/Library/Application Support/Voicetree',
+
         // Vault path methods (required for VaultPathSelector and node creation)
         getVaultPaths: async (): Promise<readonly string[]> => ['/mock/watched/directory'],
         getWritePath: async () => ({

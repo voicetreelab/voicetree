@@ -94,12 +94,43 @@ function cardinalOffset(
 }
 
 /**
+ * Try cardinal directions at a given distance, return overlap-free candidates
+ * sorted by angular proximity to the desired angle.
+ */
+function tryCandidateDirections(
+    parentPos: Position,
+    directions: readonly { readonly dx: number; readonly dy: number }[],
+    distance: number,
+    targetDimensions: TargetDimensions,
+    obstacles: readonly ObstacleBBox[],
+    desiredRad: number,
+    directionalDistance?: DirectionalDistanceConfig
+): readonly { readonly pos: Position; readonly angleDiff: number }[] {
+    const normalizeAngleDiff: (raw: number) => number = (raw: number) =>
+        raw > Math.PI ? 2 * Math.PI - raw : raw;
+
+    return directions
+        .map(dir => {
+            const off: Position = cardinalOffset(dir, distance, targetDimensions, directionalDistance);
+            return { x: parentPos.x + off.x, y: parentPos.y + off.y };
+        })
+        .filter(candidatePos => !hasAnyOverlap(buildBBox(candidatePos, targetDimensions), obstacles))
+        .map(candidatePos => {
+            const candidateRad: number = Math.atan2(candidatePos.y - parentPos.y, candidatePos.x - parentPos.x);
+            const angleDiff: number = normalizeAngleDiff(Math.abs(candidateRad - desiredRad));
+            return { pos: candidatePos, angleDiff };
+        });
+}
+
+/**
  * Find the best collision-free position near a parent node.
  *
  * Algorithm:
  * 1. Try the desired angle at the given distance — if no AABB overlap, use it.
  * 2. If collision, try 4 cardinal directions and pick the closest to desired angle with no overlap.
- * 3. Fallback: return the desired angle position anyway (better than nothing).
+ * 3. If all cardinals blocked, retry at 1.5× distance (large obstacles can cause marginal overlaps
+ *    at the base distance that clear with a small increase).
+ * 4. Fallback: return the desired angle position anyway (better than nothing).
  *
  * @param parentPos - Center of the parent node
  * @param desiredAngleDeg - Preferred angle in degrees (0° = right, counter-clockwise)
@@ -127,30 +158,27 @@ export function findBestPosition(
         return desiredPos;
     }
 
-    // 2. Try cardinal directions, pick closest angle to desired
     const desiredRad: number = (desiredAngleDeg * Math.PI) / 180;
 
-    type Candidate = { readonly pos: Position; readonly angleDiff: number };
-
-    const normalizeAngleDiff: (raw: number) => number = (raw: number) =>
-        raw > Math.PI ? 2 * Math.PI - raw : raw;
-
-    const candidates: readonly Candidate[] = CARDINAL_DIRECTIONS
-        .map(dir => {
-            const off: Position = cardinalOffset(dir, distance, targetDimensions, directionalDistance);
-            return { x: parentPos.x + off.x, y: parentPos.y + off.y };
-        })
-        .filter(candidatePos => !hasAnyOverlap(buildBBox(candidatePos, targetDimensions), obstacles))
-        .map(candidatePos => {
-            const candidateRad: number = Math.atan2(candidatePos.y - parentPos.y, candidatePos.x - parentPos.x);
-            const angleDiff: number = normalizeAngleDiff(Math.abs(candidateRad - desiredRad));
-            return { pos: candidatePos, angleDiff };
-        });
+    // 2. Try cardinal directions at base distance
+    const candidates: readonly { readonly pos: Position; readonly angleDiff: number }[] =
+        tryCandidateDirections(parentPos, CARDINAL_DIRECTIONS, distance, targetDimensions, obstacles, desiredRad, directionalDistance);
 
     if (candidates.length > 0) {
         return [...candidates].sort((a, b) => a.angleDiff - b.angleDiff)[0].pos;
     }
 
-    // 3. Fallback: desired angle position (all directions blocked)
+    // 3. All cardinals blocked at base distance — retry at 1.5× distance.
+    // Large floating windows (editors/terminals) can cause marginal overlaps at base distance
+    // that clear with a modest increase.
+    const escalatedDistance: number = distance * 1.5;
+    const escalatedCandidates: readonly { readonly pos: Position; readonly angleDiff: number }[] =
+        tryCandidateDirections(parentPos, CARDINAL_DIRECTIONS, escalatedDistance, targetDimensions, obstacles, desiredRad, directionalDistance);
+
+    if (escalatedCandidates.length > 0) {
+        return [...escalatedCandidates].sort((a, b) => a.angleDiff - b.angleDiff)[0].pos;
+    }
+
+    // 4. Fallback: desired angle position (all directions blocked)
     return desiredPos;
 }

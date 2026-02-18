@@ -58,13 +58,27 @@ describe('findBestPosition', () => {
     });
 
     describe('all cardinal directions blocked', () => {
-        it('should fall back to the desired angle position', () => {
-            // Obstacles at all 4 cardinal directions
+        it('should try escalated distance (1.5×) when base distance is blocked', () => {
+            // Obstacles that block all 4 cardinals at base distance (250) but not at 1.5× (375)
             const obstacles: readonly ObstacleBBox[] = [
                 { x1: 200, x2: 300, y1: -30, y2: 30 },    // right
                 { x1: -300, x2: -200, y1: -30, y2: 30 },   // left
                 { x1: -80, x2: 80, y1: 220, y2: 280 },     // below
                 { x1: -80, x2: 80, y1: -280, y2: -220 },   // above
+            ];
+            const result: Position = findBestPosition(parentPos, 0, distance, smallTarget, obstacles);
+            // At 1.5× distance (375), right direction clears the obstacle
+            expect(result.x).toBeCloseTo(375);
+            expect(result.y).toBeCloseTo(0);
+        });
+
+        it('should fall back to the desired angle when both base and escalated distances are blocked', () => {
+            // Large obstacles that block all 4 cardinals at both 1× and 1.5× distance
+            const obstacles: readonly ObstacleBBox[] = [
+                { x1: 100, x2: 500, y1: -30, y2: 30 },     // right (blocks both 250 and 375)
+                { x1: -500, x2: -100, y1: -30, y2: 30 },    // left
+                { x1: -80, x2: 80, y1: 200, y2: 400 },      // below
+                { x1: -80, x2: 80, y1: -400, y2: -200 },    // above
             ];
             const result: Position = findBestPosition(parentPos, 0, distance, smallTarget, obstacles);
             // Fallback to desired angle (0° = right)

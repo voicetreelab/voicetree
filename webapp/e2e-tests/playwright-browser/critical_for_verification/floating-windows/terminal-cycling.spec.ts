@@ -99,7 +99,7 @@ test.describe('Terminal Cycling (Browser)', () => {
       const terminalStoreAPI = (window as ExtendedWindow & {
         terminalStoreAPI?: {
           addTerminal: (data: unknown) => void;
-          createTerminalData: (params: { attachedToNodeId: string; terminalCount: number; title: string }) => unknown;
+          createTerminalData: (params: { terminalId: string; attachedToNodeId: string; terminalCount: number; title: string; agentName: string }) => unknown;
           getTerminalId: (data: unknown) => string;
           getShadowNodeId: (id: string) => string;
         };
@@ -115,9 +115,9 @@ test.describe('Terminal Cycling (Browser)', () => {
       const parent3 = nodes[2].id();
 
       // Create terminals in TerminalStore
-      const terminal1 = terminalStoreAPI.createTerminalData({ attachedToNodeId: parent1, terminalCount: 0, title: 'Terminal 1' });
-      const terminal2 = terminalStoreAPI.createTerminalData({ attachedToNodeId: parent2, terminalCount: 0, title: 'Terminal 2' });
-      const terminal3 = terminalStoreAPI.createTerminalData({ attachedToNodeId: parent3, terminalCount: 0, title: 'Terminal 3' });
+      const terminal1 = terminalStoreAPI.createTerminalData({ terminalId: 'test-agent-1', attachedToNodeId: parent1, terminalCount: 0, title: 'Terminal 1', agentName: 'test-agent-1' });
+      const terminal2 = terminalStoreAPI.createTerminalData({ terminalId: 'test-agent-2', attachedToNodeId: parent2, terminalCount: 0, title: 'Terminal 2', agentName: 'test-agent-2' });
+      const terminal3 = terminalStoreAPI.createTerminalData({ terminalId: 'test-agent-3', attachedToNodeId: parent3, terminalCount: 0, title: 'Terminal 3', agentName: 'test-agent-3' });
 
       terminalStoreAPI.addTerminal(terminal1);
       terminalStoreAPI.addTerminal(terminal2);

@@ -35,7 +35,7 @@ async function setupMockElectronAPIWithNestedFolders(page: Page): Promise<void> 
   await page.addInitScript(() => {
     const mockVaultPaths: string[] = ['/mock/watched/directory'];
     let mockWritePath = '/mock/watched/directory';
-    let currentSearchQuery = '';
+    // currentSearchQuery tracking removed — not read by any consumer
 
     // Define the mock folder structure
     const allFolders: { path: string; modifiedAt: number }[] = [
@@ -98,7 +98,6 @@ async function setupMockElectronAPIWithNestedFolders(page: Page): Promise<void> 
 
     // Mock getAvailableFoldersForSelector with lazy path expansion
     const getAvailableFoldersForSelector = (searchQuery: string): AvailableFolderItem[] => {
-      currentSearchQuery = searchQuery;
       const parsed = parseSearchQuery(searchQuery);
 
       let scanRoot = projectRoot;
@@ -155,7 +154,18 @@ async function setupMockElectronAPIWithNestedFolders(page: Page): Promise<void> 
         absolutePath: f.path,
         displayPath: toDisplayPath(f.path),
         modifiedAt: f.modifiedAt,
-      }));
+      })) as unknown as AvailableFolderItem[];
+    };
+
+    // Broadcast vault state to VaultPathStore via IPC (simulates main process push)
+    // Defined before mockElectronAPI but only called at runtime when mockElectronAPI is initialized
+    const broadcastVaultState = (): void => {
+      const listeners = mockElectronAPI._ipcListeners['ui:call'] || [];
+      listeners.forEach(cb => cb(null, 'syncVaultState', [{
+        readPaths: [...mockVaultPaths],
+        writePath: mockWritePath,
+        starredFolders: [],
+      }]));
     };
 
     // Create a comprehensive mock of the Electron API
@@ -172,7 +182,10 @@ async function setupMockElectronAPIWithNestedFolders(page: Page): Promise<void> 
         }),
         saveSettings: async () => ({ success: true }),
         saveNodePositions: async () => ({ success: true }),
-        startFileWatching: async (dir: string) => ({ success: true, directory: dir }),
+        startFileWatching: async (dir: string) => {
+          setTimeout(broadcastVaultState, 10);
+          return { success: true, directory: dir };
+        },
         stopFileWatching: async () => ({ success: true }),
         getWatchStatus: async () => ({ isWatching: true, directory: '/mock/watched/directory' }),
         loadPreviousFolder: async () => ({ success: false }),
@@ -180,6 +193,9 @@ async function setupMockElectronAPIWithNestedFolders(page: Page): Promise<void> 
         getMetrics: async () => ({ sessions: [] }),
         markFrontendReady: async () => {},
         readImageAsDataUrl: async (): Promise<string> => 'data:image/png;base64,test',
+
+        // App support path (used by VaultPathSelector to derive home directory)
+        getAppSupportPath: async (): Promise<string> => '/Users/testuser/Library/Application Support/Voicetree',
 
         // Vault methods
         getVaultPaths: async (): Promise<readonly string[]> => mockVaultPaths,
@@ -192,12 +208,14 @@ async function setupMockElectronAPIWithNestedFolders(page: Page): Promise<void> 
           if (!mockVaultPaths.includes(path)) {
             mockVaultPaths.push(path);
           }
+          setTimeout(broadcastVaultState, 0);
           return { success: true };
         },
         addReadPath: async (path: string) => {
           if (!mockVaultPaths.includes(path)) {
             mockVaultPaths.push(path);
           }
+          setTimeout(broadcastVaultState, 0);
           return { success: true };
         },
         removeReadPath: async (path: string) => {
@@ -205,6 +223,7 @@ async function setupMockElectronAPIWithNestedFolders(page: Page): Promise<void> 
           if (index >= 0) {
             mockVaultPaths.splice(index, 1);
           }
+          setTimeout(broadcastVaultState, 0);
           return { success: true };
         },
         getShowAllPaths: async (): Promise<readonly string[]> => [],
@@ -375,7 +394,7 @@ test.describe('VaultPathSelector Lazy Path Expansion', () => {
     await page.waitForTimeout(300);
 
     // Verify docs subfolders are shown
-    const folderList = dropdown.locator('.max-h-\\[150px\\]');
+    const folderList = dropdown.locator('.max-h-\\[280px\\]');
     const folderListText = await folderList.textContent();
 
     console.log('Folder list content after typing "docs/":', folderListText);
@@ -426,7 +445,7 @@ test.describe('VaultPathSelector Lazy Path Expansion', () => {
     await page.waitForTimeout(300);
 
     // Verify filtered results
-    const folderList = dropdown.locator('.max-h-\\[150px\\]');
+    const folderList = dropdown.locator('.max-h-\\[280px\\]');
     const folderListText = await folderList.textContent();
 
     console.log('Folder list content after typing "docs/pro":', folderListText);
@@ -475,7 +494,7 @@ test.describe('VaultPathSelector Lazy Path Expansion', () => {
     await page.waitForTimeout(300);
 
     // Verify nested folders are shown with full relative path
-    const folderList = dropdown.locator('.max-h-\\[150px\\]');
+    const folderList = dropdown.locator('.max-h-\\[280px\\]');
     const folderListText = await folderList.textContent();
 
     console.log('Folder list content after typing "docs/projects/":', folderListText);
@@ -611,7 +630,7 @@ test.describe('VaultPathSelector Lazy Path Expansion', () => {
 
     // Should show empty results (no folders matching escape path)
     // The folder list should show "Type to search folders..." or be empty
-    const folderList = dropdown.locator('.max-h-\\[150px\\]');
+    const folderList = dropdown.locator('.max-h-\\[280px\\]');
     const folderItems = folderList.locator('.group');
     const itemCount = await folderItems.count();
 

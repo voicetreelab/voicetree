@@ -30,6 +30,16 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
     let mockWritePath = '/mock/write-vault';
     let mockShowAllPaths: string[] = [];
 
+    // Broadcast vault state to VaultPathStore via IPC (simulates main process push)
+    const broadcastVaultState = (): void => {
+      const listeners = mockElectronAPI._ipcListeners['ui:call'] || [];
+      listeners.forEach(cb => cb(null, 'syncVaultState', [{
+        readPaths: [...mockVaultPaths],
+        writePath: mockWritePath,
+        starredFolders: [],
+      }]));
+    };
+
     // Create a comprehensive mock of the Electron API
     const mockElectronAPI = {
       // Main API
@@ -52,7 +62,10 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
         saveNodePositions: async () => ({ success: true }),
 
         // File watching controls
-        startFileWatching: async (dir: string) => ({ success: true, directory: dir }),
+        startFileWatching: async (dir: string) => {
+          setTimeout(broadcastVaultState, 10);
+          return { success: true, directory: dir };
+        },
         stopFileWatching: async () => ({ success: true }),
         getWatchStatus: async () => ({ isWatching: true, directory: '/mock/write-vault' }),
         loadPreviousFolder: async () => ({ success: false }),
@@ -65,6 +78,9 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
 
         // Image loading
         readImageAsDataUrl: async (): Promise<string> => 'data:image/png;base64,test',
+
+        // App support path (used by VaultPathSelector to derive home directory)
+        getAppSupportPath: async (): Promise<string> => '/Users/testuser/Library/Application Support/Voicetree',
 
         // Frontend ready signal (no-op for tests)
         markFrontendReady: async () => {},
@@ -83,6 +99,24 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
 
         setWritePath: async (path: string) => {
           mockWritePath = path;
+          setTimeout(broadcastVaultState, 0);
+          return { success: true };
+        },
+
+        addReadPath: async (path: string) => {
+          if (!mockVaultPaths.includes(path)) {
+            mockVaultPaths.push(path);
+          }
+          setTimeout(broadcastVaultState, 0);
+          return { success: true };
+        },
+
+        removeReadPath: async (path: string) => {
+          const index = mockVaultPaths.indexOf(path);
+          if (index >= 0) {
+            mockVaultPaths.splice(index, 1);
+          }
+          setTimeout(broadcastVaultState, 0);
           return { success: true };
         },
 
@@ -342,7 +376,7 @@ test.describe('VaultPathSelector without showAll toggle', () => {
     // Verify the "Read" and "Write" action buttons are available
     // These appear when hovering over available folders, but verify the pattern exists
     // The available folders section should be rendered with action buttons
-    const availableFoldersSection = dropdown.locator('.max-h-\\[150px\\].overflow-y-auto');
+    const availableFoldersSection = dropdown.locator('.max-h-\\[280px\\].overflow-y-auto');
     await expect(availableFoldersSection).toBeVisible();
     console.log('✓ Available folders section visible');
 
