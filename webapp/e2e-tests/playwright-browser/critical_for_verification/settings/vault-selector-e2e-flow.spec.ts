@@ -158,7 +158,18 @@ async function setupMockElectronAPIWithNestedFolders(page: Page): Promise<void> 
         absolutePath: f.path,
         displayPath: toDisplayPath(f.path),
         modifiedAt: f.modifiedAt,
-      }));
+      } as AvailableFolderItem));
+    };
+
+    // Broadcast vault state to VaultPathStore via IPC (simulates main process push)
+    // Defined before mockElectronAPI but only called at runtime when mockElectronAPI is initialized
+    const broadcastVaultState = (): void => {
+      const listeners = mockElectronAPI._ipcListeners['ui:call'] || [];
+      listeners.forEach(cb => cb(null, 'syncVaultState', [{
+        readPaths: [...mockVaultPaths],
+        writePath: mockWritePath,
+        starredFolders: [],
+      }]));
     };
 
     // Create a comprehensive mock of the Electron API
@@ -175,7 +186,11 @@ async function setupMockElectronAPIWithNestedFolders(page: Page): Promise<void> 
         }),
         saveSettings: async () => ({ success: true }),
         saveNodePositions: async () => ({ success: true }),
-        startFileWatching: async (dir: string) => ({ success: true, directory: dir }),
+        startFileWatching: async (dir: string) => {
+          // Simulate main process broadcasting vault state after file watching starts
+          setTimeout(broadcastVaultState, 10);
+          return { success: true, directory: dir };
+        },
         stopFileWatching: async () => ({ success: true }),
         getWatchStatus: async () => ({ isWatching: true, directory: '/mock/watched/directory' }),
         loadPreviousFolder: async () => ({ success: false }),
@@ -183,6 +198,9 @@ async function setupMockElectronAPIWithNestedFolders(page: Page): Promise<void> 
         getMetrics: async () => ({ sessions: [] }),
         markFrontendReady: async () => {},
         readImageAsDataUrl: async (): Promise<string> => 'data:image/png;base64,test',
+
+        // App support path (used by VaultPathSelector to derive home directory)
+        getAppSupportPath: async (): Promise<string> => '/Users/testuser/Library/Application Support/Voicetree',
 
         // Vault methods - KEY FOR E2E TESTING
         getVaultPaths: async (): Promise<readonly string[]> => {
@@ -199,6 +217,7 @@ async function setupMockElectronAPIWithNestedFolders(page: Page): Promise<void> 
           if (!mockVaultPaths.includes(path)) {
             mockVaultPaths.push(path);
           }
+          setTimeout(broadcastVaultState, 0);
           return { success: true };
         },
         addReadPath: async (path: string) => {
@@ -206,6 +225,7 @@ async function setupMockElectronAPIWithNestedFolders(page: Page): Promise<void> 
           if (!mockVaultPaths.includes(path)) {
             mockVaultPaths.push(path);
           }
+          setTimeout(broadcastVaultState, 0);
           return { success: true };
         },
         removeReadPath: async (path: string) => {
@@ -214,6 +234,7 @@ async function setupMockElectronAPIWithNestedFolders(page: Page): Promise<void> 
           if (index >= 0) {
             mockVaultPaths.splice(index, 1);
           }
+          setTimeout(broadcastVaultState, 0);
           return { success: true };
         },
         getShowAllPaths: async (): Promise<readonly string[]> => [],
@@ -387,7 +408,7 @@ test.describe('VaultPathSelector E2E Integration Flow', () => {
     await searchInput.fill('docs/');
     await page.waitForTimeout(300);
 
-    const folderList = dropdown.locator('.max-h-\\[150px\\]');
+    const folderList = dropdown.locator('.max-h-\\[280px\\]');
     let folderListText = await folderList.textContent();
     console.log('  Folder list after "docs/":', folderListText);
 
@@ -538,7 +559,7 @@ test.describe('VaultPathSelector E2E Integration Flow', () => {
     await searchInput.fill('docs/projects/');
     await page.waitForTimeout(300);
 
-    const folderList = dropdown.locator('.max-h-\\[150px\\]');
+    const folderList = dropdown.locator('.max-h-\\[280px\\]');
 
     // Find the core folder and click Write button
     console.log('Clicking Write button on docs/projects/core...');
@@ -599,7 +620,7 @@ test.describe('VaultPathSelector E2E Integration Flow', () => {
     await searchInput.fill('docs/');
     await page.waitForTimeout(300);
 
-    const folderList = dropdown.locator('.max-h-\\[150px\\]');
+    const folderList = dropdown.locator('.max-h-\\[280px\\]');
     const apiFolderRow = folderList.locator('.group:has-text("docs/api")');
     await expect(apiFolderRow).toBeVisible();
     await apiFolderRow.hover();
@@ -628,8 +649,6 @@ test.describe('VaultPathSelector E2E Integration Flow', () => {
 
     // Verify it's removed from "Also reading"
     dropdownText = await dropdown.textContent();
-    const hasApiInReadSection = dropdownText?.includes('Also reading') &&
-                                dropdownText?.indexOf('./docs/api') > dropdownText?.indexOf('Also reading');
 
     // Search for it again to verify it's back in available folders
     await searchInput.fill('docs/');
