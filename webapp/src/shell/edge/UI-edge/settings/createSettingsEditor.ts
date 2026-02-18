@@ -13,7 +13,6 @@ import type cytoscape from 'cytoscape';
 import type {Core, Position} from 'cytoscape';
 import {getOrCreateOverlay, getCachedZoom, registerFloatingWindow, unregisterFloatingWindow} from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 import type {VTSettings} from '@/pure/settings/types';
-import {CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
 import type {FloatingWindowFields, EditorId, ShadowNodeId} from '@/shell/edge/UI-edge/floating-windows/types';
 import {cySmartCenter} from '@/utils/responsivePadding';
 import * as O from 'fp-ts/lib/Option.js';
@@ -21,6 +20,9 @@ import {vanillaFloatingWindowInstances} from '@/shell/edge/UI-edge/state/UIAppSt
 import {graphToScreenPosition, getWindowTransform, getScalingStrategy, getScreenDimensions} from '@/pure/graph/floating-windows/floatingWindowScaling';
 import {createWindowChrome} from "@/shell/edge/UI-edge/floating-windows/create-window-chrome";
 import {X, createElement} from 'lucide';
+import {createRoot, type Root} from 'react-dom/client';
+import {createElement as reactCreateElement} from 'react';
+import {SettingsEditor} from '@/shell/UI/views/components/settings/SettingsEditor';
 
 const SETTINGS_EDITOR_ID: EditorId = 'settings-editor' as EditorId;
 const SETTINGS_SHADOW_NODE_ID: ShadowNodeId = `shadow-${SETTINGS_EDITOR_ID}` as ShadowNodeId;
@@ -66,25 +68,14 @@ export function isSettingsEditorOpen(): boolean {
 
 /**
  * Close the settings editor if it exists.
- * Validates JSON before closing - prompts user if content has parse errors.
+ * React SettingsEditor auto-saves, so no JSON validation needed on close.
  */
 export function closeSettingsEditor(cy: Core): void {
-    const editor: CodeMirrorEditorView | undefined = vanillaFloatingWindowInstances.get(SETTINGS_EDITOR_ID) as CodeMirrorEditorView | undefined;
-    if (!editor) return;
+    const instance: { dispose: () => void; focus?: () => void } | undefined = vanillaFloatingWindowInstances.get(SETTINGS_EDITOR_ID);
+    if (!instance) return;
 
-    // Validate JSON before closing
-    try {
-        JSON.parse(editor.getValue());
-    } catch (error) {
-        const errorMessage: string = error instanceof SyntaxError ? error.message : 'Unknown parse error';
-        const shouldClose: boolean = confirm(
-            `Settings contain invalid JSON and won't be saved.\n\n${errorMessage}\n\nClose anyway?`
-        );
-        if (!shouldClose) return;
-    }
-
-    // Dispose CodeMirror instance
-    editor.dispose();
+    // Unmount React root
+    instance.dispose();
 
     // Remove from global state
     vanillaFloatingWindowInstances.delete(SETTINGS_EDITOR_ID);
@@ -103,8 +94,6 @@ export function closeSettingsEditor(cy: Core): void {
     if (windowElement) {
         windowElement.remove();
     }
-
-    //console.log('[createSettingsEditor] Settings editor closed');
 }
 
 export async function createSettingsEditor(cy: Core): Promise<void> {
@@ -123,7 +112,6 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
 
         // Load current settings from IPC
         const settings: VTSettings = await window.electronAPI.main.loadSettings() as VTSettings;
-        const settingsJson: string = JSON.stringify(settings, null, 2);
 
         // Get overlay
         const overlay: HTMLElement = getOrCreateOverlay(cy);
@@ -140,51 +128,24 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
             shadowNodeDimensions: { width: fixedWidth, height: fixedHeight },
         };
 
-        // Create window chrome with CodeMirror editor
+        // Create window chrome
         const {windowElement, contentContainer} = createWindowChrome(cy, settingsWindowFields, SETTINGS_EDITOR_ID);
 
         // Add title bar with close button (prepend before content container)
-        const { titleBar, titleText }: { titleBar: HTMLDivElement; titleText: HTMLSpanElement } = createSettingsTitleBar(() => closeSettingsEditor(cy));
+        const { titleBar }: { titleBar: HTMLDivElement; titleText: HTMLSpanElement } = createSettingsTitleBar(() => closeSettingsEditor(cy));
         windowElement.insertBefore(titleBar, contentContainer);
 
-        // Create CodeMirror editor instance for JSON editing
-        const editor: CodeMirrorEditorView = new CodeMirrorEditorView(
-            contentContainer,
-            settingsJson,
-            {
-                autosaveDelay: 300,
-                darkMode: document.documentElement.classList.contains('dark'),
-                language: 'json'
+        // Mount React SettingsEditor into the content container
+        const root: Root = createRoot(contentContainer);
+        const saveFn: (updatedSettings: VTSettings) => Promise<void> = async (updatedSettings: VTSettings): Promise<void> => {
+            if (window.electronAPI) {
+                await window.electronAPI.main.saveSettings(updatedSettings);
             }
-        );
+        };
+        root.render(reactCreateElement(SettingsEditor, { initialSettings: settings, onSave: saveFn }));
 
-        // Setup auto-save with validation + live title error indication
-        editor.onChange((newContent: string) => {
-            void (async () => {
-                try {
-                    // Parse JSON to validate
-                    const parsedSettings: VTSettings = JSON.parse(newContent) as VTSettings;
-
-                    // Clear error state in title
-                    titleText.textContent = 'Settings';
-                    titleText.classList.remove('settings-title-error');
-
-                    // Save to IPC
-                    if (window.electronAPI) {
-                        await window.electronAPI.main.saveSettings(parsedSettings);
-                        //console.log('[createSettingsEditor] Settings saved successfully');
-                    }
-                } catch (error) {
-                    // Show error in title bar
-                    const errorMessage: string = error instanceof SyntaxError ? error.message : 'Invalid JSON';
-                    titleText.textContent = `Settings - ${errorMessage}`;
-                    titleText.classList.add('settings-title-error');
-                }
-            })();
-        });
-
-        // Store editor instance in global state (fixes Bug 1 - proper cleanup tracking)
-        vanillaFloatingWindowInstances.set(SETTINGS_EDITOR_ID, editor);
+        // Store dispose handle in global state for cleanup
+        vanillaFloatingWindowInstances.set(SETTINGS_EDITOR_ID, { dispose: () => root.unmount() });
 
         // Position in center of current viewport
         const pan: Position = cy.pan();
