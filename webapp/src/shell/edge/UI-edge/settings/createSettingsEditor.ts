@@ -1,31 +1,20 @@
 /**
- * Create a floating settings editor window
- * Loads settings from IPC and allows editing them as JSON
- *
- * Uses patterns from FloatingEditorCRUD.ts but adapted for non-graph-node editing:
- * - No contentLinkedToNodeId (settings aren't a graph node)
- * - Fixed position (not anchored to a parent node)
- * - Custom onChange (saves to IPC instead of graph)
+ * Create a fixed-position settings overlay popup
+ * Decoupled from the graph — doesn't create shadow nodes or interact with zoom/pan.
  */
 
 import type {} from '@/shell/electron';
-import type cytoscape from 'cytoscape';
-import type {Core, Position} from 'cytoscape';
-import {getOrCreateOverlay, getCachedZoom, registerFloatingWindow, unregisterFloatingWindow} from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
+import type {Core} from 'cytoscape';
 import type {VTSettings} from '@/pure/settings/types';
-import type {FloatingWindowFields, EditorId, ShadowNodeId} from '@/shell/edge/UI-edge/floating-windows/types';
-import {cySmartCenter} from '@/utils/responsivePadding';
-import * as O from 'fp-ts/lib/Option.js';
+import type {EditorId} from '@/shell/edge/UI-edge/floating-windows/types';
 import {vanillaFloatingWindowInstances} from '@/shell/edge/UI-edge/state/UIAppState';
-import {graphToScreenPosition, getWindowTransform, getScalingStrategy, getScreenDimensions} from '@/pure/graph/floating-windows/floatingWindowScaling';
-import {createWindowChrome} from "@/shell/edge/UI-edge/floating-windows/create-window-chrome";
 import {X, createElement} from 'lucide';
 import {createRoot, type Root} from 'react-dom/client';
 import {createElement as reactCreateElement} from 'react';
 import {SettingsEditor} from '@/shell/UI/views/components/settings/SettingsEditor';
 
 const SETTINGS_EDITOR_ID: EditorId = 'settings-editor' as EditorId;
-const SETTINGS_SHADOW_NODE_ID: ShadowNodeId = `shadow-${SETTINGS_EDITOR_ID}` as ShadowNodeId;
+const SETTINGS_BACKDROP_ID: string = 'settings-overlay-backdrop';
 
 /**
  * Create a simple title bar with macOS-style close button for the settings editor
@@ -69,8 +58,9 @@ export function isSettingsEditorOpen(): boolean {
 /**
  * Close the settings editor if it exists.
  * React SettingsEditor auto-saves, so no JSON validation needed on close.
+ * cy parameter kept for call-site compatibility.
  */
-export function closeSettingsEditor(cy: Core): void {
+export function closeSettingsEditor(_cy: Core): void {
     const instance: { dispose: () => void; focus?: () => void } | undefined = vanillaFloatingWindowInstances.get(SETTINGS_EDITOR_ID);
     if (!instance) return;
 
@@ -80,20 +70,12 @@ export function closeSettingsEditor(cy: Core): void {
     // Remove from global state
     vanillaFloatingWindowInstances.delete(SETTINGS_EDITOR_ID);
 
-    // Remove from floating windows registry (for zoom/pan sync)
-    unregisterFloatingWindow(SETTINGS_EDITOR_ID);
-
-    // Remove shadow node
-    const shadowNode: cytoscape.CollectionReturnValue = cy.getElementById(SETTINGS_SHADOW_NODE_ID);
-    if (shadowNode.length > 0) {
-        shadowNode.remove();
-    }
-
-    // Remove DOM element
+    // Remove DOM elements
     const windowElement: HTMLElement | null = document.getElementById(`window-${SETTINGS_EDITOR_ID}`);
-    if (windowElement) {
-        windowElement.remove();
-    }
+    if (windowElement) windowElement.remove();
+
+    const backdrop: HTMLElement | null = document.getElementById(SETTINGS_BACKDROP_ID);
+    if (backdrop) backdrop.remove();
 }
 
 export async function createSettingsEditor(cy: Core): Promise<void> {
@@ -113,29 +95,30 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
         // Load current settings from IPC
         const settings: VTSettings = await window.electronAPI.main.loadSettings() as VTSettings;
 
-        // Get overlay
-        const overlay: HTMLElement = getOrCreateOverlay(cy);
+        // Create backdrop for click-outside-to-close
+        const backdrop: HTMLDivElement = document.createElement('div');
+        backdrop.id = SETTINGS_BACKDROP_ID;
+        backdrop.className = 'settings-overlay-backdrop';
+        backdrop.addEventListener('click', () => closeSettingsEditor(cy));
 
-        // Fixed size in graph coordinates
-        const fixedWidth: number = 800;
-        const fixedHeight: number = 600;
+        // Create popup container — fixed position, centered on screen
+        const windowElement: HTMLDivElement = document.createElement('div');
+        windowElement.id = `window-${SETTINGS_EDITOR_ID}`;
+        windowElement.className = 'settings-overlay-popup';
 
-        // Create FloatingWindowFields for createWindowChrome
-        const settingsWindowFields: FloatingWindowFields = {
-            anchoredToNodeId: O.none,
-            title: 'Settings',
-            resizable: true,
-            shadowNodeDimensions: { width: fixedWidth, height: fixedHeight },
-        };
+        // Prevent clicks inside the popup from closing via backdrop
+        windowElement.addEventListener('mousedown', (e: MouseEvent): void => e.stopPropagation());
 
-        // Create window chrome
-        const {windowElement, contentContainer} = createWindowChrome(cy, settingsWindowFields, SETTINGS_EDITOR_ID);
-
-        // Add title bar with close button (prepend before content container)
+        // Title bar with close button
         const { titleBar }: { titleBar: HTMLDivElement; titleText: HTMLSpanElement } = createSettingsTitleBar(() => closeSettingsEditor(cy));
-        windowElement.insertBefore(titleBar, contentContainer);
+        windowElement.appendChild(titleBar);
 
-        // Mount React SettingsEditor into the content container
+        // Content container for React
+        const contentContainer: HTMLDivElement = document.createElement('div');
+        contentContainer.className = 'settings-overlay-content';
+        windowElement.appendChild(contentContainer);
+
+        // Mount React SettingsEditor
         const root: Root = createRoot(contentContainer);
         const saveFn: (updatedSettings: VTSettings) => Promise<void> = async (updatedSettings: VTSettings): Promise<void> => {
             if (window.electronAPI) {
@@ -147,64 +130,9 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
         // Store dispose handle in global state for cleanup
         vanillaFloatingWindowInstances.set(SETTINGS_EDITOR_ID, { dispose: () => root.unmount() });
 
-        // Position in center of current viewport
-        const pan: Position = cy.pan();
-        const zoom: number = cy.zoom();
-        const centerX: number = (cy.width() / 2 - pan.x) / zoom;
-        const centerY: number = (cy.height() / 2 - pan.y) / zoom;
-
-        // Create shadow node for the settings editor
-        // Mark as laidOut: true to prevent layout from moving it (fixes Bug 2)
-        const shadowNode: cytoscape.CollectionReturnValue = cy.add({
-            group: 'nodes',
-            data: {
-                id: SETTINGS_SHADOW_NODE_ID,
-                isFloatingWindow: true,
-                isShadowNode: true,
-                windowType: 'Settings',
-                laidOut: true  // CRITICAL: Prevents layout from repositioning to 0,0
-            },
-            position: { x: centerX, y: centerY }
-        });
-
-        // Style shadow node (invisible but with dimensions for fitting)
-        shadowNode.style({
-            'opacity': 0,
-            'events': 'no',
-            'width': fixedWidth,
-            'height': fixedHeight
-        });
-
-        // Store shadow node ID on DOM element for zoom/pan updates
-        windowElement.dataset.shadowNodeId = SETTINGS_SHADOW_NODE_ID;
-        windowElement.dataset.baseWidth = String(fixedWidth);
-        windowElement.dataset.baseHeight = String(fixedHeight);
-
-        // Position window using the same pattern as anchor-to-node
-        const currentZoom: number = getCachedZoom();
-        const strategy: 'css-transform' | 'dimension-scaling' = getScalingStrategy('Editor', currentZoom);
-        const screenDimensions: { readonly width: number; readonly height: number } = getScreenDimensions({ width: fixedWidth, height: fixedHeight }, currentZoom, strategy);
-        const screenPos: { readonly x: number; readonly y: number } = graphToScreenPosition({ x: centerX, y: centerY }, currentZoom);
-
-        windowElement.style.left = `${screenPos.x}px`;
-        windowElement.style.top = `${screenPos.y}px`;
-        windowElement.style.width = `${screenDimensions.width}px`;
-        windowElement.style.height = `${screenDimensions.height}px`;
-        windowElement.style.transform = getWindowTransform(strategy, currentZoom, 'center');
-        windowElement.style.transformOrigin = 'center';
-        windowElement.dataset.usingCssTransform = strategy === 'css-transform' ? 'true' : 'false';
-
-        // Add to overlay and register for efficient zoom/pan sync
-        overlay.appendChild(windowElement);
-        registerFloatingWindow(SETTINGS_EDITOR_ID, windowElement);
-
-        // Navigate to settings editor using delayed double-animation pattern
-        // This ensures animation happens after DOM is fully settled
-        // Uses cySmartCenter which pans if zoom is comfortable, or zooms to 1.0 if not
-        setTimeout(() => cySmartCenter(cy, shadowNode), 300);
-        setTimeout(() => cySmartCenter(cy, shadowNode), 1200);
-
-        //console.log('[createSettingsEditor] Settings editor created successfully');
+        // Append to document body — fully decoupled from graph
+        document.body.appendChild(backdrop);
+        document.body.appendChild(windowElement);
     } catch (error) {
         console.error('[createSettingsEditor] Failed to create settings editor:', error);
     }
