@@ -143,6 +143,33 @@ export class HotkeyManager {
   }
 
   /**
+   * Clear all hotkeys and re-initialize from current settings.
+   * Used when settings change at runtime (e.g., hotkey rebinding).
+   */
+  async refreshHotkeys(
+    callbacks: {
+      fitToLastNode: () => void;
+      cycleTerminal: (direction: 1 | -1) => void;
+      createNewNode: () => void;
+      runTerminal: () => void;
+      deleteSelectedNodes: () => void;
+      navigateToRecentNode: (index: number) => void;
+      closeSelectedWindow: () => void;
+      openSettings: () => void;
+      openSearch: () => void;
+    },
+    voiceAction: () => void
+  ): Promise<void> {
+    for (const hotkey of this.hotkeys.values()) {
+      if (hotkey.repeatInterval) {
+        clearInterval(hotkey.repeatInterval);
+      }
+    }
+    this.hotkeys.clear();
+    await this.initializeWithSettings(callbacks, voiceAction);
+  }
+
+  /**
    * Clean up all listeners
    */
   dispose(): void {

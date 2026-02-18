@@ -4,6 +4,7 @@ import path from 'path';
 import type { VTSettings } from '@/pure/settings/types';
 
 import {DEFAULT_SETTINGS} from "@/pure/settings";
+import { uiAPI } from '@/shell/edge/main/ui-api-proxy';
 
 function getSettingsPath(): string {
   return path.join(app.getPath('userData'), 'settings.json');
@@ -77,5 +78,6 @@ export async function saveSettings(settings: VTSettings): Promise<boolean> {
 
   await fs.mkdir(settingsDir, { recursive: true });
   await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
+  uiAPI.onSettingsChanged();
   return true;
 }

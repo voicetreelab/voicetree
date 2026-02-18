@@ -78,6 +78,7 @@ import {
 } from '@/shell/edge/UI-edge/state/DarkModeManager';
 import {disposeGraphView} from './disposeGraphView';
 import {closeSelectedWindow as closeSelectedWindowFn} from './closeSelectedWindow';
+import {onSettingsChange} from '@/shell/edge/UI-edge/api';
 
 /**
  * Main VoiceTreeGraphView implementation
@@ -108,6 +109,9 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
     // Graph subscription cleanup
     private cleanupGraphSubscription: (() => void) | null = null;
+
+    // Settings change listener cleanup
+    private cleanupSettingsListener: (() => void) | null = null;
 
     // View subscriptions cleanup (terminals, navigation, pinned editors)
     private viewSubscriptionCleanups: ViewSubscriptionCleanups | null = null;
@@ -340,20 +344,33 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         this.container.focus();
 
         // Setup hotkeys with settings (async load handled internally by HotkeyManager)
-        void this.hotkeyManager.initializeWithSettings(
-            {
-                fitToLastNode: () => this.navigationService.fitToLastNode(),
-                cycleTerminal: (direction) => this.navigationService.cycleTerminal(direction),
-                createNewNode: createNewNodeAction(this.cy),
-                runTerminal: runTerminalAction(this.cy),
-                deleteSelectedNodes: deleteSelectedNodesAction(this.cy),
-                navigateToRecentNode: (index) => this.navigateToRecentNodeByIndex(index),
-                closeSelectedWindow: () => this.closeSelectedWindow(),
-                openSettings: () => void createSettingsEditor(this.cy),
-                openSearch: () => this.searchService.open()
-            },
-            toggleVoiceRecording
-        );
+        const hotkeyCallbacks: {
+            fitToLastNode: () => void;
+            cycleTerminal: (direction: 1 | -1) => void;
+            createNewNode: () => void;
+            runTerminal: () => void;
+            deleteSelectedNodes: () => void;
+            navigateToRecentNode: (index: number) => void;
+            closeSelectedWindow: () => void;
+            openSettings: () => void;
+            openSearch: () => void;
+        } = {
+            fitToLastNode: () => this.navigationService.fitToLastNode(),
+            cycleTerminal: (direction) => this.navigationService.cycleTerminal(direction),
+            createNewNode: createNewNodeAction(this.cy),
+            runTerminal: runTerminalAction(this.cy),
+            deleteSelectedNodes: deleteSelectedNodesAction(this.cy),
+            navigateToRecentNode: (index) => this.navigateToRecentNodeByIndex(index),
+            closeSelectedWindow: () => this.closeSelectedWindow(),
+            openSettings: () => void createSettingsEditor(this.cy),
+            openSearch: () => this.searchService.open()
+        };
+        void this.hotkeyManager.initializeWithSettings(hotkeyCallbacks, toggleVoiceRecording);
+
+        // Subscribe to settings changes to refresh hotkeys at runtime
+        this.cleanupSettingsListener = onSettingsChange(() => {
+            void this.hotkeyManager.refreshHotkeys(hotkeyCallbacks, toggleVoiceRecording);
+        });
 
         // Note: Wheel events (pan/zoom) are handled by NavigationGestureService
     }
@@ -476,6 +493,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             handleResize: this.handleResize,
             cleanupGraphSubscription: this.cleanupGraphSubscription,
             viewSubscriptionCleanups: this.viewSubscriptionCleanups,
+            cleanupSettingsListener: this.cleanupSettingsListener,
             hotkeyManager: this.hotkeyManager,
             gestureService: this.gestureService,
             searchService: this.searchService,
@@ -492,6 +510,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
         // Null out references after disposal
         this.cleanupGraphSubscription = null;
+        this.cleanupSettingsListener = null;
         this.viewSubscriptionCleanups = null;
         this.speedDialMenu = null;
 
