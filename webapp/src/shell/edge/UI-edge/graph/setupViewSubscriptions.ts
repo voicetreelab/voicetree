@@ -10,8 +10,6 @@ import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/types';
 import type {GraphNavigationService} from './navigation/GraphNavigationService';
 import {subscribeToActiveTerminalChange} from '@/shell/edge/UI-edge/state/TerminalStore';
 import {getShadowNodeId} from '@/shell/edge/UI-edge/floating-windows/types';
-import {renderRecentNodeTabsV2} from '@/shell/UI/views/RecentNodeTabsBar';
-import {getRecentNodeHistory} from '@/shell/edge/UI-edge/state/RecentNodeHistoryStore';
 import {TERMINAL_ACTIVE_CLASS} from '@/shell/UI/cytoscape-graph-ui/constants';
 import {handleWorktreeDeleteEvent} from './handleWorktreeDelete';
 
@@ -23,7 +21,6 @@ export interface ViewSubscriptionDeps {
 export interface ViewSubscriptionCleanups {
     activeTerminalSubscription: () => void;
     navigationListener: () => void;
-    pinnedEditorsListener: () => void;
     worktreeDeleteListener: () => void;
 }
 
@@ -77,19 +74,6 @@ export function setupViewSubscriptions(deps: ViewSubscriptionDeps): ViewSubscrip
         window.removeEventListener('voicetree-navigate', handleNavigateEvent);
     };
 
-    // Pinned editors change listener - re-renders tabs bar
-    const handlePinnedEditorsChange: () => void = (): void => {
-        renderRecentNodeTabsV2(
-            getRecentNodeHistory(),
-            (nodeId: string) => navigationService.handleSearchSelect(nodeId),
-            (nodeId: string) => cy.getElementById(nodeId).data('label') as string | undefined
-        );
-    };
-    document.addEventListener('pinned-editors-changed', handlePinnedEditorsChange);
-    const pinnedEditorsListener: () => void = (): void => {
-        document.removeEventListener('pinned-editors-changed', handlePinnedEditorsChange);
-    };
-
     // Worktree delete request listener - handles trash icon clicks in Run dropdown
     document.addEventListener('vt:request-worktree-delete', handleWorktreeDeleteEvent);
     const worktreeDeleteListener: () => void = (): void => {
@@ -99,7 +83,6 @@ export function setupViewSubscriptions(deps: ViewSubscriptionDeps): ViewSubscrip
     return {
         activeTerminalSubscription,
         navigationListener,
-        pinnedEditorsListener,
         worktreeDeleteListener,
     };
 }
@@ -111,6 +94,5 @@ export function setupViewSubscriptions(deps: ViewSubscriptionDeps): ViewSubscrip
 export function cleanupViewSubscriptions(cleanups: ViewSubscriptionCleanups): void {
     cleanups.activeTerminalSubscription();
     cleanups.navigationListener();
-    cleanups.pinnedEditorsListener();
     cleanups.worktreeDeleteListener();
 }

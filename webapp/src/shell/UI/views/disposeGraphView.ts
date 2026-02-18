@@ -10,8 +10,9 @@ import type {NavigationGestureService} from '@/shell/edge/UI-edge/graph/navigati
 import type {HorizontalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService';
 import type {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService';
 import type {BreathingAnimationService} from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService';
-import type {SpeedDialSideGraphFloatingMenuView} from './SpeedDialSideGraphFloatingMenuView';
 import type {ViewSubscriptionCleanups} from '@/shell/edge/UI-edge/graph/setupViewSubscriptions';
+import {disposeSpeedDialMenu} from './SpeedDialMenu';
+import {disposeRecentNodeTabsBar} from './RecentNodeTabsBar';
 import {cleanupViewSubscriptions} from '@/shell/edge/UI-edge/graph/setupViewSubscriptions';
 import {disposeEditorManager} from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
 import {disposeTerminalTreeSidebar} from './treeStyleTerminalTabs/TerminalTreeSidebar';
@@ -27,7 +28,6 @@ export interface GraphViewDisposeDependencies {
     searchService: SearchService;
     horizontalMenuService?: HorizontalMenuService;
     verticalMenuService?: VerticalMenuService;
-    speedDialMenu: SpeedDialSideGraphFloatingMenuView | null;
     animationService?: BreathingAnimationService;
     navigator: { destroy: () => void } | null;
     cleanupSettingsListener: (() => void) | null;
@@ -76,10 +76,11 @@ export function disposeGraphView(deps: GraphViewDisposeDependencies): void {
         deps.verticalMenuService.destroy();
     }
 
-    // Dispose speed dial menu
-    if (deps.speedDialMenu) {
-        deps.speedDialMenu.dispose();
-    }
+    // Dispose speed dial menu (React, module-level)
+    disposeSpeedDialMenu();
+
+    // Dispose recent node tabs bar (React, module-level)
+    disposeRecentNodeTabsBar();
 
     // Destroy services
     if (deps.animationService) {

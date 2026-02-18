@@ -1,155 +1,42 @@
-/* Speed Dial Menu - Simple CSS-only hover implementation */
+/* Speed Dial — top-right icon toolbar */
 
 .speed-dial-container {
   position: fixed;
-  right: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 8px;
+  right: 12px;
   z-index: 10000;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  transition: gap 0.3s ease;
+  flex-direction: row;
+  align-items: center;
+  gap: 2px;
+  -webkit-app-region: no-drag; /* Opt out of macOS title bar drag region so buttons receive clicks */
 }
 
-/* Increase gap on hover to spread items */
-.speed-dial-container:hover {
-  gap: 1rem;
-}
-
-/* Individual menu items */
 .speed-dial-item {
-  position: relative;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  background: hsl(var(--card));
-  border: 1px solid hsl(var(--border));
-  border-radius: 9999px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  cursor: pointer;
-  overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-
-  /* Default collapsed state */
-  width: 40px;
-  height: 40px;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
   padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease;
 }
 
-/* Icon styling */
-.speed-dial-icon {
-  width: 20px;
-  height: 20px;
-  min-width: 20px;
-  color: hsl(var(--foreground));
-  position: absolute;
-  right: 10px;
-  transition: all 0.3s ease;
-}
-
-/* Label styling - hidden by default */
-.speed-dial-label {
-  position: absolute;
-  right: 40px;
-  white-space: nowrap;
-  font-size: 14px;
-  font-weight: 500;
-  color: hsl(var(--foreground));
-  opacity: 0;
-  transform: translateX(10px);
-  transition: all 0.3s ease;
-  pointer-events: none;
-}
-
-/* All items expand to same width on container hover */
-.speed-dial-container:hover .speed-dial-item {
-  width: 140px;
-  padding: 0 12px;
-  background: hsl(var(--card));
-}
-
-/* Show all labels on hover */
-.speed-dial-container:hover .speed-dial-label {
-  opacity: 1;
-  transform: translateX(0);
-}
-
-/* Scale items based on proximity to mouse */
-.speed-dial-item-near {
-  transform: scale(1.1);
-}
-
-.speed-dial-item-hovered {
-  transform: scale(1.2) !important;
-  background: hsl(var(--accent)) !important;
-  z-index: 10;
-}
-
-/* Scale items based on hover state - no individual positioning */
-.speed-dial-container:hover .speed-dial-item-0,
-.speed-dial-container:hover .speed-dial-item-1,
-.speed-dial-container:hover .speed-dial-item-2,
-.speed-dial-container:hover .speed-dial-item-3,
-.speed-dial-container:hover .speed-dial-item-4 {
-  transform: scale(var(--scale, 1));
-}
-
-/* Stagger the animation delay */
-.speed-dial-item-0 {
-  transition-delay: 0ms;
-}
-
-.speed-dial-item-1 {
-  transition-delay: 30ms;
-}
-
-.speed-dial-item-2 {
-  transition-delay: 60ms;
-}
-
-.speed-dial-item-3 {
-  transition-delay: 90ms;
-}
-
-.speed-dial-item-4 {
-  transition-delay: 120ms;
-}
-
-/* Individual item hover effects - only change background, not position */
-.speed-dial-container:hover .speed-dial-item:hover {
+.speed-dial-item:hover {
   background: hsl(var(--accent));
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-/* Danger item styling */
-.speed-dial-danger:hover {
-  background: hsl(var(--destructive) / 0.1);
-  border-color: hsl(var(--destructive));
+.speed-dial-icon {
+  width: 16px;
+  height: 16px;
+  color: hsl(var(--foreground));
 }
 
-.speed-dial-danger:hover .speed-dial-icon,
-.speed-dial-danger:hover .speed-dial-label {
-  color: hsl(var(--destructive));
-}
-
-/* Dark mode adjustments */
-.dark .speed-dial-item {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
+/* Dark mode shadow adjustment */
 .dark .speed-dial-item:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-}
-
-/* For testing - add expanded class */
-.speed-dial-item-expanded {
-  width: 140px !important;
-  padding: 0 12px !important;
-}
-
-.speed-dial-item-expanded .speed-dial-label {
-  opacity: 1 !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 }

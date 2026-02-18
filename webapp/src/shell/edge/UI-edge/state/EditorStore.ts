@@ -9,6 +9,27 @@ const editors: Map<EditorId, EditorData> = new Map<EditorId, EditorData>();
 // Manually pinned editors: set of nodeIds that user has explicitly pinned
 const pinnedEditors: Set<string> = new Set<string>();
 
+// Subscription callbacks for pinned editor changes
+type PinnedEditorsCallback = (pinnedEditors: Set<string>) => void;
+const pinnedEditorSubscribers: Set<PinnedEditorsCallback> = new Set();
+
+function notifyPinnedEditorSubscribers(): void {
+    for (const callback of pinnedEditorSubscribers) {
+        callback(pinnedEditors);
+    }
+}
+
+/**
+ * Subscribe to pinned editors changes.
+ * @returns unsubscribe function
+ */
+export function subscribeToPinnedEditorsChange(callback: (pinnedEditors: Set<string>) => void): () => void {
+    pinnedEditorSubscribers.add(callback);
+    return () => {
+        pinnedEditorSubscribers.delete(callback);
+    };
+}
+
 // Auto-pin tracking: FIFO queue of auto-pinned editor node IDs
 // When queue exceeds MAX_AUTO_PINNED_EDITORS, oldest is closed
 // If user manually pins (via Pin Editor button), editor is removed from queue
@@ -82,6 +103,7 @@ export function getHoverEditor(): Option<EditorData> {
 export function addToPinnedEditors(nodeId: string): void {
     pinnedEditors.add(nodeId);
     document.dispatchEvent(new CustomEvent('pinned-editors-changed'));
+    notifyPinnedEditorSubscribers();
 }
 
 /**
@@ -90,6 +112,7 @@ export function addToPinnedEditors(nodeId: string): void {
 export function removeFromPinnedEditors(nodeId: string): void {
     pinnedEditors.delete(nodeId);
     document.dispatchEvent(new CustomEvent('pinned-editors-changed'));
+    notifyPinnedEditorSubscribers();
     // todo this should not be an event listener, change function should just be called directly (and extracted out of voicetreegraphview.ts)
 }
 
