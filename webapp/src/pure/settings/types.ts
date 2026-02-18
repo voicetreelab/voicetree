@@ -108,6 +108,8 @@ export interface VTSettings {
     readonly starredFolders?: readonly string[];
     /** Hook scripts triggered by app events (e.g., worktree creation) */
     readonly hooks?: HookSettings;
+    /** Layout engine configuration as JSON. Supports 'cola' and 'fcose' engines. Edit in Advanced settings. */
+    readonly layoutConfig?: string;
 }
 
 /**
