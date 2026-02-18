@@ -29,6 +29,11 @@ if (nodePath.includes('/ctx-nodes/')) {
     process.exit(0)
 }
 
+// Only run hooks for nodes in a /voice/ folder (voice transcription output)
+if (!nodePath.includes('/voice/')) {
+    process.exit(0)
+}
+
 const MCP_PORT = process.env.VOICETREE_MCP_PORT || '3001'
 const TERMINAL_ID = process.env.VOICETREE_CALLER_TERMINAL_ID || 'hook-watcher'
 
