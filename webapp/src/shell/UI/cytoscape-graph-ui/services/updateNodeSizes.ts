@@ -22,9 +22,8 @@ export function updateNodeSizes(cy: cytoscape.Core, nodes?: cytoscape.NodeCollec
 
       let degree: number = node.degree();
 
-      // Defensive check: ensure degree is a valid number, default to 0 if not
+      // Defensive: default to 0 if degree is invalid (e.g. node detached from graph)
       if (!isValidNumber(degree)) {
-        console.warn(`[updateNodeSizes] Invalid degree value for node ${node.id()}: ${degree}, defaulting to 0`);
         degree = 0;
       }
 

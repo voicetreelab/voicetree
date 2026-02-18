@@ -88,8 +88,12 @@ export function setupBasicCytoscapeEventListeners(
   cy.on('remove', 'edge', (e) => {
     if (!e.target) return;
     const edge: EdgeSingular = e.target;
-    const affectedNodes: NodeCollection = edge.source().union(edge.target());
-    styleService.updateNodeSizes(cy, affectedNodes);
+    // Filter to nodes still in the graph — edges may be removed because their
+    // source/target node was deleted, in which case degree() is undefined.
+    const affectedNodes: NodeCollection = edge.source().union(edge.target()).filter(node => node.inside());
+    if (affectedNodes.length > 0) {
+      styleService.updateNodeSizes(cy, affectedNodes);
+    }
   });
 
   // Change cursor to grabbing when starting to drag a node
