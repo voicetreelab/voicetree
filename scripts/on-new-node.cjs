@@ -199,6 +199,7 @@ function spawnAgentViaMcp(payload) {
                     nodeId: firstNode,
                     details: agent.buildPrompt(nodeList, vaultDir),
                     callerTerminalId: TERMINAL_ID,
+                    promptTemplate: 'AGENT_PROMPT_LIGHTWEIGHT',
                 },
             },
         }

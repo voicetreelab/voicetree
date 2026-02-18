@@ -56,7 +56,8 @@ export async function spawnTerminalWithContextNode(
     selectedNodeIds?: readonly NodeIdAndFilePath[],
     spawnDirectory?: string,
     parentTerminalId?: string,
-    agentInstructions?: string
+    agentInstructions?: string,
+    promptTemplate?: string
 ): Promise<{terminalId: string; contextNodeId: NodeIdAndFilePath}> {
     // Load settings to get agents
     const settings: VTSettings = await loadSettings();
@@ -119,7 +120,8 @@ export async function spawnTerminalWithContextNode(
         settings,
         startUnpinned,
         spawnDirectory,
-        parentTerminalId
+        parentTerminalId,
+        promptTemplate
     );
 
     // TODO, HERE WE NEED TO WAIT FOR CONTEXT NODE TO EXIST IN UI
@@ -154,7 +156,8 @@ async function prepareTerminalDataInMain(
     settings: VTSettings,
     startUnpinned?: boolean,
     spawnDirectory?: string,
-    parentTerminalId?: string
+    parentTerminalId?: string,
+    promptTemplate?: string
 ): Promise<TerminalData> {
     // Get context node from graph (main has immediate access)
     const graph: Graph = getGraph();
@@ -208,6 +211,7 @@ async function prepareTerminalDataInMain(
         terminalId: agentName,
         agentName,
         settings,
+        promptTemplate,
     });
 
     // Extract worktree name from spawnDirectory if spawning in a .worktrees/ directory

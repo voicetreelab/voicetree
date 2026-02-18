@@ -16,8 +16,13 @@ export async function buildTerminalEnvVars(params: {
     readonly terminalId: string
     readonly agentName: string
     readonly settings: VTSettings
+    readonly promptTemplate?: string
 }): Promise<Record<string, string>> {
     const resolvedEnvVars: Record<string, string> = resolveEnvVars(params.settings.INJECT_ENV_VARS)
+
+    if (params.promptTemplate && resolvedEnvVars[params.promptTemplate]) {
+        resolvedEnvVars['AGENT_PROMPT'] = resolvedEnvVars[params.promptTemplate]
+    }
     const appSupportPath: string = getAppSupportPath()
     const allVaultPaths: readonly string[] = await getVaultPaths()
     const allMarkdownReadPaths: string = allVaultPaths.join('\n')
