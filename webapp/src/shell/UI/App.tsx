@@ -182,7 +182,7 @@ function App(): JSX.Element {
 
     // Render graph view
     return (
-        <div className="h-screen relative bg-background">
+        <div className="h-screen relative overflow-hidden bg-background">
             {/* Layer 1: Graph canvas - Cytoscape only, absolutely positioned so it never causes overflow */}
             <div ref={graphContainerRef} className="absolute inset-0 pb-14 overflow-hidden bg-background"/>
             {/* Layer 2: UI overlay - sidebar, overlays, title bar, tabs */}
@@ -206,16 +206,8 @@ function App(): JSX.Element {
                     data-testid="agent-stats-panel-container"
                     className="fixed right-0 top-0 bottom-0 w-96 bg-card border-l border-border shadow-lg z-[1200] overflow-y-auto"
                 >
-                    <div className="sticky top-0 bg-card border-b border-border p-2 flex items-center justify-between">
+                    <div className="sticky top-0 bg-card border-b border-border p-2 flex items-center">
                         <h2 className="font-mono text-sm font-semibold text-foreground">Agent Statistics</h2>
-                        <button
-                            data-testid="agent-stats-close-button"
-                            onClick={() => setIsStatsPanelOpen(false)}
-                            className="text-muted-foreground px-2 py-1 rounded bg-muted hover:bg-accent transition-colors font-mono text-xs"
-                            title="Close panel"
-                        >
-                            ✕
-                        </button>
                     </div>
                     <AgentStatsPanel/>
                 </div>
