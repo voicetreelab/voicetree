@@ -14,7 +14,6 @@ import {
     INACTIVITY_THRESHOLD_MS,
     isTerminalInactive,
 } from '@/pure/agentTabs';
-import { updateTerminalStatusDot } from '@/shell/UI/views/treeStyleTerminalTabs/agentTabsDOMUpdates';
 import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
 import type {} from '@/shell/electron';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
@@ -44,9 +43,8 @@ function checkTerminalInactivity(): void {
         const shouldBeDone: boolean = isTerminalInactive(terminal.lastOutputTime, now, INACTIVITY_THRESHOLD_MS);
         if (shouldBeDone !== terminal.isDone) {
             // Phase 3: Update main process (source of truth)
+            // pushStateToRenderer in main triggers syncFromMain → React re-renders
             void window.electronAPI?.main.updateTerminalIsDone(terminalId, shouldBeDone);
-            // Optimistic DOM update for responsive UI
-            updateTerminalStatusDot(terminalId, shouldBeDone);
         }
 
         // Auto-scroll non-active terminals to bottom so latest output is visible.
@@ -85,9 +83,9 @@ export function startTerminalActivityPolling(): () => void {
         updateTerminalRunningState(terminalId as TerminalId, { lastOutputTime: now });
 
         // State transition: inactive -> active (send ONE update)
+        // pushStateToRenderer in main triggers syncFromMain → React re-renders
         if (terminal.isDone) {
             void window.electronAPI?.main.updateTerminalIsDone(terminalId, false);
-            updateTerminalStatusDot(terminalId as TerminalId, false);
         }
     }) ?? null;
 

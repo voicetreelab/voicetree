@@ -6,12 +6,10 @@
  * and returns cleanup functions for lifecycle management.
  */
 import type {Core} from 'cytoscape';
-import type {TerminalData} from '@/shell/electron';
 import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/types';
 import type {GraphNavigationService} from './navigation/GraphNavigationService';
-import {subscribeToTerminalChanges, subscribeToActiveTerminalChange} from '@/shell/edge/UI-edge/state/TerminalStore';
-import {renderTerminalTree, setActiveTerminal, clearActivityForTerminal} from '@/shell/UI/views/treeStyleTerminalTabs/TerminalTreeSidebar';
-import {getTerminalId, getShadowNodeId} from '@/shell/edge/UI-edge/floating-windows/types';
+import {subscribeToActiveTerminalChange} from '@/shell/edge/UI-edge/state/TerminalStore';
+import {getShadowNodeId} from '@/shell/edge/UI-edge/floating-windows/types';
 import {renderRecentNodeTabsV2} from '@/shell/UI/views/RecentNodeTabsBar';
 import {getRecentNodeHistory} from '@/shell/edge/UI-edge/state/RecentNodeHistoryStore';
 import {TERMINAL_ACTIVE_CLASS} from '@/shell/UI/cytoscape-graph-ui/constants';
@@ -23,7 +21,6 @@ export interface ViewSubscriptionDeps {
 }
 
 export interface ViewSubscriptionCleanups {
-    terminalSubscription: () => void;
     activeTerminalSubscription: () => void;
     navigationListener: () => void;
     pinnedEditorsListener: () => void;
@@ -33,27 +30,18 @@ export interface ViewSubscriptionCleanups {
 /**
  * Setup all view subscriptions and return cleanup functions.
  * Each subscription is independent and can be cleaned up individually.
+ *
+ * Note: Terminal tree sidebar rendering is handled by the React TerminalTreeSidebar component,
+ * which subscribes to TerminalStore internally. This module only handles cytoscape highlighting
+ * for the active terminal.
  */
 export function setupViewSubscriptions(deps: ViewSubscriptionDeps): ViewSubscriptionCleanups {
     const {cy, navigationService} = deps;
 
-    // Terminal changes subscription - updates terminal tree sidebar
-    const terminalSubscription: () => void = subscribeToTerminalChanges((terminals: TerminalData[]) => {
-        renderTerminalTree(
-            terminals,
-            (terminal: TerminalData) => {
-                // Clear activity dots when user explicitly clicks a tab (not when cycling)
-                clearActivityForTerminal(getTerminalId(terminal));
-                navigationService.fitToTerminal(terminal);
-            }
-        );
-    });
-
-    // Active terminal subscription - highlights active tab and terminal edges/outline
+    // Active terminal subscription - highlights active terminal edges/outline in cytoscape
+    // (The sidebar tab highlighting is handled by React TerminalTreeSidebar internally)
     const activeTerminalSubscription: () => void = subscribeToActiveTerminalChange(
         (terminalId: TerminalId | null) => {
-            setActiveTerminal(terminalId);
-
             // Clear previous terminal highlighting (cytoscape elements)
             cy.$('.' + TERMINAL_ACTIVE_CLASS).removeClass(TERMINAL_ACTIVE_CLASS);
 
@@ -109,7 +97,6 @@ export function setupViewSubscriptions(deps: ViewSubscriptionDeps): ViewSubscrip
     };
 
     return {
-        terminalSubscription,
         activeTerminalSubscription,
         navigationListener,
         pinnedEditorsListener,
@@ -122,7 +109,6 @@ export function setupViewSubscriptions(deps: ViewSubscriptionDeps): ViewSubscrip
  * Convenience function for disposing all subscriptions.
  */
 export function cleanupViewSubscriptions(cleanups: ViewSubscriptionCleanups): void {
-    cleanups.terminalSubscription();
     cleanups.activeTerminalSubscription();
     cleanups.navigationListener();
     cleanups.pinnedEditorsListener();

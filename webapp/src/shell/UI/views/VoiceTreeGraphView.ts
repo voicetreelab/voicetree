@@ -156,8 +156,10 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // V2 tracks recently added/modified nodes (not visited nodes)
         createRecentNodeTabsBar(this.container);
 
-        // Initialize terminal tree sidebar (left side)
-        createTerminalTreeSidebar(this.container);
+        // Initialize terminal tree sidebar (left side, React component)
+        createTerminalTreeSidebar(this.container, (terminal) => {
+            this.navigationService.fitToTerminal(terminal);
+        });
 
         // Setup view subscriptions (terminals, navigation, pinned editors)
         this.viewSubscriptionCleanups = setupViewSubscriptions({
