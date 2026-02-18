@@ -9,11 +9,11 @@
   },
   "eslint": {
     "enabled": true,
-    "autofix": true
+    "autofix": false
   },
   "prettier": {
     "enabled": true,
-    "autofix": true
+    "autofix": false
   },
   "general": {
     "autofixSilent": true,

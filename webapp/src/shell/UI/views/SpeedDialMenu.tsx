@@ -2,7 +2,7 @@
 /**
  * SpeedDialMenu (React) - Top-right icon toolbar
  *
- * 4 icon buttons: Dark mode, Settings, Stats, Feedback.
+ * 5 icon buttons: Dark mode, Tidy layout, Settings, Stats, Feedback.
  * Mounted/unmounted via createSpeedDialMenu / disposeSpeedDialMenu.
  */
 
@@ -18,13 +18,14 @@ import './styles/speed-dial-side-graph-floating-menu.css';
 
 export interface SpeedDialCallbacks {
   onToggleDarkMode: () => void;
+  onColaLayout?: () => void;
   onSettings?: () => void;
   onAbout?: () => void;
   onStats?: () => void;
   onFeedback?: () => void;
 }
 
-type IconName = 'sun' | 'moon' | 'settings' | 'bar-chart' | 'message-square';
+type IconName = 'sun' | 'moon' | 'layout' | 'settings' | 'bar-chart' | 'message-square';
 
 // =============================================================================
 // SVG Icon Paths
@@ -38,6 +39,9 @@ const ICON_PATHS: Record<IconName, string[]> = {
   ],
   moon: [
     'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z',
+  ],
+  layout: [
+    'M3 3h7v7H3z', 'M14 3h7v7h-7z', 'M3 14h7v7H3z', 'M14 14h7v7h-7z',
   ],
   settings: [
     'M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z',
@@ -95,6 +99,12 @@ function SpeedDialMenuInternal({ callbacks, initialDarkMode }: { readonly callba
         setIsDark((prev: boolean) => !prev);
         callbacks.onToggleDarkMode();
       },
+    },
+    {
+      id: 'cola-layout',
+      label: 'Tidy layout',
+      iconName: 'layout',
+      onClick: callbacks.onColaLayout ?? ((): void => { /* no-op */ }),
     },
     {
       id: 'settings',
