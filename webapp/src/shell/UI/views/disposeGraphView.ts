@@ -30,6 +30,7 @@ export interface GraphViewDisposeDependencies {
     speedDialMenu: SpeedDialSideGraphFloatingMenuView | null;
     animationService?: BreathingAnimationService;
     navigator: { destroy: () => void } | null;
+    cleanupSettingsListener: (() => void) | null;
     nodeSelectedEmitter: EventEmitter<string>;
     nodeDoubleClickEmitter: EventEmitter<string>;
     edgeSelectedEmitter: EventEmitter<{ source: string; target: string }>;
@@ -52,6 +53,11 @@ export function disposeGraphView(deps: GraphViewDisposeDependencies): void {
     // Cleanup view subscriptions (terminals, navigation, pinned editors)
     if (deps.viewSubscriptionCleanups) {
         cleanupViewSubscriptions(deps.viewSubscriptionCleanups);
+    }
+
+    // Cleanup settings change listener
+    if (deps.cleanupSettingsListener) {
+        deps.cleanupSettingsListener();
     }
 
     // Dispose managers

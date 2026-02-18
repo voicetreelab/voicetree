@@ -105,6 +105,15 @@ function logHookResult(message: string): void {
     console.log(message);
 }
 
+// Settings change subscriber registry
+type SettingsChangeCallback = () => void;
+const settingsChangeListeners: Set<SettingsChangeCallback> = new Set();
+
+export function onSettingsChange(cb: SettingsChangeCallback): () => void {
+    settingsChangeListeners.add(cb);
+    return () => { settingsChangeListeners.delete(cb); };
+}
+
 // Export as object (like mainAPI)
 // eslint-disable-next-line @typescript-eslint/typedef
 export const uiAPIHandler = {
@@ -118,6 +127,9 @@ export const uiAPIHandler = {
     closeTerminalById,
     updateInjectBadge,
     logHookResult,
+    onSettingsChanged: (): void => {
+        for (const cb of settingsChangeListeners) cb();
+    },
 };
 
 export type UIAPIType = typeof uiAPIHandler;
