@@ -133,8 +133,12 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
     // Scroll to the end of terminal output when navigating
     if (vanillaInstance?.scrollToBottom) {
       vanillaInstance.scrollToBottom();
-      // Additional delayed scroll to ensure content is fully loaded
-      setTimeout(() => vanillaInstance.scrollToBottom?.(), 800);
+      // Additional delayed scroll + focus to ensure content is fully loaded
+      // and terminal is focusable after viewport animation completes
+      setTimeout(() => {
+        vanillaInstance.focus?.();
+        vanillaInstance.scrollToBottom?.();
+      }, 800);
     }
   }
 

@@ -20,6 +20,7 @@ import type {AgentConfig} from "@/pure/settings";
 import {addResizeZones} from "./window-resize-zones";
 import {createExpandButton} from "./expand-button";
 import {createTerminalTitleBar} from "./terminal-title-bar";
+import {vanillaFloatingWindowInstances} from "@/shell/edge/UI-edge/state/UIAppState";
 
 /** Options for createWindowChrome */
 export interface CreateWindowChromeOptions {
@@ -83,6 +84,10 @@ export function createWindowChrome(
     windowElement.addEventListener('mousedown', (e: MouseEvent): void => {
         e.stopPropagation();
         selectFloatingWindowNode(cy, fw);
+        // Focus the terminal so xterm receives keyboard input and scroll events
+        // (clicking on window chrome doesn't natively focus the xterm textarea)
+        const instance: { dispose: () => void; focus?: () => void } | undefined = vanillaFloatingWindowInstances.get(id);
+        instance?.focus?.();
     });
     // Allow horizontal scroll to pan graph, block vertical scroll for in-window scrolling
     windowElement.addEventListener('wheel', (e) => {

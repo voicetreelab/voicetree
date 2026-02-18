@@ -60,6 +60,8 @@ export interface AutoLayoutOptions {
 }
 
 interface FcoseLayoutOptions {
+  quality: 'default' | 'proof';
+  initialEnergyOnIncremental: number;
   gravity: number;
   gravityRange: number;
   tile: boolean;
@@ -95,12 +97,14 @@ const DEFAULT_OPTIONS: AutoLayoutOptions = {
 };
 
 const DEFAULT_FCOSE_OPTIONS: FcoseLayoutOptions = {
-  gravity: 0.25,
+  quality: 'default',
+  initialEnergyOnIncremental: 0.3,
+  gravity: 0.1,
   gravityRange: 3.8,
   tile: true,
   tilingPaddingVertical: 10,
   tilingPaddingHorizontal: 10,
-  nodeRepulsion: 4500,
+  nodeRepulsion: 10000,
   idealEdgeLength: 250,
   edgeElasticity: 0.45,
   nodeSpacing: 70,
@@ -132,6 +136,8 @@ function parseLayoutConfig(json: string | undefined): LayoutConfig {
     };
 
     const fcoseOpts: FcoseLayoutOptions = {
+      quality: parsed.quality === 'default' || parsed.quality === 'proof' ? parsed.quality : DEFAULT_FCOSE_OPTIONS.quality,
+      initialEnergyOnIncremental: typeof parsed.initialEnergyOnIncremental === 'number' ? parsed.initialEnergyOnIncremental : DEFAULT_FCOSE_OPTIONS.initialEnergyOnIncremental,
       gravity: typeof parsed.gravity === 'number' ? parsed.gravity : DEFAULT_FCOSE_OPTIONS.gravity,
       gravityRange: typeof parsed.gravityRange === 'number' ? parsed.gravityRange : DEFAULT_FCOSE_OPTIONS.gravityRange,
       tile: typeof parsed.tile === 'boolean' ? parsed.tile : DEFAULT_FCOSE_OPTIONS.tile,
@@ -182,6 +188,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
 
   let layoutRunning: boolean = false;
   let layoutQueued: boolean = false;
+  let layoutCount: number = 0;
 
   const onLayoutComplete: () => void = () => {
     void window.electronAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);
@@ -206,7 +213,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     });
   };
 
-  const runColaLayout: () => void = () => {
+  const runColaLayout: (onComplete?: () => void) => void = (onComplete) => {
     const colaOpts: AutoLayoutOptions = currentConfig.cola;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -232,7 +239,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
       nodeDimensionsIncludeLabels: true,
     });
 
-    layout.one('layoutstop', onLayoutComplete);
+    layout.one('layoutstop', onComplete ?? onLayoutComplete);
     layout.run();
   };
 
@@ -246,6 +253,8 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
       eles: getNonContextElements(),
       animate: true,
       randomize: false,
+      quality: fcoseOpts.quality,
+      initialEnergyOnIncremental: fcoseOpts.initialEnergyOnIncremental,
       fit: false,
       nodeRepulsion: () => fcoseOpts.nodeRepulsion,
       idealEdgeLength: (edge: EdgeSingular) => getEdgeDistance(edge.target().data('windowType')),
@@ -277,8 +286,11 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     }
 
     layoutRunning = true;
+    layoutCount++;
 
-    if (currentConfig.engine === 'fcose') {
+    if (currentConfig.engine === 'fcose' && layoutCount % 7 === 0) {
+      runColaLayout(() => runFcoseLayout());
+    } else if (currentConfig.engine === 'fcose') {
       runFcoseLayout();
     } else {
       runColaLayout();
