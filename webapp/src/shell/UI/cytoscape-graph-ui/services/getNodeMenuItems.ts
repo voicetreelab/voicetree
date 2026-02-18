@@ -7,6 +7,7 @@ import type { Core } from 'cytoscape';
 import { Plus, Play, Trash2, AlertTriangle, Clipboard, ChevronDown, Edit2, GitBranch, FolderOpen } from 'lucide';
 import type { GraphNode } from "@/pure/graph";
 import { createNewChildNodeFromUI, deleteNodesFromUI } from "@/shell/edge/UI-edge/graph/handleUIActions";
+import { formatShortcut } from '@/pure/utils/keyboardShortcutDisplay';
 import {
     spawnTerminalWithNewContextNode,
     spawnTerminalWithCommandEditor,
@@ -64,7 +65,7 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
 
     // LEFT SIDE: Delete, Copy, Add (3 buttons)
     menuItems.push({
-        icon: Trash2, label: 'Delete', hotkey: '⌘⌫',
+        icon: Trash2, label: 'Delete', hotkey: formatShortcut('Backspace'),
         action: () => deleteNodesFromUI([nodeId], cy),
     });
     menuItems.push({
@@ -72,7 +73,7 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
         action: () => { void navigator.clipboard.writeText(getFilePathForNode(nodeId)); },
     });
     menuItems.push({
-        icon: Plus, label: 'Add Child', hotkey: '⌘N',
+        icon: Plus, label: 'Add Child', hotkey: formatShortcut('N'),
         action: () => { void createNewChildNodeFromUI(nodeId, cy); },
     });
 
@@ -81,7 +82,7 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
         icon: Play,
         label: 'Run',
         color: '#22c55e', // green
-        hotkey: '⌘⏎',
+        hotkey: formatShortcut('Enter'),
         action: async () => {
             await spawnTerminalWithNewContextNode(nodeId, cy);
         },

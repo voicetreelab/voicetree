@@ -27,6 +27,7 @@ import {
     getPinnedEditors,
 } from '@/shell/edge/UI-edge/state/EditorStore';
 import { Pin } from 'lucide-react';
+import { formatShortcut } from '@/pure/utils/keyboardShortcutDisplay';
 
 const TAB_WIDTH: number = 90;
 
@@ -86,7 +87,7 @@ function RecentTab({ entry, index, onNavigate }: RecentTabProps): JSX.Element {
             >
                 <span className="recent-tab-text">{label}</span>
             </button>
-            <span className="recent-tab-shortcut-hint">{`\u2318${shortcutNumber}`}</span>
+            <span className="recent-tab-shortcut-hint">{formatShortcut(shortcutNumber.toString())}</span>
         </div>
     );
 }
