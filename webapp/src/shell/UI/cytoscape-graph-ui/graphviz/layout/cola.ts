@@ -382,7 +382,7 @@ ColaLayout.prototype.run = function(){
 
     // add nodes to cola
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    adaptor.nodes( nonparentNodes.map(function( node: any, i: any ){
+    const realNodeStructs: any[] = nonparentNodes.map(function( node: any, i: any ){
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const padding: any = getOptVal( options.nodeSpacing, node );
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -403,7 +403,33 @@ ColaLayout.prototype.run = function(){
         // //console.log(`[Cola Debug] Initial setup - GraphNode ${node.relativeFilePathIsID()}: cytoPos=(${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}) -> colaPos=(${struct.x.toFixed(2)}, ${struct.y.toFixed(2)}) [bb offset: (${bb.x1}, ${bb.y1})]`);
 
         return struct;
-    }) );
+    });
+
+    // Position Anchoring: inject ghost nodes + links to softly anchor existing nodes to prior positions
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ghostNodes: any[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ghostLinks: any[] = [];
+    if (options.anchorEnabled !== false) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const anchorStrength: any = options.anchorStrength ?? 10;
+        let ghostCount: number = 0;
+        for (let i: number = 0; i < nonparentNodes.length; i++) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const node: any = nonparentNodes[i];
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const pos: any = node.position();
+            if (pos.x != null && pos.y != null && !(pos.x === 0 && pos.y === 0)) {
+                const gi: number = nonparentNodes.length + ghostCount;
+                ghostNodes.push({ x: pos.x - bb.x1, y: pos.y - bb.y1,
+                    width: 1, height: 1, index: gi, fixed: true });
+                ghostLinks.push({ source: i, target: gi, calcLength: anchorStrength });
+                ghostCount++;
+            }
+        }
+    }
+
+    adaptor.nodes([...realNodeStructs, ...ghostNodes]);
 
     // the constraints to be added on nodes
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -572,7 +598,7 @@ ColaLayout.prototype.run = function(){
 
     // add the outgoingEdges to cola
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    adaptor.links( edges.stdFilter(function( edge: any ){
+    const realLinks: any[] = edges.stdFilter(function( edge: any ){
         // Exclude indicator edges from layout calculation
         if (edge.data('isIndicatorEdge')) return false;
         return nonparentNodes.contains(edge.source()) && nonparentNodes.contains(edge.target());
@@ -589,7 +615,9 @@ ColaLayout.prototype.run = function(){
         }
 
         return c;
-    }) );
+    });
+
+    adaptor.links([...realLinks, ...ghostLinks]);
 
     adaptor.size([ bb.w, bb.h ]);
 

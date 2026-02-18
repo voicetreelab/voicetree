@@ -90,15 +90,24 @@ export interface AutoLayoutOptions {
   edgeLength?: number | ((edge: EdgeSingular) => number);
   edgeSymDiffLength?: number | ((edge: EdgeSingular) => number);
   edgeJaccardLength?: number | ((edge: EdgeSingular) => number);
+  // Position anchoring - ghost nodes that softly anchor existing nodes to prior positions
+  anchorEnabled?: boolean;  // default true
+  anchorStrength?: number;  // 1-200, default 10 (lower = stronger anchor)
 }
 
 interface FcoseLayoutOptions {
   quality: 'default' | 'proof';
+  animate: boolean;
+  fit: boolean;
+  incremental: boolean;
   animationDuration: number;
   numIter: number;
   initialEnergyOnIncremental: number;
   gravity: number;
   gravityRange: number;
+  gravityCompound: number;
+  gravityRangeCompound: number;
+  nestingFactor: number;
   tile: boolean;
   tilingPaddingVertical: number;
   tilingPaddingHorizontal: number;
@@ -106,6 +115,9 @@ interface FcoseLayoutOptions {
   idealEdgeLength: number;
   edgeElasticity: number;
   nodeSpacing: number;
+  uniformNodeDimensions: boolean;
+  packComponents: boolean;
+  coolingFactor: number;
 }
 
 interface ElkLayoutOptions {
@@ -155,11 +167,17 @@ const DEFAULT_OPTIONS: AutoLayoutOptions = {
 
 const DEFAULT_FCOSE_OPTIONS: FcoseLayoutOptions = {
   quality: 'default',
+  animate: true,
+  fit: false,
+  incremental: true,
   animationDuration: 1000,
   numIter: 2500,
   initialEnergyOnIncremental: 0.15,
   gravity: 0.02,
   gravityRange: 1.5,
+  gravityCompound: 1.0,
+  gravityRangeCompound: 1.5,
+  nestingFactor: 0.1,
   tile: true,
   tilingPaddingVertical: 10,
   tilingPaddingHorizontal: 10,
@@ -167,6 +185,9 @@ const DEFAULT_FCOSE_OPTIONS: FcoseLayoutOptions = {
   idealEdgeLength: 250,
   edgeElasticity: 0.45,
   nodeSpacing: 70,
+  uniformNodeDimensions: false,
+  packComponents: true,
+  coolingFactor: 0.3,
 };
 
 const DEFAULT_ELK_OPTIONS: ElkLayoutOptions = {
@@ -213,15 +234,24 @@ function parseLayoutConfig(json: string | undefined): LayoutConfig {
       edgeLength: typeof parsed.edgeLength === 'number'
         ? parsed.edgeLength
         : DEFAULT_OPTIONS.edgeLength,
+      anchorEnabled: parsed['cola.anchorEnabled'] !== false,
+      anchorStrength: typeof parsed['cola.anchorStrength'] === 'number'
+        ? Math.max(1, Math.min(200, parsed['cola.anchorStrength'])) : 10,
     };
 
     const fcoseOpts: FcoseLayoutOptions = {
       quality: parsed.quality === 'default' || parsed.quality === 'proof' ? parsed.quality : DEFAULT_FCOSE_OPTIONS.quality,
+      animate: typeof parsed.animate === 'boolean' ? parsed.animate : DEFAULT_FCOSE_OPTIONS.animate,
+      fit: typeof parsed.fit === 'boolean' ? parsed.fit : DEFAULT_FCOSE_OPTIONS.fit,
+      incremental: typeof parsed.incremental === 'boolean' ? parsed.incremental : DEFAULT_FCOSE_OPTIONS.incremental,
       animationDuration: typeof parsed.animationDuration === 'number' ? parsed.animationDuration : DEFAULT_FCOSE_OPTIONS.animationDuration,
       numIter: typeof parsed.numIter === 'number' ? parsed.numIter : DEFAULT_FCOSE_OPTIONS.numIter,
       initialEnergyOnIncremental: typeof parsed.initialEnergyOnIncremental === 'number' ? parsed.initialEnergyOnIncremental : DEFAULT_FCOSE_OPTIONS.initialEnergyOnIncremental,
       gravity: typeof parsed.gravity === 'number' ? parsed.gravity : DEFAULT_FCOSE_OPTIONS.gravity,
       gravityRange: typeof parsed.gravityRange === 'number' ? parsed.gravityRange : DEFAULT_FCOSE_OPTIONS.gravityRange,
+      gravityCompound: typeof parsed.gravityCompound === 'number' ? parsed.gravityCompound : DEFAULT_FCOSE_OPTIONS.gravityCompound,
+      gravityRangeCompound: typeof parsed.gravityRangeCompound === 'number' ? parsed.gravityRangeCompound : DEFAULT_FCOSE_OPTIONS.gravityRangeCompound,
+      nestingFactor: typeof parsed.nestingFactor === 'number' ? parsed.nestingFactor : DEFAULT_FCOSE_OPTIONS.nestingFactor,
       tile: typeof parsed.tile === 'boolean' ? parsed.tile : DEFAULT_FCOSE_OPTIONS.tile,
       tilingPaddingVertical: typeof parsed.tilingPaddingVertical === 'number' ? parsed.tilingPaddingVertical : DEFAULT_FCOSE_OPTIONS.tilingPaddingVertical,
       tilingPaddingHorizontal: typeof parsed.tilingPaddingHorizontal === 'number' ? parsed.tilingPaddingHorizontal : DEFAULT_FCOSE_OPTIONS.tilingPaddingHorizontal,
@@ -229,6 +259,9 @@ function parseLayoutConfig(json: string | undefined): LayoutConfig {
       idealEdgeLength: typeof parsed.idealEdgeLength === 'number' ? parsed.idealEdgeLength : DEFAULT_FCOSE_OPTIONS.idealEdgeLength,
       edgeElasticity: typeof parsed.edgeElasticity === 'number' ? parsed.edgeElasticity : DEFAULT_FCOSE_OPTIONS.edgeElasticity,
       nodeSpacing: typeof parsed.nodeSpacing === 'number' ? parsed.nodeSpacing : DEFAULT_FCOSE_OPTIONS.nodeSpacing,
+      uniformNodeDimensions: typeof parsed.uniformNodeDimensions === 'boolean' ? parsed.uniformNodeDimensions : DEFAULT_FCOSE_OPTIONS.uniformNodeDimensions,
+      packComponents: typeof parsed.packComponents === 'boolean' ? parsed.packComponents : DEFAULT_FCOSE_OPTIONS.packComponents,
+      coolingFactor: typeof parsed.coolingFactor === 'number' ? parsed.coolingFactor : DEFAULT_FCOSE_OPTIONS.coolingFactor,
     };
 
     const validElkAlgorithms = ['layered', 'stress', 'mrtree', 'radial', 'force', 'disco', 'sporeOverlap', 'sporeCompaction', 'rectpacking'] as const;
@@ -341,6 +374,8 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
       edgeLength: colaOpts.edgeLength,
       edgeSymDiffLength: colaOpts.edgeSymDiffLength,
       edgeJaccardLength: colaOpts.edgeJaccardLength,
+      anchorEnabled: colaOpts.anchorEnabled,
+      anchorStrength: colaOpts.anchorStrength,
       centerGraph: false,
       fit: false,
       nodeDimensionsIncludeLabels: true,
@@ -358,23 +393,29 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     const fcoseLayoutOptions: { name: string } & Record<string, unknown> = {
       name: 'fcose',
       eles: getNonContextElements(),
-      animate: true,
+      animate: fcoseOpts.animate,
       animationDuration: fcoseOpts.animationDuration,
-      randomize: false,
+      randomize: !fcoseOpts.incremental,
       quality: qualityOverride ?? fcoseOpts.quality,
       numIter: fcoseOpts.numIter,
       initialEnergyOnIncremental: fcoseOpts.initialEnergyOnIncremental,
-      fit: false,
+      fit: fcoseOpts.fit,
       nodeRepulsion: () => fcoseOpts.nodeRepulsion,
       idealEdgeLength: (edge: EdgeSingular) => getEdgeDistance(edge.target().data('windowType')),
       edgeElasticity: () => fcoseOpts.edgeElasticity,
       gravity: fcoseOpts.gravity,
       gravityRange: fcoseOpts.gravityRange,
+      gravityCompound: fcoseOpts.gravityCompound,
+      gravityRangeCompound: fcoseOpts.gravityRangeCompound,
+      nestingFactor: fcoseOpts.nestingFactor,
       tile: fcoseOpts.tile,
       tilingPaddingVertical: fcoseOpts.tilingPaddingVertical,
       tilingPaddingHorizontal: fcoseOpts.tilingPaddingHorizontal,
       nodeSeparation: fcoseOpts.nodeSpacing,
       nodeDimensionsIncludeLabels: true,
+      uniformNodeDimensions: fcoseOpts.uniformNodeDimensions,
+      packComponents: fcoseOpts.packComponents,
+      coolingFactor: fcoseOpts.coolingFactor,
     };
     const layout: Layouts = cy.layout(fcoseLayoutOptions);
 

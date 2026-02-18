@@ -7,7 +7,7 @@
 
 import type cytoscape from 'cytoscape';
 import type { NodeIdAndFilePath } from '@/pure/graph';
-import type { ObstacleBBox } from '@/pure/graph/positioning/findBestPosition';
+import type { ObstacleBBox, EdgeSegment } from '@/pure/graph/positioning/findBestPosition';
 
 /**
  * Extract obstacle bounding boxes from the cytoscape neighborhood of a node.
@@ -39,6 +39,37 @@ export function extractObstaclesFromCytoscape(
                 x2: pos.x + w / 2,
                 y1: pos.y - h / 2,
                 y2: pos.y + h / 2,
+            };
+        });
+}
+
+/**
+ * Extract edge line segments from the cytoscape neighborhood of a node.
+ * Uses the same 5-hop neighborhood as obstacle extraction.
+ * Returns segments for all edges in the neighborhood.
+ */
+export function extractEdgeSegmentsFromCytoscape(
+    cy: cytoscape.Core,
+    parentNodeId: NodeIdAndFilePath
+): readonly EdgeSegment[] {
+    const parentNode: cytoscape.CollectionReturnValue = cy.getElementById(parentNodeId);
+    if (parentNode.length === 0) return [];
+
+    const neighborhood: cytoscape.NodeCollection = parentNode
+        .closedNeighborhood()
+        .closedNeighborhood()
+        .closedNeighborhood()
+        .closedNeighborhood()
+        .closedNeighborhood();
+
+    return neighborhood
+        .filter('edge')
+        .map((edge: cytoscape.EdgeSingular): EdgeSegment => {
+            const sourcePos: cytoscape.Position = edge.source().position();
+            const targetPos: cytoscape.Position = edge.target().position();
+            return {
+                p1: { x: sourcePos.x, y: sourcePos.y },
+                p2: { x: targetPos.x, y: targetPos.y },
             };
         });
 }
