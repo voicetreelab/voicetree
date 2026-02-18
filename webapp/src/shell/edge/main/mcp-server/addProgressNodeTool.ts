@@ -19,6 +19,8 @@ import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange'
 import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 import {type McpToolResponse, buildJsonResponse} from './types'
+import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
+import type {VTSettings} from '@/pure/settings/types'
 
 export type ComplexityScore = 'low' | 'medium' | 'high'
 
@@ -263,6 +265,17 @@ export function buildMarkdownBody(params: {
     return sections.join('\n')
 }
 
+/**
+ * Count body lines using an allowlist approach: only summary + content count.
+ * Everything else (frontmatter, title, codeDiffs, diagram, filesChanged, notes,
+ * linkedArtifacts, parent wikilinks) is auto-excluded.
+ */
+export function countBodyLines(summary: string, content: string | undefined): number {
+    const summaryLines: number = summary.split('\n').length
+    const contentLines: number = content ? content.split('\n').length : 0
+    return summaryLines + contentLines
+}
+
 export async function addProgressNodeTool({
     callerTerminalId,
     title,
@@ -407,22 +420,13 @@ export async function addProgressNodeTool({
         warnings.push(`Summary is long (${summaryLineCount} lines) — keep it to 1-3 lines. Put details in content.`)
     }
 
-    // Check total body length, excluding codeDiffs and diagram sections from the count.
-    // These sections can legitimately be large without indicating a node that needs splitting.
-    let exemptLines: number = 0
-    if (codeDiffs && codeDiffs.length > 0) {
-        exemptLines += 2 // "## DIFF" + empty line
-        for (const diff of codeDiffs) {
-            exemptLines += 3 + diff.split('\n').length // ``` + diff lines + ``` + empty line
-        }
-    }
-    if (diagram) {
-        exemptLines += 5 + diagram.split('\n').length // ## Diagram + empty + ```mermaid + diagram lines + ``` + empty
-    }
-    const bodyLines: number = markdownContent.split('\n').length - exemptLines
-    if (bodyLines > 60) {
+    // Check total body length using allowlist: only summary + content count toward the limit.
+    const settings: VTSettings = await loadSettings()
+    const lineLimit: number = settings.nodeLineLimit ?? 70
+    const bodyLines: number = countBodyLines(summary, content)
+    if (bodyLines > lineLimit) {
         warnings.push(
-            `⚠ NODE TOO LONG (${bodyLines} lines, limit is 60). ACTION REQUIRED: You MUST split this into multiple smaller nodes — one concept per node. Use create_graph to create a tree of nodes in a single call.\n\n`
+            `⚠ NODE TOO LONG (${bodyLines} lines, limit is ${lineLimit}). ACTION REQUIRED: You MUST split this into multiple smaller nodes — one concept per node. Use create_graph to create a tree of nodes in a single call.\n\n`
             + `Split by concern:\n`
             + `Task\n├── Bug fix\n├── Refactor\n└── New feature\n\n`
             + `Split by phase:\n`

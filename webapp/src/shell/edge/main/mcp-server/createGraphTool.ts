@@ -23,11 +23,14 @@ import {
     type ComplexityScore,
     type MermaidBlock,
     buildMarkdownBody,
+    countBodyLines,
     slugify,
     validateMermaidBlocks,
     extractMermaidBlocks,
     parseDiagramParam,
 } from './addProgressNodeTool'
+import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
+import type {VTSettings} from '@/pure/settings/types'
 
 export interface CreateGraphNodeInput {
     readonly filename: string
@@ -133,24 +136,6 @@ function topologicalSort(nodes: readonly CreateGraphNodeInput[]): CreateGraphNod
     }
 
     return result
-}
-
-/**
- * Count body lines excluding codeDiffs and diagram sections.
- * These sections can legitimately be large without indicating a node needs splitting.
- */
-function countBodyLines(markdown: string, node: CreateGraphNodeInput): number {
-    let exemptLines: number = 0
-    if (node.codeDiffs && node.codeDiffs.length > 0) {
-        exemptLines += 2 // "## DIFF" + empty line
-        for (const diff of node.codeDiffs) {
-            exemptLines += 3 + diff.split('\n').length // ``` + diff lines + ``` + empty line
-        }
-    }
-    if (node.diagram) {
-        exemptLines += 5 + node.diagram.split('\n').length // ## Diagram + empty + ```mermaid + diagram lines + ``` + empty
-    }
-    return markdown.split('\n').length - exemptLines
 }
 
 interface CreatedNodeInfo {
@@ -288,27 +273,14 @@ export async function createGraphTool({
     const defaultColor: string = callerRecord.terminalData.initialEnvVars?.['AGENT_COLOR'] ?? 'blue'
 
     // Pre-validate line lengths: block ALL creation if any node is too long
+    const settings: VTSettings = await loadSettings()
+    const lineLimit: number = settings.nodeLineLimit ?? 70
     for (const node of nodes) {
-        const tempMarkdown: string = buildMarkdownBody({
-            title: node.title,
-            summary: node.summary,
-            content: node.content,
-            codeDiffs: node.codeDiffs,
-            filesChanged: node.filesChanged,
-            diagram: node.diagram,
-            notes: node.notes,
-            linkedArtifacts: node.linkedArtifacts,
-            complexityScore: node.complexityScore,
-            complexityExplanation: node.complexityExplanation,
-            color: node.color ?? defaultColor,
-            agentName,
-            parentBaseNames: [graphParentBaseName],
-        })
-        const bodyLines: number = countBodyLines(tempMarkdown, node)
-        if (bodyLines > 65) {
+        const bodyLines: number = countBodyLines(node.summary, node.content)
+        if (bodyLines > lineLimit) {
             return buildJsonResponse({
                 success: false,
-                error: `Node "${node.filename}" is too long (${bodyLines} lines, limit is 65). Don't shorten, spread across additional nodes — one concept per node.`
+                error: `Node "${node.filename}" is too long (${bodyLines} lines, limit is ${lineLimit}). Don't shorten, spread across additional nodes — one concept per node.`
             }, true)
         }
     }

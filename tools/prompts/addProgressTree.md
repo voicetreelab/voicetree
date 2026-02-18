@@ -56,7 +56,7 @@ Wire multi-node graphs using `parents` (local ids within the same call). Nodes w
 - **`filesChanged`:** Always include all file paths you modified.
 - **`codeDiffs`:** Include exact diffs for <40 lines of changes (production files only; omit test diffs unless tests are the main task). Over 40 lines, include only key changes. Requires `complexityScore` and `complexityExplanation`.
 - **`diagram`:** Mermaid diagram when relevant — prefer text when equally clear.
-- **60-line limit** per node (codeDiffs and diagram fields are exempt). If over, split into more nodes.
+- **Line limit** per node (default 70). Only `summary` + `content` fields count toward the limit. If over, split into more nodes.
 - **Color convention:** `green` = task completed, `blue` (default) = in-progress or planning.
 - **`notes`:** Architecture impact, gotchas, tech debt, difficulties.
 - **`linkedArtifacts`:** Link openspec artifacts (proposal, design, tasks) by basename.

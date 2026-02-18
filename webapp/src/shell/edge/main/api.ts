@@ -37,7 +37,7 @@ import {listWorktrees, createWorktree as createWorktreeCore, generateWorktreeNam
 import {scanForProjects, getDefaultSearchDirectories} from './project-scanner';
 import {loadProjects, saveProject, removeProject} from './project-store';
 import {initializeProject as initializeProjectCore} from './project-initializer';
-import {showFolderPicker} from './show-folder-picker';
+import {showFolderPicker, createNewProject} from './show-folder-picker';
 import {getOnboardingDirectory} from './electron/onboarding-setup';
 import {prettySetupAppForElectronDebugging} from './debug/prettySetupAppForElectronDebugging';
 import {
@@ -183,6 +183,7 @@ export const mainAPI = {
   removeProject,
   initializeProject,
   showFolderPicker,
+  createNewProject,
 
   // Debug setup for Playwright MCP
   prettySetupAppForElectronDebugging,

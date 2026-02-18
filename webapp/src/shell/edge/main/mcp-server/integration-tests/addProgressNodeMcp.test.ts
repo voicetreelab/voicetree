@@ -21,6 +21,11 @@ vi.mock('@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUICha
     applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn()
 }))
 
+// Mock settings
+vi.mock('@/shell/edge/main/settings/settings_IO', () => ({
+    loadSettings: vi.fn().mockResolvedValue({nodeLineLimit: 70})
+}))
+
 // Mock @mermaid-js/parser for mermaid validation tests
 vi.mock('@mermaid-js/parser', () => ({
     parse: vi.fn()
@@ -139,7 +144,7 @@ describe('MCP create_graph tool', () => {
 
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: 'unknown-terminal',
-                nodes: [{id: 'a', title: 'Test', summary: 'Summary'}]
+                nodes: [{filename:'a', title: 'Test', summary: 'Summary'}]
             })
             const payload: ErrorPayload = parsePayload(response) as ErrorPayload
 
@@ -154,7 +159,7 @@ describe('MCP create_graph tool', () => {
 
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
-                nodes: [{id: 'a', title: 'Test', summary: 'Summary'}]
+                nodes: [{filename:'a', title: 'Test', summary: 'Summary'}]
             })
             const payload: ErrorPayload = parsePayload(response) as ErrorPayload
 
@@ -176,7 +181,7 @@ describe('MCP create_graph tool', () => {
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 parentNodeId: 'nonexistent-node.md',
-                nodes: [{id: 'a', title: 'Test', summary: 'Summary'}]
+                nodes: [{filename:'a', title: 'Test', summary: 'Summary'}]
             })
             const payload: ErrorPayload = parsePayload(response) as ErrorPayload
 
@@ -205,15 +210,15 @@ describe('MCP create_graph tool', () => {
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [
-                    {id: 'a', title: 'First', summary: 'Summary'},
-                    {id: 'a', title: 'Second', summary: 'Summary'}
+                    {filename:'a', title: 'First', summary: 'Summary'},
+                    {filename:'a', title: 'Second', summary: 'Summary'}
                 ]
             })
             const payload: ErrorPayload = parsePayload(response) as ErrorPayload
 
             expect(response.isError).toBe(true)
             expect(payload.success).toBe(false)
-            expect(payload.error).toContain('Duplicate local id')
+            expect(payload.error).toContain('Duplicate filename')
         })
 
         it('returns error when parent references undeclared local id', async () => {
@@ -222,14 +227,14 @@ describe('MCP create_graph tool', () => {
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [
-                    {id: 'a', title: 'Child', summary: 'Summary', parents: ['nonexistent']}
+                    {filename:'a', title: 'Child', summary: 'Summary', parents: ['nonexistent']}
                 ]
             })
             const payload: ErrorPayload = parsePayload(response) as ErrorPayload
 
             expect(response.isError).toBe(true)
             expect(payload.success).toBe(false)
-            expect(payload.error).toContain('not a declared local id')
+            expect(payload.error).toContain('not a declared filename')
         })
 
         it('returns error when cycle detected in parent references', async () => {
@@ -238,8 +243,8 @@ describe('MCP create_graph tool', () => {
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [
-                    {id: 'a', title: 'A', summary: 'S', parents: ['b']},
-                    {id: 'b', title: 'B', summary: 'S', parents: ['a']}
+                    {filename:'a', title: 'A', summary: 'S', parents: ['b']},
+                    {filename:'b', title: 'B', summary: 'S', parents: ['a']}
                 ]
             })
             const payload: ErrorPayload = parsePayload(response) as ErrorPayload
@@ -254,7 +259,7 @@ describe('MCP create_graph tool', () => {
 
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
-                nodes: [{id: 'a', title: 'Test', summary: 'Summary', codeDiffs: ['- old\n+ new']}]
+                nodes: [{filename:'a', title: 'Test', summary: 'Summary', codeDiffs: ['- old\n+ new']}]
             })
             const payload: ErrorPayload = parsePayload(response) as ErrorPayload
 
@@ -269,20 +274,20 @@ describe('MCP create_graph tool', () => {
     // =========================================================================
 
     describe('line length blocking', () => {
-        it('blocks creation when a node exceeds 60 lines', async () => {
+        it('blocks creation when a node exceeds configured line limit', async () => {
             setupStandardMocks()
-            const longContent: string = Array.from({length: 55}, (_, i) => `Line ${i + 1}`).join('\n')
+            const longContent: string = Array.from({length: 75}, (_, i) => `Line ${i + 1}`).join('\n')
 
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
-                nodes: [{id: 'a', title: 'Long Node', summary: 'Summary.', content: longContent}]
+                nodes: [{filename: 'a', title: 'Long Node', summary: 'Summary.', content: longContent}]
             })
             const payload: ErrorPayload = parsePayload(response) as ErrorPayload
 
             expect(response.isError).toBe(true)
             expect(payload.success).toBe(false)
             expect(payload.error).toContain('too long')
-            expect(payload.error).toContain('limit is 60')
+            expect(payload.error).toContain('limit is 70')
         })
 
         it('exempts codeDiffs from line count', async () => {
@@ -292,7 +297,7 @@ describe('MCP create_graph tool', () => {
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [{
-                    id: 'a',
+                    filename: 'a',
                     title: 'With Diffs',
                     summary: 'Short summary.',
                     codeDiffs: [largeDiff],
@@ -312,7 +317,7 @@ describe('MCP create_graph tool', () => {
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [{
-                    id: 'a',
+                    filename: 'a',
                     title: 'With Diagram',
                     summary: 'Short summary.',
                     diagram: `flowchart TD\n${largeDiagram}`
@@ -325,13 +330,13 @@ describe('MCP create_graph tool', () => {
 
         it('blocks all nodes if any single node is too long', async () => {
             setupStandardMocks()
-            const longContent: string = Array.from({length: 55}, (_, i) => `Line ${i + 1}`).join('\n')
+            const longContent: string = Array.from({length: 75}, (_, i) => `Line ${i + 1}`).join('\n')
 
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [
-                    {id: 'a', title: 'Short', summary: 'OK.'},
-                    {id: 'b', title: 'Long', summary: 'Summary.', content: longContent, parents: ['a']}
+                    {filename:'a', title: 'Short', summary: 'OK.'},
+                    {filename:'b', title: 'Long', summary: 'Summary.', content: longContent, parents: ['a']}
                 ]
             })
             const payload: ErrorPayload = parsePayload(response) as ErrorPayload
@@ -354,15 +359,14 @@ describe('MCP create_graph tool', () => {
 
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
-                nodes: [{id: 'a', title: 'My Progress', summary: 'Did some work.'}]
+                nodes: [{filename: 'my-progress', title: 'My Progress', summary: 'Did some work.'}]
             })
             const payload: SuccessPayload = parsePayload(response) as SuccessPayload
 
             expect(payload.success).toBe(true)
             expect(payload.nodes).toHaveLength(1)
-            expect(payload.nodes[0].id).toBe('a')
-            expect(payload.nodes[0].status).toBe('ok')
             expect(payload.nodes[0].path).toContain('my-progress')
+            expect(payload.nodes[0].status).toBe('ok')
         })
 
         it('uses agent color and name from terminal record', async () => {
@@ -373,7 +377,7 @@ describe('MCP create_graph tool', () => {
 
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
-                nodes: [{id: 'a', title: 'Colored Node', summary: 'Work.'}]
+                nodes: [{filename:'a', title: 'Colored Node', summary: 'Work.'}]
             })
             const payload: SuccessPayload = parsePayload(response) as SuccessPayload
 
@@ -403,9 +407,9 @@ describe('MCP create_graph tool', () => {
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [
-                    {id: 'root', title: 'Root Node', summary: 'Root.'},
-                    {id: 'child1', title: 'Child One', summary: 'First child.', parents: ['root']},
-                    {id: 'child2', title: 'Child Two', summary: 'Second child.', parents: ['root']}
+                    {filename:'root', title: 'Root Node', summary: 'Root.'},
+                    {filename:'child1', title: 'Child One', summary: 'First child.', parents: ['root']},
+                    {filename:'child2', title: 'Child Two', summary: 'Second child.', parents: ['root']}
                 ]
             })
             const payload: SuccessPayload = parsePayload(response) as SuccessPayload
@@ -422,8 +426,8 @@ describe('MCP create_graph tool', () => {
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [
-                    {id: 'child', title: 'Child', summary: 'Child.', parents: ['parent']},
-                    {id: 'parent', title: 'Parent', summary: 'Parent.'}
+                    {filename:'child', title: 'Child', summary: 'Child.', parents: ['parent']},
+                    {filename:'parent', title: 'Parent', summary: 'Parent.'}
                 ]
             })
             const payload: SuccessPayload = parsePayload(response) as SuccessPayload
@@ -445,9 +449,9 @@ describe('MCP create_graph tool', () => {
             await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [
-                    {id: 'a', title: 'Root', summary: 'Root.'},
-                    {id: 'b', title: 'Child One', summary: 'C1.', parents: ['a']},
-                    {id: 'c', title: 'Child Two', summary: 'C2.', parents: ['a']}
+                    {filename:'a', title: 'Root', summary: 'Root.'},
+                    {filename:'b', title: 'Child One', summary: 'C1.', parents: ['a']},
+                    {filename:'c', title: 'Child Two', summary: 'C2.', parents: ['a']}
                 ]
             })
 
@@ -465,8 +469,8 @@ describe('MCP create_graph tool', () => {
             await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [
-                    {id: 'a', title: 'Node A', summary: 'A.'},
-                    {id: 'b', title: 'Node B', summary: 'B.'}
+                    {filename:'a', title: 'Node A', summary: 'A.'},
+                    {filename:'b', title: 'Node B', summary: 'B.'}
                 ]
             })
 
@@ -497,7 +501,7 @@ describe('MCP create_graph tool', () => {
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [{
-                    id: 'a',
+                    filename: 'a',
                     title: 'Bad Mermaid',
                     summary: 'Testing.',
                     diagram: 'pie\ninvalid syntax'
@@ -517,7 +521,7 @@ describe('MCP create_graph tool', () => {
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [{
-                    id: 'a',
+                    filename: 'a',
                     title: 'Valid Mermaid',
                     summary: 'Testing.',
                     diagram: 'pie\n"A" : 30\n"B" : 70'
@@ -535,12 +539,12 @@ describe('MCP create_graph tool', () => {
     // =========================================================================
 
     describe('slug and unique ID', () => {
-        it('slugifies title into file path', async () => {
+        it('slugifies filename into file path', async () => {
             setupStandardMocks()
 
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
-                nodes: [{id: 'a', title: 'My Progress Node Title!', summary: 'Content.'}]
+                nodes: [{filename: 'My Progress Node Title!', title: 'Title', summary: 'Content.'}]
             })
             const payload: SuccessPayload = parsePayload(response) as SuccessPayload
 
@@ -560,7 +564,7 @@ describe('MCP create_graph tool', () => {
 
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
-                nodes: [{id: 'a', title: 'Colliding Title', summary: 'Content.'}]
+                nodes: [{filename: 'Colliding Title', title: 'Colliding Title', summary: 'Content.'}]
             })
             const payload: SuccessPayload = parsePayload(response) as SuccessPayload
 
