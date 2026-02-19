@@ -19,7 +19,7 @@ export function getDefaultEdgeStyles(colors: GraphColorPalette, font: string, is
         'target-arrow-shape': 'triangle',
         'target-arrow-fill': 'filled' as cytoscape.Css.ArrowFill,
         'target-arrow-color': colors.lineColor,
-        'arrow-scale': 2.1, // 3x scale (was 0.7)
+        'arrow-scale': 1.47, // 30% smaller (was 2.1)
         'font-size': 15.75, // 1.5x scale (was 10.5)
         'font-family': font,
         'color': colors.textColor,
@@ -41,7 +41,7 @@ export function getDefaultEdgeStyles(colors: GraphColorPalette, font: string, is
       selector: 'edge[edgeCount]',
       style: {
         'width': 'mapData(edgeCount, 1, 50, 2.5, 12.5)', // 2.5x scale (was 1-5)
-        'arrow-scale': 'mapData(edgeCount, 1, 50, 1.05, 4.5)', // 3x scale (was 0.35-1.5)
+        'arrow-scale': 'mapData(edgeCount, 1, 50, 0.735, 3.15)', // 30% smaller (was 1.05-4.5)
         'line-opacity': 'mapData(edgeCount, 1, 10, 0.35, 0.6)', // Increased min/max for visibility
       }
     },

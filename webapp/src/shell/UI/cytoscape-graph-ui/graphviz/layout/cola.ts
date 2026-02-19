@@ -304,7 +304,9 @@ ColaLayout.prototype.run = function(){
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (raf as any)( frame );
             } else {
-                while( !inftick() ){
+                const MAX_SYNC_ITERATIONS: number = 500;
+                let syncIter: number = 0;
+                while( !inftick() && ++syncIter < MAX_SYNC_ITERATIONS ){
                     // keep going...
                 }
             }
