@@ -108,6 +108,8 @@ export interface VTSettings {
     readonly starredFolders?: readonly string[];
     /** Hook scripts triggered by app events (e.g., worktree creation) */
     readonly hooks?: HookSettings;
+    /** Override the shell used for terminals. Leave unset for auto-detect ($SHELL on macOS/Linux, pwsh/powershell on Windows). */
+    readonly shell?: string;
     /** Layout engine configuration as JSON. Supports 'cola' and 'fcose' engines. Edit in Advanced settings. */
     readonly layoutConfig?: string;
 }
