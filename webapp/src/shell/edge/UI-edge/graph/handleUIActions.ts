@@ -22,6 +22,8 @@ import {
 import * as O from 'fp-ts/lib/Option.js';
 import {extractObstaclesFromCytoscape} from "@/shell/edge/UI-edge/floating-windows/extractObstaclesFromCytoscape";
 import {calculateCollisionAwareChildPosition} from "@/pure/graph/positioning/calculateInitialPosition";
+import type {SpatialIndex} from "@/pure/graph/spatial";
+import {extractFromSpatialIndex} from "@/pure/graph/positioning/spatialAdapters";
 
 /**
  * Merges new metadata with old metadata, preferring new values when they are "present".
@@ -43,7 +45,8 @@ export function mergeNodeUIMetadata(oldMeta: NodeUIMetadata, newMeta: NodeUIMeta
 
 export async function createNewChildNodeFromUI(
     parentNodeId: string,
-    cy: Core
+    cy: Core,
+    spatialIndex?: SpatialIndex
 ): Promise<NodeIdAndFilePath> {
 
     // Get current graph state
@@ -55,10 +58,12 @@ export async function createNewChildNodeFromUI(
     // Get parent node from graph
     const parentNode: GraphNode = currentGraph.nodes[parentNodeId];
 
-    // Extract shell data (cytoscape positions) then delegate to pure positioning
+    // Extract shell data — spatial index (O(log n)) when available, otherwise cytoscape BFS (O(k))
     const parentCyPos: Position = cy.getElementById(parentNodeId).position();
-    const obstacles: readonly import("@/pure/graph/positioning/findBestPosition").ObstacleBBox[] = extractObstaclesFromCytoscape(cy, parentNodeId);
-    const position: Position = calculateCollisionAwareChildPosition(parentCyPos, currentGraph, parentNodeId, obstacles);
+    const { obstacles, edgeSegments } = spatialIndex
+        ? extractFromSpatialIndex(spatialIndex, parentCyPos, parentNodeId)
+        : { obstacles: extractObstaclesFromCytoscape(cy, parentNodeId), edgeSegments: undefined };
+    const position: Position = calculateCollisionAwareChildPosition(parentCyPos, currentGraph, parentNodeId, obstacles, undefined, edgeSegments);
 
     // Create GraphDelta (contains both child and updated parent with edge)
     const graphDelta: GraphDelta = fromCreateChildToUpsertNode(currentGraph, parentNode, "# ", undefined, O.some(position));

@@ -20,7 +20,10 @@ import {cleanupRegistry, getCachedZoom} from "@/shell/edge/UI-edge/floating-wind
 import {setupResizeObserver, updateShadowNodeDimensions} from "@/shell/edge/UI-edge/floating-windows/setup-resize-observer";
 import {getEdgeDistance} from "@/shell/UI/cytoscape-graph-ui/graphviz/layout/cytoscape-graph-constants";
 import {findBestPosition} from "@/pure/graph/positioning/findBestPosition";
+import type {ObstacleBBox, EdgeSegment} from "@/pure/graph/positioning/findBestPosition";
 import {extractObstaclesFromCytoscape, extractEdgeSegmentsFromCytoscape} from "@/shell/edge/UI-edge/floating-windows/extractObstaclesFromCytoscape";
+import type {SpatialIndex} from "@/pure/graph/spatial";
+import {extractFromSpatialIndex} from "@/pure/graph/positioning/spatialAdapters";
 
 /**
  * Anchor a floating window to a parent node
@@ -30,7 +33,8 @@ import {extractObstaclesFromCytoscape, extractEdgeSegmentsFromCytoscape} from "@
  */
 export function anchorToNode(
     cy: cytoscape.Core,
-    fw: FloatingWindowData
+    fw: FloatingWindowData,
+    spatialIndex?: SpatialIndex
 ): cytoscape.NodeSingular {
     // Validate ui is populated
     if (!fw.ui) {
@@ -72,9 +76,11 @@ export function anchorToNode(
         ) * 180) / Math.PI
         : 0; // No grandparent (context node is root), default to right
 
-    // Extract obstacles and edge segments from cytoscape neighborhood and find best collision-free position
-    const obstacles: readonly import('@/pure/graph/positioning/findBestPosition').ObstacleBBox[] = extractObstaclesFromCytoscape(cy, parentNodeId);
-    const edgeSegments: readonly import('@/pure/graph/positioning/findBestPosition').EdgeSegment[] = extractEdgeSegmentsFromCytoscape(cy, parentNodeId);
+    // Extract obstacles and edge segments — spatial index (O(log n)) when available, otherwise cytoscape BFS (O(k))
+    const { obstacles, edgeSegments }: { readonly obstacles: readonly ObstacleBBox[]; readonly edgeSegments: readonly EdgeSegment[] } = spatialIndex
+        ? extractFromSpatialIndex(spatialIndex, { x: parentPos.x, y: parentPos.y }, parentNodeId,
+            getEdgeDistance(fw.type) * 3 + Math.max(shadowDimensions.width, shadowDimensions.height))
+        : { obstacles: extractObstaclesFromCytoscape(cy, parentNodeId), edgeSegments: extractEdgeSegmentsFromCytoscape(cy, parentNodeId) };
     const childPosition: import('@/pure/graph').Position = findBestPosition(
         { x: parentPos.x, y: parentPos.y },
         desiredAngleDeg,
