@@ -37,7 +37,8 @@ export const createNewNodeAction: (cy: Core) => () => void = (
     const parentNodeId: string = selectedNodes[0];
     void (async () => {
       const {createNewChildNodeFromUI} = await import('@/shell/edge/UI-edge/graph/handleUIActions');
-      await createNewChildNodeFromUI(parentNodeId, cy);
+      const {getCurrentIndex} = await import('@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync');
+      await createNewChildNodeFromUI(parentNodeId, cy, getCurrentIndex(cy));
     })();
   } else {
     // Create orphan node at center of viewport

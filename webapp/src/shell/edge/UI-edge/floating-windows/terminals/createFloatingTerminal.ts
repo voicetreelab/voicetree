@@ -7,6 +7,7 @@ import { getTerminalId, type TerminalId, type FloatingWindowUIData } from "@/she
 import { vanillaFloatingWindowInstances } from "@/shell/edge/UI-edge/state/UIAppState";
 import { createWindowChrome } from "@/shell/edge/UI-edge/floating-windows/create-window-chrome";
 import { anchorToNode } from "@/shell/edge/UI-edge/floating-windows/anchor-to-node";
+import { getCurrentIndex } from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
 import * as O from "fp-ts/lib/Option.js";
 import type { TerminalData } from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import { closeTerminal } from "@/shell/edge/UI-edge/floating-windows/terminals/closeTerminal";
@@ -78,7 +79,7 @@ export async function createFloatingTerminal(
         //console.log('[FloatingWindowManager-v2] anchoredToNodeId:', JSON.stringify(terminalWithUI.anchoredToNodeId));
         //console.log('[FloatingWindowManager-v2] O.isSome check:', O.isSome(terminalWithUI.anchoredToNodeId));
         if (terminalWithUI.ui && O.isSome(terminalWithUI.anchoredToNodeId)) {
-            anchorToNode(cy, terminalWithUI);
+            anchorToNode(cy, terminalWithUI, getCurrentIndex(cy));
             // Mark the parent node as having a running terminal (changes shape to square)
             const parentNodeId: string = terminalWithUI.anchoredToNodeId.value;
             //console.log('[FloatingWindowManager-v2] Looking for parent node:', parentNodeId);

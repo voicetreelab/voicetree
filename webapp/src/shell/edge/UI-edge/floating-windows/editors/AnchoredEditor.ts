@@ -7,6 +7,7 @@ import {type EditorId, getEditorId, getShadowNodeId} from '@/shell/edge/UI-edge/
 import type {EditorData} from '@/shell/edge/UI-edge/state/UIAppState';
 import {addToAutoPinQueue, getEditorByNodeId} from '@/shell/edge/UI-edge/state/EditorStore';
 import {anchorToNode} from '@/shell/edge/UI-edge/floating-windows/anchor-to-node';
+import {getCurrentIndex} from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
 import {setPendingPanToNode} from '@/shell/edge/UI-edge/state/PendingPanStore';
 import {cySmartCenter} from '@/utils/responsivePadding';
 import {closeEditor, createFloatingEditor} from './FloatingEditorCRUD';
@@ -71,7 +72,7 @@ export async function createAnchoredFloatingEditor(
         }
 
         // Anchor to node using v2 function
-        anchorToNode(cy, editor);
+        anchorToNode(cy, editor, getCurrentIndex(cy));
 
         // Pan to shadow node after layout completes
         const editorId: EditorId = getEditorId(editor);
@@ -143,7 +144,7 @@ export async function createFloatingEditorForUICreatedNode(
         }
 
         // Anchor to node (creates shadow node for positioning)
-        anchorToNode(cy, editor);
+        anchorToNode(cy, editor, getCurrentIndex(cy));
 
         // Pan to shadow node after layout completes (replaces old 1200ms setTimeout hack)
         const editorId: EditorId = getEditorId(editor);

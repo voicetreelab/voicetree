@@ -21,6 +21,9 @@ import ColaLayout from './cola';
 // @ts-ignore - cytoscape-fcose has no bundled types; ambient declaration in utils/types/cytoscape-fcose.d.ts
 import fcose from 'cytoscape-fcose';
 import { getEdgeDistance } from './cytoscape-graph-constants';
+import { getCurrentIndex } from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
+import { queryNodesInRect } from '@/pure/graph/spatial';
+import type { SpatialIndex, SpatialNodeEntry } from '@/pure/graph/spatial';
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
 import { consumePendingPan } from '@/shell/edge/UI-edge/state/PendingPanStore';
@@ -221,6 +224,86 @@ function getNHopNeighborhood(roots: CollectionReturnValue, hops: number): Collec
 }
 
 /**
+ * Compute hybrid topology+spatial neighborhood for local Cola layout.
+ *
+ * Run set: 4-hop topology (Cola needs edges for force computation).
+ * Pin set: 6-hop topology boundary ∪ spatially nearby nodes from R-tree query.
+ * Both topology and spatial pin sets are capped at MAX_PINS each (sorted by
+ * distance from run-set centroid) to bound Cola's O(n²) iteration cost.
+ */
+function getLocalNeighborhood(
+  cy: Core,
+  newNodes: CollectionReturnValue,
+  spatialIndex: SpatialIndex | undefined
+): { runNodes: CollectionReturnValue; pinNodes: CollectionReturnValue } {
+  const MAX_PINS: number = 30;
+
+  // Run set: 4-hop topology, filtered for non-context nodes (Cola needs edge structure)
+  const runNodes: CollectionReturnValue = getNHopNeighborhood(newNodes, 4).filter(
+    ele => !ele.data('isContextNode')
+  );
+
+  // Topology pins: hop 5-6 boundary anchors
+  const allTopologyNodes: CollectionReturnValue = getNHopNeighborhood(newNodes, 6).filter(
+    ele => !ele.data('isContextNode')
+  );
+  let pinNodes: CollectionReturnValue = allTopologyNodes.difference(runNodes);
+
+  // Compute run-set bounding box centroid (reused for topology cap + spatial query)
+  if (runNodes.length === 0) {
+    return { runNodes, pinNodes };
+  }
+  const bb: { x1: number; y1: number; x2: number; y2: number } = runNodes.boundingBox({
+    includeLabels: false, includeOverlays: false, includeEdges: false
+  });
+  const centroidX: number = (bb.x1 + bb.x2) / 2;
+  const centroidY: number = (bb.y1 + bb.y2) / 2;
+
+  // Cap topology pins at MAX_PINS, keeping closest to run-set centroid
+  if (pinNodes.length > MAX_PINS) {
+    pinNodes = pinNodes.sort((a, b) => {
+      const aPos: { x: number; y: number } = (a as NodeSingular).position();
+      const bPos: { x: number; y: number } = (b as NodeSingular).position();
+      return ((aPos.x - centroidX) ** 2 + (aPos.y - centroidY) ** 2)
+           - ((bPos.x - centroidX) ** 2 + (bPos.y - centroidY) ** 2);
+    }).slice(0, MAX_PINS);
+  }
+
+  // Spatial augmentation: merge nearby nodes from R-tree when index available
+  if (spatialIndex) {
+    const halfDiag: number = Math.sqrt((bb.x2 - bb.x1) ** 2 + (bb.y2 - bb.y1) ** 2) / 2;
+    const searchRadius: number = halfDiag + 400;
+
+    const searchRect: { minX: number; minY: number; maxX: number; maxY: number } = {
+      minX: centroidX - searchRadius,
+      minY: centroidY - searchRadius,
+      maxX: centroidX + searchRadius,
+      maxY: centroidY + searchRadius,
+    };
+
+    const nearbyEntries: readonly SpatialNodeEntry[] = queryNodesInRect(spatialIndex, searchRect);
+
+    // Sort by distance from centroid, closest first; cap at MAX_PINS new spatial pins
+    const sortedEntries: SpatialNodeEntry[] = [...nearbyEntries].sort((a, b) => {
+      return (((a.minX + a.maxX) / 2 - centroidX) ** 2 + ((a.minY + a.maxY) / 2 - centroidY) ** 2)
+           - (((b.minX + b.maxX) / 2 - centroidX) ** 2 + ((b.minY + b.maxY) / 2 - centroidY) ** 2);
+    });
+
+    let spatialPinCount: number = 0;
+    for (const entry of sortedEntries) {
+      if (spatialPinCount >= MAX_PINS) break;
+      const node: CollectionReturnValue = cy.getElementById(entry.nodeId);
+      if (node.length > 0 && !runNodes.contains(node) && !pinNodes.contains(node) && !node.data('isContextNode')) {
+        pinNodes = pinNodes.merge(node);
+        spatialPinCount++;
+      }
+    }
+  }
+
+  return { runNodes, pinNodes };
+}
+
+/**
  * Enable automatic layout on graph changes
  *
  * Listens to node/edge add/remove events and triggers Cola or fcose layout
@@ -387,19 +470,10 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
       return;
     }
 
-    // Expand to 4-hop neighborhood → run set (free to move, gives Cola structural context)
-    const runNodes: CollectionReturnValue = getNHopNeighborhood(newNodes, 4).filter(
-      ele => !ele.data('isContextNode')
-    );
-
-    // Expand to 6-hop neighborhood → full subgraph
-    const allNodes: CollectionReturnValue = getNHopNeighborhood(newNodes, 6).filter(
-      ele => !ele.data('isContextNode')
-    );
-
-    // Pin boundary = hop 5-6 only (locked as stable anchors)
-    const pinNodes: CollectionReturnValue = allNodes.difference(runNodes);
+    // Hybrid topology+spatial neighborhood selection
+    const { runNodes, pinNodes } = getLocalNeighborhood(cy, newNodes, getCurrentIndex(cy));
     pinNodes.lock();
+    const allNodes: CollectionReturnValue = runNodes.union(pinNodes);
 
     // Collect edges where both endpoints are in the subgraph, excluding indicator edges
     const subgraphEdges: CollectionReturnValue = allNodes.connectedEdges().filter(
