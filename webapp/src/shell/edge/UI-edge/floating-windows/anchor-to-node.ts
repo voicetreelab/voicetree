@@ -20,7 +20,8 @@ import {cleanupRegistry, getCachedZoom} from "@/shell/edge/UI-edge/floating-wind
 import {setupResizeObserver, updateShadowNodeDimensions} from "@/shell/edge/UI-edge/floating-windows/setup-resize-observer";
 import {getEdgeDistance} from "@/shell/UI/cytoscape-graph-ui/graphviz/layout/cytoscape-graph-constants";
 import {findBestPosition} from "@/pure/graph/positioning/findBestPosition";
-import type {ObstacleBBox, EdgeSegment} from "@/pure/graph/positioning/findBestPosition";
+import type {ObstacleBBox} from "@/pure/graph/positioning/findBestPosition";
+import type {EdgeSegment} from "@/pure/graph/geometry";
 import {extractObstaclesFromCytoscape, extractEdgeSegmentsFromCytoscape} from "@/shell/edge/UI-edge/floating-windows/extractObstaclesFromCytoscape";
 import type {SpatialIndex} from "@/pure/graph/spatial";
 import {extractFromSpatialIndex} from "@/pure/graph/positioning/spatialAdapters";
@@ -295,8 +296,8 @@ function attachDragHandlers(
         // This preserves text selection in the editor content
         const target: HTMLElement = e.target as HTMLElement;
 
-        // Don't drag when clicking buttons
-        if (target.tagName === 'BUTTON') return;
+        // Don't drag when clicking buttons or children of buttons (e.g. icon/text spans inside inject badge)
+        if (target.tagName === 'BUTTON' || target.closest('button') !== null) return;
 
         // Check if the click originated from a draggable area:
         // - .cy-floating-window-horizontal-menu (editor menu bar)
