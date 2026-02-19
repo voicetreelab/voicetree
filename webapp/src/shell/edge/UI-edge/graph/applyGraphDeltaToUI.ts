@@ -228,14 +228,6 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                     if (!currentTargets.has(edge.targetId)) {
                         // Only create edge if target node exists
                         const targetNode: CollectionReturnValue = cy.getElementById(edge.targetId);
-                        // if (cy.edges().length >= MAX_EDGES) {
-                            // // Edge limit reached - only show alert once per delta application
-                            // if (!edgeLimitAlertShown) {
-                            //     alert(`There is a limit of ${MAX_EDGES} edges at once, contact 1manumasson@gmail.com to increase this`);
-                            //     edgeLimitAlertShown = true;
-                            // }
-                            // console.warn(`[applyGraphDeltaToUI] Edge limit reached (${MAX_EDGES}), not adding edge ${edgeId}`);
-                        // max edge disabled
 
 
                         if (targetNode.length > 0) {
@@ -271,16 +263,6 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
         });
     });
 
-    // Place nodes that don't have saved positions near their neighbors
-    if (nodesWithoutPositions.length > 0) {
-        let nodesCollection: ReturnType<Core['collection']> = cy.collection();
-        nodesWithoutPositions.forEach((nodeId: string) => {
-            nodesCollection = nodesCollection.merge(cy.getElementById(nodeId));
-        });
-        //console.log('[applyGraphDeltaToUI] Placing', nodesWithoutPositions.length, 'nodes without positions');
-        const layoutUtils: ReturnType<Core['layoutUtilities']> = cy.layoutUtilities({ idealEdgeLength: 100, offset: 10 });
-        layoutUtils.placeNewNodes(nodesCollection);
-    }
 
     const newNodeCount: number = newNodeIds.length;
     const totalNodes: number = cy.nodes().length;

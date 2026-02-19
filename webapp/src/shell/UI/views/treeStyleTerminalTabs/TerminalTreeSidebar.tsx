@@ -233,14 +233,12 @@ function TerminalTreeSidebarInternal({ onNavigate }: SidebarInternalProps): JSX.
         onNavigate(terminal);
     }, [onNavigate]);
 
-    if (terminals.length === 0) return null;
-
     return (
         <div
             ref={sidebarRef}
             className="terminal-tree-sidebar"
             data-testid="terminal-tree-sidebar"
-            style={{ display: 'flex' }}
+            style={{ display: terminals.length === 0 ? 'none' : 'flex' }}
         >
             <div className="terminal-tree-header">Terminals</div>
             <div className="terminal-tree-container">
