@@ -1,10 +1,15 @@
 /**
  * Auto Layout: Automatically run Cola or fcose layout on graph changes
  *
- * Two-phase layout for batch-added nodes:
- * Phase 1: Local Cola on 2-hop neighborhood of new nodes (4-hop pinned boundary)
- * Phase 2: Global layout with configured engine (Cola or fCOSE)
- * Falls back to full-graph layout when >30% nodes are new or no new nodes tracked.
+ * Layout strategy:
+ * - Initial load: fCOSE for global positioning → Cola for refinement
+ * - Incremental (batch-added nodes <30% of graph):
+ *   Always: Local Cola on 4-hop neighborhood of new nodes (6-hop pinned boundary)
+ *   Every 7th layout: chains into global Cola on full graph for stabilization
+ * - Fallback (>30% new or no new nodes tracked): Global Cola every 7th layout only
+ *
+ * fCOSE is only used on initial load because its gravity pulls nodes too aggressively
+ * for incremental layout updates. Cola handles all ongoing layout after the first run.
  *
  * NOTE (commit 033c57a4): We tried a two-phase layout algorithm that ran Phase 1 with only
  * constraint iterations (no unconstrained) for fast global stabilization, then Phase 2 ran
@@ -20,7 +25,7 @@ import ColaLayout from './cola';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore - cytoscape-fcose has no bundled types; ambient declaration in utils/types/cytoscape-fcose.d.ts
 import fcose from 'cytoscape-fcose';
-import { getEdgeDistance } from './cytoscape-graph-constants';
+import { getEdgeDistance, DEFAULT_EDGE_LENGTH } from './cytoscape-graph-constants';
 import { getCurrentIndex } from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
 import { queryNodesInRect } from '@/pure/graph/spatial';
 import type { SpatialIndex, SpatialNodeEntry, Rect } from '@/pure/graph/spatial';
@@ -155,6 +160,45 @@ const DEFAULT_FCOSE_OPTIONS: FcoseLayoutOptions = {
 
 const VALID_ENGINES: readonly LayoutEngine[] = ['cola', 'fcose'] as const;
 
+const COLA_ANIMATE_DURATION: number = 400;
+
+/**
+ * Compute Cola layout synchronously, then smoothly animate nodes to final positions.
+ * Avoids Cola's frame-1 teleport caused by synchronous initial constraint iterations.
+ */
+const computeColaAndAnimate: (
+  colaLayoutOpts: Record<string, unknown>,
+  nodes: CollectionReturnValue,
+  duration: number,
+  onComplete: () => void
+) => void = (colaLayoutOpts, nodes, duration, onComplete) => {
+  const startPos: Map<string, { x: number; y: number }> = new Map();
+  nodes.forEach((n: NodeSingular) => { startPos.set(n.id(), { ...n.position() }); });
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const layout: any = new (ColaLayout as any)({ ...colaLayoutOpts, animate: false });
+
+  layout.one('layoutstop', () => {
+    const endPos: Map<string, { x: number; y: number }> = new Map();
+    nodes.forEach((n: NodeSingular) => { endPos.set(n.id(), { ...n.position() }); });
+
+    // Reset to original positions
+    nodes.forEach((n: NodeSingular) => {
+      const s: { x: number; y: number } | undefined = startPos.get(n.id());
+      if (s) n.position(s);
+    });
+
+    // Animate to computed final positions
+    nodes.forEach((n: NodeSingular) => {
+      const e: { x: number; y: number } | undefined = endPos.get(n.id());
+      if (e) n.animate({ position: e }, { duration, easing: 'ease-in-out-cubic' });
+    });
+
+    setTimeout(onComplete, duration + 16);
+  });
+  layout.run();
+};
+
 /**
  * Parse layoutConfig JSON string into typed layout options.
  * Falls back to cola defaults on any parse error.
@@ -228,8 +272,8 @@ function getNHopNeighborhood(roots: CollectionReturnValue, hops: number): Collec
 /**
  * Compute hybrid topology+spatial neighborhood for local Cola layout.
  *
- * Run set: 2-hop topology (Cola needs edges for force computation).
- * Pin set: 4-hop topology boundary ∪ spatially nearby nodes from R-tree query.
+ * Run set: 4-hop topology (Cola needs edges for force computation).
+ * Pin set: 6-hop topology boundary ∪ spatially nearby nodes from R-tree query.
  * Both topology and spatial pin sets are capped at MAX_PINS each (sorted by
  * distance from run-set centroid) to bound Cola's O(n²) iteration cost.
  */
@@ -240,13 +284,13 @@ function getLocalNeighborhood(
 ): { runNodes: CollectionReturnValue; pinNodes: CollectionReturnValue } {
   const MAX_PINS: number = 30;
 
-  // Run set: 2-hop topology, filtered for non-context nodes (Cola needs edge structure)
-  const runNodes: CollectionReturnValue = getNHopNeighborhood(newNodes, 2).filter(
+  // Run set: 4-hop topology, filtered for non-context nodes (Cola needs edge structure)
+  const runNodes: CollectionReturnValue = getNHopNeighborhood(newNodes, 4).filter(
     ele => !ele.data('isContextNode')
   );
 
-  // Topology pins: hop 3-4 boundary anchors
-  const allTopologyNodes: CollectionReturnValue = getNHopNeighborhood(newNodes, 4).filter(
+  // Topology pins: hop 5-6 boundary anchors
+  const allTopologyNodes: CollectionReturnValue = getNHopNeighborhood(newNodes, 6).filter(
     ele => !ele.data('isContextNode')
   );
   let pinNodes: CollectionReturnValue = allTopologyNodes.difference(runNodes);
@@ -274,7 +318,7 @@ function getLocalNeighborhood(
   // Spatial augmentation: merge nearby nodes from R-tree when index available
   if (spatialIndex) {
     const halfDiag: number = Math.sqrt((bb.x2 - bb.x1) ** 2 + (bb.y2 - bb.y1) ** 2) / 2;
-    const searchRadius: number = halfDiag + 400;
+    const searchRadius: number = halfDiag + DEFAULT_EDGE_LENGTH * 3;
 
     const searchRect: { minX: number; minY: number; maxX: number; maxY: number } = {
       minX: centroidX - searchRadius,
@@ -369,6 +413,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
   let layoutRunning: boolean = false;
   let layoutQueued: boolean = false;
   let layoutCount: number = 0;
+  let hasRunInitialLayout: boolean = false;
 
   // Track newly added node IDs for local Cola layout
   const pendingNewNodeIds: Set<string> = new Set<string>();
@@ -426,7 +471,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     layout.run();
   };
 
-  const runFcoseLayout: (qualityOverride?: 'default' | 'proof') => void = (qualityOverride) => {
+  const runFcoseLayout: (qualityOverride?: 'default' | 'proof', onComplete?: () => void) => void = (qualityOverride, onComplete) => {
     registerFcose();
     const fcoseOpts: FcoseLayoutOptions = currentConfig.fcose;
 
@@ -476,15 +521,15 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
 
     layout.one('layoutstop', () => {
       nodeProto.layoutDimensions = origLayoutDimensions;
-      onLayoutComplete();
+      (onComplete ?? onLayoutComplete)();
     });
     layout.run();
   };
 
   /**
    * Run Cola on the local neighborhood of newly added nodes.
-   * Hop 1-2: run set (free to move) — Cola can rearrange the local region.
-   * Hop 3-4: pin boundary (locked anchors) — prevents ripple to distant nodes.
+   * Hop 1-4: run set (free to move) — Cola can rearrange the local region.
+   * Hop 5-6: pin boundary (locked anchors) — prevents ripple to distant nodes.
    * On completion, unlocks pins and chains to onComplete (Phase 2).
    */
   const runLocalCola: (newNodeIds: Set<string>, onComplete: () => void) => void = (newNodeIds, onComplete) => {
@@ -522,11 +567,9 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
 
     const subgraphElements: CollectionReturnValue = allNodes.union(subgraphEdges);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const localLayout: any = new (ColaLayout as any)({
+    computeColaAndAnimate({
       cy: cy,
       eles: subgraphElements,
-      animate: true,
       randomize: false,
       avoidOverlap: true,
       handleDisconnected: false,
@@ -540,13 +583,10 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
       centerGraph: false,
       fit: false,
       nodeDimensionsIncludeLabels: true,
-    });
-
-    localLayout.one('layoutstop', () => {
+    }, runNodes, COLA_ANIMATE_DURATION, () => {
       pinNodes.unlock();
       onComplete();
     });
-    localLayout.run();
   };
 
   const runLayout: () => void = () => {
@@ -569,22 +609,30 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     pendingNewNodeIds.clear();
 
     const totalNodes: number = cy.nodes().length;
+    const shouldRunGlobal: boolean = layoutCount % 7 === 0;
 
-    // If new nodes present and < 30% of total, use local Cola → global engine two-phase path
-    if (newNodeIds.size > 0 && newNodeIds.size < totalNodes * 0.3) {
+    if (!hasRunInitialLayout) {
+      // Initial load: fCOSE for global positioning, then Cola to refine
+      hasRunInitialLayout = true;
+      runFcoseLayout(undefined, () => {
+        runColaLayout();
+      });
+    } else if (newNodeIds.size > 0 && newNodeIds.size < totalNodes * 0.3) {
+      // Incremental: always local Cola; global Cola every 7th layout for stabilization
       runLocalCola(newNodeIds, () => {
-        // Phase 2: Full layout with configured engine
-        if (currentConfig.engine === 'fcose') {
-          runFcoseLayout(layoutCount % 7 === 0 ? 'proof' : undefined);
-        } else {
+        if (shouldRunGlobal) {
           runColaLayout();
+        } else {
+          onLayoutComplete();
         }
       });
-    } else if (currentConfig.engine === 'fcose') {
-      // Every 7th layout, run fcose with 'proof' quality for a more thorough pass
-      runFcoseLayout(layoutCount % 7 === 0 ? 'proof' : undefined);
     } else {
-      runColaLayout();
+      // Fallback (>30% new or no new nodes): global Cola every 7th, otherwise skip
+      if (shouldRunGlobal) {
+        runColaLayout();
+      } else {
+        onLayoutComplete();
+      }
     }
   };
 

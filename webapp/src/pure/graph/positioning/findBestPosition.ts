@@ -185,9 +185,6 @@ export function findBestPosition(
     edgeSegments?: readonly EdgeSegment[]
 ): Position {
     console.log(`[findBestPosition] parentPos=(${parentPos.x.toFixed(0)}, ${parentPos.y.toFixed(0)}), angle=${desiredAngleDeg.toFixed(1)}°, dist=${distance}, target=${targetDimensions.width}×${targetDimensions.height}, obstacles=${obstacles.length}, edges=${edgeSegments?.length ?? 0}`);
-    obstacles.forEach((obs, i) => {
-        console.log(`  obstacle[${i}]: [${obs.x1.toFixed(0)},${obs.y1.toFixed(0)} → ${obs.x2.toFixed(0)},${obs.y2.toFixed(0)}]`);
-    });
 
     // 1. Try desired angle first
     const offset: { readonly x: number; readonly y: number } = polarToCartesian(desiredAngleDeg, distance);
