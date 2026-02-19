@@ -14,13 +14,13 @@ export function getDefaultEdgeStyles(colors: GraphColorPalette, font: string, is
         'line-color': colors.lineColor,
         'loop-sweep': '-50deg',
         'loop-direction': '-45deg',
-        'width': 3,
+        'width': 7.5, // 2.5x scale (was 3)
         'line-opacity': 0.5, // Increased from 0.3 for better visibility in dark mode
         'target-arrow-shape': 'triangle',
         'target-arrow-fill': 'hollow' as cytoscape.Css.ArrowFill,
         'target-arrow-color': colors.lineColor,
-        'arrow-scale': 0.7,
-        'font-size': 10.5,
+        'arrow-scale': 2.1, // 3x scale (was 0.7)
+        'font-size': 15.75, // 1.5x scale (was 10.5)
         'font-family': font,
         'color': colors.textColor,
         'curve-style': 'straight',
@@ -40,8 +40,8 @@ export function getDefaultEdgeStyles(colors: GraphColorPalette, font: string, is
     {
       selector: 'edge[edgeCount]',
       style: {
-        'width': 'mapData(edgeCount, 1, 50, 1, 5)',
-        'arrow-scale': 'mapData(edgeCount, 1, 50, 0.35, 1.5)',
+        'width': 'mapData(edgeCount, 1, 50, 2.5, 12.5)', // 2.5x scale (was 1-5)
+        'arrow-scale': 'mapData(edgeCount, 1, 50, 1.05, 4.5)', // 3x scale (was 0.35-1.5)
         'line-opacity': 'mapData(edgeCount, 1, 10, 0.35, 0.6)', // Increased min/max for visibility
       }
     },
@@ -50,7 +50,7 @@ export function getDefaultEdgeStyles(colors: GraphColorPalette, font: string, is
     {
       selector: 'edge.connected-hover',
       style: {
-        'width': 2,
+        'width': 5, // 2.5x scale (was 2)
         'opacity': 1,
         'font-weight': 'bold',
         'line-color': colors.lineHighlightColor,
@@ -72,7 +72,7 @@ export function getDefaultEdgeStyles(colors: GraphColorPalette, font: string, is
       style: {
         'line-color': getGoldEdgeColor(isDark),
         'line-opacity': 0.8,
-        'width': 3,
+        'width': 7.5, // 2.5x scale (was 3)
       }
     },
 
@@ -86,7 +86,7 @@ export function getDefaultEdgeStyles(colors: GraphColorPalette, font: string, is
             'line-cap': 'round',
             'line-color': colors.agentEdgeColor,
             'line-opacity': 0.5,
-            'width': 4,
+            'width': 10, // 2.5x scale (was 4)
             'target-arrow-shape': 'none',
             'curve-style': 'straight',
         }
@@ -107,7 +107,7 @@ export function getDefaultEdgeStyles(colors: GraphColorPalette, font: string, is
         'line-style': 'dotted',
         'line-color': '#888888',
         'line-opacity': 0.8,
-        'width': 4,
+        'width': 10, // 2.5x scale (was 4)
         'target-arrow-shape': 'none',
         'curve-style': 'straight',
       }
@@ -120,7 +120,7 @@ export function getDefaultEdgeStyles(colors: GraphColorPalette, font: string, is
       style: {
         'line-color': getGoldEdgeColor(isDark),
         'line-opacity': 1,
-        'width': 5,
+        'width': 12.5, // 2.5x scale (was 5)
       }
     },
   ];

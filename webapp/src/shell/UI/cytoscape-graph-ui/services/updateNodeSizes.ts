@@ -34,11 +34,11 @@ export function updateNodeSizes(cy: cytoscape.Core, nodes?: cytoscape.NodeCollec
 
       // Scale other properties proportionally to size
       // Use size as base and scale others relative to it
-      const width: number = size*0.7; // nodes themselves don't care visual information, so scale smaller.
-      const height: number = size*0.7;
-      const fontSize: number = 10 + size / 7; // Font scales with size (increased from 8 + size/8)
-      const textWidth: number = size * 3 + 40; // Text width scales with size
-      const borderWidth: number = 1 + size / 15; // Border scales with size
+      const width: number = size * 1.4; // 2x visual scale (was size*0.7)
+      const height: number = size * 1.4;
+      const fontSize: number = 15 + size * 1.5 / 7; // 1.5x font scale (was 10 + size/7)
+      const textWidth: number = size * 6 + 80; // 2x text width to match node scale (was size*3+40)
+      const borderWidth: number = 2 + size / 7.5; // 2x border scale (was 1 + size/15)
       const textOpacity: number = Math.min(1, 0.7 + degree / 100); // Slight opacity increase with degree
 
       // Validate all calculated values before applying

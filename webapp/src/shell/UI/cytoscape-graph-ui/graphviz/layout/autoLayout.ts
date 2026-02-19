@@ -12,7 +12,7 @@
  */
 
 import cytoscape from 'cytoscape';
-import type {Core, EdgeSingular, NodeDefinition, CollectionReturnValue, Layouts} from 'cytoscape';
+import type {Core, EdgeSingular, NodeSingular, NodeDefinition, CollectionReturnValue, Layouts} from 'cytoscape';
 import ColaLayout from './cola';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore - cytoscape-fcose has no bundled types; ambient declaration in utils/types/cytoscape-fcose.d.ts
@@ -326,7 +326,24 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     };
     const layout: Layouts = cy.layout(fcoseLayoutOptions);
 
-    layout.one('layoutstop', onLayoutComplete);
+    // Patch layoutDimensions so fcose sees 2x bounding box for content nodes only
+    // (shadow, context, and floating window nodes keep real dimensions)
+    type LayoutDimsFn = (opts: unknown) => { w: number; h: number };
+    const firstNode: NodeSingular = cy.nodes().first();
+    const nodeProto: Record<string, LayoutDimsFn> = Object.getPrototypeOf(firstNode) as Record<string, LayoutDimsFn>;
+    const origLayoutDimensions: LayoutDimsFn = nodeProto.layoutDimensions;
+    nodeProto.layoutDimensions = function(this: NodeSingular, opts: unknown): { w: number; h: number } {
+      const dims: { w: number; h: number } = origLayoutDimensions.call(this, opts);
+      if (this.data('isShadowNode') || this.data('isFloatingWindow')) {
+        return dims;
+      }
+      return { w: dims.w * 2, h: dims.h * 2 };
+    };
+
+    layout.one('layoutstop', () => {
+      nodeProto.layoutDimensions = origLayoutDimensions;
+      onLayoutComplete();
+    });
     layout.run();
   };
 
