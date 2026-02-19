@@ -54,7 +54,6 @@ import {createRecentNodeTabsBar} from './RecentNodeTabsBar';
 import {createTerminalTreeSidebar} from './treeStyleTerminalTabs/TerminalTreeSidebar';
 import {getRecentNodeHistory} from '@/shell/edge/UI-edge/state/RecentNodeHistoryStore';
 import type {RecentNodeHistory} from '@/pure/graph/recentNodeHistoryV2';
-import {createNewNodeAction, runTerminalAction, deleteSelectedNodesAction} from '@/shell/UI/cytoscape-graph-ui/actions/graphActions';
 import {getResponsivePadding} from '@/utils/responsivePadding';
 import {updateSpeedDialDarkMode} from './SpeedDialMenu';
 import {triggerColaLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout';
@@ -68,7 +67,6 @@ import {createSettingsEditor} from "@/shell/edge/UI-edge/settings/createSettings
 import {GraphNavigationService} from "@/shell/edge/UI-edge/graph/navigation/GraphNavigationService";
 import {NavigationGestureService} from "@/shell/edge/UI-edge/graph/navigation/NavigationGestureService";
 import {collectFeedback} from "@/shell/edge/UI-edge/graph/userEngagementPrompts";
-import {toggleVoiceRecording} from '@/shell/edge/UI-edge/state/VoiceRecordingController';
 import {
     initializeDarkMode,
     toggleDarkMode as toggleDarkModeAction,
@@ -76,7 +74,7 @@ import {
 } from '@/shell/edge/UI-edge/state/DarkModeManager';
 import {disposeGraphView} from './disposeGraphView';
 import {closeSelectedWindow as closeSelectedWindowFn} from './closeSelectedWindow';
-import {onSettingsChange} from '@/shell/edge/UI-edge/api';
+import {setupGraphViewEventListeners} from './setupGraphViewEventListeners';
 
 /**
  * Main VoiceTreeGraphView implementation
@@ -323,53 +321,18 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     }
 
     private setupEventListeners(): void {
-        // Bind handlers
-        this.handleResize = this.handleResizeMethod.bind(this);
-
-        // Window resize
-        window.addEventListener('resize', this.handleResize);
-
-        // Save positions before window closes
-        const handleBeforeUnload: () => void = () => {
-            //console.log('[VoiceTreeGraphView] Window closing, saving positions...');
-            // Use synchronous IPC if available, otherwise just log
-            // todo this.saveNodePositions();
-        };
-        window.addEventListener('beforeunload', handleBeforeUnload);
-
-        // Focus container to ensure it receives keyboard events
-        this.container.focus();
-
-        // Setup hotkeys with settings (async load handled internally by HotkeyManager)
-        const hotkeyCallbacks: {
-            fitToLastNode: () => void;
-            cycleTerminal: (direction: 1 | -1) => void;
-            createNewNode: () => void;
-            runTerminal: () => void;
-            deleteSelectedNodes: () => void;
-            navigateToRecentNode: (index: number) => void;
-            closeSelectedWindow: () => void;
-            openSettings: () => void;
-            openSearch: () => void;
-        } = {
-            fitToLastNode: () => this.navigationService.fitToLastNode(),
-            cycleTerminal: (direction) => this.navigationService.cycleTerminal(direction),
-            createNewNode: createNewNodeAction(this.cy),
-            runTerminal: runTerminalAction(this.cy),
-            deleteSelectedNodes: deleteSelectedNodesAction(this.cy),
-            navigateToRecentNode: (index) => this.navigateToRecentNodeByIndex(index),
-            closeSelectedWindow: () => this.closeSelectedWindow(),
-            openSettings: () => void createSettingsEditor(this.cy),
-            openSearch: () => this.searchService.open()
-        };
-        void this.hotkeyManager.initializeWithSettings(hotkeyCallbacks, toggleVoiceRecording);
-
-        // Subscribe to settings changes to refresh hotkeys at runtime
-        this.cleanupSettingsListener = onSettingsChange(() => {
-            void this.hotkeyManager.refreshHotkeys(hotkeyCallbacks, toggleVoiceRecording);
+        const result: { handleResize: () => void; cleanupSettingsListener: () => void } = setupGraphViewEventListeners({
+            cy: this.cy,
+            container: this.container,
+            navigationService: this.navigationService,
+            searchService: this.searchService,
+            hotkeyManager: this.hotkeyManager,
+            onResizeMethod: () => this.handleResizeMethod(),
+            onNavigateToRecentNode: (index) => this.navigateToRecentNodeByIndex(index),
+            onCloseSelectedWindow: () => this.closeSelectedWindow()
         });
-
-        // Note: Wheel events (pan/zoom) are handled by NavigationGestureService
+        this.handleResize = result.handleResize;
+        this.cleanupSettingsListener = result.cleanupSettingsListener;
     }
 
     private handleResizeMethod(): void {
