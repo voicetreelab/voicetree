@@ -9,6 +9,8 @@ import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals
 import {trace} from '@/shell/edge/main/tracing/trace';
 import {getProjectRootWatchedDirectory} from "@/shell/edge/main/state/watch-folder-store";
 import {captureOutput, clearBuffer, clearAllBuffers} from '@/shell/edge/main/terminals/terminal-output-buffer';
+import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
+import type {VTSettings} from '@/pure/settings/types';
 
 /** Cached Windows shell path. Prefer pwsh.exe (PS7+) over powershell.exe (PS5) */
 let cachedWindowsShell: string | undefined;
@@ -68,10 +70,10 @@ export default class TerminalManager {
     try {
       const terminalId: string = getTerminalId(terminalData);
 
-      // Determine shell based on platform
-      const shell: string = process.platform === 'win32'
-        ? getWindowsShell()
-        : process.env.SHELL ?? '/bin/bash';
+      // Determine shell: user setting > platform default
+      const settings: VTSettings = await loadSettings();
+      const shell: string = settings.shell
+        ?? (process.platform === 'win32' ? getWindowsShell() : process.env.SHELL ?? '/bin/bash');
 
       // Don't use login shell flag because:
       // 1. fix-absolutePath already fixed the PATH in main.ts
