@@ -122,7 +122,7 @@ export function buildMarkdownBody(params: {
     readonly complexityExplanation: string | undefined
     readonly color: string
     readonly agentName: string
-    readonly parentBaseNames: readonly string[]
+    readonly parentLinks: readonly { baseName: string; edgeLabel: string | undefined }[]
 }): string {
     const sections: string[] = []
 
@@ -207,9 +207,13 @@ export function buildMarkdownBody(params: {
         sections.push('')
     }
 
-    // Parent wikilinks
-    for (const parentBaseName of params.parentBaseNames) {
-        sections.push(`Progress on [[${parentBaseName}]]`)
+    // Parent wikilinks — edge label is extracted from text before [[
+    for (const parent of params.parentLinks) {
+        if (parent.edgeLabel) {
+            sections.push(`${parent.edgeLabel} [[${parent.baseName}]]`)
+        } else {
+            sections.push(`[[${parent.baseName}]]`)
+        }
     }
     sections.push('')
 

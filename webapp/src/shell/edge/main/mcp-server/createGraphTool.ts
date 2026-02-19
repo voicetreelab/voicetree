@@ -32,6 +32,19 @@ import {
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
 import type {VTSettings} from '@/pure/settings/types'
 
+/** A parent reference: either a plain filename string, or an object with filename + edge label. */
+export type ParentRef = string | { readonly filename: string; readonly edgeLabel: string }
+
+/** Extract the filename from a ParentRef (string or object). */
+function parentRefFilename(ref: ParentRef): string {
+    return typeof ref === 'string' ? ref : ref.filename
+}
+
+/** Extract the optional edge label from a ParentRef. */
+function parentRefEdgeLabel(ref: ParentRef): string | undefined {
+    return typeof ref === 'string' ? undefined : ref.edgeLabel
+}
+
 export interface CreateGraphNodeInput {
     readonly filename: string
     readonly title: string
@@ -45,7 +58,7 @@ export interface CreateGraphNodeInput {
     readonly complexityScore?: ComplexityScore
     readonly complexityExplanation?: string
     readonly linkedArtifacts?: readonly string[]
-    readonly parents?: readonly string[]
+    readonly parents?: readonly ParentRef[]
 }
 
 export interface CreateGraphParams {
@@ -63,7 +76,8 @@ function hasCycle(nodes: readonly CreateGraphNodeInput[]): boolean {
     const adjacency: Map<string, string[]> = new Map()
     for (const node of nodes) {
         if (node.parents) {
-            for (const parentId of node.parents) {
+            for (const parentRef of node.parents) {
+                const parentId: string = parentRefFilename(parentRef)
                 const children: string[] = adjacency.get(parentId) ?? []
                 children.push(node.filename)
                 adjacency.set(parentId, children)
@@ -121,7 +135,8 @@ function topologicalSort(nodes: readonly CreateGraphNodeInput[]): CreateGraphNod
 
         // Visit ALL parents before this node
         if (node.parents) {
-            for (const parentId of node.parents) {
+            for (const parentRef of node.parents) {
+                const parentId: string = parentRefFilename(parentRef)
                 if (nodeMap.has(parentId)) {
                     visit(parentId)
                 }
@@ -217,10 +232,11 @@ export async function createGraphTool({
     for (const node of nodes) {
         if (node.parents) {
             for (const parentRef of node.parents) {
-                if (!filenames.has(parentRef)) {
+                const parentFilename: string = parentRefFilename(parentRef)
+                if (!filenames.has(parentFilename)) {
                     return buildJsonResponse({
                         success: false,
-                        error: `Node "${node.filename}" references parent "${parentRef}" which is not a declared filename in this call.`
+                        error: `Node "${node.filename}" references parent "${parentFilename}" which is not a declared filename in this call.`
                     }, true)
                 }
             }
@@ -298,15 +314,19 @@ export async function createGraphTool({
 
     for (const node of sortedNodes) {
         // Determine parent(s) for wikilinks and positioning
-        const parentBaseNames: string[] = []
+        const parentLinks: { baseName: string; edgeLabel: string | undefined }[] = []
         let deepestParentPosition: Position = graphParentPosition
 
         if (node.parents && node.parents.length > 0) {
             for (const parentRef of node.parents) {
-                const parentInfo: CreatedNodeInfo | undefined = createdNodes.get(parentRef)
+                const parentFilename: string = parentRefFilename(parentRef)
+                const parentInfo: CreatedNodeInfo | undefined = createdNodes.get(parentFilename)
                 if (parentInfo) {
-                    parentBaseNames.push(parentInfo.baseName)
-                    const parentPos: Position = createdPositions.get(parentRef) ?? graphParentPosition
+                    parentLinks.push({
+                        baseName: parentInfo.baseName,
+                        edgeLabel: parentRefEdgeLabel(parentRef),
+                    })
+                    const parentPos: Position = createdPositions.get(parentFilename) ?? graphParentPosition
                     // Use the rightmost (deepest) parent for x positioning
                     if (parentPos.x > deepestParentPosition.x) {
                         deepestParentPosition = parentPos
@@ -316,14 +336,14 @@ export async function createGraphTool({
         }
 
         // Root nodes (no local parents) attach to the graph parent
-        if (parentBaseNames.length === 0) {
-            parentBaseNames.push(graphParentBaseName)
+        if (parentLinks.length === 0) {
+            parentLinks.push({ baseName: graphParentBaseName, edgeLabel: undefined })
             deepestParentPosition = graphParentPosition
         }
 
         // Spread children of the same parent set vertically
         // For multi-parent nodes, key on the first parent
-        const parentKey: string = (node.parents && node.parents.length > 0) ? node.parents[0] : '__graph_root__'
+        const parentKey: string = (node.parents && node.parents.length > 0) ? parentRefFilename(node.parents[0]) : '__graph_root__'
         const childIndex: number = childCounts.get(parentKey) ?? 0
         childCounts.set(parentKey, childIndex + 1)
 
@@ -346,7 +366,7 @@ export async function createGraphTool({
             complexityExplanation: node.complexityExplanation,
             color: node.color ?? defaultColor,
             agentName,
-            parentBaseNames,
+            parentLinks,
         })
 
         // Validate mermaid (non-blocking — warning only)

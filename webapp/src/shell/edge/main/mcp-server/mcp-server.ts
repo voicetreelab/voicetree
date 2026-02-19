@@ -239,7 +239,13 @@ Task
                     complexityScore: z.enum(['low', 'medium', 'high']).optional().describe('Required when codeDiffs provided. Complexity of the area worked in.'),
                     complexityExplanation: z.string().optional().describe('Required when codeDiffs provided. Brief explanation of the complexity score.'),
                     linkedArtifacts: z.array(z.string()).optional().describe('Array of node basenames to wikilink in a ## Related section. If you created openspec changes (proposal.md, tasks.md, design.md), link the proposal here. Use for specs, proposals, related nodes.'),
-                    parents: z.array(z.string()).optional().describe('Filenames of parent nodes within this call. Supports multiple parents for diamond dependencies. Nodes without parents become roots.'),
+                    parents: z.array(z.union([
+                        z.string(),
+                        z.object({
+                            filename: z.string().describe('Filename of a parent node within this call'),
+                            edgeLabel: z.string().describe('Relationship label shown on the edge (e.g. "implements", "extends", "blocked by")')
+                        })
+                    ])).optional().describe('Parent nodes within this call. Each entry is either a plain filename string (no edge label) or { filename, edgeLabel } for a labeled edge. Supports multiple parents for diamond dependencies. Nodes without parents become roots. Only provide an edgeLabel when the relationship is specific and meaningful — omit for generic parent-child links.'),
                 })).describe('Array of nodes to create. At least 1 required. Each node needs filename + title + summary at minimum.'),
             }
         },

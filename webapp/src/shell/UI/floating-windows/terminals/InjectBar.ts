@@ -1,7 +1,8 @@
 /**
  * InjectBar - Vanilla JS component for manual node injection into agent terminals.
  *
- * Badge button showing unseen node count, popover with checkbox list,
+ * Compact badge button placed inline in the terminal title bar (after agent name),
+ * showing unseen node count. Popover with checkbox list,
  * "Inject Selected" and "Inject All" actions.
  *
  * Uses createElement (no innerHTML) for security. Matches .cy-floating-window dark theme.
@@ -71,11 +72,7 @@ export function createInjectBar(options: InjectBarOptions): InjectBarHandle {
 
     // --- DOM Creation ---
 
-    const bar: HTMLDivElement = document.createElement('div');
-    bar.className = 'inject-bar';
-    bar.style.display = 'none'; // Hidden until unseen nodes found
-
-    // Badge button
+    // Badge button — placed directly into the title bar (no wrapper div)
     const badge: HTMLButtonElement = document.createElement('button');
     badge.className = 'inject-badge';
     badge.style.display = 'none'; // hidden when 0
@@ -120,8 +117,7 @@ export function createInjectBar(options: InjectBarOptions): InjectBarHandle {
     popover.appendChild(nodeList);
     popover.appendChild(buttonRow);
 
-    bar.appendChild(badge);
-    // Popover is appended to document.body (not bar) to escape overflow:hidden
+    // Popover is appended to document.body (not badge) to escape overflow:hidden
     document.body.appendChild(popover);
 
     // --- Behavior ---
@@ -129,13 +125,9 @@ export function createInjectBar(options: InjectBarOptions): InjectBarHandle {
     function updateBadge(count: number): void {
         if (count === 0) {
             badge.style.display = 'none';
-            bar.style.display = 'none';
-            bar.classList.remove('inject-bar-visible');
             hidePopover();
         } else {
             badge.style.display = '';
-            bar.style.display = '';
-            bar.classList.add('inject-bar-visible');
             badgeText.textContent = `${count} unseen`;
         }
     }
@@ -289,11 +281,11 @@ export function createInjectBar(options: InjectBarOptions): InjectBarHandle {
     function destroy(): void {
         document.removeEventListener('mousedown', handleOutsideClick);
         popover.remove(); // Remove portaled popover from document.body
-        bar.remove();
+        badge.remove();
     }
 
     // Initial fetch
     void refresh();
 
-    return { element: bar, refresh, destroy, updateBadgeCount: updateBadge };
+    return { element: badge, refresh, destroy, updateBadgeCount: updateBadge };
 }

@@ -165,7 +165,7 @@ describe('StyleService', () => {
       expect(nodeStyle?.style).toHaveProperty('background-color');
       expect(nodeStyle?.style).toHaveProperty('color');
       expect(nodeStyle?.style).toHaveProperty('text-valign', 'bottom');
-      expect(nodeStyle?.style).toHaveProperty('text-margin-y', 8);
+      expect(nodeStyle?.style).toHaveProperty('text-margin-y', 16);
       expect(nodeStyle?.style).toHaveProperty('border-width', 1);
       expect(nodeStyle?.style).toHaveProperty('border-color', '#666');
 
@@ -195,7 +195,7 @@ describe('StyleService', () => {
       expect(edgeStyle).toBeDefined();
       expect(edgeStyle?.style).toHaveProperty('line-color');
       expect(edgeStyle?.style).toHaveProperty('target-arrow-shape', 'triangle');
-      expect(edgeStyle?.style).toHaveProperty('target-arrow-fill', 'hollow');
+      expect(edgeStyle?.style).toHaveProperty('target-arrow-fill', 'filled');
       expect(edgeStyle?.style).toHaveProperty('line-opacity', 0.5); // Increased for better visibility in dark mode
       expect(edgeStyle?.style).toHaveProperty('curve-style', 'straight');
 
