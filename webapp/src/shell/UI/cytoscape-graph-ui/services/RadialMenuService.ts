@@ -3,6 +3,7 @@ import type {Core, NodeSingular} from 'cytoscape';
 import cxtmenu from 'cytoscape-cxtmenu';
 import cytoscape from 'cytoscape';
 import {createNewChildNodeFromUI, deleteNodesFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions";
+import {getCurrentIndex} from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
 import {
     spawnTerminalWithNewContextNode
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
@@ -147,7 +148,7 @@ export class RadialMenuService {
         return async () => {
             //console.log('[RadialMenuService] adding child node to:', nodeId);
             // Editor auto-pinning handled by file watcher in VoiceTreeGraphView
-            await createNewChildNodeFromUI(nodeId, this.cy!);
+            await createNewChildNodeFromUI(nodeId, this.cy!, getCurrentIndex(this.cy!));
         };
     }
 

@@ -7,6 +7,7 @@ import type { Core } from 'cytoscape';
 import { Plus, Play, Trash2, AlertTriangle, Clipboard, ChevronDown, Edit2, GitBranch, FolderOpen } from 'lucide';
 import type { GraphNode } from "@/pure/graph";
 import { createNewChildNodeFromUI, deleteNodesFromUI } from "@/shell/edge/UI-edge/graph/handleUIActions";
+import { getCurrentIndex } from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
 import { formatShortcut } from '@/pure/utils/keyboardShortcutDisplay';
 import {
     spawnTerminalWithNewContextNode,
@@ -74,7 +75,7 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
     });
     menuItems.push({
         icon: Plus, label: 'Add Child', hotkey: formatShortcut('N'),
-        action: () => { void createNewChildNodeFromUI(nodeId, cy); },
+        action: () => { void createNewChildNodeFromUI(nodeId, cy, getCurrentIndex(cy)); },
     });
 
     // RIGHT SIDE: Run, More (2 buttons) + traffic light placeholders (Close, Pin, Fullscreen)

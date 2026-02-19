@@ -7,6 +7,7 @@ import {isImageNode} from '@/pure/graph';
 import {HorizontalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService';
 import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService';
 import {enableAutoLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout';
+import {enableSpatialIndex} from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
 import {
     createAnchoredFloatingEditor,
 
@@ -34,6 +35,8 @@ export function setupCytoscape(params: SetupCytoscapeParams): {
         onNodeSelected,
     } = params;
 
+    // Enable spatial index (must be before auto-layout so index exists before layout triggers)
+    enableSpatialIndex(cy);
     // Enable auto-layout
     enableAutoLayout(cy);
     //console.log('[VoiceTreeGraphView] Auto-layout enabled with Cola');

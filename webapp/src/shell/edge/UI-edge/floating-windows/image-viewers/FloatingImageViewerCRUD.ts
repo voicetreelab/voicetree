@@ -29,6 +29,7 @@ import {
 
 import { createWindowChrome } from '@/shell/edge/UI-edge/floating-windows/create-window-chrome';
 import { anchorToNode } from '@/shell/edge/UI-edge/floating-windows/anchor-to-node';
+import { getCurrentIndex } from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
 
 /**
  * Browser-compatible basename function (Node.js path module doesn't work in browser)
@@ -276,7 +277,7 @@ export async function createAnchoredFloatingImageViewer(
         }
 
         // Anchor to node using v2 function
-        anchorToNode(cy, viewer);
+        anchorToNode(cy, viewer, getCurrentIndex(cy));
 
     } catch (error) {
         console.error('[FloatingImageViewerCRUD] Error creating anchored image viewer:', error);
