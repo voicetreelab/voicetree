@@ -121,8 +121,7 @@ export function createFloatingTerminalWindow(
     // Create window chrome using the new v2 function
     const ui: FloatingWindowUIData = createWindowChrome(cy, terminalData, terminalId);
 
-    // Mount InjectBar for agent terminals with a context node.
-    // Inserted before contentContainer so it sits between the title bar and xterm content.
+    // Mount InjectBar badge inline in the title bar for agent terminals with a context node.
     // Only shown for agent terminals (those with attachedToContextNodeId), not user-spawned shells.
     if (terminalData.attachedToContextNodeId) {
         // Cast main to typed IPC interface — injectNodesIntoTerminal exists on mainAPI
@@ -142,12 +141,15 @@ export function createFloatingTerminalWindow(
                 }
             },
         });
-        // Insert above the terminal title bar (first child) instead of below it
+        // Insert badge into the title bar, after the context badge and before traffic lights
         const titleBar: Element | null = ui.windowElement.querySelector('.terminal-title-bar');
         if (titleBar) {
-            ui.windowElement.insertBefore(injectBar.element, titleBar);
-        } else {
-            ui.windowElement.insertBefore(injectBar.element, ui.windowElement.firstChild);
+            const trafficLights: Element | null = titleBar.querySelector('.terminal-traffic-lights');
+            if (trafficLights) {
+                titleBar.insertBefore(injectBar.element, trafficLights);
+            } else {
+                titleBar.appendChild(injectBar.element);
+            }
         }
         registerInjectBar(terminalId, injectBar);
         void injectBar.refresh();

@@ -7,6 +7,8 @@
 
 import type { Position } from '@/pure/graph';
 import { polarToCartesian } from '@/pure/graph/positioning/angularPositionSeeding';
+import { segmentsIntersect } from '@/pure/graph/geometry';
+import type { EdgeSegment } from '@/pure/graph/geometry';
 
 export interface ObstacleBBox {
     readonly x1: number;
@@ -18,58 +20,6 @@ export interface ObstacleBBox {
 export interface TargetDimensions {
     readonly width: number;
     readonly height: number;
-}
-
-export interface EdgeSegment {
-    readonly p1: Position;
-    readonly p2: Position;
-}
-
-/** Cross product of vectors (p2-p1) × (p3-p1). */
-function cross(p1: Position, p2: Position, p3: Position): number {
-    return (p2.x - p1.x) * (p3.y - p1.y) - (p2.y - p1.y) * (p3.x - p1.x);
-}
-
-/** Check if point q lies on segment pr (when all three are collinear). */
-function onSegment(p: Position, q: Position, r: Position): boolean {
-    return q.x <= Math.max(p.x, r.x) && q.x >= Math.min(p.x, r.x) &&
-           q.y <= Math.max(p.y, r.y) && q.y >= Math.min(p.y, r.y);
-}
-
-const EPSILON: number = 1e-6;
-
-/** Check if two points are approximately equal. */
-function pointsEqual(a: Position, b: Position): boolean {
-    return Math.abs(a.x - b.x) < EPSILON && Math.abs(a.y - b.y) < EPSILON;
-}
-
-/**
- * Check if two line segments properly intersect.
- * Segments sharing an endpoint are NOT considered intersecting
- * (handles parent→child edges sharing the parent node).
- */
-function segmentsIntersect(a: EdgeSegment, b: EdgeSegment): boolean {
-    if (pointsEqual(a.p1, b.p1) || pointsEqual(a.p1, b.p2) ||
-        pointsEqual(a.p2, b.p1) || pointsEqual(a.p2, b.p2)) {
-        return false;
-    }
-
-    const d1: number = cross(b.p1, b.p2, a.p1);
-    const d2: number = cross(b.p1, b.p2, a.p2);
-    const d3: number = cross(a.p1, a.p2, b.p1);
-    const d4: number = cross(a.p1, a.p2, b.p2);
-
-    if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
-        ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
-        return true;
-    }
-
-    if (Math.abs(d1) < EPSILON && onSegment(b.p1, a.p1, b.p2)) return true;
-    if (Math.abs(d2) < EPSILON && onSegment(b.p1, a.p2, b.p2)) return true;
-    if (Math.abs(d3) < EPSILON && onSegment(a.p1, b.p1, a.p2)) return true;
-    if (Math.abs(d4) < EPSILON && onSegment(a.p1, b.p2, a.p2)) return true;
-
-    return false;
 }
 
 /**
@@ -191,9 +141,10 @@ function tryCandidateDirections(
     const blocked: number = allCandidates.filter(c => c.blocked).length;
     console.log(`[findBestPosition] ${label ?? 'candidates'} (dist=${distance.toFixed(0)}): ${free} free, ${blocked} blocked out of ${allCandidates.length}`);
     allCandidates.forEach(c => {
-        const reasons: string[] = [];
-        if (c.overlappingObstacles.length > 0) reasons.push(`${c.overlappingObstacles.length} obstacle(s)`);
-        if (c.crossesEdge) reasons.push('edge crossing');
+        const reasons: readonly string[] = [
+            ...(c.overlappingObstacles.length > 0 ? [`${c.overlappingObstacles.length} obstacle(s)`] : []),
+            ...(c.crossesEdge ? ['edge crossing'] : []),
+        ];
         const status: string = c.blocked ? `BLOCKED by ${reasons.join(' + ')}` : 'FREE';
         console.log(`  candidate (${c.pos.x.toFixed(0)}, ${c.pos.y.toFixed(0)}) bbox [${c.bbox.x1.toFixed(0)},${c.bbox.y1.toFixed(0)} → ${c.bbox.x2.toFixed(0)},${c.bbox.y2.toFixed(0)}]: ${status}`);
     });

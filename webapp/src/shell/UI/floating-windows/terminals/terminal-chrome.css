@@ -171,49 +171,28 @@
 }
 
 /* =============================================================================
- * InjectBar - Manual node injection toolbar
- * Sits between title bar and xterm content area.
- * Badge button with unseen count, popover with checkbox list.
+ * InjectBadge - Inline badge in terminal title bar
+ * Small pill button after the agent name, triggers popover on click.
  * ============================================================================= */
 
-.inject-bar {
-  position: relative;
-  display: flex;
-  align-items: center;
-  min-height: 0;
-  padding: 0 8px;
-  background-color: var(--muted);
-  z-index: 3; /* Above title bar (2) so popover renders on top */
-}
-
-/* When visible (has unseen nodes), show border and top radii */
-.inject-bar.inject-bar-visible {
-  border-bottom: 1px solid var(--border);
-  border-top-left-radius: 8px;
-  border-top-right-radius: 8px;
-}
-
-/* Remove title bar top radii when inject bar is visible above it */
-.inject-bar.inject-bar-visible + .terminal-title-bar {
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
-}
-
-/* Badge button - pill shape with accent color */
+/* Badge button - compact pill, inline in title bar */
 .inject-badge {
   all: unset;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 10px;
+  gap: 3px;
+  padding: 1px 7px;
+  margin-left: 6px;
   background-color: var(--accent);
-  border-radius: 12px;
-  font-size: 12px;
+  border-radius: 9px;
+  font-size: 11px;
   color: var(--foreground);
   transition: background-color 0.15s ease;
   white-space: nowrap;
   user-select: none;
+  flex-shrink: 0;
+  z-index: 3; /* Above title bar so popover renders on top */
 }
 
 .inject-badge:hover {
@@ -226,12 +205,12 @@
 }
 
 .inject-badge-icon {
-  font-size: 13px;
+  font-size: 11px;
   line-height: 1;
 }
 
 .inject-badge-text {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
 }
 

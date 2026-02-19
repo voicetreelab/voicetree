@@ -2,7 +2,7 @@
  * Auto Layout: Automatically run Cola or fcose layout on graph changes
  *
  * Two-phase layout for batch-added nodes:
- * Phase 1: Local Cola on 4-hop neighborhood of new nodes (6-hop pinned boundary)
+ * Phase 1: Local Cola on 2-hop neighborhood of new nodes (4-hop pinned boundary)
  * Phase 2: Global layout with configured engine (Cola or fCOSE)
  * Falls back to full-graph layout when >30% nodes are new or no new nodes tracked.
  *
@@ -23,7 +23,9 @@ import fcose from 'cytoscape-fcose';
 import { getEdgeDistance } from './cytoscape-graph-constants';
 import { getCurrentIndex } from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
 import { queryNodesInRect } from '@/pure/graph/spatial';
-import type { SpatialIndex, SpatialNodeEntry } from '@/pure/graph/spatial';
+import type { SpatialIndex, SpatialNodeEntry, Rect } from '@/pure/graph/spatial';
+import { needsLayoutCorrection } from '@/pure/graph/geometry';
+import type { LocalGeometry, EdgeSegment } from '@/pure/graph/geometry';
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
 import { consumePendingPan } from '@/shell/edge/UI-edge/state/PendingPanStore';
@@ -226,8 +228,8 @@ function getNHopNeighborhood(roots: CollectionReturnValue, hops: number): Collec
 /**
  * Compute hybrid topology+spatial neighborhood for local Cola layout.
  *
- * Run set: 4-hop topology (Cola needs edges for force computation).
- * Pin set: 6-hop topology boundary ∪ spatially nearby nodes from R-tree query.
+ * Run set: 2-hop topology (Cola needs edges for force computation).
+ * Pin set: 4-hop topology boundary ∪ spatially nearby nodes from R-tree query.
  * Both topology and spatial pin sets are capped at MAX_PINS each (sorted by
  * distance from run-set centroid) to bound Cola's O(n²) iteration cost.
  */
@@ -238,13 +240,13 @@ function getLocalNeighborhood(
 ): { runNodes: CollectionReturnValue; pinNodes: CollectionReturnValue } {
   const MAX_PINS: number = 30;
 
-  // Run set: 4-hop topology, filtered for non-context nodes (Cola needs edge structure)
-  const runNodes: CollectionReturnValue = getNHopNeighborhood(newNodes, 4).filter(
+  // Run set: 2-hop topology, filtered for non-context nodes (Cola needs edge structure)
+  const runNodes: CollectionReturnValue = getNHopNeighborhood(newNodes, 2).filter(
     ele => !ele.data('isContextNode')
   );
 
-  // Topology pins: hop 5-6 boundary anchors
-  const allTopologyNodes: CollectionReturnValue = getNHopNeighborhood(newNodes, 6).filter(
+  // Topology pins: hop 3-4 boundary anchors
+  const allTopologyNodes: CollectionReturnValue = getNHopNeighborhood(newNodes, 4).filter(
     ele => !ele.data('isContextNode')
   );
   let pinNodes: CollectionReturnValue = allTopologyNodes.difference(runNodes);
@@ -301,6 +303,36 @@ function getLocalNeighborhood(
   }
 
   return { runNodes, pinNodes };
+}
+
+/**
+ * Extract plain geometry data from cytoscape collections for pure layout-correction check.
+ * Shell boundary: reads cytoscape positions, produces immutable LocalGeometry.
+ */
+function extractLocalGeometry(
+    newNodes: CollectionReturnValue,
+    subgraphEdges: CollectionReturnValue,
+    runNodes: CollectionReturnValue
+): LocalGeometry {
+    const newEdgeSet: CollectionReturnValue = newNodes.connectedEdges().filter(
+        (e: EdgeSingular) => subgraphEdges.contains(e)
+    );
+    const toSeg: (e: EdgeSingular) => EdgeSegment = (e: EdgeSingular): EdgeSegment => ({
+        p1: (e.source() as NodeSingular).position(),
+        p2: (e.target() as NodeSingular).position()
+    });
+    const toRect: (n: NodeSingular) => Rect = (n: NodeSingular): Rect => {
+        const bb: { x1: number; y1: number; x2: number; y2: number } = n.boundingBox({
+            includeLabels: false, includeOverlays: false, includeEdges: false
+        });
+        return { minX: bb.x1, minY: bb.y1, maxX: bb.x2, maxY: bb.y2 };
+    };
+    return {
+        newEdges: newEdgeSet.map(toSeg),
+        existingEdges: subgraphEdges.difference(newEdgeSet).map(toSeg),
+        newNodeRects: newNodes.map(toRect),
+        neighborRects: runNodes.difference(newNodes).map(toRect)
+    };
 }
 
 /**
@@ -451,8 +483,8 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
 
   /**
    * Run Cola on the local neighborhood of newly added nodes.
-   * Hop 1-4: run set (free to move) — Cola can rearrange the local region.
-   * Hop 5-6: pin boundary (locked anchors) — prevents ripple to distant nodes.
+   * Hop 1-2: run set (free to move) — Cola can rearrange the local region.
+   * Hop 3-4: pin boundary (locked anchors) — prevents ripple to distant nodes.
    * On completion, unlocks pins and chains to onComplete (Phase 2).
    */
   const runLocalCola: (newNodeIds: Set<string>, onComplete: () => void) => void = (newNodeIds, onComplete) => {
@@ -480,6 +512,14 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
       edge => !edge.data('isIndicatorEdge')
         && allNodes.contains(edge.source()) && allNodes.contains(edge.target())
     );
+    // Skip local Cola if no edge crossings or node overlaps detected
+    const geo: LocalGeometry = extractLocalGeometry(newNodes, subgraphEdges, runNodes);
+    if (!needsLayoutCorrection(geo)) {
+        pinNodes.unlock();
+        onComplete();
+        return;
+    }
+
     const subgraphElements: CollectionReturnValue = allNodes.union(subgraphEdges);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

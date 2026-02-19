@@ -17,7 +17,7 @@ export function getDefaultEdgeStyles(colors: GraphColorPalette, font: string, is
         'width': 7.5, // 2.5x scale (was 3)
         'line-opacity': 0.5, // Increased from 0.3 for better visibility in dark mode
         'target-arrow-shape': 'triangle',
-        'target-arrow-fill': 'hollow' as cytoscape.Css.ArrowFill,
+        'target-arrow-fill': 'filled' as cytoscape.Css.ArrowFill,
         'target-arrow-color': colors.lineColor,
         'arrow-scale': 2.1, // 3x scale (was 0.7)
         'font-size': 15.75, // 1.5x scale (was 10.5)
@@ -71,6 +71,7 @@ export function getDefaultEdgeStyles(colors: GraphColorPalette, font: string, is
       selector: 'edge.context-edge',
       style: {
         'line-color': getGoldEdgeColor(isDark),
+        'target-arrow-color': getGoldEdgeColor(isDark),
         'line-opacity': 0.8,
         'width': 7.5, // 2.5x scale (was 3)
       }
