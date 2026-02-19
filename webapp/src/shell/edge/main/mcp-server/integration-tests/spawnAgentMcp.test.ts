@@ -1,7 +1,7 @@
 import {describe, it, expect, vi, beforeEach} from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import type {GraphNode, NodeIdAndFilePath} from '@/pure/graph'
-import {createTerminalData} from '@/shell/edge/UI-edge/floating-windows/types'
+import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
 import type {TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 
 vi.mock('@/shell/edge/main/graph/watch_folder/watchFolder', () => ({
@@ -57,10 +57,12 @@ function buildGraphNode(nodeId: NodeIdAndFilePath, content: string, agentName?: 
 
 function mockCallerTerminal(): void {
     const callerTerminalData: TerminalData = createTerminalData({
+        terminalId: 'caller-terminal-99' as TerminalId,
         attachedToNodeId: 'ctx-nodes/caller.md',
         terminalCount: 99,
         title: 'Caller',
-        executeCommand: true
+        executeCommand: true,
+        agentName: 'caller'
     })
     vi.mocked(getTerminalRecords).mockReturnValue([
         {terminalId: 'caller-terminal-99', terminalData: callerTerminalData, status: 'running'}
@@ -163,7 +165,7 @@ describe('MCP spawn_agent tool', () => {
 
         expect(payload.success).toBe(true)
         expect(payload.nodeId).toBe(fullPath)
-        expect(spawnTerminalWithContextNode).toHaveBeenCalledWith(fullPath, undefined, undefined, true, false, undefined, undefined, 'caller-terminal-99')
+        expect(spawnTerminalWithContextNode).toHaveBeenCalledWith(fullPath, undefined, undefined, true, false, undefined, undefined, 'caller-terminal-99', undefined, undefined)
     })
 
     it('returns an error when vault path is not set', async () => {
@@ -213,6 +215,7 @@ describe('MCP list_agents tool', () => {
     it('lists all agents with status and new nodes', async () => {
         // Terminal data with agentName for matching
         const terminalDataA: TerminalData = createTerminalData({
+            terminalId: 'agent-a-terminal-0' as TerminalId,
             attachedToNodeId: 'ctx-nodes/agent-a.md',
             terminalCount: 0,
             title: 'Agent A',
@@ -220,6 +223,7 @@ describe('MCP list_agents tool', () => {
             agentName: 'Sam'
         })
         const terminalDataB: TerminalData = createTerminalData({
+            terminalId: 'agent-b-terminal-1' as TerminalId,
             attachedToNodeId: 'ctx-nodes/agent-b.md',
             terminalCount: 1,
             title: 'Agent B',
@@ -227,10 +231,12 @@ describe('MCP list_agents tool', () => {
             agentName: 'Max'
         })
         const terminalDataPlain: TerminalData = createTerminalData({
+            terminalId: 'plain-terminal-0' as TerminalId,
             attachedToNodeId: 'plain-node.md',
             terminalCount: 0,
             title: 'Plain Terminal',
-            executeCommand: false
+            executeCommand: false,
+            agentName: 'plain'
         })
 
         const records: TerminalRecord[] = [
@@ -289,10 +295,12 @@ describe('MCP list_agents tool', () => {
 
     it('returns idle status when agent is inactive (isDone: true, PTY running)', async () => {
         const terminalData: TerminalData = createTerminalData({
+            terminalId: 'idle-agent-terminal-0' as TerminalId,
             attachedToNodeId: 'ctx-nodes/idle-agent.md',
             terminalCount: 0,
             title: 'Idle Agent',
-            executeCommand: true
+            executeCommand: true,
+            agentName: 'idle-agent'
         })
 
         const records: TerminalRecord[] = [

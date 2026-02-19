@@ -51,6 +51,12 @@ const layoutTriggers: Map<Core, () => void> = new Map<Core, () => void>();
 // Registry for cola layout triggers - allows external code to run cola layout on demand
 const colaLayoutTriggers: Map<Core, () => void> = new Map<Core, () => void>();
 
+// Registry for dirty-node markers - allows external code to mark a node as needing local layout
+const dirtyNodeMarkers: Map<Core, (nodeId: string) => void> = new Map<Core, (nodeId: string) => void>();
+
+// Registry for full layout resets - allows external code to trigger fCOSE + Cola from scratch
+const fullLayoutTriggers: Map<Core, () => void> = new Map<Core, () => void>();
+
 /**
  * Trigger a debounced layout run for the given cytoscape instance.
  * Use this for user-initiated resize events (expand button, CSS drag resize).
@@ -65,6 +71,22 @@ export function triggerLayout(cy: Core): void {
  */
 export function triggerColaLayout(cy: Core): void {
   colaLayoutTriggers.get(cy)?.();
+}
+
+/**
+ * Mark a node as dirty (needing local layout) and trigger a debounced layout.
+ * Use this for user-initiated resize events where a specific node changed dimensions.
+ */
+export function markNodeDirty(cy: Core, nodeId: string): void {
+  dirtyNodeMarkers.get(cy)?.(nodeId);
+}
+
+/**
+ * Reset layout state and trigger a full fCOSE + Cola layout from scratch.
+ * Use this when graph topology changes substantially (e.g. vault folders added/removed).
+ */
+export function triggerFullLayout(cy: Core): void {
+  fullLayoutTriggers.get(cy)?.();
 }
 
 export interface AutoLayoutOptions {
@@ -702,6 +724,18 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
   // Register trigger for external callers (user-initiated resize)
   layoutTriggers.set(cy, debouncedRunLayout);
 
+  // Register dirty-node marker for external callers (floating window resize)
+  dirtyNodeMarkers.set(cy, (nodeId: string) => {
+    pendingNewNodeIds.add(nodeId);
+    debouncedRunLayout();
+  });
+
+  // Register full layout reset for external callers (vault path changes)
+  fullLayoutTriggers.set(cy, () => {
+    hasRunInitialLayout = false;
+    debouncedRunLayout();
+  });
+
   // Register cola layout trigger for manual "tidy up" button
   colaLayoutTriggers.set(cy, () => {
     if (layoutRunning) {
@@ -723,6 +757,8 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     cy.off('remove', 'edge', debouncedRunLayout);
     layoutTriggers.delete(cy);
     colaLayoutTriggers.delete(cy);
+    dirtyNodeMarkers.delete(cy);
+    fullLayoutTriggers.delete(cy);
     unsubSettings();
 
     if (debounceTimeout) {

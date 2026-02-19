@@ -8,7 +8,7 @@
  * - Both [[file]] and [[file.md]] formats work correctly
  *
  * Testing Strategy:
- * - Create a new file
+ * - Create a new file in the voicetree subfolder (watched by chokidar)
  * - Modify an existing file to add wikilink to the new file
  * - Verify edge is created
  * - Remove the wikilink and verify edge is removed
@@ -32,10 +32,13 @@ interface BroadcastCall {
   readonly delta: GraphDelta
 }
 
+// Voicetree subfolder path (this is what loadFolder actually watches)
+const VOICETREE_DIR: string = path.join(EXAMPLE_SMALL_PATH, 'voicetree')
+
 // State for mocks
- 
+
 let broadcastCalls: BroadcastCall[] = []
-let mockMainWindow: { readonly webContents: { readonly send: (channel: string, data: GraphDelta) => void }, readonly isDestroyed: () => boolean }
+let mockMainWindow: { readonly webContents: { readonly send: (channel: string, data: GraphDelta) => void; readonly isDestroyed: () => boolean }, readonly isDestroyed: () => boolean }
 
 // Mock app-electron-state
 vi.mock('@/shell/edge/main/state/app-electron-state', () => ({
@@ -64,7 +67,8 @@ describe('File Watching - Edge Management Tests', () => {
       webContents: {
         send: vi.fn((channel: string, data: GraphDelta) => {
           broadcastCalls.push({ channel, delta: data })
-        })
+        }),
+        isDestroyed: vi.fn(() => false)
       },
       isDestroyed: vi.fn(() => false)
     }
@@ -73,11 +77,11 @@ describe('File Watching - Edge Management Tests', () => {
   afterEach(async () => {
     await stopFileWatching()
 
-    // Clean up test files
-    const testFilePath: string = path.join(EXAMPLE_SMALL_PATH, 'test-new-file.md')
-    const testColorFilePath: string = path.join(EXAMPLE_SMALL_PATH, 'test-color-node.md')
-    const testFilePathWithChanges: string = path.join(EXAMPLE_SMALL_PATH, '5_Immediate_Test_Observation_No_Output.md')
-    const originalContent: string = path.join(EXAMPLE_SMALL_PATH, '5_Immediate_Test_Observation_No_Output.md.backup')
+    // Clean up test files in voicetree subfolder
+    const testFilePath: string = path.join(VOICETREE_DIR, 'test-new-file.md')
+    const testColorFilePath: string = path.join(VOICETREE_DIR, 'test-color-node.md')
+    const targetFilePath: string = path.join(VOICETREE_DIR, '5_Immediate_Test_Observation_No_Output.md')
+    const backupPath: string = targetFilePath + '.backup'
 
     try {
       await fs.unlink(testFilePath)
@@ -93,9 +97,9 @@ describe('File Watching - Edge Management Tests', () => {
 
     // Restore original content if backup exists
     try {
-      const backup: string = await fs.readFile(originalContent, 'utf-8')
-      await fs.writeFile(testFilePathWithChanges, backup, 'utf-8')
-      await fs.unlink(originalContent)
+      const backup: string = await fs.readFile(backupPath, 'utf-8')
+      await fs.writeFile(targetFilePath, backup, 'utf-8')
+      await fs.unlink(backupPath)
     } catch {
       // Backup might not exist, that's ok
     }
@@ -105,26 +109,27 @@ describe('File Watching - Edge Management Tests', () => {
 
   describe('BEHAVIOR: Wikilink edge creation and deletion', () => {
     it('should create edge when appending wikilink WITH .md extension', async () => {
-      // GIVEN: Load folder and create a new file
-      await loadFolder(EXAMPLE_SMALL_PATH, '')
+      // GIVEN: Load folder and create a new file in voicetree subfolder (watched by chokidar)
+      await loadFolder(EXAMPLE_SMALL_PATH)
       expect(isWatching()).toBe(true)
 
       await waitForWatcherReady()
 
-      const testFilePath: string = path.join(EXAMPLE_SMALL_PATH, 'test-new-file.md')
-      const testFileContent: "# Test New File\n\nThis is a test file." = '# Test New File\n\nThis is a test file.'
+      // Node IDs are absolute paths
+      const testFilePath: string = path.join(VOICETREE_DIR, 'test-new-file.md')
+      const testFileContent: string = '# Test New File\n\nThis is a test file.'
 
       await fs.writeFile(testFilePath, testFileContent, 'utf-8')
 
-      // Wait for file to be detected and added to graph
+      // Wait for file to be detected and added to graph - node IDs are absolute paths
       await waitForFSEvent()
       await waitForCondition(
-        () => !!getGraph().nodes['test-new-file.md'],
-        { maxWaitMs: 1000, errorMessage: 'test-new-file node not added to graph' }
+        () => !!getGraph().nodes[testFilePath],
+        { maxWaitMs: 2000, errorMessage: 'test-new-file node not added to graph' }
       )
 
-      // WHEN: Append wikilink WITH .md to an existing file
-      const targetFilePath: string = path.join(EXAMPLE_SMALL_PATH, '5_Immediate_Test_Observation_No_Output.md')
+      // WHEN: Append wikilink WITH .md to an existing file in voicetree subfolder
+      const targetFilePath: string = path.join(VOICETREE_DIR, '5_Immediate_Test_Observation_No_Output.md')
       const originalContent: string = await fs.readFile(targetFilePath, 'utf-8')
 
       // Backup original content
@@ -137,41 +142,41 @@ describe('File Watching - Edge Management Tests', () => {
       await waitForFSEvent()
       await waitForCondition(
         () => {
-          const sourceNode: GraphNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output.md']
-          return sourceNode?.outgoingEdges?.some(e => e.targetId === 'test-new-file.md') ?? false
+          const sourceNode: GraphNode = getGraph().nodes[targetFilePath]
+          return sourceNode?.outgoingEdges?.some(e => e.targetId === testFilePath) ?? false
         },
-        { maxWaitMs: 1000, errorMessage: 'Edge from 5_Immediate_Test_Observation_No_Output to test-new-file not created' }
+        { maxWaitMs: 2000, errorMessage: 'Edge from 5_Immediate_Test_Observation_No_Output to test-new-file not created' }
       )
 
-      // THEN: Edge should be created (IDs always have .md extension)
+      // THEN: Edge should be created (IDs are absolute paths)
       const graph: Graph = getGraph()
-      const sourceNode: GraphNode = graph.nodes['5_Immediate_Test_Observation_No_Output.md']
+      const sourceNode: GraphNode = graph.nodes[targetFilePath]
 
       expect(sourceNode.outgoingEdges).toBeDefined()
-      expect(sourceNode.outgoingEdges.some(e => e.targetId === 'test-new-file.md')).toBe(true)
+      expect(sourceNode.outgoingEdges.some(e => e.targetId === testFilePath)).toBe(true)
     }, 5000)
 
     it('should create edge when appending wikilink WITHOUT .md extension', async () => {
-      // GIVEN: Load folder and create a new file
-      await loadFolder(EXAMPLE_SMALL_PATH, '')
+      // GIVEN: Load folder and create a new file in voicetree subfolder
+      await loadFolder(EXAMPLE_SMALL_PATH)
       expect(isWatching()).toBe(true)
 
       await waitForWatcherReady()
 
-      const testFilePath: string = path.join(EXAMPLE_SMALL_PATH, 'test-new-file.md')
-      const testFileContent: "# Test New File\n\nThis is a test file." = '# Test New File\n\nThis is a test file.'
+      const testFilePath: string = path.join(VOICETREE_DIR, 'test-new-file.md')
+      const testFileContent: string = '# Test New File\n\nThis is a test file.'
 
       await fs.writeFile(testFilePath, testFileContent, 'utf-8')
 
-      // Wait for file to be detected and added to graph
+      // Wait for file to be detected and added to graph - node IDs are absolute paths
       await waitForFSEvent()
       await waitForCondition(
-        () => !!getGraph().nodes['test-new-file.md'],
-        { maxWaitMs: 1000, errorMessage: 'test-new-file node not added to graph' }
+        () => !!getGraph().nodes[testFilePath],
+        { maxWaitMs: 2000, errorMessage: 'test-new-file node not added to graph' }
       )
 
-      // WHEN: Append wikilink WITHOUT .md to an existing file
-      const targetFilePath: string = path.join(EXAMPLE_SMALL_PATH, '5_Immediate_Test_Observation_No_Output.md')
+      // WHEN: Append wikilink WITHOUT .md to an existing file in voicetree subfolder
+      const targetFilePath: string = path.join(VOICETREE_DIR, '5_Immediate_Test_Observation_No_Output.md')
       const originalContent: string = await fs.readFile(targetFilePath, 'utf-8')
 
       // Backup original content
@@ -184,41 +189,41 @@ describe('File Watching - Edge Management Tests', () => {
       await waitForFSEvent()
       await waitForCondition(
         () => {
-          const sourceNode: GraphNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output.md']
-          return sourceNode?.outgoingEdges?.some(e => e.targetId === 'test-new-file.md') ?? false
+          const sourceNode: GraphNode = getGraph().nodes[targetFilePath]
+          return sourceNode?.outgoingEdges?.some(e => e.targetId === testFilePath) ?? false
         },
-        { maxWaitMs: 1000, errorMessage: 'Edge from 5_Immediate_Test_Observation_No_Output to test-new-file not created' }
+        { maxWaitMs: 2000, errorMessage: 'Edge from 5_Immediate_Test_Observation_No_Output to test-new-file not created' }
       )
 
       // THEN: Edge should be created
       const graph: Graph = getGraph()
-      const sourceNode: GraphNode = graph.nodes['5_Immediate_Test_Observation_No_Output.md']
+      const sourceNode: GraphNode = graph.nodes[targetFilePath]
       expect(sourceNode.outgoingEdges).toBeDefined()
-      expect(sourceNode.outgoingEdges.some(e => e.targetId === 'test-new-file.md')).toBe(true)
+      expect(sourceNode.outgoingEdges.some(e => e.targetId === testFilePath)).toBe(true)
     }, 5000)
 
     it('should remove edge when wikilink is removed from file content', async () => {
       // GIVEN: Load folder and create a new file with a wikilink
-      await loadFolder(EXAMPLE_SMALL_PATH, '')
+      await loadFolder(EXAMPLE_SMALL_PATH)
       expect(isWatching()).toBe(true)
 
       await waitForWatcherReady()
 
-      const testFilePath: string = path.join(EXAMPLE_SMALL_PATH, 'test-new-file.md')
-      const testFileContent: "# Test New File\n\nThis is a test file." = '# Test New File\n\nThis is a test file.'
+      const testFilePath: string = path.join(VOICETREE_DIR, 'test-new-file.md')
+      const testFileContent: string = '# Test New File\n\nThis is a test file.'
 
       await fs.writeFile(testFilePath, testFileContent, 'utf-8')
 
       // Wait for file to be detected and added to graph
       await waitForFSEvent()
       await waitForCondition(
-        () => !!getGraph().nodes['test-new-file.md'],
-        { maxWaitMs: 1000, errorMessage: 'test-new-file node not added to graph' }
+        () => !!getGraph().nodes[testFilePath],
+        { maxWaitMs: 2000, errorMessage: 'test-new-file node not added to graph' }
       )
 
       // Define clean original content without any wikilinks to test-new-file
-      const targetFilePath: string = path.join(EXAMPLE_SMALL_PATH, '5_Immediate_Test_Observation_No_Output.md')
-      const cleanOriginalContent: "---\nnode_id: 5\ntitle: 'Immediate Test Observation: No Output (5)'\n---\n### Speaker observes no output despite repeated speech input during an immediate test.\n\nAll right, so I'm testing 'one, two, three'. I don't see anything. All right, so I'm taking something about talking and...nothing is showing up. All right, so I'm talking, I'm talking, I'm talking, and nothing's coming up. Strange.\n\n\n-----------------\n_Links:_\nParent:\n- is_an_immediate_observation_during [[4_Test_Outcome_No_Output.md]]" = `---
+      const targetFilePath: string = path.join(VOICETREE_DIR, '5_Immediate_Test_Observation_No_Output.md')
+      const cleanOriginalContent: string = `---
 node_id: 5
 title: 'Immediate Test Observation: No Output (5)'
 ---
@@ -248,10 +253,10 @@ Parent:
       await waitForFSEvent()
       await waitForCondition(
         () => {
-          const sourceNode: GraphNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output.md']
-          return sourceNode?.outgoingEdges?.some(e => e.targetId === 'test-new-file.md') ?? false
+          const sourceNode: GraphNode = getGraph().nodes[targetFilePath]
+          return sourceNode?.outgoingEdges?.some(e => e.targetId === testFilePath) ?? false
         },
-        { maxWaitMs: 1000, errorMessage: 'Edge not added before removal test' }
+        { maxWaitMs: 2000, errorMessage: 'Edge not added before removal test' }
       )
 
       // WHEN: Remove the wikilink by resetting to clean original content
@@ -261,31 +266,31 @@ Parent:
       await waitForFSEvent()
       await waitForCondition(
         () => {
-          const sourceNode: GraphNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output']
-          return !sourceNode?.outgoingEdges?.some(e => e.targetId === 'test-new-file')
+          const sourceNode: GraphNode = getGraph().nodes[targetFilePath]
+          return !sourceNode?.outgoingEdges?.some(e => e.targetId === testFilePath)
         },
-        { maxWaitMs: 1000, errorMessage: 'Edge from 5_Immediate_Test_Observation_No_Output to test-new-file not removed' }
+        { maxWaitMs: 2000, errorMessage: 'Edge from 5_Immediate_Test_Observation_No_Output to test-new-file not removed' }
       )
 
       // THEN: Edge should be removed
       const graph: Graph = getGraph()
-      const sourceNode: GraphNode = graph.nodes['5_Immediate_Test_Observation_No_Output.md']
+      const sourceNode: GraphNode = graph.nodes[targetFilePath]
       expect(sourceNode.outgoingEdges).toBeDefined()
-      expect(sourceNode.outgoingEdges.some(e => e.targetId === 'test-new-file.md')).toBe(false)
+      expect(sourceNode.outgoingEdges.some(e => e.targetId === testFilePath)).toBe(false)
     }, 5000)
   })
 
   describe('BEHAVIOR: Frontmatter color parsing from filesystem events', () => {
     it('should parse color from frontmatter when file is added via filesystem event', async () => {
       // GIVEN: Load folder
-      await loadFolder(EXAMPLE_SMALL_PATH, '')
+      await loadFolder(EXAMPLE_SMALL_PATH)
       expect(isWatching()).toBe(true)
 
       await waitForWatcherReady()
 
-      // WHEN: Create a new file with color in frontmatter
-      const testFilePath: string = path.join(EXAMPLE_SMALL_PATH, 'test-color-node.md')
-      const testFileContent: "---\nnode_id: 57\ntitle: (Sam) Fix Implemented and Test Passing (57)\ncolor: cyan\nagent_name: Sam\nposition:\n  x: -819.9742978214647\n  y: -1683.7117827984455\n---\n\n** Summary**\nSuccessfully exposed VoiceTreeGraphView on window object. Test now passes with editor auto-opening correctly.\n\n_Links:_\nParent:\n- [[1762755382696eu7]]" = `---
+      // WHEN: Create a new file with color in frontmatter in voicetree subfolder
+      const testFilePath: string = path.join(VOICETREE_DIR, 'test-color-node.md')
+      const testFileContent: string = `---
 node_id: 57
 title: (Sam) Fix Implemented and Test Passing (57)
 color: cyan
@@ -308,15 +313,15 @@ Parent:
       await waitForFSEvent()
       await waitForCondition(
         () => {
-          const node: GraphNode = getGraph().nodes['test-color-node.md']
+          const node: GraphNode = getGraph().nodes[testFilePath]
           return node?.nodeUIMetadata.color._tag === 'Some' && node.nodeUIMetadata.color.value === 'cyan'
         },
-        { maxWaitMs: 1000, errorMessage: 'test-color-node not added with color parsed from frontmatter' }
+        { maxWaitMs: 2000, errorMessage: 'test-color-node not added with color parsed from frontmatter' }
       )
 
       // THEN: Verify color was parsed from frontmatter
       const graph: Graph = getGraph()
-      const node: GraphNode = graph.nodes['test-color-node.md']
+      const node: GraphNode = graph.nodes[testFilePath]
 
       expect(node).toBeDefined()
       expect(node.nodeUIMetadata.color._tag).toBe('Some')

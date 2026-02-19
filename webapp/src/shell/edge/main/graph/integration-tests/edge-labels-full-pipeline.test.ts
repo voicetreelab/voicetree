@@ -75,15 +75,17 @@ Setup instructions.`
     console.log('  Graph nodes:', Object.keys(graph.nodes))
     console.log('  All node IDs in graph:', JSON.stringify(Object.keys(graph.nodes), null, 2))
 
-    // VERIFY: Graph should have edges with labels
-    const node5: GraphNode = graph.nodes['5_Understand_G_Cloud_Lambda.md']
+    // VERIFY: Graph should have edges with labels - node IDs are absolute paths
+    const node5Id: string = path.join(tempDir, '5_Understand_G_Cloud_Lambda.md')
+    const node3Id: string = path.join(tempDir, '3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation.md')
+    const node5: GraphNode = graph.nodes[node5Id]
     expect(node5).toBeDefined()
     expect(node5.outgoingEdges).toHaveLength(1)
 
     console.log('  Node 5 outgoingEdges:', JSON.stringify(node5.outgoingEdges, null, 2))
 
     expect(node5.outgoingEdges[0]).toEqual({
-      targetId: '3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation.md',
+      targetId: node3Id,
       label: 'is_a_prerequisite_for'
     })
 
@@ -95,8 +97,8 @@ Setup instructions.`
     console.log('✓ Step 4: Converted graph to GraphDelta')
     console.log('  Delta length:', delta.length)
 
-    // Find node 5 in delta
-    const node5Delta: NodeDelta | undefined = delta.find(d => d.type === 'UpsertNode' && d.nodeToUpsert.absoluteFilePathIsID === '5_Understand_G_Cloud_Lambda.md')
+    // Find node 5 in delta - node IDs are absolute paths
+    const node5Delta: NodeDelta | undefined = delta.find(d => d.type === 'UpsertNode' && d.nodeToUpsert.absoluteFilePathIsID === node5Id)
     expect(node5Delta).toBeDefined()
 
     if (node5Delta?.type === 'UpsertNode') {
@@ -104,7 +106,7 @@ Setup instructions.`
 
       expect(node5Delta.nodeToUpsert.outgoingEdges).toHaveLength(1)
       expect(node5Delta.nodeToUpsert.outgoingEdges[0]).toEqual({
-        targetId: '3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation.md',
+        targetId: node3Id,
         label: 'is_a_prerequisite_for'
       })
     }
@@ -118,8 +120,8 @@ Setup instructions.`
     console.log('  Cytoscape nodes:', cy.nodes().length)
     console.log('  Cytoscape edges:', cy.edges().length)
 
-    // VERIFY: Cytoscape should have edge with label
-    const cytoscapeEdge: cytoscape.EdgeCollection = cy.edges('[source="5_Understand_G_Cloud_Lambda.md"][target="3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation.md"]')
+    // VERIFY: Cytoscape should have edge with label - node IDs are absolute paths
+    const cytoscapeEdge: cytoscape.EdgeCollection = cy.edges(`[source="${node5Id}"][target="${node3Id}"]`)
 
     expect(cytoscapeEdge.length).toBe(1)
 
@@ -155,18 +157,24 @@ _Links:_
     const delta: GraphDelta = mapNewGraphToDelta(graph)
     applyGraphDeltaToUI(cy, delta)
 
-    const mainNode: GraphNode = graph.nodes['main.md']
+    // Node IDs are absolute paths
+    const mainId: string = path.join(tempDir, 'main.md')
+    const nodeAId: string = path.join(tempDir, 'node-a.md')
+    const nodeBId: string = path.join(tempDir, 'node-b.md')
+    const nodeCId: string = path.join(tempDir, 'node-c.md')
+
+    const mainNode: GraphNode = graph.nodes[mainId]
     expect(mainNode.outgoingEdges).toHaveLength(3)
     expect(mainNode.outgoingEdges).toEqual([
-      { targetId: 'node-a.md', label: 'references' },
-      { targetId: 'node-b.md', label: 'extends' },
-      { targetId: 'node-c.md', label: 'implements' }
+      { targetId: nodeAId, label: 'references' },
+      { targetId: nodeBId, label: 'extends' },
+      { targetId: nodeCId, label: 'implements' }
     ])
 
     // Verify in Cytoscape
-    const edgeA: cytoscape.EdgeCollection = cy.edges('[source="main.md"][target="node-a.md"]')
-    const edgeB: cytoscape.EdgeCollection = cy.edges('[source="main.md"][target="node-b.md"]')
-    const edgeC: cytoscape.EdgeCollection = cy.edges('[source="main.md"][target="node-c.md"]')
+    const edgeA: cytoscape.EdgeCollection = cy.edges(`[source="${mainId}"][target="${nodeAId}"]`)
+    const edgeB: cytoscape.EdgeCollection = cy.edges(`[source="${mainId}"][target="${nodeBId}"]`)
+    const edgeC: cytoscape.EdgeCollection = cy.edges(`[source="${mainId}"][target="${nodeCId}"]`)
 
     expect(edgeA.data('label')).toBe('references')
     expect(edgeB.data('label')).toBe('extends')

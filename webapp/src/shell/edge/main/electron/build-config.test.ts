@@ -94,7 +94,7 @@ describe('build-config', () => {
     it('should configure compiled Python binary', () => {
       const config: BuildConfig = getBuildConfig();
 
-      const expectedBinaryPath: string = path.join(repoRoot, 'dist', 'resources', 'server', 'voicetree-server');
+      const expectedBinaryPath: string = path.join(repoRoot, 'out', 'resources', 'server', 'voicetree-server');
       expect(config.pythonCommand).toBe(expectedBinaryPath);
       expect(config.pythonArgs).toEqual([]);
       expect(config.pythonCwd).toBe(repoRoot);

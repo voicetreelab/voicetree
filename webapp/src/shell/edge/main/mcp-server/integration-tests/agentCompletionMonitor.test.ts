@@ -219,19 +219,19 @@ describe('AgentCompletionMonitor integration', () => {
         vi.advanceTimersByTime(1000)
         expect(sendTextToTerminal).not.toHaveBeenCalled()
 
-        // Add a progress node, but set idle to only 10s
+        // Add a progress node, but set idle to only 5s (below SUSTAINED_IDLE_MS of 7s)
         const progressNode: GraphNode = buildGraphNode('node-1.md', 'Design doc', 'alpha')
         vi.mocked(getGraph).mockReturnValue(buildGraph([progressNode]))
-        vi.mocked(getIdleSince).mockReturnValue(Date.now() - 10_000)
+        vi.mocked(getIdleSince).mockReturnValue(Date.now() - 5_000)
 
-        // Poll 2: has nodes but idle < 30s → not complete
+        // Poll 2: has nodes but idle < 7s → not complete
         vi.advanceTimersByTime(1000)
         expect(sendTextToTerminal).not.toHaveBeenCalled()
 
-        // Set idle to 31s+
-        vi.mocked(getIdleSince).mockReturnValue(Date.now() - 31_000)
+        // Set idle to 8s+ (above SUSTAINED_IDLE_MS of 7s)
+        vi.mocked(getIdleSince).mockReturnValue(Date.now() - 8_000)
 
-        // Poll 3: idle + progress nodes + sustained 31s → complete
+        // Poll 3: idle + progress nodes + sustained 8s → complete
         vi.advanceTimersByTime(1000)
         expect(sendTextToTerminal).toHaveBeenCalledTimes(1)
         expect(sendTextToTerminal).toHaveBeenCalledWith(

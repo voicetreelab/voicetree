@@ -31,11 +31,14 @@ import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange";
 
-const TEST_NODE_ID: string = 'test-position-node.md'
-const TEST_FILE_PATH: string = path.join(EXAMPLE_SMALL_PATH, TEST_NODE_ID)
+// Voicetree subfolder (watched by chokidar when loadFolder is called)
+const VOICETREE_DIR: string = path.join(EXAMPLE_SMALL_PATH, 'voicetree')
+// Node IDs are absolute paths
+const TEST_FILE_PATH: string = path.join(VOICETREE_DIR, 'test-position-node.md')
+const TEST_NODE_ID: string = TEST_FILE_PATH
 
 // State for mocks
-let mockMainWindow: { readonly webContents: { readonly send: (channel: string, data: GraphDelta) => void }, readonly isDestroyed: () => boolean }
+let mockMainWindow: { readonly webContents: { readonly send: (channel: string, data: GraphDelta) => void; readonly isDestroyed: () => boolean }, readonly isDestroyed: () => boolean }
 
 // Mock electron app for settings path
 vi.mock('electron', () => ({
@@ -60,7 +63,8 @@ describe('saveNodePositions - Integration Tests', () => {
         // Create mock BrowserWindow
         mockMainWindow = {
             webContents: {
-                send: vi.fn()
+                send: vi.fn(),
+                isDestroyed: vi.fn(() => false)
             },
             isDestroyed: vi.fn(() => false)
         }
@@ -211,7 +215,7 @@ describe('saveNodePositions - Integration Tests', () => {
     describe('BEHAVIOR: Position preservation when FS event reloads node', () => {
         it('should PRESERVE in-memory position when file is modified externally (no position in YAML)', async () => {
             // GIVEN: Load folder with file watcher
-            await loadFolder(EXAMPLE_SMALL_PATH, '')
+            await loadFolder(EXAMPLE_SMALL_PATH)
             expect(isWatching()).toBe(true)
             await waitForWatcherReady()
 
@@ -276,7 +280,7 @@ Content here. Updated externally.`
 
         it('should PRESERVE position when file has position in YAML frontmatter', async () => {
             // GIVEN: Load folder with file watcher
-            await loadFolder(EXAMPLE_SMALL_PATH, '')
+            await loadFolder(EXAMPLE_SMALL_PATH)
             expect(isWatching()).toBe(true)
             await waitForWatcherReady()
 

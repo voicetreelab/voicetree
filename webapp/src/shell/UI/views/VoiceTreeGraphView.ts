@@ -373,7 +373,14 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     }
 
     private handleResizeMethod(): void {
-        console.warn(`[VoiceTreeGraphView] window resize event, zoom=${this.cy.zoom().toFixed(4)}, cy.size=${this.cy.width()}x${this.cy.height()}`);
+        console.warn(
+            `[VoiceTreeGraphView] window resize event, `
+            + `outer=${window.outerWidth}x${window.outerHeight}, `
+            + `inner=${window.innerWidth}x${window.innerHeight}, `
+            + `screen=${window.screen.width}x${window.screen.height}, `
+            + `devicePixelRatio=${window.devicePixelRatio}, `
+            + `zoom=${this.cy.zoom().toFixed(4)}, cy.size=${this.cy.width()}x${this.cy.height()}`
+        );
         this.cy.resize();
     }
 
