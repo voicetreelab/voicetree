@@ -141,14 +141,20 @@ export function createFloatingTerminalWindow(
                 }
             },
         });
-        // Insert badge into the title bar, after the context badge and before traffic lights
-        const titleBar: Element | null = ui.windowElement.querySelector('.terminal-title-bar');
-        if (titleBar) {
-            const trafficLights: Element | null = titleBar.querySelector('.terminal-traffic-lights');
-            if (trafficLights) {
-                titleBar.insertBefore(injectBar.element, trafficLights);
-            } else {
-                titleBar.appendChild(injectBar.element);
+        // Insert badge as a child of terminal-context-badge-subtitle (appears inline next to agent name)
+        const subtitleRow: Element | null = ui.windowElement.querySelector('.terminal-context-badge-subtitle');
+        if (subtitleRow) {
+            subtitleRow.appendChild(injectBar.element);
+        } else {
+            // Fallback: insert into title bar before traffic lights if no context badge
+            const titleBar: Element | null = ui.windowElement.querySelector('.terminal-title-bar');
+            if (titleBar) {
+                const trafficLights: Element | null = titleBar.querySelector('.terminal-traffic-lights');
+                if (trafficLights) {
+                    titleBar.insertBefore(injectBar.element, trafficLights);
+                } else {
+                    titleBar.appendChild(injectBar.element);
+                }
             }
         }
         registerInjectBar(terminalId, injectBar);
