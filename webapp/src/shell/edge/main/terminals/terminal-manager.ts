@@ -1,4 +1,5 @@
 import { promises as fs } from 'fs';
+import { execFileSync } from 'child_process';
 import pty, { type IPty } from 'node-pty';
 import type { WebContents } from 'electron';
 import {getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
@@ -8,6 +9,19 @@ import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals
 import {trace} from '@/shell/edge/main/tracing/trace';
 import {getProjectRootWatchedDirectory} from "@/shell/edge/main/state/watch-folder-store";
 import {captureOutput, clearBuffer, clearAllBuffers} from '@/shell/edge/main/terminals/terminal-output-buffer';
+
+/** Cached Windows shell path. Prefer pwsh.exe (PS7+) over powershell.exe (PS5) */
+let cachedWindowsShell: string | undefined;
+function getWindowsShell(): string {
+    if (cachedWindowsShell) return cachedWindowsShell;
+    try {
+        execFileSync('pwsh.exe', ['-Version'], { stdio: 'ignore', timeout: 3000 });
+        cachedWindowsShell = 'pwsh.exe';
+    } catch {
+        cachedWindowsShell = 'powershell.exe';
+    }
+    return cachedWindowsShell;
+}
 
 export interface TerminalSpawnResult {
   success: boolean;
@@ -56,7 +70,7 @@ export default class TerminalManager {
 
       // Determine shell based on platform
       const shell: string = process.platform === 'win32'
-        ? 'powershell.exe'
+        ? getWindowsShell()
         : process.env.SHELL ?? '/bin/bash';
 
       // Don't use login shell flag because:
