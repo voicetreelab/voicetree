@@ -338,4 +338,88 @@ describe('useVoiceTreeClient', () => {
       expect(mockStartCount).toBe(2)
     })
   })
+
+  describe('cancelTranscription - force abort', () => {
+    it('exposes cancelTranscription that calls cancel on the client', async () => {
+      const { result } = renderHook(() =>
+        useVoiceTreeClient({
+          apiKey: 'test-api-key',
+        })
+      )
+
+      await act(async () => {
+        await result.current.startTranscription()
+      })
+
+      const cancelCountBefore: number = mockCancelCount
+
+      act(() => {
+        result.current.cancelTranscription()
+      })
+
+      // cancel() should have been called (once for the internal cancel in startTranscriptionInternal + once for cancelTranscription)
+      expect(mockCancelCount).toBeGreaterThan(cancelCountBefore)
+    })
+  })
+
+  describe('stop timeout safety net', () => {
+    it('force cancels if stop does not complete within timeout', async () => {
+      const { result } = renderHook(() =>
+        useVoiceTreeClient({
+          apiKey: 'test-api-key',
+        })
+      )
+
+      await act(async () => {
+        await result.current.startTranscription()
+      })
+
+      const cancelCountBefore: number = mockCancelCount
+
+      // Stop transcription (this starts the timeout)
+      act(() => {
+        result.current.stopTranscription()
+      })
+
+      // Advance time past the 5-second stop timeout
+      await act(async () => {
+        vi.advanceTimersByTime(5000)
+      })
+
+      // cancel() should have been called as safety net
+      expect(mockCancelCount).toBeGreaterThan(cancelCountBefore)
+    })
+
+    it('does not force cancel if state reaches terminal before timeout', async () => {
+      const { result } = renderHook(() =>
+        useVoiceTreeClient({
+          apiKey: 'test-api-key',
+        })
+      )
+
+      await act(async () => {
+        await result.current.startTranscription()
+      })
+
+      const cancelCountBefore: number = mockCancelCount
+
+      // Stop transcription
+      act(() => {
+        result.current.stopTranscription()
+      })
+
+      // Simulate the SDK reaching Finished state before timeout
+      act(() => {
+        mockCallbacks.onStateChange?.({ oldState: 'Stopping', newState: 'Finished' })
+      })
+
+      // Advance time past the timeout
+      await act(async () => {
+        vi.advanceTimersByTime(6000)
+      })
+
+      // cancel() should NOT have been called (timeout was cleared by terminal state)
+      expect(mockCancelCount).toBe(cancelCountBefore)
+    })
+  })
 })

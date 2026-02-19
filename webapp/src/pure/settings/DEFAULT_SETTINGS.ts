@@ -109,7 +109,7 @@ See decompose_subtask_dependency_graph.md for decomposition / dependency graph p
 <TASK_NODES_INSTRUCTION>
 For the entire duration of this session, before you report completion to the user for any query, task, sub-task, proposal, or other form of non-trivial progress, you MUST create progress node(s) documenting your work.
 
-Add "read addProgressTree.md and create progress node(s)" as an item on your todolist now.
+Add 'read addProgressTree.md and create progress node(s)' as an item on your todolist now.
 
 Primary method: Use the \`create_graph\` MCP tool with VOICETREE_TERMINAL_ID=$VOICETREE_TERMINAL_ID. Supports 1+ nodes per call — single concept nodes or multi-node trees.
 Before creating your first progress node, read $VOICETREE_APP_SUPPORT/tools/prompts/addProgressTree.md for composition guidance (when to split, scope rules, what to embed).

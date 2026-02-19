@@ -106,3 +106,14 @@ export function needsLayoutCorrection(geo: LocalGeometry): boolean {
     return anyNewEdgeCrossesExisting(geo.newEdges, geo.existingEdges)
         || anyRectsOverlap(geo.newNodeRects, geo.neighborRects);
 }
+
+/**
+ * Check if any pair of edge segments in the list cross each other.
+ * O(n²) brute force — acceptable for the local region (typically <50 edges).
+ * Segments sharing an endpoint are excluded (parent→child edges sharing a node).
+ */
+export function hasEdgeCrossingsAmong(edges: readonly EdgeSegment[]): boolean {
+    return edges.some((a: EdgeSegment, i: number) =>
+        edges.slice(i + 1).some((b: EdgeSegment) => segmentsIntersect(a, b))
+    );
+}
