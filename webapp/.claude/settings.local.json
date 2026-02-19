@@ -44,7 +44,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/quality-check.cjs\""
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/collect-changed-files.cjs\""
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop-quality-check.cjs\""
           }
         ]
       }
