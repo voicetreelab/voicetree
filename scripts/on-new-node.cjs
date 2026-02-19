@@ -8,9 +8,9 @@
 // Agent 3 (dispatcher): every 1 node — detects explicit user commands in transcript and executes them
 //
 // Usage: node on-new-node.cjs <nodePath>
-// Env:
-//   VOICETREE_MCP_PORT              - MCP server port (default: 3001)
-//   VOICETREE_CALLER_TERMINAL_ID    - Terminal ID for agent spawning (default: hook-watcher)
+// Env (required, set by buildTerminalEnvVars when hook terminal is spawned):
+//   VOICETREE_MCP_PORT              - MCP server port (errors if missing)
+//   VOICETREE_CALLER_TERMINAL_ID    - Terminal ID for agent spawning (errors if missing)
 
 'use strict'
 
@@ -34,8 +34,16 @@ if (!nodePath.includes('/voice/')) {
     process.exit(0)
 }
 
-const MCP_PORT = process.env.VOICETREE_MCP_PORT || '3001'
-const TERMINAL_ID = process.env.VOICETREE_CALLER_TERMINAL_ID || 'hook-watcher'
+const MCP_PORT = process.env.VOICETREE_MCP_PORT
+if (!MCP_PORT) {
+    process.stderr.write('[on-new-node] VOICETREE_MCP_PORT env var is not set. Hook terminal env may be stale.\n')
+    process.exit(1)
+}
+const TERMINAL_ID = process.env.VOICETREE_CALLER_TERMINAL_ID
+if (!TERMINAL_ID) {
+    process.stderr.write('[on-new-node] VOICETREE_CALLER_TERMINAL_ID env var is not set. Hook terminal env may be stale.\n')
+    process.exit(1)
+}
 
 // --- Agent definitions ---
 

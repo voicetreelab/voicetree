@@ -26,10 +26,10 @@ import ColaLayout from './cola';
 // @ts-ignore - cytoscape-fcose has no bundled types; ambient declaration in utils/types/cytoscape-fcose.d.ts
 import fcose from 'cytoscape-fcose';
 import { getEdgeDistance, DEFAULT_EDGE_LENGTH } from './cytoscape-graph-constants';
-import { getCurrentIndex } from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
-import { queryNodesInRect } from '@/pure/graph/spatial';
-import type { SpatialIndex, SpatialNodeEntry, Rect } from '@/pure/graph/spatial';
-import { needsLayoutCorrection } from '@/pure/graph/geometry';
+import { getCurrentIndex, refreshSpatialIndex } from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
+import { queryNodesInRect, queryEdgesInRect } from '@/pure/graph/spatial';
+import type { SpatialIndex, SpatialNodeEntry, SpatialEdgeEntry, Rect } from '@/pure/graph/spatial';
+import { needsLayoutCorrection, hasEdgeCrossingsAmong } from '@/pure/graph/geometry';
 import type { LocalGeometry, EdgeSegment } from '@/pure/graph/geometry';
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
@@ -585,6 +585,35 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
       nodeDimensionsIncludeLabels: true,
     }, runNodes, COLA_ANIMATE_DURATION, () => {
       pinNodes.unlock();
+
+      // Rebuild spatial index with post-animation positions (layoutstop rebuild is stale
+      // because computeColaAndAnimate resets to startPos during animation)
+      refreshSpatialIndex(cy);
+
+      const postColaIndex: SpatialIndex | undefined = getCurrentIndex(cy);
+      if (postColaIndex) {
+        // Query edges in the region affected by local Cola
+        const regionBB: { x1: number; y1: number; x2: number; y2: number } = allNodes.boundingBox({
+          includeLabels: false, includeOverlays: false, includeEdges: false
+        });
+        const edgesInRegion: readonly SpatialEdgeEntry[] = queryEdgesInRect(postColaIndex, {
+          minX: regionBB.x1, minY: regionBB.y1,
+          maxX: regionBB.x2, maxY: regionBB.y2
+        });
+
+        // Convert spatial entries to EdgeSegments for intersection testing
+        const segments: EdgeSegment[] = edgesInRegion.map(e => ({
+          p1: { x: e.x1, y: e.y1 },
+          p2: { x: e.x2, y: e.y2 }
+        }));
+
+        if (hasEdgeCrossingsAmong(segments)) {
+          // Edge overlaps found in local region — run global Cola to resolve
+          runColaLayout();
+          return;
+        }
+      }
+
       onComplete();
     });
   };

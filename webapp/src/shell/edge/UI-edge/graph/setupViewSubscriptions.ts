@@ -12,6 +12,9 @@ import {subscribeToActiveTerminalChange} from '@/shell/edge/UI-edge/state/Termin
 import {getShadowNodeId} from '@/shell/edge/UI-edge/floating-windows/types';
 import {TERMINAL_ACTIVE_CLASS} from '@/shell/UI/cytoscape-graph-ui/constants';
 import {handleWorktreeDeleteEvent} from './handleWorktreeDelete';
+import {subscribeToVaultPaths, getVaultState} from '@/shell/edge/UI-edge/state/VaultPathStore';
+import type {VaultPathState} from '@/shell/edge/UI-edge/state/VaultPathStore';
+import {triggerFullLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout';
 
 export interface ViewSubscriptionDeps {
     cy: Core;
@@ -22,6 +25,7 @@ export interface ViewSubscriptionCleanups {
     activeTerminalSubscription: () => void;
     navigationListener: () => void;
     worktreeDeleteListener: () => void;
+    vaultPathSubscription: () => void;
 }
 
 /**
@@ -80,10 +84,23 @@ export function setupViewSubscriptions(deps: ViewSubscriptionDeps): ViewSubscrip
         document.removeEventListener('vt:request-worktree-delete', handleWorktreeDeleteEvent);
     };
 
+    // Vault path subscription - triggers full fCOSE + Cola layout when folders are added/removed.
+    // When readPaths changes, the graph topology changed substantially (bulk node add/remove),
+    // so we reset the layout to run fCOSE for global positioning followed by Cola refinement.
+    let prevReadPathCount: number = getVaultState().readPaths.length;
+    const vaultPathSubscription: () => void = subscribeToVaultPaths((state: VaultPathState) => {
+        const newCount: number = state.readPaths.length;
+        if (newCount !== prevReadPathCount) {
+            prevReadPathCount = newCount;
+            triggerFullLayout(cy);
+        }
+    });
+
     return {
         activeTerminalSubscription,
         navigationListener,
         worktreeDeleteListener,
+        vaultPathSubscription,
     };
 }
 
@@ -95,4 +112,5 @@ export function cleanupViewSubscriptions(cleanups: ViewSubscriptionCleanups): vo
     cleanups.activeTerminalSubscription();
     cleanups.navigationListener();
     cleanups.worktreeDeleteListener();
+    cleanups.vaultPathSubscription();
 }

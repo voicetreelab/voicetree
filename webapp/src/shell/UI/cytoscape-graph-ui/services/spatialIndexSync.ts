@@ -83,6 +83,11 @@ function rebuildIndex(cy: Core): void {
     indices.set(cy, createSpatialIndex(nodeEntries, edgeEntries));
 }
 
+/** Force a full spatial index rebuild. Call after animations that bypass layoutstop. */
+export function refreshSpatialIndex(cy: Core): void {
+    rebuildIndex(cy);
+}
+
 /**
  * Enable spatial index syncing for a cytoscape instance.
  *

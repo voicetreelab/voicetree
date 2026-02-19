@@ -39,7 +39,7 @@ export function updateNodeSizes(cy: cytoscape.Core, nodes?: cytoscape.NodeCollec
       const fontSize: number = 15 + size * 1.5 / 7; // 1.5x font scale (was 10 + size/7)
       const textWidth: number = size * 6 + 80; // 2x text width to match node scale (was size*3+40)
       const borderWidth: number = 2 + size / 7.5; // 2x border scale (was 1 + size/15)
-      const textOpacity: number = Math.min(1, 0.7 + degree / 100); // Slight opacity increase with degree
+      const textOpacity: number = 1;
 
       // Validate all calculated values before applying
       if (!isValidNumber(width) || !isValidNumber(height) || !isValidNumber(fontSize) ||

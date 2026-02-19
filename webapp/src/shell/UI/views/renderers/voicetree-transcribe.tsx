@@ -53,6 +53,7 @@ export default function VoiceTreeTranscribe(): JSX.Element {
     state,
     startTranscription,
     stopTranscription,
+    cancelTranscription,
     error,
   } = useVoiceTreeClient({
     apiKey: getAPIKey,
@@ -131,18 +132,30 @@ export default function VoiceTreeTranscribe(): JSX.Element {
   // Derive connecting state - orange for any transitional state (not idle, not running)
   const isConnecting = state !== 'Init' && state !== 'Finished' && state !== 'Error' && state !== 'Canceled' && state !== 'Running';
 
+  // Handle mic button click - always responsive, force-cancels from stuck states
+  const handleMicClick: () => void = () => {
+    if (state === 'Running') {
+      stopTranscription();
+    } else if (isConnecting) {
+      cancelTranscription();
+    } else {
+      void handleStartTranscription();
+    }
+  };
+
   // Initialize VoiceRecordingController to bridge React state with vanilla JS HotkeyManager
   useEffect(() => {
     initVoiceRecording(
       handleStartTranscription,
       stopTranscription,
+      cancelTranscription,
       () => state
     );
     return () => {
       disposeVoiceRecording();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- handleStartTranscription is stable, adding it causes infinite re-registration
-  }, [state, stopTranscription]);
+  }, [state, stopTranscription, cancelTranscription]);
 
   // Show error popup when Soniox fails
   useEffect(() => {
@@ -309,16 +322,15 @@ export default function VoiceTreeTranscribe(): JSX.Element {
               )}
             </div>
 
-            {/* Mic Button */}
+            {/* Mic Button - never disabled, allows force-cancel from stuck states */}
             <button
-              onClick={() => state === 'Running' ? stopTranscription() : void handleStartTranscription()}
-              disabled={isConnecting}
+              onClick={handleMicClick}
               className={cn(
                 "p-1 rounded-lg transition-all cursor-pointer",
                 state === 'Running'
                   ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   : isConnecting
-                    ? "bg-orange-500 text-white"
+                    ? "bg-orange-500 text-white hover:bg-orange-600"
                     : "bg-primary text-primary-foreground hover:bg-primary/90"
               )}
             >

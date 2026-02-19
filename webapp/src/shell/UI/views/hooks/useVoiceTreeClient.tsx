@@ -36,6 +36,9 @@ type TranscriptionError = {
 // Proactive restart interval: 18 minutes (before the ~20-min Soniox timeout)
 const PROACTIVE_RESTART_INTERVAL_MS = 18 * 60 * 1000;
 
+// Safety net: if stop() doesn't complete within this time, force cancel
+const STOP_TIMEOUT_MS: number = 5000;
+
 // useTranscribe hook wraps VoiceTree speech-to-text functionality using Soniox SDK.
 export default function useVoiceTreeClient({
   apiKey,
@@ -46,11 +49,13 @@ export default function useVoiceTreeClient({
 }: UseVoiceTreeClientOptions): {
   startTranscription: () => Promise<void>;
   stopTranscription: () => void;
+  cancelTranscription: () => void;
   state: RecorderState;
   error: TranscriptionError | null;
 } {
   const sonioxClient: RefObject<SonioxClient | null> = useRef<SonioxClient | null>(null);
   const proactiveRestartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stopTimeoutRef: RefObject<ReturnType<typeof setTimeout> | null> = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isRecordingRef = useRef<boolean>(false);
   // Track reactive reconnection state using extracted reconnection manager
   const reconnectionStateRef = useRef<ReconnectionState>(createReconnectionState());
@@ -167,17 +172,48 @@ export default function useVoiceTreeClient({
     scheduleProactiveRestart();
   }, [startTranscriptionInternal, scheduleProactiveRestart]);
 
+  const clearStopTimeout: () => void = useCallback(() => {
+    if (stopTimeoutRef.current) {
+      clearTimeout(stopTimeoutRef.current);
+      stopTimeoutRef.current = null;
+    }
+  }, []);
+
+  const cancelTranscription: () => void = useCallback(() => {
+    isRecordingRef.current = false;
+    clearProactiveTimer();
+    clearStopTimeout();
+    sonioxClient.current?.cancel();
+  }, [clearProactiveTimer, clearStopTimeout]);
+
   const stopTranscription: () => void = useCallback(() => {
     isRecordingRef.current = false;
     clearProactiveTimer();
     sonioxClient.current?.stop();
-  }, [clearProactiveTimer]);
+    // Safety net: if stop doesn't complete in time, force cancel
+    clearStopTimeout();
+    stopTimeoutRef.current = setTimeout(() => {
+      console.warn('[VoiceTree] Stop timed out, force canceling');
+      sonioxClient.current?.cancel();
+      stopTimeoutRef.current = null;
+    }, STOP_TIMEOUT_MS);
+  }, [clearProactiveTimer, clearStopTimeout]);
+
+  // Clear stop timeout when state reaches a terminal state
+  useEffect(() => {
+    if (state === 'Finished' || state === 'Error' || state === 'Canceled' || state === 'Init') {
+      clearStopTimeout();
+    }
+  }, [state, clearStopTimeout]);
 
   useEffect(() => {
     return () => {
       isRecordingRef.current = false;
       if (proactiveRestartTimerRef.current) {
         clearTimeout(proactiveRestartTimerRef.current);
+      }
+      if (stopTimeoutRef.current) {
+        clearTimeout(stopTimeoutRef.current);
       }
       sonioxClient.current?.cancel();
     };
@@ -186,6 +222,7 @@ export default function useVoiceTreeClient({
   return {
     startTranscription,
     stopTranscription,
+    cancelTranscription,
     state,
     error,
   };
