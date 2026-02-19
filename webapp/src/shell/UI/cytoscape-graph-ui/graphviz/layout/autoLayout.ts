@@ -1,18 +1,21 @@
 /**
  * Auto Layout: Automatically run Cola or fcose layout on graph changes
  *
- * Simple approach: Listen to cytoscape events (add/remove node/edge) and trigger layout.
- * No state tracking, no complexity - just re-layout the whole graph each time.
+ * Two-phase layout for batch-added nodes:
+ * Phase 1: Local Cola on 4-hop neighborhood of new nodes (6-hop pinned boundary)
+ * Phase 2: Global layout with configured engine (Cola or fCOSE)
+ * Falls back to full-graph layout when >30% nodes are new or no new nodes tracked.
  *
  * NOTE (commit 033c57a4): We tried a two-phase layout algorithm that ran Phase 1 with only
  * constraint iterations (no unconstrained) for fast global stabilization, then Phase 2 ran
  * full iterations on just the neighborhood of most-displaced nodes. We tried this algo, and
  * that it was okay, but went on for too long since it doubled the animation period, and the
  * second phase could still be quite janky which was what we were trying to avoid.
+ * The current approach differs: Phase 1 is truly local (small subgraph), not global.
  */
 
 import cytoscape from 'cytoscape';
-import type {Core, EdgeSingular, NodeSingular, NodeDefinition, CollectionReturnValue, Layouts} from 'cytoscape';
+import type {Core, EdgeSingular, NodeSingular, NodeDefinition, CollectionReturnValue, Layouts, EventObject} from 'cytoscape';
 import ColaLayout from './cola';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore - cytoscape-fcose has no bundled types; ambient declaration in utils/types/cytoscape-fcose.d.ts
@@ -205,6 +208,19 @@ function parseLayoutConfig(json: string | undefined): LayoutConfig {
 }
 
 /**
+ * Expand a set of root nodes to their N-hop neighborhood.
+ * Each iteration includes the closed neighborhood (node + all its direct neighbors).
+ */
+function getNHopNeighborhood(roots: CollectionReturnValue, hops: number): CollectionReturnValue {
+  let collection: CollectionReturnValue = roots;
+  for (let i: number = 0; i < hops; i++) {
+    collection = collection.closedNeighborhood();
+  }
+  // .filter() returns CollectionReturnValue (unlike .nodes() which returns NodeCollection)
+  return collection.filter(ele => ele.isNode());
+}
+
+/**
  * Enable automatic layout on graph changes
  *
  * Listens to node/edge add/remove events and triggers Cola or fcose layout
@@ -238,6 +254,9 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
   let layoutRunning: boolean = false;
   let layoutQueued: boolean = false;
   let layoutCount: number = 0;
+
+  // Track newly added node IDs for local Cola layout
+  const pendingNewNodeIds: Set<string> = new Set<string>();
 
   const onLayoutComplete: () => void = () => {
     void window.electronAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);
@@ -347,6 +366,75 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     layout.run();
   };
 
+  /**
+   * Run Cola on the local neighborhood of newly added nodes.
+   * Hop 1-4: run set (free to move) — Cola can rearrange the local region.
+   * Hop 5-6: pin boundary (locked anchors) — prevents ripple to distant nodes.
+   * On completion, unlocks pins and chains to onComplete (Phase 2).
+   */
+  const runLocalCola: (newNodeIds: Set<string>, onComplete: () => void) => void = (newNodeIds, onComplete) => {
+    // Collect cy nodes for the new IDs, skip context nodes
+    let newNodes: CollectionReturnValue = cy.collection();
+    for (const id of newNodeIds) {
+      const node: CollectionReturnValue = cy.getElementById(id);
+      if (node.length > 0 && !node.data('isContextNode')) {
+        newNodes = newNodes.merge(node);
+      }
+    }
+
+    if (newNodes.length === 0) {
+      onComplete();
+      return;
+    }
+
+    // Expand to 4-hop neighborhood → run set (free to move, gives Cola structural context)
+    const runNodes: CollectionReturnValue = getNHopNeighborhood(newNodes, 4).filter(
+      ele => !ele.data('isContextNode')
+    );
+
+    // Expand to 6-hop neighborhood → full subgraph
+    const allNodes: CollectionReturnValue = getNHopNeighborhood(newNodes, 6).filter(
+      ele => !ele.data('isContextNode')
+    );
+
+    // Pin boundary = hop 5-6 only (locked as stable anchors)
+    const pinNodes: CollectionReturnValue = allNodes.difference(runNodes);
+    pinNodes.lock();
+
+    // Collect edges where both endpoints are in the subgraph, excluding indicator edges
+    const subgraphEdges: CollectionReturnValue = allNodes.connectedEdges().filter(
+      edge => !edge.data('isIndicatorEdge')
+        && allNodes.contains(edge.source()) && allNodes.contains(edge.target())
+    );
+    const subgraphElements: CollectionReturnValue = allNodes.union(subgraphEdges);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const localLayout: any = new (ColaLayout as any)({
+      cy: cy,
+      eles: subgraphElements,
+      animate: true,
+      randomize: false,
+      avoidOverlap: true,
+      handleDisconnected: false,
+      convergenceThreshold: 0.5,
+      maxSimulationTime: 800,
+      unconstrIter: 12,
+      userConstIter: 12,
+      allConstIter: 20,
+      nodeSpacing: 70,
+      edgeLength: currentConfig.cola.edgeLength ?? DEFAULT_OPTIONS.edgeLength,
+      centerGraph: false,
+      fit: false,
+      nodeDimensionsIncludeLabels: true,
+    });
+
+    localLayout.one('layoutstop', () => {
+      pinNodes.unlock();
+      onComplete();
+    });
+    localLayout.run();
+  };
+
   const runLayout: () => void = () => {
     // If layout already running, queue another run for after it completes
     if (layoutRunning) {
@@ -362,7 +450,23 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     layoutRunning = true;
     layoutCount++;
 
-    if (currentConfig.engine === 'fcose') {
+    // Snapshot and clear pending new node IDs
+    const newNodeIds: Set<string> = new Set(pendingNewNodeIds);
+    pendingNewNodeIds.clear();
+
+    const totalNodes: number = cy.nodes().length;
+
+    // If new nodes present and < 30% of total, use local Cola → global engine two-phase path
+    if (newNodeIds.size > 0 && newNodeIds.size < totalNodes * 0.3) {
+      runLocalCola(newNodeIds, () => {
+        // Phase 2: Full layout with configured engine
+        if (currentConfig.engine === 'fcose') {
+          runFcoseLayout(layoutCount % 7 === 0 ? 'proof' : undefined);
+        } else {
+          runColaLayout();
+        }
+      });
+    } else if (currentConfig.engine === 'fcose') {
       // Every 7th layout, run fcose with 'proof' quality for a more thorough pass
       runFcoseLayout(layoutCount % 7 === 0 ? 'proof' : undefined);
     } else {
@@ -383,8 +487,17 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     }, 300); // 300ms debounce - prevents flickering during markdown typing
   };
 
+  // Track new node IDs on add, then trigger debounced layout
+  const onNodeAdd: (evt: EventObject) => void = (evt) => {
+    const target: CollectionReturnValue = evt.target as CollectionReturnValue;
+    if (!target.data('isContextNode')) {
+      pendingNewNodeIds.add(target.id());
+    }
+    debouncedRunLayout();
+  };
+
   // Listen to graph modification events
-  cy.on('add', 'node', debouncedRunLayout);
+  cy.on('add', 'node', onNodeAdd);
   cy.on('remove', 'node', debouncedRunLayout);
   cy.on('add', 'edge', debouncedRunLayout);
   cy.on('remove', 'edge', debouncedRunLayout);
@@ -413,7 +526,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
 
   // Return cleanup function
   return () => {
-    cy.off('add', 'node', debouncedRunLayout);
+    cy.off('add', 'node', onNodeAdd);
     cy.off('remove', 'node', debouncedRunLayout);
     cy.off('add', 'edge', debouncedRunLayout);
     cy.off('remove', 'edge', debouncedRunLayout);
