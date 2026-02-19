@@ -62,13 +62,18 @@ const CHILD_NODE_DIMENSIONS: { readonly width: number; readonly height: number }
  *
  * Takes pre-extracted obstacles and pure graph data — no cytoscape dependency.
  * Computes the desired angle from the graph topology, then delegates to findBestPosition.
+ *
+ * @param edgeSegments - Optional pre-extracted edge segments (e.g., from spatial index).
+ *   When provided, skips internal BFS extraction. When omitted, falls back to
+ *   extractEdgeSegmentsFromGraph (5-hop BFS).
  */
 export function calculateCollisionAwareChildPosition(
     parentPos: Position,
     graph: Graph,
     parentNodeId: NodeIdAndFilePath,
     obstacles: readonly ObstacleBBox[],
-    distance: number = DEFAULT_EDGE_LENGTH
+    distance: number = DEFAULT_EDGE_LENGTH,
+    edgeSegments?: readonly EdgeSegment[]
 ): Position {
     const parentGraphNode: GraphNode | undefined = graph.nodes[parentNodeId];
     const grandparentNode: GraphNode | undefined = parentGraphNode ? findFirstParentNode(parentGraphNode, graph) : undefined;
@@ -79,7 +84,7 @@ export function calculateCollisionAwareChildPosition(
     const childIndex: number = parentGraphNode ? parentGraphNode.outgoingEdges.length : 0;
     const desiredAngle: number = calculateChildAngle(childIndex, parentAngle);
 
-    const edgeSegments: readonly EdgeSegment[] = extractEdgeSegmentsFromGraph(parentNodeId, graph);
+    const segments: readonly EdgeSegment[] = edgeSegments ?? extractEdgeSegmentsFromGraph(parentNodeId, graph);
 
     return findBestPosition(
         parentPos,
@@ -88,6 +93,6 @@ export function calculateCollisionAwareChildPosition(
         CHILD_NODE_DIMENSIONS,
         obstacles,
         undefined,
-        edgeSegments
+        segments
     );
 }
