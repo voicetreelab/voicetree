@@ -280,7 +280,7 @@ export async function createGraphTool({
         if (bodyLines > lineLimit) {
             return buildJsonResponse({
                 success: false,
-                error: `Node "${node.filename}" is too long (${bodyLines} lines, limit is ${lineLimit}). Don't shorten, spread across additional nodes — one concept per node.`
+                error: `Node "${node.filename}" is too long (${bodyLines} lines, limit is ${lineLimit}). Split into a TREE of nodes that mirrors the conceptual structure of your content — use the \`parents\` field to create branching, not a linear chain.\n\nSplit by concern:\nTask: Review git diff\n├── Review: Collision-aware positioning refactor\n└── Review: Prompt template cleanup\n\nSplit by phase + option:\nTask\n├── High-level architecture\n│   ├── Option A: Event-driven\n│   └── Option B: Request-response\n├── Data types\n└── Pure functions`
             }, true)
         }
     }
