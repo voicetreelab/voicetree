@@ -470,7 +470,7 @@ export function setVaultPath(vaultPath: FilePath): void {
 
 /**
  * Create a new dated voicetree folder and set it as the write path.
- * Same pattern as manual Create button: addReadPath (creates dir + watcher) then setWritePath.
+ * Replaces the current write folder: unwatches it completely (neither read nor write).
  * Also loads all starred folders as read paths.
  */
 export async function createDatedVoiceTreeFolder(): Promise<{
@@ -478,10 +478,23 @@ export async function createDatedVoiceTreeFolder(): Promise<{
 }> {
     const watchedDir: string | null = getProjectRootWatchedDirectory();
     if (!watchedDir) return { success: false, error: 'No project open' };
+
+    // Capture old write path before switching, so we can unwatch it afterward
+    const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
+    const oldWritePath: string | null = config?.writePath
+        ? resolveWritePath(watchedDir, config.writePath)
+        : null;
+
     const newPath: string = await createDatedSubfolder(watchedDir);
     await addReadPath(newPath);
     const result: { success: boolean; error?: string } = await setWritePath(newPath);
     if (!result.success) return { ...result, path: newPath };
+
+    // Unwatch old write folder completely - neither read nor write
+    if (oldWritePath && oldWritePath !== normalizePath(watchedDir)) {
+        await removeReadPath(oldWritePath);
+    }
+
     const starred: readonly string[] = await getStarredFolders();
     for (const p of starred) await addReadPath(p);
     return { success: true, path: newPath };

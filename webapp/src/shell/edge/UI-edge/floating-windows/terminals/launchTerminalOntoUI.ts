@@ -50,7 +50,8 @@ export async function launchTerminalOntoUI(
         // Only skip creation if floating window actually exists
         if (vanillaInstance) {
             //console.log('[uiAPI] Floating window already exists for context node, focusing:', existingTerminalId);
-            if (vanillaInstance.focus) {
+            // Don't steal focus for MCP/background spawns
+            if (!skipFitAnimation && vanillaInstance.focus) {
                 vanillaInstance.focus();
             }
             return;
@@ -91,12 +92,15 @@ export async function launchTerminalOntoUI(
         }
 
         // Auto-focus the terminal after launch (500ms delay to avoid race with PTY initialization)
-        setTimeout(() => {
-            const vanillaInstance: { dispose: () => void; focus?: () => void } | undefined = vanillaFloatingWindowInstances.get(terminalId);
-            if (vanillaInstance?.focus) {
-                vanillaInstance.focus();
-            }
-        }, 500);
+        // Don't steal focus for MCP/background spawns
+        if (!skipFitAnimation) {
+            setTimeout(() => {
+                const vanillaInstance: { dispose: () => void; focus?: () => void } | undefined = vanillaFloatingWindowInstances.get(terminalId);
+                if (vanillaInstance?.focus) {
+                    vanillaInstance.focus();
+                }
+            }, 500);
+        }
 
         //console.log('[uiAPI] Terminal launched:', terminalId);
     } else {

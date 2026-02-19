@@ -10,6 +10,10 @@
           {
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/webapp/.claude/hooks/collect-changed-files.cjs\""
+          },
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/webapp/.claude/hooks/file-size-check.cjs\""
           }
         ]
       }

@@ -112,11 +112,17 @@ How messy is this batch? Orphans, wrong links, bad splits/merges?
 - **7+**: Significant structural problems. Fix them (Step 5). Do NOT close yourself.
 
 ## Step 5: Fix issues (only if score >= 4)
-Edit markdown files directly to fix: orphan nodes (add [[links]]), incorrect connections, wrong splits (merge), wrong merges (split).
-Prefer a clean tree structure — one parent per node. Don't add extra edges unless they represent a critical dependency.
+Edit markdown files directly to fix:
+- **Orphan nodes** (no existing connections at all): add a [[link]] to place them in the tree.
+- **Incorrect connections**: correct the wrong edge only — do not add new edges.
+- **Wrong splits** (merge) or **wrong merges** (split).
 
-Do NOT create progress nodes for your fixes — just fix the files silently.
-Only create a progress node if you hit a problem you cannot resolve (e.g. ambiguous structure needing user input).
+Edge rules — strictly follow these:
+- Only ADD an edge if the node is a true orphan (zero existing connections).
+- Only CHANGE an edge if it is clearly wrong.
+- Never add edges to nodes that are already connected, even if a new connection seems useful.
+
+NEVER create progress nodes — not for fixes, not for problems, not for anything. Fix silently and close yourself.
 
 ## Step 6: Close yourself (only if score < 7)
 Use close_agent with your own terminal ID (from $VOICETREE_TERMINAL_ID) as both callerTerminalId and terminalId.`

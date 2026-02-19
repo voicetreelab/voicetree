@@ -183,6 +183,7 @@ const DEFAULT_FCOSE_OPTIONS: FcoseLayoutOptions = {
 const VALID_ENGINES: readonly LayoutEngine[] = ['cola', 'fcose'] as const;
 
 const COLA_ANIMATE_DURATION: number = 400;
+const COLA_FAST_ANIMATE_DURATION: number = 200;
 
 /**
  * Compute Cola layout synchronously, then smoothly animate nodes to final positions.
@@ -579,15 +580,35 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
       edge => !edge.data('isIndicatorEdge')
         && allNodes.contains(edge.source()) && allNodes.contains(edge.target())
     );
-    // Skip local Cola if no edge crossings or node overlaps detected
+    const subgraphElements: CollectionReturnValue = allNodes.union(subgraphEdges);
+
+    // Check for edge crossings or node overlaps in the local region
     const geo: LocalGeometry = extractLocalGeometry(newNodes, subgraphEdges, runNodes);
     if (!needsLayoutCorrection(geo)) {
+      // Fast-tier: no overlap — light Cola pass for edge-length polish
+      computeColaAndAnimate({
+        cy: cy,
+        eles: subgraphElements,
+        randomize: false,
+        avoidOverlap: true,
+        handleDisconnected: false,
+        convergenceThreshold: 1.5,
+        maxSimulationTime: 200,
+        unconstrIter: 3,
+        userConstIter: 3,
+        allConstIter: 5,
+        nodeSpacing: 70,
+        edgeLength: currentConfig.cola.edgeLength ?? DEFAULT_OPTIONS.edgeLength,
+        centerGraph: false,
+        fit: false,
+        nodeDimensionsIncludeLabels: true,
+      }, runNodes, COLA_FAST_ANIMATE_DURATION, () => {
         pinNodes.unlock();
+        refreshSpatialIndex(cy);
         onComplete();
-        return;
+      });
+      return;
     }
-
-    const subgraphElements: CollectionReturnValue = allNodes.union(subgraphEdges);
 
     computeColaAndAnimate({
       cy: cy,

@@ -50,15 +50,13 @@
   padding: 3px 10px;
   background-color: var(--accent);
   border-radius: 12px;
-  cursor: pointer;
+  cursor: default;
   transition: background-color 0.15s ease;
   max-width: 80%;
   overflow: hidden;
 }
 
-.terminal-context-badge:hover {
-  background-color: var(--accent-foreground);
-}
+/* No hover effect - badge is not interactive, only the inject badge button inside it is */
 
 .terminal-context-badge svg {
   flex-shrink: 0;
@@ -175,7 +173,7 @@
  * Small pill button after the agent name, triggers popover on click.
  * ============================================================================= */
 
-/* Badge button - compact pill, inline in title bar */
+/* Badge button - compact pill, inline in terminal-context-badge-subtitle (next to agent name) */
 .inject-badge {
   all: unset;
   cursor: pointer;
