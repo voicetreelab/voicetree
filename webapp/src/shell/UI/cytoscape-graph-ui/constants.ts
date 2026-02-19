@@ -1,4 +1,4 @@
-export const DEFAULT_TEXT_WIDTH: 180 = 180 as const;  // Default text-max-width for nodes without degree data
+export const DEFAULT_TEXT_WIDTH: 360 = 360 as const;  // Default text-max-width for nodes without degree data (2x scale, was 180)
 
 // Zoom constants
 export const MIN_ZOOM: 0.001 = 0.001 as const;

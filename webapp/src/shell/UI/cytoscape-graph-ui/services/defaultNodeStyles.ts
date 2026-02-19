@@ -14,16 +14,16 @@ export function getDefaultNodeStyles(colors: GraphColorPalette, font: string, is
         'background-color': colors.fillColor,
         'color': colors.textColor,
         'font-family': font,
-        'font-weight': 'bold',
+        'font-weight': 800, // increased from bold (700) for better visibility at 2x scale
         'text-valign': 'bottom',
         'text-halign': 'center',
-        'text-margin-y': 8,
+        'text-margin-y': 16, // 2x scale (was 8)
         'shape': 'ellipse',
         'border-width': 1,
         'border-color': '#666',
         'text-wrap': 'wrap',
         'text-max-width': `${DEFAULT_TEXT_WIDTH}px`,  // Default text width for wrapping
-        'min-zoomed-font-size': 10,
+        'min-zoomed-font-size': 15, // 1.5x scale (was 10)
         'overlay-opacity': 0,
       }
     },
