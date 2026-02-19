@@ -7,7 +7,8 @@ import {
     parseSearchQuery,
 } from './transforms';
 import { toAbsolutePath } from './types';
-import type { AbsolutePath, AvailableFolderItem, FolderAction } from './types';
+import type { AbsolutePath, AvailableFolderItem, FolderAction, FolderSelectorState } from './types';
+import type { ParsedQuery } from './transforms';
 import type { VaultConfig } from '@/pure/settings/types';
 
 describe('toDisplayPath', () => {
@@ -360,10 +361,10 @@ describe('toFolderSelectorState', () => {
                 modifiedAt: 1000,
             },
         ];
-        const searchQuery = '';
-        const isOpen = true;
+        const searchQuery: string = '';
+        const isOpen: boolean = true;
 
-        const result = toFolderSelectorState(
+        const result: FolderSelectorState = toFolderSelectorState(
             projectRoot,
             writeFolder,
             readFolders,
@@ -390,7 +391,7 @@ describe('toFolderSelectorState', () => {
         const readFolders: readonly AbsolutePath[] = [];
         const availableFolders: readonly AvailableFolderItem[] = [];
 
-        const result = toFolderSelectorState(
+        const result: FolderSelectorState = toFolderSelectorState(
             projectRoot,
             writeFolder,
             readFolders,
@@ -406,111 +407,123 @@ describe('toFolderSelectorState', () => {
 describe('parseSearchQuery', () => {
     // Core test cases from specification
     it('parses empty string', () => {
-        const result = parseSearchQuery('');
+        const result: ParsedQuery = parseSearchQuery('');
         expect(result).toEqual({
             basePath: null,
             filterText: '',
             endsWithSlash: false,
+            isAbsolute: false,
         });
     });
 
     it('parses simple text without slash', () => {
-        const result = parseSearchQuery('docs');
+        const result: ParsedQuery = parseSearchQuery('docs');
         expect(result).toEqual({
             basePath: null,
             filterText: 'docs',
             endsWithSlash: false,
+            isAbsolute: false,
         });
     });
 
     it('parses text ending with slash', () => {
-        const result = parseSearchQuery('docs/');
+        const result: ParsedQuery = parseSearchQuery('docs/');
         expect(result).toEqual({
             basePath: 'docs',
             filterText: '',
             endsWithSlash: true,
+            isAbsolute: false,
         });
     });
 
     it('parses path with filter text', () => {
-        const result = parseSearchQuery('docs/api');
+        const result: ParsedQuery = parseSearchQuery('docs/api');
         expect(result).toEqual({
             basePath: 'docs',
             filterText: 'api',
             endsWithSlash: false,
+            isAbsolute: false,
         });
     });
 
     it('parses nested path ending with slash', () => {
-        const result = parseSearchQuery('docs/projects/');
+        const result: ParsedQuery = parseSearchQuery('docs/projects/');
         expect(result).toEqual({
             basePath: 'docs/projects',
             filterText: '',
             endsWithSlash: true,
+            isAbsolute: false,
         });
     });
 
     it('parses nested path with filter text', () => {
-        const result = parseSearchQuery('docs/projects/auth');
+        const result: ParsedQuery = parseSearchQuery('docs/projects/auth');
         expect(result).toEqual({
             basePath: 'docs/projects',
             filterText: 'auth',
             endsWithSlash: false,
+            isAbsolute: false,
         });
     });
 
     // Edge cases
-    it('strips leading slash', () => {
-        const result = parseSearchQuery('/docs');
+    it('treats leading slash as absolute path', () => {
+        const result: ParsedQuery = parseSearchQuery('/docs');
         expect(result).toEqual({
             basePath: null,
             filterText: 'docs',
             endsWithSlash: false,
+            isAbsolute: true,
         });
     });
 
-    it('handles leading slash with nested path', () => {
-        const result = parseSearchQuery('/docs/api');
+    it('handles absolute path with nested segments', () => {
+        const result: ParsedQuery = parseSearchQuery('/docs/api');
         expect(result).toEqual({
-            basePath: 'docs',
+            basePath: '/docs',
             filterText: 'api',
             endsWithSlash: false,
+            isAbsolute: true,
         });
     });
 
     it('normalizes multiple consecutive slashes', () => {
-        const result = parseSearchQuery('docs//api');
+        const result: ParsedQuery = parseSearchQuery('docs//api');
         expect(result).toEqual({
             basePath: 'docs',
             filterText: 'api',
             endsWithSlash: false,
+            isAbsolute: false,
         });
     });
 
     it('normalizes backslashes to forward slashes', () => {
-        const result = parseSearchQuery('docs\\api');
+        const result: ParsedQuery = parseSearchQuery('docs\\api');
         expect(result).toEqual({
             basePath: 'docs',
             filterText: 'api',
             endsWithSlash: false,
+            isAbsolute: false,
         });
     });
 
     it('handles Windows-style path with backslashes', () => {
-        const result = parseSearchQuery('docs\\projects\\auth');
+        const result: ParsedQuery = parseSearchQuery('docs\\projects\\auth');
         expect(result).toEqual({
             basePath: 'docs/projects',
             filterText: 'auth',
             endsWithSlash: false,
+            isAbsolute: false,
         });
     });
 
     it('handles trailing backslash', () => {
-        const result = parseSearchQuery('docs\\');
+        const result: ParsedQuery = parseSearchQuery('docs\\');
         expect(result).toEqual({
             basePath: 'docs',
             filterText: '',
             endsWithSlash: true,
+            isAbsolute: false,
         });
     });
 });

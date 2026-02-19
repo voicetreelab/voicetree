@@ -33,6 +33,18 @@ import {
 import { setGraph, getGraph } from '@/shell/edge/main/state/graph-store'
 import type { GraphDelta, Graph } from '@/pure/graph'
 import { createEmptyGraph } from '@/pure/graph'
+import { saveVaultConfigForDirectory } from '@/shell/edge/main/graph/watch_folder/voicetree-config-io'
+
+/**
+ * Pre-seed vault config so resolveOrCreateConfig uses it directly
+ * instead of trying to discover/create a voicetree subfolder.
+ */
+async function preseedVaultConfig(vaultPath: string): Promise<void> {
+  await saveVaultConfigForDirectory(vaultPath, {
+    writePath: vaultPath,
+    readPaths: []
+  })
+}
 
 // Track IPC broadcasts
 interface BroadcastCall {
@@ -43,7 +55,7 @@ interface BroadcastCall {
 // State for mocks
 let broadcastCalls: BroadcastCall[] = []
 let mockMainWindow: {
-  readonly webContents: { readonly send: (channel: string, data: unknown) => void }
+  readonly webContents: { readonly send: (channel: string, data: unknown) => void; readonly isDestroyed: () => boolean }
   readonly isDestroyed: () => boolean
 }
 
@@ -98,6 +110,9 @@ describe('Multi-Vault Path Allowlist (7.1)', () => {
     setGraph(createEmptyGraph())
     clearVaultPath()
 
+    // Pre-seed vault config so loadFolder uses testVaultPath1 directly
+    await preseedVaultConfig(testVaultPath1)
+
     // Reset broadcast tracking
     broadcastCalls = []
 
@@ -106,7 +121,8 @@ describe('Multi-Vault Path Allowlist (7.1)', () => {
       webContents: {
         send: vi.fn((channel: string, data: unknown) => {
           broadcastCalls.push({ channel, delta: data as GraphDelta })
-        })
+        }),
+        isDestroyed: vi.fn(() => false)
       },
       isDestroyed: vi.fn(() => false)
     }
@@ -229,6 +245,9 @@ describe('Default Write Path (7.2)', () => {
     setGraph(createEmptyGraph())
     clearVaultPath()
 
+    // Pre-seed vault config so loadFolder uses testVaultPath1 directly
+    await preseedVaultConfig(testVaultPath1)
+
     // Reset broadcast tracking
     broadcastCalls = []
 
@@ -237,7 +256,8 @@ describe('Default Write Path (7.2)', () => {
       webContents: {
         send: vi.fn((channel: string, data: unknown) => {
           broadcastCalls.push({ channel, delta: data as GraphDelta })
-        })
+        }),
+        isDestroyed: vi.fn(() => false)
       },
       isDestroyed: vi.fn(() => false)
     }
@@ -329,6 +349,9 @@ describe('Remove Vault Path from Allowlist', () => {
     setGraph(createEmptyGraph())
     clearVaultPath()
 
+    // Pre-seed vault config so loadFolder uses testVaultPath1 directly
+    await preseedVaultConfig(testVaultPath1)
+
     // Reset broadcast tracking
     broadcastCalls = []
 
@@ -337,7 +360,8 @@ describe('Remove Vault Path from Allowlist', () => {
       webContents: {
         send: vi.fn((channel: string, data: unknown) => {
           broadcastCalls.push({ channel, delta: data as GraphDelta })
-        })
+        }),
+        isDestroyed: vi.fn(() => false)
       },
       isDestroyed: vi.fn(() => false)
     }
@@ -421,6 +445,9 @@ describe('Two-Tier Configuration (7.3)', () => {
     setGraph(createEmptyGraph())
     clearVaultPath()
 
+    // Pre-seed vault config so loadFolder uses testVaultPath1 directly
+    await preseedVaultConfig(testVaultPath1)
+
     // Reset broadcast tracking
     broadcastCalls = []
 
@@ -429,7 +456,8 @@ describe('Two-Tier Configuration (7.3)', () => {
       webContents: {
         send: vi.fn((channel: string, data: unknown) => {
           broadcastCalls.push({ channel, delta: data as GraphDelta })
-        })
+        }),
+        isDestroyed: vi.fn(() => false)
       },
       isDestroyed: vi.fn(() => false)
     }
@@ -477,6 +505,7 @@ describe('Two-Tier Configuration (7.3)', () => {
 
       await fs.mkdir(projectBVault, { recursive: true })
       await fs.writeFile(path.join(projectBVault, 'test.md'), '# Test')
+      await preseedVaultConfig(projectBVault)
 
       // WHEN: Load project A and add custom path
       await loadFolder(projectAVault)
@@ -516,6 +545,9 @@ describe('File Write Bug Fix (7.5)', () => {
     setGraph(createEmptyGraph())
     clearVaultPath()
 
+    // Pre-seed vault config so loadFolder uses testVaultPath1 directly
+    await preseedVaultConfig(testVaultPath1)
+
     // Reset broadcast tracking
     broadcastCalls = []
 
@@ -524,7 +556,8 @@ describe('File Write Bug Fix (7.5)', () => {
       webContents: {
         send: vi.fn((channel: string, data: unknown) => {
           broadcastCalls.push({ channel, delta: data as GraphDelta })
-        })
+        }),
+        isDestroyed: vi.fn(() => false)
       },
       isDestroyed: vi.fn(() => false)
     }
@@ -592,6 +625,9 @@ describe('Fallback Behavior - getVaultPath vs getWritePath', () => {
     setGraph(createEmptyGraph())
     clearVaultPath()
 
+    // Pre-seed vault config so loadFolder uses testVaultPath1 directly
+    await preseedVaultConfig(testVaultPath1)
+
     // Reset broadcast tracking
     broadcastCalls = []
 
@@ -600,7 +636,8 @@ describe('Fallback Behavior - getVaultPath vs getWritePath', () => {
       webContents: {
         send: vi.fn((channel: string, data: unknown) => {
           broadcastCalls.push({ channel, delta: data as GraphDelta })
-        })
+        }),
+        isDestroyed: vi.fn(() => false)
       },
       isDestroyed: vi.fn(() => false)
     }
@@ -698,6 +735,9 @@ describe('Auto-load files when adding new vault path', () => {
     setGraph(createEmptyGraph())
     clearVaultPath()
 
+    // Pre-seed vault config so loadFolder uses testVaultPath1 directly
+    await preseedVaultConfig(testVaultPath1)
+
     // Reset broadcast tracking
     broadcastCalls = []
 
@@ -706,7 +746,8 @@ describe('Auto-load files when adding new vault path', () => {
       webContents: {
         send: vi.fn((channel: string, data: unknown) => {
           broadcastCalls.push({ channel, delta: data as GraphDelta })
-        })
+        }),
+        isDestroyed: vi.fn(() => false)
       },
       isDestroyed: vi.fn(() => false)
     }
@@ -776,6 +817,9 @@ describe('Vault path removal persistence across reload (BUG REGRESSION TEST)', (
     setGraph(createEmptyGraph())
     clearVaultPath()
 
+    // Pre-seed vault config so loadFolder uses testVaultPath1 directly
+    await preseedVaultConfig(testVaultPath1)
+
     // Reset broadcast tracking
     broadcastCalls = []
 
@@ -784,7 +828,8 @@ describe('Vault path removal persistence across reload (BUG REGRESSION TEST)', (
       webContents: {
         send: vi.fn((channel: string, data: unknown) => {
           broadcastCalls.push({ channel, delta: data as GraphDelta })
-        })
+        }),
+        isDestroyed: vi.fn(() => false)
       },
       isDestroyed: vi.fn(() => false)
     }
@@ -888,6 +933,9 @@ describe('Vault path removal should delete nodes from graph (BUG REGRESSION TEST
     setGraph(createEmptyGraph())
     clearVaultPath()
 
+    // Pre-seed vault config so loadFolder uses testVaultPath1 directly
+    await preseedVaultConfig(testVaultPath1)
+
     // Reset broadcast tracking
     broadcastCalls = []
 
@@ -896,7 +944,8 @@ describe('Vault path removal should delete nodes from graph (BUG REGRESSION TEST
       webContents: {
         send: vi.fn((channel: string, data: unknown) => {
           broadcastCalls.push({ channel, delta: data as GraphDelta })
-        })
+        }),
+        isDestroyed: vi.fn(() => false)
       },
       isDestroyed: vi.fn(() => false)
     }
@@ -953,6 +1002,9 @@ describe('VaultConfig uses writePath (renamed from defaultWritePath)', () => {
     setGraph(createEmptyGraph())
     clearVaultPath()
 
+    // Pre-seed vault config so loadFolder uses testVaultPath1 directly
+    await preseedVaultConfig(testVaultPath1)
+
     // Reset broadcast tracking
     broadcastCalls = []
 
@@ -961,7 +1013,8 @@ describe('VaultConfig uses writePath (renamed from defaultWritePath)', () => {
       webContents: {
         send: vi.fn((channel: string, data: unknown) => {
           broadcastCalls.push({ channel, delta: data as GraphDelta })
-        })
+        }),
+        isDestroyed: vi.fn(() => false)
       },
       isDestroyed: vi.fn(() => false)
     }

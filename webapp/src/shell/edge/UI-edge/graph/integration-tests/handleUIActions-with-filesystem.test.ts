@@ -69,9 +69,9 @@ vi.mock('posthog-js', () => ({
     }
 }))
 
-// Mock AgentTabsBar
-vi.mock('@/shell/UI/views/AgentTabsBar', async () => {
-    const actual: typeof import('@/shell/UI/views/treeStyleTerminalTabs/AgentTabsBar') = await vi.importActual('@/shell/UI/views/AgentTabsBar')
+// Mock agentTabsActivity
+vi.mock('@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity')>()
     return {
         ...actual,
         markTerminalActivityForContextNode: vi.fn()
@@ -104,8 +104,8 @@ vi.mock('@/shell/edge/main/state/watch-folder-store', () => {
     return {
         getWatcher: vi.fn(() => null),
         setWatcher: vi.fn(),
-        getWatchedDirectory: () => tempVault || null,
-        setWatchedDirectory: vi.fn(),
+        getProjectRootWatchedDirectory: () => tempVault || null,
+        setProjectRootWatchedDirectory: vi.fn(),
         getStartupFolderOverride: vi.fn(() => null),
         setStartupFolderOverride: vi.fn(),
         getOnFolderSwitchCleanup: vi.fn(() => null),

@@ -129,7 +129,7 @@ describe('createContextNode - Integration Tests', () => {
         expect(fileContent).toContain('Context')
 
         // Should have heading for context graph
-        expect(fileContent).toContain('# Agent Context')
+        expect(fileContent).toContain('# ctx')
 
         // Should have ASCII tree visualization in code block
         expect(fileContent).toContain('```')
@@ -154,7 +154,7 @@ describe('createContextNode - Integration Tests', () => {
         const fileContent: string = await fs.readFile(contextFilePath, 'utf-8')
 
         // Should contain information about the parent node
-        expect(fileContent).toContain('Voicetree')
+        expect(fileContent).toContain('VoiceTree')
 
         // Should have node details wrapped in XML-style tags
         expect(fileContent).toMatch(/<[^>]+>/)
@@ -181,7 +181,7 @@ describe('createContextNode - Integration Tests', () => {
       // AND: Context node should have the parent node as a connection
       const contextNode: GraphNode = reloadedGraph.nodes[contextNodeId]
       expect(contextNode).toBeDefined()
-      expect(contextNode.contentWithoutYamlOrLinks).toContain('Context')
+      expect(contextNode.contentWithoutYamlOrLinks).toContain('ctx')
     })
   })
 
@@ -337,9 +337,8 @@ describe('createContextNode - Integration Tests', () => {
         // Write full content to temp file for inspection
         await fs.writeFile('/tmp/context-node-test-output.md', contextFileContent, 'utf-8')
 
-        // Context node should have exactly ONE wikilink (bidirectional edge to parent)
-        // This prevents race conditions where parent -> context edge might not render
-        expect(wikilinkCount).toBe(1)
+        // Context node is orphaned (no wikilinks) - terminal shadow connects to it
+        expect(wikilinkCount).toBe(0)
       }
 
       // THEN: Reload graph to get the context node
@@ -371,23 +370,22 @@ describe('createContextNode - Integration Tests', () => {
       })
       console.log('='.repeat(80) + '\n')
 
-      // BUG ASSERTION: Should have exactly ONE edge, not one per subgraph node
-      expect(edgesToContextNode.length).toBe(1)
+      // Context node is orphaned - parent has no wikilink edge to context node
+      // Terminal shadow creates the cytoscape edge at runtime
+      expect(edgesToContextNode.length).toBe(0)
 
-      // ALSO VERIFY: Context node should have exactly ONE incoming edge (from parent)
+      // ALSO VERIFY: Context node has ZERO incoming edges (orphaned)
       const incomingEdgesCount: number = (Object.values(reloadedGraph.nodes) as GraphNode[]).filter((node: GraphNode) =>
         node.outgoingEdges.some((edge: Edge) => edge.targetId === contextNodeId)
       ).length
 
       console.log(`Incoming edges to context node: ${incomingEdgesCount}`)
-      expect(incomingEdgesCount).toBe(1)
+      expect(incomingEdgesCount).toBe(0)
 
-      // ALSO VERIFY: Context node itself should have ZERO outgoing edges
-      // It should have exactly ONE outgoing edge - the bidirectional link to the parent node
+      // ALSO VERIFY: Context node should have ZERO outgoing edges (orphaned)
+      // Terminal shadow node creates the edge to parent, not a wikilink
       const contextNodeInReloaded: GraphNode = reloadedGraph.nodes[contextNodeId]
-      expect(contextNodeInReloaded.outgoingEdges.length).toBe(1)
-      // Verify the single edge points to the parent
-      expect(contextNodeInReloaded.outgoingEdges[0].targetId).toBe(parentNodeId)
+      expect(contextNodeInReloaded.outgoingEdges.length).toBe(0)
     })
   })
 })

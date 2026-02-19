@@ -30,24 +30,26 @@ describe('findBestPosition', () => {
     });
 
     describe('single obstacle blocking desired angle', () => {
-        it('should avoid an obstacle at the desired angle and pick the closest hex direction', () => {
+        it('should avoid an obstacle at the desired angle and pick the closest hex direction at 1.5×', () => {
             // Obstacle at (250, 0) blocking the right direction (0°) at base distance
             const obstacle: ObstacleBBox = { x1: 200, x2: 300, y1: -30, y2: 30 };
             const result: Position = findBestPosition(parentPos, 0, distance, smallTarget, [obstacle]);
             // Should NOT be at (250, 0) since that overlaps
             expect(result.x !== 250 || result.y !== 0).toBe(true);
-            // Closest hex to 0° at base distance is 60° (125, 216.5) or 300° (125, -216.5)
-            // Both are equidistant from 0°; sort is stable so 60° wins (listed first)
-            expect(result.y).toBeGreaterThan(0);
+            // Base distance hex is skipped; at 1.5× (375), 0° direction (375, 0) clears the obstacle
+            // bbox [300, -20, 450, 20] vs obstacle [200, -30, 300, 30] — no overlap (300 is not < 300)
+            expect(result.x).toBeCloseTo(375);
+            expect(result.y).toBeCloseTo(0);
         });
 
-        it('should prefer the closest hex direction to the desired angle', () => {
+        it('should prefer the closest hex direction to the desired angle at 1.5×', () => {
             // Obstacle blocking a wide area around right (0°) including 60° and 300° hex dirs at base distance
             const obstacle: ObstacleBBox = { x1: 50, x2: 300, y1: -250, y2: 250 };
             const result: Position = findBestPosition(parentPos, 10, distance, smallTarget, [obstacle]);
-            // Right (250,0), 60° (125,216.5), 300° (125,-216.5) all blocked by obstacle
-            // Closest unblocked to 10° is 120° (-125, 216.5) — y > 0
-            expect(result.y).toBeGreaterThan(0);
+            // At 1.5× (375), 0° direction (375, 0) bbox [300, -20, 450, 20] clears the obstacle [50, -250, 300, 250]
+            // Closest to desired 10° is 0° direction
+            expect(result.x).toBeCloseTo(375);
+            expect(result.y).toBeCloseTo(0);
         });
     });
 
@@ -63,15 +65,15 @@ describe('findBestPosition', () => {
             expect(result.y).toBeCloseTo(0);
         });
 
-        it('should try 3.5× distance when 1.5× is blocked', () => {
+        it('should try 2.5× distance when 1.5× is blocked', () => {
             // Large obstacle covering all hex positions at 1× (250) and 1.5× (375)
-            // but not 3.5× (875) — furthest 1.5× hex is at ~375px from center
+            // but not 2.5× (625) — furthest 1.5× hex is at ~375px from center
             const obstacles: readonly ObstacleBBox[] = [
                 { x1: -460, x2: 460, y1: -360, y2: 360 },
             ];
             const result: Position = findBestPosition(parentPos, 0, distance, smallTarget, obstacles);
-            // At 3.5× (875), right direction (875, 0) clears the obstacle
-            expect(result.x).toBeCloseTo(875);
+            // At 2.5× (625), right direction (625, 0) clears the obstacle
+            expect(result.x).toBeCloseTo(625);
             expect(result.y).toBeCloseTo(0);
         });
 

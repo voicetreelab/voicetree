@@ -6,9 +6,10 @@
  * During layout instability (e.g. WebGL context loss cascade), the container can
  * momentarily report smaller dimensions, which cy.resize() locks in permanently.
  *
+ * Uses window.outerWidth/outerHeight (full BrowserWindow dimensions) as the reference
+ * rather than innerWidth/innerHeight, so DevTools docking doesn't fool the guard.
  * The guard blocks resize when the container is smaller than 95% of the expected
- * available area (viewport minus sidebar and chrome), which catches spurious shrinks
- * while allowing legitimate window resizes.
+ * available area (window minus sidebar and chrome).
  */
 import type {Core} from 'cytoscape';
 
@@ -27,23 +28,26 @@ export function guardCytoscapeResize(cy: Core): void {
 
     cy.resize = (): Core => {
         const container: HTMLElement | undefined = cy.container() ?? undefined;
+        if (!container) console.warn('[guardCytoscapeResize] cy.container() is null, skipping guard');
         if (container) {
             const {clientWidth, clientHeight} = container;
-            const screenW: number = window.innerWidth;
-            const screenH: number = window.innerHeight;
+            // Use outerWidth/outerHeight (full BrowserWindow) so DevTools panel
+            // doesn't shrink the reference frame and let bad resizes through
+            const windowW: number = window.outerWidth;
+            const windowH: number = window.outerHeight;
 
             // Account for the terminal tree sidebar if visible
             const sidebar: Element | null = document.querySelector('.terminal-tree-sidebar');
             const sidebarWidth: number = sidebar instanceof HTMLElement ? sidebar.clientWidth : 0;
 
-            const expectedWidth: number = (screenW - sidebarWidth) * RESIZE_THRESHOLD;
-            const expectedHeight: number = (screenH - CHROME_HEIGHT_PX) * RESIZE_THRESHOLD;
+            const expectedWidth: number = (windowW - sidebarWidth) * RESIZE_THRESHOLD;
+            const expectedHeight: number = (windowH - CHROME_HEIGHT_PX) * RESIZE_THRESHOLD;
 
             if (clientWidth < expectedWidth || clientHeight < expectedHeight) {
                 console.warn(
                     `[guardCytoscapeResize] Blocked resize to ${clientWidth}x${clientHeight} `
                     + `(expected ≥${Math.round(expectedWidth)}x${Math.round(expectedHeight)}, `
-                    + `screen: ${screenW}x${screenH}, sidebar: ${sidebarWidth}px)`
+                    + `window: ${windowW}x${windowH}, inner: ${window.innerWidth}x${window.innerHeight}, sidebar: ${sidebarWidth}px)`
                 );
                 return cy;
             }
@@ -57,7 +61,9 @@ export function guardCytoscapeResize(cy: Core): void {
         const heightAfter: number = cy.height();
         if (widthBefore !== widthAfter || heightBefore !== heightAfter) {
             console.warn(
-                `[guardCytoscapeResize] Resize changed dimensions: ${widthBefore}x${heightBefore} → ${widthAfter}x${heightAfter}, zoom: ${zoomBefore} → ${zoomAfter}`
+                `[guardCytoscapeResize] Resize changed dimensions: ${widthBefore}x${heightBefore} → ${widthAfter}x${heightAfter}, `
+                + `zoom: ${zoomBefore} → ${zoomAfter}, `
+                + `outer=${window.outerWidth}x${window.outerHeight}, inner=${window.innerWidth}x${window.innerHeight}`
             );
         }
         return result;

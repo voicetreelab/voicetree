@@ -54,6 +54,11 @@ describe('settings', () => {
       defaultAllowlistPatterns: ['openspec'],
       darkMode: true,
       zoomSensitivity: 2.0,
+      autoNotifyUnseenNodes: false,
+      nodeLineLimit: 70,
+      starredFolders: [],
+      hooks: DEFAULT_SETTINGS.hooks,
+      layoutConfig: DEFAULT_SETTINGS.layoutConfig,
     };
 
     await saveSettings(customSettings);
