@@ -209,7 +209,20 @@ One node = one concept. If your work covers multiple independent concerns, creat
 
 **Node wiring:** Each node has a \`filename\` (with or without .md extension). Use \`parents\` (array) to reference other nodes' filenames — all parents are created before children. Nodes without \`parents\` attach to the top-level \`parentNodeId\` (or your task node by default). Diamond dependencies are supported: \`"parents": ["phase1", "phase2"]\`.
 
-**Line limit:** Each node is limited to 60 lines (excluding codeDiffs and diagram). Nodes exceeding this limit block creation — split further.`,
+**Line limit:** Each node is limited to 60 lines (excluding codeDiffs and diagram). Nodes exceeding this limit block creation — split into a TREE that mirrors your content's conceptual structure, not a linear chain.
+
+Split by concern:
+Task: Review git diff
+├── Review: Collision-aware positioning refactor
+└── Review: Prompt template cleanup
+
+Split by phase + option:
+Task
+├── High-level architecture
+│   ├── Option A: Event-driven
+│   └── Option B: Request-response
+├── Data types
+└── Pure functions`,
             inputSchema: {
                 callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),
                 parentNodeId: z.string().optional().describe('Existing graph node ID to attach root nodes to. Defaults to your task node.'),
