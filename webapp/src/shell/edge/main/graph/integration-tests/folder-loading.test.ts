@@ -33,6 +33,7 @@ import { promises as fs } from 'fs'
 import type { BrowserWindow } from 'electron'
 import { EXAMPLE_SMALL_PATH, EXAMPLE_LARGE_PATH } from '@/utils/test-utils/fixture-paths'
 import { clearRecentDeltas } from '@/shell/edge/main/state/recent-deltas-store'
+import { waitForCondition } from '@/utils/test-utils/waitForCondition'
 
 // Track IPC broadcasts
 interface BroadcastCall {
@@ -149,11 +150,15 @@ describe('Folder Loading - Integration Tests', () => {
       })
 
       // AND: Should broadcast delta to UI-edge (clear, stateChanged, watching-started)
-      expect(broadcastCalls.length).toBe(3)
-      expect(broadcastCalls[0].channel).toBe('graph:clear')
-      expect(broadcastCalls[1].channel).toBe('graph:stateChanged')
-      expect(broadcastCalls[1].delta).toBeDefined()
-      expect(broadcastCalls[2].channel).toBe('watching-started')
+      // Filter for graph-specific channels (ignoring ui:call from settings/vault state)
+      const graphBroadcasts: BroadcastCall[] = broadcastCalls.filter(c =>
+        ['graph:clear', 'graph:stateChanged', 'watching-started'].includes(c.channel)
+      )
+      expect(graphBroadcasts.length).toBe(3)
+      expect(graphBroadcasts[0].channel).toBe('graph:clear')
+      expect(graphBroadcasts[1].channel).toBe('graph:stateChanged')
+      expect(graphBroadcasts[1].delta).toBeDefined()
+      expect(graphBroadcasts[2].channel).toBe('watching-started')
     })
 
     it('should load example_real_large and populate graph with correct node count', async () => {
@@ -175,10 +180,14 @@ describe('Folder Loading - Integration Tests', () => {
       })
 
       // AND: Should broadcast delta to UI-edge (clear, stateChanged, watching-started)
-      expect(broadcastCalls.length).toBe(3)
-      expect(broadcastCalls[0].channel).toBe('graph:clear')
-      expect(broadcastCalls[1].channel).toBe('graph:stateChanged')
-      expect(broadcastCalls[2].channel).toBe('watching-started')
+      // Filter for graph-specific channels (ignoring ui:call from settings/vault state)
+      const graphBroadcasts: BroadcastCall[] = broadcastCalls.filter(c =>
+        ['graph:clear', 'graph:stateChanged', 'watching-started'].includes(c.channel)
+      )
+      expect(graphBroadcasts.length).toBe(3)
+      expect(graphBroadcasts[0].channel).toBe('graph:clear')
+      expect(graphBroadcasts[1].channel).toBe('graph:stateChanged')
+      expect(graphBroadcasts[2].channel).toBe('watching-started')
     })
   })
 
@@ -260,8 +269,11 @@ describe('Folder Loading - Integration Tests', () => {
 
       handleFSEventWithStateAndUISides(addEvent, EXAMPLE_SMALL_PATH, mockMainWindow as unknown as BrowserWindow)
 
-      // Wait for async broadcast to complete (handleFSEvent uses void fire-and-forget)
-      await new Promise(resolve => setTimeout(resolve, 0))
+      // Wait for async applyAndBroadcast to complete (involves FS I/O for wikilink resolution)
+      await waitForCondition(
+        () => !!getGraph().nodes[testFilePath],
+        { maxWaitMs: 2000, errorMessage: 'test-new-file node not added to graph via handleFSEvent' }
+      )
 
       // Verify the node was added to the graph - node IDs are now absolute paths
       const graphAfterAdd: Graph = getGraph()
@@ -301,8 +313,11 @@ describe('Folder Loading - Integration Tests', () => {
 
       handleFSEventWithStateAndUISides(deleteEvent, EXAMPLE_SMALL_PATH, mockMainWindow as unknown as BrowserWindow)
 
-      // Wait for async broadcast to complete (handleFSEvent uses void fire-and-forget)
-      await new Promise(resolve => setTimeout(resolve, 0))
+      // Wait for async applyAndBroadcast to complete
+      await waitForCondition(
+        () => !getGraph().nodes[testFilePath],
+        { maxWaitMs: 2000, errorMessage: 'test-new-file node not removed from graph via handleFSEvent' }
+      )
 
       // Verify the node was removed from the graph - node IDs are absolute paths
       const graphAfterDelete: Graph = getGraph()
@@ -357,9 +372,9 @@ describe('Folder Loading - Integration Tests', () => {
         .filter(node => node.outgoingEdges.length > 0).length
       expect(finalEdgesCount).toBeGreaterThan(0)
 
-      // Verify all broadcasts used valid channels
+      // Verify all broadcasts used valid channels (includes ui:call from settings/vault state)
       broadcastCalls.forEach(call => {
-        expect(['graph:stateChanged', 'graph:clear', 'watching-started']).toContain(call.channel)
+        expect(['graph:stateChanged', 'graph:clear', 'watching-started', 'ui:call']).toContain(call.channel)
         if (call.channel === 'graph:stateChanged') {
           expect(Array.isArray(call.delta)).toBe(true)
         }
@@ -399,8 +414,11 @@ describe('Folder Loading - Integration Tests', () => {
 
       handleFSEventWithStateAndUISides(addEvent, EXAMPLE_SMALL_PATH, mockMainWindow as unknown as BrowserWindow)
 
-      // Wait for async broadcast to complete (handleFSEvent uses void fire-and-forget)
-      await new Promise(resolve => setTimeout(resolve, 0))
+      // Wait for async applyAndBroadcast to complete (involves FS I/O for wikilink resolution)
+      await waitForCondition(
+        () => !!getGraph().nodes[newFilePath],
+        { maxWaitMs: 2000, errorMessage: 'test-new-file node not added to graph via handleFSEvent' }
+      )
 
       // THEN: Graph should contain the new node - node IDs are absolute paths
       const graph: Graph = getGraph()
@@ -431,8 +449,11 @@ describe('Folder Loading - Integration Tests', () => {
 
       handleFSEventWithStateAndUISides(deleteEvent, EXAMPLE_SMALL_PATH, mockMainWindow as unknown as BrowserWindow)
 
-      // Wait for async broadcast to complete (handleFSEvent uses void fire-and-forget)
-      await new Promise(resolve => setTimeout(resolve, 0))
+      // Wait for async applyAndBroadcast to complete
+      await waitForCondition(
+        () => !getGraph().nodes[newFilePath],
+        { maxWaitMs: 2000, errorMessage: 'test-new-file node not removed from graph via handleFSEvent' }
+      )
 
       // THEN: GraphNode should be removed from graph - node IDs are absolute paths
       const graphAfterDelete: Graph = getGraph()
@@ -457,12 +478,16 @@ describe('Folder Loading - Integration Tests', () => {
       // WHEN: Load directory
       await loadFolder(EXAMPLE_SMALL_PATH)
 
-      // THEN: Should have broadcast 3 times (clear + stateChanged + watching-started)
-      expect(broadcastCalls.length).toBe(3)
+      // THEN: Should have broadcast graph-specific channels (clear + stateChanged + watching-started)
+      // Additional ui:call broadcasts may come from settings/vault state updates
+      const graphBroadcasts: BroadcastCall[] = broadcastCalls.filter(c =>
+        ['graph:clear', 'graph:stateChanged', 'watching-started'].includes(c.channel)
+      )
+      expect(graphBroadcasts.length).toBe(3)
 
-      const clearBroadcast: BroadcastCall = broadcastCalls[0]
-      const stateChangedBroadcast: BroadcastCall = broadcastCalls[1]
-      const watchingStartedBroadcast: BroadcastCall = broadcastCalls[2]
+      const clearBroadcast: BroadcastCall = graphBroadcasts[0]
+      const stateChangedBroadcast: BroadcastCall = graphBroadcasts[1]
+      const watchingStartedBroadcast: BroadcastCall = graphBroadcasts[2]
 
       // AND: First broadcast should be graph:clear
       expect(clearBroadcast.channel).toBe('graph:clear')
@@ -492,18 +517,24 @@ describe('Folder Loading - Integration Tests', () => {
     it('should broadcast delta when switching directories', async () => {
       // GIVEN: Load first directory
       await loadFolder(EXAMPLE_SMALL_PATH)
-      expect(broadcastCalls.length).toBe(3) // clear + stateChanged + watching-started
+      const firstGraphBroadcasts: BroadcastCall[] = broadcastCalls.filter(c =>
+        ['graph:clear', 'graph:stateChanged', 'watching-started'].includes(c.channel)
+      )
+      expect(firstGraphBroadcasts.length).toBe(3) // clear + stateChanged + watching-started
 
       // WHEN: Load second directory
       await loadFolder(EXAMPLE_LARGE_PATH)
 
-      // THEN: Should have broadcast 6 times total (3 for each load: clear + stateChanged + watching-started)
-      expect(broadcastCalls.length).toBe(6)
+      // THEN: Should have 6 graph-specific broadcasts total (3 for each load)
+      const allGraphBroadcasts: BroadcastCall[] = broadcastCalls.filter(c =>
+        ['graph:clear', 'graph:stateChanged', 'watching-started'].includes(c.channel)
+      )
+      expect(allGraphBroadcasts.length).toBe(6)
 
       // Verify second load broadcasts
-      const secondClearBroadcast: BroadcastCall = broadcastCalls[3]
-      const secondStateChangedBroadcast: BroadcastCall = broadcastCalls[4]
-      const secondWatchingStartedBroadcast: BroadcastCall = broadcastCalls[5]
+      const secondClearBroadcast: BroadcastCall = allGraphBroadcasts[3]
+      const secondStateChangedBroadcast: BroadcastCall = allGraphBroadcasts[4]
+      const secondWatchingStartedBroadcast: BroadcastCall = allGraphBroadcasts[5]
       expect(secondClearBroadcast.channel).toBe('graph:clear')
       expect(secondStateChangedBroadcast.channel).toBe('graph:stateChanged')
       expect(secondWatchingStartedBroadcast.channel).toBe('watching-started')

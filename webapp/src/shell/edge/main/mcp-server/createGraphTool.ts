@@ -32,17 +32,17 @@ import {
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
 import type {VTSettings} from '@/pure/settings/types'
 
-/** A parent reference: either a plain filename string, or an object with filename + edge label. */
-export type ParentRef = string | { readonly filename: string; readonly edgeLabel: string }
+/** A parent reference: object with filename + edge label (edge label required, use "" for no label). */
+export type ParentRef = { readonly filename: string; readonly edgeLabel: string }
 
-/** Extract the filename from a ParentRef (string or object). */
+/** Extract the filename from a ParentRef. */
 function parentRefFilename(ref: ParentRef): string {
-    return typeof ref === 'string' ? ref : ref.filename
+    return ref.filename
 }
 
-/** Extract the optional edge label from a ParentRef. */
+/** Extract the edge label from a ParentRef. Returns undefined for empty strings. */
 function parentRefEdgeLabel(ref: ParentRef): string | undefined {
-    return typeof ref === 'string' ? undefined : ref.edgeLabel
+    return ref.edgeLabel || undefined
 }
 
 export interface CreateGraphNodeInput {

@@ -227,7 +227,7 @@ describe('MCP create_graph tool', () => {
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [
-                    {filename:'a', title: 'Child', summary: 'Summary', parents: ['nonexistent']}
+                    {filename:'a', title: 'Child', summary: 'Summary', parents: [{filename: 'nonexistent', edgeLabel: ''}]}
                 ]
             })
             const payload: ErrorPayload = parsePayload(response) as ErrorPayload
@@ -243,8 +243,8 @@ describe('MCP create_graph tool', () => {
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [
-                    {filename:'a', title: 'A', summary: 'S', parents: ['b']},
-                    {filename:'b', title: 'B', summary: 'S', parents: ['a']}
+                    {filename:'a', title: 'A', summary: 'S', parents: [{filename: 'b', edgeLabel: ''}]},
+                    {filename:'b', title: 'B', summary: 'S', parents: [{filename: 'a', edgeLabel: ''}]}
                 ]
             })
             const payload: ErrorPayload = parsePayload(response) as ErrorPayload
@@ -336,7 +336,7 @@ describe('MCP create_graph tool', () => {
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [
                     {filename:'a', title: 'Short', summary: 'OK.'},
-                    {filename:'b', title: 'Long', summary: 'Summary.', content: longContent, parents: ['a']}
+                    {filename:'b', title: 'Long', summary: 'Summary.', content: longContent, parents: [{filename: 'a', edgeLabel: ''}]}
                 ]
             })
             const payload: ErrorPayload = parsePayload(response) as ErrorPayload
@@ -408,8 +408,8 @@ describe('MCP create_graph tool', () => {
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [
                     {filename:'root', title: 'Root Node', summary: 'Root.'},
-                    {filename:'child1', title: 'Child One', summary: 'First child.', parents: ['root']},
-                    {filename:'child2', title: 'Child Two', summary: 'Second child.', parents: ['root']}
+                    {filename:'child1', title: 'Child One', summary: 'First child.', parents: [{filename: 'root', edgeLabel: ''}]},
+                    {filename:'child2', title: 'Child Two', summary: 'Second child.', parents: [{filename: 'root', edgeLabel: ''}]}
                 ]
             })
             const payload: SuccessPayload = parsePayload(response) as SuccessPayload
@@ -426,7 +426,7 @@ describe('MCP create_graph tool', () => {
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [
-                    {filename:'child', title: 'Child', summary: 'Child.', parents: ['parent']},
+                    {filename:'child', title: 'Child', summary: 'Child.', parents: [{filename: 'parent', edgeLabel: ''}]},
                     {filename:'parent', title: 'Parent', summary: 'Parent.'}
                 ]
             })
@@ -450,8 +450,8 @@ describe('MCP create_graph tool', () => {
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [
                     {filename:'a', title: 'Root', summary: 'Root.'},
-                    {filename:'b', title: 'Child One', summary: 'C1.', parents: ['a']},
-                    {filename:'c', title: 'Child Two', summary: 'C2.', parents: ['a']}
+                    {filename:'b', title: 'Child One', summary: 'C1.', parents: [{filename: 'a', edgeLabel: ''}]},
+                    {filename:'c', title: 'Child Two', summary: 'C2.', parents: [{filename: 'a', edgeLabel: ''}]}
                 ]
             })
 

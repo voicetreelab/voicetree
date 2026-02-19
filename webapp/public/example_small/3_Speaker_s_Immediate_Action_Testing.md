@@ -1,6 +1,9 @@
 ---
+position:
+  x: 33945
+  y: -2769
+isContextNode: false
 node_id: 3
-title: Speaker's Immediate Action/Testing (3)
 ---
 ### Speaker performs immediate audio tests, repeating phrases like "testing one, two, three" and "hello."
 

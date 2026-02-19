@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VoiceTree — Node Card Redesign Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ── CSS Variables (VoiceTree dark theme) ───────────────── */
+  :root {
+    --card: oklch(0.22 0 0);
+    --card-hover: oklch(0.245 0 0);
+    --border: oklch(1 0 0 / 8%);
+    --border-hover: oklch(1 0 0 / 15%);
+    --border-active: oklch(1 0 0 / 28%);
+    --foreground: oklch(0.88 0 0);
+    --muted: oklch(0.30 0 0);
+    --muted-foreground: oklch(0.65 0 0);
+    --background: oklch(0.175 0 0);
+    --accent-blue: #4a9eff;
+    --accent-green: #4ade80;
+    --accent-amber: #fb923c;
+    --accent-purple: #a78bfa;
+    --accent-cyan: #22d3ee;
+    --accent-rose: #fb7185;
+    --tl-close: #ff5f57;
+    --tl-pin: #febc2e;
+    --tl-full: #28c840;
+    --edge-color: oklch(1 0 0 / 18%);
+    --edge-hover: oklch(1 0 0 / 45%);
+    --font-mono: 'Fira Code', 'Cascadia Code', monospace;
+    --font-ui: 'Geist', 'SF Pro Display', system-ui, sans-serif;
+    --radius: 6px;
+    --shadow-minimal: 0 1px 3px rgba(0,0,0,0.25), 0 1px 2px rgba(0,0,0,0.15);
+    --shadow-hover: 0 4px 12px rgba(0,0,0,0.35), 0 2px 6px rgba(0,0,0,0.2);
+    --shadow-active: 0 8px 32px rgba(0,0,0,0.5), 0 4px 16px rgba(0,0,0,0.3);
+    --transition-fast: 0.12s ease;
+    --transition-med: 0.2s ease;
+  }
+
+  /* ── Reset & Base ────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-ui);
+    font-size: 13px;
+    overflow: hidden;
+    height: 100vh;
+    user-select: none;
+  }
+
+  /* ── Canvas ──────────────────────────────────────────────── */
+  #canvas-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    cursor: grab;
+  }
+  #canvas-container.dragging { cursor: grabbing; }
+
+  #canvas {
+    position: absolute;
+    width: 3000px;
+    height: 3000px;
+    top: 0; left: 0;
+    transform-origin: 0 0;
+  }
+
+  /* Subtle dot-grid on canvas */
+  #canvas::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle, oklch(1 0 0 / 5%) 1px, transparent 1px);
+    background-size: 28px 28px;
+    pointer-events: none;
+  }
+
+  /* ── SVG Edges ───────────────────────────────────────────── */
+  #edges-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: visible;
+  }
+
+  .edge-path {
+    stroke: var(--edge-color);
+    stroke-width: 1.5;
+    fill: none;
+    transition: stroke 0.15s ease, stroke-width 0.15s ease;
+    marker-end: url(#arrow-default);
+  }
+  .edge-path.highlighted {
+    stroke: var(--edge-hover);
+    stroke-width: 2;
+    marker-end: url(#arrow-hover);
+  }
+
+  /* ── Node Cards ──────────────────────────────────────────── */
+  .node-card {
+    position: absolute;
+    width: 260px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-minimal);
+    transition:
+      border-color var(--transition-fast),
+      box-shadow var(--transition-fast),
+      background var(--transition-fast),
+      width var(--transition-med),
+      height var(--transition-med);
+    cursor: pointer;
+    overflow: hidden;
+  }
+
+  /* Left accent bar */
+  .node-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 2px;
+    background: var(--accent-color, var(--accent-blue));
+    transition: opacity var(--transition-fast);
+    z-index: 1;
+  }
+
+  /* Minimal state */
+  .node-card .card-minimal {
+    padding: 10px 12px 10px 14px;
+    min-height: 72px;
+  }
+
+  .node-card .card-title {
+    font-family: var(--font-ui);
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--foreground);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 5px;
+    letter-spacing: -0.01em;
+  }
+
+  .node-card .card-preview {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--muted-foreground);
+    line-height: 1.55;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Traffic light buttons (minimal state: top-right, fade in on hover) */
+  .node-card .traffic-lights {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: 5px;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+    pointer-events: none;
+  }
+  .tl-btn {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: filter 0.1s ease, transform 0.1s ease;
+  }
+  .tl-btn:hover { filter: brightness(1.3); transform: scale(1.15); }
+  .tl-btn.close { background: var(--tl-close); }
+  .tl-btn.pin   { background: var(--tl-pin); }
+  .tl-btn.full  { background: var(--tl-full); }
+
+  /* Hover state */
+  .node-card:hover,
+  .node-card.hovered {
+    border-color: var(--border-hover);
+    box-shadow: var(--shadow-hover);
+    background: var(--card-hover);
+  }
+  .node-card:hover .traffic-lights,
+  .node-card.hovered .traffic-lights {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Active/Full state */
+  .node-card.active {
+    width: 400px;
+    border-color: var(--border-active);
+    box-shadow: var(--shadow-active);
+    cursor: default;
+    z-index: 100;
+  }
+
+  .node-card.active .card-minimal {
+    display: none;
+  }
+
+  .node-card .card-full {
+    display: none;
+    flex-direction: column;
+    height: 100%;
+  }
+  .node-card.active .card-full {
+    display: flex;
+  }
+
+  /* Full state: titlebar (draggable) */
+  .card-titlebar {
+    display: flex;
+    align-items: center;
+    padding: 7px 10px 7px 14px;
+    border-bottom: 1px solid var(--border);
+    cursor: grab;
+    flex-shrink: 0;
+    gap: 8px;
+  }
+  .card-titlebar:active { cursor: grabbing; }
+
+  .card-titlebar-title {
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--foreground);
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: -0.01em;
+  }
+
+  .traffic-lights-inline {
+    display: flex;
+    gap: 5px;
+    flex-shrink: 0;
+  }
+
+  /* Full state: editor body */
+  .card-editor {
+    flex: 1;
+    padding: 10px 12px 10px 14px;
+    overflow-y: auto;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.7;
+    color: var(--muted-foreground);
+    min-height: 200px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--muted) transparent;
+  }
+
+  .card-line {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .line-number {
+    color: oklch(0.42 0 0);
+    min-width: 20px;
+    text-align: right;
+    font-size: 10px;
+    flex-shrink: 0;
+    padding-top: 1px;
+    font-variant-numeric: tabular-nums;
+  }
+  .line-content {
+    flex: 1;
+    word-break: break-word;
+  }
+  .line-content.heading {
+    color: var(--foreground);
+    font-weight: 500;
+    font-size: 12px;
+  }
+  .token-keyword { color: var(--accent-purple); }
+  .token-string  { color: var(--accent-green); }
+  .token-num     { color: var(--accent-amber); }
+  .token-comment { color: oklch(0.48 0 0); font-style: italic; }
+
+  /* Resize handle */
+  .card-resize-handle {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 14px;
+    height: 14px;
+    cursor: se-resize;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    padding: 2px;
+  }
+  .node-card.active .card-resize-handle { opacity: 0.4; }
+  .node-card.active .card-resize-handle:hover { opacity: 0.9; }
+
+  /* Anchored indicator */
+  .node-card.anchored::after {
+    content: 'anchored';
+    position: absolute;
+    top: -19px;
+    left: 12px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--accent-cyan);
+    letter-spacing: 0.08em;
+    opacity: 0.75;
+    pointer-events: none;
+  }
+
+  /* Cyan pin dot (visible in full titlebar when anchored) */
+  .pin-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent-cyan);
+    box-shadow: 0 0 6px var(--accent-cyan);
+    flex-shrink: 0;
+    display: none;
+  }
+  .node-card.anchored .pin-dot { display: block; }
+
+  /* State badge (below card) */
+  .state-badge {
+    position: absolute;
+    bottom: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: oklch(0.48 0 0);
+    white-space: nowrap;
+    letter-spacing: 0.06em;
+    pointer-events: none;
+    transition: color 0.15s ease;
+  }
+  .node-card:hover .state-badge,
+  .node-card.hovered .state-badge { color: oklch(0.6 0 0); }
+  .node-card.active .state-badge  { color: var(--accent-blue); }
+
+  /* ── Controls Bar ─────────────────────────────────────────── */
+  #controls {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: oklch(0.20 0 0 / 92%);
+    border: 1px solid var(--border-hover);
+    border-radius: 100px;
+    padding: 8px 20px;
+    backdrop-filter: blur(12px);
+    z-index: 1000;
+    font-size: 11.5px;
+    color: var(--muted-foreground);
+  }
+
+  #controls label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+  }
+
+  #zoom-slider {
+    -webkit-appearance: none;
+    width: 110px;
+    height: 3px;
+    background: var(--muted);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  #zoom-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent-blue);
+    cursor: pointer;
+    transition: transform 0.1s ease;
+  }
+  #zoom-slider::-webkit-slider-thumb:hover { transform: scale(1.3); }
+
+  #zoom-value {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--accent-blue);
+    min-width: 36px;
+  }
+
+  .sep { width: 1px; height: 14px; background: var(--border-hover); }
+
+  .kbd {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    padding: 1.5px 5px;
+    background: var(--muted);
+    border: 1px solid var(--border-hover);
+    border-radius: 3px;
+    color: var(--muted-foreground);
+  }
+
+  /* ── Header ──────────────────────────────────────────────── */
+  #header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 20px;
+    background: oklch(0.175 0 0 / 85%);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(10px);
+    height: 40px;
+  }
+
+  #header-title {
+    font-size: 11.5px;
+    font-weight: 400;
+    color: var(--muted-foreground);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+  }
+  #header-title span { color: var(--accent-blue); }
+
+  #header-actions { display: flex; gap: 8px; align-items: center; }
+
+  .btn-ghost {
+    font-family: var(--font-ui);
+    font-size: 11px;
+    padding: 4px 10px;
+    background: transparent;
+    border: 1px solid var(--border-hover);
+    border-radius: 4px;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: all 0.12s ease;
+  }
+  .btn-ghost:hover {
+    background: var(--muted);
+    color: var(--foreground);
+    border-color: var(--border-active);
+  }
+  .btn-ghost.active-btn {
+    background: oklch(0.28 0.04 240);
+    color: var(--accent-blue);
+    border-color: oklch(0.45 0.08 240);
+  }
+
+  /* ── Design Rationale Side Panel ─────────────────────────── */
+  #rationale-panel {
+    position: fixed;
+    top: 40px;
+    right: 0;
+    width: 340px;
+    height: calc(100vh - 40px);
+    background: oklch(0.19 0 0 / 97%);
+    border-left: 1px solid var(--border-hover);
+    backdrop-filter: blur(16px);
+    overflow-y: auto;
+    z-index: 900;
+    padding: 24px 22px;
+    transform: translateX(100%);
+    transition: transform 0.25s cubic-bezier(0.25, 0, 0, 1);
+    scrollbar-width: thin;
+    scrollbar-color: var(--muted) transparent;
+  }
+  #rationale-panel.visible { transform: translateX(0); }
+
+  .rationale-h1 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--foreground);
+    margin-bottom: 22px;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .rationale-h1::before {
+    content: '';
+    display: inline-block;
+    width: 3px;
+    height: 14px;
+    background: var(--accent-blue);
+    border-radius: 2px;
+  }
+
+  .rationale-section {
+    margin-bottom: 22px;
+    padding-bottom: 22px;
+    border-bottom: 1px solid var(--border);
+  }
+  .rationale-section:last-child { border-bottom: none; }
+
+  .rationale-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    background: oklch(0.28 0.04 240);
+    color: var(--accent-blue);
+    font-size: 9.5px;
+    font-weight: 600;
+    border-radius: 50%;
+    font-family: var(--font-mono);
+    flex-shrink: 0;
+  }
+
+  .rationale-title {
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--foreground);
+    margin-bottom: 7px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .rationale-body {
+    font-size: 11px;
+    color: var(--muted-foreground);
+    line-height: 1.7;
+    padding-left: 26px;
+  }
+  .rationale-body strong { color: oklch(0.8 0 0); font-weight: 500; }
+
+  .state-chips {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+    padding-left: 26px;
+    flex-wrap: wrap;
+  }
+  .state-chip {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    padding: 2px 7px;
+    border-radius: 3px;
+    border: 1px solid;
+  }
+  .chip-minimal { border-color: oklch(1 0 0 / 12%); color: var(--muted-foreground); }
+  .chip-hover   { border-color: oklch(1 0 0 / 22%); color: oklch(0.78 0 0); }
+  .chip-active  { border-color: var(--accent-blue); color: var(--accent-blue); background: oklch(0.28 0.04 240 / 40%); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────── -->
+<div id="header">
+  <div id="header-title"><span>VoiceTree</span> · node-card-redesign · mockup</div>
+  <div id="header-actions">
+    <span id="zoom-header" style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted-foreground);min-width:36px;"></span>
+    <button class="btn-ghost" id="toggle-rationale">Design Rationale</button>
+    <button class="btn-ghost" id="reset-view">Reset View</button>
+  </div>
+</div>
+
+<!-- ── Main Canvas ────────────────────────────────────────── -->
+<div id="canvas-container">
+  <div id="canvas">
+
+    <!-- SVG Edges layer -->
+    <svg id="edges-svg">
+      <defs>
+        <marker id="arrow-default" markerWidth="6" markerHeight="6"
+          refX="5.5" refY="3" orient="auto">
+          <path d="M0,0.5 L0,5.5 L5.5,3 Z" fill="oklch(1 0 0 / 18%)"/>
+        </marker>
+        <marker id="arrow-hover" markerWidth="6" markerHeight="6"
+          refX="5.5" refY="3" orient="auto">
+          <path d="M0,0.5 L0,5.5 L5.5,3 Z" fill="oklch(1 0 0 / 46%)"/>
+        </marker>
+      </defs>
+    </svg>
+
+    <!-- ── Card 1: Architecture Overview (anchored, starts active) ── -->
+    <div class="node-card anchored" id="card-1"
+         style="left:100px;top:160px;--accent-color:#4a9eff;" data-id="1">
+      <div class="card-minimal">
+        <div class="card-title">Architecture Overview</div>
+        <div class="card-preview">Cytoscape.js renders circles with
+text labels below. Size scales
+with log(degree + 3).</div>
+        <div class="traffic-lights">
+          <button class="tl-btn close"></button>
+          <button class="tl-btn pin"></button>
+          <button class="tl-btn full"></button>
+        </div>
+      </div>
+      <div class="card-full">
+        <div class="card-titlebar">
+          <div class="pin-dot"></div>
+          <div class="card-titlebar-title">Architecture Overview</div>
+          <div class="traffic-lights-inline">
+            <button class="tl-btn close"></button>
+            <button class="tl-btn pin"></button>
+            <button class="tl-btn full"></button>
+          </div>
+        </div>
+        <div class="card-editor">
+          <div class="card-line"><span class="line-number">1</span><span class="line-content heading"># Architecture Overview</span></div>
+          <div class="card-line"><span class="line-number">2</span><span class="line-content"></span></div>
+          <div class="card-line"><span class="line-number">3</span><span class="line-content">Cytoscape.js renders all nodes as</span></div>
+          <div class="card-line"><span class="line-number">4</span><span class="line-content">circles with text labels below.</span></div>
+          <div class="card-line"><span class="line-number">5</span><span class="line-content"></span></div>
+          <div class="card-line"><span class="line-number">6</span><span class="line-content token-keyword">## Node Sizing</span></div>
+          <div class="card-line"><span class="line-number">7</span><span class="line-content">size = <span class="token-num">5 + 15 × log(degree + 3)</span></span></div>
+          <div class="card-line"><span class="line-number">8</span><span class="line-content token-comment">// logarithmic with degree</span></div>
+          <div class="card-line"><span class="line-number">9</span><span class="line-content"></span></div>
+          <div class="card-line"><span class="line-number">10</span><span class="line-content token-keyword">## States</span></div>
+          <div class="card-line"><span class="line-number">11</span><span class="line-content">hover · pinned · selected</span></div>
+          <div class="card-line"><span class="line-number">12</span><span class="line-content">dangling · context · terminal</span></div>
+        </div>
+      </div>
+      <div class="card-resize-handle">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+          <path d="M3 9L9 3M6 9L9 6" stroke="oklch(0.6 0 0)" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="state-badge">anchored · active</div>
+    </div>
+
+    <!-- ── Card 2: HoverEditor.ts ─────────────────────────────── -->
+    <div class="node-card" id="card-2"
+         style="left:560px;top:100px;--accent-color:#a78bfa;" data-id="2">
+      <div class="card-minimal">
+        <div class="card-title">HoverEditor.ts</div>
+        <div class="card-preview">Triggered by cy.on('mouseover')
+anchoredToNodeId = O.none
+Closes via isMouseInHoverZone()</div>
+        <div class="traffic-lights">
+          <button class="tl-btn close"></button>
+          <button class="tl-btn pin"></button>
+          <button class="tl-btn full"></button>
+        </div>
+      </div>
+      <div class="card-full">
+        <div class="card-titlebar">
+          <div class="pin-dot"></div>
+          <div class="card-titlebar-title">HoverEditor.ts</div>
+          <div class="traffic-lights-inline">
+            <button class="tl-btn close"></button>
+            <button class="tl-btn pin"></button>
+            <button class="tl-btn full"></button>
+          </div>
+        </div>
+        <div class="card-editor">
+          <div class="card-line"><span class="line-number">1</span><span class="line-content heading"># HoverEditor</span></div>
+          <div class="card-line"><span class="line-number">2</span><span class="line-content"></span></div>
+          <div class="card-line"><span class="line-number">3</span><span class="line-content">Triggered by <span class="token-string">cy.on('mouseover', 'node')</span></span></div>
+          <div class="card-line"><span class="line-number">4</span><span class="line-content">via <span class="token-keyword">setupCommandHover(cy)</span></span></div>
+          <div class="card-line"><span class="line-number">5</span><span class="line-content"></span></div>
+          <div class="card-line"><span class="line-number">6</span><span class="line-content token-comment">// 18px below node</span></div>
+          <div class="card-line"><span class="line-number">7</span><span class="line-content">anchoredToNodeId = <span class="token-keyword">O.none</span></span></div>
+          <div class="card-line"><span class="line-number">8</span><span class="line-content">closes: <span class="token-string">isMouseInHoverZone()</span></span></div>
+        </div>
+      </div>
+      <div class="card-resize-handle">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+          <path d="M3 9L9 3M6 9L9 6" stroke="oklch(0.6 0 0)" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="state-badge">minimal</div>
+    </div>
+
+    <!-- ── Card 3: EditorStore.ts ─────────────────────────────── -->
+    <div class="node-card" id="card-3"
+         style="left:560px;top:360px;--accent-color:#4ade80;" data-id="3">
+      <div class="card-minimal">
+        <div class="card-title">EditorStore.ts</div>
+        <div class="card-preview">editors: Map&lt;EditorId, EditorData&gt;
+pinnedEditors: Set&lt;string&gt;
+fp-ts · FIFO auto-pin queue</div>
+        <div class="traffic-lights">
+          <button class="tl-btn close"></button>
+          <button class="tl-btn pin"></button>
+          <button class="tl-btn full"></button>
+        </div>
+      </div>
+      <div class="card-full">
+        <div class="card-titlebar">
+          <div class="pin-dot"></div>
+          <div class="card-titlebar-title">EditorStore.ts</div>
+          <div class="traffic-lights-inline">
+            <button class="tl-btn close"></button>
+            <button class="tl-btn pin"></button>
+            <button class="tl-btn full"></button>
+          </div>
+        </div>
+        <div class="card-editor">
+          <div class="card-line"><span class="line-number">1</span><span class="line-content heading"># EditorStore</span></div>
+          <div class="card-line"><span class="line-number">2</span><span class="line-content"></span></div>
+          <div class="card-line"><span class="line-number">3</span><span class="line-content"><span class="token-keyword">editors:</span> Map&lt;EditorId, EditorData&gt;</span></div>
+          <div class="card-line"><span class="line-number">4</span><span class="line-content"><span class="token-keyword">pinnedEditors:</span> Set&lt;string&gt;</span></div>
+          <div class="card-line"><span class="line-number">5</span><span class="line-content"></span></div>
+          <div class="card-line"><span class="line-number">6</span><span class="line-content token-comment">// fp-ts Option pattern</span></div>
+          <div class="card-line"><span class="line-number">7</span><span class="line-content">subscribeToPinnedEditorsChange</span></div>
+          <div class="card-line"><span class="line-number">8</span><span class="line-content">FIFO auto-pin queue</span></div>
+        </div>
+      </div>
+      <div class="card-resize-handle">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+          <path d="M3 9L9 3M6 9L9 6" stroke="oklch(0.6 0 0)" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="state-badge">minimal</div>
+    </div>
+
+    <!-- ── Card 4: floating-windows.css ──────────────────────── -->
+    <div class="node-card" id="card-4"
+         style="left:300px;top:470px;--accent-color:#fb923c;" data-id="4">
+      <div class="card-minimal">
+        <div class="card-title">floating-windows.css</div>
+        <div class="card-preview">--card: oklch(0.22 0 0)
+--border: oklch(1 0 0 / 15%)
+8px radius · box-shadow</div>
+        <div class="traffic-lights">
+          <button class="tl-btn close"></button>
+          <button class="tl-btn pin"></button>
+          <button class="tl-btn full"></button>
+        </div>
+      </div>
+      <div class="card-full">
+        <div class="card-titlebar">
+          <div class="pin-dot"></div>
+          <div class="card-titlebar-title">floating-windows.css</div>
+          <div class="traffic-lights-inline">
+            <button class="tl-btn close"></button>
+            <button class="tl-btn pin"></button>
+            <button class="tl-btn full"></button>
+          </div>
+        </div>
+        <div class="card-editor">
+          <div class="card-line"><span class="line-number">1</span><span class="line-content"><span class="token-keyword">--card:</span> oklch(0.22 0 0);</span></div>
+          <div class="card-line"><span class="line-number">2</span><span class="line-content"><span class="token-keyword">--border:</span> oklch(1 0 0 / 15%);</span></div>
+          <div class="card-line"><span class="line-number">3</span><span class="line-content"><span class="token-keyword">--foreground:</span> oklch(0.88 0 0);</span></div>
+          <div class="card-line"><span class="line-number">4</span><span class="line-content"></span></div>
+          <div class="card-line"><span class="line-number">5</span><span class="line-content token-comment">/* macOS traffic lights */</span></div>
+          <div class="card-line"><span class="line-number">6</span><span class="line-content"><span class="token-string">.cy-floating-window</span></span></div>
+          <div class="card-line"><span class="line-number">7</span><span class="line-content">border-radius: <span class="token-num">8px</span>;</span></div>
+        </div>
+      </div>
+      <div class="card-resize-handle">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+          <path d="M3 9L9 3M6 9L9 6" stroke="oklch(0.6 0 0)" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="state-badge">minimal</div>
+    </div>
+
+    <!-- ── Card 5: AnchoredEditor.ts ─────────────────────────── -->
+    <div class="node-card" id="card-5"
+         style="left:860px;top:240px;--accent-color:#22d3ee;" data-id="5">
+      <div class="card-minimal">
+        <div class="card-title">AnchoredEditor.ts</div>
+        <div class="card-preview">anchoredToNodeId = O.some(id)
+Persistent — tied to shadow node
+No edge to separate editor</div>
+        <div class="traffic-lights">
+          <button class="tl-btn close"></button>
+          <button class="tl-btn pin"></button>
+          <button class="tl-btn full"></button>
+        </div>
+      </div>
+      <div class="card-full">
+        <div class="card-titlebar">
+          <div class="pin-dot"></div>
+          <div class="card-titlebar-title">AnchoredEditor.ts</div>
+          <div class="traffic-lights-inline">
+            <button class="tl-btn close"></button>
+            <button class="tl-btn pin"></button>
+            <button class="tl-btn full"></button>
+          </div>
+        </div>
+        <div class="card-editor">
+          <div class="card-line"><span class="line-number">1</span><span class="line-content heading"># AnchoredEditor</span></div>
+          <div class="card-line"><span class="line-number">2</span><span class="line-content"></span></div>
+          <div class="card-line"><span class="line-number">3</span><span class="line-content">anchoredToNodeId = <span class="token-keyword">O.some</span>(nodeId)</span></div>
+          <div class="card-line"><span class="line-number">4</span><span class="line-content token-comment">// persistent, not ephemeral</span></div>
+          <div class="card-line"><span class="line-number">5</span><span class="line-content"></span></div>
+          <div class="card-line"><span class="line-number">6</span><span class="line-content">Shadow node tracks position</span></div>
+          <div class="card-line"><span class="line-number">7</span><span class="line-content">in cy graph. Stays in place.</span></div>
+        </div>
+      </div>
+      <div class="card-resize-handle">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+          <path d="M3 9L9 3M6 9L9 6" stroke="oklch(0.6 0 0)" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="state-badge">minimal</div>
+    </div>
+
+    <!-- ── Card 6: New Design Proposal ───────────────────────── -->
+    <div class="node-card" id="card-6"
+         style="left:330px;top:250px;--accent-color:#fb7185;" data-id="6">
+      <div class="card-minimal">
+        <div class="card-title">New Design Proposal</div>
+        <div class="card-preview">Replace circles → editor cards
+minimal / hover / active states
+anchor = stays in place (no edge)</div>
+        <div class="traffic-lights">
+          <button class="tl-btn close"></button>
+          <button class="tl-btn pin"></button>
+          <button class="tl-btn full"></button>
+        </div>
+      </div>
+      <div class="card-full">
+        <div class="card-titlebar">
+          <div class="pin-dot"></div>
+          <div class="card-titlebar-title">New Design Proposal</div>
+          <div class="traffic-lights-inline">
+            <button class="tl-btn close"></button>
+            <button class="tl-btn pin"></button>
+            <button class="tl-btn full"></button>
+          </div>
+        </div>
+        <div class="card-editor">
+          <div class="card-line"><span class="line-number">1</span><span class="line-content heading"># New Design Proposal</span></div>
+          <div class="card-line"><span class="line-number">2</span><span class="line-content"></span></div>
+          <div class="card-line"><span class="line-number">3</span><span class="line-content"><span class="token-string">Replace circles → editor cards</span></span></div>
+          <div class="card-line"><span class="line-number">4</span><span class="line-content">Nodes ARE the editors.</span></div>
+          <div class="card-line"><span class="line-number">5</span><span class="line-content"></span></div>
+          <div class="card-line"><span class="line-number">6</span><span class="line-content"><span class="token-keyword">minimal</span> → no buttons, small height</span></div>
+          <div class="card-line"><span class="line-number">7</span><span class="line-content"><span class="token-keyword">hover</span> → traffic lights appear</span></div>
+          <div class="card-line"><span class="line-number">8</span><span class="line-content"><span class="token-keyword">active</span> → full editor, resize</span></div>
+          <div class="card-line"><span class="line-number">9</span><span class="line-content"></span></div>
+          <div class="card-line"><span class="line-number">10</span><span class="line-content token-comment">// anchor = stays in place</span></div>
+          <div class="card-line"><span class="line-number">11</span><span class="line-content token-comment">// no edge to floating editor</span></div>
+        </div>
+      </div>
+      <div class="card-resize-handle">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+          <path d="M3 9L9 3M6 9L9 6" stroke="oklch(0.6 0 0)" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="state-badge">minimal</div>
+    </div>
+
+  </div><!-- /canvas -->
+</div><!-- /canvas-container -->
+
+<!-- ── Controls ───────────────────────────────────────────── -->
+<div id="controls">
+  <label>
+    Zoom
+    <input type="range" id="zoom-slider" min="30" max="150" value="100" step="5">
+    <span id="zoom-value">100%</span>
+  </label>
+  <div class="sep"></div>
+  <span><span class="kbd">drag</span> canvas to pan</span>
+  <span><span class="kbd">click</span> card to expand</span>
+  <span><span class="kbd">esc</span> collapse all</span>
+</div>
+
+<!-- ── Design Rationale Panel ─────────────────────────────── -->
+<div id="rationale-panel">
+  <div class="rationale-h1">Design Rationale</div>
+
+  <div class="rationale-section">
+    <div class="rationale-title">
+      <span class="rationale-num">1</span>
+      Why Cards &gt; Circles
+    </div>
+    <div class="rationale-body">
+      Circles are <strong>information-free</strong> — just a label below. Cards expose content directly: title + preview gives <strong>3× more context per node</strong> at a glance. No redundant hover step to reveal a separate floating editor window.
+    </div>
+    <div class="state-chips">
+      <span class="state-chip chip-minimal">minimal</span>
+      <span class="state-chip chip-hover">hover</span>
+      <span class="state-chip chip-active">active</span>
+    </div>
+  </div>
+
+  <div class="rationale-section">
+    <div class="rationale-title">
+      <span class="rationale-num">2</span>
+      Why 3 States
+    </div>
+    <div class="rationale-body">
+      <strong>Progressive disclosure</strong> — minimal for dense graph overview (10–200+ nodes), hover for quick traffic-light actions without clicks, full/active for editing. Only one card is ever in full state, keeping DOM weight low.
+    </div>
+  </div>
+
+  <div class="rationale-section">
+    <div class="rationale-title">
+      <span class="rationale-num">3</span>
+      Why Left Accent Bar
+    </div>
+    <div class="rationale-body">
+      The 2px strip provides <strong>at-a-glance visual grouping</strong>: agent colors, file types, semantic categories. Inspired by VS Code's explorer and diff views. Stays visible in all three states, creating a consistent identity per card.
+    </div>
+  </div>
+
+  <div class="rationale-section">
+    <div class="rationale-title">
+      <span class="rationale-num">4</span>
+      Edges to Card Borders
+    </div>
+    <div class="rationale-body">
+      Connecting edges to the <strong>nearest border midpoint</strong> of a rectangle is more natural than circle-center connections. Topology reads more clearly — you can see which side a relationship enters from.
+    </div>
+  </div>
+
+  <div class="rationale-section">
+    <div class="rationale-title">
+      <span class="rationale-num">5</span>
+      Performance at Scale
+    </div>
+    <div class="rationale-body">
+      Minimal state renders only <strong>title + 3 text lines</strong> — no CodeMirror, no toolbar. Full editor DOM only activates on click. With 200 nodes, 199 are lightweight; only 1 is ever a full editor instance.
+    </div>
+  </div>
+
+  <div class="rationale-section">
+    <div class="rationale-title">
+      <span class="rationale-num">6</span>
+      Anchor = In Place, No Edge
+    </div>
+    <div class="rationale-body">
+      On anchor, the card <strong>stays exactly where it is</strong> — no new edge to a separate floating editor. The card <em>is</em> the node. Anchored cards show a <span style="color:var(--accent-cyan)">cyan dot</span> in the titlebar and an "anchored" label above.
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Canvas state ─────────────────────────────────────────────
+const S = {
+  zoom: 1.0,
+  panX: 80,
+  panY: 55,
+  isPanning: false,
+  panStartX: 0,
+  panStartY: 0,
+  activeCard: null,
+};
+
+// Edge definitions: { from, to }
+const EDGES = [
+  { from: '1', to: '6' },
+  { from: '6', to: '2' },
+  { from: '6', to: '3' },
+  { from: '2', to: '5' },
+  { from: '3', to: '4' },
+  { from: '1', to: '4' },
+  { from: '5', to: '3' },
+];
+
+const canvas       = document.getElementById('canvas');
+const container    = document.getElementById('canvas-container');
+const edgesSvg     = document.getElementById('edges-svg');
+const zoomSlider   = document.getElementById('zoom-slider');
+const zoomValueEl  = document.getElementById('zoom-value');
+const zoomHeaderEl = document.getElementById('zoom-header');
+
+// ── Helpers ───────────────────────────────────────────────────
+function cardRect(el) {
+  const x = parseInt(el.style.left);
+  const y = parseInt(el.style.top);
+  const isActive = el.classList.contains('active');
+  const w = el.offsetWidth  || (isActive ? 400 : 260);
+  const h = el.offsetHeight || (isActive ? 310 : 80);
+  return { x, y, w, h, cx: x + w/2, cy: y + h/2 };
+}
+
+function nearestSides(a, b) {
+  const dx = b.cx - a.cx, dy = b.cy - a.cy;
+  if (Math.abs(dx) > Math.abs(dy)) {
+    return { fs: dx > 0 ? 'right' : 'left', ts: dx > 0 ? 'left' : 'right' };
+  }
+  return { fs: dy > 0 ? 'bottom' : 'top', ts: dy > 0 ? 'top' : 'bottom' };
+}
+
+function borderPoint(r, side) {
+  const pts = {
+    right:  { x: r.x + r.w, y: r.cy },
+    left:   { x: r.x,       y: r.cy },
+    bottom: { x: r.cx,      y: r.y + r.h },
+    top:    { x: r.cx,      y: r.y },
+  };
+  return pts[side];
+}
+
+// ── Draw edges ────────────────────────────────────────────────
+function drawEdges() {
+  edgesSvg.querySelectorAll('.edge-path').forEach(p => p.remove());
+
+  EDGES.forEach(edge => {
+    const fromEl = document.querySelector(`[data-id="${edge.from}"]`);
+    const toEl   = document.querySelector(`[data-id="${edge.to}"]`);
+    if (!fromEl || !toEl) return;
+
+    const fr = cardRect(fromEl), tr = cardRect(toEl);
+    const { fs, ts } = nearestSides(fr, tr);
+    const start = borderPoint(fr, fs), end = borderPoint(tr, ts);
+
+    const dx = end.x - start.x, dy = end.y - start.y;
+    const off = Math.min(Math.abs(dx), Math.abs(dy), 90) * 0.55 + 28;
+    let c1x = start.x, c1y = start.y, c2x = end.x, c2y = end.y;
+    if (fs === 'right')  c1x += off;
+    if (fs === 'left')   c1x -= off;
+    if (fs === 'bottom') c1y += off;
+    if (fs === 'top')    c1y -= off;
+    if (ts === 'right')  c2x += off;
+    if (ts === 'left')   c2x -= off;
+    if (ts === 'bottom') c2y += off;
+    if (ts === 'top')    c2y -= off;
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', `M${start.x},${start.y} C${c1x},${c1y} ${c2x},${c2y} ${end.x},${end.y}`);
+    path.classList.add('edge-path');
+    path.dataset.from = edge.from;
+    path.dataset.to   = edge.to;
+    edgesSvg.appendChild(path);
+  });
+}
+
+function highlightEdges(cardId, on) {
+  edgesSvg.querySelectorAll('.edge-path').forEach(p => {
+    if (p.dataset.from === cardId || p.dataset.to === cardId) {
+      p.classList.toggle('highlighted', on);
+    }
+  });
+}
+
+// ── Apply transform ───────────────────────────────────────────
+function applyTransform() {
+  canvas.style.transform = `translate(${S.panX}px, ${S.panY}px) scale(${S.zoom})`;
+  const pct = Math.round(S.zoom * 100) + '%';
+  zoomValueEl.textContent = pct;
+  zoomHeaderEl.textContent = pct;
+  zoomSlider.value = Math.round(S.zoom * 100);
+  drawEdges();
+}
+
+// ── Card interactions ─────────────────────────────────────────
+document.querySelectorAll('.node-card').forEach(card => {
+  const id = card.dataset.id;
+
+  card.addEventListener('mouseenter', () => {
+    card.classList.add('hovered');
+    highlightEdges(id, true);
+    updateBadge(card);
+  });
+
+  card.addEventListener('mouseleave', () => {
+    card.classList.remove('hovered');
+    highlightEdges(id, false);
+    updateBadge(card);
+  });
+
+  card.addEventListener('click', e => {
+    // Traffic light: close collapses; pin/full are cosmetic in mockup
+    if (e.target.classList.contains('tl-btn')) {
+      if (e.target.classList.contains('close')) collapse(card);
+      e.stopPropagation();
+      return;
+    }
+    if (e.target.closest('.card-resize-handle')) return;
+
+    const wasActive = card.classList.contains('active');
+    document.querySelectorAll('.node-card.active').forEach(c => collapse(c));
+    if (!wasActive) {
+      card.classList.add('active');
+      S.activeCard = card;
+      card.style.zIndex = 100;
+    }
+    updateBadge(card);
+    setTimeout(drawEdges, 220);
+    e.stopPropagation();
+  });
+
+  // Drag via titlebar
+  const titlebar = card.querySelector('.card-titlebar');
+  if (titlebar) {
+    let drag = false, sx, sy, ox, oy;
+    titlebar.addEventListener('mousedown', e => {
+      if (e.target.classList.contains('tl-btn')) return;
+      drag = true;
+      sx = e.clientX; sy = e.clientY;
+      ox = parseInt(card.style.left);
+      oy = parseInt(card.style.top);
+      card.style.zIndex = 200;
+      e.stopPropagation();
+    });
+    document.addEventListener('mousemove', e => {
+      if (!drag) return;
+      card.style.left = (ox + (e.clientX - sx) / S.zoom) + 'px';
+      card.style.top  = (oy + (e.clientY - sy) / S.zoom) + 'px';
+      drawEdges();
+    });
+    document.addEventListener('mouseup', () => {
+      if (drag) {
+        drag = false;
+        card.style.zIndex = card.classList.contains('active') ? 100 : '';
+      }
+    });
+  }
+
+  // Resize via handle
+  const handle = card.querySelector('.card-resize-handle');
+  if (handle) {
+    let rs = false, sx, sy, ow, oh;
+    handle.addEventListener('mousedown', e => {
+      rs = true; sx = e.clientX; sy = e.clientY;
+      ow = card.offsetWidth; oh = card.offsetHeight;
+      e.stopPropagation(); e.preventDefault();
+    });
+    document.addEventListener('mousemove', e => {
+      if (!rs) return;
+      card.style.width  = Math.max(260, ow + (e.clientX - sx) / S.zoom) + 'px';
+      card.style.height = Math.max(180, oh + (e.clientY - sy) / S.zoom) + 'px';
+      drawEdges();
+    });
+    document.addEventListener('mouseup', () => { rs = false; });
+  }
+});
+
+function collapse(card) {
+  card.classList.remove('active');
+  card.style.width  = '';
+  card.style.height = '';
+  card.style.zIndex = '';
+  if (S.activeCard === card) S.activeCard = null;
+  updateBadge(card);
+  setTimeout(drawEdges, 220);
+}
+
+function updateBadge(card) {
+  const b = card.querySelector('.state-badge');
+  if (!b) return;
+  const anchored = card.classList.contains('anchored');
+  if (card.classList.contains('active')) {
+    b.textContent = anchored ? 'anchored · active' : 'active';
+  } else if (card.classList.contains('hovered')) {
+    b.textContent = 'hover';
+  } else {
+    b.textContent = anchored ? 'anchored' : 'minimal';
+  }
+}
+
+// ── Canvas panning ────────────────────────────────────────────
+container.addEventListener('mousedown', e => {
+  const onCanvas = e.target === container || e.target === canvas ||
+                   e.target === edgesSvg  || e.target.tagName === 'path';
+  if (!onCanvas) return;
+  S.isPanning = true;
+  S.panStartX = e.clientX - S.panX;
+  S.panStartY = e.clientY - S.panY;
+  container.classList.add('dragging');
+});
+
+document.addEventListener('mousemove', e => {
+  if (!S.isPanning) return;
+  S.panX = e.clientX - S.panStartX;
+  S.panY = e.clientY - S.panStartY;
+  applyTransform();
+});
+
+document.addEventListener('mouseup', () => {
+  S.isPanning = false;
+  container.classList.remove('dragging');
+});
+
+// Click background → collapse all
+container.addEventListener('click', e => {
+  if (e.target === container || e.target === canvas) {
+    document.querySelectorAll('.node-card.active').forEach(c => collapse(c));
+  }
+});
+
+// ── Zoom ──────────────────────────────────────────────────────
+zoomSlider.addEventListener('input', () => {
+  S.zoom = parseInt(zoomSlider.value) / 100;
+  applyTransform();
+});
+
+container.addEventListener('wheel', e => {
+  e.preventDefault();
+  S.zoom = Math.max(0.3, Math.min(1.5, S.zoom + (e.deltaY > 0 ? -0.06 : 0.06)));
+  applyTransform();
+}, { passive: false });
+
+// ── Keyboard ──────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.node-card.active').forEach(c => collapse(c));
+  }
+});
+
+// ── Panel + buttons ───────────────────────────────────────────
+document.getElementById('toggle-rationale').addEventListener('click', function() {
+  document.getElementById('rationale-panel').classList.toggle('visible');
+  this.classList.toggle('active-btn');
+});
+
+document.getElementById('reset-view').addEventListener('click', () => {
+  S.zoom = 1.0; S.panX = 80; S.panY = 55;
+  applyTransform();
+});
+
+// ── Init: activate card 1 (anchored) ─────────────────────────
+window.addEventListener('load', () => {
+  const c1 = document.getElementById('card-1');
+  c1.classList.add('active');
+  S.activeCard = c1;
+  c1.style.zIndex = 100;
+  applyTransform();
+  setTimeout(drawEdges, 80);
+});
+
+applyTransform();
+</script>
+</body>
+</html>
