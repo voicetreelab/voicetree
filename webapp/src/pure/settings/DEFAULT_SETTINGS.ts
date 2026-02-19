@@ -83,7 +83,16 @@ Highest priority task: `,
     INJECT_ENV_VARS: {
         AGENT_PROMPT_LIGHTWEIGHT: `First read and analyze the context of your task, which is stored at $CONTEXT_NODE_PATH
 You are being run within a graph of Markdown files that represents your project context. These markdown files are stored within $ALL_MARKDOWN_READ_PATHS
-Follow the <AGENT_INSTRUCTIONS> from your context node.`,
+Follow the <AGENT_INSTRUCTIONS> from your context node.
+<YOUR_ENV_VARS>
+VOICETREE_TERMINAL_ID = $VOICETREE_TERMINAL_ID
+AGENT_NAME = $AGENT_NAME
+CONTEXT_NODE_PATH = $CONTEXT_NODE_PATH
+TASK_NODE_PATH = $TASK_NODE_PATH
+VOICETREE_VAULT_PATH = $VOICETREE_VAULT_PATH
+VOICETREE_APP_SUPPORT = $VOICETREE_APP_SUPPORT
+VOICETREE_MCP_PORT = $VOICETREE_MCP_PORT
+</YOUR_ENV_VARS>`,
         AGENT_PROMPT: `First read and analyze the context of your task, which is stored at $CONTEXT_NODE_PATH
 You are being run within a graph of Markdown files that represents your project context. These markdown files are stored within $ALL_MARKDOWN_READ_PATHS
 <HANDLING_AMBIGUITY>
@@ -106,7 +115,16 @@ Primary method: Use the \`create_graph\` MCP tool with VOICETREE_TERMINAL_ID=$VO
 Before creating your first progress node, read $VOICETREE_APP_SUPPORT/tools/prompts/addProgressTree.md for composition guidance (when to split, scope rules, what to embed).
 
 You must create a progress node before reporting completion to the user. You must continue to do this for any follow-ups by either updating existing progress nodes, or creating new ones.
-</TASK_NODES_INSTRUCTION>`,
+</TASK_NODES_INSTRUCTION>
+<YOUR_ENV_VARS>
+VOICETREE_TERMINAL_ID = $VOICETREE_TERMINAL_ID
+AGENT_NAME = $AGENT_NAME
+CONTEXT_NODE_PATH = $CONTEXT_NODE_PATH
+TASK_NODE_PATH = $TASK_NODE_PATH
+VOICETREE_VAULT_PATH = $VOICETREE_VAULT_PATH
+VOICETREE_APP_SUPPORT = $VOICETREE_APP_SUPPORT
+VOICETREE_MCP_PORT = $VOICETREE_MCP_PORT
+</YOUR_ENV_VARS>`,
     },
     hotkeys: DEFAULT_HOTKEYS,
     defaultAllowlistPatterns: [],
@@ -124,6 +142,7 @@ You must create a progress node before reporting completion to the user. You mus
         engine: 'fcose',
         quality: 'default',
         animate: true,
+        animationDuration: 1000,
         fit: false,
         incremental: true,
         numIter: 2500,
