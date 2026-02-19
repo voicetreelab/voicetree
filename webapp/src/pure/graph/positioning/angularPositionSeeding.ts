@@ -13,7 +13,7 @@ import * as O from 'fp-ts/lib/Option.js';
 
 export const SPAWN_RADIUS: 500 = 500 as const; // pixels from parent
 export const CHILD_ANGLE_CONE: 180 = 180 as const; // degrees (± 45° from parent)
-export const DEFAULT_EDGE_LENGTH: 250 = 250 as const; // pixels, Cola layout preferred edge length
+export const DEFAULT_EDGE_LENGTH: 350 = 350 as const; // pixels, Cola layout preferred edge length
 
 /**
  * Calculate midpoint between two positions on a circular scale [0, 1)

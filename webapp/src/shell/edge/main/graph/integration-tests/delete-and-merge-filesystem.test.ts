@@ -34,16 +34,19 @@ import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaT
 let currentGraph: Graph | null = null
 let tempVault: string = ''
 
-// Mock Electron's ipcMain
-const ipcMain: { _handlers: Map<string, Function>; handle(channel: string, handler: Function): void; removeHandler(channel: string): void } = {
-    _handlers: new Map<string, Function>(),
-    handle(channel: string, handler: Function) {
-        this._handlers.set(channel, handler)
-    },
-    removeHandler(channel: string) {
-        this._handlers.delete(channel)
+// Mock Electron's ipcMain - use vi.hoisted to avoid "Cannot access before initialization" error
+const { ipcMain } = vi.hoisted(() => {
+    const ipcMain: { _handlers: Map<string, Function>; handle(channel: string, handler: Function): void; removeHandler(channel: string): void } = {
+        _handlers: new Map<string, Function>(),
+        handle(channel: string, handler: Function) {
+            this._handlers.set(channel, handler)
+        },
+        removeHandler(channel: string) {
+            this._handlers.delete(channel)
+        }
     }
-}
+    return { ipcMain }
+})
 
 // Mock electron module
 vi.mock('electron', () => ({
@@ -54,7 +57,8 @@ vi.mock('electron', () => ({
     app: {
         whenReady: () => Promise.resolve(),
         on: vi.fn(),
-        quit: vi.fn()
+        quit: vi.fn(),
+        getPath: vi.fn(() => '/tmp/test-userdata-nonexistent-' + Date.now())
     }
 }))
 
@@ -66,9 +70,9 @@ vi.mock('posthog-js', () => ({
     }
 }))
 
-// Mock AgentTabsBar
-vi.mock('@/shell/UI/views/AgentTabsBar', async () => {
-    const actual: typeof import('@/shell/UI/views/treeStyleTerminalTabs/AgentTabsBar') = await vi.importActual('@/shell/UI/views/AgentTabsBar')
+// Mock agentTabsActivity
+vi.mock('@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity', async () => {
+    const actual: typeof import('@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity') = await vi.importActual('@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity')
     return {
         ...actual,
         markTerminalActivityForContextNode: vi.fn()
@@ -449,6 +453,7 @@ describe('Merge Operation - Filesystem Integration', () => {
                 main: {
                     getGraph: mainAPI.getGraph,
                     getNode: mainAPI.getNode,
+                    getWritePath: () => Promise.resolve(O.some(tempVault)),
                     getWatchStatus: () => ({ isWatching: false, directory: tempVault }),
                     applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
                         await mainAPI.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta)
@@ -477,7 +482,8 @@ describe('Merge Operation - Filesystem Integration', () => {
         expect(mergedContent).toContain('Internal 2')
 
         // AND: External.md should now link to merged node
-        const externalLinks: string[] = await readWikilinksFromFile(path.join(tempVault, 'External.md'))
+        // Note: wikilinks may contain absolute paths since merge generates absolute node IDs
+        const externalLinks: string[] = (await readWikilinksFromFile(path.join(tempVault, 'External.md'))).map(l => path.basename(l))
         expect(externalLinks).toContain(mergedFileName)
         expect(externalLinks).not.toContain('Internal1.md')
     })
@@ -516,6 +522,7 @@ describe('Merge Operation - Filesystem Integration', () => {
                 main: {
                     getGraph: mainAPI.getGraph,
                     getNode: mainAPI.getNode,
+                    getWritePath: () => Promise.resolve(O.some(tempVault)),
                     getWatchStatus: () => ({ isWatching: false, directory: tempVault }),
                     applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
                         await mainAPI.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta)
@@ -538,8 +545,9 @@ describe('Merge Operation - Filesystem Integration', () => {
         expect(mergedFileName).toBeDefined()
 
         // AND: Both Ext1 and Ext2 should now link to the merged node
-        const ext1Links: string[] = await readWikilinksFromFile(path.join(tempVault, 'Ext1.md'))
-        const ext2Links: string[] = await readWikilinksFromFile(path.join(tempVault, 'Ext2.md'))
+        // Note: wikilinks may contain absolute paths since merge generates absolute node IDs
+        const ext1Links: string[] = (await readWikilinksFromFile(path.join(tempVault, 'Ext1.md'))).map(l => path.basename(l))
+        const ext2Links: string[] = (await readWikilinksFromFile(path.join(tempVault, 'Ext2.md'))).map(l => path.basename(l))
 
         expect(ext1Links).toContain(mergedFileName)
         expect(ext2Links).toContain(mergedFileName)
@@ -593,6 +601,7 @@ describe('Merge with Context Nodes - Filesystem Integration', () => {
                 main: {
                     getGraph: mainAPI.getGraph,
                     getNode: mainAPI.getNode,
+                    getWritePath: () => Promise.resolve(O.some(tempVault)),
                     getWatchStatus: () => ({ isWatching: false, directory: tempVault }),
                     applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
                         await mainAPI.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta)
@@ -648,6 +657,7 @@ describe('Merge with Context Nodes - Filesystem Integration', () => {
                 main: {
                     getGraph: mainAPI.getGraph,
                     getNode: mainAPI.getNode,
+                    getWritePath: () => Promise.resolve(O.some(tempVault)),
                     getWatchStatus: () => ({ isWatching: false, directory: tempVault }),
                     applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
                         await mainAPI.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta)

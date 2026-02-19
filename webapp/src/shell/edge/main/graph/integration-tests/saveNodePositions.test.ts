@@ -319,11 +319,11 @@ Content here. Updated externally.`
 
             await fs.writeFile(TEST_FILE_PATH, updatedContent, 'utf-8')
 
-            // Wait for FS event to reload the node
+            // Wait for FS event to reload the node (may need longer for chokidar to detect second change)
             await waitForFSEvent()
             await waitForCondition(
                 () => getGraph().nodes[TEST_NODE_ID]?.contentWithoutYamlOrLinks.includes('Updated externally'),
-                { maxWaitMs: 1000, errorMessage: 'Node content not updated from FS event' }
+                { maxWaitMs: 3000, errorMessage: 'Node content not updated from FS event' }
             )
 
             // THEN: Position should be PRESERVED (it was in the YAML)
@@ -334,6 +334,6 @@ Content here. Updated externally.`
             if (O.isSome(nodeAfterFSEvent.nodeUIMetadata.position)) {
                 expect(nodeAfterFSEvent.nodeUIMetadata.position.value).toEqual({ x: 123, y: 456 })
             }
-        }, 5000)
+        }, 8000)
     })
 })
