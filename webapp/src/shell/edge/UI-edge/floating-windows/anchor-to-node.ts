@@ -20,7 +20,8 @@ import {cleanupRegistry, getCachedZoom} from "@/shell/edge/UI-edge/floating-wind
 import {setupResizeObserver, updateShadowNodeDimensions} from "@/shell/edge/UI-edge/floating-windows/setup-resize-observer";
 import {getEdgeDistance} from "@/shell/UI/cytoscape-graph-ui/graphviz/layout/cytoscape-graph-constants";
 import {findBestPosition} from "@/pure/graph/positioning/findBestPosition";
-import type {ObstacleBBox, EdgeSegment} from "@/pure/graph/positioning/findBestPosition";
+import type {ObstacleBBox} from "@/pure/graph/positioning/findBestPosition";
+import type {EdgeSegment} from "@/pure/graph/geometry";
 import {extractObstaclesFromCytoscape, extractEdgeSegmentsFromCytoscape} from "@/shell/edge/UI-edge/floating-windows/extractObstaclesFromCytoscape";
 import type {SpatialIndex} from "@/pure/graph/spatial";
 import {extractFromSpatialIndex} from "@/pure/graph/positioning/spatialAdapters";

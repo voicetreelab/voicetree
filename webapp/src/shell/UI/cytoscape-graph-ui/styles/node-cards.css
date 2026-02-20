@@ -1,8 +1,9 @@
 /**
- * Node Cards CSS — Phase 1 Foundation
+ * Node Cards CSS — 3-mode unified card-editor
  *
- * Three states: minimal (default), hover, active
- * Pinned state border override.
+ * Modes: minimal (default), hover-editor (~400px), full-editor (~800px)
+ * States: pinned (won't collapse)
+ * Breathing animations: new-node green pulse, content-changed cyan pulse.
  *
  * CSS variables from project theme (dark mode defaults):
  *   --card: oklch(0.22 0 0)
@@ -20,6 +21,7 @@
 .node-card {
   width: 260px;
   min-height: 72px;
+  max-height: 96px;
   background: var(--card);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 6px;
@@ -29,6 +31,7 @@
   cursor: default;
   overflow: hidden;
   font-family: system-ui, -apple-system, sans-serif;
+  transition: width 0.2s ease, max-height 0.2s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
 /* =============================================================================
@@ -57,6 +60,7 @@
   gap: 5px;
   opacity: 0;
   transition: opacity 0.15s ease;
+  z-index: 2;
 }
 
 .tl-close,
@@ -110,14 +114,19 @@
   overflow: hidden;
 }
 
+/* Editor area — hidden in minimal, shown in hover/full */
+.node-card-editor-area {
+  display: none;
+  margin-top: 4px;
+}
+
 /* =============================================================================
- * Hover state
+ * CSS :hover state — show traffic lights on mouse proximity
  * ============================================================================= */
 
 .node-card:hover {
   border-color: rgba(255, 255, 255, 0.15);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  transition: all 0.15s ease;
 }
 
 .node-card:hover .node-card-traffic-lights {
@@ -125,30 +134,70 @@
 }
 
 /* =============================================================================
- * Active state (CodeMirror editor expanded — Phase 3)
+ * Hover-editor mode (~400px) — CodeMirror visible, compact
  * ============================================================================= */
 
-.node-card.active {
-  width: 400px;
-  border-color: rgba(255, 255, 255, 0.22);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+.node-card.hover-editor {
+  width: 340px;
+  max-height: 400px;
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  overflow-y: auto;
 }
 
-.node-card.active .node-card-preview {
-  display: none;
-}
-
-.node-card.active .node-card-editor-area {
-  display: block;
-  min-height: 240px;
-}
-
-.node-card.active .node-card-traffic-lights {
+.node-card.hover-editor .node-card-traffic-lights {
   opacity: 1;
 }
 
+.node-card.hover-editor .node-card-preview {
+  display: none;
+}
+
+.node-card.hover-editor .node-card-editor-area {
+  display: block;
+  min-height: 280px;
+}
+
 /* =============================================================================
- * Pinned state
+ * Full-editor mode (~800px) — full CodeMirror, all features
+ * ============================================================================= */
+
+.node-card.full-editor {
+  width: 440px;
+  max-height: 800px;
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  overflow-y: auto;
+  z-index: 10;
+}
+
+.node-card.full-editor .node-card-traffic-lights {
+  opacity: 1;
+}
+
+.node-card.full-editor .node-card-preview {
+  display: none;
+}
+
+.node-card.full-editor .node-card-editor-area {
+  display: block;
+  min-height: 600px;
+}
+
+/* CodeMirror inside card — fill available space */
+.node-card-editor-area .cm-editor {
+  height: 100%;
+  max-height: inherit;
+  font-size: 12px;
+  background: transparent;
+}
+
+.node-card-editor-area .cm-scroller {
+  overflow-y: auto;
+}
+
+/* =============================================================================
+ * Pinned state — won't collapse on mouseleave/click-outside
  * ============================================================================= */
 
 .node-card.pinned {
@@ -160,7 +209,7 @@
 }
 
 /* =============================================================================
- * Breathing animations (Phase 7)
+ * Breathing animations
  * ============================================================================= */
 
 /* New node animation — green pulse */

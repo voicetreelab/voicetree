@@ -75,10 +75,41 @@ export function getEditorByNodeId(nodeId: NodeIdAndFilePath): Option<EditorData>
     return O.none;
 }
 
+// Editor removal listeners: nodeId → set of callbacks invoked when that editor is removed
+const editorRemovalListeners: Map<string, Set<() => void>> = new Map<string, Set<() => void>>();
+
+/**
+ * Subscribe to removal of an editor for a specific nodeId.
+ * Callback fires once when the editor is removed, then auto-unsubscribes.
+ * @returns unsubscribe function
+ */
+export function onEditorRemoved(nodeId: string, callback: () => void): () => void {
+    let listeners: Set<() => void> | undefined = editorRemovalListeners.get(nodeId);
+    if (!listeners) {
+        listeners = new Set<() => void>();
+        editorRemovalListeners.set(nodeId, listeners);
+    }
+    listeners.add(callback);
+    return (): void => {
+        listeners!.delete(callback);
+        if (listeners!.size === 0) {
+            editorRemovalListeners.delete(nodeId);
+        }
+    };
+}
+
 export function removeEditor(editorId: EditorId): void {
     const editor: EditorData | undefined = editors.get(editorId);
     if (editor) {
         removeFromPinnedEditors(editor.contentLinkedToNodeId);
+        // Notify removal listeners for this node
+        const listeners: Set<() => void> | undefined = editorRemovalListeners.get(editor.contentLinkedToNodeId);
+        if (listeners) {
+            for (const callback of listeners) {
+                callback();
+            }
+            editorRemovalListeners.delete(editor.contentLinkedToNodeId);
+        }
     }
     editors.delete(editorId);
 }

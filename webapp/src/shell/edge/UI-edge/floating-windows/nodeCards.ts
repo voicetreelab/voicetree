@@ -3,6 +3,7 @@ import {
     registerFloatingWindow,
     unregisterFloatingWindow
 } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
+import type {NodeCardData} from '@/shell/edge/UI-edge/state/NodeCardStore';
 
 function extractPreviewLines(content: string, maxLines: number = 3): string {
     return content
@@ -18,7 +19,7 @@ export function createNodeCard(
     contentPreview: string,
     accentColor: string | undefined,
     position: { x: number; y: number }
-): { windowElement: HTMLElement; contentContainer: HTMLElement } {
+): NodeCardData {
     const card: HTMLDivElement = document.createElement('div');
     card.className = 'node-card';
     card.dataset.nodeId = nodeId;
@@ -57,24 +58,25 @@ export function createNodeCard(
     preview.className = 'node-card-preview';
     preview.textContent = extractPreviewLines(contentPreview);
 
-    body.appendChild(titleEl);
-    body.appendChild(preview);
-
+    // Editor area — hidden in minimal mode, shown in hover/full modes
     const editorArea: HTMLDivElement = document.createElement('div');
     editorArea.className = 'node-card-editor-area';
-    editorArea.style.display = 'none';
+
+    body.appendChild(titleEl);
+    body.appendChild(preview);
+    body.appendChild(editorArea);
 
     card.appendChild(accent);
     card.appendChild(trafficLights);
     card.appendChild(body);
-    card.appendChild(editorArea);
 
     // Store base width for zoom scaling (updateWindowFromZoom reads dataset.baseWidth)
     card.dataset.baseWidth = '260';
 
-    // Store graph position for zoom updates (following HoverEditor.ts:149-150 pattern)
-    card.dataset.graphX = String(position.x);
-    card.dataset.graphY = String(position.y);
+    // The Cy node IS the shadow node for this card — same mechanism as editor shadow nodes.
+    // updateWindowFromZoom reads shadowNodeId to get live position from Cy (lines 82-88),
+    // instead of static graphX/graphY which go stale when Cola layout moves the node.
+    card.dataset.shadowNodeId = nodeId;
     card.dataset.transformOrigin = 'center';
 
     const zoom: number = getCachedZoom();
@@ -85,13 +87,24 @@ export function createNodeCard(
     // Register for pan/zoom sync
     registerFloatingWindow(nodeId + '-card', card);
 
-    return { windowElement: card, contentContainer: editorArea };
+    return {
+        windowElement: card,
+        contentContainer: body,
+        editorArea,
+        editor: null,
+        mode: 'minimal'
+    };
 }
 
 export function destroyNodeCard(
     nodeId: string,
-    windowElement: HTMLElement
+    card: NodeCardData
 ): void {
+    // Dispose CodeMirror instance if mounted
+    if (card.editor) {
+        card.editor.dispose();
+        card.editor = null;
+    }
     unregisterFloatingWindow(nodeId + '-card');
-    windowElement.remove();
+    card.windowElement.remove();
 }

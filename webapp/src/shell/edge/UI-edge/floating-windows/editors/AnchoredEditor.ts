@@ -74,7 +74,7 @@ export async function createAnchoredFloatingEditor(
         // Anchor to node using v2 function
         anchorToNode(cy, editor, getCurrentIndex(cy));
 
-        // Pan to shadow node after layout completes
+        // Pan to anchor after layout completes
         const editorId: EditorId = getEditorId(editor);
         const shadowNodeId: string = getShadowNodeId(editorId);
         setPendingPanToNode(shadowNodeId);
@@ -92,9 +92,9 @@ export async function createAnchoredFloatingEditor(
  * Navigate to editor neighborhood - pans if zoom is comfortable, zooms to 1.0 if not
  */
 function navigateToEditorNeighborhood(cy: Core, nodeId: NodeIdAndFilePath, editorId: EditorId): void {
+    const contextNode: cytoscape.CollectionReturnValue = cy.getElementById(nodeId);
     const shadowNodeId: string = getShadowNodeId(editorId);
     const editorShadowNode: cytoscape.CollectionReturnValue = cy.getElementById(shadowNodeId);
-    const contextNode: cytoscape.CollectionReturnValue = cy.getElementById(nodeId);
     const nodesToCenter: cytoscape.CollectionReturnValue = contextNode.length > 0
         ? contextNode.closedNeighborhood().nodes().union(editorShadowNode)
         : cy.collection().union(editorShadowNode);
@@ -146,7 +146,7 @@ export async function createFloatingEditorForUICreatedNode(
         // Anchor to node (creates shadow node for positioning)
         anchorToNode(cy, editor, getCurrentIndex(cy));
 
-        // Pan to shadow node after layout completes (replaces old 1200ms setTimeout hack)
+        // Pan to anchor after layout completes
         const editorId: EditorId = getEditorId(editor);
         const shadowNodeId: string = getShadowNodeId(editorId);
         setPendingPanToNode(shadowNodeId);

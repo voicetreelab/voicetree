@@ -51,11 +51,11 @@
 }
 
 /* =============================================================================
- * Minimize/Close Button - Orange filled circle
+ * Minimize/Close Button - Red filled circle (macOS style, matches card .tl-close)
  * ============================================================================= */
 
 .traffic-light-close {
-  background-color: rgba(255, 165, 0, 0.65);
+  background-color: rgba(255, 95, 87, 0.7);
 }
 
 .traffic-light-close svg {
@@ -64,11 +64,6 @@
 
 .traffic-light-close:hover svg {
   stroke: rgba(0, 0, 0, 0.55);
-}
-
-/* Terminal close button - red (macOS style) instead of orange */
-.cy-floating-window-terminal .traffic-light-close {
-  background-color: rgba(255, 59, 48, 0.65);
 }
 
 /* =============================================================================
@@ -108,19 +103,19 @@
 
 .traffic-light-fullscreen {
   background-color: transparent;
-  border: 1.5px solid rgba(80, 200, 100, 0.6);
+  border: 1.5px solid rgba(48, 209, 88, 0.6);
 }
 
 .traffic-light-fullscreen svg {
-  stroke: rgba(80, 200, 100, 0.7);
+  stroke: rgba(48, 209, 88, 0.7);
 }
 
 .traffic-light-fullscreen:hover {
-  background-color: rgba(80, 200, 100, 0.12);
+  background-color: rgba(48, 209, 88, 0.12);
 }
 
 .traffic-light-fullscreen:hover svg {
-  stroke: rgba(60, 180, 80, 0.85);
+  stroke: rgba(48, 209, 88, 0.85);
 }
 
 /* =============================================================================

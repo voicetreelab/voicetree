@@ -149,6 +149,18 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                         addNodeCard(nodeId, card);
                         // Wire click → activate (Phase 3)
                         wireCardClickHandlers(cy, nodeId, card.windowElement);
+
+                        // Position sync: Cy node IS the shadow node for this card.
+                        // Same pattern as anchor-to-node.ts shadowNode.on('position', syncPosition).
+                        // Fires when Cola layout moves the node (pan/zoom handled by updateWindowFromZoom).
+                        const cyNode: CollectionReturnValue = cy.getElementById(nodeId);
+                        cyNode.on('position', () => {
+                            const p: { x: number; y: number } = cyNode.position();
+                            const z: number = cy.zoom();
+                            card.windowElement.style.left = `${p.x * z}px`;
+                            card.windowElement.style.top = `${p.y * z}px`;
+                        });
+
                         // New-node breathing animation on card DOM element
                         card.windowElement.classList.add('node-card-new');
                         setTimeout(() => card.windowElement.classList.remove('node-card-new'), 1500);
@@ -227,16 +239,14 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                             if (titleEl) {
                                 titleEl.textContent = getNodeTitle(node);
                             }
-                            // Update card preview (only if not in active/editing state)
-                            if (!card.windowElement.classList.contains('active')) {
-                                const previewEl: Element | null = card.windowElement.querySelector('.node-card-preview');
-                                if (previewEl) {
-                                    previewEl.textContent = node.contentWithoutYamlOrLinks
-                                        .split('\n')
-                                        .filter((line: string) => line.trim().length > 0)
-                                        .slice(0, 3)
-                                        .join('\n');
-                                }
+                            // Update card preview
+                            const previewEl: Element | null = card.windowElement.querySelector('.node-card-preview');
+                            if (previewEl) {
+                                previewEl.textContent = node.contentWithoutYamlOrLinks
+                                    .split('\n')
+                                    .filter((line: string) => line.trim().length > 0)
+                                    .slice(0, 3)
+                                    .join('\n');
                             }
                         }
                     }
@@ -250,7 +260,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                 if (USE_CARD_NODES) {
                     const card: NodeCardData | undefined = getNodeCard(nodeId);
                     if (card) {
-                        destroyNodeCard(nodeId, card.windowElement);
+                        destroyNodeCard(nodeId, card);
                         removeNodeCard(nodeId);
                     }
                 }
