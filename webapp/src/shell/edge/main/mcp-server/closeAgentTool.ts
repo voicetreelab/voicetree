@@ -1,6 +1,10 @@
 /**
  * MCP Tool: close_agent
- * Closes an agent terminal.
+ * Closes an agent terminal — same path as clicking the red traffic light button.
+ *
+ * Self-close (agent closing itself): no checks, always allowed.
+ * Cross-close (agent closing another): requires the target to have created
+ * at least one progress node, so work isn't silently discarded.
  */
 
 import {getGraph} from '@/shell/edge/main/state/graph-store'
@@ -14,36 +18,16 @@ export interface CloseAgentParams {
     callerTerminalId: string
 }
 
-export async function closeAgentTool({
-    terminalId,
-    callerTerminalId
-}: CloseAgentParams): Promise<McpToolResponse> {
-    // 1. Validate caller terminal exists
-    const terminalRecords: TerminalRecord[] = getTerminalRecords()
-    if (!terminalRecords.some((r: TerminalRecord) => r.terminalId === callerTerminalId)) {
-        return buildJsonResponse({
-            success: false,
-            error: `Unknown caller terminal: ${callerTerminalId}`
-        }, true)
-    }
-
-    // 2. Find the target terminal
-    const targetRecord: TerminalRecord | undefined = terminalRecords.find(
-        (r: TerminalRecord) => r.terminalId === terminalId
-    )
-
-    if (!targetRecord) {
-        return buildJsonResponse({
-            success: false,
-            error: `Terminal not found: ${terminalId}`
-        }, true)
-    }
-
-    // 3. If another agent is closing this terminal, require progress nodes
+export function closeAgentTool({terminalId, callerTerminalId}: CloseAgentParams): McpToolResponse {
     const isSelfClose: boolean = callerTerminalId === terminalId
+
     if (!isSelfClose) {
-        const agentName: string | undefined = targetRecord.terminalData.agentName
+        const targetRecord: TerminalRecord | undefined = getTerminalRecords().find(
+            (r: TerminalRecord) => r.terminalId === terminalId
+        )
+        const agentName: string | undefined = targetRecord?.terminalData.agentName
         const agentNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(getGraph(), agentName)
+
         if (agentNodes.length === 0) {
             return buildJsonResponse({
                 success: false,
@@ -52,21 +36,10 @@ export async function closeAgentTool({
         }
     }
 
-    // 4. Close the terminal via UI API (mimics clicking red traffic light button)
-    // This properly: removes from registry, disposes floating window, deletes context node
-    try {
-        uiAPI.closeTerminalById(terminalId)
-
-        return buildJsonResponse({
-            success: true,
-            terminalId,
-            message: `Successfully closed agent terminal: ${terminalId}`
-        })
-    } catch (error) {
-        const errorMessage: string = error instanceof Error ? error.message : String(error)
-        return buildJsonResponse({
-            success: false,
-            error: errorMessage
-        }, true)
-    }
+    uiAPI.closeTerminalById(terminalId)
+    return buildJsonResponse({
+        success: true,
+        terminalId,
+        message: `Successfully closed agent terminal: ${terminalId}`
+    })
 }

@@ -28,6 +28,8 @@ import {closeAgentTool} from './closeAgentTool'
 import {readTerminalOutputTool} from './readTerminalOutputTool'
 import {searchNodesTool} from './searchNodesTool'
 import {createGraphTool} from './createGraphTool'
+import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
+import type {VTSettings} from '@/pure/settings/types'
 
 // Re-export types and tool functions for external use
 export type {McpToolResponse} from './types'
@@ -56,7 +58,9 @@ let mcpPort: number = MCP_BASE_PORT
 /**
  * Creates and configures the MCP server with Voicetree tools.
  */
-export function createMcpServer(): McpServer {
+export async function createMcpServer(): Promise<McpServer> {
+    const settings: VTSettings = await loadSettings()
+    const lineLimit: number = settings.nodeLineLimit ?? 70
     const server: McpServer = new McpServer({
         name: 'voicetree-mcp',
         version: '1.0.0'
@@ -140,7 +144,7 @@ If you already have a node detailing the task, use nodeId. Otherwise, use task+p
                 callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var')
             }
         },
-        async ({terminalId, callerTerminalId}) =>
+        ({terminalId, callerTerminalId}) =>
             closeAgentTool({terminalId, callerTerminalId})
     )
 
@@ -209,7 +213,7 @@ One node = one concept. If your work covers multiple independent concerns, creat
 
 **Node wiring:** Each node has a \`filename\` (with or without .md extension). Use \`parents\` (array) to reference other nodes' filenames — all parents are created before children. Nodes without \`parents\` attach to the top-level \`parentNodeId\` (or your task node by default). Diamond dependencies are supported: \`"parents": ["phase1", "phase2"]\`.
 
-**Line limit:** Each node is limited to 60 lines (excluding codeDiffs and diagram). Nodes exceeding this limit block creation — split into a TREE that mirrors your content's conceptual structure, not a linear chain.
+**Line limit:** Each node is limited to ${lineLimit} lines (excluding codeDiffs and diagram). Nodes exceeding this limit block creation — split into a TREE that mirrors your content's conceptual structure, not a linear chain.
 
 Split by concern:
 Task: Review git diff
@@ -258,7 +262,7 @@ Task
  * This allows the server to run in-process with Electron and share state.
  */
 export async function startMcpServer(): Promise<void> {
-    const mcpServer: McpServer = createMcpServer()
+    const mcpServer: McpServer = await createMcpServer()
 
     const app: Express = express()
     app.use(express.json())
