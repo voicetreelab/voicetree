@@ -3,6 +3,27 @@ import * as O from 'fp-ts/lib/Option.js'
 import { extractEdges, findBestMatchingNode, getPathComponents } from '@/pure/graph/markdown-parsing/extract-edges'
 import type { GraphNode, Edge } from '@/pure/graph'
 
+describe('findBestMatchingNode - case insensitive matching (Bug 1 regression)', () => {
+  const createNode: (id: string, content?: string) => GraphNode = (id: string, content = ''): GraphNode => ({
+    absoluteFilePathIsID: id,
+    contentWithoutYamlOrLinks: content,
+    outgoingEdges: [],
+    nodeUIMetadata: {
+      color: O.none,
+      position: O.none,
+      additionalYAMLProps: new Map(),
+      isContextNode: false
+    }
+  })
+
+  it('should resolve [[Parent-Slug]] to parent-slug.md (case insensitive)', () => {
+    const nodes: Record<string, GraphNode> = {
+      '/vault/parent-slug.md': createNode('/vault/parent-slug.md')
+    }
+    expect(findBestMatchingNode('Parent-Slug', nodes)).toBe('/vault/parent-slug.md')
+  })
+})
+
 describe('findBestMatchingNode - full path match requirement', () => {
   const createNode: (id: string, content?: string) => GraphNode = (id: string, content = ''): GraphNode => ({
     absoluteFilePathIsID: id,
@@ -139,6 +160,54 @@ describe('extractEdges - empty wikilink handling', () => {
     const content: string = 'First [[]] second [[.]] third [[ ]] end'
     const result: readonly Edge[] = extractEdges(content, nodes)
     expect(result).toEqual([])
+  })
+})
+
+describe('findBestMatchingNode - stale absolute path healing (Bug 2 Option B)', () => {
+  const createNode: (id: string, content?: string) => GraphNode = (id: string, content = ''): GraphNode => ({
+    absoluteFilePathIsID: id,
+    contentWithoutYamlOrLinks: content,
+    outgoingEdges: [],
+    nodeUIMetadata: {
+      color: O.none,
+      position: O.none,
+      additionalYAMLProps: new Map(),
+      isContextNode: false
+    }
+  })
+
+  it('should resolve stale mount point path to current node', () => {
+    const nodes: Record<string, GraphNode> = {
+      '/new-mount/vault/parent.md': createNode('/new-mount/vault/parent.md')
+    }
+    expect(findBestMatchingNode('/old-mount/vault/parent.md', nodes))
+      .toBe('/new-mount/vault/parent.md')
+  })
+
+  it('should prefer higher suffix match in multi-vault', () => {
+    const nodes: Record<string, GraphNode> = {
+      '/new-mount/vault1/note.md': createNode('/new-mount/vault1/note.md'),
+      '/new-mount/vault2/note.md': createNode('/new-mount/vault2/note.md')
+    }
+    expect(findBestMatchingNode('/old-mount/vault1/note.md', nodes))
+      .toBe('/new-mount/vault1/note.md')
+  })
+
+  it('should NOT relax scoring for relative paths', () => {
+    const nodes: Record<string, GraphNode> = {
+      '/vault/a/note.md': createNode('/vault/a/note.md')
+    }
+    expect(findBestMatchingNode('b/note', nodes)).toBe(undefined)
+  })
+
+  it('should resolve deep AppImage path changes', () => {
+    const nodes: Record<string, GraphNode> = {
+      '/tmp/.mount_VoiceXYZ/resources/app/vault/parent.md':
+        createNode('/tmp/.mount_VoiceXYZ/resources/app/vault/parent.md')
+    }
+    expect(findBestMatchingNode(
+      '/tmp/.mount_VoiceABC/resources/app/vault/parent.md', nodes
+    )).toBe('/tmp/.mount_VoiceXYZ/resources/app/vault/parent.md')
   })
 })
 
