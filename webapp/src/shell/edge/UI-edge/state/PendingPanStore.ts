@@ -9,13 +9,13 @@
 import type { Core, CollectionReturnValue } from 'cytoscape';
 import { cyFitCollectionByAverageNodeSize, cySmartCenter, getResponsivePadding } from '@/utils/responsivePadding';
 
-export type PendingPanType = 'large-batch' | 'small-graph' | 'wikilink-target' | null;
+export type PendingPanType = 'large-batch' | 'small-graph' | 'wikilink-target' | 'voice-follow' | null;
 
 interface PendingPanState {
   type: PendingPanType;
   nodeIds: string[];
   totalNodes: number;
-  targetNodeId?: string;  // For wikilink-target type
+  targetNodeId?: string;  // For wikilink-target and voice-follow types
 }
 
 // Module-level state (follows project pattern)
@@ -42,6 +42,15 @@ export function setPendingPan(type: PendingPanType, nodeIds: string[], totalNode
  */
 export function setPendingPanToNode(targetNodeId: string): void {
   pendingPan = { type: 'wikilink-target', nodeIds: [], totalNodes: 0, targetNodeId };
+}
+
+/**
+ * Set a pending pan to follow a voice-created node after layout.
+ * Used when a new /voice/ node is created during dictation —
+ * pans to the latest voice node so the view follows the user's speech.
+ */
+export function setPendingVoiceFollowPan(targetNodeId: string): void {
+  pendingPan = { type: 'voice-follow', nodeIds: [], totalNodes: 0, targetNodeId };
 }
 
 /**
@@ -95,6 +104,13 @@ export function panToTrackedNode(cy: Core): boolean {
       const nodesToCenter: CollectionReturnValue = targetNode.closedNeighborhood().nodes() as CollectionReturnValue;
       console.warn(`[panToTrackedNode] wikilink-target: centering on ${targetNodeId}`);
       cySmartCenter(cy, nodesToCenter);
+      return true;
+    }
+  } else if (type === 'voice-follow' && targetNodeId) {
+    const node: CollectionReturnValue = cy.getElementById(targetNodeId);
+    if (node.length > 0) {
+      console.warn(`[panToTrackedNode] voice-follow: centering on ${targetNodeId}`);
+      cySmartCenter(cy, node);
       return true;
     }
   }

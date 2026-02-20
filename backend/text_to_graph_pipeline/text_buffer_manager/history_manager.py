@@ -114,7 +114,7 @@ class HistoryManager:
 
         # Append content to file
         with open(file_path, 'a', encoding='utf-8') as f:
-            f.write(content)
+            f.write(content + '\n')
 
     def load_from_file(self, file_path: str) -> bool:
         """

@@ -4,9 +4,9 @@
  * Layout strategy:
  * - Initial load: fCOSE for global positioning → Cola for refinement
  * - Incremental (batch-added nodes <30% of graph):
- *   Always: Local Cola on 4-hop neighborhood of new nodes (6-hop pinned boundary)
- *   Every 7th layout: chains into global Cola on full graph for stabilization
- * - Fallback (>30% new or no new nodes tracked): Global Cola every 7th layout only
+ *   Local Cola on 4-hop neighborhood of new nodes (6-hop pinned boundary)
+ * - Removal (no new nodes tracked): global Cola to rebalance
+ * - Batch (>30% new): skip (too many nodes for local Cola)
  *
  * fCOSE is only used on initial load because its gravity pulls nodes too aggressively
  * for incremental layout updates. Cola handles all ongoing layout after the first run.
@@ -116,11 +116,22 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
   let layoutQueued: boolean = false;
   let layoutCount: number = 0;
   let hasRunInitialLayout: boolean = false;
+  let layoutSafetyTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  // Safety timeout: if a Cola/fCOSE layoutstop event never fires, layoutRunning
+  // stays true and the entire layout system dies. This timeout forces a reset.
+  const LAYOUT_SAFETY_TIMEOUT_MS: number = 5_000;
 
   // Track newly added node IDs for local Cola layout
   const pendingNewNodeIds: Set<string> = new Set<string>();
 
   const onLayoutComplete: () => void = () => {
+    // Clear safety timeout — layout completed normally
+    if (layoutSafetyTimeout) {
+      clearTimeout(layoutSafetyTimeout);
+      layoutSafetyTimeout = null;
+    }
+
     void window.electronAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);
     layoutRunning = false;
 
@@ -359,40 +370,43 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     layoutRunning = true;
     layoutCount++;
 
+    // Safety timeout: if layoutstop never fires (Cola/fCOSE error, empty collection,
+    // destroyed cy), force-reset so the layout system doesn't permanently die.
+    layoutSafetyTimeout = setTimeout(() => {
+      if (layoutRunning) {
+        console.error(`[AutoLayout] ⚠️ Safety timeout (${LAYOUT_SAFETY_TIMEOUT_MS}ms) — layout callback never fired, force-resetting.`);
+        onLayoutComplete();
+      }
+    }, LAYOUT_SAFETY_TIMEOUT_MS);
+
     // Snapshot and clear pending new node IDs
     const newNodeIds: Set<string> = new Set(pendingNewNodeIds);
     pendingNewNodeIds.clear();
 
     const totalNodes: number = cy.nodes().length;
-    const shouldRunGlobal: boolean = layoutCount % 7 === 0;
 
-    if (!hasRunInitialLayout) {
-      // Initial load: fCOSE for global positioning, then Cola to refine
-      hasRunInitialLayout = true;
-      runFcoseLayout(undefined, () => {
-        runColaLayout();
-      });
-    } else if (newNodeIds.size > 0 && newNodeIds.size < totalNodes * 0.3) {
-      // Incremental: always local Cola; global Cola every 7th layout for stabilization
-      runLocalCola(newNodeIds, () => {
-        if (shouldRunGlobal) {
+    try {
+      if (!hasRunInitialLayout) {
+        // Initial load: fCOSE for global positioning, then Cola to refine
+        hasRunInitialLayout = true;
+        runFcoseLayout(undefined, () => {
           runColaLayout();
-        } else {
-          onLayoutComplete();
-        }
-      });
-    } else {
-      // Fallback (>30% new or no new nodes): global Cola every 7th, otherwise skip
-      if (newNodeIds.size === 0) {
-        console.warn(`[AutoLayout] ⚠️ Layout triggered but no new nodes tracked (layoutCount=${layoutCount}, totalNodes=${totalNodes}). Layout was likely triggered by edge/node remove. Skipping local Cola — only global Cola every 7th run.`);
-      } else {
-        console.warn(`[AutoLayout] ⚠️ Batch add: ${newNodeIds.size} new nodes (${Math.round(newNodeIds.size / totalNodes * 100)}% of graph). Skipping local Cola — only global Cola every 7th run.`);
-      }
-      if (shouldRunGlobal) {
+        });
+      } else if (newNodeIds.size > 0 && newNodeIds.size < totalNodes * 0.3) {
+        // Incremental: local Cola on neighborhood of new nodes
+        runLocalCola(newNodeIds, onLayoutComplete);
+      } else if (newNodeIds.size === 0) {
+        // Triggered by edge/node remove — run global Cola to rebalance the graph
+        console.log(`[AutoLayout] Layout triggered by removal (layoutCount=${layoutCount}, totalNodes=${totalNodes}). Running global Cola.`);
         runColaLayout();
       } else {
+        // >30% new nodes — batch too large for local Cola, skip
+        console.warn(`[AutoLayout] ⚠️ Batch add: ${newNodeIds.size} new nodes (${Math.round(newNodeIds.size / totalNodes * 100)}% of graph). Skipping local Cola.`);
         onLayoutComplete();
       }
+    } catch (e: unknown) {
+      console.error('[AutoLayout] Layout execution failed, resetting:', e);
+      onLayoutComplete();
     }
   };
 
@@ -475,6 +489,9 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
 
     if (debounceTimeout) {
       clearTimeout(debounceTimeout);
+    }
+    if (layoutSafetyTimeout) {
+      clearTimeout(layoutSafetyTimeout);
     }
 
     //console.log('[AutoLayout] Auto-layout disabled');
