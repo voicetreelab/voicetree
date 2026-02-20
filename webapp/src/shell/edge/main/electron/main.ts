@@ -10,7 +10,7 @@ import {getTerminalManager} from '@/shell/edge/main/terminals/terminal-manager-i
 import {setupToolsDirectory, getToolsDirectory} from './tools-setup';
 import {setupOnboardingDirectory} from './onboarding-setup';
 import {startNotificationScheduler, stopNotificationScheduler} from './notification-scheduler';
-import {migrateAgentPromptIfNeeded} from '@/shell/edge/main/settings/settings_IO';
+import {migrateAgentPromptIfNeeded, migrateLayoutConfigIfNeeded} from '@/shell/edge/main/settings/settings_IO';
 import {setBackendPort} from '@/shell/edge/main/state/app-electron-state';
 import {startOTLPReceiver, stopOTLPReceiver} from '@/shell/edge/main/metrics/otlp-receiver';
 import {registerTerminalIpcHandlers} from '@/shell/edge/main/terminals/ipc-terminal-handlers';
@@ -128,6 +128,9 @@ void app.whenReady().then(async () => {
             });
         }
     }
+
+    // Silently migrate layoutConfig nodeSpacing from old default (70) to new default (120)
+    await migrateLayoutConfigIfNeeded();
 
     // Start OTLP receiver for Claude Code metrics (port 4318)
     await startOTLPReceiver();

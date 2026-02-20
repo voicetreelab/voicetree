@@ -52,17 +52,17 @@ export function hasPendingPan(): boolean {
 }
 
 /**
- * Consume and execute the pending pan on the given cytoscape instance.
+ * Pan the viewport to the tracked node without clearing pending state.
+ * Can be called multiple times during a layout chain — each layout phase
+ * pans to keep the node visible. State is cleared separately by clearPendingPan().
  * Returns true if a pan was executed, false otherwise.
  */
-export function consumePendingPan(cy: Core): boolean {
+export function panToTrackedNode(cy: Core): boolean {
   if (!pendingPan || cy.destroyed()) {
-    pendingPan = null;
     return false;
   }
 
   const { type, targetNodeId } = pendingPan;
-  pendingPan = null;
 
   const zoomBefore: number = cy.zoom();
   const panBefore: { x: number; y: number } = cy.pan();
@@ -71,7 +71,7 @@ export function consumePendingPan(cy: Core): boolean {
   const bb: { x1: number; y1: number; x2: number; y2: number; w: number; h: number } = cy.elements().boundingBox();
 
   console.warn(
-    `[consumePendingPan] type=${type}, viewport=${cyW}x${cyH}, zoom=${zoomBefore.toFixed(4)}, pan=(${panBefore.x.toFixed(0)},${panBefore.y.toFixed(0)}), `
+    `[panToTrackedNode] type=${type}, viewport=${cyW}x${cyH}, zoom=${zoomBefore.toFixed(4)}, pan=(${panBefore.x.toFixed(0)},${panBefore.y.toFixed(0)}), `
     + `elementsBB: (${bb.x1.toFixed(0)},${bb.y1.toFixed(0)})→(${bb.x2.toFixed(0)},${bb.y2.toFixed(0)}) ${bb.w.toFixed(0)}x${bb.h.toFixed(0)}, `
     + `nodes=${cy.nodes().length}, edges=${cy.edges().length}`
   );
@@ -79,13 +79,13 @@ export function consumePendingPan(cy: Core): boolean {
   if (type === 'large-batch') {
     // Large batch (>30% new nodes): fit all in view with padding
     const padding: number = getResponsivePadding(cy, 15);
-    console.warn(`[consumePendingPan] large-batch: cy.fit(all, padding=${padding})`);
+    console.warn(`[panToTrackedNode] large-batch: cy.fit(all, padding=${padding})`);
     cy.fit(undefined, padding);
-    console.warn(`[consumePendingPan] after fit: zoom=${cy.zoom().toFixed(4)}, pan=(${cy.pan().x.toFixed(0)},${cy.pan().y.toFixed(0)})`);
+    console.warn(`[panToTrackedNode] after fit: zoom=${cy.zoom().toFixed(4)}, pan=(${cy.pan().x.toFixed(0)},${cy.pan().y.toFixed(0)})`);
     return true;
   } else if (type === 'small-graph') {
     // Fit so average node takes target fraction of viewport (smart zoom: only zooms if needed)
-    console.warn(`[consumePendingPan] small-graph: cyFitCollectionByAverageNodeSize`);
+    console.warn(`[panToTrackedNode] small-graph: cyFitCollectionByAverageNodeSize`);
     cyFitCollectionByAverageNodeSize(cy, cy.nodes(), 0.15);
     return true;
   } else if (type === 'wikilink-target' && targetNodeId) {
@@ -93,13 +93,25 @@ export function consumePendingPan(cy: Core): boolean {
     if (targetNode.length > 0) {
       // Include target + d=1 neighbors for spatial context
       const nodesToCenter: CollectionReturnValue = targetNode.closedNeighborhood().nodes() as CollectionReturnValue;
-      console.warn(`[consumePendingPan] wikilink-target: centering on ${targetNodeId}`);
+      console.warn(`[panToTrackedNode] wikilink-target: centering on ${targetNodeId}`);
       cySmartCenter(cy, nodesToCenter);
       return true;
     }
   }
 
   return false;
+}
+
+/**
+ * Consume and execute the pending pan on the given cytoscape instance.
+ * Thin wrapper: pans viewport then clears state. Used by external callers
+ * that want the original consume-and-clear semantics.
+ * Returns true if a pan was executed, false otherwise.
+ */
+export function consumePendingPan(cy: Core): boolean {
+  const result: boolean = panToTrackedNode(cy);
+  clearPendingPan();
+  return result;
 }
 
 /**

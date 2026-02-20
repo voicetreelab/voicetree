@@ -54,7 +54,7 @@ export const DEFAULT_OPTIONS: AutoLayoutOptions = {
   animate: true,
   maxSimulationTime: 2000,
   avoidOverlap: true,
-  nodeSpacing: 70,
+  nodeSpacing: 120,
   handleDisconnected: true, // handles disconnected components
   convergenceThreshold: 0.4,
   unconstrIter: 15, // TODO SOMETHINIG ABOUT THIS IS VERY IMPORTANT LAYOUT BREAK WITHOUT
@@ -86,7 +86,7 @@ export const DEFAULT_FCOSE_OPTIONS: FcoseLayoutOptions = {
   nodeRepulsion: 25000,
   idealEdgeLength: 250,
   edgeElasticity: 0.45,
-  nodeSpacing: 70,
+  nodeSpacing: 120,
   uniformNodeDimensions: false,
   packComponents: true,
   coolingFactor: 0.3,
