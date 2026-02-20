@@ -150,9 +150,11 @@ export function createWindowChrome(
     // Assemble window - content container only (no title bar in Phase 1)
     windowElement.appendChild(contentContainer);
 
-    // Create bottom-right expand button (Phase 2B)
-    const expandButton: HTMLButtonElement = createExpandButton(windowElement, dimensions);
-    windowElement.appendChild(expandButton);
+    // Create bottom-left expand button (Phase 2B) — terminals get theirs in the title bar instead
+    if (!isTerminal) {
+        const expandButton: HTMLButtonElement = createExpandButton(windowElement, dimensions);
+        windowElement.appendChild(expandButton);
+    }
 
     // Create resize zones for edges and corners (Phase 2C)
     if (fw.resizable) {

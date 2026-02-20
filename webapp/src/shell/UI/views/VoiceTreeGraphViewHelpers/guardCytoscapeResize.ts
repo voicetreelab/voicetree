@@ -14,7 +14,7 @@
 import type {Core} from 'cytoscape';
 
 /** Block resize if container is smaller than this fraction of expected dimensions */
-const RESIZE_THRESHOLD: number = 0.95;
+const RESIZE_THRESHOLD: number = 1.0;
 
 /** Title bar (38px) + bottom bar (50px) */
 const CHROME_HEIGHT_PX: number = 88;

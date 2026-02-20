@@ -29,6 +29,22 @@
   cursor: grabbing;
 }
 
+/* Expand button inside title bar (title-bar placement) */
+.terminal-title-bar .cy-floating-window-expand-corner {
+  position: static;
+  flex-shrink: 0;
+  margin-left: 6px;
+  margin-right: 2px;
+  border: none;
+  background-color: transparent;
+  opacity: 0.6;
+}
+
+.terminal-title-bar .cy-floating-window-expand-corner:hover {
+  opacity: 1;
+  background-color: var(--accent);
+}
+
 /* Traffic lights container - positioned at far right */
 .terminal-traffic-lights {
   display: flex;
