@@ -72,6 +72,48 @@ export async function migrateAgentPromptIfNeeded(): Promise<boolean> {
   return true;
 }
 
+/**
+ * Migrates layoutConfig JSON string to update nodeSpacing from old default (70) to new default (120).
+ * Silent migration — no dialog, since users are unlikely to have intentionally set this value.
+ * @returns true if migration occurred, false otherwise
+ */
+export async function migrateLayoutConfigIfNeeded(): Promise<boolean> {
+  const settingsPath: string = getSettingsPath();
+
+  let userSettings: Partial<VTSettings>;
+  try {
+    const data: string = await fs.readFile(settingsPath, 'utf-8');
+    userSettings = JSON.parse(data) as Partial<VTSettings>;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return false;
+    }
+    throw error;
+  }
+
+  const layoutConfigStr: string | undefined = userSettings.layoutConfig;
+  if (!layoutConfigStr) {
+    return false; // No saved layoutConfig — will use new default anyway
+  }
+
+  try {
+    const parsed: Record<string, unknown> = JSON.parse(layoutConfigStr) as Record<string, unknown>;
+    if (parsed.nodeSpacing !== 70) {
+      return false; // User has a custom value or already migrated
+    }
+    parsed.nodeSpacing = 120;
+    const updatedSettings: VTSettings = {
+      ...DEFAULT_SETTINGS,
+      ...userSettings,
+      layoutConfig: JSON.stringify(parsed, null, 2),
+    };
+    await saveSettings(updatedSettings);
+    return true;
+  } catch {
+    return false; // Malformed JSON — leave as-is
+  }
+}
+
 export async function saveSettings(settings: VTSettings): Promise<boolean> {
   const settingsPath: string = getSettingsPath();
   const settingsDir: string = path.dirname(settingsPath);

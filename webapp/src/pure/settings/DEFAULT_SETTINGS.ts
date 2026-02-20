@@ -147,7 +147,7 @@ VOICETREE_MCP_PORT = $VOICETREE_MCP_PORT
         incremental: true,
         numIter: 2500,
         initialEnergyOnIncremental: 0.15,
-        nodeSpacing: 70,
+        nodeSpacing: 120,
         edgeLength: 250,
         convergenceThreshold: 0.4,
         unconstrIter: 15,

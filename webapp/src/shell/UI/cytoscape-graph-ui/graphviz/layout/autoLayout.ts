@@ -29,7 +29,7 @@ import { needsLayoutCorrection, hasEdgeCrossingsAmong } from '@/pure/graph/geome
 import type { LocalGeometry, EdgeSegment } from '@/pure/graph/geometry';
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
-import { consumePendingPan } from '@/shell/edge/UI-edge/state/PendingPanStore';
+import { panToTrackedNode, clearPendingPan } from '@/shell/edge/UI-edge/state/PendingPanStore';
 import { onSettingsChange } from '@/shell/edge/UI-edge/api';
 import type { AutoLayoutOptions, LayoutConfig, FcoseLayoutOptions } from './autoLayoutTypes';
 import { DEFAULT_OPTIONS, DEFAULT_FCOSE_OPTIONS, COLA_ANIMATE_DURATION, COLA_FAST_ANIMATE_DURATION } from './autoLayoutTypes';
@@ -73,7 +73,10 @@ const computeColaAndAnimate: (
       if (e) n.animate({ position: e }, { duration, easing: 'ease-in-out-cubic' });
     });
 
-    setTimeout(onComplete, duration + 16);
+    setTimeout(() => {
+      panToTrackedNode(colaLayoutOpts.cy as Core);
+      onComplete();
+    }, duration + 16);
   });
   layout.run();
 };
@@ -121,9 +124,9 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     void window.electronAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);
     layoutRunning = false;
 
-    // Execute any pending pan after layout completes (instead of arbitrary timeout)
-    // This ensures viewport fits to new nodes only after their positions are finalized
-    consumePendingPan(cy);
+    // Clear pending pan state — the actual panning already happened
+    // in each layout function's completion callback (panToTrackedNode)
+    clearPendingPan();
 
     // If another layout was queued, run it now
     if (layoutQueued) {
@@ -166,7 +169,10 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
       nodeDimensionsIncludeLabels: true,
     });
 
-    layout.one('layoutstop', onComplete ?? onLayoutComplete);
+    layout.one('layoutstop', () => {
+      panToTrackedNode(cy);
+      (onComplete ?? onLayoutComplete)();
+    });
     layout.run();
   };
 
@@ -220,6 +226,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
 
     layout.one('layoutstop', () => {
       nodeProto.layoutDimensions = origLayoutDimensions;
+      panToTrackedNode(cy);
       (onComplete ?? onLayoutComplete)();
     });
     layout.run();
@@ -273,7 +280,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
         unconstrIter: 3,
         userConstIter: 3,
         allConstIter: 5,
-        nodeSpacing: 70,
+        nodeSpacing: 120,
         edgeLength: currentConfig.cola.edgeLength ?? DEFAULT_OPTIONS.edgeLength,
         centerGraph: false,
         fit: false,
@@ -297,7 +304,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
       unconstrIter: 12,
       userConstIter: 12,
       allConstIter: 20,
-      nodeSpacing: 70,
+      nodeSpacing: 120,
       edgeLength: currentConfig.cola.edgeLength ?? DEFAULT_OPTIONS.edgeLength,
       centerGraph: false,
       fit: false,
