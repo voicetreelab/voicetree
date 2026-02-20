@@ -58,8 +58,9 @@ async function main() {
     console.error(`\x1b[0;31m❌ FILE TOO LARGE: ${path.basename(filePath)}\x1b[0m`);
     console.error(`\x1b[0;31m   ${lineCount} lines — limit is ${MAX_LINES}\x1b[0m`);
     console.error('\x1b[0;31m════════════════════════════════════════════\x1b[0m');
-    console.error('\x1b[0;33mSplit this file into smaller modules before continuing.\x1b[0m');
-    console.error('\x1b[0;33mEach module should have a single responsibility.\x1b[0m');
+    console.error('\x1b[0;33mExtract this file into multiple files.\x1b[0m');
+    console.error('\x1b[0;33mUse functional programming philosophy to guide your extraction.\x1b[0m');
+    console.error('\x1b[0;33mPure functions are ideal, edge with side effects when necessary, avoid OOP.\x1b[0m');
     process.exit(2);
   }
 

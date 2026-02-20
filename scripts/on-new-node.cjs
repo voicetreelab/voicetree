@@ -105,7 +105,7 @@ List files in this folder sorted by recently created / modified.
 Use search_nodes to find related nodes these might connect to.
 
 ## Step 4: Score importance (1-10)
-How messy is this batch? Orphans, wrong links, bad splits/merges?
+How messy is this batch? Orphans, wrong links, bad splits/merges, stub or redundant nodes worth merging?
 
 - **1-3**: Graph looks fine. Skip to Step 6.
 - **4-6**: Minor fixes needed. Fix them (Step 5), then Step 6.
@@ -116,6 +116,7 @@ Edit markdown files directly to fix:
 - **Orphan nodes** (no existing connections at all): add a [[link]] to place them in the tree.
 - **Incorrect connections**: correct the wrong edge only — do not add new edges.
 - **Wrong splits** (merge) or **wrong merges** (split).
+- **Stub or redundant nodes** (merge): If a node is very short (1–3 sentences) and is clearly a sub-point of another nearby node, OR two nodes cover essentially the same concept with different wording, merge them. How to merge: (1) append the secondary node's content into the primary node (the one with more connections or richer content), separated by a blank line; (2) search nearby files for any [[wikilinks]] pointing to the secondary node and update them to point to the primary; (3) delete the secondary file using Bash (\`rm <path>\`). Only merge when the concepts genuinely overlap — do NOT merge nodes that cover distinct aspects of the same topic.
 
 Edge rules — strictly follow these:
 - Only ADD an edge if the node is a true orphan (zero existing connections).
