@@ -383,6 +383,11 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
       });
     } else {
       // Fallback (>30% new or no new nodes): global Cola every 7th, otherwise skip
+      if (newNodeIds.size === 0) {
+        console.warn(`[AutoLayout] ⚠️ Layout triggered but no new nodes tracked (layoutCount=${layoutCount}, totalNodes=${totalNodes}). Layout was likely triggered by edge/node remove. Skipping local Cola — only global Cola every 7th run.`);
+      } else {
+        console.warn(`[AutoLayout] ⚠️ Batch add: ${newNodeIds.size} new nodes (${Math.round(newNodeIds.size / totalNodes * 100)}% of graph). Skipping local Cola — only global Cola every 7th run.`);
+      }
       if (shouldRunGlobal) {
         runColaLayout();
       } else {
