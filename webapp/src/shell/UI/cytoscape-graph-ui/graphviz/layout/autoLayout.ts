@@ -446,6 +446,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
   });
 
   // Register cola layout trigger for manual "tidy up" button
+  // Runs fCOSE for global positioning then Cola for refinement (same as initial load)
   colaLayoutTriggers.set(cy, () => {
     if (layoutRunning) {
       layoutQueued = true;
@@ -453,7 +454,9 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     }
     if (cy.nodes().length === 0) return;
     layoutRunning = true;
-    runColaLayout();
+    runFcoseLayout(undefined, () => {
+      runColaLayout();
+    });
   });
 
   //console.log('[AutoLayout] Auto-layout enabled');
