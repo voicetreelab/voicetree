@@ -1,7 +1,7 @@
 ---
 position:
-  x: 3652
-  y: 2018
+  x: 4763
+  y: 956
 isContextNode: false
 ---
 1. Out of the categories think hard, how could you best divide these into up to 7 different groupings to send to subagents?
