@@ -29,10 +29,9 @@ export function closeAgentTool({terminalId, callerTerminalId}: CloseAgentParams)
         const agentNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(getGraph(), agentName)
 
         if (agentNodes.length === 0) {
-            const displayName: string = agentName ?? terminalId
             return buildJsonResponse({
                 success: false,
-                error: `Cannot close agent "${displayName}": this agent has not produced any nodes yet. Use send_message to nudge them to create a progress node, or redirect them to a different task.`
+                error: `Cannot close agent "${terminalId}": this agent has not produced any nodes yet. Use send_message to nudge them to create a progress node or provide any other necessary guidance.`
             }, true)
         }
     }
