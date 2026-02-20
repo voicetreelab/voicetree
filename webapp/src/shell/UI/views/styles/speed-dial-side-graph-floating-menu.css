@@ -13,6 +13,13 @@
   transition: right 0.15s ease;
 }
 
+.speed-dial-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 .speed-dial-item {
   display: flex;
   align-items: center;
@@ -40,6 +47,25 @@
 /* Dark mode shadow adjustment */
 .dark .speed-dial-item:hover {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Tooltip - shown below button on hover */
+.speed-dial-tooltip {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--muted-foreground);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.speed-dial-wrapper:hover .speed-dial-tooltip {
+  opacity: 1;
 }
 
 /* Shift speed dial left when stats panel is open to avoid collision with close button */
