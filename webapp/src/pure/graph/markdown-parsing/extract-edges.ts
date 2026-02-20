@@ -68,8 +68,8 @@ export function linkMatchScore(linkText: string, nodeId: string): number {
 
   // Find first mismatch index, then count is that index (or minLen if all match)
   const firstMismatchIdx: number = indices.findIndex((i: number) => {
-    const linkComp: string = linkComponents[linkComponents.length - 1 - i]
-    const nodeComp: string = nodeComponents[nodeComponents.length - 1 - i]
+    const linkComp: string = linkComponents[linkComponents.length - 1 - i].toLowerCase()
+    const nodeComp: string = nodeComponents[nodeComponents.length - 1 - i].toLowerCase()
     return linkComp !== nodeComp
   })
 
@@ -131,6 +131,13 @@ export function findBestMatchingNode(
   const bestNodeComponents: readonly string[] = getPathComponents(result.nodeId)
   const minRequiredScore: number = Math.min(linkComponents.length, bestNodeComponents.length)
   if (result.score < minRequiredScore) {
+    // Fallback: stale absolute paths from moved mount points (AppImage, symlinks).
+    // Accept best basename-matching candidate when the link is an absolute path
+    // not found in the graph. Best-score still prefers highest suffix overlap.
+    const isStaleAbsolutePath: boolean = linkText.startsWith('/') && nodes[linkText] === undefined
+    if (isStaleAbsolutePath && result.score >= 1) {
+      return result.nodeId
+    }
     return undefined
   }
 

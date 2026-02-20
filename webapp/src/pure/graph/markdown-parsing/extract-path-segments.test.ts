@@ -106,3 +106,29 @@ describe('linkMatchScore', () => {
     expect(linkMatchScore('foo.txt', 'a/b/foo.md')).toBe(0)
   })
 })
+
+describe('linkMatchScore - case insensitivity (Bug 1 regression)', () => {
+  it('should match [[Parent-Slug]] to parent-slug.md (core bug case)', () => {
+    expect(linkMatchScore('Parent-Slug', 'vault/parent-slug.md')).toBe(1)
+  })
+
+  it('should match [[README]] to docs/readme.md', () => {
+    expect(linkMatchScore('README', 'docs/readme.md')).toBe(1)
+  })
+
+  it('should match case-insensitively across path components', () => {
+    expect(linkMatchScore('Folder/File', 'Folder/file.md')).toBe(2)
+  })
+
+  it('should match [[UPPER]] to lower.md and return correct score', () => {
+    expect(linkMatchScore('A/B/UPPER', 'x/a/b/upper.md')).toBe(3)
+  })
+
+  it('should match Python-generated mixed case: 42_Juan_Safe_Name', () => {
+    expect(linkMatchScore('42_Juan_Safe_Name', 'vault/42_juan_safe_name.md')).toBe(1)
+  })
+
+  it('should handle MyDoc.md vs mydoc.md (extension-stripped, case-insensitive)', () => {
+    expect(linkMatchScore('MyDoc.md', 'folder/mydoc.md')).toBe(1)
+  })
+})
