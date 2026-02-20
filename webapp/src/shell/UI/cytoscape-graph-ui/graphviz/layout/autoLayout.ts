@@ -74,7 +74,7 @@ const computeColaAndAnimate: (
     });
 
     setTimeout(() => {
-      panToTrackedNode(colaLayoutOpts.cy as Core);
+      // panToTrackedNode(colaLayoutOpts.cy as Core);
       onComplete();
     }, duration + 16);
   });
@@ -124,8 +124,8 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     void window.electronAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);
     layoutRunning = false;
 
-    // Clear pending pan state — the actual panning already happened
-    // in each layout function's completion callback (panToTrackedNode)
+    // Pan viewport to tracked node at end of full layout chain, then clear state
+    panToTrackedNode(cy);
     clearPendingPan();
 
     // If another layout was queued, run it now
@@ -170,7 +170,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     });
 
     layout.one('layoutstop', () => {
-      panToTrackedNode(cy);
+      // panToTrackedNode(cy);
       (onComplete ?? onLayoutComplete)();
     });
     layout.run();
@@ -226,7 +226,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
 
     layout.one('layoutstop', () => {
       nodeProto.layoutDimensions = origLayoutDimensions;
-      panToTrackedNode(cy);
+      // panToTrackedNode(cy);
       (onComplete ?? onLayoutComplete)();
     });
     layout.run();
