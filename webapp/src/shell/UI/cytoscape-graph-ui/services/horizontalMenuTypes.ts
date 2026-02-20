@@ -36,6 +36,9 @@ export interface HorizontalMenuItem {
     onHoverLeave?: () => void; // Optional callback on mouseleave
     sliderConfig?: SliderConfig; // Optional distance slider shown on hover
     secondaryAction?: SecondaryAction; // Optional action button at right edge (submenu items only)
+    isCheckbox?: boolean; // Render as checkbox toggle instead of icon button
+    checked?: boolean; // Initial checked state (only used when isCheckbox is true)
+    preventClose?: boolean; // Don't close menu on click (useful for toggles)
 }
 
 /** Input parameters for getNodeMenuItems */
