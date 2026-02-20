@@ -7,7 +7,7 @@ import posthog from "posthog-js";
 import {markTerminalActivityForContextNode} from "@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity";
 import type {} from '@/utils/types/cytoscape-layout-utilities';
 import {checkEngagementPrompts} from "./userEngagementPrompts";
-import {setPendingPan, setPendingPanToNode} from "@/shell/edge/UI-edge/state/PendingPanStore";
+import {setPendingPan, setPendingPanToNode, setPendingVoiceFollowPan} from "@/shell/edge/UI-edge/state/PendingPanStore";
 import {getEditorByNodeId} from "@/shell/edge/UI-edge/state/EditorStore";
 import {scheduleIdleWork} from "@/utils/scheduleIdleWork";
 import {getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
@@ -277,6 +277,15 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
     else if (newNodeCount >= 1 && totalNodes <= 4) {
         // Will fit so average node takes target fraction of viewport
         setPendingPan('small-graph', newNodeIds, totalNodes);
+    }
+    else {
+        // Auto-pan to new voice nodes so the view follows dictation
+        for (let i: number = newNodeIds.length - 1; i >= 0; i--) {
+            if (newNodeIds[i].includes('/voice/')) {
+                setPendingVoiceFollowPan(newNodeIds[i]);
+                break;
+            }
+        }
     }
     //console.log('[applyGraphDeltaToUI] Complete. Total nodes:', cy.nodes().length, 'Total edges:', cy.edges().length);
 

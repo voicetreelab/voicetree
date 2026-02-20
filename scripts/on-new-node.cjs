@@ -11,11 +11,11 @@
 // Env (required, set by buildTerminalEnvVars when hook terminal is spawned):
 //   VOICETREE_MCP_PORT              - MCP server port (errors if missing)
 //   VOICETREE_CALLER_TERMINAL_ID    - Terminal ID for agent spawning (errors if missing)
+//   VOICETREE_VAULT_PATH            - Vault root directory (used by spawned agents, not this script)
 
 'use strict'
 
 const fs = require('fs')
-const path = require('path')
 const http = require('http')
 
 const nodePath = process.argv[2]
@@ -53,7 +53,7 @@ const agents = [
         batchFile: '/tmp/voicetree-new-nodes-thinking.txt',
         threshold: 3,
         taskTitle: 'Expand thinking on recent nodes',
-        buildPrompt: (nodeList, _vaultDir) =>
+        buildPrompt: (nodeList) =>
 `You are a background thinking partner. Read recent nodes and decide if you have anything worth saying.
 
 ## Step 1: Read these nodes
@@ -89,12 +89,11 @@ Use close_agent with your own terminal ID (from $VOICETREE_TERMINAL_ID) as both 
         batchFile: '/tmp/voicetree-new-nodes-gardening.txt',
         threshold: 5,
         taskTitle: 'Graph improver: fix connections in recent nodes',
-        buildPrompt: (nodeList, vaultDir) => {
-            const transcriptPath = path.join(vaultDir, 'transcript_history.txt')
+        buildPrompt: (nodeList) => {
             return `You are a graph-improver agent. Voice-to-graph can produce messy results. Silently fix the recent batch of nodes.
 
 ## Step 1: Read transcript tail
-Read the TAIL (last 2000 chars) of: ${transcriptPath}
+Read the TAIL (last 2000 chars) of: $VOICETREE_VAULT_PATH/transcript_history.txt
 
 ## Step 2: Read recent nodes
 ${nodeList}
@@ -134,12 +133,11 @@ Use close_agent with your own terminal ID (from $VOICETREE_TERMINAL_ID) as both 
         batchFile: '/tmp/voicetree-new-nodes-dispatcher.txt',
         threshold: 1,
         taskTitle: 'Check transcript for user command',
-        buildPrompt: (nodeList, vaultDir) => {
-            const transcriptPath = path.join(vaultDir, 'transcript_history.txt')
+        buildPrompt: (nodeList) => {
             return `You are a command dispatcher. Your ONLY job: detect if the user's voice transcript contains an explicit command that should be executed via voicetree MCP tools, and if so, execute it.
 
 ## Step 1: Read transcript tail
-Read the TAIL (last 1500 chars) of: ${transcriptPath}
+Read the TAIL (last 1500 chars) of: $VOICETREE_VAULT_PATH/transcript_history.txt
 
 ## Step 2: Read the new node
 ${nodeList}
@@ -255,7 +253,6 @@ function spawnAgentViaMcp(payload) {
         truncate(agent.batchFile)
 
         const firstNode = lines[0]
-        const vaultDir = path.dirname(firstNode)
         const nodeList = lines.map((p) => '- ' + p).join('\n')
 
         const payload = {
@@ -266,7 +263,7 @@ function spawnAgentViaMcp(payload) {
                 name: 'spawn_agent',
                 arguments: {
                     nodeId: firstNode,
-                    details: agent.buildPrompt(nodeList, vaultDir),
+                    details: agent.buildPrompt(nodeList),
                     callerTerminalId: TERMINAL_ID,
                     promptTemplate: 'AGENT_PROMPT_LIGHTWEIGHT',
                 },

@@ -230,3 +230,18 @@ def test_history_manager_with_file_path_in_nonexistent_directory(tmp_path):
     except FileNotFoundError as e:
         assert "Directory does not exist" in str(e)
         assert str(nonexistent_dir) in str(e)
+
+
+def test_save_to_file_appends_newline_after_each_chunk(tmp_path):
+    """Each chunk written to transcript_history.txt should end with a newline."""
+    file_path = str(tmp_path / "transcript_history.txt")
+    manager = HistoryManager(file_path)
+
+    manager.append("first chunk", max_length=1000)
+    manager.append("second chunk", max_length=1000)
+    manager.append("third chunk", max_length=1000)
+
+    with open(file_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+
+    assert lines == ["first chunk\n", "second chunk\n", "third chunk\n"]
