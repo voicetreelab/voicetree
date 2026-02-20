@@ -5,7 +5,7 @@ import {findBestMatchingNode} from '@/pure/graph/markdown-parsing/extract-edges'
 import {setOutgoingEdges} from '@/pure/graph/graph-operations/graph-edge-operations'
 import {filenameToNodeId} from '@/pure/graph/markdown-parsing/filename-utils'
 import {calculateCollisionAwareChildPosition} from "@/pure/graph/positioning/calculateInitialPosition";
-import {extractObstaclesFromGraph} from "@/pure/graph/positioning/extractObstaclesFromGraph";
+import {extractAllObstaclesFromGraph} from "@/pure/graph/positioning/extractObstaclesFromGraph";
 import {getBaseName, updateNodeByBaseNameIndexForUpsert, updateUnresolvedLinksIndexForUpsert} from '@/pure/graph/graph-operations/linkResolutionIndexes'
 
 /**
@@ -37,7 +37,7 @@ function resolveNodePosition(
         const parentId: NodeIdAndFilePath = affectedNodeIds[0]
         const parent: GraphNode = currentGraph.nodes[parentId]
         if (O.isSome(parent.nodeUIMetadata.position)) {
-            const obstacles: readonly import("@/pure/graph/positioning/findBestPosition").ObstacleBBox[] = extractObstaclesFromGraph(parentId, currentGraph)
+            const obstacles: readonly import("@/pure/graph/positioning/findBestPosition").Obstacle[] = extractAllObstaclesFromGraph(parentId, currentGraph)
             return O.some(calculateCollisionAwareChildPosition(parent.nodeUIMetadata.position.value, currentGraph, parentId, obstacles, 200))
         }
         return O.none

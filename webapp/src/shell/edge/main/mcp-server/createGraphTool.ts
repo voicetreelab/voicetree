@@ -16,7 +16,7 @@ import {ensureUniqueNodeId} from '@/pure/graph/ensureUniqueNodeId'
 import {parseMarkdownToGraphNode} from '@/pure/graph/markdown-parsing/parse-markdown-to-node'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {calculateCollisionAwareChildPosition} from '@/pure/graph/positioning/calculateInitialPosition'
-import {extractObstaclesFromGraph} from '@/pure/graph/positioning/extractObstaclesFromGraph'
+import {extractAllObstaclesFromGraph} from '@/pure/graph/positioning/extractObstaclesFromGraph'
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange'
 import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
@@ -352,9 +352,9 @@ export async function createGraphTool({
         childCounts.set(parentKey, childIndex + 1)
 
         const currentGraph: Graph = getGraph()
-        const obstacles: readonly import('@/pure/graph/positioning/findBestPosition').ObstacleBBox[] = extractObstaclesFromGraph(deepestParentNodeId, currentGraph)
+        const obstacles: readonly import('@/pure/graph/positioning/findBestPosition').Obstacle[] = extractAllObstaclesFromGraph(deepestParentNodeId, currentGraph)
         const nodePosition: Position = calculateCollisionAwareChildPosition(
-            deepestParentPosition, currentGraph, deepestParentNodeId, obstacles, 200, undefined, childIndex
+            deepestParentPosition, currentGraph, deepestParentNodeId, obstacles, 200, childIndex
         )
 
         // Build markdown with multiple parent wikilinks

@@ -98,6 +98,32 @@ export function segmentsIntersect(a: EdgeSegment, b: EdgeSegment): boolean {
 }
 
 /**
+ * Check if a line segment intersects with or passes through a rectangle.
+ * Returns true if any part of the segment is inside or crosses the rect boundary.
+ */
+export function rectIntersectsSegment(
+    rect: { readonly x1: number; readonly x2: number; readonly y1: number; readonly y2: number },
+    seg: EdgeSegment
+): boolean {
+    // Check if either endpoint is inside the rect (boundary-inclusive)
+    const insideRect: (p: Position) => boolean = (p: Position): boolean =>
+        p.x >= rect.x1 && p.x <= rect.x2 && p.y >= rect.y1 && p.y <= rect.y2;
+    if (insideRect(seg.p1) || insideRect(seg.p2)) return true;
+
+    // Check if segment crosses any of the 4 rect edges
+    const corners: readonly Position[] = [
+        { x: rect.x1, y: rect.y1 },
+        { x: rect.x2, y: rect.y1 },
+        { x: rect.x2, y: rect.y2 },
+        { x: rect.x1, y: rect.y2 },
+    ];
+    return corners.some((corner: Position, i: number) => {
+        const next: Position = corners[(i + 1) % 4];
+        return segmentsIntersect(seg, { p1: corner, p2: next });
+    });
+}
+
+/**
  * Determine whether a local geometry requires layout correction.
  * Returns true if any new edge crosses an existing edge, or any new node
  * rect overlaps a neighbor rect.
