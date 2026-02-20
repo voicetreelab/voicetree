@@ -8,7 +8,8 @@ import {
     SPAWN_RADIUS
 } from "@/pure/graph/positioning/angularPositionSeeding";
 import {findFirstParentNode} from "@/pure/graph/graph-operations/findFirstParentNode";
-import type {ObstacleBBox, EdgeSegment} from "@/pure/graph/positioning/findBestPosition";
+import type {ObstacleBBox} from "@/pure/graph/positioning/findBestPosition";
+import type {EdgeSegment} from "@/pure/graph/geometry";
 import {findBestPosition} from "@/pure/graph/positioning/findBestPosition";
 import {extractEdgeSegmentsFromGraph} from "@/pure/graph/positioning/extractObstaclesFromGraph";
 
@@ -66,6 +67,9 @@ const CHILD_NODE_DIMENSIONS: { readonly width: number; readonly height: number }
  * @param edgeSegments - Optional pre-extracted edge segments (e.g., from spatial index).
  *   When provided, skips internal BFS extraction. When omitted, falls back to
  *   extractEdgeSegmentsFromGraph (5-hop BFS).
+ * @param childIndexOverride - Optional explicit child index. When provided, overrides
+ *   the default outgoingEdges.length count. Needed when edges point child→parent
+ *   (e.g., createGraphTool batch) rather than parent→child.
  */
 export function calculateCollisionAwareChildPosition(
     parentPos: Position,
@@ -73,7 +77,8 @@ export function calculateCollisionAwareChildPosition(
     parentNodeId: NodeIdAndFilePath,
     obstacles: readonly ObstacleBBox[],
     distance: number = DEFAULT_EDGE_LENGTH,
-    edgeSegments?: readonly EdgeSegment[]
+    edgeSegments?: readonly EdgeSegment[],
+    childIndexOverride?: number
 ): Position {
     const parentGraphNode: GraphNode | undefined = graph.nodes[parentNodeId];
     const grandparentNode: GraphNode | undefined = parentGraphNode ? findFirstParentNode(parentGraphNode, graph) : undefined;
@@ -81,7 +86,7 @@ export function calculateCollisionAwareChildPosition(
         ? calculateParentAngle(parentGraphNode, grandparentNode)
         : undefined;
 
-    const childIndex: number = parentGraphNode ? parentGraphNode.outgoingEdges.length : 0;
+    const childIndex: number = childIndexOverride ?? (parentGraphNode ? parentGraphNode.outgoingEdges.length : 0);
     const desiredAngle: number = calculateChildAngle(childIndex, parentAngle);
 
     const segments: readonly EdgeSegment[] = edgeSegments ?? extractEdgeSegmentsFromGraph(parentNodeId, graph);
