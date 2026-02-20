@@ -2,6 +2,7 @@ import type cytoscape from "cytoscape";
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import type {Core} from 'cytoscape';
 import {createTrafficLightsForTarget} from "@/shell/edge/UI-edge/floating-windows/traffic-lights";
+import {createExpandButton} from "./expand-button";
 
 /**
  * Check if a node ID represents a context node
@@ -38,6 +39,16 @@ export function createTerminalTitleBar(
 ): HTMLDivElement {
     const titleBar: HTMLDivElement = document.createElement('div');
     titleBar.className = 'terminal-title-bar';
+
+    // Expand button at far-left of title bar (reads base dimensions from dataset set by createWindowChrome)
+    const baseWidth: number = Number(windowElement.dataset.baseWidth ?? '0');
+    const baseHeight: number = Number(windowElement.dataset.baseHeight ?? '0');
+    const expandButton: HTMLButtonElement = createExpandButton(
+        windowElement,
+        { width: baseWidth, height: baseHeight },
+        'title-bar'
+    );
+    titleBar.appendChild(expandButton);
 
     // Get the attached node ID for context detection
     const attachedNodeId: string = terminal.attachedToContextNodeId;

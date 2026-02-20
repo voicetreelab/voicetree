@@ -213,8 +213,6 @@ One node = one concept. If your work covers multiple independent concerns, creat
 
 **Node wiring:** Each node has a \`filename\` (with or without .md extension). Use \`parents\` (array) to reference other nodes' filenames — all parents are created before children. Nodes without \`parents\` attach to the top-level \`parentNodeId\` (or your task node by default). Diamond dependencies are supported: \`"parents": ["phase1", "phase2"]\`.
 
-**Line limit:** Each node is limited to ${lineLimit} lines (excluding codeDiffs and diagram). Nodes exceeding this limit block creation — split into a TREE that mirrors your content's conceptual structure, not a linear chain.
-
 Split by concern:
 Task: Review git diff
 ├── Review: Collision-aware positioning refactor

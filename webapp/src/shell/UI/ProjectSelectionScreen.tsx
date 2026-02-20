@@ -358,7 +358,7 @@ export function ProjectSelectionScreen({ onProjectSelected }: ProjectSelectionSc
                     onClick={() => void handleBrowseFolder()}
                     className="flex-1 py-3 px-4 bg-card text-foreground font-medium rounded-lg border border-border hover:bg-accent transition-colors"
                 >
-                    Open existing...
+                    Open existing folder
                 </button>
             </div>
         </div>

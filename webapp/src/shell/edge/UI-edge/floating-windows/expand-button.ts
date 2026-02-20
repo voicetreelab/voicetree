@@ -1,22 +1,33 @@
 import {Maximize2, Minimize2, createElement} from 'lucide';
 
+/** Where the expand button is placed: bottom-left overlay (editors) or inside the title bar (terminals) */
+export type ExpandButtonPlacement = 'overlay' | 'title-bar';
+
 /**
- * Create the bottom-right expand/minimize button
+ * Create the expand/minimize button
  * Toggles between 2x and 0.5x of current dimensions
+ *
+ * @param placement - 'overlay' (default): absolutely positioned at bottom-left.
+ *                    'title-bar': inline flex item for use inside a title bar.
  */
 export function createExpandButton(
     windowElement: HTMLDivElement,
-    _baseDimensions: { width: number; height: number }
+    _baseDimensions: { width: number; height: number },
+    placement: ExpandButtonPlacement = 'overlay'
 ): HTMLButtonElement {
     const button: HTMLButtonElement = document.createElement('button');
     button.className = 'cy-floating-window-expand-corner';
     button.dataset.icon = 'maximize';
     button.dataset.expanded = 'false';
+    button.dataset.placement = placement;
 
-    // Position in bottom-left corner, flush with edge
-    button.style.position = 'absolute';
-    button.style.bottom = '0';
-    button.style.left = '0';
+    // Only apply absolute positioning for the overlay (bottom-left) variant.
+    // Title-bar placement is handled entirely by CSS (static position, flex item).
+    if (placement === 'overlay') {
+        button.style.position = 'absolute';
+        button.style.bottom = '0';
+        button.style.left = '0';
+    }
 
     // Create and append initial icon (Maximize2)
     const initialIcon: SVGElement = createElement(Maximize2);
