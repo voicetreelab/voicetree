@@ -309,6 +309,9 @@ async function createNewWorkspaceOnFileLimitExceeded(
         timestamp: new Date().toISOString()
     });
 
+    // Push updated vault state to renderer so VaultPathSelector re-renders
+    void broadcastVaultState();
+
     return { success: true };
 }
 
