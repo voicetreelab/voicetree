@@ -14,7 +14,10 @@
 
 import type { Rect, SpatialNodeEntry, SpatialEdgeEntry, SpatialIndex } from '@/pure/graph/spatial';
 import { queryNodesInRect, queryEdgesInRect } from '@/pure/graph/spatial';
-import type { ObstacleBBox, EdgeSegment } from '@/pure/graph/positioning/findBestPosition';
+import type { ObstacleBBox } from '@/pure/graph/positioning/findBestPosition';
+import { boxObstacle, segmentObstacle } from '@/pure/graph/positioning/findBestPosition';
+import type { Obstacle } from '@/pure/graph/positioning/findBestPosition';
+import type { EdgeSegment } from '@/pure/graph/geometry';
 import type { Position } from '@/pure/graph';
 
 // ============================================================================
@@ -91,7 +94,7 @@ export function queryEdgeSegmentsFromIndex(
 }
 
 /**
- * Extract obstacles and edge segments from a spatial index around a parent position.
+ * Extract a unified obstacle array from a spatial index around a parent position.
  * Drop-in replacement for extractObstaclesFromGraph / extractObstaclesFromCytoscape + extractEdgeSegmentsFrom*.
  *
  * Uses O(log n + k) R-tree queries instead of O(k) BFS traversal.
@@ -108,10 +111,9 @@ export function extractFromSpatialIndex(
     parentPos: Position,
     excludeNodeId?: string,
     searchRadius: number = 1500
-): { readonly obstacles: readonly ObstacleBBox[]; readonly edgeSegments: readonly EdgeSegment[] } {
+): readonly Obstacle[] {
     const searchRect: Rect = buildSearchRect(parentPos, searchRadius);
-    return {
-        obstacles: queryObstaclesFromIndex(index, searchRect, excludeNodeId),
-        edgeSegments: queryEdgeSegmentsFromIndex(index, searchRect),
-    };
+    const boxes: readonly Obstacle[] = queryObstaclesFromIndex(index, searchRect, excludeNodeId).map(boxObstacle);
+    const segments: readonly Obstacle[] = queryEdgeSegmentsFromIndex(index, searchRect).map(segmentObstacle);
+    return [...boxes, ...segments];
 }

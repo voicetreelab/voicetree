@@ -8,10 +8,8 @@ import {
     SPAWN_RADIUS
 } from "@/pure/graph/positioning/angularPositionSeeding";
 import {findFirstParentNode} from "@/pure/graph/graph-operations/findFirstParentNode";
-import type {ObstacleBBox} from "@/pure/graph/positioning/findBestPosition";
-import type {EdgeSegment} from "@/pure/graph/geometry";
+import type {Obstacle} from "@/pure/graph/positioning/findBestPosition";
 import {findBestPosition} from "@/pure/graph/positioning/findBestPosition";
-import {extractEdgeSegmentsFromGraph} from "@/pure/graph/positioning/extractObstaclesFromGraph";
 
 /**
  * Calculate initial position for a new child node (pure function)
@@ -61,12 +59,10 @@ const CHILD_NODE_DIMENSIONS: { readonly width: number; readonly height: number }
 /**
  * Calculate a collision-aware position for a new child node (pure function).
  *
- * Takes pre-extracted obstacles and pure graph data — no cytoscape dependency.
+ * Takes pre-extracted unified obstacles (node bboxes + edge segments) and pure
+ * graph data — no cytoscape dependency.
  * Computes the desired angle from the graph topology, then delegates to findBestPosition.
  *
- * @param edgeSegments - Optional pre-extracted edge segments (e.g., from spatial index).
- *   When provided, skips internal BFS extraction. When omitted, falls back to
- *   extractEdgeSegmentsFromGraph (5-hop BFS).
  * @param childIndexOverride - Optional explicit child index. When provided, overrides
  *   the default outgoingEdges.length count. Needed when edges point child→parent
  *   (e.g., createGraphTool batch) rather than parent→child.
@@ -75,9 +71,8 @@ export function calculateCollisionAwareChildPosition(
     parentPos: Position,
     graph: Graph,
     parentNodeId: NodeIdAndFilePath,
-    obstacles: readonly ObstacleBBox[],
+    obstacles: readonly Obstacle[],
     distance: number = DEFAULT_EDGE_LENGTH,
-    edgeSegments?: readonly EdgeSegment[],
     childIndexOverride?: number
 ): Position {
     const parentGraphNode: GraphNode | undefined = graph.nodes[parentNodeId];
@@ -89,15 +84,11 @@ export function calculateCollisionAwareChildPosition(
     const childIndex: number = childIndexOverride ?? (parentGraphNode ? parentGraphNode.outgoingEdges.length : 0);
     const desiredAngle: number = calculateChildAngle(childIndex, parentAngle);
 
-    const segments: readonly EdgeSegment[] = edgeSegments ?? extractEdgeSegmentsFromGraph(parentNodeId, graph);
-
     return findBestPosition(
         parentPos,
         desiredAngle,
         distance,
         CHILD_NODE_DIMENSIONS,
         obstacles,
-        undefined,
-        segments
     );
 }

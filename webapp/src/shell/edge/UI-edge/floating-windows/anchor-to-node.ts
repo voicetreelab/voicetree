@@ -20,9 +20,8 @@ import {cleanupRegistry, getCachedZoom} from "@/shell/edge/UI-edge/floating-wind
 import {setupResizeObserver, updateShadowNodeDimensions} from "@/shell/edge/UI-edge/floating-windows/setup-resize-observer";
 import {getEdgeDistance} from "@/shell/UI/cytoscape-graph-ui/graphviz/layout/cytoscape-graph-constants";
 import {findBestPosition} from "@/pure/graph/positioning/findBestPosition";
-import type {ObstacleBBox} from "@/pure/graph/positioning/findBestPosition";
-import type {EdgeSegment} from "@/pure/graph/geometry";
-import {extractObstaclesFromCytoscape, extractEdgeSegmentsFromCytoscape} from "@/shell/edge/UI-edge/floating-windows/extractObstaclesFromCytoscape";
+import type {Obstacle} from "@/pure/graph/positioning/findBestPosition";
+import {extractAllObstaclesFromCytoscape} from "@/shell/edge/UI-edge/floating-windows/extractObstaclesFromCytoscape";
 import type {SpatialIndex} from "@/pure/graph/spatial";
 import {extractFromSpatialIndex} from "@/pure/graph/positioning/spatialAdapters";
 
@@ -77,11 +76,11 @@ export function anchorToNode(
         ) * 180) / Math.PI
         : 0; // No grandparent (context node is root), default to right
 
-    // Extract obstacles and edge segments — spatial index (O(log n)) when available, otherwise cytoscape BFS (O(k))
-    const { obstacles, edgeSegments }: { readonly obstacles: readonly ObstacleBBox[]; readonly edgeSegments: readonly EdgeSegment[] } = spatialIndex
+    // Extract unified obstacles (nodes + edges) — spatial index (O(log n)) when available, otherwise cytoscape BFS (O(k))
+    const obstacles: readonly Obstacle[] = spatialIndex
         ? extractFromSpatialIndex(spatialIndex, { x: parentPos.x, y: parentPos.y }, parentNodeId,
             getEdgeDistance(fw.type) * 3 + Math.max(shadowDimensions.width, shadowDimensions.height))
-        : { obstacles: extractObstaclesFromCytoscape(cy, parentNodeId), edgeSegments: extractEdgeSegmentsFromCytoscape(cy, parentNodeId) };
+        : extractAllObstaclesFromCytoscape(cy, parentNodeId);
     const childPosition: import('@/pure/graph').Position = findBestPosition(
         { x: parentPos.x, y: parentPos.y },
         desiredAngleDeg,
@@ -89,7 +88,6 @@ export function anchorToNode(
         { width: shadowDimensions.width, height: shadowDimensions.height },
         obstacles,
         { parentWidth: parentNode.width(), parentHeight: parentNode.height(), gap: 20 },
-        edgeSegments
     );
 
     // Create shadow node (follows parent position via listener below)

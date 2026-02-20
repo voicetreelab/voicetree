@@ -7,7 +7,10 @@
 
 import type cytoscape from 'cytoscape';
 import type { NodeIdAndFilePath } from '@/pure/graph';
-import type { ObstacleBBox, EdgeSegment } from '@/pure/graph/positioning/findBestPosition';
+import type { ObstacleBBox } from '@/pure/graph/positioning/findBestPosition';
+import { boxObstacle, segmentObstacle } from '@/pure/graph/positioning/findBestPosition';
+import type { Obstacle } from '@/pure/graph/positioning/findBestPosition';
+import type { EdgeSegment } from '@/pure/graph/geometry';
 
 /**
  * Extract obstacle bounding boxes from the cytoscape neighborhood of a node.
@@ -72,4 +75,17 @@ export function extractEdgeSegmentsFromCytoscape(
                 p2: { x: targetPos.x, y: targetPos.y },
             };
         });
+}
+
+/**
+ * Extract a unified obstacle array (node bboxes + edge segments) from cytoscape.
+ * Combines both obstacle types into one array for single-pass collision detection.
+ */
+export function extractAllObstaclesFromCytoscape(
+    cy: cytoscape.Core,
+    parentNodeId: NodeIdAndFilePath
+): readonly Obstacle[] {
+    const boxes: readonly Obstacle[] = extractObstaclesFromCytoscape(cy, parentNodeId).map(boxObstacle);
+    const segments: readonly Obstacle[] = extractEdgeSegmentsFromCytoscape(cy, parentNodeId).map(segmentObstacle);
+    return [...boxes, ...segments];
 }

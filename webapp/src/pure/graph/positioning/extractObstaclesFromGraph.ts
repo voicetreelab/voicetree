@@ -10,7 +10,10 @@
  */
 
 import type {Graph, GraphNode, NodeIdAndFilePath, Position} from "@/pure/graph";
-import type {ObstacleBBox, EdgeSegment} from "@/pure/graph/positioning/findBestPosition";
+import type {ObstacleBBox} from "@/pure/graph/positioning/findBestPosition";
+import {boxObstacle, segmentObstacle} from "@/pure/graph/positioning/findBestPosition";
+import type {Obstacle} from "@/pure/graph/positioning/findBestPosition";
+import type {EdgeSegment} from "@/pure/graph/geometry";
 import * as O from 'fp-ts/lib/Option.js';
 
 /** Estimated dimensions for a typical graph node (approximate rendered size). */
@@ -127,4 +130,17 @@ export function extractEdgeSegmentsFromGraph(
             })
             .filter((seg): seg is EdgeSegment => seg !== null);
     });
+}
+
+/**
+ * Extract a unified obstacle array (node bboxes + edge segments) from the graph.
+ * Combines both obstacle types into one array for single-pass collision detection.
+ */
+export function extractAllObstaclesFromGraph(
+    parentNodeId: NodeIdAndFilePath,
+    graph: Graph
+): readonly Obstacle[] {
+    const boxes: readonly Obstacle[] = extractObstaclesFromGraph(parentNodeId, graph).map(boxObstacle);
+    const segments: readonly Obstacle[] = extractEdgeSegmentsFromGraph(parentNodeId, graph).map(segmentObstacle);
+    return [...boxes, ...segments];
 }
