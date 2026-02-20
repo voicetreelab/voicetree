@@ -61,9 +61,23 @@ export function createMenuItemElement(item: HorizontalMenuItem, onClose: () => v
             color: inherit;
         `;
 
-    // Add icon (fixed position, doesn't move on hover)
+    // Add icon or checkbox (fixed position, doesn't move on hover)
     const iconWrapper: HTMLSpanElement = document.createElement('span');
-    iconWrapper.appendChild(createIconElement(item.icon, item.color));
+    if (item.isCheckbox) {
+        const checkbox: HTMLInputElement = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = item.checked ?? false;
+        checkbox.style.cssText = `
+            margin: 0;
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            pointer-events: none;
+        `;
+        iconWrapper.appendChild(checkbox);
+    } else {
+        iconWrapper.appendChild(createIconElement(item.icon, item.color));
+    }
     button.appendChild(iconWrapper);
 
     // Add label container - position depends on whether label is always shown
@@ -203,8 +217,13 @@ export function createMenuItemElement(item: HorizontalMenuItem, onClose: () => v
     // Click handler
     button.addEventListener('click', (e) => {
         e.stopPropagation();
+        // Toggle checkbox visual state before calling action
+        if (item.isCheckbox) {
+            const checkbox: HTMLInputElement | null = button.querySelector('input[type="checkbox"]');
+            if (checkbox) checkbox.checked = !checkbox.checked;
+        }
         void item.action();
-        if (!item.subMenu && !item.getSubMenuItems) {
+        if (!item.subMenu && !item.getSubMenuItems && !item.preventClose) {
             onClose();
         }
     });

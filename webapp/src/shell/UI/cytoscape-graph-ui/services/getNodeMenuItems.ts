@@ -4,7 +4,7 @@
  */
 
 import type { Core } from 'cytoscape';
-import { Plus, Play, Trash2, AlertTriangle, Clipboard, ChevronDown, Edit2, GitBranch, FolderOpen } from 'lucide';
+import { Plus, Play, Trash2, AlertTriangle, Clipboard, ChevronDown, Edit2, GitBranch, FolderOpen, Check } from 'lucide';
 import type { GraphNode } from "@/pure/graph";
 import { createNewChildNodeFromUI, deleteNodesFromUI } from "@/shell/edge/UI-edge/graph/handleUIActions";
 import { getCurrentIndex } from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
@@ -15,7 +15,8 @@ import {
     spawnTerminalInNewWorktree,
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
 import { getFilePathForNode, getNodeFromMainToUI } from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
-import type { VTSettings } from "@/pure/settings";
+import type { VTSettings, AgentConfig } from "@/pure/settings";
+import { AUTO_RUN_FLAG } from "@/shell/edge/UI-edge/graph/agentCommandEditorPopup";
 import { highlightContainedNodes, highlightPreviewNodes, clearContainedHighlights } from '@/shell/UI/cytoscape-graph-ui/highlightContextNodes';
 import { getTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
@@ -142,6 +143,42 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
                         },
                     });
                 }
+            }
+
+            // Auto-run checkbox: only for claude commands, toggles --dangerously-skip-permissions
+            const currentSettings: VTSettings | null = await window.electronAPI?.main.loadSettings() ?? null;
+            const defaultCommand: string = currentSettings?.agents?.[0]?.command ?? '';
+            if (defaultCommand.toLowerCase().includes('claude')) {
+                items.push({
+                    icon: Check, // placeholder icon, checkbox renders instead
+                    label: 'Auto-run',
+                    isCheckbox: true,
+                    checked: defaultCommand.includes(AUTO_RUN_FLAG),
+                    preventClose: true,
+                    action: async () => {
+                        const settings: VTSettings | null = await window.electronAPI?.main.loadSettings() ?? null;
+                        if (!settings) return;
+                        const currentAgents: readonly AgentConfig[] = settings.agents ?? [];
+                        const cmd: string = currentAgents[0]?.command ?? '';
+                        const hasFlag: boolean = cmd.includes(AUTO_RUN_FLAG);
+
+                        let newCommand: string;
+                        if (hasFlag) {
+                            newCommand = cmd.replace(new RegExp(`\\s*${AUTO_RUN_FLAG}\\s*`), ' ').trim();
+                        } else {
+                            newCommand = cmd.replace(/^(claude)\s*(.*)$/, `$1 ${AUTO_RUN_FLAG} $2`).trim();
+                            if (!newCommand.includes(AUTO_RUN_FLAG)) {
+                                newCommand = `${cmd} ${AUTO_RUN_FLAG}`;
+                            }
+                        }
+
+                        const updatedAgents: readonly AgentConfig[] = currentAgents.map(
+                            (agent: AgentConfig, i: number): AgentConfig =>
+                                i === 0 ? { ...agent, command: newCommand } : agent
+                        );
+                        await window.electronAPI?.main.saveSettings({ ...settings, agents: updatedAgents });
+                    },
+                });
             }
 
             items.push({ icon: Edit2, label: 'Edit Command', action: () => spawnTerminalWithCommandEditor(nodeId, cy) });
