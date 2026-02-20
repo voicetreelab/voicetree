@@ -61,7 +61,7 @@ const S: Record<string, unknown> = JSON.parse(DEFAULT_SETTINGS.layoutConfig!) as
 export const DEFAULT_OPTIONS: AutoLayoutOptions = {
   // Runtime-only (not in settings JSON)
   animate: true,
-  maxSimulationTime: 2000,
+  maxSimulationTime: 1200,
   avoidOverlap: true,
   userConstIter: 15,
   // Derived from settings JSON (source of truth)
