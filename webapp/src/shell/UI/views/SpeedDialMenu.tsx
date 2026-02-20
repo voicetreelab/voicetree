@@ -129,18 +129,19 @@ function SpeedDialMenuInternal({ callbacks, initialDarkMode }: { readonly callba
   return (
     <div className="speed-dial-container">
       {items.map((item: ToolbarItem) => (
-        <button
-          key={item.id}
-          className="speed-dial-item"
-          title={item.label}
-          aria-label={item.label}
-          onClick={(e: React.MouseEvent): void => {
-            e.stopPropagation();
-            item.onClick();
-          }}
-        >
-          <SpeedDialIcon name={item.iconName} />
-        </button>
+        <div key={item.id} className="speed-dial-wrapper">
+          <button
+            className="speed-dial-item"
+            aria-label={item.label}
+            onClick={(e: React.MouseEvent): void => {
+              e.stopPropagation();
+              item.onClick();
+            }}
+          >
+            <SpeedDialIcon name={item.iconName} />
+          </button>
+          <span className="speed-dial-tooltip">{item.label}</span>
+        </div>
       ))}
     </div>
   );
