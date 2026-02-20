@@ -20,6 +20,21 @@ vi.mock('@/shell/edge/UI-edge/graph/userEngagementPrompts', () => ({
     checkEngagementPrompts: vi.fn()
 }))
 
+// Mock DOM-dependent floating window modules — tests use headless cy (no container)
+vi.mock('@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows', () => ({
+    getOrCreateOverlay: vi.fn(() => document.createElement('div')),
+}))
+vi.mock('@/shell/edge/UI-edge/floating-windows/nodeCards', () => ({
+    createNodeCard: vi.fn(() => ({
+        windowElement: document.createElement('div'),
+        contentContainer: document.createElement('div'),
+    })),
+    destroyNodeCard: vi.fn(),
+}))
+vi.mock('@/shell/edge/UI-edge/floating-windows/cardStateTransitions', () => ({
+    wireCardClickHandlers: vi.fn(),
+}))
+
 // Helper functions to create delta actions with required Option fields
 function upsert(node: GraphNode): UpsertNodeDelta {
     return { type: 'UpsertNode', nodeToUpsert: node, previousNode: O.none }

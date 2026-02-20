@@ -10,6 +10,7 @@ import {getCachedZoom} from '@/shell/edge/UI-edge/floating-windows/cytoscape-flo
 import {type EditorData} from '@/shell/edge/UI-edge/state/UIAppState';
 import {getEditorByNodeId, getHoverEditor} from "@/shell/edge/UI-edge/state/EditorStore";
 import {createFloatingEditor, closeEditor} from './FloatingEditorCRUD';
+import {hasNodeCard} from '@/shell/edge/UI-edge/state/NodeCardStore';
 
 // =============================================================================
 // Hover Zone Detection
@@ -225,6 +226,9 @@ export function setupCommandHover(cy: Core): void {
 
             const node: cytoscape.NodeSingular = event.target;
             const nodeId: string = node.id();
+
+            // Card nodes don't use hover editors — the card preview IS the hover state
+            if (hasNodeCard(nodeId)) return;
 
             // Only open hover for nodes with file extensions
             // Terminal nodes, shadow nodes, etc. don't have file extensions

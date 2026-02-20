@@ -1,0 +1,186 @@
+/**
+ * Node Cards CSS — Phase 1 Foundation
+ *
+ * Three states: minimal (default), hover, active
+ * Pinned state border override.
+ *
+ * CSS variables from project theme (dark mode defaults):
+ *   --card: oklch(0.22 0 0)
+ *   --border: oklch(1 0 0 / 15%)
+ *   --foreground: oklch(0.88 0 0)
+ *   --muted-foreground: oklch(0.65 0 0)
+ *   --muted: oklch(0.30 0 0)
+ *   --background: oklch(0.175 0 0)
+ */
+
+/* =============================================================================
+ * Minimal state (default)
+ * ============================================================================= */
+
+.node-card {
+  width: 260px;
+  min-height: 72px;
+  background: var(--card);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  position: absolute;
+  pointer-events: all;
+  cursor: default;
+  overflow: hidden;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* =============================================================================
+ * Left accent bar
+ * ============================================================================= */
+
+.node-card-accent {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  opacity: 0.7;
+  background: var(--accent, #4a9eff);
+}
+
+/* =============================================================================
+ * Traffic lights (hidden by default, shown on hover/active)
+ * ============================================================================= */
+
+.node-card-traffic-lights {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 5px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.tl-close,
+.tl-pin,
+.tl-expand {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+}
+
+.tl-close {
+  background: #ff5f57;
+}
+
+.tl-pin {
+  background: #636366;
+}
+
+.tl-expand {
+  background: transparent;
+  border: 1.5px solid #30d158;
+}
+
+/* =============================================================================
+ * Card body and content
+ * ============================================================================= */
+
+.node-card-body {
+  padding: 8px 12px 8px 16px;
+}
+
+.node-card-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.node-card-preview {
+  font-size: 10px;
+  color: var(--muted-foreground);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* =============================================================================
+ * Hover state
+ * ============================================================================= */
+
+.node-card:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: all 0.15s ease;
+}
+
+.node-card:hover .node-card-traffic-lights {
+  opacity: 1;
+}
+
+/* =============================================================================
+ * Active state (CodeMirror editor expanded — Phase 3)
+ * ============================================================================= */
+
+.node-card.active {
+  width: 400px;
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.node-card.active .node-card-preview {
+  display: none;
+}
+
+.node-card.active .node-card-editor-area {
+  display: block;
+  min-height: 240px;
+}
+
+.node-card.active .node-card-traffic-lights {
+  opacity: 1;
+}
+
+/* =============================================================================
+ * Pinned state
+ * ============================================================================= */
+
+.node-card.pinned {
+  border-color: rgba(0, 200, 255, 0.4);
+}
+
+.node-card.pinned .tl-pin {
+  background: #ffbd2e; /* macOS yellow = pinned */
+}
+
+/* =============================================================================
+ * Breathing animations (Phase 7)
+ * ============================================================================= */
+
+/* New node animation — green pulse */
+@keyframes node-card-new-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0.6); }
+  50%  { box-shadow: 0 0 0 8px rgba(48, 209, 88, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0); }
+}
+
+.node-card-new {
+  animation: node-card-new-pulse 1.5s ease-out;
+}
+
+/* Content changed animation — cyan pulse */
+@keyframes node-card-content-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(0, 200, 255, 0.5); }
+  50%  { box-shadow: 0 0 0 6px rgba(0, 200, 255, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 200, 255, 0); }
+}
+
+.node-card-content-changed {
+  animation: node-card-content-pulse 1.5s ease-out;
+}

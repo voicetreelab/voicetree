@@ -20,6 +20,21 @@ import { getNodeTitle } from '@/pure/graph/markdown-parsing'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
 import {modifyNodeContentFromUI} from "@/shell/edge/UI-edge/floating-windows/editors/modifyNodeContentFromFloatingEditor";
 
+// Mock DOM-dependent floating window modules — tests use headless cy (no container)
+vi.mock('@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows', () => ({
+    getOrCreateOverlay: vi.fn(() => document.createElement('div')),
+}))
+vi.mock('@/shell/edge/UI-edge/floating-windows/nodeCards', () => ({
+    createNodeCard: vi.fn(() => ({
+        windowElement: document.createElement('div'),
+        contentContainer: document.createElement('div'),
+    })),
+    destroyNodeCard: vi.fn(),
+}))
+vi.mock('@/shell/edge/UI-edge/floating-windows/cardStateTransitions', () => ({
+    wireCardClickHandlers: vi.fn(),
+}))
+
 // Mock posthog
 vi.mock('posthog-js', () => ({
     default: {
@@ -28,14 +43,10 @@ vi.mock('posthog-js', () => ({
     }
 }))
 
-// Mock AgentTabsBar
-vi.mock('@/shell/UI/views/AgentTabsBar', async () => {
-    const actual: typeof import('@/shell/UI/views/treeStyleTerminalTabs/AgentTabsBar') = await vi.importActual('@/shell/UI/views/AgentTabsBar')
-    return {
-        ...actual,
-        markTerminalActivityForContextNode: vi.fn()
-    }
-})
+// Mock agentTabsActivity to avoid side effects
+vi.mock('@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity', () => ({
+    markTerminalActivityForContextNode: vi.fn()
+}))
 
 // Mock FloatingEditorCRUD
 vi.mock('@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD', async () => {

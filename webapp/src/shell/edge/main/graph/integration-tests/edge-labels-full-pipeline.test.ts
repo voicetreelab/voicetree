@@ -1,4 +1,19 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+
+// Mock DOM-dependent floating window modules — tests use headless cy (no container)
+vi.mock('@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows', () => ({
+    getOrCreateOverlay: vi.fn(() => document.createElement('div')),
+}))
+vi.mock('@/shell/edge/UI-edge/floating-windows/nodeCards', () => ({
+    createNodeCard: vi.fn(() => ({
+        windowElement: document.createElement('div'),
+        contentContainer: document.createElement('div'),
+    })),
+    destroyNodeCard: vi.fn(),
+}))
+vi.mock('@/shell/edge/UI-edge/floating-windows/cardStateTransitions', () => ({
+    wireCardClickHandlers: vi.fn(),
+}))
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as E from 'fp-ts/lib/Either.js'

@@ -30,6 +30,21 @@ import { setGraph } from '@/shell/edge/main/state/graph-store'
 import { setVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
 
+// Mock DOM-dependent floating window modules — tests use headless cy (no container)
+vi.mock('@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows', () => ({
+    getOrCreateOverlay: vi.fn(() => document.createElement('div')),
+}))
+vi.mock('@/shell/edge/UI-edge/floating-windows/nodeCards', () => ({
+    createNodeCard: vi.fn(() => ({
+        windowElement: document.createElement('div'),
+        contentContainer: document.createElement('div'),
+    })),
+    destroyNodeCard: vi.fn(),
+}))
+vi.mock('@/shell/edge/UI-edge/floating-windows/cardStateTransitions', () => ({
+    wireCardClickHandlers: vi.fn(),
+}))
+
 // State managed by mocked globals - using module-level state that the mock functions will access
 let currentGraph: Graph | null = null
 let tempVault: string = ''
@@ -71,7 +86,7 @@ vi.mock('posthog-js', () => ({
 
 // Mock agentTabsActivity
 vi.mock('@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity')>()
+    const actual: typeof import('@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity') = await importOriginal<typeof import('@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity')>()
     return {
         ...actual,
         markTerminalActivityForContextNode: vi.fn()

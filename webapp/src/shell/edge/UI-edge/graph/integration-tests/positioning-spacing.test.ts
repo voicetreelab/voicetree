@@ -10,6 +10,21 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+
+// Mock DOM-dependent floating window modules — tests use headless cy (no container)
+vi.mock('@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows', () => ({
+    getOrCreateOverlay: vi.fn(() => document.createElement('div')),
+}))
+vi.mock('@/shell/edge/UI-edge/floating-windows/nodeCards', () => ({
+    createNodeCard: vi.fn(() => ({
+        windowElement: document.createElement('div'),
+        contentContainer: document.createElement('div'),
+    })),
+    destroyNodeCard: vi.fn(),
+}))
+vi.mock('@/shell/edge/UI-edge/floating-windows/cardStateTransitions', () => ({
+    wireCardClickHandlers: vi.fn(),
+}))
 import type { Core, Position, NodeCollection, CollectionReturnValue, NodeSingular } from 'cytoscape'
 import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
@@ -49,7 +64,7 @@ describe('Node Positioning Spacing - Integration', () => {
     const exampleFolderPath: string = path.resolve(process.cwd(), 'example_folder_fixtures', 'example_real_large')
 
     // WHEN: Load graph from disk (this applies positions)
-    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([exampleFolderPath], exampleFolderPath)
+    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([exampleFolderPath])
     if (E.isLeft(loadResult)) throw new Error('Expected Right')
     const graph: Graph = loadResult.right
 
@@ -120,7 +135,7 @@ describe('Node Positioning Spacing - Integration', () => {
   it.skip('should investigate child node position: simulates bug where cytoscape position diverges from graph model', async () => {
     // GIVEN: Load example_real_large folder
     const exampleFolderPath: string = path.resolve(process.cwd(), 'example_folder_fixtures', 'example_real_large')
-    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([exampleFolderPath], exampleFolderPath)
+    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([exampleFolderPath])
     if (E.isLeft(loadResult)) throw new Error('Expected Right')
     const graph: Graph = loadResult.right
 

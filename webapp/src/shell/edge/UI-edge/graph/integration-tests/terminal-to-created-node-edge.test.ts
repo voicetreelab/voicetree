@@ -16,11 +16,26 @@ import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaT
 import type { GraphNode, UpsertNodeDelta } from '@/pure/graph'
 import { addTerminal, clearTerminals } from '@/shell/edge/UI-edge/state/TerminalStore'
 import { createTerminalData, getShadowNodeId, getTerminalId } from '@/shell/edge/UI-edge/floating-windows/types'
-import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/types'
+import type { TerminalData, TerminalId } from '@/shell/edge/UI-edge/floating-windows/types'
 
 // Mock engagement prompts to avoid jsdom's missing dialog.showModal()
 vi.mock('@/shell/edge/UI-edge/graph/userEngagementPrompts', () => ({
     checkEngagementPrompts: vi.fn()
+}))
+
+// Mock DOM-dependent floating window modules — tests use headless cy (no container)
+vi.mock('@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows', () => ({
+    getOrCreateOverlay: vi.fn(() => document.createElement('div')),
+}))
+vi.mock('@/shell/edge/UI-edge/floating-windows/nodeCards', () => ({
+    createNodeCard: vi.fn(() => ({
+        windowElement: document.createElement('div'),
+        contentContainer: document.createElement('div'),
+    })),
+    destroyNodeCard: vi.fn(),
+}))
+vi.mock('@/shell/edge/UI-edge/floating-windows/cardStateTransitions', () => ({
+    wireCardClickHandlers: vi.fn(),
 }))
 
 function upsert(node: GraphNode): UpsertNodeDelta {
@@ -46,6 +61,7 @@ describe('Terminal to created node edges', () => {
     it('should create dotted edge from terminal shadow to new node with matching agent_name', () => {
         // GIVEN: A terminal with agentName "Sam"
         const terminal: TerminalData = createTerminalData({
+            terminalId: 'sam-terminal' as TerminalId,
             attachedToNodeId: 'context-node.md',
             terminalCount: 0,
             title: 'Sam: Some task',
@@ -104,9 +120,11 @@ describe('Terminal to created node edges', () => {
     it('should NOT create edge when agent_name does not match any terminal', () => {
         // GIVEN: A terminal with title "Victor: Some task"
         const terminal: TerminalData = createTerminalData({
+            terminalId: 'victor-terminal' as TerminalId,
             attachedToNodeId: 'context-node.md',
             terminalCount: 0,
             title: 'Victor: Some task',
+            agentName: 'Victor',
         })
         addTerminal(terminal)
 
@@ -144,9 +162,11 @@ describe('Terminal to created node edges', () => {
     it('should NOT create edge when node has no agent_name', () => {
         // GIVEN: A terminal with title "Sam: Some task"
         const terminal: TerminalData = createTerminalData({
+            terminalId: 'sam-terminal-2' as TerminalId,
             attachedToNodeId: 'context-node.md',
             terminalCount: 0,
             title: 'Sam: Some task',
+            agentName: 'Sam',
         })
         addTerminal(terminal)
 

@@ -12,6 +12,15 @@ import {getEditorByNodeId} from "@/shell/edge/UI-edge/state/EditorStore";
 import {scheduleIdleWork} from "@/utils/scheduleIdleWork";
 import {getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {getShadowNodeId, getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
+import {createNodeCard, destroyNodeCard} from '@/shell/edge/UI-edge/floating-windows/nodeCards';
+import {addNodeCard, removeNodeCard, getNodeCard, type NodeCardData} from '@/shell/edge/UI-edge/state/NodeCardStore';
+import {getOrCreateOverlay} from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
+import {wireCardClickHandlers} from '@/shell/edge/UI-edge/floating-windows/cardStateTransitions';
+import {isImageNode} from '@/pure/graph';
+
+// Feature flag: render nodes as HTML cards instead of Cytoscape circles
+// Set to false to revert to circle nodes for debugging
+const USE_CARD_NODES: boolean = true;
 
 /**
  * Validates if a color value is a valid CSS color using the browser's CSS.supports API
@@ -115,6 +124,36 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                         }
                     });
 
+                    if (USE_CARD_NODES && !node.nodeUIMetadata.isContextNode && !isImageNode(nodeId)) {
+                        // Mark as card node so updateNodeSizes skips degree-based resizing
+                        cy.getElementById(nodeId).data('isCardNode', true);
+                        // Make cy node invisible — HTML card handles rendering
+                        // Size matches .node-card CSS dimensions so Cola layout forces are correct
+                        cy.getElementById(nodeId).style({
+                            'opacity': 0,
+                            'width': 260,   // matches .node-card CSS width
+                            'height': 80,   // matches .node-card min-height
+                            'events': 'no',
+                            'label': ''
+                        });
+
+                        const overlay: HTMLElement = getOrCreateOverlay(cy);
+                        const card: NodeCardData = createNodeCard(
+                            nodeId,
+                            getNodeTitle(node),
+                            node.contentWithoutYamlOrLinks,
+                            colorValue,
+                            pos
+                        );
+                        overlay.appendChild(card.windowElement);
+                        addNodeCard(nodeId, card);
+                        // Wire click → activate (Phase 3)
+                        wireCardClickHandlers(cy, nodeId, card.windowElement);
+                        // New-node breathing animation on card DOM element
+                        card.windowElement.classList.add('node-card-new');
+                        setTimeout(() => card.windowElement.classList.remove('node-card-new'), 1500);
+                    }
+
                     // Create edge from terminal to node if agent_name matches terminal's agentName
                     const nodeAgentName: string | undefined = node.nodeUIMetadata.additionalYAMLProps.get('agent_name');
                     if (nodeAgentName) {
@@ -171,6 +210,35 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                             node.contentWithoutYamlOrLinks
                         )) {
                         existingNode.emit('content-changed');
+                        if (USE_CARD_NODES) {
+                            const changedCard: NodeCardData | undefined = getNodeCard(nodeId);
+                            if (changedCard) {
+                                changedCard.windowElement.classList.add('node-card-content-changed');
+                                setTimeout(() => changedCard.windowElement.classList.remove('node-card-content-changed'), 1500);
+                            }
+                        }
+                    }
+
+                    if (USE_CARD_NODES) {
+                        const card: NodeCardData | undefined = getNodeCard(nodeId);
+                        if (card) {
+                            // Update card title
+                            const titleEl: Element | null = card.windowElement.querySelector('.node-card-title');
+                            if (titleEl) {
+                                titleEl.textContent = getNodeTitle(node);
+                            }
+                            // Update card preview (only if not in active/editing state)
+                            if (!card.windowElement.classList.contains('active')) {
+                                const previewEl: Element | null = card.windowElement.querySelector('.node-card-preview');
+                                if (previewEl) {
+                                    previewEl.textContent = node.contentWithoutYamlOrLinks
+                                        .split('\n')
+                                        .filter((line: string) => line.trim().length > 0)
+                                        .slice(0, 3)
+                                        .join('\n');
+                                }
+                            }
+                        }
                     }
                 }
             } else if (nodeDelta.type === 'DeleteNode') {
@@ -178,6 +246,13 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                 const nodeToRemove: CollectionReturnValue = cy.getElementById(nodeId);
                 if (nodeToRemove.length > 0) {
                     nodeToRemove.remove();
+                }
+                if (USE_CARD_NODES) {
+                    const card: NodeCardData | undefined = getNodeCard(nodeId);
+                    if (card) {
+                        destroyNodeCard(nodeId, card.windowElement);
+                        removeNodeCard(nodeId);
+                    }
                 }
             }
         });

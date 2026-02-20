@@ -14,12 +14,12 @@ export function getDefaultEdgeStyles(colors: GraphColorPalette, font: string, is
         'line-color': colors.lineColor,
         'loop-sweep': '-50deg',
         'loop-direction': '-45deg',
-        'width': 7.5, // 2.5x scale (was 3)
+        'width': 3, // reduced from 7.5 for card-dense layout
         'line-opacity': 0.5, // Increased from 0.3 for better visibility in dark mode
         'target-arrow-shape': 'triangle',
         'target-arrow-fill': 'filled' as cytoscape.Css.ArrowFill,
         'target-arrow-color': colors.lineColor,
-        'arrow-scale': 1.47, // 30% smaller (was 2.1)
+        'arrow-scale': 0.8, // reduced from 1.47 for card-dense layout
         'font-size': 15.75, // 1.5x scale (was 10.5)
         'font-family': font,
         'color': colors.textColor,

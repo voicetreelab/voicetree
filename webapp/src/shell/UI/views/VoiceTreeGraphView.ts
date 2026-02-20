@@ -36,6 +36,8 @@ import 'cytoscape-navigator/cytoscape.js-navigator.css'; // Import navigator CSS
 import '@/shell/UI/views/styles/navigator.css'; // Custom navigator styling
 // @ts-expect-error CSS import - types declared in vite-env.d.ts (not visible to minimal TS program)
 import '@/shell/UI/cytoscape-graph-ui/styles/graph.css'; // Custom navigator styling
+// @ts-expect-error CSS import - types declared in vite-env.d.ts (not visible to minimal TS program)
+import '@/shell/UI/cytoscape-graph-ui/styles/node-cards.css';
 import '@/shell/UI/cytoscape-graph-ui'; // Import to trigger extension registration
 
 // Register cytoscape extensions

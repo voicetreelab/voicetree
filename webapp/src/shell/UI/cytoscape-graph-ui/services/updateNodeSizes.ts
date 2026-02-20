@@ -19,6 +19,8 @@ export function updateNodeSizes(cy: cytoscape.Core, nodes?: cytoscape.NodeCollec
     nodesToUpdate.forEach(node => {
       // Skip shadow nodes - they have fixed dimensions set by floating window system
       if (node.data('isShadowNode')) return;
+      // Skip card nodes — they have fixed CSS dimensions (260x80) managed by the HTML card system
+      if (node.data('isCardNode')) return;
 
       let degree: number = node.degree();
 
