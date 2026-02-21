@@ -5,7 +5,7 @@
 // Called by VoiceTree's onNewNode hook after a new graph node is written to disk.
 // Agent 1 (muse): every 3 nodes — expands thinking, surfaces missed aspects
 // Agent 2 (gardener): every 5 nodes — fixes orphans, bad connections, wrong splits/merges
-// Agent 3 (dispatcher): every 1 node — detects explicit user commands in transcript and executes them
+// Agent 3 (dispatcher): every 1 node — detects explicit user commands in transcript and delegates via spawn_agent
 //
 // Usage: node on-new-node.cjs <nodePath>
 // Env (required, set by buildTerminalEnvVars when hook terminal is spawned):
@@ -16,7 +16,17 @@
 'use strict'
 
 const fs = require('fs')
+const path = require('path')
 const http = require('http')
+
+const PROMPTS_DIR = path.join(__dirname, 'prompts')
+
+/** Load a prompt template from scripts/prompts/<name>.md and substitute {{NODE_LIST}} */
+function loadPrompt(name, nodeList) {
+    const filePath = path.join(PROMPTS_DIR, `${name}.md`)
+    const template = fs.readFileSync(filePath, 'utf8')
+    return template.replace('{{NODE_LIST}}', nodeList)
+}
 
 const nodePath = process.argv[2]
 if (!nodePath) {
@@ -53,127 +63,18 @@ const agents = [
         batchFile: '/tmp/voicetree-new-nodes-thinking.txt',
         threshold: 3,
         taskTitle: 'Expand thinking on recent nodes',
-        buildPrompt: (nodeList) =>
-`You are a background thinking partner. Read recent nodes and decide if you have anything worth saying.
-
-## Step 1: Read these nodes
-${nodeList}
-
-## Step 2: Score importance (1-10)
-Consider: Are there missed angles, unstated assumptions, connections between ideas, risks, or promising directions worth expanding?
-
-- **1-3**: Nothing non-obvious to add. Skip to Step 4.
-- **4-6**: One meaningful insight. Create ONE concise node (Step 3), then Step 4.
-- **7+**: Multiple important insights. Create multiple nodes (Step 3). Do NOT close yourself.
-
-## Step 3: Create nodes (only if score >= 4)
-Use create_graph. The node TITLE should name the single most important finding.
-
-**Node structure — most critical info first:**
-- **summary field**: 1-3 bullet points. Lead with your #1 finding. Include your importance score (e.g. "Score: 6/10"). No filler.
-- **content field**: Expand on each point with evidence/reasoning. Keep paragraphs short (2-3 sentences max).
-
-Focus on what's most useful:
-- Connections between nodes the user might not see
-- Unstated assumptions or risks worth flagging
-- Promising directions worth developing further
-- Alternative approaches not yet considered
-
-Don't restate what's already in the nodes. No preamble ("I noticed that..."). Start with the insight.
-
-## Step 4: Close yourself (only if score < 7)
-Use close_agent with your own terminal ID (from $VOICETREE_TERMINAL_ID) as both callerTerminalId and terminalId.`,
     },
     {
         name: 'gardener',
         batchFile: '/tmp/voicetree-new-nodes-gardening.txt',
         threshold: 5,
         taskTitle: 'Graph improver: fix connections in recent nodes',
-        buildPrompt: (nodeList) => {
-            return `You are a graph-improver agent. Voice-to-graph can produce messy results. Silently fix the recent batch of nodes.
-
-## Step 1: Read transcript tail
-Read the TAIL (last 2000 chars) of: $VOICETREE_VAULT_PATH/transcript_history.txt
-
-## Step 2: Read recent nodes
-${nodeList}
-Note title, content, and connections ([[wikilinks]] and frontmatter parents).
-List files in this folder sorted by recently created / modified.
-
-## Step 3: Search for nearby nodes
-Use search_nodes to find related nodes these might connect to.
-
-## Step 4: Score importance (1-10)
-How messy is this batch? Orphans, wrong links, bad splits/merges, stub or redundant nodes worth merging?
-
-- **1-3**: Graph looks fine. Skip to Step 6.
-- **4-6**: Minor fixes needed. Fix them (Step 5), then Step 6.
-- **7+**: Significant structural problems. Fix them (Step 5). Do NOT close yourself.
-
-## Step 5: Fix issues (only if score >= 4)
-Edit markdown files directly to fix:
-- **Orphan nodes** (no existing connections at all): add a [[link]] to place them in the tree.
-- **Incorrect connections**: correct the wrong edge only — do not add new edges.
-- **Wrong splits** (merge) or **wrong merges** (split).
-- **Stub or redundant nodes** (merge): If a node is very short (1–3 sentences) and is clearly a sub-point of another nearby node, OR two nodes cover essentially the same concept with different wording, merge them. How to merge: (1) append the secondary node's content into the primary node (the one with more connections or richer content), separated by a blank line; (2) search nearby files for any [[wikilinks]] pointing to the secondary node and update them to point to the primary; (3) delete the secondary file using Bash (\`rm <path>\`). Only merge when the concepts genuinely overlap — do NOT merge nodes that cover distinct aspects of the same topic.
-
-Edge rules — strictly follow these:
-- Only ADD an edge if the node is a true orphan (zero existing connections).
-- Only CHANGE an edge if it is clearly wrong.
-- Never add edges to nodes that are already connected, even if a new connection seems useful.
-
-NEVER create progress nodes — not for fixes, not for problems, not for anything. Fix silently and close yourself.
-
-## Step 6: Close yourself (only if score < 7)
-Use close_agent with your own terminal ID (from $VOICETREE_TERMINAL_ID) as both callerTerminalId and terminalId.`
-        },
     },
     {
         name: 'dispatcher',
         batchFile: '/tmp/voicetree-new-nodes-dispatcher.txt',
         threshold: 1,
         taskTitle: 'Check transcript for user command',
-        buildPrompt: (nodeList) => {
-            return `You are a command dispatcher. Your ONLY job: detect if the user's voice transcript contains an explicit command that should be executed via voicetree MCP tools, and if so, execute it.
-
-## Step 1: Read transcript tail
-Read the TAIL (last 1500 chars) of: $VOICETREE_VAULT_PATH/transcript_history.txt
-
-## Step 2: Read the new node
-${nodeList}
-
-## Step 3: Score user action intent
-
-Analyze the transcript for an EXPLICIT user command directed at voicetree/agents. Score intent:
-
-- **non-existent**: No action requested at all. Normal thinking/discussion.
-- **low**: Vague language like "hmm let's look into that", "that's interesting", "we could maybe...". No clear directive.
-- **medium**: Somewhat directed but ambiguous. "we should probably check that" — unclear if talking to voicetree or thinking aloud.
-- **high**: Clear directive to take action. "okay spawn an agent to investigate that", "voicetree research X", "let's have an agent look at Y".
-- **obvious**: Unmistakable direct command. "spawn an agent now", "please search for X", "create a node about Y", "run search_nodes for Z".
-
-Examples:
-- "okay let's spawn an agent now to investigate that" → **obvious** (direct command to spawn)
-- "voicetree please research that" → **high** (directed at voicetree, clear action)
-- "hmm okay let's look into that" → **low** (vague, no clear directive)
-- "I think the architecture needs work" → **non-existent** (observation, not a command)
-- "we should search for related nodes" → **medium** (could be thinking aloud)
-
-## Step 4: Act ONLY if high or obvious
-
-If score is **non-existent, low, or medium**: Skip to Step 5 immediately. Do NOT create any nodes or take any action.
-
-If score is **high or obvious**: Execute the user's command using the appropriate voicetree MCP tool. Common mappings:
-- "spawn an agent" / "investigate" / "research" / "look into" → spawn_agent
-- "search for" / "find nodes about" → search_nodes
-- "create a node" → create_graph
-
-Use your best judgment to map the user's intent to the right MCP tool and parameters. If spawning an agent, extract the topic/task from the transcript context.
-
-## Step 5: Close yourself
-Use close_agent with your own terminal ID (from $VOICETREE_TERMINAL_ID) as both callerTerminalId and terminalId.
-ALWAYS close yourself — even after executing a command. You are a one-shot dispatcher.`
-        },
     },
 ]
 
@@ -263,9 +164,10 @@ function spawnAgentViaMcp(payload) {
                 name: 'spawn_agent',
                 arguments: {
                     nodeId: firstNode,
-                    details: agent.buildPrompt(nodeList),
+                    details: loadPrompt(agent.name, nodeList),
                     callerTerminalId: TERMINAL_ID,
                     promptTemplate: 'AGENT_PROMPT_LIGHTWEIGHT',
+                    agentName: 'Claude Sonnet',
                 },
             },
         }

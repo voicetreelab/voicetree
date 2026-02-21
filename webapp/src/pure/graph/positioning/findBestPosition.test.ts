@@ -30,25 +30,51 @@ describe('findBestPosition', () => {
     });
 
     describe('single box obstacle blocking desired angle', () => {
-        it('should avoid an obstacle at the desired angle and pick the closest hex direction at 1.5×', () => {
+        it('should avoid an obstacle at the desired angle including future edge path at 1.5×', () => {
             // Obstacle at (250, 0) blocking the right direction (0°) at base distance
             const obstacle: Obstacle = boxObstacle({ x1: 200, x2: 300, y1: -30, y2: 30 });
             const result: Position = findBestPosition(parentPos, 0, distance, smallTarget, [obstacle]);
             // Should NOT be at (250, 0) since that overlaps
             expect(result.x !== 250 || result.y !== 0).toBe(true);
-            // Base distance hex is skipped; at 1.5× (375), 0° direction (375, 0) clears the obstacle
-            // bbox [300, -20, 450, 20] vs obstacle [200, -30, 300, 30] — no overlap (300 is not < 300)
-            expect(result.x).toBeCloseTo(375);
-            expect(result.y).toBeCloseTo(0);
+            // 0° at 1.5× (375, 0): bbox clears obstacle, BUT edge (0,0)→(375,0) passes through it
+            // → picks 60° or 300° at 1.5× instead (closest to 0°, both 60° diff)
+            expect(result.x).toBeCloseTo(187.5);
+            expect(Math.abs(result.y)).toBeCloseTo(375 * Math.sqrt(3) / 2);
         });
 
-        it('should prefer the closest hex direction to the desired angle at 1.5×', () => {
-            // Obstacle blocking a wide area around right (0°) including 60° and 300° hex dirs at base distance
+        it('should prefer the closest unblocked hex direction considering edge path', () => {
+            // Obstacle blocking a wide area around right (0°) including rightward edge paths
             const obstacle: Obstacle = boxObstacle({ x1: 50, x2: 300, y1: -250, y2: 250 });
             const result: Position = findBestPosition(parentPos, 10, distance, smallTarget, [obstacle]);
-            // At 1.5× (375), 0° direction (375, 0) bbox [300, -20, 450, 20] clears the obstacle [50, -250, 300, 250]
-            // Closest to desired 10° is 0° direction
-            expect(result.x).toBeCloseTo(375);
+            // 0°, 60°, 300° at 1.5× all have edges passing through the wide obstacle
+            // 120° at 1.5× (-187.5, 324.76): edge goes left, avoids obstacle → FREE (closest to 10°)
+            expect(result.x).toBeCloseTo(-187.5);
+            expect(result.y).toBeCloseTo(375 * Math.sqrt(3) / 2);
+        });
+    });
+
+    describe('future edge collision (obstacle between parent and candidate)', () => {
+        it('should reject a candidate when the future edge passes through an obstacle node', () => {
+            // Reproduces the reported bug: candidate bbox is FREE but the edge to it crosses an obstacle.
+            // Parent at (350, 7), obstacle node bbox between parent and candidate on the right
+            const parent: Position = { x: 350, y: 7 };
+            const target: TargetDimensions = { width: 395, height: 380 };
+            // Obstacle node sitting at ~(600, 7) — between parent and the 0° candidate
+            const obstacle: Obstacle = boxObstacle({ x1: 500, x2: 700, y1: -100, y2: 120 });
+            const result: Position = findBestPosition(parent, 0, 350, target, [obstacle]);
+            // The 0° position at (700, 7) bbox overlaps obstacle → blocked at step 1
+            // The 1.5× 0° position at (875, 7) bbox [678,-183,1073,197] doesn't overlap obstacle,
+            // BUT the edge (350,7)→(875,7) passes through the obstacle [500,-100,700,120] at y=7
+            // → should NOT pick (875, 7)
+            expect(result.x).not.toBeCloseTo(875);
+        });
+
+        it('should accept a candidate when the future edge does not cross any obstacle', () => {
+            // Obstacle is off to the side, not between parent and candidate
+            const obstacle: Obstacle = boxObstacle({ x1: 100, x2: 200, y1: 200, y2: 300 });
+            const result: Position = findBestPosition(parentPos, 0, distance, smallTarget, [obstacle]);
+            // Obstacle is below-left, edge from (0,0)→(250,0) doesn't cross it → desired angle works
+            expect(result.x).toBeCloseTo(250);
             expect(result.y).toBeCloseTo(0);
         });
     });
