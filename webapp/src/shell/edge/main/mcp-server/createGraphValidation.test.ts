@@ -154,7 +154,9 @@ describe('formatViolationError', () => {
             {ruleId: 'node_line_limit', message: 'Too long', nodeFilename: 'a', details: {}},
             {ruleId: 'node_line_limit', message: 'Too long', nodeFilename: 'b', details: {}},
         ])
-        const parsed: unknown = JSON.parse(error.slice(error.indexOf('['), error.lastIndexOf(']') + 1))
+        // Extract JSON after the "override_with_rationale" instruction line
+        const jsonStart: number = error.indexOf('[\n')
+        const parsed: unknown = JSON.parse(error.slice(jsonStart))
         expect(Array.isArray(parsed)).toBe(true)
         expect((parsed as readonly {ruleId: string}[]).length).toBe(1)
     })
@@ -164,7 +166,8 @@ describe('formatViolationError', () => {
             {ruleId: 'node_line_limit', message: 'Too long', nodeFilename: 'n.md', details: {}},
             {ruleId: 'grandparent_attachment', message: 'Ancestor', nodeFilename: '__graph_root__', details: {}},
         ])
-        const parsed: unknown = JSON.parse(error.slice(error.indexOf('['), error.lastIndexOf(']') + 1))
+        const jsonStart: number = error.indexOf('[\n')
+        const parsed: unknown = JSON.parse(error.slice(jsonStart))
         expect((parsed as readonly {ruleId: string}[]).length).toBe(2)
     })
 })
