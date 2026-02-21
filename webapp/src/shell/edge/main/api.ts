@@ -29,6 +29,7 @@ import {askQuery} from './backend-api';
 import {askModeCreateAndSpawn} from './ask-mode/askModeCreateAndSpawn';
 import {getMetrics} from './metrics/agent-metrics-store';
 import {isMcpIntegrationEnabled, setMcpIntegration} from './mcp-server/mcp-client-config';
+import {getMcpPort} from './mcp-server/mcp-server';
 import {saveClipboardImage} from './clipboard/saveClipboardImage';
 import {readImageAsDataUrl} from './clipboard/readImageAsDataUrl';
 import {findFileByName} from './graph/loading/findFileByName';
@@ -40,6 +41,7 @@ import {initializeProject as initializeProjectCore} from './project-initializer'
 import {showFolderPicker, createNewProject} from './show-folder-picker';
 import {getOnboardingDirectory} from './electron/onboarding-setup';
 import {prettySetupAppForElectronDebugging} from './debug/prettySetupAppForElectronDebugging';
+import {getHeadlessAgentOutput} from './terminals/headlessAgentManager';
 import {
   checkMicrophonePermission,
   requestMicrophonePermission,
@@ -162,6 +164,7 @@ export const mainAPI = {
   // MCP client configuration
   isMcpIntegrationEnabled, //todo unused?
   setMcpIntegration,
+  getMcpPort,
 
   // Clipboard operations
   saveClipboardImage,
@@ -184,6 +187,9 @@ export const mainAPI = {
   initializeProject,
   showFolderPicker,
   createNewProject,
+
+  // Headless agent output (ring buffer) for hover tooltip
+  getHeadlessAgentOutput,
 
   // Debug setup for Playwright MCP
   prettySetupAppForElectronDebugging,

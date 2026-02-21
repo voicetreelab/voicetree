@@ -87,10 +87,11 @@ If you already have a node detailing the task, use nodeId. Otherwise, use task+p
                 parentNodeId: z.string().optional().describe('Parent node ID under which to create the new task node (required when task is provided)'),
                 spawnDirectory: z.string().optional().describe('Absolute path to spawn the agent in. By default, inherits the parent terminal\'s directory (worktree-safe). Only needed to override, for example to contain child-agent to a subfolder or new worktree'),
                 promptTemplate: z.string().optional().describe('Name of an INJECT_ENV_VARS key to use as AGENT_PROMPT instead of the default. Must match an existing key in settings.'),
-                agentName: z.string().optional().describe('Name of an agent from settings.agents to use (e.g., "Claude Sonnet"). If not provided, uses the first agent in settings.')
+                agentName: z.string().optional().describe('Name of an agent from settings.agents to use (e.g., "Claude Sonnet"). If not provided, uses the first agent in settings.'),
+                headless: z.boolean().optional().describe('When true, agent runs as background process with no PTY/terminal UI. Output is via MCP tools (create_graph). Status shown as badge on task node.')
             }
         },
-        async ({nodeId, callerTerminalId, task, details, parentNodeId, spawnDirectory, promptTemplate, agentName}) => spawnAgentTool({nodeId, callerTerminalId, task, details, parentNodeId, spawnDirectory, promptTemplate, agentName})
+        async ({nodeId, callerTerminalId, task, details, parentNodeId, spawnDirectory, promptTemplate, agentName, headless}) => spawnAgentTool({nodeId, callerTerminalId, task, details, parentNodeId, spawnDirectory, promptTemplate, agentName, headless})
     )
 
     // Tool: list_agents
@@ -291,7 +292,7 @@ export async function startMcpServer(): Promise<void> {
     mcpPort = await findAvailablePort(MCP_BASE_PORT)
 
     app.listen(mcpPort, '127.0.0.1', () => {
-        //console.log(`[MCP] Voicetree MCP Server running on http://localhost:${mcpPort}/mcp`)
+        console.log(`[MCP] Voicetree MCP Server running on http://localhost:${mcpPort}/mcp`)
     })
 
     // Auto-write .mcp.json so external agents (e.g. manually-launched Claude Code) can discover this server.

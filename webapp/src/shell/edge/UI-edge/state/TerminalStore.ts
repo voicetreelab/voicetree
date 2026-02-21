@@ -4,10 +4,14 @@ import type {} from '@/shell/electron';
 import * as O from "fp-ts/lib/Option.js";
 import {type Option} from "fp-ts/lib/Option.js";
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
-import type {TerminalRecord} from "@/shell/edge/main/terminals/terminal-registry";
+import type {TerminalRecord, TerminalStatus} from "@/shell/edge/main/terminals/terminal-registry";
 import {resetAgentTabsStore} from "@/shell/edge/UI-edge/state/AgentTabsStore";
 
 const terminals: Map<TerminalId, TerminalData> = new Map<TerminalId, TerminalData>();
+
+// Record-level status tracking (running/exited) — used by headless badge overlay.
+// TerminalData doesn't include status (it's on TerminalRecord), so we track it separately.
+const terminalStatuses: Map<TerminalId, TerminalStatus> = new Map<TerminalId, TerminalStatus>();
 
 // Subscription callbacks for terminal changes
 type TerminalChangeCallback = (terminals: TerminalData[]) => void;
@@ -79,6 +83,7 @@ export function syncFromMain(records: TerminalRecord[]): void {
             // Terminal was removed in main - remove from local store
             // Note: UI cleanup (floating window disposal) is handled separately
             terminals.delete(terminalId);
+            terminalStatuses.delete(terminalId as TerminalId);
         }
     }
 
@@ -86,6 +91,9 @@ export function syncFromMain(records: TerminalRecord[]): void {
     for (const record of records) {
         const terminalId: TerminalId = record.terminalId as TerminalId;
         const existing: TerminalData | undefined = terminals.get(terminalId);
+
+        // Track record-level status (running/exited) for headless badge UI
+        terminalStatuses.set(terminalId, record.status);
 
         if (existing) {
             // Update existing terminal, preserving renderer-local UI reference
@@ -124,6 +132,14 @@ export function setTerminalUI(terminalId: TerminalId, ui: FloatingWindowUIData, 
 
 export function getTerminals(): Map<TerminalId, TerminalData> {
     return terminals;
+}
+
+/**
+ * Get the record-level status (running/exited) for a terminal.
+ * Used by headless badge overlay to distinguish running from completed agents.
+ */
+export function getTerminalStatus(terminalId: TerminalId): TerminalStatus | undefined {
+    return terminalStatuses.get(terminalId);
 }
 
 export function addTerminal(terminal: TerminalData): void {
@@ -246,6 +262,7 @@ export function updateTerminalActivityAndNotify(
  */
 export function clearTerminals(): void {
     terminals.clear();
+    terminalStatuses.clear();
     activeTerminalId = null;
     notifySubscribers();
     notifyActiveTerminalChange();

@@ -21,6 +21,8 @@ export type TerminalData = FloatingWindowFields & {
     readonly agentName: string;
     // Worktree directory name when terminal was spawned in a git worktree (undefined = not in worktree)
     readonly worktreeName: string | undefined;
+    // Headless agent mode: runs as background child_process, no PTY/xterm.js
+    readonly isHeadless: boolean;
 };
 export type CreateTerminalDataParams = {
     readonly terminalId: TerminalId; // Now passed directly (equals agentName)
@@ -38,4 +40,5 @@ export type CreateTerminalDataParams = {
     readonly parentTerminalId?: TerminalId | null; // defaults to null (root terminal)
     readonly agentName: string; // Agent name for terminal-to-node edge matching (same as terminalId)
     readonly worktreeName?: string; // Worktree directory name (undefined = not in worktree)
+    readonly isHeadless?: boolean; // Headless agent mode (default false)
 };
