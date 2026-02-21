@@ -25,7 +25,6 @@ import {
     type ComplexityScore,
     type MermaidBlock,
     buildMarkdownBody,
-    countBodyLines,
     slugify,
     validateMermaidBlocks,
     extractMermaidBlocks,
@@ -33,6 +32,14 @@ import {
 } from './addProgressNodeTool'
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
 import type {VTSettings} from '@/pure/settings/types'
+import {
+    type OverrideEntry,
+    type ValidationResult,
+    ALL_RULES,
+    runValidations,
+    resolveOverrides,
+    formatViolationError,
+} from './createGraphValidation'
 
 /** A parent reference: object with filename + edge label (edge label required, use "" for no label). */
 export type ParentRef = { readonly filename: string; readonly edgeLabel: string }
@@ -67,6 +74,7 @@ export interface CreateGraphParams {
     readonly callerTerminalId: string
     readonly parentNodeId?: string
     readonly nodes: readonly CreateGraphNodeInput[]
+    readonly override_with_rationale?: readonly OverrideEntry[]
 }
 
 /**
@@ -171,6 +179,7 @@ export async function createGraphTool({
     callerTerminalId,
     parentNodeId: graphParentId,
     nodes,
+    override_with_rationale,
 }: CreateGraphParams): Promise<McpToolResponse> {
     // Validate caller terminal
     const terminalRecords: TerminalRecord[] = getTerminalRecords()
@@ -290,16 +299,18 @@ export async function createGraphTool({
     const agentName: string = callerRecord.terminalData.agentName
     const defaultColor: string = callerRecord.terminalData.initialEnvVars?.['AGENT_COLOR'] ?? 'blue'
 
-    // Pre-validate line lengths: block ALL creation if any node is too long
+    // Run overridable validations
+    const callerTaskNodeId: NodeIdAndFilePath | null =
+        O.isSome(callerRecord.terminalData.anchoredToNodeId) ? callerRecord.terminalData.anchoredToNodeId.value : null
     const settings: VTSettings = await loadSettings()
     const lineLimit: number = settings.nodeLineLimit ?? 70
-    for (const node of nodes) {
-        const bodyLines: number = countBodyLines(node.summary, node.content)
-        if (bodyLines > lineLimit) {
-            return buildJsonResponse({
-                success: false,
-                error: `Node "${node.filename}" is too long (${bodyLines} lines, limit is ${lineLimit}). Split into a TREE of nodes that mirrors the conceptual structure of your content — use the \`parents\` field to create branching, not a linear chain.\n\nSplit by concern:\nTask: Review git diff\n├── Review: Collision-aware positioning refactor\n└── Review: Prompt template cleanup\n\nSplit by phase + option:\nTask\n├── High-level architecture\n│   ├── Option A: Event-driven\n│   └── Option B: Request-response\n├── Data types\n└── Pure functions`
-            }, true)
+    const validationResult: ValidationResult = runValidations(ALL_RULES, {
+        nodes, resolvedParentNodeId: resolvedGraphParentId, callerTaskNodeId, graph, lineLimit,
+    })
+    if (validationResult.status === 'violations') {
+        const { unresolved } = resolveOverrides(validationResult.violations, override_with_rationale ?? [])
+        if (unresolved.length > 0) {
+            return buildJsonResponse({ success: false, error: formatViolationError(unresolved) }, true)
         }
     }
 

@@ -60,7 +60,8 @@ let mcpPort: number = MCP_BASE_PORT
  */
 export async function createMcpServer(): Promise<McpServer> {
     const settings: VTSettings = await loadSettings()
-    const lineLimit: number = settings.nodeLineLimit ?? 70
+    const _lineLimit: number = settings.nodeLineLimit ?? 70
+    void _lineLimit // used by validation integration (Phase 2)
     const server: McpServer = new McpServer({
         name: 'voicetree-mcp',
         version: '1.0.0'
@@ -84,11 +85,12 @@ If you already have a node detailing the task, use nodeId. Otherwise, use task+p
                 task: z.string().optional().describe('Task title for creating a new task node (requires parentNodeId)'),
                 details: z.string().optional().describe('Detailed description of the task (used with task parameter)'),
                 parentNodeId: z.string().optional().describe('Parent node ID under which to create the new task node (required when task is provided)'),
-                spawnDirectory: z.string().optional().describe('Absolute path to spawn the agent in. By default, inherits the parent terminal\'s directory (worktree-safe). Only needed to override, for example to contain child-agent to a subfolder'),
-                promptTemplate: z.string().optional().describe('Name of an INJECT_ENV_VARS key to use as AGENT_PROMPT instead of the default. Must match an existing key in settings.')
+                spawnDirectory: z.string().optional().describe('Absolute path to spawn the agent in. By default, inherits the parent terminal\'s directory (worktree-safe). Only needed to override, for example to contain child-agent to a subfolder or new worktree'),
+                promptTemplate: z.string().optional().describe('Name of an INJECT_ENV_VARS key to use as AGENT_PROMPT instead of the default. Must match an existing key in settings.'),
+                agentName: z.string().optional().describe('Name of an agent from settings.agents to use (e.g., "Claude Sonnet"). If not provided, uses the first agent in settings.')
             }
         },
-        async ({nodeId, callerTerminalId, task, details, parentNodeId, spawnDirectory, promptTemplate}) => spawnAgentTool({nodeId, callerTerminalId, task, details, parentNodeId, spawnDirectory, promptTemplate})
+        async ({nodeId, callerTerminalId, task, details, parentNodeId, spawnDirectory, promptTemplate, agentName}) => spawnAgentTool({nodeId, callerTerminalId, task, details, parentNodeId, spawnDirectory, promptTemplate, agentName})
     )
 
     // Tool: list_agents
@@ -246,10 +248,17 @@ Task
                         edgeLabel: z.string().describe('Relationship label shown on the edge (e.g. "implements", "extends", "blocked by"). Use empty string "" for generic parent-child links.')
                     })).optional().describe('Parent nodes within this call. Each entry is { filename, edgeLabel } where edgeLabel is required (use "" for generic parent-child links). Supports multiple parents for diamond dependencies. Nodes without parents become roots.'),
                 })).describe('Array of nodes to create. At least 1 required. Each node needs filename + title + summary at minimum.'),
+                override_with_rationale: z.array(z.object({
+                    ruleId: z.enum(['grandparent_attachment', 'node_line_limit']),
+                    rationale: z.string()
+                })).optional().describe(
+                    'Override validation rules that would otherwise block. '
+                    + 'Each entry must match a rule ID from the error response.'
+                ),
             }
         },
-        async ({callerTerminalId, parentNodeId, nodes}) =>
-            createGraphTool({callerTerminalId, parentNodeId, nodes})
+        async ({callerTerminalId, parentNodeId, nodes, override_with_rationale}) =>
+            createGraphTool({callerTerminalId, parentNodeId, nodes, override_with_rationale})
     )
 
     return server
