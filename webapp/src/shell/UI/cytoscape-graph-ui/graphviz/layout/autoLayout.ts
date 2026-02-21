@@ -2,13 +2,13 @@
  * Auto Layout: Automatically run Cola or fcose layout on graph changes
  *
  * Layout strategy:
- * - Initial load: fCOSE for global positioning → Cola for refinement
+ * - Initial load / tidy button / removal: "Full Ultimate Layout" chain:
+ *   fCOSE (global positioning) → Cola (refinement) → animated cy.fit() (frame result)
  * - Incremental (batch-added nodes <30% of graph):
  *   Local Cola on 4-hop neighborhood of new nodes (6-hop pinned boundary)
- * - Removal (no new nodes tracked): global Cola to rebalance
  * - Batch (>30% new): skip (too many nodes for local Cola)
  *
- * fCOSE is only used on initial load because its gravity pulls nodes too aggressively
+ * fCOSE is only used on initial/full layouts because its gravity pulls nodes too aggressively
  * for incremental layout updates. Cola handles all ongoing layout after the first run.
  *
  * NOTE (commit 033c57a4): We tried a two-phase layout algorithm that ran Phase 1 with only
@@ -21,6 +21,7 @@
 
 import type {Core, EdgeSingular, NodeSingular, NodeDefinition, CollectionReturnValue, Layouts, EventObject} from 'cytoscape';
 import ColaLayout from './cola';
+import { computeColaAndAnimate } from './computeColaAndAnimate';
 import { getEdgeDistance } from './cytoscape-graph-constants';
 import { refreshSpatialIndex, getCurrentIndex } from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
 import { queryEdgesInRect } from '@/pure/graph/spatial';
@@ -30,6 +31,7 @@ import type { LocalGeometry, EdgeSegment } from '@/pure/graph/geometry';
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
 import { panToTrackedNode, clearPendingPan } from '@/shell/edge/UI-edge/state/PendingPanStore';
+import { getResponsivePadding } from '@/utils/responsivePadding';
 import { onSettingsChange } from '@/shell/edge/UI-edge/api';
 import type { AutoLayoutOptions, LayoutConfig, FcoseLayoutOptions } from './autoLayoutTypes';
 import { DEFAULT_OPTIONS, DEFAULT_FCOSE_OPTIONS, COLA_ANIMATE_DURATION, COLA_FAST_ANIMATE_DURATION } from './autoLayoutTypes';
@@ -40,46 +42,6 @@ import { layoutTriggers, colaLayoutTriggers, dirtyNodeMarkers, fullLayoutTrigger
 // Re-export public API from sibling modules
 export type { AutoLayoutOptions } from './autoLayoutTypes';
 export { triggerLayout, triggerColaLayout, markNodeDirty, triggerFullLayout } from './autoLayoutTriggers';
-
-/**
- * Compute Cola layout synchronously, then smoothly animate nodes to final positions.
- * Avoids Cola's frame-1 teleport caused by synchronous initial constraint iterations.
- */
-const computeColaAndAnimate: (
-  colaLayoutOpts: Record<string, unknown>,
-  nodes: CollectionReturnValue,
-  duration: number,
-  onComplete: () => void
-) => void = (colaLayoutOpts, nodes, duration, onComplete) => {
-  const startPos: Map<string, { x: number; y: number }> = new Map();
-  nodes.forEach((n: NodeSingular) => { startPos.set(n.id(), { ...n.position() }); });
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const layout: any = new (ColaLayout as any)({ ...colaLayoutOpts, animate: false });
-
-  layout.one('layoutstop', () => {
-    const endPos: Map<string, { x: number; y: number }> = new Map();
-    nodes.forEach((n: NodeSingular) => { endPos.set(n.id(), { ...n.position() }); });
-
-    // Reset to original positions
-    nodes.forEach((n: NodeSingular) => {
-      const s: { x: number; y: number } | undefined = startPos.get(n.id());
-      if (s) n.position(s);
-    });
-
-    // Animate to computed final positions
-    nodes.forEach((n: NodeSingular) => {
-      const e: { x: number; y: number } | undefined = endPos.get(n.id());
-      if (e) n.animate({ position: e }, { duration, easing: 'ease-in-out-cubic' });
-    });
-
-    setTimeout(() => {
-      // panToTrackedNode(colaLayoutOpts.cy as Core);
-      onComplete();
-    }, duration + 16);
-  });
-  layout.run();
-};
 
 /**
  * Enable automatic layout on graph changes
@@ -120,7 +82,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
 
   // Safety timeout: if a Cola/fCOSE layoutstop event never fires, layoutRunning
   // stays true and the entire layout system dies. This timeout forces a reset.
-  const LAYOUT_SAFETY_TIMEOUT_MS: number = 5_000;
+  const LAYOUT_SAFETY_TIMEOUT_MS: number = 8_000;
 
   // Track newly added node IDs for local Cola layout
   const pendingNewNodeIds: Set<string> = new Set<string>();
@@ -241,6 +203,22 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
       (onComplete ?? onLayoutComplete)();
     });
     layout.run();
+  };
+
+  /** Full ultimate layout chain: fCOSE → Cola → animated cy.fit() */
+  const runFullUltimateLayout: (onComplete?: () => void) => void = (onComplete) => {
+    runFcoseLayout(undefined, () => {
+      runColaLayout(() => {
+        const padding: number = getResponsivePadding(cy, 15);
+        cy.animate({
+          fit: { eles: cy.elements(), padding },
+        }, {
+          duration: 300,
+          easing: 'ease-in-out-cubic',
+          complete: () => { (onComplete ?? onLayoutComplete)(); },
+        });
+      });
+    });
   };
 
   /**
@@ -387,18 +365,16 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
 
     try {
       if (!hasRunInitialLayout) {
-        // Initial load: fCOSE for global positioning, then Cola to refine
+        // Initial load: full ultimate layout (fCOSE → Cola → fit)
         hasRunInitialLayout = true;
-        runFcoseLayout(undefined, () => {
-          runColaLayout();
-        });
+        runFullUltimateLayout();
       } else if (newNodeIds.size > 0 && newNodeIds.size < totalNodes * 0.3) {
         // Incremental: local Cola on neighborhood of new nodes
         runLocalCola(newNodeIds, onLayoutComplete);
       } else if (newNodeIds.size === 0) {
-        // Triggered by edge/node remove — run global Cola to rebalance the graph
-        console.log(`[AutoLayout] Layout triggered by removal (layoutCount=${layoutCount}, totalNodes=${totalNodes}). Running global Cola.`);
-        runColaLayout();
+        // Triggered by edge/node remove — full ultimate layout to rebalance
+        console.log(`[AutoLayout] Layout triggered by removal (layoutCount=${layoutCount}, totalNodes=${totalNodes}). Running full ultimate layout.`);
+        runFullUltimateLayout();
       } else {
         // >30% new nodes — batch too large for local Cola, skip
         console.warn(`[AutoLayout] ⚠️ Batch add: ${newNodeIds.size} new nodes (${Math.round(newNodeIds.size / totalNodes * 100)}% of graph). Skipping local Cola.`);
@@ -459,18 +435,18 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     debouncedRunLayout();
   });
 
-  // Register cola layout trigger for manual "tidy up" button
-  // Runs fCOSE for global positioning then Cola for refinement (same as initial load)
+  // Register cola layout trigger for manual "tidy up" button (full ultimate layout: fCOSE → Cola → fit)
   colaLayoutTriggers.set(cy, () => {
-    if (layoutRunning) {
-      layoutQueued = true;
-      return;
-    }
+    if (layoutRunning) { layoutQueued = true; return; }
     if (cy.nodes().length === 0) return;
     layoutRunning = true;
-    runFcoseLayout(undefined, () => {
-      runColaLayout();
-    });
+    layoutSafetyTimeout = setTimeout(() => {
+      if (layoutRunning) {
+        console.error(`[AutoLayout] ⚠️ Safety timeout (${LAYOUT_SAFETY_TIMEOUT_MS}ms) — tidy callback never fired, force-resetting.`);
+        onLayoutComplete();
+      }
+    }, LAYOUT_SAFETY_TIMEOUT_MS);
+    runFullUltimateLayout();
   });
 
   //console.log('[AutoLayout] Auto-layout enabled');
