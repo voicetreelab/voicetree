@@ -12,6 +12,8 @@ import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange'
 import {spawnTerminalWithContextNode} from '@/shell/edge/main/terminals/spawnTerminalWithContextNode'
 import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
+import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
+import type {VTSettings} from '@/pure/settings'
 import {type McpToolResponse, buildJsonResponse} from './types'
 
 export interface SpawnAgentParams {
@@ -22,9 +24,10 @@ export interface SpawnAgentParams {
     parentNodeId?: string
     spawnDirectory?: string
     promptTemplate?: string
+    agentName?: string
 }
 
-export async function spawnAgentTool({nodeId, callerTerminalId, task, details, parentNodeId, spawnDirectory, promptTemplate}: SpawnAgentParams): Promise<McpToolResponse> {
+export async function spawnAgentTool({nodeId, callerTerminalId, task, details, parentNodeId, spawnDirectory, promptTemplate, agentName}: SpawnAgentParams): Promise<McpToolResponse> {
     //console.log(`[MCP] spawn_agent called by terminal: ${callerTerminalId}`)
 
     // Validate caller terminal exists
@@ -37,6 +40,22 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, details, p
             success: false,
             error: `Unknown caller terminal: ${callerTerminalId}`
         }, true)
+    }
+
+    // Resolve agentName to a command from settings.agents (if provided)
+    let resolvedAgentCommand: string | undefined
+    if (agentName) {
+        const settings: VTSettings = await loadSettings()
+        const agents: readonly { readonly name: string; readonly command: string }[] = settings?.agents ?? []
+        const matchedAgent: { readonly name: string; readonly command: string } | undefined =
+            agents.find((a: { readonly name: string; readonly command: string }) => a.name === agentName)
+        if (!matchedAgent) {
+            return buildJsonResponse({
+                success: false,
+                error: `Agent "${agentName}" not found in settings.agents. Available: ${agents.map((a: { readonly name: string; readonly command: string }) => a.name).join(', ')}`
+            }, true)
+        }
+        resolvedAgentCommand = matchedAgent.command
     }
 
     // Inherit spawnDirectory from caller terminal if not explicitly provided
@@ -149,7 +168,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, details, p
 
             // Spawn terminal on the new task node (with parent terminal for tree-style tabs)
             const {terminalId, contextNodeId}: {terminalId: string; contextNodeId: string} =
-                await spawnTerminalWithContextNode(taskNodeId, undefined, undefined, true, false, undefined, resolvedSpawnDirectory, callerTerminalId, undefined, promptTemplate)
+                await spawnTerminalWithContextNode(taskNodeId, resolvedAgentCommand, undefined, true, false, undefined, resolvedSpawnDirectory, callerTerminalId, undefined, promptTemplate)
 
             return buildJsonResponse({
                 success: true,
@@ -192,7 +211,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, details, p
         // Pass skipFitAnimation: true for MCP spawns to avoid interrupting user's viewport
         // Pass callerTerminalId as parentTerminalId for tree-style tabs
         const {terminalId, contextNodeId}: {terminalId: string; contextNodeId: string} =
-            await spawnTerminalWithContextNode(resolvedNodeId, undefined, undefined, true, false, undefined, resolvedSpawnDirectory, callerTerminalId, details, promptTemplate)
+            await spawnTerminalWithContextNode(resolvedNodeId, resolvedAgentCommand, undefined, true, false, undefined, resolvedSpawnDirectory, callerTerminalId, details, promptTemplate)
 
         return buildJsonResponse({
             success: true,

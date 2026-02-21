@@ -8,7 +8,7 @@
 
 import type { Position } from '@/pure/graph';
 import { polarToCartesian } from '@/pure/graph/positioning/angularPositionSeeding';
-import { rectIntersectsSegment } from '@/pure/graph/geometry';
+import { rectIntersectsSegment, segmentsIntersect } from '@/pure/graph/geometry';
 import type { EdgeSegment } from '@/pure/graph/geometry';
 
 export interface ObstacleBBox {
@@ -67,6 +67,27 @@ function collidesWithObstacle(candidateBBox: ObstacleBBox, obstacle: Obstacle): 
     switch (obstacle.kind) {
         case 'box': return rectsOverlap(candidateBBox, obstacle);
         case 'segment': return rectIntersectsSegment(candidateBBox, obstacle);
+    }
+}
+
+/** Check if a point is inside a bounding box (boundary-inclusive). */
+function pointInsideBox(p: Position, box: ObstacleBBox): boolean {
+    return p.x >= box.x1 && p.x <= box.x2 && p.y >= box.y1 && p.y <= box.y2;
+}
+
+/**
+ * Check if a future edge from parent→candidate crosses through an obstacle.
+ * Excludes obstacles that contain the parent position — those always trigger
+ * (the edge starts inside them) but don't represent real "in-the-way" obstacles.
+ */
+function edgeCrossesObstacle(edge: EdgeSegment, parentPos: Position, obstacle: Obstacle): boolean {
+    switch (obstacle.kind) {
+        case 'box':
+            // Skip box obstacles containing the parent — edge necessarily starts inside
+            if (pointInsideBox(parentPos, obstacle)) return false;
+            return rectIntersectsSegment(obstacle, edge);
+        case 'segment':
+            return segmentsIntersect(edge, obstacle);
     }
 }
 
@@ -136,7 +157,11 @@ function tryCandidateDirections(
             const off: Position = directionOffset(dir, distance, targetDimensions, directionalDistance);
             const pos: Position = { x: parentPos.x + off.x, y: parentPos.y + off.y };
             const bbox: ObstacleBBox = buildBBox(pos, targetDimensions);
-            const collisions: readonly Obstacle[] = obstacles.filter(obs => collidesWithObstacle(bbox, obs));
+            const bboxCollisions: readonly Obstacle[] = obstacles.filter(obs => collidesWithObstacle(bbox, obs));
+            // Also check the future edge from parent to this candidate
+            const futureEdge: EdgeSegment = { p1: parentPos, p2: pos };
+            const edgeCollisions: readonly Obstacle[] = obstacles.filter(obs => edgeCrossesObstacle(futureEdge, parentPos, obs));
+            const collisions: readonly Obstacle[] = [...new Set([...bboxCollisions, ...edgeCollisions])];
             return { pos, bbox, blocked: collisions.length > 0, collisions };
         });
 
@@ -200,7 +225,10 @@ export function findBestPosition(
     };
 
     const desiredBBox: ObstacleBBox = buildBBox(desiredPos, targetDimensions);
-    const desiredCollisions: readonly Obstacle[] = obstacles.filter(obs => collidesWithObstacle(desiredBBox, obs));
+    const bboxCollisions: readonly Obstacle[] = obstacles.filter(obs => collidesWithObstacle(desiredBBox, obs));
+    const desiredEdge: EdgeSegment = { p1: parentPos, p2: desiredPos };
+    const desiredEdgeCollisions: readonly Obstacle[] = obstacles.filter(obs => edgeCrossesObstacle(desiredEdge, parentPos, obs));
+    const desiredCollisions: readonly Obstacle[] = [...new Set([...bboxCollisions, ...desiredEdgeCollisions])];
     const desiredBlocked: boolean = desiredCollisions.length > 0;
     const boxCount: number = desiredCollisions.filter(o => o.kind === 'box').length;
     const segCount: number = desiredCollisions.filter(o => o.kind === 'segment').length;

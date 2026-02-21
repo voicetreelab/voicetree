@@ -62,6 +62,10 @@ Highest priority task: `,
             command: `claude "${AGENT_PROMPT_VAR}"`,
         },
         {
+            name: 'Claude Sonnet',
+            command: `claude --model sonnet "${AGENT_PROMPT_VAR}"`,
+        },
+        {
             name: 'Gemini',
             command: `gemini -i "${AGENT_PROMPT_VAR}"`,
         },

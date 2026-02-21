@@ -1,6 +1,9 @@
 {
   "permissions": {
-    "allow": []
+    "allow": [
+      "mcp__voicetree__create_graph",
+      "mcp__voicetree__search_nodes"
+    ]
   },
   "hooks": {
     "PostToolUse": [
