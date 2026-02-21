@@ -9,9 +9,11 @@
 
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
+import {isHeadlessAgent, killHeadlessAgent} from '@/shell/edge/main/terminals/headlessAgentManager'
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy'
 import {type McpToolResponse, buildJsonResponse} from './types'
 import {getNewNodesForAgent} from './getNewNodesForAgent'
+import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
 
 export interface CloseAgentParams {
     terminalId: string
@@ -36,6 +38,19 @@ export function closeAgentTool({terminalId, callerTerminalId}: CloseAgentParams)
         }
     }
 
+    // Headless agents: kill child_process directly (no UI terminal to close)
+    if (isHeadlessAgent(terminalId)) {
+        const killed: boolean = killHeadlessAgent(terminalId as TerminalId)
+        return buildJsonResponse({
+            success: killed,
+            terminalId,
+            message: killed
+                ? `Successfully closed headless agent: ${terminalId}`
+                : `Headless agent not found: ${terminalId}`
+        }, !killed)
+    }
+
+    // Interactive agents: close via UI API (removes xterm.js terminal)
     uiAPI.closeTerminalById(terminalId)
     return buildJsonResponse({
         success: true,

@@ -31,6 +31,7 @@ import { getNextTerminalCountForNode, getExistingAgentNames } from '@/shell/edge
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import {getWatchStatus} from "@/shell/edge/main/graph/watch_folder/watchFolder";
 import {buildTerminalEnvVars} from '@/shell/edge/main/terminals/buildTerminalEnvVars';
+import {spawnHeadlessAgent} from '@/shell/edge/main/terminals/headlessAgentManager';
 
 /**
  * Spawn a terminal with a context node, orchestrated from main process
@@ -57,7 +58,8 @@ export async function spawnTerminalWithContextNode(
     spawnDirectory?: string,
     parentTerminalId?: string,
     agentInstructions?: string,
-    promptTemplate?: string
+    promptTemplate?: string,
+    headless?: boolean
 ): Promise<{terminalId: string; contextNodeId: NodeIdAndFilePath}> {
     // Load settings to get agents
     const settings: VTSettings = await loadSettings();
@@ -121,16 +123,36 @@ export async function spawnTerminalWithContextNode(
         startUnpinned,
         spawnDirectory,
         parentTerminalId,
-        promptTemplate
+        promptTemplate,
+        headless
     );
 
-    // TODO, HERE WE NEED TO WAIT FOR CONTEXT NODE TO EXIST IN UI
-    // OR we could move that to within launchTerminalOntoUI
-    // Actually, this is handled in createFloatingTerminal via waitForNode: src/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI.ts:371
+    if (headless) {
+        // Headless branch: spawn as background child_process, no PTY/xterm.js
+        // Transform interactive command to headless: -p flag runs non-interactively with MCP tool access
+        // Strip the interactive "$AGENT_PROMPT" positional arg from the command, then add -p flag
+        // e.g. 'claude "$AGENT_PROMPT"' → 'claude -p "$AGENT_PROMPT"'
+        // e.g. 'claude --model sonnet "$AGENT_PROMPT"' → 'claude --model sonnet -p "$AGENT_PROMPT"'
+        const baseCommand: string = command.replace('"$AGENT_PROMPT"', '').replace("'$AGENT_PROMPT'", '').trim()
+        const headlessCommand: string = `${baseCommand} -p "$AGENT_PROMPT"`
+        const headlessEnv: Record<string, string> = terminalData.initialEnvVars ?? {}
+        spawnHeadlessAgent(
+            getTerminalId(terminalData),
+            terminalData,
+            headlessCommand,
+            terminalData.initialSpawnDirectory,
+            headlessEnv
+        )
+    } else {
+        // Interactive branch: launch terminal onto UI with xterm.js
+        // TODO, HERE WE NEED TO WAIT FOR CONTEXT NODE TO EXIST IN UI
+        // OR we could move that to within launchTerminalOntoUI
+        // Actually, this is handled in createFloatingTerminal via waitForNode: src/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI.ts:371
 
-    // Call UI to launch terminal (via UI API pattern)
-    // Note: uiAPI sends IPC message, no need to await (fire-and-forget)
-    void uiAPI.launchTerminalOntoUI(contextNodeId, terminalData, skipFitAnimation);
+        // Call UI to launch terminal (via UI API pattern)
+        // Note: uiAPI sends IPC message, no need to await (fire-and-forget)
+        void uiAPI.launchTerminalOntoUI(contextNodeId, terminalData, skipFitAnimation);
+    }
 
     return {
         terminalId: getTerminalId(terminalData),
@@ -157,7 +179,8 @@ async function prepareTerminalDataInMain(
     startUnpinned?: boolean,
     spawnDirectory?: string,
     parentTerminalId?: string,
-    promptTemplate?: string
+    promptTemplate?: string,
+    headless?: boolean
 ): Promise<TerminalData> {
     // Get context node from graph (main has immediate access)
     const graph: Graph = getGraph();
@@ -234,6 +257,7 @@ async function prepareTerminalDataInMain(
         agentName: agentName,
         parentTerminalId: parentTerminalId as TerminalId | null,
         worktreeName: worktreeName,
+        isHeadless: headless,
     });
 
     return terminalData;

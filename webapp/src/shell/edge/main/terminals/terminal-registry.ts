@@ -1,3 +1,4 @@
+import * as O from 'fp-ts/lib/Option.js'
 import type {Graph, GraphNode, NodeIdAndFilePath} from '@/pure/graph'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getUnseenNodesAroundContextNode, type UnseenNode} from '@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode'
@@ -297,6 +298,18 @@ export function clearTerminalRecords(): void {
 
 export function getIdleSince(terminalId: string): number | null {
     return idleSinceByTerminal.get(terminalId) ?? null
+}
+
+/**
+ * Get all headless agent records anchored to a given node.
+ * Used by badge UI to render status badges on task node cards.
+ */
+export function getHeadlessAgentsForNode(nodeId: NodeIdAndFilePath): TerminalRecord[] {
+    return getTerminalRecords().filter((r: TerminalRecord) =>
+        r.terminalData.isHeadless &&
+        O.isSome(r.terminalData.anchoredToNodeId) &&
+        r.terminalData.anchoredToNodeId.value === nodeId
+    )
 }
 
 export function getNextTerminalCountForNode(nodeId: NodeIdAndFilePath): number {

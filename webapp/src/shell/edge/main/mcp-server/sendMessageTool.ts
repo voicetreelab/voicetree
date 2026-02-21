@@ -39,6 +39,14 @@ export async function sendMessageTool({
         }, true)
     }
 
+    // 2b. Guard: headless agents have no PTY/stdin — cannot receive messages
+    if (targetRecord.terminalData.isHeadless) {
+        return buildJsonResponse({
+            success: false,
+            error: `Cannot send message to headless agent "${terminalId}". Headless agents have no terminal input. They receive work via their task node and produce output as graph nodes. Use get_unseen_nodes_nearby to read their output.`
+        }, true)
+    }
+
     // 3. Send message to terminal with sender prefix
     try {
         const prefixedMessage: string = `[From: ${callerTerminalId}] ${message}\n\nIf needed, you can reply directly with the send_message tool to ${callerTerminalId}.`

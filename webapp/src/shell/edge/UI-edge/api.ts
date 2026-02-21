@@ -22,6 +22,7 @@ import {isImageNode} from "@/pure/graph";
 import type {Core} from "cytoscape";
 import type {TerminalRecord} from "@/shell/edge/main/terminals/terminal-registry";
 import {syncFromMain} from "@/shell/edge/UI-edge/state/TerminalStore";
+import {updateHeadlessBadges} from "@/shell/edge/UI-edge/floating-windows/headless-badge-overlay";
 import {syncVaultStateFromMain} from "@/shell/edge/UI-edge/state/VaultPathStore";
 import type {VaultPathState} from "@/shell/edge/UI-edge/state/VaultPathStore";
 
@@ -75,6 +76,8 @@ function fitViewport(): void {
  */
 function syncTerminals(records: TerminalRecord[]): void {
     syncFromMain(records);
+    // Update headless agent badge overlays on task nodes
+    updateHeadlessBadges();
 }
 
 /**

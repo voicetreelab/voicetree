@@ -5,6 +5,7 @@
 
 import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 import {getOutput} from '@/shell/edge/main/terminals/terminal-output-buffer'
+import {getHeadlessAgentOutput} from '@/shell/edge/main/terminals/headlessAgentManager'
 import {type McpToolResponse, buildJsonResponse} from './types'
 
 export interface ReadTerminalOutputParams {
@@ -37,6 +38,18 @@ export async function readTerminalOutputTool({
             success: false,
             error: `Terminal not found: ${terminalId}`
         }, true)
+    }
+
+    // 2b. Headless agents: return captured stdout+stderr ring buffer instead of PTY output
+    if (targetRecord.terminalData.isHeadless) {
+        const headlessOutput: string = getHeadlessAgentOutput(terminalId)
+        return buildJsonResponse({
+            success: true,
+            terminalId,
+            nChars,
+            output: headlessOutput.slice(-nChars),
+            isHeadless: true
+        })
     }
 
     // 3. Get output from character buffer

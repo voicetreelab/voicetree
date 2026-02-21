@@ -16,6 +16,7 @@ import {disposeRecentNodeTabsBar} from './RecentNodeTabsBar';
 import {cleanupViewSubscriptions} from '@/shell/edge/UI-edge/graph/setupViewSubscriptions';
 import {disposeEditorManager} from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
 import {disposeTerminalTreeSidebar} from './treeStyleTerminalTabs/TerminalTreeSidebar';
+import {destroyHeadlessBadges} from '@/shell/edge/UI-edge/floating-windows/headless-badge-overlay';
 import {disposeGraphViewOverlays} from '@/shell/edge/UI-edge/state/GraphViewUIStore';
 
 export interface GraphViewDisposeDependencies {
@@ -66,6 +67,7 @@ export function disposeGraphView(deps: GraphViewDisposeDependencies): void {
     disposeEditorManager(deps.cy);
     deps.searchService.dispose();
     disposeTerminalTreeSidebar();
+    destroyHeadlessBadges();
     disposeGraphViewOverlays();
 
     // Dispose menu services

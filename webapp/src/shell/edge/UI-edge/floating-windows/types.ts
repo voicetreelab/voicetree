@@ -130,6 +130,8 @@ export function createTerminalData(params: CreateTerminalDataParams): TerminalDa
         agentName: params.agentName,
         // Worktree name (undefined = not in worktree)
         worktreeName: params.worktreeName,
+        // Headless mode (default false — backwards compatible)
+        isHeadless: params.isHeadless ?? false,
     };
 }
 

@@ -11,6 +11,7 @@ import {getProjectRootWatchedDirectory} from "@/shell/edge/main/state/watch-fold
 import {captureOutput, clearBuffer, clearAllBuffers} from '@/shell/edge/main/terminals/terminal-output-buffer';
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
 import type {VTSettings} from '@/pure/settings/types';
+import {isHeadlessAgent, killHeadlessAgent, cleanupHeadlessAgents} from '@/shell/edge/main/terminals/headlessAgentManager';
 
 /** Cached Windows shell path. Prefer pwsh.exe (PS7+) over powershell.exe (PS5) */
 let cachedWindowsShell: string | undefined;
@@ -228,6 +229,12 @@ export default class TerminalManager {
    */
   kill(terminalId: string): TerminalOperationResult {
     try {
+      // Delegate to headlessAgentManager for headless agents
+      if (isHeadlessAgent(terminalId)) {
+        const killed: boolean = killHeadlessAgent(terminalId as import('@/shell/edge/UI-edge/floating-windows/types').TerminalId);
+        return killed ? { success: true } : { success: false, error: 'Headless agent not found' };
+      }
+
       const ptyProcess: pty.IPty | undefined = this.terminals.get(terminalId);
       if (!ptyProcess) {
         // Clean up error terminals too
@@ -285,6 +292,9 @@ export default class TerminalManager {
     // This prevents onExit handlers from calling markTerminalExited → pushStateToRenderer,
     // which would sync stale terminals to the newly mounted renderer during project switch.
     clearTerminalRecords();
+
+    // Kill all headless agents
+    cleanupHeadlessAgents();
 
     for (const [id, ptyProcess] of this.terminals) {
       //console.log(`Cleaning up terminal ${id}`);

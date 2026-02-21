@@ -25,9 +25,10 @@ export interface SpawnAgentParams {
     spawnDirectory?: string
     promptTemplate?: string
     agentName?: string
+    headless?: boolean
 }
 
-export async function spawnAgentTool({nodeId, callerTerminalId, task, details, parentNodeId, spawnDirectory, promptTemplate, agentName}: SpawnAgentParams): Promise<McpToolResponse> {
+export async function spawnAgentTool({nodeId, callerTerminalId, task, details, parentNodeId, spawnDirectory, promptTemplate, agentName, headless}: SpawnAgentParams): Promise<McpToolResponse> {
     //console.log(`[MCP] spawn_agent called by terminal: ${callerTerminalId}`)
 
     // Validate caller terminal exists
@@ -168,7 +169,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, details, p
 
             // Spawn terminal on the new task node (with parent terminal for tree-style tabs)
             const {terminalId, contextNodeId}: {terminalId: string; contextNodeId: string} =
-                await spawnTerminalWithContextNode(taskNodeId, resolvedAgentCommand, undefined, true, false, undefined, resolvedSpawnDirectory, callerTerminalId, undefined, promptTemplate)
+                await spawnTerminalWithContextNode(taskNodeId, resolvedAgentCommand, undefined, true, false, undefined, resolvedSpawnDirectory, callerTerminalId, undefined, promptTemplate, headless)
 
             return buildJsonResponse({
                 success: true,
@@ -211,7 +212,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, details, p
         // Pass skipFitAnimation: true for MCP spawns to avoid interrupting user's viewport
         // Pass callerTerminalId as parentTerminalId for tree-style tabs
         const {terminalId, contextNodeId}: {terminalId: string; contextNodeId: string} =
-            await spawnTerminalWithContextNode(resolvedNodeId, resolvedAgentCommand, undefined, true, false, undefined, resolvedSpawnDirectory, callerTerminalId, details, promptTemplate)
+            await spawnTerminalWithContextNode(resolvedNodeId, resolvedAgentCommand, undefined, true, false, undefined, resolvedSpawnDirectory, callerTerminalId, details, promptTemplate, headless)
 
         return buildJsonResponse({
             success: true,
