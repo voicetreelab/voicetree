@@ -5,7 +5,7 @@ import {
 } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 import type {NodeCardData} from '@/shell/edge/UI-edge/state/NodeCardStore';
 
-function extractPreviewLines(content: string, maxLines: number = 3): string {
+export function extractPreviewLines(content: string, maxLines: number = 3): string {
     return content
         .split('\n')
         .filter(line => line.trim().length > 0)
@@ -28,25 +28,6 @@ export function createNodeCard(
     accent.className = 'node-card-accent';
     accent.style.background = accentColor ?? '#4a9eff';
 
-    const trafficLights: HTMLDivElement = document.createElement('div');
-    trafficLights.className = 'node-card-traffic-lights';
-
-    const closeBtn: HTMLButtonElement = document.createElement('button');
-    closeBtn.className = 'tl-close';
-    closeBtn.title = 'Close';
-
-    const pinBtn: HTMLButtonElement = document.createElement('button');
-    pinBtn.className = 'tl-pin';
-    pinBtn.title = 'Pin';
-
-    const expandBtn: HTMLButtonElement = document.createElement('button');
-    expandBtn.className = 'tl-expand';
-    expandBtn.title = 'Expand';
-
-    trafficLights.appendChild(closeBtn);
-    trafficLights.appendChild(pinBtn);
-    trafficLights.appendChild(expandBtn);
-
     const body: HTMLDivElement = document.createElement('div');
     body.className = 'node-card-body';
 
@@ -58,26 +39,18 @@ export function createNodeCard(
     preview.className = 'node-card-preview';
     preview.textContent = extractPreviewLines(contentPreview);
 
-    // Editor area — hidden in minimal mode, shown in hover/full modes
-    const editorArea: HTMLDivElement = document.createElement('div');
-    editorArea.className = 'node-card-editor-area';
-
     body.appendChild(titleEl);
     body.appendChild(preview);
-    body.appendChild(editorArea);
 
     card.appendChild(accent);
-    card.appendChild(trafficLights);
     card.appendChild(body);
-
-    // Store base width for zoom scaling (updateWindowFromZoom reads dataset.baseWidth)
-    card.dataset.baseWidth = '260';
 
     // The Cy node IS the shadow node for this card — same mechanism as editor shadow nodes.
     // updateWindowFromZoom reads shadowNodeId to get live position from Cy (lines 82-88),
     // instead of static graphX/graphY which go stale when Cola layout moves the node.
     card.dataset.shadowNodeId = nodeId;
     card.dataset.transformOrigin = 'center';
+    card.style.opacity = '0'; // Start invisible — Cy node shows native circle; crossfade reveals card
 
     const zoom: number = getCachedZoom();
     card.style.left = `${position.x * zoom}px`;
@@ -90,9 +63,6 @@ export function createNodeCard(
     return {
         windowElement: card,
         contentContainer: body,
-        editorArea,
-        editor: null,
-        mode: 'minimal'
     };
 }
 
@@ -100,11 +70,6 @@ export function destroyNodeCard(
     nodeId: string,
     card: NodeCardData
 ): void {
-    // Dispose CodeMirror instance if mounted
-    if (card.editor) {
-        card.editor.dispose();
-        card.editor = null;
-    }
     unregisterFloatingWindow(nodeId + '-card');
     card.windowElement.remove();
 }
