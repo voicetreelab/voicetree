@@ -12,10 +12,10 @@ import {getEditorByNodeId} from "@/shell/edge/UI-edge/state/EditorStore";
 import {scheduleIdleWork} from "@/utils/scheduleIdleWork";
 import {getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {getShadowNodeId, getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
-import {createNodeCard, destroyNodeCard} from '@/shell/edge/UI-edge/floating-windows/nodeCards';
+import {createNodeCard, destroyNodeCard, extractPreviewLines} from '@/shell/edge/UI-edge/floating-windows/nodeCards';
 import {addNodeCard, removeNodeCard, getNodeCard, type NodeCardData} from '@/shell/edge/UI-edge/state/NodeCardStore';
 import {getOrCreateOverlay} from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
-import {wireCardClickHandlers} from '@/shell/edge/UI-edge/floating-windows/cardStateTransitions';
+import {wireCardHoverMorph} from '@/shell/edge/UI-edge/floating-windows/cardHoverMorph';
 import {isImageNode} from '@/pure/graph';
 
 // Feature flag: render nodes as HTML cards instead of Cytoscape circles
@@ -129,11 +129,11 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                         cy.getElementById(nodeId).data('isCardNode', true);
                         // Make cy node invisible — HTML card handles rendering
                         // Size matches .node-card CSS dimensions so Cola layout forces are correct
+                        // Initial Cy node style — cardZoomMorph sets opacity + events per zone
                         cy.getElementById(nodeId).style({
                             'opacity': 0,
                             'width': 260,   // matches .node-card CSS width
                             'height': 80,   // matches .node-card min-height
-                            'events': 'no',
                             'label': ''
                         });
 
@@ -147,8 +147,8 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                         );
                         overlay.appendChild(card.windowElement);
                         addNodeCard(nodeId, card);
-                        // Wire click → activate (Phase 3)
-                        wireCardClickHandlers(cy, nodeId, card.windowElement);
+                        // Wire hover → morph to floating editor
+                        wireCardHoverMorph(cy, nodeId, card.windowElement);
 
                         // Position sync: Cy node IS the shadow node for this card.
                         // Same pattern as anchor-to-node.ts shadowNode.on('position', syncPosition).
@@ -242,11 +242,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                             // Update card preview
                             const previewEl: Element | null = card.windowElement.querySelector('.node-card-preview');
                             if (previewEl) {
-                                previewEl.textContent = node.contentWithoutYamlOrLinks
-                                    .split('\n')
-                                    .filter((line: string) => line.trim().length > 0)
-                                    .slice(0, 3)
-                                    .join('\n');
+                                previewEl.textContent = extractPreviewLines(node.contentWithoutYamlOrLinks);
                             }
                         }
                     }

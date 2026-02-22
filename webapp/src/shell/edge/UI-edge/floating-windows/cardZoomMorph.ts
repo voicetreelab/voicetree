@@ -83,13 +83,18 @@ export function updateCardFromZoom(cy: cytoscape.Core, card: HTMLElement, zoom: 
             if (zone !== prevZone || zone === 'crossfade') {
                 zoneCache.set(card, zone);
                 if (zone === 'hidden') {
-                    shadowNode.style('opacity', 0);
+                    shadowNode.style({
+                        'opacity': 0,
+                        'events': 'no',
+                    } as Record<string, unknown>);
                 } else {
                     // Visible or crossfade: show as small circle with appropriate opacity
+                    // Events enabled in visible zone (Cy handles hover), disabled in crossfade (avoid dual triggers)
                     shadowNode.style({
                         'opacity': zone === 'visible' ? 1 : cyOpacity,
                         'width': CIRCLE_SIZE,
                         'height': CIRCLE_SIZE,
+                        'events': zone === 'visible' ? 'yes' : 'no',
                     } as Record<string, unknown>);
                 }
             }
@@ -120,4 +125,13 @@ export function updateCardFromZoom(cy: cytoscape.Core, card: HTMLElement, zoom: 
     }
 
     card.style.transform = `translate(-50%, -50%) scale(${zoom})`;
+}
+
+/**
+ * Clear zone cache for a card and re-run updateCardFromZoom.
+ * Used after hover editor closes to restore correct Cy node + card state.
+ */
+export function forceRefreshCard(cy: cytoscape.Core, card: HTMLElement, zoom: number): void {
+    zoneCache.delete(card);
+    updateCardFromZoom(cy, card, zoom);
 }

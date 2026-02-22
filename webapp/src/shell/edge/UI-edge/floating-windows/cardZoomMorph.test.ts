@@ -1,5 +1,5 @@
 import {describe, it, expect, beforeEach, vi} from 'vitest';
-import {clamp01, lerp, smoothstep, updateCardFromZoom, CARD_ZOOM_MIN, CARD_ZOOM_MAX, CIRCLE_SIZE} from './cardZoomMorph';
+import {clamp01, lerp, smoothstep, updateCardFromZoom, forceRefreshCard, CARD_ZOOM_MIN, CARD_ZOOM_MAX, CIRCLE_SIZE} from './cardZoomMorph';
 
 // =============================================================================
 // Pure math helpers
@@ -276,14 +276,14 @@ describe('updateCardFromZoom', () => {
     // Cy node crossfade — small circle + opacity zones
     // =========================================================================
 
-    it('Cy node set to small circle with opacity 1 at morph=0 (visible zone)', () => {
+    it('Cy node set to small circle with opacity 1 and events yes at morph=0 (visible zone)', () => {
         updateCardFromZoom(mockCy as never, card, 0.5);
         expect(mockShadowNodeStyle).toHaveBeenCalledWith(
-            expect.objectContaining({ opacity: 1, width: CIRCLE_SIZE, height: CIRCLE_SIZE })
+            expect.objectContaining({ opacity: 1, width: CIRCLE_SIZE, height: CIRCLE_SIZE, events: 'yes' })
         );
     });
 
-    it('Cy node fades during crossfade zone with small circle size', () => {
+    it('Cy node fades during crossfade zone with events disabled', () => {
         // morph at zoom=0.77 => (0.77-0.7)/0.35 = 0.2
         updateCardFromZoom(mockCy as never, card, 0.77);
         const morph: number = (0.77 - 0.7) / 0.35;
@@ -293,14 +293,17 @@ describe('updateCardFromZoom', () => {
                 opacity: expect.closeTo(expectedCyOpacity, 4),
                 width: CIRCLE_SIZE,
                 height: CIRCLE_SIZE,
+                events: 'no',
             })
         );
     });
 
-    it('Cy node hidden in hidden zone (morph > 0.35)', () => {
+    it('Cy node hidden in hidden zone with events disabled (morph > 0.35)', () => {
         // morph=0.5 at zoom = 0.7 + 0.5*0.35 = 0.875
         updateCardFromZoom(mockCy as never, card, 0.875);
-        expect(mockShadowNodeStyle).toHaveBeenCalledWith('opacity', 0);
+        expect(mockShadowNodeStyle).toHaveBeenCalledWith(
+            expect.objectContaining({ opacity: 0, events: 'no' })
+        );
     });
 
     it('Cy node style not re-applied when zone is stable (visible→visible)', () => {
@@ -317,5 +320,25 @@ describe('updateCardFromZoom', () => {
 
         updateCardFromZoom(mockCy as never, card, 0.77);
         expect(mockShadowNodeStyle).toHaveBeenCalled();
+    });
+
+    // =========================================================================
+    // forceRefreshCard
+    // =========================================================================
+
+    it('forceRefreshCard clears zone cache and re-applies styles', () => {
+        // Set to visible zone
+        updateCardFromZoom(mockCy as never, card, 0.5);
+        mockShadowNodeStyle.mockClear();
+
+        // Same zone — normally no style update
+        updateCardFromZoom(mockCy as never, card, 0.6);
+        expect(mockShadowNodeStyle).not.toHaveBeenCalled();
+
+        // forceRefreshCard clears cache — forces style update even in same zone
+        forceRefreshCard(mockCy as never, card, 0.5);
+        expect(mockShadowNodeStyle).toHaveBeenCalledWith(
+            expect.objectContaining({ opacity: 1, events: 'yes' })
+        );
     });
 });

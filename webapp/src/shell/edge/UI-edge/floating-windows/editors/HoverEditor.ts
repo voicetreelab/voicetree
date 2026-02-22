@@ -11,6 +11,7 @@ import {type EditorData} from '@/shell/edge/UI-edge/state/UIAppState';
 import {getEditorByNodeId, getHoverEditor} from "@/shell/edge/UI-edge/state/EditorStore";
 import {createFloatingEditor, closeEditor} from './FloatingEditorCRUD';
 import {hasNodeCard} from '@/shell/edge/UI-edge/state/NodeCardStore';
+import {morphNodeToEditor, isHoverMorphPending} from '@/shell/edge/UI-edge/floating-windows/cardHoverMorph';
 
 // =============================================================================
 // Hover Zone Detection
@@ -215,40 +216,65 @@ async function openHoverEditor(
 // Setup Command Hover
 // =============================================================================
 
+// Debounce timers for Cy mouseover on card-backed nodes (separate from card DOM timers)
+const cyCardHoverTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
+
 /**
  * Setup hover mode (hover to show editor or image viewer)
+ *
+ * Card-backed nodes: Cy mouseover fires when zoomed out (card has pointer-events: none).
+ * Routes to morphNodeToEditor which hides card + Cy circle and spawns an editor.
+ * When zoomed in, the card's own mouseenter (via wireCardHoverMorph) handles hover.
+ *
+ * Non-card nodes: existing hover editor behavior (editor below node).
  */
 export function setupCommandHover(cy: Core): void {
     // Listen for node hover
     cy.on('mouseover', 'node', (event: cytoscape.EventObject): void => {
         void (async (): Promise<void> => {
-            //console.log('[HoverEditor-v2] GraphNode mouseover');
-
             const node: cytoscape.NodeSingular = event.target;
             const nodeId: string = node.id();
 
-            // Card nodes don't use hover editors — the card preview IS the hover state
-            if (hasNodeCard(nodeId)) return;
+            // Card-backed nodes: morph Cy circle to editor (zoomed-out hover path)
+            if (hasNodeCard(nodeId)) {
+                // Skip if a morph is already pending (from card DOM mouseenter or previous Cy hover)
+                if (isHoverMorphPending(nodeId) || cyCardHoverTimers.has(nodeId)) return;
+
+                const timer: ReturnType<typeof setTimeout> = setTimeout((): void => {
+                    cyCardHoverTimers.delete(nodeId);
+                    void morphNodeToEditor(cy, nodeId);
+                }, 200);
+                cyCardHoverTimers.set(nodeId, timer);
+                return;
+            }
 
             // Only open hover for nodes with file extensions
             // Terminal nodes, shadow nodes, etc. don't have file extensions
             const hasFileExtension: boolean = /\.\w+$/.test(nodeId);
             if (!hasFileExtension) {
-                //console.log('[HoverEditor-v2] Skipping non-file node:', nodeId);
                 return;
             }
 
             // Check if this is an image node - open image viewer instead of editor
             if (isImageNode(nodeId)) {
-                //console.log('[HoverEditor-v2] Opening image viewer for:', nodeId);
                 // Close any open hover editor first
                 closeHoverEditor(cy);
                 await openHoverImageViewer(cy, nodeId, node.position());
                 return;
             }
 
-            // Open hover editor for markdown files
+            // Open hover editor for markdown files (non-card nodes)
             await openHoverEditor(cy, nodeId, node.position());
         })();
+    });
+
+    // Cancel Cy card hover timers on mouseout
+    cy.on('mouseout', 'node', (event: cytoscape.EventObject): void => {
+        const nodeId: string = event.target.id();
+        const timer: ReturnType<typeof setTimeout> | undefined = cyCardHoverTimers.get(nodeId);
+        if (timer) {
+            clearTimeout(timer);
+            cyCardHoverTimers.delete(nodeId);
+        }
     });
 }

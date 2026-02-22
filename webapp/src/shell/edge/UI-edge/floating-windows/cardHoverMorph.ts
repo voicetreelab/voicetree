@@ -1,25 +1,24 @@
-import type {Core} from 'cytoscape';
+import type {Core, CollectionReturnValue} from 'cytoscape';
 import type {NodeIdAndFilePath} from '@/pure/graph';
 import type {EditorData} from '@/shell/edge/UI-edge/state/UIAppState';
 import {createFloatingEditor, closeEditor} from './editors/FloatingEditorCRUD';
 import {getCachedZoom} from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 import {getNodeCard} from '@/shell/edge/UI-edge/state/NodeCardStore';
 import {markNodeDirty} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout';
+import {forceRefreshCard} from '@/shell/edge/UI-edge/floating-windows/cardZoomMorph';
 
-// Half-height editor spawned on card hover
+// Half-height editor spawned on hover
 const HALF_EDITOR_DIMENSIONS: { width: number; height: number } = {width: 340, height: 200};
 // Full editor after commit (dblclick / text selection)
 const FULL_EDITOR_WIDTH: number = 420;
 
-// Debounce timers per node
+// Debounce timers per node (shared by card mouseenter and Cy mouseover paths)
 const hoverTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
 
 /**
- * Wire card-to-editor morph: hover hides card, spawns a real floating editor.
- * - mouseenter (200ms) -> hide card, create half-height floating editor at card position
- * - dblclick on editor -> expand to full width, mark committed (no auto-close)
- * - mouseleave from editor (if uncommitted) -> close editor, show card
- * - editor closed (any reason) -> show card
+ * Wire card-to-editor morph: mouseenter on card DOM -> morph to floating editor.
+ * Used when card is visible (zoomed in). For zoomed-out Cy circle hover,
+ * HoverEditor.ts calls morphNodeToEditor directly via Cy mouseover.
  */
 export function wireCardHoverMorph(
     cy: Core,
@@ -34,7 +33,7 @@ export function wireCardHoverMorph(
 
         const timer: ReturnType<typeof setTimeout> = setTimeout((): void => {
             hoverTimers.delete(nodeId);
-            void morphToEditor(cy, nodeId, cardElement);
+            void morphNodeToEditor(cy, nodeId);
         }, 200);
         hoverTimers.set(nodeId, timer);
     });
@@ -48,40 +47,67 @@ export function wireCardHoverMorph(
     });
 }
 
-async function morphToEditor(
+/**
+ * Check if a hover morph is already pending for a node.
+ * Used by HoverEditor to avoid duplicate debounce timers.
+ */
+export function isHoverMorphPending(nodeId: string): boolean {
+    return hoverTimers.has(nodeId);
+}
+
+/**
+ * Morph a node to editor — works from both card hover (zoomed in) and Cy circle hover (zoomed out).
+ * Hides card + Cy node, spawns a half-height floating editor at node position.
+ * dblclick commits (expands to full width, persists after mouseleave).
+ * mouseleave without commit auto-closes and restores prior state.
+ */
+export async function morphNodeToEditor(
     cy: Core,
     nodeId: string,
-    cardElement: HTMLElement
 ): Promise<void> {
-    // Hide card — editor takes its place
-    cardElement.style.display = 'none';
+    const cardData: ReturnType<typeof getNodeCard> = getNodeCard(nodeId);
+    const cardElement: HTMLElement | undefined = cardData?.windowElement;
 
-    const showCard: () => void = (): void => {
-        // Only show card if it still exists in store (might have been destroyed)
-        if (getNodeCard(nodeId)) {
+    // Hide card if it exists
+    if (cardElement) {
+        cardElement.style.display = 'none';
+    }
+
+    // Hide Cy node (circle or layout anchor)
+    const cyNode: CollectionReturnValue = cy.getElementById(nodeId);
+    if (cyNode.length > 0) {
+        cyNode.style({'opacity': 0, 'events': 'no'} as Record<string, unknown>);
+    }
+
+    const restore: () => void = (): void => {
+        // Restore card + Cy node via forceRefreshCard (recalculates zone-based state)
+        if (cardElement && getNodeCard(nodeId)) {
             cardElement.style.display = '';
+            forceRefreshCard(cy, cardElement, getCachedZoom());
+        } else if (cyNode.length > 0) {
+            // No card — restore Cy node directly
+            cyNode.style({'opacity': 1, 'events': 'yes'} as Record<string, unknown>);
         }
     };
 
     const editor: EditorData | undefined = await createFloatingEditor(
         cy,
         nodeId as NodeIdAndFilePath,
-        nodeId as NodeIdAndFilePath, // card's Cy node IS the shadow node — pass as anchor so createWindowChrome builds the full menu
+        nodeId as NodeIdAndFilePath, // Cy node IS the shadow node — anchor for full menu
         false,
         HALF_EDITOR_DIMENSIONS
     );
 
     if (!editor?.ui) {
-        showCard();
+        restore();
         return;
     }
 
-    // Position editor at the Cy node position (same position as card's shadow node)
-    const cyNode: import('cytoscape').CollectionReturnValue = cy.getElementById(nodeId);
+    // Position editor centered on Cy node
     if (cyNode.length > 0) {
         const pos: { x: number; y: number } = cyNode.position();
         const zoom: number = getCachedZoom();
-        // Use shadowNodeId so editor follows Cy node when Cola layout moves it
+        // shadowNodeId so editor follows Cy node when Cola layout moves it
         editor.ui.windowElement.dataset.shadowNodeId = nodeId;
         editor.ui.windowElement.dataset.transformOrigin = 'center';
         editor.ui.windowElement.style.left = `${pos.x * zoom}px`;
@@ -98,19 +124,20 @@ async function morphToEditor(
         committed = true;
         editor.ui!.windowElement.dataset.baseWidth = String(FULL_EDITOR_WIDTH);
         editor.ui!.windowElement.style.width = `${FULL_EDITOR_WIDTH}px`;
+        markNodeDirty(cy, nodeId);
     });
 
-    // mouseleave -> close if uncommitted, show card
+    // mouseleave -> close if uncommitted, restore card + Cy node
     editor.ui.windowElement.addEventListener('mouseleave', (): void => {
         if (committed) return;
         closeEditor(cy, editor);
-        showCard();
+        restore();
     });
 
-    // traffic-light-close (from editor chrome) -> show card
+    // traffic-light-close (from editor chrome) -> restore card + Cy node
     // closeEditor is already called by the listener in FloatingEditorCRUD
     editor.ui.windowElement.addEventListener('traffic-light-close', (): void => {
-        showCard();
+        restore();
         committed = false;
     });
 }
