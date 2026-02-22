@@ -268,6 +268,32 @@
   opacity: 0.7;
 }
 
+/* Minimized agent badge variant — purple accent, clickable to restore */
+.headless-agent-badge.minimized {
+  cursor: pointer;
+  border: 1px solid rgba(167, 139, 250, 0.3);
+}
+
+.headless-agent-badge.minimized:hover {
+  background: rgba(167, 139, 250, 0.2);
+  border-color: rgba(167, 139, 250, 0.6);
+}
+
+.headless-agent-badge.minimized .headless-badge-dot {
+  background: #a78bfa;
+}
+
+.headless-agent-badge.minimized.running .headless-badge-dot {
+  background: #a78bfa;
+  animation: headless-badge-pulse 2s ease-in-out infinite;
+}
+
+.headless-agent-badge.minimized.idle .headless-badge-dot {
+  background: #a78bfa;
+  animation: none;
+  opacity: 0.6;
+}
+
 /* =============================================================================
  * Headless Agent Output Popover
  * Floating popover showing captured stdout+stderr on badge hover.

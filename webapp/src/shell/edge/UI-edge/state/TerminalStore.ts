@@ -179,7 +179,7 @@ export function removeTerminalByData(terminal: TerminalData): void {
  */
 export function updateTerminal(
     terminalId: TerminalId,
-    updates: Partial<Pick<TerminalData, 'isPinned'>>
+    updates: Partial<Pick<TerminalData, 'isPinned' | 'isMinimized'>>
 ): TerminalData | undefined {
     const existing: TerminalData | undefined = terminals.get(terminalId);
     if (!existing) return undefined;

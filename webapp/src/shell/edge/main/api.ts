@@ -18,7 +18,7 @@ import {getPreviewContainedNodeIds} from "@/shell/edge/main/graph/context-nodes/
 import {saveNodePositions} from "@/shell/edge/main/saveNodePositions";
 import {performUndo, performRedo} from './graph/undoOperations'
 import {spawnTerminalWithContextNode} from './terminals/spawnTerminalWithContextNode'
-import {updateTerminalIsDone, updateTerminalPinned, updateTerminalActivityState, removeTerminalFromRegistry} from './terminals/terminal-registry'
+import {updateTerminalIsDone, updateTerminalPinned, updateTerminalMinimized, updateTerminalActivityState, removeTerminalFromRegistry} from './terminals/terminal-registry'
 import {getUnseenNodesForTerminal} from './terminals/get-unseen-nodes-for-terminal'
 import {injectNodesIntoTerminal} from './terminals/inject-nodes-into-terminal'
 import {spawnPlainTerminal, spawnPlainTerminalWithNode} from './terminals/spawnPlainTerminal'
@@ -146,6 +146,7 @@ export const mainAPI = {
   // Terminal state mutations (renderer -> main for MCP)
   updateTerminalIsDone,
   updateTerminalPinned,
+  updateTerminalMinimized,
   updateTerminalActivityState,
   removeTerminalFromRegistry,
 

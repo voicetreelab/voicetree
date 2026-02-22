@@ -211,6 +211,18 @@ export function updateTerminalIsDone(terminalId: string, isDone: boolean): void 
     }
 }
 
+export function updateTerminalMinimized(terminalId: string, isMinimized: boolean): void {
+    const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
+    if (!record) {
+        return
+    }
+    terminalRecords.set(terminalId, {
+        ...record,
+        terminalData: {...record.terminalData, isMinimized}
+    })
+    pushStateToRenderer()
+}
+
 export function updateTerminalPinned(terminalId: string, isPinned: boolean): void {
     const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
     if (!record) {

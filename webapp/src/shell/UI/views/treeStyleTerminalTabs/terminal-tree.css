@@ -114,6 +114,12 @@
     background: #22c55e;
 }
 
+.terminal-tree-status.minimized {
+    background: #a78bfa;
+    animation: none;
+    opacity: 0.6;
+}
+
 /* Title container (supports optional worktree subtitle) */
 .terminal-tree-title {
     flex: 1;

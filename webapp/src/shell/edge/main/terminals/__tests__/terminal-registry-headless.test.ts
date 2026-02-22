@@ -51,6 +51,8 @@ import {
     recordTerminalSpawn,
     clearTerminalRecords,
     getHeadlessAgentsForNode,
+    updateTerminalMinimized,
+    getTerminalRecords,
     type TerminalRecord
 } from '@/shell/edge/main/terminals/terminal-registry'
 
@@ -170,5 +172,85 @@ describe('getHeadlessAgentsForNode', () => {
 
         const result: TerminalRecord[] = getHeadlessAgentsForNode(TASK_NODE_A)
         expect(result).toEqual([])
+    })
+})
+
+// ─── updateTerminalMinimized Tests ──────────────────────────────────────────
+
+describe('updateTerminalMinimized', () => {
+    beforeEach(() => {
+        clearTerminalRecords()
+    })
+
+    it('sets isMinimized to true on an existing terminal', () => {
+        const terminalData: TerminalData = buildTerminalData({
+            terminalId: 'term-1',
+            isHeadless: false,
+            anchoredToNodeId: TASK_NODE_A
+        })
+        recordTerminalSpawn('term-1', terminalData)
+
+        updateTerminalMinimized('term-1', true)
+
+        const records: TerminalRecord[] = getTerminalRecords()
+        const updated: TerminalRecord | undefined = records.find(r => r.terminalId === 'term-1')
+        expect(updated).toBeDefined()
+        expect(updated!.terminalData.isMinimized).toBe(true)
+    })
+
+    it('sets isMinimized back to false (restore)', () => {
+        const terminalData: TerminalData = buildTerminalData({
+            terminalId: 'term-2',
+            isHeadless: false,
+            anchoredToNodeId: TASK_NODE_A
+        })
+        recordTerminalSpawn('term-2', terminalData)
+
+        updateTerminalMinimized('term-2', true)
+        updateTerminalMinimized('term-2', false)
+
+        const records: TerminalRecord[] = getTerminalRecords()
+        const updated: TerminalRecord | undefined = records.find(r => r.terminalId === 'term-2')
+        expect(updated).toBeDefined()
+        expect(updated!.terminalData.isMinimized).toBe(false)
+    })
+
+    it('does nothing for unknown terminal ID', () => {
+        updateTerminalMinimized('nonexistent', true)
+
+        const records: TerminalRecord[] = getTerminalRecords()
+        expect(records).toHaveLength(0)
+    })
+
+    it('calls pushStateToRenderer (syncTerminals mock)', async () => {
+        const {uiAPI} = await import('@/shell/edge/main/ui-api-proxy')
+        const syncMock: ReturnType<typeof vi.mocked<typeof uiAPI.syncTerminals>> = vi.mocked(uiAPI.syncTerminals)
+        syncMock.mockClear()
+
+        const terminalData: TerminalData = buildTerminalData({
+            terminalId: 'term-sync',
+            isHeadless: false,
+            anchoredToNodeId: TASK_NODE_A
+        })
+        recordTerminalSpawn('term-sync', terminalData)
+        syncMock.mockClear() // Clear the call from recordTerminalSpawn
+
+        updateTerminalMinimized('term-sync', true)
+
+        expect(syncMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('terminals default to isMinimized: false', () => {
+        const terminalData: TerminalData = buildTerminalData({
+            terminalId: 'term-default',
+            isHeadless: false,
+            anchoredToNodeId: TASK_NODE_A
+        })
+        expect(terminalData.isMinimized).toBe(false)
+
+        recordTerminalSpawn('term-default', terminalData)
+        const records: TerminalRecord[] = getTerminalRecords()
+        const record: TerminalRecord | undefined = records.find(r => r.terminalId === 'term-default')
+        expect(record!.terminalData.isMinimized).toBe(false)
     })
 })
