@@ -1,8 +1,11 @@
 /**
- * Headless Badge Overlay — lightweight status badges on task nodes for headless agents.
+ * Badge Overlay — lightweight status badges on task nodes for headless and minimized agents.
  *
  * Renders HTML badge divs in the floating window overlay, positioned on task nodes.
  * No Cytoscape shadow nodes — just DOM management over the existing overlay.
+ *
+ * Headless badges: hover shows output popover (existing behavior)
+ * Minimized badges: clickable to restore terminal, purple accent styling
  *
  * Data flow: syncTerminals → updateHeadlessBadges() → DOM
  * Position sync: Cytoscape zoom → badge repositioning (pan handled by overlay transform)
@@ -16,6 +19,7 @@ import {getTerminals, getTerminalStatus} from '@/shell/edge/UI-edge/state/Termin
 import {getCyInstance} from '@/shell/edge/UI-edge/state/cytoscape-state';
 import {getOrCreateOverlay} from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 import {graphToScreenPosition} from '@/pure/graph/floating-windows/floatingWindowScaling';
+import {restoreTerminal} from '@/shell/UI/views/treeStyleTerminalTabs/terminalTabUtils';
 import * as O from 'fp-ts/lib/Option.js';
 
 // ─── Module State ─────────────────────────────────────────────────────────────
@@ -47,15 +51,15 @@ export function updateHeadlessBadges(): void {
     }
 
     const terminals: Map<TerminalId, TerminalData> = getTerminals();
-    const headlessTerminals: TerminalData[] = [];
+    const badgeTerminals: TerminalData[] = [];
     for (const terminal of terminals.values()) {
-        if (terminal.isHeadless) {
-            headlessTerminals.push(terminal);
+        if (terminal.isHeadless || terminal.isMinimized) {
+            badgeTerminals.push(terminal);
         }
     }
 
-    // Nothing to do if no headless terminals and no existing badges
-    if (headlessTerminals.length === 0 && badgeElements.size === 0) return;
+    // Nothing to do if no badge-eligible terminals and no existing badges
+    if (badgeTerminals.length === 0 && badgeElements.size === 0) return;
 
     // Lazy-register zoom listener for badge repositioning
     if (!zoomListenerRegistered) {
@@ -66,7 +70,7 @@ export function updateHeadlessBadges(): void {
     const overlay: HTMLElement = getOrCreateOverlay(cy);
 
     // Remove badges for terminals that no longer exist in the store
-    const activeIds: Set<TerminalId> = new Set(headlessTerminals.map(t => t.terminalId));
+    const activeIds: Set<TerminalId> = new Set(badgeTerminals.map(t => t.terminalId));
     for (const [terminalId, element] of badgeElements) {
         if (!activeIds.has(terminalId)) {
             element.remove();
@@ -84,8 +88,8 @@ export function updateHeadlessBadges(): void {
         }
     }
 
-    // Create or update badges for each headless terminal
-    for (const terminal of headlessTerminals) {
+    // Create or update badges for each badge-eligible terminal (headless or minimized)
+    for (const terminal of badgeTerminals) {
         const status: TerminalStatus = getTerminalStatus(terminal.terminalId) ?? 'running';
         const existing: HTMLElement | undefined = badgeElements.get(terminal.terminalId);
 
@@ -131,27 +135,48 @@ function createBadgeElement(terminal: TerminalData, status: TerminalStatus): HTM
     badge.dataset.terminalId = terminal.terminalId;
     updateBadgeContent(badge, terminal, status);
 
-    // Attach hover listeners for output popover
-    badge.addEventListener('mouseenter', () => {
-        onBadgeMouseEnter(terminal.terminalId, badge);
-    });
-    badge.addEventListener('mouseleave', () => {
-        onBadgeMouseLeave();
-    });
+    if (terminal.isMinimized) {
+        // Minimized badges: click to restore terminal
+        badge.addEventListener('click', () => {
+            restoreTerminal(terminal.terminalId);
+        });
+    } else {
+        // Headless badges: hover shows output popover (existing behavior)
+        badge.addEventListener('mouseenter', () => {
+            onBadgeMouseEnter(terminal.terminalId, badge);
+        });
+        badge.addEventListener('mouseleave', () => {
+            onBadgeMouseLeave();
+        });
+    }
 
     return badge;
 }
 
 function updateBadgeContent(badge: HTMLElement, terminal: TerminalData, status: TerminalStatus): void {
-    const statusClass: string = status === 'running' ? 'running' : 'exited';
-    const statusIcon: string = status === 'running' ? '\u21BB' : '\u2713'; // ↻ or ✓
-    const statusLabel: string = status === 'running' ? 'running' : 'done';
+    if (terminal.isMinimized) {
+        // Minimized: show PTY running state with purple styling
+        const statusClass: string = terminal.isDone ? 'idle' : 'running';
+        const statusIcon: string = terminal.isDone ? '\u23F8' : '\u21BB'; // ⏸ or ↻
+        const statusLabel: string = terminal.isDone ? 'idle' : 'running';
 
-    badge.className = `headless-agent-badge ${statusClass}`;
-    badge.innerHTML =
-        `<span class="headless-badge-dot"></span>` +
-        `<span class="headless-badge-name">${escapeHtml(terminal.agentName)}</span>` +
-        `<span class="headless-badge-status">${statusIcon} ${statusLabel}</span>`;
+        badge.className = `headless-agent-badge minimized ${statusClass}`;
+        badge.innerHTML =
+            `<span class="headless-badge-dot"></span>` +
+            `<span class="headless-badge-name">${escapeHtml(terminal.agentName)}</span>` +
+            `<span class="headless-badge-status">${statusIcon} ${statusLabel}</span>`;
+    } else {
+        // Headless: existing behavior — show process status
+        const statusClass: string = status === 'running' ? 'running' : 'exited';
+        const statusIcon: string = status === 'running' ? '\u21BB' : '\u2713'; // ↻ or ✓
+        const statusLabel: string = status === 'running' ? 'running' : 'done';
+
+        badge.className = `headless-agent-badge ${statusClass}`;
+        badge.innerHTML =
+            `<span class="headless-badge-dot"></span>` +
+            `<span class="headless-badge-name">${escapeHtml(terminal.agentName)}</span>` +
+            `<span class="headless-badge-status">${statusIcon} ${statusLabel}</span>`;
+    }
 }
 
 /**

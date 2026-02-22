@@ -132,6 +132,8 @@ export function createTerminalData(params: CreateTerminalDataParams): TerminalDa
         worktreeName: params.worktreeName,
         // Headless mode (default false — backwards compatible)
         isHeadless: params.isHeadless ?? false,
+        // Minimized mode (default false — floating window hidden, badge shown)
+        isMinimized: params.isMinimized ?? false,
     };
 }
 

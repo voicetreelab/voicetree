@@ -17,6 +17,7 @@ export async function listAgentsTool(): Promise<McpToolResponse> {
         contextNodeId: string
         status: 'running' | 'idle' | 'exited'
         isHeadless: boolean
+        isMinimized: boolean
         newNodes: Array<{nodeId: string; title: string}>
     }> = []
 
@@ -46,6 +47,7 @@ export async function listAgentsTool(): Promise<McpToolResponse> {
             contextNodeId,
             status,
             isHeadless: record.terminalData.isHeadless,
+            isMinimized: record.terminalData.isMinimized,
             newNodes
         })
     }

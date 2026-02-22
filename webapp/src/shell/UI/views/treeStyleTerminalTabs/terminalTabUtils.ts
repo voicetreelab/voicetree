@@ -14,6 +14,7 @@ import {
     suppressInactivityDuringZoom as storeSuppress,
 } from '@/shell/edge/UI-edge/state/AgentTabsStore';
 import { getTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
+import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
 import { buildTerminalTree } from '@/pure/agentTabs/terminalTree';
 import type {} from '@/shell/electron';
 
@@ -34,23 +35,34 @@ export function getDisplayOrderForNavigation(): TerminalId[] {
 }
 
 // =============================================================================
-// Pin/Unpin Terminals
+// Minimize/Restore Terminals
 // =============================================================================
 
 /**
- * Unpin a terminal (move from pinned to unpinned section)
- * Routes through main process which is source of truth
+ * Minimize a terminal — hide floating window, show badge on task node.
+ * Immediate DOM hide + IPC to main process for data model sync.
+ * PTY stays alive; xterm.js state preserved via display:none.
  */
-export function unpinTerminal(terminalId: TerminalId): void {
-    void window.electronAPI?.main.updateTerminalPinned(terminalId, false);
+export function minimizeTerminal(terminalId: TerminalId): void {
+    const windowEl: HTMLElement | null = document.querySelector(
+        `[data-floating-window-id="${terminalId}"]`
+    );
+    if (windowEl) windowEl.style.display = 'none';
+    void window.electronAPI?.main.updateTerminalMinimized(terminalId, true);
 }
 
 /**
- * Pin a terminal (move from unpinned to pinned section)
- * Routes through main process which is source of truth
+ * Restore a minimized terminal — show floating window, remove badge.
+ * Immediate DOM show + IPC to main process + focus terminal.
  */
-export function pinTerminal(terminalId: TerminalId): void {
-    void window.electronAPI?.main.updateTerminalPinned(terminalId, true);
+export function restoreTerminal(terminalId: TerminalId): void {
+    const windowEl: HTMLElement | null = document.querySelector(
+        `[data-floating-window-id="${terminalId}"]`
+    );
+    if (windowEl) windowEl.style.display = '';
+    void window.electronAPI?.main.updateTerminalMinimized(terminalId, false);
+    const instance: { dispose: () => void; focus?: () => void } | undefined = vanillaFloatingWindowInstances.get(terminalId);
+    instance?.focus?.();
 }
 
 // =============================================================================

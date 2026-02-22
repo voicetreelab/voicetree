@@ -14,7 +14,7 @@ import { isAnchored, getShadowNodeIdFromData, getTerminalId } from '@/shell/edge
 import { getEditorByNodeId, isPinned, addToPinnedEditors, removeFromPinnedEditors } from '@/shell/edge/UI-edge/state/EditorStore';
 import { getTerminal } from '@/shell/edge/UI-edge/state/TerminalStore';
 import { attachFullscreenZoom } from '@/shell/edge/UI-edge/floating-windows/fullscreen-zoom';
-import { pinTerminal, unpinTerminal } from '@/shell/UI/views/treeStyleTerminalTabs/terminalTabUtils';
+import { minimizeTerminal, restoreTerminal } from '@/shell/UI/views/treeStyleTerminalTabs/terminalTabUtils';
 import type { EditorData } from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
 import type { TerminalData } from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import { closeHoverEditor, createAnchoredFloatingEditor } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
@@ -209,18 +209,16 @@ export function createTrafficLightsForTarget(target: TrafficLightTarget): HTMLDi
         onPin: (): boolean => {
             // Get current terminal state from store (not captured closure)
             const currentTerminal: O.Option<TerminalData> = getTerminal(terminalId);
-            if (O.isNone(currentTerminal)) {
-                return false;
-            }
-            if (currentTerminal.value.isPinned) {
-                unpinTerminal(terminalId);
+            if (O.isNone(currentTerminal)) return false;
+            if (currentTerminal.value.isMinimized) {
+                restoreTerminal(terminalId);
                 return false;
             } else {
-                pinTerminal(terminalId);
+                minimizeTerminal(terminalId);
                 return true;
             }
         },
-        isPinned: terminal.isPinned,
+        isPinned: terminal.isMinimized,
         cy,
         shadowNodeId,
         zoomToNeighborhood: true,

@@ -31,6 +31,7 @@ import {
     stopTerminalActivityPolling,
 } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalActivityPolling';
 import { clearActivityForTerminal } from './agentTabsActivity';
+import { restoreTerminal } from './terminalTabUtils';
 
 // Re-export activity tracking functions for external callers
 export { markTerminalActivityForContextNode, clearActivityForTerminal } from './agentTabsActivity';
@@ -160,7 +161,7 @@ function TreeNode({ treeNode, isActive, shortcutHint, onSelect }: TreeNodeProps)
             onMouseDown={handleMouseDown}
         >
             {/* Status indicator */}
-            <span className={`terminal-tree-status ${terminal.isDone ? 'done' : 'running'}`} />
+            <span className={`terminal-tree-status ${terminal.isMinimized ? 'minimized' : terminal.isDone ? 'done' : 'running'}`} />
 
             {/* Title container */}
             <span className="terminal-tree-title">
@@ -235,6 +236,9 @@ function TerminalTreeSidebarInternal({ onNavigate }: SidebarInternalProps): JSX.
     const totalTabs: number = displayOrder.length;
 
     const handleSelect: (terminal: TerminalData) => void = useCallback((terminal: TerminalData): void => {
+        if (terminal.isMinimized) {
+            restoreTerminal(getTerminalId(terminal));
+        }
         clearActivityForTerminal(getTerminalId(terminal));
         onNavigate(terminal);
     }, [onNavigate]);
