@@ -26,7 +26,17 @@ export function initializeNavigatorMinimap(cy: Core): NavigatorMinimapResult {
         const navigatorElement: HTMLElement | null = document.querySelector('.cytoscape-navigator') as HTMLElement;
 
         if (navigatorElement) {
+            const wasHidden: boolean = navigatorElement.style.display === 'none';
             navigatorElement.style.display = nodeCount <= 1 ? 'none' : 'block';
+
+            // When the navigator transitions from hidden to visible, its cached
+            // panelWidth/panelHeight (from getBoundingClientRect during _initPanel)
+            // may be 0 because the element was display:none. Emitting 'resize'
+            // triggers the navigator's resize() handler which calls _setupPanel()
+            // to refresh these cached dimensions from the now-visible element.
+            if (wasHidden && nodeCount > 1) {
+                cy.emit('resize');
+            }
         }
     };
 

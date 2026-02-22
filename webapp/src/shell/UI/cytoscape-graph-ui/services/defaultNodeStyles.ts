@@ -37,6 +37,20 @@ export function getDefaultNodeStyles(colors: GraphColorPalette, font: string, is
       }
     },
 
+    // Folder compound nodes — subtle container behind the HTML folder presentation
+    {
+      selector: 'node[?isFolderNode]',
+      style: {
+        'shape': 'roundrectangle',
+        'background-color': isDark ? '#0d1526' : '#e8edf5',
+        'background-opacity': 0.15,
+        'border-color': '#58a6ff',
+        'border-width': 1,
+        'border-opacity': 0.3,
+        'padding': 40,
+      }
+    },
+
     // Task nodes - nodes with running terminals/agents become squares
     {
       selector: 'node[?hasRunningTerminal]',
