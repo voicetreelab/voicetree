@@ -256,6 +256,13 @@ ColaLayout.prototype.run = function(){
                 while( !inftick() && ++syncIter < MAX_SYNC_ITERATIONS ){
                     // keep going...
                 }
+
+                // If sync loop exhausted without convergence, force layout completion.
+                // Without this, layoutstop never fires and the layout system permanently stalls.
+                if( syncIter >= MAX_SYNC_ITERATIONS ){
+                    updateNodePositions();
+                    onDone();
+                }
             }
         },
 

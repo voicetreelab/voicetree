@@ -18,6 +18,26 @@ export interface CytoscapeInitResult {
 }
 
 /**
+ * Cytoscape's WebGL render path (overrideCanvasRendererFunctions) doesn't emit the
+ * 'render' event that the canvas path emits. This breaks cytoscape-navigator's
+ * onRender-based thumbnail updates. Patch the renderer to always emit 'render'.
+ */
+function patchWebglRenderEvent(cy: Core): void {
+    // renderer() is not in @types/cytoscape — access via cast
+    const renderer: { webgl?: boolean; render: (options?: unknown) => void } =
+        (cy as unknown as { renderer: () => { webgl?: boolean; render: (options?: unknown) => void } }).renderer();
+    if (!renderer.webgl) return;
+
+    const originalRender: (options?: unknown) => void = renderer.render.bind(renderer);
+    renderer.render = function (options?: unknown): void {
+        originalRender(options);
+        // WebGL path skips cy.emit('render'); canvas fallback already emits it,
+        // but double-emit is harmless — navigator throttles with rerenderDelay.
+        cy.emit('render');
+    };
+}
+
+/**
  * Initialize a Cytoscape instance with the given configuration.
  * Falls back to headless mode if container-based initialization fails (e.g., JSDOM).
  */
@@ -51,6 +71,7 @@ export function initializeCytoscapeInstance(config: CytoscapeInitConfig): Cytosc
                 webglTexPerBatch: 16
             }
         } as CytoscapeOptions);
+        patchWebglRenderEvent(cy);
         return {cy, isHeadless: false};
     } catch (_error) {
         // Fallback to headless mode (e.g., JSDOM without proper layout)

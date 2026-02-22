@@ -2,8 +2,9 @@
  * Auto Layout: Automatically run Cola or fcose layout on graph changes
  *
  * Layout strategy:
- * - Initial load / tidy button / removal: "Full Ultimate Layout" chain:
+ * - Initial load / tidy button / large removal (>7 nodes): "Full Ultimate Layout" chain:
  *   fCOSE (global positioning) → Cola (refinement) → animated cy.fit() (frame result)
+ * - Small removal (≤7 nodes): skip layout (positions already stable)
  * - Incremental (batch-added nodes <30% of graph):
  *   Local Cola on 4-hop neighborhood of new nodes (6-hop pinned boundary)
  * - Batch (>30% new): skip (too many nodes for local Cola)
@@ -86,6 +87,9 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
 
   // Track newly added node IDs for local Cola layout
   const pendingNewNodeIds: Set<string> = new Set<string>();
+
+  // Track removed node count so we only run full ultimate layout for large removals (>7 nodes)
+  let pendingRemovedNodeCount: number = 0;
 
   const onLayoutComplete: () => void = () => {
     // Clear safety timeout — layout completed normally
@@ -357,9 +361,11 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
       }
     }, LAYOUT_SAFETY_TIMEOUT_MS);
 
-    // Snapshot and clear pending new node IDs
+    // Snapshot and clear pending new node IDs and removed node count
     const newNodeIds: Set<string> = new Set(pendingNewNodeIds);
     pendingNewNodeIds.clear();
+    const removedNodeCount: number = pendingRemovedNodeCount;
+    pendingRemovedNodeCount = 0;
 
     const totalNodes: number = cy.nodes().length;
 
@@ -372,9 +378,15 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
         // Incremental: local Cola on neighborhood of new nodes
         runLocalCola(newNodeIds, onLayoutComplete);
       } else if (newNodeIds.size === 0) {
-        // Triggered by edge/node remove — full ultimate layout to rebalance
-        console.log(`[AutoLayout] Layout triggered by removal (layoutCount=${layoutCount}, totalNodes=${totalNodes}). Running full ultimate layout.`);
-        runFullUltimateLayout();
+        if (removedNodeCount > 7) {
+          // Large removal (>7 nodes): full ultimate layout to rebalance
+          console.log(`[AutoLayout] Large removal (${removedNodeCount} nodes removed, layoutCount=${layoutCount}, totalNodes=${totalNodes}). Running full ultimate layout.`);
+          runFullUltimateLayout();
+        } else {
+          // Small removal (≤7 nodes) or edge-only removal: positions are already fine, skip layout
+          console.log(`[AutoLayout] Minor removal (${removedNodeCount} nodes removed, layoutCount=${layoutCount}, totalNodes=${totalNodes}). Skipping layout.`);
+          onLayoutComplete();
+        }
       } else {
         // >30% new nodes — batch too large for local Cola, skip
         console.warn(`[AutoLayout] ⚠️ Batch add: ${newNodeIds.size} new nodes (${Math.round(newNodeIds.size / totalNodes * 100)}% of graph). Skipping local Cola.`);
@@ -408,9 +420,18 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     debouncedRunLayout();
   };
 
+  // Track removed node count so runLayout can decide whether full layout is needed
+  const onNodeRemove: (evt: EventObject) => void = (evt) => {
+    const target: CollectionReturnValue = evt.target as CollectionReturnValue;
+    if (!target.data('isContextNode')) {
+      pendingRemovedNodeCount++;
+    }
+    debouncedRunLayout();
+  };
+
   // Listen to graph modification events
   cy.on('add', 'node', onNodeAdd);
-  cy.on('remove', 'node', debouncedRunLayout);
+  cy.on('remove', 'node', onNodeRemove);
   cy.on('add', 'edge', debouncedRunLayout);
   cy.on('remove', 'edge', debouncedRunLayout);
 
@@ -454,7 +475,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
   // Return cleanup function
   return () => {
     cy.off('add', 'node', onNodeAdd);
-    cy.off('remove', 'node', debouncedRunLayout);
+    cy.off('remove', 'node', onNodeRemove);
     cy.off('add', 'edge', debouncedRunLayout);
     cy.off('remove', 'edge', debouncedRunLayout);
     layoutTriggers.delete(cy);

@@ -13,7 +13,7 @@
     top: 38px;  /* Below title bar */
     left: 0;
     bottom: 50px;  /* Above bottom bar */
-    width: 130px;  /* Initial width */
+    width: 182px;  /* Initial width */
     min-width: 60px;
     max-width: 300px;
     background: var(--background);

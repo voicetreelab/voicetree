@@ -160,11 +160,11 @@ VOICETREE_MCP_PORT = $VOICETREE_MCP_PORT
         // fCOSE (used for initial folder load only)
         quality: 'default',
         animate: true,
-        animationDuration: 4000,
+        animationDuration: 2500,
         fit: false,
         incremental: true,
         numIter: 2500,
-        initialEnergyOnIncremental: 0.4,
+        initialEnergyOnIncremental: 8,
         gravity: 0.02,
         gravityRange: 1.5,
         gravityCompound: 1.0,
