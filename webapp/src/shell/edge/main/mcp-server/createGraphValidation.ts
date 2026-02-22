@@ -213,7 +213,7 @@ const nodeLineLimitRule: ValidationRule = {
             if (bodyLines > ctx.lineLimit) {
                 violations.push({
                     ruleId: 'node_line_limit',
-                    message: `Node is too long (${bodyLines} lines, limit is ${ctx.lineLimit}). Split into a tree of nodes using the \`parents\` field.`,
+                    message: `Node is too long (${bodyLines} lines, limit is ${ctx.lineLimit}). Do NOT shorten or remove any content — split into a TREE of nodes that mirrors the conceptual structure of your content, using the \`parents\` field to create branching, not a linear chain.`,
                     nodeFilename: node.filename,
                     details: {
                         bodyLines,
