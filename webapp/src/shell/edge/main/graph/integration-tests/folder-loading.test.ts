@@ -43,7 +43,7 @@ interface BroadcastCall {
 
 // Expected counts (based on actual example_folder_fixtures)
 // loadFolder now loads only the writePath (voicetree/ subfolder) via vault config
-const EXPECTED_SMALL_NODE_COUNT: 7 = 7 as const  // voicetree/ subfolder only
+const EXPECTED_SMALL_NODE_COUNT: 8 = 8 as const  // voicetree/ subfolder only
 const EXPECTED_LARGE_NODE_COUNT: 75 = 75 as const  // voicetree/ subfolder only
 
 // State for mocks

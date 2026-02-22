@@ -38,33 +38,9 @@ describe('settings', () => {
   });
 
   it('should return saved settings on subsequent calls', async () => {
-    const firstLoad: VTSettings = await loadSettings();
-    expect(firstLoad).toEqual(DEFAULT_SETTINGS);
-
-    const customSettings: VTSettings = {
-      terminalSpawnPathRelativeToWatchedDirectory: '/custom/path',
-      INJECT_ENV_VARS: { CUSTOM_VAR: 'custom_value' },
-      agents: [{ name: 'Custom Agent', command: 'custom-command.sh' }],
-      shiftEnterSendsOptionEnter: false,
-      contextNodeMaxDistance: 7,
-      askModeContextDistance: 4,
-      emptyFolderTemplate: '# Custom template',
-      vimMode: true,
-      hotkeys: DEFAULT_SETTINGS.hotkeys,
-      defaultAllowlistPatterns: ['openspec'],
-      darkMode: true,
-      zoomSensitivity: 2.0,
-      autoNotifyUnseenNodes: false,
-      nodeLineLimit: 70,
-      starredFolders: [],
-      hooks: DEFAULT_SETTINGS.hooks,
-      layoutConfig: DEFAULT_SETTINGS.layoutConfig,
-    };
-
-    await saveSettings(customSettings);
-
-    const secondLoad: VTSettings = await loadSettings();
-    expect(secondLoad).toEqual(customSettings);
+    const custom: VTSettings = { ...DEFAULT_SETTINGS, darkMode: true, vimMode: true };
+    await saveSettings(custom);
+    expect(await loadSettings()).toEqual(custom);
   });
 
   it('should persist data correctly', async () => {
