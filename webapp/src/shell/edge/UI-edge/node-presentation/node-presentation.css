@@ -97,3 +97,67 @@
 .node-presentation-content-changed {
   animation: node-presentation-content-pulse 1.5s ease-out;
 }
+
+/* ═══════════════════════════════════════════════ */
+/* Folder Presentation — compound node variant    */
+/* ═══════════════════════════════════════════════ */
+
+.folder-presentation {
+  border: 1px dashed rgba(155, 114, 207, 0.4);
+  background: color-mix(in srgb, var(--card) 90%, rgba(155, 114, 207, 0.1));
+}
+
+.folder-presentation .node-presentation-accent {
+  width: 4px;
+  background: #9b72cf;
+}
+
+.folder-child-count {
+  display: inline-block;
+  font-size: 10px;
+  color: var(--muted-foreground);
+  background: rgba(155, 114, 207, 0.15);
+  border-radius: 8px;
+  padding: 1px 8px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.folder-toggle {
+  all: unset;
+  cursor: pointer;
+  font-size: 10px;
+  color: var(--muted-foreground);
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin-left: 4px;
+  transition: background 0.1s, color 0.1s;
+}
+
+.folder-toggle:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--foreground);
+}
+
+.folder-children-preview {
+  padding: 4px 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.folder-child-item {
+  font-size: 11px;
+  color: var(--foreground);
+  padding: 3px 12px 3px 16px;
+  border-left: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.folder-child-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-left-color: rgba(155, 114, 207, 0.5);
+}

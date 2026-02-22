@@ -1,4 +1,4 @@
-import type {Core, NodeSingular, CollectionReturnValue, EdgeCollection} from "cytoscape";
+import type {Core, NodeSingular, CollectionReturnValue, EdgeCollection, NodeCollection} from "cytoscape";
 import type {GraphDelta, GraphNode} from "@/pure/graph";
 import * as O from 'fp-ts/lib/Option.js';
 import {getNodeTitle} from "@/pure/graph/markdown-parsing";
@@ -11,12 +11,15 @@ import {setPendingPan, setPendingPanToNode, setPendingVoiceFollowPan} from "@/sh
 import {getEditorByNodeId} from "@/shell/edge/UI-edge/state/EditorStore";
 import {scheduleIdleWork} from "@/utils/scheduleIdleWork";
 import { createNodePresentation } from '@/shell/edge/UI-edge/node-presentation/createNodePresentation';
-import { destroyNodePresentation } from '@/shell/edge/UI-edge/node-presentation/destroyNodePresentation';
+import { createFolderPresentation } from '@/shell/edge/UI-edge/node-presentation/createFolderPresentation';
+import { destroyNodePresentation, detachPresentation, reattachPresentation } from '@/shell/edge/UI-edge/node-presentation/destroyNodePresentation';
 import { wireHoverTransitions } from '@/shell/edge/UI-edge/node-presentation/hoverWiring';
 import { hasPresentation, getPresentation } from '@/shell/edge/UI-edge/node-presentation/NodePresentationStore';
 import type { NodePresentation } from '@/pure/graph/node-presentation/types';
 import {getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {getShadowNodeId, getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
+import { deriveFolderGroups } from '@/pure/graph/folder-derivation';
+import type { FolderStructure, FolderPath } from '@/pure/graph/folder-derivation';
 
 /**
  * Validates if a color value is a valid CSS color using the browser's CSS.supports API
@@ -61,6 +64,27 @@ function generateVaultColor(vaultPrefix: string): string | undefined {
     return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
 }
 
+/**
+ * Get a display title for a folder path.
+ * "auth/" → "auth", "auth/oauth/" → "oauth"
+ */
+function getFolderTitle(folderPath: FolderPath): string {
+    const trimmed: string = folderPath.endsWith('/') ? folderPath.slice(0, -1) : folderPath;
+    const lastSlash: number = trimmed.lastIndexOf('/');
+    return lastSlash === -1 ? trimmed : trimmed.slice(lastSlash + 1);
+}
+
+/**
+ * Sort folder paths by depth ascending (shallow first).
+ * Ensures parent compounds are created before nested compounds.
+ */
+function sortByDepthAsc(folders: ReadonlyMap<FolderPath, import('@/pure/graph/folder-derivation').FolderGroup>): [FolderPath, import('@/pure/graph/folder-derivation').FolderGroup][] {
+    return [...folders.entries()].sort((a, b) => a[1].depth - b[1].depth);
+}
+
+// Track previous folder structure for dissolution detection
+let previousFolderStructure: FolderStructure | null = null;
+
 export interface ApplyGraphDeltaResult {
     newNodeIds: string[];
 }
@@ -82,6 +106,110 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
     const nodesWithoutPositions: string[] = [];
 
     cy.batch(() => {
+        // PASS 0: Compute folder structure (deletion-aware)
+        // Extract deletion IDs first to prevent phantom folders
+        const deletionIds: Set<string> = new Set(
+            delta.filter(d => d.type === 'DeleteNode').map(d => d.nodeId)
+        );
+
+        // Collect current non-shadow, non-folder node IDs
+        const currentNodeIds: string[] = cy.nodes()
+            .filter((n: NodeSingular) => !n.data('isShadowNode') && !n.data('isFolderNode'))
+            .map((n: NodeSingular) => n.id());
+        const newDeltaNodeIds: string[] = delta
+            .filter(d => d.type === 'UpsertNode')
+            .map(d => d.nodeToUpsert.absoluteFilePathIsID);
+
+        // Filter out about-to-be-deleted nodes from folder computation
+        const allNodeIdsForFolders: string[] = [...new Set([...currentNodeIds, ...newDeltaNodeIds])]
+            .filter(id => !deletionIds.has(id));
+
+        const folderStructure: FolderStructure = deriveFolderGroups(allNodeIdsForFolders, ['ctx-nodes/']);
+
+        // Detect dissolved folders (existed before, gone now)
+        if (previousFolderStructure) {
+            for (const [folderPath] of previousFolderStructure.folders) {
+                if (!folderStructure.folders.has(folderPath)) {
+                    // Folder dissolved — reparent surviving children
+                    const compoundNode: CollectionReturnValue = cy.getElementById(folderPath);
+                    if (compoundNode.length > 0) {
+                        const children: NodeCollection = compoundNode.children();
+                        children.forEach((child: NodeSingular) => {
+                            const childId: string = child.id();
+                            if (hasPresentation(childId)) {
+                                detachPresentation(childId);
+                            }
+
+                            // Determine new parent (another folder, or no parent if root)
+                            const newParent: FolderPath | undefined = folderStructure.nodeToFolder.get(childId) ?? undefined;
+
+                            // Remove + readd with correct parent (Cy parent is immutable)
+                            const savedData: Record<string, unknown> = { ...child.data() };
+                            const savedPos: { x: number; y: number } = child.position();
+                            cy.remove(child);
+                            cy.add({
+                                group: 'nodes' as const,
+                                data: { ...savedData, parent: newParent },
+                                position: savedPos
+                            });
+
+                            if (hasPresentation(childId)) {
+                                reattachPresentation(childId, cy);
+                            }
+                        });
+
+                        // Remove the folder compound node itself
+                        destroyNodePresentation(folderPath);
+                        compoundNode.remove();
+                    }
+                }
+            }
+        }
+
+        // Create folder Cy compound nodes depth-first (parent before child)
+        for (const [folderPath, group] of sortByDepthAsc(folderStructure.folders)) {
+            if (!cy.getElementById(folderPath).length) {
+                cy.add({
+                    group: 'nodes' as const,
+                    data: {
+                        id: folderPath,
+                        label: getFolderTitle(folderPath),
+                        isFolderNode: true,
+                        parent: group.parentFolderPath ?? undefined
+                    }
+                });
+
+                // Create folder presentation for the compound node
+                const folderColor: string | undefined = generateVaultColor(getFolderTitle(folderPath));
+                const folderPos: { x: number; y: number } = { x: 0, y: 0 };
+                const folderPresentation: NodePresentation = createFolderPresentation(
+                    cy,
+                    folderPath,
+                    getFolderTitle(folderPath),
+                    group.childNodeIds.length,
+                    folderColor,
+                    folderPos
+                );
+
+                // Bind position listener for compound node
+                const cyFolderNode: CollectionReturnValue = cy.getElementById(folderPath);
+                if (cyFolderNode.length > 0) {
+                    cyFolderNode.on('position', () => {
+                        const zoom: number = cy.zoom();
+                        const newPos: { x: number; y: number } = cyFolderNode.position();
+                        folderPresentation.element.style.left = `${newPos.x * zoom}px`;
+                        folderPresentation.element.style.top = `${newPos.y * zoom}px`;
+                    });
+                }
+
+                // Wire hover/click transitions for folder
+                wireHoverTransitions(cy, folderPath, folderPresentation.element);
+            }
+        }
+
+        // Store for next delta's dissolution detection
+        previousFolderStructure = folderStructure;
+
         // PASS 1: Create/update all nodes and handle deletions
         delta.forEach((nodeDelta) => {
             if (nodeDelta.type === 'UpsertNode') {
@@ -102,6 +230,9 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                         ? node.nodeUIMetadata.color.value
                         : generateVaultColor(vaultPrefix);
 
+                    // Determine folder parent for this node (set Cy compound parent)
+                    const folderParent: FolderPath | undefined = folderStructure.nodeToFolder.get(nodeId) ?? undefined;
+
                     //console.log(`[applyGraphDeltaToUI] Creating node ${nodeId} with color:`, colorValue);
 
                     cy.add({
@@ -112,7 +243,8 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                             content: node.contentWithoutYamlOrLinks,
                             summary: '',
                             color: colorValue,
-                            isContextNode: node.nodeUIMetadata.isContextNode === true
+                            isContextNode: node.nodeUIMetadata.isContextNode === true,
+                            parent: folderParent
                         },
                         position: {
                             x: pos.x,

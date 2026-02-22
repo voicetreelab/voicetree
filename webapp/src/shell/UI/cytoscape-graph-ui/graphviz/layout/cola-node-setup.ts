@@ -84,6 +84,8 @@ export function buildColaEdges(edges: any, nonparentNodes: any, length: any): an
     return edges.stdFilter(function( edge: any ){
         // Exclude indicator edges from layout calculation
         if (edge.data('isIndicatorEdge')) return false;
+        // Exclude cross-folder edges from layout forces
+        if (edge.data('isCrossFolderEdge')) return false;
         return nonparentNodes.contains(edge.source()) && nonparentNodes.contains(edge.target());
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     }).map(function( edge: any ){

@@ -4,29 +4,26 @@ import { computeMorphValues, type MorphValues } from '@/pure/graph/node-presenta
 import { getCachedZoom, registerFloatingWindow, getOrCreateOverlay } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 import { addPresentation } from './NodePresentationStore';
 
-function extractPreviewLines(content: string, maxLines: number = 3): string {
-    return content
-        .split('\n')
-        .filter((line: string) => line.trim().length > 0)
-        .slice(0, maxLines)
-        .join('\n');
-}
-
-export function createNodePresentation(
+/**
+ * Create a folder-specific node presentation.
+ * Uses the same NodePresentation type with kind='folder'.
+ * DOM structure differs: child count badge + collapse toggle instead of content preview.
+ */
+export function createFolderPresentation(
     cy: Core,
     nodeId: string,
     title: string,
-    contentPreview: string,
+    childCount: number,
     accentColor: string | undefined,
     position: { x: number; y: number }
 ): NodePresentation {
     const card: HTMLDivElement = document.createElement('div');
-    card.className = 'node-presentation state-card';
+    card.className = 'node-presentation folder-presentation state-card';
     card.dataset.nodeId = nodeId;
 
     const accent: HTMLDivElement = document.createElement('div');
     accent.className = 'node-presentation-accent';
-    accent.style.background = accentColor ?? '#4a9eff';
+    accent.style.background = accentColor ?? '#9b72cf';
 
     const body: HTMLDivElement = document.createElement('div');
     body.className = 'node-presentation-body';
@@ -35,20 +32,25 @@ export function createNodePresentation(
     titleEl.className = 'node-presentation-title';
     titleEl.textContent = title;
 
-    const preview: HTMLDivElement = document.createElement('div');
-    preview.className = 'node-presentation-preview';
-    preview.textContent = extractPreviewLines(contentPreview);
+    const countBadge: HTMLSpanElement = document.createElement('span');
+    countBadge.className = 'folder-child-count';
+    countBadge.textContent = `${childCount} nodes`;
+
+    const toggleBtn: HTMLButtonElement = document.createElement('button');
+    toggleBtn.className = 'folder-toggle';
+    toggleBtn.textContent = '\u25B6'; // ▶
 
     body.appendChild(titleEl);
-    body.appendChild(preview);
+    body.appendChild(countBadge);
+    body.appendChild(toggleBtn);
     card.appendChild(accent);
     card.appendChild(body);
 
-    // The Cy node IS the shadow node — same mechanism as editor shadow nodes
+    // The Cy compound node IS the shadow node
     card.dataset.shadowNodeId = nodeId;
     card.dataset.transformOrigin = 'center';
 
-    // Apply initial zoom-based morph
+    // Apply initial zoom-based morph (using 'folder' kind for future-proofing)
     const zoom: number = getCachedZoom();
     const morphValues: MorphValues = computeMorphValues(zoom);
 
@@ -62,7 +64,7 @@ export function createNodePresentation(
     card.style.top = `${position.y * zoom}px`;
     card.style.transform = `translate(-50%, -50%) scale(${zoom})`;
 
-    // Append to overlay and register for pan/zoom sync
+    // Append to overlay and register
     const overlay: HTMLElement = getOrCreateOverlay(cy);
     overlay.appendChild(card);
     registerFloatingWindow(nodeId + '-presentation', card);
@@ -72,9 +74,10 @@ export function createNodePresentation(
     const presentation: NodePresentation = {
         nodeId,
         element: card,
-        kind: 'regular',
+        kind: 'folder',
         state: initialState,
         isPinned: false,
+        folderMeta: { childCount, manuallyCollapsed: false },
     };
 
     addPresentation(nodeId, presentation);

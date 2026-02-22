@@ -1,7 +1,7 @@
 import type { Core, CollectionReturnValue } from 'cytoscape';
 import type { NodeIdAndFilePath } from '@/pure/graph';
 import type { NodePresentation, NodeState } from '@/pure/graph/node-presentation/types';
-import { STATE_DIMENSIONS } from '@/pure/graph/node-presentation/types';
+import { getStateDimensions } from '@/pure/graph/node-presentation/types';
 import { getPresentation } from './NodePresentationStore';
 import { fromNodeToContentWithWikilinks } from '@/pure/graph/markdown-writing/node_to_markdown';
 import { getNodeFromMainToUI } from '@/shell/edge/UI-edge/graph/getNodeFromMainToUI';
@@ -9,6 +9,7 @@ import { CodeMirrorEditorView } from '@/shell/UI/floating-windows/editors/CodeMi
 import { modifyNodeContentFromUI } from '@/shell/edge/UI-edge/floating-windows/editors/modifyNodeContentFromFloatingEditor';
 import { markNodeDirty } from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout';
 import type { VTSettings } from '@/pure/settings/types';
+import { mountFolderContent } from './mountFolderContent';
 
 // Track mounting state to prevent double-mounts during async gap
 const mountingEditors: Set<string> = new Set();
@@ -38,12 +39,21 @@ export async function transitionTo(
 
     const previousState: NodeState = presentation.state;
 
-    // Mount CodeMirror on first expansion to HOVER or ANCHORED
-    if ((targetState === 'HOVER' || targetState === 'ANCHORED') && !editors.has(nodeId)) {
-        await mountEditor(cy, nodeId, presentation);
-        // Re-check: presentation may have been destroyed during async mount
-        const recheck: NodePresentation | undefined = getPresentation(nodeId);
-        if (!recheck) return;
+    // Mount content on first expansion to HOVER or ANCHORED
+    if (targetState === 'HOVER' || targetState === 'ANCHORED') {
+        if (presentation.kind === 'folder') {
+            // Folder: mount child list instead of CodeMirror
+            if (!presentation.element.querySelector('.folder-children-preview')?.hasChildNodes()) {
+                await mountFolderContent(cy, nodeId, presentation);
+                const recheck: NodePresentation | undefined = getPresentation(nodeId);
+                if (!recheck) return;
+            }
+        } else if (!editors.has(nodeId)) {
+            // Regular: mount CodeMirror editor
+            await mountEditor(cy, nodeId, presentation);
+            const recheck: NodePresentation | undefined = getPresentation(nodeId);
+            if (!recheck) return;
+        }
     }
 
     // Remove all state classes, then apply target
@@ -54,7 +64,7 @@ export async function transitionTo(
     presentation.state = targetState;
 
     // Update Cy node dimensions so Cola layout knows the new size
-    const dims: { readonly width: number; readonly height: number } = STATE_DIMENSIONS[targetState];
+    const dims: { readonly width: number; readonly height: number } = getStateDimensions(targetState, presentation.kind);
     const cyNode: CollectionReturnValue = cy.getElementById(nodeId);
     if (cyNode.length > 0) {
         cyNode.style({
@@ -64,37 +74,58 @@ export async function transitionTo(
         markNodeDirty(cy, nodeId);
     }
 
-    // Show/hide editor area based on state
+    // Show/hide content area based on state and kind
     const editor: CodeMirrorEditorView | undefined = editors.get(nodeId);
     if (targetState === 'HOVER' || targetState === 'ANCHORED') {
-        // Show editor area
-        const editorArea: HTMLElement | null = presentation.element.querySelector('.node-presentation-editor');
-        if (editorArea) {
-            editorArea.style.display = '';
-        }
-        if (targetState === 'ANCHORED' && editor) {
-            editor.focus();
+        if (presentation.kind === 'folder') {
+            // Show folder children preview
+            const folderContent: HTMLElement | null = presentation.element.querySelector('.folder-children-preview');
+            if (folderContent) {
+                folderContent.style.display = '';
+            }
+            // ANCHORED: expand compound — show children in graph
+            if (targetState === 'ANCHORED') {
+                const compoundNode: CollectionReturnValue = cy.getElementById(nodeId);
+                compoundNode.children().style({ 'visibility': 'visible' } as Record<string, unknown>);
+            }
+        } else {
+            // Show editor area for regular nodes
+            const editorArea: HTMLElement | null = presentation.element.querySelector('.node-presentation-editor');
+            if (editorArea) {
+                editorArea.style.display = '';
+            }
+            if (targetState === 'ANCHORED' && editor) {
+                editor.focus();
+            }
         }
     }
 
-    // When collapsing back to CARD or PLAIN: hide editor, update preview text
+    // When collapsing back to CARD or PLAIN: hide content, update preview
     if ((targetState === 'CARD' || targetState === 'PLAIN') &&
         (previousState === 'HOVER' || previousState === 'ANCHORED')) {
-        // Hide editor area
-        const editorArea: HTMLElement | null = presentation.element.querySelector('.node-presentation-editor');
-        if (editorArea) {
-            editorArea.style.display = 'none';
-        }
-        // Update preview from editor content
-        if (editor) {
-            const currentContent: string = editor.getValue();
-            const previewEl: HTMLElement | null = presentation.element.querySelector('.node-presentation-preview');
-            if (previewEl) {
-                previewEl.textContent = currentContent
-                    .split('\n')
-                    .filter((line: string) => line.trim().length > 0)
-                    .slice(0, 3)
-                    .join('\n');
+        if (presentation.kind === 'folder') {
+            // Hide folder content area
+            const folderContent: HTMLElement | null = presentation.element.querySelector('.folder-children-preview');
+            if (folderContent) {
+                folderContent.style.display = 'none';
+            }
+        } else {
+            // Hide editor area
+            const editorArea: HTMLElement | null = presentation.element.querySelector('.node-presentation-editor');
+            if (editorArea) {
+                editorArea.style.display = 'none';
+            }
+            // Update preview from editor content
+            if (editor) {
+                const currentContent: string = editor.getValue();
+                const previewEl: HTMLElement | null = presentation.element.querySelector('.node-presentation-preview');
+                if (previewEl) {
+                    previewEl.textContent = currentContent
+                        .split('\n')
+                        .filter((line: string) => line.trim().length > 0)
+                        .slice(0, 3)
+                        .join('\n');
+                }
             }
         }
     }

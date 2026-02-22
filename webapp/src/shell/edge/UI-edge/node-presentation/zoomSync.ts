@@ -112,22 +112,25 @@ function updatePresentationFromZoom(
 
 /**
  * Update all presentations from current zoom level.
- * Called on cy.on('zoom'). Computes morph values once, applies to all.
+ * Called on cy.on('zoom'). Pre-computes both regular and folder morph values,
+ * then dispatches per-presentation by kind. Stays O(N) with ~1us overhead.
  */
 export function updateAllFromZoom(cy: Core, zoom: number): void {
-    const morphValues: MorphValues = computeMorphValues(zoom);
+    const regularMorph: MorphValues = computeMorphValues(zoom, 'regular');
+    const folderMorph: MorphValues = computeMorphValues(zoom, 'folder');
     for (const presentation of getAllPresentations()) {
-        updatePresentationFromZoom(cy, presentation, zoom, morphValues);
+        const morph: MorphValues = presentation.kind === 'folder' ? folderMorph : regularMorph;
+        updatePresentationFromZoom(cy, presentation, zoom, morph);
     }
 }
 
 /**
  * Force refresh a single presentation's zoom state.
- * Clears zone cache and re-runs morph. Used after editor closes
- * to restore correct Cy node + card state.
+ * Clears zone cache and re-runs morph with kind-aware dimensions.
+ * Used after editor closes to restore correct Cy node + card state.
  */
 export function forceRefreshPresentation(cy: Core, presentation: NodePresentation, zoom: number): void {
     zoneCache.delete(presentation.element);
-    const morphValues: MorphValues = computeMorphValues(zoom);
+    const morphValues: MorphValues = computeMorphValues(zoom, presentation.kind);
     updatePresentationFromZoom(cy, presentation, zoom, morphValues);
 }

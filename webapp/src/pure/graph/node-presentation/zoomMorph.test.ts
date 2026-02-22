@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { clamp01, lerp, smoothstep, getZoomZone, computeMorphValues, type MorphValues } from './zoomMorph';
-import { ZOOM_THRESHOLD_MIN, ZOOM_THRESHOLD_MAX, MORPH_RANGE, CIRCLE_SIZE, CARD_WIDTH } from './types';
+import { ZOOM_THRESHOLD_MIN, ZOOM_THRESHOLD_MAX, MORPH_RANGE, CIRCLE_SIZE, CARD_WIDTH, FOLDER_CARD_WIDTH, getStateDimensions } from './types';
 
 describe('clamp01', () => {
     it('clamps negative values to 0', () => {
@@ -234,6 +234,78 @@ describe('computeMorphValues', () => {
     });
 });
 
+describe('computeMorphValues with folder kind', () => {
+    it('folder at morph=0 uses folder circle size (40)', () => {
+        const values: MorphValues = computeMorphValues(0, 'folder');
+        expect(values.cardWidth).toBe(40);
+        expect(values.cardMinHeight).toBe(40);
+    });
+
+    it('folder at morph=1 uses folder card dimensions (300 width)', () => {
+        const values: MorphValues = computeMorphValues(2.0, 'folder');
+        expect(values.cardWidth).toBe(FOLDER_CARD_WIDTH);
+        expect(values.cardMinHeight).toBe(90);
+        expect(values.cardMaxHeight).toBe(110);
+    });
+
+    it('regular at morph=1 still uses regular dimensions', () => {
+        const values: MorphValues = computeMorphValues(2.0, 'regular');
+        expect(values.cardWidth).toBe(CARD_WIDTH);
+    });
+
+    it('default kind is regular (backwards compatible)', () => {
+        const defaultValues: MorphValues = computeMorphValues(2.0);
+        const regularValues: MorphValues = computeMorphValues(2.0, 'regular');
+        expect(defaultValues.cardWidth).toBe(regularValues.cardWidth);
+    });
+
+    it('folder morph at midpoint has different width than regular', () => {
+        const midZoom: number = ZOOM_THRESHOLD_MIN + 0.5 * MORPH_RANGE;
+        const regular: MorphValues = computeMorphValues(midZoom, 'regular');
+        const folder: MorphValues = computeMorphValues(midZoom, 'folder');
+        expect(folder.cardWidth).not.toBe(regular.cardWidth);
+        expect(folder.cardWidth).toBeGreaterThan(regular.cardWidth);
+    });
+});
+
+describe('getStateDimensions', () => {
+    it('returns regular CARD dimensions by default', () => {
+        const dims: { readonly width: number; readonly height: number } = getStateDimensions('CARD');
+        expect(dims.width).toBe(260);
+        expect(dims.height).toBe(80);
+    });
+
+    it('returns regular CARD dimensions explicitly', () => {
+        const dims: { readonly width: number; readonly height: number } = getStateDimensions('CARD', 'regular');
+        expect(dims.width).toBe(260);
+        expect(dims.height).toBe(80);
+    });
+
+    it('returns folder CARD dimensions', () => {
+        const dims: { readonly width: number; readonly height: number } = getStateDimensions('CARD', 'folder');
+        expect(dims.width).toBe(300);
+        expect(dims.height).toBe(100);
+    });
+
+    it('returns folder HOVER dimensions', () => {
+        const dims: { readonly width: number; readonly height: number } = getStateDimensions('HOVER', 'folder');
+        expect(dims.width).toBe(380);
+        expect(dims.height).toBe(300);
+    });
+
+    it('returns folder PLAIN dimensions', () => {
+        const dims: { readonly width: number; readonly height: number } = getStateDimensions('PLAIN', 'folder');
+        expect(dims.width).toBe(40);
+        expect(dims.height).toBe(40);
+    });
+
+    it('returns regular ANCHORED dimensions', () => {
+        const dims: { readonly width: number; readonly height: number } = getStateDimensions('ANCHORED', 'regular');
+        expect(dims.width).toBe(440);
+        expect(dims.height).toBe(800);
+    });
+});
+
 describe('constants', () => {
     it('ZOOM_THRESHOLD_MIN is 0.7', () => {
         expect(ZOOM_THRESHOLD_MIN).toBe(0.7);
@@ -253,5 +325,9 @@ describe('constants', () => {
 
     it('CARD_WIDTH is 260', () => {
         expect(CARD_WIDTH).toBe(260);
+    });
+
+    it('FOLDER_CARD_WIDTH is 300', () => {
+        expect(FOLDER_CARD_WIDTH).toBe(300);
     });
 });
