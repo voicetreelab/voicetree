@@ -10,6 +10,11 @@ import {checkEngagementPrompts} from "./userEngagementPrompts";
 import {setPendingPan, setPendingPanToNode, setPendingVoiceFollowPan} from "@/shell/edge/UI-edge/state/PendingPanStore";
 import {getEditorByNodeId} from "@/shell/edge/UI-edge/state/EditorStore";
 import {scheduleIdleWork} from "@/utils/scheduleIdleWork";
+import { createNodePresentation } from '@/shell/edge/UI-edge/node-presentation/createNodePresentation';
+import { destroyNodePresentation } from '@/shell/edge/UI-edge/node-presentation/destroyNodePresentation';
+import { wireHoverTransitions } from '@/shell/edge/UI-edge/node-presentation/hoverWiring';
+import { hasPresentation, getPresentation } from '@/shell/edge/UI-edge/node-presentation/NodePresentationStore';
+import type { NodePresentation } from '@/pure/graph/node-presentation/types';
 import {getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {getShadowNodeId, getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 
@@ -148,6 +153,35 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                     if (!hasPosition) {
                         nodesWithoutPositions.push(nodeId);
                     }
+
+                    // Create node presentation for non-context nodes
+                    if (!node.nodeUIMetadata.isContextNode) {
+                        const presentation: NodePresentation = createNodePresentation(
+                            cy,
+                            nodeId,
+                            getNodeTitle(node),
+                            node.contentWithoutYamlOrLinks,
+                            colorValue,
+                            pos
+                        );
+
+                        // Bind Cy node position event → update presentation element position
+                        const cyNodeForPosition: CollectionReturnValue = cy.getElementById(nodeId);
+                        if (cyNodeForPosition.length > 0) {
+                            cyNodeForPosition.on('position', () => {
+                                const zoom: number = cy.zoom();
+                                const newPos: { x: number; y: number } = cyNodeForPosition.position();
+                                presentation.element.style.left = `${newPos.x * zoom}px`;
+                                presentation.element.style.top = `${newPos.y * zoom}px`;
+                            });
+                        }
+
+                        // Wire hover/click state transitions
+                        wireHoverTransitions(cy, nodeId, presentation.element);
+
+                        // Flash new-node animation
+                        presentation.element.classList.add('node-presentation-new');
+                    }
                 } else if (existingNode.length > 0) {
                     // Update existing node metadata (but NOT position)
                     existingNode.data('label', getNodeTitle(node));
@@ -164,6 +198,24 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                         existingNode.data('color', color);
                     }
                     existingNode.data('isContextNode', node.nodeUIMetadata.isContextNode === true);
+
+                    // Update node presentation title + preview on every metadata update
+                    if (hasPresentation(nodeId)) {
+                        const pres: NodePresentation | undefined = getPresentation(nodeId);
+                        if (pres) {
+                            const titleEl: HTMLElement | null = pres.element.querySelector('.node-presentation-title');
+                            if (titleEl) titleEl.textContent = getNodeTitle(node);
+                            const previewEl: HTMLElement | null = pres.element.querySelector('.node-presentation-preview');
+                            if (previewEl) {
+                                previewEl.textContent = node.contentWithoutYamlOrLinks
+                                    .split('\n')
+                                    .filter((line: string) => line.trim().length > 0)
+                                    .slice(0, 3)
+                                    .join('\n');
+                            }
+                        }
+                    }
+
                     // Only emit content-changed (blue animation) if actual content changed, not just links
                     if (O.isSome(nodeDelta.previousNode) &&
                         hasActualContentChanged(
@@ -171,12 +223,20 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                             node.contentWithoutYamlOrLinks
                         )) {
                         existingNode.emit('content-changed');
+                        // Flash node presentation with content-changed animation
+                        if (hasPresentation(nodeId)) {
+                            const pres: NodePresentation | undefined = getPresentation(nodeId);
+                            if (pres) {
+                                pres.element.classList.add('node-presentation-content-changed');
+                            }
+                        }
                     }
                 }
             } else if (nodeDelta.type === 'DeleteNode') {
                 const nodeId: string = nodeDelta.nodeId;
                 const nodeToRemove: CollectionReturnValue = cy.getElementById(nodeId);
                 if (nodeToRemove.length > 0) {
+                    destroyNodePresentation(nodeId);
                     nodeToRemove.remove();
                 }
             }

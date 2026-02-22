@@ -1,0 +1,99 @@
+/* Node Presentation CSS — unified node states */
+
+.node-presentation {
+  min-height: 48px;
+  max-height: 96px;
+  background: var(--card);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  position: absolute;
+  pointer-events: all;
+  cursor: default;
+  overflow: hidden;
+  font-family: system-ui, -apple-system, sans-serif;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+  will-change: width, border-radius, transform, opacity;
+}
+
+.node-presentation-accent {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  opacity: 0.7;
+  will-change: opacity;
+}
+
+.node-presentation-body {
+  padding: 8px 12px 8px 16px;
+  transition: padding 0.1s;
+}
+
+.node-presentation-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+  transition: font-size 0.1s;
+}
+
+.node-presentation-preview {
+  font-size: 10px;
+  color: var(--muted-foreground);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  will-change: opacity;
+}
+
+/* Hover highlight before state transition */
+.node-presentation:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* State: HOVER — expanded with editor */
+.node-presentation.state-hover {
+  max-height: none;
+  overflow: visible;
+}
+
+/* State: ANCHORED — full persistent editor */
+.node-presentation.state-anchored {
+  max-height: none;
+  overflow: visible;
+  border-color: rgba(255, 200, 50, 0.3);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* Pinned indicator */
+.node-presentation.pinned {
+  border-color: rgba(255, 189, 46, 0.5);
+}
+
+/* New node flash — green pulse (one-shot, NO breathing) */
+@keyframes node-presentation-new-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0.6); }
+  50%  { box-shadow: 0 0 0 8px rgba(48, 209, 88, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0); }
+}
+.node-presentation-new {
+  animation: node-presentation-new-pulse 1.5s ease-out;
+}
+
+/* Content changed flash — cyan pulse (one-shot, NO breathing) */
+@keyframes node-presentation-content-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(0, 200, 255, 0.5); }
+  50%  { box-shadow: 0 0 0 6px rgba(0, 200, 255, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 200, 255, 0); }
+}
+.node-presentation-content-changed {
+  animation: node-presentation-content-pulse 1.5s ease-out;
+}
