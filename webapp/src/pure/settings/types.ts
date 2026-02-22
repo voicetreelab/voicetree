@@ -13,6 +13,7 @@ export const AGENT_NAMES: readonly string[] = [
 ] as const;
 
 // Round-robin agent name selection (no collisions until all 60 names used)
+// eslint-disable-next-line functional/prefer-readonly-type -- intentionally mutable counter
 const agentNameState: { index: number } = { index: -1 };
 
 export function getNextAgentName(): string {
@@ -24,7 +25,7 @@ export function getNextAgentName(): string {
  * Get a unique agent name by appending _1 recursively until no collision.
  * Example: Sam → Sam_1 → Sam_1_1 → Sam_1_1_1
  */
-export function getUniqueAgentName(baseName: string, existingNames: Set<string>): string {
+export function getUniqueAgentName(baseName: string, existingNames: ReadonlySet<string>): string {
     if (!existingNames.has(baseName)) {
         return baseName;
     }
@@ -110,6 +111,8 @@ export interface VTSettings {
     readonly hooks?: HookSettings;
     /** Override the shell used for terminals. Leave unset for auto-detect ($SHELL on macOS/Linux, pwsh/powershell on Windows). */
     readonly shell?: string;
+    /** Show FPS counter overlay on the Cytoscape WebGL renderer (top-left). Requires app restart. */
+    readonly showFps?: boolean;
     /** Layout engine configuration as JSON. Supports 'cola' and 'fcose' engines. Edit in Advanced settings. */
     readonly layoutConfig?: string;
 }

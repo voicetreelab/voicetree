@@ -243,7 +243,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // Initialize cytoscape directly on container
         const {cy} = initializeCytoscapeInstance({
             container: this.container,
-            stylesheet: this.styleService.getCombinedStylesheet()
+            stylesheet: this.styleService.getCombinedStylesheet(),
+            showFps: this.options.showFps
         });
         this.cy = cy;
 

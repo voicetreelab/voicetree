@@ -136,6 +136,7 @@ VOICETREE_MCP_PORT = $VOICETREE_MCP_PORT
     darkMode: false,
     zoomSensitivity: 1.0,
     nodeLineLimit: 70,
+    showFps: false,
     starredFolders: [],
     hooks: {
         onWorktreeCreatedBlocking: '#./scripts/on-worktree-created-blocking.sh',

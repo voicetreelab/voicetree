@@ -27,6 +27,7 @@ export function keyToLabel(key: string): string {
         'emptyFolderTemplate': 'Empty Folder Template',
         'shell': 'Shell Override',
         'starredFolders': 'Starred Folders',
+        'showFps': 'Show FPS (WebGL)',
         'darkMode': 'Dark Mode',
         'vimMode': 'Vim Mode',
         'layoutConfig': 'Layout Config',
@@ -49,5 +50,6 @@ export const SECTION_MAP: Record<string, Section> = {
     hooks: 'hooks',
     contextNodeMaxDistance: 'advanced', askModeContextDistance: 'advanced',
     defaultAllowlistPatterns: 'advanced', starredFolders: 'advanced',
+    showFps: 'advanced',
     layoutConfig: 'advanced',
 };

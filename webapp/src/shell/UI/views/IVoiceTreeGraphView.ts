@@ -55,6 +55,8 @@ export interface VoiceTreeGraphViewOptions {
   onLoading?: (isLoading: boolean) => void;
   /** Initial dark mode state (default: false) */
   initialDarkMode?: boolean;
+  /** Show FPS counter overlay on WebGL renderer (default: false) */
+  showFps?: boolean;
 }
 
 // FileWatcherService interface removed - VoiceTreeGraphView uses window.electronAPI directly

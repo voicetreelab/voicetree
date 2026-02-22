@@ -9,6 +9,7 @@ import type { JSX } from "react/jsx-runtime";
 import type { RefObject } from "react";
 import type {} from "@/shell/electron";
 import type { SavedProject } from "@/pure/project/types";
+import type { VTSettings } from "@/pure/settings/types";
 
 type AppView = 'project-selection' | 'graph-view';
 
@@ -157,21 +158,31 @@ function App(): JSX.Element {
 
 
     // Initialize VoiceTreeGraphView when container is ready and in graph view
+    // Settings loaded async before init so showFps can be passed to the WebGL renderer at creation time
     useEffect(() => {
         if (currentView !== 'graph-view' || !graphContainerRef.current || !uiContainerRef.current) return;
 
         console.trace('[App] VoiceTreeGraphView initialization stack trace'); // DEBUG: Track if called multiple times
 
-        const graphView: VoiceTreeGraphView = new VoiceTreeGraphView(
-            graphContainerRef.current,
-            uiContainerRef.current,
-            { initialDarkMode: false }
-        );
+        let graphView: VoiceTreeGraphView | null = null;
+        let disposed: boolean = false;
+
+        void (async () => {
+            const settings: VTSettings | null = await window.electronAPI?.main?.loadSettings() ?? null;
+            if (disposed) return; // View changed before settings loaded
+
+            graphView = new VoiceTreeGraphView(
+                graphContainerRef.current!,
+                uiContainerRef.current!,
+                { initialDarkMode: false, showFps: settings?.showFps ?? false }
+            );
+        })();
 
         // Cleanup on unmount or view change
         return () => {
             console.trace('[App] VoiceTreeGraphView disposal stack trace'); // DEBUG: Track cleanup
-            graphView.dispose();
+            disposed = true;
+            graphView?.dispose();
         };
     }, [currentView]); // Reinitialize when view changes
 
