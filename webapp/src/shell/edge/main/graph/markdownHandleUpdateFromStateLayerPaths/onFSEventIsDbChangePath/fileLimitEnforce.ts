@@ -1,6 +1,6 @@
 import * as E from 'fp-ts/lib/Either.js';
 
-const MAX_FILES: 300 = 300 as const;
+const MAX_FILES: 600 = 600 as const;
 
 /**
  * Error type for file limit exceeded

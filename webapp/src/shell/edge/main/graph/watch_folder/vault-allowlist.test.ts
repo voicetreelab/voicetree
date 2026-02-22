@@ -276,8 +276,8 @@ describe('vault-allowlist: loadAndMergeVaultPath helper', () => {
     const fileLimitError: FileLimitExceededError = {
       _tag: 'FileLimitExceededError',
       fileCount: 500,
-      maxFiles: 300,
-      message: 'Directory contains 500 markdown files, which exceeds the limit of 300'
+      maxFiles: 600,
+      message: 'Directory contains 500 markdown files, which exceeds the limit of 600'
     }
     vi.mocked(loadVaultPathAdditively).mockResolvedValueOnce({
       _tag: 'Left',
@@ -291,7 +291,7 @@ describe('vault-allowlist: loadAndMergeVaultPath helper', () => {
     expect(result.success).toBe(false)
     expect(result.error).toContain('File limit exceeded')
     expect(result.error).toContain('500')
-    expect(result.error).toContain('300')
+    expect(result.error).toContain('600')
   })
 })
 
@@ -347,8 +347,8 @@ describe('vault-allowlist: file limit exceeded error handling', () => {
       const fileLimitError: FileLimitExceededError = {
         _tag: 'FileLimitExceededError',
         fileCount: 500,
-        maxFiles: 300,
-        message: 'Directory contains 500 markdown files, which exceeds the limit of 300'
+        maxFiles: 600,
+        message: 'Directory contains 500 markdown files, which exceeds the limit of 600'
       }
       vi.mocked(loadVaultPathAdditively).mockResolvedValueOnce({
         _tag: 'Left',
@@ -363,7 +363,7 @@ describe('vault-allowlist: file limit exceeded error handling', () => {
       expect(result.error).toBeDefined()
       expect(result.error).toContain('File limit exceeded')
       expect(result.error).toContain('500')
-      expect(result.error).toContain('300')
+      expect(result.error).toContain('600')
     })
   })
 
@@ -387,8 +387,8 @@ describe('vault-allowlist: file limit exceeded error handling', () => {
       const fileLimitError: FileLimitExceededError = {
         _tag: 'FileLimitExceededError',
         fileCount: 450,
-        maxFiles: 300,
-        message: 'Directory contains 450 markdown files, which exceeds the limit of 300'
+        maxFiles: 600,
+        message: 'Directory contains 450 markdown files, which exceeds the limit of 600'
       }
       vi.mocked(loadVaultPathAdditively).mockResolvedValueOnce({
         _tag: 'Left',
@@ -403,7 +403,7 @@ describe('vault-allowlist: file limit exceeded error handling', () => {
       expect(result.error).toBeDefined()
       expect(result.error).toContain('File limit exceeded')
       expect(result.error).toContain('450')
-      expect(result.error).toContain('300')
+      expect(result.error).toContain('600')
     })
   })
 })

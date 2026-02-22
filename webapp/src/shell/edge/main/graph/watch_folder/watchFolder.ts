@@ -275,7 +275,7 @@ async function createNewWorkspaceOnFileLimitExceeded(
     void dialog.showMessageBox(mainWindow, {
         type: 'info',
         title: 'New Workspace Created',
-        message: `Previous workspace has ${fileCount} markdown files (limit: 300).\n\nCreated new workspace:\n${newSubfolderPath}`,
+        message: `Previous workspace has ${fileCount} markdown files (limit: 600).\n\nCreated new workspace:\n${newSubfolderPath}`,
         buttons: ['OK']
     });
 
