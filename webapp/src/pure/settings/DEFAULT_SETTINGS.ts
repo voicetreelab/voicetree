@@ -95,6 +95,7 @@ CONTEXT_NODE_PATH = $CONTEXT_NODE_PATH
 TASK_NODE_PATH = $TASK_NODE_PATH
 VOICETREE_VAULT_PATH = $VOICETREE_VAULT_PATH
 VOICETREE_APP_SUPPORT = $VOICETREE_APP_SUPPORT
+VOICETREE_PROJECT_DIR = $VOICETREE_PROJECT_DIR
 VOICETREE_MCP_PORT = $VOICETREE_MCP_PORT
 </YOUR_ENV_VARS>`,
         AGENT_PROMPT: `First read and analyze the context of your task, which is stored at $CONTEXT_NODE_PATH
@@ -116,7 +117,7 @@ For the entire duration of this session, before you report completion to the use
 Add to your todolist now to read addProgressTree.md and create progress node(s).
 
 Primary method: Use the \`create_graph\` MCP tool with VOICETREE_TERMINAL_ID=$VOICETREE_TERMINAL_ID. Supports 1+ nodes per call — single concept nodes or multi-node trees.
-Before creating your first progress node, read $VOICETREE_APP_SUPPORT/tools/prompts/addProgressTree.md for composition guidance (when to split, scope rules, what to embed).
+Before creating your first progress node, read $VOICETREE_PROJECT_DIR/prompts/addProgressTree.md for composition guidance (when to split, scope rules, what to embed).
 
 You must create a progress node before reporting completion to the user. You must continue to do this for any follow-ups by either updating existing progress nodes, or creating new ones.
 </TASK_NODES_INSTRUCTION>
@@ -127,6 +128,7 @@ CONTEXT_NODE_PATH = $CONTEXT_NODE_PATH
 TASK_NODE_PATH = $TASK_NODE_PATH
 VOICETREE_VAULT_PATH = $VOICETREE_VAULT_PATH
 VOICETREE_APP_SUPPORT = $VOICETREE_APP_SUPPORT
+VOICETREE_PROJECT_DIR = $VOICETREE_PROJECT_DIR
 VOICETREE_MCP_PORT = $VOICETREE_MCP_PORT
 </YOUR_ENV_VARS>`,
     },
@@ -139,9 +141,9 @@ VOICETREE_MCP_PORT = $VOICETREE_MCP_PORT
     showFps: false,
     starredFolders: [],
     hooks: {
-        onWorktreeCreatedBlocking: '#./scripts/on-worktree-created-blocking.sh',
-        postWorktreeCreatedAsync: '#./scripts/on-worktree-created-async.sh',
-        onNewNode: '#node scripts/on-new-node.cjs',
+        onWorktreeCreatedBlocking: './.voicetree/hooks/on-worktree-created-blocking.sh',
+        postWorktreeCreatedAsync: './.voicetree/hooks/on-worktree-created-async.sh',
+        onNewNode: 'node .voicetree/hooks/on-new-node.cjs',
     },
     layoutConfig: JSON.stringify({
         engine: 'cola',

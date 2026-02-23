@@ -7,6 +7,30 @@ import type { Dirent } from 'fs';
 
 const VERSION_FILE: string = '.voicetree-version';
 
+// Files to copy into {projectRoot}/.voicetree/prompts/
+const PROJECT_PROMPT_FILES: readonly string[] = [
+  'addProgressTree.md',
+  'SUBAGENT_PROMPT.md',
+  'CREATE_SUBAGENTS_COMMAND.md',
+  'decompose_subtask_dependency_graph.md',
+  'subtask_template.md',
+  'addProgressTreeManualFallback.md',
+];
+
+// Hook scripts to copy into {projectRoot}/.voicetree/hooks/
+const HOOK_SCRIPT_FILES: readonly string[] = [
+  'on-new-node.cjs',
+  'on-worktree-created-blocking.sh',
+  'on-worktree-created-async.sh',
+];
+
+// Hook prompt files to copy into {projectRoot}/.voicetree/hooks/prompts/
+const HOOK_PROMPT_FILES: readonly string[] = [
+  'muse.md',
+  'gardener.md',
+  'dispatcher.md',
+];
+
 /**
  * Check if tools are already installed for current app version
  */
@@ -173,5 +197,74 @@ async function setupToolsDirectoryInternal(config: ReturnType<typeof getBuildCon
   } catch (error) {
     console.error('[Setup] Error setting up directories:', error);
     throw error; // Fail fast
+  }
+}
+
+/**
+ * Copy specific files from sourceDir to destDir (creates destDir if needed).
+ * Skips files that don't exist in the source — graceful for partial installs.
+ */
+async function copySpecificFiles(sourceDir: string, destDir: string, fileNames: readonly string[]): Promise<void> {
+  await fs.mkdir(destDir, { recursive: true });
+  for (const fileName of fileNames) {
+    const src: string = path.join(sourceDir, fileName);
+    const dest: string = path.join(destDir, fileName);
+    try {
+      await fs.copyFile(src, dest);
+    } catch {
+      // Source file missing — skip gracefully (partial install or bundling difference)
+    }
+  }
+}
+
+/**
+ * Ensure {projectRoot}/.voicetree/ has default prompts and hook scripts.
+ *
+ * Idempotent copy-on-first-open:
+ * - If .voicetree/prompts/ exists, skip prompt copy (user may have customized)
+ * - If .voicetree/hooks/ exists, skip hook copy (user may have customized)
+ * - Always writes .version (tracks which app version set up the directory)
+ * - Writes .gitignore only if missing
+ */
+export async function ensureProjectDotVoicetree(projectRoot: string): Promise<void> {
+  const config: BuildConfig = getBuildConfig();
+  const dotVoicetree: string = path.join(projectRoot, '.voicetree');
+
+  // Ensure .voicetree/ directory exists
+  await fs.mkdir(dotVoicetree, { recursive: true });
+
+  // Copy prompts (skip if directory already exists — user may have customized)
+  const promptsDest: string = path.join(dotVoicetree, 'prompts');
+  try {
+    await fs.access(promptsDest);
+    // Directory exists — skip
+  } catch {
+    await copySpecificFiles(config.promptsSource, promptsDest, PROJECT_PROMPT_FILES);
+  }
+
+  // Copy hooks (skip if directory already exists — user may have customized)
+  const hooksDest: string = path.join(dotVoicetree, 'hooks');
+  try {
+    await fs.access(hooksDest);
+    // Directory exists — skip
+  } catch {
+    // Copy hook scripts
+    await copySpecificFiles(config.hookScriptsSource, hooksDest, HOOK_SCRIPT_FILES);
+    // Copy hook prompts (muse.md, gardener.md, dispatcher.md)
+    const hookPromptsSource: string = path.join(config.hookScriptsSource, 'prompts');
+    const hookPromptsDest: string = path.join(hooksDest, 'prompts');
+    await copySpecificFiles(hookPromptsSource, hookPromptsDest, HOOK_PROMPT_FILES);
+  }
+
+  // Always write .version with current app version
+  await fs.writeFile(path.join(dotVoicetree, '.version'), app.getVersion());
+
+  // Write .gitignore only if missing (user may have customized)
+  const gitignorePath: string = path.join(dotVoicetree, '.gitignore');
+  try {
+    await fs.access(gitignorePath);
+    // Exists — don't overwrite
+  } catch {
+    await fs.writeFile(gitignorePath, 'positions.json\n');
   }
 }

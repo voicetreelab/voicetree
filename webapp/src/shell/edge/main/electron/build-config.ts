@@ -39,6 +39,10 @@ export type BuildConfig = {
   readonly backendDest: string;
   readonly shouldCopyTools: boolean;
 
+  // Per-project .voicetree/ source paths (for copy-on-first-open)
+  readonly promptsSource: string;      // tools/prompts/*.md
+  readonly hookScriptsSource: string;   // scripts/ (on-new-node.cjs, on-worktree-created-*.sh, prompts/)
+
   // Server binary absolutePath (production only)
   readonly serverBinaryPath: string | null;
 };
@@ -102,6 +106,10 @@ function getBuildConfigDev(commonEnv: CommonEnv): BuildConfig {
     backendSource: path.join(rootDir, 'backend'),
     backendDest: path.join(commonEnv.userDataPath, 'backend'),
     shouldCopyTools: !commonEnv.isTest,
+
+    // Per-project .voicetree/ sources
+    promptsSource: path.join(rootDir, 'tools', 'prompts'),
+    hookScriptsSource: path.join(rootDir, 'scripts'),
   };
 }
 
@@ -132,6 +140,15 @@ function getBuildConfigProd(commonEnv: CommonEnv): BuildConfig {
     ? path.join(process.resourcesPath, 'backend')
     : path.join(rootDir, 'backend');
 
+  // Per-project .voicetree/ sources
+  const promptsSource: string = commonEnv.isPackaged
+    ? path.join(process.resourcesPath, 'tools', 'prompts')
+    : path.join(rootDir, 'tools', 'prompts');
+
+  const hookScriptsSource: string = commonEnv.isPackaged
+    ? path.join(process.resourcesPath, 'scripts')
+    : path.join(rootDir, 'scripts');
+
   return {
     // Python: Run compiled binary
     pythonCommand: serverBinaryPath,
@@ -146,6 +163,10 @@ function getBuildConfigProd(commonEnv: CommonEnv): BuildConfig {
     backendSource,
     backendDest: path.join(commonEnv.userDataPath, 'backend'),
     shouldCopyTools: !commonEnv.isTest,
+
+    // Per-project .voicetree/ sources
+    promptsSource,
+    hookScriptsSource,
   };
 }
 
@@ -158,8 +179,8 @@ function getBuildConfigProd(commonEnv: CommonEnv): BuildConfig {
  * Usage from bash: node -e "require('./electron/build-config').printConfig()"
  */
 export function printConfig(): void {
-  const _config: BuildConfig = getBuildConfig();
-  //console.log(JSON.stringify(config, null, 2));
+  const config: BuildConfig = getBuildConfig();
+  console.log(JSON.stringify(config, null, 2));
 }
 
 // CLI support removed - incompatible with ES modules

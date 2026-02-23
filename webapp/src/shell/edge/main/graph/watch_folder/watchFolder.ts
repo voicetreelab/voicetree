@@ -50,6 +50,7 @@ import { createEmptyGraph } from "@/pure/graph/createGraph";
 import { broadcastVaultState } from "./broadcast-vault-state";
 import { enableMcpJsonIntegration } from "@/shell/edge/main/mcp-server/mcp-client-config";
 import { loadPositions, mergePositionsIntoGraph, savePositionsSync } from "@/shell/edge/main/graph/positions-store";
+import { ensureProjectDotVoicetree } from "@/shell/edge/main/electron/tools-setup";
 
 // Re-export vault-allowlist functions for api.ts and tests
 export {
@@ -203,6 +204,11 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
     // Resolve or create config (unified path)
     const config: { writePath: string; readPaths: readonly string[]; allowlist: readonly string[] } =
         await resolveOrCreateConfig(watchedFolderPath);
+
+    // Ensure .voicetree/ has default prompts and hook scripts (copy-on-first-open)
+    await ensureProjectDotVoicetree(watchedFolderPath).catch((error: unknown) => {
+        console.warn('[loadFolder] Failed to set up .voicetree/ defaults:', error);
+    });
 
     // Clear graph in memory before loading paths
     setGraph(createEmptyGraph());

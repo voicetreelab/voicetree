@@ -9,6 +9,8 @@ import type {VTSettings} from '@/pure/settings/types'
 import {getAppSupportPath} from '@/shell/edge/main/state/app-electron-state'
 import {getVaultPaths, getWritePath} from '@/shell/edge/main/graph/watch_folder/vault-allowlist'
 import {getMcpPort} from '@/shell/edge/main/mcp-server/mcp-server'
+import {getProjectRootWatchedDirectory} from '@/shell/edge/main/state/watch-folder-store'
+import path from 'path'
 
 export async function buildTerminalEnvVars(params: {
     readonly contextNodePath: string
@@ -28,7 +30,11 @@ export async function buildTerminalEnvVars(params: {
     const allMarkdownReadPaths: string = allVaultPaths.join('\n')
     const vaultPath: string = O.getOrElse(() => '')(await getWritePath())
 
+    const projectRoot: string | null = getProjectRootWatchedDirectory()
+    const voicetreeProjectDir: string = projectRoot ? path.join(projectRoot, '.voicetree') : ''
+
     const unexpandedEnvVars: Record<string, string> = {
+        VOICETREE_PROJECT_DIR: voicetreeProjectDir,
         VOICETREE_APP_SUPPORT: appSupportPath ?? '',
         VOICETREE_VAULT_PATH: vaultPath,
         ALL_MARKDOWN_READ_PATHS: allMarkdownReadPaths,
