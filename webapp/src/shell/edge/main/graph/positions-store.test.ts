@@ -12,7 +12,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import * as os from 'os'
 import * as O from 'fp-ts/lib/Option.js'
-import type { GraphNode, Position } from '@/pure/graph'
+import type { Graph, GraphNode, Position } from '@/pure/graph'
 import { createGraph } from '@/pure/graph/createGraph'
 import { loadPositions, mergePositionsIntoGraph, savePositionsSync } from './positions-store'
 
@@ -121,10 +121,10 @@ describe('loadPositions', () => {
 describe('mergePositionsIntoGraph', () => {
     it('returns same graph when positions map is empty', () => {
         const node: GraphNode = makeNode('a.md', O.some({ x: 1, y: 2 }))
-        const graph = createGraph({ 'a.md': node })
+        const graph: Graph = createGraph({ 'a.md': node })
         const emptyPositions: ReadonlyMap<string, Position> = new Map()
 
-        const result = mergePositionsIntoGraph(graph, emptyPositions)
+        const result: Graph = mergePositionsIntoGraph(graph, emptyPositions)
 
         // Should be reference-equal (early return)
         expect(result).toBe(graph)
@@ -132,12 +132,12 @@ describe('mergePositionsIntoGraph', () => {
 
     it('overrides existing node positions with JSON positions', () => {
         const node: GraphNode = makeNode('a.md', O.some({ x: 1, y: 2 }))
-        const graph = createGraph({ 'a.md': node })
+        const graph: Graph = createGraph({ 'a.md': node })
         const positions: ReadonlyMap<string, Position> = new Map([
             ['a.md', { x: 999, y: 888 }]
         ])
 
-        const result = mergePositionsIntoGraph(graph, positions)
+        const result: Graph = mergePositionsIntoGraph(graph, positions)
 
         expect(O.isSome(result.nodes['a.md'].nodeUIMetadata.position)).toBe(true)
         if (O.isSome(result.nodes['a.md'].nodeUIMetadata.position)) {
@@ -148,14 +148,14 @@ describe('mergePositionsIntoGraph', () => {
     it('nodes without matching position keep their existing position', () => {
         const nodeA: GraphNode = makeNode('a.md', O.some({ x: 1, y: 2 }))
         const nodeB: GraphNode = makeNode('b.md', O.some({ x: 50, y: 60 }))
-        const graph = createGraph({ 'a.md': nodeA, 'b.md': nodeB })
+        const graph: Graph = createGraph({ 'a.md': nodeA, 'b.md': nodeB })
 
         // Only override a.md, not b.md
         const positions: ReadonlyMap<string, Position> = new Map([
             ['a.md', { x: 100, y: 200 }]
         ])
 
-        const result = mergePositionsIntoGraph(graph, positions)
+        const result: Graph = mergePositionsIntoGraph(graph, positions)
 
         // a.md should be overridden
         if (O.isSome(result.nodes['a.md'].nodeUIMetadata.position)) {
@@ -177,7 +177,7 @@ describe('savePositionsSync', () => {
         tmpDirs.push(tmp)
 
         const node: GraphNode = makeNode('node.md', O.some({ x: 123.7, y: -456.3 }))
-        const graph = createGraph({ 'node.md': node })
+        const graph: Graph = createGraph({ 'node.md': node })
 
         savePositionsSync(graph, tmp)
 
@@ -196,7 +196,7 @@ describe('savePositionsSync', () => {
         expect(fs.existsSync(voicetreeDir)).toBe(false)
 
         const node: GraphNode = makeNode('node.md', O.some({ x: 0, y: 0 }))
-        const graph = createGraph({ 'node.md': node })
+        const graph: Graph = createGraph({ 'node.md': node })
 
         savePositionsSync(graph, tmp)
 
@@ -210,7 +210,7 @@ describe('savePositionsSync', () => {
 
         const withPos: GraphNode = makeNode('has-pos.md', O.some({ x: 10, y: 20 }))
         const withoutPos: GraphNode = makeNode('no-pos.md', O.none)
-        const graph = createGraph({ 'has-pos.md': withPos, 'no-pos.md': withoutPos })
+        const graph: Graph = createGraph({ 'has-pos.md': withPos, 'no-pos.md': withoutPos })
 
         savePositionsSync(graph, tmp)
 
