@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { markdownToTitle } from './markdown-to-title'
+import { markdownToTitle, contentAfterTitle, stripMarkdownFormatting } from './markdown-to-title'
 
 describe('markdownToTitle', () => {
     describe('Markdown is single source of truth', () => {
@@ -210,5 +210,85 @@ there's a bug where in some condition somewhere, the title becomes "---"`
             expect(title).not.toBe('---')
             expect(title).toBe("there's a bug where in some condition somewhere, the title becomes \"---\"")
         })
+    })
+})
+
+describe('contentAfterTitle', () => {
+    it('should return content after a heading', () => {
+        const result: string = contentAfterTitle('# My Title\n\nBody text here')
+        expect(result).toBe('\n\nBody text here')
+    })
+
+    it('should return content after first non-empty line when no heading', () => {
+        const result: string = contentAfterTitle('First line\nSecond line')
+        expect(result).toBe('Second line')
+    })
+
+    it('should strip frontmatter before finding title', () => {
+        const content: string = `---
+color: red
+---
+# Heading
+
+Body`
+        const result: string = contentAfterTitle(content)
+        expect(result).toBe('\n\nBody')
+    })
+
+    it('should return empty string for empty content', () => {
+        expect(contentAfterTitle('')).toBe('')
+    })
+
+    it('should return empty string when only a title exists', () => {
+        const result: string = contentAfterTitle('# Just a title')
+        expect(result).toBe('')
+    })
+
+    it('should handle content with multiple headings — only removes first', () => {
+        const content: string = `# First Heading
+## Second Heading
+Body text`
+        const result: string = contentAfterTitle(content)
+        expect(result).toBe('\n## Second Heading\nBody text')
+    })
+})
+
+describe('stripMarkdownFormatting', () => {
+    it('should strip heading prefixes', () => {
+        expect(stripMarkdownFormatting('## Sub heading')).toBe('Sub heading')
+    })
+
+    it('should strip bold markers', () => {
+        expect(stripMarkdownFormatting('some **bold** text')).toBe('some bold text')
+    })
+
+    it('should strip italic markers', () => {
+        expect(stripMarkdownFormatting('some *italic* text')).toBe('some italic text')
+    })
+
+    it('should strip inline code', () => {
+        expect(stripMarkdownFormatting('use `console.log`')).toBe('use console.log')
+    })
+
+    it('should strip markdown links', () => {
+        expect(stripMarkdownFormatting('see [docs](http://example.com) here')).toBe('see docs here')
+    })
+
+    it('should strip converted wikilinks ([text]*)', () => {
+        expect(stripMarkdownFormatting('see [my node]* for details')).toBe('see my node for details')
+    })
+
+    it('should strip list markers', () => {
+        expect(stripMarkdownFormatting('- list item')).toBe('list item')
+        expect(stripMarkdownFormatting('* another item')).toBe('another item')
+        expect(stripMarkdownFormatting('1. numbered item')).toBe('numbered item')
+    })
+
+    it('should strip blockquote markers', () => {
+        expect(stripMarkdownFormatting('> quoted text')).toBe('quoted text')
+    })
+
+    it('should handle plain text unchanged', () => {
+        expect(stripMarkdownFormatting('plain text')).toBe('plain text')
     })
 })

@@ -1,7 +1,7 @@
 import { parseMarkdownToGraphNode } from './parse-markdown-to-node'
 import { extractEdges } from './extract-edges'
 import { nodeIdToFilePathWithExtension, filenameToNodeId } from './filename-utils'
-import { markdownToTitle } from './markdown-to-title'
+import { markdownToTitle, contentAfterTitle, stripMarkdownFormatting } from './markdown-to-title'
 import type { GraphNode, NodeIdAndFilePath, Edge, Graph, FilePath } from '@/pure/graph'
 
 // === MARKDOWN PARSING ===
@@ -19,6 +19,10 @@ export type FilenameToNodeId = (filename: string) => NodeIdAndFilePath
 // === TITLE DERIVATION ===
 
 export type MarkdownToTitle = (content: string, filePath: FilePath) => string
+
+export type ContentAfterTitle = (content: string) => string
+
+export type StripMarkdownFormatting = (text: string) => string
 
 export type GetNodeTitle = (node: GraphNode) => string
 
@@ -45,7 +49,9 @@ void (nodeIdToFilePathWithExtension satisfies NodeIdToFilePathWithExtension)
 export { filenameToNodeId } from './filename-utils'
 void (filenameToNodeId satisfies FilenameToNodeId)
 
-export { markdownToTitle } from './markdown-to-title'
+export { markdownToTitle, contentAfterTitle, stripMarkdownFormatting } from './markdown-to-title'
 void (markdownToTitle satisfies MarkdownToTitle)
+void (contentAfterTitle satisfies ContentAfterTitle)
+void (stripMarkdownFormatting satisfies StripMarkdownFormatting)
 
 void (getNodeTitle satisfies GetNodeTitle)
