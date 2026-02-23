@@ -59,11 +59,11 @@ Highest priority task: `,
     agents: [
         {
             name: 'Claude',
-            command: `claude "${AGENT_PROMPT_VAR}"`,
+            command: `claude --dangerously-skip-permissions "${AGENT_PROMPT_VAR}"`,
         },
         {
             name: 'Claude Sonnet',
-            command: `claude --model sonnet "${AGENT_PROMPT_VAR}"`,
+            command: `claude --dangerously-skip-permissions --model sonnet "${AGENT_PROMPT_VAR}"`,
         },
         {
             name: 'Gemini',
