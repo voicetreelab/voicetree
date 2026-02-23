@@ -43,8 +43,12 @@ export function createNodePresentation(
     preview.className = 'node-presentation-preview';
     preview.textContent = extractPreviewLines(contentPreview);
 
+    const editorContainer: HTMLDivElement = document.createElement('div');
+    editorContainer.className = 'node-presentation-editor';
+
     body.appendChild(titleEl);
     body.appendChild(preview);
+    body.appendChild(editorContainer);
     card.appendChild(accent);
     card.appendChild(body);
 

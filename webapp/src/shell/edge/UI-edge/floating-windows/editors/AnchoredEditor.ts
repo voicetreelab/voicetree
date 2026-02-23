@@ -11,7 +11,6 @@ import {getCurrentIndex} from '@/shell/UI/cytoscape-graph-ui/services/spatialInd
 import {setPendingPanToNode} from '@/shell/edge/UI-edge/state/PendingPanStore';
 import {cySmartCenter} from '@/utils/responsivePadding';
 import {closeEditor, createFloatingEditor} from './FloatingEditorCRUD';
-import {closeHoverEditor} from './HoverEditor';
 
 // =============================================================================
 // Create Anchored Floating Editor
@@ -84,10 +83,6 @@ export async function createAnchoredFloatingEditor(
     }
 }
 
-// =============================================================================
-// Create Floating Editor for UI-Created Node
-// =============================================================================
-
 /**
  * Navigate to editor neighborhood - pans if zoom is comfortable, zooms to 1.0 if not
  */
@@ -99,59 +94,4 @@ function navigateToEditorNeighborhood(cy: Core, nodeId: NodeIdAndFilePath, edito
         ? contextNode.closedNeighborhood().nodes().union(editorShadowNode)
         : cy.collection().union(editorShadowNode);
     cySmartCenter(cy, nodesToCenter);
-}
-
-/**
- * Create a floating editor for a node created via UI interaction (hotkey/menu).
- * This is separate from the auto-pin path used for external graph deltas.
- *
- * Key differences from createAnchoredFloatingEditor:
- * - ALWAYS steals focus (user just created the node, they want to type)
- * - NO autopin state logic (editor is independent/permanent)
- * - Does not close previous auto-pinned editors
- * - Pans to editor neighborhood after creation (like terminal spawn)
- *
- * @param cy - Cytoscape instance
- * @param nodeId - ID of the newly created node
- */
-export async function createFloatingEditorForUICreatedNode(
-    cy: Core,
-    nodeId: NodeIdAndFilePath
-): Promise<void> {
-    try {
-        // Close any open hover editor - user is creating a new node, focus should shift
-        closeHoverEditor(cy);
-
-        // Early exit if editor already exists
-        if (O.isSome(getEditorByNodeId(nodeId))) {
-            //console.log('[FloatingEditorManager-v2] UI-created node editor already exists:', nodeId);
-            return;
-        }
-
-        //console.log('[FloatingEditorManager-v2] Creating editor for UI-created node:', nodeId);
-
-        // Create floating editor window with focus at end (user wants to type immediately)
-        const editor: EditorData | undefined = await createFloatingEditor(
-            cy,
-            nodeId,
-            nodeId, // Anchor to the same node we're editing
-            true    // Always focus at end for UI-created nodes
-        );
-
-        if (!editor) {
-            //console.log('[FloatingEditorManager-v2] Failed to create editor for UI-created node');
-            return;
-        }
-
-        // Anchor to node (creates shadow node for positioning)
-        anchorToNode(cy, editor, getCurrentIndex(cy));
-
-        // Pan to shadow node after layout completes (replaces old 1200ms setTimeout hack)
-        const editorId: EditorId = getEditorId(editor);
-        const shadowNodeId: string = getShadowNodeId(editorId);
-        setPendingPanToNode(shadowNodeId);
-
-    } catch (error) {
-        console.error('[FloatingEditorManager-v2] Error creating editor for UI-created node:', error);
-    }
 }

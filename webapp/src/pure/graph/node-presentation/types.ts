@@ -1,4 +1,4 @@
-export type NodeState = 'PLAIN' | 'CARD' | 'HOVER' | 'ANCHORED';
+export type NodeState = 'PLAIN' | 'CARD' | 'HOVER' | 'INLINE_EDIT' | 'ANCHORED';
 
 export type NodePresentation = {
     readonly nodeId: string;
@@ -10,8 +10,8 @@ export type NodePresentation = {
 };
 
 // Zoom thresholds for state transitions
-export const ZOOM_THRESHOLD_MIN: number = 0.7;
-export const ZOOM_THRESHOLD_MAX: number = 1.05;
+export const ZOOM_THRESHOLD_MIN: number = 0.35;
+export const ZOOM_THRESHOLD_MAX: number = 0.525;
 export const MORPH_RANGE: number = ZOOM_THRESHOLD_MAX - ZOOM_THRESHOLD_MIN;
 export const CIRCLE_SIZE: number = 30; // px — native Cy circle size when zoomed out
 export const CARD_WIDTH: number = 200;
@@ -20,6 +20,7 @@ export const CARD_WIDTH: number = 200;
 export const STATE_DIMENSIONS: Record<NodeState, { readonly width: number; readonly height: number }> = {
     PLAIN:    { width: CIRCLE_SIZE, height: CIRCLE_SIZE },
     CARD:     { width: 200, height: 80 },
-    HOVER:    { width: 340, height: 400 },
-    ANCHORED: { width: 440, height: 800 },
+    HOVER:       { width: 340, height: 400 },
+    INLINE_EDIT: { width: 300, height: 200 },
+    ANCHORED:    { width: 440, height: 800 },
 };

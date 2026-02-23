@@ -76,13 +76,13 @@ describe('smoothstep', () => {
 
 describe('getZoomZone', () => {
     it('returns plain when zoomed out below threshold', () => {
-        expect(getZoomZone(0.5)).toBe('plain');
+        expect(getZoomZone(0.2)).toBe('plain');
         expect(getZoomZone(0.3)).toBe('plain');
     });
 
     it('returns crossfade in the morph range', () => {
-        expect(getZoomZone(0.85)).toBe('crossfade');
-        expect(getZoomZone(0.9)).toBe('crossfade');
+        expect(getZoomZone(0.4)).toBe('crossfade');
+        expect(getZoomZone(0.45)).toBe('crossfade');
     });
 
     it('returns card when zoomed in past threshold', () => {
@@ -235,12 +235,12 @@ describe('computeMorphValues', () => {
 });
 
 describe('constants', () => {
-    it('ZOOM_THRESHOLD_MIN is 0.7', () => {
-        expect(ZOOM_THRESHOLD_MIN).toBe(0.7);
+    it('ZOOM_THRESHOLD_MIN is 0.35', () => {
+        expect(ZOOM_THRESHOLD_MIN).toBe(0.35);
     });
 
-    it('ZOOM_THRESHOLD_MAX is 1.05', () => {
-        expect(ZOOM_THRESHOLD_MAX).toBe(1.05);
+    it('ZOOM_THRESHOLD_MAX is 0.525', () => {
+        expect(ZOOM_THRESHOLD_MAX).toBe(0.525);
     });
 
     it('MORPH_RANGE is the difference between thresholds', () => {

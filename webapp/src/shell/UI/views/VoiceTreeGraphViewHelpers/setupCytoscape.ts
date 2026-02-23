@@ -75,7 +75,7 @@ export function setupCytoscape(params: SetupCytoscapeParams): {
     const verticalMenuService: VerticalMenuService = new VerticalMenuService();
     verticalMenuService.initialize(cy, {
         handleAddNodeAtPosition: (position) =>
-            handleAddNodeAtPosition(cy, position)
+            handleAddNodeAtPosition(position)
     });
 
     return { horizontalMenuService, verticalMenuService };

@@ -13,6 +13,7 @@ interface ChildCache {
     readonly accent: HTMLElement | null;
     readonly title: HTMLElement | null;
     readonly body: HTMLElement | null;
+    readonly editor: HTMLElement | null;
 }
 const childCache: WeakMap<HTMLElement, ChildCache> = new WeakMap();
 
@@ -24,6 +25,7 @@ function getChildren(el: HTMLElement): ChildCache {
             accent: el.querySelector<HTMLElement>('.node-presentation-accent'),
             title: el.querySelector<HTMLElement>('.node-presentation-title'),
             body: el.querySelector<HTMLElement>('.node-presentation-body'),
+            editor: el.querySelector<HTMLElement>('.node-presentation-editor'),
         };
         childCache.set(el, cached);
     }
@@ -42,8 +44,8 @@ function updatePresentationFromZoom(
 ): void {
     const el: HTMLElement = presentation.element;
 
-    // Skip presentations that are in editor states (HOVER/ANCHORED manage their own display)
-    if (presentation.state === 'HOVER' || presentation.state === 'ANCHORED') return;
+    // Skip presentations that are in editor states (HOVER/INLINE_EDIT/ANCHORED manage their own display)
+    if (presentation.state === 'HOVER' || presentation.state === 'INLINE_EDIT' || presentation.state === 'ANCHORED') return;
     // Skip hidden elements (e.g., during editor morph)
     if (el.style.display === 'none') return;
 

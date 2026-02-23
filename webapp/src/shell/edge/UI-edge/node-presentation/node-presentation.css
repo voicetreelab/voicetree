@@ -65,6 +65,46 @@
   overflow: visible;
 }
 
+/* State: INLINE_EDIT — CodeMirror mounted inside card */
+.node-presentation.state-inline_edit {
+  max-height: none;
+  overflow: visible;
+  border-color: rgba(100, 180, 255, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  cursor: text;
+}
+
+.node-presentation.state-inline_edit .node-presentation-title,
+.node-presentation.state-inline_edit .node-presentation-preview {
+  display: none;
+}
+
+.node-presentation.state-inline_edit .node-presentation-editor {
+  display: block;
+}
+
+/* Editor container — hidden by default, shown in INLINE_EDIT */
+.node-presentation-editor {
+  display: none;
+  width: 100%;
+  min-height: 120px;
+}
+
+/* Strip CodeMirror chrome inside inline editor */
+.node-presentation-editor .cm-editor {
+  border: none;
+  background: transparent;
+  font-size: 12px;
+}
+
+.node-presentation-editor .cm-editor .cm-scroller {
+  overflow: auto;
+}
+
+.node-presentation-editor .cm-editor .cm-gutters {
+  display: none;
+}
+
 /* State: ANCHORED — full persistent editor */
 .node-presentation.state-anchored {
   max-height: none;

@@ -48,7 +48,7 @@ export const createNewNodeAction: (cy: Core) => () => void = (
       const zoom: number = cy.zoom();
       const centerX: number = (cy.width() / 2 - pan.x) / zoom;
       const centerY: number = (cy.height() / 2 - pan.y) / zoom;
-      await createNewEmptyOrphanNodeFromUI({x: centerX, y: centerY}, cy);
+      await createNewEmptyOrphanNodeFromUI({x: centerX, y: centerY});
     })();
   }
 };

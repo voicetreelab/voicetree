@@ -15,6 +15,7 @@ import { destroyNodePresentation } from '@/shell/edge/UI-edge/node-presentation/
 import { wireHoverTransitions } from '@/shell/edge/UI-edge/node-presentation/hoverWiring';
 import { hasPresentation, getPresentation } from '@/shell/edge/UI-edge/node-presentation/NodePresentationStore';
 import type { NodePresentation } from '@/pure/graph/node-presentation/types';
+import { transitionTo } from '@/shell/edge/UI-edge/node-presentation/transitions';
 import {getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {getShadowNodeId, getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 
@@ -184,6 +185,13 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                         presentation.element.addEventListener('animationend', (): void => {
                             presentation.element.classList.remove('node-presentation-new');
                         }, { once: true });
+
+                        // Auto-enter INLINE_EDIT for UI-created nodes (minimal content, no agent)
+                        const isUICreatedNode: boolean = node.contentWithoutYamlOrLinks.trim().length <= 2; // "# " or empty
+                        const isAgentNode: boolean = node.nodeUIMetadata.additionalYAMLProps.has('agent_name');
+                        if (isUICreatedNode && !isAgentNode) {
+                            void transitionTo(cy, nodeId, 'INLINE_EDIT', true);
+                        }
                     }
                 } else if (existingNode.length > 0) {
                     // Update existing node metadata (but NOT position)

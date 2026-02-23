@@ -38,7 +38,7 @@ import {createWindowChrome} from "@/shell/edge/UI-edge/floating-windows/create-w
 
 // Re-export from decomposed modules for backwards compatibility
 export {isMouseInHoverZone, closeHoverEditor, setupCommandHover} from './HoverEditor';
-export {createAnchoredFloatingEditor, createFloatingEditorForUICreatedNode} from './AnchoredEditor';
+export {createAnchoredFloatingEditor} from './AnchoredEditor';
 export {updateFloatingEditors} from './EditorSync';
 
 // =============================================================================
