@@ -165,10 +165,7 @@ function buildFrontmatterFromData(data: Record<string, unknown>): string {
     }
 
     const frontmatterContent: string = entries.reduce((acc, [key, value]) => {
-        if (key === 'position' && typeof value === 'object' && value !== null && !Array.isArray(value)) {
-            const pos: { readonly x: number; readonly y: number; } = value as { readonly x: number; readonly y: number };
-            return `${acc}position:\n  x: ${Math.round(pos.x)}\n  y: ${Math.round(pos.y)}\n`;
-        } else if (typeof value === 'string') {
+        if (typeof value === 'string') {
             // Colors (hex codes starting with #) don't need quotes in YAML
             // Quote strings that contain special YAML chars
             const isHexColor: boolean = key === 'color' && /^#[0-9A-Fa-f]{6}$/.test(value);

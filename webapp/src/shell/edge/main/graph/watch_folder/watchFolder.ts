@@ -49,7 +49,7 @@ import { setupWatcher } from "./file-watcher-setup";
 import { createEmptyGraph } from "@/pure/graph/createGraph";
 import { broadcastVaultState } from "./broadcast-vault-state";
 import { enableMcpJsonIntegration } from "@/shell/edge/main/mcp-server/mcp-client-config";
-import { loadPositions, mergePositionsIntoGraph } from "@/shell/edge/main/graph/positions-store";
+import { loadPositions, mergePositionsIntoGraph, savePositionsSync } from "@/shell/edge/main/graph/positions-store";
 
 // Re-export vault-allowlist functions for api.ts and tests
 export {
@@ -165,7 +165,6 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
     // Save current graph positions before switching folders
     const previousRoot: FilePath | null = getProjectRootWatchedDirectory();
     if (previousRoot) {
-        const { savePositionsSync } = await import("@/shell/edge/main/graph/positions-store");
         savePositionsSync(getGraph(), previousRoot);
     }
     // IMPORTANT: watchedFolderPath is the folder the human chooses for the project
