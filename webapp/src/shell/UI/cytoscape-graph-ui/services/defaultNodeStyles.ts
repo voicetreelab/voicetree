@@ -37,6 +37,14 @@ export function getDefaultNodeStyles(colors: GraphColorPalette, font: string, is
       }
     },
 
+    // Context nodes for headless agents — hidden (no shadow node to anchor to)
+    {
+      selector: 'node.headless-context-hidden',
+      style: {
+        'display': 'none',
+      }
+    },
+
     // Folder compound nodes — subtle container behind the HTML folder presentation
     {
       selector: 'node[?isFolderNode]',

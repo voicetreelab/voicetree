@@ -80,6 +80,18 @@ export function createWindowChrome(
         windowElement.classList.add('resizable');
     }
 
+    // Add accent bar for editor windows (card-style left colored bar)
+    if (typeClass.includes('editor')) {
+        const accentNodeId: string = 'contentLinkedToNodeId' in fw ? fw.contentLinkedToNodeId : '';
+        const nodeColor: string | undefined = accentNodeId ? cy.getElementById(accentNodeId).data('color') as string | undefined : undefined;
+        const accentBar: HTMLDivElement = document.createElement('div');
+        accentBar.className = 'cy-floating-window-accent';
+        accentBar.style.background = nodeColor ?? '#4a9eff';
+        windowElement.appendChild(accentBar);
+        // Expose accent color as CSS variable for child element styling
+        windowElement.style.setProperty('--editor-accent-color', nodeColor ?? '#4a9eff');
+    }
+
     // Event isolation - prevent graph interactions
     windowElement.addEventListener('mousedown', (e: MouseEvent): void => {
         e.stopPropagation();

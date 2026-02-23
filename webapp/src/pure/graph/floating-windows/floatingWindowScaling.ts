@@ -62,6 +62,33 @@ export function getScalingStrategy(windowType: WindowType, zoom: number): Scalin
 // =============================================================================
 
 /**
+ * Compute a graph position offset from a node's edge.
+ * Used for positioning overlay elements (badges, menus) relative to Cytoscape nodes.
+ *
+ * With CSS-transform scaling (scale(zoom)), the element's base CSS pixel dimensions
+ * are equivalent to graph units — so `offset` can include the element's base CSS height.
+ *
+ * @param nodeCenter - Node center position in graph coordinates
+ * @param nodeHeight - Node height in graph units
+ * @param offset - Distance from node edge in graph units (positive = away from node)
+ * @param side - Which edge to offset from: 'above' or 'below'
+ */
+export function offsetFromNodeEdge(
+    nodeCenter: Position,
+    nodeHeight: number,
+    offset: number,
+    side: 'above' | 'below'
+): Position {
+    const halfHeight: number = nodeHeight / 2;
+    return {
+        x: nodeCenter.x,
+        y: side === 'above'
+            ? nodeCenter.y - halfHeight - offset
+            : nodeCenter.y + halfHeight + offset,
+    };
+}
+
+/**
  * Convert graph coordinates to screen coordinates (for positioning in overlay).
  * Screen position = graph position * zoom
  */

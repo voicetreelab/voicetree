@@ -18,7 +18,7 @@ import type {TerminalStatus} from '@/shell/edge/main/terminals/terminal-registry
 import {getTerminals, getTerminalStatus} from '@/shell/edge/UI-edge/state/TerminalStore';
 import {getCyInstance} from '@/shell/edge/UI-edge/state/cytoscape-state';
 import {getOrCreateOverlay} from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
-import {graphToScreenPosition} from '@/pure/graph/floating-windows/floatingWindowScaling';
+import {graphToScreenPosition, getWindowTransform, getTransformOrigin, offsetFromNodeEdge} from '@/pure/graph/floating-windows/floatingWindowScaling';
 import {restoreTerminal} from '@/shell/UI/views/treeStyleTerminalTabs/terminalTabUtils';
 import * as O from 'fp-ts/lib/Option.js';
 
@@ -27,6 +27,8 @@ import * as O from 'fp-ts/lib/Option.js';
 const badgeElements: Map<TerminalId, HTMLElement> = new Map();
 // Track which Cytoscape node each badge is anchored to (needed for cleanup after terminal removal)
 const badgeNodeIds: Map<TerminalId, string> = new Map();
+// Track hidden context nodes for headless agents (unhide on removal)
+const hiddenContextNodes: Map<TerminalId, string> = new Map();
 let zoomListenerRegistered: boolean = false;
 
 // Hover popover state
@@ -76,6 +78,16 @@ export function updateHeadlessBadges(): void {
             element.remove();
             badgeElements.delete(terminalId);
 
+            // Unhide context node when headless terminal is removed
+            const contextNodeId: string | undefined = hiddenContextNodes.get(terminalId);
+            if (contextNodeId) {
+                const contextNode: CollectionReturnValue = cy.getElementById(contextNodeId);
+                if (contextNode.length > 0) {
+                    contextNode.removeClass('headless-context-hidden');
+                }
+                hiddenContextNodes.delete(terminalId);
+            }
+
             // Clear hasRunningTerminal on task node if no other terminals remain
             const nodeId: string | undefined = badgeNodeIds.get(terminalId);
             badgeNodeIds.delete(terminalId);
@@ -108,6 +120,16 @@ export function updateHeadlessBadges(): void {
                     node.data('hasRunningTerminal', true);
                 }
             }
+
+            // Hide context nodes for headless agents (no shadow node to anchor them to)
+            if (terminal.isHeadless) {
+                const contextNodeId: string = terminal.attachedToContextNodeId;
+                const contextNode: CollectionReturnValue = cy.getElementById(contextNodeId);
+                if (contextNode.length > 0) {
+                    contextNode.addClass('headless-context-hidden');
+                    hiddenContextNodes.set(terminal.terminalId, contextNodeId);
+                }
+            }
         }
     }
 
@@ -122,8 +144,19 @@ export function destroyHeadlessBadges(): void {
     for (const element of badgeElements.values()) {
         element.remove();
     }
+    // Unhide all context nodes before clearing state
+    try {
+        const cy: Core = getCyInstance();
+        for (const contextNodeId of hiddenContextNodes.values()) {
+            const contextNode: CollectionReturnValue = cy.getElementById(contextNodeId);
+            if (contextNode.length > 0) {
+                contextNode.removeClass('headless-context-hidden');
+            }
+        }
+    } catch { /* Cytoscape already destroyed */ }
     badgeElements.clear();
     badgeNodeIds.clear();
+    hiddenContextNodes.clear();
     zoomListenerRegistered = false;
 }
 
@@ -179,9 +212,15 @@ function updateBadgeContent(badge: HTMLElement, terminal: TerminalData, status: 
     }
 }
 
+// Badge base CSS height before scaling (~22px: 2px padding + 11px font + 7px dot + 2px padding)
+// With CSS-transform scale(zoom), base CSS pixels are equivalent to graph units.
+const BADGE_BASE_HEIGHT: number = 22;
+const BADGE_NODE_GAP: number = 5;
+
 /**
  * Reposition all badge elements based on current Cytoscape node positions and zoom.
- * Called on zoom events and after badge creation/updates.
+ * Uses the same CSS-transform scaling approach as floating windows:
+ * position in screen coords (graph * zoom) + scale(zoom) via getWindowTransform.
  */
 function repositionBadges(): void {
     let cy: Core;
@@ -203,13 +242,16 @@ function repositionBadges(): void {
 
         const pos: { x: number; y: number } = node.position();
         const nodeHeight: number = node.height() ?? 40;
-        // Position badge just below the node bottom edge
-        const screenPos: { readonly x: number; readonly y: number } = graphToScreenPosition(
-            { x: pos.x, y: pos.y + nodeHeight / 2 + 15 },
-            zoom
+
+        // Position badge above node: offset = badge height + gap (in graph units, since scale(zoom) normalizes)
+        const graphPos: { readonly x: number; readonly y: number } = offsetFromNodeEdge(
+            pos, nodeHeight, BADGE_BASE_HEIGHT + BADGE_NODE_GAP, 'above'
         );
+        const screenPos: { readonly x: number; readonly y: number } = graphToScreenPosition(graphPos, zoom);
         badge.style.left = `${screenPos.x}px`;
         badge.style.top = `${screenPos.y}px`;
+        badge.style.transform = getWindowTransform('css-transform', zoom, 'top-center');
+        badge.style.transformOrigin = getTransformOrigin('top-center');
     }
 }
 

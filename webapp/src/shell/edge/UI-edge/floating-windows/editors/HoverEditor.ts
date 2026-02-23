@@ -10,6 +10,8 @@ import {getCachedZoom} from '@/shell/edge/UI-edge/floating-windows/cytoscape-flo
 import {type EditorData} from '@/shell/edge/UI-edge/state/UIAppState';
 import {getEditorByNodeId, getHoverEditor} from "@/shell/edge/UI-edge/state/EditorStore";
 import {createFloatingEditor, closeEditor} from './FloatingEditorCRUD';
+import {hasPresentation} from '@/shell/edge/UI-edge/node-presentation/NodePresentationStore';
+import {transitionTo} from '@/shell/edge/UI-edge/node-presentation/transitions';
 
 // =============================================================================
 // Hover Zone Detection
@@ -214,8 +216,17 @@ async function openHoverEditor(
 // Setup Command Hover
 // =============================================================================
 
+// Debounce timers for Cy mouseover on presentation-backed nodes
+const cyPresentationHoverTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
+
 /**
- * Setup hover mode (hover to show editor or image viewer)
+ * Setup hover mode (hover to show editor or image viewer).
+ *
+ * Dual hover path for presentation nodes:
+ * - Zoomed in (card visible): card DOM mouseenter → hoverWiring.ts → transitionTo('HOVER')
+ * - Zoomed out (Cy circle visible): Cy mouseover → this handler → transitionTo('HOVER')
+ *
+ * Non-presentation nodes: existing hover editor behavior (editor below node).
  */
 export function setupCommandHover(cy: Core): void {
     // Listen for node hover
@@ -225,6 +236,20 @@ export function setupCommandHover(cy: Core): void {
 
             const node: cytoscape.NodeSingular = event.target;
             const nodeId: string = node.id();
+
+            // Presentation-backed nodes: route to transitionTo (zoomed-out hover path)
+            // When zoomed in, the card's own mouseenter (via hoverWiring.ts) handles hover.
+            // Cy mouseover fires when zoomed out because the card has pointer-events: none.
+            if (hasPresentation(nodeId)) {
+                if (cyPresentationHoverTimers.has(nodeId)) return;
+
+                const timer: ReturnType<typeof setTimeout> = setTimeout((): void => {
+                    cyPresentationHoverTimers.delete(nodeId);
+                    void transitionTo(cy, nodeId, 'HOVER');
+                }, 200);
+                cyPresentationHoverTimers.set(nodeId, timer);
+                return;
+            }
 
             // Only open hover for nodes with file extensions
             // Terminal nodes, shadow nodes, etc. don't have file extensions
@@ -243,8 +268,18 @@ export function setupCommandHover(cy: Core): void {
                 return;
             }
 
-            // Open hover editor for markdown files
+            // Open hover editor for markdown files (non-presentation nodes)
             await openHoverEditor(cy, nodeId, node.position());
         })();
+    });
+
+    // Cancel presentation hover timers on mouseout
+    cy.on('mouseout', 'node', (event: cytoscape.EventObject): void => {
+        const nodeId: string = event.target.id();
+        const timer: ReturnType<typeof setTimeout> | undefined = cyPresentationHoverTimers.get(nodeId);
+        if (timer) {
+            clearTimeout(timer);
+            cyPresentationHoverTimers.delete(nodeId);
+        }
     });
 }
