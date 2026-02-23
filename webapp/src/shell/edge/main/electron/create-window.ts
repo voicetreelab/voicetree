@@ -6,6 +6,7 @@ import {setMainWindow} from '@/shell/edge/main/state/app-electron-state';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
 import {writeAllPositionsSync} from '@/shell/edge/main/graph/writeAllPositionsOnExit';
 import {getGraph} from '@/shell/edge/main/state/graph-store';
+import {getProjectRootWatchedDirectory} from '@/shell/edge/main/state/watch-folder-store';
 import {recordAppUsage} from './notification-scheduler';
 
 // Conditionally load trackpad detection (macOS only, optional dependency)
@@ -96,6 +97,7 @@ export function createWindow(deps: {
         void mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'));
     } else if (process.env.ELECTRON_RENDERER_URL) {
         // electron-vite dev mode — ELECTRON_RENDERER_URL is set by electron-vite with the actual port
+        console.log('[Main] Renderer URL:', process.env.ELECTRON_RENDERER_URL);
         void mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
         if (!skipDevTools) mainWindow.webContents.openDevTools();
     } else {
@@ -133,9 +135,11 @@ export function createWindow(deps: {
     // Clean up terminals when window closes
     mainWindow.on('closed', () => {
         deps.terminalManager.cleanupForWindow(windowId);
-        // Persist node positions to disk before exit
-        //console.log('[App] Saving node positions to disk...');
-        writeAllPositionsSync(getGraph());
+        // Persist node positions to .voicetree/positions.json before exit
+        const projectRoot: string | null = getProjectRootWatchedDirectory();
+        if (projectRoot) {
+            writeAllPositionsSync(getGraph(), projectRoot);
+        }
     });
 
     // Trackpad detection using native addon (macOS only)

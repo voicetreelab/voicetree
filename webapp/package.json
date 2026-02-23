@@ -23,6 +23,7 @@
     "build:test": "tsc -b && vite build && npm run test:smoke",
     "electron:watch": "electron-vite dev --watch",
     "electron": "electron-vite dev",
+    "electron:debug": "ENABLE_PLAYWRIGHT_DEBUG=1 electron-vite dev",
     "electron:prod": "electron-vite build && npx @electron/rebuild && electron .",
     "build:server": "cd .. && ./scripts/build_server.sh",
     "electron:prod-full": "npm run build:server && npm run electron:prod",

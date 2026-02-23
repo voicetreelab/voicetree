@@ -112,6 +112,25 @@ void app.whenReady().then(async () => {
     console.timeEnd('[Startup] createWindow');
     console.timeEnd('[Startup] Total time to window');
 
+    // Auto-setup debug environment when Playwright debug mode is enabled
+    if (process.env.ENABLE_PLAYWRIGHT_DEBUG === '1') {
+        const mainWindow: BrowserWindow = BrowserWindow.getAllWindows()[0];
+        if (mainWindow) {
+            mainWindow.webContents.once('did-finish-load', () => {
+                void import('@/shell/edge/main/debug/prettySetupAppForElectronDebugging')
+                    .then(({ prettySetupAppForElectronDebugging }) =>
+                        prettySetupAppForElectronDebugging()
+                    )
+                    .then((result) => {
+                        console.log('[Startup] Playwright debug auto-setup complete:', JSON.stringify(result));
+                    })
+                    .catch((err: Error) => {
+                        console.error('[Startup] Playwright debug auto-setup failed:', err);
+                    });
+            });
+        }
+    }
+
     // Check if AGENT_PROMPT needs migration to new default
     // Shows dialog after window is ready to ensure proper parent
     const migrationOccurred: boolean = await migrateAgentPromptIfNeeded();

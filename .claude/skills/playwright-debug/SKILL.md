@@ -7,41 +7,19 @@ description: This skill should be used when the user asks to "debug the electron
 
 Connect to a running VoiceTree Electron app for live debugging via browser automation.
 
-## Prerequisites
+## Quick Start (3 steps)
 
-1. **CDP enabled in environment-config.ts** (already configured):
-```typescript
-// webapp/src/shell/edge/main/electron/environment-config.ts
-if (process.env.ENABLE_PLAYWRIGHT_DEBUG === '1') {
-    let cdpPort = '9222';
-    const cdpEndpoint = process.env.PLAYWRIGHT_MCP_CDP_ENDPOINT;
-    if (cdpEndpoint) {
-        try { cdpPort = new URL(cdpEndpoint).port || '9222'; } catch { /* default */ }
-    }
-    app.commandLine.appendSwitch('remote-debugging-port', cdpPort);
-}
-```
-
-2. **MCP configuration** in `.mcp.json` (already configured):
-```json
-"playwright": {
-  "command": "npx",
-  "args": ["@playwright/mcp@latest", "--cdp-endpoint", "http://localhost:9222"]
-}
-```
-
-**Limitation**: Only one Playwright debug session at a time. Port 9222 is hardcoded. Multi-worktree parallel debugging is not yet supported.
-
-## Connection Steps
-
-### 1. Start Electron with Debug Flag
+### 1. Start Electron in debug mode
 
 ```bash
-cd webapp
-ENABLE_PLAYWRIGHT_DEBUG=1 npm run electron
+cd webapp && npm run electron:debug
 ```
 
-### 2. Verify CDP is Running
+This starts Electron with CDP enabled on port 9222 **and** automatically calls `prettySetupAppForElectronDebugging()` once the renderer is ready — loading the `example_small` project and spawning 3 debug terminals.
+
+> Run with a bash timeout (e.g. 30s) since this is a long-running dev server.
+
+### 2. Verify CDP is ready
 
 ```bash
 curl -s http://localhost:9222/json/version
@@ -51,37 +29,11 @@ Should return JSON with `"Browser": "Chrome/..."`.
 
 ### 3. Connect via Playwright MCP
 
-Use `browser_snapshot` to connect. First attempt may timeout - retry once.
+Use `browser_snapshot` to connect. First attempt may timeout — retry once. The project and terminals are already loaded, so you should see the graph view immediately.
 
-### 4. ALWAYS Use `prettySetupAppForElectronDebugging()`
+### Opening a specific project (optional)
 
-**IMPORTANT: After connecting, ALWAYS call `prettySetupAppForElectronDebugging()` immediately.** Do NOT manually open a project or set up terminals yourself — this function handles everything:
-
-- If no project is loaded, it **automatically loads** the `example_small` test fixture
-- Spawns 3 terminals with tree-style hierarchy (parent, child, sibling)
-- Returns terminal IDs and node count
-
-```javascript
-// Via browser_evaluate — this is ALL you need after connecting
-const result = await window.electronAPI.main.prettySetupAppForElectronDebugging();
-// Returns: { terminalsSpawned: ['term-0', 'term-1', 'term-2'], nodeCount: 5, projectLoaded: '/path/...' }
-```
-
-This creates:
-```
-Terminal Tree Sidebar
-├── parent (depth=0)     ← "hello from parent"
-│   └── child (depth=1)  ← "hello from child" (indented!)
-└── sibling (depth=0)    ← "hello from sibling"
-```
-
-The child terminal has `parentTerminalId` set, demonstrating tree-style tabs indentation.
-
-> **Do NOT** manually call `initializeProject()`, click project buttons, or try to set up terminals step-by-step. The pretty setup function does all of this for you in one call.
-
-### Opening a specific project (optional, only if needed)
-
-If you need a specific project instead of the test fixture, use:
+If you need a specific project instead of the test fixture:
 ```javascript
 await window.electronAPI.main.initializeProject('/path/to/folder');
 ```
@@ -128,12 +80,11 @@ cy.nodes().map(n => ({ id: n.id(), isContext: n.data('isContextNode') }));
 cy.nodes().length;
 ```
 
-
 ## Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
-| Connection refused | Ensure Electron started with `ENABLE_PLAYWRIGHT_DEBUG=1` |
+| Connection refused | Ensure Electron started with `npm run electron:debug` |
 | Timeout on first connect | Retry - first connection can be slow |
 | Wrong tab selected | `browser_tabs action=select index=1` |
 | Native dialog opened | Use JavaScript APIs instead - native dialogs can't be automated |
