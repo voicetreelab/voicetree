@@ -1,11 +1,14 @@
 /**
  * MCP Tool: list_agents
- * Lists running agent terminals with their status and newly created nodes.
+ * Lists running agent terminals with their status and newly created nodes,
+ * plus available agent types from settings for discovery.
  */
 
 import type {Graph} from '@/pure/graph'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
+import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
+import type {VTSettings} from '@/pure/settings'
 import {type McpToolResponse, buildJsonResponse} from './types'
 import {getNewNodesForAgent} from './getNewNodesForAgent'
 
@@ -52,5 +55,12 @@ export async function listAgentsTool(): Promise<McpToolResponse> {
         })
     }
 
-    return buildJsonResponse({agents})
+    // Include available agent types from settings so callers can discover
+    // what agentName values are valid for spawn_agent
+    const settings: VTSettings = await loadSettings()
+    const availableAgents: readonly string[] = (settings?.agents ?? []).map(
+        (a: { readonly name: string; readonly command: string }) => a.name
+    )
+
+    return buildJsonResponse({agents, availableAgents})
 }

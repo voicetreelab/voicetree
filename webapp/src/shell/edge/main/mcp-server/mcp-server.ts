@@ -99,7 +99,7 @@ If you already have a node detailing the task, use nodeId. Otherwise, use task+p
         'list_agents',
         {
             title: 'List Agents',
-            description: 'List running agent terminals with their status and newly created nodes.',
+            description: 'List running agent terminals with their status and newly created nodes. Also returns `availableAgents` — the names you can pass as `agentName` to spawn_agent.',
             inputSchema: {}
         },
         listAgentsTool
