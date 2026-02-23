@@ -42,10 +42,9 @@ export function applyGraphDeltaToGraph(graph: Graph, delta: GraphDelta): Graph {
             const existingNode: GraphNode | undefined = currentGraph.nodes[nodeDelta.nodeToUpsert.absoluteFilePathIsID]
             const newNode: GraphNode = nodeDelta.nodeToUpsert
 
-            // TODO: This position-preservation logic is a workaround. It should be moved to a more //human
-            // suitable location (e.g., dedicated position management layer) or replaced with better
-            // overall position saving logic that writes positions to disk proactively.
-            // See: saveNodePositions.test.ts "BUG DEMONSTRATION" for context.
+            // Position preservation: positions are stored in .voicetree/positions.json, not YAML. //human
+            // When FS events re-parse a node, the parsed node has no position (O.none).
+            // This merge keeps the in-memory position (loaded from positions.json at startup).
             const mergedNode: GraphNode = (existingNode && O.isSome(existingNode.nodeUIMetadata.position) && O.isNone(newNode.nodeUIMetadata.position))
                 ? { ...newNode, nodeUIMetadata: { ...newNode.nodeUIMetadata, position: existingNode.nodeUIMetadata.position } }
                 : newNode

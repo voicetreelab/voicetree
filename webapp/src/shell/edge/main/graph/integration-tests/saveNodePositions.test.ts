@@ -3,14 +3,14 @@
  *
  * BEHAVIOR TESTED:
  * - saveNodePositions updates in-memory graph with positions from Cytoscape
- * - Positions are preserved when node is written to disk via UpsertNode delta
- * - BUG DEMONSTRATION: Positions are LOST when FS event reloads node from disk
- *   (if positions weren't in the YAML frontmatter)
+ * - Positions are NOT written to YAML frontmatter (stored in .voicetree/positions.json)
+ * - Positions are preserved when FS event reloads node from disk (in-memory merge)
+ * - Legacy YAML positions are still parsed for migration
  *
  * ARCHITECTURE CONTEXT:
  * - saveNodePositions: Updates in-memory state only (no disk write)
- * - FS events: Parse markdown from disk, overwriting in-memory state
- * - This means: in-memory positions are lost when FS events reload nodes
+ * - Positions persist to .voicetree/positions.json on app exit / folder switch
+ * - FS events: Parse markdown from disk, in-memory positions preserved via merge
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
@@ -179,9 +179,9 @@ describe('saveNodePositions - Integration Tests', () => {
         })
     })
 
-    describe('BEHAVIOR: Positions persist to disk when node is saved', () => {
-        it('should write position to disk YAML when UpsertNode delta is applied', async () => {
-            // GIVEN: A node with position in memory
+    describe('BEHAVIOR: Positions are NOT written to YAML (stored in .voicetree/positions.json)', () => {
+        it('should NOT write position to disk YAML when UpsertNode delta is applied', async () => {
+            // Positions are stored in .voicetree/positions.json, not in markdown YAML
             const testNode: GraphNode = {
                 absoluteFilePathIsID: TEST_NODE_ID,
                 contentWithoutYamlOrLinks: '# Test Position Node\n\nContent here.',
@@ -203,12 +203,12 @@ describe('saveNodePositions - Integration Tests', () => {
             // WHEN: Apply delta to write node to disk
             await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta, false)
 
-            // THEN: File should contain position in YAML frontmatter
+            // THEN: File should NOT contain position in YAML frontmatter
             const fileContent: string = await fs.readFile(TEST_FILE_PATH, 'utf-8')
 
-            expect(fileContent).toContain('position:')
-            expect(fileContent).toContain('x: 500')
-            expect(fileContent).toContain('y: 600')
+            expect(fileContent).not.toContain('position:')
+            expect(fileContent).not.toContain('x: 500')
+            expect(fileContent).not.toContain('y: 600')
         })
     })
 

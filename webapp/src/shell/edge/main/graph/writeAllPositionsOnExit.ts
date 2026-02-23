@@ -1,33 +1,15 @@
 import type { Graph } from '@/pure/graph'
-import { fromNodeToMarkdownContent } from '@/pure/graph/markdown-writing/node_to_markdown'
-import { nodeIdToFilePathWithExtension } from '@/pure/graph/markdown-parsing/filename-utils'
-import * as fs from 'fs'
-import * as path from 'path'
+import { savePositionsSync } from '@/shell/edge/main/graph/positions-store'
 
 /**
- * Synchronously write all nodes to disk on app exit.
- * This persists in-memory position changes to YAML frontmatter.
+ * Synchronously persist all node positions to .voicetree/positions.json on app exit.
  *
- * NOTE: This may trigger file watcher events during shutdown.
- * Currently ignored since the app is exiting anyway - the watcher
- * should be torn down shortly after. If this causes issues,
- * consider pausing the watcher before calling this function.
+ * Positions are stored in a single JSON file instead of per-node YAML frontmatter
+ * to avoid noisy git diffs when nodes are dragged.
  *
  * @param graph - The graph containing nodes to persist
+ * @param projectRoot - The project root directory (where .voicetree/ lives)
  */
-export function writeAllPositionsSync(graph: Graph): void {
-    const nodes: readonly import('@/pure/graph').GraphNode[] = Object.values(graph.nodes)
-    //console.log('Writing node pos on close');
-    for (const node of nodes) {
-        const markdown: string = fromNodeToMarkdownContent(node)
-        // Node ID is already the absolute file path
-        const fullPath: string = nodeIdToFilePathWithExtension(node.absoluteFilePathIsID)
-
-        // Ensure parent directory exists
-        const dir: string = path.dirname(fullPath)
-        if (!fs.existsSync(dir)) {
-            console.error("DIR DOESNT EXIST< SOMETHING IS WRONG")
-        }
-        fs.writeFileSync(fullPath, markdown, 'utf-8')
-    }
+export function writeAllPositionsSync(graph: Graph, projectRoot: string): void {
+    savePositionsSync(graph, projectRoot)
 }

@@ -10,8 +10,8 @@ import {getBaseName, updateNodeByBaseNameIndexForUpsert, updateUnresolvedLinksIn
 
 /**
  * Resolve position for a node based on priority:
- * 1. previousNode's Graph position (most current, synced from UI)
- * 2. parsedNode's YAML position (initial seed for new nodes)
+ * 1. previousNode's Graph position (most current, loaded from .voicetree/positions.json)
+ * 2. parsedNode's YAML position (legacy migration for old files)
  * 3. calculated from first parent (if any parent exists)
  * 4. none (defaults to 0,0 in UI)
  */
@@ -21,12 +21,12 @@ function resolveNodePosition(
     affectedNodeIds: readonly string[],
     currentGraph: Graph
 ): O.Option<Position> {
-    // Priority 1: Use previous node's position from Graph (most current, synced from UI)
+    // Priority 1: Use previous node's position from Graph (most current, loaded from positions.json)
     if (O.isSome(previousNode) && O.isSome(previousNode.value.nodeUIMetadata.position)) {
         return previousNode.value.nodeUIMetadata.position
     }
 
-    // Priority 2: Use YAML position if present
+    // Priority 2: Use YAML position if present (legacy migration)
     if (O.isSome(parsedNode.nodeUIMetadata.position)) {
         return parsedNode.nodeUIMetadata.position
     }

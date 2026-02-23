@@ -13,7 +13,7 @@
  */
 
 import type { FilePath } from "@/pure/graph";
-import { setGraph } from "@/shell/edge/main/state/graph-store";
+import { getGraph, setGraph } from "@/shell/edge/main/state/graph-store";
 import { dialog } from "electron";
 import path from "path";
 import * as O from "fp-ts/lib/Option.js";
@@ -49,6 +49,7 @@ import { setupWatcher } from "./file-watcher-setup";
 import { createEmptyGraph } from "@/pure/graph/createGraph";
 import { broadcastVaultState } from "./broadcast-vault-state";
 import { enableMcpJsonIntegration } from "@/shell/edge/main/mcp-server/mcp-client-config";
+import { loadPositions, mergePositionsIntoGraph } from "@/shell/edge/main/graph/positions-store";
 
 // Re-export vault-allowlist functions for api.ts and tests
 export {
@@ -161,7 +162,12 @@ async function resolveOrCreateConfig(
 }
 
 export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success: boolean }> {
-    // TODO: Save current graph positions before switching folders (writeAllPositionsSync)
+    // Save current graph positions before switching folders
+    const previousRoot: FilePath | null = getProjectRootWatchedDirectory();
+    if (previousRoot) {
+        const { savePositionsSync } = await import("@/shell/edge/main/graph/positions-store");
+        savePositionsSync(getGraph(), previousRoot);
+    }
     // IMPORTANT: watchedFolderPath is the folder the human chooses for the project
     // writePath (from vaultConfig) is where new files are created
 
@@ -238,6 +244,12 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
             console.warn(`[loadFolder] Failed to load read path ${readPath}: ${readResult.error}`);
             continue;
         }
+    }
+
+    // Load persisted positions from .voicetree/positions.json and merge into graph
+    const positions: ReadonlyMap<string, import('@/pure/graph').Position> = await loadPositions(watchedFolderPath);
+    if (positions.size > 0) {
+        setGraph(mergePositionsIntoGraph(getGraph(), positions));
     }
 
     // Setup file watcher - watch all paths in allowlist

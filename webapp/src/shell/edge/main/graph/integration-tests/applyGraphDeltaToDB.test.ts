@@ -122,11 +122,10 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       expect(fileContent).toContain('[[1_VoiceTree_Website_Development_and_Node_Display_Bug]]')
       expect(fileContent).toContain('[[2_VoiceTree_Node_ID_Duplication_Bug]]')
 
-      // AND: Should have frontmatter with color and position
+      // AND: Should have frontmatter with color (position stored in positions.json, not YAML)
       expect(fileContent).toContain('---')
       expect(fileContent).toContain('color: #FF5733')
-      expect(fileContent).toContain('x: 100')
-      expect(fileContent).toContain('y: 200')
+      expect(fileContent).not.toContain('position:')
     })
   })
 

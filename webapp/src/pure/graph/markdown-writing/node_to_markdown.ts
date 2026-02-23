@@ -37,9 +37,6 @@ export function fromNodeToContentWithWikilinks(node: GraphNode): string {
  * Format:
  * ---
  * color: "#ff0000"  (optional)
- * position:
- *   x: 100
- *   y: 200
  * ---
  * <content>
  * [[child1]]
@@ -98,8 +95,9 @@ function buildFrontmatterFromMetadata(metadata: NodeUIMetadata): string {
 
     // Build frontmatter from typed metadata fields
     // Note: title is excluded - Markdown content is the single source of truth for titles
+    // Position is stored in .voicetree/positions.json, not in YAML frontmatter
     const typedFieldsData: Record<string, unknown> = Object.keys(metadata)
-        .filter((key) => key !== 'additionalYAMLProps' && key !== 'title')
+        .filter((key) => key !== 'additionalYAMLProps' && key !== 'title' && key !== 'position')
         .reduce((acc: Record<string, unknown>, key: string) => {
             const value: unknown = metadata[key as keyof NodeUIMetadata];
 
