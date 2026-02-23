@@ -4,6 +4,7 @@ import type { NodePresentation, NodeState } from '@/pure/graph/node-presentation
 import { getPresentation } from './NodePresentationStore';
 import { createFloatingEditor, closeEditor } from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
 import { getCachedZoom } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
+import { getCyInstance } from '@/shell/edge/UI-edge/state/cytoscape-state';
 import { forceRefreshPresentation } from './zoomSync';
 import type { EditorData } from '@/shell/edge/UI-edge/state/UIAppState';
 
@@ -15,9 +16,6 @@ const FULL_EDITOR_WIDTH: number = 420;
 
 // Track floating editors spawned via clean swap, keyed by nodeId
 const floatingEditors: Map<string, EditorData> = new Map();
-
-// Cached cy reference for disposeEditor (which doesn't receive cy as param)
-let cachedCy: Core | undefined;
 
 // Concurrency guard: prevent double-spawns during async createFloatingEditor
 const spawningEditors: Set<string> = new Set();
@@ -45,8 +43,6 @@ export async function transitionTo(
     nodeId: string,
     targetState: NodeState
 ): Promise<void> {
-    cachedCy = cy;
-
     const presentation: NodePresentation | undefined = getPresentation(nodeId);
     if (!presentation) return;
     if (presentation.state === targetState) return;
@@ -59,9 +55,11 @@ export async function transitionTo(
     // === SPAWN: entering HOVER or ANCHORED ===
     if (targetState === 'HOVER' || targetState === 'ANCHORED') {
         if (!floatingEditors.has(nodeId)) {
-            await spawnCleanSwapEditor(cy, nodeId, presentation, targetState);
+            const spawned: boolean = await spawnCleanSwapEditor(cy, nodeId, presentation, targetState);
             // Re-check: presentation may have been destroyed during async spawn
             if (!getPresentation(nodeId)) return;
+            // If spawn failed, don't update state — presentation was restored by spawnCleanSwapEditor
+            if (!spawned) return;
         } else if (targetState === 'ANCHORED') {
             // Already have an editor from HOVER — expand to full width
             const editor: EditorData | undefined = floatingEditors.get(nodeId);
@@ -101,8 +99,8 @@ async function spawnCleanSwapEditor(
     nodeId: string,
     presentation: NodePresentation,
     targetState: NodeState
-): Promise<void> {
-    if (spawningEditors.has(nodeId)) return;
+): Promise<boolean> {
+    if (spawningEditors.has(nodeId)) return false;
     spawningEditors.add(nodeId);
 
     try {
@@ -127,7 +125,7 @@ async function spawnCleanSwapEditor(
             // Failed or presentation destroyed — restore
             presentation.element.style.display = '';
             forceRefreshPresentation(cy, presentation, getCachedZoom());
-            return;
+            return false;
         }
 
         // Set dimensions for half-height hover editor or full-size anchored
@@ -173,6 +171,8 @@ async function spawnCleanSwapEditor(
             committed = false;
             void transitionTo(cy, nodeId, 'CARD');
         });
+
+        return true;
     } finally {
         spawningEditors.delete(nodeId);
     }
@@ -180,17 +180,20 @@ async function spawnCleanSwapEditor(
 
 /**
  * Cleanup floating editor for a node. Called by destroyNodePresentation.
- * Uses cached cy reference since destroyNodePresentation doesn't pass cy.
+ * Uses getCyInstance() on demand — Cy might be destroyed during shutdown.
  */
 export function disposeEditor(nodeId: string): void {
     const editor: EditorData | undefined = floatingEditors.get(nodeId);
     if (!editor) return;
 
-    if (cachedCy) {
-        closeEditor(cachedCy, editor);
-    } else if (editor.ui) {
-        // Fallback: direct DOM removal (shadow node cleaned up when Cy node is destroyed)
-        editor.ui.windowElement.remove();
+    try {
+        const cy: Core = getCyInstance();
+        closeEditor(cy, editor);
+    } catch {
+        // Cy destroyed during shutdown — fallback to direct DOM removal
+        if (editor.ui) {
+            editor.ui.windowElement.remove();
+        }
     }
     floatingEditors.delete(nodeId);
 }
