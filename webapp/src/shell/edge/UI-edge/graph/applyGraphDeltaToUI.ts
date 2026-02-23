@@ -179,8 +179,11 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                         // Wire hover/click state transitions
                         wireHoverTransitions(cy, nodeId, presentation.element);
 
-                        // Flash new-node animation
+                        // Flash new-node animation (remove class after animation to prevent replay on display toggle)
                         presentation.element.classList.add('node-presentation-new');
+                        presentation.element.addEventListener('animationend', (): void => {
+                            presentation.element.classList.remove('node-presentation-new');
+                        }, { once: true });
                     }
                 } else if (existingNode.length > 0) {
                     // Update existing node metadata (but NOT position)
@@ -228,6 +231,9 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                             const pres: NodePresentation | undefined = getPresentation(nodeId);
                             if (pres) {
                                 pres.element.classList.add('node-presentation-content-changed');
+                                pres.element.addEventListener('animationend', (): void => {
+                                    pres.element.classList.remove('node-presentation-content-changed');
+                                }, { once: true });
                             }
                         }
                     }

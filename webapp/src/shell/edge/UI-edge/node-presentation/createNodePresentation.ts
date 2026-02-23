@@ -1,13 +1,17 @@
 import type { Core } from 'cytoscape';
 import type { NodePresentation, NodeState } from '@/pure/graph/node-presentation/types';
 import { computeMorphValues, type MorphValues } from '@/pure/graph/node-presentation/zoomMorph';
-import { getCachedZoom, registerFloatingWindow, getOrCreateOverlay } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
+import { getCachedZoom, getOrCreateOverlay } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
+import { contentAfterTitle, stripMarkdownFormatting } from '@/pure/graph/markdown-parsing';
 import { addPresentation } from './NodePresentationStore';
 
 function extractPreviewLines(content: string, maxLines: number = 3): string {
-    return content
+    const bodyText: string = contentAfterTitle(content);
+    return bodyText
         .split('\n')
         .filter((line: string) => line.trim().length > 0)
+        .map((line: string) => stripMarkdownFormatting(line).trim())
+        .filter((line: string) => line.length > 0)
         .slice(0, maxLines)
         .join('\n');
 }
@@ -62,10 +66,9 @@ export function createNodePresentation(
     card.style.top = `${position.y * zoom}px`;
     card.style.transform = `translate(-50%, -50%) scale(${zoom})`;
 
-    // Append to overlay and register for pan/zoom sync
+    // Append to overlay (pan sync via overlay transform, zoom sync via zoomSync.ts)
     const overlay: HTMLElement = getOrCreateOverlay(cy);
     overlay.appendChild(card);
-    registerFloatingWindow(nodeId + '-presentation', card);
 
     const initialState: NodeState = morphValues.zone === 'plain' ? 'PLAIN' : 'CARD';
 

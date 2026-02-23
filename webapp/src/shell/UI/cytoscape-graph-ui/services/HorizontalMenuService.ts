@@ -6,17 +6,13 @@ import type { Core, NodeSingular, Position } from 'cytoscape';
 import * as O from 'fp-ts/lib/Option.js';
 import { getEditorByNodeId, getHoverEditor } from "@/shell/edge/UI-edge/state/EditorStore";
 import { getImageViewerByNodeId } from "@/shell/edge/UI-edge/state/ImageViewerStore";
+import { hasPresentation } from "@/shell/edge/UI-edge/node-presentation/NodePresentationStore";
 import type { EditorData } from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
 import type { ImageViewerData } from "@/shell/edge/UI-edge/floating-windows/image-viewers/imageViewerDataType";
 import { getOrCreateOverlay } from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import { graphToScreenPosition, getWindowTransform, getTransformOrigin } from '@/pure/graph/floating-windows/floatingWindowScaling';
 import type { AgentConfig, VTSettings } from "@/pure/settings";
-import {
-    getNodeMenuItems,
-    createHorizontalMenuElement,
-    type HorizontalMenuItem,
-} from './HorizontalMenuItems';
-import { createNodeMenu, type MenuKind, type CreateNodeMenuOptions } from './createNodeMenu';
+import { createNodeMenu } from './createNodeMenu';
 import {
     isMouseInHoverZone,
     closeHoverEditor,
@@ -61,6 +57,12 @@ export class HorizontalMenuService {
             // Terminal nodes, shadow nodes, etc. don't have file extensions
             const hasFileExtension: boolean = /\.\w+$/.test(nodeId);
             if (!hasFileExtension) {
+                return;
+            }
+
+            // Skip hover menu for presentation nodes — they get their own editor
+            // with a full menu (traffic lights, buttons) via clean swap on hover
+            if (hasPresentation(nodeId)) {
                 return;
             }
 

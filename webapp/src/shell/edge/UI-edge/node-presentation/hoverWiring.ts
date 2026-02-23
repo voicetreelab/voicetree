@@ -1,7 +1,8 @@
 import type { Core } from 'cytoscape';
 import type { NodePresentation } from '@/pure/graph/node-presentation/types';
 import { getPresentation } from './NodePresentationStore';
-import { transitionTo } from './transitions';
+import { transitionTo, getFloatingEditor } from './transitions';
+import { isPinned as isEditorPinned } from '@/shell/edge/UI-edge/state/EditorStore';
 
 // Debounce timers per node for hover expansion
 const hoverTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
@@ -37,6 +38,13 @@ export function wireHoverTransitions(
             hoverTimers.delete(nodeId);
         }
 
+        // Ignore mouseleave caused by programmatic hiding (display: none triggers mouseleave).
+        // During clean swap, spawnCleanSwapEditor hides the card before spawning the editor.
+        // The browser queues a mouseleave macrotask. If createFloatingEditor resolves quickly
+        // (cached IPC), the state updates to HOVER before this queued mouseleave fires —
+        // causing an immediate HOVER→CARD collapse loop (flickering).
+        if (element.style.display === 'none') return;
+
         const p: NodePresentation | undefined = getPresentation(nodeId);
         if (!p) return;
         // Collapse from HOVER to CARD (not from ANCHORED — that needs explicit close)
@@ -55,9 +63,11 @@ export function wireHoverTransitions(
     document.addEventListener('mousedown', (e: MouseEvent): void => {
         const p: NodePresentation | undefined = getPresentation(nodeId);
         if (!p || p.state !== 'ANCHORED') return;
-        if (p.isPinned) return;
-        if (!element.contains(e.target as Node)) {
-            void transitionTo(cy, nodeId, 'CARD');
-        }
+        if (p.isPinned || isEditorPinned(nodeId)) return;
+        // Check both the presentation element and the clean-swap floating editor
+        if (element.contains(e.target as Node)) return;
+        const floatingEditor: ReturnType<typeof getFloatingEditor> = getFloatingEditor(nodeId);
+        if (floatingEditor?.ui?.windowElement.contains(e.target as Node)) return;
+        void transitionTo(cy, nodeId, 'CARD');
     });
 }

@@ -7,6 +7,7 @@ import { getCachedZoom } from '@/shell/edge/UI-edge/floating-windows/cytoscape-f
 import { getCyInstance } from '@/shell/edge/UI-edge/state/cytoscape-state';
 import { forceRefreshPresentation } from './zoomSync';
 import type { EditorData } from '@/shell/edge/UI-edge/state/UIAppState';
+import { addToPinnedEditors, isPinned as isEditorPinned } from '@/shell/edge/UI-edge/state/EditorStore';
 
 // Half-height editor spawned on hover (clean swap)
 const HALF_EDITOR_WIDTH: number = 340;
@@ -153,16 +154,18 @@ async function spawnCleanSwapEditor(
 
         let committed: boolean = false;
 
-        // dblclick → commit: expand to full width, persist after mouseleave
+        // dblclick → commit: expand to full width, pin so click-outside doesn't collapse
         editor.ui.windowElement.addEventListener('dblclick', (): void => {
             if (committed) return;
             committed = true;
+            addToPinnedEditors(nodeId);
             void transitionTo(cy, nodeId, 'ANCHORED');
         });
 
-        // mouseleave → close if uncommitted, restore card + Cy node
+        // mouseleave → close if uncommitted and not pinned, restore card + Cy node
         editor.ui.windowElement.addEventListener('mouseleave', (): void => {
             if (committed) return;
+            if (isEditorPinned(nodeId)) return;
             void transitionTo(cy, nodeId, 'CARD');
         });
 

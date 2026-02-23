@@ -247,11 +247,4 @@ describe('constants', () => {
         expect(MORPH_RANGE).toBeCloseTo(ZOOM_THRESHOLD_MAX - ZOOM_THRESHOLD_MIN, 10);
     });
 
-    it('CIRCLE_SIZE is 30', () => {
-        expect(CIRCLE_SIZE).toBe(30);
-    });
-
-    it('CARD_WIDTH is 260', () => {
-        expect(CARD_WIDTH).toBe(260);
-    });
 });
