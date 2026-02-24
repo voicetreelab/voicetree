@@ -6,7 +6,7 @@
  *   R-tree pack (component separation) → Cola (positioning + refinement) → animated cy.fit()
  * - Small removal (≤7 nodes): skip layout (positions already stable)
  * - Incremental (batch-added nodes <30% of graph):
- *   Local Cola on 2-hop capped-50 neighborhood → R-tree pack only if components overlap
+ *   Local Cola on 10-hop capped-50 neighborhood → R-tree pack only if components overlap
  * - Batch (>30% new): skip (too many nodes for local Cola)
  *
  * Cola handles all layout. Our R-tree packComponents() handles disconnected component
@@ -25,6 +25,7 @@ import ColaLayout from './cola';
 import { packComponents, componentsOverlap, separateOverlappingComponents } from '@/pure/graph/positioning/packComponents';
 import type { ComponentSubgraph } from '@/pure/graph/positioning/packComponents';
 import { runLocalCola } from './autoLayoutLocalCola';
+import { refreshSpatialIndex } from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
 import { panToTrackedNode, clearPendingPan } from '@/shell/edge/UI-edge/state/PendingPanStore';
@@ -92,6 +93,11 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
       clearTimeout(layoutSafetyTimeout);
       layoutSafetyTimeout = null;
     }
+
+    // Rebuild spatial index with final node positions.
+    // Cola's custom event emitter doesn't propagate layoutstop to cy,
+    // so spatialIndexSync's cy.on('layoutstop') never fires. Manual rebuild here.
+    refreshSpatialIndex(cy);
 
     void window.electronAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);
     layoutRunning = false;

@@ -2,9 +2,9 @@
  * Local Cola layout: incremental refinement on the neighborhood of newly added nodes.
  *
  * Extracted from autoLayout.ts to keep file sizes manageable.
- * Run set: 2-hop BFS capped at 50 (free to move).
+ * Run set: 10-hop BFS capped at 50 (free to move).
  * Pin set: spatial R-tree boundary (locked anchors).
- * Uses fast-tier Cola (5/5/8 iterations) — packing handles disconnected components.
+ * Uses Cola (25/25/25 iterations) — packing handles disconnected components.
  * Post-Cola overlap resolution pushes run-set nodes away from non-subgraph nodes.
  * On completion, unlocks pins and chains to onComplete.
  */
@@ -12,8 +12,8 @@
 import type { Core, NodeSingular, CollectionReturnValue } from 'cytoscape';
 import { computeColaAndAnimate } from './computeColaAndAnimate';
 import { refreshSpatialIndex, getCurrentIndex } from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
-import { queryNodesInRect } from '@/pure/graph/spatial';
-import type { SpatialIndex, SpatialNodeEntry } from '@/pure/graph/spatial';
+import { findObstacles } from '@/pure/graph/spatial';
+import type { SpatialIndex, SpatialNodeEntry, SpatialEdgeEntry } from '@/pure/graph/spatial';
 import type { AutoLayoutOptions } from './autoLayoutTypes';
 import { DEFAULT_OPTIONS, COLA_FAST_ANIMATE_DURATION } from './autoLayoutTypes';
 import { getLocalNeighborhood } from './autoLayoutNeighborhood';
@@ -57,8 +57,8 @@ export function runLocalCola(
       && allNodes.contains(edge.source()) && allNodes.contains(edge.target())
   );
 
-  // Fast-tier Cola (5/5/8 iterations, sub-100ms with <=50 nodes)
-  // Enough iterations for the overlap constraint solver to fully converge
+  // Cola (25/25/25 iterations) with 1000ms animation
+  // Higher iterations for better convergence of the overlap constraint solver
   computeColaAndAnimate({
     cy: cy,
     eles: allNodes.union(subgraphEdges),
@@ -66,10 +66,10 @@ export function runLocalCola(
     avoidOverlap: true,
     handleDisconnected: false,
     convergenceThreshold: 1.5,
-    maxSimulationTime: 200,
-    unconstrIter: 5,
-    userConstIter: 5,
-    allConstIter: 8,
+    maxSimulationTime: 1000,
+    unconstrIter: 25,
+    userConstIter: 25,
+    allConstIter: 25,
     nodeSpacing: 120,
     edgeLength: colaConfig.edgeLength ?? DEFAULT_OPTIONS.edgeLength,
     centerGraph: false,
@@ -89,8 +89,12 @@ export function runLocalCola(
       let didResolve: boolean = false;
       runNodes.forEach((node: NodeSingular) => {
         const bb: { x1: number; y1: number; x2: number; y2: number; w: number; h: number } = node.boundingBox({ includeLabels: false, includeOverlays: false, includeEdges: false });
-        const nearby: readonly SpatialNodeEntry[] = queryNodesInRect(postIndex, { minX: bb.x1, minY: bb.y1, maxX: bb.x2, maxY: bb.y2 });
-        for (const entry of nearby) {
+        const searchRect: { minX: number; minY: number; maxX: number; maxY: number } = { minX: bb.x1, minY: bb.y1, maxX: bb.x2, maxY: bb.y2 };
+        const { nodes: nearbyNodes, edges: nearbyEdges }: { readonly nodes: readonly SpatialNodeEntry[]; readonly edges: readonly SpatialEdgeEntry[] } = findObstacles(postIndex, searchRect);
+        let pushed: boolean = false;
+
+        // 1. Check node-node overlaps (higher priority)
+        for (const entry of nearbyNodes) {
           if (entry.nodeId === node.id()) continue;
           const other: CollectionReturnValue = cy.getElementById(entry.nodeId);
           if (other.length === 0 || allNodes.contains(other) || other.data('isContextNode')) continue;
@@ -108,8 +112,50 @@ export function runLocalCola(
           const overlapH: number = Math.min(bb.y2, entry.maxY) - Math.max(bb.y1, entry.minY);
           const pushDist: number = Math.max(overlapW, overlapH) + 20;
           node.shift({ x: dx * pushDist, y: dy * pushDist });
+          pushed = true;
           didResolve = true;
           break; // one push per node per pass
+        }
+
+        // 2. Check node-on-edge overlaps (only if no node overlap resolved)
+        if (!pushed) {
+          for (const edgeEntry of nearbyEdges) {
+            const cyEdge: CollectionReturnValue = cy.getElementById(edgeEntry.edgeId);
+            if (cyEdge.length === 0) continue;
+            if (cyEdge.data('isIndicatorEdge')) continue;
+            // Skip edges fully within the Cola subgraph (Cola handled those)
+            const srcId: string = cyEdge.data('source') as string;
+            const tgtId: string = cyEdge.data('target') as string;
+            if (allNodes.getElementById(srcId).length > 0 && allNodes.getElementById(tgtId).length > 0) continue;
+            // Push perpendicular to the edge segment
+            const nodeCx: number = (bb.x1 + bb.x2) / 2;
+            const nodeCy: number = (bb.y1 + bb.y2) / 2;
+            const segDx: number = edgeEntry.x2 - edgeEntry.x1;
+            const segDy: number = edgeEntry.y2 - edgeEntry.y1;
+            const segLenSq: number = segDx * segDx + segDy * segDy;
+            let t: number = 0;
+            if (segLenSq > 0.0001) {
+              t = Math.max(0, Math.min(1, ((nodeCx - edgeEntry.x1) * segDx + (nodeCy - edgeEntry.y1) * segDy) / segLenSq));
+            }
+            const closestX: number = edgeEntry.x1 + t * segDx;
+            const closestY: number = edgeEntry.y1 + t * segDy;
+            let dx: number = nodeCx - closestX;
+            let dy: number = nodeCy - closestY;
+            const dist: number = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 0.01) {
+              // Node center is on the edge — push perpendicular
+              dx = -segDy; dy = segDx;
+              const perpLen: number = Math.sqrt(dx * dx + dy * dy);
+              if (perpLen > 0.01) { dx /= perpLen; dy /= perpLen; }
+              else { dx = 1; dy = 0; }
+            } else {
+              dx /= dist; dy /= dist;
+            }
+            const pushDist: number = Math.max(bb.w, bb.h) / 2 + 20;
+            node.shift({ x: dx * pushDist, y: dy * pushDist });
+            didResolve = true;
+            break; // one push per node per pass
+          }
         }
       });
       if (!didResolve) break;
