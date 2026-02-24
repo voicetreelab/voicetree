@@ -28,6 +28,10 @@ import {
 import {
     modifyNodeContentFromUI
 } from "@/shell/edge/UI-edge/floating-windows/editors/modifyNodeContentFromFloatingEditor";
+import {markNodeDirty} from "@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout";
+import {screenToGraphDimensions, type ScalingStrategy} from "@/pure/graph/floating-windows/floatingWindowScaling";
+
+import { contentAfterTitle, stripMarkdownFormatting } from '@/pure/graph/markdown-parsing/markdown-to-title';
 import {setupAutoHeight} from "@/shell/edge/UI-edge/floating-windows/editors/SetupAutoHeight";
 import {createWindowChrome} from "@/shell/edge/UI-edge/floating-windows/create-window-chrome";
 
@@ -36,7 +40,7 @@ import {createWindowChrome} from "@/shell/edge/UI-edge/floating-windows/create-w
 // =============================================================================
 
 const CARD_DIMENSIONS: { readonly width: number; readonly height: number } = { width: 200, height: 96 };
-const EDIT_DIMENSIONS: { readonly width: number; readonly height: number } = { width: 300, height: 144 };
+const EDIT_DIMENSIONS: { readonly width: number; readonly height: number } = { width: 340, height: 280 };
 const PINNED_DIMENSIONS: { readonly width: number; readonly height: number } = { width: 420, height: 400 };
 const CARD_HOVER_DEBOUNCE_MS: number = 200;
 
@@ -54,6 +58,7 @@ export interface CardShellData {
     readonly contentContainer: HTMLElement;
     readonly editorId: EditorId;
     cm6Mounted: boolean;  // Flipped on first hover
+    isPinned: boolean;  // True when in mode-pinned (survives zoom zone transitions)
     editorData: EditorData;  // The backing EditorData (ui populated)
     readonly menuCleanup: (() => void) | undefined;
 }
@@ -122,6 +127,7 @@ export async function createCardShell(
         contentContainer: ui.contentContainer,
         editorId,
         cm6Mounted: false,
+        isPinned: false,
         editorData: editorWithUI,
         menuCleanup: ui.menuCleanup,
     };
@@ -227,6 +233,34 @@ function setCardModeDimensions(
 }
 
 /**
+ * Sync the real Cy node's dimensions to the card shell's actual rendered size.
+ * Waits one frame for the browser to lay out the new dimensions (e.g. after
+ * setCardModeDimensions expands width, auto-height determines actual height),
+ * then reads offsetWidth/offsetHeight and converts to graph coordinates.
+ *
+ * Does NOT write back to dataset.baseWidth/baseHeight — those are owned by
+ * setCardModeDimensions. This function only updates the Cy node so layout
+ * and edge routing see the correct size.
+ */
+function syncCyNodeSize(cy: Core, nodeId: string, windowElement: HTMLElement): void {
+    requestAnimationFrame((): void => {
+        const cyNode: import('cytoscape').CollectionReturnValue = cy.getElementById(nodeId);
+        if (cyNode.length === 0) return;
+
+        const strategy: ScalingStrategy = windowElement.dataset.usingCssTransform === 'true' ? 'css-transform' : 'dimension-scaling';
+        const zoom: number = cy.zoom();
+        const graphDimensions: { readonly width: number; readonly height: number } = screenToGraphDimensions(
+            { width: windowElement.offsetWidth, height: windowElement.offsetHeight },
+            zoom,
+            strategy
+        );
+
+        cyNode.style({ 'width': graphDimensions.width, 'height': graphDimensions.height });
+        markNodeDirty(cy, nodeId);
+    });
+}
+
+/**
  * Wire hover/click/keyboard events for card shells.
  * Like wireCardHoverEvents but triggers mountCM6IntoShell on first hover.
  *
@@ -238,12 +272,11 @@ function setCardModeDimensions(
  */
 function wireShellHoverEvents(shell: CardShellData, cy: Core): void {
     const windowElement: HTMLElement = shell.windowElement;
-    let isPinned: boolean = false;
     let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
 
     // mouseenter (200ms debounce) → mount CM6 if needed, then expand to edit mode
     windowElement.addEventListener('mouseenter', (): void => {
-        if (isPinned) return;
+        if (shell.isPinned) return;
         hoverTimeout = setTimeout((): void => {
             void mountCM6IntoShell(shell, cy).then((): void => {
                 windowElement.classList.replace('mode-card', 'mode-edit');
@@ -255,14 +288,14 @@ function wireShellHoverEvents(shell: CardShellData, cy: Core): void {
     // mouseleave → collapse to card mode (unless pinned)
     windowElement.addEventListener('mouseleave', (): void => {
         if (hoverTimeout) { clearTimeout(hoverTimeout); hoverTimeout = null; }
-        if (isPinned) return;
+        if (shell.isPinned) return;
         windowElement.classList.replace('mode-edit', 'mode-card');
         setCardModeDimensions(windowElement, CARD_DIMENSIONS);
     });
 
     // click → instant mount CM6 + edit mode (skip debounce)
     windowElement.addEventListener('click', (): void => {
-        if (isPinned) return;
+        if (shell.isPinned) return;
         if (hoverTimeout) { clearTimeout(hoverTimeout); hoverTimeout = null; }
         void mountCM6IntoShell(shell, cy).then((): void => {
             windowElement.classList.replace('mode-card', 'mode-edit');
@@ -272,26 +305,75 @@ function wireShellHoverEvents(shell: CardShellData, cy: Core): void {
 
     // dblclick → pin (register in EditorStore, full editor size)
     windowElement.addEventListener('dblclick', (): void => {
-        if (isPinned) return;
-        isPinned = true;
-        void mountCM6IntoShell(shell, cy).then((): void => {
-            windowElement.classList.remove('mode-card', 'mode-edit');
-            windowElement.classList.add('mode-pinned');
-            setCardModeDimensions(windowElement, PINNED_DIMENSIONS);
-            addEditor(shell.editorData);
-            const vanillaInstance: { focus?: () => void; dispose: () => void } | undefined = vanillaFloatingWindowInstances.get(shell.editorId);
-            vanillaInstance?.focus?.();
-        });
+        if (shell.isPinned) return;
+        pinShell(shell, cy);
     });
 
     // Escape → unpin, return to card mode
     windowElement.addEventListener('keydown', (e: KeyboardEvent): void => {
-        if (e.key === 'Escape' && isPinned) {
-            isPinned = false;
+        if (e.key === 'Escape' && shell.isPinned) {
+            shell.isPinned = false;
             windowElement.classList.remove('mode-pinned');
             windowElement.classList.add('mode-card');
             setCardModeDimensions(windowElement, CARD_DIMENSIONS);
+            syncCyNodeSize(cy, shell.nodeId, windowElement);
             removeEditorFromStore(shell.editorId);
         }
     });
+}
+
+// =============================================================================
+// Pin Shell (internal helper — shared by wireShellHoverEvents + pinCardShell)
+// =============================================================================
+
+/**
+ * Transition a card shell to pinned mode: mount CM6, expand to full editor,
+ * register in EditorStore, focus.
+ */
+function pinShell(shell: CardShellData, cy: Core): void {
+    shell.isPinned = true;
+    void mountCM6IntoShell(shell, cy).then((): void => {
+        shell.windowElement.classList.remove('mode-card', 'mode-edit');
+        shell.windowElement.classList.add('mode-pinned');
+        setCardModeDimensions(shell.windowElement, PINNED_DIMENSIONS);
+        syncCyNodeSize(cy, shell.nodeId, shell.windowElement);
+        addEditor(shell.editorData);
+        const vanillaInstance: { focus?: () => void; dispose: () => void } | undefined = vanillaFloatingWindowInstances.get(shell.editorId);
+        vanillaInstance?.focus?.();
+    });
+}
+
+// =============================================================================
+// Public Pin API (programmatic pinning for callers replacing AnchoredEditor)
+// =============================================================================
+
+/**
+ * Pin a node's CardShell programmatically. If the shell doesn't exist yet,
+ * creates it first (used when not in card zone or shell hasn't been mounted).
+ *
+ * Replaces createAnchoredFloatingEditor — the real Cy node IS the anchor,
+ * no separate shadow node needed.
+ */
+export async function pinCardShell(cy: Core, nodeId: NodeIdAndFilePath): Promise<void> {
+    // If shell already exists, just pin it
+    const existing: CardShellData | undefined = activeCardShells.get(nodeId);
+    if (existing) {
+        if (!existing.isPinned) {
+            pinShell(existing, cy);
+        }
+        return;
+    }
+
+    // Create shell (gets title/preview from Cy node data)
+    const cyNode: import('cytoscape').CollectionReturnValue = cy.getElementById(nodeId);
+    if (cyNode.length === 0) return;
+    const title: string = (cyNode.data('label') as string | undefined) ?? nodeId;
+    const content: string = (cyNode.data('content') as string | undefined) ?? '';
+    const preview: string = stripMarkdownFormatting(contentAfterTitle(content)).trim().replace(/\s+/g, ' ').slice(0, 150);
+
+    // Hide Cy circle (shell replaces it visually)
+    cyNode.style({ 'opacity': 0, 'events': 'no' } as Record<string, unknown>);
+
+    const shell: CardShellData = await createCardShell(cy, nodeId, title, preview);
+    pinShell(shell, cy);
 }

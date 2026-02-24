@@ -43,7 +43,6 @@ cytoscape.use(navigator);
 cytoscape.use(layoutUtilities);
 import {StyleService} from '@/shell/UI/cytoscape-graph-ui/services/StyleService';
 import {BreathingAnimationService} from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService';
-import {HorizontalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService';
 import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService';
 import {setupCommandHover} from '@/shell/edge/UI-edge/floating-windows/editors/HoverEditor';
 import {HotkeyManager} from './HotkeyManager';
@@ -91,7 +90,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // Services
     private styleService!: StyleService; // Initialized in render()
     private animationService?: BreathingAnimationService; // Disabled for performance - see ama_cpu_profile_root_cause_analysis.md
-    private horizontalMenuService?: HorizontalMenuService; // Initialized in setupCytoscape()
     private verticalMenuService?: VerticalMenuService; // Initialized in setupCytoscape()
 
     // Managers
@@ -303,14 +301,13 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     }
 
     private setupCytoscape(): void {
-        const menuServices: { horizontalMenuService: HorizontalMenuService; verticalMenuService: VerticalMenuService; } = setupCytoscape({
+        const menuServices: { verticalMenuService: VerticalMenuService; } = setupCytoscape({
             cy: this.cy,
             savePositionsTimeout: {current: this.savePositionsTimeout},
             onLayoutComplete: () => this.layoutCompleteEmitter.emit(),
             onNodeSelected: (nodeId) => this.nodeSelectedEmitter.emit(nodeId),
             getCurrentGraphState: () => this.getCurrentGraphState(),
         });
-        this.horizontalMenuService = menuServices.horizontalMenuService;
         this.verticalMenuService = menuServices.verticalMenuService;
     }
 
@@ -469,7 +466,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             hotkeyManager: this.hotkeyManager,
             gestureService: this.gestureService,
             searchService: this.searchService,
-            horizontalMenuService: this.horizontalMenuService,
             verticalMenuService: this.verticalMenuService,
             animationService: this.animationService,
             navigator: this.navigator,

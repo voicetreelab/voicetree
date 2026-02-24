@@ -129,8 +129,8 @@ export function createWindowChrome(
     const contentContainer: HTMLDivElement = document.createElement('div');
     contentContainer.className = 'cy-floating-window-content';
 
-    // Create horizontal menu for anchored editors only
-    // Hover editors use HorizontalMenuService's hover menu instead (shows node in gap between pills)
+    // Create horizontal menu for editors with an anchor or in card mode
+    // Card shells get their menu here; visibility toggled by CSS mode classes (hidden in mode-card, shown in mode-edit/mode-pinned)
     const isEditor: boolean = 'type' in fw && fw.type === 'Editor';
     const hasAnchoredNode: boolean = O.isSome(fw.anchoredToNodeId);
     const hasAgents: boolean = options.agents !== undefined && options.agents.length > 0;
@@ -168,6 +168,9 @@ export function createWindowChrome(
 
         menuCleanup = cleanup;
         menuWrapper.className = 'cy-floating-window-horizontal-menu';
+        // Clear inline display style from createNodeMenu's cssText so CSS mode classes
+        // (.mode-card, .mode-edit, .mode-pinned) can control menu visibility
+        menuWrapper.style.display = '';
         windowElement.appendChild(menuWrapper);
     }
 

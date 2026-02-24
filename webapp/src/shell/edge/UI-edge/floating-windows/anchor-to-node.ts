@@ -113,12 +113,12 @@ export function anchorToNode(
     // Do NOT read from windowElement.offsetWidth/offsetHeight - the element may not be
     // in the DOM yet, causing a race condition where dimensions are 0.
 
-    // Shadow node visible on minimap with subtle styling
+    // Shadow node — invisible anchor for floating window positioning
     shadowNode.style({
-        'opacity': 0.1,
+        'opacity': 0,
         'background-color': '#333333',
-        'border-width': 2,
-        'border-color': 'black',
+        'border-width': 0,
+        'border-color': 'transparent',
         'shape': 'rectangle',
         'events': 'yes',
         'width': shadowDimensions.width,

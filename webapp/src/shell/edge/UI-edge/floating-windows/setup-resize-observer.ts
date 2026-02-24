@@ -7,7 +7,7 @@
 
 import type cytoscape from "cytoscape";
 import {screenToGraphDimensions, type ScalingStrategy} from "@/pure/graph/floating-windows/floatingWindowScaling";
-import {getCachedZoom} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
+import {getCyInstance} from "@/shell/edge/UI-edge/state/cytoscape-state";
 import {markNodeDirty} from "@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout";
 
 /**
@@ -17,7 +17,7 @@ import {markNodeDirty} from "@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoL
  */
 export function updateShadowNodeDimensions(shadowNode: cytoscape.NodeSingular, domElement: HTMLElement): void {
     const strategy: ScalingStrategy = domElement.dataset.usingCssTransform === 'true' ? 'css-transform' : 'dimension-scaling';
-    const zoom: number = getCachedZoom();
+    const zoom: number = getCyInstance().zoom();
     const screenDimensions: { readonly width: number; readonly height: number } = {
         width: domElement.offsetWidth,
         height: domElement.offsetHeight

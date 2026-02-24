@@ -92,6 +92,10 @@ export function updateWindowFromZoom(cy: cytoscape.Core, windowElement: HTMLElem
         graphY = parseFloat(windowElement.dataset.graphY);
     }
 
+    // Toggle toolbar visibility based on zoom threshold — at very low zoom,
+    // toolbar icons (trash, copy, +, play, traffic lights) are unreadably small
+    windowElement.classList.toggle('zoom-below-toolbar-threshold', zoom < 0.5);
+
     if (graphX !== undefined && graphY !== undefined) {
         const screenPos: { readonly x: number; readonly y: number } = graphToScreenPosition({
             x: graphX,

@@ -7,7 +7,6 @@ import type {HotkeyManager} from './HotkeyManager';
 import type {SearchService} from './SearchService';
 import type {EventEmitter} from './EventEmitter';
 import type {NavigationGestureService} from '@/shell/edge/UI-edge/graph/navigation/NavigationGestureService';
-import type {HorizontalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService';
 import type {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService';
 import type {BreathingAnimationService} from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService';
 import type {ViewSubscriptionCleanups} from '@/shell/edge/UI-edge/graph/setupViewSubscriptions';
@@ -27,7 +26,6 @@ export interface GraphViewDisposeDependencies {
     hotkeyManager: HotkeyManager;
     gestureService: NavigationGestureService;
     searchService: SearchService;
-    horizontalMenuService?: HorizontalMenuService;
     verticalMenuService?: VerticalMenuService;
     animationService?: BreathingAnimationService;
     navigator: { destroy: () => void } | null;
@@ -71,9 +69,6 @@ export function disposeGraphView(deps: GraphViewDisposeDependencies): void {
     disposeGraphViewOverlays();
 
     // Dispose menu services
-    if (deps.horizontalMenuService) {
-        deps.horizontalMenuService.destroy();
-    }
     if (deps.verticalMenuService) {
         deps.verticalMenuService.destroy();
     }

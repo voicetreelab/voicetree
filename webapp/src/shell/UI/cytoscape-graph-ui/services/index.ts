@@ -1,4 +1,4 @@
-export { HorizontalMenuService, getNodeMenuItems, createHorizontalMenuElement } from './HorizontalMenuService';
+export { getNodeMenuItems, createHorizontalMenuElement } from './HorizontalMenuService';
 export type { SliderConfig, HorizontalMenuItem, NodeMenuItemsInput, HorizontalMenuElements } from './HorizontalMenuService';
 export { showFloatingSlider, hideFloatingSlider, destroyFloatingSlider, createDistanceSlider } from './DistanceSlider';
 export type { FloatingSliderOptions } from './DistanceSlider';

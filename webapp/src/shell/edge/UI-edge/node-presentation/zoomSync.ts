@@ -7,6 +7,7 @@ import { diffVisibleNodes } from '@/pure/graph/spatial';
 import type { SpatialIndex } from '@/pure/graph/spatial';
 import type { NodeIdAndFilePath } from '@/pure/graph';
 import { CIRCLE_SIZE } from '@/pure/graph/node-presentation/types';
+import { contentAfterTitle, stripMarkdownFormatting } from '@/pure/graph/markdown-parsing/markdown-to-title';
 
 // Module-level zone tracker — detect global zone transitions for card shell lifecycle
 let previousZone: ZoomZone = 'plain';
@@ -27,7 +28,7 @@ function mountShellForNode(cy: Core, nodeId: string): void {
     if (cyNode.length === 0) { pendingCreation.delete(nodeId); return; }
     const title: string = (cyNode.data('label') as string | undefined) ?? nodeId;
     const content: string = (cyNode.data('content') as string | undefined) ?? '';
-    const preview: string = content.replace(/^#.*\n?/, '').trim().slice(0, 150);
+    const preview: string = stripMarkdownFormatting(contentAfterTitle(content)).trim().replace(/\s+/g, ' ').slice(0, 150);
 
     // Create shell async — hide Cy circle only AFTER shell is visible
     // (hiding before shell creation causes nodes to disappear during IPC gap)
@@ -81,9 +82,12 @@ export function updateAllFromZoom(cy: Core, zoom: number): void {
                 visibleCardNodes = new Set(visibleIds);
             }
         } else {
-            // Leaving card zone — destroy all shells, restore Cy circles
+            // Leaving card zone — destroy unpinned shells, restore Cy circles
+            // Pinned shells survive zone transitions (user explicitly pinned them)
             // Snapshot keys to avoid mutating map during iteration
             for (const nodeId of [...activeCardShells.keys()]) {
+                const shell: import('@/shell/edge/UI-edge/floating-windows/editors/CardShell').CardShellData | undefined = activeCardShells.get(nodeId);
+                if (shell?.isPinned) continue;
                 destroyCardShell(nodeId);
                 restoreCyNode(cy, nodeId);
             }
@@ -114,6 +118,8 @@ export function updateVisibleCardsOnPan(cy: Core): void {
         mountShellForNode(cy, id);
     }
     for (const id of diff.left) {
+        const shell: import('@/shell/edge/UI-edge/floating-windows/editors/CardShell').CardShellData | undefined = activeCardShells.get(id);
+        if (shell?.isPinned) continue;
         destroyCardShell(id);
         restoreCyNode(cy, id);
     }

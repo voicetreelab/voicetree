@@ -13,7 +13,7 @@ import {getEditorByNodeId} from "@/shell/edge/UI-edge/state/EditorStore";
 import {scheduleIdleWork} from "@/utils/scheduleIdleWork";
 import {getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {getShadowNodeId, getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
-import {createAnchoredFloatingEditor} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
+import {pinCardShell} from "@/shell/edge/UI-edge/floating-windows/editors/CardShell";
 
 /**
  * Validates if a color value is a valid CSS color using the browser's CSS.supports API
@@ -292,13 +292,14 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
     }
     //console.log('[applyGraphDeltaToUI] Complete. Total nodes:', cy.nodes().length, 'Total edges:', cy.edges().length);
 
-    // Auto-pin new non-context nodes as full anchored editors
-    // Uses FIFO queue (max 1) — oldest auto-pinned editor closes when a new one opens
-    for (const nodeId of newNodeIds) {
-        const cyNode: CollectionReturnValue = cy.getElementById(nodeId);
-        if (cyNode.length > 0 && !cyNode.data('isContextNode') && !isImageNode(nodeId as NodeIdAndFilePath)) {
-            void createAnchoredFloatingEditor(cy, nodeId as NodeIdAndFilePath, false, true);
-        }
+    // Auto-pin the LAST new non-context, non-image node only.
+    // Only one auto-pin per delta — avoids mass-pinning on initial load.
+    const lastEligible: string | undefined = [...newNodeIds].reverse().find((id: string): boolean => {
+        const n: CollectionReturnValue = cy.getElementById(id);
+        return n.length > 0 && !n.data('isContextNode') && !isImageNode(id as NodeIdAndFilePath);
+    });
+    if (lastEligible) {
+        void pinCardShell(cy, lastEligible as NodeIdAndFilePath);
     }
 
     // Defer non-critical analytics and engagement prompts to idle time

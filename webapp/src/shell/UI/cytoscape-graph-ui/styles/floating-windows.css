@@ -92,6 +92,11 @@
   opacity: 0;
 }
 
+/* Hide expand button at very low zoom — too small to be useful */
+.zoom-below-toolbar-threshold .cy-floating-window-expand-corner {
+  display: none !important;
+}
+
 /* =============================================================================
  * Card Mode (unified editor — CSS-controlled chrome visibility)
  * .mode-card: compact read-only card (chrome hidden, no interaction)
@@ -115,19 +120,29 @@
 }
 
 .cy-floating-window-card-preview {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted-foreground);
   line-height: 1.4;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 5;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-/* Card mode — compact card (chrome hidden, interaction disabled, clipped) */
+/* Shared transition for card mode switches (card ↔ edit ↔ pinned) */
+.mode-card,
+.mode-edit,
+.mode-pinned {
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Card mode — compact card (chrome hidden, interaction disabled, faded bottom) */
 .mode-card {
   max-height: 96px;
   overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
 }
 
 .mode-card .cy-floating-window-horizontal-menu {
@@ -147,10 +162,12 @@
   caret-color: transparent;
 }
 
-/* Edit mode — 1.5× hover preview (chrome visible, scrollable) */
+/* Edit mode — spacious hover preview (chrome visible, scrollable) */
 .mode-edit {
-  max-height: 144px;
+  max-height: 280px;
   overflow: auto;
+  -webkit-mask-image: none;
+  mask-image: none;
 }
 
 .mode-edit .cy-floating-window-card-header {
@@ -161,7 +178,13 @@
   display: flex;
 }
 
-/* Pinned mode — full editor (no height constraint, card header hidden) */
+/* Pinned mode — full editor (card header hidden) */
+.mode-pinned {
+  max-height: 400px;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
 .mode-pinned .cy-floating-window-card-header {
   display: none;
 }

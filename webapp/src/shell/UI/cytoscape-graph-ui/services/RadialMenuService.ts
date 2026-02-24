@@ -7,7 +7,7 @@ import {getCurrentIndex} from '@/shell/UI/cytoscape-graph-ui/services/spatialInd
 import {
     spawnTerminalWithNewContextNode
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
-import {createAnchoredFloatingEditor} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
+import {pinCardShell} from "@/shell/edge/UI-edge/floating-windows/editors/CardShell";
 import {getFilePathForNode} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
 
 // Register the extension with cytoscape
@@ -103,7 +103,7 @@ export class RadialMenuService {
         commands.push({
             content: this.createSvgIcon('edit', 'Edit'),
             select: async () => {
-                await createAnchoredFloatingEditor(cy, nodeId);
+                await pinCardShell(cy, nodeId);
             },
             enabled: true,
         });

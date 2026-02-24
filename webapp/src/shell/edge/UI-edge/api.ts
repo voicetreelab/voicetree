@@ -12,9 +12,9 @@
 
 import {launchTerminalOntoUI} from "@/shell/edge/UI-edge/floating-windows/terminals/launchTerminalOntoUI";
 import {
-    createAnchoredFloatingEditor,
     updateFloatingEditors
 } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
+import {pinCardShell} from "@/shell/edge/UI-edge/floating-windows/editors/CardShell";
 import {getCyInstance} from "@/shell/edge/UI-edge/state/cytoscape-state";
 import {getResponsivePadding} from "@/utils/responsivePadding";
 import type {GraphDelta, NodeIdAndFilePath} from "@/pure/graph";
@@ -46,16 +46,15 @@ function updateFloatingEditorsFromExternal(delta: GraphDelta): void {
  * Called from main process FS watcher when it detects a new file was added externally.
  *
  * @param nodeId - ID of the node to create editor for
- * @param isAgentNode - If true, node was created by an agent (has agent_name in YAML)
- *                      Agent nodes are auto-pinned with no limit.
+ * @param _isAgentNode - Unused (kept for IPC contract compatibility)
  */
-function createEditorForExternalNode(nodeId: NodeIdAndFilePath, isAgentNode: boolean = false): void {
+function createEditorForExternalNode(nodeId: NodeIdAndFilePath, _isAgentNode: boolean = false): void {
     // Don't auto-open floating editor for image nodes
     if (isImageNode(nodeId)) {
         return;
     }
     const cy: Core = getCyInstance();
-    void createAnchoredFloatingEditor(cy, nodeId, false, true, isAgentNode);
+    void pinCardShell(cy, nodeId);
 }
 
 /**

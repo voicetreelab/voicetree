@@ -26,14 +26,14 @@ vi.mock('@/shell/edge/UI-edge/state/EditorStore', () => ({
     isPinned: vi.fn(() => false),
     addToPinnedEditors: vi.fn(),
     removeFromPinnedEditors: vi.fn(),
-    addToAutoPinQueue: vi.fn(),
-    removeFromAutoPinQueue: vi.fn(),
 }));
 
-// Mock FloatingEditorCRUD
+// Mock FloatingEditorCRUD + CardShell
 vi.mock('@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD', () => ({
-    createAnchoredFloatingEditor: vi.fn(),
     closeHoverEditor: vi.fn(),
+}));
+vi.mock('@/shell/edge/UI-edge/floating-windows/editors/CardShell', () => ({
+    pinCardShell: vi.fn(),
 }));
 
 describe('createWindowChrome', () => {

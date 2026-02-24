@@ -199,16 +199,31 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
 
         // RAF coalescing: ensures at most 1 update per frame even with multiple events
         let rafPending: boolean = false;
-        cy.on('pan zoom resize', () => {
+        let needsVisibleCardsUpdate: boolean = false;
+
+        const scheduleSync: () => void = () => {
             if (rafPending) return;
             rafPending = true;
             requestAnimationFrame(() => {
                 rafPending = false;
                 syncTransform();
-                // Create/destroy card shells for nodes entering/leaving viewport (throttled by RAF)
-                updateVisibleCardsOnPan(cy);
+                // Create/destroy card shells only on pan/zoom/resize (spatial index may be stale during layout)
+                if (needsVisibleCardsUpdate) {
+                    needsVisibleCardsUpdate = false;
+                    updateVisibleCardsOnPan(cy);
+                }
             });
+        };
+
+        cy.on('pan zoom resize', () => {
+            needsVisibleCardsUpdate = true;
+            scheduleSync();
         });
+
+        // Sync floating window positions when nodes move (e.g., during Cola layout animation).
+        // Without this, cards desync from their Cy nodes during/after layout because layout
+        // fires 'position' events on nodes — not 'pan'/'zoom'/'resize' on cy.
+        cy.on('position', 'node', scheduleSync);
 
         // Zoom-specific behavior - only fires on actual zoom, not pan
         cy.on('zoom', () => {

@@ -4,15 +4,10 @@
 import type {Core, NodeSingular} from 'cytoscape';
 import type {Graph} from '@/pure/graph';
 import {isImageNode} from '@/pure/graph';
-import {HorizontalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService';
-import { activeCardShells } from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
+import { activeCardShells, pinCardShell } from '@/shell/edge/UI-edge/floating-windows/editors/CardShell';
 import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService';
 import {enableAutoLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout';
 import {enableSpatialIndex} from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
-import {
-    createAnchoredFloatingEditor,
-
-} from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
 import {handleAddNodeAtPosition} from "@/shell/edge/UI-edge/floating-windows/editors/OpenHoverEditor";
 
 export interface SetupCytoscapeParams {
@@ -28,7 +23,6 @@ export interface SetupCytoscapeParams {
  * Returns the initialized menu services for lifecycle management.
  */
 export function setupCytoscape(params: SetupCytoscapeParams): {
-    horizontalMenuService: HorizontalMenuService;
     verticalMenuService: VerticalMenuService;
 } {
     const {
@@ -68,14 +62,10 @@ export function setupCytoscape(params: SetupCytoscapeParams): {
             return;
         }
 
-        //console.log('[VoiceTreeGraphView] Calling createAnchoredFloatingEditor');
-        void createAnchoredFloatingEditor(cy, nodeId, true);
-        //console.log('[VoiceTreeGraphView] Created editor');
+        //console.log('[VoiceTreeGraphView] Calling pinCardShell');
+        void pinCardShell(cy, nodeId);
+        //console.log('[VoiceTreeGraphView] Pinned card shell');
     });
-
-    // Setup horizontal menu (node hover)
-    const horizontalMenuService: HorizontalMenuService = new HorizontalMenuService();
-    horizontalMenuService.initialize(cy);
 
     // Setup vertical menu (right-click on canvas)
     const verticalMenuService: VerticalMenuService = new VerticalMenuService();
@@ -84,5 +74,5 @@ export function setupCytoscape(params: SetupCytoscapeParams): {
             handleAddNodeAtPosition(position)
     });
 
-    return { horizontalMenuService, verticalMenuService };
+    return { verticalMenuService };
 }

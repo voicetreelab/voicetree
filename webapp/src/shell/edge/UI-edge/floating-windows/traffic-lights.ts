@@ -17,7 +17,8 @@ import { attachFullscreenZoom } from '@/shell/edge/UI-edge/floating-windows/full
 import { minimizeTerminal, restoreTerminal } from '@/shell/UI/views/treeStyleTerminalTabs/terminalTabUtils';
 import type { EditorData } from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
 import type { TerminalData } from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
-import { closeHoverEditor, createAnchoredFloatingEditor } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
+import { closeHoverEditor } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
+import { pinCardShell } from "@/shell/edge/UI-edge/floating-windows/editors/CardShell";
 import { getImageViewerByNodeId } from "@/shell/edge/UI-edge/state/ImageViewerStore";
 import { closeHoverImageViewer, createAnchoredFloatingImageViewer } from "@/shell/edge/UI-edge/floating-windows/image-viewers/FloatingImageViewerCRUD";
 import type { ImageViewerData } from "@/shell/edge/UI-edge/floating-windows/image-viewers/imageViewerDataType";
@@ -149,13 +150,13 @@ export function createTrafficLightsForTarget(target: TrafficLightTarget): HTMLDi
                     return true;
                 }
 
-                // Handle markdown nodes - existing editor logic
+                // Handle markdown nodes — pin via CardShell
                 const editor: O.Option<EditorData> = getEditorByNodeId(nodeId);
                 if (O.isSome(editor) && !isAnchored(editor.value)) {
-                    // Close hover editor and create anchored editor
+                    // Close hover editor and pin via CardShell
                     closeHoverEditor(cy);
                     closeMenu();
-                    void createAnchoredFloatingEditor(cy, nodeId, true);
+                    void pinCardShell(cy, nodeId);
                     addToPinnedEditors(nodeId);
                     return true;
                 }
