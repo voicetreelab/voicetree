@@ -122,6 +122,7 @@ export function stripMarkdownFormatting(text: string): string {
         .replace(/`(.+?)`/g, '$1')                  // inline code: `text` → text
         .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')   // links: [text](url) → text
         .replace(/\[([^\]]+)\]\*/g, '$1')           // converted wikilinks: [text]* → text
+        .replace(/\[\[[^\]]+\]\]/g, '')             // raw wikilinks: [[id]] → removed
         .replace(/^\s*[-*+]\s+/gm, '')              // unordered list markers
         .replace(/^\s*\d+\.\s+/gm, '')             // ordered list markers
         .replace(/^\s*>\s?/gm, '');                 // blockquotes
