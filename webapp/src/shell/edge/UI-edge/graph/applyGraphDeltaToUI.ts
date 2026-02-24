@@ -1,5 +1,6 @@
 import type {Core, NodeSingular, CollectionReturnValue, EdgeCollection} from "cytoscape";
-import type {GraphDelta, GraphNode} from "@/pure/graph";
+import type {GraphDelta, GraphNode, NodeIdAndFilePath} from "@/pure/graph";
+import {isImageNode} from "@/pure/graph";
 import * as O from 'fp-ts/lib/Option.js';
 import {getNodeTitle} from "@/pure/graph/markdown-parsing";
 import {hasActualContentChanged} from "@/pure/graph/contentChangeDetection";
@@ -10,12 +11,9 @@ import {checkEngagementPrompts} from "./userEngagementPrompts";
 import {setPendingPan, setPendingPanToNode, setPendingVoiceFollowPan} from "@/shell/edge/UI-edge/state/PendingPanStore";
 import {getEditorByNodeId} from "@/shell/edge/UI-edge/state/EditorStore";
 import {scheduleIdleWork} from "@/utils/scheduleIdleWork";
-import { createNodePresentation } from '@/shell/edge/UI-edge/node-presentation/createNodePresentation';
-import { destroyNodePresentation } from '@/shell/edge/UI-edge/node-presentation/destroyNodePresentation';
-import { getPresentation } from '@/shell/edge/UI-edge/node-presentation/NodePresentationStore';
-import type { NodePresentation } from '@/pure/graph/node-presentation/types';
 import {getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {getShadowNodeId, getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
+import {createAnchoredFloatingEditor} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 
 /**
  * Validates if a color value is a valid CSS color using the browser's CSS.supports API
@@ -152,35 +150,6 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                     if (!hasPosition) {
                         nodesWithoutPositions.push(nodeId);
                     }
-
-                    // Create node presentation for non-context nodes
-                    if (!node.nodeUIMetadata.isContextNode) {
-                        const presentation: NodePresentation = createNodePresentation(
-                            cy,
-                            nodeId,
-                            getNodeTitle(node),
-                            node.contentWithoutYamlOrLinks,
-                            colorValue,
-                            pos
-                        );
-
-                        // Bind Cy node position event → update presentation element position
-                        const cyNodeForPosition: CollectionReturnValue = cy.getElementById(nodeId);
-                        if (cyNodeForPosition.length > 0) {
-                            cyNodeForPosition.on('position', () => {
-                                const zoom: number = cy.zoom();
-                                const newPos: { x: number; y: number } = cyNodeForPosition.position();
-                                presentation.element.style.left = `${newPos.x * zoom}px`;
-                                presentation.element.style.top = `${newPos.y * zoom}px`;
-                            });
-                        }
-
-                        // Flash new-node animation (remove class after animation to prevent replay on display toggle)
-                        presentation.element.classList.add('node-presentation-new');
-                        presentation.element.addEventListener('animationend', (): void => {
-                            presentation.element.classList.remove('node-presentation-new');
-                        }, { once: true });
-                    }
                 } else if (existingNode.length > 0) {
                     // Update existing node metadata (but NOT position)
                     existingNode.data('label', getNodeTitle(node));
@@ -198,21 +167,6 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                     }
                     existingNode.data('isContextNode', node.nodeUIMetadata.isContextNode === true);
 
-                    // Update node presentation title + preview on every metadata update
-                    const pres: NodePresentation | undefined = getPresentation(nodeId);
-                    if (pres) {
-                        const titleEl: HTMLElement | null = pres.element.querySelector('.node-presentation-title');
-                        if (titleEl) titleEl.textContent = getNodeTitle(node);
-                        const previewEl: HTMLElement | null = pres.element.querySelector('.node-presentation-preview');
-                        if (previewEl) {
-                            previewEl.textContent = node.contentWithoutYamlOrLinks
-                                .split('\n')
-                                .filter((line: string) => line.trim().length > 0)
-                                .slice(0, 3)
-                                .join('\n');
-                        }
-                    }
-
                     // Only emit content-changed (blue animation) if actual content changed, not just links
                     if (O.isSome(nodeDelta.previousNode) &&
                         hasActualContentChanged(
@@ -220,21 +174,12 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                             node.contentWithoutYamlOrLinks
                         )) {
                         existingNode.emit('content-changed');
-                        // Flash node presentation with content-changed animation
-                        const contentPres: NodePresentation | undefined = getPresentation(nodeId);
-                        if (contentPres) {
-                            contentPres.element.classList.add('node-presentation-content-changed');
-                            contentPres.element.addEventListener('animationend', (): void => {
-                                contentPres.element.classList.remove('node-presentation-content-changed');
-                            }, { once: true });
-                        }
                     }
                 }
             } else if (nodeDelta.type === 'DeleteNode') {
                 const nodeId: string = nodeDelta.nodeId;
                 const nodeToRemove: CollectionReturnValue = cy.getElementById(nodeId);
                 if (nodeToRemove.length > 0) {
-                    destroyNodePresentation(nodeId);
                     nodeToRemove.remove();
                 }
             }
@@ -346,6 +291,15 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
         }
     }
     //console.log('[applyGraphDeltaToUI] Complete. Total nodes:', cy.nodes().length, 'Total edges:', cy.edges().length);
+
+    // Auto-pin new non-context nodes as full anchored editors
+    // Uses FIFO queue (max 1) — oldest auto-pinned editor closes when a new one opens
+    for (const nodeId of newNodeIds) {
+        const cyNode: CollectionReturnValue = cy.getElementById(nodeId);
+        if (cyNode.length > 0 && !cyNode.data('isContextNode') && !isImageNode(nodeId as NodeIdAndFilePath)) {
+            void createAnchoredFloatingEditor(cy, nodeId as NodeIdAndFilePath, false, true);
+        }
+    }
 
     // Defer non-critical analytics and engagement prompts to idle time
     scheduleIdleWork(() => {

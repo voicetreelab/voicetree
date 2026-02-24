@@ -6,9 +6,8 @@ import type { Core, NodeSingular, Position } from 'cytoscape';
 import * as O from 'fp-ts/lib/Option.js';
 import { getEditorByNodeId, getHoverEditor } from "@/shell/edge/UI-edge/state/EditorStore";
 import { getImageViewerByNodeId } from "@/shell/edge/UI-edge/state/ImageViewerStore";
-import { getPresentation } from "@/shell/edge/UI-edge/node-presentation/NodePresentationStore";
-import type { NodePresentation } from '@/pure/graph/node-presentation/types';
 import type { EditorData } from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
+import { activeCardShells } from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
 import type { ImageViewerData } from "@/shell/edge/UI-edge/floating-windows/image-viewers/imageViewerDataType";
 import { getOrCreateOverlay } from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import { graphToScreenPosition, getWindowTransform, getTransformOrigin } from '@/pure/graph/floating-windows/floatingWindowScaling';
@@ -61,10 +60,8 @@ export class HorizontalMenuService {
                 return;
             }
 
-            // Presentation nodes in card/editor mode get their own editor with traffic lights.
-            // PLAIN state = zoomed-out circle = allow hover menu (old behavior).
-            const pres: NodePresentation | undefined = getPresentation(nodeId);
-            if (pres && pres.state !== 'PLAIN') {
+            // Card shells have their own menu via createWindowChrome
+            if (activeCardShells.has(nodeId)) {
                 return;
             }
 

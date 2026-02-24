@@ -4,9 +4,8 @@
 import type {Core, NodeSingular} from 'cytoscape';
 import type {Graph} from '@/pure/graph';
 import {isImageNode} from '@/pure/graph';
-import {getPresentation} from '@/shell/edge/UI-edge/node-presentation/NodePresentationStore';
-import type {NodePresentation} from '@/pure/graph/node-presentation/types';
 import {HorizontalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService';
+import { activeCardShells } from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
 import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService';
 import {enableAutoLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout';
 import {enableSpatialIndex} from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
@@ -64,10 +63,8 @@ export function setupCytoscape(params: SetupCytoscapeParams): {
             return;
         }
 
-        // Card-zone presentations use unified card editors (zoomSync manages lifecycle).
-        // PLAIN state = zoomed-out circle = allow anchored floating editor on tap.
-        const pres: NodePresentation | undefined = getPresentation(nodeId);
-        if (pres && pres.state !== 'PLAIN') {
+        // Card shells handle their own click events (dblclick → pin)
+        if (activeCardShells.has(nodeId)) {
             return;
         }
 
