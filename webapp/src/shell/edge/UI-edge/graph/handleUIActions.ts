@@ -19,11 +19,9 @@ import {
     updateFloatingEditors,
 } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 import * as O from 'fp-ts/lib/Option.js';
-import {extractAllObstaclesFromCytoscape} from "@/shell/edge/UI-edge/floating-windows/extractObstaclesFromCytoscape";
-import {calculateCollisionAwareChildPosition} from "@/pure/graph/positioning/calculateInitialPosition";
-import type {Obstacle} from "@/pure/graph/positioning/findBestPosition";
+import {calculateNodePosition} from "@/pure/graph/positioning/calculateInitialPosition";
+import {buildSpatialIndexFromGraph} from "@/pure/graph/positioning/spatialAdapters";
 import type {SpatialIndex} from "@/pure/graph/spatial";
-import {extractFromSpatialIndex} from "@/pure/graph/positioning/spatialAdapters";
 
 /**
  * Merges new metadata with old metadata, preferring new values when they are "present".
@@ -58,12 +56,8 @@ export async function createNewChildNodeFromUI(
     // Get parent node from graph
     const parentNode: GraphNode = currentGraph.nodes[parentNodeId];
 
-    // Extract unified obstacles (nodes + edges) — spatial index (O(log n)) when available, otherwise cytoscape BFS (O(k))
-    const parentCyPos: Position = cy.getElementById(parentNodeId).position();
-    const obstacles: readonly Obstacle[] = spatialIndex
-        ? extractFromSpatialIndex(spatialIndex, parentCyPos, parentNodeId)
-        : extractAllObstaclesFromCytoscape(cy, parentNodeId);
-    const position: Position = calculateCollisionAwareChildPosition(parentCyPos, currentGraph, parentNodeId, obstacles);
+    const spatialIndexToUse: SpatialIndex = spatialIndex ?? buildSpatialIndexFromGraph(currentGraph);
+    const position: Position = O.getOrElse(() => ({x: 0, y: 0}))(calculateNodePosition(currentGraph, spatialIndexToUse, parentNodeId));
 
     // Create GraphDelta (contains both child and updated parent with edge)
     const graphDelta: GraphDelta = fromCreateChildToUpsertNode(currentGraph, parentNode, "# ", undefined, O.some(position));

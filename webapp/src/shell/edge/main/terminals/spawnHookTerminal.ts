@@ -5,9 +5,11 @@
  */
 
 import * as O from 'fp-ts/lib/Option.js'
-import type {Graph, GraphDelta, GraphNode} from '@/pure/graph'
-import type {Position} from '@/pure/graph'
+import type {Graph, GraphDelta, GraphNode, Position} from '@/pure/graph'
 import {createNewNodeNoParent} from '@/pure/graph/graphDelta/uiInteractionsToGraphDeltas'
+import {calculateNodePosition} from '@/pure/graph/positioning/calculateInitialPosition'
+import {buildSpatialIndexFromGraph} from '@/pure/graph/positioning/spatialAdapters'
+import type {SpatialIndex} from '@/pure/graph/spatial'
 import type {VTSettings} from '@/pure/settings/types'
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
@@ -24,7 +26,6 @@ import {getWritePath} from '@/shell/edge/main/graph/watch_folder/vault-allowlist
 import {buildTerminalEnvVars} from '@/shell/edge/main/terminals/buildTerminalEnvVars'
 
 const HOOK_TERMINAL_ID: TerminalId = 'hook' as TerminalId
-const HOOK_NODE_POSITION: Position = {x: 0, y: -200}
 const TERMINAL_READY_POLL_MS: number = 100
 const TERMINAL_READY_TIMEOUT_MS: number = 10000
 const SHELL_INIT_DELAY_MS: number = 300
@@ -66,8 +67,10 @@ async function createHookNode(): Promise<string> {
     }
 
     const graph: Graph = getGraph()
+    const spatialIndex: SpatialIndex = buildSpatialIndexFromGraph(graph)
+    const hookPosition: Position = O.getOrElse(() => ({x: 0, y: 0}))(calculateNodePosition(graph, spatialIndex))
     const {newNode}: {readonly newNode: GraphNode; readonly graphDelta: GraphDelta} =
-        createNewNodeNoParent(HOOK_NODE_POSITION, writePath, graph)
+        createNewNodeNoParent(hookPosition, writePath, graph)
 
     const hookNode: GraphNode = {...newNode, contentWithoutYamlOrLinks: '# Hook Terminal'}
     const hookDelta: GraphDelta = [{

@@ -108,6 +108,11 @@ export function hasEdgeCollision(index: SpatialIndex, rect: Rect): boolean {
     return toInternal(index).edgeTree.collides(rect);
 }
 
+/** Fast boolean: does any node or edge AABB intersect the given rect? */
+export function hasGraphCollision(index: SpatialIndex, rect: Rect): boolean {
+    return hasNodeCollision(index, rect) || hasEdgeCollision(index, rect);
+}
+
 /** Return both node and edge entries intersecting the rect. */
 export function findObstacles(
     index: SpatialIndex,

@@ -13,12 +13,13 @@
  */
 
 import type { Rect, SpatialNodeEntry, SpatialEdgeEntry, SpatialIndex } from '@/pure/graph/spatial';
-import { queryNodesInRect, queryEdgesInRect } from '@/pure/graph/spatial';
+import { queryNodesInRect, queryEdgesInRect, createSpatialIndex } from '@/pure/graph/spatial';
 import type { ObstacleBBox } from '@/pure/graph/positioning/findBestPosition';
 import { boxObstacle, segmentObstacle } from '@/pure/graph/positioning/findBestPosition';
 import type { Obstacle } from '@/pure/graph/positioning/findBestPosition';
 import type { EdgeSegment } from '@/pure/graph/geometry';
-import type { Position } from '@/pure/graph';
+import type { Graph, GraphNode, NodeIdAndFilePath, Position } from '@/pure/graph';
+import * as O from 'fp-ts/lib/Option.js';
 
 // ============================================================================
 // Individual Converters
@@ -116,4 +117,64 @@ export function extractFromSpatialIndex(
     const boxes: readonly Obstacle[] = queryObstaclesFromIndex(index, searchRect, excludeNodeId).map(boxObstacle);
     const segments: readonly Obstacle[] = queryEdgeSegmentsFromIndex(index, searchRect).map(segmentObstacle);
     return [...boxes, ...segments];
+}
+
+// ============================================================================
+// Graph → SpatialIndex Construction
+// ============================================================================
+
+/** Estimated dimensions for a typical graph node (must match extractObstaclesFromGraph). */
+const ESTIMATED_NODE_WIDTH: number = 200;
+const ESTIMATED_NODE_HEIGHT: number = 60;
+
+/**
+ * Build a SpatialIndex from pure Graph data.
+ *
+ * Enables main-process callers (no renderer / no cytoscape) to perform
+ * spatial queries using the same O(log n) R-tree as the renderer path.
+ *
+ * Node AABB: centered on position, 200×60 estimated rendered size.
+ * Edge AABB: bounding box of source → target straight-line segment.
+ */
+export function buildSpatialIndexFromGraph(graph: Graph): SpatialIndex {
+    const allEntries: ReadonlyArray<readonly [NodeIdAndFilePath, GraphNode]> =
+        Object.entries(graph.nodes) as ReadonlyArray<readonly [NodeIdAndFilePath, GraphNode]>;
+
+    const nodeEntries: readonly SpatialNodeEntry[] = allEntries
+        .filter(([, node]) => O.isSome(node.nodeUIMetadata.position))
+        .map(([nodeId, node]): SpatialNodeEntry => {
+            const pos: Position = (node.nodeUIMetadata.position as O.Some<Position>).value;
+            return {
+                nodeId,
+                minX: pos.x - ESTIMATED_NODE_WIDTH / 2,
+                minY: pos.y - ESTIMATED_NODE_HEIGHT / 2,
+                maxX: pos.x + ESTIMATED_NODE_WIDTH / 2,
+                maxY: pos.y + ESTIMATED_NODE_HEIGHT / 2,
+            };
+        });
+
+    const edgeEntries: readonly SpatialEdgeEntry[] = allEntries.flatMap(
+        ([nodeId, node]): readonly SpatialEdgeEntry[] => {
+            if (!O.isSome(node.nodeUIMetadata.position)) return [];
+            const sourcePos: Position = (node.nodeUIMetadata.position as O.Some<Position>).value;
+            return node.outgoingEdges.flatMap((edge): readonly SpatialEdgeEntry[] => {
+                const targetNode: GraphNode | undefined = graph.nodes[edge.targetId];
+                if (!targetNode || !O.isSome(targetNode.nodeUIMetadata.position)) return [];
+                const targetPos: Position = (targetNode.nodeUIMetadata.position as O.Some<Position>).value;
+                return [{
+                    edgeId: `${nodeId}->${edge.targetId}`,
+                    x1: sourcePos.x,
+                    y1: sourcePos.y,
+                    x2: targetPos.x,
+                    y2: targetPos.y,
+                    minX: Math.min(sourcePos.x, targetPos.x),
+                    minY: Math.min(sourcePos.y, targetPos.y),
+                    maxX: Math.max(sourcePos.x, targetPos.x),
+                    maxY: Math.max(sourcePos.y, targetPos.y),
+                }];
+            });
+        }
+    );
+
+    return createSpatialIndex(nodeEntries, edgeEntries);
 }

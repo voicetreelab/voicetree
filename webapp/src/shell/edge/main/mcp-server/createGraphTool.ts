@@ -15,8 +15,9 @@ import {findBestMatchingNode} from '@/pure/graph/markdown-parsing/extract-edges'
 import {ensureUniqueNodeId} from '@/pure/graph/ensureUniqueNodeId'
 import {parseMarkdownToGraphNode} from '@/pure/graph/markdown-parsing/parse-markdown-to-node'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
-import {calculateCollisionAwareChildPosition} from '@/pure/graph/positioning/calculateInitialPosition'
-import {extractAllObstaclesFromGraph} from '@/pure/graph/positioning/extractObstaclesFromGraph'
+import {calculateNodePosition} from '@/pure/graph/positioning/calculateInitialPosition'
+import {buildSpatialIndexFromGraph} from '@/pure/graph/positioning/spatialAdapters'
+import type {SpatialIndex} from '@/pure/graph/spatial'
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange'
 import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
@@ -320,7 +321,6 @@ export async function createGraphTool({
     // Track created nodes for position and wikilink resolution
     const createdNodes: Map<string, CreatedNodeInfo> = new Map()
     const createdPositions: Map<string, Position> = new Map()
-    const childCounts: Map<string, number> = new Map()
     const existingIds: Set<string> = new Set(Object.keys(graph.nodes))
     const allNewNodeIds: NodeIdAndFilePath[] = []
     const results: NodeResult[] = []
@@ -356,16 +356,10 @@ export async function createGraphTool({
             deepestParentPosition = graphParentPosition
         }
 
-        // Spread children of the same parent set vertically
-        // For multi-parent nodes, key on the first parent
-        const parentKey: string = (node.parents && node.parents.length > 0) ? parentRefFilename(node.parents[0]) : '__graph_root__'
-        const childIndex: number = childCounts.get(parentKey) ?? 0
-        childCounts.set(parentKey, childIndex + 1)
-
         const currentGraph: Graph = getGraph()
-        const obstacles: readonly import('@/pure/graph/positioning/findBestPosition').Obstacle[] = extractAllObstaclesFromGraph(deepestParentNodeId, currentGraph)
-        const nodePosition: Position = calculateCollisionAwareChildPosition(
-            deepestParentPosition, currentGraph, deepestParentNodeId, obstacles, 200, childIndex
+        const spatialIndex: SpatialIndex = buildSpatialIndexFromGraph(currentGraph)
+        const nodePosition: Position = O.getOrElse(() => deepestParentPosition)(
+            calculateNodePosition(currentGraph, spatialIndex, deepestParentNodeId)
         )
 
         // Build markdown with multiple parent wikilinks
