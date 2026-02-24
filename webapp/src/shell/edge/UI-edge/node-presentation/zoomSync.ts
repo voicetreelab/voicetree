@@ -26,11 +26,11 @@ function mountShellForNode(cy: Core, nodeId: string): void {
     const content: string = (cyNode.data('content') as string | undefined) ?? '';
     const preview: string = content.replace(/^#.*\n?/, '').trim().slice(0, 150);
 
-    // Hide Cy circle (opacity 0, no events)
-    cyNode.style({ 'opacity': 0, 'events': 'no' } as Record<string, unknown>);
-
-    // Create shell (async but fire-and-forget)
-    void createCardShell(cy, nodeId as NodeIdAndFilePath, title, preview);
+    // Create shell async — hide Cy circle only AFTER shell is visible
+    // (hiding before shell creation causes nodes to disappear during IPC gap)
+    void createCardShell(cy, nodeId as NodeIdAndFilePath, title, preview).then((): void => {
+        cyNode.style({ 'opacity': 0, 'events': 'no' } as Record<string, unknown>);
+    });
 }
 
 /**
