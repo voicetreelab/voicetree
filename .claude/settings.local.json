@@ -41,7 +41,7 @@
       }
     }
   },
-  "outputStyle": "Explanatory",
+  "outputStyle": "default",
   "spinnerTipsEnabled": true,
   "prefersReducedMotion": false
 }
