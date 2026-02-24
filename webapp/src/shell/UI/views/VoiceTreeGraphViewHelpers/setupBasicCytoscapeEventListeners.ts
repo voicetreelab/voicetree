@@ -19,6 +19,11 @@ export function setupBasicCytoscapeEventListeners(
   styleService: StyleService,
   container: HTMLElement
 ): void {
+  // Set cursor on the container's PARENT to avoid triggering Cy's internal
+  // MutationObserver (which watches container attributes and fires cy.resize()).
+  // CSS cursor inheritance means the cursor still shows over the Cy canvas.
+  const cursorTarget: HTMLElement = container.parentElement ?? container;
+
   // Basic hover effects with toggle selection
   cy.on('mouseover', 'node', (e) => {
     if (!e.target) return;
@@ -26,7 +31,7 @@ export function setupBasicCytoscapeEventListeners(
     const node: NodeSingular = e.target;
 
     // Show grab cursor to indicate nodes are draggable
-    container.style.cursor = 'grab';
+    cursorTarget.style.cursor = 'grab';
 
     // Skip shadow nodes (floating windows) for selection handling
     if (!node.data('isShadowNode')) {
@@ -61,7 +66,7 @@ export function setupBasicCytoscapeEventListeners(
     ]);
 
     // Reset cursor when leaving a node
-    container.style.cursor = '';
+    cursorTarget.style.cursor = '';
   });
 
   // Focus handling
@@ -98,14 +103,14 @@ export function setupBasicCytoscapeEventListeners(
 
   // Change cursor to grabbing when starting to drag a node
   cy.on('grab', 'node', () => {
-    container.style.cursor = 'grabbing';
+    cursorTarget.style.cursor = 'grabbing';
   });
 
   // Save node positions when nodes are released after dragging
   // The 'free' event fires when a grabbed element is released
   cy.on('free', 'node', () => {
     // Restore grab cursor (still hovering over node after release)
-    container.style.cursor = 'grab';
+    cursorTarget.style.cursor = 'grab';
     //console.log('[VoiceTreeGraphView] Node drag released, saving positions...');
     void window.electronAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);
   });
