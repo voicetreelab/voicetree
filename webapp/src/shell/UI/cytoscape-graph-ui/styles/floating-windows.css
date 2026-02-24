@@ -93,6 +93,84 @@
 }
 
 /* =============================================================================
+ * Card Mode (unified editor — CSS-controlled chrome visibility)
+ * .mode-card: compact read-only card (chrome hidden, no interaction)
+ * .mode-edit: full editor (chrome visible, editable)
+ * ============================================================================= */
+
+/* Card header — title + preview, visible only in card mode */
+.cy-floating-window-card-header {
+  display: none;
+  padding: 8px 12px 8px 16px;
+}
+
+.cy-floating-window-card-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.cy-floating-window-card-preview {
+  font-size: 10px;
+  color: var(--muted-foreground);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Card mode — compact card (chrome hidden, interaction disabled, clipped) */
+.mode-card {
+  max-height: 96px;
+  overflow: hidden;
+}
+
+.mode-card .cy-floating-window-horizontal-menu {
+  display: none;
+}
+
+.mode-card .cy-floating-window-card-header {
+  display: block;
+}
+
+.mode-card .cm-gutters {
+  display: none;
+}
+
+.mode-card .cm-content {
+  pointer-events: none;
+  caret-color: transparent;
+}
+
+/* Edit mode — 1.5× hover preview (chrome visible, scrollable) */
+.mode-edit {
+  max-height: 144px;
+  overflow: auto;
+}
+
+.mode-edit .cy-floating-window-card-header {
+  display: none;
+}
+
+.mode-edit .cy-floating-window-horizontal-menu {
+  display: flex;
+}
+
+/* Pinned mode — full editor (no height constraint, card header hidden) */
+.mode-pinned .cy-floating-window-card-header {
+  display: none;
+}
+
+.mode-pinned .cy-floating-window-horizontal-menu {
+  display: flex;
+}
+
+/* =============================================================================
  * Horizontal Menu System
  * Pill-shaped menu buttons with left/right groups and submenus
  * ============================================================================= */

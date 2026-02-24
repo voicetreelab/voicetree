@@ -1,7 +1,7 @@
 import '@/shell/UI/cytoscape-graph-ui/styles/floating-windows.css'; // Core floating window styles
 import './codemirror-editor.css'; // CodeMirror-specific styles (selection, gutters, markdoc, diff)
 import { vim } from '@replit/codemirror-vim';
-import { EditorState, type Extension } from '@codemirror/state';
+import { Compartment, EditorState, type Extension } from '@codemirror/state';
 import { EditorView, keymap, tooltips } from '@codemirror/view';
 import { indentMore, indentLess } from '@codemirror/commands';
 import { basicSetup } from 'codemirror';
@@ -54,6 +54,8 @@ export interface CodeMirrorEditorOptions {
   vimMode?: boolean;
   /** Node ID (file path) for image paste - required for saving pasted images as siblings */
   nodeId?: string;
+  /** If true, start in readonly mode (for card mode). Use setMode() to switch. */
+  startReadonly?: boolean;
 }
 
 /**
@@ -82,6 +84,10 @@ export class CodeMirrorEditorView extends Disposable {
   private geometryChangeEmitter: EventEmitter<void>; // Fires when content geometry changes (after layout)
   private options: CodeMirrorEditorOptions;
   private updateListenerDispose: () => void;
+  private editableCompartment: Compartment;
+  private autosaveCompartment: Compartment;
+  private autosaveExtensions: Extension[];
+  private currentMode: 'readonly' | 'editing';
 
   /**
    * Creates a new CodeMirror editor instance
@@ -110,6 +116,12 @@ export class CodeMirrorEditorView extends Disposable {
       container: this.container,
     });
     this.updateListenerDispose = updateListener.dispose;
+
+    // Initialize Compartments for mode switching (readonly ↔ editing)
+    this.editableCompartment = new Compartment();
+    this.autosaveCompartment = new Compartment();
+    this.currentMode = options.startReadonly ? 'readonly' : 'editing';
+    this.autosaveExtensions = []; // Populated by createExtensions
 
     // Create editor state with extensions
     const state: EditorState = EditorState.create({
@@ -161,10 +173,21 @@ export class CodeMirrorEditorView extends Disposable {
       wikilinkTitleDisplay(), // Display node titles instead of IDs in [[wikilinks]] - uses Mark decorations + CSS
       tooltips({ parent: document.body }), // Render tooltips (including autocomplete) in body to avoid overflow clipping
       EditorView.lineWrapping, // Enable text wrapping
-      updateListenerExtension,
-      createImagePasteHandler(this.options.nodeId), // Handle pasting images from clipboard
-      createContextMenuHandler(this.options.language) // Right-click menu with "Add Link" option
+      createContextMenuHandler(this.options.language), // Right-click menu with "Add Link" option
     ];
+
+    // Compartment-wrapped extensions for mode switching
+    this.autosaveExtensions = [updateListenerExtension, createImagePasteHandler(this.options.nodeId)];
+    extensions.push(
+      this.editableCompartment.of(
+        this.currentMode === 'editing'
+          ? [EditorView.editable.of(true), EditorState.readOnly.of(false)]
+          : [EditorView.editable.of(false), EditorState.readOnly.of(true)]
+      ),
+      this.autosaveCompartment.of(
+        this.currentMode === 'editing' ? this.autosaveExtensions : []
+      ),
+    );
 
     // Add dark mode theme if active
     if (isDarkMode) {
@@ -187,8 +210,20 @@ export class CodeMirrorEditorView extends Disposable {
       json(), // JSON language support with syntax highlighting
       syntaxHighlighting(defaultHighlightStyle), // Code coloring
       EditorView.lineWrapping, // Enable text wrapping
-      updateListenerExtension
     ];
+
+    // Compartment-wrapped extensions for mode switching
+    this.autosaveExtensions = [updateListenerExtension];
+    extensions.push(
+      this.editableCompartment.of(
+        this.currentMode === 'editing'
+          ? [EditorView.editable.of(true), EditorState.readOnly.of(false)]
+          : [EditorView.editable.of(false), EditorState.readOnly.of(true)]
+      ),
+      this.autosaveCompartment.of(
+        this.currentMode === 'editing' ? this.autosaveExtensions : []
+      ),
+    );
 
     // Add dark mode theme if active
     if (isDarkMode) {
@@ -270,6 +305,32 @@ export class CodeMirrorEditorView extends Disposable {
       selection: { anchor: docLength }
     });
     this.view.focus();
+  }
+
+  /**
+   * Switch between readonly and editing modes via CM6 Compartment dispatch.
+   * No DOM rebuild — preserves scroll position and undo history.
+   */
+  setMode(mode: 'readonly' | 'editing'): void {
+    if (this.currentMode === mode) return;
+
+    if (mode === 'editing') {
+      this.view.dispatch({
+        effects: [
+          this.editableCompartment.reconfigure([EditorView.editable.of(true), EditorState.readOnly.of(false)]),
+          this.autosaveCompartment.reconfigure(this.autosaveExtensions),
+        ],
+      });
+    } else {
+      this.view.dispatch({
+        effects: [
+          this.editableCompartment.reconfigure([EditorView.editable.of(false), EditorState.readOnly.of(true)]),
+          this.autosaveCompartment.reconfigure([]),
+        ],
+      });
+    }
+
+    this.currentMode = mode;
   }
 
   /**

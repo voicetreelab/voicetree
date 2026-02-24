@@ -32,6 +32,8 @@ export interface CreateWindowChromeOptions {
     readonly closeTerminal?: (terminal: TerminalData, cy: Core) => Promise<void>;
     /** Close callback for editors (required when fw is EditorData) */
     readonly closeEditor?: (cy: Core, editor: EditorData) => void;
+    /** Card mode: adds card-header DOM and applies .mode-card class */
+    readonly cardMode?: { readonly title: string; readonly preview: string };
 }
 
 /**
@@ -90,6 +92,21 @@ export function createWindowChrome(
         windowElement.appendChild(accentBar);
         // Expose accent color as CSS variable for child element styling
         windowElement.style.setProperty('--editor-accent-color', nodeColor ?? '#4a9eff');
+    }
+
+    // Card mode: apply class and build card-header DOM
+    if (options.cardMode) {
+        windowElement.classList.add('mode-card');
+        const cardHeader: HTMLDivElement = document.createElement('div');
+        cardHeader.className = 'cy-floating-window-card-header';
+        const titleEl: HTMLDivElement = document.createElement('div');
+        titleEl.className = 'cy-floating-window-card-title';
+        titleEl.textContent = options.cardMode.title;
+        const previewEl: HTMLDivElement = document.createElement('div');
+        previewEl.className = 'cy-floating-window-card-preview';
+        previewEl.textContent = options.cardMode.preview;
+        cardHeader.append(titleEl, previewEl);
+        windowElement.appendChild(cardHeader);
     }
 
     // Event isolation - prevent graph interactions

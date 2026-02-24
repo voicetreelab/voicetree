@@ -10,7 +10,8 @@ import {getCachedZoom} from '@/shell/edge/UI-edge/floating-windows/cytoscape-flo
 import {type EditorData} from '@/shell/edge/UI-edge/state/UIAppState';
 import {getEditorByNodeId, getHoverEditor} from "@/shell/edge/UI-edge/state/EditorStore";
 import {createFloatingEditor, closeEditor} from './FloatingEditorCRUD';
-import {hasPresentation} from '@/shell/edge/UI-edge/node-presentation/NodePresentationStore';
+import {getPresentation} from '@/shell/edge/UI-edge/node-presentation/NodePresentationStore';
+import type {NodePresentation} from '@/pure/graph/node-presentation/types';
 
 // =============================================================================
 // Hover Zone Detection
@@ -218,7 +219,7 @@ async function openHoverEditor(
 /**
  * Setup hover mode (hover to show editor or image viewer).
  *
- * Presentation nodes: hoverWiring.ts handles in-place CM editing via card DOM events.
+ * Presentation nodes: unified card editors handle in-place editing via card DOM events.
  * When zoomed out, Cy circles are for overview — no hover editor spawned.
  *
  * Non-presentation nodes: existing hover editor behavior (editor below node).
@@ -232,9 +233,10 @@ export function setupCommandHover(cy: Core): void {
             const node: cytoscape.NodeSingular = event.target;
             const nodeId: string = node.id();
 
-            // Presentation-backed nodes: cards use in-place CM editing via hoverWiring.ts when zoomed in.
-            // When zoomed out, circles are for overview — no hover editor needed.
-            if (hasPresentation(nodeId)) {
+            // Presentation-backed nodes in card/editor mode use unified card editors.
+            // PLAIN state = zoomed-out circle = allow hover editor (old behavior).
+            const pres: NodePresentation | undefined = getPresentation(nodeId);
+            if (pres && pres.state !== 'PLAIN') {
                 return;
             }
 
