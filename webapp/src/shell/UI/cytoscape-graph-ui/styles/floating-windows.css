@@ -444,3 +444,28 @@
 .headless-output-popover::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.25);
 }
+
+/* =============================================================================
+ * Node Flash Animations (migrated from node-presentation.css)
+ * Applied via JS to card shell windows for new-node and content-changed events
+ * ============================================================================= */
+
+/* New node flash — green pulse (one-shot, NO breathing) */
+@keyframes node-presentation-new-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0.6); }
+  50%  { box-shadow: 0 0 0 8px rgba(48, 209, 88, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0); }
+}
+.node-presentation-new {
+  animation: node-presentation-new-pulse 1.5s ease-out;
+}
+
+/* Content changed flash — cyan pulse (one-shot, NO breathing) */
+@keyframes node-presentation-content-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(0, 200, 255, 0.5); }
+  50%  { box-shadow: 0 0 0 6px rgba(0, 200, 255, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 200, 255, 0); }
+}
+.node-presentation-content-changed {
+  animation: node-presentation-content-pulse 1.5s ease-out;
+}

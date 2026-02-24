@@ -41,6 +41,7 @@ import {createWindowChrome} from "@/shell/edge/UI-edge/floating-windows/create-w
 export {isMouseInHoverZone, closeHoverEditor, setupCommandHover} from './HoverEditor';
 export {createAnchoredFloatingEditor} from './AnchoredEditor';
 export {updateFloatingEditors} from './EditorSync';
+export {createCardShell, destroyCardShell, activeCardShells, type CardShellData} from './CardShell';
 
 // =============================================================================
 // Card Mode Constants (graph-coordinate base dimensions for each mode)
@@ -242,11 +243,12 @@ export function closeAllEditors(cy: Core): void {
  * CM always editable (CSS controls interaction), hover wiring for mode transitions.
  * Content is loaded async via IPC after mount.
  */
-function createCardEditorInternal(
+async function createCardEditorInternal(
     cy: cytoscape.Core,
     nodeId: NodeIdAndFilePath,
     cardMode: { readonly title: string; readonly preview: string; readonly cyNodeId: string }
-): EditorData {
+): Promise<EditorData> {
+    const settings: { agents?: readonly import('@/pure/settings').AgentConfig[]; contextNodeMaxDistance?: number } = await window.electronAPI!.main.loadSettings();
     const editorData: EditorData = createEditorData({
         contentLinkedToNodeId: nodeId,
         title: cardMode.title,
@@ -261,6 +263,8 @@ function createCardEditorInternal(
     // Create window chrome — Task B's cardMode adds card-header DOM + .mode-card class
     const ui: FloatingWindowUIData = createWindowChrome(cy, editorData, editorId, {
         cardMode: { title: cardMode.title, preview: cardMode.preview },
+        agents: settings.agents ?? [],
+        currentDistance: settings.contextNodeMaxDistance ?? 5,
     });
 
     const editorWithUI: EditorData = { ...editorData, ui };

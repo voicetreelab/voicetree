@@ -138,7 +138,8 @@ export function createWindowChrome(
     // Menu cleanup destroys floating slider when editor closes
     let menuCleanup: (() => void) | undefined;
 
-    if (isEditor && hasAnchoredNode && hasAgents) {
+    const isCardMode: boolean = options.cardMode !== undefined;
+    if (isEditor && (hasAnchoredNode || isCardMode) && hasAgents) {
         const nodeId: string = 'contentLinkedToNodeId' in fw ? fw.contentLinkedToNodeId : '';
         const isContextNode: boolean = nodeId.includes('.context_node.');
 
