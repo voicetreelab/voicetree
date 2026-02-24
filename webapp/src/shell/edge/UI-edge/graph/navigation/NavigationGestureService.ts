@@ -40,6 +40,14 @@ export class NavigationGestureService {
     private inaccurateScrollDevice: boolean | undefined = undefined;
     private inaccurateScrollFactor: number = 100000;
 
+    // Smooth zoom animation state (for discrete mouse wheels)
+    private targetZoom: number = 1;
+    private zoomCursorPos: { x: number; y: number } = { x: 0, y: 0 };
+    private zoomAnimating: boolean = false;
+    private zoomAnimFrameId: number = 0;
+    private static readonly ZOOM_LERP: number = 0.2;
+    private static readonly ZOOM_EPSILON: number = 0.001;
+
     // Bound handlers for cleanup
     private handleWheel: (e: WheelEvent) => void;
     private handleMouseDown: (e: MouseEvent) => void;
@@ -134,6 +142,7 @@ export class NavigationGestureService {
      * - deltaMode handling for Firefox Linux/Windows (LINE units vs pixels)
      * - Inaccurate device detection (mice reporting in chunks)
      * - Exponential zoom formula for natural feel
+     * - Smooth animation for discrete mouse wheels (trackpad is already smooth)
      */
     private zoomAtCursor(e: WheelEvent): void {
         let delta: number = e.deltaY;
@@ -184,14 +193,69 @@ export class NavigationGestureService {
             diff *= 33;
         }
 
-        // Exponential zoom formula (matches Cytoscape for natural feel)
-        const newZoom: number = this.cy.zoom() * Math.pow(10, diff);
-        const clampedZoom: number = Math.max(this.cy.minZoom(), Math.min(this.cy.maxZoom(), newZoom));
+        // Trackpad pinch: apply directly (already smooth from high-frequency deltas)
+        if (getIsTrackpadScrolling()) {
+            this.cancelZoomAnimation();
+            const newZoom: number = this.cy.zoom() * Math.pow(10, diff);
+            const clampedZoom: number = Math.max(this.cy.minZoom(), Math.min(this.cy.maxZoom(), newZoom));
+            this.cy.zoom({
+                level: clampedZoom,
+                renderedPosition: { x: e.clientX, y: e.clientY }
+            });
+            return;
+        }
 
-        this.cy.zoom({
-            level: clampedZoom,
-            renderedPosition: { x: e.clientX, y: e.clientY }
-        });
+        // Discrete mouse wheel: accumulate target and animate smoothly
+        if (!this.zoomAnimating) {
+            this.targetZoom = this.cy.zoom(); // sync before first delta
+        }
+        this.targetZoom = Math.max(this.cy.minZoom(), Math.min(this.cy.maxZoom(),
+            this.targetZoom * Math.pow(10, diff)));
+        this.zoomCursorPos = { x: e.clientX, y: e.clientY };
+        if (!this.zoomAnimating) {
+            this.startZoomAnimation();
+        }
+    }
+
+    /**
+     * Start smooth zoom animation loop.
+     * Uses exponential ease-out: each frame closes ZOOM_LERP fraction of the remaining gap.
+     */
+    private startZoomAnimation(): void {
+        this.zoomAnimating = true;
+        const tick: () => void = (): void => {
+            const current: number = this.cy.zoom();
+            const remaining: number = this.targetZoom - current;
+
+            // Stop when close enough (relative threshold scales across zoom range)
+            if (Math.abs(remaining / current) < NavigationGestureService.ZOOM_EPSILON) {
+                this.cy.zoom({
+                    level: this.targetZoom,
+                    renderedPosition: this.zoomCursorPos
+                });
+                this.zoomAnimating = false;
+                return;
+            }
+
+            const next: number = current + remaining * NavigationGestureService.ZOOM_LERP;
+            this.cy.zoom({
+                level: next,
+                renderedPosition: this.zoomCursorPos
+            });
+
+            this.zoomAnimFrameId = requestAnimationFrame(tick);
+        };
+        this.zoomAnimFrameId = requestAnimationFrame(tick);
+    }
+
+    /**
+     * Cancel any running zoom animation.
+     */
+    private cancelZoomAnimation(): void {
+        if (this.zoomAnimating) {
+            cancelAnimationFrame(this.zoomAnimFrameId);
+            this.zoomAnimating = false;
+        }
     }
 
     /**
@@ -342,6 +406,7 @@ export class NavigationGestureService {
      * Cleanup all event listeners
      */
     dispose(): void {
+        this.cancelZoomAnimation();
         this.unsubSettingsChange();
         this.container.removeEventListener('wheel', this.handleWheel, { capture: true });
         document.removeEventListener('wheel', this.handleFloatingWindowWheel, { capture: true });

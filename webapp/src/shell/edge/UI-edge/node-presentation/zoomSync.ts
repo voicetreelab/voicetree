@@ -11,26 +11,33 @@ import { CIRCLE_SIZE } from '@/pure/graph/node-presentation/types';
 // Module-level zone tracker — detect global zone transitions for card shell lifecycle
 let previousZone: ZoomZone = 'plain';
 let visibleCardNodes: Set<string> = new Set();
+// Tracks in-flight async createCardShell calls — prevents duplicate creation during smooth zoom
+const pendingCreation: Set<string> = new Set();
 
 /**
  * Mount a card shell for a node: hide Cy circle, create DOM-only shell.
- * Skips if shell already exists for this nodeId.
+ * Idempotent: skips if shell exists OR creation is already in flight.
  */
 function mountShellForNode(cy: Core, nodeId: string): void {
-    if (activeCardShells.has(nodeId)) return;
+    if (activeCardShells.has(nodeId) || pendingCreation.has(nodeId)) return;
+    pendingCreation.add(nodeId);
 
     // Get title/preview from Cy node data
     const cyNode: CollectionReturnValue = cy.getElementById(nodeId);
-    if (cyNode.length === 0) return;
+    if (cyNode.length === 0) { pendingCreation.delete(nodeId); return; }
     const title: string = (cyNode.data('label') as string | undefined) ?? nodeId;
     const content: string = (cyNode.data('content') as string | undefined) ?? '';
     const preview: string = content.replace(/^#.*\n?/, '').trim().slice(0, 150);
 
     // Create shell async — hide Cy circle only AFTER shell is visible
     // (hiding before shell creation causes nodes to disappear during IPC gap)
-    void createCardShell(cy, nodeId as NodeIdAndFilePath, title, preview).then((): void => {
-        cyNode.style({ 'opacity': 0, 'events': 'no' } as Record<string, unknown>);
-    });
+    void createCardShell(cy, nodeId as NodeIdAndFilePath, title, preview)
+        .then((): void => {
+            cyNode.style({ 'opacity': 0, 'events': 'no' } as Record<string, unknown>);
+        })
+        .finally((): void => {
+            pendingCreation.delete(nodeId);
+        });
 }
 
 /**

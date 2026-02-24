@@ -26,7 +26,7 @@ import {removeEditor} from "@/shell/edge/UI-edge/state/EditorStore";
 import {removeImageViewer} from "@/shell/edge/UI-edge/state/ImageViewerStore";
 import {updateWindowFromZoom} from "@/shell/edge/UI-edge/floating-windows/update-window-from-zoom";
 import {suppressInactivityDuringZoom} from "@/shell/UI/views/treeStyleTerminalTabs/terminalTabUtils";
-import { updateAllFromZoom } from '@/shell/edge/UI-edge/node-presentation/zoomSync';
+import { updateAllFromZoom, updateVisibleCardsOnPan } from '@/shell/edge/UI-edge/node-presentation/zoomSync';
 
 /**
  * Get current zoom level from cytoscape instance
@@ -205,6 +205,8 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
             requestAnimationFrame(() => {
                 rafPending = false;
                 syncTransform();
+                // Create/destroy card shells for nodes entering/leaving viewport (throttled by RAF)
+                updateVisibleCardsOnPan(cy);
             });
         });
 
@@ -214,6 +216,7 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
             markZoomActive();
             updateAllFromZoom(cy, cy.zoom());
         });
+
     }
 
     return overlay;

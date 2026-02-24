@@ -21,7 +21,6 @@ import {
     createSpatialIndex,
     hasNodeCollision,
     insertNode,
-    queryNodesInRect,
 } from '@/pure/graph/spatial'
 import type { Rect, SpatialIndex, SpatialNodeEntry } from '@/pure/graph/spatial'
 
@@ -53,131 +52,7 @@ export function componentsOverlap(components: readonly ComponentSubgraph[]): boo
     })
 }
 
-/**
- * Separate overlapping component bboxes with minimum movement (MTV Push).
- *
- * For each pair of overlapping bboxes, computes the Minimum Translation Vector:
- * the smallest axis-aligned displacement that separates them. Splits the push
- * symmetrically (half each). Repeats until no overlaps remain (max 5 passes).
- *
- * Unlike packComponents() which rebuilds layout from scratch, this only nudges
- * overlapping components apart — non-overlapping components get zero shift.
- */
-export function separateOverlappingComponents(
-    components: readonly ComponentSubgraph[],
-): PackResult {
-    if (components.length < 2) {
-        return { shifts: components.map((): { readonly dx: number; readonly dy: number } => ({ dx: 0, dy: 0 })) }
-    }
-
-    const bboxes: readonly Rect[] = components.map(computeComponentBBox)
-    const zeroShifts: readonly Shift[] = Array.from(
-        { length: components.length },
-        (): Shift => ({ dx: 0, dy: 0 }),
-    )
-    const MAX_PASSES: number = 5
-
-    // Iterate passes via reduce with early exit on convergence
-    const result: MtvPassResult = Array.from({ length: MAX_PASSES }).reduce(
-        (state: MtvPassResult): MtvPassResult => {
-            if (state.converged) return state
-            return runMtvPass(bboxes, state.shifts)
-        },
-        { shifts: zeroShifts, converged: false } as MtvPassResult,
-    )
-
-    return { shifts: result.shifts }
-}
-
-// ---- MTV internals ----
-
-interface MtvPassResult {
-    readonly shifts: readonly Shift[]
-    readonly converged: boolean
-}
-
-interface OverlapPair {
-    readonly i: number
-    readonly j: number
-}
-
-interface PairDetectionAcc {
-    readonly index: SpatialIndex
-    readonly pairs: readonly OverlapPair[]
-}
-
-/** Run one pass of MTV overlap detection + resolution. */
-function runMtvPass(
-    bboxes: readonly Rect[],
-    prevShifts: readonly Shift[],
-): MtvPassResult {
-    const shifted: readonly Rect[] = bboxes.map((bb: Rect, i: number): Rect => ({
-        minX: bb.minX + prevShifts[i].dx,
-        minY: bb.minY + prevShifts[i].dy,
-        maxX: bb.maxX + prevShifts[i].dx,
-        maxY: bb.maxY + prevShifts[i].dy,
-    }))
-
-    // Detect overlapping pairs via R-tree insert-then-query
-    const componentIndices: readonly number[] = Array.from({ length: shifted.length }, (_: unknown, k: number): number => k)
-    const detection: PairDetectionAcc = componentIndices.reduce(
-        (acc: PairDetectionAcc, i: number): PairDetectionAcc => {
-            // Pad query rect by SPACING/2 so components end up SPACING apart
-            const padded: Rect = {
-                minX: shifted[i].minX - SPACING / 2,
-                minY: shifted[i].minY - SPACING / 2,
-                maxX: shifted[i].maxX + SPACING / 2,
-                maxY: shifted[i].maxY + SPACING / 2,
-            }
-            const collisions: readonly SpatialNodeEntry[] = queryNodesInRect(acc.index, padded)
-            const newPairs: readonly OverlapPair[] = collisions.map(
-                (hit: SpatialNodeEntry): OverlapPair => ({
-                    i,
-                    j: parseInt(hit.nodeId.slice(5), 10),
-                }),
-            )
-            // Mutate index (intentional: owned by this call stack, same pattern as packComponents)
-            insertNode(acc.index, { nodeId: `comp-${i}`, ...shifted[i] })
-            return { index: acc.index, pairs: [...acc.pairs, ...newPairs] }
-        },
-        { index: createSpatialIndex([], []), pairs: [] },
-    )
-
-    if (detection.pairs.length === 0) {
-        return { shifts: prevShifts, converged: true }
-    }
-
-    // Apply MTVs: reduce over detected pairs, accumulating shift updates immutably
-    const updatedShifts: readonly Shift[] = detection.pairs.reduce(
-        (shifts: readonly Shift[], pair: OverlapPair): readonly Shift[] => {
-            const mtv: Shift = computeMTV(shifted[pair.i], shifted[pair.j], SPACING)
-            return shifts.map((s: Shift, idx: number): Shift => {
-                if (idx === pair.i) return { dx: s.dx + mtv.dx / 2, dy: s.dy + mtv.dy / 2 }
-                if (idx === pair.j) return { dx: s.dx - mtv.dx / 2, dy: s.dy - mtv.dy / 2 }
-                return s
-            })
-        },
-        prevShifts,
-    )
-
-    return { shifts: updatedShifts, converged: false }
-}
-
-/**
- * Compute the Minimum Translation Vector to separate two overlapping rects.
- * Picks the axis with minimum overlap and returns just enough displacement to separate.
- */
-function computeMTV(a: Rect, b: Rect, spacing: number): Shift {
-    const pushRight: number = a.maxX - b.minX + spacing
-    const pushLeft: number = b.maxX - a.minX + spacing
-    const pushDown: number = a.maxY - b.minY + spacing
-    const pushUp: number = b.maxY - a.minY + spacing
-    const min: number = Math.min(pushRight, pushLeft, pushDown, pushUp)
-    if (min === pushRight) return { dx: -pushRight, dy: 0 }
-    if (min === pushLeft) return { dx: pushLeft, dy: 0 }
-    if (min === pushDown) return { dx: 0, dy: -pushDown }
-    return { dx: 0, dy: pushUp }
-}
+export { separateOverlappingComponents } from './separateOverlapping'
 
 // ============================================================================
 // Constants

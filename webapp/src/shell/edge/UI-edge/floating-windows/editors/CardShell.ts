@@ -14,6 +14,7 @@ import {
     registerFloatingWindow,
     unregisterFloatingWindow,
 } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
+import {updateWindowFromZoom} from '@/shell/edge/UI-edge/floating-windows/update-window-from-zoom';
 
 import {type EditorData, vanillaFloatingWindowInstances} from '@/shell/edge/UI-edge/state/UIAppState';
 
@@ -111,6 +112,9 @@ export async function createCardShell(
     const overlay: HTMLElement = getOrCreateOverlay(cy);
     overlay.appendChild(ui.windowElement);
     registerFloatingWindow(editorId, ui.windowElement);
+
+    // Position immediately — don't wait for next syncTransform RAF
+    updateWindowFromZoom(cy, ui.windowElement, cy.zoom());
 
     const shell: CardShellData = {
         nodeId,

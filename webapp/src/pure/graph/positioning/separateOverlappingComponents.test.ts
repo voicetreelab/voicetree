@@ -192,4 +192,88 @@ describe('separateOverlappingComponents', () => {
             expect(gap).toBeGreaterThanOrEqual(SPACING - 1) // 1px float tolerance
         })
     })
+
+    describe('polyomino shape-aware behavior', () => {
+        it('non-overlapping components all get zero shifts', () => {
+            const comps: readonly ComponentSubgraph[] = [
+                makeComponent(0, 0, 100, 100),
+                makeComponent(500, 0, 100, 100),
+                makeComponent(0, 500, 100, 100),
+            ]
+            const result: PackResult = separateOverlappingComponents(comps)
+            result.shifts.forEach((s: { readonly dx: number; readonly dy: number }) => {
+                expect(s.dx).toBe(0)
+                expect(s.dy).toBe(0)
+            })
+        })
+
+        it('overlapping components move less than rebuild-from-scratch would', () => {
+            // Two components with 30px of overlap — BFS nudges by 1 grid cell,
+            // while packComponents teleports both to origin.
+            const comps: readonly ComponentSubgraph[] = [
+                makeComponent(0, 0, 200, 200),
+                makeComponent(170, 0, 200, 200), // 30px overlap
+            ]
+            const separateResult: PackResult = separateOverlappingComponents(comps)
+            const packResult: PackResult = packComponents(comps)
+
+            const sepTotalDist: number = separateResult.shifts.reduce(
+                (sum: number, s: { readonly dx: number; readonly dy: number }): number =>
+                    sum + Math.abs(s.dx) + Math.abs(s.dy),
+                0,
+            )
+            const packTotalDist: number = packResult.shifts.reduce(
+                (sum: number, s: { readonly dx: number; readonly dy: number }): number =>
+                    sum + Math.abs(s.dx) + Math.abs(s.dy),
+                0,
+            )
+            expect(sepTotalDist).toBeLessThan(packTotalDist)
+        })
+
+        it('only overlapping components move, isolated ones stay put', () => {
+            const comps: readonly ComponentSubgraph[] = [
+                makeComponent(0, 0, 200, 200),
+                makeComponent(150, 0, 200, 200), // overlaps comp 0
+                makeComponent(2000, 2000, 100, 100), // isolated
+            ]
+            const result: PackResult = separateOverlappingComponents(comps)
+            expect(result.shifts[2].dx).toBe(0)
+            expect(result.shifts[2].dy).toBe(0)
+            const moved: boolean = result.shifts.slice(0, 2).some(
+                (s: { readonly dx: number; readonly dy: number }): boolean => s.dx !== 0 || s.dy !== 0,
+            )
+            expect(moved).toBe(true)
+        })
+
+        it('three overlapping components are all separated', () => {
+            const comps: readonly ComponentSubgraph[] = [
+                makeComponent(0, 0, 200, 200),
+                makeComponent(100, 0, 200, 200),
+                makeComponent(50, 100, 200, 200),
+            ]
+            const result: PackResult = separateOverlappingComponents(comps)
+            const boxes: readonly BBox[] = comps.map((c: ComponentSubgraph, i: number): BBox =>
+                shiftedBBox(c, result.shifts[i]),
+            )
+            pairwiseIndices(boxes.length).forEach(([i, j]: readonly [number, number]) => {
+                expect(aabbOverlap(boxes[i], boxes[j])).toBe(false)
+            })
+        })
+
+        it('shape-aware: edge endpoints included in separation check', () => {
+            // Component with a small node but a long edge reaching (300,300)
+            const compWithEdge: ComponentSubgraph = {
+                nodes: [{ x: 50, y: 50, width: 20, height: 20 }],
+                edges: [{ startX: 50, startY: 50, endX: 300, endY: 300 }],
+            }
+            // Component that overlaps only the edge region, not the node
+            const compOverlappingEdge: ComponentSubgraph = makeComponent(200, 200, 100, 100)
+
+            const result: PackResult = separateOverlappingComponents([compWithEdge, compOverlappingEdge])
+            const boxes: readonly BBox[] = [compWithEdge, compOverlappingEdge].map(
+                (c: ComponentSubgraph, i: number): BBox => shiftedBBox(c, result.shifts[i]),
+            )
+            expect(aabbOverlap(boxes[0], boxes[1])).toBe(false)
+        })
+    })
 })

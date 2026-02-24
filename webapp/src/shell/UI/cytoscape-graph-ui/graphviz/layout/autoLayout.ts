@@ -160,12 +160,14 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
           width: n.outerWidth(),
           height: n.outerHeight(),
         })),
-        edges: comp.edges().map((e: EdgeSingular) => ({
-          startX: e.sourceEndpoint().x,
-          startY: e.sourceEndpoint().y,
-          endX: e.targetEndpoint().x,
-          endY: e.targetEndpoint().y,
-        })),
+        edges: comp.edges()
+          .filter((e: EdgeSingular): boolean => e.sourceEndpoint() != null && e.targetEndpoint() != null)
+          .map((e: EdgeSingular) => ({
+            startX: e.sourceEndpoint().x,
+            startY: e.sourceEndpoint().y,
+            endX: e.targetEndpoint().x,
+            endY: e.targetEndpoint().y,
+          })),
       }));
 
       const { shifts } = packComponents(subgraphs);
@@ -241,10 +243,12 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
                   x: n.position('x'), y: n.position('y'),
                   width: n.outerWidth(), height: n.outerHeight(),
                 })),
-                edges: comp.edges().map((e: EdgeSingular) => ({
-                  startX: e.sourceEndpoint().x, startY: e.sourceEndpoint().y,
-                  endX: e.targetEndpoint().x, endY: e.targetEndpoint().y,
-                })),
+                edges: comp.edges()
+                  .filter((e: EdgeSingular): boolean => e.sourceEndpoint() != null && e.targetEndpoint() != null)
+                  .map((e: EdgeSingular) => ({
+                    startX: e.sourceEndpoint().x, startY: e.sourceEndpoint().y,
+                    endX: e.targetEndpoint().x, endY: e.targetEndpoint().y,
+                  })),
               })
             );
             if (componentsOverlap(subgraphs)) {
