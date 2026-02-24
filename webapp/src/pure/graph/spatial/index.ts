@@ -4,6 +4,7 @@ export {
     queryEdgesInRect,
     hasNodeCollision,
     hasEdgeCollision,
+    hasGraphCollision,
     findObstacles,
     insertNode,
     removeNode,

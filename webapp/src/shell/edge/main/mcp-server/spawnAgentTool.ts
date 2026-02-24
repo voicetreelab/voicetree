@@ -7,6 +7,9 @@ import * as O from 'fp-ts/lib/Option.js'
 import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath, Position} from '@/pure/graph'
 import {findBestMatchingNode} from '@/pure/graph/markdown-parsing/extract-edges'
 import {createTaskNode} from '@/pure/graph/graph-operations/createTaskNode'
+import {calculateNodePosition} from '@/pure/graph/positioning/calculateInitialPosition'
+import {buildSpatialIndexFromGraph} from '@/pure/graph/positioning/spatialAdapters'
+import type {SpatialIndex} from '@/pure/graph/spatial'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange'
@@ -101,14 +104,9 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, details, p
             }, true)
         }
 
-        const parentNode: GraphNode = graph.nodes[resolvedParentId]
-
-        // Compute position near parent node
-        const parentPosition: Position = O.getOrElse(() => ({x: 0, y: 0}))(parentNode.nodeUIMetadata.position)
-        const taskNodePosition: Position = {
-            x: parentPosition.x + 200,
-            y: parentPosition.y + 100
-        }
+        // Compute position near parent node using unified collision-aware placement
+        const spatialIndex: SpatialIndex = buildSpatialIndexFromGraph(graph)
+        const taskNodePosition: Position = O.getOrElse(() => ({x: 0, y: 0}))(calculateNodePosition(graph, spatialIndex, resolvedParentId))
 
         // Build task description: title with optional details
         const taskDescription: string = details ? `${task}\n\n${details}` : task
