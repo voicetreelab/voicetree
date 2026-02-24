@@ -30,6 +30,8 @@ import {
 } from "@/shell/edge/UI-edge/floating-windows/editors/modifyNodeContentFromFloatingEditor";
 import {markNodeDirty} from "@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout";
 import {screenToGraphDimensions, type ScalingStrategy} from "@/pure/graph/floating-windows/floatingWindowScaling";
+import {getCyInstance} from "@/shell/edge/UI-edge/state/cytoscape-state";
+import {CIRCLE_SIZE} from "@/pure/graph/node-presentation/types";
 
 import { contentAfterTitle, stripMarkdownFormatting } from '@/pure/graph/markdown-parsing/markdown-to-title';
 import {setupAutoHeight} from "@/shell/edge/UI-edge/floating-windows/editors/SetupAutoHeight";
@@ -106,6 +108,9 @@ export async function createCardShell(
         cardMode: { title, preview },
         agents: settings.agents ?? [],
         currentDistance: settings.contextNodeMaxDistance ?? 5,
+        closeEditor: (): void => {
+            destroyCardShell(nodeId);
+        },
     });
 
     const editorWithUI: EditorData = { ...editorData, ui };
@@ -205,11 +210,33 @@ export function destroyCardShell(nodeId: string): void {
         shell.menuCleanup();
     }
 
+    // Remove from EditorStore if pinned
+    if (shell.isPinned) {
+        removeEditorFromStore(shell.editorId);
+    }
+
     // Remove DOM
     shell.windowElement.remove();
 
     // Unregister from floatingWindowsMap (zoom/pan sync)
     unregisterFloatingWindow(shell.editorId);
+
+    // Restore Cy node to visible circle (shell hid it on creation/pin)
+    try {
+        const cy: Core = getCyInstance();
+        const cyNode: import('cytoscape').CollectionReturnValue = cy.getElementById(nodeId);
+        if (cyNode.length > 0) {
+            cyNode.style({
+                'opacity': 1,
+                'width': CIRCLE_SIZE,
+                'height': CIRCLE_SIZE,
+                'events': 'yes',
+            } as Record<string, unknown>);
+            markNodeDirty(cy, nodeId);
+        }
+    } catch {
+        // Graph may be disposed during cleanup
+    }
 
     // Remove from shell registry
     activeCardShells.delete(nodeId);

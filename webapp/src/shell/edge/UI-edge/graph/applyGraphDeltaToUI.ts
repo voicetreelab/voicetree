@@ -13,7 +13,7 @@ import {getEditorByNodeId} from "@/shell/edge/UI-edge/state/EditorStore";
 import {scheduleIdleWork} from "@/utils/scheduleIdleWork";
 import {getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {getShadowNodeId, getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
-import {pinCardShell} from "@/shell/edge/UI-edge/floating-windows/editors/CardShell";
+import {pinCardShell, destroyCardShell} from "@/shell/edge/UI-edge/floating-windows/editors/CardShell";
 
 /**
  * Validates if a color value is a valid CSS color using the browser's CSS.supports API
@@ -57,6 +57,11 @@ function generateVaultColor(vaultPrefix: string): string | undefined {
 
     return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
 }
+
+// Track the latest auto-pinned node so rapid sequential deltas
+// (e.g. create_graph creating nodes one-by-one) only keep the LAST one pinned.
+// Each async pinCardShell checks this on completion — if superseded, it self-destructs.
+let currentAutoPinNodeId: string | null = null;
 
 export interface ApplyGraphDeltaResult {
     newNodeIds: string[];
@@ -294,12 +299,25 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
 
     // Auto-pin the LAST new non-context, non-image node only.
     // Only one auto-pin per delta — avoids mass-pinning on initial load.
+    // When rapid sequential deltas arrive (e.g. create_graph one-node-at-a-time),
+    // each pinCardShell checks currentAutoPinNodeId on completion and self-destructs
+    // if a newer auto-pin has superseded it.
     const lastEligible: string | undefined = [...newNodeIds].reverse().find((id: string): boolean => {
         const n: CollectionReturnValue = cy.getElementById(id);
         return n.length > 0 && !n.data('isContextNode') && !isImageNode(id as NodeIdAndFilePath);
     });
     if (lastEligible) {
-        void pinCardShell(cy, lastEligible as NodeIdAndFilePath);
+        currentAutoPinNodeId = lastEligible;
+        void pinCardShell(cy, lastEligible as NodeIdAndFilePath).then((): void => {
+            // If a newer auto-pin arrived while we were async, this one is stale
+            if (currentAutoPinNodeId !== lastEligible) {
+                destroyCardShell(lastEligible);
+                const evictedCyNode: CollectionReturnValue = cy.getElementById(lastEligible);
+                if (evictedCyNode.length > 0) {
+                    evictedCyNode.style({ 'opacity': 1, 'events': 'yes' } as Record<string, unknown>);
+                }
+            }
+        });
     }
 
     // Defer non-critical analytics and engagement prompts to idle time
