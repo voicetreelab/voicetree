@@ -134,11 +134,15 @@ function TreeNode({ treeNode, isActive, shortcutHint, onSelect }: TreeNodeProps)
 
     const handleClose: (e: React.MouseEvent) => void = useCallback((e: React.MouseEvent): void => {
         e.stopPropagation();
+        if (terminal.isHeadless) {
+            void window.electronAPI?.terminal.kill(terminalId);
+            return;
+        }
         const terminalElement: Element | null = document.querySelector(`[data-floating-window-id="${terminalId}"]`);
         if (terminalElement) {
             terminalElement.dispatchEvent(new CustomEvent('traffic-light-close', { bubbles: true }));
         }
-    }, [terminalId]);
+    }, [terminalId, terminal.isHeadless]);
 
     const handleMouseDown: (e: React.MouseEvent) => void = useCallback((e: React.MouseEvent): void => {
         e.stopPropagation();
@@ -154,7 +158,7 @@ function TreeNode({ treeNode, isActive, shortcutHint, onSelect }: TreeNodeProps)
 
     return (
         <div
-            className={`terminal-tree-node${isActive ? ' active' : ''}`}
+            className={`terminal-tree-node${isActive ? ' active' : ''}${terminal.isHeadless ? ' headless' : ''}`}
             data-depth={depth}
             data-terminal-id={terminalId}
             onClick={handleClick}
@@ -206,11 +210,7 @@ function TerminalTreeSidebarInternal({ onNavigate }: SidebarInternalProps): JSX.
     const sidebarRef: React.RefObject<HTMLDivElement | null> = useRef<HTMLDivElement | null>(null);
     const resizeHandleRef: React.RefObject<HTMLDivElement | null> = useResizeHandle(sidebarRef);
 
-    // Filter out headless agents — they have no floating window, shown as badge overlay instead
-    const terminals: TerminalData[] = useMemo(
-        () => allTerminals.filter((t: TerminalData) => !t.isHeadless),
-        [allTerminals]
-    );
+    const terminals: TerminalData[] = allTerminals;
 
     // Start/stop activity polling with component lifecycle
     useEffect(() => {
@@ -236,7 +236,7 @@ function TerminalTreeSidebarInternal({ onNavigate }: SidebarInternalProps): JSX.
     const totalTabs: number = displayOrder.length;
 
     const handleSelect: (terminal: TerminalData) => void = useCallback((terminal: TerminalData): void => {
-        if (terminal.isMinimized) {
+        if (!terminal.isHeadless && terminal.isMinimized) {
             restoreTerminal(getTerminalId(terminal));
         }
         clearActivityForTerminal(getTerminalId(terminal));

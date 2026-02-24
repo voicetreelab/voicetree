@@ -83,6 +83,20 @@
     box-shadow: inset 2px 0 0 rgba(255, 200, 80, 0.7);
 }
 
+/* Headless agent styling - subtle distinction from interactive terminals */
+.terminal-tree-node.headless {
+    border-style: dashed;
+    opacity: 0.7;
+}
+
+.terminal-tree-node.headless:hover {
+    opacity: 0.9;
+}
+
+.terminal-tree-node.headless.active {
+    opacity: 0.85;
+}
+
 /* Depth indentation - accounts for margin */
 .terminal-tree-node[data-depth="1"] { margin-left: 18px; }
 .terminal-tree-node[data-depth="2"] { margin-left: 30px; }
