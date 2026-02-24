@@ -18,53 +18,71 @@ export function getNHopNeighborhood(roots: CollectionReturnValue, hops: number):
 }
 
 /**
- * Compute hybrid topology+spatial neighborhood for local Cola layout.
+ * Hop-by-hop BFS expansion with a hard cap on result size.
+ * If any hop expansion exceeds maxNodes, trims to the closest nodes
+ * by distance from the roots' centroid (roots are always kept).
+ */
+export function cappedBfsNeighborhood(
+  roots: CollectionReturnValue,
+  maxHops: number,
+  maxNodes: number
+): CollectionReturnValue {
+  let visited: CollectionReturnValue = roots;
+  for (let hop: number = 0; hop < maxHops; hop++) {
+    const expanded: CollectionReturnValue = visited.closedNeighborhood().filter(
+      ele => ele.isNode()
+    );
+    if (expanded.length > maxNodes) {
+      // Trim: keep roots, fill remaining slots by distance from centroid
+      const bb: { x1: number; y1: number; x2: number; y2: number } =
+        roots.boundingBox({ includeLabels: false, includeOverlays: false, includeEdges: false });
+      const cx: number = (bb.x1 + bb.x2) / 2;
+      const cyPos: number = (bb.y1 + bb.y2) / 2;
+      const nonRoots: CollectionReturnValue = expanded.difference(roots);
+      const sorted: CollectionReturnValue = nonRoots.sort((a, b) => {
+        const ap: { x: number; y: number } = (a as NodeSingular).position();
+        const bp: { x: number; y: number } = (b as NodeSingular).position();
+        return ((ap.x - cx) ** 2 + (ap.y - cyPos) ** 2)
+             - ((bp.x - cx) ** 2 + (bp.y - cyPos) ** 2);
+      });
+      return roots.union(sorted.slice(0, Math.max(0, maxNodes - roots.length)));
+    }
+    visited = expanded;
+  }
+  return visited;
+}
+
+/**
+ * Compute capped topology + spatial-only neighborhood for local Cola layout.
  *
- * Run set: 4-hop topology (Cola needs edges for force computation).
- * Pin set: 6-hop topology boundary ∪ spatially nearby nodes from R-tree query.
- * Both topology and spatial pin sets are capped at MAX_PINS each (sorted by
- * distance from run-set centroid) to bound Cola's O(n²) iteration cost.
+ * Run set: 2-hop BFS capped at 50 (hard O(n²) bound for Cola).
+ * Pin set: spatially nearby nodes from R-tree query only (no topology pins).
+ * Spatial pins capped at MAX_PINS sorted by distance from run-set centroid.
  */
 export function getLocalNeighborhood(
   cy: Core,
   newNodes: CollectionReturnValue,
   spatialIndex: SpatialIndex | undefined
 ): { runNodes: CollectionReturnValue; pinNodes: CollectionReturnValue } {
+  const MAX_RUN_NODES: number = 50;
   const MAX_PINS: number = 30;
 
-  // Run set: 4-hop topology, filtered for non-context nodes (Cola needs edge structure)
-  const runNodes: CollectionReturnValue = getNHopNeighborhood(newNodes, 4).filter(
-    ele => !ele.data('isContextNode')
-  );
+  // Run set: 2-hop BFS, capped at 50, non-context only
+  const runNodes: CollectionReturnValue = cappedBfsNeighborhood(newNodes, 2, MAX_RUN_NODES)
+    .filter(ele => !ele.data('isContextNode'));
 
-  // Topology pins: hop 5-6 boundary anchors
-  const allTopologyNodes: CollectionReturnValue = getNHopNeighborhood(newNodes, 6).filter(
-    ele => !ele.data('isContextNode')
-  );
-  let pinNodes: CollectionReturnValue = allTopologyNodes.difference(runNodes);
-
-  // Compute run-set bounding box centroid (reused for topology cap + spatial query)
   if (runNodes.length === 0) {
-    return { runNodes, pinNodes };
-  }
-  const bb: { x1: number; y1: number; x2: number; y2: number } = runNodes.boundingBox({
-    includeLabels: false, includeOverlays: false, includeEdges: false
-  });
-  const centroidX: number = (bb.x1 + bb.x2) / 2;
-  const centroidY: number = (bb.y1 + bb.y2) / 2;
-
-  // Cap topology pins at MAX_PINS, keeping closest to run-set centroid
-  if (pinNodes.length > MAX_PINS) {
-    pinNodes = pinNodes.sort((a, b) => {
-      const aPos: { x: number; y: number } = (a as NodeSingular).position();
-      const bPos: { x: number; y: number } = (b as NodeSingular).position();
-      return ((aPos.x - centroidX) ** 2 + (aPos.y - centroidY) ** 2)
-           - ((bPos.x - centroidX) ** 2 + (bPos.y - centroidY) ** 2);
-    }).slice(0, MAX_PINS);
+    return { runNodes, pinNodes: cy.collection() };
   }
 
-  // Spatial augmentation: merge nearby nodes from R-tree when index available
+  // Pin set: spatial R-tree query only (no topology pins)
+  let pinNodes: CollectionReturnValue = cy.collection();
+
   if (spatialIndex) {
+    const bb: { x1: number; y1: number; x2: number; y2: number } =
+      runNodes.boundingBox({ includeLabels: false, includeOverlays: false, includeEdges: false });
+    const centroidX: number = (bb.x1 + bb.x2) / 2;
+    const centroidY: number = (bb.y1 + bb.y2) / 2;
     const halfDiag: number = Math.sqrt((bb.x2 - bb.x1) ** 2 + (bb.y2 - bb.y1) ** 2) / 2;
     const searchRadius: number = halfDiag + DEFAULT_EDGE_LENGTH * 3;
 
@@ -76,18 +94,16 @@ export function getLocalNeighborhood(
     };
 
     const nearbyEntries: readonly SpatialNodeEntry[] = queryNodesInRect(spatialIndex, searchRect);
-
-    // Sort by distance from centroid, closest first; cap at MAX_PINS new spatial pins
-    const sortedEntries: SpatialNodeEntry[] = [...nearbyEntries].sort((a, b) => {
-      return (((a.minX + a.maxX) / 2 - centroidX) ** 2 + ((a.minY + a.maxY) / 2 - centroidY) ** 2)
-           - (((b.minX + b.maxX) / 2 - centroidX) ** 2 + ((b.minY + b.maxY) / 2 - centroidY) ** 2);
-    });
+    const sortedEntries: SpatialNodeEntry[] = [...nearbyEntries].sort((a, b) =>
+      (((a.minX + a.maxX) / 2 - centroidX) ** 2 + ((a.minY + a.maxY) / 2 - centroidY) ** 2)
+      - (((b.minX + b.maxX) / 2 - centroidX) ** 2 + ((b.minY + b.maxY) / 2 - centroidY) ** 2));
 
     let spatialPinCount: number = 0;
     for (const entry of sortedEntries) {
       if (spatialPinCount >= MAX_PINS) break;
       const node: CollectionReturnValue = cy.getElementById(entry.nodeId);
-      if (node.length > 0 && !runNodes.contains(node) && !pinNodes.contains(node) && !node.data('isContextNode')) {
+      if (node.length > 0 && !runNodes.contains(node)
+          && !pinNodes.contains(node) && !node.data('isContextNode')) {
         pinNodes = pinNodes.merge(node);
         spatialPinCount++;
       }

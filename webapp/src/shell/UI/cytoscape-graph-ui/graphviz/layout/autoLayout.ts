@@ -6,7 +6,7 @@
  *   R-tree pack (component separation) → Cola (positioning + refinement) → animated cy.fit()
  * - Small removal (≤7 nodes): skip layout (positions already stable)
  * - Incremental (batch-added nodes <30% of graph):
- *   Local Cola on 4-hop neighborhood of new nodes (6-hop pinned boundary)
+ *   R-tree pack → Local Cola on 2-hop capped-50 neighborhood (spatial pinned boundary)
  * - Batch (>30% new): skip (too many nodes for local Cola)
  *
  * Cola handles all layout. Our R-tree packComponents() handles disconnected component
@@ -25,6 +25,7 @@ import ColaLayout from './cola';
 import { packComponents } from '@/pure/graph/positioning/packComponents';
 import type { ComponentSubgraph } from '@/pure/graph/positioning/packComponents';
 import { runLocalCola } from './autoLayoutLocalCola';
+import { refreshSpatialIndex } from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
 import { panToTrackedNode, clearPendingPan } from '@/shell/edge/UI-edge/state/PendingPanStore';
@@ -157,8 +158,8 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
         nodes: comp.nodes().map((n: NodeSingular) => ({
           x: n.position('x'),
           y: n.position('y'),
-          width: n.width(),
-          height: n.height(),
+          width: n.outerWidth(),
+          height: n.outerHeight(),
         })),
         edges: comp.edges().map((e: EdgeSingular) => ({
           startX: e.sourceEndpoint().x,
@@ -228,8 +229,31 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
         hasRunInitialLayout = true;
         runFullUltimateLayout();
       } else if (newNodeIds.size > 0 && newNodeIds.size < totalNodes * 0.3) {
-        // Incremental: local Cola on neighborhood of new nodes
-        runLocalCola(cy, newNodeIds, currentConfig.cola, onLayoutComplete, runColaLayout);
+        // Incremental: pack disconnected components, then local fast Cola
+        const components: CollectionReturnValue[] = getNonContextElements().components();
+        if (components.length > 1) {
+          const subgraphs: ComponentSubgraph[] = components.map(
+            (comp: CollectionReturnValue): ComponentSubgraph => ({
+              nodes: comp.nodes().map((n: NodeSingular) => ({
+                x: n.position('x'), y: n.position('y'),
+                width: n.outerWidth(), height: n.outerHeight(),
+              })),
+              edges: comp.edges().map((e: EdgeSingular) => ({
+                startX: e.sourceEndpoint().x, startY: e.sourceEndpoint().y,
+                endX: e.targetEndpoint().x, endY: e.targetEndpoint().y,
+              })),
+            })
+          );
+          const { shifts } = packComponents(subgraphs);
+          components.forEach((comp: CollectionReturnValue, i: number): void => {
+            const shift: { readonly dx: number; readonly dy: number } | undefined = shifts[i];
+            if (shift && (shift.dx !== 0 || shift.dy !== 0)) {
+              comp.nodes().shift({ x: shift.dx, y: shift.dy });
+            }
+          });
+        }
+        refreshSpatialIndex(cy);
+        runLocalCola(cy, newNodeIds, currentConfig.cola, onLayoutComplete);
       } else if (newNodeIds.size === 0) {
         if (removedNodeCount > 7) {
           // Large removal (>7 nodes): full ultimate layout to rebalance
