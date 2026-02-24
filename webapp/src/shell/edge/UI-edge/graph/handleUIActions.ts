@@ -22,6 +22,7 @@ import * as O from 'fp-ts/lib/Option.js';
 import {calculateNodePosition} from "@/pure/graph/positioning/calculateInitialPosition";
 import {buildSpatialIndexFromGraph} from "@/pure/graph/positioning/spatialAdapters";
 import type {SpatialIndex} from "@/pure/graph/spatial";
+import {requestAutoPinOnCreation} from "@/shell/edge/UI-edge/graph/applyGraphDeltaToUI";
 
 /**
  * Merges new metadata with old metadata, preferring new values when they are "present".
@@ -67,6 +68,10 @@ export async function createNewChildNodeFromUI(
     // This ensures parent editor gets the wikilink before FS write (which will be skipped on read-back)
     updateFloatingEditors(cy, graphDelta);
 
+    // Register pending auto-pin so the new node opens in edit mode
+    // when applyGraphDeltaToUI processes the delta from the IPC broadcast
+    requestAutoPinOnCreation(newNode.absoluteFilePathIsID);
+
     await window.electronAPI?.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed(graphDelta);
 
     return newNode.absoluteFilePathIsID;
@@ -87,6 +92,9 @@ export async function createNewEmptyOrphanNodeFromUI(
     }
 
     const {newNode, graphDelta} = createNewNodeNoParent(pos, writePath, currentGraph);
+
+    // Register pending auto-pin so the new node opens in edit mode
+    requestAutoPinOnCreation(newNode.absoluteFilePathIsID);
 
     await window.electronAPI?.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed(graphDelta);
 

@@ -9,7 +9,7 @@
  * On completion, unlocks pins and chains to onComplete.
  */
 
-import type { Core, NodeSingular, CollectionReturnValue } from 'cytoscape';
+import type { Core, NodeSingular, EdgeSingular, CollectionReturnValue } from 'cytoscape';
 import { computeColaAndAnimate } from './computeColaAndAnimate';
 import { refreshSpatialIndex, getCurrentIndex } from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
 import { findObstacles } from '@/pure/graph/spatial';
@@ -17,6 +17,8 @@ import type { SpatialIndex, SpatialNodeEntry, SpatialEdgeEntry } from '@/pure/gr
 import type { AutoLayoutOptions } from './autoLayoutTypes';
 import { DEFAULT_OPTIONS, COLA_FAST_ANIMATE_DURATION } from './autoLayoutTypes';
 import { getLocalNeighborhood } from './autoLayoutNeighborhood';
+import { componentsOverlap, separateOverlappingComponents } from '@/pure/graph/positioning/packComponents';
+import type { ComponentSubgraph } from '@/pure/graph/positioning/packComponents';
 
 /**
  * Run Cola on the local neighborhood of newly added nodes.
@@ -78,6 +80,41 @@ export function runLocalCola(
   }, runNodes, COLA_FAST_ANIMATE_DURATION, () => {
     pinNodes.unlock();
     refreshSpatialIndex(cy);
+
+    // Coarse pass: separate overlapping disconnected components first.
+    // This moves whole components cleanly before the fine-grained push loop,
+    // so individual node pushes don't scatter nodes that should move together.
+    const nonContextEles: CollectionReturnValue = cy.elements().filter(ele => {
+      if (ele.isNode()) return !ele.data('isContextNode');
+      return !ele.source().data('isContextNode') && !ele.target().data('isContextNode');
+    });
+    const components: CollectionReturnValue[] = nonContextEles.components();
+    if (components.length > 1) {
+      const subgraphs: ComponentSubgraph[] = components.map(
+        (comp: CollectionReturnValue): ComponentSubgraph => ({
+          nodes: comp.nodes().map((n: NodeSingular) => ({
+            x: n.position('x'), y: n.position('y'),
+            width: n.outerWidth(), height: n.outerHeight(),
+          })),
+          edges: comp.edges()
+            .filter((e: EdgeSingular): boolean => e.sourceEndpoint() != null && e.targetEndpoint() != null)
+            .map((e: EdgeSingular) => ({
+              startX: e.sourceEndpoint().x, startY: e.sourceEndpoint().y,
+              endX: e.targetEndpoint().x, endY: e.targetEndpoint().y,
+            })),
+        })
+      );
+      if (componentsOverlap(subgraphs)) {
+        const { shifts } = separateOverlappingComponents(subgraphs);
+        components.forEach((comp: CollectionReturnValue, i: number): void => {
+          const shift: { readonly dx: number; readonly dy: number } | undefined = shifts[i];
+          if (shift && (shift.dx !== 0 || shift.dy !== 0)) {
+            comp.nodes().shift({ x: shift.dx, y: shift.dy });
+          }
+        });
+        refreshSpatialIndex(cy);
+      }
+    }
 
     // Post-Cola overlap resolution: multi-pass (max 3 iterations).
     // Cola only avoids overlaps within its subgraph. Run-set nodes may overlap

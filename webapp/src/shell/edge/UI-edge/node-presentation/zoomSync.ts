@@ -16,7 +16,7 @@ let visibleCardNodes: Set<string> = new Set();
 const pendingCreation: Set<string> = new Set();
 
 /**
- * Mount a card shell for a node: hide Cy circle, create DOM-only shell.
+ * Mount a card shell for a node. Card shell sits on top of the Cy circle as a DOM overlay.
  * Idempotent: skips if shell exists OR creation is already in flight.
  */
 function mountShellForNode(cy: Core, nodeId: string): void {
@@ -30,8 +30,7 @@ function mountShellForNode(cy: Core, nodeId: string): void {
     const content: string = (cyNode.data('content') as string | undefined) ?? '';
     const preview: string = stripMarkdownFormatting(contentAfterTitle(content)).trim().replace(/\s+/g, ' ').slice(0, 150);
 
-    // Create shell async — hide Cy circle only AFTER shell is visible
-    // (hiding before shell creation causes nodes to disappear during IPC gap)
+    // Create shell async — hide Cy circle so its label doesn't show through the card overlay
     void createCardShell(cy, nodeId as NodeIdAndFilePath, title, preview)
         .then((): void => {
             cyNode.style({ 'opacity': 0, 'events': 'no' } as Record<string, unknown>);
@@ -42,17 +41,19 @@ function mountShellForNode(cy: Core, nodeId: string): void {
 }
 
 /**
- * Restore a Cy node to its default visible circle state.
+ * Restore a Cy node's dimensions to default circle size.
  * Called when leaving card zone or when a node exits the viewport during pan.
+ * (Pinned shells may have enlarged the Cy node for layout — this resets it.)
  */
 function restoreCyNode(cy: Core, nodeId: string): void {
     const cyNode: CollectionReturnValue = cy.getElementById(nodeId);
     if (cyNode.length > 0) {
         cyNode.style({
             'opacity': 1,
+            'events': 'yes',
             'width': CIRCLE_SIZE,
             'height': CIRCLE_SIZE,
-            'events': 'yes',
+            'shape': 'ellipse',
         } as Record<string, unknown>);
     }
 }
@@ -72,7 +73,7 @@ export function updateAllFromZoom(cy: Core, zoom: number): void {
 
     if (effectiveZone !== previousEffective) {
         if (effectiveZone === 'card') {
-            // Entering card zone — create shells for visible nodes, hide Cy circles
+            // Entering card zone — create shells for visible nodes
             const index: SpatialIndex | undefined = getCurrentIndex(cy);
             if (index) {
                 const visibleIds: string[] = getVisibleNodeIds(cy, index);
@@ -82,7 +83,7 @@ export function updateAllFromZoom(cy: Core, zoom: number): void {
                 visibleCardNodes = new Set(visibleIds);
             }
         } else {
-            // Leaving card zone — destroy unpinned shells, restore Cy circles
+            // Leaving card zone — destroy unpinned shells, reset Cy node dimensions
             // Pinned shells survive zone transitions (user explicitly pinned them)
             // Snapshot keys to avoid mutating map during iteration
             for (const nodeId of [...activeCardShells.keys()]) {

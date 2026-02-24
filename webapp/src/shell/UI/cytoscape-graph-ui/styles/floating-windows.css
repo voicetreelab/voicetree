@@ -149,6 +149,10 @@
   display: none;
 }
 
+.mode-card .cy-floating-window-expand-corner {
+  display: none;
+}
+
 .mode-card .cy-floating-window-card-header {
   display: block;
 }

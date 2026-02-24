@@ -221,18 +221,21 @@ export function destroyCardShell(nodeId: string): void {
     // Unregister from floatingWindowsMap (zoom/pan sync)
     unregisterFloatingWindow(shell.editorId);
 
-    // Restore Cy node to visible circle (shell hid it on creation/pin)
+    // Restore Cy node visibility (circle was hidden so label doesn't bleed through)
     try {
         const cy: Core = getCyInstance();
         const cyNode: import('cytoscape').CollectionReturnValue = cy.getElementById(nodeId);
         if (cyNode.length > 0) {
             cyNode.style({
                 'opacity': 1,
+                'events': 'yes',
                 'width': CIRCLE_SIZE,
                 'height': CIRCLE_SIZE,
-                'events': 'yes',
-            } as Record<string, unknown>);
-            markNodeDirty(cy, nodeId);
+                'shape': 'ellipse',
+            });
+            if (shell.isPinned) {
+                markNodeDirty(cy, nodeId);
+            }
         }
     } catch {
         // Graph may be disposed during cleanup
@@ -336,6 +339,13 @@ function wireShellHoverEvents(shell: CardShellData, cy: Core): void {
         pinShell(shell, cy);
     });
 
+    // Expand button in hover-edit mode → pin (same action as double-click)
+    windowElement.addEventListener('expand-button-pin-request', (): void => {
+        if (!shell.isPinned) {
+            pinShell(shell, cy);
+        }
+    });
+
     // Escape → unpin, return to card mode
     windowElement.addEventListener('keydown', (e: KeyboardEvent): void => {
         if (e.key === 'Escape' && shell.isPinned) {
@@ -344,6 +354,11 @@ function wireShellHoverEvents(shell: CardShellData, cy: Core): void {
             windowElement.classList.add('mode-card');
             setCardModeDimensions(windowElement, CARD_DIMENSIONS);
             syncCyNodeSize(cy, shell.nodeId, windowElement);
+            // Restore shape to ellipse (circle still hidden — card shell covers it)
+            const cyNode: import('cytoscape').CollectionReturnValue = cy.getElementById(shell.nodeId);
+            if (cyNode.length > 0) {
+                cyNode.style({ 'shape': 'ellipse' } as Record<string, unknown>);
+            }
             removeEditorFromStore(shell.editorId);
         }
     });
@@ -359,6 +374,11 @@ function wireShellHoverEvents(shell: CardShellData, cy: Core): void {
  */
 function pinShell(shell: CardShellData, cy: Core): void {
     shell.isPinned = true;
+    // Hide circle (label bleeds through) and change shape to rectangle for correct layout bbox
+    const cyNode: import('cytoscape').CollectionReturnValue = cy.getElementById(shell.nodeId);
+    if (cyNode.length > 0) {
+        cyNode.style({ 'opacity': 0, 'events': 'no', 'shape': 'rectangle' } as Record<string, unknown>);
+    }
     void mountCM6IntoShell(shell, cy).then((): void => {
         shell.windowElement.classList.remove('mode-card', 'mode-edit');
         shell.windowElement.classList.add('mode-pinned');
@@ -398,8 +418,17 @@ export async function pinCardShell(cy: Core, nodeId: NodeIdAndFilePath): Promise
     const content: string = (cyNode.data('content') as string | undefined) ?? '';
     const preview: string = stripMarkdownFormatting(contentAfterTitle(content)).trim().replace(/\s+/g, ' ').slice(0, 150);
 
-    // Hide Cy circle (shell replaces it visually)
-    cyNode.style({ 'opacity': 0, 'events': 'no' } as Record<string, unknown>);
+    // Set Cy node dimensions immediately for layout, hide circle (label shows through otherwise),
+    // and change shape to rectangle for correct layout bbox.
+    // syncCyNodeSize in pinShell will refine width/height based on actual rendered size after async mount
+    cyNode.style({
+        'width': PINNED_DIMENSIONS.width,
+        'height': PINNED_DIMENSIONS.height,
+        'opacity': 0,
+        'events': 'no',
+        'shape': 'rectangle',
+    });
+    markNodeDirty(cy, nodeId);
 
     const shell: CardShellData = await createCardShell(cy, nodeId, title, preview);
     pinShell(shell, cy);

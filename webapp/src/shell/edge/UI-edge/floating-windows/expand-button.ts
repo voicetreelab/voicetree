@@ -35,9 +35,15 @@ export function createExpandButton(
     initialIcon.setAttribute('height', '16');
     button.appendChild(initialIcon);
 
-    // Click handler for expand/minimize toggle
+    // Click handler: in hover-edit mode, request pinning; in pinned mode, expand/minimize toggle
     button.addEventListener('click', (e: MouseEvent): void => {
         e.stopPropagation();
+
+        // In hover-edit mode, the expand button triggers pinning (same action as double-click)
+        if (windowElement.classList.contains('mode-edit')) {
+            windowElement.dispatchEvent(new CustomEvent('expand-button-pin-request', { bubbles: false }));
+            return;
+        }
 
         const isExpanded: boolean = windowElement.dataset.expanded === 'true';
         // Get current actual dimensions (accounts for zoom scaling, user resizes, etc.)

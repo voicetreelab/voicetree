@@ -10,7 +10,8 @@
  */
 
 import * as O from 'fp-ts/lib/Option.js'
-import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath, Position} from '@/pure/graph'
+import {applyGraphDeltaToGraph} from '@/pure/graph'
+import type {Graph, GraphDelta, GraphNode, NodeDelta, NodeIdAndFilePath, Position} from '@/pure/graph'
 import {findBestMatchingNode} from '@/pure/graph/markdown-parsing/extract-edges'
 import {ensureUniqueNodeId} from '@/pure/graph/ensureUniqueNodeId'
 import {parseMarkdownToGraphNode} from '@/pure/graph/markdown-parsing/parse-markdown-to-node'
@@ -325,6 +326,10 @@ export async function createGraphTool({
     const allNewNodeIds: NodeIdAndFilePath[] = []
     const results: NodeResult[] = []
 
+    // Snapshot graph once; maintain a local copy for position/wikilink resolution
+    let localGraph: Graph = getGraph()
+    const batchDelta: NodeDelta[] = []
+
     for (const node of sortedNodes) {
         // Determine parent(s) for wikilinks and positioning
         const parentLinks: { baseName: string; edgeLabel: string | undefined }[] = []
@@ -356,10 +361,9 @@ export async function createGraphTool({
             deepestParentPosition = graphParentPosition
         }
 
-        const currentGraph: Graph = getGraph()
-        const spatialIndex: SpatialIndex = buildSpatialIndexFromGraph(currentGraph)
+        const spatialIndex: SpatialIndex = buildSpatialIndexFromGraph(localGraph)
         const nodePosition: Position = O.getOrElse(() => deepestParentPosition)(
-            calculateNodePosition(currentGraph, spatialIndex, deepestParentNodeId)
+            calculateNodePosition(localGraph, spatialIndex, deepestParentNodeId)
         )
 
         // Build markdown with multiple parent wikilinks
@@ -406,7 +410,7 @@ export async function createGraphTool({
         const baseName: string = nodeId.split('/').pop()?.replace(/\.md$/, '') ?? nodeSlug
 
         try {
-            const parsedNode: GraphNode = parseMarkdownToGraphNode(markdownContent, nodeId, currentGraph)
+            const parsedNode: GraphNode = parseMarkdownToGraphNode(markdownContent, nodeId, localGraph)
 
             const progressNode: GraphNode = {
                 absoluteFilePathIsID: nodeId,
@@ -424,7 +428,9 @@ export async function createGraphTool({
                 previousNode: O.none,
             }]
 
-            await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta)
+            // Collect into batch and update local graph for next iteration
+            batchDelta.push(...delta)
+            localGraph = applyGraphDeltaToGraph(localGraph, delta)
 
             allNewNodeIds.push(nodeId)
             createdNodes.set(node.filename, {nodeId, baseName})
@@ -445,6 +451,11 @@ export async function createGraphTool({
                 warning: `Creation failed: ${errorMessage}`,
             })
         }
+    }
+
+    // Apply all collected deltas in a single batch
+    if (batchDelta.length > 0) {
+        await applyGraphDeltaToDBThroughMemAndUIAndEditors(batchDelta)
     }
 
     // Update caller's context node to include all new node IDs

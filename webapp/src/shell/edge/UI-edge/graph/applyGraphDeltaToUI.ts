@@ -1,6 +1,5 @@
 import type {Core, NodeSingular, CollectionReturnValue, EdgeCollection} from "cytoscape";
 import type {GraphDelta, GraphNode, NodeIdAndFilePath} from "@/pure/graph";
-import {isImageNode} from "@/pure/graph";
 import * as O from 'fp-ts/lib/Option.js';
 import {getNodeTitle} from "@/pure/graph/markdown-parsing";
 import {hasActualContentChanged} from "@/pure/graph/contentChangeDetection";
@@ -13,7 +12,7 @@ import {getEditorByNodeId} from "@/shell/edge/UI-edge/state/EditorStore";
 import {scheduleIdleWork} from "@/utils/scheduleIdleWork";
 import {getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {getShadowNodeId, getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
-import {pinCardShell, destroyCardShell} from "@/shell/edge/UI-edge/floating-windows/editors/CardShell";
+import {pinCardShell} from "@/shell/edge/UI-edge/floating-windows/editors/CardShell";
 
 /**
  * Validates if a color value is a valid CSS color using the browser's CSS.supports API
@@ -58,10 +57,19 @@ function generateVaultColor(vaultPrefix: string): string | undefined {
     return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
 }
 
-// Track the latest auto-pinned node so rapid sequential deltas
-// (e.g. create_graph creating nodes one-by-one) only keep the LAST one pinned.
-// Each async pinCardShell checks this on completion — if superseded, it self-destructs.
-let currentAutoPinNodeId: string | null = null;
+// Node IDs that should be auto-pinned when they appear in the next delta.
+// Set by manual UI node creation (Cmd+N, radial menu "Add Child", etc.)
+// so the newly created node opens in edit mode. Consumed on match.
+const pendingManualPinNodeIds: Set<string> = new Set();
+
+/**
+ * Request that a node be auto-pinned (opened as editor) when it next
+ * appears as a new node in applyGraphDeltaToUI. Call BEFORE the IPC
+ * that creates the node, so the pending pin is ready when the delta arrives.
+ */
+export function requestAutoPinOnCreation(nodeId: string): void {
+    pendingManualPinNodeIds.add(nodeId);
+}
 
 export interface ApplyGraphDeltaResult {
     newNodeIds: string[];
@@ -297,27 +305,14 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
     }
     //console.log('[applyGraphDeltaToUI] Complete. Total nodes:', cy.nodes().length, 'Total edges:', cy.edges().length);
 
-    // Auto-pin the LAST new non-context, non-image node only.
-    // Only one auto-pin per delta — avoids mass-pinning on initial load.
-    // When rapid sequential deltas arrive (e.g. create_graph one-node-at-a-time),
-    // each pinCardShell checks currentAutoPinNodeId on completion and self-destructs
-    // if a newer auto-pin has superseded it.
-    const lastEligible: string | undefined = [...newNodeIds].reverse().find((id: string): boolean => {
-        const n: CollectionReturnValue = cy.getElementById(id);
-        return n.length > 0 && !n.data('isContextNode') && !isImageNode(id as NodeIdAndFilePath);
-    });
-    if (lastEligible) {
-        currentAutoPinNodeId = lastEligible;
-        void pinCardShell(cy, lastEligible as NodeIdAndFilePath).then((): void => {
-            // If a newer auto-pin arrived while we were async, this one is stale
-            if (currentAutoPinNodeId !== lastEligible) {
-                destroyCardShell(lastEligible);
-                const evictedCyNode: CollectionReturnValue = cy.getElementById(lastEligible);
-                if (evictedCyNode.length > 0) {
-                    evictedCyNode.style({ 'opacity': 1, 'events': 'yes' } as Record<string, unknown>);
-                }
-            }
-        });
+    // Auto-pin nodes explicitly requested by manual UI creation (Cmd+N, radial menu, etc.)
+    // Only pins nodes registered via requestAutoPinOnCreation() — never bulk/agent/FS-watcher nodes.
+    for (const nodeId of newNodeIds) {
+        if (pendingManualPinNodeIds.has(nodeId)) {
+            pendingManualPinNodeIds.delete(nodeId);
+            void pinCardShell(cy, nodeId as NodeIdAndFilePath);
+            break;
+        }
     }
 
     // Defer non-critical analytics and engagement prompts to idle time
