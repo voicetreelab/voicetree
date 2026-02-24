@@ -147,7 +147,7 @@ VOICETREE_MCP_PORT = $VOICETREE_MCP_PORT
     },
     layoutConfig: JSON.stringify({
         engine: 'cola',
-        // Shared (cola + fcose)
+        // Cola layout options
         nodeSpacing: 120,
         convergenceThreshold: 0.4,
         unconstrIter: 15,
@@ -159,23 +159,5 @@ VOICETREE_MCP_PORT = $VOICETREE_MCP_PORT
         edgeElasticity: 0.45,
         // Cola — static fallback; runtime default uses per-edge function (350 normal / 125 editor)
         edgeLength: 350,
-        // fCOSE (used for initial folder load only)
-        quality: 'default',
-        animate: true,
-        animationDuration: 2500,
-        fit: false,
-        incremental: true,
-        numIter: 2500,
-        initialEnergyOnIncremental: 8,
-        gravity: 0.02,
-        gravityRange: 1.5,
-        gravityCompound: 1.0,
-        gravityRangeCompound: 1.5,
-        nestingFactor: 0.1,
-        nodeRepulsion: 25000,
-        idealEdgeLength: 350,
-        uniformNodeDimensions: false,
-        packComponents: true,
-        coolingFactor: 0.3,
     }, null, 2),
 };

@@ -9,7 +9,7 @@
 
 import {spawn, type ChildProcess} from 'child_process'
 import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
-import {markTerminalExited, recordTerminalSpawn} from '@/shell/edge/main/terminals/terminal-registry'
+import {markTerminalExited, removeTerminalFromRegistry, recordTerminalSpawn} from '@/shell/edge/main/terminals/terminal-registry'
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
 
 // ─── State (functional edge pattern: module-level Maps) ──────────────────────
@@ -69,6 +69,10 @@ export function spawnHeadlessAgent(
         markTerminalExited(terminalId)
         headlessProcesses.delete(terminalId)
         // Note: output buffer intentionally preserved after exit for hover tooltip / read_terminal_output
+
+        // Headless agents can't be resumed (no PTY/terminal UI), so auto-close on exit
+        // removes the zombie entry from the registry instead of leaving it as "exited"
+        removeTerminalFromRegistry(terminalId)
     })
 }
 

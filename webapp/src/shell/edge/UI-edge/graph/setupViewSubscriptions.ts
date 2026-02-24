@@ -84,9 +84,9 @@ export function setupViewSubscriptions(deps: ViewSubscriptionDeps): ViewSubscrip
         document.removeEventListener('vt:request-worktree-delete', handleWorktreeDeleteEvent);
     };
 
-    // Vault path subscription - triggers full fCOSE + Cola layout when folders are added/removed.
+    // Vault path subscription - triggers full R-tree pack + Cola layout when folders are added/removed.
     // When readPaths changes, the graph topology changed substantially (bulk node add/remove),
-    // so we reset the layout to run fCOSE for global positioning followed by Cola refinement.
+    // so we reset the layout to run R-tree packing for global positioning followed by Cola refinement.
     let prevReadPathCount: number = getVaultState().readPaths.length;
     const vaultPathSubscription: () => void = subscribeToVaultPaths((state: VaultPathState) => {
         const newCount: number = state.readPaths.length;

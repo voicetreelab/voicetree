@@ -53,3 +53,23 @@ export function areNodesVisibleInViewport(cy: Core): boolean {
              bb.y2 < extent.y1 || bb.y1 > extent.y2);
   });
 }
+
+/**
+ * Get all non-shadow node IDs visible in the current viewport.
+ * Uses R-tree spatial index for O(log n + k) performance.
+ * Returns empty array if spatial index is not available.
+ */
+export function getVisibleNodeIds(cy: Core, spatialIndex: SpatialIndex): string[] {
+  const extent: BoundingBox = cy.extent();
+  const rect: Rect = {
+    minX: extent.x1,
+    minY: extent.y1,
+    maxX: extent.x2,
+    maxY: extent.y2,
+  };
+  const hits: readonly SpatialNodeEntry[] = queryNodesInRect(spatialIndex, rect);
+  // Filter out shadow nodes
+  return hits
+    .filter(entry => !cy.$id(entry.nodeId).data('isShadowNode'))
+    .map(entry => entry.nodeId);
+}

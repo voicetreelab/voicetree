@@ -59,31 +59,7 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-/* State: HOVER — expanded with editor */
-.node-presentation.state-hover {
-  max-height: none;
-  overflow: visible;
-}
-
-/* State: INLINE_EDIT — CodeMirror mounted inside card */
-.node-presentation.state-inline_edit {
-  max-height: none;
-  overflow: visible;
-  border-color: rgba(100, 180, 255, 0.3);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-  cursor: text;
-}
-
-.node-presentation.state-inline_edit .node-presentation-title,
-.node-presentation.state-inline_edit .node-presentation-preview {
-  display: none;
-}
-
-.node-presentation.state-inline_edit .node-presentation-editor {
-  display: block;
-}
-
-/* Editor container — hidden by default, shown in INLINE_EDIT */
+/* Editor container — hidden by default, shown in CM_CARD/CM_EDIT */
 .node-presentation-editor {
   display: none;
   width: 100%;
@@ -101,16 +77,75 @@
   overflow: auto;
 }
 
-.node-presentation-editor .cm-editor .cm-gutters {
+.node-presentation.state-cm_card .cm-editor .cm-gutters {
   display: none;
 }
 
-/* State: ANCHORED — full persistent editor */
-.node-presentation.state-anchored {
+/* State: CM_CARD — read-only CodeMirror mounted, compact card appearance */
+.node-presentation.state-cm_card .node-presentation-preview {
+  display: none; /* CM replaces preview text */
+}
+
+.node-presentation.state-cm_card .node-presentation-editor {
+  display: block;
+  min-height: 0; /* Override default min-height, let CM size itself */
+}
+
+/* Hide editing chrome in read-only card mode */
+.node-presentation.state-cm_card .cm-editor .cm-cursor,
+.node-presentation.state-cm_card .cm-editor .cm-cursorLayer {
+  display: none;
+}
+
+.node-presentation.state-cm_card .cm-editor .cm-activeLineGutter,
+.node-presentation.state-cm_card .cm-editor .cm-activeLine {
+  background: transparent; /* No active line highlight in read-only */
+}
+
+.node-presentation.state-cm_card .cm-editor .cm-content {
+  pointer-events: none; /* No text selection in card mode */
+  caret-color: transparent; /* Hide caret */
+}
+
+.node-presentation.state-cm_card .cm-editor .cm-selectionLayer .cm-selectionBackground {
+  display: none; /* No selection highlight */
+}
+
+/* Compact scroller — clip to card max-height */
+.node-presentation.state-cm_card .cm-editor .cm-scroller {
+  overflow: hidden; /* No scrollbar in card mode */
+}
+
+/* State: CM_EDIT — editing enabled, card expanded in-place */
+.node-presentation.state-cm_edit {
   max-height: none;
   overflow: visible;
-  border-color: rgba(255, 200, 50, 0.3);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  border-color: rgba(100, 180, 255, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  cursor: text;
+}
+
+.node-presentation.state-cm_edit .node-presentation-title {
+  display: none; /* Title shown in CM content via markdown heading */
+}
+
+.node-presentation.state-cm_edit .node-presentation-preview {
+  display: none;
+}
+
+.node-presentation.state-cm_edit .node-presentation-editor {
+  display: block;
+  min-height: 120px;
+}
+
+/* Restore editing chrome */
+.node-presentation.state-cm_edit .cm-editor .cm-content {
+  pointer-events: auto;
+  caret-color: auto;
+}
+
+.node-presentation.state-cm_edit .cm-editor .cm-scroller {
+  overflow: auto; /* Scrollbar for editing */
 }
 
 /* Pinned indicator */
@@ -136,4 +171,18 @@
 }
 .node-presentation-content-changed {
   animation: node-presentation-content-pulse 1.5s ease-out;
+}
+
+/* Horizontal menu toolbar — hidden in card mode, shown in edit mode */
+.node-presentation-menu {
+  display: none;
+  flex-direction: row;
+  align-items: center;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.node-presentation.state-cm_edit .node-presentation-menu {
+  display: flex;
 }

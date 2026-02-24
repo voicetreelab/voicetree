@@ -9,7 +9,7 @@ export const colaLayoutTriggers: Map<Core, () => void> = new Map<Core, () => voi
 // Registry for dirty-node markers - allows external code to mark a node as needing local layout
 export const dirtyNodeMarkers: Map<Core, (nodeId: string) => void> = new Map<Core, (nodeId: string) => void>();
 
-// Registry for full layout resets - allows external code to trigger fCOSE + Cola from scratch
+// Registry for full layout resets - allows external code to trigger R-tree pack + Cola from scratch
 export const fullLayoutTriggers: Map<Core, () => void> = new Map<Core, () => void>();
 
 /**
@@ -37,7 +37,7 @@ export function markNodeDirty(cy: Core, nodeId: string): void {
 }
 
 /**
- * Reset layout state and trigger a full fCOSE + Cola layout from scratch.
+ * Reset layout state and trigger a full R-tree pack + Cola layout from scratch.
  * Use this when graph topology changes substantially (e.g. vault folders added/removed).
  */
 export function triggerFullLayout(cy: Core): void {

@@ -14,3 +14,4 @@ src/fixtures/example_real_large/**/*
 /SSE/**/*
 /feature_editor_race/**/*
 /monday/**/*
+e2e-tests/perf-traces/**/*

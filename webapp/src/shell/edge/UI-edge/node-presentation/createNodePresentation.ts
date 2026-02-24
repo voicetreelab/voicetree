@@ -4,6 +4,7 @@ import { computeMorphValues, type MorphValues } from '@/pure/graph/node-presenta
 import { getCachedZoom, getOrCreateOverlay } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 import { contentAfterTitle, stripMarkdownFormatting } from '@/pure/graph/markdown-parsing';
 import { addPresentation } from './NodePresentationStore';
+import { mountCardCM } from './cardCM';
 
 function extractPreviewLines(content: string, maxLines: number = 3): string {
     const bodyText: string = contentAfterTitle(content);
@@ -25,7 +26,6 @@ export function createNodePresentation(
     position: { x: number; y: number }
 ): NodePresentation {
     const card: HTMLDivElement = document.createElement('div');
-    card.className = 'node-presentation state-card';
     card.dataset.nodeId = nodeId;
 
     const accent: HTMLDivElement = document.createElement('div');
@@ -49,7 +49,14 @@ export function createNodePresentation(
     body.appendChild(titleEl);
     body.appendChild(preview);
     body.appendChild(editorContainer);
+
+    // Menu container — populated with horizontal menu (Delete, Copy, Add, Run, More + traffic lights)
+    // on enterCMEdit in hoverWiring.ts, hidden by CSS in non-edit states
+    const menuContainer: HTMLDivElement = document.createElement('div');
+    menuContainer.className = 'node-presentation-menu';
+
     card.appendChild(accent);
+    card.appendChild(menuContainer);
     card.appendChild(body);
 
     // The Cy node IS the shadow node — same mechanism as editor shadow nodes
@@ -74,7 +81,9 @@ export function createNodePresentation(
     const overlay: HTMLElement = getOrCreateOverlay(cy);
     overlay.appendChild(card);
 
-    const initialState: NodeState = morphValues.zone === 'plain' ? 'PLAIN' : 'CARD';
+    const initialState: NodeState = morphValues.zone === 'plain' ? 'PLAIN' : 'CM_CARD';
+    const stateClass: string = initialState === 'PLAIN' ? 'state-plain' : 'state-cm_card';
+    card.className = `node-presentation ${stateClass}`;
 
     const presentation: NodePresentation = {
         nodeId,
@@ -84,5 +93,12 @@ export function createNodePresentation(
     };
 
     addPresentation(nodeId, presentation);
+
+    if (initialState === 'CM_CARD') {
+        // Mount with contentPreview as initial content (best available at creation time)
+        // zoomSync will update content async if needed
+        mountCardCM(editorContainer, contentPreview, nodeId);
+    }
+
     return presentation;
 }

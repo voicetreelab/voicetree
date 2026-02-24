@@ -1,16 +1,16 @@
 /**
- * Auto Layout: Automatically run Cola or fcose layout on graph changes
+ * Auto Layout: Automatically run Cola layout on graph changes
  *
  * Layout strategy:
  * - Initial load / tidy button / large removal (>7 nodes): "Full Ultimate Layout" chain:
- *   fCOSE (global positioning) → Cola (refinement) → animated cy.fit() (frame result)
+ *   R-tree pack (component separation) → Cola (positioning + refinement) → animated cy.fit()
  * - Small removal (≤7 nodes): skip layout (positions already stable)
  * - Incremental (batch-added nodes <30% of graph):
  *   Local Cola on 4-hop neighborhood of new nodes (6-hop pinned boundary)
  * - Batch (>30% new): skip (too many nodes for local Cola)
  *
- * fCOSE is only used on initial/full layouts because its gravity pulls nodes too aggressively
- * for incremental layout updates. Cola handles all ongoing layout after the first run.
+ * Cola handles all layout. Our R-tree packComponents() handles disconnected component
+ * separation before Cola runs.
  *
  * NOTE (commit 033c57a4): We tried a two-phase layout algorithm that ran Phase 1 with only
  * constraint iterations (no unconstrained) for fast global stabilization, then Phase 2 ran
@@ -20,9 +20,8 @@
  * The current approach differs: Phase 1 is truly local (small subgraph), not global.
  */
 
-import type {Core, EdgeSingular, NodeSingular, NodeDefinition, CollectionReturnValue, Layouts, EventObject} from 'cytoscape';
+import type {Core, EdgeSingular, NodeSingular, NodeDefinition, CollectionReturnValue, EventObject} from 'cytoscape';
 import ColaLayout from './cola';
-import { getEdgeDistance } from './cytoscape-graph-constants';
 import { packComponents } from '@/pure/graph/positioning/packComponents';
 import type { ComponentSubgraph } from '@/pure/graph/positioning/packComponents';
 import { runLocalCola } from './autoLayoutLocalCola';
@@ -31,9 +30,9 @@ import type {} from '@/shell/electron';
 import { panToTrackedNode, clearPendingPan } from '@/shell/edge/UI-edge/state/PendingPanStore';
 import { getResponsivePadding } from '@/utils/responsivePadding';
 import { onSettingsChange } from '@/shell/edge/UI-edge/api';
-import type { AutoLayoutOptions, LayoutConfig, FcoseLayoutOptions } from './autoLayoutTypes';
-import { DEFAULT_OPTIONS, DEFAULT_FCOSE_OPTIONS } from './autoLayoutTypes';
-import { parseLayoutConfig, registerFcose } from './autoLayoutConfig';
+import type { AutoLayoutOptions, LayoutConfig } from './autoLayoutTypes';
+import { DEFAULT_OPTIONS } from './autoLayoutTypes';
+import { parseLayoutConfig } from './autoLayoutConfig';
 import { layoutTriggers, colaLayoutTriggers, dirtyNodeMarkers, fullLayoutTriggers } from './autoLayoutTriggers';
 
 // Re-export public API from sibling modules
@@ -43,7 +42,7 @@ export { triggerLayout, triggerColaLayout, markNodeDirty, triggerFullLayout } fr
 /**
  * Enable automatic layout on graph changes
  *
- * Listens to node/edge add/remove events and triggers Cola or fcose layout
+ * Listens to node/edge add/remove events and triggers Cola layout
  * based on layoutConfig from settings.
  *
  * @param cy Cytoscape instance
@@ -52,7 +51,7 @@ export { triggerLayout, triggerColaLayout, markNodeDirty, triggerFullLayout } fr
  */
 export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () => void {
   // Mutable config that gets updated when settings change
-  let currentConfig: LayoutConfig = { engine: 'cola', cola: { ...DEFAULT_OPTIONS, ...options }, fcose: DEFAULT_FCOSE_OPTIONS };
+  let currentConfig: LayoutConfig = { engine: 'cola', cola: { ...DEFAULT_OPTIONS, ...options } };
 
   // Load initial config from settings
   void window.electronAPI?.main.loadSettings().then(settings => {
@@ -77,7 +76,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
   let hasRunInitialLayout: boolean = false;
   let layoutSafetyTimeout: ReturnType<typeof setTimeout> | null = null;
 
-  // Safety timeout: if a Cola/fCOSE layoutstop event never fires, layoutRunning
+  // Safety timeout: if a Cola layoutstop event never fires, layoutRunning
   // stays true and the entire layout system dies. This timeout forces a reset.
   const LAYOUT_SAFETY_TIMEOUT_MS: number = 8_000;
 
@@ -149,103 +148,44 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     layout.run();
   };
 
-  const runFcoseLayout: (qualityOverride?: 'default' | 'proof', onComplete?: () => void) => void = (qualityOverride, onComplete) => {
-    registerFcose();
-    const fcoseOpts: FcoseLayoutOptions = currentConfig.fcose;
-
-    // fcose options are not covered by cytoscape's built-in LayoutOptions type
-    const fcoseLayoutOptions: { name: string } & Record<string, unknown> = {
-      name: 'fcose',
-      eles: getNonContextElements(),
-      animate: fcoseOpts.animate,
-      animationDuration: fcoseOpts.animationDuration,
-      randomize: !fcoseOpts.incremental,
-      quality: qualityOverride ?? fcoseOpts.quality,
-      numIter: fcoseOpts.numIter,
-      initialEnergyOnIncremental: fcoseOpts.initialEnergyOnIncremental,
-      fit: fcoseOpts.fit,
-      nodeRepulsion: () => fcoseOpts.nodeRepulsion,
-      idealEdgeLength: (edge: EdgeSingular) => getEdgeDistance(edge.target().data('windowType')),
-      edgeElasticity: () => fcoseOpts.edgeElasticity,
-      gravity: fcoseOpts.gravity,
-      gravityRange: fcoseOpts.gravityRange,
-      gravityCompound: fcoseOpts.gravityCompound,
-      gravityRangeCompound: fcoseOpts.gravityRangeCompound,
-      nestingFactor: fcoseOpts.nestingFactor,
-      tile: fcoseOpts.tile,
-      tilingPaddingVertical: fcoseOpts.tilingPaddingVertical,
-      tilingPaddingHorizontal: fcoseOpts.tilingPaddingHorizontal,
-      nodeSeparation: fcoseOpts.nodeSpacing,
-      nodeDimensionsIncludeLabels: true,
-      uniformNodeDimensions: fcoseOpts.uniformNodeDimensions,
-      packComponents: false, // Disabled: our R-tree packing runs post-layoutstop (see below)
-      coolingFactor: fcoseOpts.coolingFactor,
-    };
-    const layout: Layouts = cy.layout(fcoseLayoutOptions);
-
-    // Patch layoutDimensions so fcose sees 2x bounding box for content nodes only
-    // (shadow, context, and floating window nodes keep real dimensions)
-    type LayoutDimsFn = (opts: unknown) => { w: number; h: number };
-    const firstNode: NodeSingular = cy.nodes().first();
-    const nodeProto: Record<string, LayoutDimsFn> = Object.getPrototypeOf(firstNode) as Record<string, LayoutDimsFn>;
-    const origLayoutDimensions: LayoutDimsFn = nodeProto.layoutDimensions;
-    nodeProto.layoutDimensions = function(this: NodeSingular, opts: unknown): { w: number; h: number } {
-      const dims: { w: number; h: number } = origLayoutDimensions.call(this, opts);
-      if (this.data('isShadowNode') || this.data('isFloatingWindow')) {
-        return dims;
-      }
-      return { w: dims.w * 2, h: dims.h * 2 };
-    };
-
-    layout.one('layoutstop', () => {
-      nodeProto.layoutDimensions = origLayoutDimensions;
-
-      // R-tree packing: repack disconnected components after fCoSE (packComponents:false above)
-      const components: CollectionReturnValue[] = getNonContextElements().components();
-      if (components.length > 1) {
-        const subgraphs: ComponentSubgraph[] = components.map((comp: CollectionReturnValue): ComponentSubgraph => ({
-          nodes: comp.nodes().map((n: NodeSingular) => ({
-            x: n.position('x'),
-            y: n.position('y'),
-            width: n.width(),
-            height: n.height(),
-          })),
-          edges: comp.edges().map((e: EdgeSingular) => ({
-            startX: e.sourceEndpoint().x,
-            startY: e.sourceEndpoint().y,
-            endX: e.targetEndpoint().x,
-            endY: e.targetEndpoint().y,
-          })),
-        }));
-
-        const { shifts } = packComponents(subgraphs);
-
-        components.forEach((comp: CollectionReturnValue, i: number): void => {
-          const shift: { readonly dx: number; readonly dy: number } | undefined = shifts[i];
-          if (shift && (shift.dx !== 0 || shift.dy !== 0)) {
-            comp.nodes().shift({ x: shift.dx, y: shift.dy });
-          }
-        });
-      }
-
-      // panToTrackedNode(cy);
-      (onComplete ?? onLayoutComplete)();
-    });
-    layout.run();
-  };
-
-  /** Full ultimate layout chain: fCOSE → Cola → animated cy.fit() */
+  /** Full ultimate layout chain: R-tree pack → Cola → animated cy.fit() */
   const runFullUltimateLayout: (onComplete?: () => void) => void = (onComplete) => {
-    runFcoseLayout(undefined, () => {
-      runColaLayout(() => {
-        const padding: number = getResponsivePadding(cy, 15);
-        cy.animate({
-          fit: { eles: cy.elements(), padding },
-        }, {
-          duration: 300,
-          easing: 'ease-in-out-cubic',
-          complete: () => { (onComplete ?? onLayoutComplete)(); },
-        });
+    // R-tree packing: pack disconnected components before Cola
+    const components: CollectionReturnValue[] = getNonContextElements().components();
+    if (components.length > 1) {
+      const subgraphs: ComponentSubgraph[] = components.map((comp: CollectionReturnValue): ComponentSubgraph => ({
+        nodes: comp.nodes().map((n: NodeSingular) => ({
+          x: n.position('x'),
+          y: n.position('y'),
+          width: n.width(),
+          height: n.height(),
+        })),
+        edges: comp.edges().map((e: EdgeSingular) => ({
+          startX: e.sourceEndpoint().x,
+          startY: e.sourceEndpoint().y,
+          endX: e.targetEndpoint().x,
+          endY: e.targetEndpoint().y,
+        })),
+      }));
+
+      const { shifts } = packComponents(subgraphs);
+
+      components.forEach((comp: CollectionReturnValue, i: number): void => {
+        const shift: { readonly dx: number; readonly dy: number } | undefined = shifts[i];
+        if (shift && (shift.dx !== 0 || shift.dy !== 0)) {
+          comp.nodes().shift({ x: shift.dx, y: shift.dy });
+        }
+      });
+    }
+
+    runColaLayout(() => {
+      const padding: number = getResponsivePadding(cy, 15);
+      cy.animate({
+        fit: { eles: cy.elements(), padding },
+      }, {
+        duration: 300,
+        easing: 'ease-in-out-cubic',
+        complete: () => { (onComplete ?? onLayoutComplete)(); },
       });
     });
   };
@@ -265,7 +205,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     layoutRunning = true;
     layoutCount++;
 
-    // Safety timeout: if layoutstop never fires (Cola/fCOSE error, empty collection,
+    // Safety timeout: if layoutstop never fires (Cola error, empty collection,
     // destroyed cy), force-reset so the layout system doesn't permanently die.
     layoutSafetyTimeout = setTimeout(() => {
       if (layoutRunning) {
@@ -284,7 +224,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
 
     try {
       if (!hasRunInitialLayout) {
-        // Initial load: full ultimate layout (fCOSE → Cola → fit)
+        // Initial load: full ultimate layout (R-tree pack → Cola → fit)
         hasRunInitialLayout = true;
         runFullUltimateLayout();
       } else if (newNodeIds.size > 0 && newNodeIds.size < totalNodes * 0.3) {
@@ -369,7 +309,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     debouncedRunLayout();
   });
 
-  // Register cola layout trigger for manual "tidy up" button (full ultimate layout: fCOSE → Cola → fit)
+  // Register cola layout trigger for manual "tidy up" button (full ultimate layout: R-tree pack → Cola → fit)
   colaLayoutTriggers.set(cy, () => {
     if (layoutRunning) { layoutQueued = true; return; }
     if (cy.nodes().length === 0) return;

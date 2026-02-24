@@ -18,3 +18,5 @@ export type {
     SpatialEdgeEntry,
     SpatialIndex,
 } from './spatialIndex';
+
+export { diffVisibleNodes } from './viewportDiff';

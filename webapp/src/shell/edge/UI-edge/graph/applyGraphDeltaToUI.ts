@@ -12,10 +12,11 @@ import {getEditorByNodeId} from "@/shell/edge/UI-edge/state/EditorStore";
 import {scheduleIdleWork} from "@/utils/scheduleIdleWork";
 import { createNodePresentation } from '@/shell/edge/UI-edge/node-presentation/createNodePresentation';
 import { destroyNodePresentation } from '@/shell/edge/UI-edge/node-presentation/destroyNodePresentation';
-import { wireHoverTransitions } from '@/shell/edge/UI-edge/node-presentation/hoverWiring';
+import { wireHoverTransitions, enterCMEdit } from '@/shell/edge/UI-edge/node-presentation/hoverWiring';
 import { hasPresentation, getPresentation } from '@/shell/edge/UI-edge/node-presentation/NodePresentationStore';
 import type { NodePresentation } from '@/pure/graph/node-presentation/types';
-import { transitionTo } from '@/shell/edge/UI-edge/node-presentation/transitions';
+import { getCardCM } from '@/shell/edge/UI-edge/node-presentation/cardCM';
+import type { CardCMInstance } from '@/pure/graph/node-presentation/cardCMTypes';
 import {getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {getShadowNodeId, getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 
@@ -186,11 +187,19 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                             presentation.element.classList.remove('node-presentation-new');
                         }, { once: true });
 
-                        // Auto-enter INLINE_EDIT for UI-created nodes (minimal content, no agent)
-                        const isUICreatedNode: boolean = node.contentWithoutYamlOrLinks.trim().length <= 2; // "# " or empty
+                        // Auto-enter CM_EDIT for UI-created nodes (minimal content, no saved position, no agent)
+                        // Requires !hasPosition to exclude disk-loaded nodes on initial graph load
+                        const isUICreatedNode: boolean = !hasPosition && node.contentWithoutYamlOrLinks.trim().length <= 2; // "# " or empty
                         const isAgentNode: boolean = node.nodeUIMetadata.additionalYAMLProps.has('agent_name');
-                        if (isUICreatedNode && !isAgentNode) {
-                            void transitionTo(cy, nodeId, 'INLINE_EDIT', true);
+                        if (isUICreatedNode && !isAgentNode && presentation.state === 'CM_CARD') {
+                            enterCMEdit(cy, nodeId);
+                            // Move cursor to end for new nodes (enterCMEdit focuses at start)
+                            const inst: CardCMInstance | undefined = getCardCM(nodeId);
+                            if (inst) {
+                                const docLength: number = inst.view.state.doc.length;
+                                inst.view.dispatch({ selection: { anchor: docLength } });
+                                inst.view.focus();
+                            }
                         }
                     }
                 } else if (existingNode.length > 0) {

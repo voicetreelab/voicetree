@@ -1,4 +1,4 @@
-export type NodeState = 'PLAIN' | 'CARD' | 'HOVER' | 'INLINE_EDIT' | 'ANCHORED';
+export type NodeState = 'PLAIN' | 'CM_CARD' | 'CM_EDIT';
 
 export type NodePresentation = {
     readonly nodeId: string;
@@ -18,9 +18,7 @@ export const CARD_WIDTH: number = 200;
 
 // Dimensions for each state — Cy node dimensions must match for Cola layout
 export const STATE_DIMENSIONS: Record<NodeState, { readonly width: number; readonly height: number }> = {
-    PLAIN:    { width: CIRCLE_SIZE, height: CIRCLE_SIZE },
-    CARD:     { width: 200, height: 80 },
-    HOVER:       { width: 340, height: 400 },
-    INLINE_EDIT: { width: 300, height: 200 },
-    ANCHORED:    { width: 440, height: 800 },
+    PLAIN:   { width: CIRCLE_SIZE, height: CIRCLE_SIZE },
+    CM_CARD: { width: 200, height: 96 },
+    CM_EDIT: { width: 420, height: 400 },
 };
