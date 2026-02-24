@@ -12,11 +12,8 @@ import {getEditorByNodeId} from "@/shell/edge/UI-edge/state/EditorStore";
 import {scheduleIdleWork} from "@/utils/scheduleIdleWork";
 import { createNodePresentation } from '@/shell/edge/UI-edge/node-presentation/createNodePresentation';
 import { destroyNodePresentation } from '@/shell/edge/UI-edge/node-presentation/destroyNodePresentation';
-import { wireHoverTransitions, enterCMEdit } from '@/shell/edge/UI-edge/node-presentation/hoverWiring';
-import { hasPresentation, getPresentation } from '@/shell/edge/UI-edge/node-presentation/NodePresentationStore';
+import { getPresentation } from '@/shell/edge/UI-edge/node-presentation/NodePresentationStore';
 import type { NodePresentation } from '@/pure/graph/node-presentation/types';
-import { getCardCM } from '@/shell/edge/UI-edge/node-presentation/cardCM';
-import type { CardCMInstance } from '@/pure/graph/node-presentation/cardCMTypes';
 import {getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {getShadowNodeId, getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 
@@ -178,29 +175,11 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                             });
                         }
 
-                        // Wire hover/click state transitions
-                        wireHoverTransitions(cy, nodeId, presentation.element);
-
                         // Flash new-node animation (remove class after animation to prevent replay on display toggle)
                         presentation.element.classList.add('node-presentation-new');
                         presentation.element.addEventListener('animationend', (): void => {
                             presentation.element.classList.remove('node-presentation-new');
                         }, { once: true });
-
-                        // Auto-enter CM_EDIT for UI-created nodes (minimal content, no saved position, no agent)
-                        // Requires !hasPosition to exclude disk-loaded nodes on initial graph load
-                        const isUICreatedNode: boolean = !hasPosition && node.contentWithoutYamlOrLinks.trim().length <= 2; // "# " or empty
-                        const isAgentNode: boolean = node.nodeUIMetadata.additionalYAMLProps.has('agent_name');
-                        if (isUICreatedNode && !isAgentNode && presentation.state === 'CM_CARD') {
-                            enterCMEdit(cy, nodeId);
-                            // Move cursor to end for new nodes (enterCMEdit focuses at start)
-                            const inst: CardCMInstance | undefined = getCardCM(nodeId);
-                            if (inst) {
-                                const docLength: number = inst.view.state.doc.length;
-                                inst.view.dispatch({ selection: { anchor: docLength } });
-                                inst.view.focus();
-                            }
-                        }
                     }
                 } else if (existingNode.length > 0) {
                     // Update existing node metadata (but NOT position)
@@ -220,19 +199,17 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                     existingNode.data('isContextNode', node.nodeUIMetadata.isContextNode === true);
 
                     // Update node presentation title + preview on every metadata update
-                    if (hasPresentation(nodeId)) {
-                        const pres: NodePresentation | undefined = getPresentation(nodeId);
-                        if (pres) {
-                            const titleEl: HTMLElement | null = pres.element.querySelector('.node-presentation-title');
-                            if (titleEl) titleEl.textContent = getNodeTitle(node);
-                            const previewEl: HTMLElement | null = pres.element.querySelector('.node-presentation-preview');
-                            if (previewEl) {
-                                previewEl.textContent = node.contentWithoutYamlOrLinks
-                                    .split('\n')
-                                    .filter((line: string) => line.trim().length > 0)
-                                    .slice(0, 3)
-                                    .join('\n');
-                            }
+                    const pres: NodePresentation | undefined = getPresentation(nodeId);
+                    if (pres) {
+                        const titleEl: HTMLElement | null = pres.element.querySelector('.node-presentation-title');
+                        if (titleEl) titleEl.textContent = getNodeTitle(node);
+                        const previewEl: HTMLElement | null = pres.element.querySelector('.node-presentation-preview');
+                        if (previewEl) {
+                            previewEl.textContent = node.contentWithoutYamlOrLinks
+                                .split('\n')
+                                .filter((line: string) => line.trim().length > 0)
+                                .slice(0, 3)
+                                .join('\n');
                         }
                     }
 
@@ -244,14 +221,12 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                         )) {
                         existingNode.emit('content-changed');
                         // Flash node presentation with content-changed animation
-                        if (hasPresentation(nodeId)) {
-                            const pres: NodePresentation | undefined = getPresentation(nodeId);
-                            if (pres) {
-                                pres.element.classList.add('node-presentation-content-changed');
-                                pres.element.addEventListener('animationend', (): void => {
-                                    pres.element.classList.remove('node-presentation-content-changed');
-                                }, { once: true });
-                            }
+                        const contentPres: NodePresentation | undefined = getPresentation(nodeId);
+                        if (contentPres) {
+                            contentPres.element.classList.add('node-presentation-content-changed');
+                            contentPres.element.addEventListener('animationend', (): void => {
+                                contentPres.element.classList.remove('node-presentation-content-changed');
+                            }, { once: true });
                         }
                     }
                 }

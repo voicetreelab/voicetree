@@ -4,6 +4,8 @@
 import type {Core, NodeSingular} from 'cytoscape';
 import type {Graph} from '@/pure/graph';
 import {isImageNode} from '@/pure/graph';
+import {getPresentation} from '@/shell/edge/UI-edge/node-presentation/NodePresentationStore';
+import type {NodePresentation} from '@/pure/graph/node-presentation/types';
 import {HorizontalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService';
 import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService';
 import {enableAutoLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout';
@@ -59,6 +61,13 @@ export function setupCytoscape(params: SetupCytoscapeParams): {
 
         // Don't open floating editor for image nodes
         if (isImageNode(nodeId)) {
+            return;
+        }
+
+        // Card-zone presentations use unified card editors (zoomSync manages lifecycle).
+        // PLAIN state = zoomed-out circle = allow anchored floating editor on tap.
+        const pres: NodePresentation | undefined = getPresentation(nodeId);
+        if (pres && pres.state !== 'PLAIN') {
             return;
         }
 

@@ -14,10 +14,6 @@ export function removePresentation(nodeId: string): void {
     presentations.delete(nodeId);
 }
 
-export function hasPresentation(nodeId: string): boolean {
-    return presentations.has(nodeId);
-}
-
 export function getAllPresentations(): IterableIterator<NodePresentation> {
     return presentations.values();
 }

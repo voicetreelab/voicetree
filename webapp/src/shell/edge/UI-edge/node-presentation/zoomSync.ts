@@ -3,16 +3,13 @@ import type { NodePresentation } from '@/pure/graph/node-presentation/types';
 import { CIRCLE_SIZE } from '@/pure/graph/node-presentation/types';
 import { computeMorphValues, type MorphValues, type ZoomZone } from '@/pure/graph/node-presentation/zoomMorph';
 import { getAllPresentations, getPresentation } from './NodePresentationStore';
-import { mountCardCM, unmountCardCM, getCardCM } from './cardCM';
-import { exitActiveCMEdit } from './hoverWiring';
+import { createCardEditor, closeEditor } from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
+import type { EditorData } from '@/shell/edge/UI-edge/state/UIAppState';
 import { getCurrentIndex } from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
 import { getVisibleNodeIds } from '@/utils/viewportVisibility';
 import { diffVisibleNodes } from '@/pure/graph/spatial';
 import type { SpatialIndex } from '@/pure/graph/spatial';
-import { getNodeFromMainToUI } from '@/shell/edge/UI-edge/graph/getNodeFromMainToUI';
-import { fromNodeToContentWithWikilinks } from '@/pure/graph/markdown-writing/node_to_markdown';
-import type { GraphNode } from '@/pure/graph';
-import type { CardCMInstance } from '@/pure/graph/node-presentation/cardCMTypes';
+import type { NodeIdAndFilePath } from '@/pure/graph';
 
 // Zone cache — only update Cy node styles on zone transitions
 const zoneCache: WeakMap<HTMLElement, ZoomZone> = new WeakMap();
@@ -27,9 +24,12 @@ interface ChildCache {
 }
 const childCache: WeakMap<HTMLElement, ChildCache> = new WeakMap();
 
-// Module-level zone tracker — detect global zone transitions for CM lifecycle
+// Module-level zone tracker — detect global zone transitions for card editor lifecycle
 let previousZone: ZoomZone = 'plain';
 let visibleCardNodes: Set<string> = new Set();
+
+// Track active card editors by nodeId (not in EditorStore until pinned via dblclick)
+const activeCardEditors: Map<string, EditorData> = new Map();
 
 function getChildren(el: HTMLElement): ChildCache {
     let cached: ChildCache | undefined = childCache.get(el);
@@ -58,9 +58,7 @@ function updatePresentationFromZoom(
 ): void {
     const el: HTMLElement = presentation.element;
 
-    // Skip presentations that are in editor state (CM_EDIT manages its own display)
-    if (presentation.state === 'CM_EDIT') return;
-    // Skip hidden elements (e.g., during editor morph)
+    // Skip hidden elements (e.g., hidden during card editor mode)
     if (el.style.display === 'none') return;
 
     // Card crossfade opacity
@@ -127,49 +125,57 @@ function updatePresentationFromZoom(
 }
 
 /**
- * Mount CardCM for a node with async content loading.
- * Sets state to CM_CARD, mounts CM with empty content immediately,
- * then loads full content via IPC and updates the CM.
+ * Create a unified card editor for a node, hiding its NodePresentation.
+ * Card editor is a floating window with card-header + CM, hover wiring built in.
+ * Content is loaded async via IPC inside createCardEditor.
  */
-function mountCardCMForNode(_cy: Core, nodeId: string): void {
-    const presentation: NodePresentation | undefined = getPresentation(nodeId);
-    if (!presentation) return;
-    // Don't mount if already in an editor state
-    if (presentation.state === 'CM_EDIT') return;
+function mountCardEditorForNode(cy: Core, nodeId: string): void {
     // Don't double-mount
-    if (getCardCM(nodeId)) return;
+    if (activeCardEditors.has(nodeId)) return;
 
-    const editorContainer: HTMLElement | null = presentation.element.querySelector('.node-presentation-editor');
-    if (!editorContainer) return;
+    const presentation: NodePresentation | undefined = getPresentation(nodeId);
+    if (presentation) {
+        // Don't mount if presentation is in an unexpected state
+        if (presentation.state === 'CM_EDIT') return;
+        // Hide NodePresentation — card editor provides the visual in card zone
+        presentation.element.style.display = 'none';
+        presentation.state = 'CM_CARD';
+        presentation.element.classList.remove('state-plain');
+        presentation.element.classList.add('state-cm_card');
+    }
 
-    // Update state
-    presentation.state = 'CM_CARD';
-    presentation.element.classList.remove('state-plain');
-    presentation.element.classList.add('state-cm_card');
+    // Get title/preview from Cy node data (canonical source)
+    const cyNode: CollectionReturnValue = cy.getElementById(nodeId);
+    const title: string = (cyNode.data('label') as string | undefined) ?? nodeId;
+    const content: string = (cyNode.data('content') as string | undefined) ?? '';
+    // Simple preview: strip leading markdown title, take first 150 chars (CSS line-clamp constrains further)
+    const preview: string = content.replace(/^#.*\n?/, '').trim().slice(0, 150);
 
-    // Mount with empty content immediately (instant visual)
-    mountCardCM(editorContainer, '', nodeId);
+    // createCardEditor is async but the card path is internally synchronous.
+    // The Promise resolves in the next microtask — safe for zone transition batching.
+    void createCardEditor(cy, nodeId as NodeIdAndFilePath, title, preview).then((ed: EditorData | undefined): void => {
+        if (ed) activeCardEditors.set(nodeId, ed);
+    });
+}
 
-    // Async load full content (~10-50ms IPC)
-    void (async (): Promise<void> => {
-        try {
-            const node: GraphNode = await getNodeFromMainToUI(nodeId);
-            const content: string = fromNodeToContentWithWikilinks(node);
-            // Re-check state hasn't changed during async gap
-            const currentPres: NodePresentation | undefined = getPresentation(nodeId);
-            if (currentPres?.state === 'CM_CARD' || currentPres?.state === 'CM_EDIT') {
-                const inst: CardCMInstance | undefined = getCardCM(nodeId);
-                if (inst) {
-                    // Replace content in the CM view
-                    inst.view.dispatch({
-                        changes: { from: 0, to: inst.view.state.doc.length, insert: content },
-                    });
-                }
-            }
-        } catch (error: unknown) {
-            console.error('[zoomSync] Failed to load content for CardCM:', error);
-        }
-    })();
+/**
+ * Close a card editor for a node, restoring its NodePresentation to visible PLAIN state.
+ */
+function closeCardEditorForNode(cy: Core, nodeId: string): void {
+    const ed: EditorData | undefined = activeCardEditors.get(nodeId);
+    if (ed) {
+        closeEditor(cy, ed);
+        activeCardEditors.delete(nodeId);
+    }
+
+    // Restore NodePresentation visibility
+    const presentation: NodePresentation | undefined = getPresentation(nodeId);
+    if (presentation) {
+        presentation.element.style.display = '';
+        presentation.state = 'PLAIN';
+        presentation.element.classList.remove('state-cm_card', 'state-cm_edit');
+        presentation.element.classList.add('state-plain');
+    }
 }
 
 /**
@@ -182,34 +188,34 @@ export function updateAllFromZoom(cy: Core, zoom: number): void {
         updatePresentationFromZoom(cy, presentation, zoom, morphValues);
     }
 
-    // Zone transition detection — mount/unmount CardCM
+    // Zone transition detection — create/close card editors
     if (morphValues.zone !== previousZone) {
         if (morphValues.zone === 'card' && previousZone !== 'card') {
-            // Entering card zone — mount CM for visible nodes
+            // Entering card zone — create card editors for visible nodes
             const index: SpatialIndex | undefined = getCurrentIndex(cy);
             if (index) {
                 const visibleIds: string[] = getVisibleNodeIds(cy, index);
                 for (const id of visibleIds) {
-                    mountCardCMForNode(cy, id);
+                    mountCardEditorForNode(cy, id);
                 }
                 visibleCardNodes = new Set(visibleIds);
             }
         } else if (morphValues.zone !== 'card' && previousZone === 'card') {
-            // Leaving card zone — exit editing, unmount all CMs, reset states
-            // 1. Exit any active CM_EDIT cleanly (reconfigure → readonly, keyboard cleanup)
-            exitActiveCMEdit(cy);
-            // 2. Unmount tracked CMs
-            for (const id of visibleCardNodes) {
-                unmountCardCM(id);
+            // Leaving card zone — close all card editors, restore presentations
+            for (const [, ed] of activeCardEditors) {
+                closeEditor(cy, ed);
             }
-            // 3. Reset ALL non-PLAIN presentations to PLAIN (catches untracked nodes)
+            activeCardEditors.clear();
+
+            // Reset ALL presentations to PLAIN and restore visibility
             for (const presentation of getAllPresentations()) {
                 if (presentation.state !== 'PLAIN') {
-                    unmountCardCM(presentation.nodeId); // safe no-op if already unmounted
                     presentation.state = 'PLAIN';
                     presentation.element.classList.remove('state-cm_card', 'state-cm_edit');
                     presentation.element.classList.add('state-plain');
                 }
+                // Ensure presentations are visible again after card editors are closed
+                presentation.element.style.display = '';
             }
             visibleCardNodes = new Set();
         }
@@ -218,7 +224,7 @@ export function updateAllFromZoom(cy: Core, zoom: number): void {
 }
 
 /**
- * Handle pan events in card zone — mount/unmount CM for nodes entering/leaving viewport.
+ * Handle pan events in card zone — create/close card editors for nodes entering/leaving viewport.
  * Only active when in card zone. Callers should throttle to ~16ms (rAF).
  */
 export function updateVisibleCardsOnPan(cy: Core): void {
@@ -233,17 +239,10 @@ export function updateVisibleCardsOnPan(cy: Core): void {
     const diff: { readonly entered: readonly string[]; readonly left: readonly string[] } = diffVisibleNodes(visibleCardNodes, currentSet);
 
     for (const id of diff.entered) {
-        mountCardCMForNode(cy, id);
+        mountCardEditorForNode(cy, id);
     }
     for (const id of diff.left) {
-        unmountCardCM(id);
-        // Update presentation state back to PLAIN
-        const presentation: NodePresentation | undefined = getPresentation(id);
-        if (presentation && presentation.state === 'CM_CARD') {
-            presentation.state = 'PLAIN';
-            presentation.element.classList.remove('state-cm_card');
-            presentation.element.classList.add('state-plain');
-        }
+        closeCardEditorForNode(cy, id);
     }
 
     visibleCardNodes = currentSet;

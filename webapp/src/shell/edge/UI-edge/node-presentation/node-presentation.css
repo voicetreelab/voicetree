@@ -125,6 +125,10 @@
   cursor: text;
 }
 
+.node-presentation.state-cm_edit .node-presentation-body {
+  padding-left: 4px; /* Tight to accent bar (3px wide) — no excessive gap before gutter */
+}
+
 .node-presentation.state-cm_edit .node-presentation-title {
   display: none; /* Title shown in CM content via markdown heading */
 }
@@ -185,4 +189,13 @@
 
 .node-presentation.state-cm_edit .node-presentation-menu {
   display: flex;
+}
+
+/* Pill groups: natural width, spacer absorbs remaining space.
+   Overrides .horizontal-menu-left/right-group { flex: 1 1 0 } which
+   causes three-way flex competition (left, spacer, right) and pushes
+   traffic lights off the right edge on narrow cards. */
+.node-presentation-menu .horizontal-menu-left-group,
+.node-presentation-menu .horizontal-menu-right-group {
+  flex: 0 1 auto;
 }

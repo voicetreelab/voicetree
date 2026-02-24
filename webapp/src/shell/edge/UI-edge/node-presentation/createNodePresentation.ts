@@ -4,7 +4,6 @@ import { computeMorphValues, type MorphValues } from '@/pure/graph/node-presenta
 import { getCachedZoom, getOrCreateOverlay } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 import { contentAfterTitle, stripMarkdownFormatting } from '@/pure/graph/markdown-parsing';
 import { addPresentation } from './NodePresentationStore';
-import { mountCardCM } from './cardCM';
 
 function extractPreviewLines(content: string, maxLines: number = 3): string {
     const bodyText: string = contentAfterTitle(content);
@@ -50,8 +49,7 @@ export function createNodePresentation(
     body.appendChild(preview);
     body.appendChild(editorContainer);
 
-    // Menu container — populated with horizontal menu (Delete, Copy, Add, Run, More + traffic lights)
-    // on enterCMEdit in hoverWiring.ts, hidden by CSS in non-edit states
+    // Menu container — populated by card editor hover wiring, hidden by CSS in non-edit states
     const menuContainer: HTMLDivElement = document.createElement('div');
     menuContainer.className = 'node-presentation-menu';
 
@@ -94,11 +92,8 @@ export function createNodePresentation(
 
     addPresentation(nodeId, presentation);
 
-    if (initialState === 'CM_CARD') {
-        // Mount with contentPreview as initial content (best available at creation time)
-        // zoomSync will update content async if needed
-        mountCardCM(editorContainer, contentPreview, nodeId);
-    }
+    // Card editors (unified floating windows) are created by zoomSync when entering card zone.
+    // No CardCM mount needed — the presentation is just a visual card shell for crossfade/morph.
 
     return presentation;
 }
