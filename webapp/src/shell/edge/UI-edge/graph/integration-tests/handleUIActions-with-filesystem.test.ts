@@ -55,6 +55,7 @@ vi.mock('electron', () => ({
         showOpenDialog: vi.fn()
     },
     app: {
+        getPath: vi.fn(() => '/tmp/test-userdata-nonexistent-' + Date.now()),
         whenReady: () => Promise.resolve(),
         on: vi.fn(),
         quit: vi.fn()
@@ -71,7 +72,7 @@ vi.mock('posthog-js', () => ({
 
 // Mock agentTabsActivity
 vi.mock('@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity')>()
+    const actual: typeof import('@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity') = await importOriginal<typeof import('@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity')>()
     return {
         ...actual,
         markTerminalActivityForContextNode: vi.fn()

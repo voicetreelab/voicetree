@@ -2,6 +2,24 @@ import "@testing-library/jest-dom";
 import {afterEach, beforeAll, vi} from "vitest";
 import {cleanup} from "@testing-library/react";
 
+// Mock electron module globally — Electron APIs are unavailable in jsdom/vitest.
+// Tests needing more specific electron behavior can override with their own vi.mock('electron', ...).
+vi.mock('electron', () => ({
+    app: {
+        getPath: vi.fn(() => '/tmp/voicetree-test'),
+        whenReady: () => Promise.resolve(),
+        on: vi.fn(),
+        quit: vi.fn(),
+    },
+    ipcMain: {
+        handle: vi.fn(),
+        removeHandler: vi.fn(),
+    },
+    dialog: {
+        showOpenDialog: vi.fn(),
+    },
+}));
+
 // Mock CSS imports from node_modules
 vi.mock('*.css', () => ({}));
 
@@ -65,10 +83,21 @@ beforeAll(() => {
     });
 });
 
+// Save the original jsdom window so we can restore it after tests that replace global.window.
+// Several integration tests (handleUIActions, delete-and-merge-filesystem, spawnTerminalWithNewContextNode)
+// set global.window = { electronAPI: ... } without restoring. This corrupts document/document.body
+// for subsequent tests that use @testing-library/react render().
+const originalWindow: Window & typeof globalThis = global.window;
+
 // Cleanup after each test
 afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+
+    // Restore the jsdom window if a test replaced global.window with a plain object
+    if (global.window !== originalWindow) {
+        global.window = originalWindow;
+    }
 });
 
 // Mock window.addEventListener and removeEventListener for mermaid

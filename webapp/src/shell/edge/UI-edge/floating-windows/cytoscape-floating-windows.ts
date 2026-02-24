@@ -151,12 +151,8 @@ export function unregisterFloatingWindow(windowId: string): void {
  * Instead, we scale window positions and dimensions explicitly.
  */
 export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
-    const container: HTMLElement = cy.container() as HTMLElement;
-    const parent: HTMLElement | null = container.parentElement;
-
-    if (!parent) {
-        throw new Error('Cytoscape container has no parent element');
-    }
+    const container: HTMLElement | undefined = cy.container() ?? undefined;
+    const parent: HTMLElement = container?.parentElement ?? document.body;
 
     let overlay: HTMLElement = parent.querySelector('.cy-floating-overlay') as HTMLElement;
 

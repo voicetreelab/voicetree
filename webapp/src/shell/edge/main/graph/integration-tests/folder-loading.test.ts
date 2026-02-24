@@ -66,6 +66,10 @@ vi.mock('electron', () => ({
 
 describe('Folder Loading - Integration Tests', () => {
   beforeEach(async () => {
+    // Drain fire-and-forget async operations from previous test (e.g. void applyAndBroadcast
+    // which does async wikilink resolution before broadcasting graph:stateChanged)
+    await new Promise(resolve => setTimeout(resolve, 500))
+
     // Reset graph state
     setGraph(createGraph({}))
     setVaultPath('')

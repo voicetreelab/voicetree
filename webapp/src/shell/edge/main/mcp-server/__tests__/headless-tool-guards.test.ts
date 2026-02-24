@@ -50,7 +50,8 @@ vi.mock('@/shell/edge/main/terminals/headlessAgentManager', () => ({
 
 vi.mock('@/shell/edge/main/ui-api-proxy', () => ({
     uiAPI: {
-        closeTerminalById: vi.fn()
+        closeTerminalById: vi.fn(),
+        onSettingsChanged: vi.fn()
     }
 }))
 
@@ -94,6 +95,7 @@ function createTerminalRecord(
         worktreeName: undefined,
         isHeadless,
         executeCommand: true,
+        isMinimized: false,
         ...overrides
     }
 
