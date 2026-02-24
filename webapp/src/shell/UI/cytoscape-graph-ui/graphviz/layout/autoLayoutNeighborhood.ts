@@ -55,7 +55,7 @@ export function cappedBfsNeighborhood(
 /**
  * Compute capped topology + spatial-only neighborhood for local Cola layout.
  *
- * Run set: 2-hop BFS capped at 50 (hard O(n²) bound for Cola).
+ * Run set: 3-hop BFS capped at 50 (hard O(n²) bound for Cola).
  * Pin set: spatially nearby nodes from R-tree query only (no topology pins).
  * Spatial pins capped at MAX_PINS sorted by distance from run-set centroid.
  */
@@ -67,8 +67,8 @@ export function getLocalNeighborhood(
   const MAX_RUN_NODES: number = 50;
   const MAX_PINS: number = 30;
 
-  // Run set: 2-hop BFS, capped at 50, non-context only
-  const runNodes: CollectionReturnValue = cappedBfsNeighborhood(newNodes, 2, MAX_RUN_NODES)
+  // Run set: 3-hop BFS, capped at 50, non-context only
+  const runNodes: CollectionReturnValue = cappedBfsNeighborhood(newNodes, 3, MAX_RUN_NODES)
     .filter(ele => !ele.data('isContextNode'));
 
   if (runNodes.length === 0) {

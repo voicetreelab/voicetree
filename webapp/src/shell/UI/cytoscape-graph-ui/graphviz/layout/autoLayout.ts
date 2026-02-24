@@ -6,7 +6,7 @@
  *   R-tree pack (component separation) → Cola (positioning + refinement) → animated cy.fit()
  * - Small removal (≤7 nodes): skip layout (positions already stable)
  * - Incremental (batch-added nodes <30% of graph):
- *   R-tree pack → Local Cola on 2-hop capped-50 neighborhood (spatial pinned boundary)
+ *   Local Cola on 2-hop capped-50 neighborhood → R-tree pack only if components overlap
  * - Batch (>30% new): skip (too many nodes for local Cola)
  *
  * Cola handles all layout. Our R-tree packComponents() handles disconnected component
@@ -22,10 +22,9 @@
 
 import type {Core, EdgeSingular, NodeSingular, NodeDefinition, CollectionReturnValue, EventObject} from 'cytoscape';
 import ColaLayout from './cola';
-import { packComponents } from '@/pure/graph/positioning/packComponents';
+import { packComponents, componentsOverlap, separateOverlappingComponents } from '@/pure/graph/positioning/packComponents';
 import type { ComponentSubgraph } from '@/pure/graph/positioning/packComponents';
 import { runLocalCola } from './autoLayoutLocalCola';
-import { refreshSpatialIndex } from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
 import { panToTrackedNode, clearPendingPan } from '@/shell/edge/UI-edge/state/PendingPanStore';
@@ -229,31 +228,39 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
         hasRunInitialLayout = true;
         runFullUltimateLayout();
       } else if (newNodeIds.size > 0 && newNodeIds.size < totalNodes * 0.3) {
-        // Incremental: pack disconnected components, then local fast Cola
-        const components: CollectionReturnValue[] = getNonContextElements().components();
-        if (components.length > 1) {
-          const subgraphs: ComponentSubgraph[] = components.map(
-            (comp: CollectionReturnValue): ComponentSubgraph => ({
-              nodes: comp.nodes().map((n: NodeSingular) => ({
-                x: n.position('x'), y: n.position('y'),
-                width: n.outerWidth(), height: n.outerHeight(),
-              })),
-              edges: comp.edges().map((e: EdgeSingular) => ({
-                startX: e.sourceEndpoint().x, startY: e.sourceEndpoint().y,
-                endX: e.targetEndpoint().x, endY: e.targetEndpoint().y,
-              })),
-            })
-          );
-          const { shifts } = packComponents(subgraphs);
-          components.forEach((comp: CollectionReturnValue, i: number): void => {
-            const shift: { readonly dx: number; readonly dy: number } | undefined = shifts[i];
-            if (shift && (shift.dx !== 0 || shift.dy !== 0)) {
-              comp.nodes().shift({ x: shift.dx, y: shift.dy });
+        // Incremental: local Cola first (positions new nodes relative to neighbors),
+        // then pack disconnected components only if Cola caused overlaps.
+        // Cola → Pack order lets Cola work from the user's actual positions without
+        // packing disrupting the layout beforehand.
+        runLocalCola(cy, newNodeIds, currentConfig.cola, () => {
+          const components: CollectionReturnValue[] = getNonContextElements().components();
+          if (components.length > 1) {
+            const subgraphs: ComponentSubgraph[] = components.map(
+              (comp: CollectionReturnValue): ComponentSubgraph => ({
+                nodes: comp.nodes().map((n: NodeSingular) => ({
+                  x: n.position('x'), y: n.position('y'),
+                  width: n.outerWidth(), height: n.outerHeight(),
+                })),
+                edges: comp.edges().map((e: EdgeSingular) => ({
+                  startX: e.sourceEndpoint().x, startY: e.sourceEndpoint().y,
+                  endX: e.targetEndpoint().x, endY: e.targetEndpoint().y,
+                })),
+              })
+            );
+            if (componentsOverlap(subgraphs)) {
+              // MTV Push: nudge only overlapping components apart by minimum distance,
+              // instead of rebuilding layout from scratch (which teleports the graph).
+              const { shifts } = separateOverlappingComponents(subgraphs);
+              components.forEach((comp: CollectionReturnValue, i: number): void => {
+                const shift: { readonly dx: number; readonly dy: number } | undefined = shifts[i];
+                if (shift && (shift.dx !== 0 || shift.dy !== 0)) {
+                  comp.nodes().shift({ x: shift.dx, y: shift.dy });
+                }
+              });
             }
-          });
-        }
-        refreshSpatialIndex(cy);
-        runLocalCola(cy, newNodeIds, currentConfig.cola, onLayoutComplete);
+          }
+          onLayoutComplete();
+        });
       } else if (newNodeIds.size === 0) {
         if (removedNodeCount > 7) {
           // Large removal (>7 nodes): full ultimate layout to rebalance

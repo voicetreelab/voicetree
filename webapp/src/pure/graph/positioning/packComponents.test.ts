@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { packComponents } from './packComponents'
+import { packComponents, componentsOverlap } from './packComponents'
 import type { ComponentSubgraph, PackResult } from './packComponents'
 
 // ============================================================================
@@ -316,6 +316,40 @@ describe('packComponents', () => {
 
             expect(aspectRatio).toBeGreaterThanOrEqual(0.3)
             expect(aspectRatio).toBeLessThanOrEqual(3.0)
+        })
+    })
+
+    describe('componentsOverlap', () => {
+        it('returns false for 0 or 1 components', () => {
+            expect(componentsOverlap([])).toBe(false)
+            expect(componentsOverlap([makeComponent(0, 0, 100, 100)])).toBe(false)
+        })
+
+        it('returns false when components are well-separated', () => {
+            const comps: readonly ComponentSubgraph[] = [
+                makeComponent(0, 0, 100, 100),
+                makeComponent(500, 500, 100, 100),
+            ]
+            expect(componentsOverlap(comps)).toBe(false)
+        })
+
+        it('returns true when component bounding boxes overlap', () => {
+            const comps: readonly ComponentSubgraph[] = [
+                makeComponent(0, 0, 100, 100),
+                makeComponent(50, 50, 100, 100),
+            ]
+            expect(componentsOverlap(comps)).toBe(true)
+        })
+
+        it('returns false when components are adjacent but not overlapping', () => {
+            // Component 1: center (50,50), 100x100 → bbox [0,0,100,100]
+            // Component 2: center (200,50), 100x100 → bbox [150,0,250,100]
+            // Gap of 50px between them
+            const comps: readonly ComponentSubgraph[] = [
+                makeComponent(50, 50, 100, 100),
+                makeComponent(200, 50, 100, 100),
+            ]
+            expect(componentsOverlap(comps)).toBe(false)
         })
     })
 
