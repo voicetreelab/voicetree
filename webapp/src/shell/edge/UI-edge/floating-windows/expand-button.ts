@@ -1,4 +1,6 @@
 import {Maximize2, Minimize2, createElement} from 'lucide';
+import {screenToGraphDimensions, type ScalingStrategy} from "@/pure/graph/floating-windows/floatingWindowScaling";
+import {getCachedZoom} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 
 /** Where the expand button is placed: bottom-left overlay (editors) or inside the title bar (terminals) */
 export type ExpandButtonPlacement = 'overlay' | 'title-bar';
@@ -51,10 +53,21 @@ export function createExpandButton(
         const currentWidth: number = windowElement.offsetWidth || parseInt(windowElement.style.width, 10) || 0;
         const currentHeight: number = windowElement.offsetHeight || parseInt(windowElement.style.height, 10) || 0;
 
+        const scale: number = isExpanded ? 0.5 : 2;
+        const newWidth: number = currentWidth * scale;
+        const newHeight: number = currentHeight * scale;
+
+        windowElement.style.width = `${newWidth}px`;
+        windowElement.style.height = `${newHeight}px`;
+
+        // Persist new base dimensions so zoom/pan doesn't revert the resize
+        const strategy: ScalingStrategy = windowElement.dataset.usingCssTransform === 'true' ? 'css-transform' : 'dimension-scaling';
+        const zoom: number = getCachedZoom();
+        const graphDims: { readonly width: number; readonly height: number } = screenToGraphDimensions({ width: newWidth, height: newHeight }, zoom, strategy);
+        windowElement.dataset.baseWidth = String(graphDims.width);
+        windowElement.dataset.baseHeight = String(graphDims.height);
+
         if (isExpanded) {
-            // Minimize: shrink current dimensions by half (0.5x)
-            windowElement.style.width = `${currentWidth / 2}px`;
-            windowElement.style.height = `${currentHeight / 2}px`;
             windowElement.dataset.expanded = 'false';
             button.dataset.expanded = 'false';
             button.dataset.icon = 'maximize';
@@ -66,9 +79,6 @@ export function createExpandButton(
             maximizeIcon.setAttribute('height', '16');
             button.appendChild(maximizeIcon);
         } else {
-            // Expand: grow current dimensions by 2x
-            windowElement.style.width = `${currentWidth * 2}px`;
-            windowElement.style.height = `${currentHeight * 2}px`;
             windowElement.dataset.expanded = 'true';
             button.dataset.expanded = 'true';
             button.dataset.icon = 'minimize';

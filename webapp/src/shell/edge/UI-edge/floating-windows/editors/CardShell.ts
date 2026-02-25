@@ -36,12 +36,13 @@ import {CIRCLE_SIZE} from "@/pure/graph/node-presentation/types";
 import { contentAfterTitle, stripMarkdownFormatting } from '@/pure/graph/markdown-parsing/markdown-to-title';
 import {setupAutoHeight} from "@/shell/edge/UI-edge/floating-windows/editors/SetupAutoHeight";
 import {createWindowChrome} from "@/shell/edge/UI-edge/floating-windows/create-window-chrome";
+import {updateShadowNodeDimensions} from "@/shell/edge/UI-edge/floating-windows/setup-resize-observer";
 
 // =============================================================================
 // Card Mode Constants (graph-coordinate base dimensions for each mode)
 // =============================================================================
 
-const CARD_DIMENSIONS: { readonly width: number; readonly height: number } = { width: 200, height: 96 };
+const CARD_DIMENSIONS: { readonly width: number; readonly height: number } = { width: 200, height: 115 };
 const EDIT_DIMENSIONS: { readonly width: number; readonly height: number } = { width: 340, height: 280 };
 const PINNED_DIMENSIONS: { readonly width: number; readonly height: number } = { width: 420, height: 400 };
 const CARD_HOVER_DEBOUNCE_MS: number = 200;
@@ -63,6 +64,7 @@ export interface CardShellData {
     isPinned: boolean;  // True when in mode-pinned (survives zoom zone transitions)
     editorData: EditorData;  // The backing EditorData (ui populated)
     readonly menuCleanup: (() => void) | undefined;
+    resizeObserver: ResizeObserver | undefined;  // Active only while pinned — syncs DOM size → Cy node
 }
 
 /**
@@ -97,7 +99,7 @@ export async function createCardShell(
         title,
         anchoredToNodeId: undefined,
         initialContent: '',
-        resizable: false,
+        resizable: true,
         shadowNodeDimensions: CARD_DIMENSIONS,
     });
 
@@ -135,7 +137,25 @@ export async function createCardShell(
         isPinned: false,
         editorData: editorWithUI,
         menuCleanup: ui.menuCleanup,
+        resizeObserver: undefined,
     };
+
+    // ResizeObserver gated on isPinned — card→edit hover transitions are ignored,
+    // only user resizes in pinned mode sync to the Cy node and trigger layout.
+    const cyNode: import('cytoscape').CollectionReturnValue = cy.getElementById(nodeId);
+    if (cyNode.length > 0 && typeof ResizeObserver !== 'undefined') {
+        shell.resizeObserver = new ResizeObserver((): void => {
+            if (!shell.isPinned) return;
+            const oldW: number = cyNode.width();
+            const oldH: number = cyNode.height();
+            updateShadowNodeDimensions(cyNode, ui.windowElement);
+            const dimChanged: boolean = Math.abs(cyNode.width() - oldW) > 1 || Math.abs(cyNode.height() - oldH) > 1;
+            if (dimChanged) {
+                markNodeDirty(cy, nodeId);
+            }
+        });
+        shell.resizeObserver.observe(ui.windowElement);
+    }
 
     // Wire hover/click events for lazy CM6 mounting
     wireShellHoverEvents(shell, cy);
@@ -203,6 +223,12 @@ export function destroyCardShell(nodeId: string): void {
             vanillaInstance.dispose();
             vanillaFloatingWindowInstances.delete(shell.editorId);
         }
+    }
+
+    // Disconnect resize observer
+    if (shell.resizeObserver) {
+        shell.resizeObserver.disconnect();
+        shell.resizeObserver = undefined;
     }
 
     // Run menu cleanup (disposes floating slider)

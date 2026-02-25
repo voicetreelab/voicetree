@@ -1,9 +1,28 @@
+import {screenToGraphDimensions, type ScalingStrategy} from "@/pure/graph/floating-windows/floatingWindowScaling";
+import {getCachedZoom} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
+
 /** Resize zone size in pixels - larger for easier targeting */
 const RESIZE_ZONE_SIZE: number = 15;
 
 /** Minimum window dimensions during resize */
 const MIN_WIDTH: number = 300;
 const MIN_HEIGHT: number = 200;
+
+/**
+ * Persist resized dimensions as base (graph) coordinates in the element's dataset.
+ * Called on mouseup after drag-to-resize so zoom/pan events preserve the user's resize.
+ */
+function persistResizedDimensions(windowElement: HTMLDivElement): void {
+    const strategy: ScalingStrategy = windowElement.dataset.usingCssTransform === 'true' ? 'css-transform' : 'dimension-scaling';
+    const zoom: number = getCachedZoom();
+    const graphDims: { readonly width: number; readonly height: number } = screenToGraphDimensions(
+        { width: windowElement.offsetWidth, height: windowElement.offsetHeight },
+        zoom,
+        strategy
+    );
+    windowElement.dataset.baseWidth = String(graphDims.width);
+    windowElement.dataset.baseHeight = String(graphDims.height);
+}
 
 /**
  * Add invisible resize zones to all 4 edges and 4 corners of a window (Phase 2C)
@@ -165,6 +184,7 @@ function setupEdgeResizeHandler(
         const onMouseUp: () => void = (): void => {
             document.removeEventListener('mousemove', onMouseMove);
             document.removeEventListener('mouseup', onMouseUp);
+            persistResizedDimensions(windowElement);
         };
 
         document.addEventListener('mousemove', onMouseMove);
@@ -225,6 +245,7 @@ function setupCornerResizeHandler(
         const onMouseUp: () => void = (): void => {
             document.removeEventListener('mousemove', onMouseMove);
             document.removeEventListener('mouseup', onMouseUp);
+            persistResizedDimensions(windowElement);
         };
 
         document.addEventListener('mousemove', onMouseMove);

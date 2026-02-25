@@ -5,6 +5,7 @@
 import type {Core} from 'cytoscape';
 import * as O from 'fp-ts/lib/Option.js';
 import {closeEditor} from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
+import {activeCardShells, destroyCardShell} from '@/shell/edge/UI-edge/floating-windows/editors/CardShell';
 import {closeSettingsEditor, isSettingsEditorOpen} from '@/shell/edge/UI-edge/settings/createSettingsEditor';
 import {getEditorByNodeId} from '@/shell/edge/UI-edge/state/EditorStore';
 import {getTerminalByNodeId} from '@/shell/edge/UI-edge/state/TerminalStore';
@@ -29,7 +30,13 @@ export function closeSelectedWindow(cy: Core): void {
 
     const nodeId: string = selected.first().id();
 
-    // Try closing editor first
+    // CardShell editors: use destroyCardShell (restores Cy node opacity/shape)
+    if (activeCardShells.has(nodeId)) {
+        destroyCardShell(nodeId);
+        return;
+    }
+
+    // Legacy anchored editors: use old closeEditor path
     const editor: O.Option<EditorData> = getEditorByNodeId(nodeId);
     if (O.isSome(editor)) {
         closeEditor(cy, editor.value);

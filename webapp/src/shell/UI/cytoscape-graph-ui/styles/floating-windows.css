@@ -113,9 +113,8 @@
   font-size: 12px;
   font-weight: 600;
   color: var(--foreground);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
   margin-bottom: 4px;
 }
 
@@ -139,7 +138,7 @@
 
 /* Card mode — compact card (chrome hidden, interaction disabled, faded bottom) */
 .mode-card {
-  max-height: 96px;
+  max-height: 115px;
   overflow: hidden;
   -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
   mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
@@ -187,6 +186,27 @@
   max-height: 400px;
   -webkit-mask-image: none;
   mask-image: none;
+}
+
+/* Hide resize zones in card and edit modes — only interactive when pinned */
+.mode-card [class*="resize-zone"],
+.mode-edit [class*="resize-zone"] {
+  display: none;
+}
+
+/* Card mode overflow must remain hidden (for gradient mask) even when resizable */
+.mode-card.resizable {
+  overflow: hidden;
+}
+
+/* Edit mode overflow must remain auto (for scrolling) even when resizable */
+.mode-edit.resizable {
+  overflow: auto;
+}
+
+/* Pinned resizable editors: remove max-height cap so user can resize freely */
+.mode-pinned.resizable {
+  max-height: 9999px;
 }
 
 .mode-pinned .cy-floating-window-card-header {
