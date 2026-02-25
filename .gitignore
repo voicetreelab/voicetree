@@ -155,6 +155,9 @@ tools/state/*
 /webapp/playwright-report/**/*
 /webapp/test-results/**/*
 /webapp/playwright-report-electron/**/*
+/webapp/e2e-tests/screenshots/**/*
+/frontend/webapp/tests/screenshots/**/*
+/frontend/webapp/e2e-tests/**/*
 /.playwright-mcp/**/*
 /backend/text_to_graph_pipeline/debug_logs/**/*
 cloud_functions/agentic_workflows/debug_logs/**/*
@@ -179,6 +182,7 @@ backend/text_to_graph_pipeline/debug_logs/**/*
 **/*.mp4
 **/*.mov
 **/*.gif
+/meta/*.png
 **/chromadb_data/*
 /.mcp.json
 /webapp/native-modules/electron-trackpad-detect/build/
