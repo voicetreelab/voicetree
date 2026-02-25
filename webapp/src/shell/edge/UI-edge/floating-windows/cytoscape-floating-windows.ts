@@ -42,6 +42,16 @@ export function getCachedZoom(): number {
 let overlayScaleActive: boolean = false;
 let refZoom: number = 1;
 
+/**
+ * Get the zoom level to use for positioning during overlay scale.
+ * During overlay scale, windows must be positioned at refZoom — the overlay's
+ * CSS scale(zoom/refZoom) compensates to give correct visual positions.
+ * Outside overlay scale, returns the actual cached zoom.
+ */
+export function getPositioningZoom(): number {
+    return overlayScaleActive ? refZoom : cachedZoom;
+}
+
 // =============================================================================
 // Zoom State Tracking
 // =============================================================================
@@ -250,6 +260,11 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
             // O(1) overlay transform — scales all children visually without per-window updates
             const pan: cytoscape.Position = cy.pan();
             overlay.style.transform = `translate(${pan.x}px, ${pan.y}px) scale(${zoom / refZoom})`;
+
+            // Zone transitions (card shell create/destroy) — O(1) on non-transition frames,
+            // O(V) on the rare frame crossing a threshold. New shells position at refZoom
+            // via getPositioningZoom(), so overlay scale gives correct visual placement.
+            updateAllFromZoom(cy, zoom);
         });
 
         // Resize handler — always full sync (browser window resize)
@@ -269,7 +284,6 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
             overlayScaleActive = false;
             zoomActiveUntil = 0; // Clear so isZoomActive() returns false for settle sync
             syncTransform();
-            updateAllFromZoom(cy, cy.zoom());
             updateVisibleCardsOnPan(cy);
         });
 

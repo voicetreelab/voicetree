@@ -9,13 +9,22 @@ import {
     type TransformOrigin,
     TERMINAL_CSS_TRANSFORM_THRESHOLD
 } from "@/pure/graph/floating-windows/floatingWindowScaling";
-import { isZoomActive } from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
+import { isZoomActive, getPositioningZoom } from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 
 /**
- * Update a floating window's scale and position based on zoom level
- * Called on every zoom change for all floating windows
+ * Update a floating window's scale and position based on zoom level.
+ * Called on every zoom change for all floating windows, and by createCardShell
+ * for initial positioning of new windows.
+ *
+ * During overlay scale (active zoom), uses refZoom for positioning/dimensions
+ * so the overlay's CSS scale(zoom/refZoom) gives correct visual placement.
+ * The `zoom` parameter is still used for strategy decisions and thresholds.
  */
 export function updateWindowFromZoom(cy: cytoscape.Core, windowElement: HTMLElement, zoom: number): void {
+    // During overlay scale, position at refZoom — overlay's scale(zoom/refZoom) compensates.
+    // Use actual zoom for strategy/threshold decisions (visual correctness on settle).
+    const posZoom: number = getPositioningZoom();
+
     const baseWidth: number = parseFloat(windowElement.dataset.baseWidth ?? '400');
     const baseHeight: number = parseFloat(windowElement.dataset.baseHeight ?? '400');
     const isTerminal: boolean = windowElement.classList.contains('cy-floating-window-terminal');
@@ -34,12 +43,12 @@ export function updateWindowFromZoom(cy: cytoscape.Core, windowElement: HTMLElem
         windowElement.dataset.pendingDimensionUpdate = 'true';
     }
 
-    // Apply dimensions based on strategy
+    // Apply dimensions based on strategy (using posZoom for overlay-scale correctness)
     const baseDimensions: { readonly width: number; readonly height: number } = {width: baseWidth, height: baseHeight};
     const screenDimensions: {
         readonly width: number;
         readonly height: number
-    } = getScreenDimensions(baseDimensions, zoom, strategy);
+    } = getScreenDimensions(baseDimensions, posZoom, strategy);
     windowElement.style.width = `${screenDimensions.width}px`;
     // Only update height for terminals - editors use auto-height (SetupAutoHeight.ts)
     // which manages height based on content. Resetting height here causes flicker.
@@ -59,11 +68,11 @@ export function updateWindowFromZoom(cy: cytoscape.Core, windowElement: HTMLElem
                 const baseHeight: number = 28; // Match CSS min-height
                 // Scale uniformly but counter-scale width so title bar spans full window
                 // Width: (100/zoom)% * zoom = 100% after transform
-                titleBar.style.width = `${100 / zoom}%`;
-                titleBar.style.transform = `scale(${zoom})`;
+                titleBar.style.width = `${100 / posZoom}%`;
+                titleBar.style.transform = `scale(${posZoom})`;
                 titleBar.style.transformOrigin = 'top left';
                 // Compensate for layout gap - element takes baseHeight but visually smaller
-                titleBar.style.marginBottom = `${-baseHeight * (1 - zoom)}px`;
+                titleBar.style.marginBottom = `${-baseHeight * (1 - posZoom)}px`;
             } else {
                 // Reset in css-transform mode (whole window scales)
                 titleBar.style.width = '';
@@ -98,21 +107,20 @@ export function updateWindowFromZoom(cy: cytoscape.Core, windowElement: HTMLElem
         graphY += graphOffsetY;
     }
 
-    // Toggle toolbar visibility based on zoom threshold — at very low zoom,
-    // toolbar icons (trash, copy, +, play, traffic lights) are unreadably small
+    // Toggle toolbar visibility based on actual zoom (not posZoom) — visual threshold
     windowElement.classList.toggle('zoom-below-toolbar-threshold', zoom < 0.5);
 
     if (graphX !== undefined && graphY !== undefined) {
         const screenPos: { readonly x: number; readonly y: number } = graphToScreenPosition({
             x: graphX,
             y: graphY
-        }, zoom);
+        }, posZoom);
         windowElement.style.left = `${screenPos.x}px`;
         windowElement.style.top = `${screenPos.y}px`;
 
         // Check for custom transform origin (e.g., hover editors use translateX(-50%) for centering)
         const customOrigin: TransformOrigin = windowElement.dataset.transformOrigin === 'top-center' ? 'top-center' : 'center';
-        windowElement.style.transform = getWindowTransform(strategy, zoom, customOrigin);
+        windowElement.style.transform = getWindowTransform(strategy, posZoom, customOrigin);
         windowElement.style.transformOrigin = getTransformOrigin(customOrigin);
     }
 }
