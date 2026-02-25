@@ -85,6 +85,8 @@ export interface VTSettings {
     readonly userEmail?: string;
     /** Template for starter node created when opening an empty folder. Supports {{DATE}} placeholder. */
     readonly emptyFolderTemplate?: string;
+    /** When true, skip auto-creating a starter note when opening an empty folder */
+    readonly disableStarterNodes?: boolean;
     /** Enable VIM keybindings in markdown editors */
     readonly vimMode?: boolean;
     /** Custom hotkey bindings - falls back to DEFAULT_HOTKEYS if not set */
