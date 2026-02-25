@@ -37,6 +37,20 @@ export function getCachedZoom(): number {
     return cachedZoom;
 }
 
+// Stored reference to syncTransform closure — set once in getOrCreateOverlay.
+// Allows external callers (e.g. zoom animation) to sync floating windows
+// in the same frame as cy.zoom(), avoiding the 1-frame RAF lag.
+let syncTransformFn: (() => void) | null = null;
+
+/**
+ * Sync floating window positions immediately (no RAF deferral).
+ * Used by the mouse wheel zoom animation to update windows in the same
+ * frame as cy.zoom(), eliminating the 1-frame lag that causes "teleporting".
+ */
+export function forceSyncTransform(): void {
+    syncTransformFn?.();
+}
+
 // =============================================================================
 // Zoom State Tracking
 // =============================================================================
@@ -195,6 +209,7 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
             }
         };
 
+        syncTransformFn = syncTransform;
         syncTransform();
 
         // RAF coalescing: ensures at most 1 update per frame even with multiple events
