@@ -27,7 +27,15 @@ export function closeAgentTool({terminalId, callerTerminalId}: CloseAgentParams)
         const targetRecord: TerminalRecord | undefined = getTerminalRecords().find(
             (r: TerminalRecord) => r.terminalId === terminalId
         )
-        const agentName: string | undefined = targetRecord?.terminalData.agentName
+
+        if (!targetRecord) {
+            return buildJsonResponse({
+                success: false,
+                error: `Cannot close agent "${terminalId}": agent doesn't exist or has already exited.`
+            }, true)
+        }
+
+        const agentName: string | undefined = targetRecord.terminalData.agentName
         const agentNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(getGraph(), agentName)
 
         if (agentNodes.length === 0) {
