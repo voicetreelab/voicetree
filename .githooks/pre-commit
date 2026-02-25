@@ -1,0 +1,14 @@
+#!/bin/bash
+# Block commits containing files larger than 500KB
+MAX_SIZE=512000  # 500KB in bytes
+
+for file in $(git diff --cached --name-only --diff-filter=ACM); do
+  if [ -f "$file" ]; then
+    size=$(wc -c < "$file")
+    if [ "$size" -gt "$MAX_SIZE" ]; then
+      echo "ERROR: $file is $(($size / 1024))KB (max 500KB)"
+      echo "Use 'git commit --no-verify' to bypass if intentional"
+      exit 1
+    fi
+  fi
+done
