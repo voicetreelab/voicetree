@@ -4,7 +4,7 @@ import { startFileWatching } from '@/shell/edge/main/graph/watch_folder/watchFol
 import { saveProject } from '@/shell/edge/main/project-store';
 import type { NodeIdAndFilePath } from '@/pure/graph';
 import type { SavedProject } from '@/pure/project/types';
-import path from 'path';
+import * as path from 'path';
 import { app } from 'electron';
 
 export interface DebugSetupResult {
@@ -88,10 +88,10 @@ export async function prettySetupAppForElectronDebugging(): Promise<DebugSetupRe
     const terminalIds: string[] = [];
 
     try {
-        // 1. Spawn parent terminal
+        // 1. Spawn parent terminal (undefined command = use first agent from settings)
         const { terminalId: parentTerminalId } = await spawnTerminalWithContextNode(
             candidates[0],
-            'echo "hello from parent"',
+            undefined,
             undefined, true, false
         );
         terminalIds.push(parentTerminalId);
@@ -100,7 +100,7 @@ export async function prettySetupAppForElectronDebugging(): Promise<DebugSetupRe
         if (candidates.length > 1) {
             const { terminalId: childTerminalId } = await spawnTerminalWithContextNode(
                 candidates[1],
-                'echo "hello from child"',
+                undefined,
                 undefined, true, false,
                 undefined,  // selectedNodeIds
                 undefined,  // spawnDirectory
@@ -113,7 +113,7 @@ export async function prettySetupAppForElectronDebugging(): Promise<DebugSetupRe
         if (candidates.length > 2) {
             const { terminalId } = await spawnTerminalWithContextNode(
                 candidates[2],
-                'echo "hello from sibling"',
+                undefined,
                 undefined, true, false
             );
             terminalIds.push(terminalId);

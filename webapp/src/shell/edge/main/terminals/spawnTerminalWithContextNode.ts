@@ -240,6 +240,9 @@ async function prepareTerminalDataInMain(
     // Extract worktree name from spawnDirectory if spawning in a .worktrees/ directory
     const worktreeName: string | undefined = extractWorktreeNameFromPath(initialSpawnDirectory);
 
+    // Read context content for the dropdown panel
+    const contextContent: string = contextNode.contentWithoutYamlOrLinks;
+
     // Create TerminalData using the factory function (flat type, no nested floatingWindow)
     // anchoredToNodeId = taskNodeId (shadow node connects to task node)
     // attachedToContextNodeId = contextNodeId (for metadata, env vars, and shadow→context edge)
@@ -258,6 +261,7 @@ async function prepareTerminalDataInMain(
         parentTerminalId: parentTerminalId as TerminalId | null,
         worktreeName: worktreeName,
         isHeadless: headless,
+        contextContent: contextContent,
     });
 
     return terminalData;

@@ -27,8 +27,6 @@ import * as O from 'fp-ts/lib/Option.js';
 const badgeElements: Map<TerminalId, HTMLElement> = new Map();
 // Track which Cytoscape node each badge is anchored to (needed for cleanup after terminal removal)
 const badgeNodeIds: Map<TerminalId, string> = new Map();
-// Track hidden context nodes for headless agents (unhide on removal)
-const hiddenContextNodes: Map<TerminalId, string> = new Map();
 let zoomListenerRegistered: boolean = false;
 
 // Hover popover state
@@ -78,16 +76,6 @@ export function updateHeadlessBadges(): void {
             element.remove();
             badgeElements.delete(terminalId);
 
-            // Unhide context node when headless terminal is removed
-            const contextNodeId: string | undefined = hiddenContextNodes.get(terminalId);
-            if (contextNodeId) {
-                const contextNode: CollectionReturnValue = cy.getElementById(contextNodeId);
-                if (contextNode.length > 0) {
-                    contextNode.removeClass('headless-context-hidden');
-                }
-                hiddenContextNodes.delete(terminalId);
-            }
-
             // Clear hasRunningTerminal on task node if no other terminals remain
             const nodeId: string | undefined = badgeNodeIds.get(terminalId);
             badgeNodeIds.delete(terminalId);
@@ -121,15 +109,6 @@ export function updateHeadlessBadges(): void {
                 }
             }
 
-            // Hide context nodes for headless agents (no shadow node to anchor them to)
-            if (terminal.isHeadless) {
-                const contextNodeId: string = terminal.attachedToContextNodeId;
-                const contextNode: CollectionReturnValue = cy.getElementById(contextNodeId);
-                if (contextNode.length > 0) {
-                    contextNode.addClass('headless-context-hidden');
-                    hiddenContextNodes.set(terminal.terminalId, contextNodeId);
-                }
-            }
         }
     }
 
@@ -144,19 +123,8 @@ export function destroyHeadlessBadges(): void {
     for (const element of badgeElements.values()) {
         element.remove();
     }
-    // Unhide all context nodes before clearing state
-    try {
-        const cy: Core = getCyInstance();
-        for (const contextNodeId of hiddenContextNodes.values()) {
-            const contextNode: CollectionReturnValue = cy.getElementById(contextNodeId);
-            if (contextNode.length > 0) {
-                contextNode.removeClass('headless-context-hidden');
-            }
-        }
-    } catch { /* Cytoscape already destroyed */ }
     badgeElements.clear();
     badgeNodeIds.clear();
-    hiddenContextNodes.clear();
     zoomListenerRegistered = false;
 }
 

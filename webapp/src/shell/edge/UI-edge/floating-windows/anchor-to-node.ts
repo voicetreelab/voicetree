@@ -5,7 +5,6 @@ import {
     getFloatingWindowId,
     getShadowNodeId,
     type ImageViewerId,
-    isTerminalData,
     type ShadowNodeId,
     type TerminalId
 } from "@/shell/edge/UI-edge/floating-windows/types";
@@ -140,53 +139,6 @@ export function anchorToNode(
 
     // Force render to ensure edge appears immediately (not deferred until pan/zoom)
     cy.forceRender();
-
-    // For terminals: fix context node position to top-left of terminal (no edge)
-    // Context node follows terminal position at a fixed offset
-    if (isTerminalData(fw) && fw.attachedToContextNodeId !== parentNodeId) {
-        const contextNodeId: NodeIdAndFilePath = fw.attachedToContextNodeId;
-        const contextNode: cytoscape.CollectionReturnValue = cy.getElementById(contextNodeId);
-
-        if (contextNode.length > 0) {
-            // Sync context node position to shadow node
-            // Dynamically reads dimensions to stay terminal-width aware
-            const syncContextPosition: () => void = () => {
-                const shadowPos: cytoscape.Position = shadowNode.position();
-                // Calculate offset dynamically based on current shadow node dimensions
-                const terminalWidth: number = shadowNode.width();
-                const terminalHeight: number = shadowNode.height();
-                const contextWidth: number = contextNode.width();
-                const contextHeight: number = contextNode.height();
-                // Position context node to the left of terminal with small gap, tops aligned
-                const contextTerminalGap: number = 10;
-                contextNode.position({
-                    x: shadowPos.x - terminalWidth / 2 - contextWidth / 2 - contextTerminalGap,
-                    y: shadowPos.y - terminalHeight / 2 + contextHeight / 2
-                });
-            };
-
-            // Initial position sync
-            syncContextPosition();
-
-            // Follow terminal on position changes
-            shadowNode.on('position', syncContextPosition);
-
-            // Also update context position when terminal is resized
-            const handleResize: (evt: cytoscape.EventObject, data: { nodeId: string }) => void = (
-                _evt: cytoscape.EventObject,
-                data: { nodeId: string }
-            ) => {
-                if (data.nodeId === shadowNodeId) {
-                    syncContextPosition();
-                }
-            };
-            cy.on('floatingwindow:resize', handleResize);
-
-            // Store cleanup reference
-            (shadowNode as cytoscape.NodeSingular & { _contextPositionSync?: () => void; _resizeHandler?: typeof handleResize })._contextPositionSync = syncContextPosition;
-            (shadowNode as cytoscape.NodeSingular & { _contextPositionSync?: () => void; _resizeHandler?: typeof handleResize })._resizeHandler = handleResize;
-        }
-    }
 
     // Set up ResizeObserver (window resize → shadow dimensions)
     // Only triggers layout for user-initiated resizes, not zoom-induced resizes

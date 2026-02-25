@@ -102,6 +102,9 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                 const isNewNode: boolean = existingNode.length === 0;
 
                 if (isNewNode) {
+                    // Skip adding context nodes to cytoscape entirely — they're only needed on disk for agents
+                    if (node.nodeUIMetadata.isContextNode === true) return;
+
                     newNodeIds.push(nodeId);
                     const hasPosition: boolean = O.isSome(node.nodeUIMetadata.position);
                     // Use saved position or temporary (0,0) - placeNewNodes will fix nodes without positions

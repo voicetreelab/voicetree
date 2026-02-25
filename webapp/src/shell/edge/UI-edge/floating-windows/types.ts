@@ -134,6 +134,8 @@ export function createTerminalData(params: CreateTerminalDataParams): TerminalDa
         isHeadless: params.isHeadless ?? false,
         // Minimized mode (default false — floating window hidden, badge shown)
         isMinimized: params.isMinimized ?? false,
+        // Context node content for dropdown panel (default empty)
+        contextContent: params.contextContent ?? '',
     };
 }
 

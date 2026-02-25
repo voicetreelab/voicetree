@@ -176,8 +176,11 @@ export function createWindowChrome(
 
     // Phase 4: Terminal-specific chrome - minimal title bar with traffic lights at far right
     if (isTerminal && 'type' in fw && isTerminalData(fw)) {
-        const terminalTitleBar: HTMLDivElement = createTerminalTitleBar(windowElement, cy, fw, options.closeTerminal);
-        windowElement.appendChild(terminalTitleBar);
+        const { titleBar, contextPanel } = createTerminalTitleBar(windowElement, cy, fw, options.closeTerminal);
+        windowElement.appendChild(titleBar);
+        if (contextPanel) {
+            windowElement.appendChild(contextPanel);
+        }
     }
 
     // Assemble window - content container only (no title bar in Phase 1)

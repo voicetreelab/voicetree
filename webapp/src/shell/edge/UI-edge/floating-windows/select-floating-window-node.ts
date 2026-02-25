@@ -31,7 +31,10 @@ export function selectFloatingWindowNode(
         if (isEditorData(fwData)) {
             nodeIdToSelect = fwData.contentLinkedToNodeId;
         } else if (isTerminalData(fwData)) {
-            nodeIdToSelect = fwData.attachedToContextNodeId;
+            // Select the task node (anchoredToNodeId) — context nodes are no longer in cytoscape
+            nodeIdToSelect = O.isSome(fwData.anchoredToNodeId)
+                ? fwData.anchoredToNodeId.value
+                : fwData.attachedToContextNodeId;
             setActiveTerminalId(getTerminalId(fwData));
         }
     } else if (O.isSome(fw.anchoredToNodeId)) {

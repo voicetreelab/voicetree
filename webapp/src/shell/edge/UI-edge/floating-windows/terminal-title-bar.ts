@@ -36,7 +36,7 @@ export function createTerminalTitleBar(
     cy: cytoscape.Core,
     terminal: TerminalData,
     closeTerminal?: (terminal: TerminalData, cy: Core) => Promise<void>
-): HTMLDivElement {
+): { titleBar: HTMLDivElement; contextPanel: HTMLDivElement | null } {
     const titleBar: HTMLDivElement = document.createElement('div');
     titleBar.className = 'terminal-title-bar';
 
@@ -54,10 +54,15 @@ export function createTerminalTitleBar(
     const attachedNodeId: string = terminal.attachedToContextNodeId;
     const hasContextNode: boolean = isContextNodeId(attachedNodeId);
 
-    // Create context badge for terminals with context nodes
+    // Create context dropdown for terminals with context nodes
+    let contextPanel: HTMLDivElement | null = null;
     if (hasContextNode) {
-        const contextBadge: HTMLDivElement = createContextBadge(terminal.title, windowElement, terminal.worktreeName, terminal.terminalId);
-        titleBar.appendChild(contextBadge);
+        const { dropdown, panel } = createContextDropdown(
+            terminal.title, terminal.contextContent, windowElement,
+            terminal.worktreeName, terminal.terminalId
+        );
+        titleBar.appendChild(dropdown);
+        contextPanel = panel;
     }
 
     const trafficLights: HTMLDivElement = createTrafficLightsForTarget({
@@ -76,24 +81,40 @@ export function createTerminalTitleBar(
 
     titleBar.appendChild(trafficLights);
 
-    return titleBar;
+    return { titleBar, contextPanel };
 }
 
 /**
- * Create context badge for terminals with context nodes
- * Shows truncated title, optionally with worktree indicator
+ * Create context dropdown for terminals with context nodes.
+ * Returns a dropdown element (goes in title bar) and a panel element (goes between title bar and content).
+ * Click toggles panel visibility and chevron rotation; Escape dismisses.
  */
-function createContextBadge(title: string, _windowElement: HTMLDivElement, worktreeName?: string, terminalId?: string): HTMLDivElement {
-    const badge: HTMLDivElement = document.createElement('div');
-    badge.className = 'terminal-context-badge';
+function createContextDropdown(
+    title: string,
+    contextContent: string,
+    _windowElement: HTMLDivElement,
+    worktreeName?: string,
+    terminalId?: string
+): { dropdown: HTMLDivElement; panel: HTMLDivElement } {
+    const dropdown: HTMLDivElement = document.createElement('div');
+    dropdown.className = 'terminal-context-badge';
 
-    // Truncated title (max 100 chars)
-    const titleSpan: HTMLSpanElement = document.createElement('span');
-    titleSpan.className = 'terminal-context-badge-title';
-    titleSpan.textContent = truncateTitle(title, 100);
-    badge.appendChild(titleSpan);
+    // Disclosure button: chevron + "ctx" label
+    const btn: HTMLDivElement = document.createElement('div');
+    btn.className = 'terminal-context-dropdown-btn';
 
-    // Subtitle row: agent ID + worktree on same line
+    const chevron: HTMLSpanElement = document.createElement('span');
+    chevron.className = 'terminal-context-chevron';
+    chevron.textContent = '\u25B6'; // ▶
+    btn.appendChild(chevron);
+
+    const label: HTMLSpanElement = document.createElement('span');
+    label.textContent = truncateTitle(title, 100);
+    btn.appendChild(label);
+
+    dropdown.appendChild(btn);
+
+    // Subtitle row: agent ID + worktree on same line (kept for InjectBar compatibility)
     if (worktreeName || terminalId) {
         const subtitleRow: HTMLSpanElement = document.createElement('span');
         subtitleRow.className = 'terminal-context-badge-subtitle';
@@ -114,8 +135,30 @@ function createContextBadge(title: string, _windowElement: HTMLDivElement, workt
             subtitleRow.appendChild(wtSpan);
         }
 
-        badge.appendChild(subtitleRow);
+        dropdown.appendChild(subtitleRow);
     }
 
-    return badge;
+    // Collapsible panel — sibling of title bar, not child
+    const panel: HTMLDivElement = document.createElement('div');
+    panel.className = 'terminal-context-panel';
+    panel.textContent = contextContent;
+
+    // Toggle panel on button click
+    btn.addEventListener('click', (e: MouseEvent): void => {
+        e.stopPropagation();
+        const isVisible: boolean = panel.classList.toggle('visible');
+        chevron.classList.toggle('expanded', isVisible);
+        dropdown.classList.toggle('terminal-context-expanded', isVisible);
+    });
+
+    // Escape dismisses panel
+    _windowElement.addEventListener('keydown', (e: KeyboardEvent): void => {
+        if (e.key === 'Escape' && panel.classList.contains('visible')) {
+            panel.classList.remove('visible');
+            chevron.classList.remove('expanded');
+            dropdown.classList.remove('terminal-context-expanded');
+        }
+    });
+
+    return { dropdown, panel };
 }

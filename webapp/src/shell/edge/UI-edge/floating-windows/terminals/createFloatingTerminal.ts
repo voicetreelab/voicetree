@@ -67,9 +67,13 @@ export async function createFloatingTerminal(
         return undefined;
     }
 
-    // Wait for parent node to appear (handles IPC race condition where terminal launch
-    // arrives before graph delta is processed)
-    await waitForNode(cy, nodeId, 1000);
+    // Wait for task node to appear (handles IPC race condition where terminal launch
+    // arrives before graph delta is processed). Context nodes are no longer in cytoscape,
+    // so wait for the task node (anchoredToNodeId) instead.
+    const waitNodeId: string = O.isSome(terminalData.anchoredToNodeId)
+        ? terminalData.anchoredToNodeId.value
+        : nodeId;
+    await waitForNode(cy, waitNodeId, 1000);
 
     try {
         // Create floating terminal window (returns TerminalData with ui populated)

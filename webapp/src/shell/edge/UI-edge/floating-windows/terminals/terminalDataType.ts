@@ -25,6 +25,8 @@ export type TerminalData = FloatingWindowFields & {
     readonly isHeadless: boolean;
     // Minimized mode: floating window hidden, badge shown on task node, PTY stays alive
     readonly isMinimized: boolean;
+    // Context node content for displaying in the context dropdown panel
+    readonly contextContent: string;
 };
 export type CreateTerminalDataParams = {
     readonly terminalId: TerminalId; // Now passed directly (equals agentName)
@@ -44,4 +46,5 @@ export type CreateTerminalDataParams = {
     readonly worktreeName?: string; // Worktree directory name (undefined = not in worktree)
     readonly isHeadless?: boolean; // Headless agent mode (default false)
     readonly isMinimized?: boolean; // Minimized mode (default false)
+    readonly contextContent?: string; // Context node content for dropdown panel (default '')
 };

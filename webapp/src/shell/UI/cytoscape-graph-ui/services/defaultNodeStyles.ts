@@ -28,23 +28,6 @@ export function getDefaultNodeStyles(colors: GraphColorPalette, font: string, is
       }
     },
 
-    // Context nodes - square shape with lighter gray
-    {
-      selector: 'node[?isContextNode]',
-      style: {
-        'shape': 'rectangle',
-        'background-color': '#7a7a7a',
-      }
-    },
-
-    // Context nodes for headless agents — hidden (no shadow node to anchor to)
-    {
-      selector: 'node.headless-context-hidden',
-      style: {
-        'display': 'none',
-      }
-    },
-
     // Folder compound nodes — subtle container behind the HTML folder presentation
     {
       selector: 'node[?isFolderNode]',
