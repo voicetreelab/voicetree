@@ -27,9 +27,17 @@ curl -s http://localhost:9222/json/version
 
 Should return JSON with `"Browser": "Chrome/..."`.
 
-### 3. Connect via Playwright MCP
+### 3. Go straight to inspecting — do NOT navigate
 
-Use `browser_snapshot` to connect. First attempt may timeout — retry once. The project and terminals are already loaded, so you should see the graph view immediately.
+The app is already loaded with the project and debug terminals. **Do not** run `browser_navigate` or `page.goto()` — this would force-refresh and destroy the loaded state. Instead, jump directly to:
+
+```javascript
+// browser_evaluate — check cytoscape nodes
+const cy = window.cytoscapeInstance;
+JSON.stringify({ nodeCount: cy.nodes().length, edgeCount: cy.edges().length });
+```
+
+Use `browser_snapshot` or `browser_take_screenshot` for visual inspection.
 
 ### Opening a specific project (optional)
 
@@ -80,6 +88,27 @@ cy.nodes().map(n => ({ id: n.id(), isContext: n.data('isContextNode') }));
 cy.nodes().length;
 ```
 
+## CRITICAL: Do NOT navigate or refresh the app
+
+`electron:debug` automatically loads the project and spawns debug terminals. The app is **already at the right page** when CDP is ready. Do NOT:
+- Run `browser_navigate` / `page.goto()` — this will force-refresh the app and lose all loaded state
+- Hit `/json` in the browser — same problem
+
+Instead, **go straight to `browser_evaluate`** to inspect the page state (e.g. query cytoscape nodes, check DOM elements). Use `browser_snapshot` or `browser_take_screenshot` for visual inspection.
+
+## CRITICAL: Be surgical when killing Electron processes
+
+VoiceTree itself runs as an Electron process. A blanket `pkill -f electron` or `kill -9` on all Electron PIDs **will kill your own host app**. To kill only the debug Electron:
+
+```bash
+# Find ONLY the process listening on port 9222
+lsof -i :9222 -sTCP:LISTEN
+# Then kill that specific PID
+kill <pid>
+```
+
+Never use `pkill -f electron` or kill Electron PIDs found via `lsof -i :9222` without the `-sTCP:LISTEN` filter — connected clients (including your own app) also show up.
+
 ## Troubleshooting
 
 | Issue | Solution |
@@ -88,7 +117,7 @@ cy.nodes().length;
 | Timeout on first connect | Retry - first connection can be slow |
 | Wrong tab selected | `browser_tabs action=select index=1` |
 | Native dialog opened | Use JavaScript APIs instead - native dialogs can't be automated |
-| Old Electron still running | `pkill -f "electron.*remote-debugging-port"` |
+| Old Electron still running | `lsof -i :9222 -sTCP:LISTEN` then `kill <that-pid>` |
 
 ## Architecture
 
