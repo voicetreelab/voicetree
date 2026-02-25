@@ -56,6 +56,7 @@ export const DEFAULT_SETTINGS: VTSettings = {
     emptyFolderTemplate: `# {{DATE}}
 
 Highest priority task: `,
+    disableStarterNodes: false,
     agents: [
         {
             name: 'Claude',

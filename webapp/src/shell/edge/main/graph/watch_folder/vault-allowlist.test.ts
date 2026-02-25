@@ -43,6 +43,7 @@ import { loadVaultPathAdditively, resolveLinkedNodesInWatchedFolder } from '@/sh
 import type { FileLimitExceededError } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce'
 import { createStarterNode } from './create-starter-node'
 import { notifyTextToTreeServerOfDirectory } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/notifyTextToTreeServerOfDirectory'
+import { loadSettings } from '@/shell/edge/main/settings/settings_IO'
 
 vi.mock('@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk', () => ({
   loadVaultPathAdditively: vi.fn().mockResolvedValue({
@@ -66,6 +67,10 @@ vi.mock('./create-starter-node', () => ({
   })
 }))
 
+vi.mock('@/shell/edge/main/settings/settings_IO', () => ({
+  loadSettings: vi.fn().mockResolvedValue({ disableStarterNodes: false })
+}))
+
 // Mock UI API and broadcast functions
 vi.mock('@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI', () => ({
   applyGraphDeltaToMemState: vi.fn().mockResolvedValue([]),
@@ -78,7 +83,8 @@ vi.mock('@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEve
 
 vi.mock('@/shell/edge/main/ui-api-proxy', () => ({
   uiAPI: {
-    fitViewport: vi.fn()
+    fitViewport: vi.fn(),
+    syncVaultState: vi.fn()
   }
 }))
 
@@ -481,6 +487,28 @@ describe('vault-allowlist: loadAndMergeVaultPath isWritePath behavior', () => {
       expect(result.success).toBe(true)
 
       // AND: createStarterNode should NOT have been called (folder not empty)
+      expect(createStarterNode).not.toHaveBeenCalled()
+    })
+
+    it('does not create starter node when disableStarterNodes is enabled', async () => {
+      // GIVEN: An empty vault path
+      const vaultPath: string = path.join(testTmpDir, 'empty-vault-disabled')
+      await fs.mkdir(vaultPath, { recursive: true })
+
+      // AND: loadVaultPathAdditively returns empty graph (no files found)
+      vi.mocked(loadVaultPathAdditively).mockResolvedValueOnce({
+        _tag: 'Right',
+        right: { graph: { nodes: {} }, delta: [] }
+      })
+
+      // AND: settings explicitly disable starter nodes
+      vi.mocked(loadSettings).mockResolvedValueOnce({ disableStarterNodes: true } as import('@/pure/settings/types').VTSettings)
+
+      // WHEN: loadAndMergeVaultPath is called with isWritePath: true
+      const result: LoadVaultPathResult = await loadAndMergeVaultPath(vaultPath, { isWritePath: true })
+
+      // THEN: Should return success without creating a starter node
+      expect(result.success).toBe(true)
       expect(createStarterNode).not.toHaveBeenCalled()
     })
 

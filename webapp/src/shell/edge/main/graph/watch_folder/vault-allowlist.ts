@@ -15,11 +15,12 @@ import type { FSWatcher } from "chokidar";
 import * as O from "fp-ts/lib/Option.js";
 import type { FilePath, Graph, GraphDelta, DeleteNode } from "@/pure/graph";
 import { applyGraphDeltaToGraph } from "@/pure/graph";
-import type { VaultConfig } from "@/pure/settings/types";
+import type { VaultConfig, VTSettings } from "@/pure/settings/types";
 import { loadVaultPathAdditively, resolveLinkedNodesInWatchedFolder } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk";
 import { createDatedSubfolder } from "@/shell/edge/main/project-utils";
 import { getStarredFolders } from "./starred-folders";
 import { createStarterNode } from "./create-starter-node";
+import { loadSettings } from "@/shell/edge/main/settings/settings_IO";
 import type { FileLimitExceededError } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce";
 import * as E from "fp-ts/lib/Either.js";
 import { setGraph, getGraph } from "@/shell/edge/main/state/graph-store";
@@ -163,7 +164,8 @@ export async function loadAndMergeVaultPath(
         const nodesInPath: readonly string[] = Object.keys(currentGraph.nodes).filter(nodeId =>
             nodeId.startsWith(vaultPath + '/') || nodeId === vaultPath
         );
-        if (nodesInPath.length === 0) {
+        const settings: VTSettings = await loadSettings();
+        if (nodesInPath.length === 0 && !settings.disableStarterNodes) {
             const starterGraph: Graph = await createStarterNode(vaultPath);
             currentGraph = { ...currentGraph, nodes: { ...currentGraph.nodes, ...starterGraph.nodes } };
             const starterNodeId: string = Object.keys(starterGraph.nodes)[0];
