@@ -1,19 +1,20 @@
 /**
  * Viewport visibility utilities for checking node visibility within the Cytoscape viewport.
  */
-import type { Core, BoundingBox, BoundingBox12, BoundingBoxWH, CollectionReturnValue } from 'cytoscape';
+import type { Core, BoundingBox, BoundingBox12, BoundingBoxWH, NodeCollection } from 'cytoscape';
 import { getCurrentIndex } from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
 import { queryNodesInRect } from '@/pure/graph/spatial';
 import type { Rect, SpatialIndex, SpatialNodeEntry } from '@/pure/graph/spatial';
 
 /**
- * Check if any non-shadow nodes are visible within the current viewport.
+ * Check if any nodes (including shadow nodes for floating windows) are visible
+ * within the current viewport.
  *
  * Uses R-tree spatial index when available for O(log n + k) performance,
  * falling back to O(n) iteration when the spatial index is not enabled.
  *
  * @param cy - Cytoscape core instance
- * @returns true if at least one non-shadow node is visible in viewport
+ * @returns true if at least one node is visible in viewport
  */
 export function areNodesVisibleInViewport(cy: Core): boolean {
   const extent: BoundingBox = cy.extent();
@@ -28,18 +29,13 @@ export function areNodesVisibleInViewport(cy: Core): boolean {
       maxY: extent.y2,
     };
     const hits: readonly SpatialNodeEntry[] = queryNodesInRect(index, rect);
-    // R-tree indexes all nodes including shadow nodes — filter them out
-    const hasVisibleNonShadow: boolean = hits.some(
-      entry => !cy.$id(entry.nodeId).data('isShadowNode')
-    );
-    if (hasVisibleNonShadow) return true;
-    // No non-shadow nodes in viewport — check if graph is empty (don't show toast for empty graphs)
-    const hasAnyNonShadowNode: boolean = cy.nodes().some(n => !n.data('isShadowNode'));
-    return !hasAnyNonShadowNode;
+    if (hits.length > 0) return true;
+    // No nodes in viewport — check if graph is empty (don't show toast for empty graphs)
+    return cy.nodes().length === 0;
   }
 
   // Fallback: O(n) iteration when spatial index not available
-  const nodes: CollectionReturnValue = cy.nodes().filter(n => !n.data('isShadowNode'));
+  const nodes: NodeCollection = cy.nodes();
 
   // Empty graph case - no nodes to show
   if (nodes.length === 0) {

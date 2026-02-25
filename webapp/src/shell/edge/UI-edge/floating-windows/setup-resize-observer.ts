@@ -24,6 +24,23 @@ export function updateShadowNodeDimensions(shadowNode: cytoscape.NodeSingular, d
     };
     const graphDimensions: { readonly width: number; readonly height: number } = screenToGraphDimensions(screenDimensions, zoom, strategy);
 
+    // Debug: warn when base (graph) dimensions become unreasonably large
+    const isTerminal: boolean = domElement.classList.contains('cy-floating-window-terminal');
+    if (isTerminal && (graphDimensions.width > 5000 || graphDimensions.height > 5000)) {
+        console.warn(
+            `[updateShadowNodeDimensions] OVERSIZED base dims: ${graphDimensions.width.toFixed(0)}×${graphDimensions.height.toFixed(0)} (graph coords)`,
+            {
+                screenWidth: screenDimensions.width,
+                screenHeight: screenDimensions.height,
+                zoom, strategy,
+                prevBaseWidth: domElement.dataset.baseWidth,
+                prevBaseHeight: domElement.dataset.baseHeight,
+                shadowNodeId: shadowNode.id(),
+            }
+        );
+        console.trace('[updateShadowNodeDimensions] OVERSIZED stack trace');
+    }
+
     shadowNode.style({
         'width': graphDimensions.width,
         'height': graphDimensions.height

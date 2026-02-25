@@ -49,6 +49,21 @@ export function updateWindowFromZoom(cy: cytoscape.Core, windowElement: HTMLElem
         readonly width: number;
         readonly height: number
     } = getScreenDimensions(baseDimensions, posZoom, strategy);
+
+    // Debug: warn when computed screen dimensions are unreasonably large
+    if (isTerminal && (screenDimensions.width > 10000 || screenDimensions.height > 10000)) {
+        console.warn(
+            `[updateWindowFromZoom] OVERSIZED terminal dimensions: ${screenDimensions.width.toFixed(0)}×${screenDimensions.height.toFixed(0)}px`,
+            {
+                baseWidth, baseHeight,
+                posZoom, zoom, strategy,
+                zoomIsActive,
+                shadowNodeId: windowElement.dataset.shadowNodeId,
+            }
+        );
+        console.trace('[updateWindowFromZoom] OVERSIZED stack trace');
+    }
+
     windowElement.style.width = `${screenDimensions.width}px`;
     // Only update height for terminals - editors use auto-height (SetupAutoHeight.ts)
     // which manages height based on content. Resetting height here causes flicker.

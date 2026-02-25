@@ -205,6 +205,12 @@ export default class TerminalManager {
    */
   resize(terminalId: string, cols: number, rows: number): TerminalOperationResult {
     try {
+      // Debug: warn when terminal dimensions are unreasonably large
+      if (cols > 500 || rows > 200) {
+        console.warn(`[Terminal] OVERSIZED resize for ${terminalId}: ${cols}×${rows} (cols×rows). This likely indicates a sizing bug.`);
+        console.trace('[Terminal] OVERSIZED resize stack trace');
+      }
+
       const ptyProcess: pty.IPty | undefined = this.terminals.get(terminalId);
       if (!ptyProcess) {
         // Ignore resize for error terminals

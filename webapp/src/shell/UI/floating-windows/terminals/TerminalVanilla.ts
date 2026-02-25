@@ -140,6 +140,28 @@ export class TerminalVanilla {
 
     // Handle terminal resize
     term.onResize(({ cols, rows }) => {
+      // Debug: warn when xterm reports unreasonably large dimensions
+      if (cols > 500 || rows > 200) {
+        const windowElement: HTMLElement | null = this.container.closest('.cy-floating-window') as HTMLElement | null;
+        const zoom: number = getCachedZoom();
+        console.warn(
+          `[TerminalVanilla] OVERSIZED xterm resize: ${cols}×${rows} (cols×rows)`,
+          {
+            terminalId: this.terminalId,
+            zoom,
+            containerWidth: this.container.offsetWidth,
+            containerHeight: this.container.offsetHeight,
+            windowWidth: windowElement?.offsetWidth,
+            windowHeight: windowElement?.offsetHeight,
+            baseWidth: windowElement?.dataset.baseWidth,
+            baseHeight: windowElement?.dataset.baseHeight,
+            usingCssTransform: windowElement?.dataset.usingCssTransform,
+            fontSize: this.term?.options.fontSize,
+          }
+        );
+        console.trace('[TerminalVanilla] OVERSIZED xterm resize stack trace');
+      }
+
       if (this.terminalId && window.electronAPI?.terminal) {
         void window.electronAPI.terminal.resize(this.terminalId, cols, rows);
       }
@@ -172,6 +194,24 @@ export class TerminalVanilla {
       // fit() recalculates cols/rows which can cause content reflow
       if (zoomActive || pendingUpdate) {
         return;
+      }
+
+      // Debug: warn when container is unreasonably large before fit()
+      const containerW: number = this.container.offsetWidth;
+      const containerH: number = this.container.offsetHeight;
+      if (containerW > 10000 || containerH > 10000) {
+        console.warn(
+          `[TerminalVanilla] OVERSIZED container before fit(): ${containerW}×${containerH}px`,
+          {
+            terminalId: this.terminalId,
+            zoom,
+            strategy,
+            baseWidth: windowElement?.dataset.baseWidth,
+            baseHeight: windowElement?.dataset.baseHeight,
+            fontSize: this.term.options.fontSize,
+          }
+        );
+        console.trace('[TerminalVanilla] OVERSIZED container stack trace');
       }
 
       // Save scroll position before fit (fit changes row count which can reset scroll)
