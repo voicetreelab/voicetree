@@ -125,7 +125,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                             content: node.contentWithoutYamlOrLinks,
                             summary: '',
                             color: colorValue,
-                            isContextNode: node.nodeUIMetadata.isContextNode === true
+                            isContextNode: !!node.nodeUIMetadata.isContextNode
                         },
                         position: {
                             x: pos.x,
@@ -297,13 +297,19 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
         // Will fit so average node takes target fraction of viewport
         setPendingPan('small-graph', newNodeIds, totalNodes);
     }
-    else {
-        // Auto-pan to new voice nodes so the view follows dictation
+    else if (newNodeCount >= 1) {
+        // Check for voice nodes first (follow dictation)
+        let foundVoice: boolean = false;
         for (let i: number = newNodeIds.length - 1; i >= 0; i--) {
             if (newNodeIds[i].includes('/voice/')) {
                 setPendingVoiceFollowPan(newNodeIds[i]);
+                foundVoice = true;
                 break;
             }
+        }
+        // Fallback: pan to the latest new node so it's visible after layout
+        if (!foundVoice) {
+            setPendingPanToNode(newNodeIds[newNodeIds.length - 1]);
         }
     }
     //console.log('[applyGraphDeltaToUI] Complete. Total nodes:', cy.nodes().length, 'Total edges:', cy.edges().length);
@@ -313,7 +319,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
     for (const nodeId of newNodeIds) {
         if (pendingManualPinNodeIds.has(nodeId)) {
             pendingManualPinNodeIds.delete(nodeId);
-            void pinCardShell(cy, nodeId as NodeIdAndFilePath);
+            void pinCardShell(cy, nodeId as NodeIdAndFilePath, true);
             break;
         }
     }

@@ -22,7 +22,6 @@ import type { EditorData } from '@/shell/edge/UI-edge/floating-windows/editors/e
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
 import type { VTSettings } from '@/pure/settings/types';
 import { onSettingsChange } from '@/shell/edge/UI-edge/api';
-import { forceSyncTransform } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 
 export class NavigationGestureService {
     private cy: Core;
@@ -234,7 +233,6 @@ export class NavigationGestureService {
                     level: this.targetZoom,
                     renderedPosition: this.zoomCursorPos
                 });
-                forceSyncTransform();
                 this.zoomAnimating = false;
                 return;
             }
@@ -244,8 +242,6 @@ export class NavigationGestureService {
                 level: next,
                 renderedPosition: this.zoomCursorPos
             });
-            forceSyncTransform();
-
             this.zoomAnimFrameId = requestAnimationFrame(tick);
         };
         this.zoomAnimFrameId = requestAnimationFrame(tick);

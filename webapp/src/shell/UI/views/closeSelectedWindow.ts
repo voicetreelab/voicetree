@@ -8,10 +8,11 @@ import {closeEditor} from '@/shell/edge/UI-edge/floating-windows/editors/Floatin
 import {activeCardShells, destroyCardShell} from '@/shell/edge/UI-edge/floating-windows/editors/CardShell';
 import {closeSettingsEditor, isSettingsEditorOpen} from '@/shell/edge/UI-edge/settings/createSettingsEditor';
 import {getEditorByNodeId} from '@/shell/edge/UI-edge/state/EditorStore';
-import {getTerminalByNodeId} from '@/shell/edge/UI-edge/state/TerminalStore';
+import {getActiveTerminalId, getTerminal} from '@/shell/edge/UI-edge/state/TerminalStore';
 import {closeTerminal} from '@/shell/edge/UI-edge/floating-windows/terminals/closeTerminal';
 import type {EditorData} from '@/shell/edge/UI-edge/floating-windows/editors/editorDataType';
 import type {TerminalData} from '@/shell/electron';
+import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/types';
 
 /**
  * Close the editor or terminal for the currently selected node (Cmd+W).
@@ -43,9 +44,12 @@ export function closeSelectedWindow(cy: Core): void {
         return;
     }
 
-    // Try closing terminal
-    const terminal: O.Option<TerminalData> = getTerminalByNodeId(nodeId);
-    if (O.isSome(terminal)) {
-        void closeTerminal(terminal.value, cy);
+    // Try closing the active terminal directly (no node lookup needed)
+    const activeId: TerminalId | null = getActiveTerminalId();
+    if (activeId) {
+        const terminal: O.Option<TerminalData> = getTerminal(activeId);
+        if (O.isSome(terminal)) {
+            void closeTerminal(terminal.value, cy);
+        }
     }
 }

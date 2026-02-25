@@ -37,19 +37,10 @@ export function getCachedZoom(): number {
     return cachedZoom;
 }
 
-// Stored reference to syncTransform closure — set once in getOrCreateOverlay.
-// Allows external callers (e.g. zoom animation) to sync floating windows
-// in the same frame as cy.zoom(), avoiding the 1-frame RAF lag.
-let syncTransformFn: (() => void) | null = null;
-
-/**
- * Sync floating window positions immediately (no RAF deferral).
- * Used by the mouse wheel zoom animation to update windows in the same
- * frame as cy.zoom(), eliminating the 1-frame lag that causes "teleporting".
- */
-export function forceSyncTransform(): void {
-    syncTransformFn?.();
-}
+// Overlay-scale state: during active zoom, we scale the overlay container instead
+// of updating N windows per frame. refZoom is the zoom level windows are positioned for.
+let overlayScaleActive: boolean = false;
+let refZoom: number = 1;
 
 // =============================================================================
 // Zoom State Tracking
@@ -209,7 +200,6 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
             }
         };
 
-        syncTransformFn = syncTransform;
         syncTransform();
 
         // RAF coalescing: ensures at most 1 update per frame even with multiple events
@@ -217,6 +207,7 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
         let needsVisibleCardsUpdate: boolean = false;
 
         const scheduleSync: () => void = () => {
+            if (overlayScaleActive) return; // During zoom, overlay scale handles everything
             if (rafPending) return;
             rafPending = true;
             requestAnimationFrame(() => {
@@ -230,7 +221,39 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
             });
         };
 
-        cy.on('pan zoom resize', () => {
+        // Pan handler — O(1) during zoom (update overlay translate+scale), RAF sync otherwise
+        cy.on('pan', () => {
+            if (overlayScaleActive) {
+                const pan: cytoscape.Position = cy.pan();
+                const zoom: number = cy.zoom();
+                overlay.style.transform = `translate(${pan.x}px, ${pan.y}px) scale(${zoom / refZoom})`;
+            } else {
+                needsVisibleCardsUpdate = true;
+                scheduleSync();
+            }
+        });
+
+        // Zoom handler — O(1) overlay scale during active zoom
+        cy.on('zoom', () => {
+            const zoom: number = cy.zoom();
+            suppressInactivityDuringZoom();
+            markZoomActive();
+
+            if (!overlayScaleActive) {
+                // First zoom event after settle — capture reference zoom (what windows are positioned for)
+                refZoom = cachedZoom;
+                overlayScaleActive = true;
+            }
+
+            cachedZoom = zoom;
+
+            // O(1) overlay transform — scales all children visually without per-window updates
+            const pan: cytoscape.Position = cy.pan();
+            overlay.style.transform = `translate(${pan.x}px, ${pan.y}px) scale(${zoom / refZoom})`;
+        });
+
+        // Resize handler — always full sync (browser window resize)
+        cy.on('resize', () => {
             needsVisibleCardsUpdate = true;
             scheduleSync();
         });
@@ -240,11 +263,14 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
         // fires 'position' events on nodes — not 'pan'/'zoom'/'resize' on cy.
         cy.on('position', 'node', scheduleSync);
 
-        // Zoom-specific behavior - only fires on actual zoom, not pan
-        cy.on('zoom', () => {
-            suppressInactivityDuringZoom();
-            markZoomActive();
+        // Zoom settle — run full O(N) sync once after zoom animation stops
+        onZoomEnd(() => {
+            if (!overlayScaleActive) return;
+            overlayScaleActive = false;
+            zoomActiveUntil = 0; // Clear so isZoomActive() returns false for settle sync
+            syncTransform();
             updateAllFromZoom(cy, cy.zoom());
+            updateVisibleCardsOnPan(cy);
         });
 
     }

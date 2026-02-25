@@ -1,6 +1,7 @@
-import type {Core} from 'cytoscape';
+import type {Core, CollectionReturnValue} from 'cytoscape';
 
 import type {NodeIdAndFilePath, GraphNode} from '@/pure/graph';
+import {addRecentlyVisited} from '@/shell/edge/UI-edge/state/RecentlyVisitedStore';
 
 import {
     createEditorData,
@@ -38,18 +39,12 @@ import {setupAutoHeight} from "@/shell/edge/UI-edge/floating-windows/editors/Set
 import {createWindowChrome} from "@/shell/edge/UI-edge/floating-windows/create-window-chrome";
 import {updateShadowNodeDimensions} from "@/shell/edge/UI-edge/floating-windows/setup-resize-observer";
 
-// =============================================================================
 // Card Mode Constants (graph-coordinate base dimensions for each mode)
-// =============================================================================
 
 const CARD_DIMENSIONS: { readonly width: number; readonly height: number } = { width: 200, height: 115 };
 const EDIT_DIMENSIONS: { readonly width: number; readonly height: number } = { width: 340, height: 280 };
 const PINNED_DIMENSIONS: { readonly width: number; readonly height: number } = { width: 420, height: 400 };
 const CARD_HOVER_DEBOUNCE_MS: number = 200;
-
-// =============================================================================
-// Card Shell Types & Registry
-// =============================================================================
 
 /**
  * Data for a card shell — lightweight DOM container without CM6.
@@ -107,7 +102,7 @@ export async function createCardShell(
 
     // Create window chrome with cardMode — produces card-header DOM + .mode-card class
     const ui: FloatingWindowUIData = createWindowChrome(cy, editorData, editorId, {
-        cardMode: { title, preview },
+        cardMode: { preview },
         agents: settings.agents ?? [],
         currentDistance: settings.contextNodeMaxDistance ?? 5,
         closeEditor: (): void => {
@@ -117,8 +112,13 @@ export async function createCardShell(
 
     const editorWithUI: EditorData = { ...editorData, ui };
 
-    // Position at Cy node — the real graph node IS the anchor
+    // Position at Cy node — the real graph node IS the anchor.
+    // Use top-center origin so the card hangs below the node circle,
+    // leaving the Cytoscape label above the node visible.
+    // Negative Y offset shifts card up so its top aligns with circle top — just below the label.
     ui.windowElement.dataset.shadowNodeId = nodeId;
+    ui.windowElement.dataset.transformOrigin = 'top-center';
+    ui.windowElement.dataset.graphOffsetY = String(-CIRCLE_SIZE / 2);
 
     // Add to overlay and register for zoom/pan sync
     const overlay: HTMLElement = getOrCreateOverlay(cy);
@@ -167,9 +167,6 @@ export async function createCardShell(
 }
 
 // =============================================================================
-// Lazy CM6 Mounting (on first hover)
-// =============================================================================
-
 /**
  * Mount CM6 editor into an existing card shell. Called on first hover.
  * Creates CM6 in the shell's contentContainer, wires autosave, loads content async.
@@ -204,10 +201,6 @@ async function mountCM6IntoShell(shell: CardShellData, cy: Core): Promise<void> 
         editor.setValue(content);
     }
 }
-
-// =============================================================================
-// Shell Destruction (cleanup)
-// =============================================================================
 
 /**
  * Destroy a card shell: dispose CM6 if mounted, remove DOM, unregister, remove from registry.
@@ -247,13 +240,15 @@ export function destroyCardShell(nodeId: string): void {
     // Unregister from floatingWindowsMap (zoom/pan sync)
     unregisterFloatingWindow(shell.editorId);
 
-    // Restore Cy node visibility (circle was hidden so label doesn't bleed through)
+    // Restore Cy node shape visibility (was hidden so card doesn't overlap circle)
     try {
         const cy: Core = getCyInstance();
         const cyNode: import('cytoscape').CollectionReturnValue = cy.getElementById(nodeId);
         if (cyNode.length > 0) {
             cyNode.style({
-                'opacity': 1,
+                'background-opacity': 1,
+                'border-opacity': 1,
+                'outline-opacity': 1,
                 'events': 'yes',
                 'width': CIRCLE_SIZE,
                 'height': CIRCLE_SIZE,
@@ -330,13 +325,31 @@ function wireShellHoverEvents(shell: CardShellData, cy: Core): void {
     const windowElement: HTMLElement = shell.windowElement;
     let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
 
-    // mouseenter (200ms debounce) → mount CM6 if needed, then expand to edit mode
+    // mouseenter → select underlying Cy node (card shell DOM blocks Cy's mouseover),
+    // then (200ms debounce) mount CM6 if needed and expand to edit mode
     windowElement.addEventListener('mouseenter', (): void => {
+        // Replicate hover-to-select from setupBasicCytoscapeEventListeners
+        const cyNode: CollectionReturnValue = cy.getElementById(shell.nodeId);
+        if (cyNode.length > 0) {
+            const selectedNodes: CollectionReturnValue = cy.$('node:selected');
+            const multipleNodesSelected: boolean = selectedNodes.length > 1;
+            const hoveredNodeIsSelected: boolean = cyNode.selected();
+            if (!(multipleNodesSelected && hoveredNodeIsSelected)) {
+                selectedNodes.not(cyNode).unselect();
+                cyNode.select();
+                addRecentlyVisited(shell.nodeId);
+            }
+        }
+
         if (shell.isPinned) return;
         hoverTimeout = setTimeout((): void => {
             void mountCM6IntoShell(shell, cy).then((): void => {
                 windowElement.classList.replace('mode-card', 'mode-edit');
                 setCardModeDimensions(windowElement, EDIT_DIMENSIONS);
+                // Restore centered positioning (old hover editor behavior)
+                delete windowElement.dataset.transformOrigin;
+                delete windowElement.dataset.graphOffsetY;
+                updateWindowFromZoom(cy, windowElement, cy.zoom());
             });
         }, CARD_HOVER_DEBOUNCE_MS);
     });
@@ -347,6 +360,10 @@ function wireShellHoverEvents(shell: CardShellData, cy: Core): void {
         if (shell.isPinned) return;
         windowElement.classList.replace('mode-edit', 'mode-card');
         setCardModeDimensions(windowElement, CARD_DIMENSIONS);
+        // Restore card-mode positioning: top-center + upward offset below label
+        windowElement.dataset.transformOrigin = 'top-center';
+        windowElement.dataset.graphOffsetY = String(-CIRCLE_SIZE / 2);
+        updateWindowFromZoom(cy, windowElement, cy.zoom());
     });
 
     // click → instant mount CM6 + edit mode (skip debounce)
@@ -356,6 +373,9 @@ function wireShellHoverEvents(shell: CardShellData, cy: Core): void {
         void mountCM6IntoShell(shell, cy).then((): void => {
             windowElement.classList.replace('mode-card', 'mode-edit');
             setCardModeDimensions(windowElement, EDIT_DIMENSIONS);
+            delete windowElement.dataset.transformOrigin;
+            delete windowElement.dataset.graphOffsetY;
+            updateWindowFromZoom(cy, windowElement, cy.zoom());
         });
     });
 
@@ -379,6 +399,10 @@ function wireShellHoverEvents(shell: CardShellData, cy: Core): void {
             windowElement.classList.remove('mode-pinned');
             windowElement.classList.add('mode-card');
             setCardModeDimensions(windowElement, CARD_DIMENSIONS);
+            // Restore card-mode positioning: top-center + upward offset below label
+            windowElement.dataset.transformOrigin = 'top-center';
+            windowElement.dataset.graphOffsetY = String(-CIRCLE_SIZE / 2);
+            updateWindowFromZoom(cy, windowElement, cy.zoom());
             syncCyNodeSize(cy, shell.nodeId, windowElement);
             // Restore shape to ellipse (circle still hidden — card shell covers it)
             const cyNode: import('cytoscape').CollectionReturnValue = cy.getElementById(shell.nodeId);
@@ -397,28 +421,39 @@ function wireShellHoverEvents(shell: CardShellData, cy: Core): void {
 /**
  * Transition a card shell to pinned mode: mount CM6, expand to full editor,
  * register in EditorStore, focus.
+ * @param focusAtEnd - If true, place cursor at end of content (for newly created nodes)
  */
-function pinShell(shell: CardShellData, cy: Core): void {
+function pinShell(shell: CardShellData, cy: Core, focusAtEnd: boolean = false): void {
     shell.isPinned = true;
-    // Hide circle (label bleeds through) and change shape to rectangle for correct layout bbox
-    const cyNode: import('cytoscape').CollectionReturnValue = cy.getElementById(shell.nodeId);
+    // Hide circle shape but keep label visible (label is above node, card hangs below)
+    const cyNode: CollectionReturnValue = cy.getElementById(shell.nodeId);
     if (cyNode.length > 0) {
-        cyNode.style({ 'opacity': 0, 'events': 'no', 'shape': 'rectangle' } as Record<string, unknown>);
+        cyNode.style({ 'background-opacity': 0, 'border-opacity': 0, 'outline-opacity': 0, 'events': 'no', 'shape': 'rectangle' } as Record<string, unknown>);
     }
+    // Clear card-mode positioning so pinned editor centers on node
+    delete shell.windowElement.dataset.transformOrigin;
+    delete shell.windowElement.dataset.graphOffsetY;
     void mountCM6IntoShell(shell, cy).then((): void => {
         shell.windowElement.classList.remove('mode-card', 'mode-edit');
         shell.windowElement.classList.add('mode-pinned');
         setCardModeDimensions(shell.windowElement, PINNED_DIMENSIONS);
+        updateWindowFromZoom(cy, shell.windowElement, cy.zoom());
         syncCyNodeSize(cy, shell.nodeId, shell.windowElement);
         addEditor(shell.editorData);
-        const vanillaInstance: { focus?: () => void; dispose: () => void } | undefined = vanillaFloatingWindowInstances.get(shell.editorId);
-        vanillaInstance?.focus?.();
+        // Select the pinned node so subsequent actions (Cmd+N, hotkeys) target it
+        cy.$(':selected').unselect();
+        if (cyNode.length > 0) {
+            cyNode.select();
+        }
+        addRecentlyVisited(shell.nodeId);
+        const vanillaInstance: { focus?: () => void; focusAtEnd?: () => void; dispose: () => void } | undefined = vanillaFloatingWindowInstances.get(shell.editorId);
+        if (focusAtEnd) {
+            vanillaInstance?.focusAtEnd?.();
+        } else {
+            vanillaInstance?.focus?.();
+        }
     });
 }
-
-// =============================================================================
-// Public Pin API (programmatic pinning for callers replacing AnchoredEditor)
-// =============================================================================
 
 /**
  * Pin a node's CardShell programmatically. If the shell doesn't exist yet,
@@ -427,12 +462,12 @@ function pinShell(shell: CardShellData, cy: Core): void {
  * Replaces createAnchoredFloatingEditor — the real Cy node IS the anchor,
  * no separate shadow node needed.
  */
-export async function pinCardShell(cy: Core, nodeId: NodeIdAndFilePath): Promise<void> {
+export async function pinCardShell(cy: Core, nodeId: NodeIdAndFilePath, focusAtEnd: boolean = false): Promise<void> {
     // If shell already exists, just pin it
     const existing: CardShellData | undefined = activeCardShells.get(nodeId);
     if (existing) {
         if (!existing.isPinned) {
-            pinShell(existing, cy);
+            pinShell(existing, cy, focusAtEnd);
         }
         return;
     }
@@ -444,18 +479,20 @@ export async function pinCardShell(cy: Core, nodeId: NodeIdAndFilePath): Promise
     const content: string = (cyNode.data('content') as string | undefined) ?? '';
     const preview: string = stripMarkdownFormatting(contentAfterTitle(content)).trim().replace(/\s+/g, ' ').slice(0, 150);
 
-    // Set Cy node dimensions immediately for layout, hide circle (label shows through otherwise),
+    // Set Cy node dimensions immediately for layout, hide circle shape but keep label visible,
     // and change shape to rectangle for correct layout bbox.
     // syncCyNodeSize in pinShell will refine width/height based on actual rendered size after async mount
     cyNode.style({
         'width': PINNED_DIMENSIONS.width,
         'height': PINNED_DIMENSIONS.height,
-        'opacity': 0,
+        'background-opacity': 0,
+        'border-opacity': 0,
+        'outline-opacity': 0,
         'events': 'no',
         'shape': 'rectangle',
     });
     markNodeDirty(cy, nodeId);
 
     const shell: CardShellData = await createCardShell(cy, nodeId, title, preview);
-    pinShell(shell, cy);
+    pinShell(shell, cy, focusAtEnd);
 }

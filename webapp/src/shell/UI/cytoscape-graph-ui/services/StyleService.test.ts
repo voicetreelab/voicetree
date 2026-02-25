@@ -164,8 +164,8 @@ describe('StyleService', () => {
       expect(nodeStyle).toBeDefined();
       expect(nodeStyle?.style).toHaveProperty('background-color');
       expect(nodeStyle?.style).toHaveProperty('color');
-      expect(nodeStyle?.style).toHaveProperty('text-valign', 'bottom');
-      expect(nodeStyle?.style).toHaveProperty('text-margin-y', 16);
+      expect(nodeStyle?.style).toHaveProperty('text-valign', 'top');
+      expect(nodeStyle?.style).toHaveProperty('text-margin-y', -16);
       expect(nodeStyle?.style).toHaveProperty('border-width', 1);
       expect(nodeStyle?.style).toHaveProperty('border-color', '#666');
 

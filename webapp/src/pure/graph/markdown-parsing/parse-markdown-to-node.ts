@@ -119,7 +119,7 @@ export function parseMarkdownToGraphNode(content: string, filename: string, grap
         }
     )
     const parsed: { readonly content: string; readonly data: Record<string, unknown>; } = E.getOrElse(() => ({ content, data: {} as Record<string, unknown> }))(parseResult)
-    const contentWithoutFrontmatter: string = parsed.content
+    const contentWithoutFrontmatter: string = parsed.content.replace(/^\n+/, '')
 
     // Extract frontmatter fields directly from raw YAML data
     // Note: title is NOT read from YAML - Markdown is the single source of truth for titles

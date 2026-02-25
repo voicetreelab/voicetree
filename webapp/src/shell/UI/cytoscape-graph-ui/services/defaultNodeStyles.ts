@@ -15,9 +15,9 @@ export function getDefaultNodeStyles(colors: GraphColorPalette, font: string, is
         'color': colors.textColor,
         'font-family': font,
         'font-weight': 800, // increased from bold (700) for better visibility at 2x scale
-        'text-valign': 'bottom',
+        'text-valign': 'top',
         'text-halign': 'center',
-        'text-margin-y': 16, // 2x scale (was 8)
+        'text-margin-y': -16, // 2x scale (was 8), negative = above node
         'shape': 'ellipse',
         'border-width': 1,
         'border-color': '#666',

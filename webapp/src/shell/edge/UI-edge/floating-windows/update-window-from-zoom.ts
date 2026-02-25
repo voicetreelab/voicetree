@@ -92,6 +92,12 @@ export function updateWindowFromZoom(cy: cytoscape.Core, windowElement: HTMLElem
         graphY = parseFloat(windowElement.dataset.graphY);
     }
 
+    // Apply optional graph-coordinate Y offset (e.g. card shells shift up to sit below labels)
+    const graphOffsetY: number = parseFloat(windowElement.dataset.graphOffsetY ?? '0');
+    if (graphOffsetY !== 0 && graphY !== undefined) {
+        graphY += graphOffsetY;
+    }
+
     // Toggle toolbar visibility based on zoom threshold — at very low zoom,
     // toolbar icons (trash, copy, +, play, traffic lights) are unreadably small
     windowElement.classList.toggle('zoom-below-toolbar-threshold', zoom < 0.5);

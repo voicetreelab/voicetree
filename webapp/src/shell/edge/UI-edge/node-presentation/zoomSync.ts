@@ -30,10 +30,10 @@ function mountShellForNode(cy: Core, nodeId: string): void {
     const content: string = (cyNode.data('content') as string | undefined) ?? '';
     const preview: string = stripMarkdownFormatting(contentAfterTitle(content)).trim().replace(/\s+/g, ' ').slice(0, 150);
 
-    // Create shell async — hide Cy circle so its label doesn't show through the card overlay
+    // Create shell async — hide Cy circle shape but keep label visible (label is above node)
     void createCardShell(cy, nodeId as NodeIdAndFilePath, title, preview)
         .then((): void => {
-            cyNode.style({ 'opacity': 0, 'events': 'no' } as Record<string, unknown>);
+            cyNode.style({ 'background-opacity': 0, 'border-opacity': 0, 'outline-opacity': 0, 'events': 'no' } as Record<string, unknown>);
         })
         .finally((): void => {
             pendingCreation.delete(nodeId);
@@ -49,7 +49,9 @@ function restoreCyNode(cy: Core, nodeId: string): void {
     const cyNode: CollectionReturnValue = cy.getElementById(nodeId);
     if (cyNode.length > 0) {
         cyNode.style({
-            'opacity': 1,
+            'background-opacity': 1,
+            'border-opacity': 1,
+            'outline-opacity': 1,
             'events': 'yes',
             'width': CIRCLE_SIZE,
             'height': CIRCLE_SIZE,
