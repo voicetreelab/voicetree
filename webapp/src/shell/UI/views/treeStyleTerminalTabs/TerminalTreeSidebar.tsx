@@ -124,6 +124,7 @@ interface TreeNodeProps {
     readonly onSelect: (terminal: TerminalData) => void;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 function TreeNode({ treeNode, isActive, shortcutHint, onSelect }: TreeNodeProps): JSX.Element {
     const { terminal, depth } = treeNode;
     const terminalId: TerminalId = terminal.terminalId;
@@ -164,8 +165,12 @@ function TreeNode({ treeNode, isActive, shortcutHint, onSelect }: TreeNodeProps)
             onClick={handleClick}
             onMouseDown={handleMouseDown}
         >
-            {/* Status indicator */}
-            <span className={`terminal-tree-status ${terminal.isMinimized ? 'minimized' : terminal.isDone ? 'done' : 'running'}`} />
+            {/* Status indicator — headless agents stay orange (never green) */}
+            <span className={`terminal-tree-status ${
+                terminal.isMinimized ? 'minimized' :
+                terminal.isDone ? (terminal.isHeadless ? 'headless-done' : 'done') :
+                'running'
+            }`} />
 
             {/* Title container */}
             <span className="terminal-tree-title">
@@ -204,6 +209,7 @@ interface SidebarInternalProps {
     readonly onNavigate: (terminal: TerminalData) => void;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 function TerminalTreeSidebarInternal({ onNavigate }: SidebarInternalProps): JSX.Element | null {
     const allTerminals: TerminalData[] = useTerminals();
     const activeTerminalId: TerminalId | null = useActiveTerminalId();

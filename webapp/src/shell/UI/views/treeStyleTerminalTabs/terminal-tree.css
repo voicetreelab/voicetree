@@ -83,18 +83,24 @@
     box-shadow: inset 2px 0 0 rgba(255, 200, 80, 0.7);
 }
 
-/* Headless agent styling - subtle distinction from interactive terminals */
+/* Headless agent styling - background agents: smaller, less emphasis, dashed */
 .terminal-tree-node.headless {
     border-style: dashed;
-    opacity: 0.7;
+    opacity: 0.65;
+    padding: 3px 8px;
+    font-size: 10px;
+}
+
+.terminal-tree-node.headless .terminal-tree-title-text {
+    font-size: 10px;
 }
 
 .terminal-tree-node.headless:hover {
-    opacity: 0.9;
+    opacity: 0.85;
 }
 
 .terminal-tree-node.headless.active {
-    opacity: 0.85;
+    opacity: 0.8;
 }
 
 /* Depth indentation - accounts for margin */
@@ -126,6 +132,12 @@
 
 .terminal-tree-status.done {
     background: #22c55e;
+}
+
+/* Headless agents stay orange when done — square shape to distinguish from interactive */
+.terminal-tree-status.headless-done {
+    background: #f59e0b;
+    border-radius: 2px;
 }
 
 .terminal-tree-status.minimized {
