@@ -8,7 +8,6 @@ import {markTerminalActivityForContextNode} from "@/shell/UI/views/treeStyleTerm
 import type {} from '@/utils/types/cytoscape-layout-utilities';
 import {checkEngagementPrompts} from "./userEngagementPrompts";
 import {setPendingPan, setPendingPanToNode, setPendingVoiceFollowPan} from "@/shell/edge/UI-edge/state/PendingPanStore";
-import {getEditorByNodeId} from "@/shell/edge/UI-edge/state/EditorStore";
 import {scheduleIdleWork} from "@/utils/scheduleIdleWork";
 import {getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {getShadowNodeId, getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
@@ -250,12 +249,6 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
 
 
                         if (targetNode.length > 0) {
-                            // Detect user-added wikilink: new edge from node with open editor
-                            const hasOpenEditor: boolean = O.isSome(getEditorByNodeId(nodeId));
-                            if (hasOpenEditor) {
-                                setPendingPanToNode(edge.targetId);
-                            }
-
                             //console.log(`[applyGraphDeltaToUI] Adding new edge: ${edgeId} with label ${edge.label}`);
                             cy.add({
                                 group: 'edges' as const,
@@ -307,9 +300,12 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                 break;
             }
         }
-        // Fallback: pan to the latest new node so it's visible after layout
+        // Only pan to user-created nodes (Cmd+N, button click) — agent/FS nodes are distracting
         if (!foundVoice) {
-            setPendingPanToNode(newNodeIds[newNodeIds.length - 1]);
+            const userCreatedNodeId: string | undefined = newNodeIds.find(id => pendingManualPinNodeIds.has(id));
+            if (userCreatedNodeId) {
+                setPendingPanToNode(userCreatedNodeId);
+            }
         }
     }
     //console.log('[applyGraphDeltaToUI] Complete. Total nodes:', cy.nodes().length, 'Total edges:', cy.edges().length);
