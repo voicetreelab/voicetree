@@ -12,7 +12,7 @@ import { getNodeTitle } from "@/pure/graph/markdown-parsing";
 import type { TerminalData } from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import { resolveAgentLaunchConfig, type AgentLaunchConfig } from "@/shell/edge/UI-edge/floating-windows/terminals/resolveAgentLaunchConfig";
 
-const MAX_TERMINALS: number = 12;
+const MAX_TERMINALS: number = 100; // human: raised for dev/power-use; original was 12
 
 /**
  * Spawn a terminal after showing the command editor popup.
