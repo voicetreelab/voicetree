@@ -19,6 +19,16 @@ import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/types';
  * Falls back to closing the settings editor if no node is selected.
  */
 export function closeSelectedWindow(cy: Core): void {
+    // Active terminal always takes priority: close it directly without touching any node's editors
+    const activeId: TerminalId | null = getActiveTerminalId();
+    if (activeId) {
+        const terminal: O.Option<TerminalData> = getTerminal(activeId);
+        if (O.isSome(terminal)) {
+            void closeTerminal(terminal.value, cy);
+        }
+        return;
+    }
+
     const selected: cytoscape.CollectionReturnValue = cy.$(':selected');
 
     // If no node selected, try closing the settings editor
@@ -42,14 +52,5 @@ export function closeSelectedWindow(cy: Core): void {
     if (O.isSome(editor)) {
         closeEditor(cy, editor.value);
         return;
-    }
-
-    // Try closing the active terminal directly (no node lookup needed)
-    const activeId: TerminalId | null = getActiveTerminalId();
-    if (activeId) {
-        const terminal: O.Option<TerminalData> = getTerminal(activeId);
-        if (O.isSome(terminal)) {
-            void closeTerminal(terminal.value, cy);
-        }
     }
 }

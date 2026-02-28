@@ -10,6 +10,7 @@ import type {NodeIdAndFilePath} from "@/pure/graph";
 import * as O from "fp-ts/lib/Option.js";
 import {addRecentlyVisited} from "@/shell/edge/UI-edge/state/RecentlyVisitedStore";
 import {setActiveTerminalId} from "@/shell/edge/UI-edge/state/TerminalStore";
+import {highlightContainedNodes, clearContainedHighlights} from "@/shell/UI/cytoscape-graph-ui/highlightContextNodes";
 
 /**
  * Select the graph node associated with a floating window.
@@ -31,11 +32,9 @@ export function selectFloatingWindowNode(
         if (isEditorData(fwData)) {
             nodeIdToSelect = fwData.contentLinkedToNodeId;
         } else if (isTerminalData(fwData)) {
-            // Select the task node (anchoredToNodeId) — context nodes are no longer in cytoscape
-            nodeIdToSelect = O.isSome(fwData.anchoredToNodeId)
-                ? fwData.anchoredToNodeId.value
-                : fwData.attachedToContextNodeId;
             setActiveTerminalId(getTerminalId(fwData));
+            clearContainedHighlights(cy);
+            void highlightContainedNodes(cy, fwData.attachedToContextNodeId);
         }
     } else if (O.isSome(fw.anchoredToNodeId)) {
         nodeIdToSelect = fw.anchoredToNodeId.value;

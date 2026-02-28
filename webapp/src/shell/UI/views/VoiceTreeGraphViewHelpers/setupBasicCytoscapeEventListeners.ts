@@ -74,10 +74,12 @@ export function setupBasicCytoscapeEventListeners(
     container.focus();
   });
 
-  // Close stats panel when clicking on canvas background (not on nodes)
+  // Close stats panel and clear terminal/highlight state when clicking on canvas background (not on nodes)
   cy.on('tap', (e) => {
     if (e.target === cy) {
       window.dispatchEvent(new Event('close-stats-panel'));
+      setActiveTerminalId(null);
+      clearContainedHighlights(cy);
     }
   });
 

@@ -83,41 +83,23 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
     // Get the shadow node from cy for viewport fitting
     const terminalShadowNode: CollectionReturnValue = cy.getElementById(shadowNodeId);
 
-    // Get context node (attachedToContextNodeId) and its neighborhood
-    const contextNodeId: string = terminal.attachedToContextNodeId;
-    const contextNode: CollectionReturnValue = cy.getElementById(contextNodeId);
-
-    // Select the context node (matching behavior when clicking inside a terminal)
-    // Note: unselect triggers an event handler that sets activeTerminalId to null,
-    // so we must set activeTerminalId AFTER the unselect/select operations
     cy.$(':selected').unselect();
-    if (contextNode.length > 0) {
-      contextNode.select();
-      addRecentlyVisited(contextNodeId);
-    }
-
-    // Update active terminal state (notifies listeners for gold outline highlighting)
-    // This must come AFTER unselect/select to avoid being overwritten by the unselect handler
     setActiveTerminalId(terminalId);
 
     // Start with terminal shadow node
     let nodesToFit: CollectionReturnValue = cy.collection().union(terminalShadowNode);
 
     // Helper to filter out other shadow nodes from neighborhood (exclude editor/terminal shadows)
-    const excludeOtherShadowNodes = (nodes: CollectionReturnValue): CollectionReturnValue =>
-      nodes.filter((n: NodeSingular) => n.data('isShadowNode') !== true);
-
-    // Add context node and its d=1 neighbors if it exists (excluding other shadow nodes)
-    if (contextNode.length > 0) {
-      nodesToFit = nodesToFit.union(excludeOtherShadowNodes(contextNode.closedNeighborhood().nodes()));
-    }
+    const excludeOtherShadowNodes: (nodes: CollectionReturnValue) => CollectionReturnValue =
+      (nodes: CollectionReturnValue): CollectionReturnValue =>
+        nodes.filter((n: NodeSingular) => n.data('isShadowNode') !== true);
 
     // Add task node (anchoredToNodeId) and its neighbors (both incoming and outgoing, excluding other shadow nodes)
     if (O.isSome(terminal.anchoredToNodeId)) {
       const taskNodeId: string = terminal.anchoredToNodeId.value;
       const taskNode: CollectionReturnValue = cy.getElementById(taskNodeId);
       if (taskNode.length > 0) {
-        nodesToFit = nodesToFit.union(excludeOtherShadowNodes(taskNode.closedNeighborhood().nodes()));
+        nodesToFit = nodesToFit.union(excludeOtherShadowNodes(taskNode.closedNeighborhood().nodes() as CollectionReturnValue));
       }
     }
 
@@ -208,7 +190,7 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
           }
         });
         if (match.node) {
-          node = match.node;
+          node = match.node as CollectionReturnValue;
           resolvedNodeId = match.node.id();
         }
       }
