@@ -30,7 +30,6 @@ import {
     modifyNodeContentFromUI
 } from "@/shell/edge/UI-edge/floating-windows/editors/modifyNodeContentFromFloatingEditor";
 import {markNodeDirty} from "@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout";
-import {screenToGraphDimensions, type ScalingStrategy} from "@/pure/graph/floating-windows/floatingWindowScaling";
 import {getCyInstance} from "@/shell/edge/UI-edge/state/cytoscape-state";
 import {CIRCLE_SIZE} from "@/pure/graph/node-presentation/types";
 
@@ -298,15 +297,7 @@ function syncCyNodeSize(cy: Core, nodeId: string, windowElement: HTMLElement): v
         const cyNode: import('cytoscape').CollectionReturnValue = cy.getElementById(nodeId);
         if (cyNode.length === 0) return;
 
-        const strategy: ScalingStrategy = windowElement.dataset.usingCssTransform === 'true' ? 'css-transform' : 'dimension-scaling';
-        const zoom: number = cy.zoom();
-        const graphDimensions: { readonly width: number; readonly height: number } = screenToGraphDimensions(
-            { width: windowElement.offsetWidth, height: windowElement.offsetHeight },
-            zoom,
-            strategy
-        );
-
-        cyNode.style({ 'width': graphDimensions.width, 'height': graphDimensions.height });
+        cyNode.style({ 'width': windowElement.offsetWidth, 'height': windowElement.offsetHeight });
         markNodeDirty(cy, nodeId);
     });
 }

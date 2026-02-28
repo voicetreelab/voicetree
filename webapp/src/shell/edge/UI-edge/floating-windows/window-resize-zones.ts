@@ -1,4 +1,4 @@
-import {screenToGraphDimensions, type ScalingStrategy} from "@/pure/graph/floating-windows/floatingWindowScaling";
+import {getScalingStrategy, screenToGraphDimensions, type ScalingStrategy} from "@/pure/graph/floating-windows/floatingWindowScaling";
 import {getCachedZoom} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 
 /** Resize zone size in pixels - larger for easier targeting */
@@ -13,8 +13,8 @@ const MIN_HEIGHT: number = 200;
  * Called on mouseup after drag-to-resize so zoom/pan events preserve the user's resize.
  */
 function persistResizedDimensions(windowElement: HTMLDivElement): void {
-    const strategy: ScalingStrategy = windowElement.dataset.usingCssTransform === 'true' ? 'css-transform' : 'dimension-scaling';
     const zoom: number = getCachedZoom();
+    const strategy: ScalingStrategy = getScalingStrategy(windowElement.classList.contains('cy-floating-window-terminal') ? 'Terminal' : 'Editor', zoom);
     const graphDims: { readonly width: number; readonly height: number } = screenToGraphDimensions(
         { width: windowElement.offsetWidth, height: windowElement.offsetHeight },
         zoom,

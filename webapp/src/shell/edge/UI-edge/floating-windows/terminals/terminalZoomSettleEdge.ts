@@ -40,7 +40,6 @@ export function applyWindowChromeUpdate(windowElement: HTMLElement): void {
     );
     windowElement.style.width = `${screenDimensions.width}px`;
     windowElement.style.height = `${screenDimensions.height}px`;
-    windowElement.dataset.usingCssTransform = 'false';
 
     // 2. Update window transform (remove CSS scale, keep centering)
     windowElement.style.transform = getWindowTransform(strategy, zoom, 'center');
@@ -85,7 +84,7 @@ function updateTitleBarCompensation(windowElement: HTMLElement, zoom: number): v
 export function setupTerminalZoomSettleHandler(container: HTMLElement): () => void {
     // let secondSettleTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
-    const unsubscribe = onZoomEnd(() => {
+    const unsubscribe: () => void = onZoomEnd(() => {
         const windowElement: HTMLElement | null = container.closest('.cy-floating-window') as HTMLElement | null;
         if (!windowElement || windowElement.dataset.pendingDimensionUpdate !== 'true') return;
 

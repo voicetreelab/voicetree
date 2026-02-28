@@ -6,7 +6,7 @@
  */
 
 import type cytoscape from "cytoscape";
-import {screenToGraphDimensions, type ScalingStrategy} from "@/pure/graph/floating-windows/floatingWindowScaling";
+import {getScalingStrategy, screenToGraphDimensions, type ScalingStrategy} from "@/pure/graph/floating-windows/floatingWindowScaling";
 import {getCyInstance} from "@/shell/edge/UI-edge/state/cytoscape-state";
 import {markNodeDirty} from "@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout";
 
@@ -16,8 +16,8 @@ import {markNodeDirty} from "@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoL
  * Also updates the base dimensions dataset so zoom/pan events preserve user resize.
  */
 export function updateShadowNodeDimensions(shadowNode: cytoscape.NodeSingular, domElement: HTMLElement): void {
-    const strategy: ScalingStrategy = domElement.dataset.usingCssTransform === 'true' ? 'css-transform' : 'dimension-scaling';
     const zoom: number = getCyInstance().zoom();
+    const strategy: ScalingStrategy = getScalingStrategy(domElement.classList.contains('cy-floating-window-terminal') ? 'Terminal' : 'Editor', zoom);
     const screenDimensions: { readonly width: number; readonly height: number } = {
         width: domElement.offsetWidth,
         height: domElement.offsetHeight

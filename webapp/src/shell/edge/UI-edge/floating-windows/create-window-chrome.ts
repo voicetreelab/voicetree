@@ -76,8 +76,6 @@ export function createWindowChrome(
 
     windowElement.style.width = `${screenDimensions.width}px`;
     windowElement.style.height = `${screenDimensions.height}px`;
-    windowElement.dataset.usingCssTransform = strategy === 'css-transform' ? 'true' : 'false';
-
     if (fw.resizable) {
         windowElement.classList.add('resizable');
     }

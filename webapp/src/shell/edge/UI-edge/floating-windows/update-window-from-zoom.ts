@@ -19,6 +19,11 @@ import { isZoomActive, getPositioningZoom } from "@/shell/edge/UI-edge/floating-
  * During overlay scale (active zoom), uses refZoom for positioning/dimensions
  * so the overlay's CSS scale(zoom/refZoom) gives correct visual placement.
  * The `zoom` parameter is still used for strategy decisions and thresholds.
+ *
+ * NOTE: This function is deferred to zoom-end via the overlay-scale mechanism.
+ * During active zoom it does NOT run — the overlay CSS scale(zoom/refZoom) handles visuals.
+ * Any code that needs the current scaling strategy must call getScalingStrategy(windowType, zoom)
+ * directly. Never cache or store the strategy: it will be stale during zoom transitions.
  */
 export function updateWindowFromZoom(cy: cytoscape.Core, windowElement: HTMLElement, zoom: number): void {
     // During overlay scale, position at refZoom — overlay's scale(zoom/refZoom) compensates.
@@ -70,8 +75,6 @@ export function updateWindowFromZoom(cy: cytoscape.Core, windowElement: HTMLElem
     if (isTerminal) {
         windowElement.style.height = `${screenDimensions.height}px`;
     }
-    windowElement.dataset.usingCssTransform = strategy === 'css-transform' ? 'true' : 'false';
-
     // Scale terminal title bar during dimension-scaling mode
     // In css-transform mode, the whole window scales so title bar scales automatically.
     // In dimension-scaling mode, we scale window dimensions but title bar stays fixed,

@@ -185,9 +185,7 @@ export class TerminalVanilla {
       // During css-transform: base font (CSS scale handles visual)
       // During dimension-scaling: base × zoom (matches perceived size)
       const zoom: number = getCachedZoom();
-      // Use actual strategy from window element (accounts for forced css-transform during zoom)
-      const usingCssTransform: boolean = windowElement?.dataset.usingCssTransform === 'true';
-      const strategy: 'css-transform' | 'dimension-scaling' = usingCssTransform ? 'css-transform' : 'dimension-scaling';
+      const strategy: 'css-transform' | 'dimension-scaling' = zoomActive ? 'css-transform' : getScalingStrategy('Terminal', zoom);
       this.term.options.fontSize = getTerminalFontSize(zoom, strategy);
 
       // Skip fit during active zoom or pending dimension update

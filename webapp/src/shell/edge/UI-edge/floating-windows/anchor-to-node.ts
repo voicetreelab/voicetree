@@ -11,6 +11,7 @@ import {
 import * as O from "fp-ts/lib/Option.js";
 import type {NodeIdAndFilePath} from "@/pure/graph";
 import {
+    getScalingStrategy,
     getWindowTransform,
     graphToScreenPosition,
     type ScalingStrategy
@@ -214,7 +215,7 @@ export function anchorToNode(
 function updateWindowPosition(shadowNode: cytoscape.NodeSingular, domElement: HTMLElement): void {
     const pos: cytoscape.Position = shadowNode.position();
     const zoom: number = getCachedZoom();
-    const strategy: ScalingStrategy = domElement.dataset.usingCssTransform === 'true' ? 'css-transform' : 'dimension-scaling';
+    const strategy: ScalingStrategy = getScalingStrategy(domElement.classList.contains('cy-floating-window-terminal') ? 'Terminal' : 'Editor', zoom);
 
     // Convert graph coordinates to screen coordinates
     const screenPos: { readonly x: number; readonly y: number } = graphToScreenPosition({ x: pos.x, y: pos.y }, zoom);
