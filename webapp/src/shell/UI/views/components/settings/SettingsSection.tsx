@@ -2,8 +2,13 @@ import { useState, useCallback } from 'react';
 import type { JSX } from 'react';
 import type { VTSettings, HotkeySettings, HotkeyBinding, HookSettings, EnvVarValue, AgentConfig } from '@/pure/settings/types';
 import { DEFAULT_HOTKEYS } from '@/pure/settings/DEFAULT_SETTINGS';
-import { SECTION_MAP, HIDDEN_KEYS, inferFieldType, keyToLabel } from './settingsUtils';
-import type { Section, FieldType } from './settingsUtils';
+import {
+    type Section,
+    type FieldMetadata,
+    getSectionFields,
+    HOTKEY_LABELS,
+    HOOK_LABELS,
+} from './settingsRegistry';
 import { ToggleField } from './fields/ToggleField';
 import { NumberField } from './fields/NumberField';
 import { TextField } from './fields/TextField';
@@ -16,49 +21,6 @@ interface SettingsSectionProps {
     section: Section;
     onUpdate: (key: string, value: unknown) => void;
 }
-
-/** Number field constraints keyed by settings key */
-const NUMBER_FIELD_CONFIG: Record<string, { min: number; max: number; step: number; slider?: boolean }> = {
-    zoomSensitivity: { min: 0.1, max: 5.0, step: 0.1, slider: true },
-    contextNodeMaxDistance: { min: 1, max: 20, step: 1 },
-    askModeContextDistance: { min: 1, max: 20, step: 1 },
-};
-
-/** Human-readable labels for hotkey binding keys */
-const HOTKEY_LABELS: Record<string, string> = {
-    fitToLastNode: 'Fit to Last Node',
-    nextTerminal: 'Next Terminal',
-    prevTerminal: 'Previous Terminal',
-    createNewNode: 'Create New Node',
-    runTerminal: 'Run Terminal',
-    deleteSelectedNodes: 'Delete Selected',
-    closeWindow: 'Close Window',
-    openSettings: 'Open Settings',
-    openSearch: 'Search',
-    openSearchAlt: 'Search (Alt)',
-    recentNode1: 'Recent Node 1',
-    recentNode2: 'Recent Node 2',
-    recentNode3: 'Recent Node 3',
-    recentNode4: 'Recent Node 4',
-    recentNode5: 'Recent Node 5',
-    voiceRecording: 'Voice Recording',
-};
-
-/** Human-readable labels for hook keys */
-const HOOK_LABELS: Record<string, { label: string; description: string }> = {
-    onWorktreeCreatedBlocking: {
-        label: 'On Worktree Created (Blocking)',
-        description: 'Shell command run after git worktree add. Blocks terminal spawn. Receives worktree path as $1, name as $2.',
-    },
-    postWorktreeCreatedAsync: {
-        label: 'Post Worktree Created (Async)',
-        description: 'Shell command run after git worktree add. Fire-and-forget. Receives worktree path as $1, name as $2.',
-    },
-    onNewNode: {
-        label: 'On New Node',
-        description: 'Shell command run after a new node is created. Receives node path as $1.',
-    },
-};
 
 /** Collapsible textarea for a single environment variable */
 function EnvVarEntry({ envKey, value, onChange }: {
@@ -95,11 +57,8 @@ function EnvVarEntry({ envKey, value, onChange }: {
 }
 
 export function SettingsSection({ settings, section, onUpdate }: SettingsSectionProps): JSX.Element {
-    // Get keys belonging to this section, excluding hidden keys
-    const sectionKeys: string[] = Object.entries(SECTION_MAP)
-        .filter(([, s]) => s === section)
-        .map(([key]) => key)
-        .filter(key => !HIDDEN_KEYS.has(key));
+    // Get fields from registry for this section
+    const fields: readonly FieldMetadata[] = getSectionFields(section);
 
     const handleHotkeyUpdate: (hotkeyKey: string, binding: HotkeyBinding) => void = useCallback((hotkeyKey: string, binding: HotkeyBinding): void => {
         const currentHotkeys: HotkeySettings = settings.hotkeys ?? DEFAULT_HOTKEYS;
@@ -118,34 +77,34 @@ export function SettingsSection({ settings, section, onUpdate }: SettingsSection
 
     return (
         <div className="space-y-3">
-            {sectionKeys.map(key => {
-                const value: unknown = (settings as unknown as Record<string, unknown>)[key];
-                const fieldType: FieldType = inferFieldType(key, value);
-                const label: string = keyToLabel(key);
+            {fields.map(field => {
+                const value: unknown = (settings as unknown as Record<string, unknown>)[field.key];
 
-                switch (fieldType) {
+                switch (field.type) {
                     case 'toggle':
                         return (
                             <ToggleField
-                                key={key}
-                                label={label}
+                                key={field.key}
+                                label={field.label}
+                                description={field.description}
                                 value={value as boolean ?? false}
-                                onChange={v => onUpdate(key, v)}
+                                onChange={v => onUpdate(field.key, v)}
                             />
                         );
 
                     case 'number': {
-                        const config: { min: number; max: number; step: number; slider?: boolean } | undefined = NUMBER_FIELD_CONFIG[key];
+                        const config = field.numberConfig;
                         return (
                             <NumberField
-                                key={key}
-                                label={label}
+                                key={field.key}
+                                label={field.label}
+                                description={field.description}
                                 value={value as number ?? 0}
                                 min={config?.min}
                                 max={config?.max}
                                 step={config?.step}
                                 slider={config?.slider}
-                                onChange={v => onUpdate(key, v)}
+                                onChange={v => onUpdate(field.key, v)}
                             />
                         );
                     }
@@ -153,32 +112,36 @@ export function SettingsSection({ settings, section, onUpdate }: SettingsSection
                     case 'text':
                         return (
                             <TextField
-                                key={key}
-                                label={label}
+                                key={field.key}
+                                label={field.label}
+                                description={field.description}
                                 value={value as string ?? ''}
-                                onChange={v => onUpdate(key, v)}
+                                placeholder={field.placeholder}
+                                onChange={v => onUpdate(field.key, v)}
                             />
                         );
 
                     case 'textarea':
                         return (
                             <TextField
-                                key={key}
-                                label={label}
+                                key={field.key}
+                                label={field.label}
+                                description={field.description}
                                 value={value as string ?? ''}
+                                placeholder={field.placeholder}
                                 multiline
-                                onChange={v => onUpdate(key, v)}
+                                onChange={v => onUpdate(field.key, v)}
                             />
                         );
 
                     case 'hotkey-group': {
                         const hotkeys: HotkeySettings = (value as HotkeySettings | undefined) ?? DEFAULT_HOTKEYS;
                         return (
-                            <div key={key} className="space-y-2">
+                            <div key={field.key} className="space-y-2">
                                 {(Object.keys(hotkeys) as (keyof HotkeySettings)[]).map(hotkeyKey => (
                                     <HotkeyField
                                         key={hotkeyKey}
-                                        label={HOTKEY_LABELS[hotkeyKey] ?? keyToLabel(hotkeyKey)}
+                                        label={HOTKEY_LABELS[hotkeyKey] ?? hotkeyKey}
                                         value={hotkeys[hotkeyKey]}
                                         onChange={binding => handleHotkeyUpdate(hotkeyKey, binding)}
                                     />
@@ -190,27 +153,31 @@ export function SettingsSection({ settings, section, onUpdate }: SettingsSection
                     case 'agent-list':
                         return (
                             <AgentListField
-                                key={key}
+                                key={field.key}
                                 value={value as readonly AgentConfig[] ?? []}
-                                onChange={v => onUpdate(key, v)}
+                                onChange={v => onUpdate(field.key, v)}
                             />
                         );
 
                     case 'string-list':
                         return (
                             <StringListField
-                                key={key}
-                                label={label}
+                                key={field.key}
+                                label={field.label}
+                                description={field.description}
                                 value={value as readonly string[] ?? []}
-                                onChange={v => onUpdate(key, v)}
+                                onChange={v => onUpdate(field.key, v)}
                             />
                         );
 
                     case 'key-value': {
                         const envVars: Record<string, EnvVarValue> = (value as Record<string, EnvVarValue>) ?? {};
                         return (
-                            <div key={key} className="space-y-2">
-                                <div className="font-mono text-sm text-foreground font-medium">{label}</div>
+                            <div key={field.key} className="space-y-2">
+                                <div className="font-mono text-sm text-foreground font-medium">{field.label}</div>
+                                {field.description && (
+                                    <div className="text-muted-foreground text-xs">{field.description}</div>
+                                )}
                                 {Object.entries(envVars).map(([envKey, envValue]) => (
                                     <EnvVarEntry
                                         key={envKey}
@@ -226,7 +193,7 @@ export function SettingsSection({ settings, section, onUpdate }: SettingsSection
                     case 'hook-group': {
                         const hooks: HookSettings = (value as HookSettings | undefined) ?? {};
                         return (
-                            <div key={key} className="space-y-3">
+                            <div key={field.key} className="space-y-3">
                                 {Object.entries(HOOK_LABELS).map(([hookKey, meta]) => (
                                     <TextField
                                         key={hookKey}
