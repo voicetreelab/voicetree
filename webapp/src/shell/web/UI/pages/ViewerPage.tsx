@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import type { JSX, RefObject } from 'react'
 import { useParams } from 'react-router-dom'
 import { isRight } from 'fp-ts/lib/Either.js'
@@ -11,6 +11,8 @@ import { initializeCytoscapeInstance } from '@/shell/UI/views/VoiceTreeGraphView
 import { StyleService } from '@/shell/UI/cytoscape-graph-ui/services/StyleService'
 import { applyGraphDeltaToWebUI } from '@/shell/web/applyGraphDeltaToWebUI'
 import { viewPipeline } from '@/shell/web/viewPipeline'
+import NodeContentPanel from '@/shell/web/UI/components/NodeContentPanel'
+import type { SelectedNode } from '@/shell/web/UI/components/NodeContentPanel'
 
 type ViewState =
     | { readonly phase: 'loading' }
@@ -33,6 +35,9 @@ export default function ViewerPage(): JSX.Element {
     const containerRef: RefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null)
     const cyRef: RefObject<Core | null> = useRef<Core | null>(null)
     const [state, setState] = useState<ViewState>({ phase: 'loading' })
+    const [selectedNode, setSelectedNode] = useState<SelectedNode | null>(null)
+
+    const closePanel: () => void = useCallback(() => setSelectedNode(null), [])
 
     useEffect(() => {
         if (!id || !containerRef.current) return
@@ -49,6 +54,15 @@ export default function ViewerPage(): JSX.Element {
         void run().then((result: Either<ViewError, GraphDelta>) => {
             if (isRight(result)) {
                 applyGraphDeltaToWebUI(cy, result.right)
+                cy.on('tap', 'node', (evt) => {
+                    const nodeId: string = evt.target.id()
+                    const content: string = evt.target.data('content') ?? ''
+                    const label: string = evt.target.data('label') ?? ''
+                    setSelectedNode({ id: nodeId, content, label })
+                })
+                cy.on('tap', (evt) => {
+                    if (evt.target === cy) setSelectedNode(null)
+                })
                 cy.fit(undefined, 50)
                 setState({ phase: 'ready' })
             } else {
@@ -86,6 +100,9 @@ export default function ViewerPage(): JSX.Element {
                 </div>
             )}
             <div ref={containerRef} className="h-full w-full" />
+            {selectedNode && (
+                <NodeContentPanel node={selectedNode} onClose={closePanel} />
+            )}
         </div>
     )
 }
