@@ -1,0 +1,8 @@
+name = "share-worker"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[[r2_buckets]]
+binding = "SHARES_BUCKET"
+bucket_name = "voicetree-shares"
+preview_bucket_name = "voicetree-shares-preview"
