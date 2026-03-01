@@ -1,6 +1,15 @@
-export type FieldType = 'toggle' | 'number' | 'text' | 'textarea' | 'hotkey-group' | 'agent-list' | 'string-list' | 'key-value' | 'hook-group';
-export type Section = 'general' | 'shortcuts' | 'agents' | 'hooks' | 'advanced';
+/**
+ * @deprecated Use settingsRegistry.ts instead for new code.
+ * This file is kept for backward compatibility during migration.
+ */
 
+import type { FieldType, Section } from './settingsRegistry';
+export type { FieldType, Section };
+
+/**
+ * @deprecated Use SETTINGS_REGISTRY from settingsRegistry.ts instead.
+ * Infer field type from value - legacy approach, prefer explicit registry.
+ */
 export function inferFieldType(key: string, value: unknown): FieldType {
     if (key === 'hotkeys') return 'hotkey-group';
     if (key === 'agents') return 'agent-list';
@@ -14,10 +23,13 @@ export function inferFieldType(key: string, value: unknown): FieldType {
     return 'text';
 }
 
+/**
+ * @deprecated Field labels are now defined in SETTINGS_REGISTRY.
+ */
 export function keyToLabel(key: string): string {
     const overrides: Record<string, string> = {
         'INJECT_ENV_VARS': 'Environment Variables',
-        'shiftEnterSendsOptionEnter': 'Shift+Enter \u2192 Option+Enter',
+        'shiftEnterSendsOptionEnter': 'Shift+Enter → Option+Enter',
         'terminalSpawnPathRelativeToWatchedDirectory': 'Terminal Spawn Path',
         'contextNodeMaxDistance': 'Context Distance',
         'askModeContextDistance': 'Ask Mode Distance',
@@ -36,8 +48,14 @@ export function keyToLabel(key: string): string {
     return key.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()).trim();
 }
 
+/**
+ * @deprecated Hidden status is now defined in SETTINGS_REGISTRY.
+ */
 export const HIDDEN_KEYS: Set<string> = new Set(['agentPermissionModeChosen', 'feedbackDialogShown', 'userEmail']);
 
+/**
+ * @deprecated Section mapping is now defined in SETTINGS_REGISTRY.
+ */
 export const SECTION_MAP: Record<string, Section> = {
     darkMode: 'general', vimMode: 'general',
     shiftEnterSendsOptionEnter: 'general', autoNotifyUnseenNodes: 'general',
