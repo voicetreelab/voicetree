@@ -78,7 +78,9 @@ export async function createMcpServer(): Promise<McpServer> {
 
 **Pattern:** Decompose into nodes → spawn agents → wait_for_agents → review with get_unseen_nodes_nearby.
 
-If you already have a node detailing the task, use nodeId. Otherwise, use task+parentNodeId to create a new task node first.`,
+**Prefer \`nodeId\` over \`task+parentNodeId\` when a node already describes the work.** Don't recreate what's already written — spawn directly on the existing node.
+
+If no node exists yet, use task+parentNodeId to create a new task node first.`,
             inputSchema: {
                 nodeId: z.string().optional().describe('Target node ID to attach the spawned agent (use this OR task+parentNodeId)'),
                 callerTerminalId: z.string().describe('Your terminal ID, you must echo $VOICETREE_TERMINAL_ID to retrieve it if you have not yet.'),
