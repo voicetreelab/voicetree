@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite'
+import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import wasm from 'vite-plugin-wasm'
@@ -17,6 +18,23 @@ const emptyModule = path.resolve(__dirname, 'src/utils/empty-node-module.ts')
  */
 export default defineConfig({
   plugins: [
+    // Serve web-index.html instead of index.html for all SPA routes in dev mode
+    {
+      name: 'web-index-spa-fallback',
+      configureServer(server) {
+        server.middlewares.use((req, _res, next) => {
+          const url = req.url || ''
+          // Skip Vite internals, source files, node_modules, and asset requests
+          if (url.startsWith('/@') || url.startsWith('/__') || url.startsWith('/src/') ||
+              url.startsWith('/node_modules/') || path.extname(url)) {
+            return next()
+          }
+          // Rewrite SPA routes (/, /upload, /share/:id) to web-index.html
+          req.url = '/web-index.html'
+          next()
+        })
+      }
+    } satisfies Plugin,
     // Plugin to handle CSS imports from Lit Element components (ninja-keys -> @material/mwc-icon)
     // Must run before tailwindcss plugin
     {
@@ -53,6 +71,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
+    include: ['buffer'],
     exclude: ['ninja-keys']
   },
   server: {

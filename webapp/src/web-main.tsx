@@ -1,4 +1,9 @@
 /// <reference types="vite/client" />
+import { Buffer } from 'buffer'
+if (typeof globalThis.Buffer === 'undefined') {
+  (globalThis as Record<string, unknown>).Buffer = Buffer
+}
+
 import { Suspense, lazy } from 'react'
 import type { LazyExoticComponent, ComponentType } from 'react'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'

@@ -10,7 +10,10 @@ import { applyGraphDeltaToGraph } from '@/pure/graph/graphDelta/applyGraphDeltaT
  * Uses existing addNodeToGraphWithEdgeHealingFromFSEvent + applyGraphDeltaToGraph.
  */
 export function buildGraphFromFiles(files: ReadonlyMap<RelativePath, string>): Graph {
-  return Array.from(files.entries()).reduce(
+  const mdFiles: Map<RelativePath, string> = new Map(
+    Array.from(files.entries()).filter(([path]) => path.endsWith('.md'))
+  )
+  return Array.from(mdFiles.entries()).reduce(
     (graph, [relativePath, content]) => {
       const fsEvent: FSUpdate = {
         absolutePath: relativePath,

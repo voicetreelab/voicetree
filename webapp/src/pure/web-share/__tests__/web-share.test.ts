@@ -180,6 +180,17 @@ describe('buildGraphFromFiles', () => {
     expect(graph.nodes['readme.md']).toBeDefined()
   })
 
+  it('ignores non-.md files like positions.json', () => {
+    const files: ReadonlyMap<string, string> = new Map([
+      ['root.md', '# Root'],
+      ['.voicetree/positions.json', '{"some": "json"}'],
+    ])
+    const graph: Graph = buildGraphFromFiles(files)
+    expect(Object.keys(graph.nodes)).toHaveLength(1)
+    expect(graph.nodes['root.md']).toBeDefined()
+    expect(graph.nodes['.voicetree/positions.json']).toBeUndefined()
+  })
+
   it('handles nodes with frontmatter (YAML positions, colors)', () => {
     const files: ReadonlyMap<string, string> = new Map([
       ['styled.md', '---\ncolor: purple\nposition:\n  x: 100\n  y: 200\n---\n# Styled Node']
