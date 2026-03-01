@@ -191,3 +191,9 @@ backend/text_to_graph_pipeline/debug_logs/**/*
 .worktrees/**/*
 
 **/.mcp.json
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
