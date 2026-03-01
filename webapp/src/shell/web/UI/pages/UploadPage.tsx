@@ -65,7 +65,7 @@ export default function UploadPage(): JSX.Element {
         setIsDragOver(false)
     }, [])
 
-    const handleDrop: (e: DragEvent<HTMLDivElement>) => Promise<void> = useCallback(async (e: DragEvent<HTMLDivElement>): Promise<void> => {
+    const handleDropAsync: (e: DragEvent<HTMLDivElement>) => Promise<void> = useCallback(async (e: DragEvent<HTMLDivElement>): Promise<void> => {
         e.preventDefault()
         e.stopPropagation()
         setIsDragOver(false)
@@ -76,10 +76,10 @@ export default function UploadPage(): JSX.Element {
         if (entry?.isDirectory) {
             // Read directory recursively and build a synthetic FileList-like structure
             const fileList: File[] = []
-            const readEntries = (dirEntry: FileSystemDirectoryEntry): Promise<void> =>
+            const readEntries: (dirEntry: FileSystemDirectoryEntry) => Promise<void> = (dirEntry: FileSystemDirectoryEntry): Promise<void> =>
                 new Promise((resolve, reject) => {
                     const reader: FileSystemDirectoryReader = dirEntry.createReader()
-                    const readBatch = (): void => {
+                    const readBatch: () => void = (): void => {
                         reader.readEntries((entries: FileSystemEntry[]) => {
                             if (entries.length === 0) { resolve(); return }
                             const promises: Promise<void>[] = entries.map((child: FileSystemEntry) => {
@@ -118,6 +118,10 @@ export default function UploadPage(): JSX.Element {
             if (files.length > 0) void handleFiles(files)
         }
     }, [handleFiles])
+
+    const handleDrop: (e: DragEvent<HTMLDivElement>) => void = useCallback((e: DragEvent<HTMLDivElement>): void => {
+        void handleDropAsync(e)
+    }, [handleDropAsync])
 
     const handleClick: () => void = useCallback((): void => {
         if (inputRef.current) inputRef.current.click()
