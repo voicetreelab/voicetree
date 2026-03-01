@@ -53,7 +53,7 @@ export default function ViewerPage(): JSX.Element {
                 setEdges(rfEdges)
                 setState({ phase: 'ready' })
                 requestAnimationFrame(() => {
-                    rfInstanceRef.current?.fitView({ padding: 0.1 })
+                    void rfInstanceRef.current?.fitView({ padding: 0.1 })
                 })
             } else {
                 setState({ phase: 'error', error: result.left })
