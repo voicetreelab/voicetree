@@ -39,7 +39,7 @@ export function startMonitor(
         const graph: Graph = getGraph()
 
         const allDone: boolean = targetRecords.every(
-            (r: TerminalRecord) => isAgentComplete(r, graph, now)
+            (r: TerminalRecord) => isAgentComplete(r, graph, now, currentRecords)
         )
 
         if (allDone) {

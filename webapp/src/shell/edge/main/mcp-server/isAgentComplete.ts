@@ -1,7 +1,7 @@
 /**
  * Pure completion-check for a single agent terminal.
  * Combines: getAgentStatus, getIdleSince, getNewNodesForAgent, filterOutContextNodes.
- * Returns true when: (exited) OR (idle + has non-context nodes + idle ≥ SUSTAINED_IDLE_MS)
+ * Returns true when: (exited) OR (idle + has non-context nodes + idle ≥ SUSTAINED_IDLE_MS + all children complete)
  */
 
 import type {Graph, GraphNode} from '@/pure/graph'
@@ -27,7 +27,21 @@ function filterOutContextNodes(
     })
 }
 
-export function isAgentComplete(record: TerminalRecord, graph: Graph, now: number): boolean {
+/**
+ * Find all child terminals of a given terminal (via parentTerminalId).
+ */
+function getChildRecords(parentId: string, allRecords: readonly TerminalRecord[]): TerminalRecord[] {
+    return allRecords.filter(
+        (r: TerminalRecord) => r.terminalData.parentTerminalId === parentId
+    )
+}
+
+/**
+ * Check if an agent and all its descendant children are complete.
+ * An agent with active (non-complete) children is NOT considered complete,
+ * even if the agent itself is idle — it's waiting for its children to finish.
+ */
+export function isAgentComplete(record: TerminalRecord, graph: Graph, now: number, allRecords: readonly TerminalRecord[]): boolean {
     const status: AgentStatus = getAgentStatus(record)
     if (status === 'running') return false
 
@@ -41,7 +55,12 @@ export function isAgentComplete(record: TerminalRecord, graph: Graph, now: numbe
     // Idle agent without progress nodes — not done yet
     if (progressNodes.length === 0) return false
 
-    // Idle agent with progress nodes — only done if sustained idle for ≥ 30s
+    // Idle agent with progress nodes — only done if sustained idle for ≥ 7s
     const idleSince: number | null = getIdleSince(record.terminalId)
-    return idleSince !== null && (now - idleSince) >= SUSTAINED_IDLE_MS
+    const selfComplete: boolean = idleSince !== null && (now - idleSince) >= SUSTAINED_IDLE_MS
+    if (!selfComplete) return false
+
+    // Check all child terminals are also complete (recursive)
+    const children: TerminalRecord[] = getChildRecords(record.terminalId, allRecords)
+    return children.every((child: TerminalRecord) => isAgentComplete(child, graph, now, allRecords))
 }
