@@ -19,9 +19,8 @@ import * as O from 'fp-ts/lib/Option.js'
  * - UpsertNode: Creates new node or updates existing node
  * - DeleteNode: Simply removes the node from the graph
  *
- * Note: Transitive edge maintenance is handled at the edge layer in
- * applyGraphDeltaToDBThroughMemAndUI, which expands DeleteNode deltas
- * using deleteNodeMaintainingTransitiveEdges before calling this function.
+ * Note: UI delete uses deleteNodeSimple which just removes the node
+ * and cleans up parent edges (no transitive edge healing).
  *
  * @param graph - The current graph state
  * @param delta - The delta to apply

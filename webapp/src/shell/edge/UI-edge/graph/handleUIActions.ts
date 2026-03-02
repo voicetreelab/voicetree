@@ -12,7 +12,7 @@ import {
     createNewNodeNoParent,
     fromCreateChildToUpsertNode
 } from "@/pure/graph/graphDelta/uiInteractionsToGraphDeltas";
-import {deleteNodeMaintainingTransitiveEdges} from "@/pure/graph/graph-operations/removeNodeMaintainingTransitiveEdges";
+import {deleteNodeSimple} from "@/pure/graph/graph-operations/removeNodeMaintainingTransitiveEdges";
 import {applyGraphDeltaToGraph} from "@/pure/graph/graphDelta/applyGraphDeltaToGraph";
 import type {Core} from 'cytoscape';
 import {
@@ -103,19 +103,15 @@ export async function createNewEmptyOrphanNodeFromUI(
 
 /**
  * Deletes multiple nodes in a single delta for atomic undo.
- * Uses deleteNodeMaintainingTransitiveEdges to preserve transitive connectivity
- * (redirects edges from parents to children when a middle node is deleted).
+ * Simply removes nodes and cleans up parent edges — no transitive edge healing.
  *
- * When deleting multiple connected nodes (e.g., Parent → A → B → C, deleting A and B),
- * we process deletions iteratively, applying each delta to a working graph copy.
- * This ensures transitive edges are computed correctly across the entire deletion set.
- * Result: Parent → C (skipping over deleted A and B).
+ * When deleting multiple connected nodes, we process deletions iteratively
+ * so each deletion sees the result of previous ones (for correct parent edge cleanup).
  */
 export async function deleteNodesFromUI(
     nodeIds: ReadonlyArray<NodeIdAndFilePath>,
     _cy: Core
 ): Promise<void> {
-    // Get current graph state to compute transitive edge preservation
     const currentGraph: Graph | undefined = await window.electronAPI?.main.getGraph()
     if (!currentGraph) {
         console.error("NO GRAPH IN STATE")
@@ -124,27 +120,22 @@ export async function deleteNodesFromUI(
 
     const nodeIdsToDelete: ReadonlySet<NodeIdAndFilePath> = new Set(nodeIds)
 
-    // Process deletions iteratively, applying each delta to a working graph copy.
-    // This ensures each deletion sees the result of previous deletions.
     let allDeltas: GraphDelta = []
     let workingGraph: Graph = currentGraph
 
     for (const nodeId of nodeIds) {
-        // Skip if node was already deleted by a previous iteration
         if (!workingGraph.nodes[nodeId]) {
             continue
         }
 
-        const delta: GraphDelta = deleteNodeMaintainingTransitiveEdges(workingGraph, nodeId)
+        const delta: GraphDelta = deleteNodeSimple(workingGraph, nodeId)
 
-        // Apply delta to working graph for next iteration
         workingGraph = applyGraphDeltaToGraph(workingGraph, delta)
 
-        // Collect deltas, but filter out UpsertNodes for nodes we're going to delete
+        // Filter out UpsertNodes for nodes we're also deleting
         const filteredDeltas: GraphDelta = delta.filter(nodeDelta => {
             if (nodeDelta.type === 'UpsertNode') {
                 if (nodeIdsToDelete.has(nodeDelta.nodeToUpsert.absoluteFilePathIsID)) {
-                    // Don't include upserts for nodes we're deleting
                     return false
                 }
             }
@@ -153,7 +144,6 @@ export async function deleteNodesFromUI(
         allDeltas = [...allDeltas, ...filteredDeltas]
     }
 
-    // Deduplicate: keep only the last UpsertNode for each node ID
     const finalDelta: GraphDelta = deduplicateDelta(allDeltas)
 
     await window.electronAPI?.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed(finalDelta);

@@ -232,7 +232,7 @@ export { prettyPrintGraphDelta } from './graph-operations/prettyPrint'
 void (prettyPrintGraphDelta satisfies PrettyPrintGraphDelta)
 
 // === GRAPH TRANSFORMATION UTILITIES ===
-export { deleteNodeMaintainingTransitiveEdges } from './graph-operations/removeNodeMaintainingTransitiveEdges'
+export { deleteNodeSimple } from './graph-operations/removeNodeMaintainingTransitiveEdges'
 export { removeContextNodes } from './graph-operations/removeContextNodes'
 
 // === GRAPH CREATION UTILITIES ===
@@ -243,3 +243,10 @@ export { isImageNode, IMAGE_EXTENSIONS } from './isImageNode'
 
 // === AGENT NODE QUERIES ===
 export { getNodesByAgentName } from './getNodesByAgentName'
+
+// === POSITIONING ===
+export type MergePositionsIntoGraph = (graph: Graph, positions: ReadonlyMap<NodeIdAndFilePath, Position>) => Graph
+
+export { mergePositionsIntoGraph } from './positioning/mergePositionsIntoGraph'
+import { mergePositionsIntoGraph } from './positioning/mergePositionsIntoGraph'
+void (mergePositionsIntoGraph satisfies MergePositionsIntoGraph)

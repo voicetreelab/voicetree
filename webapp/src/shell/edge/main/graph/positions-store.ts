@@ -15,6 +15,7 @@ import { promises as fsAsync } from 'fs'
 import * as path from 'path'
 import * as O from 'fp-ts/lib/Option.js'
 import type { Graph, GraphNode, Position, NodeIdAndFilePath } from '@/pure/graph'
+export { mergePositionsIntoGraph } from '@/pure/graph/positioning/mergePositionsIntoGraph'
 
 interface PositionsFile {
     readonly [nodeId: string]: { readonly x: number; readonly y: number }
@@ -39,40 +40,6 @@ export async function loadPositions(projectRoot: string): Promise<ReadonlyMap<No
         return new Map(entries)
     } catch {
         return new Map()
-    }
-}
-
-/**
- * Merge loaded positions into graph nodes.
- * JSON positions take priority over any YAML-sourced positions.
- * Nodes without a JSON position keep their YAML position (migration).
- */
-export function mergePositionsIntoGraph(graph: Graph, positions: ReadonlyMap<NodeIdAndFilePath, Position>): Graph {
-    if (positions.size === 0) return graph
-
-    const updatedNodes: Record<string, GraphNode> = Object.entries(graph.nodes).reduce(
-        (acc: Record<string, GraphNode>, [nodeId, node]: [string, GraphNode]) => {
-            const pos: Position | undefined = positions.get(nodeId)
-            if (pos) {
-                return {
-                    ...acc,
-                    [nodeId]: {
-                        ...node,
-                        nodeUIMetadata: {
-                            ...node.nodeUIMetadata,
-                            position: O.some(pos)
-                        }
-                    }
-                }
-            }
-            return { ...acc, [nodeId]: node }
-        },
-        {}
-    )
-
-    return {
-        ...graph,
-        nodes: updatedNodes
     }
 }
 
