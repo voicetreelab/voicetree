@@ -41,6 +41,10 @@ declare module '@/shell/UI/sse-status-panel/status-panel.css' {
   const content: string;
   export default content;
 }
+declare module '@xyflow/react/dist/style.css' {
+  const content: string;
+  export default content;
+}
 
 // Web Speech API type definitions - declare at top level for global scope
 interface SpeechRecognition extends EventTarget {
@@ -106,6 +110,8 @@ declare global {
     readonly VITE_E2E_TEST?: string;
     /** Set to 'true' to disable PostHog analytics (automatically set in tests) */
     readonly VITE_DISABLE_ANALYTICS?: string;
+    /** Worker API URL for web share (e.g., https://share-worker.manummasson8.workers.dev) */
+    readonly VITE_WORKER_URL?: string;
   }
 
   interface ImportMeta {

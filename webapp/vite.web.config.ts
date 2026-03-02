@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import wasm from 'vite-plugin-wasm'
 import topLevelAwait from 'vite-plugin-top-level-await'
-import path from 'path'
+import * as path from 'path'
 
 const emptyModule = path.resolve(__dirname, 'src/utils/empty-node-module.ts')
 
@@ -56,7 +56,7 @@ export default defineConfig({
     wasm(),
     topLevelAwait()
   ],
-  base: './',
+  base: '/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
