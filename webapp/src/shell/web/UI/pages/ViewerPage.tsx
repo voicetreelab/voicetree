@@ -1,11 +1,11 @@
-import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
-import type { JSX, MutableRefObject } from 'react'
+import { useEffect, useState, useMemo } from 'react'
+import type { JSX } from 'react'
 import { useParams } from 'react-router-dom'
 import { isRight } from 'fp-ts/lib/Either.js'
 import type { Either } from 'fp-ts/lib/Either.js'
 import type { TaskEither } from 'fp-ts/lib/TaskEither.js'
 import { ReactFlow, Background, Controls, useNodesState, useEdgesState } from '@xyflow/react'
-import type { Node, Edge as RFEdge, NodeTypes, ReactFlowInstance } from '@xyflow/react'
+import type { Node, Edge as RFEdge, NodeTypes } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import type { GraphDelta } from '@/pure/graph'
 import type { ViewError } from '@/pure/web-share/types'
@@ -34,13 +34,8 @@ export default function ViewerPage(): JSX.Element {
     const [state, setState] = useState<ViewState>({ phase: 'loading' })
     const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
     const [edges, setEdges, onEdgesChange] = useEdgesState<RFEdge>([])
-    const rfInstanceRef: MutableRefObject<ReactFlowInstance | null> = useRef<ReactFlowInstance | null>(null)
 
     const nodeTypes: NodeTypes = useMemo(() => ({ markdown: MarkdownNode }), [])
-
-    const onInit: (instance: ReactFlowInstance) => void = useCallback((instance: ReactFlowInstance) => {
-        rfInstanceRef.current = instance
-    }, [])
 
     useEffect(() => {
         if (!id) return
@@ -52,9 +47,6 @@ export default function ViewerPage(): JSX.Element {
                 setNodes(rfNodes)
                 setEdges(rfEdges)
                 setState({ phase: 'ready' })
-                requestAnimationFrame(() => {
-                    rfInstanceRef.current?.fitView({ padding: 0.1 })
-                })
             } else {
                 setState({ phase: 'error', error: result.left })
             }
@@ -92,7 +84,6 @@ export default function ViewerPage(): JSX.Element {
                 edges={edges}
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
-                onInit={onInit}
                 nodeTypes={nodeTypes}
                 fitView
                 proOptions={{ hideAttribution: true }}
