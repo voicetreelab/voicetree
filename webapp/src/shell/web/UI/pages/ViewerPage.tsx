@@ -1,17 +1,18 @@
-import { useEffect, useState, useMemo } from 'react'
-import type { JSX } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
+import type { JSX, RefObject } from 'react'
 import { useParams } from 'react-router-dom'
 import { isRight } from 'fp-ts/lib/Either.js'
 import type { Either } from 'fp-ts/lib/Either.js'
 import type { TaskEither } from 'fp-ts/lib/TaskEither.js'
-import { ReactFlow, Background, Controls, useNodesState, useEdgesState } from '@xyflow/react'
-import type { Node, Edge as RFEdge, NodeTypes } from '@xyflow/react'
-import '@xyflow/react/dist/style.css'
+import type { Core } from 'cytoscape'
 import type { GraphDelta } from '@/pure/graph'
 import type { ViewError } from '@/pure/web-share/types'
+import { initializeCytoscapeInstance } from '@/shell/UI/views/VoiceTreeGraphViewHelpers/initializeCytoscapeInstance'
+import { StyleService } from '@/shell/UI/cytoscape-graph-ui/services/StyleService'
+import { applyGraphDeltaToWebUI } from '@/shell/web/applyGraphDeltaToWebUI'
 import { viewPipeline } from '@/shell/web/viewPipeline'
-import { graphDeltaToReactFlow } from '@/shell/web/graphDeltaToReactFlow'
-import { MarkdownNode } from '@/shell/web/UI/components/MarkdownNode'
+import NodeContentPanel from '@/shell/web/UI/components/NodeContentPanel'
+import type { SelectedNode } from '@/shell/web/UI/components/NodeContentPanel'
 
 type ViewState =
     | { readonly phase: 'loading' }
@@ -31,27 +32,46 @@ function formatViewError(error: ViewError): string {
 
 export default function ViewerPage(): JSX.Element {
     const { id } = useParams<{ id: string }>()
+    const containerRef: RefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null)
+    const cyRef: RefObject<Core | null> = useRef<Core | null>(null)
     const [state, setState] = useState<ViewState>({ phase: 'loading' })
-    const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
-    const [edges, setEdges, onEdgesChange] = useEdgesState<RFEdge>([])
+    const [selectedNode, setSelectedNode] = useState<SelectedNode | null>(null)
 
-    const nodeTypes: NodeTypes = useMemo(() => ({ markdown: MarkdownNode }), [])
+    const closePanel: () => void = useCallback(() => setSelectedNode(null), [])
 
     useEffect(() => {
-        if (!id) return
+        if (!id || !containerRef.current) return
+
         const baseUrl: string = import.meta.env.VITE_WORKER_URL ?? window.location.origin
+        const styleService: StyleService = new StyleService()
+        const { cy } = initializeCytoscapeInstance({
+            container: containerRef.current,
+            stylesheet: styleService.getCombinedStylesheet()
+        })
+        cyRef.current = cy
+
         const run: TaskEither<ViewError, GraphDelta> = viewPipeline(baseUrl)(id)
         void run().then((result: Either<ViewError, GraphDelta>) => {
             if (isRight(result)) {
-                const { nodes: rfNodes, edges: rfEdges } = graphDeltaToReactFlow(result.right)
-                setNodes(rfNodes)
-                setEdges(rfEdges)
+                applyGraphDeltaToWebUI(cy, result.right)
+                cy.on('tap', 'node', (evt) => {
+                    const nodeId: string = evt.target.id()
+                    const content: string = evt.target.data('content') ?? ''
+                    const label: string = evt.target.data('label') ?? ''
+                    setSelectedNode({ id: nodeId, content, label })
+                })
+                cy.on('tap', (evt) => {
+                    if (evt.target === cy) setSelectedNode(null)
+                })
+                cy.fit(undefined, 50)
                 setState({ phase: 'ready' })
             } else {
                 setState({ phase: 'error', error: result.left })
             }
         })
-    }, [id, setNodes, setEdges])
+
+        return () => { cy.destroy() }
+    }, [id])
 
     if (!id) {
         return (
@@ -73,24 +93,16 @@ export default function ViewerPage(): JSX.Element {
     }
 
     return (
-        <div className="h-screen w-full bg-neutral-950">
+        <div className="relative h-screen w-full bg-neutral-950">
             {state.phase === 'loading' && (
                 <div className="absolute inset-0 z-10 flex items-center justify-center">
                     <p className="animate-pulse text-neutral-400">Loading graph...</p>
                 </div>
             )}
-            <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                nodeTypes={nodeTypes}
-                fitView
-                proOptions={{ hideAttribution: true }}
-            >
-                <Background color="#333" />
-                <Controls />
-            </ReactFlow>
+            <div ref={containerRef} className="h-full w-full" />
+            {selectedNode && (
+                <NodeContentPanel node={selectedNode} onClose={closePanel} />
+            )}
         </div>
     )
 }
