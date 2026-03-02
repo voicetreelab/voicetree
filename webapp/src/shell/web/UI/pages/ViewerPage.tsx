@@ -1,11 +1,11 @@
-import { useEffect, useState, useMemo } from 'react'
-import type { JSX } from 'react'
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
+import type { JSX, MutableRefObject } from 'react'
 import { useParams } from 'react-router-dom'
 import { isRight } from 'fp-ts/lib/Either.js'
 import type { Either } from 'fp-ts/lib/Either.js'
 import type { TaskEither } from 'fp-ts/lib/TaskEither.js'
-import { ReactFlow, ReactFlowProvider, Background, Controls, useNodesState, useEdgesState, useReactFlow, useNodesInitialized } from '@xyflow/react'
-import type { Node, Edge as RFEdge, NodeTypes, Viewport } from '@xyflow/react'
+import { ReactFlow, Background, Controls, useNodesState, useEdgesState } from '@xyflow/react'
+import type { Node, Edge as RFEdge, NodeTypes, ReactFlowInstance } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import type { GraphDelta } from '@/pure/graph'
 import type { ViewError } from '@/pure/web-share/types'
@@ -29,15 +29,21 @@ function formatViewError(error: ViewError): string {
     }
 }
 
-function ViewerFlow({ id }: { readonly id: string }): JSX.Element {
+export default function ViewerPage(): JSX.Element {
+    const { id } = useParams<{ id: string }>()
     const [state, setState] = useState<ViewState>({ phase: 'loading' })
     const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
     const [edges, setEdges, onEdgesChange] = useEdgesState<RFEdge>([])
-    const { setViewport, getNodes } = useReactFlow()
-    const nodesInitialized: boolean = useNodesInitialized()
+    const rfInstanceRef: MutableRefObject<ReactFlowInstance | null> = useRef<ReactFlowInstance | null>(null)
+
     const nodeTypes: NodeTypes = useMemo(() => ({ markdown: MarkdownNode }), [])
 
+    const onInit: (instance: ReactFlowInstance) => void = useCallback((instance: ReactFlowInstance) => {
+        rfInstanceRef.current = instance
+    }, [])
+
     useEffect(() => {
+        if (!id) return
         const baseUrl: string = import.meta.env.VITE_WORKER_URL ?? window.location.origin
         const run: TaskEither<ViewError, GraphDelta> = viewPipeline(baseUrl)(id)
         void run().then((result: Either<ViewError, GraphDelta>) => {
@@ -46,41 +52,22 @@ function ViewerFlow({ id }: { readonly id: string }): JSX.Element {
                 setNodes(rfNodes)
                 setEdges(rfEdges)
                 setState({ phase: 'ready' })
+                requestAnimationFrame(() => {
+                    void rfInstanceRef.current?.fitView({ padding: 0.1 })
+                })
             } else {
                 setState({ phase: 'error', error: result.left })
             }
         })
     }, [id, setNodes, setEdges])
 
-    useEffect(() => {
-        if (!nodesInitialized || nodes.length === 0) return
-        const measured: Node[] = getNodes()
-        let minX: number = Infinity, minY: number = Infinity
-        let maxX: number = -Infinity, maxY: number = -Infinity
-        for (const n of measured) {
-            const w: number = n.measured?.width ?? 350
-            const h: number = n.measured?.height ?? 350
-            if (n.position.x < minX) minX = n.position.x
-            if (n.position.y < minY) minY = n.position.y
-            if (n.position.x + w > maxX) maxX = n.position.x + w
-            if (n.position.y + h > maxY) maxY = n.position.y + h
-        }
-        const graphW: number = maxX - minX
-        const graphH: number = maxY - minY
-        const container: HTMLElement | null = document.querySelector('.react-flow')
-        const cw: number = container?.clientWidth ?? 1920
-        const ch: number = container?.clientHeight ?? 900
-        const padding: number = 50
-        const zoom: number = Math.min((cw - padding * 2) / graphW, (ch - padding * 2) / graphH, 1)
-        const centerX: number = (minX + maxX) / 2
-        const centerY: number = (minY + maxY) / 2
-        const viewport: Viewport = {
-            x: cw / 2 - centerX * zoom,
-            y: ch / 2 - centerY * zoom,
-            zoom
-        }
-        void setViewport(viewport)
-    }, [nodesInitialized, nodes.length, getNodes, setViewport])
+    if (!id) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-neutral-950">
+                <p className="text-neutral-400">No share ID provided.</p>
+            </div>
+        )
+    }
 
     if (state.phase === 'error') {
         return (
@@ -105,30 +92,14 @@ function ViewerFlow({ id }: { readonly id: string }): JSX.Element {
                 edges={edges}
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
+                onInit={onInit}
                 nodeTypes={nodeTypes}
+                fitView
                 proOptions={{ hideAttribution: true }}
             >
                 <Background color="#333" />
                 <Controls />
             </ReactFlow>
         </div>
-    )
-}
-
-export default function ViewerPage(): JSX.Element {
-    const { id } = useParams<{ id: string }>()
-
-    if (!id) {
-        return (
-            <div className="flex min-h-screen items-center justify-center bg-neutral-950">
-                <p className="text-neutral-400">No share ID provided.</p>
-            </div>
-        )
-    }
-
-    return (
-        <ReactFlowProvider>
-            <ViewerFlow id={id} />
-        </ReactFlowProvider>
     )
 }

@@ -13,19 +13,13 @@ export function graphDeltaToReactFlow(delta: GraphDelta): ReactFlowGraphData {
         d.type === 'UpsertNode' && d.nodeToUpsert.nodeUIMetadata.isContextNode !== true
     )
 
-    const positions: Position[] = upserts.map(d =>
-        O.getOrElse(() => ({ x: 0, y: 0 }))(d.nodeToUpsert.nodeUIMetadata.position)
-    )
-    const minX: number = positions.length > 0 ? Math.min(...positions.map(p => p.x)) : 0
-    const minY: number = positions.length > 0 ? Math.min(...positions.map(p => p.y)) : 0
-
-    const nodes: Node[] = upserts.map((d, i) => {
+    const nodes: Node[] = upserts.map(d => {
         const node: GraphNode = d.nodeToUpsert
-        const pos: Position = positions[i]
+        const pos: Position = O.getOrElse(() => ({ x: 0, y: 0 }))(node.nodeUIMetadata.position)
         return {
             id: node.absoluteFilePathIsID,
             type: 'markdown',
-            position: { x: pos.x - minX, y: pos.y - minY },
+            position: { x: pos.x, y: pos.y },
             data: {
                 label: getNodeTitle(node),
                 content: node.contentWithoutYamlOrLinks,
