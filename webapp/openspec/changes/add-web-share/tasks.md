@@ -1,3 +1,9 @@
+---
+position:
+  x: 16617
+  y: -5640
+isContextNode: false
+---
 ## 1. Pure Core Types & Functions (Phase 1) ✅
 - [x] 1.1 Create `pure/web-share/types.ts` — plain type aliases (ShareId, RelativePath, ShareManifest, UploadError, ViewError), constants
 - [x] 1.2 Create `pure/web-share/validateUpload.ts` — Map<RelativePath, string> → Either<UploadError, RelativePath[]>, path normalization inlined

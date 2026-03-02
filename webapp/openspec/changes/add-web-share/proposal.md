@@ -1,3 +1,9 @@
+---
+position:
+  x: 16020
+  y: -4684
+isContextNode: false
+---
 # Change: Add web share — upload markdown vault, get shareable link
 
 ## Why
@@ -14,12 +20,10 @@ VoiceTree graphs are local-only (Electron). Users want to share a vault as a rea
 - Affected specs: none (new capability)
 - Affected code:
   - `webapp/src/pure/web-share/` — NEW (4 files: types, validate, manifest, graphFromFiles)
-  - `webapp/src/shell/web/` — NEW (r2Client, uploadPipeline, viewPipeline, applyGraphDeltaToWebUI)
-  - `webapp/src/shell/web/UI/` — NEW (UploadPage, ViewerPage)
+  - `webapp/src/shell/web/` — NEW (r2Client, uploadPipeline, viewPipeline)
+  - `webapp/src/shell/web/UI/` — NEW (UploadPage, ViewerPage, NodePanel, useShareView hook)
   - `webapp/src/web-main.tsx` — NEW entry point
-  - `webapp/web-index.html` — NEW HTML entry point for web build
   - `webapp/vite.web.config.ts` — NEW web-only Vite config
   - `webapp/workers/share-worker/` — NEW Cloudflare Worker
-  - `webapp/src/pure/graph/positioning/mergePositionsIntoGraph.ts` — RELOCATED from shell/ to pure/
   - `webapp/src/pure/graph/` — UNCHANGED (reused as-is)
   - `webapp/src/shell/UI/cytoscape-graph-ui/` — REUSED (styling, themes)
