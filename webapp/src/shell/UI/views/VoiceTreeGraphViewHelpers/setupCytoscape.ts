@@ -4,7 +4,9 @@
 import type {Core, NodeSingular} from 'cytoscape';
 import type {Graph} from '@/pure/graph';
 import {isImageNode} from '@/pure/graph';
-import { activeCardShells, pinCardShell } from '@/shell/edge/UI-edge/floating-windows/editors/CardShell';
+import * as O from 'fp-ts/lib/Option.js';
+import { createFloatingEditor } from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
+import { getEditorByNodeId } from '@/shell/edge/UI-edge/state/EditorStore';
 import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService';
 import {enableAutoLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout';
 import {enableSpatialIndex} from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
@@ -57,14 +59,12 @@ export function setupCytoscape(params: SetupCytoscapeParams): {
             return;
         }
 
-        // Card shells handle their own click events (dblclick → pin)
-        if (activeCardShells.has(nodeId)) {
+        // Skip if editor already exists for this node
+        if (O.isSome(getEditorByNodeId(nodeId))) {
             return;
         }
 
-        //console.log('[VoiceTreeGraphView] Calling pinCardShell');
-        void pinCardShell(cy, nodeId);
-        //console.log('[VoiceTreeGraphView] Pinned card shell');
+        void createFloatingEditor(cy, nodeId, undefined, false);
     });
 
     // Setup vertical menu (right-click on canvas)

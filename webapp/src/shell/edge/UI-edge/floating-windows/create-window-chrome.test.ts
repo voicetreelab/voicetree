@@ -28,12 +28,9 @@ vi.mock('@/shell/edge/UI-edge/state/EditorStore', () => ({
     removeFromPinnedEditors: vi.fn(),
 }));
 
-// Mock FloatingEditorCRUD + CardShell
+// Mock FloatingEditorCRUD
 vi.mock('@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD', () => ({
     closeHoverEditor: vi.fn(),
-}));
-vi.mock('@/shell/edge/UI-edge/floating-windows/editors/CardShell', () => ({
-    pinCardShell: vi.fn(),
 }));
 
 describe('createWindowChrome', () => {

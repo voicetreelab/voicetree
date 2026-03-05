@@ -6,12 +6,9 @@ import type {NodeIdAndFilePath} from '@/pure/graph';
 import {isImageNode} from '@/pure/graph';
 import {openHoverImageViewer} from '@/shell/edge/UI-edge/floating-windows/image-viewers/FloatingImageViewerCRUD';
 import {type EditorData} from '@/shell/edge/UI-edge/state/UIAppState';
-import {getHoverEditor} from "@/shell/edge/UI-edge/state/EditorStore";
-import {closeEditor} from './FloatingEditorCRUD';
-import {createCardShell, destroyCardShell, activeCardShells} from './CardShell';
-
-// NodeId of the card shell most recently created via hover (for closeHoverEditor cleanup)
-let hoverCardShellNodeId: string | null = null;
+import {getHoverEditor, getEditorByNodeId} from "@/shell/edge/UI-edge/state/EditorStore";
+import {closeEditor, createFloatingEditor} from './FloatingEditorCRUD';
+import {updateWindowFromZoom} from '@/shell/edge/UI-edge/floating-windows/update-window-from-zoom';
 
 // =============================================================================
 // Hover Zone Detection
@@ -86,24 +83,14 @@ export function isMouseInHoverZone(
 // =============================================================================
 
 /**
- * Close the current hover editor (editor without anchor) and any hover-created card shell.
+ * Close the current hover editor (unanchored editor in EditorStore).
  */
 export function closeHoverEditor(cy: Core): void {
-    // Close legacy hover editor if present (unanchored editor in EditorStore)
     const hoverEditorOption: O.Option<EditorData> = getHoverEditor();
     if (O.isSome(hoverEditorOption)) {
-        // Restore the node's Cytoscape label
         const nodeId: string = hoverEditorOption.value.contentLinkedToNodeId;
         cy.getElementById(nodeId).removeClass('hover-editor-open');
-
-        //console.log('[FloatingEditorManager-v2] Closing command-hover editor');
         closeEditor(cy, hoverEditorOption.value);
-    }
-
-    // Also destroy any card shell created via hover
-    if (hoverCardShellNodeId) {
-        destroyCardShell(hoverCardShellNodeId);
-        hoverCardShellNodeId = null;
     }
 }
 
@@ -112,23 +99,20 @@ export function closeHoverEditor(cy: Core): void {
 // =============================================================================
 
 /**
- * Setup hover mode (hover to show card shell or image viewer).
+ * Setup hover mode (hover to show floating editor or image viewer).
  *
- * Circles and cards both use the card editor system: hovering a zoomed-out
- * circle creates a card shell identical to those created by the zoom system.
- * Image nodes continue to use the image viewer.
+ * Hovering a node creates a temporary unanchored floating editor positioned
+ * on the real Cy node. mouseleave closes it via closeHoverEditor().
+ * Image nodes use the image viewer instead.
  */
 export function setupCommandHover(cy: Core): void {
-    // Listen for node hover
     cy.on('mouseover', 'node', (event: cytoscape.EventObject): void => {
         void (async (): Promise<void> => {
-            //console.log('[HoverEditor-v2] GraphNode mouseover');
-
             const node: cytoscape.NodeSingular = event.target;
             const nodeId: string = node.id();
 
-            // Skip if node already has a card shell (zoom system or prior hover)
-            if (activeCardShells.has(nodeId)) {
+            // Skip if editor already exists for this node (pinned or prior hover)
+            if (O.isSome(getEditorByNodeId(nodeId as NodeIdAndFilePath))) {
                 return;
             }
 
@@ -136,26 +120,33 @@ export function setupCommandHover(cy: Core): void {
             // Terminal nodes, shadow nodes, etc. don't have file extensions
             const hasFileExtension: boolean = /\.\w+$/.test(nodeId);
             if (!hasFileExtension) {
-                //console.log('[HoverEditor-v2] Skipping non-file node:', nodeId);
                 return;
             }
 
             // Check if this is an image node - open image viewer instead of editor
             if (isImageNode(nodeId)) {
-                //console.log('[HoverEditor-v2] Opening image viewer for:', nodeId);
-                // Close any open hover editor first
                 closeHoverEditor(cy);
                 await openHoverImageViewer(cy, nodeId, node.position());
                 return;
             }
 
-            // Markdown nodes: create card shell (unified with zoomed-in card system)
-            // Title and preview mirror the zoom system's mountShellForNode logic
-            const title: string = (cy.getElementById(nodeId).data('label') as string | undefined) ?? nodeId;
-            const content: string = (cy.getElementById(nodeId).data('content') as string | undefined) ?? '';
-            const preview: string = content.replace(/^#.*\n?/, '').trim().slice(0, 150);
-            void createCardShell(cy, nodeId as NodeIdAndFilePath, title, preview);
-            hoverCardShellNodeId = nodeId;
+            // Close any existing hover editor before opening a new one
+            closeHoverEditor(cy);
+
+            // Create unanchored floating editor (anchoredToNodeId = undefined → hover editor)
+            const editorData: EditorData | undefined = await createFloatingEditor(
+                cy,
+                nodeId as NodeIdAndFilePath,
+                undefined,
+                false,
+            );
+
+            if (editorData?.ui) {
+                // Position on the real Cy node (no shadow node creation)
+                editorData.ui.windowElement.dataset.shadowNodeId = nodeId;
+                editorData.ui.windowElement.dataset.transformOrigin = 'center';
+                updateWindowFromZoom(cy, editorData.ui.windowElement, cy.zoom());
+            }
         })();
     });
 }

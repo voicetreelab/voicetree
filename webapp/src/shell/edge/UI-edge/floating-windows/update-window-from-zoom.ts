@@ -11,7 +11,7 @@ import { isZoomActive, getPositioningZoom } from "@/shell/edge/UI-edge/floating-
 
 /**
  * Update a floating window's scale and position based on zoom level.
- * Called on every zoom change for all floating windows, and by createCardShell
+ * Called on every zoom change for all floating windows, and by createFloatingEditor
  * for initial positioning of new windows.
  *
  * During overlay scale (active zoom), uses refZoom for positioning/dimensions

@@ -3,6 +3,7 @@ import type cytoscape from 'cytoscape';
 import * as O from 'fp-ts/lib/Option.js';
 
 import type {NodeIdAndFilePath} from '@/pure/graph';
+import {CIRCLE_SIZE} from '@/pure/graph/node-presentation/types';
 
 import {
     createEditorData,
@@ -17,6 +18,7 @@ import {
     getOrCreateOverlay,
     registerFloatingWindow,
 } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
+import {updateWindowFromZoom} from '@/shell/edge/UI-edge/floating-windows/update-window-from-zoom';
 
 import {type EditorData, vanillaFloatingWindowInstances,} from '@/shell/edge/UI-edge/state/UIAppState';
 
@@ -35,11 +37,13 @@ import {
 import {selectFloatingWindowNode} from "@/shell/edge/UI-edge/floating-windows/select-floating-window-node";
 import {setupAutoHeight} from "@/shell/edge/UI-edge/floating-windows/editors/SetupAutoHeight";
 import {createWindowChrome} from "@/shell/edge/UI-edge/floating-windows/create-window-chrome";
+import {updateShadowNodeDimensions} from "@/shell/edge/UI-edge/floating-windows/setup-resize-observer";
+import {markNodeDirty} from "@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout";
+import {addRecentlyVisited} from "@/shell/edge/UI-edge/state/RecentlyVisitedStore";
 
 // Re-export from decomposed modules for backwards compatibility
 export {isMouseInHoverZone, closeHoverEditor, setupCommandHover} from './HoverEditor';
 export {updateFloatingEditors} from './EditorSync';
-export {createCardShell, destroyCardShell, activeCardShells, type CardShellData, pinCardShell} from './CardShell';
 
 // =============================================================================
 // Core Editor Creation
@@ -141,17 +145,6 @@ export async function createFloatingEditor(
         editor
     );
 
-    // Attach close handler that will dispose editor and remove from state
-    attachCloseHandler(cy, editorWithUI, (): void => {
-        cleanupAutoHeight();
-        // Additional cleanup: dispose CodeMirror instance
-        const vanillaInstance: { dispose: () => void } | undefined = vanillaFloatingWindowInstances.get(editorId);
-        if (vanillaInstance) {
-            vanillaInstance.dispose();
-            vanillaFloatingWindowInstances.delete(editorId);
-        }
-    });
-
     // Phase 3: Handle traffic light close button click
     // The close button dispatches a custom event that we listen for here
     ui.windowElement.addEventListener('traffic-light-close', (): void => {
@@ -163,8 +156,75 @@ export async function createFloatingEditor(
     overlay.appendChild(ui.windowElement);
     registerFloatingWindow(editorId, ui.windowElement);
 
+    // Position on real Cy node
+    ui.windowElement.dataset.shadowNodeId = nodeId;
+    updateWindowFromZoom(cy, ui.windowElement, cy.zoom());
+
+    // Hide Cy circle shape and switch to rectangle for layout bbox
+    const cyNode: import('cytoscape').CollectionReturnValue = cy.getElementById(nodeId);
+    if (cyNode.length > 0) {
+        cyNode.style({
+            'background-opacity': 0,
+            'border-opacity': 0,
+            'outline-opacity': 0,
+            'events': 'no',
+            'shape': 'rectangle',
+        } as Record<string, unknown>);
+    }
+
+    // ResizeObserver: sync DOM size → Cy node dimensions for layout
+    let resizeObserver: ResizeObserver | undefined;
+    if (cyNode.length > 0 && typeof ResizeObserver !== 'undefined') {
+        resizeObserver = new ResizeObserver((): void => {
+            const oldW: number = cyNode.width();
+            const oldH: number = cyNode.height();
+            updateShadowNodeDimensions(cyNode, ui.windowElement);
+            const dimChanged: boolean = Math.abs(cyNode.width() - oldW) > 1 || Math.abs(cyNode.height() - oldH) > 1;
+            if (dimChanged) {
+                markNodeDirty(cy, nodeId);
+            }
+        });
+        resizeObserver.observe(ui.windowElement);
+    }
+
+    // Attach close handler that restores Cy node and cleans up
+    attachCloseHandler(cy, editorWithUI, (): void => {
+        cleanupAutoHeight();
+        // Disconnect resize observer
+        if (resizeObserver) {
+            resizeObserver.disconnect();
+            resizeObserver = undefined;
+        }
+        // Restore Cy node to circle
+        if (cyNode.length > 0) {
+            cyNode.style({
+                'background-opacity': 1,
+                'border-opacity': 1,
+                'outline-opacity': 1,
+                'events': 'yes',
+                'width': CIRCLE_SIZE,
+                'height': CIRCLE_SIZE,
+                'shape': 'ellipse',
+            });
+            markNodeDirty(cy, nodeId);
+        }
+        // Dispose CodeMirror instance
+        const vanillaInstance: { dispose: () => void } | undefined = vanillaFloatingWindowInstances.get(editorId);
+        if (vanillaInstance) {
+            vanillaInstance.dispose();
+            vanillaFloatingWindowInstances.delete(editorId);
+        }
+    });
+
     // Add to state
     addEditor(editorWithUI);
+
+    // Select the node and track as recently visited
+    cy.$(':selected').unselect();
+    if (cyNode.length > 0) {
+        cyNode.select();
+    }
+    addRecentlyVisited(nodeId);
 
     // Focus editor after DOM attachment - only when focusAtEnd is true (UI-created nodes)
     // External/auto-pinned editors should NOT steal focus from the user's current work

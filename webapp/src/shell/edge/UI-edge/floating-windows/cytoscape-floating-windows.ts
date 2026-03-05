@@ -26,7 +26,6 @@ import {removeEditor} from "@/shell/edge/UI-edge/state/EditorStore";
 import {removeImageViewer} from "@/shell/edge/UI-edge/state/ImageViewerStore";
 import {updateWindowFromZoom} from "@/shell/edge/UI-edge/floating-windows/update-window-from-zoom";
 import {suppressInactivityDuringZoom} from "@/shell/UI/views/treeStyleTerminalTabs/terminalTabUtils";
-import { updateAllFromZoom, updateVisibleCardsOnPan } from '@/shell/edge/UI-edge/node-presentation/zoomSync';
 
 /**
  * Get current zoom level from cytoscape instance
@@ -214,7 +213,6 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
 
         // RAF coalescing: ensures at most 1 update per frame even with multiple events
         let rafPending: boolean = false;
-        let needsVisibleCardsUpdate: boolean = false;
 
         const scheduleSync: () => void = () => {
             if (overlayScaleActive) return; // During zoom, overlay scale handles everything
@@ -224,11 +222,6 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
                 rafPending = false;
                 if (overlayScaleActive) return; // overlay scale started after schedule
                 syncTransform();
-                // Create/destroy card shells only on pan/zoom/resize (spatial index may be stale during layout)
-                if (needsVisibleCardsUpdate) {
-                    needsVisibleCardsUpdate = false;
-                    updateVisibleCardsOnPan(cy);
-                }
             });
         };
 
@@ -239,7 +232,6 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
                 const zoom: number = cy.zoom();
                 overlay.style.transform = `translate(${pan.x}px, ${pan.y}px) scale(${zoom / refZoom})`;
             } else {
-                needsVisibleCardsUpdate = true;
                 scheduleSync();
             }
         });
@@ -262,15 +254,10 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
             const pan: cytoscape.Position = cy.pan();
             overlay.style.transform = `translate(${pan.x}px, ${pan.y}px) scale(${zoom / refZoom})`;
 
-            // Zone transitions (card shell create/destroy) — O(1) on non-transition frames,
-            // O(V) on the rare frame crossing a threshold. New shells position at refZoom
-            // via getPositioningZoom(), so overlay scale gives correct visual placement.
-            updateAllFromZoom(cy, zoom);
         });
 
         // Resize handler — always full sync (browser window resize)
         cy.on('resize', () => {
-            needsVisibleCardsUpdate = true;
             scheduleSync();
         });
 
@@ -285,7 +272,6 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
             overlayScaleActive = false;
             zoomActiveUntil = 0; // Clear so isZoomActive() returns false for settle sync
             syncTransform();
-            updateVisibleCardsOnPan(cy);
         });
 
     }

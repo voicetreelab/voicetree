@@ -14,7 +14,7 @@ import {launchTerminalOntoUI} from "@/shell/edge/UI-edge/floating-windows/termin
 import {
     updateFloatingEditors
 } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
-import {pinCardShell} from "@/shell/edge/UI-edge/floating-windows/editors/CardShell";
+import {createFloatingEditor} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 import {getCyInstance} from "@/shell/edge/UI-edge/state/cytoscape-state";
 import {getResponsivePadding} from "@/utils/responsivePadding";
 import type {GraphDelta, NodeIdAndFilePath} from "@/pure/graph";
@@ -56,7 +56,7 @@ function createEditorForExternalNode(nodeId: NodeIdAndFilePath, _isAgentNode: bo
         return;
     }
     const cy: Core = getCyInstance();
-    void pinCardShell(cy, nodeId);
+    void createFloatingEditor(cy, nodeId, undefined, false);
 }
 
 /**
