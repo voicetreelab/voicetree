@@ -171,6 +171,7 @@ backend/text_to_graph_pipeline/debug_logs/**/*
 
 **/*.md
 !tools/prompts/*.md
+!workflows/workflow-verifier/**/*.md
 !webapp/example_folder_fixtures/example_small/voicetree/**/*.md
 !webapp/example_folder_fixtures/example_real_large/voicetree-24-2/**/*.md
 /out/**/*
