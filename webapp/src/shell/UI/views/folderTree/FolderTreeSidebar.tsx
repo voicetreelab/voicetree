@@ -435,6 +435,7 @@ function FolderTreeSidebarInternal({ callbacks }: SidebarInternalProps): JSX.Ele
                         depth={0}
                         searchQuery={folderState.searchQuery}
                         expandedPaths={folderState.expandedPaths}
+                        starredFolders={vaultState.starredFolders}
                         onToggleExpand={toggleFolderExpanded}
                         onToggleLoad={handleToggleLoad}
                         onFileSelect={callbacks.onFileSelect}

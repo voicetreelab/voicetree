@@ -11,13 +11,11 @@
  * ============================================================================ */
 
 .folder-tree-sidebar {
-    position: absolute;
-    top: 38px;           /* Below title bar */
-    left: 182px;         /* Right of terminal sidebar */
-    bottom: 50px;        /* Above bottom bar */
+    height: 100%;
     width: 220px;
     min-width: 120px;
     max-width: 400px;
+    min-height: 0;
     background: var(--background);
     border-right: 1px solid var(--border);
     z-index: 1050;

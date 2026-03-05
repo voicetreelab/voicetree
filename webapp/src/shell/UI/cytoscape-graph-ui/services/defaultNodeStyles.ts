@@ -33,8 +33,7 @@ export function getDefaultNodeStyles(colors: GraphColorPalette, font: string, is
       selector: 'node[?isFolderNode]',
       style: {
         'shape': 'roundrectangle',
-        'background-color': isDark ? '#0d1526' : '#e8edf5',
-        'background-opacity': 0.08,
+        'background-opacity': 0,
         'border-width': 1.5,
         'border-style': 'dashed',
         'border-color': '#888',
