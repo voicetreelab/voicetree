@@ -300,6 +300,41 @@
 }
 
 /* ============================================================================
+ * New Folder Inline Input
+ * ============================================================================ */
+
+.folder-tree-new-folder-input-row {
+    display: flex;
+    align-items: center;
+    padding: 3px 8px;
+    margin: 1px 4px;
+    font-size: 11px;
+}
+
+.folder-tree-new-folder-input-row[data-depth="1"] { padding-left: 20px; }
+.folder-tree-new-folder-input-row[data-depth="2"] { padding-left: 32px; }
+.folder-tree-new-folder-input-row[data-depth="3"] { padding-left: 44px; }
+.folder-tree-new-folder-input-row[data-depth="4"] { padding-left: 56px; }
+.folder-tree-new-folder-input-row[data-depth="5"] { padding-left: 68px; }
+
+.folder-tree-new-folder-input {
+    flex: 1;
+    padding: 2px 4px;
+    font-size: 11px;
+    border: 1px solid var(--ring);
+    border-radius: 3px;
+    background: var(--card);
+    color: var(--foreground);
+    outline: none;
+    min-width: 0;
+}
+
+.folder-tree-new-folder-input::placeholder {
+    color: var(--muted-foreground);
+    opacity: 0.5;
+}
+
+/* ============================================================================
  * File Node
  * ============================================================================ */
 

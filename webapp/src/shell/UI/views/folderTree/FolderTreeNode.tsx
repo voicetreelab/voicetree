@@ -5,10 +5,12 @@
  * Follows the same component patterns as TerminalTreeSidebar's TreeNode.
  */
 
-import { useCallback } from 'react';
+import { useCallback, useState, useRef, useEffect } from 'react';
 import type { JSX } from 'react';
 import type { FolderTreeNode as FolderTreeNodeType, FileTreeNode as FileTreeNodeType } from '@/pure/folders/types';
 import { isFolderTreeNode } from '@/pure/folders/types';
+import type { ActionMenuItem } from '@/shell/UI/lib/ctxmenu';
+import '@/shell/electron.d.ts';
 
 interface FolderNodeProps {
     readonly node: FolderTreeNodeType;
@@ -63,6 +65,10 @@ function FileNode({ node, depth, parentLoaded, onFileSelect }: FileNodeProps): J
 }
 
 export function FolderTreeNodeComponent({ node, depth, searchQuery, expandedPaths, onToggleExpand, onToggleLoad, onFileSelect, onSetWriteTarget }: FolderNodeProps): JSX.Element | null {
+    const [isCreatingFolder, setIsCreatingFolder] = useState<boolean>(false);
+    const [newFolderName, setNewFolderName] = useState<string>('');
+    const newFolderInputRef: React.RefObject<HTMLInputElement | null> = useRef<HTMLInputElement>(null);
+
     const handleExpandClick: () => void = useCallback((): void => {
         onToggleExpand(node.absolutePath);
     }, [onToggleExpand, node.absolutePath]);
@@ -77,6 +83,52 @@ export function FolderTreeNodeComponent({ node, depth, searchQuery, expandedPath
         onSetWriteTarget(node.absolutePath);
     }, [onSetWriteTarget, node.absolutePath]);
 
+    const handleContextMenu: (e: React.MouseEvent) => void = useCallback((e: React.MouseEvent): void => {
+        e.preventDefault();
+        e.stopPropagation();
+        const items: ActionMenuItem[] = [
+            {
+                text: 'New Folder',
+                action: () => {
+                    if (!expandedPaths.has(node.absolutePath)) {
+                        onToggleExpand(node.absolutePath);
+                    }
+                    setIsCreatingFolder(true);
+                    setNewFolderName('');
+                },
+            },
+        ];
+        window.ctxmenu.show(items, e.nativeEvent);
+    }, [expandedPaths, node.absolutePath, onToggleExpand]);
+
+    const handleNewFolderConfirm: () => void = useCallback((): void => {
+        const trimmed: string = newFolderName.trim();
+        if (trimmed) {
+            void window.electronAPI?.main.createSubfolder(node.absolutePath, trimmed);
+        }
+        setIsCreatingFolder(false);
+        setNewFolderName('');
+    }, [newFolderName, node.absolutePath]);
+
+    const handleNewFolderCancel: () => void = useCallback((): void => {
+        setIsCreatingFolder(false);
+        setNewFolderName('');
+    }, []);
+
+    const handleNewFolderKeyDown: (e: React.KeyboardEvent) => void = useCallback((e: React.KeyboardEvent): void => {
+        if (e.key === 'Enter') {
+            handleNewFolderConfirm();
+        } else if (e.key === 'Escape') {
+            handleNewFolderCancel();
+        }
+    }, [handleNewFolderConfirm, handleNewFolderCancel]);
+
+    useEffect(() => {
+        if (isCreatingFolder && newFolderInputRef.current) {
+            newFolderInputRef.current.focus();
+        }
+    }, [isCreatingFolder]);
+
     if (searchQuery && !folderContainsMatch(node, searchQuery)) {
         return null;
     }
@@ -88,12 +140,15 @@ export function FolderTreeNodeComponent({ node, depth, searchQuery, expandedPath
         })
         : node.children;
 
+    const isExpanded: boolean = expandedPaths.has(node.absolutePath);
+
     return (
         <div className="folder-tree-node-wrapper">
             <div
                 className={`folder-tree-folder${node.loadState === 'not-loaded' ? ' not-loaded' : ''}`}
                 data-depth={depth}
                 onClick={handleExpandClick}
+                onContextMenu={handleContextMenu}
                 title={node.absolutePath}
             >
                 <span className="folder-tree-expand-icon">
@@ -117,8 +172,23 @@ export function FolderTreeNodeComponent({ node, depth, searchQuery, expandedPath
                     title={node.loadState === 'loaded' ? 'Click to unload' : 'Click to load'}
                 />
             </div>
-            {expandedPaths.has(node.absolutePath) && filteredChildren.length > 0 && (
+            {isExpanded && (filteredChildren.length > 0 || isCreatingFolder) && (
                 <div className="folder-tree-children">
+                    {isCreatingFolder && (
+                        <div className="folder-tree-new-folder-input-row" data-depth={depth + 1}>
+                            <span className="folder-tree-expand-icon">{'\u25B6'}</span>
+                            <input
+                                ref={newFolderInputRef}
+                                className="folder-tree-new-folder-input"
+                                type="text"
+                                value={newFolderName}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewFolderName(e.target.value)}
+                                onKeyDown={handleNewFolderKeyDown}
+                                onBlur={handleNewFolderConfirm}
+                                placeholder="folder name"
+                            />
+                        </div>
+                    )}
                     {filteredChildren.map((child) => {
                         if (isFolderTreeNode(child)) {
                             return (
