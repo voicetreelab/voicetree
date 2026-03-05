@@ -146,6 +146,35 @@
     background: var(--accent);
 }
 
+.folder-tree-starred-item.not-loaded {
+    opacity: 0.45;
+}
+
+.folder-tree-starred-item.not-loaded:hover {
+    opacity: 0.7;
+}
+
+.folder-tree-starred-star {
+    font-size: 10px;
+    width: 14px;
+    flex-shrink: 0;
+    color: #f59e0b;
+    cursor: pointer;
+    text-align: center;
+}
+
+.folder-tree-starred-star:hover {
+    color: var(--muted-foreground);
+}
+
+.folder-tree-starred-item .folder-tree-set-write-btn {
+    opacity: 0;
+}
+
+.folder-tree-starred-item:hover .folder-tree-set-write-btn {
+    opacity: 0.5;
+}
+
 /* ============================================================================
  * Tree Container
  * ============================================================================ */
