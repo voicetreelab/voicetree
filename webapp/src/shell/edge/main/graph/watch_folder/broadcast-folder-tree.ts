@@ -37,7 +37,7 @@ async function doBroadcast(): Promise<void> {
     if (writePath) loadedPaths.add(writePath);
 
     const entry: DirectoryEntry = await getDirectoryTree(projectRoot);
-    const tree: FolderTreeNode = buildFolderTree(entry, loadedPaths, writePath, new Set(), graphFilePaths);
+    const tree: FolderTreeNode = buildFolderTree(entry, loadedPaths, writePath, graphFilePaths);
 
     uiAPI.syncFolderTree(tree);
 }

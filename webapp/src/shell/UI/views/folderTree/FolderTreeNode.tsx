@@ -18,6 +18,7 @@ interface FolderNodeProps {
     readonly onToggleExpand: (path: string) => void;
     readonly onToggleLoad: (path: string, currentState: 'loaded' | 'not-loaded') => void;
     readonly onFileSelect: (path: string) => void;
+    readonly onSetWriteTarget: (path: string) => void;
 }
 
 interface FileNodeProps {
@@ -61,7 +62,7 @@ function FileNode({ node, depth, parentLoaded, onFileSelect }: FileNodeProps): J
     );
 }
 
-export function FolderTreeNodeComponent({ node, depth, searchQuery, expandedPaths, onToggleExpand, onToggleLoad, onFileSelect }: FolderNodeProps): JSX.Element | null {
+export function FolderTreeNodeComponent({ node, depth, searchQuery, expandedPaths, onToggleExpand, onToggleLoad, onFileSelect, onSetWriteTarget }: FolderNodeProps): JSX.Element | null {
     const handleExpandClick: () => void = useCallback((): void => {
         onToggleExpand(node.absolutePath);
     }, [onToggleExpand, node.absolutePath]);
@@ -70,6 +71,11 @@ export function FolderTreeNodeComponent({ node, depth, searchQuery, expandedPath
         e.stopPropagation();
         onToggleLoad(node.absolutePath, node.loadState);
     }, [onToggleLoad, node.absolutePath, node.loadState]);
+
+    const handleSetWriteTarget: (e: React.MouseEvent) => void = useCallback((e: React.MouseEvent): void => {
+        e.stopPropagation();
+        onSetWriteTarget(node.absolutePath);
+    }, [onSetWriteTarget, node.absolutePath]);
 
     if (searchQuery && !folderContainsMatch(node, searchQuery)) {
         return null;
@@ -94,8 +100,16 @@ export function FolderTreeNodeComponent({ node, depth, searchQuery, expandedPath
                     {expandedPaths.has(node.absolutePath) ? '\u25BC' : '\u25B6'}
                 </span>
                 <span className="folder-tree-folder-name">{node.name}</span>
-                {node.isWriteTarget && (
+                {node.isWriteTarget ? (
                     <span className="folder-tree-write-icon" title="Write target">{'\u270E'}</span>
+                ) : (
+                    <span
+                        className="folder-tree-set-write-btn"
+                        onClick={handleSetWriteTarget}
+                        title="Set as write target"
+                    >
+                        {'\u270E'}
+                    </span>
                 )}
                 <span
                     className={`folder-tree-load-indicator ${node.loadState}`}
@@ -117,6 +131,7 @@ export function FolderTreeNodeComponent({ node, depth, searchQuery, expandedPath
                                     onToggleExpand={onToggleExpand}
                                     onToggleLoad={onToggleLoad}
                                     onFileSelect={onFileSelect}
+                                    onSetWriteTarget={onSetWriteTarget}
                                 />
                             );
                         }

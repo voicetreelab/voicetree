@@ -336,6 +336,12 @@ function FolderTreeSidebarInternal({ callbacks }: SidebarInternalProps): JSX.Ele
         }, []
     );
 
+    const handleSetWriteTarget: (path: string) => void = useCallback(
+        (path: string): void => {
+            void window.electronAPI?.main.setWritePath(path);
+        }, []
+    );
+
     const projectName: string = useMemo(() => {
         if (!folderState.tree) return 'Project';
         return folderState.tree.name;
@@ -389,6 +395,7 @@ function FolderTreeSidebarInternal({ callbacks }: SidebarInternalProps): JSX.Ele
                         onToggleExpand={toggleFolderExpanded}
                         onToggleLoad={handleToggleLoad}
                         onFileSelect={callbacks.onFileSelect}
+                        onSetWriteTarget={handleSetWriteTarget}
                     />
                 ) : (
                     <div className="folder-tree-empty">No folder loaded</div>

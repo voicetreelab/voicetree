@@ -291,19 +291,18 @@ export interface DirectoryEntry {
  * Build a hierarchical FolderTreeNode from a recursive directory listing.
  *
  * Pure function: takes flat scan data + state, produces tree with UI annotations
- * (loadState, isWriteTarget, isInGraph, isExpanded).
+ * (loadState, isWriteTarget, isInGraph).
  */
 export function buildFolderTree(
     entry: DirectoryEntry,
     loadedPaths: ReadonlySet<string>,
     writePath: AbsolutePath | null,
-    expandedPaths: ReadonlySet<string>,
     graphFilePaths: ReadonlySet<string>,
 ): FolderTreeNode {
     const children: readonly (FolderTreeNode | FileTreeNode)[] = (entry.children ?? []).map(
         (child: DirectoryEntry): FolderTreeNode | FileTreeNode => {
             if (child.isDirectory) {
-                return buildFolderTree(child, loadedPaths, writePath, expandedPaths, graphFilePaths);
+                return buildFolderTree(child, loadedPaths, writePath, graphFilePaths);
             }
             return {
                 name: child.name,
@@ -327,7 +326,6 @@ export function buildFolderTree(
         name: entry.name,
         absolutePath: entry.absolutePath,
         children: sorted,
-        isExpanded: expandedPaths.has(entry.absolutePath),
         loadState: loadedPaths.has(entry.absolutePath) ? 'loaded' : 'not-loaded',
         isWriteTarget: writePath === entry.absolutePath,
     };

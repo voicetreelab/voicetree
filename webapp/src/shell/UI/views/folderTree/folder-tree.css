@@ -226,6 +226,25 @@
     color: #f59e0b;
 }
 
+.folder-tree-set-write-btn {
+    font-size: 11px;
+    margin-left: 4px;
+    flex-shrink: 0;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.folder-tree-folder:hover .folder-tree-set-write-btn {
+    opacity: 0.5;
+}
+
+.folder-tree-set-write-btn:hover {
+    opacity: 1 !important;
+    color: #f59e0b;
+}
+
 /* Load state indicator dot */
 .folder-tree-load-indicator {
     width: 7px;

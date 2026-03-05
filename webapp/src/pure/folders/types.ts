@@ -98,7 +98,6 @@ export interface FolderTreeNode {
     readonly name: string;
     readonly absolutePath: AbsolutePath;
     readonly children: readonly (FolderTreeNode | FileTreeNode)[];
-    readonly isExpanded: boolean;
     readonly loadState: 'loaded' | 'not-loaded';
     readonly isWriteTarget: boolean;
 }
