@@ -13,8 +13,9 @@ export { resolveWritePath, type ResolvedVaultConfig, resolveAllowlistForProject 
 import { resolveWritePath } from './resolve-vault-config';
 import type { FSWatcher } from "chokidar";
 import * as O from "fp-ts/lib/Option.js";
-import type { FilePath, Graph, GraphDelta, DeleteNode } from "@/pure/graph";
+import type { FilePath, Graph, GraphDelta, DeleteNode, Position } from "@/pure/graph";
 import { applyGraphDeltaToGraph } from "@/pure/graph";
+import { mergePositionsIntoGraph } from "@/pure/graph/positioning/mergePositionsIntoGraph";
 import type { VaultConfig } from "@/pure/settings/types";
 import { loadVaultPathAdditively, resolveLinkedNodesInWatchedFolder } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk";
 import { createDatedSubfolder } from "@/shell/edge/main/project-utils";
@@ -130,7 +131,8 @@ export async function getWritePath(): Promise<O.Option<FilePath>> {
  */
 export async function loadAndMergeVaultPath(
     vaultPath: FilePath,
-    options: LoadVaultPathOptions = { isWritePath: false }
+    options: LoadVaultPathOptions = { isWritePath: false },
+    positions?: ReadonlyMap<string, Position>
 ): Promise<LoadVaultPathResult> {
     // Read dependencies from global state (impure edge)
     const existingGraph: Graph = getGraph();
@@ -148,6 +150,18 @@ export async function loadAndMergeVaultPath(
 
     let currentGraph: Graph = loadResult.right.graph;
     let accumulatedDelta: GraphDelta = loadResult.right.delta;
+
+    // Merge saved positions into graph before applyPositions runs (via broadcast),
+    // so nodes with saved positions get their real coordinates and applyPositions
+    // only fills in positions for truly new/positionless nodes.
+    if (positions && positions.size > 0) {
+        currentGraph = mergePositionsIntoGraph(currentGraph, positions);
+        accumulatedDelta = accumulatedDelta.map(d =>
+            d.type === 'UpsertNode' && currentGraph.nodes[d.nodeToUpsert.absoluteFilePathIsID]
+                ? { ...d, nodeToUpsert: currentGraph.nodes[d.nodeToUpsert.absoluteFilePathIsID] }
+                : d
+        );
+    }
 
     // Resolve wikilinks for loaded files
     if (watchedFolderPath) {

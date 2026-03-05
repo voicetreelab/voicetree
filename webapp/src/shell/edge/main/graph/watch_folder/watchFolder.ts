@@ -49,7 +49,7 @@ import { setupWatcher } from "./file-watcher-setup";
 import { createEmptyGraph } from "@/pure/graph/createGraph";
 import { broadcastVaultState } from "./broadcast-vault-state";
 import { enableMcpJsonIntegration } from "@/shell/edge/main/mcp-server/mcp-client-config";
-import { loadPositions, mergePositionsIntoGraph, savePositionsSync } from "@/shell/edge/main/graph/positions-store";
+import { loadPositions, savePositionsSync } from "@/shell/edge/main/graph/positions-store";
 import { ensureProjectDotVoicetree } from "@/shell/edge/main/electron/tools-setup";
 
 // Re-export vault-allowlist functions for api.ts and tests
@@ -213,8 +213,12 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
     // Clear graph in memory before loading paths
     setGraph(createEmptyGraph());
 
+    // Load persisted positions BEFORE loading vault paths so they can be
+    // merged into the graph before broadcasting to UI
+    const positions: ReadonlyMap<string, import('@/pure/graph').Position> = await loadPositions(watchedFolderPath);
+
     // Load write path first (handles all side effects internally)
-    const writeResult: LoadVaultPathResult = await loadAndMergeVaultPath(config.writePath, { isWritePath: true });
+    const writeResult: LoadVaultPathResult = await loadAndMergeVaultPath(config.writePath, { isWritePath: true }, positions);
     if (!writeResult.success) {
         // Check for file limit exceeded error
         if (writeResult.error?.includes('File limit exceeded')) {
@@ -232,7 +236,7 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
 
     // Load read paths (handles all side effects internally)
     for (const readPath of config.readPaths) {
-        const readResult: LoadVaultPathResult = await loadAndMergeVaultPath(readPath, { isWritePath: false });
+        const readResult: LoadVaultPathResult = await loadAndMergeVaultPath(readPath, { isWritePath: false }, positions);
         if (!readResult.success) {
             // Check for file limit exceeded error
             if (readResult.error?.includes('File limit exceeded')) {
@@ -249,12 +253,6 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
             console.warn(`[loadFolder] Failed to load read path ${readPath}: ${readResult.error}`);
             continue;
         }
-    }
-
-    // Load persisted positions from .voicetree/positions.json and merge into graph
-    const positions: ReadonlyMap<string, import('@/pure/graph').Position> = await loadPositions(watchedFolderPath);
-    if (positions.size > 0) {
-        setGraph(mergePositionsIntoGraph(getGraph(), positions));
     }
 
     // Setup file watcher - watch all paths in allowlist
