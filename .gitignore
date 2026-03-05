@@ -64,6 +64,11 @@ cover/
 profile_default/
 ipython_config.py
 
+# workflows
+workflows/*
+!workflows/workflow-verifier
+!workflows/workflow-verifier/**
+
 # Environment variables
 .env
 .venv

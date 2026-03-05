@@ -4,7 +4,7 @@
  */
 
 import type { Core } from 'cytoscape';
-import { Plus, Play, Trash2, AlertTriangle, Clipboard, ChevronDown, Edit2, GitBranch, FolderOpen, Check } from 'lucide';
+import { Plus, Play, Trash2, AlertTriangle, Clipboard, ChevronDown, Edit2, GitBranch, FolderOpen, Check, Zap } from 'lucide';
 import type { GraphNode } from "@/pure/graph";
 import { createNewChildNodeFromUI, deleteNodesFromUI } from "@/shell/edge/UI-edge/graph/handleUIActions";
 import { getCurrentIndex } from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
@@ -15,6 +15,9 @@ import {
     spawnTerminalInNewWorktree,
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
 import { getFilePathForNode, getNodeFromMainToUI } from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
+import { fromNodeToContentWithWikilinks } from "@/pure/graph/markdown-writing/node_to_markdown";
+import { modifyNodeContentFromUI } from "@/shell/edge/UI-edge/floating-windows/editors/modifyNodeContentFromFloatingEditor";
+import { createFloatingEditor } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 import type { VTSettings, AgentConfig } from "@/pure/settings";
 import { AUTO_RUN_FLAG } from "@/shell/edge/UI-edge/graph/agentCommandEditorPopup";
 import { highlightContainedNodes, highlightPreviewNodes, clearContainedHighlights } from '@/shell/UI/cytoscape-graph-ui/highlightContextNodes';
@@ -186,8 +189,37 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
         },
     });
 
-    // Expandable "more" menu with Copy to Starred, Copy Content, and additional agents
+    // Expandable "more" menu with Workflows, Copy to Starred, Copy Content, and additional agents
     const moreSubMenu: HorizontalMenuItem[] = [
+        {
+            icon: Zap,
+            label: 'Workflows',
+            color: '#f59e0b', // amber
+            action: () => {},
+            getSubMenuItems: async (): Promise<HorizontalMenuItem[]> => {
+                const workflows: Array<{ name: string; path: string; hasSkillFile: boolean }> | undefined =
+                    await window.electronAPI?.main.listWorkflows();
+                if (!workflows?.length) {
+                    return [{ icon: Zap, label: 'No workflows found', action: () => {} }];
+                }
+                return workflows.map((wf): HorizontalMenuItem => ({
+                    icon: Zap,
+                    label: wf.hasSkillFile ? wf.name : `${wf.name}  ⚠ missing SKILL.md`,
+                    color: wf.hasSkillFile ? undefined : '#ef4444',
+                    action: wf.hasSkillFile ? async () => {
+                        const content: string | undefined = await window.electronAPI?.main.readSkillFileSummary(wf.path);
+                        if (!content) { console.warn('[workflow-inject] readSkillFileSummary returned empty for', wf.path); return; }
+                        console.log('[workflow-inject] SKILL summary length:', content.length);
+                        const currentNode: GraphNode = await getNodeFromMainToUI(nodeId);
+                        const existing: string = fromNodeToContentWithWikilinks(currentNode);
+                        const appended: string = existing ? `${existing}\n\n${content}` : content;
+                        console.log('[workflow-inject] appended content length:', appended.length);
+                        await modifyNodeContentFromUI(nodeId, appended, cy, true);
+                        await createFloatingEditor(cy, nodeId, nodeId);
+                    } : () => {},
+                }));
+            },
+        },
         {
             icon: FolderOpen,
             label: 'Copy to...',

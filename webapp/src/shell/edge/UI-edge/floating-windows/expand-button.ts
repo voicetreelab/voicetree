@@ -53,6 +53,9 @@ export function createExpandButton(
         const currentWidth: number = windowElement.offsetWidth || parseInt(windowElement.style.width, 10) || 0;
         const currentHeight: number = windowElement.offsetHeight || parseInt(windowElement.style.height, 10) || 0;
 
+        // Bail out if dimensions are unmeasurable (element hidden or not yet laid out)
+        if (currentWidth === 0 || currentHeight === 0) return;
+
         const scale: number = isExpanded ? 0.5 : 2;
         const newWidth: number = currentWidth * scale;
         const newHeight: number = currentHeight * scale;
