@@ -5,7 +5,7 @@ import type {Core, NodeSingular} from 'cytoscape';
 import type {Graph} from '@/pure/graph';
 import {isImageNode} from '@/pure/graph';
 import * as O from 'fp-ts/lib/Option.js';
-import { createFloatingEditor } from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
+import { createAnchoredFloatingEditor } from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
 import { getEditorByNodeId } from '@/shell/edge/UI-edge/state/EditorStore';
 import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService';
 import {enableAutoLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout';
@@ -64,7 +64,7 @@ export function setupCytoscape(params: SetupCytoscapeParams): {
             return;
         }
 
-        void createFloatingEditor(cy, nodeId, undefined, false);
+        void createAnchoredFloatingEditor(cy, nodeId, false);
     });
 
     // Setup vertical menu (right-click on canvas)

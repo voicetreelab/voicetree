@@ -4,11 +4,13 @@ import * as O from 'fp-ts/lib/Option.js';
 
 import type {NodeIdAndFilePath} from '@/pure/graph';
 import {isImageNode} from '@/pure/graph';
+import type {Position} from '@/shell/UI/views/IVoiceTreeGraphView';
 import {openHoverImageViewer} from '@/shell/edge/UI-edge/floating-windows/image-viewers/FloatingImageViewerCRUD';
+import {getCachedZoom} from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 import {type EditorData} from '@/shell/edge/UI-edge/state/UIAppState';
-import {getHoverEditor, getEditorByNodeId} from "@/shell/edge/UI-edge/state/EditorStore";
-import {closeEditor, createFloatingEditor} from './FloatingEditorCRUD';
-import {updateWindowFromZoom} from '@/shell/edge/UI-edge/floating-windows/update-window-from-zoom';
+import {getEditorByNodeId, getHoverEditor} from "@/shell/edge/UI-edge/state/EditorStore";
+import {createFloatingEditor, closeEditor} from './FloatingEditorCRUD';
+import {hasPresentation} from '@/shell/edge/UI-edge/node-presentation/NodePresentationStore';
 
 // =============================================================================
 // Hover Zone Detection
@@ -83,14 +85,129 @@ export function isMouseInHoverZone(
 // =============================================================================
 
 /**
- * Close the current hover editor (unanchored editor in EditorStore).
+ * Close the current hover editor (editor without anchor)
  */
 export function closeHoverEditor(cy: Core): void {
     const hoverEditorOption: O.Option<EditorData> = getHoverEditor();
-    if (O.isSome(hoverEditorOption)) {
-        const nodeId: string = hoverEditorOption.value.contentLinkedToNodeId;
-        cy.getElementById(nodeId).removeClass('hover-editor-open');
-        closeEditor(cy, hoverEditorOption.value);
+    if (O.isNone(hoverEditorOption)) return;
+
+    // Restore the node's Cytoscape label
+    const nodeId: string = hoverEditorOption.value.contentLinkedToNodeId;
+    cy.getElementById(nodeId).removeClass('hover-editor-open');
+
+    //console.log('[FloatingEditorManager-v2] Closing command-hover editor');
+    closeEditor(cy, hoverEditorOption.value);
+}
+
+// =============================================================================
+// Open Hover Editor
+// =============================================================================
+
+/**
+ * Open a hover editor at the given position
+ */
+async function openHoverEditor(
+    cy: Core,
+    nodeId: NodeIdAndFilePath,
+    nodePos: Position
+): Promise<void> {
+    // Skip if this node already has an editor open (hover or permanent)
+    const existingEditor: O.Option<EditorData> = getEditorByNodeId(nodeId);
+    if (O.isSome(existingEditor)) {
+        //console.log('[HoverEditor-v2] EARLY RETURN - node already has editor:', nodeId);
+        return;
+    }
+    //console.log('[HoverEditor-v2] No existing editor, will create new one for:', nodeId);
+
+    // Close any existing hover editor
+    closeHoverEditor(cy);
+
+    //console.log('[FloatingEditorManager-v2] Creating command-hover editor for node:', nodeId);
+
+    try {
+        // Create floating editor with anchoredToNodeId: undefined (hover mode, no shadow node)
+        const editor: EditorData | undefined = await createFloatingEditor(
+            cy,
+            nodeId,
+            undefined, // Not anchored - hover mode
+            true // focusAtEnd - cursor at end of content
+        );
+
+        if (!editor || !editor.ui) {
+            //console.log('[FloatingEditorManager-v2] Failed to create hover editor');
+            return;
+        }
+
+        // Set position manually (no shadow node to sync with)
+        // Position editor below the node, clearing the node circle icon
+        // Store graph position in dataset so updateWindowFromZoom can update on zoom changes
+        const HOVER_EDITOR_VERTICAL_OFFSET: number = 18;
+        const zoom: number = getCachedZoom();
+        const graphX: number = nodePos.x;
+        const graphY: number = nodePos.y + HOVER_EDITOR_VERTICAL_OFFSET;
+
+        // Store graph position for zoom updates (hover editors have no shadow node)
+        editor.ui.windowElement.dataset.graphX = String(graphX);
+        editor.ui.windowElement.dataset.graphY = String(graphY);
+        editor.ui.windowElement.dataset.transformOrigin = 'top-center';
+
+        // Apply initial position and transform with scale
+        editor.ui.windowElement.style.left = `${graphX * zoom}px`;
+        editor.ui.windowElement.style.top = `${graphY * zoom}px`;
+        editor.ui.windowElement.style.transformOrigin = 'top center';
+        editor.ui.windowElement.style.transform = `translateX(-50%) scale(${zoom})`;
+
+        // Hide the node's Cytoscape label (editor title bar shows the name)
+        cy.getElementById(nodeId).addClass('hover-editor-open');
+
+        // Close on click outside (but allow clicks on menus that control this editor)
+        const handleClickOutside: (e: MouseEvent) => void = (e: MouseEvent): void => {
+            const target: Node = e.target as Node;
+            const isInsideEditor: boolean = editor.ui !== undefined && editor.ui.windowElement.contains(target);
+            // Also allow clicks on the hover menu (traffic lights, etc.) - it controls this hover editor
+            const hoverMenu: HTMLElement | null = document.querySelector('.cy-horizontal-context-menu');
+            const isInsideHoverMenu: boolean = hoverMenu !== null && hoverMenu.contains(target);
+            // Also allow clicks on context menus (right-click "Add Link", etc.) - they interact with this editor
+            const contextMenu: HTMLElement | null = document.querySelector('.ctxmenu');
+            const isInsideContextMenu: boolean = contextMenu !== null && contextMenu.contains(target);
+            // Also allow clicks on the distance slider (context retrieval distance squares)
+            const distanceSlider: HTMLElement | null = document.querySelector('.distance-slider');
+            const isInsideDistanceSlider: boolean = distanceSlider !== null && distanceSlider.contains(target);
+            if (!isInsideEditor && !isInsideHoverMenu && !isInsideContextMenu && !isInsideDistanceSlider) {
+                //console.log('[CommandHover-v2] Click outside detected, closing editor');
+                closeHoverEditor(cy);
+                document.removeEventListener('mousedown', handleClickOutside);
+            }
+        };
+
+        // Add listener after a short delay to prevent immediate closure
+        setTimeout((): void => {
+            document.addEventListener('mousedown', handleClickOutside);
+        }, 100);
+
+        // Close on mouse leave (when mouse exits the hover zone)
+        const handleMouseLeave: (e: MouseEvent) => void = (e: MouseEvent): void => {
+            const stillInZone: boolean = isMouseInHoverZone(
+                e.clientX,
+                e.clientY,
+                cy,
+                nodeId,
+                editor.ui?.windowElement ?? null
+            );
+            if (!stillInZone) {
+                closeHoverEditor(cy);
+                document.removeEventListener('mousedown', handleClickOutside);
+                // Request menu to close via custom event
+                const menu: Element | null = document.querySelector('.cy-horizontal-context-menu');
+                if (menu) {
+                    menu.dispatchEvent(new CustomEvent('close-requested'));
+                }
+            }
+        };
+        editor.ui.windowElement.addEventListener('mouseleave', handleMouseLeave);
+
+    } catch (error) {
+        console.error('[FloatingEditorManager-v2] Error creating hover editor:', error);
     }
 }
 
@@ -99,20 +216,25 @@ export function closeHoverEditor(cy: Core): void {
 // =============================================================================
 
 /**
- * Setup hover mode (hover to show floating editor or image viewer).
+ * Setup hover mode (hover to show editor or image viewer).
  *
- * Hovering a node creates a temporary unanchored floating editor positioned
- * on the real Cy node. mouseleave closes it via closeHoverEditor().
- * Image nodes use the image viewer instead.
+ * Presentation nodes: hoverWiring.ts handles in-place CM editing via card DOM events.
+ * When zoomed out, Cy circles are for overview — no hover editor spawned.
+ *
+ * Non-presentation nodes: existing hover editor behavior (editor below node).
  */
 export function setupCommandHover(cy: Core): void {
+    // Listen for node hover
     cy.on('mouseover', 'node', (event: cytoscape.EventObject): void => {
         void (async (): Promise<void> => {
+            //console.log('[HoverEditor-v2] GraphNode mouseover');
+
             const node: cytoscape.NodeSingular = event.target;
             const nodeId: string = node.id();
 
-            // Skip if editor already exists for this node (pinned or prior hover)
-            if (O.isSome(getEditorByNodeId(nodeId as NodeIdAndFilePath))) {
+            // Presentation-backed nodes: cards use in-place CM editing via hoverWiring.ts when zoomed in.
+            // When zoomed out, circles are for overview — no hover editor needed.
+            if (hasPresentation(nodeId)) {
                 return;
             }
 
@@ -120,33 +242,21 @@ export function setupCommandHover(cy: Core): void {
             // Terminal nodes, shadow nodes, etc. don't have file extensions
             const hasFileExtension: boolean = /\.\w+$/.test(nodeId);
             if (!hasFileExtension) {
+                //console.log('[HoverEditor-v2] Skipping non-file node:', nodeId);
                 return;
             }
 
             // Check if this is an image node - open image viewer instead of editor
             if (isImageNode(nodeId)) {
+                //console.log('[HoverEditor-v2] Opening image viewer for:', nodeId);
+                // Close any open hover editor first
                 closeHoverEditor(cy);
                 await openHoverImageViewer(cy, nodeId, node.position());
                 return;
             }
 
-            // Close any existing hover editor before opening a new one
-            closeHoverEditor(cy);
-
-            // Create unanchored floating editor (anchoredToNodeId = undefined → hover editor)
-            const editorData: EditorData | undefined = await createFloatingEditor(
-                cy,
-                nodeId as NodeIdAndFilePath,
-                undefined,
-                false,
-            );
-
-            if (editorData?.ui) {
-                // Position on the real Cy node (no shadow node creation)
-                editorData.ui.windowElement.dataset.shadowNodeId = nodeId;
-                editorData.ui.windowElement.dataset.transformOrigin = 'center';
-                updateWindowFromZoom(cy, editorData.ui.windowElement, cy.zoom());
-            }
+            // Open hover editor for markdown files (non-presentation nodes)
+            await openHoverEditor(cy, nodeId, node.position());
         })();
     });
 }
