@@ -191,5 +191,10 @@ backend/text_to_graph_pipeline/debug_logs/**/*
 .worktrees/**/*
 
 **/.mcp.json
-
+webapp/workers/share-worker/.wrangler/**
+**/.wrangler/**
 **/node_modules/**
+**/dist-web/**
+
+**/native-modules/**
+**/.voicetree/**/*
