@@ -11,9 +11,7 @@ import {isTerminalData, isEditorData} from "@/shell/edge/UI-edge/floating-window
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import type {EditorData} from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
 import type {Core} from 'cytoscape';
-import {getScalingStrategy, getScreenDimensions, type ScalingStrategy} from "@/pure/graph/floating-windows/floatingWindowScaling";
 import {selectFloatingWindowNode} from "@/shell/edge/UI-edge/floating-windows/select-floating-window-node";
-import {getCachedZoom} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import * as O from 'fp-ts/lib/Option.js';
 import { createNodeMenu } from "@/shell/UI/cytoscape-graph-ui/services/createNodeMenu";
 import type {AgentConfig} from "@/pure/settings";
@@ -64,18 +62,12 @@ export function createWindowChrome(
     windowElement.dataset.baseWidth = String(dimensions.width);
     windowElement.dataset.baseHeight = String(dimensions.height);
 
-    // Determine scaling strategy and apply initial dimensions
-    const currentZoom: number = getCachedZoom();
     const isTerminal: boolean = typeClass.includes('terminal');
-    const windowType: 'Terminal' | 'Editor' = isTerminal ? 'Terminal' : 'Editor';
-    const strategy: ScalingStrategy = getScalingStrategy(windowType, currentZoom);
-    const screenDimensions: {
-        readonly width: number;
-        readonly height: number
-    } = getScreenDimensions(dimensions, currentZoom, strategy);
 
-    windowElement.style.width = `${screenDimensions.width}px`;
-    windowElement.style.height = `${screenDimensions.height}px`;
+    // Initial dimensions always use css-transform (= base dimensions).
+    // dimension-scaling is applied later on user interaction (pointerdown).
+    windowElement.style.width = `${dimensions.width}px`;
+    windowElement.style.height = `${dimensions.height}px`;
     if (fw.resizable) {
         windowElement.classList.add('resizable');
     }

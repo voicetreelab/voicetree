@@ -8,8 +8,8 @@ import '@xterm/xterm/css/xterm.css';
 import './terminal-chrome.css'; // Terminal title bar, context badge, active state styles
 import type { VTSettings } from '@/pure/settings';
 import { getCachedZoom, isZoomActive } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
-import { getScalingStrategy, getTerminalFontSize, getScrollOffset, getScrollTargetLine } from '@/pure/graph/floating-windows/floatingWindowScaling';
-import { setupTerminalZoomSettleHandler } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalZoomSettleEdge';
+import { getTerminalFontSize, getScrollOffset, getScrollTargetLine } from '@/pure/graph/floating-windows/floatingWindowScaling';
+import { setupTerminalInteractionStrategy } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalInteractionStrategy';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 
 // Chromium caps at ~16 WebGL contexts total; stay well under to leave headroom for
@@ -50,10 +50,9 @@ export class TerminalVanilla {
   }
 
   private async mount(): Promise<void> {
-    // Get initial zoom level for font size scaling
-    const initialZoom: number = getCachedZoom();
-    const initialStrategy: 'css-transform' | 'dimension-scaling' = getScalingStrategy('Terminal', initialZoom);
-    const initialFontSize: number = getTerminalFontSize(initialZoom, initialStrategy);
+    // Initial font: always css-transform (= base font size).
+    // dimension-scaling is applied on user interaction (pointerdown).
+    const initialFontSize: number = getTerminalFontSize(getCachedZoom(), 'css-transform');
 
     // Create terminal instance with zoom-scaled font size
     const term: XTerm = new XTerm({
@@ -179,18 +178,16 @@ export class TerminalVanilla {
 
       const windowElement: HTMLElement | null = this.container.closest('.cy-floating-window') as HTMLElement | null;
       const zoomActive: boolean = isZoomActive();
-      const pendingUpdate: boolean = windowElement?.dataset.pendingDimensionUpdate === 'true';
 
-      // Always update fontSize to match current strategy
-      // During css-transform: base font (CSS scale handles visual)
-      // During dimension-scaling: base × zoom (matches perceived size)
+      // Read effective strategy from DOM (written by updateWindowFromZoom)
       const zoom: number = getCachedZoom();
-      const strategy: 'css-transform' | 'dimension-scaling' = zoomActive ? 'css-transform' : getScalingStrategy('Terminal', zoom);
+      const storedStrategy: string | undefined = windowElement?.dataset.activeStrategy;
+      const strategy: 'css-transform' | 'dimension-scaling' =
+          storedStrategy === 'dimension-scaling' ? 'dimension-scaling' : 'css-transform';
       this.term.options.fontSize = getTerminalFontSize(zoom, strategy);
 
-      // Skip fit during active zoom or pending dimension update
-      // fit() recalculates cols/rows which can cause content reflow
-      if (zoomActive || pendingUpdate) {
+      // Skip fit during active zoom — overlay scale handles visuals
+      if (zoomActive) {
         return;
       }
 
@@ -224,9 +221,8 @@ export class TerminalVanilla {
     });
     this.resizeObserver.observe(this.container);
 
-    // Subscribe to zoom-end callback for window chrome updates
-    // Terminal fitting is handled by ResizeObserver (triggered by dimension change)
-    this.zoomEndUnsubscribe = setupTerminalZoomSettleHandler(this.container);
+    // Set up interaction-driven strategy switching (pointerdown → dimension-scaling)
+    this.zoomEndUnsubscribe = setupTerminalInteractionStrategy(this.container, term, fitAddon);
 
     // Initialize terminal backend connection
     await this.initTerminal();

@@ -1,13 +1,11 @@
 import type cytoscape from "cytoscape";
 import {
-    getScalingStrategy,
     getScreenDimensions,
     getTransformOrigin,
     getWindowTransform,
     graphToScreenPosition,
     type ScalingStrategy,
     type TransformOrigin,
-    TERMINAL_CSS_TRANSFORM_THRESHOLD
 } from "@/pure/graph/floating-windows/floatingWindowScaling";
 import { isZoomActive, getPositioningZoom } from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 
@@ -22,9 +20,33 @@ import { isZoomActive, getPositioningZoom } from "@/shell/edge/UI-edge/floating-
  *
  * NOTE: This function is deferred to zoom-end via the overlay-scale mechanism.
  * During active zoom it does NOT run — the overlay CSS scale(zoom/refZoom) handles visuals.
- * Any code that needs the current scaling strategy must call getScalingStrategy(windowType, zoom)
- * directly. Never cache or store the strategy: it will be stale during zoom transitions.
+ * The active strategy is stored on windowElement.dataset.activeStrategy so the
+ * ResizeObserver reads the same value (avoiding forward/inverse conversion mismatch).
  */
+/** Resolve graph position from shadow node or dataset (local helper) */
+function resolveGraphPosition(
+    cy: cytoscape.Core,
+    windowElement: HTMLElement
+): { graphX: number | undefined; graphY: number | undefined } {
+    const shadowNodeId: string | undefined = windowElement.dataset.shadowNodeId;
+    let graphX: number | undefined;
+    let graphY: number | undefined;
+
+    if (shadowNodeId) {
+        const shadowNode: cytoscape.CollectionReturnValue = cy.getElementById(shadowNodeId);
+        if (shadowNode.length > 0) {
+            const pos: cytoscape.Position = shadowNode.position();
+            graphX = pos.x;
+            graphY = pos.y;
+        }
+    } else if (windowElement.dataset.graphX && windowElement.dataset.graphY) {
+        graphX = parseFloat(windowElement.dataset.graphX);
+        graphY = parseFloat(windowElement.dataset.graphY);
+    }
+
+    return { graphX, graphY };
+}
+
 export function updateWindowFromZoom(cy: cytoscape.Core, windowElement: HTMLElement, zoom: number): void {
     // During overlay scale, position at refZoom — overlay's scale(zoom/refZoom) compensates.
     // Use actual zoom for strategy/threshold decisions (visual correctness on settle).
@@ -33,20 +55,23 @@ export function updateWindowFromZoom(cy: cytoscape.Core, windowElement: HTMLElem
     const baseWidth: number = parseFloat(windowElement.dataset.baseWidth ?? '400');
     const baseHeight: number = parseFloat(windowElement.dataset.baseHeight ?? '400');
     const isTerminal: boolean = windowElement.classList.contains('cy-floating-window-terminal');
-    const windowType: 'Terminal' | 'Editor' = isTerminal ? 'Terminal' : 'Editor';
 
-    // During active zoom, force CSS transform for terminals to prevent flickering
-    // Terminal dimension updates are deferred to handleZoomEnd in TerminalVanilla
+    // Resolve graph position (needed for screen positioning below)
+    const { graphX, graphY } = resolveGraphPosition(cy, windowElement);
+
+    // During active zoom, force CSS transform for terminals to prevent flickering.
+    // Outside zoom, respect the interaction-driven preference stored by pointerdown handler.
     const zoomIsActive: boolean = isZoomActive();
-    const strategy: ScalingStrategy = isTerminal && zoomIsActive
-        ? 'css-transform'
-        : getScalingStrategy(windowType, zoom);
+    const interactionStrategy: string | undefined = windowElement.dataset.interactionStrategy;
 
-    // Flag terminals that need deferred dimension update after zoom settles
-    // Only flag if zoom level is high enough that dimension-scaling would normally be used
-    if (isTerminal && zoomIsActive && zoom >= TERMINAL_CSS_TRANSFORM_THRESHOLD) {
-        windowElement.dataset.pendingDimensionUpdate = 'true';
-    }
+    const strategy: ScalingStrategy = isTerminal
+        ? (zoomIsActive ? 'css-transform'
+            : interactionStrategy === 'dimension-scaling' ? 'dimension-scaling'
+            : 'css-transform')
+        : 'css-transform';
+
+    // Store strategy on DOM so ResizeObserver reads the same value
+    windowElement.dataset.activeStrategy = strategy;
 
     // Apply dimensions based on strategy (using posZoom for overlay-scale correctness)
     const baseDimensions: { readonly width: number; readonly height: number } = {width: baseWidth, height: baseHeight};
@@ -101,37 +126,19 @@ export function updateWindowFromZoom(cy: cytoscape.Core, windowElement: HTMLElem
         }
     }
 
-    // Update position - look up shadow node or use stored graph position
-    const shadowNodeId: string | undefined = windowElement.dataset.shadowNodeId;
-    let graphX: number | undefined;
-    let graphY: number | undefined;
-
-    if (shadowNodeId) {
-        const shadowNode: cytoscape.CollectionReturnValue = cy.getElementById(shadowNodeId);
-        if (shadowNode.length > 0) {
-            const pos: cytoscape.Position = shadowNode.position();
-            graphX = pos.x;
-            graphY = pos.y;
-        }
-    } else if (windowElement.dataset.graphX && windowElement.dataset.graphY) {
-        // Hover editors store their graph position in dataset (no shadow node)
-        graphX = parseFloat(windowElement.dataset.graphX);
-        graphY = parseFloat(windowElement.dataset.graphY);
-    }
-
-    // Apply optional graph-coordinate Y offset (e.g. card shells shift up to sit below labels)
+    // Apply optional graph-coordinate Y offset (position already resolved above)
     const graphOffsetY: number = parseFloat(windowElement.dataset.graphOffsetY ?? '0');
-    if (graphOffsetY !== 0 && graphY !== undefined) {
-        graphY += graphOffsetY;
-    }
+    const finalGraphY: number | undefined = graphY !== undefined && graphOffsetY !== 0
+        ? graphY + graphOffsetY
+        : graphY;
 
     // Toggle toolbar visibility based on actual zoom (not posZoom) — visual threshold
     windowElement.classList.toggle('zoom-below-toolbar-threshold', zoom < 0.5);
 
-    if (graphX !== undefined && graphY !== undefined) {
+    if (graphX !== undefined && finalGraphY !== undefined) {
         const screenPos: { readonly x: number; readonly y: number } = graphToScreenPosition({
             x: graphX,
-            y: graphY
+            y: finalGraphY
         }, posZoom);
         windowElement.style.left = `${screenPos.x}px`;
         windowElement.style.top = `${screenPos.y}px`;

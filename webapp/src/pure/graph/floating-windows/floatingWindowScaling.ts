@@ -16,7 +16,6 @@
 // =============================================================================
 
 export type ScalingStrategy = 'css-transform' | 'dimension-scaling';
-export type WindowType = 'Terminal' | 'Editor';
 
 export interface Position {
     readonly x: number;
@@ -43,18 +42,15 @@ export const TERMINAL_BASE_FONT_SIZE: number = 10;
 // =============================================================================
 
 /**
- * Determine which scaling strategy to use for a floating window.
+ * Read the effective scaling strategy from a window's DOM dataset.
+ * Falls back to 'css-transform' if no strategy is stored.
  *
- * - Editors: Always use CSS transform (CodeMirror doesn't have the selection bug)
- * - Terminals at zoom >= 0.5: Use dimension scaling (fixes xterm text selection)
- * - Terminals at zoom < 0.5: Use CSS transform (text selection impractical at this zoom)
+ * Strategy is written by updateWindowFromZoom (dataset.activeStrategy)
+ * and by terminalInteractionStrategy (dataset.interactionStrategy).
  */
-export function getScalingStrategy(windowType: WindowType, zoom: number): ScalingStrategy {
-    if (windowType === 'Editor') {
-        return 'css-transform';
-    }
-    // Terminal
-    return zoom >= TERMINAL_CSS_TRANSFORM_THRESHOLD ? 'dimension-scaling' : 'css-transform';
+export function readStoredStrategy(element: HTMLElement): ScalingStrategy {
+    const stored: string | undefined = element.dataset.activeStrategy;
+    return stored === 'dimension-scaling' ? 'dimension-scaling' : 'css-transform';
 }
 
 // =============================================================================
@@ -273,4 +269,23 @@ export function graphToViewportPosition(
         x: (graphPos.x * zoom) + pan.x,
         y: (graphPos.y * zoom) + pan.y,
     };
+}
+
+// =============================================================================
+// Viewport Bounds Check
+// =============================================================================
+
+/**
+ * Check whether a graph-coordinate point falls within a viewport extent.
+ * Used to skip expensive dimension-scaling for off-screen terminals.
+ *
+ * @param padding - Graph-unit margin to prevent popping near viewport edges
+ */
+export function isPointInExtent(
+    x: number, y: number,
+    extent: { readonly x1: number; readonly y1: number; readonly x2: number; readonly y2: number },
+    padding: number = 0
+): boolean {
+    return x >= extent.x1 - padding && x <= extent.x2 + padding &&
+           y >= extent.y1 - padding && y <= extent.y2 + padding;
 }

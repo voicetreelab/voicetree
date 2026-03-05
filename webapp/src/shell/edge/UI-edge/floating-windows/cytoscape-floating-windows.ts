@@ -222,6 +222,7 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
             rafPending = true;
             requestAnimationFrame(() => {
                 rafPending = false;
+                if (overlayScaleActive) return; // overlay scale started after schedule
                 syncTransform();
                 // Create/destroy card shells only on pan/zoom/resize (spatial index may be stale during layout)
                 if (needsVisibleCardsUpdate) {
@@ -292,8 +293,6 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
     return overlay;
 }
 
-// Re-export for backward compatibility (TerminalVanilla imports this)
-export { TERMINAL_CSS_TRANSFORM_THRESHOLD } from '@/pure/graph/floating-windows/floatingWindowScaling';
 
 
 /**

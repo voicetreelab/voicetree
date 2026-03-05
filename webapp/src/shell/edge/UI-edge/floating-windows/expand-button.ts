@@ -1,5 +1,5 @@
 import {Maximize2, Minimize2, createElement} from 'lucide';
-import {getScalingStrategy, screenToGraphDimensions, type ScalingStrategy} from "@/pure/graph/floating-windows/floatingWindowScaling";
+import {readStoredStrategy, screenToGraphDimensions, type ScalingStrategy} from "@/pure/graph/floating-windows/floatingWindowScaling";
 import {getCachedZoom} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 
 /** Where the expand button is placed: bottom-left overlay (editors) or inside the title bar (terminals) */
@@ -62,7 +62,7 @@ export function createExpandButton(
 
         // Persist new base dimensions so zoom/pan doesn't revert the resize
         const zoom: number = getCachedZoom();
-        const strategy: ScalingStrategy = getScalingStrategy(windowElement.classList.contains('cy-floating-window-terminal') ? 'Terminal' : 'Editor', zoom);
+        const strategy: ScalingStrategy = readStoredStrategy(windowElement);
         const graphDims: { readonly width: number; readonly height: number } = screenToGraphDimensions({ width: newWidth, height: newHeight }, zoom, strategy);
         windowElement.dataset.baseWidth = String(graphDims.width);
         windowElement.dataset.baseHeight = String(graphDims.height);
