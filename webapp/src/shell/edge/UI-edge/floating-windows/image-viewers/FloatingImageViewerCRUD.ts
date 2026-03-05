@@ -14,7 +14,6 @@ import {
 
 import {
     disposeFloatingWindow,
-    getCachedZoom,
     getOrCreateOverlay,
     registerFloatingWindow,
 } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
@@ -194,7 +193,7 @@ export async function openHoverImageViewer(
         // Set position manually (no shadow node to sync with)
         // Position viewer below the node, clearing the node circle icon
         const HOVER_VIEWER_VERTICAL_OFFSET: number = 18;
-        const zoom: number = getCachedZoom();
+        const zoom: number = cy.zoom();
         const graphX: number = nodePos.x;
         const graphY: number = nodePos.y + HOVER_VIEWER_VERTICAL_OFFSET;
 

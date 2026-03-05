@@ -22,6 +22,7 @@ import type { EditorData } from '@/shell/edge/UI-edge/floating-windows/editors/e
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
 import type { VTSettings } from '@/pure/settings/types';
 import { onSettingsChange } from '@/shell/edge/UI-edge/api';
+import { signalViewportManipulation } from '@/shell/UI/cytoscape-graph-ui/services/largegraphPerformance';
 
 export class NavigationGestureService {
     private cy: Core;
@@ -112,11 +113,13 @@ export class NavigationGestureService {
 
         // Trackpad scroll (non-pinch) → pan
         if (isTrackpad && !e.ctrlKey) {
+            signalViewportManipulation(this.cy);
             this.cy.panBy({ x: -e.deltaX, y: -e.deltaY });
             return;
         }
 
         // Mouse wheel or trackpad pinch (ctrlKey) → zoom using Cytoscape-compatible logic
+        signalViewportManipulation(this.cy);
         this.zoomAtCursor(e);
     }
 
@@ -317,6 +320,7 @@ export class NavigationGestureService {
             if (!this.cy.userPanningEnabled()) return;
             e.preventDefault();
             e.stopImmediatePropagation();
+            signalViewportManipulation(this.cy);
             this.zoomAtCursor(e);
             return;
         }
@@ -327,6 +331,7 @@ export class NavigationGestureService {
             if (!this.cy.userPanningEnabled()) return;
             e.preventDefault();
             e.stopImmediatePropagation();
+            signalViewportManipulation(this.cy);
             this.cy.panBy({ x: -e.deltaX, y: -e.deltaY });
             return;
         }
@@ -354,6 +359,7 @@ export class NavigationGestureService {
         // Use native detection from main process
         const isTrackpad: boolean = getIsTrackpadScrolling();
 
+        signalViewportManipulation(this.cy);
         if (isTrackpad && !e.ctrlKey) {
             // Trackpad scroll → pan
             this.cy.panBy({ x: -e.deltaX, y: -e.deltaY });
@@ -386,6 +392,7 @@ export class NavigationGestureService {
 
         const dx: number = e.clientX - this.lastPos.x;
         const dy: number = e.clientY - this.lastPos.y;
+        signalViewportManipulation(this.cy);
         this.cy.panBy({ x: dx, y: dy });
         this.lastPos = { x: e.clientX, y: e.clientY };
     }

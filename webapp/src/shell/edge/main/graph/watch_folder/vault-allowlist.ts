@@ -439,3 +439,22 @@ export async function createDatedVoiceTreeFolder(): Promise<{
 export function clearVaultPath(): void {
     setProjectRootWatchedDirectory(null);
 }
+
+/**
+ * Create a new subfolder inside a given parent directory.
+ * Returns the absolute path of the created folder.
+ */
+export async function createSubfolder(parentPath: string, folderName: string): Promise<{
+    success: boolean; path?: string; error?: string;
+}> {
+    if (!folderName || folderName.includes('/') || folderName.includes('\\')) {
+        return { success: false, error: 'Invalid folder name' };
+    }
+    const fullPath: string = normalizePath(parentPath + '/' + folderName);
+    try {
+        await fs.mkdir(fullPath, { recursive: true });
+        return { success: true, path: fullPath };
+    } catch (err) {
+        return { success: false, error: String(err) };
+    }
+}

@@ -19,3 +19,20 @@
 @import './traffic-lights.css';
 @import '../../views/title-bar-tabs.css';
 @import '../../views/treeStyleTerminalTabs/terminal-tree.css';
+
+/* Sidebar wrapper — flex row container for terminal + folder tree sidebars.
+   When terminal sidebar hides (display:none), folder tree shifts left automatically. */
+.sidebar-wrapper {
+    position: absolute;
+    top: 38px;           /* Below title bar */
+    left: 0;
+    bottom: 50px;        /* Above bottom bar */
+    display: flex;
+    flex-direction: row;
+    z-index: 1050;
+    pointer-events: none; /* Let clicks through to graph behind empty space */
+}
+
+.sidebar-wrapper > * {
+    pointer-events: auto; /* Re-enable clicks on actual sidebar children */
+}

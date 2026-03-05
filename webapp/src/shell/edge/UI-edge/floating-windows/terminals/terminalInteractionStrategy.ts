@@ -11,7 +11,7 @@
 
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
-import { isZoomActive, getCachedZoom } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
+import { isZoomActive } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 import { getCyInstance } from '@/shell/edge/UI-edge/state/cytoscape-state';
 import { getTerminalFontSize, TERMINAL_CSS_TRANSFORM_THRESHOLD } from '@/pure/graph/floating-windows/floatingWindowScaling';
 import { updateWindowFromZoom } from '@/shell/edge/UI-edge/floating-windows/update-window-from-zoom';
@@ -33,10 +33,10 @@ export function setupTerminalInteractionStrategy(
     fitAddon: FitAddon
 ): () => void {
     const handler: (e: PointerEvent) => void = (_e: PointerEvent): void => {
-        // Don't switch during active zoom — overlay scale handles visuals
+        // Don't switch during active zoom — css-transform handles visuals
         if (isZoomActive()) return;
 
-        const zoom: number = getCachedZoom();
+        const zoom: number = getCyInstance().zoom();
 
         // At very low zoom, text selection is impractical — stay in css-transform
         if (zoom < TERMINAL_CSS_TRANSFORM_THRESHOLD) return;

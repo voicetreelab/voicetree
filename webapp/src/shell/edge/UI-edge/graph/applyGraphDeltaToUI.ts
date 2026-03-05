@@ -12,7 +12,7 @@ import {scheduleIdleWork} from "@/utils/scheduleIdleWork";
 import {syncLargeGraphPerformanceMode} from "@/shell/UI/cytoscape-graph-ui/services/largegraphPerformance";
 import {getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {getShadowNodeId, getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
-import {pinCardShell} from "@/shell/edge/UI-edge/floating-windows/editors/CardShell";
+import {createAnchoredFloatingEditor} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 
 /**
  * Extract the folder parent path from a node ID.
@@ -343,7 +343,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
     for (const nodeId of newNodeIds) {
         if (pendingManualPinNodeIds.has(nodeId)) {
             pendingManualPinNodeIds.delete(nodeId);
-            void pinCardShell(cy, nodeId as NodeIdAndFilePath, true);
+            void createAnchoredFloatingEditor(cy, nodeId as NodeIdAndFilePath, true, true);
             break;
         }
     }

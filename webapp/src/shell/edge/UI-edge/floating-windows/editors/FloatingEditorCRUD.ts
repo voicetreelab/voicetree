@@ -38,8 +38,8 @@ import {createWindowChrome} from "@/shell/edge/UI-edge/floating-windows/create-w
 
 // Re-export from decomposed modules for backwards compatibility
 export {isMouseInHoverZone, closeHoverEditor, setupCommandHover} from './HoverEditor';
+export {createAnchoredFloatingEditor} from './AnchoredEditor';
 export {updateFloatingEditors} from './EditorSync';
-export {createCardShell, destroyCardShell, activeCardShells, type CardShellData, pinCardShell} from './CardShell';
 
 // =============================================================================
 // Core Editor Creation
@@ -58,7 +58,7 @@ export async function createFloatingEditor(
     cy: cytoscape.Core,
     nodeId: NodeIdAndFilePath,
     anchoredToNodeId: NodeIdAndFilePath | undefined,
-    focusAtEnd: boolean = false,
+    focusAtEnd: boolean = false
 ): Promise<EditorData | undefined> {
     // Check if editor already exists for this node
     const existingEditor: O.Option<EditorData> = getEditorByNodeId(nodeId);

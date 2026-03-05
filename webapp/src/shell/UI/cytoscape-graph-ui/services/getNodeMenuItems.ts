@@ -17,7 +17,7 @@ import {
 import { getFilePathForNode, getNodeFromMainToUI } from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
 import { fromNodeToContentWithWikilinks } from "@/pure/graph/markdown-writing/node_to_markdown";
 import { modifyNodeContentFromUI } from "@/shell/edge/UI-edge/floating-windows/editors/modifyNodeContentFromFloatingEditor";
-import { createFloatingEditor } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
+import { createAnchoredFloatingEditor } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 import type { VTSettings, AgentConfig } from "@/pure/settings";
 import { AUTO_RUN_FLAG } from "@/shell/edge/UI-edge/graph/agentCommandEditorPopup";
 import { highlightContainedNodes, highlightPreviewNodes, clearContainedHighlights } from '@/shell/UI/cytoscape-graph-ui/highlightContextNodes';
@@ -215,7 +215,7 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
                         const appended: string = existing ? `${existing}\n\n${content}` : content;
                         console.log('[workflow-inject] appended content length:', appended.length);
                         await modifyNodeContentFromUI(nodeId, appended, cy, true);
-                        await createFloatingEditor(cy, nodeId, nodeId);
+                        await createAnchoredFloatingEditor(cy, nodeId, false);
                     } : () => {},
                 }));
             },

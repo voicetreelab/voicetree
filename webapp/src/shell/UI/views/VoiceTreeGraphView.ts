@@ -161,13 +161,18 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             (nodeId: string) => this.cy.getElementById(nodeId).data('label') as string | undefined
         );
 
+        // Shared sidebar wrapper — flex row so folder tree shifts left when terminal sidebar hides
+        const sidebarWrapper: HTMLDivElement = document.createElement('div');
+        sidebarWrapper.className = 'sidebar-wrapper';
+        this.uiContainer.appendChild(sidebarWrapper);
+
         // Initialize terminal tree sidebar (left side, React component)
-        createTerminalTreeSidebar(this.uiContainer, (terminal) => {
+        createTerminalTreeSidebar(sidebarWrapper, (terminal) => {
             this.navigationService.fitToTerminal(terminal);
         });
 
         // Initialize folder tree sidebar (right of terminal sidebar, React component)
-        createFolderTreeSidebar(this.uiContainer, {
+        createFolderTreeSidebar(sidebarWrapper, {
             onFileSelect: (path) => this.navigationService.handleSearchSelect(path),
         });
 

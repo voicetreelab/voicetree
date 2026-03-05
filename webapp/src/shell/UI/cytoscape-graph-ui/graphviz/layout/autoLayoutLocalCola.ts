@@ -119,6 +119,7 @@ export function runLocalCola(
       }
     }
 
+    // TODO: this fine-grained overlap push may be unnecessary — the coarse packing algorithm above should already handle component separation
     // Post-Cola overlap resolution: multi-pass (max 3 iterations).
     // Cola only avoids overlaps within its subgraph. Run-set nodes may overlap
     // non-subgraph nodes. Pushing node A away from B may cause overlap with C.
@@ -137,7 +138,7 @@ export function runLocalCola(
         for (const entry of nearbyNodes) {
           if (entry.nodeId === node.id()) continue;
           const other: CollectionReturnValue = cy.getElementById(entry.nodeId);
-          if (other.length === 0 || allNodes.contains(other) || other.data('isContextNode')) continue;
+          if (other.length === 0 || allNodes.contains(other) || other.data('isContextNode') || other.data('isFolderNode')) continue;
           // Overlap with a non-subgraph node — push the run node away
           const nodeCx: number = (bb.x1 + bb.x2) / 2;
           const nodeCy: number = (bb.y1 + bb.y2) / 2;

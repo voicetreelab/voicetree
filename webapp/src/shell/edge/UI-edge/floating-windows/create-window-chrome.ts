@@ -12,7 +12,6 @@ import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals
 import type {EditorData} from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
 import type {Core} from 'cytoscape';
 import {selectFloatingWindowNode} from "@/shell/edge/UI-edge/floating-windows/select-floating-window-node";
-import * as O from 'fp-ts/lib/Option.js';
 import { createNodeMenu } from "@/shell/UI/cytoscape-graph-ui/services/createNodeMenu";
 import type {AgentConfig} from "@/pure/settings";
 import {addResizeZones} from "./window-resize-zones";
@@ -30,8 +29,6 @@ export interface CreateWindowChromeOptions {
     readonly closeTerminal?: (terminal: TerminalData, cy: Core) => Promise<void>;
     /** Close callback for editors (required when fw is EditorData) */
     readonly closeEditor?: (cy: Core, editor: EditorData) => void;
-    /** Card mode: adds card-header DOM and applies .mode-card class */
-    readonly cardMode?: { readonly preview: string };
 }
 
 /**
@@ -84,18 +81,6 @@ export function createWindowChrome(
         windowElement.style.setProperty('--editor-accent-color', nodeColor ?? '#4a9eff');
     }
 
-    // Card mode: apply class and build card-header DOM (body-only — title shown as node label above)
-    if (options.cardMode) {
-        windowElement.classList.add('mode-card');
-        const cardHeader: HTMLDivElement = document.createElement('div');
-        cardHeader.className = 'cy-floating-window-card-header';
-        const previewEl: HTMLDivElement = document.createElement('div');
-        previewEl.className = 'cy-floating-window-card-preview';
-        previewEl.textContent = options.cardMode.preview;
-        cardHeader.append(previewEl);
-        windowElement.appendChild(cardHeader);
-    }
-
     // Event isolation - prevent graph interactions
     windowElement.addEventListener('mousedown', (e: MouseEvent): void => {
         e.stopPropagation();
@@ -116,17 +101,14 @@ export function createWindowChrome(
     const contentContainer: HTMLDivElement = document.createElement('div');
     contentContainer.className = 'cy-floating-window-content';
 
-    // Create horizontal menu for editors with an anchor or in card mode
-    // Card shells get their menu here; visibility toggled by CSS mode classes (hidden in mode-card, shown in mode-edit/mode-pinned)
+    // Create horizontal menu for editors
     const isEditor: boolean = 'type' in fw && fw.type === 'Editor';
-    const hasAnchoredNode: boolean = O.isSome(fw.anchoredToNodeId);
     const hasAgents: boolean = options.agents !== undefined && options.agents.length > 0;
 
     // Menu cleanup destroys floating slider when editor closes
     let menuCleanup: (() => void) | undefined;
 
-    const isCardMode: boolean = options.cardMode !== undefined;
-    if (isEditor && (hasAnchoredNode || isCardMode) && hasAgents) {
+    if (isEditor && hasAgents) {
         const nodeId: string = 'contentLinkedToNodeId' in fw ? fw.contentLinkedToNodeId : '';
         const isContextNode: boolean = nodeId.includes('.context_node.');
 
@@ -155,8 +137,6 @@ export function createWindowChrome(
 
         menuCleanup = cleanup;
         menuWrapper.className = 'cy-floating-window-horizontal-menu';
-        // Clear inline display style from createNodeMenu's cssText so CSS mode classes
-        // (.mode-card, .mode-edit, .mode-pinned) can control menu visibility
         menuWrapper.style.display = '';
         windowElement.appendChild(menuWrapper);
     }
