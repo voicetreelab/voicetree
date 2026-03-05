@@ -38,19 +38,13 @@ ColaLayout.prototype.run = function(){
     let ready: boolean = false;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const isFolderNode: (ele: any) => boolean = (ele: any) => ele.data('isFolderNode') === true;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const isParent: (ele: any) => any = (ele: any) => ele.isParent();
 
-    // Exclude folder compound nodes from Cola layout — they're purely visual containers.
-    // Our packing algorithm handles component overlap; Cola group constraints cause excessive repositioning.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const folderNodes: any = nodes.filter(isFolderNode);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const parentNodes: any = nodes.filter(isParent).subtract(folderNodes);
+    const parentNodes: any = nodes.filter(isParent);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const nonparentNodes: any = nodes.subtract(parentNodes).subtract(folderNodes);
+    const nonparentNodes: any = nodes.subtract(parentNodes);
 
     // TODO: Investigate bounding box offset causing graph flicker when adding nodes
     // The bb.x1/bb.y1 offset transformation causes nodes to jump positions when the bounding box

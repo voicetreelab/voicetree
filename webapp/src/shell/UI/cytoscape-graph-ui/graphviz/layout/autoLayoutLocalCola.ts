@@ -49,7 +49,10 @@ export function runLocalCola(
   }
 
   // Capped topology + spatial-only neighborhood selection
-  const { runNodes, pinNodes } = getLocalNeighborhood(cy, newNodes, getCurrentIndex(cy));
+  const { runNodes: rawRunNodes, pinNodes: rawPinNodes } = getLocalNeighborhood(cy, newNodes, getCurrentIndex(cy));
+  // Exclude folder compound nodes — they're purely visual containers, not layout participants
+  const runNodes: CollectionReturnValue = rawRunNodes.filter(ele => !ele.data('isFolderNode'));
+  const pinNodes: CollectionReturnValue = rawPinNodes.filter(ele => !ele.data('isFolderNode'));
   pinNodes.lock();
   const allNodes: CollectionReturnValue = runNodes.union(pinNodes);
 
@@ -85,7 +88,7 @@ export function runLocalCola(
     // This moves whole components cleanly before the fine-grained push loop,
     // so individual node pushes don't scatter nodes that should move together.
     const nonContextEles: CollectionReturnValue = cy.elements().filter(ele => {
-      if (ele.isNode()) return !ele.data('isContextNode');
+      if (ele.isNode()) return !ele.data('isContextNode') && !ele.data('isFolderNode');
       return !ele.source().data('isContextNode') && !ele.target().data('isContextNode');
     });
     const components: CollectionReturnValue[] = nonContextEles.components();

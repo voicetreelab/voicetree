@@ -115,7 +115,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
 
   const getNonContextElements: () => CollectionReturnValue = () => {
     return cy.elements().filter(ele => {
-      if (ele.isNode()) return !ele.data('isContextNode');
+      if (ele.isNode()) return !ele.data('isContextNode') && !ele.data('isFolderNode');
       // Exclude edges connected to context nodes
       return !ele.source().data('isContextNode') && !ele.target().data('isContextNode');
     });
