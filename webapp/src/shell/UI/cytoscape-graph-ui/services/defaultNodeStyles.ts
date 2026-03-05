@@ -28,17 +28,25 @@ export function getDefaultNodeStyles(colors: GraphColorPalette, font: string, is
       }
     },
 
-    // Folder compound nodes — subtle container behind the HTML folder presentation
+    // Folder compound nodes — subtle dashed outline around sibling files
     {
       selector: 'node[?isFolderNode]',
       style: {
         'shape': 'roundrectangle',
         'background-color': isDark ? '#0d1526' : '#e8edf5',
-        'background-opacity': 0.15,
-        'border-color': '#58a6ff',
-        'border-width': 1,
-        'border-opacity': 0.3,
-        'padding': 40,
+        'background-opacity': 0.08,
+        'border-width': 1.5,
+        'border-style': 'dashed',
+        'border-color': '#888',
+        'border-opacity': 0.5,
+        'padding': 25,
+        'compound-sizing-wrt-labels': 'exclude',
+        'label': 'data(folderLabel)',
+        'text-valign': 'top',
+        'text-halign': 'center',
+        'font-size': 11,
+        'color': '#888',
+        'min-zoomed-font-size': 0,
       }
     },
 
