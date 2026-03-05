@@ -51,6 +51,9 @@ import {SearchService} from './SearchService';
 import {createRecentNodeTabsBar} from './RecentNodeTabsBar';
 // Terminal tree sidebar - shows open terminals as vertical tree on LHS
 import {createTerminalTreeSidebar} from './treeStyleTerminalTabs/TerminalTreeSidebar';
+// Folder tree sidebar - shows project file hierarchy on LHS
+import {createFolderTreeSidebar} from './folderTree/FolderTreeSidebar';
+import {toggleFolderTreeSidebar} from '@/shell/edge/UI-edge/state/FolderTreeStore';
 import {getRecentNodeHistory} from '@/shell/edge/UI-edge/state/RecentNodeHistoryStore';
 import type {RecentNodeHistory} from '@/pure/graph/recentNodeHistoryV2';
 import {getResponsivePadding} from '@/utils/responsivePadding';
@@ -163,6 +166,11 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             this.navigationService.fitToTerminal(terminal);
         });
 
+        // Initialize folder tree sidebar (right of terminal sidebar, React component)
+        createFolderTreeSidebar(this.uiContainer, {
+            onFileSelect: (path) => this.navigationService.handleSearchSelect(path),
+        });
+
         // Setup view subscriptions (terminals, navigation, pinned editors)
         this.viewSubscriptionCleanups = setupViewSubscriptions({
             cy: this.cy,
@@ -226,7 +234,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
                 onSettings: () => void createSettingsEditor(this.cy),
                 onAbout: () => window.open('https://voicetree.io', '_blank'),
                 onStats: () => window.dispatchEvent(new Event('toggle-stats-panel')),
-                onFeedback: () => void collectFeedback()
+                onFeedback: () => void collectFeedback(),
+                onFolderTree: () => toggleFolderTreeSidebar()
             }
         });
 

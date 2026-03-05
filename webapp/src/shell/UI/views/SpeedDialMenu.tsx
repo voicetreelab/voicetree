@@ -23,9 +23,10 @@ export interface SpeedDialCallbacks {
   onAbout?: () => void;
   onStats?: () => void;
   onFeedback?: () => void;
+  onFolderTree?: () => void;
 }
 
-type IconName = 'sun' | 'moon' | 'layout' | 'settings' | 'bar-chart' | 'message-square';
+type IconName = 'sun' | 'moon' | 'layout' | 'settings' | 'bar-chart' | 'message-square' | 'folder';
 
 // =============================================================================
 // SVG Icon Paths
@@ -49,6 +50,7 @@ const ICON_PATHS: Record<IconName, string[]> = {
   ],
   'bar-chart': ['M12 20V10', 'M18 20V4', 'M6 20v-4'],
   'message-square': ['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'],
+  folder: ['M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z'],
 };
 
 // =============================================================================
@@ -117,6 +119,12 @@ function SpeedDialMenuInternal({ callbacks, initialDarkMode }: { readonly callba
       label: 'Stats',
       iconName: 'bar-chart',
       onClick: callbacks.onStats ?? ((): void => { /* no-op */ }),
+    },
+    {
+      id: 'folder-tree',
+      label: 'File tree',
+      iconName: 'folder',
+      onClick: callbacks.onFolderTree ?? ((): void => { /* no-op */ }),
     },
     {
       id: 'feedback',

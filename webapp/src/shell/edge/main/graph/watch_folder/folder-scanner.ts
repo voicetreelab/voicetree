@@ -11,6 +11,7 @@ import path from 'path';
 import normalizePath from 'normalize-path';
 import type { AbsolutePath, AvailableFolderItem } from '@/pure/folders/types';
 import { toAbsolutePath } from '@/pure/folders/types';
+import type { DirectoryEntry } from '@/pure/folders/transforms';
 import { getAvailableFolders, parseSearchQuery } from '@/pure/folders/transforms';
 import type { ParsedQuery } from '@/pure/folders/transforms';
 import { getProjectRootWatchedDirectory } from '@/shell/edge/main/state/watch-folder-store';
@@ -173,4 +174,60 @@ export async function getAvailableFoldersForSelector(
         searchQuery,
         filterText // Use filterText for actual filtering
     );
+}
+
+const IGNORED_DIRS: ReadonlySet<string> = new Set([
+    'node_modules', '.git', '.next', 'dist', '.cache', '__pycache__',
+    '.tox', '.venv', 'venv', '.worktrees',
+]);
+
+/**
+ * Recursively scan a directory and return a hierarchical DirectoryEntry tree.
+ * Skips hidden dirs (.) and common noise directories (node_modules, .git, etc.).
+ * maxDepth prevents runaway recursion on deeply nested trees.
+ */
+export async function getDirectoryTree(
+    rootPath: string,
+    maxDepth: number = 10,
+): Promise<DirectoryEntry> {
+    async function scan(dirPath: string, depth: number): Promise<DirectoryEntry> {
+        const dirName: string = path.basename(dirPath);
+        const absDirPath: AbsolutePath = toAbsolutePath(normalizePath(dirPath));
+        const children: DirectoryEntry[] = [];
+
+        if (depth < maxDepth) {
+            try {
+                const entries: Dirent[] = await fs.readdir(dirPath, { withFileTypes: true });
+                for (const entry of entries) {
+                    if (entry.name.startsWith('.')) continue;
+
+                    const fullPath: string = normalizePath(path.join(dirPath, entry.name));
+                    const absPath: AbsolutePath = toAbsolutePath(fullPath);
+
+                    if (entry.isDirectory()) {
+                        if (IGNORED_DIRS.has(entry.name)) continue;
+                        const subtree: DirectoryEntry = await scan(fullPath, depth + 1);
+                        children.push(subtree);
+                    } else {
+                        children.push({
+                            absolutePath: absPath,
+                            name: entry.name,
+                            isDirectory: false,
+                        });
+                    }
+                }
+            } catch {
+                // Permission denied or path gone — return empty children
+            }
+        }
+
+        return {
+            absolutePath: absDirPath,
+            name: dirName,
+            isDirectory: true,
+            children,
+        };
+    }
+
+    return scan(rootPath, 0);
 }

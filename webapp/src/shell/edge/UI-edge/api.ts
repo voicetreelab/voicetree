@@ -25,6 +25,8 @@ import {syncFromMain} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {updateHeadlessBadges} from "@/shell/edge/UI-edge/floating-windows/headless-badge-overlay";
 import {syncVaultStateFromMain} from "@/shell/edge/UI-edge/state/VaultPathStore";
 import type {VaultPathState} from "@/shell/edge/UI-edge/state/VaultPathStore";
+import {syncFolderTreeFromMain} from "@/shell/edge/UI-edge/state/FolderTreeStore";
+import type {FolderTreeNode} from "@/pure/folders/types";
 
 import {setIsTrackpadScrolling} from "@/shell/edge/UI-edge/state/trackpad-state";
 import {closeTerminalById} from "@/shell/edge/UI-edge/floating-windows/terminals/closeTerminalById";
@@ -88,6 +90,14 @@ function syncVaultState(state: VaultPathState): void {
 }
 
 /**
+ * Sync folder tree from main process to renderer.
+ * Called from main process after directory tree scan completes.
+ */
+function syncFolderTree(tree: FolderTreeNode): void {
+    syncFolderTreeFromMain(tree);
+}
+
+/**
  * Update InjectBar badge count for a terminal.
  * Called from main process after graph deltas change the unseen node count.
  * Renderer uses this to update the badge without polling.
@@ -125,6 +135,7 @@ export const uiAPIHandler = {
     fitViewport,
     syncTerminals,
     syncVaultState,
+    syncFolderTree,
     setIsTrackpadScrolling,
     closeTerminalById,
     updateInjectBadge,

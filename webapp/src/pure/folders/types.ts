@@ -88,6 +88,38 @@ export interface FolderSelectorState {
 }
 
 // ============================================================
+// FOLDER TREE TYPES (hierarchical tree for FolderTreeSidebar)
+// ============================================================
+
+/**
+ * A folder node in the hierarchical file tree.
+ */
+export interface FolderTreeNode {
+    readonly name: string;
+    readonly absolutePath: AbsolutePath;
+    readonly children: readonly (FolderTreeNode | FileTreeNode)[];
+    readonly isExpanded: boolean;
+    readonly loadState: 'loaded' | 'not-loaded';
+    readonly isWriteTarget: boolean;
+}
+
+/**
+ * A file node in the hierarchical file tree.
+ */
+export interface FileTreeNode {
+    readonly name: string;
+    readonly absolutePath: AbsolutePath;
+    readonly isInGraph: boolean;
+}
+
+/**
+ * Type guard to distinguish FolderTreeNode from FileTreeNode.
+ */
+export function isFolderTreeNode(node: FolderTreeNode | FileTreeNode): node is FolderTreeNode {
+    return 'children' in node;
+}
+
+// ============================================================
 // ACTION TYPES
 // ============================================================
 

@@ -141,7 +141,7 @@ function App(): JSX.Element {
                         <span className="text-[10px] ml-1">▼</span>
                     </button>
                     <span className="text-muted-foreground">/</span>
-                    <VaultPathSelector watchDirectory={watchDirectory} />
+                    <VaultPathSelector />
                 </>
             )}
         </div>

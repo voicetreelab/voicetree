@@ -1,0 +1,405 @@
+/*
+ * Folder Tree Sidebar Styles
+ *
+ * Hierarchical file tree sidebar with folder load states,
+ * starred section, search, and hover actions.
+ * Follows terminal-tree.css patterns.
+ */
+
+/* ============================================================================
+ * Sidebar Container
+ * ============================================================================ */
+
+.folder-tree-sidebar {
+    position: absolute;
+    top: 38px;           /* Below title bar */
+    left: 182px;         /* Right of terminal sidebar */
+    bottom: 50px;        /* Above bottom bar */
+    width: 220px;
+    min-width: 120px;
+    max-width: 400px;
+    background: var(--background);
+    border-right: 1px solid var(--border);
+    z-index: 1050;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ============================================================================
+ * Header
+ * ============================================================================ */
+
+.folder-tree-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px 4px;
+    flex-shrink: 0;
+}
+
+.folder-tree-header-title {
+    font-size: 10px;
+    color: var(--muted-foreground);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+    opacity: 0.7;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.folder-tree-close-btn {
+    width: 16px;
+    height: 16px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--muted-foreground);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-size: 14px;
+    flex-shrink: 0;
+    opacity: 0.5;
+}
+
+.folder-tree-close-btn:hover {
+    opacity: 1;
+    color: var(--destructive);
+}
+
+/* ============================================================================
+ * Search
+ * ============================================================================ */
+
+.folder-tree-search {
+    padding: 2px 6px 4px;
+    flex-shrink: 0;
+}
+
+.folder-tree-search-input {
+    width: 100%;
+    padding: 3px 6px;
+    font-size: 11px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--card);
+    color: var(--foreground);
+    outline: none;
+    box-sizing: border-box;
+}
+
+.folder-tree-search-input:focus {
+    border-color: var(--ring);
+}
+
+.folder-tree-search-input::placeholder {
+    color: var(--muted-foreground);
+    opacity: 0.5;
+}
+
+/* ============================================================================
+ * Starred Section
+ * ============================================================================ */
+
+.folder-tree-starred-section {
+    padding: 2px 0;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.folder-tree-section-header {
+    display: flex;
+    align-items: center;
+    padding: 3px 8px;
+    cursor: pointer;
+    font-size: 10px;
+    color: var(--muted-foreground);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+    opacity: 0.7;
+}
+
+.folder-tree-section-header:hover {
+    opacity: 1;
+}
+
+.folder-tree-section-title {
+    margin-left: 4px;
+}
+
+.folder-tree-starred-item {
+    display: flex;
+    align-items: center;
+    padding: 3px 8px 3px 20px;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--foreground);
+    border-radius: 4px;
+    margin: 1px 4px;
+}
+
+.folder-tree-starred-item:hover {
+    background: var(--accent);
+}
+
+/* ============================================================================
+ * Tree Container
+ * ============================================================================ */
+
+.folder-tree-container {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 4px 0;
+}
+
+.folder-tree-empty {
+    padding: 12px 8px;
+    font-size: 11px;
+    color: var(--muted-foreground);
+    text-align: center;
+    opacity: 0.6;
+}
+
+/* ============================================================================
+ * Folder Node
+ * ============================================================================ */
+
+.folder-tree-folder {
+    display: flex;
+    align-items: center;
+    padding: 3px 8px;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--foreground);
+    border-radius: 4px;
+    margin: 1px 4px;
+}
+
+.folder-tree-folder:hover {
+    background: var(--accent);
+}
+
+.folder-tree-folder.not-loaded {
+    opacity: 0.45;
+}
+
+.folder-tree-folder.not-loaded:hover {
+    opacity: 0.7;
+}
+
+/* Depth indentation */
+.folder-tree-folder[data-depth="1"],
+.folder-tree-file[data-depth="1"] { padding-left: 20px; }
+.folder-tree-folder[data-depth="2"],
+.folder-tree-file[data-depth="2"] { padding-left: 32px; }
+.folder-tree-folder[data-depth="3"],
+.folder-tree-file[data-depth="3"] { padding-left: 44px; }
+.folder-tree-folder[data-depth="4"],
+.folder-tree-file[data-depth="4"] { padding-left: 56px; }
+.folder-tree-folder[data-depth="5"],
+.folder-tree-file[data-depth="5"] { padding-left: 68px; }
+
+.folder-tree-expand-icon {
+    font-size: 8px;
+    width: 12px;
+    flex-shrink: 0;
+    color: var(--muted-foreground);
+}
+
+.folder-tree-folder-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+.folder-tree-write-icon {
+    font-size: 11px;
+    margin-left: 4px;
+    flex-shrink: 0;
+    color: #f59e0b;
+}
+
+/* Load state indicator dot */
+.folder-tree-load-indicator {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    margin-left: 4px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.folder-tree-load-indicator.loaded {
+    background: #22c55e;
+}
+
+.folder-tree-load-indicator.not-loaded {
+    border: 1px solid var(--muted-foreground);
+    background: transparent;
+    opacity: 0.4;
+}
+
+.folder-tree-load-indicator:hover {
+    opacity: 1;
+    transform: scale(1.3);
+}
+
+/* ============================================================================
+ * File Node
+ * ============================================================================ */
+
+.folder-tree-file {
+    display: flex;
+    align-items: center;
+    padding: 2px 8px;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--foreground);
+    border-radius: 4px;
+    margin: 1px 4px;
+}
+
+.folder-tree-file:hover {
+    background: var(--accent);
+}
+
+.folder-tree-file.not-loaded {
+    opacity: 0.45;
+}
+
+.folder-tree-file-icon {
+    font-size: 6px;
+    width: 12px;
+    flex-shrink: 0;
+    text-align: center;
+    color: var(--muted-foreground);
+}
+
+.folder-tree-file.in-graph .folder-tree-file-icon {
+    color: #3b82f6;
+}
+
+.folder-tree-file-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+/* ============================================================================
+ * Footer Section
+ * ============================================================================ */
+
+.folder-tree-footer {
+    flex-shrink: 0;
+    border-top: 1px solid var(--border);
+}
+
+.folder-tree-footer-search {
+    padding: 4px 6px;
+}
+
+.folder-tree-add-results {
+    max-height: 140px;
+    overflow-y: auto;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+}
+
+.folder-tree-add-result-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2px 8px;
+    font-size: 11px;
+    color: var(--muted-foreground);
+}
+
+.folder-tree-add-result-item:hover {
+    background: var(--accent);
+    color: var(--foreground);
+}
+
+.folder-tree-add-result-item.loaded {
+    opacity: 0.4;
+}
+
+.folder-tree-add-result-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+.folder-tree-add-result-btn {
+    width: 18px;
+    height: 18px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--muted-foreground);
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    flex-shrink: 0;
+    border-radius: 3px;
+}
+
+.folder-tree-add-result-btn:hover {
+    background: var(--primary);
+    color: var(--primary-foreground);
+}
+
+.folder-tree-footer-actions {
+    display: flex;
+    gap: 2px;
+    padding: 3px 6px 4px;
+}
+
+.folder-tree-footer-btn {
+    flex: 1;
+    padding: 3px 4px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--muted-foreground);
+    font-size: 10px;
+    border-radius: 3px;
+    text-align: center;
+    opacity: 0.6;
+}
+
+.folder-tree-footer-btn:hover {
+    background: var(--accent);
+    opacity: 1;
+}
+
+/* ============================================================================
+ * Resize Handle
+ * ============================================================================ */
+
+.folder-tree-resize-handle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 4px;
+    height: 100%;
+    cursor: ew-resize;
+    background: transparent;
+}
+
+.folder-tree-resize-handle:hover,
+.folder-tree-resize-handle.dragging {
+    background: var(--ring);
+}

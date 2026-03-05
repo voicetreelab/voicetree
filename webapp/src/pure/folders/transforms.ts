@@ -9,6 +9,8 @@ import type {
     FolderAction,
     FolderSelectorState,
     LoadedFolderItem,
+    FolderTreeNode,
+    FileTreeNode,
 } from './types';
 import type { VaultConfig } from '@/pure/settings/types';
 
@@ -267,5 +269,66 @@ export function toFolderSelectorState(
         isOpen,
         isLoading: false,
         error: null,
+    };
+}
+
+// ============================================================
+// FOLDER TREE TRANSFORMS
+// ============================================================
+
+/**
+ * A flat directory entry from the recursive scanner.
+ * Used as input to buildFolderTree.
+ */
+export interface DirectoryEntry {
+    readonly absolutePath: AbsolutePath;
+    readonly name: string;
+    readonly isDirectory: boolean;
+    readonly children?: readonly DirectoryEntry[];
+}
+
+/**
+ * Build a hierarchical FolderTreeNode from a recursive directory listing.
+ *
+ * Pure function: takes flat scan data + state, produces tree with UI annotations
+ * (loadState, isWriteTarget, isInGraph, isExpanded).
+ */
+export function buildFolderTree(
+    entry: DirectoryEntry,
+    loadedPaths: ReadonlySet<string>,
+    writePath: AbsolutePath | null,
+    expandedPaths: ReadonlySet<string>,
+    graphFilePaths: ReadonlySet<string>,
+): FolderTreeNode {
+    const children: readonly (FolderTreeNode | FileTreeNode)[] = (entry.children ?? []).map(
+        (child: DirectoryEntry): FolderTreeNode | FileTreeNode => {
+            if (child.isDirectory) {
+                return buildFolderTree(child, loadedPaths, writePath, expandedPaths, graphFilePaths);
+            }
+            return {
+                name: child.name,
+                absolutePath: child.absolutePath,
+                isInGraph: graphFilePaths.has(child.absolutePath),
+            } satisfies FileTreeNode;
+        }
+    );
+
+    // Sort: folders first (alphabetical), then files (alphabetical)
+    const sorted: readonly (FolderTreeNode | FileTreeNode)[] = [...children].sort(
+        (a: FolderTreeNode | FileTreeNode, b: FolderTreeNode | FileTreeNode): number => {
+            const aIsDir: boolean = 'children' in a;
+            const bIsDir: boolean = 'children' in b;
+            if (aIsDir !== bIsDir) return aIsDir ? -1 : 1;
+            return a.name.localeCompare(b.name);
+        }
+    );
+
+    return {
+        name: entry.name,
+        absolutePath: entry.absolutePath,
+        children: sorted,
+        isExpanded: expandedPaths.has(entry.absolutePath),
+        loadState: loadedPaths.has(entry.absolutePath) ? 'loaded' : 'not-loaded',
+        isWriteTarget: writePath === entry.absolutePath,
     };
 }

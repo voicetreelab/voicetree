@@ -17,6 +17,7 @@ import { isImageNode } from "@/pure/graph";
 import { handleFSEventWithStateAndUISides } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/handleFSEventWithStateAndUISides";
 import { getMainWindow } from "@/shell/edge/main/state/app-electron-state";
 import { getWatcher, setWatcher } from "@/shell/edge/main/state/watch-folder-store";
+import { broadcastFolderTree } from "./broadcast-folder-tree";
 
 /**
  * Read file with retry logic for transient file system issues
@@ -109,6 +110,9 @@ export function setupWatcherListeners(watchedDir: FilePath): void {
                 // Handle FS event: compute delta, update state, broadcast to UI-edge
                 // Pass watchedDir so node IDs are relative to watched directory
                 handleFSEventWithStateAndUISides(fsUpdate, watchedDir, mainWindow);
+
+                // Refresh folder tree sidebar (new file added)
+                broadcastFolderTree();
             })
             .catch(error => {
                 console.error(`Error handling file add ${filePath}:`, error);
@@ -147,6 +151,9 @@ export function setupWatcherListeners(watchedDir: FilePath): void {
 
         // Handle FS event: compute delta, update state, broadcast to UI-edge
         handleFSEventWithStateAndUISides(fsDelete, watchedDir, mainWindow);
+
+        // Refresh folder tree sidebar (file removed)
+        broadcastFolderTree();
     });
 
     // Watch error
