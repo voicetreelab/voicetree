@@ -49,15 +49,24 @@ export function updateWindowFromZoom(cy: cytoscape.Core, windowElement: HTMLElem
     // Resolve graph position (needed for screen positioning below)
     const { graphX, graphY } = resolveGraphPosition(cy, windowElement);
 
-    // During active zoom, force CSS transform for terminals to prevent flickering.
-    // Outside zoom, respect the interaction-driven preference stored by pointerdown handler.
+    // Terminals always use css-transform here. Dimension-scaling is only applied
+    // synchronously on pointerdown (terminalInteractionStrategy.ts) and cleared on next zoom.
     const zoomIsActive: boolean = isZoomActive();
-    const interactionStrategy: string | undefined = windowElement.dataset.interactionStrategy;
+    let interactionStrategy: string | undefined = windowElement.dataset.interactionStrategy;
+
+    if (zoomIsActive && isTerminal && interactionStrategy === 'dimension-scaling') {
+        delete windowElement.dataset.interactionStrategy;
+        interactionStrategy = undefined;
+    }
+
+    // dimension-scaling should only reach here from the pointerdown handler's direct call —
+    // never from syncTransform during zoom/pan. Warn if that invariant is violated.
+    if (isTerminal && interactionStrategy === 'dimension-scaling' && zoomIsActive) {
+        console.warn('[updateWindowFromZoom] dimension-scaling during active zoom — should not happen');
+    }
 
     const strategy: ScalingStrategy = isTerminal
-        ? (zoomIsActive ? 'css-transform'
-            : interactionStrategy === 'dimension-scaling' ? 'dimension-scaling'
-            : 'css-transform')
+        ? (interactionStrategy === 'dimension-scaling' ? 'dimension-scaling' : 'css-transform')
         : 'css-transform';
 
     // Store strategy on DOM so ResizeObserver reads the same value

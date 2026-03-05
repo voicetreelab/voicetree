@@ -33,7 +33,7 @@ export function setupTerminalInteractionStrategy(
     fitAddon: FitAddon
 ): () => void {
     const handler: (e: PointerEvent) => void = (_e: PointerEvent): void => {
-        // Don't switch during active zoom — overlay scale handles visuals
+        // Don't switch during active zoom — css-transform handles visuals
         if (isZoomActive()) return;
 
         const zoom: number = getCyInstance().zoom();

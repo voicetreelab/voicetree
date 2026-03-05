@@ -187,7 +187,7 @@ export class TerminalVanilla {
           storedStrategy === 'dimension-scaling' ? 'dimension-scaling' : 'css-transform';
       this.term.options.fontSize = getTerminalFontSize(zoom, strategy);
 
-      // Skip fit during active zoom — overlay scale handles visuals
+      // Skip fit during active zoom — css-transform handles visuals
       if (zoomActive) {
         return;
       }
