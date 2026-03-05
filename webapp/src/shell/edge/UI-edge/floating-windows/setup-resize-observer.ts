@@ -46,9 +46,14 @@ export function updateShadowNodeDimensions(shadowNode: cytoscape.NodeSingular, d
         'height': graphDimensions.height
     });
 
-    // Update base dimensions dataset so updateWindowFromZoom preserves user resize
-    domElement.dataset.baseWidth = String(graphDimensions.width);
-    domElement.dataset.baseHeight = String(graphDimensions.height);
+    // Only update base dimensions for css-transform mode (screen dims = graph dims, no zoom division).
+    // For dimension-scaling, deriving base from screen/zoom is error-prone: CSS min-width clamping
+    // inflates base at low zoom, and cross-frame zoom drift compounds over zoom cycles.
+    // dimension-scaling base dims are set by createWindowChrome, persistResizedDimensions, or expand. //human
+    if (strategy === 'css-transform') {
+        domElement.dataset.baseWidth = String(graphDimensions.width);
+        domElement.dataset.baseHeight = String(graphDimensions.height);
+    }
 }
 
 /**
