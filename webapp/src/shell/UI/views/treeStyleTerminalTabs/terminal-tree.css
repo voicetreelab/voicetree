@@ -9,13 +9,11 @@
  * ============================================================================ */
 
 .terminal-tree-sidebar {
-    position: absolute;
-    top: 38px;  /* Below title bar */
-    left: 0;
-    bottom: 50px;  /* Above bottom bar */
+    height: 100%;
     width: 182px;  /* Initial width */
     min-width: 60px;
     max-width: 300px;
+    min-height: 0;
     background: var(--background);
     border-right: 1px solid var(--border);
     z-index: 1050;
