@@ -191,3 +191,5 @@ backend/text_to_graph_pipeline/debug_logs/**/*
 .worktrees/**/*
 
 **/.mcp.json
+
+**/node_modules/**
