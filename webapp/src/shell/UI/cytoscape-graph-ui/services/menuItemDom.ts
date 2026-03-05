@@ -80,6 +80,9 @@ export function createMenuItemElement(item: HorizontalMenuItem, onClose: () => v
     }
     button.appendChild(iconWrapper);
 
+    // Native tooltip for discoverability (shows on hover after delay)
+    button.title = item.label;
+
     // Add label container - position depends on whether label is always shown
     const labelContainer: HTMLSpanElement = document.createElement('span');
     labelContainer.className = 'horizontal-menu-label';

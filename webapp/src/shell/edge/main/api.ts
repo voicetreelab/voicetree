@@ -55,6 +55,7 @@ import {
   isStarred,
   copyNodeToFolder,
 } from './graph/watch_folder/starred-folders';
+import {listWorkflows, readSkillFile, readSkillFileSummary} from './workflows/workflowHandlers';
 import path from 'path';
 
 /**
@@ -217,4 +218,9 @@ export const mainAPI = {
   removeStarredFolder,
   isStarred,
   copyNodeToFolder,
+
+  // Workflow operations
+  listWorkflows,
+  readSkillFile,
+  readSkillFileSummary,
 }

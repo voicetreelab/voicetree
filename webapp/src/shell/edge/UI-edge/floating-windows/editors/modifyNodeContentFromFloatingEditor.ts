@@ -10,6 +10,7 @@ export async function modifyNodeContentFromUI(
     nodeId: NodeIdAndFilePath,
     newContent: string,
     _cy: Core,
+    updateEditors: boolean = false,
 ): Promise<void> {
 
     // Get current graph state
@@ -30,6 +31,7 @@ export async function modifyNodeContentFromUI(
         throw new Error('Expected UpsertNode action');
     }
     const newNodeFromContentChange: GraphNode = upsertAction.nodeToUpsert;
+    console.log('[modifyNodeContent] input length:', newContent.length, '→ parsed contentWithoutYamlOrLinks length:', newNodeFromContentChange.contentWithoutYamlOrLinks.length);
 
     // Merge metadata: use new values where present, fall back to old values for missing fields (e.g., position)
     const mergedMetadata: NodeUIMetadata = mergeNodeUIMetadata(currentNode.nodeUIMetadata, newNodeFromContentChange.nodeUIMetadata); // todo, suss, doesn't account for every metadata, but spread should handle that fine
@@ -41,6 +43,11 @@ export async function modifyNodeContentFromUI(
         previousNode: upsertAction.previousNode  // Preserve previousNode from the delta
     }];
 
-    // Editor path: MEM + GraphUI + FS, editors updated via broadcast but deduplication prevents loop
-    await window.electronAPI?.main.applyGraphDeltaToDBThroughMemAndUIExposed(graphDelta);
+    // When called from editor onChange: use MEM + GraphUI + FS only (no editor update to avoid duplication)
+    // When called from external sources (workflow injection): also update editors so open editors reflect the change
+    if (updateEditors) {
+        await window.electronAPI?.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed(graphDelta);
+    } else {
+        await window.electronAPI?.main.applyGraphDeltaToDBThroughMemAndUIExposed(graphDelta);
+    }
 }
