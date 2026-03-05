@@ -7,19 +7,13 @@ import {
     type ScalingStrategy,
     type TransformOrigin,
 } from "@/pure/graph/floating-windows/floatingWindowScaling";
-import { isZoomActive, getPositioningZoom } from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
+import { isZoomActive } from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 
 /**
  * Update a floating window's scale and position based on zoom level.
  * Called on every zoom change for all floating windows, and by createFloatingEditor
  * for initial positioning of new windows.
  *
- * During overlay scale (active zoom), uses refZoom for positioning/dimensions
- * so the overlay's CSS scale(zoom/refZoom) gives correct visual placement.
- * The `zoom` parameter is still used for strategy decisions and thresholds.
- *
- * NOTE: This function is deferred to zoom-end via the overlay-scale mechanism.
- * During active zoom it does NOT run — the overlay CSS scale(zoom/refZoom) handles visuals.
  * The active strategy is stored on windowElement.dataset.activeStrategy so the
  * ResizeObserver reads the same value (avoiding forward/inverse conversion mismatch).
  */
@@ -48,10 +42,6 @@ function resolveGraphPosition(
 }
 
 export function updateWindowFromZoom(cy: cytoscape.Core, windowElement: HTMLElement, zoom: number): void {
-    // During overlay scale, position at refZoom — overlay's scale(zoom/refZoom) compensates.
-    // Use actual zoom for strategy/threshold decisions (visual correctness on settle).
-    const posZoom: number = getPositioningZoom();
-
     const baseWidth: number = parseFloat(windowElement.dataset.baseWidth ?? '400');
     const baseHeight: number = parseFloat(windowElement.dataset.baseHeight ?? '400');
     const isTerminal: boolean = windowElement.classList.contains('cy-floating-window-terminal');
@@ -73,12 +63,12 @@ export function updateWindowFromZoom(cy: cytoscape.Core, windowElement: HTMLElem
     // Store strategy on DOM so ResizeObserver reads the same value
     windowElement.dataset.activeStrategy = strategy;
 
-    // Apply dimensions based on strategy (using posZoom for overlay-scale correctness)
+    // Apply dimensions based on strategy (using zoom for overlay-scale correctness)
     const baseDimensions: { readonly width: number; readonly height: number } = {width: baseWidth, height: baseHeight};
     const screenDimensions: {
         readonly width: number;
         readonly height: number
-    } = getScreenDimensions(baseDimensions, posZoom, strategy);
+    } = getScreenDimensions(baseDimensions, zoom, strategy);
 
     // Debug: warn when computed screen dimensions are unreasonably large
     if (isTerminal && (screenDimensions.width > 10000 || screenDimensions.height > 10000)) {
@@ -86,7 +76,7 @@ export function updateWindowFromZoom(cy: cytoscape.Core, windowElement: HTMLElem
             `[updateWindowFromZoom] OVERSIZED terminal dimensions: ${screenDimensions.width.toFixed(0)}×${screenDimensions.height.toFixed(0)}px`,
             {
                 baseWidth, baseHeight,
-                posZoom, zoom, strategy,
+                zoom, strategy,
                 zoomIsActive,
                 shadowNodeId: windowElement.dataset.shadowNodeId,
             }
@@ -111,11 +101,11 @@ export function updateWindowFromZoom(cy: cytoscape.Core, windowElement: HTMLElem
                 const baseHeight: number = 28; // Match CSS min-height
                 // Scale uniformly but counter-scale width so title bar spans full window
                 // Width: (100/zoom)% * zoom = 100% after transform
-                titleBar.style.width = `${100 / posZoom}%`;
-                titleBar.style.transform = `scale(${posZoom})`;
+                titleBar.style.width = `${100 / zoom}%`;
+                titleBar.style.transform = `scale(${zoom})`;
                 titleBar.style.transformOrigin = 'top left';
                 // Compensate for layout gap - element takes baseHeight but visually smaller
-                titleBar.style.marginBottom = `${-baseHeight * (1 - posZoom)}px`;
+                titleBar.style.marginBottom = `${-baseHeight * (1 - zoom)}px`;
             } else {
                 // Reset in css-transform mode (whole window scales)
                 titleBar.style.width = '';
@@ -132,20 +122,20 @@ export function updateWindowFromZoom(cy: cytoscape.Core, windowElement: HTMLElem
         ? graphY + graphOffsetY
         : graphY;
 
-    // Toggle toolbar visibility based on actual zoom (not posZoom) — visual threshold
+    // Toggle toolbar visibility based on zoom level
     windowElement.classList.toggle('zoom-below-toolbar-threshold', zoom < 0.5);
 
     if (graphX !== undefined && finalGraphY !== undefined) {
         const screenPos: { readonly x: number; readonly y: number } = graphToScreenPosition({
             x: graphX,
             y: finalGraphY
-        }, posZoom);
+        }, zoom);
         windowElement.style.left = `${screenPos.x}px`;
         windowElement.style.top = `${screenPos.y}px`;
 
         // Check for custom transform origin (e.g., hover editors use translateX(-50%) for centering)
         const customOrigin: TransformOrigin = windowElement.dataset.transformOrigin === 'top-center' ? 'top-center' : 'center';
-        windowElement.style.transform = getWindowTransform(strategy, posZoom, customOrigin);
+        windowElement.style.transform = getWindowTransform(strategy, zoom, customOrigin);
         windowElement.style.transformOrigin = getTransformOrigin(customOrigin);
     }
 }

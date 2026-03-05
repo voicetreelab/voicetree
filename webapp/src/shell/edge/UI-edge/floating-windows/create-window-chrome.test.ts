@@ -6,9 +6,7 @@ import { createEditorData, createTerminalData, type EditorId, type TerminalId, t
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import type {EditorData} from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
 
-// Mock getCachedZoom to return 1
 vi.mock('@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows', () => ({
-    getCachedZoom: vi.fn(() => 1),
     captureTerminalScrollPositions: vi.fn(),
 }));
 

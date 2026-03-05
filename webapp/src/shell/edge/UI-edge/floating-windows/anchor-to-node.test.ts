@@ -5,9 +5,7 @@ import { anchorToNode } from '@/shell/edge/UI-edge/floating-windows/anchor-to-no
 import { createTerminalData } from '@/shell/edge/UI-edge/floating-windows/types';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
 
-// Mock getCachedZoom to return 1
 vi.mock('@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows', () => ({
-    getCachedZoom: vi.fn(() => 1),
     cleanupRegistry: new Map(),
 }));
 

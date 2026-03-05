@@ -16,7 +16,7 @@ import {
     graphToScreenPosition,
     type ScalingStrategy
 } from "@/pure/graph/floating-windows/floatingWindowScaling";
-import {cleanupRegistry, getCachedZoom} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
+import {cleanupRegistry} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import {setupResizeObserver, updateShadowNodeDimensions} from "@/shell/edge/UI-edge/floating-windows/setup-resize-observer";
 import {getEdgeDistance} from "@/shell/UI/cytoscape-graph-ui/graphviz/layout/cytoscape-graph-constants";
 import {findBestPosition} from "@/pure/graph/positioning/findBestPosition";
@@ -214,7 +214,7 @@ export function anchorToNode(
  */
 function updateWindowPosition(shadowNode: cytoscape.NodeSingular, domElement: HTMLElement): void {
     const pos: cytoscape.Position = shadowNode.position();
-    const zoom: number = getCachedZoom();
+    const zoom: number = shadowNode.cy().zoom();
     const strategy: ScalingStrategy = readStoredStrategy(domElement);
 
     // Convert graph coordinates to screen coordinates

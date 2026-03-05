@@ -6,11 +6,9 @@ import type {NodeIdAndFilePath} from '@/pure/graph';
 import {isImageNode} from '@/pure/graph';
 import type {Position} from '@/shell/UI/views/IVoiceTreeGraphView';
 import {openHoverImageViewer} from '@/shell/edge/UI-edge/floating-windows/image-viewers/FloatingImageViewerCRUD';
-import {getCachedZoom} from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 import {type EditorData} from '@/shell/edge/UI-edge/state/UIAppState';
 import {getEditorByNodeId, getHoverEditor} from "@/shell/edge/UI-edge/state/EditorStore";
 import {createFloatingEditor, closeEditor} from './FloatingEditorCRUD';
-import {hasPresentation} from '@/shell/edge/UI-edge/node-presentation/NodePresentationStore';
 
 // =============================================================================
 // Hover Zone Detection
@@ -142,7 +140,7 @@ async function openHoverEditor(
         // Position editor below the node, clearing the node circle icon
         // Store graph position in dataset so updateWindowFromZoom can update on zoom changes
         const HOVER_EDITOR_VERTICAL_OFFSET: number = 18;
-        const zoom: number = getCachedZoom();
+        const zoom: number = cy.zoom();
         const graphX: number = nodePos.x;
         const graphY: number = nodePos.y + HOVER_EDITOR_VERTICAL_OFFSET;
 
@@ -231,12 +229,6 @@ export function setupCommandHover(cy: Core): void {
 
             const node: cytoscape.NodeSingular = event.target;
             const nodeId: string = node.id();
-
-            // Presentation-backed nodes: cards use in-place CM editing via hoverWiring.ts when zoomed in.
-            // When zoomed out, circles are for overview — no hover editor needed.
-            if (hasPresentation(nodeId)) {
-                return;
-            }
 
             // Only open hover for nodes with file extensions
             // Terminal nodes, shadow nodes, etc. don't have file extensions

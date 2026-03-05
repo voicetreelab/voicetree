@@ -3,6 +3,9 @@
  *
  * Rewritten to use types.ts with flat types and derived IDs.
  * Windows are anchored to invisible shadow nodes and move with graph transformations.
+ *
+ * NEVER cache cy.zoom() — use getCyInstance().zoom() or cy.zoom() directly. //human
+ * cy.zoom() is an O(1) property read. Caching it creates stale-value bugs.
  */
 
 import type cytoscape from 'cytoscape';
@@ -27,29 +30,6 @@ import {removeImageViewer} from "@/shell/edge/UI-edge/state/ImageViewerStore";
 import {updateWindowFromZoom} from "@/shell/edge/UI-edge/floating-windows/update-window-from-zoom";
 import {suppressInactivityDuringZoom} from "@/shell/UI/views/treeStyleTerminalTabs/terminalTabUtils";
 
-/**
- * Get current zoom level from cytoscape instance
- * Used by terminals to get initial zoom on mount
- */
-let cachedZoom: number = 1;
-export function getCachedZoom(): number {
-    return cachedZoom;
-}
-
-// Overlay-scale state: during active zoom, we scale the overlay container instead
-// of updating N windows per frame. refZoom is the zoom level windows are positioned for.
-let overlayScaleActive: boolean = false;
-let refZoom: number = 1;
-
-/**
- * Get the zoom level to use for positioning during overlay scale.
- * During overlay scale, windows must be positioned at refZoom — the overlay's
- * CSS scale(zoom/refZoom) compensates to give correct visual positions.
- * Outside overlay scale, returns the actual cached zoom.
- */
-export function getPositioningZoom(): number {
-    return overlayScaleActive ? refZoom : cachedZoom;
-}
 
 // =============================================================================
 // Zoom State Tracking
@@ -187,7 +167,6 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
         const syncTransform: () => void = () => {
             const pan: cytoscape.Position = cy.pan();
             const zoom: number = cy.zoom();
-            cachedZoom = zoom;
 
             // Only translate, no scale - windows handle their own sizing
             overlay.style.transform = `translate(${pan.x}px, ${pan.y}px)`;
@@ -215,45 +194,24 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
         let rafPending: boolean = false;
 
         const scheduleSync: () => void = () => {
-            if (overlayScaleActive) return; // During zoom, overlay scale handles everything
             if (rafPending) return;
             rafPending = true;
             requestAnimationFrame(() => {
                 rafPending = false;
-                if (overlayScaleActive) return; // overlay scale started after schedule
                 syncTransform();
             });
         };
 
-        // Pan handler — O(1) during zoom (update overlay translate+scale), RAF sync otherwise
+        // Pan handler — schedule RAF sync for per-window updates
         cy.on('pan', () => {
-            if (overlayScaleActive) {
-                const pan: cytoscape.Position = cy.pan();
-                const zoom: number = cy.zoom();
-                overlay.style.transform = `translate(${pan.x}px, ${pan.y}px) scale(${zoom / refZoom})`;
-            } else {
-                scheduleSync();
-            }
+            scheduleSync();
         });
 
-        // Zoom handler — O(1) overlay scale during active zoom
+        // Zoom handler — schedule per-window sync
         cy.on('zoom', () => {
-            const zoom: number = cy.zoom();
             suppressInactivityDuringZoom();
             markZoomActive();
-
-            if (!overlayScaleActive) {
-                // First zoom event after settle — capture reference zoom (what windows are positioned for)
-                refZoom = cachedZoom;
-                overlayScaleActive = true;
-            }
-
-            cachedZoom = zoom;
-
-            // O(1) overlay transform — scales all children visually without per-window updates
-            const pan: cytoscape.Position = cy.pan();
-            overlay.style.transform = `translate(${pan.x}px, ${pan.y}px) scale(${zoom / refZoom})`;
-
+            scheduleSync();
         });
 
         // Resize handler — always full sync (browser window resize)
@@ -266,10 +224,8 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
         // fires 'position' events on nodes — not 'pan'/'zoom'/'resize' on cy.
         cy.on('position', 'node', scheduleSync);
 
-        // Zoom settle — run full O(N) sync once after zoom animation stops
+        // Zoom settle — run full sync once after zoom animation stops
         onZoomEnd(() => {
-            if (!overlayScaleActive) return;
-            overlayScaleActive = false;
             zoomActiveUntil = 0; // Clear so isZoomActive() returns false for settle sync
             syncTransform();
         });
