@@ -9,6 +9,7 @@ import type {} from '@/utils/types/cytoscape-layout-utilities';
 import {checkEngagementPrompts} from "./userEngagementPrompts";
 import {setPendingPan, setPendingPanToNode, setPendingVoiceFollowPan} from "@/shell/edge/UI-edge/state/PendingPanStore";
 import {scheduleIdleWork} from "@/utils/scheduleIdleWork";
+import {syncLargeGraphPerformanceMode} from "@/shell/UI/cytoscape-graph-ui/services/largegraphPerformance";
 import {getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {getShadowNodeId, getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 import {pinCardShell} from "@/shell/edge/UI-edge/floating-windows/editors/CardShell";
@@ -278,6 +279,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
 
     const newNodeCount: number = newNodeIds.length;
     const totalNodes: number = cy.nodes().length;
+    syncLargeGraphPerformanceMode(cy);
     const changeRatio: number = totalNodes > 0 ? newNodeCount / totalNodes : 1;
 
     // Set pending pan to be executed when layout completes (instead of arbitrary timeout)
