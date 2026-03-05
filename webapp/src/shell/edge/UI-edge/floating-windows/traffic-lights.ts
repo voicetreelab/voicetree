@@ -18,7 +18,7 @@ import { minimizeTerminal, restoreTerminal } from '@/shell/UI/views/treeStyleTer
 import type { EditorData } from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
 import type { TerminalData } from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import { closeHoverEditor } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
-import { createFloatingEditor } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
+import { createAnchoredFloatingEditor } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 import { getImageViewerByNodeId } from "@/shell/edge/UI-edge/state/ImageViewerStore";
 import { closeHoverImageViewer, createAnchoredFloatingImageViewer } from "@/shell/edge/UI-edge/floating-windows/image-viewers/FloatingImageViewerCRUD";
 import type { ImageViewerData } from "@/shell/edge/UI-edge/floating-windows/image-viewers/imageViewerDataType";
@@ -155,7 +155,7 @@ export function createTrafficLightsForTarget(target: TrafficLightTarget): HTMLDi
                 if (O.isSome(editor) && !isAnchored(editor.value)) {
                     closeHoverEditor(cy);
                     closeMenu();
-                    void createFloatingEditor(cy, nodeId, undefined, false);
+                    void createAnchoredFloatingEditor(cy, nodeId, false);
                     addToPinnedEditors(nodeId);
                     return true;
                 }
