@@ -15,6 +15,15 @@ import {getShadowNodeId, getTerminalId} from "@/shell/edge/UI-edge/floating-wind
 import {pinCardShell} from "@/shell/edge/UI-edge/floating-windows/editors/CardShell";
 
 /**
+ * Extract the folder parent path from a node ID.
+ * e.g. "auth/login.md" → "auth/", "root.md" → null
+ */
+function getFolderParent(nodeId: string): string | null {
+    const lastSlash: number = nodeId.lastIndexOf('/');
+    return lastSlash === -1 ? null : nodeId.slice(0, lastSlash + 1);
+}
+
+/**
  * Validates if a color value is a valid CSS color using the browser's CSS.supports API
  */
 function isValidCSSColor(color: string): boolean {
@@ -117,6 +126,19 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
 
                     //console.log(`[applyGraphDeltaToUI] Creating node ${nodeId} with color:`, colorValue);
 
+                    // Lazily create compound folder parent if node is in a subfolder
+                    const folderPath: string | null = getFolderParent(nodeId);
+                    if (folderPath && !cy.getElementById(folderPath).length) {
+                        cy.add({
+                            group: 'nodes' as const,
+                            data: {
+                                id: folderPath,
+                                folderLabel: folderPath.replace(/\/$/, '').split('/').pop()!,
+                                isFolderNode: true
+                            }
+                        });
+                    }
+
                     cy.add({
                         group: 'nodes' as const,
                         data: {
@@ -125,7 +147,8 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                             content: node.contentWithoutYamlOrLinks,
                             summary: '',
                             color: colorValue,
-                            isContextNode: !!node.nodeUIMetadata.isContextNode
+                            isContextNode: !!node.nodeUIMetadata.isContextNode,
+                            parent: folderPath ?? undefined
                         },
                         position: {
                             x: pos.x,
@@ -200,6 +223,9 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                 }
             }
         });
+
+        // Clean up empty folder compounds after deletions
+        cy.nodes('[?isFolderNode]').filter(n => n.children().length === 0).remove();
 
         // PASS 2: Sync edges for each node (add missing, remove stale)
         delta.forEach((nodeDelta) => {
