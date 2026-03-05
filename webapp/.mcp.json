@@ -7,18 +7,7 @@
     "playwright": {
       "command": "npx",
       "args": ["@playwright/mcp@latest"]
-    },
-    "playwright-electron": {
-      "command": "npx",
-      "args": [
-        "@hotnsoursoup/playwright-mcp-electron@latest",
-        "--browser",
-        "electron",
-        "--executable-path",
-        "node_modules/.bin/electron",
-        "--cwd",
-        "."
-      ]
     }
+
   }
 }
