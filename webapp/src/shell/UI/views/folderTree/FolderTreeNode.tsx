@@ -68,6 +68,7 @@ export function FolderTreeNodeComponent({ node, depth, searchQuery, expandedPath
     const [isCreatingFolder, setIsCreatingFolder] = useState<boolean>(false);
     const [newFolderName, setNewFolderName] = useState<string>('');
     const newFolderInputRef: React.RefObject<HTMLInputElement | null> = useRef<HTMLInputElement>(null);
+    const isCancellingRef: React.MutableRefObject<boolean> = useRef<boolean>(false);
 
     const handleExpandClick: () => void = useCallback((): void => {
         onToggleExpand(node.absolutePath);
@@ -102,6 +103,10 @@ export function FolderTreeNodeComponent({ node, depth, searchQuery, expandedPath
     }, [expandedPaths, node.absolutePath, onToggleExpand]);
 
     const handleNewFolderConfirm: () => void = useCallback((): void => {
+        if (isCancellingRef.current) {
+            isCancellingRef.current = false;
+            return;
+        }
         const trimmed: string = newFolderName.trim();
         if (trimmed) {
             void window.electronAPI?.main.createSubfolder(node.absolutePath, trimmed);
@@ -111,6 +116,7 @@ export function FolderTreeNodeComponent({ node, depth, searchQuery, expandedPath
     }, [newFolderName, node.absolutePath]);
 
     const handleNewFolderCancel: () => void = useCallback((): void => {
+        isCancellingRef.current = true;
         setIsCreatingFolder(false);
         setNewFolderName('');
     }, []);

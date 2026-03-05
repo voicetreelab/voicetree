@@ -64,6 +64,7 @@ export {
     setVaultPath,
     clearVaultPath,
     createDatedVoiceTreeFolder,
+    createSubfolder,
 } from "./vault-allowlist";
 
 // Re-export folder-scanner functions for api.ts
