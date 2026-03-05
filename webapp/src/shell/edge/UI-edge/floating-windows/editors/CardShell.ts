@@ -37,6 +37,7 @@ import { contentAfterTitle, stripMarkdownFormatting } from '@/pure/graph/markdow
 import {setupAutoHeight} from "@/shell/edge/UI-edge/floating-windows/editors/SetupAutoHeight";
 import {createWindowChrome} from "@/shell/edge/UI-edge/floating-windows/create-window-chrome";
 import {updateShadowNodeDimensions} from "@/shell/edge/UI-edge/floating-windows/setup-resize-observer";
+import {resetExpandButton} from '@/shell/edge/UI-edge/floating-windows/expand-button';
 
 // Card Mode Constants (graph-coordinate base dimensions for each mode)
 
@@ -389,6 +390,9 @@ function wireShellHoverEvents(shell: CardShellData, cy: Core): void {
             shell.isPinned = false;
             windowElement.classList.remove('mode-pinned');
             windowElement.classList.add('mode-card');
+            const expandBtn: HTMLButtonElement | null =
+                windowElement.querySelector<HTMLButtonElement>('.cy-floating-window-expand-corner');
+            if (expandBtn) resetExpandButton(expandBtn);
             setCardModeDimensions(windowElement, CARD_DIMENSIONS);
             // Restore card-mode positioning: top-center + upward offset below label
             windowElement.dataset.transformOrigin = 'top-center';
