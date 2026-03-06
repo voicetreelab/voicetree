@@ -94,6 +94,9 @@ export function StarredSection({ starredFolders, starredFolderTrees, readPaths, 
                         <span className="folder-tree-folder-name">
                             {folder.split('/').pop() ?? folder}
                         </span>
+                        <span className="folder-tree-path-tag">
+                            {folder.replace(/^\/Users\/[^/]+/, '~')}
+                        </span>
                         {isWriteTarget ? (
                             <span className="folder-tree-write-icon" title="Write target">{'\u270E'}</span>
                         ) : (

@@ -165,6 +165,11 @@ export function FolderTreeNodeComponent({ node, depth, searchQuery, expandedPath
                     {expandedPaths.has(node.absolutePath) ? '\u25BC' : '\u25B6'}
                 </span>
                 <span className="folder-tree-folder-name">{node.name}</span>
+                {depth === 0 && (
+                    <span className="folder-tree-path-tag">
+                        {node.absolutePath.replace(/^\/Users\/[^/]+/, '~')}
+                    </span>
+                )}
                 {node.isWriteTarget ? (
                     <span className="folder-tree-write-icon" title="Write target">{'\u270E'}</span>
                 ) : (

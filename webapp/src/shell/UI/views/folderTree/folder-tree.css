@@ -261,6 +261,19 @@
     min-width: 0;
 }
 
+/* Path tag (subtle absolute path for parent folders) */
+.folder-tree-path-tag {
+    font-size: 9px;
+    color: var(--muted-foreground);
+    opacity: 0.45;
+    margin-left: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
 .folder-tree-write-icon {
     font-size: 11px;
     margin-left: 4px;
