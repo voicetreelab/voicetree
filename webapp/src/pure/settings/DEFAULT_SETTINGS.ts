@@ -47,6 +47,7 @@ export const DEFAULT_HOTKEYS: HotkeySettings = isMac ? MAC_HOTKEYS : NON_MAC_HOT
 
 
 const isWindows: boolean = typeof process !== 'undefined' && process.platform === 'win32';
+const homeDir: string = typeof process !== 'undefined' && process.env.HOME ? process.env.HOME : '';
 /** Platform-aware env var syntax for agent commands */
 const AGENT_PROMPT_VAR: string = isWindows ? '$env:AGENT_PROMPT' : '$AGENT_PROMPT';
 export const DEFAULT_SETTINGS: VTSettings = {
@@ -139,7 +140,7 @@ VOICETREE_MCP_PORT = $VOICETREE_MCP_PORT
     zoomSensitivity: 1.0,
     nodeLineLimit: 70,
     showFps: false,
-    starredFolders: [],
+    starredFolders: homeDir ? [`${homeDir}/voicetree/workflows`] : [],
     hooks: {
         onWorktreeCreatedBlocking: './.voicetree/hooks/on-worktree-created-blocking.sh',
         postWorktreeCreatedAsync: './.voicetree/hooks/on-worktree-created-async.sh',

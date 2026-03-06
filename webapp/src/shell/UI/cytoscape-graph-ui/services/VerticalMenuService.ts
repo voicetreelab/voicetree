@@ -1,4 +1,4 @@
-import type {Core, Position as CyPosition} from 'cytoscape';
+import type {Core, Position as CyPosition, EventObject} from 'cytoscape';
 import ctxmenu from '@/shell/UI/lib/ctxmenu.js';
 import {mergeSelectedNodesFromUI} from "@/shell/edge/UI-edge/graph/mergeSelectedNodesFromUI";
 import {deleteSelectedNodesAction} from "@/shell/UI/cytoscape-graph-ui/actions/graphActions";
@@ -50,6 +50,7 @@ export function showCtxMenu(
 export class VerticalMenuService {
     private cy: Core | null = null;
     private deps: VerticalMenuDependencies | null = null;
+    private ctrlClickHandler: ((event: EventObject) => void) | null = null;
 
     initialize(cy: Core, deps: VerticalMenuDependencies): void {
         this.cy = cy;
@@ -73,26 +74,41 @@ export class VerticalMenuService {
         // Handle right-click on background - show vertical menu
         this.cy.on('cxttap', (event) => {
             if (event.target === this.cy) {
-                const position: CyPosition = event.position ?? { x: 0, y: 0 };
-                const renderedPosition: CyPosition = event.renderedPosition ?? position;
-
-                const container: HTMLElement | null = this.cy!.container();
-                if (!container) return;
-
-                const containerRect: DOMRect = container.getBoundingClientRect();
-                const x: number = containerRect.left + (renderedPosition.x ?? 0);
-                const y: number = containerRect.top + (renderedPosition.y ?? 0);
-
-                const menuItems: MenuItem[] = this.getCanvasVerticalMenuItems(position);
-                const syntheticEvent: MouseEvent = new MouseEvent('contextmenu', {
-                    clientX: x,
-                    clientY: y,
-                    bubbles: true,
-                    cancelable: true,
-                });
-                ctxmenu.show(menuItems, syntheticEvent);
+                this.showCanvasMenu(
+                    event.position ?? { x: 0, y: 0 },
+                    event.renderedPosition ?? event.position ?? { x: 0, y: 0 },
+                );
             }
         });
+
+        // Handle ctrl+click on background as right-click
+        this.ctrlClickHandler = (event: EventObject) => {
+            if (event.target === this.cy && event.originalEvent?.ctrlKey) {
+                this.showCanvasMenu(
+                    event.position ?? { x: 0, y: 0 },
+                    event.renderedPosition ?? event.position ?? { x: 0, y: 0 },
+                );
+            }
+        };
+        this.cy.on('tap', this.ctrlClickHandler);
+    }
+
+    private showCanvasMenu(position: CyPosition, renderedPosition: CyPosition): void {
+        const container: HTMLElement | null = this.cy!.container();
+        if (!container) return;
+
+        const containerRect: DOMRect = container.getBoundingClientRect();
+        const x: number = containerRect.left + (renderedPosition.x ?? 0);
+        const y: number = containerRect.top + (renderedPosition.y ?? 0);
+
+        const menuItems: MenuItem[] = this.getCanvasVerticalMenuItems(position);
+        const syntheticEvent: MouseEvent = new MouseEvent('contextmenu', {
+            clientX: x,
+            clientY: y,
+            bubbles: true,
+            cancelable: true,
+        });
+        ctxmenu.show(menuItems, syntheticEvent);
     }
 
     private getCanvasVerticalMenuItems(position: Position): MenuItem[] {
@@ -193,8 +209,12 @@ export class VerticalMenuService {
 
         if (this.cy) {
             this.cy.removeListener('cxttap');
+            if (this.ctrlClickHandler) {
+                this.cy.off('tap', this.ctrlClickHandler);
+            }
         }
 
+        this.ctrlClickHandler = null;
         this.cy = null;
         this.deps = null;
     }

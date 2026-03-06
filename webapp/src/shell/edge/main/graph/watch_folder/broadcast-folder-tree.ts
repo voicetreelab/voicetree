@@ -7,6 +7,7 @@
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy';
 import { getProjectRootWatchedDirectory } from '@/shell/edge/main/state/watch-folder-store';
 import { getVaultPaths, getWritePath } from './vault-allowlist';
+import { getStarredFolders } from './starred-folders';
 import { getGraph } from '@/shell/edge/main/state/graph-store';
 import { getDirectoryTree } from './folder-scanner';
 import { buildFolderTree } from '@/pure/folders/transforms';
@@ -40,6 +41,19 @@ async function doBroadcast(): Promise<void> {
     const tree: FolderTreeNode = buildFolderTree(entry, loadedPaths, writePath, graphFilePaths);
 
     uiAPI.syncFolderTree(tree);
+
+    // Scan starred folders and broadcast their trees (depth-limited to 3 for performance)
+    const starredFolders: readonly string[] = await getStarredFolders();
+    const starredTrees: Record<string, FolderTreeNode> = {};
+    for (const folder of starredFolders) {
+        try {
+            const starredEntry: DirectoryEntry = await getDirectoryTree(folder, 3);
+            starredTrees[folder] = buildFolderTree(starredEntry, loadedPaths, writePath, graphFilePaths);
+        } catch {
+            // Starred folder doesn't exist or can't be read — skip
+        }
+    }
+    uiAPI.syncStarredFolderTrees(starredTrees);
 }
 
 export function broadcastFolderTree(): void {

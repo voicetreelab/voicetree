@@ -43,7 +43,7 @@ export function getDefaultNodeStyles(colors: GraphColorPalette, font: string, is
         'label': 'data(folderLabel)',
         'text-valign': 'top',
         'text-halign': 'center',
-        'font-size': 11,
+        'font-size': 20,
         'color': '#888',
         'min-zoomed-font-size': 0,
       }
@@ -111,37 +111,37 @@ export function getDefaultNodeStyles(colors: GraphColorPalette, font: string, is
       }
     },
 
-    // Context node highlighting - contained nodes (uses outline with offset for halo effect)
+    // Context node highlighting - contained nodes (underlay halo, WebGL-compatible)
     {
       selector: 'node.context-contained',
       style: {
-        'outline-width': 2,
-        'outline-color': getGoldColor(isDark),
-        'outline-offset': 6,
-        'outline-opacity': 0.8,
+        'underlay-color': getGoldColor(isDark),
+        'underlay-opacity': 0.6,
+        'underlay-padding': 8,
+        'underlay-shape': 'ellipse',
       }
     },
 
-    // Active terminal highlighting - subtle gold outline on shadow node (behind terminal window)
+    // Active terminal highlighting - subtle gold halo on shadow node (behind terminal window)
     // Primary gold border is applied to terminal DOM element in floating-windows.css
     {
       selector: 'node.terminal-active',
       style: {
-        'outline-width': 3,
-        'outline-color': getGoldColor(isDark),
-        'outline-offset': 8,
-        'outline-opacity': 0.6,
+        'underlay-color': getGoldColor(isDark),
+        'underlay-opacity': 0.4,
+        'underlay-padding': 11,
+        'underlay-shape': 'ellipse',
       }
     },
 
-    // Selected nodes - green rounded rectangle underlay
+    // Selected nodes - green underlay halo (WebGL-compatible)
     {
       selector: 'node:selected',
       style: {
-          'outline-width': 2,
-          'outline-color': '#00cc66',
-          'outline-offset': 10,
-          'outline-opacity': 1
+          'underlay-color': '#00cc66',
+          'underlay-opacity': 0.5,
+          'underlay-padding': 12,
+          'underlay-shape': 'ellipse',
       }
     },
   ];

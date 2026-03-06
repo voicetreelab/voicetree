@@ -70,20 +70,6 @@ export function FolderTreeNodeComponent({ node, depth, searchQuery, expandedPath
     const newFolderInputRef: React.RefObject<HTMLInputElement | null> = useRef<HTMLInputElement>(null);
     const isCancellingRef: React.MutableRefObject<boolean> = useRef<boolean>(false);
 
-    const handleExpandClick: () => void = useCallback((): void => {
-        onToggleExpand(node.absolutePath);
-    }, [onToggleExpand, node.absolutePath]);
-
-    const handleLoadClick: (e: React.MouseEvent) => void = useCallback((e: React.MouseEvent): void => {
-        e.stopPropagation();
-        onToggleLoad(node.absolutePath, node.loadState);
-    }, [onToggleLoad, node.absolutePath, node.loadState]);
-
-    const handleSetWriteTarget: (e: React.MouseEvent) => void = useCallback((e: React.MouseEvent): void => {
-        e.stopPropagation();
-        onSetWriteTarget(node.absolutePath);
-    }, [onSetWriteTarget, node.absolutePath]);
-
     const handleContextMenu: (e: React.MouseEvent) => void = useCallback((e: React.MouseEvent): void => {
         e.preventDefault();
         e.stopPropagation();
@@ -101,6 +87,24 @@ export function FolderTreeNodeComponent({ node, depth, searchQuery, expandedPath
         ];
         window.ctxmenu.show(items, e.nativeEvent);
     }, [expandedPaths, node.absolutePath, onToggleExpand]);
+
+    const handleExpandClick: (e: React.MouseEvent) => void = useCallback((e: React.MouseEvent): void => {
+        if (e.ctrlKey) {
+            handleContextMenu(e);
+            return;
+        }
+        onToggleExpand(node.absolutePath);
+    }, [onToggleExpand, node.absolutePath, handleContextMenu]);
+
+    const handleLoadClick: (e: React.MouseEvent) => void = useCallback((e: React.MouseEvent): void => {
+        e.stopPropagation();
+        onToggleLoad(node.absolutePath, node.loadState);
+    }, [onToggleLoad, node.absolutePath, node.loadState]);
+
+    const handleSetWriteTarget: (e: React.MouseEvent) => void = useCallback((e: React.MouseEvent): void => {
+        e.stopPropagation();
+        onSetWriteTarget(node.absolutePath);
+    }, [onSetWriteTarget, node.absolutePath]);
 
     const handleNewFolderConfirm: () => void = useCallback((): void => {
         if (isCancellingRef.current) {

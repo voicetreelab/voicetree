@@ -9,6 +9,7 @@ import {openHoverImageViewer} from '@/shell/edge/UI-edge/floating-windows/image-
 import {type EditorData} from '@/shell/edge/UI-edge/state/UIAppState';
 import {getEditorByNodeId, getHoverEditor} from "@/shell/edge/UI-edge/state/EditorStore";
 import {createFloatingEditor, closeEditor} from './FloatingEditorCRUD';
+import {createAnchoredFloatingEditor} from './AnchoredEditor';
 
 // =============================================================================
 // Hover Zone Detection
@@ -203,6 +204,13 @@ async function openHoverEditor(
             }
         };
         editor.ui.windowElement.addEventListener('mouseleave', handleMouseLeave);
+
+        // Double-click anywhere on hover editor converts it to an anchored/pinned editor
+        editor.ui.windowElement.addEventListener('dblclick', (): void => {
+            closeHoverEditor(cy);
+            document.removeEventListener('mousedown', handleClickOutside);
+            void createAnchoredFloatingEditor(cy, nodeId);
+        });
 
     } catch (error) {
         console.error('[FloatingEditorManager-v2] Error creating hover editor:', error);

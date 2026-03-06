@@ -312,12 +312,18 @@ export function buildFolderTree(
         }
     );
 
-    // Sort: folders first (alphabetical), then files (alphabetical)
+    // Sort: folders first (loaded folders before non-loaded), then files — alphabetical within each group
     const sorted: readonly (FolderTreeNode | FileTreeNode)[] = [...children].sort(
         (a: FolderTreeNode | FileTreeNode, b: FolderTreeNode | FileTreeNode): number => {
             const aIsDir: boolean = 'children' in a;
             const bIsDir: boolean = 'children' in b;
             if (aIsDir !== bIsDir) return aIsDir ? -1 : 1;
+            // Among directories, loaded folders come first
+            if (aIsDir && bIsDir) {
+                const aLoaded: boolean = (a as FolderTreeNode).loadState === 'loaded';
+                const bLoaded: boolean = (b as FolderTreeNode).loadState === 'loaded';
+                if (aLoaded !== bLoaded) return aLoaded ? -1 : 1;
+            }
             return a.name.localeCompare(b.name);
         }
     );

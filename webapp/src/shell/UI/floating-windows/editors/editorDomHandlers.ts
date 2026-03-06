@@ -93,26 +93,33 @@ export function createImagePasteHandler(nodeId: string | undefined): Extension {
  * Shows a menu with "Add Link" option to insert wikilink and trigger autocomplete.
  */
 export function createContextMenuHandler(language: string | undefined): Extension {
-  return EditorView.domEventHandlers({
-    contextmenu: (event: MouseEvent, view: EditorView): boolean => {
-      // Only handle in markdown mode (not JSON)
-      if (language === 'json') {
-        return false;
-      }
-
-      event.preventDefault();
-
-      const menuItems: Array<{ text?: string; html?: string; action?: () => void }> = [
-        {
-          html: '<span style="display: flex; align-items: center; gap: 8px; white-space: nowrap;">🔗 Add Link</span>',
-          action: () => {
-            insertWikilinkAndTriggerCompletion(view);
-          },
-        },
-      ];
-
-      ctxmenu.show(menuItems, event);
-      return true;
+  function showEditorContextMenu(event: MouseEvent, view: EditorView): boolean {
+    if (language === 'json') {
+      return false;
     }
+
+    event.preventDefault();
+
+    const menuItems: Array<{ text?: string; html?: string; action?: () => void }> = [
+      {
+        html: '<span style="display: flex; align-items: center; gap: 8px; white-space: nowrap;">🔗 Add Link</span>',
+        action: () => {
+          insertWikilinkAndTriggerCompletion(view);
+        },
+      },
+    ];
+
+    ctxmenu.show(menuItems, event);
+    return true;
+  }
+
+  return EditorView.domEventHandlers({
+    contextmenu: showEditorContextMenu,
+    click: (event: MouseEvent, view: EditorView): boolean => {
+      if (event.ctrlKey && event.button === 0) {
+        return showEditorContextMenu(event, view);
+      }
+      return false;
+    },
   });
 }

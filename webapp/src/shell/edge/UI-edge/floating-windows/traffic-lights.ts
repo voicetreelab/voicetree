@@ -183,6 +183,13 @@ export function createTrafficLightsForTarget(target: TrafficLightTarget): HTMLDi
                 closeEditor(cy, editor);
             },
             onPin: (): boolean => {
+                // If this is a hover editor (not anchored), convert to anchored + pinned
+                if (!isAnchored(editor)) {
+                    closeHoverEditor(cy);
+                    void createAnchoredFloatingEditor(cy, nodeId, false);
+                    addToPinnedEditors(nodeId);
+                    return true;
+                }
                 const currentlyPinned: boolean = isPinned(nodeId);
                 if (currentlyPinned) {
                     removeFromPinnedEditors(nodeId);

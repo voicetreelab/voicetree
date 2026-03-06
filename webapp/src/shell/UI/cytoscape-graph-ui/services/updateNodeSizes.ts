@@ -19,6 +19,8 @@ export function updateNodeSizes(cy: cytoscape.Core, nodes?: cytoscape.NodeCollec
     nodesToUpdate.forEach(node => {
       // Skip shadow nodes - they have fixed dimensions set by floating window system
       if (node.data('isShadowNode')) return;
+      // Skip folder compound nodes - they use stylesheet border-width, not degree-based
+      if (node.data('isFolderNode')) return;
 
       let degree: number = node.degree();
 
