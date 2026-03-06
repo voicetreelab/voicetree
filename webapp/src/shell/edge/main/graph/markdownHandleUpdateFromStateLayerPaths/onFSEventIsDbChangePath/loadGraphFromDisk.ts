@@ -63,15 +63,20 @@ export async function loadGraphFromDisk(
         return E.left(limitCheck.left);
     }
 
-    // Step 2: Progressively build graph by adding nodes one at a time
-    // Each addition validates edges and heals incoming edges (order-independent)
-    const graph: Graph = await allFiles.reduce(
-        async (graphPromise, { vaultPath, relativePath }) => {
-            const currentGraph: Graph = await graphPromise
+    // Step 2a: Read all files in parallel
+    const fileContents: readonly { fullPath: string; content: string }[] = await Promise.all(
+        allFiles.map(async ({ vaultPath, relativePath }) => {
             const fullPath: string = path.join(vaultPath, relativePath)
             // Image files have empty content (don't read binary as UTF-8)
             const content: string = isImageNode(fullPath) ? '' : await fs.readFile(fullPath, 'utf-8')
+            return { fullPath, content }
+        })
+    )
 
+    // Step 2b: Progressively build graph by adding nodes one at a time
+    // Each addition validates edges and heals incoming edges (order-independent per JSDoc above)
+    const graph: Graph = fileContents.reduce(
+        (currentGraph, { fullPath, content }) => {
             const fsEvent: FSUpdate = {
                 absolutePath: fullPath,
                 content,
@@ -82,7 +87,7 @@ export async function loadGraphFromDisk(
             const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, currentGraph)
             return applyGraphDeltaToGraph(currentGraph, delta)
         },
-        Promise.resolve(createEmptyGraph())
+        createEmptyGraph()
     )
 
     // Step 3: Apply positions to all nodes that don't have a position
