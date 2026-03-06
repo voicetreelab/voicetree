@@ -114,6 +114,46 @@ export async function migrateLayoutConfigIfNeeded(): Promise<boolean> {
   }
 }
 
+/**
+ * Migrates starredFolders from old default (empty array) to new default
+ * which includes ~/voicetree/workflows. Silent migration.
+ * @returns true if migration occurred, false otherwise
+ */
+export async function migrateStarredFoldersIfNeeded(): Promise<boolean> {
+  const settingsPath: string = getSettingsPath();
+
+  let userSettings: Partial<VTSettings>;
+  try {
+    const data: string = await fs.readFile(settingsPath, 'utf-8');
+    userSettings = JSON.parse(data) as Partial<VTSettings>;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return false;
+    }
+    throw error;
+  }
+
+  // Only migrate if user has an explicit empty starredFolders array (old default)
+  // If they have any entries, they've customized it — don't touch
+  if (!Array.isArray(userSettings.starredFolders) || userSettings.starredFolders.length > 0) {
+    return false;
+  }
+
+  const defaultStarred: readonly string[] | undefined = DEFAULT_SETTINGS.starredFolders;
+  if (!defaultStarred || defaultStarred.length === 0) {
+    return false; // No default to migrate to
+  }
+
+  const updatedSettings: VTSettings = {
+    ...DEFAULT_SETTINGS,
+    ...userSettings,
+    starredFolders: [...defaultStarred],
+  };
+
+  await saveSettings(updatedSettings);
+  return true;
+}
+
 export async function saveSettings(settings: VTSettings): Promise<boolean> {
   const settingsPath: string = getSettingsPath();
   const settingsDir: string = path.dirname(settingsPath);
