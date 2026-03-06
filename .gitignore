@@ -204,3 +204,4 @@ webapp/workers/share-worker/.wrangler/**
 
 **/native-modules/**
 **/.voicetree/**/*
+**/*.png
