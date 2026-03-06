@@ -204,3 +204,9 @@ webapp/workers/share-worker/.wrangler/**
 
 **/native-modules/**
 **/.voicetree/**/*
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
