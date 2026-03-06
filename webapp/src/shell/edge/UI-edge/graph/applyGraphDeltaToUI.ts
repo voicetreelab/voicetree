@@ -221,11 +221,16 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                 if (nodeToRemove.length > 0) {
                     nodeToRemove.remove();
                 }
+                // Remove parent folder compound if now empty
+                const folderPath: string | null = getFolderParent(nodeId);
+                if (folderPath) {
+                    const folder: CollectionReturnValue = cy.getElementById(folderPath);
+                    if (folder.length > 0 && folder.data('isFolderNode') && folder.children().length === 0) {
+                        folder.remove();
+                    }
+                }
             }
         });
-
-        // Clean up empty folder compounds after deletions
-        cy.nodes('[?isFolderNode]').filter(n => n.children().length === 0).remove();
 
         // PASS 2: Sync edges for each node (add missing, remove stale)
         delta.forEach((nodeDelta) => {
