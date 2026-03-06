@@ -14,7 +14,7 @@
  */
 import type { Core } from 'cytoscape';
 
-const LARGE_GRAPH_THRESHOLD: number = 50;
+const LARGE_GRAPH_THRESHOLD: number = 0;
 
 /** Internal renderer properties accessed via cy.renderer() — not in @types/cytoscape */
 interface CytoscapeRenderer {

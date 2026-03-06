@@ -34,12 +34,12 @@ async function doRefreshAllInjectBadges(): Promise<void> {
         (r: TerminalRecord) => r.status === 'running' && r.terminalData.attachedToContextNodeId
     )
 
-    for (const record of agentTerminals) {
+    await Promise.all(agentTerminals.map(async (record: TerminalRecord) => {
         try {
             const unseenNodes: readonly UnseenNodeInfo[] = await getUnseenNodesForTerminal(record.terminalId)
             uiAPI.updateInjectBadge(record.terminalId, unseenNodes.length)
         } catch (error: unknown) {
             console.error(`[inject-badge-refresh] Failed for terminal ${record.terminalId}:`, error)
         }
-    }
+    }))
 }

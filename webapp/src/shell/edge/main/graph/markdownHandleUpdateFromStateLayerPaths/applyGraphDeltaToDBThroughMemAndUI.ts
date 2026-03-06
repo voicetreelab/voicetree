@@ -33,7 +33,7 @@ export async function applyGraphDeltaToMemState(delta: GraphDelta): Promise<Grap
 
     if (hasAddOrUpdate) {
         const watchedDir: string | null = getProjectRootWatchedDirectory();
-        if (watchedDir) {
+        if (watchedDir && newGraph.unresolvedLinksIndex.size > 0) {
             const resolutionDelta: GraphDelta = await resolveLinkedNodesInWatchedFolder(newGraph, watchedDir);
             if (resolutionDelta.length > 0) {
                 newGraph = applyGraphDeltaToGraph(newGraph, resolutionDelta);

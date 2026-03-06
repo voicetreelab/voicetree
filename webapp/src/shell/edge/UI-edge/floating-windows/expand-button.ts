@@ -41,6 +41,15 @@ export function createExpandButton(
     button.addEventListener('click', (e: MouseEvent): void => {
         e.stopPropagation();
 
+        // In card mode the button is hidden by CSS; this is a JS defense-in-depth guard
+        if (windowElement.classList.contains('mode-card')) return;
+
+        // In hover-edit mode, the expand button triggers pinning (same action as double-click)
+        if (windowElement.classList.contains('mode-edit')) {
+            windowElement.dispatchEvent(new CustomEvent('expand-button-pin-request', { bubbles: false }));
+            return;
+        }
+
         const isExpanded: boolean = windowElement.dataset.expanded === 'true';
         // Get current actual dimensions (accounts for zoom scaling, user resizes, etc.)
         // Fall back to parsing style.width/height for JSDOM tests where offsetWidth returns 0
@@ -90,4 +99,19 @@ export function createExpandButton(
     });
 
     return button;
+}
+
+/**
+ * Reset the expand button to its initial (maximize) state.
+ * Call this whenever the window transitions back to mode-card so that
+ * stale minimize-icon / expanded state doesn't persist into the next mode-pinned session.
+ */
+export function resetExpandButton(button: HTMLButtonElement): void {
+    button.dataset.expanded = 'false';
+    button.dataset.icon = 'maximize';
+    button.innerHTML = '';
+    const icon: SVGElement = createElement(Maximize2);
+    icon.setAttribute('width', '16');
+    icon.setAttribute('height', '16');
+    button.appendChild(icon);
 }

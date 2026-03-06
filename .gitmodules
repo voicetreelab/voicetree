@@ -1,0 +1,3 @@
+[submodule "workflows"]
+	path = workflows
+	url = git@github.com:lochlan-hill/workflows.git

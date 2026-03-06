@@ -10,14 +10,24 @@ function getSettingsPath(): string {
   return path.join(app.getPath('userData'), 'settings.json');
 }
 
+let settingsCache: VTSettings | null = null;
+let settingsCacheTime = 0;
+const SETTINGS_CACHE_TTL_MS = 5000;
+
 export async function loadSettings(): Promise<VTSettings> {
+  const now = Date.now();
+  if (settingsCache && (now - settingsCacheTime) < SETTINGS_CACHE_TTL_MS) {
+    return settingsCache;
+  }
   const settingsPath: string = getSettingsPath();
   //console.log(`Loading Settings from Path: ${settingsPath}`);
   try {
     const data: string = await fs.readFile(settingsPath, 'utf-8');
     const userSettings: Partial<VTSettings> = JSON.parse(data) as Partial<VTSettings>;
     // Merge: user settings override defaults, missing keys come from defaults
-    return { ...DEFAULT_SETTINGS, ...userSettings };
+    settingsCache = { ...DEFAULT_SETTINGS, ...userSettings };
+    settingsCacheTime = now;
+    return settingsCache;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       await saveSettings(DEFAULT_SETTINGS);
@@ -160,6 +170,8 @@ export async function saveSettings(settings: VTSettings): Promise<boolean> {
 
   await fs.mkdir(settingsDir, { recursive: true });
   await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
+  settingsCache = settings;
+  settingsCacheTime = Date.now();
   uiAPI.onSettingsChanged();
   return true;
 }
