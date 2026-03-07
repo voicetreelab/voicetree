@@ -15,6 +15,7 @@ export type TerminalRecord = {
     terminalId: string
     terminalData: TerminalData
     status: TerminalStatus
+    exitCode: number | null
 }
 
 const terminalRecords: Map<string, TerminalRecord> = new Map()
@@ -133,7 +134,8 @@ export function recordTerminalSpawn(terminalId: string, terminalData: TerminalDa
     terminalRecords.set(terminalId, {
         terminalId,
         terminalData,
-        status: 'running'
+        status: 'running',
+        exitCode: null
     })
 
     // Initialize notification tracking state for this terminal
@@ -256,14 +258,15 @@ export function updateTerminalActivityState(
     // and should not trigger full re-renders. Renderer updates local state directly.
 }
 
-export function markTerminalExited(terminalId: string): void {
+export function markTerminalExited(terminalId: string, exitCode?: number | null): void {
     const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
     if (!record) {
         return
     }
     terminalRecords.set(terminalId, {
         ...record,
-        status: 'exited'
+        status: 'exited',
+        exitCode: exitCode ?? null
     })
     pushStateToRenderer()
 }

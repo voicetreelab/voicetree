@@ -38,17 +38,34 @@ export function startMonitor(
         )
         const graph: Graph = getGraph()
 
-        const allDone: boolean = targetRecords.every(
+        // Detect terminals that vanished from registry (should not happen after Fix 1,
+        // but defend against it). Treat missing terminals as complete.
+        const foundIds: Set<string> = new Set(targetRecords.map((r: TerminalRecord) => r.terminalId))
+        const missingIds: string[] = terminalIds.filter((id: string) => !foundIds.has(id))
+
+        const allFoundDone: boolean = targetRecords.every(
             (r: TerminalRecord) => isAgentComplete(r, graph, now, currentRecords)
         )
 
-        if (allDone) {
+        if (allFoundDone) {
             const results: AgentResult[] = targetRecords.map((r: TerminalRecord) => ({
                 terminalId: r.terminalId,
                 agentName: r.terminalData.agentName,
                 status: getAgentStatus(r),
+                exitCode: r.exitCode,
                 nodes: getNewNodesForAgent(graph, r.terminalData.agentName)
             }))
+
+            // Add entries for any terminals that vanished from registry
+            for (const missingId of missingIds) {
+                results.push({
+                    terminalId: missingId,
+                    agentName: undefined,
+                    status: 'exited',
+                    exitCode: null,
+                    nodes: []
+                })
+            }
 
             const message: string = buildCompletionMessage(results)
             void sendTextToTerminal(callerTerminalId, message)

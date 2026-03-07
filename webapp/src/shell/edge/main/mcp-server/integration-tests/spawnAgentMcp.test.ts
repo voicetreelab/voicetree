@@ -65,7 +65,7 @@ function mockCallerTerminal(): void {
         agentName: 'caller'
     })
     vi.mocked(getTerminalRecords).mockReturnValue([
-        {terminalId: 'caller-terminal-99', terminalData: callerTerminalData, status: 'running'}
+        {terminalId: 'caller-terminal-99', terminalData: callerTerminalData, status: 'running', exitCode: null}
     ])
 }
 
@@ -240,9 +240,9 @@ describe('MCP list_agents tool', () => {
         })
 
         const records: TerminalRecord[] = [
-            {terminalId: 'agent-a-terminal-0', terminalData: terminalDataA, status: 'running'},
-            {terminalId: 'agent-b-terminal-1', terminalData: {...terminalDataB, isDone: true}, status: 'exited'},
-            {terminalId: 'plain-terminal-0', terminalData: terminalDataPlain, status: 'running'}
+            {terminalId: 'agent-a-terminal-0', terminalData: terminalDataA, status: 'running', exitCode: null},
+            {terminalId: 'agent-b-terminal-1', terminalData: {...terminalDataB, isDone: true}, status: 'exited', exitCode: null},
+            {terminalId: 'plain-terminal-0', terminalData: terminalDataPlain, status: 'running', exitCode: null}
         ]
 
         vi.mocked(getTerminalRecords).mockReturnValue(records)
@@ -304,7 +304,7 @@ describe('MCP list_agents tool', () => {
         })
 
         const records: TerminalRecord[] = [
-            {terminalId: 'idle-agent-terminal-0', terminalData: {...terminalData, isDone: true}, status: 'running'}
+            {terminalId: 'idle-agent-terminal-0', terminalData: {...terminalData, isDone: true}, status: 'running', exitCode: null}
         ]
 
         vi.mocked(getTerminalRecords).mockReturnValue(records)
