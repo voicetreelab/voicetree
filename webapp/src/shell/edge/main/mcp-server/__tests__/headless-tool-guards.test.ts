@@ -102,7 +102,8 @@ function createTerminalRecord(
     return {
         terminalId,
         terminalData,
-        status: 'running'
+        status: 'running',
+        exitCode: null
     }
 }
 

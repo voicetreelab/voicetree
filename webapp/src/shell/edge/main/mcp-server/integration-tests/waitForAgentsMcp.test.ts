@@ -48,8 +48,8 @@ describe('MCP wait_for_agents tool (async)', () => {
         })
 
         const records: TerminalRecord[] = [
-            {terminalId: 'agent-a-terminal-0', terminalData: terminalDataA, status: 'running'},
-            {terminalId: 'caller-terminal-1', terminalData: callerTerminalData, status: 'running'}
+            {terminalId: 'agent-a-terminal-0', terminalData: terminalDataA, status: 'running', exitCode: null},
+            {terminalId: 'caller-terminal-1', terminalData: callerTerminalData, status: 'running', exitCode: null}
         ]
 
         vi.mocked(getTerminalRecords).mockReturnValue(records)
@@ -94,8 +94,8 @@ describe('MCP wait_for_agents tool (async)', () => {
         })
 
         const records: TerminalRecord[] = [
-            {terminalId: 'agent-a-terminal-0', terminalData: terminalDataA, status: 'running'},
-            {terminalId: 'caller-terminal-1', terminalData: callerTerminalData, status: 'running'}
+            {terminalId: 'agent-a-terminal-0', terminalData: terminalDataA, status: 'running', exitCode: null},
+            {terminalId: 'caller-terminal-1', terminalData: callerTerminalData, status: 'running', exitCode: null}
         ]
 
         vi.mocked(getTerminalRecords).mockReturnValue(records)
@@ -129,8 +129,8 @@ describe('MCP wait_for_agents tool (async)', () => {
         })
 
         const records: TerminalRecord[] = [
-            {terminalId: 'agent-a-terminal-0', terminalData: terminalDataA, status: 'running'},
-            {terminalId: 'caller-terminal-1', terminalData: callerTerminalData, status: 'running'}
+            {terminalId: 'agent-a-terminal-0', terminalData: terminalDataA, status: 'running', exitCode: null},
+            {terminalId: 'caller-terminal-1', terminalData: callerTerminalData, status: 'running', exitCode: null}
         ]
 
         vi.mocked(getTerminalRecords).mockReturnValue(records)
@@ -155,7 +155,7 @@ describe('MCP wait_for_agents tool (async)', () => {
         })
 
         const records: TerminalRecord[] = [
-            {terminalId: 'agent-a-terminal-0', terminalData: terminalDataA, status: 'running'}
+            {terminalId: 'agent-a-terminal-0', terminalData: terminalDataA, status: 'running', exitCode: null}
         ]
 
         vi.mocked(getTerminalRecords).mockReturnValue(records)
@@ -183,7 +183,7 @@ describe('MCP wait_for_agents tool (async)', () => {
         })
 
         const records: TerminalRecord[] = [
-            {terminalId: 'caller-terminal-0', terminalData: callerTerminalData, status: 'running'}
+            {terminalId: 'caller-terminal-0', terminalData: callerTerminalData, status: 'running', exitCode: null}
         ]
 
         vi.mocked(getTerminalRecords).mockReturnValue(records)
@@ -227,9 +227,9 @@ describe('MCP wait_for_agents tool (async)', () => {
         })
 
         const records: TerminalRecord[] = [
-            {terminalId: 'agent-a-terminal-0', terminalData: terminalDataA, status: 'running'},
-            {terminalId: 'agent-b-terminal-1', terminalData: terminalDataB, status: 'running'},
-            {terminalId: 'caller-terminal-2', terminalData: callerTerminalData, status: 'running'}
+            {terminalId: 'agent-a-terminal-0', terminalData: terminalDataA, status: 'running', exitCode: null},
+            {terminalId: 'agent-b-terminal-1', terminalData: terminalDataB, status: 'running', exitCode: null},
+            {terminalId: 'caller-terminal-2', terminalData: callerTerminalData, status: 'running', exitCode: null}
         ]
 
         vi.mocked(getTerminalRecords).mockReturnValue(records)

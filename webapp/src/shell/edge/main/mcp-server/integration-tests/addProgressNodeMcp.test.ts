@@ -118,7 +118,7 @@ function mockCallerTerminal(options?: {
         initialEnvVars: options?.color ? {AGENT_COLOR: options.color} : undefined
     })
     vi.mocked(getTerminalRecords).mockReturnValue([
-        {terminalId: CALLER_TERMINAL_ID, terminalData, status: 'running'}
+        {terminalId: CALLER_TERMINAL_ID, terminalData, status: 'running', exitCode: null}
     ])
 }
 

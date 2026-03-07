@@ -89,8 +89,8 @@ describe('AgentCompletionMonitor integration', () => {
         const agentData: TerminalData = makeTerminalData('agent-1', 'alpha')
         const callerData: TerminalData = makeTerminalData('caller-1', 'caller')
         vi.mocked(getTerminalRecords).mockReturnValue([
-            {terminalId: 'agent-1', terminalData: agentData, status: 'running'},
-            {terminalId: 'caller-1', terminalData: callerData, status: 'running'}
+            {terminalId: 'agent-1', terminalData: agentData, status: 'running', exitCode: null},
+            {terminalId: 'caller-1', terminalData: callerData, status: 'running', exitCode: null}
         ])
         vi.mocked(getGraph).mockReturnValue(buildGraph([]))
 
@@ -106,8 +106,8 @@ describe('AgentCompletionMonitor integration', () => {
 
         // Initially running
         vi.mocked(getTerminalRecords).mockReturnValue([
-            {terminalId: 'agent-1', terminalData: agentData, status: 'running'},
-            {terminalId: 'caller-1', terminalData: callerData, status: 'running'}
+            {terminalId: 'agent-1', terminalData: agentData, status: 'running', exitCode: null},
+            {terminalId: 'caller-1', terminalData: callerData, status: 'running', exitCode: null}
         ])
         vi.mocked(getGraph).mockReturnValue(buildGraph([]))
 
@@ -119,8 +119,8 @@ describe('AgentCompletionMonitor integration', () => {
 
         // Agent exits
         vi.mocked(getTerminalRecords).mockReturnValue([
-            {terminalId: 'agent-1', terminalData: agentData, status: 'exited'},
-            {terminalId: 'caller-1', terminalData: callerData, status: 'running'}
+            {terminalId: 'agent-1', terminalData: agentData, status: 'exited', exitCode: null},
+            {terminalId: 'caller-1', terminalData: callerData, status: 'running', exitCode: null}
         ])
 
         // Poll 2: agent exited — notification sent
@@ -138,8 +138,8 @@ describe('AgentCompletionMonitor integration', () => {
 
         // Agent already exited — will trigger on first poll
         vi.mocked(getTerminalRecords).mockReturnValue([
-            {terminalId: 'agent-1', terminalData: agentData, status: 'exited'},
-            {terminalId: 'caller-1', terminalData: callerData, status: 'running'}
+            {terminalId: 'agent-1', terminalData: agentData, status: 'exited', exitCode: null},
+            {terminalId: 'caller-1', terminalData: callerData, status: 'running', exitCode: null}
         ])
         vi.mocked(getGraph).mockReturnValue(buildGraph([]))
 
@@ -159,8 +159,8 @@ describe('AgentCompletionMonitor integration', () => {
         const callerData: TerminalData = makeTerminalData('caller-1', 'caller')
 
         vi.mocked(getTerminalRecords).mockReturnValue([
-            {terminalId: 'agent-1', terminalData: agentData, status: 'running'},
-            {terminalId: 'caller-1', terminalData: callerData, status: 'running'}
+            {terminalId: 'agent-1', terminalData: agentData, status: 'running', exitCode: null},
+            {terminalId: 'caller-1', terminalData: callerData, status: 'running', exitCode: null}
         ])
         vi.mocked(getGraph).mockReturnValue(buildGraph([]))
 
@@ -171,8 +171,8 @@ describe('AgentCompletionMonitor integration', () => {
 
         // Agent exits
         vi.mocked(getTerminalRecords).mockReturnValue([
-            {terminalId: 'agent-1', terminalData: agentData, status: 'exited'},
-            {terminalId: 'caller-1', terminalData: callerData, status: 'running'}
+            {terminalId: 'agent-1', terminalData: agentData, status: 'exited', exitCode: null},
+            {terminalId: 'caller-1', terminalData: callerData, status: 'running', exitCode: null}
         ])
 
         // Advance past many poll intervals — no notification
@@ -186,8 +186,8 @@ describe('AgentCompletionMonitor integration', () => {
 
         // Agent already exited
         vi.mocked(getTerminalRecords).mockReturnValue([
-            {terminalId: 'agent-1', terminalData: agentData, status: 'exited'},
-            {terminalId: 'caller-1', terminalData: callerData, status: 'running'}
+            {terminalId: 'agent-1', terminalData: agentData, status: 'exited', exitCode: null},
+            {terminalId: 'caller-1', terminalData: callerData, status: 'running', exitCode: null}
         ])
         vi.mocked(getGraph).mockReturnValue(buildGraph([]))
 
@@ -207,8 +207,8 @@ describe('AgentCompletionMonitor integration', () => {
         const callerData: TerminalData = makeTerminalData('caller-1', 'caller')
 
         vi.mocked(getTerminalRecords).mockReturnValue([
-            {terminalId: 'agent-1', terminalData: idleAgentData, status: 'running'},
-            {terminalId: 'caller-1', terminalData: callerData, status: 'running'}
+            {terminalId: 'agent-1', terminalData: idleAgentData, status: 'running', exitCode: null},
+            {terminalId: 'caller-1', terminalData: callerData, status: 'running', exitCode: null}
         ])
         vi.mocked(getGraph).mockReturnValue(buildGraph([]))
         vi.mocked(getIdleSince).mockReturnValue(Date.now() - 60_000)
@@ -247,8 +247,8 @@ describe('AgentCompletionMonitor integration', () => {
         const callerData: TerminalData = makeTerminalData('caller-1', 'caller')
 
         vi.mocked(getTerminalRecords).mockReturnValue([
-            {terminalId: 'agent-1', terminalData: idleAgentData, status: 'running'},
-            {terminalId: 'caller-1', terminalData: callerData, status: 'running'}
+            {terminalId: 'agent-1', terminalData: idleAgentData, status: 'running', exitCode: null},
+            {terminalId: 'caller-1', terminalData: callerData, status: 'running', exitCode: null}
         ])
 
         // Only context nodes (isContextNode: true) — filtered out by isAgentComplete
@@ -272,9 +272,9 @@ describe('AgentCompletionMonitor integration', () => {
 
         // Both running initially
         vi.mocked(getTerminalRecords).mockReturnValue([
-            {terminalId: 'agent-a', terminalData: agentAData, status: 'running'},
-            {terminalId: 'agent-b', terminalData: agentBData, status: 'running'},
-            {terminalId: 'caller-1', terminalData: callerData, status: 'running'}
+            {terminalId: 'agent-a', terminalData: agentAData, status: 'running', exitCode: null},
+            {terminalId: 'agent-b', terminalData: agentBData, status: 'running', exitCode: null},
+            {terminalId: 'caller-1', terminalData: callerData, status: 'running', exitCode: null}
         ])
         vi.mocked(getGraph).mockReturnValue(buildGraph([]))
 
@@ -286,9 +286,9 @@ describe('AgentCompletionMonitor integration', () => {
 
         // Agent A exits, B still running
         vi.mocked(getTerminalRecords).mockReturnValue([
-            {terminalId: 'agent-a', terminalData: agentAData, status: 'exited'},
-            {terminalId: 'agent-b', terminalData: agentBData, status: 'running'},
-            {terminalId: 'caller-1', terminalData: callerData, status: 'running'}
+            {terminalId: 'agent-a', terminalData: agentAData, status: 'exited', exitCode: null},
+            {terminalId: 'agent-b', terminalData: agentBData, status: 'running', exitCode: null},
+            {terminalId: 'caller-1', terminalData: callerData, status: 'running', exitCode: null}
         ])
 
         // Poll 2: A done, B still running → no notification
@@ -297,9 +297,9 @@ describe('AgentCompletionMonitor integration', () => {
 
         // Agent B exits too
         vi.mocked(getTerminalRecords).mockReturnValue([
-            {terminalId: 'agent-a', terminalData: agentAData, status: 'exited'},
-            {terminalId: 'agent-b', terminalData: agentBData, status: 'exited'},
-            {terminalId: 'caller-1', terminalData: callerData, status: 'running'}
+            {terminalId: 'agent-a', terminalData: agentAData, status: 'exited', exitCode: null},
+            {terminalId: 'agent-b', terminalData: agentBData, status: 'exited', exitCode: null},
+            {terminalId: 'caller-1', terminalData: callerData, status: 'running', exitCode: null}
         ])
 
         // Poll 3: both done → notification
@@ -313,9 +313,9 @@ describe('AgentCompletionMonitor integration', () => {
         const callerData: TerminalData = makeTerminalData('caller-1', 'caller')
 
         vi.mocked(getTerminalRecords).mockReturnValue([
-            {terminalId: 'agent-a', terminalData: agentAData, status: 'exited'},
-            {terminalId: 'agent-b', terminalData: agentBData, status: 'exited'},
-            {terminalId: 'caller-1', terminalData: callerData, status: 'running'}
+            {terminalId: 'agent-a', terminalData: agentAData, status: 'exited', exitCode: null},
+            {terminalId: 'agent-b', terminalData: agentBData, status: 'exited', exitCode: null},
+            {terminalId: 'caller-1', terminalData: callerData, status: 'running', exitCode: null}
         ])
 
         const nodeA: GraphNode = buildGraphNode('design.md', 'Design doc', 'alpha')
@@ -340,8 +340,8 @@ describe('AgentCompletionMonitor integration', () => {
         const callerData: TerminalData = makeTerminalData('caller-1', 'caller')
 
         vi.mocked(getTerminalRecords).mockReturnValue([
-            {terminalId: 'agent-1', terminalData: agentData, status: 'exited'},
-            {terminalId: 'caller-1', terminalData: callerData, status: 'running'}
+            {terminalId: 'agent-1', terminalData: agentData, status: 'exited', exitCode: null},
+            {terminalId: 'caller-1', terminalData: callerData, status: 'running', exitCode: null}
         ])
         vi.mocked(getGraph).mockReturnValue(buildGraph([]))
 
@@ -357,8 +357,8 @@ describe('AgentCompletionMonitor integration', () => {
         const callerData: TerminalData = makeTerminalData('caller-1', 'caller')
 
         vi.mocked(getTerminalRecords).mockReturnValue([
-            {terminalId: 'agent-1', terminalData: idleAgentData, status: 'running'},
-            {terminalId: 'caller-1', terminalData: callerData, status: 'running'}
+            {terminalId: 'agent-1', terminalData: idleAgentData, status: 'running', exitCode: null},
+            {terminalId: 'caller-1', terminalData: callerData, status: 'running', exitCode: null}
         ])
 
         const progressNode: GraphNode = buildGraphNode('node-1.md', 'Progress', 'alpha')
