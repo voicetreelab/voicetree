@@ -283,6 +283,15 @@ export async function addReadPath(vaultPath: FilePath): Promise<{ success: boole
     // Note: isWritePath: false means no starter node and no backend notification
     const result: LoadVaultPathResult = await loadAndMergeVaultPath(vaultPath, { isWritePath: false });
     if (!result.success) {
+        // File limit exceeded: still save to config and broadcast so sidebar shows the folder
+        if (result.error?.includes('File limit exceeded')) {
+            const newReadPaths: readonly string[] = [...currentReadPaths, vaultPath];
+            await saveVaultConfigForDirectory(watchedDir, {
+                writePath: currentWritePath,
+                readPaths: newReadPaths
+            });
+            void broadcastVaultState();
+        }
         return result;
     }
 

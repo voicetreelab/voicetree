@@ -25,7 +25,7 @@ import {syncFromMain} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {updateHeadlessBadges} from "@/shell/edge/UI-edge/floating-windows/headless-badge-overlay";
 import {syncVaultStateFromMain} from "@/shell/edge/UI-edge/state/VaultPathStore";
 import type {VaultPathState} from "@/shell/edge/UI-edge/state/VaultPathStore";
-import {syncFolderTreeFromMain, syncStarredTreesFromMain} from "@/shell/edge/UI-edge/state/FolderTreeStore";
+import {syncFolderTreeFromMain, syncStarredTreesFromMain, syncExternalTreesFromMain} from "@/shell/edge/UI-edge/state/FolderTreeStore";
 import type {FolderTreeNode} from "@/pure/folders/types";
 
 import {setIsTrackpadScrolling} from "@/shell/edge/UI-edge/state/trackpad-state";
@@ -101,6 +101,10 @@ function syncStarredFolderTrees(trees: Readonly<Record<string, FolderTreeNode>>)
     syncStarredTreesFromMain(trees);
 }
 
+function syncExternalFolderTrees(trees: Readonly<Record<string, FolderTreeNode>>): void {
+    syncExternalTreesFromMain(trees);
+}
+
 /**
  * Update InjectBar badge count for a terminal.
  * Called from main process after graph deltas change the unseen node count.
@@ -141,6 +145,7 @@ export const uiAPIHandler = {
     syncVaultState,
     syncFolderTree,
     syncStarredFolderTrees,
+    syncExternalFolderTrees,
     setIsTrackpadScrolling,
     closeTerminalById,
     updateInjectBadge,

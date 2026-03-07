@@ -1,0 +1,204 @@
+import type { VTSettings, HotkeySettings, AgentConfig, HookSettings, EnvVarValue } from './types';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export type Section = 'general' | 'shortcuts' | 'agents' | 'hooks' | 'advanced';
+
+export interface NumberFieldConfig {
+    readonly min: number;
+    readonly max: number;
+    readonly step: number;
+    readonly slider?: boolean;
+}
+
+/**
+ * Schema entry for a single setting. Every VTSettings key must have one.
+ * - `default`: value used in DEFAULT_SETTINGS. Omit for optional settings with no default.
+ * - `section`: UI tab. Omit = 'advanced'. Ignored when `hidden` is true.
+ * - `hidden`: true = not shown in settings UI.
+ * - `label`: human-readable label. Auto-generated from key if omitted.
+ * - `number`: constraints for number fields (min/max/step/slider).
+ */
+type SettingsSchema = {
+    readonly [K in keyof Required<VTSettings>]: {
+        readonly default?: Required<VTSettings>[K];
+        readonly section?: Section;
+        readonly hidden?: true;
+        readonly label?: string;
+        readonly number?: NumberFieldConfig;
+    };
+};
+
+// ============================================================================
+// Platform logic
+// ============================================================================
+
+const isMac: boolean = typeof navigator !== 'undefined' && navigator.platform.toLowerCase().includes('mac');
+const isWindows: boolean = typeof process !== 'undefined' && process.platform === 'win32';
+const homeDir: string = typeof process !== 'undefined' && process.env.HOME ? process.env.HOME : '';
+const AGENT_PROMPT_VAR: string = isWindows ? '$env:AGENT_PROMPT' : '$AGENT_PROMPT';
+
+// ============================================================================
+// Hotkey defaults
+// ============================================================================
+
+const MAC_HOTKEYS: HotkeySettings = {
+    fitToLastNode: { key: ' ', modifiers: [] },
+    nextTerminal: { key: ']', modifiers: ['Meta'] },
+    prevTerminal: { key: '[', modifiers: ['Meta'] },
+    createNewNode: { key: 'n', modifiers: ['Meta'] },
+    runTerminal: { key: 'Enter', modifiers: ['Meta'] },
+    deleteSelectedNodes: { key: 'Backspace', modifiers: ['Meta'] },
+    closeWindow: { key: 'w', modifiers: ['Meta'] },
+    openSettings: { key: ',', modifiers: ['Meta'] },
+    openSearch: { key: 'f', modifiers: ['Meta'] },
+    openSearchAlt: { key: 'e', modifiers: ['Meta'] },
+    recentNode1: { key: '1', modifiers: ['Meta'] },
+    recentNode2: { key: '2', modifiers: ['Meta'] },
+    recentNode3: { key: '3', modifiers: ['Meta'] },
+    recentNode4: { key: '4', modifiers: ['Meta'] },
+    recentNode5: { key: '5', modifiers: ['Meta'] },
+    voiceRecording: { key: 'r', modifiers: ['Alt'] },
+};
+
+const NON_MAC_HOTKEYS: HotkeySettings = {
+    fitToLastNode: { key: ' ', modifiers: [] },
+    nextTerminal: { key: ']', modifiers: ['Control'] },
+    prevTerminal: { key: '[', modifiers: ['Control'] },
+    createNewNode: { key: 'n', modifiers: ['Control'] },
+    runTerminal: { key: 'Enter', modifiers: ['Control'] },
+    deleteSelectedNodes: { key: 'Backspace', modifiers: ['Control'] },
+    closeWindow: { key: 'w', modifiers: ['Control'] },
+    openSettings: { key: ',', modifiers: ['Control'] },
+    openSearch: { key: 'f', modifiers: ['Control'] },
+    openSearchAlt: { key: 'e', modifiers: ['Control'] },
+    recentNode1: { key: '1', modifiers: ['Control'] },
+    recentNode2: { key: '2', modifiers: ['Control'] },
+    recentNode3: { key: '3', modifiers: ['Control'] },
+    recentNode4: { key: '4', modifiers: ['Control'] },
+    recentNode5: { key: '5', modifiers: ['Control'] },
+    voiceRecording: { key: 'r', modifiers: ['Alt'] },
+};
+
+export const DEFAULT_HOTKEYS: HotkeySettings = isMac ? MAC_HOTKEYS : NON_MAC_HOTKEYS;
+
+// ============================================================================
+// Schema — single source of truth for all settings metadata + defaults
+// ============================================================================
+
+export const SETTINGS_SCHEMA: SettingsSchema = {
+    // ── General ──────────────────────────────────────────────────────────
+    darkMode:                  { default: false, section: 'general', label: 'Dark Mode' },
+    vimMode:                   { default: false, section: 'general', label: 'Vim Mode' },
+    shiftEnterSendsOptionEnter:{ default: true,  section: 'general', label: 'Shift+Enter \u2192 Option+Enter' },
+    autoNotifyUnseenNodes:     { default: false, section: 'general', label: 'Auto-notify Unseen Nodes' },
+    zoomSensitivity:           { default: 1.0,   section: 'general', label: 'Zoom Sensitivity', number: { min: 0.1, max: 5.0, step: 0.1, slider: true } },
+    terminalSpawnPathRelativeToWatchedDirectory: { default: '/', section: 'general', label: 'Terminal Spawn Path' },
+    shell:                     { section: 'general', label: 'Shell Override' },
+    emptyFolderTemplate:       { default: `# {{DATE}}\n\nHighest priority task: `, section: 'general', label: 'Empty Folder Template' },
+
+    // ── Shortcuts ────────────────────────────────────────────────────────
+    hotkeys: { default: DEFAULT_HOTKEYS, section: 'shortcuts' },
+
+    // ── Agents ───────────────────────────────────────────────────────────
+    agents: {
+        default: [
+            { name: 'Claude',        command: `claude --dangerously-skip-permissions "${AGENT_PROMPT_VAR}"` },
+            { name: 'Claude Sonnet', command: `claude --dangerously-skip-permissions --model sonnet "${AGENT_PROMPT_VAR}"` },
+            { name: 'Gemini',        command: `gemini -i "${AGENT_PROMPT_VAR}"` },
+            { name: 'Codex',         command: `codex "${AGENT_PROMPT_VAR}"` },
+            { name: 'Rovodev',       command: `acli rovodev run "${AGENT_PROMPT_VAR}"` },
+            { name: 'Opencode',      command: `opencode --prompt "${AGENT_PROMPT_VAR}"` },
+        ] as readonly AgentConfig[],
+        section: 'agents',
+    },
+    INJECT_ENV_VARS: {
+        default: {
+            AGENT_PROMPT_LIGHTWEIGHT: `First read and analyze the context of your task, which is stored at $CONTEXT_NODE_PATH
+You are being run within a graph of Markdown files that represents your project context. These markdown files are stored within $ALL_MARKDOWN_READ_PATHS
+Follow the <AGENT_INSTRUCTIONS> from your context node.
+<YOUR_ENV_VARS>
+VOICETREE_TERMINAL_ID = $VOICETREE_TERMINAL_ID
+AGENT_NAME = $AGENT_NAME
+CONTEXT_NODE_PATH = $CONTEXT_NODE_PATH
+TASK_NODE_PATH = $TASK_NODE_PATH
+VOICETREE_VAULT_PATH = $VOICETREE_VAULT_PATH
+VOICETREE_APP_SUPPORT = $VOICETREE_APP_SUPPORT
+VOICETREE_PROJECT_DIR = $VOICETREE_PROJECT_DIR
+VOICETREE_MCP_PORT = $VOICETREE_MCP_PORT
+</YOUR_ENV_VARS>`,
+            AGENT_PROMPT: `First read and analyze the context of your task, which is stored at $CONTEXT_NODE_PATH
+You are being run within a graph of Markdown files that represents your project context. These markdown files are stored within $ALL_MARKDOWN_READ_PATHS
+<HANDLING_AMBIGUITY>
+If your task has non-trivial ambiguity, stop and ask the user for clarifications. For each clarifying question include your current working assumption. Otherwise, if the task is clear, continue working on it, or developing your task plan until ambiguity does arise.
+</HANDLING_AMBIGUITY>
+<ORCHESTRATION>
+Before starting work, answer: Does this task have 2+ distinct concerns or phases?
+
+YES \u2192 Decompose into nodes and spawn voicetree agents first (mcp__voicetree__spawn_agent). Users get visibility into subagent work this way\u2014built-in subagents are a black box.
+NO \u2192 Proceed directly.
+
+See decompose_subtask_dependency_graph.md for decomposition / dependency graph patterns.
+</ORCHESTRATION>
+<TASK_NODES_INSTRUCTION>
+For the entire duration of this session, before you report completion to the user for any query, task, sub-task, proposal, or other form of non-trivial progress, you MUST create progress node(s) documenting your work.
+
+Add to your todolist now to read addProgressTree.md and create progress node(s).
+
+Primary method: Use the \`create_graph\` MCP tool with VOICETREE_TERMINAL_ID=$VOICETREE_TERMINAL_ID. Supports 1+ nodes per call \u2014 single concept nodes or multi-node trees.
+Before creating your first progress node, read $VOICETREE_PROJECT_DIR/prompts/addProgressTree.md for composition guidance (when to split, scope rules, what to embed).
+
+You must create a progress node before reporting completion to the user. You must continue to do this for any follow-ups by either updating existing progress nodes, or creating new ones.
+</TASK_NODES_INSTRUCTION>
+<YOUR_ENV_VARS>
+VOICETREE_TERMINAL_ID = $VOICETREE_TERMINAL_ID
+AGENT_NAME = $AGENT_NAME
+CONTEXT_NODE_PATH = $CONTEXT_NODE_PATH
+TASK_NODE_PATH = $TASK_NODE_PATH
+VOICETREE_VAULT_PATH = $VOICETREE_VAULT_PATH
+VOICETREE_APP_SUPPORT = $VOICETREE_APP_SUPPORT
+VOICETREE_PROJECT_DIR = $VOICETREE_PROJECT_DIR
+VOICETREE_MCP_PORT = $VOICETREE_MCP_PORT
+</YOUR_ENV_VARS>`,
+        } as Record<string, EnvVarValue>,
+        section: 'agents',
+        label: 'Environment Variables',
+    },
+
+    // ── Hooks ────────────────────────────────────────────────────────────
+    hooks: {
+        default: {
+            onWorktreeCreatedBlocking: './.voicetree/hooks/on-worktree-created-blocking.sh',
+            postWorktreeCreatedAsync: './.voicetree/hooks/on-worktree-created-async.sh',
+            onNewNode: 'node .voicetree/hooks/on-new-node.cjs',
+        } as HookSettings,
+        section: 'hooks',
+    },
+
+    // ── Advanced (default section — no need to specify) ──────────────────
+    contextNodeMaxDistance: { default: 5,   label: 'Context Distance',   number: { min: 1, max: 20, step: 1 } },
+    askModeContextDistance: { default: 3,   label: 'Ask Mode Distance',  number: { min: 1, max: 20, step: 1 } },
+    defaultAllowlistPatterns: { default: [] as readonly string[], label: 'Default Allowlist Patterns' },
+    starredFolders:         { default: (homeDir ? [`${homeDir}/voicetree/workflows`] : []) as readonly string[], label: 'Starred Folders' },
+    showFps:                { default: false, label: 'Show FPS (WebGL)' },
+    layoutConfig:           { default: JSON.stringify({ engine: 'cola', nodeSpacing: 120, convergenceThreshold: 0.4, unconstrIter: 15, allConstIter: 25, handleDisconnected: true, tile: true, tilingPaddingVertical: 10, tilingPaddingHorizontal: 10, edgeElasticity: 0.45, edgeLength: 350 }, null, 2), label: 'Layout Config' },
+    nodeLineLimit:          { default: 80,  label: 'Node Line Limit',    number: { min: 20, max: 200, step: 10 } },
+
+    // ── Hidden (not shown in UI) ─────────────────────────────────────────
+    agentPermissionModeChosen: { hidden: true },
+    feedbackDialogShown:       { hidden: true },
+    userEmail:                 { hidden: true },
+};
+
+// ============================================================================
+// Derived exports
+// ============================================================================
+
+/** Default settings derived from schema — only entries with a `default` value */
+export const DEFAULT_SETTINGS: VTSettings = Object.fromEntries(
+    Object.entries(SETTINGS_SCHEMA)
+        .filter(([, v]) => 'default' in v)
+        .map(([k, v]) => [k, v.default])
+) as unknown as VTSettings;

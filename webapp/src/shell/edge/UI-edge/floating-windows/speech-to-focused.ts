@@ -23,6 +23,27 @@ let activePreview: {
 } | null = null;
 
 /**
+ * Get the node ID of the currently focused editor (if any).
+ * Uses DOM traversal: finds closest floating window with a .cm-editor,
+ * then derives node ID from the window ID convention (nodeId + '-editor').
+ */
+export function getFocusedEditorNodeId(): string | null {
+  const active: Element | null = document.activeElement;
+  if (!active) return null;
+
+  // Must be inside a CodeMirror editor
+  if (!active.closest('.cm-editor')) return null;
+
+  const floatingWindow: Element | null = active.closest('[data-floating-window-id]');
+  if (!floatingWindow) return null;
+
+  const windowId: string | null = floatingWindow.getAttribute('data-floating-window-id');
+  if (!windowId || !windowId.endsWith('-editor')) return null;
+
+  return windowId.slice(0, -'-editor'.length);
+}
+
+/**
  * Detect which floating window (editor or terminal) currently has focus.
  * Uses document.activeElement and DOM traversal.
  */

@@ -353,6 +353,26 @@ function FolderTreeSidebarInternal({ callbacks }: SidebarInternalProps): JSX.Ele
                 onSetWriteTarget={handleSetWriteTarget}
             />
 
+            {/* External Folders (read paths outside project root) */}
+            {Object.keys(folderState.externalFolderTrees).length > 0 && (
+                <div className="folder-tree-external-section">
+                    <div className="folder-tree-section-header">EXTERNAL</div>
+                    {Object.entries(folderState.externalFolderTrees).map(([folderPath, tree]: [string, import('@/pure/folders/types').FolderTreeNode]) => (
+                        <FolderTreeNodeComponent
+                            key={folderPath}
+                            node={tree}
+                            depth={0}
+                            searchQuery={folderState.searchQuery}
+                            expandedPaths={folderState.expandedPaths}
+                            onToggleExpand={toggleFolderExpanded}
+                            onToggleLoad={handleToggleLoad}
+                            onFileSelect={callbacks.onFileSelect}
+                            onSetWriteTarget={handleSetWriteTarget}
+                        />
+                    ))}
+                </div>
+            )}
+
             {/* Project Folders */}
             <div className="folder-tree-container">
                 {folderState.tree ? (
@@ -401,6 +421,8 @@ export function createFolderTreeSidebar(
 
     mountPoint = document.createElement('div');
     mountPoint.setAttribute('data-testid', 'folder-tree-sidebar-mount');
+    mountPoint.style.position = 'relative';
+    mountPoint.style.height = '100%';
     container.appendChild(mountPoint);
 
     reactRoot = createRoot(mountPoint);

@@ -11,6 +11,7 @@ import type { FolderTreeNode } from '@/pure/folders/types';
 export interface FolderTreeState {
     readonly tree: FolderTreeNode | null;
     readonly starredFolderTrees: Readonly<Record<string, FolderTreeNode>>;
+    readonly externalFolderTrees: Readonly<Record<string, FolderTreeNode>>;
     readonly expandedPaths: ReadonlySet<string>;
     readonly searchQuery: string;
     readonly isOpen: boolean;
@@ -20,6 +21,7 @@ export interface FolderTreeState {
 export type FolderTreeAction =
     | { readonly type: 'SYNC_TREE'; readonly tree: FolderTreeNode }
     | { readonly type: 'SYNC_STARRED_TREES'; readonly trees: Readonly<Record<string, FolderTreeNode>> }
+    | { readonly type: 'SYNC_EXTERNAL_TREES'; readonly trees: Readonly<Record<string, FolderTreeNode>> }
     | { readonly type: 'TOGGLE_EXPANDED'; readonly path: string }
     | { readonly type: 'SET_SEARCH'; readonly query: string }
     | { readonly type: 'TOGGLE_SIDEBAR' }
@@ -34,6 +36,8 @@ export function folderTreeReducer(state: FolderTreeState, action: FolderTreeActi
             return { ...state, tree: action.tree };
         case 'SYNC_STARRED_TREES':
             return { ...state, starredFolderTrees: action.trees };
+        case 'SYNC_EXTERNAL_TREES':
+            return { ...state, externalFolderTrees: action.trees };
         case 'TOGGLE_EXPANDED': {
             const expandedPaths: ReadonlySet<string> = state.expandedPaths.has(action.path)
                 ? new Set([...state.expandedPaths].filter((p: string) => p !== action.path))
@@ -75,6 +79,7 @@ const persisted: { isOpen: boolean; sidebarWidth: number } = loadPersistedState(
 const INITIAL_STATE: FolderTreeState = {
     tree: null,
     starredFolderTrees: {},
+    externalFolderTrees: {},
     expandedPaths: new Set(),
     searchQuery: '',
     isOpen: persisted.isOpen,
@@ -120,6 +125,10 @@ export function syncFolderTreeFromMain(tree: FolderTreeNode): void {
 
 export function syncStarredTreesFromMain(trees: Readonly<Record<string, FolderTreeNode>>): void {
     dispatch({ type: 'SYNC_STARRED_TREES', trees });
+}
+
+export function syncExternalTreesFromMain(trees: Readonly<Record<string, FolderTreeNode>>): void {
+    dispatch({ type: 'SYNC_EXTERNAL_TREES', trees });
 }
 
 export function toggleFolderExpanded(path: string): void {

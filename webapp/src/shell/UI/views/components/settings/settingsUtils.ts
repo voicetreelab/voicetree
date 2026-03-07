@@ -1,5 +1,8 @@
+import { SETTINGS_SCHEMA } from '@/pure/settings/settingsSchema';
+import type { Section, NumberFieldConfig } from '@/pure/settings/settingsSchema';
+
+export type { Section, NumberFieldConfig };
 export type FieldType = 'toggle' | 'number' | 'text' | 'textarea' | 'hotkey-group' | 'agent-list' | 'string-list' | 'key-value' | 'hook-group';
-export type Section = 'general' | 'shortcuts' | 'agents' | 'hooks' | 'advanced';
 
 export function inferFieldType(key: string, value: unknown): FieldType {
     if (key === 'hotkeys') return 'hotkey-group';
@@ -15,41 +18,25 @@ export function inferFieldType(key: string, value: unknown): FieldType {
 }
 
 export function keyToLabel(key: string): string {
-    const overrides: Record<string, string> = {
-        'INJECT_ENV_VARS': 'Environment Variables',
-        'shiftEnterSendsOptionEnter': 'Shift+Enter \u2192 Option+Enter',
-        'terminalSpawnPathRelativeToWatchedDirectory': 'Terminal Spawn Path',
-        'contextNodeMaxDistance': 'Context Distance',
-        'askModeContextDistance': 'Ask Mode Distance',
-        'autoNotifyUnseenNodes': 'Auto-notify Unseen Nodes',
-        'defaultAllowlistPatterns': 'Default Allowlist Patterns',
-        'zoomSensitivity': 'Zoom Sensitivity',
-        'emptyFolderTemplate': 'Empty Folder Template',
-        'shell': 'Shell Override',
-        'starredFolders': 'Starred Folders',
-        'showFps': 'Show FPS (WebGL)',
-        'darkMode': 'Dark Mode',
-        'vimMode': 'Vim Mode',
-        'layoutConfig': 'Layout Config',
-    };
-    if (overrides[key]) return overrides[key];
+    const entry: { readonly label?: string } | undefined = (SETTINGS_SCHEMA as Record<string, { readonly label?: string }>)[key];
+    if (entry?.label) return entry.label;
     return key.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()).trim();
 }
 
-export const HIDDEN_KEYS: Set<string> = new Set(['agentPermissionModeChosen', 'feedbackDialogShown', 'userEmail']);
+export const SECTION_MAP: Record<string, Section> = Object.fromEntries(
+    Object.entries(SETTINGS_SCHEMA)
+        .filter(([, v]) => !('hidden' in v && v.hidden))
+        .map(([k, v]) => [k, v.section ?? 'advanced'])
+) as Record<string, Section>;
 
-export const SECTION_MAP: Record<string, Section> = {
-    darkMode: 'general', vimMode: 'general',
-    shiftEnterSendsOptionEnter: 'general', autoNotifyUnseenNodes: 'general',
-    zoomSensitivity: 'general',
-    terminalSpawnPathRelativeToWatchedDirectory: 'general',
-    shell: 'general',
-    emptyFolderTemplate: 'general',
-    hotkeys: 'shortcuts',
-    agents: 'agents', INJECT_ENV_VARS: 'agents',
-    hooks: 'hooks',
-    contextNodeMaxDistance: 'advanced', askModeContextDistance: 'advanced',
-    defaultAllowlistPatterns: 'advanced', starredFolders: 'advanced',
-    showFps: 'advanced',
-    layoutConfig: 'advanced',
-};
+export const HIDDEN_KEYS: Set<string> = new Set(
+    Object.entries(SETTINGS_SCHEMA)
+        .filter(([, v]) => 'hidden' in v && v.hidden)
+        .map(([k]) => k)
+);
+
+export const NUMBER_FIELD_CONFIG: Record<string, NumberFieldConfig> = Object.fromEntries(
+    Object.entries(SETTINGS_SCHEMA)
+        .filter(([, v]) => 'number' in v && v.number)
+        .map(([k, v]) => [k, v.number])
+) as Record<string, NumberFieldConfig>;

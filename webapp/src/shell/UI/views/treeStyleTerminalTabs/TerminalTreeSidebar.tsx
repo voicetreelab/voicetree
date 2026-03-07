@@ -299,6 +299,8 @@ export function createTerminalTreeSidebar(
 
     const mountPoint: HTMLDivElement = document.createElement('div');
     mountPoint.setAttribute('data-testid', 'terminal-tree-sidebar-mount');
+    mountPoint.style.position = 'relative';
+    mountPoint.style.height = '100%';
     container.appendChild(mountPoint);
 
     reactRoot = createRoot(mountPoint);

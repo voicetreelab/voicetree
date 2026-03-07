@@ -9,7 +9,7 @@
 import type { Core, CollectionReturnValue } from 'cytoscape';
 import { cyFitCollectionByAverageNodeSize, cySmartCenter, getResponsivePadding } from '@/utils/responsivePadding';
 
-export type PendingPanType = 'large-batch' | 'small-graph' | 'wikilink-target' | 'voice-follow' | null;
+export type PendingPanType = 'large-batch' | 'small-graph' | 'wikilink-target' | 'voice-follow' | 'editor-focus' | null;
 
 interface PendingPanState {
   type: PendingPanType;
@@ -51,6 +51,14 @@ export function setPendingPanToNode(targetNodeId: string): void {
  */
 export function setPendingVoiceFollowPan(targetNodeId: string): void {
   pendingPan = { type: 'voice-follow', nodeIds: [], totalNodes: 0, targetNodeId };
+}
+
+/**
+ * Set a pending pan to keep the focused editor's node in viewport after layout.
+ * Pans to center the node without changing zoom — minimal disruption while editing.
+ */
+export function setPendingEditorFocusPan(targetNodeId: string): void {
+  pendingPan = { type: 'editor-focus', nodeIds: [], totalNodes: 0, targetNodeId };
 }
 
 /**
@@ -111,6 +119,14 @@ export function panToTrackedNode(cy: Core): boolean {
     if (node.length > 0) {
       console.warn(`[panToTrackedNode] voice-follow: centering on ${targetNodeId}`);
       cySmartCenter(cy, node);
+      return true;
+    }
+  } else if (type === 'editor-focus' && targetNodeId) {
+    const node: CollectionReturnValue = cy.getElementById(targetNodeId);
+    if (node.length > 0) {
+      // Pan to keep focused editor in viewport without changing zoom
+      console.warn(`[panToTrackedNode] editor-focus: centering on ${targetNodeId}`);
+      cy.animate({ center: { eles: node }, duration: 200 });
       return true;
     }
   }

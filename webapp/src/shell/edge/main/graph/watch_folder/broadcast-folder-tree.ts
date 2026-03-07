@@ -10,7 +10,7 @@ import { getVaultPaths, getWritePath } from './vault-allowlist';
 import { getStarredFolders } from './starred-folders';
 import { getGraph } from '@/shell/edge/main/state/graph-store';
 import { getDirectoryTree } from './folder-scanner';
-import { buildFolderTree } from '@/pure/folders/transforms';
+import { buildFolderTree, getExternalReadPaths } from '@/pure/folders/transforms';
 import type { DirectoryEntry } from '@/pure/folders/transforms';
 import type { FolderTreeNode, AbsolutePath } from '@/pure/folders/types';
 import { toAbsolutePath } from '@/pure/folders/types';
@@ -54,6 +54,19 @@ async function doBroadcast(): Promise<void> {
         }
     }
     uiAPI.syncStarredFolderTrees(starredTrees);
+
+    // Scan external read paths (not under project root) and broadcast their trees
+    const externalPaths: readonly string[] = getExternalReadPaths([...readPaths], projectRoot);
+    const externalTrees: Record<string, FolderTreeNode> = {};
+    for (const extPath of externalPaths) {
+        try {
+            const extEntry: DirectoryEntry = await getDirectoryTree(extPath, 3);
+            externalTrees[extPath] = buildFolderTree(extEntry, loadedPaths, writePath, graphFilePaths);
+        } catch {
+            // External folder doesn't exist or can't be read — skip
+        }
+    }
+    uiAPI.syncExternalFolderTrees(externalTrees);
 }
 
 export function broadcastFolderTree(): void {

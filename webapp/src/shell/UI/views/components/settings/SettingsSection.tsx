@@ -2,8 +2,8 @@ import { useState, useCallback } from 'react';
 import type { JSX } from 'react';
 import type { VTSettings, HotkeySettings, HotkeyBinding, HookSettings, EnvVarValue, AgentConfig } from '@/pure/settings/types';
 import { DEFAULT_HOTKEYS } from '@/pure/settings/DEFAULT_SETTINGS';
-import { SECTION_MAP, HIDDEN_KEYS, inferFieldType, keyToLabel } from './settingsUtils';
-import type { Section, FieldType } from './settingsUtils';
+import { SECTION_MAP, HIDDEN_KEYS, NUMBER_FIELD_CONFIG, inferFieldType, keyToLabel } from './settingsUtils';
+import type { Section, FieldType, NumberFieldConfig } from './settingsUtils';
 import { ToggleField } from './fields/ToggleField';
 import { NumberField } from './fields/NumberField';
 import { TextField } from './fields/TextField';
@@ -17,12 +17,6 @@ interface SettingsSectionProps {
     onUpdate: (key: string, value: unknown) => void;
 }
 
-/** Number field constraints keyed by settings key */
-const NUMBER_FIELD_CONFIG: Record<string, { min: number; max: number; step: number; slider?: boolean }> = {
-    zoomSensitivity: { min: 0.1, max: 5.0, step: 0.1, slider: true },
-    contextNodeMaxDistance: { min: 1, max: 20, step: 1 },
-    askModeContextDistance: { min: 1, max: 20, step: 1 },
-};
 
 /** Human-readable labels for hotkey binding keys */
 const HOTKEY_LABELS: Record<string, string> = {
@@ -135,7 +129,7 @@ export function SettingsSection({ settings, section, onUpdate }: SettingsSection
                         );
 
                     case 'number': {
-                        const config: { min: number; max: number; step: number; slider?: boolean } | undefined = NUMBER_FIELD_CONFIG[key];
+                        const config: NumberFieldConfig | undefined = NUMBER_FIELD_CONFIG[key];
                         return (
                             <NumberField
                                 key={key}

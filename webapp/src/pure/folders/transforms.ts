@@ -272,6 +272,17 @@ export function toFolderSelectorState(
     };
 }
 
+/**
+ * Filter readPaths to those NOT under projectRoot. PURE.
+ */
+export function getExternalReadPaths(
+    readPaths: readonly string[],
+    projectRoot: string
+): readonly string[] {
+    const normalizedRoot: string = projectRoot.endsWith('/') ? projectRoot : projectRoot + '/';
+    return readPaths.filter((p: string) => !p.startsWith(normalizedRoot) && p !== projectRoot);
+}
+
 // ============================================================
 // FOLDER TREE TRANSFORMS
 // ============================================================

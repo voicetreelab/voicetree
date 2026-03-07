@@ -6,7 +6,7 @@ import type {NodeIdAndFilePath} from '@/pure/graph';
 import {CIRCLE_SIZE} from '@/pure/graph/node-presentation/types';
 import type {EditorData} from '@/shell/edge/UI-edge/state/UIAppState';
 import {addToAutoPinQueue, getEditorByNodeId} from '@/shell/edge/UI-edge/state/EditorStore';
-import {setPendingPanToNode} from '@/shell/edge/UI-edge/state/PendingPanStore';
+import {setPendingEditorFocusPan} from '@/shell/edge/UI-edge/state/PendingPanStore';
 import {updateWindowFromZoom} from '@/shell/edge/UI-edge/floating-windows/update-window-from-zoom';
 import {updateShadowNodeDimensions} from '@/shell/edge/UI-edge/floating-windows/setup-resize-observer';
 import {cleanupRegistry} from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
@@ -74,8 +74,8 @@ export async function createAnchoredFloatingEditor(
         // Anchor editor to the real Cy node (hide circle, sync dimensions)
         anchorEditorToRealNode(cy, editor, nodeId);
 
-        // Pan to real node after layout completes
-        setPendingPanToNode(nodeId);
+        // Pan to real node after layout completes (center on node only, not neighbors)
+        setPendingEditorFocusPan(nodeId);
 
     } catch (error) {
         console.error('[FloatingEditorManager-v2] Error creating floating editor:', error);

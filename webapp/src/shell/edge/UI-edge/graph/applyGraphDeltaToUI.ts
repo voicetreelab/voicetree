@@ -7,7 +7,7 @@ import posthog from "posthog-js";
 import {markTerminalActivityForContextNode} from "@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity";
 import type {} from '@/utils/types/cytoscape-layout-utilities';
 import {checkEngagementPrompts} from "./userEngagementPrompts";
-import {setPendingPan, setPendingPanToNode, setPendingVoiceFollowPan} from "@/shell/edge/UI-edge/state/PendingPanStore";
+import {setPendingPan, setPendingPanToNode} from "@/shell/edge/UI-edge/state/PendingPanStore";
 import {scheduleIdleWork} from "@/utils/scheduleIdleWork";
 import {syncLargeGraphPerformanceMode} from "@/shell/UI/cytoscape-graph-ui/services/largegraphPerformance";
 import {getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
@@ -324,21 +324,11 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
         setPendingPan('small-graph', newNodeIds, totalNodes);
     }
     else if (newNodeCount >= 1) {
-        // Check for voice nodes first (follow dictation)
-        let foundVoice: boolean = false;
-        for (let i: number = newNodeIds.length - 1; i >= 0; i--) {
-            if (newNodeIds[i].includes('/voice/')) {
-                setPendingVoiceFollowPan(newNodeIds[i]);
-                foundVoice = true;
-                break;
-            }
-        }
-        // Only pan to user-created nodes (Cmd+N, button click) — agent/FS nodes are distracting
-        if (!foundVoice) {
-            const userCreatedNodeId: string | undefined = newNodeIds.find(id => pendingManualPinNodeIds.has(id));
-            if (userCreatedNodeId) {
-                setPendingPanToNode(userCreatedNodeId);
-            }
+        // Only pan to user-created nodes (Cmd+N, button click) — agent/FS/voice nodes are distracting.
+        // If an editor is focused, the editor-focus pan in onLayoutComplete handles viewport stability.
+        const userCreatedNodeId: string | undefined = newNodeIds.find(id => pendingManualPinNodeIds.has(id));
+        if (userCreatedNodeId) {
+            setPendingPanToNode(userCreatedNodeId);
         }
     }
     //console.log('[applyGraphDeltaToUI] Complete. Total nodes:', cy.nodes().length, 'Total edges:', cy.edges().length);
