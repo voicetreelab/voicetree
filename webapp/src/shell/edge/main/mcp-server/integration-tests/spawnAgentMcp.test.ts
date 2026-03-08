@@ -24,6 +24,11 @@ vi.mock('@/shell/edge/main/terminals/terminal-registry', () => ({
     getTerminalRecords: vi.fn()
 }))
 
+vi.mock('@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange', () => ({
+    applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn().mockResolvedValue(undefined)
+}))
+
+import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange'
 import {spawnAgentTool, listAgentsTool} from '@/shell/edge/main/mcp-server/mcp-server'
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
@@ -165,7 +170,7 @@ describe('MCP spawn_agent tool', () => {
 
         expect(payload.success).toBe(true)
         expect(payload.nodeId).toBe(fullPath)
-        expect(spawnTerminalWithContextNode).toHaveBeenCalledWith(fullPath, undefined, undefined, true, false, undefined, undefined, 'caller-terminal-99', undefined, undefined, undefined)
+        expect(spawnTerminalWithContextNode).toHaveBeenCalledWith(fullPath, undefined, undefined, true, false, undefined, undefined, 'caller-terminal-99', undefined, undefined, undefined, undefined, undefined)
     })
 
     it('returns an error when vault path is not set', async () => {
@@ -204,6 +209,121 @@ describe('MCP spawn_agent tool', () => {
         expect(payload.success).toBe(true)
         expect(payload.terminalId).toBe('node-1-terminal-0')
         expect(spawnTerminalWithContextNode).toHaveBeenCalledTimes(1)
+    })
+
+    it('marks existing node as claimed on spawn', async () => {
+        mockCallerTerminal()
+        vi.mocked(getWritePath).mockResolvedValue(O.some('/vault'))
+        vi.mocked(getGraph).mockReturnValue({
+            nodes: {
+                'node-1.md': buildGraphNode('node-1.md', '# Node One')
+            },
+            incomingEdgesIndex: new Map(),
+            nodeByBaseName: new Map(),
+            unresolvedLinksIndex: new Map()
+        })
+        vi.mocked(spawnTerminalWithContextNode).mockResolvedValue({
+            terminalId: 'node-1-terminal-0',
+            contextNodeId: 'ctx-nodes/node-1_context.md'
+        })
+
+        await spawnAgentTool({nodeId: 'node-1.md', callerTerminalId: 'caller-terminal-99'})
+
+        // First call to applyGraphDelta should be the claim delta
+        const claimCall: unknown[] | undefined = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls[0]
+        expect(claimCall).toBeDefined()
+        const claimDelta: Array<{type: string; nodeToUpsert: GraphNode}> = claimCall![0] as Array<{type: string; nodeToUpsert: GraphNode}>
+        expect(claimDelta[0].type).toBe('UpsertNode')
+        expect(claimDelta[0].nodeToUpsert.nodeUIMetadata.additionalYAMLProps.get('status')).toBe('claimed')
+    })
+})
+
+describe('MCP spawn_agent depthBudget auto-decrement', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    function mockCallerWithBudget(budget: string): void {
+        const callerTerminalData: TerminalData = createTerminalData({
+            terminalId: 'caller-terminal-99' as TerminalId,
+            attachedToNodeId: 'ctx-nodes/caller.md',
+            terminalCount: 99,
+            title: 'Caller',
+            executeCommand: true,
+            agentName: 'caller',
+            initialEnvVars: {DEPTH_BUDGET: budget}
+        })
+        vi.mocked(getTerminalRecords).mockReturnValue([
+            {terminalId: 'caller-terminal-99', terminalData: callerTerminalData, status: 'running', exitCode: null}
+        ])
+    }
+
+    function setupGraphAndSpawn(): void {
+        vi.mocked(getWritePath).mockResolvedValue(O.some('/vault'))
+        vi.mocked(getGraph).mockReturnValue({
+            nodes: {'node-1.md': buildGraphNode('node-1.md', '# Node One')},
+            incomingEdgesIndex: new Map(),
+            nodeByBaseName: new Map(),
+            unresolvedLinksIndex: new Map()
+        })
+        vi.mocked(spawnTerminalWithContextNode).mockResolvedValue({
+            terminalId: 'child-terminal-0',
+            contextNodeId: 'ctx-nodes/child_context.md'
+        })
+    }
+
+    it('auto-decrements DEPTH_BUDGET from parent (2 → 1)', async () => {
+        mockCallerWithBudget('2')
+        setupGraphAndSpawn()
+
+        await spawnAgentTool({nodeId: 'node-1.md', callerTerminalId: 'caller-terminal-99'})
+
+        const envOverridesArg: Record<string, string> | undefined =
+            vi.mocked(spawnTerminalWithContextNode).mock.calls[0]?.[12] as Record<string, string> | undefined
+        expect(envOverridesArg).toEqual({DEPTH_BUDGET: '1'})
+    })
+
+    it('auto-decrements DEPTH_BUDGET floors at 0', async () => {
+        mockCallerWithBudget('0')
+        setupGraphAndSpawn()
+
+        await spawnAgentTool({nodeId: 'node-1.md', callerTerminalId: 'caller-terminal-99'})
+
+        const envOverridesArg: Record<string, string> | undefined =
+            vi.mocked(spawnTerminalWithContextNode).mock.calls[0]?.[12] as Record<string, string> | undefined
+        expect(envOverridesArg).toEqual({DEPTH_BUDGET: '0'})
+    })
+
+    it('explicit depthBudget overrides auto-decrement', async () => {
+        mockCallerWithBudget('2')
+        setupGraphAndSpawn()
+
+        await spawnAgentTool({nodeId: 'node-1.md', callerTerminalId: 'caller-terminal-99', depthBudget: 5})
+
+        const envOverridesArg: Record<string, string> | undefined =
+            vi.mocked(spawnTerminalWithContextNode).mock.calls[0]?.[12] as Record<string, string> | undefined
+        expect(envOverridesArg).toEqual({DEPTH_BUDGET: '5'})
+    })
+
+    it('returns depthBudget in response when set', async () => {
+        mockCallerWithBudget('3')
+        setupGraphAndSpawn()
+
+        const response: McpToolResponse = await spawnAgentTool({nodeId: 'node-1.md', callerTerminalId: 'caller-terminal-99'})
+        const payload: {depthBudget?: number} = parsePayload(response) as {depthBudget?: number}
+
+        expect(payload.depthBudget).toBe(2)
+    })
+
+    it('no envOverrides when parent has no DEPTH_BUDGET', async () => {
+        mockCallerTerminal() // no initialEnvVars
+        setupGraphAndSpawn()
+
+        await spawnAgentTool({nodeId: 'node-1.md', callerTerminalId: 'caller-terminal-99'})
+
+        const envOverridesArg: Record<string, string> | undefined =
+            vi.mocked(spawnTerminalWithContextNode).mock.calls[0]?.[12] as Record<string, string> | undefined
+        expect(envOverridesArg).toBeUndefined()
     })
 })
 

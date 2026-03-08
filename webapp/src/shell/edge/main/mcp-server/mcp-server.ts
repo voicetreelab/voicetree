@@ -90,10 +90,12 @@ If no node exists yet, use task+parentNodeId to create a new task node first.`,
                 spawnDirectory: z.string().optional().describe('Absolute path to spawn the agent in. By default, inherits the parent terminal\'s directory (worktree-safe). Only needed to override, for example to contain child-agent to a subfolder or new worktree'),
                 promptTemplate: z.string().optional().describe('Name of an INJECT_ENV_VARS key to use as AGENT_PROMPT instead of the default. Must match an existing key in settings.'),
                 agentName: z.string().optional().describe('Name of an agent from settings.agents to use (e.g., "Claude Sonnet"). If not provided, uses the first agent in settings.'),
-                headless: z.boolean().optional().describe('When true, agent runs as background process with no PTY/terminal UI. Output is via MCP tools (create_graph). Status shown as badge on task node.')
+                headless: z.boolean().optional().describe('When true, agent runs as background process with no PTY/terminal UI. Output is via MCP tools (create_graph). Status shown as badge on task node.'),
+                replaceSelf: z.boolean().optional().describe('When true, the successor inherits the caller\'s terminal ID and agent name. The caller\'s process is killed and replaced atomically. Use for context handover — the agent identity persists across context boundaries.'),
+                depthBudget: z.number().optional().describe('Explicit DEPTH_BUDGET for the child agent. If omitted, auto-decrements from the caller\'s DEPTH_BUDGET (parent budget - 1). Controls recursive decomposition: budget > 0 = may spawn sub-agents, budget = 0 = leaf agent (no spawning).')
             }
         },
-        async ({nodeId, callerTerminalId, task, details, parentNodeId, spawnDirectory, promptTemplate, agentName, headless}) => spawnAgentTool({nodeId, callerTerminalId, task, details, parentNodeId, spawnDirectory, promptTemplate, agentName, headless})
+        async ({nodeId, callerTerminalId, task, details, parentNodeId, spawnDirectory, promptTemplate, agentName, headless, replaceSelf, depthBudget}) => spawnAgentTool({nodeId, callerTerminalId, task, details, parentNodeId, spawnDirectory, promptTemplate, agentName, headless, replaceSelf, depthBudget})
     )
 
     // Tool: list_agents
@@ -143,14 +145,15 @@ If no node exists yet, use task+parentNodeId to create a new task node first.`,
         'close_agent',
         {
             title: 'Close Agent',
-            description: 'Close an agent terminal. After waiting for an agent to finish, review its work. Close the agent if satisfied with its output. Leave the agent open if any tech debt was introduced or if human review would be beneficial - open terminals signal to the user that attention is needed.',
+            description: 'Close an agent terminal. After waiting for an agent to finish, review its work. Close the agent if satisfied with its output. Leave the agent open if any tech debt was introduced or if human review would be beneficial - open terminals signal to the user that attention is needed. Will error if the agent is still running — you must send them a message first to check remaining work, then override with forceWithReason if needed.',
             inputSchema: {
                 terminalId: z.string().describe('The terminal ID of the agent to close'),
-                callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var')
+                callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),
+                forceWithReason: z.string().optional().describe('Required to close a running (non-idle) agent. Explain why you are force-closing.')
             }
         },
-        ({terminalId, callerTerminalId}) =>
-            closeAgentTool({terminalId, callerTerminalId})
+        ({terminalId, callerTerminalId, forceWithReason}) =>
+            closeAgentTool({terminalId, callerTerminalId, forceWithReason})
     )
 
     // Tool: send_message

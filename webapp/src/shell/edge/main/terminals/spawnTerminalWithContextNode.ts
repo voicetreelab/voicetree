@@ -31,7 +31,7 @@ import { getNextTerminalCountForNode, getExistingAgentNames } from '@/shell/edge
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import {getWatchStatus} from "@/shell/edge/main/graph/watch_folder/watchFolder";
 import {buildTerminalEnvVars} from '@/shell/edge/main/terminals/buildTerminalEnvVars';
-import {spawnHeadlessAgent} from '@/shell/edge/main/terminals/headlessAgentManager';
+import {spawnHeadlessAgent, killHeadlessAgent} from '@/shell/edge/main/terminals/headlessAgentManager';
 import {registerChildIfMonitored} from '@/shell/edge/main/mcp-server/agent-completion-monitor';
 
 /**
@@ -60,7 +60,9 @@ export async function spawnTerminalWithContextNode(
     parentTerminalId?: string,
     agentInstructions?: string,
     promptTemplate?: string,
-    headless?: boolean
+    headless?: boolean,
+    inheritTerminalId?: string,
+    envOverrides?: Record<string, string>
 ): Promise<{terminalId: string; contextNodeId: NodeIdAndFilePath}> {
     // Load settings to get agents
     const settings: VTSettings = await loadSettings();
@@ -125,7 +127,9 @@ export async function spawnTerminalWithContextNode(
         spawnDirectory,
         parentTerminalId,
         promptTemplate,
-        headless
+        headless,
+        inheritTerminalId,
+        envOverrides
     );
 
     if (headless) {
@@ -137,6 +141,12 @@ export async function spawnTerminalWithContextNode(
         const baseCommand: string = command.replace('"$AGENT_PROMPT"', '').replace("'$AGENT_PROMPT'", '').trim()
         const headlessCommand: string = `${baseCommand} -p "$AGENT_PROMPT"`
         const headlessEnv: Record<string, string> = terminalData.initialEnvVars ?? {}
+
+        // replaceSelf: kill old process before spawning successor with same ID
+        if (inheritTerminalId) {
+            killHeadlessAgent(inheritTerminalId as TerminalId)
+        }
+
         spawnHeadlessAgent(
             getTerminalId(terminalData),
             terminalData,
@@ -146,9 +156,11 @@ export async function spawnTerminalWithContextNode(
         )
     } else {
         // Interactive branch: launch terminal onto UI with xterm.js
-        // TODO, HERE WE NEED TO WAIT FOR CONTEXT NODE TO EXIST IN UI
-        // OR we could move that to within launchTerminalOntoUI
-        // Actually, this is handled in createFloatingTerminal via waitForNode: src/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI.ts:371
+
+        // replaceSelf for interactive: close the old terminal first
+        if (inheritTerminalId) {
+            uiAPI.closeTerminalById(inheritTerminalId)
+        }
 
         // Call UI to launch terminal (via UI API pattern)
         // Note: uiAPI sends IPC message, no need to await (fire-and-forget)
@@ -185,7 +197,9 @@ async function prepareTerminalDataInMain(
     spawnDirectory?: string,
     parentTerminalId?: string,
     promptTemplate?: string,
-    headless?: boolean
+    headless?: boolean,
+    inheritTerminalId?: string,
+    envOverrides?: Record<string, string>
 ): Promise<TerminalData> {
     // Get context node from graph (main has immediate access)
     const graph: Graph = getGraph();
@@ -201,9 +215,12 @@ async function prepareTerminalDataInMain(
 
     // Generate unique agent name with collision handling (enables terminal-to-created-node edges)
     // terminalId now equals agentName for unified identification
-    const baseAgentName: string = getNextAgentName();
-    const existingNames: Set<string> = getExistingAgentNames();
-    const agentName: string = getUniqueAgentName(baseAgentName, existingNames);
+    // When inheritTerminalId is set (replaceSelf), reuse the caller's identity
+    const agentName: string = inheritTerminalId ?? (() => {
+        const baseAgentName: string = getNextAgentName();
+        const existingNames: Set<string> = getExistingAgentNames();
+        return getUniqueAgentName(baseAgentName, existingNames);
+    })();
 
     // Compute initial_spawn_directory from watch directory + relative path setting
     let initialSpawnDirectory: string | undefined;
@@ -240,6 +257,7 @@ async function prepareTerminalDataInMain(
         agentName,
         settings,
         promptTemplate,
+        envOverrides,
     });
 
     // Extract worktree name from spawnDirectory if spawning in a .worktrees/ directory

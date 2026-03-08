@@ -19,6 +19,7 @@ export async function buildTerminalEnvVars(params: {
     readonly agentName: string
     readonly settings: VTSettings
     readonly promptTemplate?: string
+    readonly envOverrides?: Record<string, string>
 }): Promise<Record<string, string>> {
     const resolvedEnvVars: Record<string, string> = resolveEnvVars(params.settings.INJECT_ENV_VARS)
 
@@ -45,6 +46,7 @@ export async function buildTerminalEnvVars(params: {
         AGENT_NAME: params.agentName,
         VOICETREE_MCP_PORT: String(getMcpPort()),
         ...resolvedEnvVars,
+        ...(params.envOverrides ?? {}),
     }
     return expandEnvVarsInValues(unexpandedEnvVars)
 }

@@ -9,7 +9,7 @@
 
 import {spawn, type ChildProcess} from 'child_process'
 import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
-import {markTerminalExited, recordTerminalSpawn} from '@/shell/edge/main/terminals/terminal-registry'
+import {markTerminalExited, recordTerminalSpawn, getTerminalRecords} from '@/shell/edge/main/terminals/terminal-registry'
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
 
 // ─── State (functional edge pattern: module-level Maps) ──────────────────────
@@ -52,6 +52,7 @@ export function spawnHeadlessAgent(
 
     headlessProcesses.set(terminalId, child)
     recordTerminalSpawn(terminalId, terminalData)
+    console.log(`[headlessAgentManager] Spawned agent ${terminalId} (pid=${child.pid}) cwd=${cwd ?? 'HOME'}`)
 
     // Capture stdout + stderr into a combined ring buffer
     const appendOutput: (d: Buffer) => void = (d: Buffer): void => {
@@ -62,10 +63,22 @@ export function spawnHeadlessAgent(
     child.stderr?.on('data', appendOutput)
 
     child.on('exit', (code: number | null) => {
+        const output: string = lastOutputByTerminal.get(terminalId) ?? ''
+        const hasOutput: boolean = output.trim().length > 0
         if (code !== 0 && code !== null) {
-            const output: string = lastOutputByTerminal.get(terminalId) ?? ''
             console.error(`[headlessAgentManager] Agent ${terminalId} exited with code ${code}. Last output: ${output.slice(-500)}`)
+        } else if (!hasOutput) {
+            console.warn(`[headlessAgentManager] Agent ${terminalId} exited code=${code} with ZERO output — likely silent failure`)
         }
+
+        // Detect missed handover: agent exited without spawning a successor
+        const spawnedChildren: boolean = getTerminalRecords().some(
+            r => r.terminalData.parentTerminalId === terminalId
+        )
+        if (hasOutput && !spawnedChildren && code === 0) {
+            console.warn(`[headlessAgentManager] Agent ${terminalId} exited without spawning a successor — possible missed handover`)
+        }
+
         markTerminalExited(terminalId, code)
         headlessProcesses.delete(terminalId)
         // Note: output buffer intentionally preserved after exit for hover tooltip / read_terminal_output

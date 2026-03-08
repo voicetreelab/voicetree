@@ -29,9 +29,11 @@ export interface SpawnAgentParams {
     promptTemplate?: string
     agentName?: string
     headless?: boolean
+    replaceSelf?: boolean
+    depthBudget?: number
 }
 
-export async function spawnAgentTool({nodeId, callerTerminalId, task, details, parentNodeId, spawnDirectory, promptTemplate, agentName, headless}: SpawnAgentParams): Promise<McpToolResponse> {
+export async function spawnAgentTool({nodeId, callerTerminalId, task, details, parentNodeId, spawnDirectory, promptTemplate, agentName, headless, replaceSelf, depthBudget}: SpawnAgentParams): Promise<McpToolResponse> {
     //console.log(`[MCP] spawn_agent called by terminal: ${callerTerminalId}`)
 
     // Validate caller terminal exists
@@ -43,6 +45,31 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, details, p
         return buildJsonResponse({
             success: false,
             error: `Unknown caller terminal: ${callerTerminalId}`
+        }, true)
+    }
+
+    // Compute child's DEPTH_BUDGET: explicit override > auto-decrement from parent
+    const callerRecord: TerminalRecord | undefined = terminalRecords.find(
+        (r: TerminalRecord) => r.terminalId === callerTerminalId
+    )
+    let childDepthBudget: number | undefined
+    if (depthBudget !== undefined) {
+        childDepthBudget = depthBudget
+    } else if (callerRecord?.terminalData.initialEnvVars?.DEPTH_BUDGET) {
+        const parentBudget: number = parseInt(callerRecord.terminalData.initialEnvVars.DEPTH_BUDGET, 10)
+        if (!isNaN(parentBudget)) {
+            childDepthBudget = Math.max(0, parentBudget - 1)
+        }
+    }
+    const envOverrides: Record<string, string> | undefined = childDepthBudget !== undefined
+        ? {DEPTH_BUDGET: String(childDepthBudget)}
+        : undefined
+
+    // Validate replaceSelf constraints
+    if (replaceSelf && !callerRecord) {
+        return buildJsonResponse({
+            success: false,
+            error: 'replaceSelf requires a valid caller terminal'
         }, true)
     }
 
@@ -136,6 +163,28 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, details, p
             // Apply task node to graph
             await applyGraphDeltaToDBThroughMemAndUIAndEditors(taskNodeDelta)
 
+            // Mark task node as claimed
+            const freshGraph: Graph = getGraph()
+            const freshTaskNode: GraphNode | undefined = freshGraph.nodes[taskNodeId]
+            if (freshTaskNode) {
+                const claimedYAML: Map<string, string> = new Map([
+                    ...freshTaskNode.nodeUIMetadata.additionalYAMLProps,
+                    ['status', 'claimed']
+                ])
+                const claimDelta: GraphDelta = [{
+                    type: 'UpsertNode',
+                    nodeToUpsert: {
+                        ...freshTaskNode,
+                        nodeUIMetadata: {
+                            ...freshTaskNode.nodeUIMetadata,
+                            additionalYAMLProps: claimedYAML
+                        }
+                    },
+                    previousNode: O.some(freshTaskNode)
+                }]
+                await applyGraphDeltaToDBThroughMemAndUIAndEditors(claimDelta)
+            }
+
             // Update caller's context node to mark task node as "seen"
             const callerRecord: TerminalRecord | undefined = terminalRecords.find(
                 (r: TerminalRecord) => r.terminalId === callerTerminalId
@@ -166,15 +215,19 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, details, p
             }
 
             // Spawn terminal on the new task node (with parent terminal for tree-style tabs)
+            // When replaceSelf, the successor inherits the caller's terminal ID
             const {terminalId, contextNodeId}: {terminalId: string; contextNodeId: string} =
-                await spawnTerminalWithContextNode(taskNodeId, resolvedAgentCommand, undefined, true, false, undefined, resolvedSpawnDirectory, callerTerminalId, undefined, promptTemplate, headless)
+                await spawnTerminalWithContextNode(taskNodeId, resolvedAgentCommand, undefined, true, false, undefined, resolvedSpawnDirectory, callerTerminalId, undefined, promptTemplate, headless, replaceSelf ? callerTerminalId : undefined, envOverrides)
 
             return buildJsonResponse({
                 success: true,
                 terminalId,
                 taskNodeId,
                 contextNodeId,
-                message: `Created task node and spawned agent for "${task}"`
+                depthBudget: childDepthBudget,
+                message: replaceSelf
+                    ? `Replaced self — successor agent running as "${terminalId}"`
+                    : `Created task node and spawned agent for "${task}"`
             })
         } catch (error) {
             const errorMessage: string = error instanceof Error ? error.message : String(error)
@@ -207,17 +260,42 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, details, p
     }
 
     try {
+        // Mark existing node as claimed
+        const targetNode: GraphNode | undefined = graph.nodes[resolvedNodeId]
+        if (targetNode) {
+            const claimedYAML: Map<string, string> = new Map([
+                ...targetNode.nodeUIMetadata.additionalYAMLProps,
+                ['status', 'claimed']
+            ])
+            const claimDelta: GraphDelta = [{
+                type: 'UpsertNode',
+                nodeToUpsert: {
+                    ...targetNode,
+                    nodeUIMetadata: {
+                        ...targetNode.nodeUIMetadata,
+                        additionalYAMLProps: claimedYAML
+                    }
+                },
+                previousNode: O.some(targetNode)
+            }]
+            await applyGraphDeltaToDBThroughMemAndUIAndEditors(claimDelta)
+        }
+
         // Pass skipFitAnimation: true for MCP spawns to avoid interrupting user's viewport
         // Pass callerTerminalId as parentTerminalId for tree-style tabs
+        // When replaceSelf, the successor inherits the caller's terminal ID
         const {terminalId, contextNodeId}: {terminalId: string; contextNodeId: string} =
-            await spawnTerminalWithContextNode(resolvedNodeId, resolvedAgentCommand, undefined, true, false, undefined, resolvedSpawnDirectory, callerTerminalId, details, promptTemplate, headless)
+            await spawnTerminalWithContextNode(resolvedNodeId, resolvedAgentCommand, undefined, true, false, undefined, resolvedSpawnDirectory, callerTerminalId, details, promptTemplate, headless, replaceSelf ? callerTerminalId : undefined, envOverrides)
 
         return buildJsonResponse({
             success: true,
             terminalId,
             nodeId: resolvedNodeId,
             contextNodeId,
-            message: `Spawned agent for node ${resolvedNodeId}`
+            depthBudget: childDepthBudget,
+            message: replaceSelf
+                ? `Replaced self — successor agent running as "${terminalId}"`
+                : `Spawned agent for node ${resolvedNodeId}`
         })
     } catch (error) {
         const errorMessage: string = error instanceof Error ? error.message : String(error)

@@ -19,15 +19,18 @@ import type {McpToolResponse} from '@/shell/edge/main/mcp-server/types'
 
 // ─── Mocks (vi.hoisted ensures variables exist when vi.mock factories run) ─
 
-const {mockGetTerminalRecords, mockIsHeadlessAgent, mockKillHeadlessAgent, mockGetHeadlessAgentOutput} = vi.hoisted(() => ({
+const {mockGetTerminalRecords, mockRemoveTerminalFromRegistry, mockIsHeadlessAgent, mockKillHeadlessAgent, mockGetHeadlessAgentOutput} = vi.hoisted(() => ({
     mockGetTerminalRecords: vi.fn(),
+    mockRemoveTerminalFromRegistry: vi.fn(),
     mockIsHeadlessAgent: vi.fn(),
     mockKillHeadlessAgent: vi.fn(),
     mockGetHeadlessAgentOutput: vi.fn()
 }))
 
 vi.mock('@/shell/edge/main/terminals/terminal-registry', () => ({
-    getTerminalRecords: mockGetTerminalRecords
+    getTerminalRecords: mockGetTerminalRecords,
+    removeTerminalFromRegistry: mockRemoveTerminalFromRegistry,
+    getIdleSince: vi.fn(() => null)
 }))
 
 vi.mock('@/shell/edge/main/terminals/send-text-to-terminal', () => ({
@@ -96,6 +99,7 @@ function createTerminalRecord(
         isHeadless,
         executeCommand: true,
         isMinimized: false,
+        contextContent: '',
         ...overrides
     }
 
@@ -231,10 +235,22 @@ describe('MCP tool guards for headless agents', () => {
     })
 
     describe('closeAgentTool', () => {
-        it('delegates to killHeadlessAgent for headless terminals', () => {
+        it('errors when closing a running (non-idle) agent without forceWithReason', () => {
             const response: McpToolResponse = closeAgentTool({
                 terminalId: 'headless-agent',
                 callerTerminalId: 'caller-terminal'
+            })
+
+            const payload: Record<string, unknown> = parseResponsePayload(response)
+            expect(payload.success).toBe(false)
+            expect(payload.error).toContain('still running')
+        })
+
+        it('delegates to killHeadlessAgent for headless terminals when forced', () => {
+            const response: McpToolResponse = closeAgentTool({
+                terminalId: 'headless-agent',
+                callerTerminalId: 'caller-terminal',
+                forceWithReason: 'test: verifying kill delegation'
             })
 
             expect(mockKillHeadlessAgent).toHaveBeenCalledOnce()
@@ -260,6 +276,37 @@ describe('MCP tool guards for headless agents', () => {
                 callerTerminalId: 'caller-terminal'
             })
 
+            const {uiAPI} = await import('@/shell/edge/main/ui-api-proxy')
+            expect(uiAPI.closeTerminalById).not.toHaveBeenCalled()
+        })
+
+        it('calls removeTerminalFromRegistry when killing a running headless agent', () => {
+            closeAgentTool({
+                terminalId: 'headless-agent',
+                callerTerminalId: 'caller-terminal',
+                forceWithReason: 'test: verifying registry cleanup'
+            })
+
+            expect(mockRemoveTerminalFromRegistry).toHaveBeenCalledWith('headless-agent')
+        })
+
+        it('cleans up exited headless agent registry record directly', async () => {
+            const exitedHeadlessRecord: TerminalRecord = {
+                ...createTerminalRecord('exited-headless', true),
+                status: 'exited',
+                exitCode: 0
+            }
+            mockGetTerminalRecords.mockReturnValue([callerRecord, exitedHeadlessRecord])
+            mockIsHeadlessAgent.mockReturnValue(false) // process already gone
+
+            const response: McpToolResponse = closeAgentTool({
+                terminalId: 'exited-headless',
+                callerTerminalId: 'caller-terminal'
+            })
+
+            const payload: Record<string, unknown> = parseResponsePayload(response)
+            expect(payload.success).toBe(true)
+            expect(mockRemoveTerminalFromRegistry).toHaveBeenCalledWith('exited-headless')
             const {uiAPI} = await import('@/shell/edge/main/ui-api-proxy')
             expect(uiAPI.closeTerminalById).not.toHaveBeenCalled()
         })
