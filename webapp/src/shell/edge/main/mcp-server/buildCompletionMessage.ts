@@ -7,6 +7,7 @@ export interface AgentResult {
     terminalId: string
     agentName: string | undefined
     status: 'running' | 'idle' | 'exited'
+    exitCode: number | null
     nodes: Array<{nodeId: string; title: string}>
 }
 
@@ -19,7 +20,10 @@ export function buildCompletionMessage(agentResults: AgentResult[]): string {
             agent.nodes.length > 0
                 ? agent.nodes.map((n: {nodeId: string; title: string}) => n.title).join(', ')
                 : '(no nodes created)'
-        lines.push(`- ${name} [${agent.status}]: ${nodeList}`)
+        const statusLabel: string = agent.status === 'exited' && agent.exitCode !== null
+            ? `exited:${agent.exitCode}`
+            : agent.status
+        lines.push(`- ${name} [${statusLabel}]: ${nodeList}`)
     }
 
     lines.push('')

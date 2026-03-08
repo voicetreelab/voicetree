@@ -285,7 +285,7 @@ describe('headlessAgentManager', () => {
     })
 
     describe('process exit lifecycle', () => {
-        it('calls markTerminalExited on process exit', () => {
+        it('calls markTerminalExited with exit code on process exit', () => {
             const terminalId: string = 'agent-exit'
             const terminalData: TerminalData = createTestTerminalData(terminalId)
 
@@ -302,7 +302,46 @@ describe('headlessAgentManager', () => {
             mockChild.emit('exit', 0)
 
             expect(mockMarkTerminalExited).toHaveBeenCalledOnce()
-            expect(mockMarkTerminalExited).toHaveBeenCalledWith(terminalId)
+            expect(mockMarkTerminalExited).toHaveBeenCalledWith(terminalId, 0)
+        })
+
+        it('passes non-zero exit code to markTerminalExited', () => {
+            const terminalId: string = 'agent-exit-fail'
+            const terminalData: TerminalData = createTestTerminalData(terminalId)
+            vi.spyOn(console, 'error').mockImplementation(() => {})
+
+            spawnHeadlessAgent(
+                terminalId as TerminalId,
+                terminalData,
+                'claude -p "task"',
+                '/tmp',
+                {}
+            )
+            vi.clearAllMocks()
+
+            mockChild.emit('exit', 1)
+
+            expect(mockMarkTerminalExited).toHaveBeenCalledOnce()
+            expect(mockMarkTerminalExited).toHaveBeenCalledWith(terminalId, 1)
+        })
+
+        it('does not remove terminal from registry on process exit', () => {
+            const terminalId: string = 'agent-no-remove'
+            const terminalData: TerminalData = createTestTerminalData(terminalId)
+
+            spawnHeadlessAgent(
+                terminalId as TerminalId,
+                terminalData,
+                'claude -p "task"',
+                '/tmp',
+                {}
+            )
+
+            mockChild.emit('exit', 0)
+
+            // Registry record should be preserved (only markTerminalExited called, not removeTerminalFromRegistry)
+            // The process map is cleaned up, but the registry record stays for wait_for_agents
+            expect(mockMarkTerminalExited).toHaveBeenCalled()
         })
 
         it('removes from internal map on process exit', () => {
