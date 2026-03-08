@@ -250,20 +250,20 @@ describe('createContextNode - Integration Tests', () => {
           const nodeContentsSection: string = nodeContentsMatch[1]
 
           // Extract node IDs from Node Contents section
-          // Node contents has format: <absolute_file_path.md> \n content \n </absolute_file_path.md>
-          // Note: absolute paths contain slashes, so we need a regex that matches them
-          const nodeContentIds: string[] = Array.from(
-            nodeContentsSection.matchAll(/<([^>]+\.md)>\s*\n/g)
+          // Neighbor nodes have format: - **Title** (filepath.md)
+          // Task node is in <TASK> block with its filepath
+          const neighborNodeIds: string[] = Array.from(
+            nodeContentsSection.matchAll(/\(([^)]+\.md)\)/g)
           ).map(match => match[1].trim())
 
-          // VERIFY: Parent node should be present in contents
-          expect(nodeContentIds).toContain(parentNodeId)
+          // VERIFY: Parent/task node should be present in TASK block
+          expect(nodeContentsSection).toContain(parentNodeId)
 
-          // VERIFY: Should have multiple nodes (parent + connected nodes)
-          expect(nodeContentIds.length).toBeGreaterThan(1)
+          // VERIFY: Should have neighbor nodes (connected nodes, excluding task node)
+          expect(neighborNodeIds.length).toBeGreaterThan(0)
 
-          // VERIFY: All node IDs should be valid (end with .md)
-          nodeContentIds.forEach((nodeId: string) => {
+          // VERIFY: All neighbor node IDs should be valid (end with .md)
+          neighborNodeIds.forEach((nodeId: string) => {
             expect(nodeId).toMatch(/\.md$/)
           })
         }

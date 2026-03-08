@@ -30,12 +30,12 @@ async function getSemanticRelevantNodes(
 ): Promise<readonly NodeIdAndFilePath[]> {
     if (topK <= 0 || !query.trim()) return []
 
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 1000)
+    const controller: AbortController = new AbortController()
+    const timeoutId: ReturnType<typeof setTimeout> = setTimeout(() => controller.abort(), 1000)
 
     try {
         // Race the askQuery against the abort signal
-        const response = await Promise.race([
+        const response: Awaited<ReturnType<typeof askQuery>> = await Promise.race([
             askQuery(query, topK),
             new Promise<never>((_, reject) => {
                 controller.signal.addEventListener('abort', () => {
@@ -141,6 +141,7 @@ export async function createContextNode(
     // 6. EDGE: Build markdown content with frontmatter
     // Context node is orphaned (no edges to task node) - terminal shadow will connect to it
     //console.log("[createContextNode] Building content...")
+    const contextMaxChars: number = settings.contextMaxChars
     const content: string = buildContextNodeContent(
         parentNodeId,
         parentTitle,
@@ -148,7 +149,8 @@ export async function createContextNode(
         asciiTree,
         subgraph,
         semanticNodeIds,
-        agentInstructions
+        agentInstructions,
+        contextMaxChars
     )
     //console.log("[createContextNode] Content length:", content.length)
 
@@ -198,10 +200,11 @@ function buildContextNodeContent(
     asciiTree: string,
     subgraph: Graph,
     semanticNodeIds: readonly NodeIdAndFilePath[],
-    agentInstructions?: string
+    agentInstructions?: string,
+    contextMaxChars?: number
 ): string {
     // todo this should be done by creatingGraphNode, and then calling to markdown function on it.
-    const nodeDetailsList: string = generateNodeDetailsList(subgraph, parentNodeId, semanticNodeIds, agentInstructions)
+    const nodeDetailsList: string = generateNodeDetailsList(subgraph, parentNodeId, semanticNodeIds, agentInstructions, contextMaxChars)
 
     // Collect all node IDs from the subgraph (excluding context nodes to prevent self-referencing)
     const containedNodeIds: readonly string[] = Object.keys(subgraph.nodes)
@@ -231,44 +234,110 @@ ${nodeDetailsList}
 }
 
 /**
- * Generate markdown list of node details in depth-first traversal order.
- * Matches the order of nodes in the ASCII tree visualization.
- * Nodes found via semantic search are marked with [SEMANTIC].
+ * Per-node summary character limit for neighbor nodes.
+ * Neighbor nodes get title + brief summary (not full content).
+ * Agents can read full content via get_unseen_nodes_nearby or file read.
+ */
+const PER_NODE_SUMMARY_CHARS: number = 200
+
+/**
+ * Escape wikilink markers so they don't create edges when written to disk.
+ * Converts [link]* markers to [\[link]\]
+ */
+function escapeWikilinkMarkers(content: string): string {
+    return content.replace(/\[([^\]]+)\]\*/g, '[\\[$1]\\]')
+}
+
+/**
+ * Truncate content to maxChars, adding a truncation notice if content was cut.
+ */
+function truncateContent(content: string, maxChars: number): string {
+    if (content.length <= maxChars) return content
+    return content.slice(0, maxChars) + `\n...(truncated — ${content.length - maxChars} chars omitted)`
+}
+
+/**
+ * Generate markdown list of node details, ranked by relevance and budget-constrained.
+ *
+ * Priority ordering: semantic matches first, then graph-distance order.
+ * Neighbor nodes get compact summaries (title + first ~200 chars + filepath).
+ * Total output is capped at contextMaxChars — nodes that don't fit are listed as titles only.
+ *
+ * The task node (startNodeId) is always included at the end, untruncated,
+ * inside a <TASK> tag — this is the most important context for the agent.
  */
 function generateNodeDetailsList(
     subgraph: Graph,
     _startNodeId: NodeIdAndFilePath,
     semanticNodeIds: readonly NodeIdAndFilePath[],
-    agentInstructions?: string
+    agentInstructions?: string,
+    contextMaxChars?: number
 ): string {
-    const lines: string[] = []
+    const budget: number = contextMaxChars ?? 30000
+    const semanticSet: ReadonlySet<string> = new Set(semanticNodeIds)
 
-    // Iterate over all nodes in subgraph
-    // Note: Order won't match ASCII tree exactly, but ensures all nodes are included
-    // (getNodeIdsInTraversalOrder only follows outgoing edges, missing nodes reachable via incoming edges)
-    for (const nodeId of Object.keys(subgraph.nodes)) {
+    // Collect non-context, non-start nodes and sort: semantic first, then original order
+    const nodeIds: readonly string[] = Object.keys(subgraph.nodes)
+        .filter((nodeId: string) => {
+            const node: GraphNode = subgraph.nodes[nodeId]
+            return !node.nodeUIMetadata.isContextNode && nodeId !== _startNodeId
+        })
+        .sort((a: string, b: string) => {
+            const aSemantic: boolean = semanticSet.has(a)
+            const bSemantic: boolean = semanticSet.has(b)
+            if (aSemantic && !bSemantic) return -1
+            if (!aSemantic && bSemantic) return 1
+            return 0
+        })
+
+    // Reserve space for the task node (untruncated) + agent instructions
+    const startNodeContent: string = escapeWikilinkMarkers(
+        subgraph.nodes[_startNodeId].contentWithoutYamlOrLinks
+    )
+    const taskBlock: string = `<TASK> IMPORTANT. YOUR specific task, and the most relevant context is the source note you were spawned from, which is:
+        ${_startNodeId}: ${startNodeContent} </TASK>`
+    const instructionsBlock: string = agentInstructions
+        ? `<AGENT_INSTRUCTIONS>\n${agentInstructions}\n</AGENT_INSTRUCTIONS>`
+        : ''
+    const reservedChars: number = taskBlock.length + instructionsBlock.length
+
+    // Fill neighbor node summaries within remaining budget
+    let usedChars: number = reservedChars
+    const lines: string[] = []
+    const excludedNodeIds: string[] = []
+
+    for (const nodeId of nodeIds) {
         const node: GraphNode = subgraph.nodes[nodeId]
-        // Skip context nodes to prevent self-referencing in generated context
-        if (node.nodeUIMetadata.isContextNode) {
+        const title: string = getNodeTitle(node)
+        const marker: string = semanticSet.has(nodeId) ? ' [SEMANTIC]' : ''
+        const rawContent: string = escapeWikilinkMarkers(node.contentWithoutYamlOrLinks)
+        const summary: string = truncateContent(rawContent, PER_NODE_SUMMARY_CHARS)
+        const line: string = `- **${title}**${marker} (${nodeId})\n  ${summary}`
+
+        if (usedChars + line.length > budget) {
+            excludedNodeIds.push(nodeId)
             continue
         }
-        // Mark nodes found via semantic search
-        const isSemantic: boolean = semanticNodeIds.includes(nodeId)
-        const marker: string = isSemantic ? ' [SEMANTIC]' : ''
-        // Convert [link]* markers to [\[link]\] to show they were wikilinks, while preventing them from
-        // being parsed as actual [[link]] wikilinks when written to disk.
-        const contentWithoutLinkStars: string = node.contentWithoutYamlOrLinks.replace(/\[([^\]]+)\]\*/g, '[\\[$1]\\]')
-        lines.push(`<${node.absoluteFilePathIsID}>${marker} \n ${contentWithoutLinkStars} \n </${node.absoluteFilePathIsID}>`)
+
+        lines.push(line)
+        usedChars += line.length
     }
 
-    // Convert [link]* markers from the start node content too
-    const startNodeContent: string = subgraph.nodes[_startNodeId].contentWithoutYamlOrLinks.replace(/\[([^\]]+)\]\*/g, '[\\[$1]\\]')
+    // Append excluded nodes as title-only references (cheap, still useful for navigation)
+    if (excludedNodeIds.length > 0) {
+        const titles: string = excludedNodeIds
+            .map((id: string) => {
+                const node: GraphNode = subgraph.nodes[id]
+                return `- ${getNodeTitle(node)}: ${id}`
+            })
+            .join('\n')
+        lines.push(`\n<ADDITIONAL_NEARBY_NODES count="${excludedNodeIds.length}" note="Content omitted — use get_unseen_nodes_nearby or read the file directly">\n${titles}\n</ADDITIONAL_NEARBY_NODES>`)
+    }
 
-    lines.push(`<TASK> IMPORTANT. YOUR specific task, and the most relevant context is the source note you were spawned from, which is:
-        ${_startNodeId}: ${startNodeContent} </TASK>`)
-
-    if (agentInstructions) {
-        lines.push(`<AGENT_INSTRUCTIONS>\n${agentInstructions}\n</AGENT_INSTRUCTIONS>`)
+    // Task node always last (benefits from recency bias in LLM attention)
+    lines.push(taskBlock)
+    if (instructionsBlock) {
+        lines.push(instructionsBlock)
     }
 
     return lines.join('\n')

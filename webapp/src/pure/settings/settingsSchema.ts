@@ -179,6 +179,7 @@ VOICETREE_MCP_PORT = $VOICETREE_MCP_PORT
 
     // ── Advanced (default section — no need to specify) ──────────────────
     contextNodeMaxDistance: { default: 5,   label: 'Context Distance',   number: { min: 1, max: 20, step: 1 } },
+    contextMaxChars:       { default: 30000, label: 'Context Budget (chars)', number: { min: 5000, max: 100000, step: 5000 } },
     askModeContextDistance: { default: 3,   label: 'Ask Mode Distance',  number: { min: 1, max: 20, step: 1 } },
     defaultAllowlistPatterns: { default: [] as readonly string[], label: 'Default Allowlist Patterns' },
     starredFolders:         { default: (homeDir ? [`${homeDir}/voicetree/workflows`] : []) as readonly string[], label: 'Starred Folders' },
