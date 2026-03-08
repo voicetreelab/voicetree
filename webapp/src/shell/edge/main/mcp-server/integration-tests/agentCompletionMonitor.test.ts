@@ -373,4 +373,5 @@ describe('AgentCompletionMonitor integration', () => {
 
         cancelMonitor(_monitorId)
     })
+
 })

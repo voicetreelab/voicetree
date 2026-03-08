@@ -32,6 +32,7 @@ import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals
 import {getWatchStatus} from "@/shell/edge/main/graph/watch_folder/watchFolder";
 import {buildTerminalEnvVars} from '@/shell/edge/main/terminals/buildTerminalEnvVars';
 import {spawnHeadlessAgent} from '@/shell/edge/main/terminals/headlessAgentManager';
+import {registerChildIfMonitored} from '@/shell/edge/main/mcp-server/agent-completion-monitor';
 
 /**
  * Spawn a terminal with a context node, orchestrated from main process
@@ -152,6 +153,10 @@ export async function spawnTerminalWithContextNode(
         // Call UI to launch terminal (via UI API pattern)
         // Note: uiAPI sends IPC message, no need to await (fire-and-forget)
         void uiAPI.launchTerminalOntoUI(contextNodeId, terminalData, skipFitAnimation);
+    }
+
+    if (parentTerminalId) {
+        registerChildIfMonitored(parentTerminalId, getTerminalId(terminalData))
     }
 
     return {

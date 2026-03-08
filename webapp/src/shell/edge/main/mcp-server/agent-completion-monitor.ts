@@ -29,19 +29,20 @@ export function startMonitor(
     pollIntervalMs: number = 5000
 ): string {
     const monitorId: string = `monitor-${nextMonitorId++}`
+    const effectiveIds: string[] = [...terminalIds, ...findExistingDescendants(terminalIds)]
 
     const intervalId: ReturnType<typeof setInterval> = setInterval(() => {
         const now: number = Date.now()
         const currentRecords: TerminalRecord[] = getTerminalRecords()
         const targetRecords: TerminalRecord[] = currentRecords.filter(
-            (r: TerminalRecord) => terminalIds.includes(r.terminalId)
+            (r: TerminalRecord) => effectiveIds.includes(r.terminalId)
         )
         const graph: Graph = getGraph()
 
         // Detect terminals that vanished from registry (should not happen after Fix 1,
         // but defend against it). Treat missing terminals as complete.
         const foundIds: Set<string> = new Set(targetRecords.map((r: TerminalRecord) => r.terminalId))
-        const missingIds: string[] = terminalIds.filter((id: string) => !foundIds.has(id))
+        const missingIds: string[] = effectiveIds.filter((id: string) => !foundIds.has(id))
 
         const allFoundDone: boolean = targetRecords.every(
             (r: TerminalRecord) => isAgentComplete(r, graph, now, currentRecords)
@@ -75,8 +76,48 @@ export function startMonitor(
         }
     }, pollIntervalMs)
 
-    monitors.set(monitorId, {intervalId, callerTerminalId, terminalIds})
+    monitors.set(monitorId, {intervalId, callerTerminalId, terminalIds: effectiveIds})
     return monitorId
+}
+
+/**
+ * Register a newly-spawned child with any active monitor that watches its parent.
+ * Called from spawnTerminalWithContextNode after both headless and interactive spawn paths.
+ * Transitive chains (A→B→C) work automatically: by the time C spawns, B is already
+ * in the monitor's list, so C gets added too.
+ */
+export function registerChildIfMonitored(
+    parentTerminalId: string,
+    childTerminalId: string
+): void {
+    for (const [_monitorId, entry] of monitors) {
+        if (entry.terminalIds.includes(parentTerminalId)) {
+            entry.terminalIds.push(childTerminalId)
+        }
+    }
+}
+
+/**
+ * BFS over terminal registry to find all descendants of the given parent IDs.
+ * Called once in startMonitor to catch children spawned before the monitor was created.
+ */
+function findExistingDescendants(parentIds: string[]): string[] {
+    const records: TerminalRecord[] = getTerminalRecords()
+    const watched: Set<string> = new Set(parentIds)
+    const descendants: string[] = []
+    let changed: boolean = true
+    while (changed) {
+        changed = false
+        for (const r of records) {
+            const pid: string | null = r.terminalData.parentTerminalId
+            if (pid && watched.has(pid) && !watched.has(r.terminalId)) {
+                descendants.push(r.terminalId)
+                watched.add(r.terminalId)
+                changed = true
+            }
+        }
+    }
+    return descendants
 }
 
 export function cancelMonitor(monitorId: string): void {
