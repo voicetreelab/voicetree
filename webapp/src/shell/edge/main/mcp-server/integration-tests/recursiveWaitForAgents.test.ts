@@ -17,7 +17,7 @@ vi.mock('@/shell/edge/main/terminals/send-text-to-terminal', () => ({
     sendTextToTerminal: vi.fn()
 }))
 
-import {startMonitor, cancelMonitor, registerChildIfMonitored} from '@/shell/edge/main/mcp-server/agent-completion-monitor'
+import {startMonitor, registerChildIfMonitored} from '@/shell/edge/main/mcp-server/agent-completion-monitor'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getTerminalRecords} from '@/shell/edge/main/terminals/terminal-registry'
 import {sendTextToTerminal} from '@/shell/edge/main/terminals/send-text-to-terminal'
