@@ -42,6 +42,7 @@ import {
     resolveOverrides,
     formatViolationError,
 } from './createGraphValidation'
+import {registerAgentNodes} from './agentNodeIndex'
 
 /** A parent reference: object with filename + edge label (edge label required, use "" for no label). */
 export type ParentRef = { readonly filename: string; readonly edgeLabel: string }
@@ -457,6 +458,10 @@ export async function createGraphTool({
     if (batchDelta.length > 0) {
         await applyGraphDeltaToDBThroughMemAndUIAndEditors(batchDelta)
     }
+
+    // Register in agent node index (eliminates race with file watcher)
+    registerAgentNodes(agentName, sortedNodes.flatMap((n: CreateGraphNodeInput) =>
+        createdNodes.has(n.filename) ? [{nodeId: createdNodes.get(n.filename)!.nodeId, title: n.title}] : []))
 
     // Update caller's context node to include all new node IDs
     try {

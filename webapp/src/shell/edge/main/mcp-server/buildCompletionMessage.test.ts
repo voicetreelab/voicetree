@@ -29,8 +29,8 @@ describe('buildCompletionMessage', () => {
         ]
         const msg: string = buildCompletionMessage(agents)
         expect(msg).toContain('[WaitForAgents] All agents completed.')
-        expect(msg).toContain('- Alice [exited:0]: Design doc, Implementation')
-        expect(msg).toContain('- Bob [idle]: Progress update')
+        expect(msg).toContain('- Alice [exited:0]: Design doc (n1), Implementation (n2)')
+        expect(msg).toContain('- Bob [idle]: Progress update (n3)')
     })
 
     it('falls back to terminalId when agentName is undefined', () => {

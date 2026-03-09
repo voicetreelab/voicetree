@@ -215,9 +215,13 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, details, p
             }
 
             // Spawn terminal on the new task node (with parent terminal for tree-style tabs)
-            // When replaceSelf, the successor inherits the caller's terminal ID
+            // When replaceSelf, the successor inherits the caller's terminal ID and its parent
+            // (not the caller itself as parent — that would create a self-referential cycle)
+            const replaceSelfParentId: string | undefined = replaceSelf
+                ? (callerRecord?.terminalData.parentTerminalId ?? undefined)
+                : callerTerminalId
             const {terminalId, contextNodeId}: {terminalId: string; contextNodeId: string} =
-                await spawnTerminalWithContextNode(taskNodeId, resolvedAgentCommand, undefined, true, false, undefined, resolvedSpawnDirectory, callerTerminalId, undefined, promptTemplate, headless, replaceSelf ? callerTerminalId : undefined, envOverrides)
+                await spawnTerminalWithContextNode(taskNodeId, resolvedAgentCommand, undefined, true, false, undefined, resolvedSpawnDirectory, replaceSelfParentId, undefined, promptTemplate, headless, replaceSelf ? callerTerminalId : undefined, envOverrides)
 
             return buildJsonResponse({
                 success: true,
@@ -283,9 +287,12 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, details, p
 
         // Pass skipFitAnimation: true for MCP spawns to avoid interrupting user's viewport
         // Pass callerTerminalId as parentTerminalId for tree-style tabs
-        // When replaceSelf, the successor inherits the caller's terminal ID
+        // When replaceSelf, successor inherits caller's parent (not itself as parent — avoids cycle)
+        const replaceSelfParentId2: string | undefined = replaceSelf
+            ? (callerRecord?.terminalData.parentTerminalId ?? undefined)
+            : callerTerminalId
         const {terminalId, contextNodeId}: {terminalId: string; contextNodeId: string} =
-            await spawnTerminalWithContextNode(resolvedNodeId, resolvedAgentCommand, undefined, true, false, undefined, resolvedSpawnDirectory, callerTerminalId, details, promptTemplate, headless, replaceSelf ? callerTerminalId : undefined, envOverrides)
+            await spawnTerminalWithContextNode(resolvedNodeId, resolvedAgentCommand, undefined, true, false, undefined, resolvedSpawnDirectory, replaceSelfParentId2, details, promptTemplate, headless, replaceSelf ? callerTerminalId : undefined, envOverrides)
 
         return buildJsonResponse({
             success: true,

@@ -12,7 +12,7 @@ import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/termina
 import {sendTextToTerminal} from '@/shell/edge/main/terminals/send-text-to-terminal'
 import {isAgentComplete, getAgentStatus} from './isAgentComplete'
 import {buildCompletionMessage, type AgentResult} from './buildCompletionMessage'
-import {getNewNodesForAgent} from './getNewNodesForAgent'
+import {getAgentNodes, type AgentNodeEntry} from './agentNodeIndex'
 
 type MonitorEntry = {
     intervalId: ReturnType<typeof setInterval>
@@ -49,13 +49,16 @@ export function startMonitor(
         )
 
         if (allFoundDone) {
-            const results: AgentResult[] = targetRecords.map((r: TerminalRecord) => ({
-                terminalId: r.terminalId,
-                agentName: r.terminalData.agentName,
-                status: getAgentStatus(r),
-                exitCode: r.exitCode,
-                nodes: getNewNodesForAgent(graph, r.terminalData.agentName)
-            }))
+            const results: AgentResult[] = targetRecords.map((r: TerminalRecord) => {
+                const indexNodes: readonly AgentNodeEntry[] = getAgentNodes(r.terminalData.agentName)
+                return {
+                    terminalId: r.terminalId,
+                    agentName: r.terminalData.agentName,
+                    status: getAgentStatus(r),
+                    exitCode: r.exitCode,
+                    nodes: indexNodes.map((n: AgentNodeEntry) => ({nodeId: n.nodeId, title: n.title}))
+                }
+            })
 
             // Add entries for any terminals that vanished from registry
             for (const missingId of missingIds) {

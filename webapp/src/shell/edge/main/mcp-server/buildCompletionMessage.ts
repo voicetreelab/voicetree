@@ -18,7 +18,7 @@ export function buildCompletionMessage(agentResults: AgentResult[]): string {
         const name: string = agent.agentName ?? agent.terminalId
         const nodeList: string =
             agent.nodes.length > 0
-                ? agent.nodes.map((n: {nodeId: string; title: string}) => n.title).join(', ')
+                ? agent.nodes.map((n: {nodeId: string; title: string}) => `${n.title} (${n.nodeId})`).join(', ')
                 : '(no nodes created)'
         const statusLabel: string = agent.status === 'exited' && agent.exitCode !== null
             ? `exited:${agent.exitCode}`

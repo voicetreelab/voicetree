@@ -40,8 +40,15 @@ function getChildRecords(parentId: string, allRecords: readonly TerminalRecord[]
  * Check if an agent and all its descendant children are complete.
  * An agent with active (non-complete) children is NOT considered complete,
  * even if the agent itself is idle — it's waiting for its children to finish.
+ *
+ * Uses a visited set to prevent infinite recursion from cycles in the
+ * parent-child graph (e.g., replaceSelf creating terminalId === parentTerminalId).
  */
-export function isAgentComplete(record: TerminalRecord, graph: Graph, now: number, allRecords: readonly TerminalRecord[]): boolean {
+export function isAgentComplete(record: TerminalRecord, graph: Graph, now: number, allRecords: readonly TerminalRecord[], visited?: Set<string>): boolean {
+    const seen: Set<string> = visited ?? new Set()
+    if (seen.has(record.terminalId)) return true // cycle — treat as complete to break recursion
+    seen.add(record.terminalId)
+
     const status: AgentStatus = getAgentStatus(record)
     if (status === 'running') return false
 
@@ -60,7 +67,7 @@ export function isAgentComplete(record: TerminalRecord, graph: Graph, now: numbe
     const selfComplete: boolean = idleSince !== null && (now - idleSince) >= SUSTAINED_IDLE_MS
     if (!selfComplete) return false
 
-    // Check all child terminals are also complete (recursive)
+    // Check all child terminals are also complete (recursive, with cycle detection)
     const children: TerminalRecord[] = getChildRecords(record.terminalId, allRecords)
-    return children.every((child: TerminalRecord) => isAgentComplete(child, graph, now, allRecords))
+    return children.every((child: TerminalRecord) => isAgentComplete(child, graph, now, allRecords, seen))
 }
