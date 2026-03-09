@@ -29,7 +29,7 @@ import { refreshSpatialIndex } from '@/shell/UI/cytoscape-graph-ui/services/spat
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
 import { panToTrackedNode, clearPendingPan, hasPendingPan, setPendingEditorFocusPan } from '@/shell/edge/UI-edge/state/PendingPanStore';
-import { getFocusedEditorNodeId } from '@/shell/edge/UI-edge/floating-windows/speech-to-focused';
+import { getFocusedEditorNodeId, getFocusedTerminalShadowNodeId } from '@/shell/edge/UI-edge/floating-windows/speech-to-focused';
 import { getResponsivePadding } from '@/utils/responsivePadding';
 import { onSettingsChange } from '@/shell/edge/UI-edge/api';
 import type { AutoLayoutOptions, LayoutConfig } from './autoLayoutTypes';
@@ -103,12 +103,17 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     void window.electronAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);
     layoutRunning = false;
 
-    // If no explicit pan was requested but an editor is focused, pan to keep it in view.
-    // This ensures editing a node stays in viewport when layout runs from external changes.
+    // If no explicit pan was requested but an editor or terminal is focused, pan to keep it in view.
+    // This ensures editing a node or typing in a terminal stays in viewport when layout runs from external changes.
     if (!hasPendingPan()) {
       const focusedNodeId: string | null = getFocusedEditorNodeId();
       if (focusedNodeId) {
         setPendingEditorFocusPan(focusedNodeId);
+      } else {
+        const focusedTerminalShadowId: string | null = getFocusedTerminalShadowNodeId();
+        if (focusedTerminalShadowId) {
+          setPendingEditorFocusPan(focusedTerminalShadowId);
+        }
       }
     }
 

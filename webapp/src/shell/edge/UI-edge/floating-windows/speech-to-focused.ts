@@ -44,6 +44,27 @@ export function getFocusedEditorNodeId(): string | null {
 }
 
 /**
+ * Get the shadow node ID of the currently focused terminal (if any).
+ * Uses DOM traversal: finds closest floating window with a .xterm,
+ * then derives shadow node ID from the window ID convention (terminalId + '-anchor-shadowNode').
+ */
+export function getFocusedTerminalShadowNodeId(): string | null {
+  const active: Element | null = document.activeElement;
+  if (!active) return null;
+
+  // Must be inside an xterm terminal
+  if (!active.closest('.xterm')) return null;
+
+  const floatingWindow: Element | null = active.closest('[data-floating-window-id]');
+  if (!floatingWindow) return null;
+
+  const windowId: string | null = floatingWindow.getAttribute('data-floating-window-id');
+  if (!windowId) return null;
+
+  return `${windowId}-anchor-shadowNode`;
+}
+
+/**
  * Detect which floating window (editor or terminal) currently has focus.
  * Uses document.activeElement and DOM traversal.
  */

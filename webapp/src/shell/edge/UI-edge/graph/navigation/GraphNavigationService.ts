@@ -86,25 +86,35 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
     cy.$(':selected').unselect();
     setActiveTerminalId(terminalId);
 
-    // Start with terminal shadow node
+    // Collect terminal shadow node + its parent (context node)
     let nodesToFit: CollectionReturnValue = cy.collection().union(terminalShadowNode);
 
-    // Helper to filter out other shadow nodes from neighborhood (exclude editor/terminal shadows)
-    const excludeOtherShadowNodes: (nodes: CollectionReturnValue) => CollectionReturnValue =
-      (nodes: CollectionReturnValue): CollectionReturnValue =>
-        nodes.filter((n: NodeSingular) => n.data('isShadowNode') !== true);
-
-    // Add task node (anchoredToNodeId) and its neighbors (both incoming and outgoing, excluding other shadow nodes)
-    if (O.isSome(terminal.anchoredToNodeId)) {
-      const taskNodeId: string = terminal.anchoredToNodeId.value;
-      const taskNode: CollectionReturnValue = cy.getElementById(taskNodeId);
-      if (taskNode.length > 0) {
-        nodesToFit = nodesToFit.union(excludeOtherShadowNodes(taskNode.closedNeighborhood().nodes() as CollectionReturnValue));
+    // Use anchoredToNodeId (task node) if set, otherwise fall back to attachedToContextNodeId
+    const parentNodeId: string | undefined = O.isSome(terminal.anchoredToNodeId)
+      ? terminal.anchoredToNodeId.value
+      : terminal.attachedToContextNodeId;
+    if (parentNodeId) {
+      const parentNode: CollectionReturnValue = cy.getElementById(parentNodeId);
+      if (parentNode.length > 0) {
+        nodesToFit = nodesToFit.union(parentNode);
       }
     }
 
-    // Fit viewport to show all nodes - collection takes ~95% of viewport
-    cyFitWithRelativeZoom(cy, nodesToFit, 0.95);
+    // If the zoom required to show terminal + parent is too zoomed out (< 0.7),
+    // just fit to the terminal shadow node itself
+    const TARGET_FRACTION: number = 0.95;
+    const MIN_ZOOM_THRESHOLD: number = 0.7;
+    const bb: { w: number; h: number } = nodesToFit.boundingBox();
+    const requiredZoom: number = (bb.w > 0 && bb.h > 0)
+      ? Math.min((cy.width() * TARGET_FRACTION) / bb.w, (cy.height() * TARGET_FRACTION) / bb.h)
+      : Infinity;
+
+    if (requiredZoom < MIN_ZOOM_THRESHOLD) {
+      // Too zoomed out to see both — just show the terminal shadow node
+      cyFitWithRelativeZoom(cy, terminalShadowNode, 0.1);
+    } else {
+      cyFitWithRelativeZoom(cy, nodesToFit, TARGET_FRACTION);
+    }
 
     // Focus the terminal so keyboard input goes directly to it
     // Note: terminals are stored in vanillaFloatingWindowInstances with terminalId as key (not shadowNodeId)
