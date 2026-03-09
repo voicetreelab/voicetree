@@ -118,4 +118,26 @@ describe('expandEnvVarsInValues', () => {
     const result: Record<string, string> = expandEnvVarsInValues(input);
     expect(result.TEST).toBe('Should not match $lowercase or $123INVALID');
   });
+
+  it('should expand nested references (AGENT_PROMPT -> AGENT_PROMPT_CORE -> leaf vars)', () => {
+    const input: Record<string, string> = {
+      CONTEXT_NODE_PATH: '/path/to/node.md',
+      AGENT_NAME: 'Ama',
+      AGENT_PROMPT_CORE: 'Read $CONTEXT_NODE_PATH as $AGENT_NAME',
+      AGENT_PROMPT: '$AGENT_PROMPT_CORE',
+    };
+    const result: Record<string, string> = expandEnvVarsInValues(input);
+    expect(result.AGENT_PROMPT_CORE).toBe('Read /path/to/node.md as Ama');
+    expect(result.AGENT_PROMPT).toBe('Read /path/to/node.md as Ama');
+  });
+
+  it('should allow user customization around $AGENT_PROMPT_CORE', () => {
+    const input: Record<string, string> = {
+      CONTEXT_NODE_PATH: '/path/to/node.md',
+      AGENT_PROMPT_CORE: 'Read $CONTEXT_NODE_PATH',
+      AGENT_PROMPT: 'Custom prefix. $AGENT_PROMPT_CORE Also do X.',
+    };
+    const result: Record<string, string> = expandEnvVarsInValues(input);
+    expect(result.AGENT_PROMPT).toBe('Custom prefix. Read /path/to/node.md Also do X.');
+  });
 });

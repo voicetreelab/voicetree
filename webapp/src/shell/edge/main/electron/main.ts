@@ -10,7 +10,7 @@ import {getTerminalManager} from '@/shell/edge/main/terminals/terminal-manager-i
 import {setupToolsDirectory, getToolsDirectory} from './tools-setup';
 import {setupOnboardingDirectory} from './onboarding-setup';
 import {startNotificationScheduler, stopNotificationScheduler} from './notification-scheduler';
-import {migrateAgentPromptIfNeeded, migrateLayoutConfigIfNeeded, migrateStarredFoldersIfNeeded, migrateStarredFoldersBrainRename} from '@/shell/edge/main/settings/settings_IO';
+import {migrateAgentPromptCoreIfNeeded, migrateLayoutConfigIfNeeded, migrateStarredFoldersIfNeeded, migrateStarredFoldersBrainRename} from '@/shell/edge/main/settings/settings_IO';
 import {setBackendPort} from '@/shell/edge/main/state/app-electron-state';
 import {startOTLPReceiver, stopOTLPReceiver} from '@/shell/edge/main/metrics/otlp-receiver';
 import {registerTerminalIpcHandlers} from '@/shell/edge/main/terminals/ipc-terminal-handlers';
@@ -131,22 +131,8 @@ void app.whenReady().then(async () => {
         }
     }
 
-    // Check if AGENT_PROMPT needs migration to new default
-    // Shows dialog after window is ready to ensure proper parent
-    const migrationOccurred: boolean = await migrateAgentPromptIfNeeded();
-    if (migrationOccurred) {
-        const mainWindow: BrowserWindow = BrowserWindow.getAllWindows()[0];
-        if (mainWindow && !mainWindow.isDestroyed()) {
-            void dialog.showMessageBox(mainWindow, {
-                type: 'info',
-                title: 'Agent Prompt Updated',
-                message: 'Agent prompt has been updated to the latest version.',
-                detail: 'Your previous prompt has been saved to AGENT_PROMPT_PREVIOUS_BACKUP in your settings.',
-                buttons: ['OK'],
-                defaultId: 0,
-            });
-        }
-    }
+    // Auto-update AGENT_PROMPT_CORE (never overwrites user's AGENT_PROMPT)
+    await migrateAgentPromptCoreIfNeeded();
 
     // Silently migrate layoutConfig nodeSpacing from old default (70) to new default (120)
     await migrateLayoutConfigIfNeeded();

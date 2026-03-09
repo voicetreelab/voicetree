@@ -27,15 +27,28 @@ export function resolveEnvVars(envVarDefs: Record<string, EnvVarValue>): Record<
 
 /**
  * Expand $VAR_NAME references within env var values using other vars in the same record.
- * This allows AGENT_PROMPT to reference $AGENT_NAME, $CONTEXT_NODE_PATH, etc.
+ * This allows AGENT_PROMPT to reference $AGENT_PROMPT_CORE, which itself references $CONTEXT_NODE_PATH, etc.
+ * Iterates until no more expansions occur (max 5 passes to prevent infinite loops).
  */
 export function expandEnvVarsInValues(envVars: Record<string, string>): Record<string, string> {
-    return Object.fromEntries(
-        Object.entries(envVars).map(([key, value]: readonly [string, string]): readonly [string, string] => {
-            const expanded: string = value.replace(/\$([A-Z_][A-Z0-9_]*)/g, (_match: string, varName: string): string => {
-                return envVars[varName] ?? `$${varName}`;
-            });
-            return [key, expanded];
-        })
-    );
+    let current: Record<string, string> = envVars;
+    for (let pass: number = 0; pass < 5; pass++) {
+        let changed: boolean = false;
+        const next: Record<string, string> = Object.fromEntries(
+            Object.entries(current).map(([key, value]: readonly [string, string]): readonly [string, string] => {
+                const expanded: string = value.replace(/\$([A-Z_][A-Z0-9_]*)/g, (_match: string, varName: string): string => {
+                    return current[varName] ?? `$${varName}`;
+                });
+                if (expanded !== value) {
+                    changed = true;
+                }
+                return [key, expanded];
+            })
+        );
+        current = next;
+        if (!changed) {
+            break;
+        }
+    }
+    return current;
 }

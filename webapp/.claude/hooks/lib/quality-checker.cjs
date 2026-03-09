@@ -55,7 +55,23 @@ class QualityChecker {
     log.info('Running TypeScript compilation check...');
 
     try {
-      const configPath = tsConfigCache.getTsConfigForFile(this.filePath);
+      let configPath;
+      const relToProject = path.relative(projectRoot, this.filePath);
+      if (relToProject.startsWith('..')) {
+        // File is outside project root — walk up to find nearest tsconfig.json
+        let dir = path.dirname(this.filePath);
+        while (dir !== path.dirname(dir)) {
+          const candidate = path.join(dir, 'tsconfig.json');
+          if (require('fs').existsSync(candidate)) { configPath = candidate; break; }
+          dir = path.dirname(dir);
+        }
+        if (!configPath) {
+          log.debug('Skipping TypeScript check — file outside project, no tsconfig found');
+          return;
+        }
+      } else {
+        configPath = tsConfigCache.getTsConfigForFile(this.filePath);
+      }
       if (!require('fs').existsSync(configPath)) {
         log.debug(`No TypeScript config found: ${configPath}`);
         return;

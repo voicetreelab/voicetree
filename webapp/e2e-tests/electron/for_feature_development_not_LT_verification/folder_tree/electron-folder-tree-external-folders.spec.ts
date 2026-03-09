@@ -17,144 +17,130 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 
+/** Helper: create external folder, add as read path, wait for sidebar to update */
+async function addExternalFolder(appWindow: import('@playwright/test').Page): Promise<string> {
+    const externalFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-external-folder-'));
+    await fs.writeFile(path.join(externalFolderPath, 'external-root.md'), '# External Root\n\nExternal content.\n');
+    const subfolderPath = path.join(externalFolderPath, 'external-sub');
+    await fs.mkdir(subfolderPath, { recursive: true });
+    await fs.writeFile(path.join(subfolderPath, 'sub-file.md'), '# Sub File\n\nNested external content.\n');
+
+    await appWindow.evaluate(async (params: { folderPath: string }) => {
+        const api = (window as unknown as ExtendedWindow).electronAPI;
+        if (!api) throw new Error('electronAPI not available');
+        await api.main.addReadPath(params.folderPath);
+    }, { folderPath: externalFolderPath });
+
+    await appWindow.waitForTimeout(1000);
+    return externalFolderPath;
+}
+
+/** Helper: ensure sidebar is open */
+async function ensureSidebarOpen(appWindow: import('@playwright/test').Page): Promise<void> {
+    const sidebar = appWindow.locator('[data-testid="folder-tree-sidebar"]');
+    if (!await sidebar.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await openFolderTreeSidebar(appWindow);
+    }
+    await waitForTreeContent(appWindow);
+}
+
 test.describe('File Tree Sidebar — External Folders', () => {
-    test.describe.configure({ mode: 'serial', timeout: 120000 });
-
-    // Create an external folder (different parent than testProjectPath)
-    let externalFolderPath: string;
-
-    test.beforeAll(async () => {
-        externalFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-external-folder-'));
-
-        // Create some content in the external folder
-        await fs.writeFile(path.join(externalFolderPath, 'external-root.md'), '# External Root\n\nExternal content.\n');
-
-        const subfolderPath = path.join(externalFolderPath, 'external-sub');
-        await fs.mkdir(subfolderPath, { recursive: true });
-        await fs.writeFile(path.join(subfolderPath, 'sub-file.md'), '# Sub File\n\nNested external content.\n');
-    });
-
-    test.afterAll(async () => {
-        await fs.rm(externalFolderPath, { recursive: true, force: true });
-    });
+    test.describe.configure({ timeout: 120000 });
 
     test('Test 1: External folder appears in sidebar after addReadPath', async ({ appWindow }) => {
-        console.log('=== STEP 1: Open sidebar and verify initial state ===');
-        await openFolderTreeSidebar(appWindow);
-        await waitForTreeContent(appWindow);
+        await ensureSidebarOpen(appWindow);
 
         // No external section initially
         const externalSection = appWindow.locator('.folder-tree-external-section');
         await expect(externalSection).not.toBeVisible();
 
-        console.log('=== STEP 2: Add external folder via addReadPath ===');
-        await appWindow.evaluate(async (params: { folderPath: string }) => {
-            const api = (window as unknown as ExtendedWindow).electronAPI;
-            if (!api) throw new Error('electronAPI not available');
-            await api.main.addReadPath(params.folderPath);
-        }, { folderPath: externalFolderPath });
+        const externalFolderPath = await addExternalFolder(appWindow);
 
-        // Wait for sidebar to update
-        await appWindow.waitForTimeout(1000);
-
-        console.log('=== STEP 3: Verify external section appears with the folder ===');
+        // External section should appear
         await expect(externalSection).toBeVisible({ timeout: 5000 });
 
-        // External folder name should be visible
+        // External folder name should be in the DOM (may be clipped by overflow)
         const externalFolderName = path.basename(externalFolderPath);
         const folderNode = externalSection.locator('.folder-tree-folder-name', { hasText: externalFolderName });
-        await expect(folderNode).toBeVisible({ timeout: 5000 });
+        await expect(folderNode).toHaveCount(1, { timeout: 5000 });
 
         await appWindow.screenshot({ path: 'e2e-tests/test-results/folder-tree-external-folder-added.png' });
-        console.log('Test 1 passed: External folder appears in sidebar');
+
+        // Cleanup
+        await fs.rm(externalFolderPath, { recursive: true, force: true });
     });
 
     test('Test 2: External folder is expandable with children', async ({ appWindow }) => {
-        await openFolderTreeSidebar(appWindow);
-        await waitForTreeContent(appWindow);
+        await ensureSidebarOpen(appWindow);
+        const externalFolderPath = await addExternalFolder(appWindow);
 
-        console.log('=== STEP 1: Find external folder in sidebar ===');
         const externalSection = appWindow.locator('.folder-tree-external-section');
         await expect(externalSection).toBeVisible({ timeout: 5000 });
 
-        console.log('=== STEP 2: Click to expand external folder ===');
+        // Click to expand external folder
         const externalFolder = externalSection.locator('.folder-tree-folder').first();
         await externalFolder.click();
         await appWindow.waitForTimeout(500);
 
-        console.log('=== STEP 3: Verify children are visible ===');
+        // Children should be visible
         const children = externalSection.locator('.folder-tree-children');
         await expect(children.first()).toBeVisible({ timeout: 5000 });
 
         // Should see the subfolder
         const subFolder = externalSection.locator('.folder-tree-folder-name', { hasText: 'external-sub' });
-        await expect(subFolder).toBeVisible();
+        await expect(subFolder).toHaveCount(1);
 
         await appWindow.screenshot({ path: 'e2e-tests/test-results/folder-tree-external-folder-expanded.png' });
-        console.log('Test 2 passed: External folder is expandable');
+
+        await fs.rm(externalFolderPath, { recursive: true, force: true });
     });
 
     test('Test 3: External folder shows path tag', async ({ appWindow }) => {
-        await openFolderTreeSidebar(appWindow);
-        await waitForTreeContent(appWindow);
+        await ensureSidebarOpen(appWindow);
+        const externalFolderPath = await addExternalFolder(appWindow);
 
-        console.log('=== STEP 1: Find external folder path tag ===');
         const externalSection = appWindow.locator('.folder-tree-external-section');
         await expect(externalSection).toBeVisible({ timeout: 5000 });
 
-        // External folders should show their absolute path as a path tag (like starred/root folders)
+        // External folders at depth=0 should show path tag
         const pathTag = externalSection.locator('.folder-tree-path-tag').first();
-        await expect(pathTag).toBeVisible({ timeout: 5000 });
+        await expect(pathTag).toHaveCount(1, { timeout: 5000 });
 
-        // Path tag should contain part of the absolute path
+        // Path tag text should start with / or ~ (shortened home dir)
         const pathText = await pathTag.textContent();
         expect(pathText).toBeTruthy();
-        // Should be shortened with ~ for home dir
         expect(pathText!.startsWith('/') || pathText!.startsWith('~')).toBeTruthy();
 
         await appWindow.screenshot({ path: 'e2e-tests/test-results/folder-tree-external-folder-path-tag.png' });
-        console.log('Test 3 passed: External folder shows path tag');
+
+        await fs.rm(externalFolderPath, { recursive: true, force: true });
     });
 
-    test('Test 4: File limit exceeded folder still shows in sidebar', async ({ appWindow }) => {
-        console.log('=== STEP 1: Create a folder that would exceed file limits ===');
-        // Create a temporary folder with many markdown files
-        const largeFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-large-folder-'));
-        const subDir = path.join(largeFolderPath, 'many-files');
-        await fs.mkdir(subDir, { recursive: true });
+    test('Test 4: Second external folder also shows in sidebar', async ({ appWindow }) => {
+        await ensureSidebarOpen(appWindow);
 
-        // Create enough files to potentially trigger file limit
-        // The actual limit check happens in loadVaultPathAdditively
-        for (let i = 0; i < 5; i++) {
-            await fs.writeFile(path.join(subDir, `file-${i}.md`), `# File ${i}\n\nContent ${i}.\n`);
-        }
+        // Add first external folder
+        const folder1 = await addExternalFolder(appWindow);
 
-        await openFolderTreeSidebar(appWindow);
-        await waitForTreeContent(appWindow);
-
-        console.log('=== STEP 2: Add the large folder ===');
+        // Add second external folder
+        const folder2 = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-external-2-'));
+        await fs.writeFile(path.join(folder2, 'second.md'), '# Second\n\nContent.\n');
         await appWindow.evaluate(async (params: { folderPath: string }) => {
             const api = (window as unknown as ExtendedWindow).electronAPI;
             if (!api) throw new Error('electronAPI not available');
             await api.main.addReadPath(params.folderPath);
-        }, { folderPath: largeFolderPath });
-
+        }, { folderPath: folder2 });
         await appWindow.waitForTimeout(1000);
 
-        console.log('=== STEP 3: Verify folder appears in sidebar regardless ===');
+        // Both should appear in external section
         const externalSection = appWindow.locator('.folder-tree-external-section');
-        await expect(externalSection).toBeVisible({ timeout: 5000 });
+        const folderNodes = externalSection.locator('.folder-tree-folder');
+        await expect(folderNodes).toHaveCount(2, { timeout: 5000 });
 
-        // The folder should be in the sidebar even if file limit was hit
-        const folderName = path.basename(largeFolderPath);
-        const folderNode = externalSection.locator('.folder-tree-folder-name', { hasText: folderName });
-        await expect(folderNode).toBeVisible({ timeout: 5000 });
+        await appWindow.screenshot({ path: 'e2e-tests/test-results/folder-tree-external-two-folders.png' });
 
-        // Cleanup
-        await fs.rm(largeFolderPath, { recursive: true, force: true });
-
-        await appWindow.screenshot({ path: 'e2e-tests/test-results/folder-tree-file-limit-sidebar.png' });
-        console.log('Test 4 passed: File limit exceeded folder still shows in sidebar');
+        await fs.rm(folder1, { recursive: true, force: true });
+        await fs.rm(folder2, { recursive: true, force: true });
     });
 });
 

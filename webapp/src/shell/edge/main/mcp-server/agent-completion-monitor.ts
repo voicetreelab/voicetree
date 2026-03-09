@@ -13,6 +13,7 @@ import {sendTextToTerminal} from '@/shell/edge/main/terminals/send-text-to-termi
 import {isAgentComplete, getAgentStatus} from './isAgentComplete'
 import {buildCompletionMessage, type AgentResult} from './buildCompletionMessage'
 import {getAgentNodes, type AgentNodeEntry} from './agentNodeIndex'
+import {getNewNodesForAgent} from './getNewNodesForAgent'
 
 type MonitorEntry = {
     intervalId: ReturnType<typeof setInterval>
@@ -51,12 +52,18 @@ export function startMonitor(
         if (allFoundDone) {
             const results: AgentResult[] = targetRecords.map((r: TerminalRecord) => {
                 const indexNodes: readonly AgentNodeEntry[] = getAgentNodes(r.terminalData.agentName)
+                const graphNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(graph, r.terminalData.agentName)
+                const seenIds: Set<string> = new Set(indexNodes.map((n: AgentNodeEntry) => n.nodeId))
+                const mergedNodes: Array<{nodeId: string; title: string}> = [
+                    ...indexNodes.map((n: AgentNodeEntry) => ({nodeId: n.nodeId, title: n.title})),
+                    ...graphNodes.filter((n: {nodeId: string; title: string}) => !seenIds.has(n.nodeId))
+                ]
                 return {
                     terminalId: r.terminalId,
                     agentName: r.terminalData.agentName,
                     status: getAgentStatus(r),
                     exitCode: r.exitCode,
-                    nodes: indexNodes.map((n: AgentNodeEntry) => ({nodeId: n.nodeId, title: n.title}))
+                    nodes: mergedNodes
                 }
             })
 

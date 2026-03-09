@@ -242,14 +242,27 @@ function escapeWikilinkMarkers(content: string): string {
 }
 
 /**
+ * Get a compact summary for a neighbor node.
+ * Prefers the YAML `summary` frontmatter field (written explicitly as a summary).
+ * Falls back to first 2 non-empty lines of content.
+ */
+function getNodeSummaryContent(node: GraphNode, escapedContent: string): string {
+    const props: ReadonlyMap<string, string> = node.nodeUIMetadata.additionalYAMLProps
+    const summary: string | undefined = props instanceof Map ? props.get('summary') : undefined
+    if (summary) return summary
+    return escapedContent.split('\n').filter((l: string) => l.trim().length > 0).slice(0, 2).join('\n')
+}
+
+/**
  * Generate markdown list of node details, ranked by relevance and budget-constrained.
  *
- * Priority ordering: semantic matches first, then graph-distance order.
- * Neighbor nodes get compact summaries (title + first ~200 chars + filepath).
- * Total output is capped at contextMaxChars — nodes that don't fit are listed as titles only.
+ * Tiered content strategy:
+ * - Task node (startNodeId): full content, untruncated, in <TASK> tag (recency bias)
+ * - Semantic matches: full content
+ * - Neighbor nodes: YAML summary (if available) or first 2 non-empty lines + filepath
+ * - Over-budget nodes: title + filepath only
  *
- * The task node (startNodeId) is always included at the end, untruncated,
- * inside a <TASK> tag — this is the most important context for the agent.
+ * Total output capped at contextMaxChars (~8K default).
  */
 function generateNodeDetailsList(
     subgraph: Graph,
@@ -258,7 +271,7 @@ function generateNodeDetailsList(
     agentInstructions?: string,
     contextMaxChars?: number
 ): string {
-    const budget: number = contextMaxChars ?? 30000
+    const budget: number = contextMaxChars ?? 8000
     const semanticSet: ReadonlySet<string> = new Set(semanticNodeIds)
 
     // Collect non-context, non-start nodes and sort: semantic first, then original order
@@ -297,10 +310,10 @@ function generateNodeDetailsList(
         const isSemantic: boolean = semanticSet.has(nodeId)
         const marker: string = isSemantic ? ' [SEMANTIC]' : ''
         const rawContent: string = escapeWikilinkMarkers(node.contentWithoutYamlOrLinks)
-        // Semantic matches: full content. All other nodes: title + first 2 non-empty lines only.
+        // Semantic matches: full content. Neighbors: YAML summary or first 2 lines only.
         const nodeContent: string = isSemantic
             ? rawContent
-            : rawContent.split('\n').filter((l: string) => l.trim().length > 0).slice(0, 2).join('\n')
+            : getNodeSummaryContent(node, rawContent)
         const line: string = `- **${title}**${marker} (${nodeId})\n  ${nodeContent}`
 
         if (usedChars + line.length > budget) {

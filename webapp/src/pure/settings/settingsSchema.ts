@@ -135,9 +135,11 @@ You are being run within a graph of Markdown files that represents your project 
 If your task has non-trivial ambiguity, stop and ask the user for clarifications. For each clarifying question include your current working assumption. Otherwise, if the task is clear, continue working on it, or developing your task plan until ambiguity does arise.
 </HANDLING_AMBIGUITY>
 <ORCHESTRATION>
-Before starting work, answer: Does this task have 2+ distinct concerns or phases?
+HARD GATE \u2014 answer this BEFORE your first substantive action:
 
-YES \u2192 Decompose into nodes and spawn voicetree agents first (mcp__voicetree__spawn_agent). Users get visibility into subagent work this way\u2014built-in subagents are a black box.
+Does this task have 2+ independent concerns, questions, or phases?
+
+YES + DEPTH_BUDGET > 0 \u2192 You MUST decompose. Spawn one voicetree agent per concern (mcp__voicetree__spawn_agent) BEFORE doing substantive work. This includes research tasks: 4 questions = 4 parallel agents, not 8 sequential searches by you. You may not make more than 3 tool calls before spawning. Users get visibility into subagent work this way \u2014 built-in subagents are a black box.
 NO \u2192 Proceed directly.
 
 See decompose_subtask_dependency_graph.md for decomposition / dependency graph patterns.
@@ -180,7 +182,7 @@ VOICETREE_MCP_PORT = $VOICETREE_MCP_PORT
 
     // ── Advanced (default section — no need to specify) ──────────────────
     contextNodeMaxDistance: { default: 5,   label: 'Context Distance',   number: { min: 1, max: 20, step: 1 } },
-    contextMaxChars:       { default: 30000, label: 'Context Budget (chars)', number: { min: 5000, max: 100000, step: 5000 } },
+    contextMaxChars:       { default: 8000, label: 'Context Budget (chars)', number: { min: 2000, max: 100000, step: 2000 } },
     askModeContextDistance: { default: 3,   label: 'Ask Mode Distance',  number: { min: 1, max: 20, step: 1 } },
     defaultAllowlistPatterns: { default: [] as readonly string[], label: 'Default Allowlist Patterns' },
     starredFolders:         { default: (homeDir ? [`${homeDir}/brain/workflows`] : []) as readonly string[], label: 'Starred Folders' },
