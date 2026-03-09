@@ -314,14 +314,12 @@ function FolderTreeSidebarInternal({ callbacks }: SidebarInternalProps): JSX.Ele
         return folderState.tree.absolutePath;
     }, [folderState.tree]);
 
-    if (!folderState.isOpen) return null;
-
     return (
         <div
             ref={sidebarRef}
             className="folder-tree-sidebar"
             data-testid="folder-tree-sidebar"
-            style={{ width: `${folderState.sidebarWidth}px` }}
+            style={{ width: `${folderState.sidebarWidth}px`, display: folderState.isOpen ? 'flex' : 'none' }}
         >
             {/* Header */}
             <div className="folder-tree-header">
