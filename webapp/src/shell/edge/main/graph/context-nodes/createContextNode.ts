@@ -234,26 +234,11 @@ ${nodeDetailsList}
 }
 
 /**
- * Per-node summary character limit for neighbor nodes.
- * Neighbor nodes get title + brief summary (not full content).
- * Agents can read full content via get_unseen_nodes_nearby or file read.
- */
-const PER_NODE_SUMMARY_CHARS: number = 200
-
-/**
  * Escape wikilink markers so they don't create edges when written to disk.
  * Converts [link]* markers to [\[link]\]
  */
 function escapeWikilinkMarkers(content: string): string {
     return content.replace(/\[([^\]]+)\]\*/g, '[\\[$1]\\]')
-}
-
-/**
- * Truncate content to maxChars, adding a truncation notice if content was cut.
- */
-function truncateContent(content: string, maxChars: number): string {
-    if (content.length <= maxChars) return content
-    return content.slice(0, maxChars) + `\n...(truncated — ${content.length - maxChars} chars omitted)`
 }
 
 /**
@@ -309,10 +294,14 @@ function generateNodeDetailsList(
     for (const nodeId of nodeIds) {
         const node: GraphNode = subgraph.nodes[nodeId]
         const title: string = getNodeTitle(node)
-        const marker: string = semanticSet.has(nodeId) ? ' [SEMANTIC]' : ''
+        const isSemantic: boolean = semanticSet.has(nodeId)
+        const marker: string = isSemantic ? ' [SEMANTIC]' : ''
         const rawContent: string = escapeWikilinkMarkers(node.contentWithoutYamlOrLinks)
-        const summary: string = truncateContent(rawContent, PER_NODE_SUMMARY_CHARS)
-        const line: string = `- **${title}**${marker} (${nodeId})\n  ${summary}`
+        // Semantic matches: full content. All other nodes: title + first 2 non-empty lines only.
+        const nodeContent: string = isSemantic
+            ? rawContent
+            : rawContent.split('\n').filter((l: string) => l.trim().length > 0).slice(0, 2).join('\n')
+        const line: string = `- **${title}**${marker} (${nodeId})\n  ${nodeContent}`
 
         if (usedChars + line.length > budget) {
             excludedNodeIds.push(nodeId)
