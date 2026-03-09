@@ -16,6 +16,11 @@ export type TerminalRecord = {
     terminalData: TerminalData
     status: TerminalStatus
     exitCode: number | null
+    // Stop gate fields (BF-024)
+    sessionId: string | null
+    cliType: 'claude' | 'codex' | 'gemini' | null
+    auditRetryCount: number
+    skillPath: string | null
 }
 
 const terminalRecords: Map<string, TerminalRecord> = new Map()
@@ -135,7 +140,11 @@ export function recordTerminalSpawn(terminalId: string, terminalData: TerminalDa
         terminalId,
         terminalData,
         status: 'running',
-        exitCode: null
+        exitCode: null,
+        sessionId: null,
+        cliType: null,
+        auditRetryCount: 0,
+        skillPath: null
     })
 
     // Initialize notification tracking state for this terminal
@@ -146,6 +155,12 @@ export function recordTerminalSpawn(terminalId: string, terminalData: TerminalDa
     })
 
     pushStateToRenderer()
+}
+
+export function updateStopGateFields(terminalId: string, fields: Partial<Pick<TerminalRecord, 'sessionId' | 'cliType' | 'auditRetryCount' | 'skillPath'>>): void {
+    const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
+    if (!record) return
+    terminalRecords.set(terminalId, { ...record, ...fields })
 }
 
 /**

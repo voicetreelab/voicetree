@@ -15,6 +15,7 @@ import {type McpToolResponse, buildJsonResponse} from './types'
 import {getNewNodesForAgent} from './getNewNodesForAgent'
 import {getAgentStatus} from './isAgentComplete'
 import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
+import {runStopGateAudit} from '@/shell/edge/main/terminals/stopGateAudit'
 
 export interface CloseAgentParams {
     terminalId: string
@@ -24,6 +25,22 @@ export interface CloseAgentParams {
 
 export function closeAgentTool({terminalId, callerTerminalId, forceWithReason}: CloseAgentParams): McpToolResponse {
     const isSelfClose: boolean = callerTerminalId === terminalId
+
+    // Stop gate: audit before allowing self-close
+    if (isSelfClose) {
+        const selfRecord: TerminalRecord | undefined = getTerminalRecords().find(
+            (r: TerminalRecord) => r.terminalId === terminalId
+        )
+        if (selfRecord?.skillPath) {
+            const auditResult: import('@/shell/edge/main/terminals/stopGateAudit').AuditResult = runStopGateAudit(terminalId, selfRecord.skillPath)
+            if (!auditResult.passed) {
+                return buildJsonResponse({
+                    success: false,
+                    error: `Stop gate audit failed. Address these before closing:\n${auditResult.violations.map(v => `- ${v.reason}`).join('\n')}`
+                }, true)
+            }
+        }
+    }
 
     if (!isSelfClose) {
         const targetRecord: TerminalRecord | undefined = getTerminalRecords().find(
