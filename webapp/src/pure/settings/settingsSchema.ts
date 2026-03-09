@@ -129,7 +129,7 @@ VOICETREE_APP_SUPPORT = $VOICETREE_APP_SUPPORT
 VOICETREE_PROJECT_DIR = $VOICETREE_PROJECT_DIR
 VOICETREE_MCP_PORT = $VOICETREE_MCP_PORT
 </YOUR_ENV_VARS>`,
-            AGENT_PROMPT: `First read and analyze the context of your task, which is stored at $CONTEXT_NODE_PATH
+            AGENT_PROMPT_CORE: `First read and analyze the context of your task, which is stored at $CONTEXT_NODE_PATH
 You are being run within a graph of Markdown files that represents your project context. These markdown files are stored within $ALL_MARKDOWN_READ_PATHS
 <HANDLING_AMBIGUITY>
 If your task has non-trivial ambiguity, stop and ask the user for clarifications. For each clarifying question include your current working assumption. Otherwise, if the task is clear, continue working on it, or developing your task plan until ambiguity does arise.
@@ -162,6 +162,7 @@ VOICETREE_APP_SUPPORT = $VOICETREE_APP_SUPPORT
 VOICETREE_PROJECT_DIR = $VOICETREE_PROJECT_DIR
 VOICETREE_MCP_PORT = $VOICETREE_MCP_PORT
 </YOUR_ENV_VARS>`,
+            AGENT_PROMPT: '$AGENT_PROMPT_CORE',
         } as Record<string, EnvVarValue>,
         section: 'agents',
         label: 'Environment Variables',
@@ -182,7 +183,7 @@ VOICETREE_MCP_PORT = $VOICETREE_MCP_PORT
     contextMaxChars:       { default: 30000, label: 'Context Budget (chars)', number: { min: 5000, max: 100000, step: 5000 } },
     askModeContextDistance: { default: 3,   label: 'Ask Mode Distance',  number: { min: 1, max: 20, step: 1 } },
     defaultAllowlistPatterns: { default: [] as readonly string[], label: 'Default Allowlist Patterns' },
-    starredFolders:         { default: (homeDir ? [`${homeDir}/voicetree/workflows`] : []) as readonly string[], label: 'Starred Folders' },
+    starredFolders:         { default: (homeDir ? [`${homeDir}/brain/workflows`] : []) as readonly string[], label: 'Starred Folders' },
     showFps:                { default: false, label: 'Show FPS (WebGL)' },
     layoutConfig:           { default: JSON.stringify({ engine: 'cola', nodeSpacing: 120, convergenceThreshold: 0.4, unconstrIter: 15, allConstIter: 25, handleDisconnected: true, tile: true, tilingPaddingVertical: 10, tilingPaddingHorizontal: 10, edgeElasticity: 0.45, edgeLength: 350 }, null, 2), label: 'Layout Config' },
     nodeLineLimit:          { default: 80,  label: 'Node Line Limit',    number: { min: 20, max: 200, step: 10 } },

@@ -11,11 +11,11 @@ function getSettingsPath(): string {
 }
 
 let settingsCache: VTSettings | null = null;
-let settingsCacheTime = 0;
-const SETTINGS_CACHE_TTL_MS = 5000;
+let settingsCacheTime: number = 0;
+const SETTINGS_CACHE_TTL_MS: number = 5000;
 
 export async function loadSettings(): Promise<VTSettings> {
-  const now = Date.now();
+  const now: number = Date.now();
   if (settingsCache && (now - settingsCacheTime) < SETTINGS_CACHE_TTL_MS) {
     return settingsCache;
   }
@@ -38,11 +38,21 @@ export async function loadSettings(): Promise<VTSettings> {
 }
 
 /**
- * Checks if AGENT_PROMPT differs from the current default.
- * If so, backs up the old value as AGENT_PROMPT_PREVIOUS_BACKUP and updates to the new default.
+ * Ensures AGENT_PROMPT_CORE is up-to-date with the current default.
+ * Unlike the old migrateAgentPromptIfNeeded, this NEVER overwrites AGENT_PROMPT —
+ * only AGENT_PROMPT_CORE gets auto-updated, so user customizations to AGENT_PROMPT persist.
+ *
+ * On first migration (user has no AGENT_PROMPT_CORE yet):
+ * - Adds AGENT_PROMPT_CORE with the current default
+ * - If user's AGENT_PROMPT matches the old full-prompt default (now stored as AGENT_PROMPT_CORE content),
+ *   updates it to '$AGENT_PROMPT_CORE' so it references the core
+ *
+ * On subsequent migrations:
+ * - Only updates AGENT_PROMPT_CORE if it differs from the current default
+ *
  * @returns true if migration occurred, false otherwise
  */
-export async function migrateAgentPromptIfNeeded(): Promise<boolean> {
+export async function migrateAgentPromptCoreIfNeeded(): Promise<boolean> {
   const settingsPath: string = getSettingsPath();
 
   let userSettings: Partial<VTSettings>;
@@ -50,31 +60,47 @@ export async function migrateAgentPromptIfNeeded(): Promise<boolean> {
     const data: string = await fs.readFile(settingsPath, 'utf-8');
     userSettings = JSON.parse(data) as Partial<VTSettings>;
   } catch (error) {
-    // No settings file or parse error - nothing to migrate
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       return false;
     }
     throw error;
   }
 
-  const currentAgentPrompt: string | undefined = userSettings.INJECT_ENV_VARS?.AGENT_PROMPT as string | undefined;
-  const defaultAgentPrompt: string = DEFAULT_SETTINGS.INJECT_ENV_VARS.AGENT_PROMPT as string;
+  const defaultCore: string = DEFAULT_SETTINGS.INJECT_ENV_VARS.AGENT_PROMPT_CORE as string;
+  const currentCore: string | undefined = userSettings.INJECT_ENV_VARS?.AGENT_PROMPT_CORE as string | undefined;
 
-  // No migration needed if:
-  // - User has no AGENT_PROMPT set (will use default anyway)
-  // - User's AGENT_PROMPT already matches the current default
-  if (!currentAgentPrompt || currentAgentPrompt === defaultAgentPrompt) {
+  // First migration: user has no AGENT_PROMPT_CORE yet
+  if (currentCore === undefined) {
+    const currentAgentPrompt: string | undefined = userSettings.INJECT_ENV_VARS?.AGENT_PROMPT as string | undefined;
+
+    // If user's AGENT_PROMPT matches the core content (old default), update it to reference $AGENT_PROMPT_CORE
+    const shouldUpdateAgentPrompt: boolean = currentAgentPrompt !== undefined && currentAgentPrompt === defaultCore;
+
+    const updatedSettings: VTSettings = {
+      ...DEFAULT_SETTINGS,
+      ...userSettings,
+      INJECT_ENV_VARS: {
+        ...userSettings.INJECT_ENV_VARS,
+        AGENT_PROMPT_CORE: defaultCore,
+        ...(shouldUpdateAgentPrompt ? { AGENT_PROMPT: '$AGENT_PROMPT_CORE' } : {}),
+      },
+    };
+
+    await saveSettings(updatedSettings);
+    return true;
+  }
+
+  // Subsequent migrations: only update AGENT_PROMPT_CORE if it differs
+  if (currentCore === defaultCore) {
     return false;
   }
 
-  // Migration needed: backup old value and update to new default
   const updatedSettings: VTSettings = {
     ...DEFAULT_SETTINGS,
     ...userSettings,
     INJECT_ENV_VARS: {
       ...userSettings.INJECT_ENV_VARS,
-      AGENT_PROMPT: defaultAgentPrompt,
-      AGENT_PROMPT_PREVIOUS_BACKUP: currentAgentPrompt,
+      AGENT_PROMPT_CORE: defaultCore,
     },
   };
 
@@ -126,7 +152,7 @@ export async function migrateLayoutConfigIfNeeded(): Promise<boolean> {
 
 /**
  * Migrates starredFolders from old default (empty array) to new default
- * which includes ~/voicetree/workflows. Silent migration.
+ * which includes ~/brain/workflows. Silent migration.
  * @returns true if migration occurred, false otherwise
  */
 export async function migrateStarredFoldersIfNeeded(): Promise<boolean> {
@@ -158,6 +184,48 @@ export async function migrateStarredFoldersIfNeeded(): Promise<boolean> {
     ...DEFAULT_SETTINGS,
     ...userSettings,
     starredFolders: [...defaultStarred],
+  };
+
+  await saveSettings(updatedSettings);
+  return true;
+}
+
+/**
+ * Migrates starredFolders entries from ~/voicetree/workflows to ~/brain/workflows.
+ * Simple string replace on each entry. Silent migration.
+ * @returns true if migration occurred, false otherwise
+ */
+export async function migrateStarredFoldersBrainRename(): Promise<boolean> {
+  const settingsPath: string = getSettingsPath();
+
+  let userSettings: Partial<VTSettings>;
+  try {
+    const data: string = await fs.readFile(settingsPath, 'utf-8');
+    userSettings = JSON.parse(data) as Partial<VTSettings>;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return false;
+    }
+    throw error;
+  }
+
+  if (!Array.isArray(userSettings.starredFolders)) {
+    return false;
+  }
+
+  const migrated: string[] = userSettings.starredFolders.map((entry: string) =>
+    entry.replace('/voicetree/workflows', '/brain/workflows'),
+  );
+
+  const changed: boolean = migrated.some((entry: string, i: number) => entry !== userSettings.starredFolders![i]);
+  if (!changed) {
+    return false;
+  }
+
+  const updatedSettings: VTSettings = {
+    ...DEFAULT_SETTINGS,
+    ...userSettings,
+    starredFolders: migrated,
   };
 
   await saveSettings(updatedSettings);
