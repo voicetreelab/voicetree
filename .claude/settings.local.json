@@ -27,6 +27,10 @@
           {
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/webapp/.claude/hooks/stop-quality-check.cjs\""
+          },
+          {
+            "type": "command",
+            "command": "npx tsx ~/brain/validate-brain.ts"
           }
         ]
       }
