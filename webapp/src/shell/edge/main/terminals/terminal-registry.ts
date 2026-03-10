@@ -16,11 +16,8 @@ export type TerminalRecord = {
     terminalData: TerminalData
     status: TerminalStatus
     exitCode: number | null
-    // Stop gate fields (BF-024)
-    sessionId: string | null
-    cliType: 'claude' | 'codex' | 'gemini' | null
+    // Stop gate (BF-024): genuinely stateful — tracks resume attempts across agent restarts
     auditRetryCount: number
-    skillPath: string | null
 }
 
 const terminalRecords: Map<string, TerminalRecord> = new Map()
@@ -141,10 +138,7 @@ export function recordTerminalSpawn(terminalId: string, terminalData: TerminalDa
         terminalData,
         status: 'running',
         exitCode: null,
-        sessionId: null,
-        cliType: null,
-        auditRetryCount: 0,
-        skillPath: null
+        auditRetryCount: 0
     })
 
     // Initialize notification tracking state for this terminal
@@ -157,10 +151,10 @@ export function recordTerminalSpawn(terminalId: string, terminalData: TerminalDa
     pushStateToRenderer()
 }
 
-export function updateStopGateFields(terminalId: string, fields: Partial<Pick<TerminalRecord, 'sessionId' | 'cliType' | 'auditRetryCount' | 'skillPath'>>): void {
+export function incrementAuditRetryCount(terminalId: string): void {
     const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
     if (!record) return
-    terminalRecords.set(terminalId, { ...record, ...fields })
+    terminalRecords.set(terminalId, { ...record, auditRetryCount: record.auditRetryCount + 1 })
 }
 
 /**

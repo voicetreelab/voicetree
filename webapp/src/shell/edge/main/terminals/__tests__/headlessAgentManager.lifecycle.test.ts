@@ -24,13 +24,26 @@ vi.mock('@/shell/edge/main/terminals/terminal-registry', () => ({
     markTerminalExited: mockMarkTerminalExited,
     recordTerminalSpawn: mockRecordTerminalSpawn,
     getTerminalRecords: mockGetTerminalRecords,
-    updateStopGateFields: vi.fn(),
+    incrementAuditRetryCount: vi.fn(),
     removeTerminalFromRegistry: vi.fn()
 }))
 
 vi.mock('child_process', () => ({
     default: {spawn: mockSpawn},
     spawn: mockSpawn
+}))
+
+vi.mock('@/shell/edge/main/state/graph-store', () => ({
+    getGraph: vi.fn().mockReturnValue({ nodes: {}, incomingEdgesIndex: new Map(), nodeByBaseName: new Map(), unresolvedLinksIndex: new Map() })
+}))
+
+vi.mock('@/shell/edge/main/terminals/stopGateAudit', () => ({
+    auditAgent: vi.fn().mockReturnValue(null),
+    buildDeficiencyPrompt: vi.fn().mockReturnValue(''),
+}))
+
+vi.mock('@/shell/edge/main/terminals/spawnTerminalWithContextNode', () => ({
+    detectCliType: vi.fn().mockReturnValue(null),
 }))
 
 // ─── Import module under test AFTER mocks ───────────────────────────────────

@@ -9,9 +9,11 @@
 
 import {spawn, type ChildProcess} from 'child_process'
 import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
-import {markTerminalExited, recordTerminalSpawn, getTerminalRecords, updateStopGateFields, removeTerminalFromRegistry, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
+import {markTerminalExited, recordTerminalSpawn, getTerminalRecords, incrementAuditRetryCount, removeTerminalFromRegistry, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
-import {runStopGateAudit, buildDeficiencyPrompt, type AuditResult} from './stopGateAudit'
+import {auditAgent, buildDeficiencyPrompt, type ComplianceResult} from './stopGateAudit'
+import {getGraph} from '@/shell/edge/main/state/graph-store'
+import {detectCliType} from './spawnTerminalWithContextNode'
 
 // ─── State (functional edge pattern: module-level Maps) ──────────────────────
 
@@ -43,9 +45,10 @@ export function spawnHeadlessAgent(
         ? 'powershell.exe'
         : (process.env.SHELL ?? '/bin/bash')
 
+    const {CLAUDECODE: _cc, ...parentEnv} = process.env
     const child: ChildProcess = spawn(shell, ['-c', command], {
         cwd: cwd ?? process.env.HOME ?? process.cwd(),
-        env: {...process.env, ...env},
+        env: {...parentEnv, ...env},
         stdio: ['ignore', 'pipe', 'pipe'],
         detached: false
     })
@@ -88,18 +91,18 @@ function handleAgentExit(terminalId: TerminalId, code: number | null): void {
 
     markTerminalExited(terminalId, code)
 
-    // Stop gate audit: check SKILL.md outgoing edges on successful exit
+    // Stop gate audit: derives SKILL.md from graph at audit time (BF-042)
     if (code === 0 || code === null) {
-        const record: TerminalRecord | undefined = getTerminalRecords().find(r => r.terminalId === terminalId)
-        if (record && shouldRunAudit(record)) {
-            const auditResult: AuditResult = runStopGateAudit(terminalId, record.skillPath!)
-            if (!auditResult.passed && record.auditRetryCount < 3) {
-                resumeWithDeficiency(terminalId, record, auditResult)
-                return // Don't delete process entry — resume will re-add
-            }
-            if (!auditResult.passed) {
-                console.warn(`[headlessAgentManager] Agent ${terminalId} FAILED audit after 3 retries`)
-            }
+        const graph: import('@/pure/graph').Graph = getGraph()
+        const records: readonly TerminalRecord[] = getTerminalRecords()
+        const result: ComplianceResult | null = auditAgent(terminalId, graph, records)
+        const record: TerminalRecord | undefined = records.find(r => r.terminalId === terminalId)
+        if (result && !result.passed && record && record.auditRetryCount < 3) {
+            resumeWithDeficiency(terminalId, record, buildDeficiencyPrompt(result))
+            return // Don't delete process entry — resume will re-add
+        }
+        if (result && !result.passed) {
+            console.warn(`[headlessAgentManager] Agent ${terminalId} FAILED audit after 3 retries`)
         }
     }
 
@@ -111,54 +114,45 @@ function handleAgentExit(terminalId: TerminalId, code: number | null): void {
 }
 
 /**
- * Build the CLI-specific resume command for a failed stop gate audit.
- * Claude: --resume with pre-assigned session ID
- * Codex: exec resume --last (most recent session)
- * Gemini: --resume latest
+ * Build CLI-specific resume command. Derives cliType and sessionId at resume time
+ * from agent command string + spawn conventions (BF-042: no stored derived data).
  */
-/**
- * Determine whether the stop gate audit should run for a given terminal record.
- * Claude requires a pre-assigned sessionId; Codex/Gemini can always resume (--last / latest).
- * Returns false if no skillPath, no cliType, or Claude without sessionId.
- */
-export function shouldRunAudit(record: Pick<TerminalRecord, 'skillPath' | 'cliType' | 'sessionId'>): boolean {
-    if (!record.skillPath || !record.cliType) return false
-    if (record.cliType === 'claude') return !!record.sessionId
-    return true
-}
-
-export function buildResumeCommand(record: TerminalRecord): string {
-    switch (record.cliType) {
+export function buildResumeCommand(cliType: 'claude' | 'codex' | 'gemini'): string {
+    switch (cliType) {
         case 'claude':
-            return `claude --resume "${record.sessionId}" -p "$RESUME_PROMPT" --dangerously-skip-permissions`
+            return `claude --continue -p "$RESUME_PROMPT" --dangerously-skip-permissions`
         case 'codex':
             return `codex exec resume --last -p "$RESUME_PROMPT" --full-auto`
         case 'gemini':
             return `gemini --resume latest -p "$RESUME_PROMPT" --yolo`
-        default:
-            throw new Error(`[headlessAgentManager] Cannot resume: unsupported CLI type "${record.cliType}"`)
     }
 }
 
 /**
  * Resume an agent with a deficiency prompt after failed stop gate audit.
- * Supports Claude (--resume sessionId), Codex (exec resume --last), and Gemini (--resume latest).
+ * Derives cliType from initialCommand and sessionId from spawn convention (BF-042).
  */
-function resumeWithDeficiency(terminalId: TerminalId, record: TerminalRecord, auditResult: AuditResult): void {
-    const deficiency: string = buildDeficiencyPrompt(auditResult)
-    const resumeCommand: string = buildResumeCommand(record)
+function resumeWithDeficiency(terminalId: TerminalId, record: TerminalRecord, deficiency: string): void {
+    const baseCommand: string = (record.terminalData.initialCommand ?? '').replace('"$AGENT_PROMPT"', '').replace("'$AGENT_PROMPT'", '').trim()
+    const cliType: 'claude' | 'codex' | 'gemini' | null = detectCliType(baseCommand)
+    if (!cliType) {
+        console.warn(`[headlessAgentManager] Cannot resume agent ${terminalId}: unknown CLI type from command "${baseCommand}"`)
+        return
+    }
+    const resumeCommand: string = buildResumeCommand(cliType)
 
-    updateStopGateFields(terminalId, { auditRetryCount: record.auditRetryCount + 1 })
+    incrementAuditRetryCount(terminalId)
 
-    console.log(`[headlessAgentManager] Resuming agent ${terminalId} (${record.cliType}, retry ${record.auditRetryCount + 1}/3) with deficiency prompt`)
+    console.log(`[headlessAgentManager] Resuming agent ${terminalId} (${cliType}, retry ${record.auditRetryCount + 1}/3) with deficiency prompt`)
 
     const shell: string = process.platform === 'win32'
         ? 'powershell.exe'
         : (process.env.SHELL ?? '/bin/bash')
 
+    const {CLAUDECODE: _cc2, ...parentEnvResume} = process.env
     const child: ChildProcess = spawn(shell, ['-c', resumeCommand], {
         cwd: record.terminalData.initialSpawnDirectory ?? process.env.HOME ?? process.cwd(),
-        env: { ...process.env, ...(record.terminalData.initialEnvVars ?? {}), RESUME_PROMPT: deficiency },
+        env: { ...parentEnvResume, ...(record.terminalData.initialEnvVars ?? {}), RESUME_PROMPT: deficiency },
         stdio: ['ignore', 'pipe', 'pipe'],
         detached: false
     })

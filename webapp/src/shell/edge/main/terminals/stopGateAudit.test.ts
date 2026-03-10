@@ -1,31 +1,28 @@
 /**
- * Unit + integration tests for multi-CLI stop gate — BF-024 enforcement
+ * Unit tests for stop gate audit — BF-042 redesign
  *
- * Tests pure functions: parseOutgoingEdges, resolveSkillPath, buildDeficiencyPrompt,
- * detectCliType, buildResumeCommand, shouldRunAudit.
+ * Tests pure functions: parseObligations, resolveSkillPathFromContent,
+ * buildDeficiencyPrompt, detectCliType, buildResumeCommand.
  * These have no external dependencies (no graph store, no FS reads) so no mocks needed.
  */
 
 import {describe, it, expect} from 'vitest'
-import {parseOutgoingEdges, resolveSkillPath, buildDeficiencyPrompt, type AuditResult} from './stopGateAudit'
-import {detectCliType} from './spawnTerminalWithContextNode'
-import {buildResumeCommand, shouldRunAudit} from './headlessAgentManager'
-import type {TerminalRecord} from './terminal-registry'
+import {parseObligations, resolveSkillPathFromContent, buildDeficiencyPrompt, type ComplianceResult, type Obligation} from './stopGateAudit'
+import {detectCliType, buildHeadlessCommand} from './spawnTerminalWithContextNode'
+import {buildResumeCommand} from './headlessAgentManager'
 
-type OutgoingEdge = ReturnType<typeof parseOutgoingEdges>[number]
+// ─── parseObligations ───────────────────────────────────────────────────────
 
-// ─── parseOutgoingEdges ──────────────────────────────────────────────────────
-
-describe('parseOutgoingEdges', () => {
+describe('parseObligations', () => {
     it('parses hard edges (double brackets)', () => {
         const content: string = `# Some SKILL
 ## Outgoing Workflows
 [[~/brain/workflows/meta/promote/SKILL.md]]
 `
-        const edges: OutgoingEdge[] = parseOutgoingEdges(content)
-        expect(edges).toHaveLength(1)
-        expect(edges[0]).toEqual({
-            path: '~/brain/workflows/meta/promote/SKILL.md',
+        const obligations: Obligation[] = parseObligations(content)
+        expect(obligations).toHaveLength(1)
+        expect(obligations[0]).toEqual({
+            workflowPath: '~/brain/workflows/meta/promote/SKILL.md',
             type: 'hard',
             workflowName: 'promote'
         })
@@ -36,10 +33,10 @@ describe('parseOutgoingEdges', () => {
 ## Outgoing Workflows
 [~/brain/workflows/meta/gardening/SKILL.md]
 `
-        const edges: OutgoingEdge[] = parseOutgoingEdges(content)
-        expect(edges).toHaveLength(1)
-        expect(edges[0]).toEqual({
-            path: '~/brain/workflows/meta/gardening/SKILL.md',
+        const obligations: Obligation[] = parseObligations(content)
+        expect(obligations).toHaveLength(1)
+        expect(obligations[0]).toEqual({
+            workflowPath: '~/brain/workflows/meta/gardening/SKILL.md',
             type: 'soft',
             workflowName: 'gardening'
         })
@@ -53,11 +50,11 @@ describe('parseOutgoingEdges', () => {
 [~/brain/workflows/tree-sleep/SKILL.md]                              # soft: tree sleep
 [~/brain/workflows/meta/prediction-market-calibration/SKILL.md]      # soft: calibration
 `
-        const edges: OutgoingEdge[] = parseOutgoingEdges(content)
-        expect(edges).toHaveLength(4)
+        const obligations: Obligation[] = parseObligations(content)
+        expect(obligations).toHaveLength(4)
 
-        const hard: OutgoingEdge[] = edges.filter(e => e.type === 'hard')
-        const soft: OutgoingEdge[] = edges.filter(e => e.type === 'soft')
+        const hard: Obligation[] = obligations.filter(e => e.type === 'hard')
+        const soft: Obligation[] = obligations.filter(e => e.type === 'soft')
         expect(hard).toHaveLength(1)
         expect(soft).toHaveLength(3)
         expect(hard[0].workflowName).toBe('promote')
@@ -69,7 +66,7 @@ describe('parseOutgoingEdges', () => {
 ## Steps
 1. Do something
 `
-        expect(parseOutgoingEdges(content)).toEqual([])
+        expect(parseObligations(content)).toEqual([])
     })
 
     it('returns empty array when Outgoing Workflows section is empty', () => {
@@ -78,7 +75,7 @@ describe('parseOutgoingEdges', () => {
 
 ## Next Section
 `
-        expect(parseOutgoingEdges(content)).toEqual([])
+        expect(parseObligations(content)).toEqual([])
     })
 
     it('stops at next heading', () => {
@@ -88,9 +85,9 @@ describe('parseOutgoingEdges', () => {
 ## Key References
 [[~/brain/workflows/unrelated/SKILL.md]]
 `
-        const edges: OutgoingEdge[] = parseOutgoingEdges(content)
-        expect(edges).toHaveLength(1)
-        expect(edges[0].workflowName).toBe('promote')
+        const obligations: Obligation[] = parseObligations(content)
+        expect(obligations).toHaveLength(1)
+        expect(obligations[0].workflowName).toBe('promote')
     })
 
     it('stops at YAML frontmatter delimiter', () => {
@@ -99,17 +96,17 @@ describe('parseOutgoingEdges', () => {
 ---
 more: content
 `
-        const edges: OutgoingEdge[] = parseOutgoingEdges(content)
-        expect(edges).toHaveLength(1)
+        const obligations: Obligation[] = parseObligations(content)
+        expect(obligations).toHaveLength(1)
     })
 
     it('does not match double brackets as soft edges', () => {
         const content: string = `## Outgoing Workflows
 [[~/brain/workflows/meta/promote/SKILL.md]]
 `
-        const edges: OutgoingEdge[] = parseOutgoingEdges(content)
-        expect(edges).toHaveLength(1)
-        expect(edges[0].type).toBe('hard')
+        const obligations: Obligation[] = parseObligations(content)
+        expect(obligations).toHaveLength(1)
+        expect(obligations[0].type).toBe('hard')
     })
 
     it('ignores markdown links that happen to mention SKILL.md in text', () => {
@@ -117,9 +114,9 @@ more: content
 See [this guide](https://example.com) for reference.
 [[~/brain/workflows/meta/promote/SKILL.md]]
 `
-        const edges: OutgoingEdge[] = parseOutgoingEdges(content)
-        expect(edges).toHaveLength(1)
-        expect(edges[0].type).toBe('hard')
+        const obligations: Obligation[] = parseObligations(content)
+        expect(obligations).toHaveLength(1)
+        expect(obligations[0].type).toBe('hard')
     })
 
     it('ignores paths not ending with /SKILL.md', () => {
@@ -128,81 +125,116 @@ See [this guide](https://example.com) for reference.
 [~/brain/workflows/meta/gardening/index.md]
 [[~/brain/workflows/meta/promote/SKILL.md]]
 `
-        const edges: OutgoingEdge[] = parseOutgoingEdges(content)
-        expect(edges).toHaveLength(1)
-        expect(edges[0].workflowName).toBe('promote')
+        const obligations: Obligation[] = parseObligations(content)
+        expect(obligations).toHaveLength(1)
+        expect(obligations[0].workflowName).toBe('promote')
     })
 })
 
-// ─── resolveSkillPath ────────────────────────────────────────────────────────
+// ─── resolveSkillPathFromContent ────────────────────────────────────────────
 
-describe('resolveSkillPath', () => {
+describe('resolveSkillPathFromContent', () => {
     it('Case 1: returns ~/brain/ form when task node IS a SKILL.md under ~/brain/', () => {
         const home: string = process.env.HOME ?? ''
         const taskNodePath: string = `${home}/brain/workflows/meta/promote/SKILL.md`
-        const result: string | null = resolveSkillPath(taskNodePath, '')
+        const result: string | null = resolveSkillPathFromContent(taskNodePath, '')
         expect(result).toBe('~/brain/workflows/meta/promote/SKILL.md')
     })
 
     it('Case 1: returns raw path for SKILL.md not under ~/brain/', () => {
-        const result: string | null = resolveSkillPath('/some/other/path/SKILL.md', '')
+        const result: string | null = resolveSkillPathFromContent('/some/other/path/SKILL.md', '')
         expect(result).toBe('/some/other/path/SKILL.md')
     })
 
-    it('Case 2: extracts specific SKILL.md from task node content', () => {
-        const content: string = 'Read ~/brain/SKILL.md first. Then read ~/brain/workflows/orchestration/SKILL.md — you are an orchestrator.'
-        const result: string | null = resolveSkillPath('/vault/task_123.md', content)
+    it('Case 2: extracts SKILL.md path from task node content', () => {
+        const content: string = 'Read ~/brain/workflows/orchestration/SKILL.md — you are an orchestrator.'
+        const result: string | null = resolveSkillPathFromContent('/vault/task_123.md', content)
         expect(result).toBe('~/brain/workflows/orchestration/SKILL.md')
     })
 
     it('Case 3: extracts root ~/brain/SKILL.md when no specific reference', () => {
         const content: string = 'Read ~/brain/SKILL.md first.'
-        const result: string | null = resolveSkillPath('/vault/task_456.md', content)
+        const result: string | null = resolveSkillPathFromContent('/vault/task_456.md', content)
         expect(result).toBe('~/brain/SKILL.md')
     })
 
-    it('prefers specific SKILL.md over root when both present', () => {
+    it('returns first SKILL.md path found in content', () => {
         const content: string = 'Read ~/brain/SKILL.md first.\nThen ~/brain/workflows/analysis/proof-compression/SKILL.md'
-        const result: string | null = resolveSkillPath('/vault/task_789.md', content)
-        expect(result).toBe('~/brain/workflows/analysis/proof-compression/SKILL.md')
+        const result: string | null = resolveSkillPathFromContent('/vault/task_789.md', content)
+        expect(result).toBe('~/brain/SKILL.md')
     })
 
     it('returns null when no SKILL.md referenced', () => {
         const content: string = 'Just a regular task with no skill reference.'
-        const result: string | null = resolveSkillPath('/vault/task_000.md', content)
+        const result: string | null = resolveSkillPathFromContent('/vault/task_000.md', content)
         expect(result).toBeNull()
     })
 
     it('handles SKILL.md path inside wikilinks in content', () => {
         const content: string = 'Follow [[~/brain/workflows/meta/promote/SKILL.md]] for guidance.'
-        const result: string | null = resolveSkillPath('/vault/task_111.md', content)
+        const result: string | null = resolveSkillPathFromContent('/vault/task_111.md', content)
         expect(result).toBe('~/brain/workflows/meta/promote/SKILL.md')
     })
 
     it('handles SKILL.md path inside single-bracket links in content', () => {
         const content: string = 'Follow [~/brain/workflows/meta/gardening/SKILL.md] for guidance.'
-        const result: string | null = resolveSkillPath('/vault/task_222.md', content)
+        const result: string | null = resolveSkillPathFromContent('/vault/task_222.md', content)
         expect(result).toBe('~/brain/workflows/meta/gardening/SKILL.md')
     })
 
     it('handles path with special directory names', () => {
         const content: string = 'Read ~/brain/workflows/tree-sleep/SKILL.md'
-        const result: string | null = resolveSkillPath('/vault/task_333.md', content)
+        const result: string | null = resolveSkillPathFromContent('/vault/task_333.md', content)
         expect(result).toBe('~/brain/workflows/tree-sleep/SKILL.md')
+    })
+
+    it('Case 1: matches case-insensitive SKILL.md filename (lowercase)', () => {
+        const result: string | null = resolveSkillPathFromContent('/some/other/path/skill.md', '')
+        expect(result).toBe('/some/other/path/skill.md')
+    })
+
+    it('Case 1: matches lowercase skill.md under brain dir and normalises to ~/brain/', () => {
+        const home: string = process.env.HOME ?? ''
+        const taskNodePath: string = `${home}/brain/workflows/meta/promote/skill.md`
+        const result: string | null = resolveSkillPathFromContent(taskNodePath, '')
+        expect(result).toBe('~/brain/workflows/meta/promote/skill.md')
+    })
+
+    it('Case 2: extracts absolute path SKILL.md from content', () => {
+        const content: string = 'Read /Users/bobbobby/brain/workflows/orchestration/SKILL.md for guidance.'
+        const result: string | null = resolveSkillPathFromContent('/vault/task_123.md', content)
+        expect(result).toBe('/Users/bobbobby/brain/workflows/orchestration/SKILL.md')
+    })
+
+    it('Case 2: matches case-insensitive skill.md in tilde content', () => {
+        const content: string = 'Read ~/brain/workflows/orchestration/skill.md for guidance.'
+        const result: string | null = resolveSkillPathFromContent('/vault/task_123.md', content)
+        expect(result).toBe('~/brain/workflows/orchestration/skill.md')
+    })
+
+    it('Case 3: extracts absolute root /brain/SKILL.md from content', () => {
+        const content: string = 'Read /Users/bobbobby/brain/SKILL.md first.'
+        const result: string | null = resolveSkillPathFromContent('/vault/task_456.md', content)
+        expect(result).toBe('/Users/bobbobby/brain/SKILL.md')
+    })
+
+    it('Case 3: matches case-insensitive root skill.md', () => {
+        const content: string = 'Read ~/brain/skill.md first.'
+        const result: string | null = resolveSkillPathFromContent('/vault/task_456.md', content)
+        expect(result).toBe('~/brain/skill.md')
     })
 })
 
-// ─── buildDeficiencyPrompt ───────────────────────────────────────────────────
+// ─── buildDeficiencyPrompt ──────────────────────────────────────────────────
 
 describe('buildDeficiencyPrompt', () => {
     it('formats a single violation', () => {
-        const result: AuditResult = {
+        const result: ComplianceResult = {
             passed: false,
             violations: [{
-                edge: { path: '~/brain/workflows/meta/promote/SKILL.md', type: 'hard', workflowName: 'promote' },
+                obligation: { workflowPath: '~/brain/workflows/meta/promote/SKILL.md', type: 'hard', workflowName: 'promote' },
                 reason: 'Hard edge violation: did not spawn workflow "promote"'
-            }],
-            hasProgressNodes: true
+            }]
         }
         const prompt: string = buildDeficiencyPrompt(result)
         expect(prompt).toContain('STOP GATE AUDIT FAILED')
@@ -211,23 +243,22 @@ describe('buildDeficiencyPrompt', () => {
     })
 
     it('formats multiple violations', () => {
-        const result: AuditResult = {
+        const result: ComplianceResult = {
             passed: false,
             violations: [
                 {
-                    edge: { path: '~/brain/workflows/meta/promote/SKILL.md', type: 'hard', workflowName: 'promote' },
+                    obligation: { workflowPath: '~/brain/workflows/meta/promote/SKILL.md', type: 'hard', workflowName: 'promote' },
                     reason: 'Hard edge violation: did not spawn workflow "promote"'
                 },
                 {
-                    edge: { path: '~/brain/workflows/meta/gardening/SKILL.md', type: 'soft', workflowName: 'gardening' },
+                    obligation: { workflowPath: '~/brain/workflows/meta/gardening/SKILL.md', type: 'soft', workflowName: 'gardening' },
                     reason: 'Soft edge violation: did not reason about "gardening" in any progress node'
                 },
                 {
-                    edge: { path: '', type: 'hard', workflowName: 'progress-nodes' },
+                    obligation: { workflowPath: '', type: 'hard', workflowName: 'progress-nodes' },
                     reason: 'No progress nodes created — agent produced no visible work'
                 }
-            ],
-            hasProgressNodes: false
+            ]
         }
         const prompt: string = buildDeficiencyPrompt(result)
         const lines: string[] = prompt.split('\n')
@@ -236,13 +267,12 @@ describe('buildDeficiencyPrompt', () => {
     })
 
     it('includes closing instruction', () => {
-        const result: AuditResult = {
+        const result: ComplianceResult = {
             passed: false,
             violations: [{
-                edge: { path: '', type: 'hard', workflowName: 'test' },
+                obligation: { workflowPath: '', type: 'hard', workflowName: 'test' },
                 reason: 'test violation'
-            }],
-            hasProgressNodes: true
+            }]
         }
         const prompt: string = buildDeficiencyPrompt(result)
         expect(prompt).toMatch(/Address each violation.*exit normally/s)
@@ -301,90 +331,56 @@ describe('detectCliType', () => {
     })
 })
 
-// ─── buildResumeCommand ─────────────────────────────────────────────────────
-
-/**
- * Helper to create a minimal TerminalRecord for buildResumeCommand tests.
- * Only populates fields that buildResumeCommand actually reads.
- */
-function makeRecord(overrides: Partial<TerminalRecord>): TerminalRecord {
-    return {
-        terminalId: 'test-agent',
-        terminalData: {} as TerminalRecord['terminalData'],
-        status: 'exited',
-        exitCode: 0,
-        sessionId: null,
-        cliType: null,
-        auditRetryCount: 0,
-        skillPath: null,
-        ...overrides
-    }
-}
+// ─── buildResumeCommand ────────────────────────────────────────────────────
 
 describe('buildResumeCommand', () => {
-    it('builds Claude resume command with session ID using env var', () => {
-        const record: TerminalRecord = makeRecord({ cliType: 'claude', sessionId: 'vt-Amy' })
-        const cmd: string = buildResumeCommand(record)
-        expect(cmd).toBe('claude --resume "vt-Amy" -p "$RESUME_PROMPT" --dangerously-skip-permissions')
+    it('builds Claude resume command with --continue using env var', () => {
+        const cmd: string = buildResumeCommand('claude')
+        expect(cmd).toBe('claude --continue -p "$RESUME_PROMPT" --dangerously-skip-permissions')
     })
 
     it('builds Codex resume command (uses --last) with env var', () => {
-        const record: TerminalRecord = makeRecord({ cliType: 'codex' })
-        const cmd: string = buildResumeCommand(record)
+        const cmd: string = buildResumeCommand('codex')
         expect(cmd).toBe('codex exec resume --last -p "$RESUME_PROMPT" --full-auto')
     })
 
     it('builds Gemini resume command (uses latest) with env var', () => {
-        const record: TerminalRecord = makeRecord({ cliType: 'gemini' })
-        const cmd: string = buildResumeCommand(record)
+        const cmd: string = buildResumeCommand('gemini')
         expect(cmd).toBe('gemini --resume latest -p "$RESUME_PROMPT" --yolo')
     })
 
     it('uses env var expansion (no --prompt-file)', () => {
-        const record: TerminalRecord = makeRecord({ cliType: 'claude', sessionId: 'vt-Ben' })
-        const cmd: string = buildResumeCommand(record)
+        const cmd: string = buildResumeCommand('claude')
         expect(cmd).not.toContain('--prompt-file')
         expect(cmd).toContain('-p "$RESUME_PROMPT"')
     })
-
-    it('throws for null cliType', () => {
-        const record: TerminalRecord = makeRecord({ cliType: null })
-        expect(() => buildResumeCommand(record)).toThrow('unsupported CLI type')
-    })
 })
 
-// ─── shouldRunAudit (integration: audit gate condition per CLI) ─────────────
+// ─── buildHeadlessCommand ──────────────────────────────────────────────────
 
-describe('shouldRunAudit', () => {
-    it('Claude with sessionId → audit runs', () => {
-        expect(shouldRunAudit({ cliType: 'claude', sessionId: 'vt-Amy', skillPath: '~/brain/SKILL.md' })).toBe(true)
+describe('buildHeadlessCommand', () => {
+    it('builds Claude headless command with -p flag', () => {
+        const cmd: string = buildHeadlessCommand('claude --dangerously-skip-permissions "$AGENT_PROMPT"')
+        expect(cmd).toBe('claude --dangerously-skip-permissions -p "$AGENT_PROMPT"')
     })
 
-    it('Claude without sessionId → audit skipped', () => {
-        expect(shouldRunAudit({ cliType: 'claude', sessionId: null, skillPath: '~/brain/SKILL.md' })).toBe(false)
+    it('does not include --session-id', () => {
+        const cmd: string = buildHeadlessCommand('claude --dangerously-skip-permissions "$AGENT_PROMPT"')
+        expect(cmd).not.toContain('--session-id')
     })
 
-    it('Codex without sessionId → audit still runs (uses --last)', () => {
-        expect(shouldRunAudit({ cliType: 'codex', sessionId: null, skillPath: '~/brain/SKILL.md' })).toBe(true)
+    it('builds Codex headless command with positional prompt arg', () => {
+        const cmd: string = buildHeadlessCommand('codex exec --full-auto "$AGENT_PROMPT"')
+        expect(cmd).toBe('codex exec --full-auto "$AGENT_PROMPT"')
     })
 
-    it('Gemini without sessionId → audit still runs (uses latest)', () => {
-        expect(shouldRunAudit({ cliType: 'gemini', sessionId: null, skillPath: '~/brain/SKILL.md' })).toBe(true)
+    it('builds Gemini headless command with -p flag', () => {
+        const cmd: string = buildHeadlessCommand('gemini --yolo "$AGENT_PROMPT"')
+        expect(cmd).toBe('gemini --yolo -p "$AGENT_PROMPT"')
     })
 
-    it('null cliType → audit skipped', () => {
-        expect(shouldRunAudit({ cliType: null, sessionId: null, skillPath: '~/brain/SKILL.md' })).toBe(false)
-    })
-
-    it('null skillPath → audit skipped regardless of cliType', () => {
-        expect(shouldRunAudit({ cliType: 'claude', sessionId: 'vt-Amy', skillPath: null })).toBe(false)
-    })
-
-    it('Codex with sessionId → audit runs', () => {
-        expect(shouldRunAudit({ cliType: 'codex', sessionId: 'some-id', skillPath: '~/brain/SKILL.md' })).toBe(true)
-    })
-
-    it('both skillPath and cliType null → audit skipped', () => {
-        expect(shouldRunAudit({ cliType: null, sessionId: null, skillPath: null })).toBe(false)
+    it('handles single-quoted $AGENT_PROMPT', () => {
+        const cmd: string = buildHeadlessCommand("claude --dangerously-skip-permissions '$AGENT_PROMPT'")
+        expect(cmd).toBe('claude --dangerously-skip-permissions -p "$AGENT_PROMPT"')
     })
 })

@@ -19,14 +19,15 @@ import type {McpToolResponse} from '@/shell/edge/main/mcp-server/types'
 
 // ─── Mocks (vi.hoisted ensures variables exist when vi.mock factories run) ─
 
-const {mockGetTerminalRecords, mockRemoveTerminalFromRegistry, mockIsHeadlessAgent, mockKillHeadlessAgent, mockCloseHeadlessAgent, mockGetHeadlessAgentOutput, mockRunStopGateAudit} = vi.hoisted(() => ({
+const {mockGetTerminalRecords, mockRemoveTerminalFromRegistry, mockIsHeadlessAgent, mockKillHeadlessAgent, mockCloseHeadlessAgent, mockGetHeadlessAgentOutput, mockAuditAgent, mockBuildDeficiencyPrompt} = vi.hoisted(() => ({
     mockGetTerminalRecords: vi.fn(),
     mockRemoveTerminalFromRegistry: vi.fn(),
     mockIsHeadlessAgent: vi.fn(),
     mockKillHeadlessAgent: vi.fn(),
     mockCloseHeadlessAgent: vi.fn(),
     mockGetHeadlessAgentOutput: vi.fn(),
-    mockRunStopGateAudit: vi.fn()
+    mockAuditAgent: vi.fn(),
+    mockBuildDeficiencyPrompt: vi.fn()
 }))
 
 vi.mock('@/shell/edge/main/terminals/terminal-registry', () => ({
@@ -55,7 +56,8 @@ vi.mock('@/shell/edge/main/terminals/headlessAgentManager', () => ({
 }))
 
 vi.mock('@/shell/edge/main/terminals/stopGateAudit', () => ({
-    runStopGateAudit: mockRunStopGateAudit
+    auditAgent: mockAuditAgent,
+    buildDeficiencyPrompt: mockBuildDeficiencyPrompt
 }))
 
 vi.mock('@/shell/edge/main/ui-api-proxy', () => ({
@@ -115,10 +117,7 @@ function createTerminalRecord(
         terminalData,
         status: 'running',
         exitCode: null,
-        sessionId: null,
-        cliType: null,
-        auditRetryCount: 0,
-        skillPath: null
+        auditRetryCount: 0
     }
 }
 
@@ -138,7 +137,8 @@ describe('MCP tool guards for headless agents', () => {
             id === 'headless-agent' ? {closed: true, wasRunning: true} : {closed: false}
         )
         mockGetHeadlessAgentOutput.mockReturnValue('sample headless output from ring buffer')
-        mockRunStopGateAudit.mockReturnValue({passed: true, violations: [], hasProgressNodes: true})
+        mockAuditAgent.mockReturnValue(null) // no SKILL.md → audit skipped
+        mockBuildDeficiencyPrompt.mockReturnValue('STOP GATE AUDIT FAILED.')
     })
 
     describe('sendMessageTool', () => {
@@ -326,26 +326,25 @@ describe('MCP tool guards for headless agents', () => {
     })
 
     describe('closeAgentTool — stop gate (self-close)', () => {
-        it('skips audit when skillPath is null', () => {
-            // callerRecord has skillPath: null — stop gate must not run
+        it('skips audit when auditAgent returns null (no SKILL.md)', () => {
             mockGetTerminalRecords.mockReturnValue([callerRecord])
+            mockAuditAgent.mockReturnValue(null)
 
             closeAgentTool({terminalId: 'caller-terminal', callerTerminalId: 'caller-terminal'})
 
-            expect(mockRunStopGateAudit).not.toHaveBeenCalled()
+            expect(mockAuditAgent).toHaveBeenCalled()
         })
 
         it('blocks self-close when stop gate audit fails', () => {
-            const recordWithSkill: TerminalRecord = {...callerRecord, skillPath: '~/brain/SKILL.md'}
-            mockGetTerminalRecords.mockReturnValue([recordWithSkill])
-            mockRunStopGateAudit.mockReturnValue({
+            mockGetTerminalRecords.mockReturnValue([callerRecord])
+            mockAuditAgent.mockReturnValue({
                 passed: false,
                 violations: [{
-                    edge: {path: '~/brain/workflows/meta/promote/SKILL.md', type: 'hard', workflowName: 'promote'},
+                    obligation: {workflowPath: '~/brain/workflows/meta/promote/SKILL.md', type: 'hard', workflowName: 'promote'},
                     reason: 'Hard edge violation: did not spawn workflow "promote"'
-                }],
-                hasProgressNodes: true
+                }]
             })
+            mockBuildDeficiencyPrompt.mockReturnValue('STOP GATE AUDIT FAILED.\n- Hard edge violation: did not spawn workflow "promote"\n\nAddress each violation, then exit normally.')
 
             const response: McpToolResponse = closeAgentTool({
                 terminalId: 'caller-terminal',
@@ -354,14 +353,13 @@ describe('MCP tool guards for headless agents', () => {
 
             const payload: Record<string, unknown> = parseResponsePayload(response)
             expect(payload.success).toBe(false)
-            expect(payload.error as string).toContain('Stop gate audit failed')
+            expect(payload.error as string).toContain('STOP GATE AUDIT FAILED')
             expect(payload.error as string).toContain('promote')
         })
 
         it('allows self-close when stop gate audit passes', () => {
-            const recordWithSkill: TerminalRecord = {...callerRecord, skillPath: '~/brain/SKILL.md'}
-            mockGetTerminalRecords.mockReturnValue([recordWithSkill])
-            mockRunStopGateAudit.mockReturnValue({passed: true, violations: [], hasProgressNodes: true})
+            mockGetTerminalRecords.mockReturnValue([callerRecord])
+            mockAuditAgent.mockReturnValue({passed: true, violations: []})
 
             const response: McpToolResponse = closeAgentTool({
                 terminalId: 'caller-terminal',
@@ -372,13 +370,17 @@ describe('MCP tool guards for headless agents', () => {
             expect(payload.success).toBe(true)
         })
 
-        it('passes terminalId and skillPath to runStopGateAudit', () => {
-            const recordWithSkill: TerminalRecord = {...callerRecord, skillPath: '~/brain/SKILL.md'}
-            mockGetTerminalRecords.mockReturnValue([recordWithSkill])
+        it('calls auditAgent with terminalId, graph, and records', () => {
+            mockGetTerminalRecords.mockReturnValue([callerRecord])
+            mockAuditAgent.mockReturnValue(null)
 
             closeAgentTool({terminalId: 'caller-terminal', callerTerminalId: 'caller-terminal'})
 
-            expect(mockRunStopGateAudit).toHaveBeenCalledWith('caller-terminal', '~/brain/SKILL.md')
+            expect(mockAuditAgent).toHaveBeenCalledWith(
+                'caller-terminal',
+                expect.objectContaining({nodes: {}}),
+                [callerRecord]
+            )
         })
     })
 })

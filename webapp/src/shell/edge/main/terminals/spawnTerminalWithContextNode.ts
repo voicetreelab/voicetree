@@ -27,13 +27,12 @@ import { getNodeTitle } from '@/pure/graph/markdown-parsing';
 import { findFirstParentNode } from '@/pure/graph/graph-operations/findFirstParentNode';
 import type { VTSettings } from '@/pure/settings';
 import { getNextAgentName, getUniqueAgentName } from '@/pure/settings/types';
-import { getNextTerminalCountForNode, getExistingAgentNames, updateStopGateFields, type TerminalRecord } from '@/shell/edge/main/terminals/terminal-registry';
+import { getNextTerminalCountForNode, getExistingAgentNames } from '@/shell/edge/main/terminals/terminal-registry';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import {getWatchStatus} from "@/shell/edge/main/graph/watch_folder/watchFolder";
 import {buildTerminalEnvVars} from '@/shell/edge/main/terminals/buildTerminalEnvVars';
 import {spawnHeadlessAgent, killHeadlessAgent} from '@/shell/edge/main/terminals/headlessAgentManager';
 import {registerChildIfMonitored} from '@/shell/edge/main/mcp-server/agent-completion-monitor';
-import {resolveSkillPath} from '@/shell/edge/main/terminals/stopGateAudit';
 
 /**
  * Spawn a terminal with a context node, orchestrated from main process
@@ -135,15 +134,7 @@ export async function spawnTerminalWithContextNode(
 
     if (headless) {
         // Headless branch: spawn as background child_process, no PTY/xterm.js
-        // Strip the interactive "$AGENT_PROMPT" positional arg, then re-add per CLI convention
-        const baseCommand: string = command.replace('"$AGENT_PROMPT"', '').replace("'$AGENT_PROMPT'", '').trim()
-        const cliType: TerminalRecord['cliType'] = detectCliType(baseCommand)
-        const agentName: string = terminalData.agentName
-        // Claude supports named sessions; Codex/Gemini use UUID-only (extracted post-exit)
-        const sessionFlag: string = cliType === 'claude' ? ` --session-id "vt-${agentName}"` : ''
-        // Codex uses positional prompt arg; Claude and Gemini use -p flag
-        const promptArg: string = cliType === 'codex' ? ' "$AGENT_PROMPT"' : ' -p "$AGENT_PROMPT"'
-        const headlessCommand: string = `${baseCommand}${sessionFlag}${promptArg}`
+        const headlessCommand: string = buildHeadlessCommand(command)
         const headlessEnv: Record<string, string> = terminalData.initialEnvVars ?? {}
 
         // replaceSelf: kill old process before spawning successor with same ID
@@ -158,13 +149,6 @@ export async function spawnTerminalWithContextNode(
             terminalData.initialSpawnDirectory,
             headlessEnv
         )
-
-        const skillPath: string | null = resolveSkillPath(resolvedTaskNodeId, taskNode.contentWithoutYamlOrLinks)
-        updateStopGateFields(getTerminalId(terminalData), {
-            sessionId: cliType === 'claude' ? `vt-${agentName}` : null,
-            cliType,
-            skillPath
-        })
     } else {
         // Interactive branch: launch terminal onto UI with xterm.js
 
@@ -277,6 +261,9 @@ async function prepareTerminalDataInMain(
     // Read context content for the dropdown panel
     const contextContent: string = contextNode.contentWithoutYamlOrLinks;
 
+    // Resolve human-readable agent type name from settings by matching command
+    const agentTypeName: string = settings.agents.find(a => a.command === command)?.name ?? '';
+
     // Create TerminalData using the factory function (flat type, no nested floatingWindow)
     // anchoredToNodeId = taskNodeId (shadow node connects to task node)
     // attachedToContextNodeId = contextNodeId (for metadata, env vars, and shadow→context edge)
@@ -296,6 +283,7 @@ async function prepareTerminalDataInMain(
         worktreeName: worktreeName,
         isHeadless: headless,
         contextContent: contextContent,
+        agentTypeName: agentTypeName,
     });
 
     return terminalData;
@@ -305,11 +293,24 @@ async function prepareTerminalDataInMain(
  * Detect CLI type from the agent command string.
  * Used for CLI-specific headless command construction and stop gate resume.
  */
-export function detectCliType(command: string): TerminalRecord['cliType'] {
+export function detectCliType(command: string): 'claude' | 'codex' | 'gemini' | null {
     if (command.startsWith('claude ') || command === 'claude') return 'claude'
     if (command.startsWith('codex ') || command === 'codex') return 'codex'
     if (command.startsWith('gemini ') || command === 'gemini') return 'gemini'
     return null
+}
+
+/**
+ * Build the shell command for a headless agent from the interactive agent command.
+ * Strips the interactive "$AGENT_PROMPT" positional arg, then re-adds per CLI convention.
+ * No --session-id flag — CLI auto-generates one; resume uses --continue.
+ */
+export function buildHeadlessCommand(command: string): string {
+    const baseCommand: string = command.replace('"$AGENT_PROMPT"', '').replace("'$AGENT_PROMPT'", '').trim()
+    const cliType: 'claude' | 'codex' | 'gemini' | null = detectCliType(baseCommand)
+    // Codex uses positional prompt arg; Claude and Gemini use -p flag
+    const promptArg: string = cliType === 'codex' ? ' "$AGENT_PROMPT"' : ' -p "$AGENT_PROMPT"'
+    return `${baseCommand}${promptArg}`
 }
 
 /**
