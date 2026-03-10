@@ -4,7 +4,7 @@ import os from 'os'
 import matter from 'gray-matter'
 import { parseSkillFile, formatParsedSkillSummary } from '@/pure/workflows/parseSkillFile'
 
-const WORKFLOWS_DIR: string = path.join(os.homedir(), 'voicetree', 'workflows')
+const WORKFLOWS_DIR: string = path.join(os.homedir(), 'brain', 'workflows')
 
 export async function listWorkflows(): Promise<Array<{ name: string; path: string; hasSkillFile: boolean }>> {
     let entries: Dirent[]
