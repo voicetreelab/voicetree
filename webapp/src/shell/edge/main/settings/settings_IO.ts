@@ -14,6 +14,12 @@ let settingsCache: VTSettings | null = null;
 let settingsCacheTime: number = 0;
 const SETTINGS_CACHE_TTL_MS: number = 5000;
 
+/** Reset the settings cache. For testing only. */
+export function clearSettingsCache(): void {
+  settingsCache = null;
+  settingsCacheTime = 0;
+}
+
 export async function loadSettings(): Promise<VTSettings> {
   const now: number = Date.now();
   if (settingsCache && (now - settingsCacheTime) < SETTINGS_CACHE_TTL_MS) {
@@ -24,8 +30,17 @@ export async function loadSettings(): Promise<VTSettings> {
   try {
     const data: string = await fs.readFile(settingsPath, 'utf-8');
     const userSettings: Partial<VTSettings> = JSON.parse(data) as Partial<VTSettings>;
-    // Merge: user settings override defaults, missing keys come from defaults
-    settingsCache = { ...DEFAULT_SETTINGS, ...userSettings };
+    // Shallow merge at top level; deep-merge INJECT_ENV_VARS so new default keys always reach users.
+    // AGENT_PROMPT_CORE is force-set to current default so it's never stale (no migration needed).
+    settingsCache = {
+      ...DEFAULT_SETTINGS,
+      ...userSettings,
+      INJECT_ENV_VARS: {
+        ...DEFAULT_SETTINGS.INJECT_ENV_VARS,
+        ...userSettings.INJECT_ENV_VARS,
+        AGENT_PROMPT_CORE: DEFAULT_SETTINGS.INJECT_ENV_VARS.AGENT_PROMPT_CORE as string,
+      },
+    };
     settingsCacheTime = now;
     return settingsCache;
   } catch (error) {
@@ -35,77 +50,6 @@ export async function loadSettings(): Promise<VTSettings> {
     }
     throw error;
   }
-}
-
-/**
- * Ensures AGENT_PROMPT_CORE is up-to-date with the current default.
- * Unlike the old migrateAgentPromptIfNeeded, this NEVER overwrites AGENT_PROMPT —
- * only AGENT_PROMPT_CORE gets auto-updated, so user customizations to AGENT_PROMPT persist.
- *
- * On first migration (user has no AGENT_PROMPT_CORE yet):
- * - Adds AGENT_PROMPT_CORE with the current default
- * - If user's AGENT_PROMPT matches the old full-prompt default (now stored as AGENT_PROMPT_CORE content),
- *   updates it to '$AGENT_PROMPT_CORE' so it references the core
- *
- * On subsequent migrations:
- * - Only updates AGENT_PROMPT_CORE if it differs from the current default
- *
- * @returns true if migration occurred, false otherwise
- */
-export async function migrateAgentPromptCoreIfNeeded(): Promise<boolean> {
-  const settingsPath: string = getSettingsPath();
-
-  let userSettings: Partial<VTSettings>;
-  try {
-    const data: string = await fs.readFile(settingsPath, 'utf-8');
-    userSettings = JSON.parse(data) as Partial<VTSettings>;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      return false;
-    }
-    throw error;
-  }
-
-  const defaultCore: string = DEFAULT_SETTINGS.INJECT_ENV_VARS.AGENT_PROMPT_CORE as string;
-  const currentCore: string | undefined = userSettings.INJECT_ENV_VARS?.AGENT_PROMPT_CORE as string | undefined;
-
-  // First migration: user has no AGENT_PROMPT_CORE yet
-  if (currentCore === undefined) {
-    const currentAgentPrompt: string | undefined = userSettings.INJECT_ENV_VARS?.AGENT_PROMPT as string | undefined;
-
-    // If user's AGENT_PROMPT matches the core content (old default), update it to reference $AGENT_PROMPT_CORE
-    const shouldUpdateAgentPrompt: boolean = currentAgentPrompt !== undefined && currentAgentPrompt === defaultCore;
-
-    const updatedSettings: VTSettings = {
-      ...DEFAULT_SETTINGS,
-      ...userSettings,
-      INJECT_ENV_VARS: {
-        ...userSettings.INJECT_ENV_VARS,
-        AGENT_PROMPT_CORE: defaultCore,
-        ...(shouldUpdateAgentPrompt ? { AGENT_PROMPT: '$AGENT_PROMPT_CORE' } : {}),
-      },
-    };
-
-    await saveSettings(updatedSettings);
-    return true;
-  }
-
-  // Subsequent migrations: only update AGENT_PROMPT_CORE if it differs
-  if (currentCore === defaultCore) {
-    return false;
-  }
-
-  const updatedSettings: VTSettings = {
-    ...DEFAULT_SETTINGS,
-    ...userSettings,
-    INJECT_ENV_VARS: {
-      ...userSettings.INJECT_ENV_VARS,
-      AGENT_PROMPT_CORE: defaultCore,
-    },
-  };
-
-  await saveSettings(updatedSettings);
-  return true;
 }
 
 /**

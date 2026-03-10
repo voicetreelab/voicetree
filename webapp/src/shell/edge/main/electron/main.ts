@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import {app, BrowserWindow, nativeImage, dialog} from 'electron';
+import {app, BrowserWindow, nativeImage} from 'electron';
 import path from 'path';
 import electronUpdater, {type UpdateCheckResult} from 'electron-updater';
 import log from 'electron-log';
@@ -10,7 +10,7 @@ import {getTerminalManager} from '@/shell/edge/main/terminals/terminal-manager-i
 import {setupToolsDirectory, getToolsDirectory} from './tools-setup';
 import {setupOnboardingDirectory} from './onboarding-setup';
 import {startNotificationScheduler, stopNotificationScheduler} from './notification-scheduler';
-import {migrateAgentPromptCoreIfNeeded, migrateLayoutConfigIfNeeded, migrateStarredFoldersIfNeeded, migrateStarredFoldersBrainRename} from '@/shell/edge/main/settings/settings_IO';
+import {migrateLayoutConfigIfNeeded, migrateStarredFoldersIfNeeded, migrateStarredFoldersBrainRename} from '@/shell/edge/main/settings/settings_IO';
 import {setBackendPort} from '@/shell/edge/main/state/app-electron-state';
 import {startOTLPReceiver, stopOTLPReceiver} from '@/shell/edge/main/metrics/otlp-receiver';
 import {registerTerminalIpcHandlers} from '@/shell/edge/main/terminals/ipc-terminal-handlers';
@@ -130,9 +130,6 @@ void app.whenReady().then(async () => {
             });
         }
     }
-
-    // Auto-update AGENT_PROMPT_CORE (never overwrites user's AGENT_PROMPT)
-    await migrateAgentPromptCoreIfNeeded();
 
     // Silently migrate layoutConfig nodeSpacing from old default (70) to new default (120)
     await migrateLayoutConfigIfNeeded();
