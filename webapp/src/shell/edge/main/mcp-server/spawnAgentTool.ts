@@ -23,7 +23,6 @@ export interface SpawnAgentParams {
     nodeId?: string
     callerTerminalId: string
     task?: string
-    details?: string
     parentNodeId?: string
     spawnDirectory?: string
     promptTemplate?: string
@@ -33,7 +32,7 @@ export interface SpawnAgentParams {
     depthBudget?: number
 }
 
-export async function spawnAgentTool({nodeId, callerTerminalId, task, details, parentNodeId, spawnDirectory, promptTemplate, agentName, headless, replaceSelf, depthBudget}: SpawnAgentParams): Promise<McpToolResponse> {
+export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNodeId, spawnDirectory, promptTemplate, agentName, headless, replaceSelf, depthBudget}: SpawnAgentParams): Promise<McpToolResponse> {
     //console.log(`[MCP] spawn_agent called by terminal: ${callerTerminalId}`)
 
     // Validate caller terminal exists
@@ -135,8 +134,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, details, p
         const spatialIndex: SpatialIndex = buildSpatialIndexFromGraph(graph)
         const taskNodePosition: Position = O.getOrElse(() => ({x: 0, y: 0}))(calculateNodePosition(graph, spatialIndex, resolvedParentId))
 
-        // Build task description: title with optional details
-        const taskDescription: string = details ? `${task}\n\n${details}` : task
+        const taskDescription: string = task
 
         try {
             // Create task node
@@ -221,7 +219,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, details, p
                 ? (callerRecord?.terminalData.parentTerminalId ?? undefined)
                 : callerTerminalId
             const {terminalId, contextNodeId}: {terminalId: string; contextNodeId: string} =
-                await spawnTerminalWithContextNode(taskNodeId, resolvedAgentCommand, undefined, true, false, undefined, resolvedSpawnDirectory, replaceSelfParentId, undefined, promptTemplate, headless, replaceSelf ? callerTerminalId : undefined, envOverrides)
+                await spawnTerminalWithContextNode(taskNodeId, resolvedAgentCommand, undefined, true, false, undefined, resolvedSpawnDirectory, replaceSelfParentId, promptTemplate, headless, replaceSelf ? callerTerminalId : undefined, envOverrides)
 
             return buildJsonResponse({
                 success: true,
@@ -292,7 +290,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, details, p
             ? (callerRecord?.terminalData.parentTerminalId ?? undefined)
             : callerTerminalId
         const {terminalId, contextNodeId}: {terminalId: string; contextNodeId: string} =
-            await spawnTerminalWithContextNode(resolvedNodeId, resolvedAgentCommand, undefined, true, false, undefined, resolvedSpawnDirectory, replaceSelfParentId2, details, promptTemplate, headless, replaceSelf ? callerTerminalId : undefined, envOverrides)
+            await spawnTerminalWithContextNode(resolvedNodeId, resolvedAgentCommand, undefined, true, false, undefined, resolvedSpawnDirectory, replaceSelfParentId2, promptTemplate, headless, replaceSelf ? callerTerminalId : undefined, envOverrides)
 
         return buildJsonResponse({
             success: true,

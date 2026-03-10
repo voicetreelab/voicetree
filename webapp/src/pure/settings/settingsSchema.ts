@@ -118,7 +118,6 @@ export const SETTINGS_SCHEMA: SettingsSchema = {
         default: {
             AGENT_PROMPT_LIGHTWEIGHT: `First read and analyze the context of your task, which is stored at $CONTEXT_NODE_PATH
 You are being run within a graph of Markdown files that represents your project context. These markdown files are stored within $ALL_MARKDOWN_READ_PATHS
-Follow the <AGENT_INSTRUCTIONS> from your context node.
 <YOUR_ENV_VARS>
 VOICETREE_TERMINAL_ID = $VOICETREE_TERMINAL_ID
 AGENT_NAME = $AGENT_NAME

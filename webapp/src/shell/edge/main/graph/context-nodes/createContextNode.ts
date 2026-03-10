@@ -65,8 +65,7 @@ async function getSemanticRelevantNodes(
  * @returns The NodeId of the newly created context node
  */
 export async function createContextNode(
-    parentNodeId: NodeIdAndFilePath,
-    agentInstructions?: string
+    parentNodeId: NodeIdAndFilePath
 ): Promise<NodeIdAndFilePath> {
     //console.log("[createContextNode] START - parentNodeId:", parentNodeId)
 
@@ -149,7 +148,6 @@ export async function createContextNode(
         asciiTree,
         subgraph,
         semanticNodeIds,
-        agentInstructions,
         contextMaxChars
     )
     //console.log("[createContextNode] Content length:", content.length)
@@ -200,11 +198,10 @@ function buildContextNodeContent(
     asciiTree: string,
     subgraph: Graph,
     semanticNodeIds: readonly NodeIdAndFilePath[],
-    agentInstructions?: string,
     contextMaxChars?: number
 ): string {
     // todo this should be done by creatingGraphNode, and then calling to markdown function on it.
-    const nodeDetailsList: string = generateNodeDetailsList(subgraph, parentNodeId, semanticNodeIds, agentInstructions, contextMaxChars)
+    const nodeDetailsList: string = generateNodeDetailsList(subgraph, parentNodeId, semanticNodeIds, contextMaxChars)
 
     // Collect all node IDs from the subgraph (excluding context nodes to prevent self-referencing)
     const containedNodeIds: readonly string[] = Object.keys(subgraph.nodes)
@@ -301,7 +298,6 @@ function generateNodeDetailsList(
     subgraph: Graph,
     _startNodeId: NodeIdAndFilePath,
     semanticNodeIds: readonly NodeIdAndFilePath[],
-    agentInstructions?: string,
     contextMaxChars?: number
 ): string {
     const budget: number = contextMaxChars ?? 8000
@@ -331,10 +327,7 @@ function generateNodeDetailsList(
     )
     const taskBlock: string = `<TASK> IMPORTANT. YOUR specific task, and the most relevant context is the source note you were spawned from, which is:
         ${_startNodeId}: ${startNodeContent} </TASK>`
-    const instructionsBlock: string = agentInstructions
-        ? `<AGENT_INSTRUCTIONS>\n${agentInstructions}\n</AGENT_INSTRUCTIONS>`
-        : ''
-    const reservedChars: number = taskBlock.length + instructionsBlock.length
+    const reservedChars: number = taskBlock.length
 
     // Fill neighbor node summaries within remaining budget
     let usedChars: number = reservedChars
@@ -374,9 +367,6 @@ function generateNodeDetailsList(
 
     // Task node always last (benefits from recency bias in LLM attention)
     lines.push(taskBlock)
-    if (instructionsBlock) {
-        lines.push(instructionsBlock)
-    }
 
     return lines.join('\n')
 }

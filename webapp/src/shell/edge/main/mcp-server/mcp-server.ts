@@ -84,8 +84,7 @@ If no node exists yet, use task+parentNodeId to create a new task node first.`,
             inputSchema: {
                 nodeId: z.string().optional().describe('Target node ID to attach the spawned agent (use this OR task+parentNodeId)'),
                 callerTerminalId: z.string().describe('Your terminal ID, you must echo $VOICETREE_TERMINAL_ID to retrieve it if you have not yet.'),
-                task: z.string().optional().describe('Task title for creating a new task node (requires parentNodeId)'),
-                details: z.string().optional().describe('Detailed description of the task (used with task parameter)'),
+                task: z.string().optional().describe('Task description for creating a new task node. The first line becomes the node title, the rest becomes the body. Requires parentNodeId.'),
                 parentNodeId: z.string().optional().describe('Parent node ID under which to create the new task node (required when task is provided)'),
                 spawnDirectory: z.string().optional().describe('Absolute path to spawn the agent in. By default, inherits the parent terminal\'s directory (worktree-safe). Only needed to override, for example to contain child-agent to a subfolder or new worktree'),
                 promptTemplate: z.string().optional().describe('Name of an INJECT_ENV_VARS key to use as AGENT_PROMPT instead of the default. Must match an existing key in settings.'),
@@ -95,7 +94,7 @@ If no node exists yet, use task+parentNodeId to create a new task node first.`,
                 depthBudget: z.number().optional().describe('Explicit DEPTH_BUDGET for the child agent. If omitted, auto-decrements from the caller\'s DEPTH_BUDGET (parent budget - 1). Controls recursive decomposition: budget > 0 = may spawn sub-agents, budget = 0 = leaf agent (no spawning).')
             }
         },
-        async ({nodeId, callerTerminalId, task, details, parentNodeId, spawnDirectory, promptTemplate, agentName, headless, replaceSelf, depthBudget}) => spawnAgentTool({nodeId, callerTerminalId, task, details, parentNodeId, spawnDirectory, promptTemplate, agentName, headless, replaceSelf, depthBudget})
+        async ({nodeId, callerTerminalId, task, parentNodeId, spawnDirectory, promptTemplate, agentName, headless, replaceSelf, depthBudget}) => spawnAgentTool({nodeId, callerTerminalId, task, parentNodeId, spawnDirectory, promptTemplate, agentName, headless, replaceSelf, depthBudget})
     )
 
     // Tool: list_agents

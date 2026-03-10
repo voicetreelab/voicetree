@@ -70,7 +70,7 @@ function mockCallerTerminal(): void {
         agentName: 'caller'
     })
     vi.mocked(getTerminalRecords).mockReturnValue([
-        {terminalId: 'caller-terminal-99', terminalData: callerTerminalData, status: 'running', exitCode: null}
+        {terminalId: 'caller-terminal-99', terminalData: callerTerminalData, status: 'running', exitCode: null, auditRetryCount: 0, spawnedAt: 0}
     ])
 }
 
@@ -170,7 +170,7 @@ describe('MCP spawn_agent tool', () => {
 
         expect(payload.success).toBe(true)
         expect(payload.nodeId).toBe(fullPath)
-        expect(spawnTerminalWithContextNode).toHaveBeenCalledWith(fullPath, undefined, undefined, true, false, undefined, undefined, 'caller-terminal-99', undefined, undefined, undefined, undefined, undefined)
+        expect(spawnTerminalWithContextNode).toHaveBeenCalledWith(fullPath, undefined, undefined, true, false, undefined, undefined, 'caller-terminal-99', undefined, undefined, undefined, undefined)
     })
 
     it('returns an error when vault path is not set', async () => {
@@ -254,7 +254,7 @@ describe('MCP spawn_agent depthBudget auto-decrement', () => {
             initialEnvVars: {DEPTH_BUDGET: budget}
         })
         vi.mocked(getTerminalRecords).mockReturnValue([
-            {terminalId: 'caller-terminal-99', terminalData: callerTerminalData, status: 'running', exitCode: null}
+            {terminalId: 'caller-terminal-99', terminalData: callerTerminalData, status: 'running', exitCode: null, auditRetryCount: 0, spawnedAt: 0}
         ])
     }
 
@@ -279,7 +279,7 @@ describe('MCP spawn_agent depthBudget auto-decrement', () => {
         await spawnAgentTool({nodeId: 'node-1.md', callerTerminalId: 'caller-terminal-99'})
 
         const envOverridesArg: Record<string, string> | undefined =
-            vi.mocked(spawnTerminalWithContextNode).mock.calls[0]?.[12] as Record<string, string> | undefined
+            vi.mocked(spawnTerminalWithContextNode).mock.calls[0]?.[11] as Record<string, string> | undefined
         expect(envOverridesArg).toEqual({DEPTH_BUDGET: '1'})
     })
 
@@ -290,7 +290,7 @@ describe('MCP spawn_agent depthBudget auto-decrement', () => {
         await spawnAgentTool({nodeId: 'node-1.md', callerTerminalId: 'caller-terminal-99'})
 
         const envOverridesArg: Record<string, string> | undefined =
-            vi.mocked(spawnTerminalWithContextNode).mock.calls[0]?.[12] as Record<string, string> | undefined
+            vi.mocked(spawnTerminalWithContextNode).mock.calls[0]?.[11] as Record<string, string> | undefined
         expect(envOverridesArg).toEqual({DEPTH_BUDGET: '0'})
     })
 
@@ -301,7 +301,7 @@ describe('MCP spawn_agent depthBudget auto-decrement', () => {
         await spawnAgentTool({nodeId: 'node-1.md', callerTerminalId: 'caller-terminal-99', depthBudget: 5})
 
         const envOverridesArg: Record<string, string> | undefined =
-            vi.mocked(spawnTerminalWithContextNode).mock.calls[0]?.[12] as Record<string, string> | undefined
+            vi.mocked(spawnTerminalWithContextNode).mock.calls[0]?.[11] as Record<string, string> | undefined
         expect(envOverridesArg).toEqual({DEPTH_BUDGET: '5'})
     })
 
@@ -322,7 +322,7 @@ describe('MCP spawn_agent depthBudget auto-decrement', () => {
         await spawnAgentTool({nodeId: 'node-1.md', callerTerminalId: 'caller-terminal-99'})
 
         const envOverridesArg: Record<string, string> | undefined =
-            vi.mocked(spawnTerminalWithContextNode).mock.calls[0]?.[12] as Record<string, string> | undefined
+            vi.mocked(spawnTerminalWithContextNode).mock.calls[0]?.[11] as Record<string, string> | undefined
         expect(envOverridesArg).toBeUndefined()
     })
 })
@@ -360,9 +360,9 @@ describe('MCP list_agents tool', () => {
         })
 
         const records: TerminalRecord[] = [
-            {terminalId: 'agent-a-terminal-0', terminalData: terminalDataA, status: 'running', exitCode: null},
-            {terminalId: 'agent-b-terminal-1', terminalData: {...terminalDataB, isDone: true}, status: 'exited', exitCode: null},
-            {terminalId: 'plain-terminal-0', terminalData: terminalDataPlain, status: 'running', exitCode: null}
+            {terminalId: 'agent-a-terminal-0', terminalData: terminalDataA, status: 'running', exitCode: null, auditRetryCount: 0, spawnedAt: 0},
+            {terminalId: 'agent-b-terminal-1', terminalData: {...terminalDataB, isDone: true}, status: 'exited', exitCode: null, auditRetryCount: 0, spawnedAt: 0},
+            {terminalId: 'plain-terminal-0', terminalData: terminalDataPlain, status: 'running', exitCode: null, auditRetryCount: 0, spawnedAt: 0}
         ]
 
         vi.mocked(getTerminalRecords).mockReturnValue(records)
@@ -424,7 +424,7 @@ describe('MCP list_agents tool', () => {
         })
 
         const records: TerminalRecord[] = [
-            {terminalId: 'idle-agent-terminal-0', terminalData: {...terminalData, isDone: true}, status: 'running', exitCode: null}
+            {terminalId: 'idle-agent-terminal-0', terminalData: {...terminalData, isDone: true}, status: 'running', exitCode: null, auditRetryCount: 0, spawnedAt: 0}
         ]
 
         vi.mocked(getTerminalRecords).mockReturnValue(records)

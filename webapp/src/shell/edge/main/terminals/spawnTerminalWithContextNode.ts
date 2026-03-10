@@ -58,7 +58,6 @@ export async function spawnTerminalWithContextNode(
     selectedNodeIds?: readonly NodeIdAndFilePath[],
     spawnDirectory?: string,
     parentTerminalId?: string,
-    agentInstructions?: string,
     promptTemplate?: string,
     headless?: boolean,
     inheritTerminalId?: string,
@@ -108,7 +107,7 @@ export async function spawnTerminalWithContextNode(
         // Create context node for the task node
         contextNodeId = selectedNodeIds
             ? await createContextNodeFromSelectedNodes(taskNodeId, selectedNodeIds)
-            : await createContextNode(taskNodeId, agentInstructions);
+            : await createContextNode(taskNodeId);
         resolvedTaskNodeId = taskNodeId;
     }
 
