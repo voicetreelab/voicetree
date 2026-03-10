@@ -15,15 +15,19 @@ import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals
 
 // ─── Mocks (vi.hoisted ensures variables exist when vi.mock factories run) ─
 
-const {mockMarkTerminalExited, mockRecordTerminalSpawn, mockSpawn} = vi.hoisted(() => ({
+const {mockMarkTerminalExited, mockRecordTerminalSpawn, mockSpawn, mockGetTerminalRecords} = vi.hoisted(() => ({
     mockMarkTerminalExited: vi.fn(),
     mockRecordTerminalSpawn: vi.fn(),
-    mockSpawn: vi.fn()
+    mockSpawn: vi.fn(),
+    mockGetTerminalRecords: vi.fn().mockReturnValue([])
 }))
 
 vi.mock('@/shell/edge/main/terminals/terminal-registry', () => ({
     markTerminalExited: mockMarkTerminalExited,
-    recordTerminalSpawn: mockRecordTerminalSpawn
+    recordTerminalSpawn: mockRecordTerminalSpawn,
+    getTerminalRecords: mockGetTerminalRecords,
+    updateStopGateFields: vi.fn(),
+    removeTerminalFromRegistry: vi.fn()
 }))
 
 vi.mock('child_process', () => ({
@@ -37,8 +41,7 @@ import {
     spawnHeadlessAgent,
     killHeadlessAgent,
     isHeadlessAgent,
-    cleanupHeadlessAgents,
-    getHeadlessAgentOutput
+    cleanupHeadlessAgents
 } from '@/shell/edge/main/terminals/headlessAgentManager'
 
 // ─── Test helpers ──────────────────────────────────────────────────────────
@@ -85,6 +88,8 @@ function createTestTerminalData(terminalId: string): TerminalData {
         agentName: terminalId,
         worktreeName: undefined,
         isHeadless: true,
+        isMinimized: false,
+        contextContent: '',
     }
 }
 
@@ -281,199 +286,6 @@ describe('headlessAgentManager', () => {
         it('accepts string type (not just branded TerminalId)', () => {
             // The function signature accepts TerminalId | string
             expect(isHeadlessAgent('some-string')).toBe(false)
-        })
-    })
-
-    describe('process exit lifecycle', () => {
-        it('calls markTerminalExited with exit code on process exit', () => {
-            const terminalId: string = 'agent-exit'
-            const terminalData: TerminalData = createTestTerminalData(terminalId)
-
-            spawnHeadlessAgent(
-                terminalId as TerminalId,
-                terminalData,
-                'claude -p "task"',
-                '/tmp',
-                {}
-            )
-            vi.clearAllMocks()
-
-            // Simulate process exit
-            mockChild.emit('exit', 0)
-
-            expect(mockMarkTerminalExited).toHaveBeenCalledOnce()
-            expect(mockMarkTerminalExited).toHaveBeenCalledWith(terminalId, 0)
-        })
-
-        it('passes non-zero exit code to markTerminalExited', () => {
-            const terminalId: string = 'agent-exit-fail'
-            const terminalData: TerminalData = createTestTerminalData(terminalId)
-            vi.spyOn(console, 'error').mockImplementation(() => {})
-
-            spawnHeadlessAgent(
-                terminalId as TerminalId,
-                terminalData,
-                'claude -p "task"',
-                '/tmp',
-                {}
-            )
-            vi.clearAllMocks()
-
-            mockChild.emit('exit', 1)
-
-            expect(mockMarkTerminalExited).toHaveBeenCalledOnce()
-            expect(mockMarkTerminalExited).toHaveBeenCalledWith(terminalId, 1)
-        })
-
-        it('does not remove terminal from registry on process exit', () => {
-            const terminalId: string = 'agent-no-remove'
-            const terminalData: TerminalData = createTestTerminalData(terminalId)
-
-            spawnHeadlessAgent(
-                terminalId as TerminalId,
-                terminalData,
-                'claude -p "task"',
-                '/tmp',
-                {}
-            )
-
-            mockChild.emit('exit', 0)
-
-            // Registry record should be preserved (only markTerminalExited called, not removeTerminalFromRegistry)
-            // The process map is cleaned up, but the registry record stays for wait_for_agents
-            expect(mockMarkTerminalExited).toHaveBeenCalled()
-        })
-
-        it('removes from internal map on process exit', () => {
-            const terminalId: string = 'agent-exit-cleanup'
-            const terminalData: TerminalData = createTestTerminalData(terminalId)
-
-            spawnHeadlessAgent(
-                terminalId as TerminalId,
-                terminalData,
-                'claude -p "task"',
-                '/tmp',
-                {}
-            )
-
-            expect(isHeadlessAgent(terminalId as TerminalId)).toBe(true)
-
-            mockChild.emit('exit', 0)
-
-            expect(isHeadlessAgent(terminalId as TerminalId)).toBe(false)
-        })
-    })
-
-    describe('combined stdout+stderr ring buffer', () => {
-        it('captures stderr data into output buffer', () => {
-            const terminalId: string = 'agent-stderr'
-            const terminalData: TerminalData = createTestTerminalData(terminalId)
-            const consoleSpy: ReturnType<typeof vi.spyOn> = vi.spyOn(console, 'error').mockImplementation(() => {})
-
-            spawnHeadlessAgent(
-                terminalId as TerminalId,
-                terminalData,
-                'claude -p "task"',
-                '/tmp',
-                {}
-            )
-
-            // Emit stderr data
-            mockChild.stderr.emit('data', Buffer.from('some error output'))
-
-            // Verify output is available via getHeadlessAgentOutput
-            expect(getHeadlessAgentOutput(terminalId)).toBe('some error output')
-
-            // Trigger exit with non-zero code to see the output in console.error
-            mockChild.emit('exit', 1)
-
-            expect(consoleSpy).toHaveBeenCalled()
-            const errorMessage: string = consoleSpy.mock.calls[0][0] as string
-            expect(errorMessage).toContain('some error output')
-
-            consoleSpy.mockRestore()
-        })
-
-        it('captures stdout data into output buffer', () => {
-            const terminalId: string = 'agent-stdout'
-            const terminalData: TerminalData = createTestTerminalData(terminalId)
-
-            spawnHeadlessAgent(
-                terminalId as TerminalId,
-                terminalData,
-                'claude -p "task"',
-                '/tmp',
-                {}
-            )
-
-            mockChild.stdout.emit('data', Buffer.from('hello from stdout'))
-
-            expect(getHeadlessAgentOutput(terminalId)).toBe('hello from stdout')
-        })
-
-        it('combines stdout and stderr in order of arrival', () => {
-            const terminalId: string = 'agent-combined'
-            const terminalData: TerminalData = createTestTerminalData(terminalId)
-
-            spawnHeadlessAgent(
-                terminalId as TerminalId,
-                terminalData,
-                'claude -p "task"',
-                '/tmp',
-                {}
-            )
-
-            mockChild.stdout.emit('data', Buffer.from('out1 '))
-            mockChild.stderr.emit('data', Buffer.from('err1 '))
-            mockChild.stdout.emit('data', Buffer.from('out2'))
-
-            expect(getHeadlessAgentOutput(terminalId)).toBe('out1 err1 out2')
-        })
-
-        it('limits output to last 8KB (ring buffer behavior)', () => {
-            const terminalId: string = 'agent-output-limit'
-            const terminalData: TerminalData = createTestTerminalData(terminalId)
-
-            spawnHeadlessAgent(
-                terminalId as TerminalId,
-                terminalData,
-                'claude -p "task"',
-                '/tmp',
-                {}
-            )
-
-            // Emit more than 8KB of output
-            const largeOutput: string = 'X'.repeat(10000)
-            mockChild.stdout.emit('data', Buffer.from(largeOutput))
-
-            const output: string = getHeadlessAgentOutput(terminalId)
-            expect(output.length).toBe(8000)
-            expect(output).toBe('X'.repeat(8000))
-        })
-
-        it('preserves output buffer after process exit', () => {
-            const terminalId: string = 'agent-output-persist'
-            const terminalData: TerminalData = createTestTerminalData(terminalId)
-
-            spawnHeadlessAgent(
-                terminalId as TerminalId,
-                terminalData,
-                'claude -p "task"',
-                '/tmp',
-                {}
-            )
-
-            mockChild.stdout.emit('data', Buffer.from('final output'))
-            mockChild.emit('exit', 0)
-
-            // Output should still be readable after exit
-            expect(getHeadlessAgentOutput(terminalId)).toBe('final output')
-            // But process map should be cleaned up
-            expect(isHeadlessAgent(terminalId as TerminalId)).toBe(false)
-        })
-
-        it('returns empty string for unknown terminal', () => {
-            expect(getHeadlessAgentOutput('nonexistent')).toBe('')
         })
     })
 

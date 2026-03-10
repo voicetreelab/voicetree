@@ -8,7 +8,7 @@
  * - sendMessageTool: rejects messages to headless agents
  * - readTerminalOutputTool: returns ring buffer output for headless agents
  * - listAgentsTool: includes isHeadless flag per agent
- * - closeAgentTool: delegates to killHeadlessAgent for headless agents
+ * - closeAgentTool: delegates to closeHeadlessAgent for headless agents
  */
 
 import {describe, it, expect, vi, beforeEach} from 'vitest'
@@ -19,12 +19,14 @@ import type {McpToolResponse} from '@/shell/edge/main/mcp-server/types'
 
 // ─── Mocks (vi.hoisted ensures variables exist when vi.mock factories run) ─
 
-const {mockGetTerminalRecords, mockRemoveTerminalFromRegistry, mockIsHeadlessAgent, mockKillHeadlessAgent, mockGetHeadlessAgentOutput} = vi.hoisted(() => ({
+const {mockGetTerminalRecords, mockRemoveTerminalFromRegistry, mockIsHeadlessAgent, mockKillHeadlessAgent, mockCloseHeadlessAgent, mockGetHeadlessAgentOutput, mockRunStopGateAudit} = vi.hoisted(() => ({
     mockGetTerminalRecords: vi.fn(),
     mockRemoveTerminalFromRegistry: vi.fn(),
     mockIsHeadlessAgent: vi.fn(),
     mockKillHeadlessAgent: vi.fn(),
-    mockGetHeadlessAgentOutput: vi.fn()
+    mockCloseHeadlessAgent: vi.fn(),
+    mockGetHeadlessAgentOutput: vi.fn(),
+    mockRunStopGateAudit: vi.fn()
 }))
 
 vi.mock('@/shell/edge/main/terminals/terminal-registry', () => ({
@@ -48,7 +50,12 @@ vi.mock('@/shell/edge/main/state/graph-store', () => ({
 vi.mock('@/shell/edge/main/terminals/headlessAgentManager', () => ({
     isHeadlessAgent: mockIsHeadlessAgent,
     killHeadlessAgent: mockKillHeadlessAgent,
+    closeHeadlessAgent: mockCloseHeadlessAgent,
     getHeadlessAgentOutput: mockGetHeadlessAgentOutput
+}))
+
+vi.mock('@/shell/edge/main/terminals/stopGateAudit', () => ({
+    runStopGateAudit: mockRunStopGateAudit
 }))
 
 vi.mock('@/shell/edge/main/ui-api-proxy', () => ({
@@ -107,7 +114,11 @@ function createTerminalRecord(
         terminalId,
         terminalData,
         status: 'running',
-        exitCode: null
+        exitCode: null,
+        sessionId: null,
+        cliType: null,
+        auditRetryCount: 0,
+        skillPath: null
     }
 }
 
@@ -123,7 +134,11 @@ describe('MCP tool guards for headless agents', () => {
         mockGetTerminalRecords.mockReturnValue([callerRecord, headlessRecord, interactiveRecord])
         mockIsHeadlessAgent.mockImplementation((id: string) => id === 'headless-agent')
         mockKillHeadlessAgent.mockReturnValue(true)
+        mockCloseHeadlessAgent.mockImplementation((id: string) =>
+            id === 'headless-agent' ? {closed: true, wasRunning: true} : {closed: false}
+        )
         mockGetHeadlessAgentOutput.mockReturnValue('sample headless output from ring buffer')
+        mockRunStopGateAudit.mockReturnValue({passed: true, violations: [], hasProgressNodes: true})
     })
 
     describe('sendMessageTool', () => {
@@ -246,21 +261,19 @@ describe('MCP tool guards for headless agents', () => {
             expect(payload.error).toContain('still running')
         })
 
-        it('delegates to killHeadlessAgent for headless terminals when forced', () => {
+        it('delegates to closeHeadlessAgent for headless terminals when forced', () => {
             const response: McpToolResponse = closeAgentTool({
                 terminalId: 'headless-agent',
                 callerTerminalId: 'caller-terminal',
-                forceWithReason: 'test: verifying kill delegation'
+                forceWithReason: 'test: verifying close delegation'
             })
 
-            expect(mockKillHeadlessAgent).toHaveBeenCalledOnce()
+            expect(mockCloseHeadlessAgent).toHaveBeenCalledWith('headless-agent')
             const payload: Record<string, unknown> = parseResponsePayload(response)
             expect(payload.success).toBe(true)
         })
 
-        it('returns success: false when headless agent is not found', () => {
-            mockKillHeadlessAgent.mockReturnValue(false)
-
+        it('returns success: false when agent is still running without forceWithReason', () => {
             const response: McpToolResponse = closeAgentTool({
                 terminalId: 'headless-agent',
                 callerTerminalId: 'caller-terminal'
@@ -280,24 +293,24 @@ describe('MCP tool guards for headless agents', () => {
             expect(uiAPI.closeTerminalById).not.toHaveBeenCalled()
         })
 
-        it('calls removeTerminalFromRegistry when killing a running headless agent', () => {
+        it('calls closeHeadlessAgent which handles registry cleanup', () => {
             closeAgentTool({
                 terminalId: 'headless-agent',
                 callerTerminalId: 'caller-terminal',
                 forceWithReason: 'test: verifying registry cleanup'
             })
 
-            expect(mockRemoveTerminalFromRegistry).toHaveBeenCalledWith('headless-agent')
+            expect(mockCloseHeadlessAgent).toHaveBeenCalledWith('headless-agent')
         })
 
-        it('cleans up exited headless agent registry record directly', async () => {
+        it('cleans up exited headless agent via closeHeadlessAgent', async () => {
             const exitedHeadlessRecord: TerminalRecord = {
                 ...createTerminalRecord('exited-headless', true),
                 status: 'exited',
                 exitCode: 0
             }
             mockGetTerminalRecords.mockReturnValue([callerRecord, exitedHeadlessRecord])
-            mockIsHeadlessAgent.mockReturnValue(false) // process already gone
+            mockCloseHeadlessAgent.mockReturnValue({closed: true, wasRunning: false})
 
             const response: McpToolResponse = closeAgentTool({
                 terminalId: 'exited-headless',
@@ -306,9 +319,66 @@ describe('MCP tool guards for headless agents', () => {
 
             const payload: Record<string, unknown> = parseResponsePayload(response)
             expect(payload.success).toBe(true)
-            expect(mockRemoveTerminalFromRegistry).toHaveBeenCalledWith('exited-headless')
+            expect(mockCloseHeadlessAgent).toHaveBeenCalledWith('exited-headless')
             const {uiAPI} = await import('@/shell/edge/main/ui-api-proxy')
             expect(uiAPI.closeTerminalById).not.toHaveBeenCalled()
+        })
+    })
+
+    describe('closeAgentTool — stop gate (self-close)', () => {
+        it('skips audit when skillPath is null', () => {
+            // callerRecord has skillPath: null — stop gate must not run
+            mockGetTerminalRecords.mockReturnValue([callerRecord])
+
+            closeAgentTool({terminalId: 'caller-terminal', callerTerminalId: 'caller-terminal'})
+
+            expect(mockRunStopGateAudit).not.toHaveBeenCalled()
+        })
+
+        it('blocks self-close when stop gate audit fails', () => {
+            const recordWithSkill: TerminalRecord = {...callerRecord, skillPath: '~/brain/SKILL.md'}
+            mockGetTerminalRecords.mockReturnValue([recordWithSkill])
+            mockRunStopGateAudit.mockReturnValue({
+                passed: false,
+                violations: [{
+                    edge: {path: '~/brain/workflows/meta/promote/SKILL.md', type: 'hard', workflowName: 'promote'},
+                    reason: 'Hard edge violation: did not spawn workflow "promote"'
+                }],
+                hasProgressNodes: true
+            })
+
+            const response: McpToolResponse = closeAgentTool({
+                terminalId: 'caller-terminal',
+                callerTerminalId: 'caller-terminal'
+            })
+
+            const payload: Record<string, unknown> = parseResponsePayload(response)
+            expect(payload.success).toBe(false)
+            expect(payload.error as string).toContain('Stop gate audit failed')
+            expect(payload.error as string).toContain('promote')
+        })
+
+        it('allows self-close when stop gate audit passes', () => {
+            const recordWithSkill: TerminalRecord = {...callerRecord, skillPath: '~/brain/SKILL.md'}
+            mockGetTerminalRecords.mockReturnValue([recordWithSkill])
+            mockRunStopGateAudit.mockReturnValue({passed: true, violations: [], hasProgressNodes: true})
+
+            const response: McpToolResponse = closeAgentTool({
+                terminalId: 'caller-terminal',
+                callerTerminalId: 'caller-terminal'
+            })
+
+            const payload: Record<string, unknown> = parseResponsePayload(response)
+            expect(payload.success).toBe(true)
+        })
+
+        it('passes terminalId and skillPath to runStopGateAudit', () => {
+            const recordWithSkill: TerminalRecord = {...callerRecord, skillPath: '~/brain/SKILL.md'}
+            mockGetTerminalRecords.mockReturnValue([recordWithSkill])
+
+            closeAgentTool({terminalId: 'caller-terminal', callerTerminalId: 'caller-terminal'})
+
+            expect(mockRunStopGateAudit).toHaveBeenCalledWith('caller-terminal', '~/brain/SKILL.md')
         })
     })
 })

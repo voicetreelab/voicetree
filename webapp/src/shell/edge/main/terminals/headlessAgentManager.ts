@@ -8,8 +8,11 @@
  */
 
 import {spawn, type ChildProcess} from 'child_process'
+import {writeFileSync, unlinkSync} from 'fs'
+import {join} from 'path'
+import {tmpdir} from 'os'
 import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
-import {markTerminalExited, recordTerminalSpawn, getTerminalRecords, updateStopGateFields, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
+import {markTerminalExited, recordTerminalSpawn, getTerminalRecords, updateStopGateFields, removeTerminalFromRegistry, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
 import {runStopGateAudit, buildDeficiencyPrompt, type AuditResult} from './stopGateAudit'
 
@@ -18,6 +21,8 @@ import {runStopGateAudit, buildDeficiencyPrompt, type AuditResult} from './stopG
 const headlessProcesses: Map<TerminalId, ChildProcess> = new Map()
 /** Combined stdout+stderr ring buffer per agent. Persists after exit for hover tooltip / read_terminal_output. */
 const lastOutputByTerminal: Map<TerminalId, string> = new Map()
+/** Temp file paths for AGENT_PROMPT / resume deficiency prompts. Cleaned up on agent exit. */
+const promptTempFiles: Map<TerminalId, string> = new Map()
 
 const OUTPUT_RING_SIZE: number = 8000
 
@@ -44,7 +49,20 @@ export function spawnHeadlessAgent(
         ? 'powershell.exe'
         : (process.env.SHELL ?? '/bin/bash')
 
-    const child: ChildProcess = spawn(shell, ['-c', command], {
+    // Write AGENT_PROMPT to a temp file to avoid shell expansion mangling special characters
+    // (nested quotes, dollar signs, backticks). Replace the inline "$AGENT_PROMPT" arg with
+    // --prompt-file <path> which the CLI reads verbatim.
+    let resolvedCommand: string = command
+    if (env.AGENT_PROMPT !== undefined && command.includes('$AGENT_PROMPT')) {
+        const tmpPath: string = join(tmpdir(), `voicetree-agent-${terminalId}.md`)
+        writeFileSync(tmpPath, env.AGENT_PROMPT, 'utf8')
+        promptTempFiles.set(terminalId, tmpPath)
+        resolvedCommand = command
+            .replace('-p "$AGENT_PROMPT"', `--prompt-file "${tmpPath}"`)
+            .replace('"$AGENT_PROMPT"', `--prompt-file "${tmpPath}"`)
+    }
+
+    const child: ChildProcess = spawn(shell, ['-c', resolvedCommand], {
         cwd: cwd ?? process.env.HOME ?? process.cwd(),
         env: {...process.env, ...env},
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -105,6 +123,14 @@ function handleAgentExit(terminalId: TerminalId, code: number | null): void {
     }
 
     headlessProcesses.delete(terminalId)
+
+    // Clean up temp prompt file (AGENT_PROMPT or resume deficiency) written to avoid shell expansion
+    const tmpPath: string | undefined = promptTempFiles.get(terminalId)
+    if (tmpPath) {
+        try { unlinkSync(tmpPath) } catch { /* already deleted or never created */ }
+        promptTempFiles.delete(terminalId)
+    }
+
     // Note: output buffer intentionally preserved after exit for hover tooltip / read_terminal_output
     // Registry record intentionally preserved after exit so wait_for_agents monitor
     // can still find and report on this agent. Cleanup happens via close_agent.
@@ -127,15 +153,14 @@ export function shouldRunAudit(record: Pick<TerminalRecord, 'skillPath' | 'cliTy
     return true
 }
 
-export function buildResumeCommand(record: TerminalRecord, deficiency: string): string {
-    const escapedDeficiency: string = deficiency.replace(/"/g, '\\"')
+export function buildResumeCommand(record: TerminalRecord, promptFilePath: string): string {
     switch (record.cliType) {
         case 'claude':
-            return `claude --resume "${record.sessionId}" -p "${escapedDeficiency}" --dangerously-skip-permissions`
+            return `claude --resume "${record.sessionId}" --prompt-file "${promptFilePath}" --dangerously-skip-permissions`
         case 'codex':
-            return `codex exec resume --last "${escapedDeficiency}" --full-auto`
+            return `codex exec resume --last --prompt-file "${promptFilePath}" --full-auto`
         case 'gemini':
-            return `gemini --resume latest -p "${escapedDeficiency}" --yolo`
+            return `gemini --resume latest --prompt-file "${promptFilePath}" --yolo`
         default:
             throw new Error(`[headlessAgentManager] Cannot resume: unsupported CLI type "${record.cliType}"`)
     }
@@ -147,7 +172,10 @@ export function buildResumeCommand(record: TerminalRecord, deficiency: string): 
  */
 function resumeWithDeficiency(terminalId: TerminalId, record: TerminalRecord, auditResult: AuditResult): void {
     const deficiency: string = buildDeficiencyPrompt(auditResult)
-    const resumeCommand: string = buildResumeCommand(record, deficiency)
+    const resumeTmpPath: string = join(tmpdir(), `voicetree-resume-${terminalId}.md`)
+    writeFileSync(resumeTmpPath, deficiency, 'utf8')
+    promptTempFiles.set(terminalId, resumeTmpPath)
+    const resumeCommand: string = buildResumeCommand(record, resumeTmpPath)
 
     updateStopGateFields(terminalId, { auditRetryCount: record.auditRetryCount + 1 })
 
@@ -191,6 +219,31 @@ export function killHeadlessAgent(terminalId: TerminalId): boolean {
     headlessProcesses.delete(terminalId)
     // Note: output buffer intentionally preserved after kill for hover tooltip / read_terminal_output
     return true
+}
+
+/**
+ * Close a headless agent: kill process (if running) + remove from registry.
+ * Handles both running and already-exited agents.
+ * Shared path used by both UI close and MCP close_agent tool.
+ */
+export function closeHeadlessAgent(terminalId: TerminalId): {closed: true; wasRunning: boolean} | {closed: false} {
+    // Case 1: Running headless agent — kill process + remove from registry
+    if (headlessProcesses.has(terminalId)) {
+        killHeadlessAgent(terminalId)
+        removeTerminalFromRegistry(terminalId)
+        return {closed: true, wasRunning: true}
+    }
+
+    // Case 2: Already-exited headless agent — just remove stale registry entry
+    const record: TerminalRecord | undefined = getTerminalRecords().find(
+        (r: TerminalRecord) => r.terminalId === terminalId
+    )
+    if (record?.terminalData.isHeadless && record.status === 'exited') {
+        removeTerminalFromRegistry(terminalId)
+        return {closed: true, wasRunning: false}
+    }
+
+    return {closed: false}
 }
 
 /**

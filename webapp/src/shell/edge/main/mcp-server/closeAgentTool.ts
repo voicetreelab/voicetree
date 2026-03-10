@@ -8,8 +8,8 @@
  */
 
 import {getGraph} from '@/shell/edge/main/state/graph-store'
-import {getTerminalRecords, removeTerminalFromRegistry, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
-import {isHeadlessAgent, killHeadlessAgent} from '@/shell/edge/main/terminals/headlessAgentManager'
+import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
+import {closeHeadlessAgent} from '@/shell/edge/main/terminals/headlessAgentManager'
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy'
 import {type McpToolResponse, buildJsonResponse} from './types'
 import {getNewNodesForAgent} from './getNewNodesForAgent'
@@ -74,30 +74,15 @@ export function closeAgentTool({terminalId, callerTerminalId, forceWithReason}: 
         }
     }
 
-    // Headless agents: kill child_process directly (no UI terminal to close)
-    if (isHeadlessAgent(terminalId)) {
-        const killed: boolean = killHeadlessAgent(terminalId as TerminalId)
-        removeTerminalFromRegistry(terminalId)
-        return buildJsonResponse({
-            success: killed,
-            terminalId,
-            message: killed
-                ? `Successfully closed headless agent: ${terminalId}`
-                : `Headless agent not found: ${terminalId}`
-        }, !killed)
-    }
-
-    // Already-exited headless agents: process is gone but registry record persists
-    // (preserved by PR #58 for wait_for_agents). Clean up the record directly.
-    const record: TerminalRecord | undefined = getTerminalRecords().find(
-        (r: TerminalRecord) => r.terminalId === terminalId
-    )
-    if (record?.terminalData.isHeadless && record.status === 'exited') {
-        removeTerminalFromRegistry(terminalId)
+    // Headless agents: shared close path (handles both running + exited)
+    const headlessResult: {closed: true; wasRunning: boolean} | {closed: false} = closeHeadlessAgent(terminalId as TerminalId)
+    if (headlessResult.closed) {
         return buildJsonResponse({
             success: true,
             terminalId,
-            message: `Successfully cleaned up exited headless agent: ${terminalId}`
+            message: headlessResult.wasRunning
+                ? `Successfully closed headless agent: ${terminalId}`
+                : `Successfully cleaned up exited headless agent: ${terminalId}`
         })
     }
 

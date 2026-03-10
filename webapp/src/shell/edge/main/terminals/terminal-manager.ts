@@ -11,7 +11,7 @@ import {getProjectRootWatchedDirectory} from "@/shell/edge/main/state/watch-fold
 import {captureOutput, clearBuffer, clearAllBuffers} from '@/shell/edge/main/terminals/terminal-output-buffer';
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
 import type {VTSettings} from '@/pure/settings/types';
-import {isHeadlessAgent, killHeadlessAgent, cleanupHeadlessAgents} from '@/shell/edge/main/terminals/headlessAgentManager';
+import {closeHeadlessAgent, cleanupHeadlessAgents} from '@/shell/edge/main/terminals/headlessAgentManager';
 
 /** Cached Windows shell path. Prefer pwsh.exe (PS7+) over powershell.exe (PS5) */
 let cachedWindowsShell: string | undefined;
@@ -235,10 +235,10 @@ export default class TerminalManager {
    */
   kill(terminalId: string): TerminalOperationResult {
     try {
-      // Delegate to headlessAgentManager for headless agents
-      if (isHeadlessAgent(terminalId)) {
-        const killed: boolean = killHeadlessAgent(terminalId as import('@/shell/edge/UI-edge/floating-windows/types').TerminalId);
-        return killed ? { success: true } : { success: false, error: 'Headless agent not found' };
+      // Headless agents: shared close path (handles both running + exited)
+      const headlessResult: {closed: true; wasRunning: boolean} | {closed: false} = closeHeadlessAgent(terminalId as import('@/shell/edge/UI-edge/floating-windows/types').TerminalId);
+      if (headlessResult.closed) {
+        return { success: true };
       }
 
       const ptyProcess: pty.IPty | undefined = this.terminals.get(terminalId);

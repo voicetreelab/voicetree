@@ -322,41 +322,40 @@ function makeRecord(overrides: Partial<TerminalRecord>): TerminalRecord {
 }
 
 describe('buildResumeCommand', () => {
-    it('builds Claude resume command with session ID', () => {
+    it('builds Claude resume command with session ID using --prompt-file', () => {
         const record: TerminalRecord = makeRecord({ cliType: 'claude', sessionId: 'vt-Amy' })
-        const cmd: string = buildResumeCommand(record, 'fix the bug')
-        expect(cmd).toBe('claude --resume "vt-Amy" -p "fix the bug" --dangerously-skip-permissions')
+        const cmd: string = buildResumeCommand(record, '/tmp/voicetree-resume-Amy.md')
+        expect(cmd).toBe('claude --resume "vt-Amy" --prompt-file "/tmp/voicetree-resume-Amy.md" --dangerously-skip-permissions')
     })
 
-    it('builds Codex resume command (uses --last)', () => {
+    it('builds Codex resume command (uses --last) with --prompt-file', () => {
         const record: TerminalRecord = makeRecord({ cliType: 'codex' })
-        const cmd: string = buildResumeCommand(record, 'fix the bug')
-        expect(cmd).toBe('codex exec resume --last "fix the bug" --full-auto')
+        const cmd: string = buildResumeCommand(record, '/tmp/voicetree-resume-Codex.md')
+        expect(cmd).toBe('codex exec resume --last --prompt-file "/tmp/voicetree-resume-Codex.md" --full-auto')
     })
 
-    it('builds Gemini resume command (uses latest)', () => {
+    it('builds Gemini resume command (uses latest) with --prompt-file', () => {
         const record: TerminalRecord = makeRecord({ cliType: 'gemini' })
-        const cmd: string = buildResumeCommand(record, 'fix the bug')
-        expect(cmd).toBe('gemini --resume latest -p "fix the bug" --yolo')
+        const cmd: string = buildResumeCommand(record, '/tmp/voicetree-resume-Gemini.md')
+        expect(cmd).toBe('gemini --resume latest --prompt-file "/tmp/voicetree-resume-Gemini.md" --yolo')
     })
 
-    it('escapes double quotes in deficiency prompt', () => {
+    it('uses --prompt-file (no inline prompt — special chars handled at write time)', () => {
         const record: TerminalRecord = makeRecord({ cliType: 'claude', sessionId: 'vt-Ben' })
-        const cmd: string = buildResumeCommand(record, 'spawn "promote" workflow')
-        expect(cmd).toContain('\\"promote\\"')
-        expect(cmd).not.toContain('""')
+        const cmd: string = buildResumeCommand(record, '/tmp/voicetree-resume-Ben.md')
+        expect(cmd).toContain('--prompt-file')
+        expect(cmd).not.toContain('-p "')
     })
 
     it('throws for null cliType', () => {
         const record: TerminalRecord = makeRecord({ cliType: null })
-        expect(() => buildResumeCommand(record, 'deficiency')).toThrow('unsupported CLI type')
+        expect(() => buildResumeCommand(record, '/tmp/voicetree-resume-null.md')).toThrow('unsupported CLI type')
     })
 
-    it('handles multi-line deficiency prompt', () => {
+    it('embeds the file path verbatim in the command', () => {
         const record: TerminalRecord = makeRecord({ cliType: 'codex' })
-        const deficiency: string = 'line one\nline two'
-        const cmd: string = buildResumeCommand(record, deficiency)
-        expect(cmd).toContain('line one\nline two')
+        const cmd: string = buildResumeCommand(record, '/tmp/voicetree-resume-test-123.md')
+        expect(cmd).toContain('/tmp/voicetree-resume-test-123.md')
     })
 })
 
