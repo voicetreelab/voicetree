@@ -30,7 +30,7 @@
           },
           {
             "type": "command",
-            "command": "npx tsx ~/brain/validate-brain.ts"
+            "command": "node --experimental-strip-types ~/brain/validate-brain.ts"
           }
         ]
       }
