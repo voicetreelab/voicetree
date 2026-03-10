@@ -9,6 +9,8 @@ export interface AgentResult {
     status: 'running' | 'idle' | 'exited'
     exitCode: number | null
     nodes: Array<{nodeId: string; title: string}>
+    /** Truncated last output from headless agent — included when exitCode !== 0 for diagnostics. */
+    lastOutput?: string
 }
 
 export function buildCompletionMessage(agentResults: AgentResult[]): string {
@@ -24,6 +26,9 @@ export function buildCompletionMessage(agentResults: AgentResult[]): string {
             ? `exited:${agent.exitCode}`
             : agent.status
         lines.push(`- ${name} [${statusLabel}]: ${nodeList}`)
+        if (agent.lastOutput) {
+            lines.push(`  Last output: ${agent.lastOutput}`)
+        }
     }
 
     lines.push('')

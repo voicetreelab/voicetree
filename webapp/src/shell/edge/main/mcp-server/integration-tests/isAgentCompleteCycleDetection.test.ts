@@ -64,7 +64,7 @@ function makeIdleTerminalData(id: string, agentName: string, parentTerminalId?: 
 }
 
 function makeRecord(id: string, data: TerminalData, status: 'running' | 'exited' = 'running'): TerminalRecord {
-    return {terminalId: id, terminalData: data, status, exitCode: status === 'exited' ? 0 : null}
+    return {terminalId: id, terminalData: data, status, exitCode: status === 'exited' ? 0 : null, auditRetryCount: 0, spawnedAt: 0}
 }
 
 /** Configure mocks so agent appears complete on its own (idle + progress nodes + sustained idle) */

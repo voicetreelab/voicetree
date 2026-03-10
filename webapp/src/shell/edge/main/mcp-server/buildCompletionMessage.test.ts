@@ -75,6 +75,36 @@ describe('buildCompletionMessage', () => {
         expect(msg).toContain('- Dave [exited:1]: (no nodes created)')
     })
 
+    it('includes lastOutput for failed agents', () => {
+        const agents: AgentResult[] = [
+            {
+                terminalId: 't1',
+                agentName: 'Eve',
+                status: 'exited',
+                exitCode: 1,
+                nodes: [],
+                lastOutput: 'Error: stdin is not a terminal',
+            },
+        ]
+        const msg: string = buildCompletionMessage(agents)
+        expect(msg).toContain('- Eve [exited:1]: (no nodes created)')
+        expect(msg).toContain('Last output: Error: stdin is not a terminal')
+    })
+
+    it('omits lastOutput for successful agents', () => {
+        const agents: AgentResult[] = [
+            {
+                terminalId: 't1',
+                agentName: 'Frank',
+                status: 'exited',
+                exitCode: 0,
+                nodes: [],
+            },
+        ]
+        const msg: string = buildCompletionMessage(agents)
+        expect(msg).not.toContain('Last output')
+    })
+
     it('includes tip about closing agents', () => {
         const msg: string = buildCompletionMessage([])
         expect(msg).toContain('close_agent')

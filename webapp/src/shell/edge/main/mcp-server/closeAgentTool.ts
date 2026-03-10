@@ -61,7 +61,7 @@ export function closeAgentTool({terminalId, callerTerminalId, forceWithReason}: 
         }
 
         const agentName: string | undefined = targetRecord.terminalData.agentName
-        const agentNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(getGraph(), agentName)
+        const agentNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(getGraph(), agentName, targetRecord.spawnedAt)
 
         if (agentNodes.length === 0) {
             return buildJsonResponse({

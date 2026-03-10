@@ -56,7 +56,7 @@ export function isAgentComplete(record: TerminalRecord, graph: Graph, now: numbe
     if (status === 'exited') return true
 
     // Agent is idle — check if it has non-context progress nodes
-    const newNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(graph, record.terminalData.agentName)
+    const newNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(graph, record.terminalData.agentName, record.spawnedAt)
     const progressNodes: Array<{nodeId: string; title: string}> = filterOutContextNodes(newNodes, graph)
 
     // Idle agent without progress nodes — not done yet

@@ -3,21 +3,33 @@
  * Returns nodeId and title pairs for MCP tool responses.
  *
  * Uses getNodesByAgentName from @/pure/graph for the core matching logic.
+ * Filters by file birthtime >= spawnedAt to avoid name-collision with
+ * previous agents that had the same recycled name.
  */
 
+import {statSync} from 'fs'
 import type {Graph, GraphNode} from '@/pure/graph'
 import {getNodesByAgentName} from '@/pure/graph'
 import {getNodeTitle} from '@/pure/graph/markdown-parsing'
 
 export function getNewNodesForAgent(
     graph: Graph,
-    agentName: string | undefined
+    agentName: string | undefined,
+    spawnedAt: number
 ): Array<{nodeId: string; title: string}> {
     if (!agentName) return []
 
     const nodes: readonly GraphNode[] = getNodesByAgentName(graph, agentName)
-    return nodes.map((node: GraphNode) => ({
-        nodeId: node.absoluteFilePathIsID,
-        title: getNodeTitle(node)
-    }))
+    return nodes
+        .filter((node: GraphNode) => {
+            try {
+                return statSync(node.absoluteFilePathIsID).birthtimeMs >= spawnedAt
+            } catch {
+                return true // file missing or race — include rather than silently drop
+            }
+        })
+        .map((node: GraphNode) => ({
+            nodeId: node.absoluteFilePathIsID,
+            title: getNodeTitle(node)
+        }))
 }

@@ -18,6 +18,7 @@ export type TerminalRecord = {
     exitCode: number | null
     // Stop gate (BF-024): genuinely stateful — tracks resume attempts across agent restarts
     auditRetryCount: number
+    spawnedAt: number
 }
 
 const terminalRecords: Map<string, TerminalRecord> = new Map()
@@ -138,7 +139,8 @@ export function recordTerminalSpawn(terminalId: string, terminalData: TerminalDa
         terminalData,
         status: 'running',
         exitCode: null,
-        auditRetryCount: 0
+        auditRetryCount: 0,
+        spawnedAt: Date.now()
     })
 
     // Initialize notification tracking state for this terminal

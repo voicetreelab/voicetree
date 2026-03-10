@@ -97,12 +97,12 @@ function handleAgentExit(terminalId: TerminalId, code: number | null): void {
         const records: readonly TerminalRecord[] = getTerminalRecords()
         const result: ComplianceResult | null = auditAgent(terminalId, graph, records)
         const record: TerminalRecord | undefined = records.find(r => r.terminalId === terminalId)
-        if (result && !result.passed && record && record.auditRetryCount < 3) {
+        if (result && !result.passed && record && record.auditRetryCount < 2) {
             resumeWithDeficiency(terminalId, record, buildDeficiencyPrompt(result))
             return // Don't delete process entry — resume will re-add
         }
         if (result && !result.passed) {
-            console.warn(`[headlessAgentManager] Agent ${terminalId} FAILED audit after 3 retries`)
+            console.warn(`[headlessAgentManager] Agent ${terminalId} FAILED audit after 2 retries`)
         }
     }
 
@@ -143,7 +143,7 @@ function resumeWithDeficiency(terminalId: TerminalId, record: TerminalRecord, de
 
     incrementAuditRetryCount(terminalId)
 
-    console.log(`[headlessAgentManager] Resuming agent ${terminalId} (${cliType}, retry ${record.auditRetryCount + 1}/3) with deficiency prompt`)
+    console.log(`[headlessAgentManager] Resuming agent ${terminalId} (${cliType}, retry ${record.auditRetryCount + 1}/2) with deficiency prompt`)
 
     const shell: string = process.platform === 'win32'
         ? 'powershell.exe'

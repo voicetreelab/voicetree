@@ -20,6 +20,7 @@ export async function listAgentsTool(): Promise<McpToolResponse> {
         contextNodeId: string
         status: 'running' | 'idle' | 'exited'
         exitCode: number | null
+        auditRetryCount: number
         isHeadless: boolean
         isMinimized: boolean
         newNodes: Array<{nodeId: string; title: string}>
@@ -34,8 +35,8 @@ export async function listAgentsTool(): Promise<McpToolResponse> {
         const contextNodeId: string = record.terminalData.attachedToContextNodeId
         const agentName: string | undefined = record.terminalData.agentName
 
-        // Find nodes created by this agent via agent_name matching
-        const newNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(graph, agentName)
+        // Find nodes created by this agent via agent_name matching (scoped to spawn time)
+        const newNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(graph, agentName, record.spawnedAt)
 
         // Determine status: exited > idle (isDone) > running
         // isDone reflects UI green indicator (no output for a period)
@@ -51,6 +52,7 @@ export async function listAgentsTool(): Promise<McpToolResponse> {
             contextNodeId,
             status,
             exitCode: record.exitCode ?? null,
+            auditRetryCount: record.auditRetryCount,
             isHeadless: record.terminalData.isHeadless,
             isMinimized: record.terminalData.isMinimized,
             newNodes
@@ -64,5 +66,5 @@ export async function listAgentsTool(): Promise<McpToolResponse> {
         (a: { readonly name: string; readonly command: string }) => a.name
     )
 
-    return buildJsonResponse({agents, availableAgents})
+    return buildJsonResponse({success: true, agents, availableAgents})
 }
