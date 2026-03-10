@@ -8,9 +8,6 @@
  */
 
 import {spawn, type ChildProcess} from 'child_process'
-import {writeFileSync, unlinkSync} from 'fs'
-import {join} from 'path'
-import {tmpdir} from 'os'
 import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
 import {markTerminalExited, recordTerminalSpawn, getTerminalRecords, updateStopGateFields, removeTerminalFromRegistry, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
@@ -21,9 +18,6 @@ import {runStopGateAudit, buildDeficiencyPrompt, type AuditResult} from './stopG
 const headlessProcesses: Map<TerminalId, ChildProcess> = new Map()
 /** Combined stdout+stderr ring buffer per agent. Persists after exit for hover tooltip / read_terminal_output. */
 const lastOutputByTerminal: Map<TerminalId, string> = new Map()
-/** Temp file paths for AGENT_PROMPT / resume deficiency prompts. Cleaned up on agent exit. */
-const promptTempFiles: Map<TerminalId, string> = new Map()
-
 const OUTPUT_RING_SIZE: number = 8000
 
 // ─── Public API (3 functions) ────────────────────────────────────────────────
@@ -49,20 +43,7 @@ export function spawnHeadlessAgent(
         ? 'powershell.exe'
         : (process.env.SHELL ?? '/bin/bash')
 
-    // Write AGENT_PROMPT to a temp file to avoid shell expansion mangling special characters
-    // (nested quotes, dollar signs, backticks). Replace the inline "$AGENT_PROMPT" arg with
-    // --prompt-file <path> which the CLI reads verbatim.
-    let resolvedCommand: string = command
-    if (env.AGENT_PROMPT !== undefined && command.includes('$AGENT_PROMPT')) {
-        const tmpPath: string = join(tmpdir(), `voicetree-agent-${terminalId}.md`)
-        writeFileSync(tmpPath, env.AGENT_PROMPT, 'utf8')
-        promptTempFiles.set(terminalId, tmpPath)
-        resolvedCommand = command
-            .replace('-p "$AGENT_PROMPT"', `--prompt-file "${tmpPath}"`)
-            .replace('"$AGENT_PROMPT"', `--prompt-file "${tmpPath}"`)
-    }
-
-    const child: ChildProcess = spawn(shell, ['-c', resolvedCommand], {
+    const child: ChildProcess = spawn(shell, ['-c', command], {
         cwd: cwd ?? process.env.HOME ?? process.cwd(),
         env: {...process.env, ...env},
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -124,13 +105,6 @@ function handleAgentExit(terminalId: TerminalId, code: number | null): void {
 
     headlessProcesses.delete(terminalId)
 
-    // Clean up temp prompt file (AGENT_PROMPT or resume deficiency) written to avoid shell expansion
-    const tmpPath: string | undefined = promptTempFiles.get(terminalId)
-    if (tmpPath) {
-        try { unlinkSync(tmpPath) } catch { /* already deleted or never created */ }
-        promptTempFiles.delete(terminalId)
-    }
-
     // Note: output buffer intentionally preserved after exit for hover tooltip / read_terminal_output
     // Registry record intentionally preserved after exit so wait_for_agents monitor
     // can still find and report on this agent. Cleanup happens via close_agent.
@@ -153,14 +127,14 @@ export function shouldRunAudit(record: Pick<TerminalRecord, 'skillPath' | 'cliTy
     return true
 }
 
-export function buildResumeCommand(record: TerminalRecord, promptFilePath: string): string {
+export function buildResumeCommand(record: TerminalRecord): string {
     switch (record.cliType) {
         case 'claude':
-            return `claude --resume "${record.sessionId}" --prompt-file "${promptFilePath}" --dangerously-skip-permissions`
+            return `claude --resume "${record.sessionId}" -p "$RESUME_PROMPT" --dangerously-skip-permissions`
         case 'codex':
-            return `codex exec resume --last --prompt-file "${promptFilePath}" --full-auto`
+            return `codex exec resume --last -p "$RESUME_PROMPT" --full-auto`
         case 'gemini':
-            return `gemini --resume latest --prompt-file "${promptFilePath}" --yolo`
+            return `gemini --resume latest -p "$RESUME_PROMPT" --yolo`
         default:
             throw new Error(`[headlessAgentManager] Cannot resume: unsupported CLI type "${record.cliType}"`)
     }
@@ -172,10 +146,7 @@ export function buildResumeCommand(record: TerminalRecord, promptFilePath: strin
  */
 function resumeWithDeficiency(terminalId: TerminalId, record: TerminalRecord, auditResult: AuditResult): void {
     const deficiency: string = buildDeficiencyPrompt(auditResult)
-    const resumeTmpPath: string = join(tmpdir(), `voicetree-resume-${terminalId}.md`)
-    writeFileSync(resumeTmpPath, deficiency, 'utf8')
-    promptTempFiles.set(terminalId, resumeTmpPath)
-    const resumeCommand: string = buildResumeCommand(record, resumeTmpPath)
+    const resumeCommand: string = buildResumeCommand(record)
 
     updateStopGateFields(terminalId, { auditRetryCount: record.auditRetryCount + 1 })
 
@@ -187,7 +158,7 @@ function resumeWithDeficiency(terminalId: TerminalId, record: TerminalRecord, au
 
     const child: ChildProcess = spawn(shell, ['-c', resumeCommand], {
         cwd: record.terminalData.initialSpawnDirectory ?? process.env.HOME ?? process.cwd(),
-        env: { ...process.env, ...(record.terminalData.initialEnvVars ?? {}) },
+        env: { ...process.env, ...(record.terminalData.initialEnvVars ?? {}), RESUME_PROMPT: deficiency },
         stdio: ['ignore', 'pipe', 'pipe'],
         detached: false
     })
