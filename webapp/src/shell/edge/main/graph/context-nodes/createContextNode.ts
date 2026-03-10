@@ -254,14 +254,47 @@ function getNodeSummaryContent(node: GraphNode, escapedContent: string): string 
 }
 
 /**
+ * Compute shortest-path distances from startNodeId to all other nodes in the subgraph.
+ * Traverses both outgoing and incoming edges (undirected BFS via makeBidirectionalEdges).
+ * Nodes not reachable return Infinity.
+ */
+function computeNodeDistances(
+    subgraph: Graph,
+    startNodeId: NodeIdAndFilePath
+): ReadonlyMap<string, number> {
+    const bidirectional: Graph = makeBidirectionalEdges(subgraph)
+    const distances: Map<string, number> = new Map()
+    if (!bidirectional.nodes[startNodeId]) return distances
+
+    distances.set(startNodeId, 0)
+    const queue: Array<{id: string; dist: number}> = [{id: startNodeId, dist: 0}]
+
+    while (queue.length > 0) {
+        const item: {id: string; dist: number} | undefined = queue.shift()
+        if (!item) break
+        const {id, dist} = item
+        const node: GraphNode | undefined = bidirectional.nodes[id]
+        if (!node) continue
+        for (const edge of node.outgoingEdges) {
+            if (!distances.has(edge.targetId)) {
+                distances.set(edge.targetId, dist + 1)
+                queue.push({id: edge.targetId, dist: dist + 1})
+            }
+        }
+    }
+
+    return distances
+}
+
+/**
  * Generate markdown list of node details, ranked by relevance and budget-constrained.
  *
  * Tiered content strategy:
  * - Task node (startNodeId): full content, untruncated, in <TASK> tag (recency bias)
- * - Semantic matches: full content
- * - Neighbor nodes: YAML summary (if available) or first 2 non-empty lines + filepath
+ * - All neighbor nodes: YAML summary (if available) or first 2 non-empty lines + filepath
  * - Over-budget nodes: title + filepath only
  *
+ * Sort order: semantic matches first, then by graph distance (closer nodes first).
  * Total output capped at contextMaxChars (~8K default).
  */
 function generateNodeDetailsList(
@@ -273,8 +306,10 @@ function generateNodeDetailsList(
 ): string {
     const budget: number = contextMaxChars ?? 8000
     const semanticSet: ReadonlySet<string> = new Set(semanticNodeIds)
+    const distances: ReadonlyMap<string, number> = computeNodeDistances(subgraph, _startNodeId)
 
-    // Collect non-context, non-start nodes and sort: semantic first, then original order
+    // Collect non-context, non-start nodes and sort:
+    // primary = semantic first, secondary = graph distance ascending (closer = higher priority)
     const nodeIds: readonly string[] = Object.keys(subgraph.nodes)
         .filter((nodeId: string) => {
             const node: GraphNode = subgraph.nodes[nodeId]
@@ -285,7 +320,9 @@ function generateNodeDetailsList(
             const bSemantic: boolean = semanticSet.has(b)
             if (aSemantic && !bSemantic) return -1
             if (!aSemantic && bSemantic) return 1
-            return 0
+            const aDist: number = distances.get(a) ?? Infinity
+            const bDist: number = distances.get(b) ?? Infinity
+            return aDist - bDist
         })
 
     // Reserve space for the task node (untruncated) + agent instructions
@@ -310,10 +347,9 @@ function generateNodeDetailsList(
         const isSemantic: boolean = semanticSet.has(nodeId)
         const marker: string = isSemantic ? ' [SEMANTIC]' : ''
         const rawContent: string = escapeWikilinkMarkers(node.contentWithoutYamlOrLinks)
-        // Semantic matches: full content. Neighbors: YAML summary or first 2 lines only.
-        const nodeContent: string = isSemantic
-            ? rawContent
-            : getNodeSummaryContent(node, rawContent)
+        // All neighbor nodes: YAML summary or first 2 non-empty lines only.
+        // [SEMANTIC] marker preserved so agents know which nodes came from vector search.
+        const nodeContent: string = getNodeSummaryContent(node, rawContent)
         const line: string = `- **${title}**${marker} (${nodeId})\n  ${nodeContent}`
 
         if (usedChars + line.length > budget) {
