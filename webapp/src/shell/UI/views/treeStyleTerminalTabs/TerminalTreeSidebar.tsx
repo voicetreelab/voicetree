@@ -181,7 +181,7 @@ function TreeNode({ treeNode, isActive, shortcutHint, onSelect }: TreeNodeProps)
                     </span>
                 )}
                 <span className="terminal-tree-agent-id" title={terminalId}>
-                    {terminalId}
+                    {terminalId}{terminal.agentTypeName ? ` - ${terminal.agentTypeName}` : ''}{terminal.isHeadless ? ' (Headless)' : ''}
                 </span>
             </span>
 

@@ -136,6 +136,8 @@ export function createTerminalData(params: CreateTerminalDataParams): TerminalDa
         isMinimized: params.isMinimized ?? false,
         // Context node content for dropdown panel (default empty)
         contextContent: params.contextContent ?? '',
+        // Human-readable agent type name from settings (default empty)
+        agentTypeName: params.agentTypeName ?? '',
     };
 }
 
