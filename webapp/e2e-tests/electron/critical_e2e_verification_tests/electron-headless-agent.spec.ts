@@ -460,6 +460,16 @@ test.describe('Headless Agent E2E', () => {
         console.log('✓ Headless agent exited');
 
         // ═══════════════════════════════════════════════════════════════════
+        // STEP 11: Assert exit code is 0
+        // ═══════════════════════════════════════════════════════════════════
+        console.log('=== STEP 11: Assert headless agent exited with code 0 ===');
+        const finalList = await mcpCallTool(mcpUrl, 'list_agents', {});
+        const finalAgents = (finalList.parsed as { agents: Array<{ terminalId: string; exitCode: number | null }> }).agents;
+        const exitedAgent = finalAgents.find(a => a.terminalId === headlessTerminalId);
+        expect(exitedAgent?.exitCode).toBe(0);
+        console.log('✓ Headless agent exited with code 0');
+
+        // ═══════════════════════════════════════════════════════════════════
         // TEST SUMMARY
         // ═══════════════════════════════════════════════════════════════════
         console.log('');
@@ -472,6 +482,7 @@ test.describe('Headless Agent E2E', () => {
         console.log('✓ send_message rejected for headless agent');
         console.log('✓ read_terminal_output returns captured output for headless agent');
         console.log('✓ Headless agent process exited cleanly');
+        console.log('✓ Headless agent exit code is 0');
         console.log('');
         console.log('✅ HEADLESS AGENT E2E TEST PASSED');
     });
