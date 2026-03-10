@@ -193,7 +193,19 @@ function checkCompliance(obligations: readonly Obligation[], evidence: WorkEvide
  */
 export function auditAgent(terminalId: string, graph: Graph, records: readonly TerminalRecord[]): ComplianceResult | null {
     const skillPath: string | null = deriveSkillPath(terminalId, graph, records)
-    if (!skillPath) return null
+
+    // No explicit SKILL.md — virtual root with soft edge to ~/brain/SKILL.md
+    if (!skillPath) {
+        const brainSkillPath: string = '~/brain/SKILL.md'
+        const resolved: string = (process.env.HOME ?? '') + '/brain/SKILL.md'
+        try { fs.accessSync(resolved) } catch { return null }
+
+        const rootObligations: Obligation[] = [
+            { type: 'soft', workflowPath: brainSkillPath, workflowName: 'brain' }
+        ]
+        const evidence: WorkEvidence = collectEvidence(terminalId, graph, records)
+        return checkCompliance(rootObligations, evidence)
+    }
 
     // Read SKILL.md content (I/O boundary)
     let skillContent: string

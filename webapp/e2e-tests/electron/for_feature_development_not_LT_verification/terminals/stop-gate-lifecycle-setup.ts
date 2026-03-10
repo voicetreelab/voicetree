@@ -90,6 +90,20 @@ export const test = base.extend<{
         ].join('\n');
         await fs.writeFile(path.join(voicetreeDir, 'stop-gate-lifecycle-task.md'), taskNodeContent);
 
+        // Task node with NO SKILL.md reference — forces deriveSkillPath → null → virtual root fallback
+        const noSkillTaskContent: string = [
+            '---',
+            'isContextNode: false',
+            '---',
+            '# E2E Virtual Root Stop Gate Test',
+            '',
+            'This task has no workflow reference. The stop gate should use the virtual root fallback.',
+            '',
+            'Reply with OK and exit immediately. Do not create any files, nodes, or agents.',
+            ''
+        ].join('\n');
+        await fs.writeFile(path.join(voicetreeDir, 'stop-gate-lifecycle-no-skill-task.md'), noSkillTaskContent);
+
         // Write the SKILL.md to ~/brain/ so runStopGateAudit can resolve and read it
         const brainDir: string = path.join(os.homedir(), 'brain');
         const skillAbsolutePath: string = path.join(brainDir, SKILL_FIXTURE_RELATIVE);
@@ -296,8 +310,9 @@ export async function mcpCallTool(
 
 // ─── Shared setup helpers ────────────────────────────────────────────────────
 
-/** Bootstrap MCP connection + wait for graph. Returns mcpUrl and parentNodeId. */
-export async function setupMcpAndGraph(appWindow: Page): Promise<{ mcpUrl: string; parentNodeId: string }> {
+/** Bootstrap MCP connection + wait for graph. Returns mcpUrl and parentNodeId.
+ *  nodeNameFilter selects the task node by substring match (default: 'stop-gate-lifecycle-task'). */
+export async function setupMcpAndGraph(appWindow: Page, nodeNameFilter = 'stop-gate-lifecycle-task'): Promise<{ mcpUrl: string; parentNodeId: string }> {
     // Discover MCP port
     const mcpPort: number = await appWindow.evaluate(async () => {
         const api = (window as unknown as ExtendedWindow).electronAPI;
@@ -340,8 +355,8 @@ export async function setupMcpAndGraph(appWindow: Page): Promise<{ mcpUrl: strin
     });
     expect(nodeIds.length).toBeGreaterThan(0);
 
-    // Find the task node that references the test SKILL.md
-    const parentNodeId: string = nodeIds.find(id => id.includes('stop-gate-lifecycle-task')) ?? nodeIds[0];
+    // Find the task node matching the filter
+    const parentNodeId: string = nodeIds.find(id => id.includes(nodeNameFilter)) ?? nodeIds[0];
     console.log(`[Stop Gate Lifecycle] Using task node: ${parentNodeId.split('/').pop()}`);
 
     return { mcpUrl, parentNodeId };

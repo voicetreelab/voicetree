@@ -69,5 +69,6 @@ export async function readSkillFile(workflowPath: string): Promise<string> {
 
 export async function readSkillFileSummary(workflowPath: string): Promise<string> {
     const content: string = await readSkillFile(workflowPath)
-    return formatParsedSkillSummary(parseSkillFile(content), workflowPath)
+    const skillFilePath: string = workflowPath.replace(os.homedir() + '/brain/', '~/brain/') + '/SKILL.md'
+    return formatParsedSkillSummary(parseSkillFile(content), skillFilePath)
 }

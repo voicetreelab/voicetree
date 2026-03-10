@@ -337,4 +337,89 @@ test.describe('Stop Gate Lifecycle E2E (BF-024)', () => {
 
         console.log('[PASS] Codex non-headless: audit blocked self-close with violation details');
     });
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // TEST 5: Claude headless — virtual root fallback (no SKILL.md in task)
+    // ═══════════════════════════════════════════════════════════════════════
+    //
+    // Task node has NO SKILL.md reference → deriveSkillPath returns null →
+    // auditAgent creates a soft obligation for ~/brain/SKILL.md →
+    // agent exits without mentioning "brain" → audit fires → resumes.
+    //
+    test('Claude headless — virtual root audit fires when task has no SKILL.md', async ({ appWindow }) => {
+        test.skip(!hasCliTool('claude'), 'claude CLI not found — skipping');
+
+        console.log('=== TEST 5: Claude headless — virtual root fallback (no SKILL.md in task) ===');
+
+        // Use the no-skill task node (content has no ~/brain/.../SKILL.md reference)
+        const { mcpUrl, parentNodeId } = await setupMcpAndGraph(appWindow, 'stop-gate-lifecycle-no-skill-task');
+        const callerTerminalId: string = 'e2e-stop-gate-virtual-root-caller';
+        await registerCallerTerminal(appWindow, parentNodeId, callerTerminalId);
+
+        // ── Spawn headless Claude agent on the no-SKILL task node ──
+        // deriveSkillPath will return null → auditAgent falls through to virtual root path.
+        console.log('=== Spawning headless Claude agent on no-SKILL task node ===');
+        const spawnResult = await mcpCallTool(mcpUrl, 'spawn_agent', {
+            nodeId: parentNodeId,
+            callerTerminalId,
+            agentName: 'Claude Sonnet',
+            headless: true
+        });
+
+        console.log(`[Virtual Root] Spawn result: ${JSON.stringify(spawnResult.parsed)}`);
+        expect(spawnResult.success).toBe(true);
+
+        const agentTerminalId: string = (spawnResult.parsed as { terminalId: string }).terminalId;
+        expect(agentTerminalId).toBeTruthy();
+        console.log(`[Virtual Root] Agent terminal: ${agentTerminalId}`);
+
+        // ── Wait for the full audit→resume cycle to complete ──
+        // Agent exits → auditAgent runs → deriveSkillPath returns null →
+        // virtual root creates soft obligation for "brain" → agent has no progress
+        // nodes mentioning "brain" → violation → resume with deficiency prompt.
+        console.log('=== Waiting for agent to complete virtual root audit cycle ===');
+        await expect.poll(async () => {
+            const result = await mcpCallTool(mcpUrl, 'list_agents', {});
+            const agents = (result.parsed as {
+                agents: Array<{ terminalId: string; status: string }>
+            }).agents;
+            const agent = agents.find(a => a.terminalId === agentTerminalId);
+            const status: string = agent?.status ?? 'not_found';
+            console.log(`[Virtual Root] Polling status: ${status}`);
+            return status;
+        }, {
+            message: `Waiting for ${agentTerminalId} to reach final exited state after virtual root audit retries`,
+            timeout: 240000,
+            intervals: [2000, 5000, 5000, 10000, 10000]
+        }).toBe('exited');
+        console.log('[Virtual Root] Agent reached final exited state');
+
+        // ── Read terminal output for diagnostics ──
+        console.log('=== Reading terminal output ===');
+        const readResult = await mcpCallTool(mcpUrl, 'read_terminal_output', {
+            terminalId: agentTerminalId,
+            callerTerminalId
+        });
+        expect(readResult.success).toBe(true);
+
+        const output: string = (readResult.parsed as { output: string }).output ?? '';
+        console.log(`[Virtual Root] Output length: ${output.length} chars`);
+        console.log(`[Virtual Root] Output (last 500): ${output.slice(-500)}`);
+
+        // ASSERT: virtual root audit fired — auditRetryCount > 0 proves the stop gate
+        // ran on exit via the virtual root fallback path (deriveSkillPath → null →
+        // soft obligation for ~/brain/SKILL.md), detected the violation, and resumed.
+        console.log('=== Verifying virtual root audit fired via list_agents ===');
+        const listResult = await mcpCallTool(mcpUrl, 'list_agents', {});
+        expect(listResult.success).toBe(true);
+        const finalAgents = (listResult.parsed as {
+            agents: Array<{ terminalId: string; status: string; auditRetryCount: number }>
+        }).agents;
+        const finalAgent = finalAgents.find(a => a.terminalId === agentTerminalId);
+        expect(finalAgent).toBeDefined();
+        console.log(`[Virtual Root] auditRetryCount: ${finalAgent!.auditRetryCount}`);
+        expect(finalAgent!.auditRetryCount).toBeGreaterThan(0);
+
+        console.log('[PASS] Claude headless: virtual root audit fired and resumed agent (auditRetryCount > 0)');
+    });
 });

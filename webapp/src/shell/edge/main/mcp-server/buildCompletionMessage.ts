@@ -13,8 +13,8 @@ export interface AgentResult {
     lastOutput?: string
 }
 
-export function buildCompletionMessage(agentResults: AgentResult[]): string {
-    const lines: string[] = ['[WaitForAgents] All agents completed.']
+export function buildCompletionMessage(agentResults: AgentResult[], stillWaitingOn?: readonly string[]): string {
+    const lines: string[] = ['[WaitForAgents] Agent(s) completed.']
 
     for (const agent of agentResults) {
         const name: string = agent.agentName ?? agent.terminalId
@@ -29,6 +29,10 @@ export function buildCompletionMessage(agentResults: AgentResult[]): string {
         if (agent.lastOutput) {
             lines.push(`  Last output: ${agent.lastOutput}`)
         }
+    }
+
+    if (stillWaitingOn && stillWaitingOn.length > 0) {
+        lines.push(`\nStill waiting on: ${stillWaitingOn.join(', ')}`)
     }
 
     lines.push('')
