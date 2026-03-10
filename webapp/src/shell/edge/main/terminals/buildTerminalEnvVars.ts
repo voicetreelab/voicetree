@@ -48,5 +48,7 @@ export async function buildTerminalEnvVars(params: {
         ...resolvedEnvVars,
         ...(params.envOverrides ?? {}),
     }
-    return expandEnvVarsInValues(unexpandedEnvVars)
+    const expanded: Record<string, string> = expandEnvVarsInValues(unexpandedEnvVars)
+    console.log(`[buildTerminalEnvVars] AGENT_PROMPT set=${!!expanded.AGENT_PROMPT} length=${expanded.AGENT_PROMPT?.length ?? 0} INJECT_ENV_VARS keys=${Object.keys(params.settings.INJECT_ENV_VARS).join(',')}`)
+    return expanded
 }
