@@ -6,7 +6,43 @@ import { parseSkillFile, formatParsedSkillSummary } from '@/pure/workflows/parse
 
 const WORKFLOWS_DIR: string = path.join(os.homedir(), 'brain', 'workflows')
 
-export async function listWorkflows(): Promise<Array<{ name: string; path: string; hasSkillFile: boolean }>> {
+export interface WorkflowTreeNode {
+    name: string;
+    path: string;
+    hasSkillFile: boolean;
+    children: WorkflowTreeNode[];
+}
+
+async function buildWorkflowTree(dirPath: string): Promise<WorkflowTreeNode | null> {
+    const name: string = path.basename(dirPath)
+    let entries: Dirent[]
+    try {
+        entries = await fs.readdir(dirPath, { withFileTypes: true })
+    } catch {
+        return null
+    }
+
+    let hasSkillFile: boolean = false
+    try {
+        await fs.access(path.join(dirPath, 'SKILL.md'))
+        hasSkillFile = true
+    } catch { /* no SKILL.md */ }
+
+    const subdirs: Dirent[] = entries.filter(e => e.isDirectory())
+    const childResults: Array<WorkflowTreeNode | null> = await Promise.all(
+        subdirs.map(sub => buildWorkflowTree(path.join(dirPath, sub.name)))
+    )
+    const children: WorkflowTreeNode[] = childResults.filter((c): c is WorkflowTreeNode => c !== null)
+
+    // Prune branches with no SKILL.md anywhere in subtree
+    if (!hasSkillFile && children.length === 0) {
+        return null
+    }
+
+    return { name, path: dirPath, hasSkillFile, children }
+}
+
+export async function listWorkflows(): Promise<WorkflowTreeNode[]> {
     let entries: Dirent[]
     try {
         entries = await fs.readdir(WORKFLOWS_DIR, { withFileTypes: true })
@@ -16,20 +52,10 @@ export async function listWorkflows(): Promise<Array<{ name: string; path: strin
     }
 
     const subdirs: Dirent[] = entries.filter(e => e.isDirectory())
-    const results: Array<{ name: string; path: string; hasSkillFile: boolean }> = await Promise.all(
-        subdirs.map(async (sub): Promise<{ name: string; path: string; hasSkillFile: boolean }> => {
-            const dirPath: string = path.join(WORKFLOWS_DIR, sub.name)
-            const skillPath: string = path.join(dirPath, 'SKILL.md')
-            let hasSkillFile: boolean = false
-            try {
-                await fs.access(skillPath)
-                hasSkillFile = true
-            } catch { /* no SKILL.md */ }
-            return { name: sub.name, path: dirPath, hasSkillFile }
-        })
+    const results: Array<WorkflowTreeNode | null> = await Promise.all(
+        subdirs.map(sub => buildWorkflowTree(path.join(WORKFLOWS_DIR, sub.name)))
     )
-
-    return results.filter(r => r.hasSkillFile)
+    return results.filter((r): r is WorkflowTreeNode => r !== null)
 }
 
 export async function readSkillFile(workflowPath: string): Promise<string> {

@@ -26,6 +26,7 @@ import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/termina
 import type { WorktreeInfo } from '@/shell/edge/main/worktree/gitWorktreeCommands';
 import type { WatchStatus } from '@/shell/electron';
 import { showWorktreeDeleteConfirmation } from '@/shell/edge/UI-edge/graph/worktreeDeletePopup';
+import type { WorkflowTreeNode } from '@/shell/edge/main/workflows/workflowHandlers';
 import type { SliderConfig, HorizontalMenuItem, NodeMenuItemsInput } from './horizontalMenuTypes';
 
 /**
@@ -197,27 +198,37 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
             color: '#f59e0b', // amber
             action: () => {},
             getSubMenuItems: async (): Promise<HorizontalMenuItem[]> => {
-                const workflows: Array<{ name: string; path: string; hasSkillFile: boolean }> | undefined =
+                const workflows: WorkflowTreeNode[] | undefined =
                     await window.electronAPI?.main.listWorkflows();
                 if (!workflows?.length) {
                     return [{ icon: Zap, label: 'No workflows found', action: () => {} }];
                 }
-                return workflows.map((wf): HorizontalMenuItem => ({
-                    icon: Zap,
-                    label: wf.hasSkillFile ? wf.name : `${wf.name}  ⚠ missing SKILL.md`,
-                    color: wf.hasSkillFile ? undefined : '#ef4444',
-                    action: wf.hasSkillFile ? async () => {
-                        const content: string | undefined = await window.electronAPI?.main.readSkillFileSummary(wf.path);
-                        if (!content) { console.warn('[workflow-inject] readSkillFileSummary returned empty for', wf.path); return; }
-                        console.log('[workflow-inject] SKILL summary length:', content.length);
-                        const currentNode: GraphNode = await getNodeFromMainToUI(nodeId);
-                        const existing: string = fromNodeToContentWithWikilinks(currentNode);
-                        const appended: string = existing ? `${existing}\n\n${content}` : content;
-                        console.log('[workflow-inject] appended content length:', appended.length);
-                        await modifyNodeContentFromUI(nodeId, appended, cy, true);
-                        await createAnchoredFloatingEditor(cy, nodeId, false);
-                    } : () => {},
-                }));
+                function buildItems(nodes: WorkflowTreeNode[]): HorizontalMenuItem[] {
+                    return nodes.map((wf): HorizontalMenuItem => {
+                        const hasChildren: boolean = wf.children.length > 0;
+                        const isActionable: boolean = wf.hasSkillFile;
+                        return {
+                            icon: isActionable ? Zap : FolderOpen,
+                            label: (!isActionable && !hasChildren) ? `${wf.name}  ⚠ missing SKILL.md` : wf.name,
+                            color: (!isActionable && !hasChildren) ? '#ef4444' : undefined,
+                            action: isActionable ? async (): Promise<void> => {
+                                const content: string | undefined = await window.electronAPI?.main.readSkillFileSummary(wf.path);
+                                if (!content) { console.warn('[workflow-inject] readSkillFileSummary returned empty for', wf.path); return; }
+                                console.log('[workflow-inject] SKILL summary length:', content.length);
+                                const currentNode: GraphNode = await getNodeFromMainToUI(nodeId);
+                                const existing: string = fromNodeToContentWithWikilinks(currentNode);
+                                const appended: string = existing ? `${existing}\n\n${content}` : content;
+                                console.log('[workflow-inject] appended content length:', appended.length);
+                                await modifyNodeContentFromUI(nodeId, appended, cy, true);
+                                await createAnchoredFloatingEditor(cy, nodeId, false);
+                            } : () => {},
+                            ...(hasChildren ? {
+                                getSubMenuItems: async (): Promise<HorizontalMenuItem[]> => buildItems(wf.children),
+                            } : {}),
+                        };
+                    });
+                }
+                return buildItems(workflows);
             },
         },
         {
