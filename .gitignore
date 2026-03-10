@@ -158,8 +158,11 @@ tools/state/*
 /frontend/soniox_examples/**/*
 /backend/text_to_graph_pipeline/voice_to_text/transcription_log_old.txt
 /webapp/playwright-report/**/*
+/webapp/playwright-report-electron-dev/**/*
 /webapp/test-results/**/*
 /webapp/playwright-report-electron/**/*
+/VoiceTree/
+/test-results/
 /webapp/e2e-tests/screenshots/**/*
 /frontend/webapp/tests/screenshots/**/*
 /frontend/webapp/e2e-tests/**/*
