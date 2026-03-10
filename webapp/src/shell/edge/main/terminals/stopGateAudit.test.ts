@@ -369,7 +369,12 @@ describe('buildHeadlessCommand', () => {
         expect(cmd).not.toContain('--session-id')
     })
 
-    it('builds Codex headless command with positional prompt arg', () => {
+    it('builds Codex headless command with exec --full-auto', () => {
+        const cmd: string = buildHeadlessCommand('codex "$AGENT_PROMPT"')
+        expect(cmd).toBe('codex exec --full-auto "$AGENT_PROMPT"')
+    })
+
+    it('builds Codex headless command even when input already has exec --full-auto', () => {
         const cmd: string = buildHeadlessCommand('codex exec --full-auto "$AGENT_PROMPT"')
         expect(cmd).toBe('codex exec --full-auto "$AGENT_PROMPT"')
     })

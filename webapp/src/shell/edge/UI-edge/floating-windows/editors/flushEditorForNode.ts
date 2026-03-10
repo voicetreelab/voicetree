@@ -14,6 +14,9 @@ import type {EditorData} from "@/shell/edge/UI-edge/floating-windows/editors/edi
  *
  * This bypasses the 300ms debounce on editor autosave, ensuring the
  * in-memory graph state is immediately updated with the editor's content.
+ *
+ * Best-effort: if the node is missing from the graph (e.g. stale editor after
+ * vault reload), logs a warning and returns instead of throwing.
  */
 export async function flushEditorForNode(
     nodeId: NodeIdAndFilePath,
@@ -28,5 +31,9 @@ export async function flushEditorForNode(
 
     // Trigger immediate save (same as onChange callback but bypasses debounce)
     const content: string = (editor as CodeMirrorEditorView).getValue()
-    await modifyNodeContentFromUI(nodeId, content, cy)
+    try {
+        await modifyNodeContentFromUI(nodeId, content, cy)
+    } catch (e: unknown) {
+        console.warn('[flushEditorForNode] Could not flush editor — node may be missing from graph, proceeding anyway:', nodeId, e)
+    }
 }

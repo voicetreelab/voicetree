@@ -16,13 +16,15 @@
  */
 
 import path from 'path';
+import { promises as fs } from 'fs';
 import { createContextNode } from '@/shell/edge/main/graph/context-nodes/createContextNode';
 import { createContextNodeFromSelectedNodes } from '@/shell/edge/main/graph/context-nodes/createContextNodeFromSelectedNodes';
-import { getGraph } from '@/shell/edge/main/state/graph-store';
+import { getGraph, setGraph } from '@/shell/edge/main/state/graph-store';
 import { loadSettings } from '@/shell/edge/main/settings/settings_IO';
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy';
 import { createTerminalData, getTerminalId, type TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
-import type { NodeIdAndFilePath, GraphNode, Graph } from '@/pure/graph';
+import type { NodeIdAndFilePath, GraphNode, Graph, FSUpdate, GraphDelta } from '@/pure/graph';
+import { applyGraphDeltaToGraph } from '@/pure/graph';
 import { getNodeTitle } from '@/pure/graph/markdown-parsing';
 import { findFirstParentNode } from '@/pure/graph/graph-operations/findFirstParentNode';
 import type { VTSettings } from '@/pure/settings';
@@ -33,6 +35,8 @@ import {getWatchStatus} from "@/shell/edge/main/graph/watch_folder/watchFolder";
 import {buildTerminalEnvVars} from '@/shell/edge/main/terminals/buildTerminalEnvVars';
 import {spawnHeadlessAgent, killHeadlessAgent} from '@/shell/edge/main/terminals/headlessAgentManager';
 import {registerChildIfMonitored} from '@/shell/edge/main/mcp-server/agent-completion-monitor';
+import {addNodeToGraphWithEdgeHealingFromFSEvent} from '@/pure/graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent';
+import {broadcastGraphDeltaToUI} from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI';
 
 /**
  * Spawn a terminal with a context node, orchestrated from main process
@@ -88,11 +92,15 @@ export async function spawnTerminalWithContextNode(
         throw new Error('No agent command available - settings.agents is empty or undefined');
     }
 
-    // Get task node from graph
-    const graph: Graph = getGraph();
-    const taskNode: GraphNode = graph.nodes[taskNodeId];
+    // Get task node from graph (self-heal if file exists on disk but missing from graph)
+    let graph: Graph = getGraph();
+    let taskNode: GraphNode | undefined = graph.nodes[taskNodeId];
     if (!taskNode) {
-        throw new Error(`Node ${taskNodeId} not found in graph`);
+        taskNode = await tryReloadNodeFromDisk(taskNodeId);
+        if (!taskNode) {
+            throw new Error(`Node ${taskNodeId} not found in graph or on disk`);
+        }
+        graph = getGraph(); // re-read after self-heal mutated graph store
     }
 
     // Create or reuse context node
@@ -307,8 +315,9 @@ export function detectCliType(command: string): 'claude' | 'codex' | 'gemini' | 
 export function buildHeadlessCommand(command: string): string {
     const baseCommand: string = command.replace('"$AGENT_PROMPT"', '').replace("'$AGENT_PROMPT'", '').trim()
     const cliType: 'claude' | 'codex' | 'gemini' | null = detectCliType(baseCommand)
-    // Codex uses positional prompt arg; Claude and Gemini use -p flag
-    const promptArg: string = cliType === 'codex' ? ' "$AGENT_PROMPT"' : ' -p "$AGENT_PROMPT"'
+    // Codex headless: `codex exec --full-auto "$AGENT_PROMPT"` (positional prompt, no TTY needed)
+    if (cliType === 'codex') return `codex exec --full-auto "$AGENT_PROMPT"`
+    const promptArg: string = ' -p "$AGENT_PROMPT"'
     return `${baseCommand}${promptArg}`
 }
 
@@ -328,4 +337,31 @@ function extractWorktreeNameFromPath(spawnDirectory: string | undefined): string
     const slashIndex: number = afterMarker.indexOf('/');
     const dirName: string = slashIndex === -1 ? afterMarker : afterMarker.slice(0, slashIndex);
     return dirName || undefined;
+}
+
+/**
+ * Self-healing: attempt to load a node from disk when it exists as a file
+ * but is missing from the in-memory graph.
+ *
+ * This handles edge cases where the graph state gets out of sync with the
+ * filesystem (race conditions during loading, skipped watcher events, etc.).
+ *
+ * Returns the loaded GraphNode, or undefined if the file doesn't exist.
+ */
+async function tryReloadNodeFromDisk(nodeId: NodeIdAndFilePath): Promise<GraphNode | undefined> {
+    const filePath: string = nodeId.endsWith('.md') ? nodeId : `${nodeId}.md`
+    try {
+        const content: string = await fs.readFile(filePath, 'utf-8')
+        const fsEvent: FSUpdate = { absolutePath: filePath, content, eventType: 'Added' }
+        const graph: Graph = getGraph()
+        const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, graph)
+        if (delta.length === 0) return undefined
+        const newGraph: Graph = applyGraphDeltaToGraph(graph, delta)
+        setGraph(newGraph)
+        broadcastGraphDeltaToUI(delta)
+        console.warn(`[spawnTerminal] Self-healed missing node from disk: ${nodeId}`)
+        return newGraph.nodes[nodeId]
+    } catch {
+        return undefined
+    }
 }
