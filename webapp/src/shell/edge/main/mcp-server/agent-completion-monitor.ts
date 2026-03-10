@@ -84,7 +84,8 @@ export function startMonitor(
                 })
             }
 
-            const message: string = buildCompletionMessage(results)
+            const stillWaitingOn: string[] = getPendingAgentNamesForCaller(callerTerminalId, monitorId)
+            const message: string = buildCompletionMessage(results, stillWaitingOn)
             void sendTextToTerminal(callerTerminalId, message)
 
             clearInterval(intervalId)
@@ -134,6 +135,30 @@ function findExistingDescendants(parentIds: string[]): string[] {
         }
     }
     return descendants
+}
+
+/**
+ * Returns agent names still being monitored for this caller, excluding the monitor that just fired.
+ * Used by auto-wait to show "Still waiting on: X, Y" hints in per-agent completion messages.
+ */
+export function getPendingAgentNamesForCaller(callerTerminalId: string, excludeMonitorId: string): string[] {
+    const currentRecords: TerminalRecord[] = getTerminalRecords()
+    const graph: Graph = getGraph()
+    const now: number = Date.now()
+    const names: string[] = []
+    for (const [monitorId, entry] of monitors) {
+        if (monitorId === excludeMonitorId) continue
+        if (entry.callerTerminalId !== callerTerminalId) continue
+        for (const tid of entry.terminalIds) {
+            const record: TerminalRecord | undefined = currentRecords.find(
+                (r: TerminalRecord) => r.terminalId === tid
+            )
+            if (record && !isAgentComplete(record, graph, now, currentRecords)) {
+                names.push(record.terminalData.agentName ?? record.terminalId)
+            }
+        }
+    }
+    return names
 }
 
 export function cancelMonitor(monitorId: string): void {

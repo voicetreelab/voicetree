@@ -28,7 +28,7 @@ describe('buildCompletionMessage', () => {
             },
         ]
         const msg: string = buildCompletionMessage(agents)
-        expect(msg).toContain('[WaitForAgents] All agents completed.')
+        expect(msg).toContain('[WaitForAgents] Agent(s) completed.')
         expect(msg).toContain('- Alice [exited:0]: Design doc (n1), Implementation (n2)')
         expect(msg).toContain('- Bob [idle]: Progress update (n3)')
     })
@@ -103,6 +103,34 @@ describe('buildCompletionMessage', () => {
         ]
         const msg: string = buildCompletionMessage(agents)
         expect(msg).not.toContain('Last output')
+    })
+
+    it('includes "Still waiting on" when stillWaitingOn has entries', () => {
+        const agents: AgentResult[] = [
+            {
+                terminalId: 't1',
+                agentName: 'Alice',
+                status: 'exited',
+                exitCode: 0,
+                nodes: [],
+            },
+        ]
+        const msg: string = buildCompletionMessage(agents, ['Bob', 'Carol'])
+        expect(msg).toContain('Still waiting on: Bob, Carol')
+    })
+
+    it('omits "Still waiting on" when stillWaitingOn is empty', () => {
+        const agents: AgentResult[] = [
+            {
+                terminalId: 't1',
+                agentName: 'Alice',
+                status: 'exited',
+                exitCode: 0,
+                nodes: [],
+            },
+        ]
+        const msg: string = buildCompletionMessage(agents, [])
+        expect(msg).not.toContain('Still waiting on')
     })
 
     it('includes tip about closing agents', () => {

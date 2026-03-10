@@ -107,7 +107,7 @@ describe('Headless agent e2e: spawn + monitor + nested spawn', () => {
         expect(sendTextToTerminal).toHaveBeenCalledTimes(1)
         expect(sendTextToTerminal).toHaveBeenCalledWith(
             'caller',
-            expect.stringContaining('[WaitForAgents] All agents completed.')
+            expect.stringContaining('[WaitForAgents] Agent(s) completed.')
         )
 
         // 7. Inspect the completion message

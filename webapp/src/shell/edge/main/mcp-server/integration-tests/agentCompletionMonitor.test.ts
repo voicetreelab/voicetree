@@ -328,7 +328,7 @@ describe('AgentCompletionMonitor integration', () => {
 
         expect(sendTextToTerminal).toHaveBeenCalledTimes(1)
         const message: string = vi.mocked(sendTextToTerminal).mock.calls[0][1]
-        expect(message).toContain('[WaitForAgents] All agents completed.')
+        expect(message).toContain('[WaitForAgents] Agent(s) completed.')
         expect(message).toContain('alpha')
         expect(message).toContain('Design doc')
         expect(message).toContain('beta')

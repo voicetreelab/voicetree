@@ -18,6 +18,7 @@ import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/termina
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
 import type {VTSettings} from '@/pure/settings'
 import {type McpToolResponse, buildJsonResponse} from './types'
+import {startMonitor} from './agent-completion-monitor'
 
 export interface SpawnAgentParams {
     nodeId?: string
@@ -221,6 +222,10 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
             const {terminalId, contextNodeId}: {terminalId: string; contextNodeId: string} =
                 await spawnTerminalWithContextNode(taskNodeId, resolvedAgentCommand, undefined, true, false, undefined, resolvedSpawnDirectory, replaceSelfParentId, promptTemplate, headless, replaceSelf ? callerTerminalId : undefined, envOverrides)
 
+            if (!replaceSelf) {
+                startMonitor(callerTerminalId, [terminalId], 5000)
+            }
+
             return buildJsonResponse({
                 success: true,
                 terminalId,
@@ -229,7 +234,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
                 depthBudget: childDepthBudget,
                 message: replaceSelf
                     ? `Replaced self — successor agent running as "${terminalId}"`
-                    : `Created task node and spawned agent for "${task}"`
+                    : `Created task node and spawned agent for "${task}". You will be notified when the agent completes.`
             })
         } catch (error) {
             const errorMessage: string = error instanceof Error ? error.message : String(error)
@@ -292,6 +297,10 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
         const {terminalId, contextNodeId}: {terminalId: string; contextNodeId: string} =
             await spawnTerminalWithContextNode(resolvedNodeId, resolvedAgentCommand, undefined, true, false, undefined, resolvedSpawnDirectory, replaceSelfParentId2, promptTemplate, headless, replaceSelf ? callerTerminalId : undefined, envOverrides)
 
+        if (!replaceSelf) {
+            startMonitor(callerTerminalId, [terminalId], 5000)
+        }
+
         return buildJsonResponse({
             success: true,
             terminalId,
@@ -300,7 +309,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
             depthBudget: childDepthBudget,
             message: replaceSelf
                 ? `Replaced self — successor agent running as "${terminalId}"`
-                : `Spawned agent for node ${resolvedNodeId}`
+                : `Spawned agent for node ${resolvedNodeId}. You will be notified when the agent completes.`
         })
     } catch (error) {
         const errorMessage: string = error instanceof Error ? error.message : String(error)

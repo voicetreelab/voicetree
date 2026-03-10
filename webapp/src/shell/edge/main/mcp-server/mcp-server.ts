@@ -76,7 +76,7 @@ export async function createMcpServer(): Promise<McpServer> {
 
 **When to use:** Complex tasks, parallelizable subtasks, any work where user visibility matters.
 
-**Pattern:** Decompose into nodes → spawn agents → wait_for_agents → review with get_unseen_nodes_nearby.
+**Pattern:** Decompose into nodes → spawn agents → (auto-monitored, you'll be notified on completion) → review with get_unseen_nodes_nearby.
 
 **Prefer \`nodeId\` over \`task+parentNodeId\` when a node already describes the work.** Don't recreate what's already written — spawn directly on the existing node.
 
@@ -113,7 +113,7 @@ If no node exists yet, use task+parentNodeId to create a new task node first.`,
         'wait_for_agents',
         {
             title: 'Wait for Agents',
-            description: 'Wait for specified agent terminals to complete. Returns immediately with a monitorId. The monitor polls in the background and sends a completion message to your terminal when all agents are done.\n\nIMPORTANT: This tool is non-blocking. After calling it, you should continue with other work or inform the user you are waiting. Do NOT manually poll agent status — a "[WaitForAgents] All agents completed." message will be automatically injected into your terminal when all agents finish their work. You will see this message appear as if the user sent it.',
+            description: 'Wait for specified agent terminals to complete. Returns immediately with a monitorId. The monitor polls in the background and sends a completion message to your terminal when all agents are done.\n\nIMPORTANT: This tool is non-blocking. After calling it, you should continue with other work or inform the user you are waiting. Do NOT manually poll agent status — a "[WaitForAgents] Agent(s) completed." message will be automatically injected into your terminal when all agents finish their work. You will see this message appear as if the user sent it.\n\nNOTE: spawn_agent now auto-starts a monitor, so you only need wait_for_agents for explicit multi-agent waits or custom polling intervals.',
             inputSchema: {
                 terminalIds: z.array(z.string()).describe('Array of terminal IDs to wait for'),
                 callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),

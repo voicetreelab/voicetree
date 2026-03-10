@@ -28,6 +28,10 @@ vi.mock('@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUICha
     applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn().mockResolvedValue(undefined)
 }))
 
+vi.mock('@/shell/edge/main/mcp-server/agent-completion-monitor', () => ({
+    startMonitor: vi.fn().mockReturnValue('monitor-1')
+}))
+
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange'
 import {spawnAgentTool, listAgentsTool} from '@/shell/edge/main/mcp-server/mcp-server'
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
