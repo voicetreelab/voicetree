@@ -2,10 +2,11 @@
  * MCP Client Configuration
  *
  * Manages MCP config files in the watched directory so that
- * coding agents (Claude, Codex, etc.) connect to Voicetree's MCP server.
+ * coding agents (Claude, Codex, OpenCode, etc.) connect to Voicetree's MCP server.
  *
  * Claude Code reads .mcp.json (JSON).
  * Codex reads .codex/config.toml (TOML).
+ * OpenCode reads opencode.jsonc (JSONC with comments).
  */
 
 import { promises as fs } from 'fs';
@@ -176,28 +177,153 @@ async function disableCodexMcpIntegration(): Promise<void> {
     await writeCodexConfig(content + '\n');
 }
 
+// ─── opencode.jsonc (OpenCode) ────────────────────────────────────────────────
+
+interface OpencodeMcpServerConfig {
+    type: 'remote' | 'local';
+    url: string;
+    enabled?: boolean;
+}
+
+interface OpencodeConfig {
+    $schema?: string;
+    mcp?: Record<string, OpencodeMcpServerConfig>;
+    [key: string]: any; // Preserve other OpenCode settings
+}
+
+function getOpencodeConfigPath(): string | null {
+    const watchedDir: string | null = getProjectRootWatchedDirectory();
+    if (!watchedDir) return null;
+    return path.join(watchedDir, 'opencode.jsonc');
+}
+
+/**
+ * Read the current opencode.jsonc config, or return empty config if doesn't exist
+ */
+async function readOpencodeConfig(): Promise<OpencodeConfig> {
+    const configPath: string | null = getOpencodeConfigPath();
+    if (!configPath) {
+        return {};
+    }
+
+    try {
+        const content: string = await fs.readFile(configPath, 'utf-8');
+        // Parse as JSON (JSONC is JSON with optional comments, JSON.parse ignores comments)
+        return JSON.parse(content) as OpencodeConfig;
+    } catch (_error) {
+        // File doesn't exist or is invalid JSON - return empty config
+        return {};
+    }
+}
+
+/**
+ * Write the opencode.jsonc config
+ */
+async function writeOpencodeConfig(config: OpencodeConfig): Promise<void> {
+    const configPath: string | null = getOpencodeConfigPath();
+    if (!configPath) {
+        throw new Error('No watched directory - cannot write opencode.jsonc');
+    }
+
+    const content: string = JSON.stringify(config, null, 2);
+    await fs.writeFile(configPath, content, 'utf-8');
+}
+
+/**
+ * Enable Voicetree MCP integration by adding config to opencode.jsonc
+ * Merges with existing config to preserve other MCP servers and settings
+ */
+export async function enableOpencodeMcpIntegration(): Promise<void> {
+    const config: OpencodeConfig = await readOpencodeConfig();
+    const port: number = getMcpPort();
+
+    // Ensure schema is present
+    if (!config.$schema) {
+        config.$schema = 'https://opencode.ai/config.json';
+    }
+
+    // Ensure mcp section exists
+    if (!config.mcp) {
+        config.mcp = {};
+    }
+
+    // Merge or update voicetree server config
+    config.mcp[VOICETREE_MCP_SERVER_NAME] = {
+        type: 'remote',
+        url: `http://127.0.0.1:${port}/mcp`,
+        enabled: true
+    };
+
+    await writeOpencodeConfig(config);
+}
+
+/**
+ * Disable Voicetree MCP integration by removing config from opencode.jsonc
+ * Preserves other MCP servers and settings in the config
+ */
+export async function disableOpencodeMcpIntegration(): Promise<void> {
+    const config: OpencodeConfig = await readOpencodeConfig();
+
+    if (config.mcp?.[VOICETREE_MCP_SERVER_NAME]) {
+        delete config.mcp[VOICETREE_MCP_SERVER_NAME];
+
+        // Clean up empty mcp object
+        if (Object.keys(config.mcp).length === 0) {
+            delete config.mcp;
+        }
+
+        // If only schema remains, delete the file
+        const keys: string[] = Object.keys(config);
+        if (keys.length === 0 || (keys.length === 1 && keys[0] === '$schema')) {
+            const configPath: string | null = getOpencodeConfigPath();
+            if (configPath) {
+                try { await fs.unlink(configPath); } catch (_e) { /* ignore */ }
+            }
+            return;
+        }
+
+        await writeOpencodeConfig(config);
+    }
+}
+
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 function isCodexAgent(agentCommand: string): boolean {
     return agentCommand.toLowerCase().includes('codex');
 }
 
+export function isOpencodeAgent(agentCommand: string): boolean {
+    return agentCommand.toLowerCase().includes('opencode');
+}
+
 /**
  * Set MCP integration state for the appropriate config file(s).
  * Always writes .mcp.json. Also writes .codex/config.toml when agentCommand is a Codex agent.
+ * Also writes opencode.jsonc when agentCommand is an OpenCode agent.
  */
 export async function setMcpIntegration(enabled: boolean, agentCommand?: string): Promise<void> {
+    // Claude .mcp.json (always write for Claude compatibility)
     if (enabled) {
         await enableMcpJsonIntegration();
     } else {
         await disableMcpJsonIntegration();
     }
 
+    // Codex .codex/config.toml (conditional)
     if (agentCommand && isCodexAgent(agentCommand)) {
         if (enabled) {
             await enableCodexMcpIntegration();
         } else {
             await disableCodexMcpIntegration();
+        }
+    }
+
+    // OpenCode opencode.jsonc (conditional)
+    if (agentCommand && isOpencodeAgent(agentCommand)) {
+        if (enabled) {
+            await enableOpencodeMcpIntegration();
+        } else {
+            await disableOpencodeMcpIntegration();
         }
     }
 }
