@@ -56,7 +56,7 @@ import {createFolderTreeSidebar} from './folderTree/FolderTreeSidebar';
 import {toggleFolderTreeSidebar} from '@/shell/edge/UI-edge/state/FolderTreeStore';
 import {getRecentNodeHistory} from '@/shell/edge/UI-edge/state/RecentNodeHistoryStore';
 import type {RecentNodeHistory} from '@/pure/graph/recentNodeHistoryV2';
-import {getResponsivePadding} from '@/utils/responsivePadding';
+import {cyFitIntoVisibleViewport, getResponsivePadding} from '@/utils/responsivePadding';
 import {updateSpeedDialDarkMode} from './SpeedDialMenu';
 import {triggerColaLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout';
 import type {Graph} from '@/pure/graph';
@@ -418,7 +418,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // Use responsive padding instead of fixed pixels (default was 50px on 1440p)
         const padding: number = getResponsivePadding(cy, paddingPercentage);
         console.warn(`[VoiceTreeGraphView.fit] zoom=${cy.zoom().toFixed(4)}, padding=${padding}, cy.size=${cy.width()}x${cy.height()}`);
-        cy.fit(undefined, padding);
+        cyFitIntoVisibleViewport(cy, undefined, padding);
         console.warn(`[VoiceTreeGraphView.fit] after: zoom=${cy.zoom().toFixed(4)}`);
     }
 

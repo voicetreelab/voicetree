@@ -1,14 +1,14 @@
 {
   "mcpServers": {
-    "voicetree": {
-      "type": "http",
-      "url": "http://127.0.0.1:3002/mcp"
-    },
     "playwright": {
       "command": "npx",
       "args": [
         "@playwright/mcp@latest"
       ]
+    },
+    "voicetree": {
+      "type": "http",
+      "url": "http://127.0.0.1:3002/mcp"
     }
   }
 }

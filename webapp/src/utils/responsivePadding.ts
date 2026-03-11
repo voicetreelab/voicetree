@@ -1,4 +1,58 @@
-import type { Core, CollectionReturnValue, NodeCollection } from 'cytoscape';
+import type { AnimateOptions, CollectionReturnValue, Core, NodeCollection, Position } from 'cytoscape';
+import { getVisibleViewportMetrics, type VisibleViewportMetrics } from '@/utils/visibleViewport';
+
+type DebugAnimateOptions = AnimateOptions & {
+  __vtTargetEles?: CollectionReturnValue;
+};
+
+function getCollectionCenter(eles: CollectionReturnValue): Position {
+  const bb: { x1: number; y1: number; w: number; h: number } = eles.boundingBox();
+  return {
+    x: bb.x1 + bb.w / 2,
+    y: bb.y1 + bb.h / 2,
+  };
+}
+
+function getViewportPanForElements(cy: Core, eles: CollectionReturnValue, zoom: number): Position {
+  const center: Position = getCollectionCenter(eles);
+  const viewport: VisibleViewportMetrics = getVisibleViewportMetrics(cy);
+
+  return {
+    x: viewport.centerX - center.x * zoom,
+    y: viewport.centerY - center.y * zoom,
+  };
+}
+
+function animateViewport(
+  cy: Core,
+  eles: CollectionReturnValue,
+  zoom: number,
+  duration: number,
+  options?: { easing?: string; complete?: () => void }
+): void {
+  const animation: DebugAnimateOptions = {
+    pan: getViewportPanForElements(cy, eles, zoom),
+    zoom,
+    duration,
+    __vtTargetEles: eles,
+  };
+
+  if (options?.easing || options?.complete) {
+    cy.animate(animation, {
+      ...(options.easing ? { easing: options.easing } : {}),
+      ...(options.complete ? { complete: options.complete } : {}),
+    });
+    return;
+  }
+
+  cy.animate(animation);
+}
+
+function applyViewportImmediately(cy: Core, eles: CollectionReturnValue, zoom: number): void {
+  cy.stop();
+  cy.zoom(zoom);
+  cy.pan(getViewportPanForElements(cy, eles, zoom));
+}
 
 /**
  * Calculate responsive padding for cy.fit() based on viewport dimensions
@@ -11,9 +65,8 @@ import type { Core, CollectionReturnValue, NodeCollection } from 'cytoscape';
  * @returns Padding in pixels that scales proportionally with viewport size
  */
 export function getResponsivePadding(cy: Core, targetPercentage: number = 10): number {
-  const width: number = cy.width();
-  const height: number = cy.height();
-  const minDimension: number = Math.min(width, height);
+  const viewport: VisibleViewportMetrics = getVisibleViewportMetrics(cy);
+  const minDimension: number = Math.min(viewport.width, viewport.height);
   // Cap at 45% to prevent cy.fit() breaking (padding applied to both sides)
   const cappedPercentage: number = Math.min(targetPercentage, 45);
   return Math.round((minDimension * cappedPercentage) / 100);
@@ -42,11 +95,13 @@ export function cyFitWithRelativeZoom(
   const bb: { w: number; h: number } = eles.boundingBox();
   if (bb.w === 0 || bb.h === 0) return;
 
-  // Calculate zoom level so element takes up targetFraction of viewport
+  const viewport: VisibleViewportMetrics = getVisibleViewportMetrics(cy);
+
+  // Calculate zoom level so element takes up targetFraction of the visible viewport
   // element_size * zoom = viewport_size * targetFraction
   // zoom = (viewport_size * targetFraction) / element_size
-  const zoomForWidth: number = (cy.width() * targetFraction) / bb.w;
-  const zoomForHeight: number = (cy.height() * targetFraction) / bb.h;
+  const zoomForWidth: number = (viewport.width * targetFraction) / bb.w;
+  const zoomForHeight: number = (viewport.height * targetFraction) / bb.h;
 
   // Use the smaller zoom to ensure element fits in both dimensions
   const targetZoom: number = Math.min(zoomForWidth, zoomForHeight);
@@ -54,11 +109,7 @@ export function cyFitWithRelativeZoom(
   // Clamp to cytoscape's zoom limits
   const clampedZoom: number = Math.max(cy.minZoom(), Math.min(cy.maxZoom(), targetZoom));
 
-  cy.animate({
-    center: { eles },
-    zoom: clampedZoom,
-    duration
-  });
+  animateViewport(cy, eles, clampedZoom, duration);
 }
 
 // Comfortable zoom range - only zoom if outside this range, otherwise just pan
@@ -87,10 +138,20 @@ export function cySmartCenter(
   const isInComfortableRange: boolean = currentZoom >= COMFORTABLE_ZOOM_MIN && currentZoom <= COMFORTABLE_ZOOM_MAX;
 
   if (isInComfortableRange) {
-    cy.animate({ center: { eles }, duration: SMART_CENTER_DURATION });
+    animateViewport(cy, eles, currentZoom, SMART_CENTER_DURATION);
   } else {
-    cy.animate({ center: { eles }, zoom: COMFORTABLE_ZOOM_DEFAULT, duration: SMART_CENTER_DURATION });
+    animateViewport(cy, eles, COMFORTABLE_ZOOM_DEFAULT, SMART_CENTER_DURATION);
   }
+}
+
+export function cyCenterOnVisibleViewport(
+  cy: Core,
+  eles: CollectionReturnValue,
+  duration: number = SMART_CENTER_DURATION
+): void {
+  if (eles.length === 0) return;
+
+  animateViewport(cy, eles, cy.zoom(), duration);
 }
 
 /**
@@ -122,9 +183,11 @@ export function cyFitCollectionByAverageNodeSize(
 
   // If already in comfortable zoom range, just pan to center
   if (isInComfortableRange) {
-    cy.animate({ center: { eles }, duration });
+    cyCenterOnVisibleViewport(cy, eles as CollectionReturnValue, duration);
     return;
   }
+
+  const viewport: VisibleViewportMetrics = getVisibleViewportMetrics(cy);
 
   // Calculate average node dimensions
   let totalWidth: number = 0;
@@ -140,16 +203,42 @@ export function cyFitCollectionByAverageNodeSize(
   if (avgWidth === 0 || avgHeight === 0) return;
 
   // Calculate zoom so average node = targetFraction of viewport
-  const zoomForWidth: number = (cy.width() * targetFraction) / avgWidth;
-  const zoomForHeight: number = (cy.height() * targetFraction) / avgHeight;
+  const zoomForWidth: number = (viewport.width * targetFraction) / avgWidth;
+  const zoomForHeight: number = (viewport.height * targetFraction) / avgHeight;
   const targetZoom: number = Math.min(zoomForWidth, zoomForHeight);
 
   // Clamp to cytoscape's zoom limits
   const clampedZoom: number = Math.max(cy.minZoom(), Math.min(cy.maxZoom(), targetZoom));
 
-  cy.animate({
-    center: { eles },
-    zoom: clampedZoom,
-    duration
+  animateViewport(cy, eles as CollectionReturnValue, clampedZoom, duration);
+}
+
+export function cyFitIntoVisibleViewport(
+  cy: Core,
+  eles: CollectionReturnValue | undefined,
+  padding: number,
+  options: { duration?: number; easing?: string; complete?: () => void } = {}
+): void {
+  const targetEles: CollectionReturnValue = eles ?? cy.elements();
+  if (targetEles.length === 0) return;
+
+  const bb: { w: number; h: number } = targetEles.boundingBox();
+  if (bb.w === 0 || bb.h === 0) return;
+
+  const viewport: VisibleViewportMetrics = getVisibleViewportMetrics(cy);
+  const fitWidth: number = Math.max(viewport.width - 2 * padding, 1);
+  const fitHeight: number = Math.max(viewport.height - 2 * padding, 1);
+  const targetZoom: number = Math.min(fitWidth / bb.w, fitHeight / bb.h);
+  const clampedZoom: number = Math.max(cy.minZoom(), Math.min(cy.maxZoom(), targetZoom));
+  const duration: number = options.duration ?? 0;
+
+  if (duration <= 0 && !options.complete && !options.easing) {
+    applyViewportImmediately(cy, targetEles, clampedZoom);
+    return;
+  }
+
+  animateViewport(cy, targetEles, clampedZoom, duration, {
+    ...(options.easing ? { easing: options.easing } : {}),
+    ...(options.complete ? { complete: options.complete } : {}),
   });
 }

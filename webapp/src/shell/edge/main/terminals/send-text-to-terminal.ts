@@ -11,17 +11,43 @@ const CHAR_DELAY_MS: number = 5
 const ESC_DELAY_MS: number = 100
 const INSERT_MODE_DELAY_MS: number = 50
 const SUBMIT_SEQUENCE: string = '\x1b\r'
+const PREAMBLE_DUMMY: string = ' '
+
+const terminalWriteQueues: Map<string, Promise<void>> = new Map()
+
+function enqueueTerminalWrite<T>(
+    terminalId: string,
+    operation: () => Promise<T>
+): Promise<T> {
+    const prior: Promise<void> = terminalWriteQueues.get(terminalId) ?? Promise.resolve()
+    const safePrior: Promise<void> = prior.catch(() => undefined).then(() => undefined)
+    const operationPromise: Promise<T> = safePrior.then(operation)
+
+    const marker: Promise<void> = operationPromise.then(
+        () => undefined,
+        () => undefined
+    )
+    terminalWriteQueues.set(terminalId, marker)
+    return operationPromise.finally(() => {
+        if (terminalWriteQueues.get(terminalId) === marker) {
+            terminalWriteQueues.delete(terminalId)
+        }
+    })
+}
 
 export async function sendTextToTerminal(terminalId: string, text: string): Promise<TerminalOperationResult> {
+    return enqueueTerminalWrite(terminalId, async () => {
     const terminalManager: ReturnType<typeof getTerminalManager> = getTerminalManager()
 
     // Universal preamble that works for both vi-mode (Claude) and emacs-mode (Codex, Gemini):
-    //   ESC ESC  → vi: enters normal mode. emacs: harmless meta-key noise.
+    // Dummy no-op character before ESC to mitigate first-byte timing misses on some PTY paths.
+    terminalManager.write(terminalId, PREAMBLE_DUMMY)
+    await new Promise(resolve => setTimeout(resolve, ESC_DELAY_MS))
+
+    //   ESC      → vi: enters normal mode; emacs: harmless meta-key noise.
     //   i        → vi: enters insert mode.  emacs: types stray 'i'.
     //   Ctrl-U   → both: kill-line clears input buffer (removes stray 'i' in emacs, no-op in vi).
     // Must happen BEFORE the message — sending ESC after \r cancels generation.
-    terminalManager.write(terminalId, '\x1b')
-    await new Promise(resolve => setTimeout(resolve, ESC_DELAY_MS))
     terminalManager.write(terminalId, '\x1b')
     await new Promise(resolve => setTimeout(resolve, ESC_DELAY_MS))
     terminalManager.write(terminalId, 'i')
@@ -40,4 +66,5 @@ export async function sendTextToTerminal(terminalId: string, text: string): Prom
     }
 
     return {success: true}
+    })
 }

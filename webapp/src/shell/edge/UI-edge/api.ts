@@ -16,7 +16,7 @@ import {
 } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 import {createAnchoredFloatingEditor} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 import {getCyInstance} from "@/shell/edge/UI-edge/state/cytoscape-state";
-import {getResponsivePadding} from "@/utils/responsivePadding";
+import {cyFitIntoVisibleViewport, getResponsivePadding} from "@/utils/responsivePadding";
 import type {GraphDelta, NodeIdAndFilePath} from "@/pure/graph";
 import {isImageNode} from "@/pure/graph";
 import type {Core} from "cytoscape";
@@ -66,7 +66,7 @@ function createEditorForExternalNode(nodeId: NodeIdAndFilePath, _isAgentNode: bo
 function fitViewport(): void {
     const cy: Core = getCyInstance();
     if (cy.nodes().length > 0) {
-        cy.fit(undefined, getResponsivePadding(cy, 10));
+        cyFitIntoVisibleViewport(cy, undefined, getResponsivePadding(cy, 10));
     }
 }
 

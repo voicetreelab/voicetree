@@ -10,6 +10,7 @@ import {
     spawnTerminalWithNewContextNode
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
 import {deleteNodesFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions";
+import { getVisibleViewportCenterInGraph } from '@/utils/visibleViewport';
 
 /**
  * Get currently selected graph nodes (excluding floating windows)
@@ -44,11 +45,8 @@ export const createNewNodeAction: (cy: Core) => () => void = (
     // Create orphan node at center of viewport
     void (async () => {
       const {createNewEmptyOrphanNodeFromUI} = await import('@/shell/edge/UI-edge/graph/handleUIActions');
-      const pan: Position = cy.pan();
-      const zoom: number = cy.zoom();
-      const centerX: number = (cy.width() / 2 - pan.x) / zoom;
-      const centerY: number = (cy.height() / 2 - pan.y) / zoom;
-      await createNewEmptyOrphanNodeFromUI({x: centerX, y: centerY});
+      const center: Position = getVisibleViewportCenterInGraph(cy);
+      await createNewEmptyOrphanNodeFromUI(center);
     })();
   }
 };

@@ -1,0 +1,70 @@
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
+import type {TerminalOperationResult} from './terminal-manager'
+
+const mockWrite = vi.fn<(terminalId: string, data: string) => TerminalOperationResult>()
+
+vi.mock('@/shell/edge/main/terminals/terminal-manager-instance', () => ({
+    getTerminalManager: vi.fn(() => ({
+        write: mockWrite
+    }))
+}))
+
+import {sendTextToTerminal} from './send-text-to-terminal'
+
+describe('sendTextToTerminal', () => {
+    beforeEach(() => {
+        vi.useFakeTimers()
+        mockWrite.mockReset()
+        mockWrite.mockReturnValue({success: true})
+    })
+
+    afterEach(() => {
+        vi.useRealTimers()
+    })
+
+    it('submits with ESC+CR after writing the message', async () => {
+        const sendPromise: Promise<TerminalOperationResult> = sendTextToTerminal('test-terminal', 'hello')
+        await vi.runAllTimersAsync()
+        const result: TerminalOperationResult = await sendPromise
+
+        expect(result).toEqual({success: true})
+
+        const writes: string[] = mockWrite.mock.calls.map(([, data]) => data)
+        expect(writes.slice(0, 4)).toEqual([' ', '\x1b', 'i', '\x15'])
+        expect(writes.slice(4, -2).join('')).toBe('hello')
+        expect(writes.slice(-2)).toEqual(['\x1b', '\r'])
+    })
+
+    it('returns first failed write result', async () => {
+        mockWrite.mockImplementation((_terminalId: string, data: string): TerminalOperationResult => {
+            if (data === '\x1b') {
+                return {success: false, error: 'write failed'}
+            }
+            return {success: true}
+        })
+
+        const sendPromise: Promise<TerminalOperationResult> = sendTextToTerminal('test-terminal', 'hello')
+        await vi.runAllTimersAsync()
+        const result: TerminalOperationResult = await sendPromise
+
+        expect(result).toEqual({success: false, error: 'write failed'})
+    })
+
+    it('serializes concurrent sends to the same terminal', async () => {
+        const firstSend: Promise<TerminalOperationResult> = sendTextToTerminal('test-terminal', 'one')
+        const secondSend: Promise<TerminalOperationResult> = sendTextToTerminal('test-terminal', 'two')
+
+        await vi.runAllTimersAsync()
+
+        const firstResult: TerminalOperationResult = await firstSend
+        const secondResult: TerminalOperationResult = await secondSend
+        expect(firstResult).toEqual({success: true})
+        expect(secondResult).toEqual({success: true})
+
+        const firstPayload: string[] = [' ', '\x1b', 'i', '\x15', 'o', 'n', 'e', '\x1b', '\r']
+        const secondPayload: string[] = [' ', '\x1b', 'i', '\x15', 't', 'w', 'o', '\x1b', '\r']
+        const writes: string[] = mockWrite.mock.calls.map(([, data]) => data)
+
+        expect(writes).toEqual([...firstPayload, ...secondPayload])
+    })
+})

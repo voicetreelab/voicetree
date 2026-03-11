@@ -7,7 +7,13 @@
  */
 
 import type { Core, CollectionReturnValue } from 'cytoscape';
-import { cyFitCollectionByAverageNodeSize, cySmartCenter, getResponsivePadding } from '@/utils/responsivePadding';
+import {
+  cyCenterOnVisibleViewport,
+  cyFitCollectionByAverageNodeSize,
+  cyFitIntoVisibleViewport,
+  cySmartCenter,
+  getResponsivePadding
+} from '@/utils/responsivePadding';
 
 export type PendingPanType = 'large-batch' | 'small-graph' | 'wikilink-target' | 'voice-follow' | 'editor-focus' | null;
 
@@ -96,8 +102,8 @@ export function panToTrackedNode(cy: Core): boolean {
   if (type === 'large-batch') {
     // Large batch (>30% new nodes): fit all in view with padding
     const padding: number = getResponsivePadding(cy, 15);
-    console.warn(`[panToTrackedNode] large-batch: cy.fit(all, padding=${padding})`);
-    cy.fit(undefined, padding);
+    console.warn(`[panToTrackedNode] large-batch: cyFitIntoVisibleViewport(all, padding=${padding})`);
+    cyFitIntoVisibleViewport(cy, undefined, padding);
     console.warn(`[panToTrackedNode] after fit: zoom=${cy.zoom().toFixed(4)}, pan=(${cy.pan().x.toFixed(0)},${cy.pan().y.toFixed(0)})`);
     return true;
   } else if (type === 'small-graph') {
@@ -126,7 +132,7 @@ export function panToTrackedNode(cy: Core): boolean {
     if (node.length > 0) {
       // Pan to keep focused editor in viewport without changing zoom
       console.warn(`[panToTrackedNode] editor-focus: centering on ${targetNodeId}`);
-      cy.animate({ center: { eles: node }, duration: 200 });
+      cyCenterOnVisibleViewport(cy, node, 200);
       return true;
     }
   }

@@ -30,7 +30,7 @@ import { refreshSpatialIndex } from '@/shell/UI/cytoscape-graph-ui/services/spat
 import type {} from '@/shell/electron';
 import { panToTrackedNode, clearPendingPan, hasPendingPan, setPendingEditorFocusPan } from '@/shell/edge/UI-edge/state/PendingPanStore';
 import { getFocusedEditorNodeId, getFocusedTerminalShadowNodeId } from '@/shell/edge/UI-edge/floating-windows/speech-to-focused';
-import { getResponsivePadding } from '@/utils/responsivePadding';
+import { cyFitIntoVisibleViewport, getResponsivePadding } from '@/utils/responsivePadding';
 import { onSettingsChange } from '@/shell/edge/UI-edge/api';
 import type { AutoLayoutOptions, LayoutConfig } from './autoLayoutTypes';
 import { DEFAULT_OPTIONS } from './autoLayoutTypes';
@@ -203,9 +203,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
 
     runColaLayout(() => {
       const padding: number = getResponsivePadding(cy, 15);
-      cy.animate({
-        fit: { eles: cy.elements(), padding },
-      }, {
+      cyFitIntoVisibleViewport(cy, cy.elements(), padding, {
         duration: 300,
         easing: 'ease-in-out-cubic',
         complete: () => { (onComplete ?? onLayoutComplete)(); },

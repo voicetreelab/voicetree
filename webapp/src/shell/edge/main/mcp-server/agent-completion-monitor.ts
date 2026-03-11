@@ -161,6 +161,19 @@ export function getPendingAgentNamesForCaller(callerTerminalId: string, excludeM
     return names
 }
 
+export function isTerminalIdAlreadyMonitoredForCaller(
+    callerTerminalId: string,
+    terminalId: string
+): boolean {
+    for (const [_monitorId, entry] of monitors) {
+        if (entry.callerTerminalId !== callerTerminalId) continue
+        if (entry.terminalIds.includes(terminalId)) {
+            return true
+        }
+    }
+    return false
+}
+
 export function cancelMonitor(monitorId: string): void {
     const entry: MonitorEntry | undefined = monitors.get(monitorId)
     if (entry) {

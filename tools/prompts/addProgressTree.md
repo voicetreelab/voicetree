@@ -59,7 +59,7 @@ Wire multi-node graphs using `parents` (local ids within the same call). Nodes w
 - **Line limit** per node (default 70). Only `summary` + `content` fields count toward the limit. If over, split into a branching tree (see examples above) — not a linear A→B→C chain.
 - **Color convention:** `green` = task completed, `blue` (default) = in-progress or planning.
 - **`notes`:** Architecture impact, gotchas, tech debt, difficulties.
-- **`linkedArtifacts`:** Link openspec artifacts (proposal, design, tasks) by basename.
+- **`linkedArtifacts`:** Link related artifacts (proposals, design, tasks) by basename. These render as regular markdown links in `## Related`, not graph edges.
 
 ## Fallback
 If the `create_graph` MCP tool is unavailable, read `addProgressTreeManualFallback.md` for manual markdown file creation instructions.

@@ -6,6 +6,13 @@ import { addTerminal, clearTerminals } from '@/shell/edge/UI-edge/state/Terminal
 import { createTerminalData, getShadowNodeId, getTerminalId, computeTerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import type { NodeIdAndFilePath } from '@/pure/graph';
 
+type ViewportAnimateCall = {
+  __vtTargetEles?: Collection;
+  pan?: { x: number; y: number };
+  zoom?: number;
+  duration?: number;
+};
+
 describe('GraphNavigationService', () => {
   let service: GraphNavigationService;
   let cy: Core;
@@ -46,8 +53,8 @@ describe('GraphNavigationService', () => {
 
       // Should have called animate with center on the node
       expect(animateSpy).toHaveBeenCalled();
-      const animateArgs: { center: { eles: Collection }, zoom?: number, duration?: number } = animateSpy.mock.calls[0][0] as { center: { eles: Collection }, zoom: number, duration: number };
-      expect((animateArgs.center.eles.first()?.id() ?? "")).toBe('node2');
+      const animateArgs: ViewportAnimateCall = animateSpy.mock.calls[0][0] as ViewportAnimateCall;
+      expect((animateArgs.__vtTargetEles?.first()?.id() ?? "")).toBe('node2');
       expect(typeof animateArgs.zoom).toBe('number');
       expect(typeof animateArgs.duration).toBe('number');
     });
@@ -76,14 +83,14 @@ describe('GraphNavigationService', () => {
       service.setLastCreatedNodeId('node1');
       service.fitToLastNode();
 
-      const firstCall: { center: { eles: Collection } } = animateSpy.mock.calls[0][0] as { center: { eles: Collection } };
-      expect((firstCall.center.eles.first()?.id() ?? "")).toBe('node1');
+      const firstCall: ViewportAnimateCall = animateSpy.mock.calls[0][0] as ViewportAnimateCall;
+      expect((firstCall.__vtTargetEles?.first()?.id() ?? "")).toBe('node1');
 
       service.setLastCreatedNodeId('node3');
       service.fitToLastNode();
 
-      const secondCall: { center: { eles: Collection } } = animateSpy.mock.calls[1][0] as { center: { eles: Collection } };
-      expect((secondCall.center.eles.first()?.id() ?? "")).toBe('node3');
+      const secondCall: ViewportAnimateCall = animateSpy.mock.calls[1][0] as ViewportAnimateCall;
+      expect((secondCall.__vtTargetEles?.first()?.id() ?? "")).toBe('node3');
     });
   });
 
@@ -94,8 +101,8 @@ describe('GraphNavigationService', () => {
       service.handleSearchSelect('node2');
 
       expect(animateSpy).toHaveBeenCalled();
-      const animateArgs: { center: { eles: Collection }, zoom?: number, duration?: number } = animateSpy.mock.calls[0][0] as { center: { eles: Collection } };
-      expect((animateArgs.center.eles.first()?.id() ?? "")).toBe('node2');
+      const animateArgs: ViewportAnimateCall = animateSpy.mock.calls[0][0] as ViewportAnimateCall;
+      expect((animateArgs.__vtTargetEles?.first()?.id() ?? "")).toBe('node2');
     });
 
     it('should highlight selected node by adding highlighted class', () => {
@@ -142,7 +149,7 @@ describe('GraphNavigationService', () => {
       service.handleSearchSelect('node1');
 
       // Should have zoom and duration in animate call
-      const animateArgs: { center: { eles: Collection }, zoom?: number, duration?: number } = animateSpy.mock.calls[0][0] as { center: { eles: Collection }; zoom: number; duration: number };
+      const animateArgs: ViewportAnimateCall = animateSpy.mock.calls[0][0] as ViewportAnimateCall;
       expect(typeof animateArgs.zoom).toBe('number');
       expect(typeof animateArgs.duration).toBe('number');
     });
@@ -158,8 +165,8 @@ describe('GraphNavigationService', () => {
 
       // Should have found the node via fuzzy suffix matching
       expect(animateSpy).toHaveBeenCalled();
-      const animateArgs: { center: { eles: Collection }, zoom?: number, duration?: number } = animateSpy.mock.calls[0][0] as { center: { eles: Collection } };
-      expect((animateArgs.center.eles.first()?.id() ?? "")).toBe('/Users/bob/repos/project/voicetree-bugs/voice/test-node.md');
+      const animateArgs: ViewportAnimateCall = animateSpy.mock.calls[0][0] as ViewportAnimateCall;
+      expect((animateArgs.__vtTargetEles?.first()?.id() ?? "")).toBe('/Users/bob/repos/project/voicetree-bugs/voice/test-node.md');
     });
   });
 
@@ -198,7 +205,7 @@ describe('GraphNavigationService', () => {
       const animateSpy: MockInstance<typeof cy.animate> = vi.spyOn(cy, 'animate');
 
       const getAnimatedEles: (callIndex: number) => Collection = (callIndex: number): Collection =>
-        (animateSpy.mock.calls[callIndex][0] as { center: { eles: Collection } }).center.eles;
+        (animateSpy.mock.calls[callIndex][0] as ViewportAnimateCall).__vtTargetEles as Collection;
       const collectionIncludesNode: (collection: Collection, nodeId: string) => boolean = (collection: Collection, nodeId: string): boolean =>
         collection.map((n) => n.id()).includes(nodeId);
 

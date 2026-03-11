@@ -5,6 +5,7 @@ import type { Core, BoundingBox, BoundingBox12, BoundingBoxWH, NodeCollection } 
 import { getCurrentIndex } from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
 import { queryNodesInRect } from '@/pure/graph/spatial';
 import type { Rect, SpatialIndex, SpatialNodeEntry } from '@/pure/graph/spatial';
+import { getVisibleViewportExtent } from '@/utils/visibleViewport';
 
 /**
  * Check if any nodes (including shadow nodes for floating windows) are visible
@@ -17,7 +18,7 @@ import type { Rect, SpatialIndex, SpatialNodeEntry } from '@/pure/graph/spatial'
  * @returns true if at least one node is visible in viewport
  */
 export function areNodesVisibleInViewport(cy: Core): boolean {
-  const extent: BoundingBox = cy.extent();
+  const extent: BoundingBox = getVisibleViewportExtent(cy);
 
   // Fast path: R-tree spatial index query — O(log n + k)
   const index: SpatialIndex | undefined = getCurrentIndex(cy);
@@ -56,7 +57,7 @@ export function areNodesVisibleInViewport(cy: Core): boolean {
  * Returns empty array if spatial index is not available.
  */
 export function getVisibleNodeIds(cy: Core, spatialIndex: SpatialIndex): string[] {
-  const extent: BoundingBox = cy.extent();
+  const extent: BoundingBox = getVisibleViewportExtent(cy);
   const rect: Rect = {
     minX: extent.x1,
     minY: extent.y1,

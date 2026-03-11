@@ -64,10 +64,10 @@ cover/
 profile_default/
 ipython_config.py
 
-# Workflows
-workflows/*
-!workflows/workflow-verifier
-!workflows/workflow-verifier/**
+# Brain
+brain/*
+!brain/workflow-verifier
+!brain/workflow-verifier/**
 
 # Environment variables
 .env
@@ -180,7 +180,7 @@ webapp/workers/share-worker/.wrangler/**
 # Markdown (tracked exceptions below)
 **/*.md
 !tools/prompts/*.md
-!workflows/workflow-verifier/**/*.md
+!brain/workflow-verifier/**/*.md
 !webapp/example_folder_fixtures/example_small/voicetree/**/*.md
 !webapp/example_folder_fixtures/example_real_large/voicetree-24-2/**/*.md
 

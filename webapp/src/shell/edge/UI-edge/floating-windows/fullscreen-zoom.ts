@@ -11,7 +11,8 @@
 
 import type { Core, CollectionReturnValue, BoundingBox12 } from 'cytoscape';
 import type { ShadowNodeId } from '@/shell/edge/UI-edge/floating-windows/types';
-import { getResponsivePadding } from '@/utils/responsivePadding';
+import { cyFitIntoVisibleViewport, getResponsivePadding } from '@/utils/responsivePadding';
+import { getVisibleViewportMetrics, type VisibleViewportMetrics } from '@/utils/visibleViewport';
 
 // Per-window state for fullscreen zoom restoration
 type PreviousViewport = { zoom: number; pan: { x: number; y: number } };
@@ -44,12 +45,11 @@ function isAlreadyFullscreenedOnNode(cy: Core, shadowNode: CollectionReturnValue
     const bb: BoundingBox12 = shadowNode.boundingBox();
     const nodeWidth: number = bb.x2 - bb.x1;
     const nodeHeight: number = bb.y2 - bb.y1;
-    const containerWidth: number = cy.width();
-    const containerHeight: number = cy.height();
+    const viewport: VisibleViewportMetrics = getVisibleViewportMetrics(cy);
     const padding: number = getResponsivePadding(cy, 3);
 
-    const fitZoomX: number = (containerWidth - 2 * padding) / nodeWidth;
-    const fitZoomY: number = (containerHeight - 2 * padding) / nodeHeight;
+    const fitZoomX: number = (viewport.width - 2 * padding) / nodeWidth;
+    const fitZoomY: number = (viewport.height - 2 * padding) / nodeHeight;
     const fitZoom: number = Math.min(fitZoomX, fitZoomY);
 
     // If current zoom is within threshold of fit zoom, we're already fullscreened
@@ -102,7 +102,7 @@ export function attachFullscreenZoom(
         } else {
             // Not zoomed in → capture state and zoom in to window
             windowViewportStates.set(shadowNodeId, { zoom: cy.zoom(), pan: cy.pan() });
-            cy.fit(shadowNode, getResponsivePadding(cy, 3));
+            cyFitIntoVisibleViewport(cy, shadowNode, getResponsivePadding(cy, 3));
 
             // Add ESC handler only if enabled (terminals yes, editors no due to vim)
             if (enableEscapeKey) {

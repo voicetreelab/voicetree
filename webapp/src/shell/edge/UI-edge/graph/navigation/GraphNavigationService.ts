@@ -20,6 +20,7 @@ import { getDisplayOrderForNavigation } from '@/shell/UI/views/treeStyleTerminal
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import * as O from 'fp-ts/lib/Option.js';
 import { linkMatchScore, getPathComponents } from '@/pure/graph/markdown-parsing/extract-edges';
+import { getVisibleViewportMetrics, type VisibleViewportMetrics } from '@/utils/visibleViewport';
 
 /**
  * Manages all user-triggered navigation actions for the graph
@@ -105,8 +106,9 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
     const TARGET_FRACTION: number = 0.95;
     const MIN_ZOOM_THRESHOLD: number = 0.7;
     const bb: { w: number; h: number } = nodesToFit.boundingBox();
+    const viewport: VisibleViewportMetrics = getVisibleViewportMetrics(cy);
     const requiredZoom: number = (bb.w > 0 && bb.h > 0)
-      ? Math.min((cy.width() * TARGET_FRACTION) / bb.w, (cy.height() * TARGET_FRACTION) / bb.h)
+      ? Math.min((viewport.width * TARGET_FRACTION) / bb.w, (viewport.height * TARGET_FRACTION) / bb.h)
       : Infinity;
 
     if (requiredZoom < MIN_ZOOM_THRESHOLD) {

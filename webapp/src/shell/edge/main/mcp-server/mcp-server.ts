@@ -371,7 +371,7 @@ Task
                     filesChanged: z.array(z.string()).optional().describe('Array of file paths you modified'),
                     complexityScore: z.enum(['low', 'medium', 'high']).optional().describe('Required when codeDiffs provided. Complexity of the area worked in.'),
                     complexityExplanation: z.string().optional().describe('Required when codeDiffs provided. Brief explanation of the complexity score.'),
-                    linkedArtifacts: z.array(z.string()).optional().describe('Array of node basenames to wikilink in a ## Related section. If you created openspec changes (proposal.md, tasks.md, design.md), link the proposal here. Use for specs, proposals, related nodes.'),
+                    linkedArtifacts: z.array(z.string()).optional().describe('Array of node basenames to render as markdown links in a ## Related section. Use for specs, proposals, or openspec artifacts without creating graph edges.'),
                     parents: z.array(z.object({
                         filename: z.string().describe('Filename of a parent node within this call'),
                         edgeLabel: z.string().describe('Relationship label shown on the edge (e.g. "implements", "extends", "blocked by"). Use empty string "" for generic parent-child links.')

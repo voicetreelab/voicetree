@@ -37,6 +37,13 @@ export type MermaidBlock = {
     readonly textWithoutFirstLine: string
 }
 
+function normalizeArtifactMarkdownLink(artifact: string): { readonly label: string; readonly href: string } {
+    const trimmed: string = artifact.trim()
+    const href: string = trimmed.endsWith('.md') ? trimmed : `${trimmed}.md`
+    const label: string = trimmed.replace(/\.md$/, '')
+    return {label, href}
+}
+
 export function extractMermaidBlocks(content: string): readonly MermaidBlock[] {
     const regex: RegExp = /```mermaid\n([\s\S]*?)```/g
     const blocks: MermaidBlock[] = []
@@ -197,12 +204,15 @@ export function buildMarkdownBody(params: {
         sections.push('')
     }
 
-    // Linked Artifacts
+    // Linked Artifacts - render as regular markdown links so they stay navigable
+    // without creating extra graph edges.
     if (params.linkedArtifacts && params.linkedArtifacts.length > 0) {
         sections.push('## Related')
         sections.push('')
         for (const artifact of params.linkedArtifacts) {
-            sections.push(`[[${artifact}]]`)
+            const {label, href}: { readonly label: string; readonly href: string } =
+                normalizeArtifactMarkdownLink(artifact)
+            sections.push(`- [${label}](${href})`)
         }
         sections.push('')
     }

@@ -10,7 +10,7 @@ import { highlightContainedNodes, clearContainedHighlights } from '@/shell/UI/cy
 import { setActiveTerminalId } from '@/shell/edge/UI-edge/state/TerminalStore';
 import { areNodesVisibleInViewport } from '@/utils/viewportVisibility';
 import { showNoVisibleNodesToast, hideNoVisibleNodesToast, isNoVisibleNodesToastShown } from '@/shell/UI/views/components/overlays/noVisibleNodesToast';
-import { getResponsivePadding } from '@/utils/responsivePadding';
+import { cyFitIntoVisibleViewport, getResponsivePadding } from '@/utils/responsivePadding';
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
 
@@ -157,7 +157,7 @@ export function setupBasicCytoscapeEventListeners(
       if (!visible && !isNoVisibleNodesToastShown()) {
         showNoVisibleNodesToast({
           onFit: () => {
-            cy.fit(undefined, getResponsivePadding(cy));
+            cyFitIntoVisibleViewport(cy, undefined, getResponsivePadding(cy));
             hideNoVisibleNodesToast();
           },
           onDismiss: () => {

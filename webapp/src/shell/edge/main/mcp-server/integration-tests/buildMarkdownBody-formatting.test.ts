@@ -44,4 +44,30 @@ describe('buildMarkdownBody → parseMarkdownToGraphNode roundtrip', () => {
         const firstLine: string = node.contentWithoutYamlOrLinks.split('\n')[0]
         expect(firstLine.trim()).not.toBe('')
     })
+
+    it('renders linkedArtifacts as markdown links without creating graph edges', () => {
+        const markdown: string = buildMarkdownBody({
+            title: 'Test Title',
+            summary: 'Summary text.',
+            content: undefined,
+            codeDiffs: undefined,
+            filesChanged: undefined,
+            diagram: undefined,
+            notes: undefined,
+            linkedArtifacts: ['proposal', 'tasks.md'],
+            complexityScore: undefined,
+            complexityExplanation: undefined,
+            color: 'blue',
+            agentName: 'test-agent',
+            parentLinks: [{baseName: 'parent-task', edgeLabel: undefined}],
+        })
+
+        expect(markdown).toContain('- [proposal](proposal.md)')
+        expect(markdown).toContain('- [tasks](tasks.md)')
+        expect(markdown).not.toContain('[[proposal]]')
+        expect(markdown).not.toContain('[[tasks.md]]')
+
+        const node: GraphNode = parseMarkdownToGraphNode(markdown, 'test.md', EMPTY_GRAPH)
+        expect(node.outgoingEdges).toEqual([{targetId: 'parent-task', label: ''}])
+    })
 })
