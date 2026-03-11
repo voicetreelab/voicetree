@@ -10,6 +10,7 @@ import type {TerminalOperationResult} from '@/shell/edge/main/terminals/terminal
 const CHAR_DELAY_MS: number = 5
 const ESC_DELAY_MS: number = 100
 const INSERT_MODE_DELAY_MS: number = 50
+const SUBMIT_SEQUENCE: string = '\x1b\r'
 
 export async function sendTextToTerminal(terminalId: string, text: string): Promise<TerminalOperationResult> {
     const terminalManager: ReturnType<typeof getTerminalManager> = getTerminalManager()
@@ -28,8 +29,8 @@ export async function sendTextToTerminal(terminalId: string, text: string): Prom
     terminalManager.write(terminalId, '\x15') // Ctrl-U: kill line
     await new Promise(resolve => setTimeout(resolve, CHAR_DELAY_MS))
 
-    // Write each character with a small delay, then \r to submit
-    const fullMessage: string = text + '\r'
+    // Submit using Option/Alt+Enter bytes (ESC+CR). This matches headful Codex terminals.
+    const fullMessage: string = text + SUBMIT_SEQUENCE
     for (let i: number = 0; i < fullMessage.length; i++) {
         await new Promise(resolve => setTimeout(resolve, CHAR_DELAY_MS))
         const result: TerminalOperationResult = terminalManager.write(terminalId, fullMessage[i])
