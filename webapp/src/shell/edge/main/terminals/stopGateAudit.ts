@@ -6,7 +6,7 @@
  * - buildDeficiencyPrompt(result) → string
  *
  * Internal pipeline (pure except SKILL.md file read):
- * deriveSkillPath → parseObligations → collectEvidence → checkCompliance
+ * deriveSkillPaths → parseObligations → collectEvidence → checkCompliance
  */
 
 import * as fs from 'fs'
@@ -41,46 +41,54 @@ export type Violation = {
 // ─── Internal pipeline ─────────────────────────────────────────────────────
 
 /**
- * Resolve a SKILL.md path from task node path + content.
+ * Resolve ALL SKILL.md paths from task node path + content.
  * Two resolution paths:
  * 1. Task node IS a SKILL.md — filepath ends with /SKILL.md
- * 2. Task node content references a SKILL.md — parse for ~/brain/.../SKILL.md paths
+ * 2. Task node content references SKILL.md paths — parse for ALL ~/brain/.../SKILL.md paths
  *
  * Exported for testing only — callers should use auditAgent.
  */
-export function resolveSkillPathFromContent(taskNodePath: string, taskNodeContent: string): string | null {
+export function resolveSkillPathsFromContent(taskNodePath: string, taskNodeContent: string): string[] {
     // Case 1: task node itself is a SKILL.md
     if (/\/SKILL\.md$/i.test(taskNodePath)) {
         const brainDir: string = (process.env.HOME ?? '') + '/brain/'
         if (taskNodePath.includes(brainDir)) {
-            return '~/brain/' + taskNodePath.split(brainDir)[1]
+            return ['~/brain/' + taskNodePath.split(brainDir)[1]]
         }
-        return taskNodePath
+        return [taskNodePath]
     }
 
-    // Case 2: task node content references any SKILL.md path
-    const contentMatch: RegExpMatchArray | null = taskNodeContent.match(/(?:~|\/)[^\s\])}>]*\/SKILL\.md/i)
-    if (contentMatch) return contentMatch[0]
-
-    return null
+    // Case 2: task node content references SKILL.md paths — find ALL matches, deduplicated
+    const results: string[] = []
+    const seen: Set<string> = new Set()
+    const pattern: RegExp = /(?:~|\/)[^\s\])}>]*\/SKILL\.md/gi
+    let match: RegExpExecArray | null
+    while ((match = pattern.exec(taskNodeContent)) !== null) {
+        const path: string = match[0]
+        if (!seen.has(path)) {
+            seen.add(path)
+            results.push(path)
+        }
+    }
+    return results
 }
 
 /**
- * Derive the SKILL.md path an agent is running from graph + registry.
- * record → anchoredToNodeId (task node) → graph node → resolveSkillPathFromContent
+ * Derive all SKILL.md paths an agent is running from graph + registry.
+ * record → anchoredToNodeId (task node) → graph node → resolveSkillPathsFromContent
  */
-function deriveSkillPath(terminalId: string, graph: Graph, records: readonly TerminalRecord[]): string | null {
+function deriveSkillPaths(terminalId: string, graph: Graph, records: readonly TerminalRecord[]): string[] {
     const record: TerminalRecord | undefined = records.find(r => r.terminalId === terminalId)
-    if (!record) return null
+    if (!record) return []
 
     const anchoredOpt: O.Option<string> = record.terminalData.anchoredToNodeId
-    if (!O.isSome(anchoredOpt)) return null
+    if (!O.isSome(anchoredOpt)) return []
 
     const taskNodeId: string = anchoredOpt.value
     const taskNode: GraphNode | undefined = graph.nodes[taskNodeId]
-    if (!taskNode) return null
+    if (!taskNode) return []
 
-    return resolveSkillPathFromContent(taskNode.absoluteFilePathIsID, taskNode.contentWithoutYamlOrLinks)
+    return resolveSkillPathsFromContent(taskNode.absoluteFilePathIsID, taskNode.contentWithoutYamlOrLinks)
 }
 
 /**
@@ -131,11 +139,10 @@ function collectEvidence(terminalId: string, graph: Graph, records: readonly Ter
     // Progress nodes: nodes created by this agent (via agent_name YAML matching)
     const progressNodes: readonly GraphNode[] = getNodesByAgentName(graph, record.terminalData.agentName)
 
-    // Child skill paths: derive each child agent's skill path from their task nodes
+    // Child skill paths: derive each child agent's skill paths from their task nodes
     const children: readonly TerminalRecord[] = records.filter(r => r.terminalData.parentTerminalId === terminalId)
     const childSkillPaths: string[] = children
-        .map(child => deriveSkillPath(child.terminalId, graph, records))
-        .filter((p): p is string => p !== null)
+        .flatMap(child => deriveSkillPaths(child.terminalId, graph, records))
 
     return { progressNodes, childSkillPaths }
 }
@@ -192,10 +199,10 @@ function checkCompliance(obligations: readonly Obligation[], evidence: WorkEvide
  * Returns null if the agent has no associated SKILL.md (nothing to audit).
  */
 export function auditAgent(terminalId: string, graph: Graph, records: readonly TerminalRecord[]): ComplianceResult | null {
-    const skillPath: string | null = deriveSkillPath(terminalId, graph, records)
+    const skillPaths: string[] = deriveSkillPaths(terminalId, graph, records)
 
     // No explicit SKILL.md — virtual root with soft edge to ~/brain/SKILL.md
-    if (!skillPath) {
+    if (skillPaths.length === 0) {
         const brainSkillPath: string = '~/brain/SKILL.md'
         const resolved: string = (process.env.HOME ?? '') + '/brain/SKILL.md'
         try { fs.accessSync(resolved) } catch { return null }
@@ -207,20 +214,28 @@ export function auditAgent(terminalId: string, graph: Graph, records: readonly T
         return checkCompliance(rootObligations, evidence)
     }
 
-    // Read SKILL.md content (I/O boundary)
-    let skillContent: string
-    try {
-        const resolvedPath: string = skillPath.replace('~/brain/', (process.env.HOME ?? '') + '/brain/')
-        skillContent = fs.readFileSync(resolvedPath, 'utf-8')
-    } catch {
-        return null // unreadable SKILL.md — nothing to enforce
+    // Aggregate obligations from ALL skill paths
+    const allObligations: Obligation[] = []
+    for (const skillPath of skillPaths) {
+        let skillContent: string
+        try {
+            const resolvedPath: string = skillPath.replace(/^~\/brain\//, (process.env.HOME ?? '') + '/brain/')
+            skillContent = fs.readFileSync(resolvedPath, 'utf-8')
+        } catch {
+            continue // unreadable SKILL.md — skip this one
+        }
+
+        const obligations: Obligation[] = parseObligations(skillContent)
+        // Always add a soft obligation for each SKILL.md itself — agent must reason about it
+        const selfName: string = extractWorkflowName(skillPath)
+        obligations.push({ type: 'soft', workflowPath: skillPath, workflowName: selfName })
+        allObligations.push(...obligations)
     }
 
-    const obligations: Obligation[] = parseObligations(skillContent)
-    if (obligations.length === 0) return null
+    if (allObligations.length === 0) return null
 
     const evidence: WorkEvidence = collectEvidence(terminalId, graph, records)
-    return checkCompliance(obligations, evidence)
+    return checkCompliance(allObligations, evidence)
 }
 
 /**

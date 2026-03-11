@@ -11,7 +11,7 @@ import {spawn, type ChildProcess} from 'child_process'
 import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
 import {markTerminalExited, recordTerminalSpawn, getTerminalRecords, incrementAuditRetryCount, removeTerminalFromRegistry, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
-import {auditAgent, buildDeficiencyPrompt, type ComplianceResult} from './stopGateAudit'
+import {runStopHooks, type StopHookResult} from './stopGateHookRunner'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {detectCliType} from './spawnTerminalWithContextNode'
 
@@ -65,14 +65,14 @@ export function spawnHeadlessAgent(
     child.stdout?.on('data', appendOutput)
     child.stderr?.on('data', appendOutput)
 
-    child.on('exit', (code: number | null) => handleAgentExit(terminalId, code))
+    child.on('exit', (code: number | null) => void handleAgentExit(terminalId, code))
 }
 
 /**
  * Shared exit handler for both initial spawn and resumed agents.
  * Runs stop gate audit on successful exit and resumes with deficiency if needed.
  */
-function handleAgentExit(terminalId: TerminalId, code: number | null): void {
+async function handleAgentExit(terminalId: TerminalId, code: number | null): Promise<void> {
     const output: string = lastOutputByTerminal.get(terminalId) ?? ''
     const hasOutput: boolean = output.trim().length > 0
     if (code !== 0 && code !== null) {
@@ -92,17 +92,24 @@ function handleAgentExit(terminalId: TerminalId, code: number | null): void {
     markTerminalExited(terminalId, code)
 
     // Stop gate audit: derives SKILL.md from graph at audit time (BF-042)
+    // Skip audit if agent has active (non-exited) child agents — they're still doing work.
+    // The parent's obligations may depend on children completing first.
     if (code === 0 || code === null) {
         const graph: import('@/pure/graph').Graph = getGraph()
         const records: readonly TerminalRecord[] = getTerminalRecords()
-        const result: ComplianceResult | null = auditAgent(terminalId, graph, records)
-        const record: TerminalRecord | undefined = records.find(r => r.terminalId === terminalId)
-        if (result && !result.passed && record && record.auditRetryCount < 2) {
-            resumeWithDeficiency(terminalId, record, buildDeficiencyPrompt(result))
-            return // Don't delete process entry — resume will re-add
-        }
-        if (result && !result.passed) {
-            console.warn(`[headlessAgentManager] Agent ${terminalId} FAILED audit after 2 retries`)
+        const hasActiveChildren: boolean = records.some(
+            (r: TerminalRecord) => r.terminalData.parentTerminalId === terminalId && r.status !== 'exited'
+        )
+        if (!hasActiveChildren) {
+            const hookResult: StopHookResult = await runStopHooks(terminalId, graph, records)
+            const record: TerminalRecord | undefined = records.find(r => r.terminalId === terminalId)
+            if (!hookResult.passed && record && record.auditRetryCount < 2) {
+                resumeWithDeficiency(terminalId, record, hookResult.message ?? 'Stop gate hooks failed')
+                return // Don't delete process entry — resume will re-add
+            }
+            if (!hookResult.passed) {
+                console.warn(`[headlessAgentManager] Agent ${terminalId} FAILED audit after 2 retries`)
+            }
         }
     }
 
@@ -168,7 +175,7 @@ function resumeWithDeficiency(terminalId: TerminalId, record: TerminalRecord, de
     child.stderr?.on('data', appendOutput)
 
     // Re-use shared exit handler (natural recursion — same audit fires again)
-    child.on('exit', (code: number | null) => handleAgentExit(terminalId, code))
+    child.on('exit', (code: number | null) => void handleAgentExit(terminalId, code))
 }
 
 /**

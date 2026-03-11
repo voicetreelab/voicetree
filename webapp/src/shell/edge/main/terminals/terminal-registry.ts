@@ -8,7 +8,7 @@ import {sendTextToTerminal} from './send-text-to-terminal'
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
-import {auditAgent, buildDeficiencyPrompt, type ComplianceResult} from './stopGateAudit'
+import {runStopHooks, type StopHookResult} from './stopGateHookRunner'
 
 export type TerminalStatus = 'running' | 'exited'
 
@@ -60,19 +60,26 @@ function pushStateToRenderer(): void {
  * If violations found and retries not exhausted, inject deficiency message into terminal.
  * The agent will resume work → go idle again → audit fires again (up to 2 retries).
  */
-function runIdleStopGateAudit(terminalId: string, record: TerminalRecord): void {
+async function runIdleStopGateAudit(terminalId: string, record: TerminalRecord): Promise<void> {
     if (record.auditRetryCount >= 2) return
     if (record.terminalData.isHeadless) return // headless agents use exit handler instead
 
-    const graph: Graph = getGraph()
     const records: readonly TerminalRecord[] = getTerminalRecords()
-    const result: ComplianceResult | null = auditAgent(terminalId, graph, records)
 
-    if (result && !result.passed) {
+    // Skip audit if agent has active (non-exited) child agents — it's waiting, not stopping.
+    // wait_for_agents will resume this agent when children finish.
+    const hasActiveChildren: boolean = records.some(
+        (r: TerminalRecord) => r.terminalData.parentTerminalId === terminalId && r.status !== 'exited'
+    )
+    if (hasActiveChildren) return
+
+    const graph: Graph = getGraph()
+    const hookResult: StopHookResult = await runStopHooks(terminalId, graph, records)
+
+    if (!hookResult.passed) {
         incrementAuditRetryCount(terminalId)
-        const deficiency: string = buildDeficiencyPrompt(result)
         console.log(`[terminal-registry] Stop gate audit failed for idle agent ${terminalId} (retry ${record.auditRetryCount + 1}/2)`)
-        void sendTextToTerminal(terminalId, deficiency)
+        void sendTextToTerminal(terminalId, hookResult.message ?? 'Stop gate hooks failed')
     }
 }
 
@@ -233,7 +240,7 @@ export function updateTerminalIsDone(terminalId: string, isDone: boolean): void 
         // Agent just became idle — wait 30s to confirm it's sustained before firing hooks
         wait_for_agent_to_still_be_done_after_n_seconds(terminalId, STOP_HOOK_DELAY_MS, (tid, rec) => {
             // Stop gate audit: check if idle agent addressed all outgoing workflow obligations
-            runIdleStopGateAudit(tid, rec)
+            void runIdleStopGateAudit(tid, rec)
 
             // Unseen nodes notification (optional, settings-gated)
             void loadSettings().then((settings: import('@/pure/settings/types').VTSettings) => {

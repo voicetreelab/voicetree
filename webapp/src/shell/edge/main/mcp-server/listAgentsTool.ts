@@ -11,6 +11,7 @@ import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
 import type {VTSettings} from '@/pure/settings'
 import {type McpToolResponse, buildJsonResponse} from './types'
 import {getNewNodesForAgent} from './getNewNodesForAgent'
+import * as O from 'fp-ts/lib/Option.js'
 
 export async function listAgentsTool(): Promise<McpToolResponse> {
     const graph: Graph = getGraph()
@@ -24,6 +25,8 @@ export async function listAgentsTool(): Promise<McpToolResponse> {
         isHeadless: boolean
         isMinimized: boolean
         newNodes: Array<{nodeId: string; title: string}>
+        parentTerminalId: string | null
+        taskNodePath: string | null
     }> = []
 
     const terminalRecords: TerminalRecord[] = getTerminalRecords()
@@ -55,7 +58,9 @@ export async function listAgentsTool(): Promise<McpToolResponse> {
             auditRetryCount: record.auditRetryCount,
             isHeadless: record.terminalData.isHeadless,
             isMinimized: record.terminalData.isMinimized,
-            newNodes
+            newNodes,
+            parentTerminalId: record.terminalData.parentTerminalId,
+            taskNodePath: O.isSome(record.terminalData.anchoredToNodeId) ? record.terminalData.anchoredToNodeId.value : null
         })
     }
 

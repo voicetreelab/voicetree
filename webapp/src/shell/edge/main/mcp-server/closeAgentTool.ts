@@ -15,7 +15,7 @@ import {type McpToolResponse, buildJsonResponse} from './types'
 import {getNewNodesForAgent} from './getNewNodesForAgent'
 import {getAgentStatus} from './isAgentComplete'
 import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
-import {auditAgent, buildDeficiencyPrompt, type ComplianceResult} from '@/shell/edge/main/terminals/stopGateAudit'
+import {runStopHooks, type StopHookResult} from '@/shell/edge/main/terminals/stopGateHookRunner'
 
 export interface CloseAgentParams {
     terminalId: string
@@ -23,18 +23,18 @@ export interface CloseAgentParams {
     forceWithReason?: string
 }
 
-export function closeAgentTool({terminalId, callerTerminalId, forceWithReason}: CloseAgentParams): McpToolResponse {
+export async function closeAgentTool({terminalId, callerTerminalId, forceWithReason}: CloseAgentParams): Promise<McpToolResponse> {
     const isSelfClose: boolean = callerTerminalId === terminalId
 
     // Stop gate: audit before allowing self-close (BF-042: derives skill path at audit time)
     if (isSelfClose) {
         const graph: import('@/pure/graph').Graph = getGraph()
         const records: readonly TerminalRecord[] = getTerminalRecords()
-        const auditResult: ComplianceResult | null = auditAgent(terminalId, graph, records)
-        if (auditResult && !auditResult.passed) {
+        const hookResult: StopHookResult = await runStopHooks(terminalId, graph, records)
+        if (!hookResult.passed) {
             return buildJsonResponse({
                 success: false,
-                error: buildDeficiencyPrompt(auditResult)
+                error: hookResult.message ?? 'Stop gate hooks failed'
             }, true)
         }
     }

@@ -31,6 +31,18 @@ import {createGraphTool} from './createGraphTool'
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
 import type {VTSettings} from '@/pure/settings/types'
 
+// Imports for /trigger-overnight endpoint
+import * as O from 'fp-ts/lib/Option.js'
+import type {Graph, GraphDelta, NodeIdAndFilePath, Position} from '@/pure/graph'
+import {createTaskNode} from '@/pure/graph/graph-operations/createTaskNode'
+import {calculateNodePosition} from '@/pure/graph/positioning/calculateInitialPosition'
+import {buildSpatialIndexFromGraph} from '@/pure/graph/positioning/spatialAdapters'
+import type {SpatialIndex} from '@/pure/graph/spatial'
+import {getGraph} from '@/shell/edge/main/state/graph-store'
+import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange'
+import {spawnTerminalWithContextNode} from '@/shell/edge/main/terminals/spawnTerminalWithContextNode'
+
 // Re-export types and tool functions for external use
 export type {McpToolResponse} from './types'
 export {buildJsonResponse} from './types'
@@ -51,6 +63,118 @@ export type {SearchNodesParams} from './searchNodesTool'
 export {searchNodesTool} from './searchNodesTool'
 export type {CreateGraphParams, CreateGraphNodeInput} from './createGraphTool'
 export {createGraphTool} from './createGraphTool'
+
+// ─── Overnight trigger ───────────────────────────────────────────────────────
+
+interface TriggerOvernightParams {
+    maxTasks?: number
+    complexityThreshold?: number
+    costCapUsd?: number
+    dryRun?: boolean
+}
+
+interface TriggerOvernightResult {
+    success: boolean
+    terminalId?: string
+    taskNodeId?: string
+    error?: string
+}
+
+/**
+ * Spawns a meta-observer agent for an overnight batch run.
+ * Creates a task node, resolves the Opus agent, and launches with
+ * the meta-observer SKILL.md prompt and user-provided parameters.
+ */
+async function triggerOvernight(params: TriggerOvernightParams): Promise<TriggerOvernightResult> {
+    const vaultPathOpt: O.Option<string> = await getWritePath()
+    if (O.isNone(vaultPathOpt)) {
+        return {success: false, error: 'No vault loaded. Open a folder in VoiceTree first.'}
+    }
+    const writePath: string = vaultPathOpt.value
+
+    const graph: Graph = getGraph()
+    const nodeIds: readonly string[] = Object.keys(graph.nodes)
+    if (nodeIds.length === 0) {
+        return {success: false, error: 'Graph is empty — no nodes to anchor overnight run.'}
+    }
+
+    // Anchor the overnight run task node to the first graph node
+    const parentNodeId: NodeIdAndFilePath = nodeIds[0] as NodeIdAndFilePath
+
+    const spatialIndex: SpatialIndex = buildSpatialIndexFromGraph(graph)
+    const position: Position = O.getOrElse(() => ({x: 0, y: 0}))(
+        calculateNodePosition(graph, spatialIndex, parentNodeId)
+    )
+
+    const isoDate: string = new Date().toISOString().slice(0, 10)
+    const taskDescription: string = `Overnight Run — ${isoDate}`
+
+    const taskNodeDelta: GraphDelta = createTaskNode({
+        taskDescription,
+        selectedNodeIds: [parentNodeId],
+        graph,
+        writePath,
+        position
+    })
+
+    const taskNodeId: NodeIdAndFilePath = taskNodeDelta[0].type === 'UpsertNode'
+        ? taskNodeDelta[0].nodeToUpsert.absoluteFilePathIsID
+        : '' as NodeIdAndFilePath
+
+    if (!taskNodeId) {
+        return {success: false, error: 'Failed to create task node'}
+    }
+
+    await applyGraphDeltaToDBThroughMemAndUIAndEditors(taskNodeDelta)
+
+    // Resolve Opus agent command (find "Claude" in settings.agents)
+    const settings: VTSettings = await loadSettings()
+    const agents: readonly {readonly name: string; readonly command: string}[] = settings?.agents ?? []
+    const claudeAgent: {readonly name: string; readonly command: string} | undefined =
+        agents.find((a: {readonly name: string; readonly command: string}) => a.name === 'Claude')
+    const agentCommand: string | undefined = claudeAgent?.command
+
+    // Build meta-observer prompt with parameters
+    const maxTasks: number = params.maxTasks ?? 3
+    const complexityThreshold: number = params.complexityThreshold ?? 4
+    const costCapUsd: number = params.costCapUsd ?? 5
+    const dryRun: boolean = params.dryRun ?? false
+
+    const agentPrompt: string = [
+        'Read and follow ~/brain/workflows/meta/meta-observer/SKILL.md',
+        '',
+        'Parameters:',
+        `MAX_TASKS=${maxTasks}`,
+        `COMPLEXITY_THRESHOLD=${complexityThreshold}`,
+        `COST_CAP_USD=${costCapUsd}`,
+        `DRY_RUN=${dryRun}`,
+        '',
+        'After completing the BF task batch (or if no tasks qualify), run self-repair:',
+        '1. Spawn a gardening agent: read and follow ~/brain/workflows/meta/gardening/SKILL.md with TARGET_PATH=~/brain/knowledge/ MODE=assess DEPTH_BUDGET=10',
+        '2. Read ~/brain/working-memory/schedule.md for tree-sleep vault entries. Spawn tree-sleep agents (MODE=assess) only for vaults listed there. Skip any vault with fewer than 30 nodes.',
+        'Include self-repair results in your meta-report.',
+    ].join('\n')
+
+    // Spawn agent — not headless (meta-observer needs wait_for_agents)
+    const {terminalId}: {terminalId: string} = await spawnTerminalWithContextNode(
+        taskNodeId,
+        agentCommand,
+        undefined,    // terminalCount
+        true,         // skipFitAnimation
+        false,        // startUnpinned
+        undefined,    // selectedNodeIds
+        undefined,    // spawnDirectory
+        undefined,    // parentTerminalId
+        undefined,    // promptTemplate
+        false,        // headless
+        undefined,    // inheritTerminalId
+        {DEPTH_BUDGET: '3', AGENT_PROMPT: agentPrompt}
+    )
+
+    return {success: true, terminalId, taskNodeId}
+}
+
+// ─── MCP Server ──────────────────────────────────────────────────────────────
 
 const MCP_BASE_PORT: 3001 = 3001 as const
 let mcpPort: number = MCP_BASE_PORT
@@ -151,8 +275,8 @@ If no node exists yet, use task+parentNodeId to create a new task node first.`,
                 forceWithReason: z.string().optional().describe('Required to close a running (non-idle) agent. Explain why you are force-closing.')
             }
         },
-        ({terminalId, callerTerminalId, forceWithReason}) =>
-            closeAgentTool({terminalId, callerTerminalId, forceWithReason})
+        async ({terminalId, callerTerminalId, forceWithReason}) =>
+            await closeAgentTool({terminalId, callerTerminalId, forceWithReason})
     )
 
     // Tool: send_message
@@ -278,6 +402,18 @@ export async function startMcpServer(): Promise<void> {
 
     const app: Express = express()
     app.use(express.json())
+
+    // Overnight trigger endpoint — bypasses MCP protocol for direct HTTP invocation
+    app.post('/trigger-overnight', async (req, res) => {
+        try {
+            const params: TriggerOvernightParams = (req.body as TriggerOvernightParams | undefined) ?? {}
+            const result: TriggerOvernightResult = await triggerOvernight(params)
+            res.json(result)
+        } catch (error) {
+            const message: string = error instanceof Error ? error.message : String(error)
+            res.status(500).json({success: false, error: message})
+        }
+    })
 
     app.post('/mcp', async (req, res) => {
         const transport: StreamableHTTPServerTransport = new StreamableHTTPServerTransport({

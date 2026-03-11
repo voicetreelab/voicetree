@@ -37,9 +37,8 @@ vi.mock('@/shell/edge/main/state/graph-store', () => ({
     getGraph: vi.fn().mockReturnValue({ nodes: {}, incomingEdgesIndex: new Map(), nodeByBaseName: new Map(), unresolvedLinksIndex: new Map() })
 }))
 
-vi.mock('@/shell/edge/main/terminals/stopGateAudit', () => ({
-    auditAgent: vi.fn().mockReturnValue(null),
-    buildDeficiencyPrompt: vi.fn().mockReturnValue(''),
+vi.mock('@/shell/edge/main/terminals/stopGateHookRunner', () => ({
+    runStopHooks: vi.fn().mockResolvedValue({passed: true}),
 }))
 
 vi.mock('@/shell/edge/main/terminals/spawnTerminalWithContextNode', () => ({
@@ -54,6 +53,7 @@ import {
     cleanupHeadlessAgents,
     getHeadlessAgentOutput
 } from '@/shell/edge/main/terminals/headlessAgentManager'
+import {runStopHooks} from '@/shell/edge/main/terminals/stopGateHookRunner'
 
 // ─── Test helpers ────────────────────────────────────────────────────────────
 
@@ -93,6 +93,7 @@ function createTestTerminalData(terminalId: string): TerminalData {
         isHeadless: true,
         isMinimized: false,
         contextContent: '',
+        agentTypeName: '',
     }
 }
 
@@ -155,7 +156,7 @@ describe('headlessAgentManager — lifecycle and output', () => {
             expect(mockMarkTerminalExited).toHaveBeenCalled()
         })
 
-        it('removes from internal map on process exit', () => {
+        it('removes from internal map on process exit', async () => {
             const terminalId: string = 'agent-exit-cleanup'
             const terminalData: TerminalData = createTestTerminalData(terminalId)
 
@@ -164,6 +165,7 @@ describe('headlessAgentManager — lifecycle and output', () => {
 
             expect(isHeadlessAgent(terminalId as TerminalId)).toBe(true)
             mockChild.emit('exit', 0)
+            await new Promise(resolve => setTimeout(resolve, 0)) // flush async handleAgentExit
             expect(isHeadlessAgent(terminalId as TerminalId)).toBe(false)
         })
     })
@@ -222,7 +224,7 @@ describe('headlessAgentManager — lifecycle and output', () => {
             expect(output).toBe('X'.repeat(8000))
         })
 
-        it('preserves output buffer after process exit', () => {
+        it('preserves output buffer after process exit', async () => {
             const terminalId: string = 'agent-output-persist'
             const terminalData: TerminalData = createTestTerminalData(terminalId)
 
@@ -230,6 +232,7 @@ describe('headlessAgentManager — lifecycle and output', () => {
             mockGetTerminalRecords.mockReturnValue([])
             mockChild.stdout.emit('data', Buffer.from('final output'))
             mockChild.emit('exit', 0)
+            await new Promise(resolve => setTimeout(resolve, 0)) // flush async handleAgentExit
 
             expect(getHeadlessAgentOutput(terminalId)).toBe('final output')
             expect(isHeadlessAgent(terminalId as TerminalId)).toBe(false)
@@ -237,6 +240,55 @@ describe('headlessAgentManager — lifecycle and output', () => {
 
         it('returns empty string for unknown terminal', () => {
             expect(getHeadlessAgentOutput('nonexistent')).toBe('')
+        })
+    })
+
+    describe('stop gate skip when children active', () => {
+        it('skips audit when agent has non-exited child agents', async () => {
+            const terminalId: string = 'parent-agent'
+            const terminalData: TerminalData = createTestTerminalData(terminalId)
+
+            spawnHeadlessAgent(terminalId as TerminalId, terminalData, 'claude -p "task"', '/tmp', {})
+
+            // Mock registry returns a running child agent
+            mockGetTerminalRecords.mockReturnValue([
+                {terminalId: 'child-1', terminalData: {parentTerminalId: terminalId, agentName: 'child-1'}, status: 'running'}
+            ])
+
+            mockChild.emit('exit', 0)
+            await new Promise(resolve => setTimeout(resolve, 0))
+
+            expect(runStopHooks).not.toHaveBeenCalled()
+        })
+
+        it('runs audit when all child agents have exited', async () => {
+            const terminalId: string = 'parent-done'
+            const terminalData: TerminalData = createTestTerminalData(terminalId)
+
+            spawnHeadlessAgent(terminalId as TerminalId, terminalData, 'claude -p "task"', '/tmp', {})
+
+            // Mock registry returns only exited children
+            mockGetTerminalRecords.mockReturnValue([
+                {terminalId: 'child-1', terminalData: {parentTerminalId: terminalId, agentName: 'child-1'}, status: 'exited'}
+            ])
+
+            mockChild.emit('exit', 0)
+            await new Promise(resolve => setTimeout(resolve, 0))
+
+            expect(runStopHooks).toHaveBeenCalled()
+        })
+
+        it('runs audit when agent has no children at all', async () => {
+            const terminalId: string = 'solo-agent'
+            const terminalData: TerminalData = createTestTerminalData(terminalId)
+
+            spawnHeadlessAgent(terminalId as TerminalId, terminalData, 'claude -p "task"', '/tmp', {})
+            mockGetTerminalRecords.mockReturnValue([])
+
+            mockChild.emit('exit', 0)
+            await new Promise(resolve => setTimeout(resolve, 0))
+
+            expect(runStopHooks).toHaveBeenCalled()
         })
     })
 })
