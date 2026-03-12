@@ -176,7 +176,7 @@ DEPTH_BUDGET = $DEPTH_BUDGET
         default: {
             onWorktreeCreatedBlocking: './.voicetree/hooks/on-worktree-created-blocking.sh',
             postWorktreeCreatedAsync: './.voicetree/hooks/on-worktree-created-async.sh',
-            onNewNode: 'node .voicetree/hooks/on-new-node.cjs',
+            onNewNode: '# node .voicetree/hooks/on-new-node.cjs',
         } as HookSettings,
         section: 'hooks',
     },
