@@ -9,7 +9,7 @@ import {getNodeTitle} from '@/pure/graph/markdown-parsing';
 import {findFirstParentNode} from '@/pure/graph/graph-operations/findFirstParentNode';
 import {resolveEnvVars, expandEnvVarsInValues} from '@/pure/settings';
 import type {VTSettings} from '@/pure/settings/types';
-import {getNextAgentName, getUniqueAgentName} from '@/pure/settings/types';
+import {getNextAgentName, getUniqueAgentName, getDefaultAgent} from '@/pure/settings/types';
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types';
 import {getExistingAgentNames} from '@/shell/edge/main/terminals/terminal-registry';
 import {getAppSupportPath} from '@/shell/edge/main/state/app-electron-state';
@@ -56,7 +56,7 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
   // 4. Load settings
   const settings: VTSettings = await loadSettings();
   const agents: readonly { readonly name: string; readonly command: string }[] = settings.agents ?? [];
-  const command: string = agents[0]?.command ?? '';
+  const command: string = getDefaultAgent(agents, settings.defaultAgent)?.command ?? '';
 
   if (!command) {
     throw new Error('No agent command available');

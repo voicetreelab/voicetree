@@ -19,6 +19,7 @@ import { fromNodeToContentWithWikilinks } from "@/pure/graph/markdown-writing/no
 import { modifyNodeContentFromUI } from "@/shell/edge/UI-edge/floating-windows/editors/modifyNodeContentFromFloatingEditor";
 import { createAnchoredFloatingEditor } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 import type { VTSettings, AgentConfig } from "@/pure/settings";
+import { getDefaultAgent } from "@/pure/settings/types";
 import { AUTO_RUN_FLAG } from "@/shell/edge/UI-edge/graph/agentCommandEditorPopup";
 import { highlightContainedNodes, highlightPreviewNodes, clearContainedHighlights } from '@/shell/UI/cytoscape-graph-ui/highlightContextNodes';
 import { getTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
@@ -151,7 +152,8 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
 
             // Auto-run checkbox: only for claude commands, toggles --dangerously-skip-permissions
             const currentSettings: VTSettings | null = await window.electronAPI?.main.loadSettings() ?? null;
-            const defaultCommand: string = currentSettings?.agents?.[0]?.command ?? '';
+            const defaultAgent: AgentConfig | undefined = currentSettings ? getDefaultAgent(currentSettings.agents ?? [], currentSettings.defaultAgent) : undefined;
+            const defaultCommand: string = defaultAgent?.command ?? '';
             if (defaultCommand.toLowerCase().includes('claude')) {
                 items.push({
                     icon: Check, // placeholder icon, checkbox renders instead
@@ -163,7 +165,9 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
                         const settings: VTSettings | null = await window.electronAPI?.main.loadSettings() ?? null;
                         if (!settings) return;
                         const currentAgents: readonly AgentConfig[] = settings.agents ?? [];
-                        const cmd: string = currentAgents[0]?.command ?? '';
+                        const defAgent: AgentConfig | undefined = getDefaultAgent(currentAgents, settings.defaultAgent);
+                        if (!defAgent) return;
+                        const cmd: string = defAgent.command;
                         const hasFlag: boolean = cmd.includes(AUTO_RUN_FLAG);
 
                         let newCommand: string;
@@ -177,8 +181,8 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
                         }
 
                         const updatedAgents: readonly AgentConfig[] = currentAgents.map(
-                            (agent: AgentConfig, i: number): AgentConfig =>
-                                i === 0 ? { ...agent, command: newCommand } : agent
+                            (agent: AgentConfig): AgentConfig =>
+                                agent.name === defAgent.name ? { ...agent, command: newCommand } : agent
                         );
                         await window.electronAPI?.main.saveSettings({ ...settings, agents: updatedAgents });
                     },

@@ -15,6 +15,7 @@ import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange'
 import {spawnTerminalWithContextNode} from '@/shell/edge/main/terminals/spawnTerminalWithContextNode'
 import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
+import {tryConsumeSpawnBudget, getRootTerminalId, getRootBudget} from '@/shell/edge/main/terminals/global-budget-registry'
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
 import type {VTSettings} from '@/pure/settings'
 import {type McpToolResponse, buildJsonResponse} from './types'
@@ -61,9 +62,23 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
             childDepthBudget = Math.max(0, parentBudget - 1)
         }
     }
-    const envOverrides: Record<string, string> | undefined = childDepthBudget !== undefined
-        ? {DEPTH_BUDGET: String(childDepthBudget)}
-        : undefined
+
+    // Check global spawn budget before proceeding
+    const canSpawn: boolean = tryConsumeSpawnBudget(callerTerminalId, 1)
+    if (!canSpawn) {
+        return buildJsonResponse({
+            success: false,
+            error: 'Global spawn budget exhausted'
+        }, true)
+    }
+
+    // Build env overrides: DEPTH_BUDGET + GLOBAL_SPAWN_BUDGET (remaining after this spawn)
+    const rootId: string | null = getRootTerminalId(callerTerminalId)
+    const remainingBudget: number | undefined = rootId ? getRootBudget(rootId) : undefined
+    const envOverrides: Record<string, string> = {
+        ...(childDepthBudget !== undefined ? {DEPTH_BUDGET: String(childDepthBudget)} : {}),
+        ...(remainingBudget !== undefined ? {GLOBAL_SPAWN_BUDGET: String(remainingBudget)} : {}),
+    }
 
     // Validate replaceSelf constraints
     if (replaceSelf && !callerRecord) {

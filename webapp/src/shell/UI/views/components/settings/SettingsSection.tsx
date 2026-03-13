@@ -187,6 +187,8 @@ export function SettingsSection({ settings, section, onUpdate }: SettingsSection
                                 key={key}
                                 value={value as readonly AgentConfig[] ?? []}
                                 onChange={v => onUpdate(key, v)}
+                                defaultAgent={settings.defaultAgent}
+                                onDefaultChange={v => onUpdate('defaultAgent', v)}
                             />
                         );
 

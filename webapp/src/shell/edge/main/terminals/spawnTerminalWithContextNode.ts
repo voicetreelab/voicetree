@@ -28,8 +28,9 @@ import { applyGraphDeltaToGraph } from '@/pure/graph';
 import { getNodeTitle } from '@/pure/graph/markdown-parsing';
 import { findFirstParentNode } from '@/pure/graph/graph-operations/findFirstParentNode';
 import type { VTSettings } from '@/pure/settings';
-import { getNextAgentName, getUniqueAgentName } from '@/pure/settings/types';
+import { getNextAgentName, getUniqueAgentName, getDefaultAgent } from '@/pure/settings/types';
 import { getNextTerminalCountForNode, getExistingAgentNames } from '@/shell/edge/main/terminals/terminal-registry';
+import { setRootBudget } from '@/shell/edge/main/terminals/global-budget-registry';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import {getWatchStatus} from "@/shell/edge/main/graph/watch_folder/watchFolder";
 import {buildTerminalEnvVars} from '@/shell/edge/main/terminals/buildTerminalEnvVars';
@@ -73,7 +74,7 @@ export async function spawnTerminalWithContextNode(
         throw new Error(`Failed to load settings for ${taskNodeId}`);
     }
 
-    // Use provided command or default to first agent
+    // Use provided command or default agent from settings
     const agents: readonly { readonly name: string; readonly command: string }[] = settings.agents ?? [];
 
     // SECURITY: Validate that agentCommand (if provided) is from settings.agents
@@ -87,7 +88,7 @@ export async function spawnTerminalWithContextNode(
         }
     }
 
-    const command: string = agentCommand ?? agents[0]?.command ?? '';
+    const command: string = agentCommand ?? getDefaultAgent(agents, settings.defaultAgent)?.command ?? '';
     if (!command) {
         throw new Error('No agent command available - settings.agents is empty or undefined');
     }
@@ -173,8 +174,17 @@ export async function spawnTerminalWithContextNode(
         registerChildIfMonitored(parentTerminalId, getTerminalId(terminalData))
     }
 
+    // Set global spawn budget if this is a root terminal (no parent) with GLOBAL_SPAWN_BUDGET env var
+    const terminalId: TerminalId = getTerminalId(terminalData);
+    if (!parentTerminalId && terminalData.initialEnvVars?.GLOBAL_SPAWN_BUDGET) {
+        const budget: number = parseInt(terminalData.initialEnvVars.GLOBAL_SPAWN_BUDGET, 10);
+        if (!isNaN(budget) && budget > 0) {
+            setRootBudget(terminalId, budget);
+        }
+    }
+
     return {
-        terminalId: getTerminalId(terminalData),
+        terminalId: terminalId,
         contextNodeId
     }
 }

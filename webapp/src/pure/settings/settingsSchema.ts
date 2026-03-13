@@ -191,6 +191,9 @@ DEPTH_BUDGET = $DEPTH_BUDGET
     layoutConfig:           { default: JSON.stringify({ engine: 'cola', nodeSpacing: 120, convergenceThreshold: 0.4, unconstrIter: 15, allConstIter: 25, handleDisconnected: true, tile: true, tilingPaddingVertical: 10, tilingPaddingHorizontal: 10, edgeElasticity: 0.45, edgeLength: 350 }, null, 2), label: 'Layout Config' },
     nodeLineLimit:          { default: 80,  label: 'Node Line Limit',    number: { min: 20, max: 200, step: 10 } },
 
+    // ── Hidden (not shown in UI — rendered inside agent-list field) ──────
+    defaultAgent:              { hidden: true },
+
     // ── Hidden (not shown in UI) ─────────────────────────────────────────
     agentPermissionModeChosen: { hidden: true },
     feedbackDialogShown:       { hidden: true },

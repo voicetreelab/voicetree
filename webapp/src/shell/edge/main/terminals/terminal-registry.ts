@@ -9,6 +9,7 @@ import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
 import {runStopHooks, type StopHookResult} from './stopGateHookRunner'
+import {clearBudget} from './global-budget-registry'
 
 export type TerminalStatus = 'running' | 'exited'
 
@@ -326,6 +327,8 @@ export function removeTerminalFromRegistry(terminalId: string): void {
         notificationStateByTerminal.delete(terminalId)
         idleSinceByTerminal.delete(terminalId)
         cancelPendingNotification(terminalId)
+        // Clean up budget entry if this was a root terminal
+        clearBudget(terminalId)
         pushStateToRenderer()
     }
 }

@@ -10,7 +10,6 @@ import type {TerminalOperationResult} from '@/shell/edge/main/terminals/terminal
 const CHAR_DELAY_MS: number = 5
 const ESC_DELAY_MS: number = 100
 const INSERT_MODE_DELAY_MS: number = 50
-const SUBMIT_SEQUENCE: string = '\x1b\r'
 const PREAMBLE_DUMMY: string = ' '
 
 const terminalWriteQueues: Map<string, Promise<void>> = new Map()
@@ -56,7 +55,7 @@ export async function sendTextToTerminal(terminalId: string, text: string): Prom
     await new Promise(resolve => setTimeout(resolve, CHAR_DELAY_MS))
 
     // Submit using Option/Alt+Enter bytes (ESC+CR). This matches headful Codex terminals.
-    const fullMessage: string = text + SUBMIT_SEQUENCE
+    const fullMessage: string = text + '\x1b\r'
     for (let i: number = 0; i < fullMessage.length; i++) {
         await new Promise(resolve => setTimeout(resolve, CHAR_DELAY_MS))
         const result: TerminalOperationResult = terminalManager.write(terminalId, fullMessage[i])
@@ -64,6 +63,11 @@ export async function sendTextToTerminal(terminalId: string, text: string): Prom
             return result
         }
     }
+
+    // Plain CR fallback for Claude Code (vi-mode readline interprets ESC+CR differently).
+    // Harmless for Codex/OpenCode — arrives after Option+Enter already submitted.
+    await new Promise(resolve => setTimeout(resolve, ESC_DELAY_MS))
+    terminalManager.write(terminalId, '\r')
 
     return {success: true}
     })

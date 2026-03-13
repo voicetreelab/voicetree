@@ -1,6 +1,7 @@
 /** Terminal Flow - V2: Uses types.ts with flat TerminalData type. IDs derived, ui populated after DOM creation. */
 import type { NodeIdAndFilePath, GraphNode } from "@/pure/graph";
 import type { VTSettings, AgentConfig } from "@/pure/settings";
+import { getDefaultAgent } from "@/pure/settings/types";
 import { showAgentCommandEditor } from "@/shell/edge/UI-edge/graph/agentCommandEditorPopup";
 import type { Core } from "cytoscape";
 import '@/shell/electron.d.ts';
@@ -21,7 +22,7 @@ const MAX_TERMINALS: number = 100; // human: raised for dev/power-use; original 
  *
  * @param parentNodeId - The parent node to create context for
  * @param cy - Cytoscape instance (used to flush pending editor content)
- * @param agentCommand - Optional agent command. If not provided, uses the default (first) agent from settings.
+ * @param agentCommand - Optional agent command. If not provided, uses the default agent from settings.
  */
 export async function spawnTerminalWithCommandEditor(
     parentNodeId: NodeIdAndFilePath,
@@ -48,7 +49,7 @@ export async function spawnTerminalWithCommandEditor(
 
     // Determine the command to use
     const agents: readonly AgentConfig[] = settings.agents ?? [];
-    const command: string = agentCommand ?? agents[0]?.command ?? '';
+    const command: string = agentCommand ?? getDefaultAgent(agents, settings.defaultAgent)?.command ?? '';
     if (!command) {
         console.error('[spawnTerminalWithCommandEditor] No agent command available');
         return;
@@ -122,7 +123,7 @@ export async function spawnTerminalWithCommandEditor(
  *
  * @param parentNodeId - The parent node to create context for
  * @param cy - Cytoscape instance (used to flush pending editor content)
- * @param agentCommand - Optional agent command. If not provided, uses the default (first) agent from settings.
+ * @param agentCommand - Optional agent command. If not provided, uses the default agent from settings.
  */
 export async function spawnTerminalWithNewContextNode(
     parentNodeId: NodeIdAndFilePath,
@@ -151,7 +152,7 @@ export async function spawnTerminalWithNewContextNode(
 
     // Determine the command to use
     const agents: readonly AgentConfig[] = settings.agents ?? [];
-    let command: string = agentCommand ?? agents[0]?.command ?? '';
+    let command: string = agentCommand ?? getDefaultAgent(agents, settings.defaultAgent)?.command ?? '';
     if (!command) {
         console.error('[spawnTerminalWithNewContextNode] No agent command available');
         return;

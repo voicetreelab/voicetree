@@ -1,7 +1,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import type {TerminalOperationResult} from './terminal-manager'
 
-const mockWrite = vi.fn<(terminalId: string, data: string) => TerminalOperationResult>()
+const mockWrite: ReturnType<typeof vi.fn<(terminalId: string, data: string) => TerminalOperationResult>> = vi.fn<(terminalId: string, data: string) => TerminalOperationResult>()
 
 vi.mock('@/shell/edge/main/terminals/terminal-manager-instance', () => ({
     getTerminalManager: vi.fn(() => ({
@@ -31,13 +31,14 @@ describe('sendTextToTerminal', () => {
 
         const writes: string[] = mockWrite.mock.calls.map(([, data]) => data)
         expect(writes.slice(0, 4)).toEqual([' ', '\x1b', 'i', '\x15'])
-        expect(writes.slice(4, -2).join('')).toBe('hello')
-        expect(writes.slice(-2)).toEqual(['\x1b', '\r'])
+        expect(writes.slice(4, -3).join('')).toBe('hello')
+        // ESC+CR (Codex/OpenCode Option+Enter) then trailing CR (Claude Code fallback)
+        expect(writes.slice(-3)).toEqual(['\x1b', '\r', '\r'])
     })
 
     it('returns first failed write result', async () => {
         mockWrite.mockImplementation((_terminalId: string, data: string): TerminalOperationResult => {
-            if (data === '\x1b') {
+            if (data === 'l') {
                 return {success: false, error: 'write failed'}
             }
             return {success: true}
@@ -61,8 +62,8 @@ describe('sendTextToTerminal', () => {
         expect(firstResult).toEqual({success: true})
         expect(secondResult).toEqual({success: true})
 
-        const firstPayload: string[] = [' ', '\x1b', 'i', '\x15', 'o', 'n', 'e', '\x1b', '\r']
-        const secondPayload: string[] = [' ', '\x1b', 'i', '\x15', 't', 'w', 'o', '\x1b', '\r']
+        const firstPayload: string[] = [' ', '\x1b', 'i', '\x15', 'o', 'n', 'e', '\x1b', '\r', '\r']
+        const secondPayload: string[] = [' ', '\x1b', 'i', '\x15', 't', 'w', 'o', '\x1b', '\r', '\r']
         const writes: string[] = mockWrite.mock.calls.map(([, data]) => data)
 
         expect(writes).toEqual([...firstPayload, ...secondPayload])

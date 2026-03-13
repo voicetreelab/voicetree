@@ -3,6 +3,15 @@ export interface AgentConfig {
     readonly command: string;
 }
 
+/** Returns the default agent (by name match), falling back to agents[0]. */
+export function getDefaultAgent(agents: readonly AgentConfig[], defaultAgentName?: string): AgentConfig | undefined {
+    if (defaultAgentName) {
+        const found: AgentConfig | undefined = agents.find(a => a.name === defaultAgentName);
+        if (found) return found;
+    }
+    return agents[0];
+}
+
 export const AGENT_NAMES: readonly string[] = [
     'Aki', 'Ama', 'Amit', 'Amy', 'Anna', 'Ari', 'Ayu', 'Ben', 'Bob', 'Cho',
     'Dae', 'Dan', 'Eli', 'Emi', 'Eva', 'Eve', 'Fei', 'Gia', 'Gus', 'Hana',
@@ -113,6 +122,8 @@ export interface VTSettings {
     readonly hooks?: HookSettings;
     /** Override the shell used for terminals. Leave unset for auto-detect ($SHELL on macOS/Linux, pwsh/powershell on Windows). */
     readonly shell?: string;
+    /** Name of the default agent (matched against agents[].name). Falls back to first agent if unset or not found. */
+    readonly defaultAgent?: string;
     /** Show FPS counter overlay on the Cytoscape WebGL renderer (top-left). Requires app restart. */
     readonly showFps?: boolean;
     /** Layout engine configuration as JSON. Supports 'cola' engine. Edit in Advanced settings. */
