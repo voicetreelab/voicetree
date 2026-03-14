@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  VoiceTree Overnight Runner — LaunchAgent
+
+  Triggers trigger-overnight.sh at 2:00 AM local time daily.
+  Requires VoiceTree app to be running (the MCP server must be active).
+
+  Setup:
+    1. Edit the ProgramArguments path below to match your trigger-overnight.sh location
+    2. Copy to LaunchAgents:
+       cp webapp/scripts/com.voicetree.overnight-runner.plist ~/Library/LaunchAgents/
+    3. Load:
+       launchctl load ~/Library/LaunchAgents/com.voicetree.overnight-runner.plist
+
+  Unload:
+    launchctl unload ~/Library/LaunchAgents/com.voicetree.overnight-runner.plist
+
+  Test (run immediately):
+    launchctl start com.voicetree.overnight-runner
+
+  Logs:
+    tail -f /tmp/voicetree-overnight-runner.log
+    tail -f /tmp/voicetree-overnight-runner.err
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.voicetree.overnight-runner</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/bobbobby/repos/voicetree-public/webapp/scripts/trigger-overnight.sh</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>6</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/voicetree-overnight-runner.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/voicetree-overnight-runner.err</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+</dict>
+</plist>
