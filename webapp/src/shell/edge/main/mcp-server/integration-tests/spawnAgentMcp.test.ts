@@ -174,7 +174,7 @@ describe('MCP spawn_agent tool', () => {
 
         expect(payload.success).toBe(true)
         expect(payload.nodeId).toBe(fullPath)
-        expect(spawnTerminalWithContextNode).toHaveBeenCalledWith(fullPath, undefined, undefined, true, false, undefined, undefined, 'caller-terminal-99', undefined, undefined, undefined, undefined)
+        expect(spawnTerminalWithContextNode).toHaveBeenCalledWith(fullPath, undefined, undefined, true, false, undefined, undefined, 'caller-terminal-99', undefined, undefined, undefined, {})
     })
 
     it('returns an error when vault path is not set', async () => {
@@ -319,7 +319,7 @@ describe('MCP spawn_agent depthBudget auto-decrement', () => {
         expect(payload.depthBudget).toBe(2)
     })
 
-    it('no envOverrides when parent has no DEPTH_BUDGET', async () => {
+    it('empty envOverrides when parent has no DEPTH_BUDGET or budget', async () => {
         mockCallerTerminal() // no initialEnvVars
         setupGraphAndSpawn()
 
@@ -327,7 +327,7 @@ describe('MCP spawn_agent depthBudget auto-decrement', () => {
 
         const envOverridesArg: Record<string, string> | undefined =
             vi.mocked(spawnTerminalWithContextNode).mock.calls[0]?.[11] as Record<string, string> | undefined
-        expect(envOverridesArg).toBeUndefined()
+        expect(envOverridesArg).toEqual({})
     })
 })
 

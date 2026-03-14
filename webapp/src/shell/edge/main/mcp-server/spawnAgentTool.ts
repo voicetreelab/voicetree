@@ -15,7 +15,7 @@ import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange'
 import {spawnTerminalWithContextNode} from '@/shell/edge/main/terminals/spawnTerminalWithContextNode'
 import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
-import {tryConsumeSpawnBudget, getRootTerminalId, getRootBudget} from '@/shell/edge/main/terminals/global-budget-registry'
+import {tryConsumeAndSplitBudget, registerChild} from '@/shell/edge/main/terminals/global-budget-registry'
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
 import type {VTSettings} from '@/pure/settings'
 import {type McpToolResponse, buildJsonResponse} from './types'
@@ -63,21 +63,19 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
         }
     }
 
-    // Check global spawn budget before proceeding
-    const canSpawn: boolean = tryConsumeSpawnBudget(callerTerminalId, 1)
-    if (!canSpawn) {
+    // Check global spawn budget before proceeding (fair rebalancing: splits caller's budget among siblings)
+    const budgetResult: { allowed: boolean; childBudget: number | undefined } = tryConsumeAndSplitBudget(callerTerminalId)
+    if (!budgetResult.allowed) {
         return buildJsonResponse({
             success: false,
             error: 'Global spawn budget exhausted'
         }, true)
     }
 
-    // Build env overrides: DEPTH_BUDGET + GLOBAL_SPAWN_BUDGET (remaining after this spawn)
-    const rootId: string | null = getRootTerminalId(callerTerminalId)
-    const remainingBudget: number | undefined = rootId ? getRootBudget(rootId) : undefined
+    // Build env overrides: DEPTH_BUDGET + GLOBAL_SPAWN_BUDGET (child's allocated share)
     const envOverrides: Record<string, string> = {
         ...(childDepthBudget !== undefined ? {DEPTH_BUDGET: String(childDepthBudget)} : {}),
-        ...(remainingBudget !== undefined ? {GLOBAL_SPAWN_BUDGET: String(remainingBudget)} : {}),
+        ...(budgetResult.childBudget !== undefined ? {GLOBAL_SPAWN_BUDGET: String(budgetResult.childBudget)} : {}),
     }
 
     // Validate replaceSelf constraints
@@ -238,6 +236,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
                 await spawnTerminalWithContextNode(taskNodeId, resolvedAgentCommand, undefined, true, false, undefined, resolvedSpawnDirectory, replaceSelfParentId, promptTemplate, headless, replaceSelf ? callerTerminalId : undefined, envOverrides)
 
             if (!replaceSelf) {
+                registerChild(callerTerminalId, terminalId)
                 startMonitor(callerTerminalId, [terminalId], 5000)
             }
 
@@ -313,6 +312,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
             await spawnTerminalWithContextNode(resolvedNodeId, resolvedAgentCommand, undefined, true, false, undefined, resolvedSpawnDirectory, replaceSelfParentId2, promptTemplate, headless, replaceSelf ? callerTerminalId : undefined, envOverrides)
 
         if (!replaceSelf) {
+            registerChild(callerTerminalId, terminalId)
             startMonitor(callerTerminalId, [terminalId], 5000)
         }
 

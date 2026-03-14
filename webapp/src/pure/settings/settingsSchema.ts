@@ -166,6 +166,7 @@ VOICETREE_MCP_PORT = $VOICETREE_MCP_PORT
 DEPTH_BUDGET = $DEPTH_BUDGET
 </YOUR_ENV_VARS>`,
             AGENT_PROMPT: '$AGENT_PROMPT_CORE',
+            DEPTH_BUDGET: '12',
         } as Record<string, EnvVarValue>,
         section: 'agents',
         label: 'Environment Variables',

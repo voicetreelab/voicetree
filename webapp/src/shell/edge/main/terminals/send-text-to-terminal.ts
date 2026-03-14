@@ -1,7 +1,7 @@
 /**
  * Sends text to a terminal as simulated keyboard input.
- * Uses escape codes to enter insert mode and writes characters
- * individually with delays to ensure reliable delivery to the PTY.
+ * Uses escape codes to enter insert mode, writes the message body
+ * as a single bulk write, and submits with a dual escape sequence.
  */
 
 import {getTerminalManager} from '@/shell/edge/main/terminals/terminal-manager-instance'
@@ -54,18 +54,19 @@ export async function sendTextToTerminal(terminalId: string, text: string): Prom
     terminalManager.write(terminalId, '\x15') // Ctrl-U: kill line
     await new Promise(resolve => setTimeout(resolve, CHAR_DELAY_MS))
 
-    // Submit using Option/Alt+Enter bytes (ESC+CR). This matches headful Codex terminals.
-    const fullMessage: string = text + '\x1b\r'
-    for (let i: number = 0; i < fullMessage.length; i++) {
-        await new Promise(resolve => setTimeout(resolve, CHAR_DELAY_MS))
-        const result: TerminalOperationResult = terminalManager.write(terminalId, fullMessage[i])
-        if (!result.success) {
-            return result
-        }
+    // Bulk write message body — atomic from PTY's perspective, avoids multi-second
+    // window where agent output could interleave with half-typed input.
+    const writeResult: TerminalOperationResult = terminalManager.write(terminalId, text)
+    if (!writeResult.success) {
+        return writeResult
     }
 
-    // Plain CR fallback for Claude Code (vi-mode readline interprets ESC+CR differently).
-    // Harmless for Codex/OpenCode — arrives after Option+Enter already submitted.
+    // Dual submit for cross-agent compatibility:
+    //   1. ESC+CR as single write → Option/Alt+Enter for Codex/OpenCode
+    //   2. Plain CR after delay   → Enter for Claude Code (vi-mode readline)
+    // Both must be single writes — splitting ESC+CR after bulk body is unreliable for Gemini.
+    await new Promise(resolve => setTimeout(resolve, CHAR_DELAY_MS))
+    terminalManager.write(terminalId, '\x1b\r')
     await new Promise(resolve => setTimeout(resolve, ESC_DELAY_MS))
     terminalManager.write(terminalId, '\r')
 

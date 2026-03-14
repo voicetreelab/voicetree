@@ -30,7 +30,7 @@ import { findFirstParentNode } from '@/pure/graph/graph-operations/findFirstPare
 import type { VTSettings } from '@/pure/settings';
 import { getNextAgentName, getUniqueAgentName, getDefaultAgent } from '@/pure/settings/types';
 import { getNextTerminalCountForNode, getExistingAgentNames } from '@/shell/edge/main/terminals/terminal-registry';
-import { setRootBudget } from '@/shell/edge/main/terminals/global-budget-registry';
+import { setTerminalBudget } from '@/shell/edge/main/terminals/global-budget-registry';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import {getWatchStatus} from "@/shell/edge/main/graph/watch_folder/watchFolder";
 import {buildTerminalEnvVars} from '@/shell/edge/main/terminals/buildTerminalEnvVars';
@@ -174,12 +174,13 @@ export async function spawnTerminalWithContextNode(
         registerChildIfMonitored(parentTerminalId, getTerminalId(terminalData))
     }
 
-    // Set global spawn budget if this is a root terminal (no parent) with GLOBAL_SPAWN_BUDGET env var
+    // Set spawn budget for this terminal from GLOBAL_SPAWN_BUDGET env var
+    // Root terminals read from env; child terminals receive their budget via envOverrides from spawnAgentTool
     const terminalId: TerminalId = getTerminalId(terminalData);
-    if (!parentTerminalId && terminalData.initialEnvVars?.GLOBAL_SPAWN_BUDGET) {
+    if (terminalData.initialEnvVars?.GLOBAL_SPAWN_BUDGET) {
         const budget: number = parseInt(terminalData.initialEnvVars.GLOBAL_SPAWN_BUDGET, 10);
-        if (!isNaN(budget) && budget > 0) {
-            setRootBudget(terminalId, budget);
+        if (!isNaN(budget) && budget >= 0) {
+            setTerminalBudget(terminalId, budget);
         }
     }
 

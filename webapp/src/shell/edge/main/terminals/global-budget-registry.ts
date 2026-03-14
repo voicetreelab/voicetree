@@ -1,143 +1,139 @@
 /**
- * Global Spawn Budget Registry
- * 
- * Functional approach: budget stored only on root ancestors.
- * Children find root via getOldestAncestor() and check budget there.
- * 
- * This avoids duplicating state across all terminals and provides
- * a single source of truth for the global spawn budget.
+ * Retroactive Fair Rebalancing Spawn Budget Registry
+ *
+ * Each terminal tracks its own budget + per-parent state (originalBudget, children).
+ * When a parent spawns child N:
+ *   fairShare = floor((originalBudget - N) / N)
+ *   All existing siblings are rebalanced: min(currentRemaining, fairShare)
+ *   New child receives fairShare.
+ *
+ * Spawn guard: N <= originalBudget.
+ * budget=undefined means unlimited (backward compatible).
  */
 
-import {getTerminalRecords, type TerminalRecord} from './terminal-registry'
+// Per-parent spawning state
+type ParentState = {
+    originalBudget: number
+    spawnCount: number
+    childrenIds: string[]
+}
 
-// Map of root terminal ID -> remaining budget
-const rootBudgets: Map<string, number> = new Map()
+// Map of terminal ID -> remaining budget (what this terminal has available)
+const terminalBudgets: Map<string, number> = new Map()
+
+// Map of terminal ID -> parent state (for tracking children and rebalancing)
+const parentStates: Map<string, ParentState> = new Map()
 
 /**
- * Get the oldest ancestor (root) of a terminal by walking the parent chain.
- * Detects cycles and returns null if found.
- * 
- * This is a pure function - it computes ancestry from existing parent links
- * rather than storing ancestor IDs on each terminal.
+ * Get the remaining budget for a terminal.
+ * Returns undefined if no budget is set (unlimited spawning allowed).
  */
-export function getOldestAncestor(terminalId: string): TerminalRecord | null {
-    const visited: Set<string> = new Set<string>()
-    let current: TerminalRecord | undefined = getTerminalRecords().find(
-        (r: TerminalRecord) => r.terminalId === terminalId
-    )
-    
-    while (current?.terminalData.parentTerminalId) {
-        // Cycle detection
-        if (visited.has(current.terminalId)) {
-            console.error(`[global-budget-registry] Cycle detected in parent chain at ${current.terminalId}`)
-            return null
-        }
-        visited.add(current.terminalId)
-        
-        // Walk up to parent
-        const parent: TerminalRecord | undefined = getTerminalRecords().find(
-            (r: TerminalRecord) => r.terminalId === current!.terminalData.parentTerminalId
-        )
-        if (!parent) {
-            // Parent reference exists but parent not found in registry
-            console.warn(`[global-budget-registry] Parent ${current.terminalData.parentTerminalId} not found for ${current.terminalId}`)
-            break
-        }
-        current = parent
-    }
-    
-    return current ?? null
+export function getTerminalBudget(terminalId: string): number | undefined {
+    return terminalBudgets.get(terminalId)
 }
 
 /**
- * Set the global spawn budget for a root terminal.
- * Should be called when spawning the root agent with GLOBAL_SPAWN_BUDGET env var.
+ * Set the spawn budget for a terminal and initialize its parent state.
+ * Called when initializing a root terminal from GLOBAL_SPAWN_BUDGET env var,
+ * or when a child terminal receives its allocated budget.
  */
-export function setRootBudget(rootTerminalId: string, budget: number): void {
+export function setTerminalBudget(terminalId: string, budget: number): void {
     if (budget < 0) {
         console.warn(`[global-budget-registry] Attempted to set negative budget: ${budget}`)
         return
     }
-    rootBudgets.set(rootTerminalId, Math.floor(budget))
-    console.log(`[global-budget-registry] Set budget for ${rootTerminalId}: ${budget}`)
+    const floored: number = Math.floor(budget)
+    terminalBudgets.set(terminalId, floored)
+    parentStates.set(terminalId, { originalBudget: floored, spawnCount: 0, childrenIds: [] })
+    console.log(`[global-budget-registry] Set budget for ${terminalId}: ${floored}`)
 }
 
 /**
- * Get the remaining budget for a root terminal.
- * Returns undefined if no budget is set (unlimited spawning allowed).
- */
-export function getRootBudget(rootTerminalId: string): number | undefined {
-    return rootBudgets.get(rootTerminalId)
-}
-
-/**
- * Decrement the budget for a root terminal.
- * Returns true if successful, false if budget exhausted or not set.
- * 
- * This is the core function called before spawning a child agent.
- */
-export function decrementRootBudget(rootTerminalId: string, amount: number = 1): boolean {
-    const current: number | undefined = rootBudgets.get(rootTerminalId)
-    
-    // No budget set = unlimited spawning (backward compatible)
-    if (current === undefined) {
-        return true
-    }
-    
-    if (current < amount) {
-        console.log(`[global-budget-registry] Budget exhausted for ${rootTerminalId}: ${current} < ${amount}`)
-        return false
-    }
-    
-    rootBudgets.set(rootTerminalId, current - amount)
-    console.log(`[global-budget-registry] Decremented budget for ${rootTerminalId}: ${current} -> ${current - amount}`)
-    return true
-}
-
-/**
- * Attempt to consume spawn budget for a terminal's root.
- * Decrements the root's budget if sufficient. This is the main entry point for spawnAgentTool.
+ * Attempt to consume and split budget for spawning a child.
  *
- * @param terminalId - The terminal attempting to spawn
- * @param amount - Number of children to spawn (default 1)
- * @returns true if spawn is allowed (budget decremented), false if budget exhausted
+ * Formula:
+ *   N = spawnCount + 1  (total children after this spawn)
+ *   fairShare = floor((originalBudget - N) / N)
+ *   Existing children rebalanced: min(currentRemaining, fairShare)
+ *
+ * @returns { allowed, childBudget } — childBudget is undefined when no budget is set (unlimited).
  */
-export function tryConsumeSpawnBudget(terminalId: string, amount: number = 1): boolean {
-    const ancestor: TerminalRecord | null = getOldestAncestor(terminalId)
+export function tryConsumeAndSplitBudget(callerTerminalId: string): { allowed: boolean; childBudget: number | undefined } {
+    const state: ParentState | undefined = parentStates.get(callerTerminalId)
 
-    // No ancestor found - treat as root
-    const rootId: string = ancestor?.terminalId ?? terminalId
-    
-    return decrementRootBudget(rootId, amount)
+    // No parent state = no budget set = unlimited spawning (backward compatible)
+    if (!state) {
+        return { allowed: true, childBudget: undefined }
+    }
+
+    const newN: number = state.spawnCount + 1
+
+    // Spawn guard: N <= originalBudget (each spawn costs 1, children get remainder)
+    if (newN > state.originalBudget) {
+        console.log(`[global-budget-registry] Budget exhausted for ${callerTerminalId}: spawnCount=${state.spawnCount}, originalBudget=${state.originalBudget}`)
+        return { allowed: false, childBudget: undefined }
+    }
+
+    const fairShare: number = Math.floor((state.originalBudget - newN) / newN)
+
+    // Rebalance existing children: cap at fairShare (never increase)
+    for (const childId of state.childrenIds) {
+        const currentRemaining: number | undefined = terminalBudgets.get(childId)
+        if (currentRemaining !== undefined && currentRemaining > fairShare) {
+            const reduction: number = currentRemaining - fairShare
+            terminalBudgets.set(childId, fairShare)
+            // Also reduce child's originalBudget so its own spawning is bounded correctly
+            const childState: ParentState | undefined = parentStates.get(childId)
+            if (childState) {
+                childState.originalBudget = Math.max(0, childState.originalBudget - reduction)
+            }
+        }
+    }
+
+    state.spawnCount = newN
+    console.log(`[global-budget-registry] Fair rebalance for ${callerTerminalId}: N=${newN}, fairShare=${fairShare}, originalBudget=${state.originalBudget}`)
+
+    return { allowed: true, childBudget: fairShare }
 }
 
 /**
- * Get the root terminal ID for a given terminal.
- * Useful for logging and debugging.
+ * Register a spawned child with its parent for future rebalancing.
+ * Called after spawn succeeds so the child can be rebalanced on subsequent sibling spawns.
  */
-export function getRootTerminalId(terminalId: string): string | null {
-    const ancestor: TerminalRecord | null = getOldestAncestor(terminalId)
-    return ancestor?.terminalId ?? terminalId
+export function registerChild(parentTerminalId: string, childTerminalId: string): void {
+    const state: ParentState | undefined = parentStates.get(parentTerminalId)
+    if (state) {
+        state.childrenIds.push(childTerminalId)
+    }
 }
 
 /**
- * Remove the budget entry for a root terminal.
+ * Remove the budget entry for a terminal.
  * Called when a terminal is removed from the registry to prevent memory leaks.
  */
-export function clearBudget(rootTerminalId: string): void {
-    rootBudgets.delete(rootTerminalId)
+export function clearBudget(terminalId: string): void {
+    terminalBudgets.delete(terminalId)
+    parentStates.delete(terminalId)
+    // Remove from any parent's childrenIds
+    for (const state of parentStates.values()) {
+        const idx: number = state.childrenIds.indexOf(terminalId)
+        if (idx !== -1) {
+            state.childrenIds.splice(idx, 1)
+        }
+    }
 }
 
 /**
  * Clear all budgets. Used for testing.
  */
 export function clearAllBudgets(): void {
-    rootBudgets.clear()
+    terminalBudgets.clear()
+    parentStates.clear()
 }
 
 /**
  * Get all active budgets for debugging/monitoring.
  */
 export function getAllBudgets(): ReadonlyMap<string, number> {
-    return new Map(rootBudgets)
+    return new Map(terminalBudgets)
 }
