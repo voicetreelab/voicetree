@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+exec /Users/bobbobby/repos/voicetree-public/webapp/node_modules/.bin/tsx \
+    /Users/bobbobby/repos/voicetree-public/webapp/src/shell/edge/main/cli/voicetree-cli.ts "$@"
