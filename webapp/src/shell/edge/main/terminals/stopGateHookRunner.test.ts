@@ -2,14 +2,14 @@
  * Integration tests for stopGateHookRunner.ts
  *
  * Uses REAL hook runner modules. Mocks only external/UI leaf dependencies.
- * Tests: default config fallback, shell command hooks, aggregation, context building.
+ * Tests: default config fallback, shell command hooks, legacy builtin passthrough,
+ * aggregation, and context building.
  */
 
 import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest'
 import * as os from 'os'
 import * as fs from 'fs'
 import * as path from 'path'
-import * as O from 'fp-ts/lib/Option.js'
 
 // ─── Mock external/UI leaf dependencies (must be before real imports) ────────
 
@@ -44,7 +44,7 @@ import {runStopHooks, type StopHookResult} from './stopGateHookRunner'
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
 import type {TerminalRecord} from './terminal-registry'
-import type {Graph, GraphNode} from '@/pure/graph'
+import type {Graph} from '@/pure/graph'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -80,34 +80,12 @@ function makeRecord(id: string, opts?: {
     }
 }
 
-function buildNode(filePath: string, agentName: string): GraphNode {
-    return {
-        outgoingEdges: [],
-        absoluteFilePathIsID: filePath,
-        contentWithoutYamlOrLinks: '# Test',
-        nodeUIMetadata: {
-            color: O.none,
-            position: O.none,
-            additionalYAMLProps: new Map([['agent_name', agentName]]),
-            isContextNode: false
-        }
-    }
+const emptyGraph: Graph = {
+    nodes: {},
+    incomingEdgesIndex: new Map(),
+    nodeByBaseName: new Map(),
+    unresolvedLinksIndex: new Map()
 }
-
-function buildGraph(nodes: GraphNode[]): Graph {
-    const nodesRecord: Record<string, GraphNode> = {}
-    for (const node of nodes) {
-        nodesRecord[node.absoluteFilePathIsID] = node
-    }
-    return {
-        nodes: nodesRecord,
-        incomingEdgesIndex: new Map(),
-        nodeByBaseName: new Map(),
-        unresolvedLinksIndex: new Map()
-    }
-}
-
-const emptyGraph: Graph = buildGraph([])
 
 // ─── HOME management (shared across all describe blocks) ────────────────────
 
@@ -133,27 +111,45 @@ function writeHooks(hooks: unknown): void {
     )
 }
 
+function writeDefaultAuditScript(source: string): void {
+    fs.writeFileSync(path.join(tempHome, 'brain', 'automation', 'stop-gate-audit.ts'), source)
+}
+
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
 describe('runStopHooks with default config', () => {
-    // No hooks.json written → DEFAULT_HOOKS fires (skill-obligation-audit + progress-node-check)
-    // skill-obligation-audit → auditAgent returns null (no ~/brain/SKILL.md in tempHome) → passed
-    // progress-node-check → depends on whether graph has nodes for the agent
+    it('uses the default standalone audit command and passes stdin context', async () => {
+        const ctxFile: string = path.join(os.tmpdir(), `default-hook-stdin-${Date.now()}.json`)
+        writeDefaultAuditScript(`
+import * as fs from 'fs'
 
-    it('fails when agent has no progress nodes', async () => {
+const input = fs.readFileSync(0, 'utf-8')
+fs.writeFileSync(${JSON.stringify(ctxFile)}, input)
+process.exit(0)
+`)
+
+        const record: TerminalRecord = makeRecord('test-agent')
+        const result: StopHookResult = await runStopHooks('test-agent', emptyGraph, [record])
+        expect(result.passed).toBe(true)
+
+        const written: string = fs.readFileSync(ctxFile, 'utf-8')
+        const ctx: Record<string, unknown> = JSON.parse(written) as Record<string, unknown>
+        expect(ctx.terminalId).toBe('test-agent')
+        expect(ctx.agentName).toBe('test-agent')
+
+        fs.rmSync(ctxFile, {force: true})
+    })
+
+    it('blocks when the default standalone audit exits 2', async () => {
+        writeDefaultAuditScript(`
+process.stderr.write('default audit blocked stop\\n')
+process.exit(2)
+`)
+
         const record: TerminalRecord = makeRecord('test-agent')
         const result: StopHookResult = await runStopHooks('test-agent', emptyGraph, [record])
         expect(result.passed).toBe(false)
-        expect(result.message).toContain('No progress nodes')
-    })
-
-    it('passes when agent has progress nodes and no SKILL.md obligations', async () => {
-        // Fake file path — statSync will throw, triggering the catch-clause that includes the node
-        const node: GraphNode = buildNode('/fake/progress-node.md', 'test-agent')
-        const graph: Graph = buildGraph([node])
-        const record: TerminalRecord = makeRecord('test-agent')
-        const result: StopHookResult = await runStopHooks('test-agent', graph, [record])
-        expect(result.passed).toBe(true)
+        expect(result.message).toContain('default audit blocked stop')
     })
 })
 
@@ -199,9 +195,8 @@ describe('shell command hooks', () => {
 })
 
 describe('hook aggregation', () => {
-    it('mixed pass + fail aggregates to fail', async () => {
-        const node: GraphNode = buildNode('/fake/node.md', 'agg-agent')
-        const graph: Graph = buildGraph([node])
+    it('legacy builtin hooks warn, pass, and still allow later command failures to aggregate', async () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
         writeHooks({
             Stop: [
                 {type: 'builtin', name: 'progress-node-check'},
@@ -209,9 +204,13 @@ describe('hook aggregation', () => {
             ]
         })
         const record: TerminalRecord = makeRecord('agg-agent')
-        const result: StopHookResult = await runStopHooks('agg-agent', graph, [record])
+        const result: StopHookResult = await runStopHooks('agg-agent', emptyGraph, [record])
         expect(result.passed).toBe(false)
         expect(result.message).toContain('shell hook error')
+        expect(warnSpy).toHaveBeenCalledWith(
+            '[stopGateHookRunner] builtin hook "progress-node-check" is no longer supported; skipping.'
+        )
+        warnSpy.mockRestore()
     })
 
     it('all pass = overall pass', async () => {

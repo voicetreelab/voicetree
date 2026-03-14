@@ -4,8 +4,9 @@
  * Public API:
  * - runStopHooks(terminalId, graph, records) → Promise<StopHookResult>
  *
- * Reads ~/brain/automation/hooks.json, runs each hook (built-in or shell command),
- * and aggregates results. Falls back to DEFAULT_HOOKS if config is missing.
+ * Reads ~/brain/automation/hooks.json, runs each hook, and aggregates results.
+ * Legacy built-ins are skipped with a warning. Falls back to DEFAULT_HOOKS if
+ * config is missing.
  */
 
 import * as fs from 'fs'
@@ -13,8 +14,6 @@ import * as O from 'fp-ts/lib/Option.js'
 import {spawnSync, type SpawnSyncReturns} from 'child_process'
 import type {Graph} from '@/pure/graph'
 import type {TerminalRecord} from './terminal-registry'
-import {auditAgent, buildDeficiencyPrompt, type ComplianceResult} from './stopGateAudit'
-import {getNewNodesForAgent} from '@/shell/edge/main/mcp-server/getNewNodesForAgent'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -40,50 +39,13 @@ type HookEntry =
 
 type HookConfig = { Stop: HookEntry[] }
 
-type BuiltinHookFn = (
-    context: StopHookContext,
-    graph: Graph,
-    records: readonly TerminalRecord[]
-) => StopHookResult
-
 // ─── Default config ───────────────────────────────────────────────────────────
 
 const DEFAULT_HOOKS: HookConfig = {
     Stop: [
-        { type: 'builtin', name: 'skill-obligation-audit' },
-        { type: 'builtin', name: 'progress-node-check' }
+        { type: 'command', command: 'npx tsx ~/brain/automation/stop-gate-audit.ts' }
     ]
 }
-
-// ─── Built-in hooks ───────────────────────────────────────────────────────────
-
-function skillObligationAudit(
-    context: StopHookContext,
-    graph: Graph,
-    records: readonly TerminalRecord[]
-): StopHookResult {
-    const result: ComplianceResult | null = auditAgent(context.terminalId, graph, records)
-    if (result === null) return { passed: true }
-    if (result.passed) return { passed: true }
-    return { passed: false, message: buildDeficiencyPrompt(result) }
-}
-
-function progressNodeCheck(
-    context: StopHookContext,
-    graph: Graph,
-    records: readonly TerminalRecord[]
-): StopHookResult {
-    const record: TerminalRecord | undefined = records.find(r => r.terminalId === context.terminalId)
-    const spawnedAt: number = record?.spawnedAt ?? 0
-    const hasNodes: boolean = getNewNodesForAgent(graph, context.agentName, spawnedAt).length > 0
-    if (hasNodes) return { passed: true }
-    return { passed: false, message: 'No progress nodes created — agent produced no visible work' }
-}
-
-const builtinHooks: Map<string, BuiltinHookFn> = new Map([
-    ['skill-obligation-audit', skillObligationAudit],
-    ['progress-node-check', progressNodeCheck]
-])
 
 // ─── Config loading ───────────────────────────────────────────────────────────
 
@@ -101,14 +63,12 @@ function loadHookConfig(): HookConfig {
 // ─── Hook runners ─────────────────────────────────────────────────────────────
 
 function runBuiltinHook(
-    entry: { type: 'builtin'; name: string },
-    context: StopHookContext,
-    graph: Graph,
-    records: readonly TerminalRecord[]
+    entry: { type: 'builtin'; name: string }
 ): StopHookResult {
-    const fn: BuiltinHookFn | undefined = builtinHooks.get(entry.name)
-    if (!fn) return { passed: true } // unknown builtin — skip
-    return fn(context, graph, records)
+    console.warn(
+        `[stopGateHookRunner] builtin hook "${entry.name}" is no longer supported; skipping.`
+    )
+    return { passed: true }
 }
 
 function runShellHook(
@@ -171,7 +131,7 @@ function buildContext(
 
 export async function runStopHooks(
     terminalId: string,
-    graph: Graph,
+    _graph: Graph,
     records: readonly TerminalRecord[]
 ): Promise<StopHookResult> {
     const context: StopHookContext | null = buildContext(terminalId, records)
@@ -183,7 +143,7 @@ export async function runStopHooks(
 
     for (const entry of config.Stop) {
         const result: StopHookResult = entry.type === 'builtin'
-            ? runBuiltinHook(entry, context, graph, records)
+            ? runBuiltinHook(entry)
             : runShellHook(entry, context)
 
         if (!result.passed) {
