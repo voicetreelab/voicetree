@@ -123,6 +123,10 @@ export function parseObligations(skillContent: string): Obligation[] {
     return obligations
 }
 
+function resolveToAbsolute(skillPath: string): string {
+    return skillPath.replace(/^~\/brain\//, (process.env.HOME ?? '') + '/brain/')
+}
+
 function extractWorkflowName(skillPath: string): string {
     const parts: string[] = skillPath.split('/')
     const skillIndex: number = parts.indexOf('SKILL.md')
@@ -160,21 +164,25 @@ function checkCompliance(obligations: readonly Obligation[], evidence: WorkEvide
                 childPath => childPath === obligation.workflowPath
             )
             if (!satisfied) {
+                const absPath: string = resolveToAbsolute(obligation.workflowPath)
                 violations.push({
                     obligation,
-                    reason: `Hard edge violation: did not spawn workflow "${obligation.workflowName}"`
+                    reason: `You have not spawned an agent on "${absPath}". Hard edges require spawning a child agent on this workflow.`
                 })
             }
         } else {
-            // Soft: check if workflow mentioned in any progress node content
+            // Soft: check if workflow path OR name mentioned in any progress node content
+            const resolvedPath: string = resolveToAbsolute(obligation.workflowPath)
             const mentioned: boolean = evidence.progressNodes.some(node => {
                 const content: string = node.contentWithoutYamlOrLinks.toLowerCase()
-                return content.includes(obligation.workflowName.toLowerCase())
+                return content.includes(resolvedPath.toLowerCase())
+                    || content.includes(obligation.workflowPath.toLowerCase())
+                    || content.includes(obligation.workflowName.toLowerCase())
             })
             if (!mentioned) {
                 violations.push({
                     obligation,
-                    reason: `Soft edge violation: did not reason about "${obligation.workflowName}" in any progress node`
+                    reason: `You have not addressed "${resolvedPath}". Either spawn an agent on it, or read it yourself and address each point in a progress node.`
                 })
             }
         }
@@ -201,14 +209,14 @@ function checkCompliance(obligations: readonly Obligation[], evidence: WorkEvide
 export function auditAgent(terminalId: string, graph: Graph, records: readonly TerminalRecord[]): ComplianceResult | null {
     const skillPaths: string[] = deriveSkillPaths(terminalId, graph, records)
 
-    // No explicit SKILL.md — virtual root with soft edge to ~/brain/SKILL.md
+    // No explicit SKILL.md — single soft obligation to read ~/brain/SKILL.md
     if (skillPaths.length === 0) {
         const brainSkillPath: string = '~/brain/SKILL.md'
         const resolved: string = (process.env.HOME ?? '') + '/brain/SKILL.md'
         try { fs.accessSync(resolved) } catch { return null }
 
         const rootObligations: Obligation[] = [
-            { type: 'soft', workflowPath: brainSkillPath, workflowName: 'brain' }
+            { type: 'soft', workflowPath: brainSkillPath, workflowName: 'SKILL.md' }
         ]
         const evidence: WorkEvidence = collectEvidence(terminalId, graph, records)
         return checkCompliance(rootObligations, evidence)
@@ -242,7 +250,7 @@ export function auditAgent(terminalId: string, graph: Graph, records: readonly T
  * Build a deficiency prompt for a failed audit.
  */
 export function buildDeficiencyPrompt(result: ComplianceResult): string {
-    const lines: string[] = ['STOP GATE AUDIT FAILED. Address these before exiting:\n']
+    const lines: string[] = ['STOP GATE AUDIT FAILED. For each obligation below, either spawn an agent on it OR read the SKILL.md yourself and address each point in a progress node:\n']
     for (const v of result.violations) {
         lines.push(`- ${v.reason}`)
     }
