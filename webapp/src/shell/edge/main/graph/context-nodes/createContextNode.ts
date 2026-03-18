@@ -247,7 +247,10 @@ function getNodeSummaryContent(node: GraphNode, escapedContent: string): string 
     const props: ReadonlyMap<string, string> = node.nodeUIMetadata.additionalYAMLProps
     const summary: string | undefined = props instanceof Map ? props.get('summary') : undefined
     if (summary) return summary
-    return escapedContent.split('\n').filter((l: string) => l.trim().length > 0).slice(0, 2).join('\n')
+    const nonEmptyLines: string[] = escapedContent.split('\n').filter((l: string) => l.trim().length > 0)
+    const preview: string = nonEmptyLines.slice(0, 2).join('\n')
+    const omitted: number = nonEmptyLines.length - 2
+    return omitted > 0 ? `${preview}\n  ...${omitted} additional lines` : preview
 }
 
 /**
