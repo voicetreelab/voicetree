@@ -35,6 +35,7 @@ import {
 import {selectFloatingWindowNode} from "@/shell/edge/UI-edge/floating-windows/select-floating-window-node";
 import {setupAutoHeight} from "@/shell/edge/UI-edge/floating-windows/editors/SetupAutoHeight";
 import {createWindowChrome} from "@/shell/edge/UI-edge/floating-windows/create-window-chrome";
+import {FLOATING_EDITOR_WIDTH, ANCHORED_EDITOR_WIDTH} from "@/shell/edge/UI-edge/floating-windows/types";
 
 // Re-export from decomposed modules for backwards compatibility
 export {isMouseInHoverZone, closeHoverEditor, setupCommandHover} from './HoverEditor';
@@ -90,12 +91,15 @@ export async function createFloatingEditor(
     }
 
     // Create EditorData using factory function
+    // Anchored editors get 35% more width than hover editors
+    const editorWidth: number = anchoredToNodeId ? ANCHORED_EDITOR_WIDTH : FLOATING_EDITOR_WIDTH;
     const editorData: EditorData = createEditorData({
         contentLinkedToNodeId: nodeId,
         title,
         anchoredToNodeId,
         initialContent: content,
         resizable: true,
+        shadowNodeDimensions: { width: editorWidth, height: 400 },
     });
 
     const editorId: EditorId = getEditorId(editorData);

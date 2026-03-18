@@ -92,6 +92,11 @@ export function getShadowNodeIdFromData(fw: FloatingWindowData): ShadowNodeId {
     return getShadowNodeId(getFloatingWindowId(fw));
 }
 
+/** Base width for hover (floating) editors */
+export const FLOATING_EDITOR_WIDTH: number = 380;
+/** Width for anchored/pinned editors (35% wider than hover) */
+export const ANCHORED_EDITOR_WIDTH: number = Math.round(FLOATING_EDITOR_WIDTH * 1.35);
+
 export function createEditorData(params: CreateEditorDataParams): EditorData {
     return {
         type: 'Editor',
@@ -100,7 +105,7 @@ export function createEditorData(params: CreateEditorDataParams): EditorData {
         anchoredToNodeId: params.anchoredToNodeId ? O.some(params.anchoredToNodeId) : O.none,
         initialContent: params.initialContent,
         resizable: params.resizable ?? true,
-        shadowNodeDimensions: params.shadowNodeDimensions ?? { width: 380, height: 400 }, // matches getDefaultDimensions('MarkdownEditor')
+        shadowNodeDimensions: params.shadowNodeDimensions ?? { width: FLOATING_EDITOR_WIDTH, height: 400 },
     };
 }
 
