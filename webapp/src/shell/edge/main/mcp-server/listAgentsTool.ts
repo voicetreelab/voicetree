@@ -43,11 +43,14 @@ export async function listAgentsTool(): Promise<McpToolResponse> {
 
         // Determine status: exited > idle (isDone) > running
         // isDone reflects UI green indicator (no output for a period)
+        // Headless agents have no PTY, so isDone is meaningless — use process status only
         const status: 'running' | 'idle' | 'exited' = record.status === 'exited'
             ? 'exited'
-            : record.terminalData.isDone
-                ? 'idle'
-                : 'running'
+            : record.terminalData.isHeadless
+                ? 'running'
+                : record.terminalData.isDone
+                    ? 'idle'
+                    : 'running'
 
         agents.push({
             terminalId: record.terminalId,

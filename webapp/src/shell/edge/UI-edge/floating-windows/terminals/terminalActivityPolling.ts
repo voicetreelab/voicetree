@@ -40,6 +40,7 @@ function checkTerminalInactivity(): void {
     const activeId: TerminalId | null = getActiveTerminalId();
 
     for (const [terminalId, terminal] of terminals) {
+        if (terminal.isHeadless) continue; // No PTY — inactivity check is meaningless
         const shouldBeDone: boolean = isTerminalInactive(terminal.lastOutputTime, now, INACTIVITY_THRESHOLD_MS);
         if (shouldBeDone !== terminal.isDone) {
             // Phase 3: Update main process (source of truth)

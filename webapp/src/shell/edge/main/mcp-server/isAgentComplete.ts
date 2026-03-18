@@ -14,7 +14,9 @@ const SUSTAINED_IDLE_MS: number = 7_000 // 7 seconds — agent must be idle this
 export type AgentStatus = 'running' | 'idle' | 'exited'
 
 export function getAgentStatus(record: TerminalRecord): AgentStatus {
-    return record.status === 'exited' ? 'exited' : record.terminalData.isDone ? 'idle' : 'running'
+    if (record.status === 'exited') return 'exited'
+    if (record.terminalData.isHeadless) return 'running' // No PTY — isDone is meaningless
+    return record.terminalData.isDone ? 'idle' : 'running'
 }
 
 function filterOutContextNodes(
