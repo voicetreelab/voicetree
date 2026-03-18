@@ -33,10 +33,12 @@ export function buildCompletionMessage(agentResults: AgentResult[], stillWaiting
 
     if (stillWaitingOn && stillWaitingOn.length > 0) {
         lines.push(`\nStill waiting on: ${stillWaitingOn.join(', ')}`)
+        lines.push('Be patient! Stop and wait for agents to finish, you will be automatically sent a message by when they finish')
     }
 
+
     lines.push('')
-    lines.push('Tip: Use close_agent to close agents you are fully satisfied with. Leave agents open if their work has potential concerns that warrant human review.')
+    lines.push('Please use close_agent to close agents you are fully satisfied with. Leave agents open if their work has potential concerns that warrant human review.')
 
     return lines.join('\n')
 }
