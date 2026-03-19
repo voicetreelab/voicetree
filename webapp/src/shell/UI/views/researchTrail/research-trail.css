@@ -1,0 +1,87 @@
+/*
+ * Research Trail Sidebar Styles
+ * Follows terminal-tree.css patterns.
+ */
+
+.research-trail-sidebar {
+    height: 100%;
+    width: 200px;
+    min-width: 80px;
+    max-width: 300px;
+    min-height: 0;
+    background: var(--background);
+    border-right: 1px solid var(--border);
+    z-index: 1050;
+    display: flex;
+    flex-direction: column;
+}
+
+.research-trail-header {
+    padding: 6px 8px 4px;
+    font-size: 10px;
+    color: var(--muted-foreground);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+    opacity: 0.7;
+    flex-shrink: 0;
+}
+
+.research-trail-container {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 2px 0;
+}
+
+.research-trail-entry {
+    display: flex;
+    align-items: flex-start;
+    padding: 3px 8px;
+    margin: 1px 4px;
+    border-radius: 4px;
+    font-size: 11px;
+    gap: 6px;
+}
+
+.research-trail-entry.search {
+    background: rgba(59, 130, 246, 0.08);
+    border-left: 2px solid rgba(59, 130, 246, 0.4);
+}
+
+.research-trail-entry.fetch {
+    opacity: 0.7;
+    padding-left: 16px;
+}
+
+.research-trail-type {
+    flex-shrink: 0;
+    font-weight: 600;
+    font-size: 10px;
+    width: 14px;
+    text-align: center;
+    color: var(--muted-foreground);
+}
+
+.research-trail-entry.search .research-trail-type {
+    color: #3b82f6;
+}
+
+.research-trail-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.research-trail-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.research-trail-meta {
+    font-size: 9px;
+    color: var(--muted-foreground);
+    opacity: 0.6;
+}

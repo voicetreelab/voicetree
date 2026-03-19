@@ -12,11 +12,20 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/webapp/.claude/hooks/collect-changed-files.cjs\""
+            "command": "node \"$(git rev-parse --show-toplevel)/webapp/.claude/hooks/collect-changed-files.cjs\""
           },
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/webapp/.claude/hooks/file-size-check.cjs\""
+            "command": "node \"$(git rev-parse --show-toplevel)/webapp/.claude/hooks/file-size-check.cjs\""
+          }
+        ]
+      },
+      {
+        "matcher": "WebSearch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/webapp/.claude/hooks/write-search-diamond.cjs\""
           }
         ]
       }
@@ -26,7 +35,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/webapp/.claude/hooks/stop-quality-check.cjs\""
+            "command": "node \"$(git rev-parse --show-toplevel)/webapp/.claude/hooks/stop-quality-check.cjs\""
           },
           {
             "type": "command",

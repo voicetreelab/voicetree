@@ -53,6 +53,8 @@ import {createRecentNodeTabsBar} from './RecentNodeTabsBar';
 import {createTerminalTreeSidebar} from './treeStyleTerminalTabs/TerminalTreeSidebar';
 // Folder tree sidebar - shows project file hierarchy on LHS
 import {createFolderTreeSidebar} from './folderTree/FolderTreeSidebar';
+// Research trail sidebar - shows web searches and fetches on LHS
+import {createResearchTrailSidebar} from './researchTrail/ResearchTrailSidebar';
 import {toggleFolderTreeSidebar} from '@/shell/edge/UI-edge/state/FolderTreeStore';
 import {getRecentNodeHistory} from '@/shell/edge/UI-edge/state/RecentNodeHistoryStore';
 import type {RecentNodeHistory} from '@/pure/graph/recentNodeHistoryV2';
@@ -175,6 +177,9 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         createFolderTreeSidebar(sidebarWrapper, {
             onFileSelect: (path) => this.navigationService.handleSearchSelect(path),
         });
+
+        // Initialize research trail sidebar (rightmost in sidebar wrapper)
+        createResearchTrailSidebar(sidebarWrapper);
 
         // Setup view subscriptions (terminals, navigation, pinned editors)
         this.viewSubscriptionCleanups = setupViewSubscriptions({

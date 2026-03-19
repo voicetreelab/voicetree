@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__voicetree__create_graph",
+      "mcp__voicetree__search_nodes"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "WebSearch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/write-search-diamond.cjs\""
+          }
+        ]
+      }
+    ]
+  }
+}

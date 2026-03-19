@@ -49,8 +49,10 @@ import { setupWatcher } from "./file-watcher-setup";
 import { createEmptyGraph } from "@/pure/graph/createGraph";
 import { broadcastVaultState } from "./broadcast-vault-state";
 import { enableMcpJsonIntegration } from "@/shell/edge/main/mcp-server/mcp-client-config";
+import { enableClaudeHooksIntegration } from "@/shell/edge/main/mcp-server/claude-hooks-config";
 import { loadPositions, savePositionsSync } from "@/shell/edge/main/graph/positions-store";
 import { ensureProjectDotVoicetree } from "@/shell/edge/main/electron/tools-setup";
+import { startResearchTrailWatcher, stopResearchTrailWatcher } from "./research-trail-watcher";
 
 // Re-export vault-allowlist functions for api.ts and tests
 export {
@@ -181,8 +183,12 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
     // Update projectRootWatchedDirectory FIRST
     setProjectRootWatchedDirectory(watchedFolderPath);
 
-    // Write .mcp.json with current MCP port so external agents can discover the server
+    // Write .mcp.json and Claude hooks so external agents can discover the server and get VoiceTree hooks
     void enableMcpJsonIntegration().catch(() => { /* MCP server may not be ready yet */ });
+    void enableClaudeHooksIntegration().catch(() => { /* MCP server may not be ready yet */ });
+
+    // Stop research trail watcher before switching
+    stopResearchTrailWatcher();
 
     // Close old watcher before attempting to load new folder
     const oldWatcher: FSWatcher | null = getWatcher();
@@ -258,6 +264,9 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
 
     // Setup file watcher - watch all paths in allowlist
     await setupWatcher(config.allowlist, watchedFolderPath);
+
+    // Start research trail watcher on the write path
+    startResearchTrailWatcher(config.writePath);
 
     // Save as last directory for auto-start on next launch
     await saveLastDirectory(watchedFolderPath);

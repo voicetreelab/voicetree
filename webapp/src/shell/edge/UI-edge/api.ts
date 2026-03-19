@@ -32,6 +32,8 @@ import {setIsTrackpadScrolling} from "@/shell/edge/UI-edge/state/trackpad-state"
 import {closeTerminalById} from "@/shell/edge/UI-edge/floating-windows/terminals/closeTerminalById";
 import {getInjectBarHandle} from "@/shell/UI/floating-windows/terminals/InjectBar";
 import type {TerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
+import {syncResearchTrailFromMain} from "@/shell/edge/UI-edge/state/ResearchTrailStore";
+import type {ResearchTrailEntry} from "@/shell/edge/UI-edge/state/ResearchTrailStore";
 
 /**
  * Update floating editors from external FS changes
@@ -150,6 +152,9 @@ export const uiAPIHandler = {
     closeTerminalById,
     updateInjectBadge,
     logHookResult,
+    syncResearchTrail(entries: ResearchTrailEntry[]): void {
+        syncResearchTrailFromMain(entries);
+    },
     onSettingsChanged: (): void => {
         for (const cb of settingsChangeListeners) cb();
     },

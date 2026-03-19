@@ -17,6 +17,7 @@ import {z} from 'zod'
 import express, {type Express} from 'express'
 import {findAvailablePort} from '@/shell/edge/main/electron/port-utils'
 import {enableMcpJsonIntegration} from './mcp-client-config'
+import {enableClaudeHooksIntegration} from './claude-hooks-config'
 
 // Import tool implementations
 import {spawnAgentTool} from './spawnAgentTool'
@@ -435,12 +436,14 @@ export async function startMcpServer(): Promise<void> {
         console.log(`[MCP] Voicetree MCP Server running on http://localhost:${mcpPort}/mcp`)
     })
 
-    // Auto-write .mcp.json so external agents (e.g. manually-launched Claude Code) can discover this server.
-    // Silently skips if no project folder is open yet (loadFolder will write it later).
+    // Auto-write .mcp.json and Claude hooks so external agents (e.g. manually-launched Claude Code)
+    // can discover this server and get VoiceTree hooks (web-search diamonds, etc.).
+    // Silently skips if no project folder is open yet (loadFolder will write them later).
     try {
         await enableMcpJsonIntegration()
+        await enableClaudeHooksIntegration()
     } catch (_e) {
-        // No watched directory yet — loadFolder will call enableMcpJsonIntegration when one is set
+        // No watched directory yet — loadFolder will call these when one is set
     }
 }
 

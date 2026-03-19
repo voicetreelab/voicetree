@@ -1,0 +1,24 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "WebSearch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \".claude/hooks/vt-search-diamond.cjs\""
+          }
+        ]
+      },
+      {
+        "matcher": "WebFetch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \".claude/hooks/vt-search-diamond.cjs\""
+          }
+        ]
+      }
+    ]
+  }
+}
