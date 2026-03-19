@@ -35,7 +35,6 @@ export function getDefaultNodeStyles(colors: GraphColorPalette, font: string, is
         'shape': 'roundrectangle',
         'background-opacity': 0,
         'border-width': 1.5,
-        'border-style': 'dashed',
         'border-color': '#888',
         'border-opacity': 0.5,
         'padding': 25,
