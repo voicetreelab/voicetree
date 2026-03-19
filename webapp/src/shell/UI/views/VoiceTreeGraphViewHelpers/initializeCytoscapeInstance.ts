@@ -20,20 +20,41 @@ export interface CytoscapeInitResult {
 /**
  * Cytoscape's WebGL render path (overrideCanvasRendererFunctions) doesn't emit the
  * 'render' event that the canvas path emits. This breaks cytoscape-navigator's
- * onRender-based thumbnail updates. Patch the renderer to always emit 'render'.
+ * onRender-based thumbnail updates. Patch the renderer to emit 'render' — but
+ * SKIP during viewport manipulation (vpManip) to avoid the navigator calling
+ * cy.png() → toDataURL which was 21% of CPU during pan/zoom.
+ *
+ * The navigator's viewport rectangle still updates during vpManip because it
+ * listens to 'zoom pan' events (not 'render'). The thumbnail updates when
+ * vpManip ends and the final redraw emits 'render'.
  */
 function patchWebglRenderEvent(cy: Core): void {
     // renderer() is not in @types/cytoscape — access via cast
-    const renderer: { webgl?: boolean; render: (options?: unknown) => void } =
-        (cy as unknown as { renderer: () => { webgl?: boolean; render: (options?: unknown) => void } }).renderer();
+    const renderer: {
+        webgl?: boolean;
+        render: (options?: unknown) => void;
+        data?: { wheelZooming?: boolean };
+        pinching?: boolean;
+        swipePanning?: boolean;
+        hoverData?: { draggingEles?: boolean };
+    } =
+        (cy as unknown as { renderer: () => typeof renderer }).renderer();
     if (!renderer.webgl) return;
 
     const originalRender: (options?: unknown) => void = renderer.render.bind(renderer);
     renderer.render = function (options?: unknown): void {
         originalRender(options);
-        // WebGL path skips cy.emit('render'); canvas fallback already emits it,
-        // but double-emit is harmless — navigator throttles with rerenderDelay.
-        cy.emit('render');
+        // Skip 'render' event during viewport manipulation to prevent navigator
+        // minimap from calling cy.png() → toDataURL (was 21% of CPU during pan/zoom)
+        // vpManip depends on renderer.data.wheelZooming, set by signalViewportManipulation()
+        // in largegraphPerformance.ts (called by NavigationGestureService on pan/zoom)
+        const vpManip: boolean = renderer.data?.wheelZooming === true
+            || renderer.pinching === true
+            || renderer.swipePanning === true
+            || renderer.hoverData?.draggingEles === true;
+        if (!vpManip) {
+            cy.emit('render');
+        }
     };
 }
 
