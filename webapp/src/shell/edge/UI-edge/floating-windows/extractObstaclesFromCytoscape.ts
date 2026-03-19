@@ -32,7 +32,7 @@ export function extractObstaclesFromCytoscape(
         .filter('node');
 
     return nearbyNodes
-        .filter((node: cytoscape.NodeSingular) => node.id() !== parentNodeId)
+        .filter((node: cytoscape.NodeSingular) => node.id() !== parentNodeId && !node.data('isFolderNode'))
         .map((node: cytoscape.NodeSingular): ObstacleBBox => {
             const pos: cytoscape.Position = node.position();
             const w: number = node.width();

@@ -17,7 +17,7 @@ function navigateToTerminalNeighborhood(cy: Core, taskNodeId: string, terminalId
     const terminalShadowNode: CollectionReturnValue = cy.getElementById(shadowNodeId);
     const taskNode: CollectionReturnValue = cy.getElementById(taskNodeId);
     const nodesToCenter: CollectionReturnValue = taskNode.length > 0
-        ? taskNode.closedNeighborhood().nodes().union(terminalShadowNode)
+        ? taskNode.closedNeighborhood().nodes().filter(n => !n.data('isFolderNode')).union(terminalShadowNode)
         : cy.collection().union(terminalShadowNode);
     cySmartCenter(cy, nodesToCenter);
 }

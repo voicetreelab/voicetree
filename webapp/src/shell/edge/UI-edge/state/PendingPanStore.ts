@@ -101,21 +101,25 @@ export function panToTrackedNode(cy: Core): boolean {
 
   if (type === 'large-batch') {
     // Large batch (>30% new nodes): fit all in view with padding
+    // Exclude folder compound nodes — their bbox encompasses all children and causes excessive zoom-out
+    const nonFolderEles: CollectionReturnValue = cy.elements().filter(ele => !ele.data('isFolderNode')) as CollectionReturnValue;
     const padding: number = getResponsivePadding(cy, 15);
     console.warn(`[panToTrackedNode] large-batch: cyFitIntoVisibleViewport(all, padding=${padding})`);
-    cyFitIntoVisibleViewport(cy, undefined, padding);
+    cyFitIntoVisibleViewport(cy, nonFolderEles, padding);
     console.warn(`[panToTrackedNode] after fit: zoom=${cy.zoom().toFixed(4)}, pan=(${cy.pan().x.toFixed(0)},${cy.pan().y.toFixed(0)})`);
     return true;
   } else if (type === 'small-graph') {
     // Fit so average node takes target fraction of viewport (smart zoom: only zooms if needed)
+    // Exclude folder compound nodes — their bbox encompasses all children and inflates the average
+    const nonFolderNodes: CollectionReturnValue = cy.nodes().filter(n => !n.data('isFolderNode')) as CollectionReturnValue;
     console.warn(`[panToTrackedNode] small-graph: cyFitCollectionByAverageNodeSize`);
-    cyFitCollectionByAverageNodeSize(cy, cy.nodes(), 0.15);
+    cyFitCollectionByAverageNodeSize(cy, nonFolderNodes, 0.15);
     return true;
   } else if (type === 'wikilink-target' && targetNodeId) {
     const targetNode: CollectionReturnValue = cy.getElementById(targetNodeId);
     if (targetNode.length > 0) {
-      // Include target + d=1 neighbors for spatial context
-      const nodesToCenter: CollectionReturnValue = targetNode.closedNeighborhood().nodes() as CollectionReturnValue;
+      // Include target + d=1 neighbors for spatial context (exclude folder compound nodes)
+      const nodesToCenter: CollectionReturnValue = targetNode.closedNeighborhood().nodes().filter(n => !n.data('isFolderNode')) as CollectionReturnValue;
       console.warn(`[panToTrackedNode] wikilink-target: centering on ${targetNodeId}`);
       cySmartCenter(cy, nodesToCenter);
       return true;

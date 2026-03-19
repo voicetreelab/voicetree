@@ -67,6 +67,6 @@ export function getVisibleNodeIds(cy: Core, spatialIndex: SpatialIndex): string[
   const hits: readonly SpatialNodeEntry[] = queryNodesInRect(spatialIndex, rect);
   // Filter out shadow nodes
   return hits
-    .filter(entry => !cy.$id(entry.nodeId).data('isShadowNode'))
+    .filter(entry => !cy.$id(entry.nodeId).data('isShadowNode') && !cy.$id(entry.nodeId).data('isFolderNode'))
     .map(entry => entry.nodeId);
 }

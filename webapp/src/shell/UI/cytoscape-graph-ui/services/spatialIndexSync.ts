@@ -78,7 +78,8 @@ export function getCurrentIndex(cy: Core): SpatialIndex | undefined {
  * Called on layoutstop and during initial setup.
  */
 function rebuildIndex(cy: Core): void {
-    const nodeEntries: SpatialNodeEntry[] = cy.nodes().map(cyNodeToEntry);
+    // Exclude folder compound nodes — their bbox encompasses all children, creating huge obstacles
+    const nodeEntries: SpatialNodeEntry[] = cy.nodes().filter(n => !n.data('isFolderNode')).map(cyNodeToEntry);
     const edgeEntries: SpatialEdgeEntry[] = cy.edges().map(cyEdgeToEntry);
     indices.set(cy, createSpatialIndex(nodeEntries, edgeEntries));
 }
@@ -108,6 +109,7 @@ export function enableSpatialIndex(cy: Core): () => void {
         const index: SpatialIndex | undefined = indices.get(cy);
         if (!index) return;
         const node: NodeSingular = evt.target as NodeSingular;
+        if (node.data('isFolderNode')) return;
         insertNode(index, cyNodeToEntry(node));
     };
 

@@ -203,7 +203,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
 
     runColaLayout(() => {
       const padding: number = getResponsivePadding(cy, 15);
-      cyFitIntoVisibleViewport(cy, cy.elements(), padding, {
+      cyFitIntoVisibleViewport(cy, getNonContextElements(), padding, {
         duration: 300,
         easing: 'ease-in-out-cubic',
         complete: () => { (onComplete ?? onLayoutComplete)(); },

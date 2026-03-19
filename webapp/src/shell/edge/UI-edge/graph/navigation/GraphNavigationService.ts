@@ -194,7 +194,7 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
       if (linkComponents.length > 0) {
         const match: { node: NodeSingular | null; score: number } = { node: null, score: 0 };
         cy.nodes().forEach((n: NodeSingular) => {
-          if (n.data('isShadowNode') || n.data('isContextNode')) return;
+          if (n.data('isShadowNode') || n.data('isContextNode') || n.data('isFolderNode')) return;
           const score: number = linkMatchScore(nodeId, n.id());
           if (score >= linkComponents.length && score > match.score) {
             match.score = score;

@@ -88,7 +88,7 @@ export async function createAnchoredFloatingEditor(
 function navigateToEditorNeighborhood(cy: Core, nodeId: NodeIdAndFilePath): void {
     const contextNode: cytoscape.CollectionReturnValue = cy.getElementById(nodeId);
     const nodesToCenter: cytoscape.CollectionReturnValue = contextNode.length > 0
-        ? contextNode.closedNeighborhood()
+        ? contextNode.closedNeighborhood().filter(ele => !ele.data('isFolderNode')) as cytoscape.CollectionReturnValue
         : cy.collection();
     cySmartCenter(cy, nodesToCenter);
 }

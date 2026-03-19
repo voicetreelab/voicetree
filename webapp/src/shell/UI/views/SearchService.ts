@@ -131,7 +131,7 @@ export class SearchService {
 
     // Filter out shadow nodes (internal UI nodes for editors/terminals) and context nodes
     const visibleNodes: NodeCollection = nodes.filter((node) =>
-      !node.data('isShadowNode') && !node.data('isContextNode')
+      !node.data('isShadowNode') && !node.data('isContextNode') && !node.data('isFolderNode')
     );
 
     const searchData: NinjaAction[] = visibleNodes.map((node) => {
