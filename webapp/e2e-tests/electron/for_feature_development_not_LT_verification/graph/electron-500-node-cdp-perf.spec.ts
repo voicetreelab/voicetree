@@ -34,6 +34,7 @@ import {
   analyzeTrace,
   printMetricsTable,
   fmtMs,
+  CDP_PAN_ZOOM_CATEGORIES,
 } from './perf-helpers/cdpTrace';
 import {
   startMainProcessProfile,
@@ -199,10 +200,35 @@ test.describe('500-Node CDP Performance Trace', () => {
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const cdp = await appWindow.context().newCDPSession(appWindow);
+    let rendererProfilerActive = false;
+
+    const startRendererProfiler = async (): Promise<void> => {
+      await cdp.send('Profiler.setSamplingInterval', { interval: 100 });
+      await cdp.send('Profiler.start');
+      rendererProfilerActive = true;
+    };
+
+    const stopRendererProfiler = async (
+      options?: { suppressErrors?: boolean }
+    ): Promise<{ profile?: unknown } | undefined> => {
+      if (!rendererProfilerActive) return undefined;
+      rendererProfilerActive = false;
+      try {
+        return await cdp.send('Profiler.stop') as { profile?: unknown };
+      } catch (error) {
+        if (options?.suppressErrors) return undefined;
+        throw error;
+      }
+    };
 
     // Start main process profiling — captures everything for the entire test duration
     await startMainProcessProfile(mainInspectPort);
     console.log('[Perf Test] Main process CPU profiler started');
+
+    // Start renderer process CPU profiling via the same CDP session used for tracing
+    await cdp.send('Profiler.enable');
+    await startRendererProfiler();
+    console.log('[Perf Test] Renderer process CPU profiler started');
 
     try {
 
@@ -244,6 +270,114 @@ test.describe('500-Node CDP Performance Trace', () => {
       printMetricsTable(m);
       return m;
     });
+
+    // ======================================================================
+    // Phase 2: PAN/ZOOM profiling on settled 500-node graph
+    // ======================================================================
+
+    // Stop the whole-test renderer profiler — save CREATE-phase profile separately
+    const phase1Profile = (await stopRendererProfiler())?.profile;
+    if (phase1Profile) {
+      const phase1Json = JSON.stringify(phase1Profile, null, 2);
+      await fs.writeFile(
+        path.join(PERF_TRACES_DIR, `renderer-create-phase-${timestamp}.cpuprofile`),
+        phase1Json, 'utf8'
+      );
+      console.log('  CREATE-phase renderer profile saved');
+    }
+
+    // Extra settle time — ensure all async rendering/timers are done
+    await appWindow.waitForTimeout(2000);
+
+    // Start FRESH renderer profiler for pan/zoom ONLY (100μs sampling)
+    await startRendererProfiler();
+
+    const panZoomMetrics = await test.step('PHASE 2: PAN/ZOOM on settled graph', async () => {
+      console.log('\n=== PHASE 2: PAN/ZOOM ===');
+      await appWindow.evaluate(() => performance.mark('panzoom-start'));
+      // Use the heavier pan/zoom categories only for this investigation path.
+      await startCDPTrace(cdp, CDP_PAN_ZOOM_CATEGORIES);
+
+      // Simulate realistic pan/zoom on settled 500-node graph
+      await appWindow.evaluate(async () => {
+        interface CyPanZoom { panBy(p: {x: number; y: number}): void; zoom(o: {level: number; renderedPosition: {x: number; y: number}}): void; zoom(): number; width(): number; height(): number; nodes(): { length: number }; edges(): { length: number } }
+        interface ExtWindow { cytoscapeInstance?: CyPanZoom }
+        const cy = (window as unknown as ExtWindow).cytoscapeInstance;
+        if (!cy) throw new Error('cytoscapeInstance not available');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const renderer = (cy as unknown as { renderer: () => Record<string, any> }).renderer();
+
+        // Replicate signalViewportManipulation from largegraphPerformance.ts
+        const signalVpManip = () => {
+          if (!renderer?.hideEdgesOnViewport) return;
+          renderer.data.wheelZooming = true;
+          if (renderer.data.wheelTimeout) clearTimeout(renderer.data.wheelTimeout);
+          renderer.data.wheelTimeout = setTimeout(() => {
+            renderer.data.wheelZooming = false;
+            renderer.redrawHint('eles', true);
+            renderer.redraw();
+          }, 150);
+        };
+
+        const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+        console.log(`[PanZoom] hideEdgesOnViewport: ${renderer?.hideEdgesOnViewport}`);
+        console.log(`[PanZoom] Nodes: ${cy.nodes().length}, Edges: ${cy.edges().length}`);
+
+        // 30 pan operations with varying magnitudes
+        for (let i = 0; i < 30; i++) {
+          signalVpManip();
+          cy.panBy({ x: 150 * Math.sin(i * 0.4), y: 150 * Math.cos(i * 0.4) });
+          await delay(50);
+        }
+
+        // 10 zoom in/out cycles around viewport center
+        const center = { x: cy.width() / 2, y: cy.height() / 2 };
+        for (let i = 0; i < 10; i++) {
+          signalVpManip();
+          cy.zoom({ level: (cy.zoom as () => number)() * 1.3, renderedPosition: center });
+          await delay(50);
+          signalVpManip();
+          cy.zoom({ level: (cy.zoom as () => number)() / 1.3, renderedPosition: center });
+          await delay(50);
+        }
+
+        // 10 combined pan+zoom operations
+        for (let i = 0; i < 10; i++) {
+          signalVpManip();
+          cy.panBy({ x: 100 * Math.cos(i * 0.7), y: -100 * Math.sin(i * 0.7) });
+          cy.zoom({ level: (cy.zoom as () => number)() * (i % 2 === 0 ? 1.1 : 0.9), renderedPosition: center });
+          await delay(50);
+        }
+
+        // Wait for final render frames + edge-show timeout to complete
+        await delay(300);
+        console.log(`[PanZoom] Final zoom level: ${(cy.zoom as () => number)().toFixed(3)}`);
+      });
+
+      await appWindow.evaluate(() => performance.mark('panzoom-end'));
+
+      const trace = await stopCDPTraceAndSave(cdp, PERF_TRACES_DIR, `panzoom-500-${timestamp}.json`);
+      const m = analyzeTrace(trace, 'PAN/ZOOM on settled 500-node graph');
+      printMetricsTable(m);
+      return m;
+    });
+
+    // Stop pan/zoom-only renderer profiler and analyze
+    const panZoomProfile = (await stopRendererProfiler())?.profile;
+    if (panZoomProfile) {
+      const pzJson = JSON.stringify(panZoomProfile, null, 2);
+      const pzPath = path.join(PERF_TRACES_DIR, `panzoom-renderer-${timestamp}.cpuprofile`);
+      await fs.writeFile(pzPath, pzJson, 'utf8');
+      const sizeKB = (Buffer.byteLength(pzJson) / 1024).toFixed(0);
+      console.log(`  Pan/Zoom renderer profile: ${pzPath} (${sizeKB} KB)`);
+      const pzMetrics = analyzeMainProcessProfile(pzJson);
+      console.log('\n  PAN/ZOOM RENDERER CPU PROFILE (isolated — pan/zoom only):');
+      printMainProcessMetrics(pzMetrics);
+    }
+
+    // Restart renderer profiler for remaining phases (UPDATE + DELETE)
+    await startRendererProfiler();
 
     // Diagnostic: check for pre-existing overlaps BEFORE UPDATE
     const preUpdateOverlapInfo = await appWindow.evaluate((): string => {
@@ -366,9 +500,10 @@ test.describe('500-Node CDP Performance Trace', () => {
       console.log(`\n${sep}`);
       console.log('  500-NODE CDP PERFORMANCE TRACE — SUMMARY');
       console.log(sep);
-      console.log(`  CREATE: ${fmtMs(createMetrics.totalDurationMs)} total, longest ${fmtMs(createMetrics.longestTaskMs)}`);
-      console.log(`  UPDATE: ${fmtMs(updateMetrics.totalDurationMs)} total, longest ${fmtMs(updateMetrics.longestTaskMs)}`);
-      console.log(`  DELETE: ${fmtMs(deleteMetrics.totalDurationMs)} total, longest ${fmtMs(deleteMetrics.longestTaskMs)}`);
+      console.log(`  CREATE:   ${fmtMs(createMetrics.totalDurationMs)} total, longest ${fmtMs(createMetrics.longestTaskMs)}`);
+      console.log(`  PAN/ZOOM: ${fmtMs(panZoomMetrics.totalDurationMs)} total, longest ${fmtMs(panZoomMetrics.longestTaskMs)}`);
+      console.log(`  UPDATE:   ${fmtMs(updateMetrics.totalDurationMs)} total, longest ${fmtMs(updateMetrics.longestTaskMs)}`);
+      console.log(`  DELETE:   ${fmtMs(deleteMetrics.totalDurationMs)} total, longest ${fmtMs(deleteMetrics.longestTaskMs)}`);
       console.log(sep);
       console.log(`  Traces: ${PERF_TRACES_DIR}`);
       console.log(`  View:   chrome://tracing or https://ui.perfetto.dev`);
@@ -385,6 +520,21 @@ test.describe('500-Node CDP Performance Trace', () => {
     });
 
     } finally {
+      // Stop renderer profiler for remaining phases (UPDATE+DELETE) — pan/zoom profile saved separately
+      await test.step('Renderer process CPU profile (UPDATE+DELETE phases)', async () => {
+        const profile = (await stopRendererProfiler({ suppressErrors: true }))?.profile;
+        if (profile) {
+          const profileJson = JSON.stringify(profile, null, 2);
+          const filepath = path.join(PERF_TRACES_DIR, `renderer-update-delete-${timestamp}.cpuprofile`);
+          await fs.writeFile(filepath, profileJson, 'utf8');
+          const sizeKB = (Buffer.byteLength(profileJson) / 1024).toFixed(0);
+          console.log(`  Renderer UPDATE+DELETE profile saved: ${filepath} (${sizeKB} KB)`);
+          const metrics = analyzeMainProcessProfile(profileJson);
+          console.log('\n  (Renderer UPDATE+DELETE profile)');
+          printMainProcessMetrics(metrics);
+        }
+      });
+
       // Always stop main process profiling and save — even if test fails
       await test.step('Main process CPU profile', async () => {
         const profilePath = await stopMainProcessProfileAndSave(

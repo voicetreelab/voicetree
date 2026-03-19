@@ -30,6 +30,17 @@ export interface TraceData {
   metadata?: Record<string, unknown>;
 }
 
+export interface GpuMetrics {
+  frameCount: number;
+  estimatedFps: number;
+  rasterTotalMs: number;
+  rasterCount: number;
+  compositorFrameTotalMs: number;
+  compositorFrameCount: number;
+  longestCompositorFrameMs: number;
+  layerCount: number | null;
+}
+
 export interface PhaseMetrics {
   phaseName: string;
   totalDurationMs: number;
@@ -40,24 +51,47 @@ export interface PhaseMetrics {
   longestTaskMs: number;
   topFunctions: Array<{ name: string; totalMs: number }>;
   userTimingMarks: string[];
+  gpu: GpuMetrics;
 }
 
 // ============================================================================
 // CDP trace capture (side-effectful)
 // ============================================================================
 
-const CDP_TRACE_CATEGORIES = [
+const CDP_BASELINE_CATEGORY_PARTS: string[] = [
   'devtools.timeline',
   'v8',
   'v8.execute',
   'blink.user_timing',
   'disabled-by-default-devtools.timeline',
-  'disabled-by-default-v8.cpu_profiler',
+];
+
+const CDP_PAN_ZOOM_EXTRA_CATEGORY_PARTS: string[] = [
+  'gpu',
+  'viz',
+  'cc',
+  'disabled-by-default-gpu.service',
+  'disabled-by-default-cc',
+  'disabled-by-default-cc.debug',
+  'disabled-by-default-gpu.device',
+  'compositor',
+  'benchmark',
+];
+
+// Renderer CPU sampling comes from the Profiler domain, so traces stay lighter
+// and avoid duplicate v8.cpu_profiler events.
+export const CDP_BASELINE_CATEGORIES = CDP_BASELINE_CATEGORY_PARTS.join(',');
+export const CDP_PAN_ZOOM_CATEGORIES = [
+  ...CDP_BASELINE_CATEGORY_PARTS,
+  ...CDP_PAN_ZOOM_EXTRA_CATEGORY_PARTS,
 ].join(',');
 
-export async function startCDPTrace(cdp: CDPSession): Promise<void> {
+export async function startCDPTrace(
+  cdp: CDPSession,
+  categories: string = CDP_BASELINE_CATEGORIES
+): Promise<void> {
   await cdp.send('Tracing.start', {
-    categories: CDP_TRACE_CATEGORIES,
+    categories,
     transferMode: 'ReturnAsStream',
   });
 }
@@ -114,10 +148,15 @@ export function analyzeTrace(traceData: TraceData, phaseName: string): PhaseMetr
     return emptyMetrics(phaseName);
   }
 
-  const timestamps = events.filter((e) => e.ts > 0).map((e) => e.ts);
-  const minTs = Math.min(...timestamps);
-  const maxTs = Math.max(...timestamps);
-  const totalDurationMs = (maxTs - minTs) / 1000;
+  let minTs = Infinity;
+  let maxTs = -Infinity;
+  for (const e of events) {
+    if (e.ts > 0) {
+      if (e.ts < minTs) minTs = e.ts;
+      if (e.ts > maxTs) maxTs = e.ts;
+    }
+  }
+  const totalDurationMs = maxTs > minTs ? (maxTs - minTs) / 1000 : 0;
 
   let jsExecutionUs = 0;
   let layoutUs = 0;
@@ -126,6 +165,15 @@ export function analyzeTrace(traceData: TraceData, phaseName: string): PhaseMetr
   let longestTaskUs = 0;
   const functionTimes = new Map<string, number>();
   const userTimingMarks: string[] = [];
+
+  // GPU / compositor accumulators
+  let beginFrameCount = 0;
+  let rasterTotalUs = 0;
+  let rasterCount = 0;
+  let compositorFrameTotalUs = 0;
+  let compositorFrameCount = 0;
+  let longestCompositorFrameUs = 0;
+  let layerCount: number | null = null;
 
   for (const event of events) {
     const dur = event.dur ?? 0;
@@ -151,12 +199,34 @@ export function analyzeTrace(traceData: TraceData, phaseName: string): PhaseMetr
     if (event.cat === 'blink.user_timing' && (event.ph === 'R' || event.ph === 'I')) {
       userTimingMarks.push(event.name);
     }
+
+    // GPU / compositor events
+    if (matchesTraceEventName(event.name, 'BeginFrame')) {
+      beginFrameCount++;
+    }
+    if (matchesTraceEventName(event.name, 'RasterTask') && dur > 0) {
+      rasterTotalUs += dur;
+      rasterCount++;
+    }
+    if (matchesTraceEventName(event.name, 'DrawFrame', 'DrawAndSwap') && dur > 0) {
+      compositorFrameTotalUs += dur;
+      compositorFrameCount++;
+      if (dur > longestCompositorFrameUs) longestCompositorFrameUs = dur;
+    }
+    if (matchesTraceEventName(event.name, 'CalculateRenderPasses')) {
+      const count = event.args?.['layerCount'] as number | undefined
+        ?? event.args?.['layer_count'] as number | undefined;
+      if (count != null) layerCount = count;
+    }
   }
 
   const topFunctions = Array.from(functionTimes.entries())
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
     .map(([name, totalUs]) => ({ name, totalMs: totalUs / 1000 }));
+
+  const durationSec = totalDurationMs / 1000;
+  const estimatedFps = durationSec > 0 ? beginFrameCount / durationSec : 0;
 
   return {
     phaseName,
@@ -168,6 +238,16 @@ export function analyzeTrace(traceData: TraceData, phaseName: string): PhaseMetr
     longestTaskMs: longestTaskUs / 1000,
     topFunctions,
     userTimingMarks: Array.from(new Set(userTimingMarks)),
+    gpu: {
+      frameCount: beginFrameCount,
+      estimatedFps,
+      rasterTotalMs: rasterTotalUs / 1000,
+      rasterCount,
+      compositorFrameTotalMs: compositorFrameTotalUs / 1000,
+      compositorFrameCount,
+      longestCompositorFrameMs: longestCompositorFrameUs / 1000,
+      layerCount,
+    },
   };
 }
 
@@ -182,6 +262,16 @@ function emptyMetrics(phaseName: string): PhaseMetrics {
     longestTaskMs: 0,
     topFunctions: [],
     userTimingMarks: [],
+    gpu: {
+      frameCount: 0,
+      estimatedFps: 0,
+      rasterTotalMs: 0,
+      rasterCount: 0,
+      compositorFrameTotalMs: 0,
+      compositorFrameCount: 0,
+      longestCompositorFrameMs: 0,
+      layerCount: null,
+    },
   };
 }
 
@@ -219,6 +309,23 @@ export function printMetricsTable(metrics: PhaseMetrics): void {
       console.log(`│   ${mark.slice(0, 55).padEnd(56)} │`);
     }
   }
+  const g = metrics.gpu;
+  const hasGpuData = g.frameCount > 0 || g.rasterCount > 0 || g.compositorFrameCount > 0;
+  console.log(`├${divider}┤`);
+  console.log(`│ GPU / Compositor:${' '.repeat(41)} │`);
+  if (hasGpuData) {
+    console.log(`│ Frames (BeginFrame):${`${g.frameCount} (~${g.estimatedFps.toFixed(1)} fps)`.padEnd(38)} │`);
+    console.log(`│ Raster tasks:       ${`${g.rasterCount} totalling ${fmtMs(g.rasterTotalMs)}`.padEnd(38)} │`);
+    console.log(`│ Compositor draws:   ${`${g.compositorFrameCount} totalling ${fmtMs(g.compositorFrameTotalMs)}`.padEnd(38)} │`);
+    console.log(`│ Longest comp frame: ${fmtMs(g.longestCompositorFrameMs).padEnd(38)} │`);
+    console.log(`│ Layer count:        ${(g.layerCount != null ? String(g.layerCount) : 'n/a').padEnd(38)} │`);
+  } else {
+    console.log(`│ (no GPU trace events captured)${' '.repeat(28)} │`);
+  }
   console.log(`└${divider}┘`);
   console.log('');
+}
+
+function matchesTraceEventName(eventName: string, ...suffixes: string[]): boolean {
+  return suffixes.some((suffix) => eventName === suffix || eventName.endsWith(`::${suffix}`));
 }
