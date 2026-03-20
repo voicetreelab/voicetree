@@ -177,7 +177,10 @@ export function createTrafficLightsForTarget(target: TrafficLightTarget): HTMLDi
     if (target.kind === 'editor-window') {
         const { editor, cy, closeEditor } = target;
         const nodeId: NodeIdAndFilePath = editor.contentLinkedToNodeId;
-        const shadowNodeId: ShadowNodeId = getShadowNodeIdFromData(editor);
+        // Editors don't create shadow nodes — anchored editors reuse the real
+        // Cy node (AnchoredEditor.ts) and hover editors use graphX/graphY.
+        // Zoom to the real node, matching the hover-menu pattern.
+        const shadowNodeId: ShadowNodeId = nodeId as ShadowNodeId;
         return createTrafficLights({
             onClose: (): void => {
                 closeEditor(cy, editor);

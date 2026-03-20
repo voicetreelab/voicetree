@@ -41,15 +41,24 @@ const test = base.extend<{
   electronApp: async ({}, use) => {
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-editor-fullscreen-test-'));
 
-    // Write the config file to auto-load the test vault
+    // Create projects.json with a pre-saved project (required for current app startup)
+    const projectsPath = path.join(tempUserDataPath, 'projects.json');
+    const savedProject = {
+      id: 'fullscreen-zoom-test-project',
+      path: FIXTURE_VAULT_PATH,
+      name: '2025-09-30',
+      type: 'folder',
+      lastOpened: Date.now(),
+      voicetreeInitialized: true
+    };
+    await fs.writeFile(projectsPath, JSON.stringify([savedProject], null, 2), 'utf8');
+
+    // Legacy config for backwards compatibility
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({
       lastDirectory: FIXTURE_VAULT_PATH,
-      suffixes: {
-        [FIXTURE_VAULT_PATH]: ''
-      }
     }, null, 2), 'utf8');
-    console.log('[Test] Created config file to auto-load:', FIXTURE_VAULT_PATH);
+    console.log('[Test] Created config files to load:', FIXTURE_VAULT_PATH);
 
     const electronApp = await electron.launch({
       args: [
@@ -59,9 +68,11 @@ const test = base.extend<{
       env: {
         ...process.env,
         NODE_ENV: 'test',
-        HEADLESS_TEST: '1'
+        HEADLESS_TEST: '1',
+        MINIMIZE_TEST: '1',
+        VOICETREE_PERSIST_STATE: '1'
       },
-      timeout: 10000
+      timeout: 15000
     });
 
     await use(electronApp);
@@ -96,8 +107,15 @@ const test = base.extend<{
 
     await window.waitForLoadState('domcontentloaded');
 
+    // Navigate through project selection screen
+    await window.waitForSelector('text=Recent Projects', { timeout: 10000 });
+    const projectButton = window.locator('button:has-text("2025-09-30")').first();
+    await projectButton.click();
+    console.log('[Test] Clicked project to navigate to graph view');
+
+    // Wait for cytoscape instance
     try {
-      await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
+      await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 15000 });
     } catch (error) {
       console.error('Failed to initialize cytoscape instance:', error);
       throw error;
@@ -161,7 +179,7 @@ test.describe('Editor Fullscreen Zoom E2E', () => {
 
     // Verify fullscreen button is visible (not hidden)
     const fullscreenButtonVisible = await appWindow.evaluate(() => {
-      const btn = document.querySelector('.cy-floating-window-editor .cy-floating-window-fullscreen') as HTMLButtonElement;
+      const btn = document.querySelector('.cy-floating-window-editor .traffic-light-fullscreen') as HTMLButtonElement;
       if (!btn) return false;
       return btn.style.display !== 'none';
     });
@@ -187,7 +205,7 @@ test.describe('Editor Fullscreen Zoom E2E', () => {
 
     console.log('=== STEP 6: Click fullscreen button on editor ===');
     await appWindow.evaluate(() => {
-      const fullscreenBtn = document.querySelector('.cy-floating-window-editor .cy-floating-window-fullscreen') as HTMLButtonElement;
+      const fullscreenBtn = document.querySelector('.cy-floating-window-editor .traffic-light-fullscreen') as HTMLButtonElement;
       if (!fullscreenBtn) throw new Error('Fullscreen button not found on editor');
       fullscreenBtn.click();
     });
@@ -218,7 +236,7 @@ test.describe('Editor Fullscreen Zoom E2E', () => {
 
     console.log('=== STEP 8: Click fullscreen button again to restore ===');
     await appWindow.evaluate(() => {
-      const fullscreenBtn = document.querySelector('.cy-floating-window-editor .cy-floating-window-fullscreen') as HTMLButtonElement;
+      const fullscreenBtn = document.querySelector('.cy-floating-window-editor .traffic-light-fullscreen') as HTMLButtonElement;
       if (!fullscreenBtn) throw new Error('Fullscreen button not found on editor');
       fullscreenBtn.click();
     });
@@ -291,7 +309,7 @@ test.describe('Editor Fullscreen Zoom E2E', () => {
     });
 
     await appWindow.evaluate(() => {
-      const fullscreenBtn = document.querySelector('.cy-floating-window-editor .cy-floating-window-fullscreen') as HTMLButtonElement;
+      const fullscreenBtn = document.querySelector('.cy-floating-window-editor .traffic-light-fullscreen') as HTMLButtonElement;
       if (!fullscreenBtn) throw new Error('Fullscreen button not found');
       fullscreenBtn.click();
     });
@@ -323,7 +341,7 @@ test.describe('Editor Fullscreen Zoom E2E', () => {
 
     console.log('=== STEP 6: Click button to exit fullscreen ===');
     await appWindow.evaluate(() => {
-      const fullscreenBtn = document.querySelector('.cy-floating-window-editor .cy-floating-window-fullscreen') as HTMLButtonElement;
+      const fullscreenBtn = document.querySelector('.cy-floating-window-editor .traffic-light-fullscreen') as HTMLButtonElement;
       if (!fullscreenBtn) throw new Error('Fullscreen button not found');
       fullscreenBtn.click();
     });

@@ -85,11 +85,11 @@ export function attachFullscreenZoom(
             // Already zoomed in → zoom out (restore if we have state, otherwise 2x)
             const storedViewport: PreviousViewport | undefined = windowViewportStates.get(shadowNodeId);
             if (storedViewport) {
-                cy.animate({
-                    zoom: storedViewport.zoom,
-                    pan: storedViewport.pan,
-                    duration: 300
-                });
+                // Set zoom and pan atomically — cy.animate({ zoom, pan }) doesn't
+                // correctly restore pan when zoom also changes (zoom around center
+                // shifts pan during interpolation).
+                cy.zoom(storedViewport.zoom);
+                cy.pan(storedViewport.pan);
                 cleanupWindowState(shadowNodeId);
             } else {
                 // No stored state, zoom out 2x
@@ -101,7 +101,8 @@ export function attachFullscreenZoom(
             }
         } else {
             // Not zoomed in → capture state and zoom in to window
-            windowViewportStates.set(shadowNodeId, { zoom: cy.zoom(), pan: cy.pan() });
+            // Clone pan — cy.pan() returns a mutable reference to the internal object
+            windowViewportStates.set(shadowNodeId, { zoom: cy.zoom(), pan: { ...cy.pan() } });
             cyFitIntoVisibleViewport(cy, shadowNode, getResponsivePadding(cy, 3));
 
             // Add ESC handler only if enabled (terminals yes, editors no due to vim)
@@ -112,11 +113,8 @@ export function attachFullscreenZoom(
                         e.stopPropagation();
                         const viewport: PreviousViewport | undefined = windowViewportStates.get(shadowNodeId);
                         if (viewport) {
-                            cy.animate({
-                                zoom: viewport.zoom,
-                                pan: viewport.pan,
-                                duration: 300
-                            });
+                            cy.zoom(viewport.zoom);
+                            cy.pan(viewport.pan);
                         }
                         cleanupWindowState(shadowNodeId);
                     }

@@ -144,7 +144,7 @@ test.describe('Full Window Mode (Browser)', () => {
 
     console.log('=== Step 8: Click fullscreen button ===');
     await page.evaluate((selector) => {
-      const fullscreenBtn = document.querySelector(`${selector} .cy-floating-window-fullscreen`) as HTMLButtonElement;
+      const fullscreenBtn = document.querySelector(`${selector} .traffic-light-fullscreen`) as HTMLButtonElement;
       if (!fullscreenBtn) throw new Error('Fullscreen button not found');
       fullscreenBtn.click();
     }, editorSelector);
@@ -195,7 +195,7 @@ test.describe('Full Window Mode (Browser)', () => {
 
     console.log('=== Step 10: Click fullscreen button again to exit ===');
     await page.evaluate((selector) => {
-      const fullscreenBtn = document.querySelector(`${selector} .cy-floating-window-fullscreen`) as HTMLButtonElement;
+      const fullscreenBtn = document.querySelector(`${selector} .traffic-light-fullscreen`) as HTMLButtonElement;
       if (!fullscreenBtn) throw new Error('Fullscreen button not found');
       fullscreenBtn.click();
     }, editorSelector);
@@ -285,7 +285,7 @@ test.describe('Full Window Mode (Browser)', () => {
 
     console.log('=== Step 6: Click fullscreen button ===');
     await page.evaluate((selector) => {
-      const fullscreenBtn = document.querySelector(`${selector} .cy-floating-window-fullscreen`) as HTMLButtonElement;
+      const fullscreenBtn = document.querySelector(`${selector} .traffic-light-fullscreen`) as HTMLButtonElement;
       if (!fullscreenBtn) throw new Error('Fullscreen button not found');
       fullscreenBtn.click();
     }, editorSelector);
@@ -366,7 +366,7 @@ test.describe('Full Window Mode (Browser)', () => {
 
     // Enter fullscreen
     await page.evaluate((selector) => {
-      const fullscreenBtn = document.querySelector(`${selector} .cy-floating-window-fullscreen`) as HTMLButtonElement;
+      const fullscreenBtn = document.querySelector(`${selector} .traffic-light-fullscreen`) as HTMLButtonElement;
       if (!fullscreenBtn) throw new Error('Fullscreen button not found');
       fullscreenBtn.click();
     }, editorSelector);
