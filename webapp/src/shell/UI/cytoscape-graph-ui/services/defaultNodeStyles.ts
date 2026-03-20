@@ -48,6 +48,22 @@ export function getDefaultNodeStyles(colors: GraphColorPalette, font: string, is
       }
     },
 
+    // Collapsed folder — fixed size box with child count badge
+    {
+      selector: 'node[?isFolderNode][?collapsed]',
+      style: {
+        'width': 40,
+        'height': 40,
+        'background-opacity': 0.15,
+        'background-color': '#888',
+        'border-style': 'solid',
+        'label': (ele: { data: (key: string) => unknown }) =>
+            `${ele.data('folderLabel')} (${ele.data('childCount') ?? '?'})`,
+        'text-valign': 'center',
+        'font-size': 14,
+      }
+    },
+
     // Task nodes - nodes with running terminals/agents become squares
     {
       selector: 'node[?hasRunningTerminal]',

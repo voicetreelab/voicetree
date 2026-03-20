@@ -13,6 +13,7 @@ import { showNoVisibleNodesToast, hideNoVisibleNodesToast, isNoVisibleNodesToast
 import { cyFitIntoVisibleViewport, getResponsivePadding } from '@/utils/responsivePadding';
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
+import { toggleFolderCollapse } from '@/shell/edge/UI-edge/graph/folderCollapse'
 
 export function setupBasicCytoscapeEventListeners(
   cy: Core,
@@ -82,6 +83,12 @@ export function setupBasicCytoscapeEventListeners(
       clearContainedHighlights(cy);
     }
   });
+
+  // Folder collapsability — double-tap folder to toggle children visibility
+  cy.on('dbltap', 'node[?isFolderNode]', (evt) => {
+    const folderId: string = evt.target.id()
+    void toggleFolderCollapse(cy, folderId)
+  })
 
   // Update node sizes when edges are added or removed
   // Only update the source and target nodes of the affected edge for efficiency

@@ -13,15 +13,8 @@ import {syncLargeGraphPerformanceMode} from "@/shell/UI/cytoscape-graph-ui/servi
 import {getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {getShadowNodeId, getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 import {createAnchoredFloatingEditor} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
-
-/**
- * Extract the folder parent path from a node ID.
- * e.g. "auth/login.md" → "auth/", "root.md" → null
- */
-function getFolderParent(nodeId: string): string | null {
-    const lastSlash: number = nodeId.lastIndexOf('/');
-    return lastSlash === -1 ? null : nodeId.slice(0, lastSlash + 1);
-}
+import { getFolderParent } from '@/pure/graph/folderCollapse'
+import { isFolderCollapsed } from '@/shell/edge/UI-edge/graph/folderCollapse'
 
 /**
  * Validates if a color value is a valid CSS color using the browser's CSS.supports API
@@ -139,6 +132,11 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                         });
                     }
 
+                    // Skip adding node to collapsed folder
+                    if (folderPath && isFolderCollapsed(folderPath)) {
+                        return;
+                    }
+
                     cy.add({
                         group: 'nodes' as const,
                         data: {
@@ -225,7 +223,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                 const folderPath: string | null = getFolderParent(nodeId);
                 if (folderPath) {
                     const folder: CollectionReturnValue = cy.getElementById(folderPath);
-                    if (folder.length > 0 && folder.data('isFolderNode') && folder.children().length === 0) {
+                    if (folder.length > 0 && folder.data('isFolderNode') && folder.children().length === 0 && !folder.data('collapsed')) {
                         folder.remove();
                     }
                 }
