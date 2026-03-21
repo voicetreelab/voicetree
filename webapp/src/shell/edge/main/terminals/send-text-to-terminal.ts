@@ -1,7 +1,7 @@
 /**
  * Sends text to a terminal as simulated keyboard input.
- * Uses escape codes to enter insert mode, writes the message body
- * in batched line chunks (≤10 lines each), and submits with a dual escape sequence.
+ * Uses escape codes to enter insert mode, writes the sanitized message body,
+ * and submits with a dual escape sequence.
  */
 
 import {getTerminalManager} from '@/shell/edge/main/terminals/terminal-manager-instance'
@@ -11,8 +11,8 @@ const CHAR_DELAY_MS: number = 5
 const ESC_DELAY_MS: number = 100
 const INSERT_MODE_DELAY_MS: number = 50
 const PREAMBLE_DUMMY: string = ' '
-const BATCH_LINE_LIMIT: number = 10
-const BATCH_DELAY_MS: number = 80
+const BATCH_CHAR_LIMIT: number = 150
+const BATCH_DELAY_MS: number = 40
 
 const terminalWriteQueues: Map<string, Promise<void>> = new Map()
 
@@ -56,19 +56,27 @@ export async function sendTextToTerminal(terminalId: string, text: string): Prom
     terminalManager.write(terminalId, '\x15') // Ctrl-U: kill line
     await new Promise(resolve => setTimeout(resolve, CHAR_DELAY_MS))
 
-    // Write message body in line-count-limited batches.
-    // A single bulk write of >~20 lines triggers Claude Code's "[N lines pasted]"
-    // collapse, which swallows the text. Batches of ≤10 lines stay under the
-    // threshold while keeping the per-batch write atomic from the PTY's perspective.
-    const lines: string[] = text.split('\n')
-    for (let i = 0; i < lines.length; i += BATCH_LINE_LIMIT) {
-        const isLastBatch: boolean = i + BATCH_LINE_LIMIT >= lines.length
-        const batchText: string = lines.slice(i, i + BATCH_LINE_LIMIT).join('\n') + (isLastBatch ? '' : '\n')
+    // Sanitize: strip characters that readline interprets as key commands.
+    // \n = Enter (accept-line, triggers autocomplete), \r = CR, \t = Tab (triggers completion),
+    // ANSI arrow sequences = cursor movement. Formatting is irrelevant for agent messages.
+    const sanitized: string = text
+        .replace(/\r?\n/g, ' ')
+        .replace(/\t/g, ' ')
+        .replace(/\x1b\[[A-D]/g, '')
+        .replace(/ {2,}/g, ' ')
+        .trim()
+
+    // Write message body in character-count-limited batches.
+    // A single bulk write of long text triggers Claude Code's "[N lines pasted]"
+    // collapse, which swallows the text. Small character batches stay under the
+    // threshold while keeping writes atomic from the PTY's perspective.
+    for (let i: number = 0; i < sanitized.length; i += BATCH_CHAR_LIMIT) {
+        const batchText: string = sanitized.slice(i, i + BATCH_CHAR_LIMIT)
         const writeResult: TerminalOperationResult = terminalManager.write(terminalId, batchText)
         if (!writeResult.success) {
             return writeResult
         }
-        if (!isLastBatch) {
+        if (i + BATCH_CHAR_LIMIT < sanitized.length) {
             await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS))
         }
     }
