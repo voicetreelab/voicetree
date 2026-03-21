@@ -21,6 +21,13 @@ import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals
 import * as O from 'fp-ts/lib/Option.js';
 import { linkMatchScore, getPathComponents } from '@/pure/graph/markdown-parsing/extract-edges';
 import { getVisibleViewportMetrics, type VisibleViewportMetrics } from '@/utils/visibleViewport';
+import { getEditorByNodeId } from '@/shell/edge/UI-edge/state/EditorStore';
+import type { NodeIdAndFilePath } from '@/pure/graph';
+
+const TERMINAL_CONTEXT_TARGET_FRACTION: number = 0.95;
+const TERMINAL_MIN_ZOOM_THRESHOLD: number = 0.7;
+const NODE_TARGET_FRACTION: number = 0.4;
+const EDITOR_TARGET_FRACTION: number = 0.6;
 
 /**
  * Manages all user-triggered navigation actions for the graph
@@ -62,8 +69,8 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
       const cy: Core = this.cy;
       const node: CollectionReturnValue = cy.getElementById(this.lastCreatedNodeId);
       if (node.length > 0) {
-        // Node takes ~10% of viewport (matches tab click / Cmd-1 behavior)
-        cyFitWithRelativeZoom(cy, node, 0.1);
+        const fraction: number = O.isSome(getEditorByNodeId(this.lastCreatedNodeId as NodeIdAndFilePath)) ? EDITOR_TARGET_FRACTION : NODE_TARGET_FRACTION;
+        cyFitWithRelativeZoom(cy, node, fraction);
       }
     }
   }
@@ -103,19 +110,17 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
 
     // If the zoom required to show terminal + parent is too zoomed out (< 0.7),
     // just fit to the terminal shadow node itself
-    const TARGET_FRACTION: number = 0.95;
-    const MIN_ZOOM_THRESHOLD: number = 0.7;
     const bb: { w: number; h: number } = nodesToFit.boundingBox();
     const viewport: VisibleViewportMetrics = getVisibleViewportMetrics(cy);
     const requiredZoom: number = (bb.w > 0 && bb.h > 0)
-      ? Math.min((viewport.width * TARGET_FRACTION) / bb.w, (viewport.height * TARGET_FRACTION) / bb.h)
+      ? Math.min((viewport.width * TERMINAL_CONTEXT_TARGET_FRACTION) / bb.w, (viewport.height * TERMINAL_CONTEXT_TARGET_FRACTION) / bb.h)
       : Infinity;
 
-    if (requiredZoom < MIN_ZOOM_THRESHOLD) {
-      // Too zoomed out to see both — just show the terminal shadow node
-      cyFitWithRelativeZoom(cy, terminalShadowNode, 0.1);
+    if (requiredZoom < TERMINAL_MIN_ZOOM_THRESHOLD) {
+      // Too zoomed out to show both — just fit the terminal shadow node at 95%
+      cyFitWithRelativeZoom(cy, terminalShadowNode, TERMINAL_CONTEXT_TARGET_FRACTION);
     } else {
-      cyFitWithRelativeZoom(cy, nodesToFit, TARGET_FRACTION);
+      cyFitWithRelativeZoom(cy, nodesToFit, TERMINAL_CONTEXT_TARGET_FRACTION);
     }
 
     // Focus the terminal so keyboard input goes directly to it
@@ -214,9 +219,8 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
       // Track as recently visited for command palette ordering
       addRecentlyVisited(resolvedNodeId);
 
-      // Animate to node - node takes 10% of viewport (comfortable with lots of context)
-      //console.log('[GraphNavigationService] Calling cyFitWithRelativeZoom on node');
-      cyFitWithRelativeZoom(cy, node, 0.1);
+      const fraction: number = O.isSome(getEditorByNodeId(resolvedNodeId as NodeIdAndFilePath)) ? EDITOR_TARGET_FRACTION : NODE_TARGET_FRACTION;
+      cyFitWithRelativeZoom(cy, node, fraction);
 
       // Select the node (deselect others first for clean single-selection)
       cy.$(':selected').unselect();

@@ -99,6 +99,25 @@ export class RadialMenuService {
         const nodeId: string = node.id();
         const cy: Core = this.cy;
 
+        // Folder nodes: only show collapse/expand + delete
+        if (node.data('isFolderNode')) {
+            const isCollapsed: boolean = node.data('collapsed')
+            commands.push({
+                content: this.createSvgIcon(isCollapsed ? 'expand' : 'collapse', isCollapsed ? 'Expand' : 'Collapse'),
+                select: async () => {
+                    const { toggleFolderCollapse } = await import('@/shell/edge/UI-edge/graph/folderCollapse')
+                    void toggleFolderCollapse(cy, nodeId)
+                },
+                enabled: true,
+            })
+            commands.push({
+                content: this.createSvgIcon('trash', 'Delete'),
+                select: this.deleteNode(nodeId),
+                enabled: true,
+            })
+            return commands
+        }
+
         // Open in Editor
         commands.push({
             content: this.createSvgIcon('edit', 'Edit'),

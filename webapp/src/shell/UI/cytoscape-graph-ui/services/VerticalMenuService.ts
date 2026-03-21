@@ -1,4 +1,4 @@
-import type {Core, Position as CyPosition, EventObject} from 'cytoscape';
+import type {Core, Position as CyPosition, EventObject, NodeSingular} from 'cytoscape';
 import ctxmenu from '@/shell/UI/lib/ctxmenu.js';
 import {mergeSelectedNodesFromUI} from "@/shell/edge/UI-edge/graph/mergeSelectedNodesFromUI";
 import {deleteSelectedNodesAction} from "@/shell/UI/cytoscape-graph-ui/actions/graphActions";
@@ -113,6 +113,25 @@ export class VerticalMenuService {
 
     private getCanvasVerticalMenuItems(position: Position): MenuItem[] {
         const menuItems: MenuItem[] = [];
+
+        // Check if click position is inside a folder node's bounding box
+        const folderAtPosition: NodeSingular = this.cy!.nodes('[?isFolderNode]').filter(node => {
+            const bb: ReturnType<NodeSingular['boundingBox']> = node.boundingBox()
+            return position.x >= bb.x1 && position.x <= bb.x2 && position.y >= bb.y1 && position.y <= bb.y2
+        }).first()
+
+        if (folderAtPosition.length) {
+            const isCollapsed: boolean = folderAtPosition.data('collapsed')
+            const folderId: string = folderAtPosition.id()
+            const folderLabel: string = folderAtPosition.data('folderLabel') as string
+            menuItems.push({
+                text: isCollapsed ? `Expand "${folderLabel}"` : `Collapse "${folderLabel}"`,
+                action: async () => {
+                    const { toggleFolderCollapse } = await import('@/shell/edge/UI-edge/graph/folderCollapse')
+                    void toggleFolderCollapse(this.cy!, folderId)
+                },
+            })
+        }
 
         if (this.deps) {
             menuItems.push({

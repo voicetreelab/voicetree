@@ -134,6 +134,18 @@ function extractWorkflowName(skillPath: string): string {
 }
 
 /**
+ * Normalize a workflow SKILL.md path for comparison.
+ * Strips everything before /workflows/ and removes .md extension,
+ * so ~/brain/workflows/meta/foo/SKILL.md and /Users/.../brain/workflows/meta/foo/SKILL.md
+ * both become /workflows/meta/foo/SKILL
+ */
+function normalizeWorkflowPath(p: string): string {
+    const match: RegExpMatchArray | null = p.match(/\/workflows\/.*$/)
+    const suffix: string = match ? match[0] : p
+    return suffix.replace(/\.md$/i, '').toLowerCase()
+}
+
+/**
  * Collect evidence of agent work: progress nodes + children's derived skill paths.
  */
 function collectEvidence(terminalId: string, graph: Graph, records: readonly TerminalRecord[]): WorkEvidence {
@@ -159,9 +171,10 @@ function checkCompliance(obligations: readonly Obligation[], evidence: WorkEvide
 
     for (const obligation of obligations) {
         if (obligation.type === 'hard') {
-            // Hard: check if a child is running this specific workflow
+            // Hard: check if a child is running this specific workflow (normalized to handle ~/brain vs absolute paths)
+            const normalizedObligation: string = normalizeWorkflowPath(obligation.workflowPath)
             const satisfied: boolean = evidence.childSkillPaths.some(
-                childPath => childPath === obligation.workflowPath
+                childPath => normalizeWorkflowPath(childPath) === normalizedObligation
             )
             if (!satisfied) {
                 const absPath: string = resolveToAbsolute(obligation.workflowPath)

@@ -1,5 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-exec /Users/bobbobby/repos/voicetree-public/webapp/node_modules/.bin/tsx \
-    /Users/bobbobby/repos/voicetree-public/webapp/src/shell/edge/main/cli/voicetree-cli.ts "$@"
+# Resolve symlinks to find the real location of this script
+_script="${BASH_SOURCE[0]}"
+while [ -L "$_script" ]; do
+    _target="$(readlink "$_script")"
+    case "$_target" in
+        /*) _script="$_target" ;;
+        *)  _script="$(dirname "$_script")/$_target" ;;
+    esac
+done
+WEBAPP_DIR="$(cd "$(dirname "$_script")/.." && pwd)"
+
+exec "$WEBAPP_DIR/node_modules/.bin/tsx" \
+    "$WEBAPP_DIR/src/shell/edge/main/cli/voicetree-cli.ts" "$@"

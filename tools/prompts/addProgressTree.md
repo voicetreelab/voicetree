@@ -61,6 +61,21 @@ Wire multi-node graphs using `parents` (local ids within the same call). Nodes w
 - **`notes`:** Architecture impact, gotchas, tech debt, difficulties.
 - **`linkedArtifacts`:** Link related artifacts (proposals, design, tasks) by basename. These render as regular markdown links in `## Related`, not graph edges.
 
+## For the next agent (non-trivial work only)
+
+Progress nodes are knowledge, not just receipts. Before writing your node, answer these. Put answers in `learnings`.
+
+**1. What did you try first, and why did you change approach?**
+Name the rejected path. "Tried X, switched to Y because Z." If you didn't change approach, say so.
+
+**2. If a future agent attempts this same task, what will they get wrong?**
+The non-obvious pitfall. Be concrete: "Don't try X because Y" or "The docs say X but actually Y."
+
+**3. What would a successor agent need to believe to continue your work without repeating your reasoning?**
+Compress your in-context learnings in such a way that a follow-up agent can truly understand your new mental model / understanding / key findings. Not what you did — what you now hold as true about the problem space.
+
+Skip learnings ONLY for atomic tasks (< 5 min, single file edit, no decisions).
+
 ## Fallback
 If the `create_graph` MCP tool is unavailable, read `addProgressTreeManualFallback.md` for manual markdown file creation instructions.
 
@@ -70,5 +85,6 @@ If the `create_graph` MCP tool is unavailable, read `addProgressTreeManualFallba
 3. All artifacts embedded verbatim in `content`
 4. Diffs included in `codeDiffs` for <40 lines changed (with `complexityScore`)
 5. `filesChanged` populated
+6. `learnings` filled for non-trivial work
 
 ALL `$VARS` (`VOICETREE_TERMINAL_ID`, `AGENT_COLOR`, `AGENT_NAME`, etc.) are environment variables already set. Check them now.

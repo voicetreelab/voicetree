@@ -329,3 +329,29 @@ export function printMetricsTable(metrics: PhaseMetrics): void {
 function matchesTraceEventName(eventName: string, ...suffixes: string[]): boolean {
   return suffixes.some((suffix) => eventName === suffix || eventName.endsWith(`::${suffix}`));
 }
+
+// ============================================================================
+// GPU trace event extraction (pure — just logs, no struct changes)
+// ============================================================================
+
+const GPU_EVENT_NAMES = new Set([
+  'GPUTask', 'gpu.RenderPass', 'GLRenderer::SwapBuffers', 'CanvasResourceProvider::Snapshot',
+]);
+
+export function logGpuTraceEvents(traceData: TraceData, label: string): void {
+  const gpuEvents = traceData.traceEvents.filter(e => {
+    if (!e.dur || e.dur <= 0) return false;
+    if (e.cat?.includes('gpu')) return true;
+    if (GPU_EVENT_NAMES.has(e.name)) return true;
+    if (e.name === 'Scheduler.RunTask' && e.cat?.includes('gpu')) return true;
+    return false;
+  });
+
+  const totalMs = gpuEvents.reduce((s, e) => s + (e.dur ?? 0), 0) / 1000;
+  console.log(`[GPU:${label}] ${gpuEvents.length} GPU events, total ${totalMs.toFixed(1)}ms`);
+
+  const top5 = [...gpuEvents].sort((a, b) => (b.dur ?? 0) - (a.dur ?? 0)).slice(0, 5);
+  for (const e of top5) {
+    console.log(`  ${e.name} [${e.cat}] ${((e.dur ?? 0) / 1000).toFixed(2)}ms`);
+  }
+}

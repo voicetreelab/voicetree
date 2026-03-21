@@ -240,17 +240,17 @@ function escapeWikilinkMarkers(content: string): string {
 
 /**
  * Get a compact summary for a neighbor node.
- * Prefers the YAML `summary` frontmatter field (written explicitly as a summary).
- * Falls back to first 2 non-empty lines of content.
+ * Always includes the first 10 non-empty lines of content.
+ * Prepends YAML `summary` field if it exists.
  */
 function getNodeSummaryContent(node: GraphNode, escapedContent: string): string {
     const props: ReadonlyMap<string, string> = node.nodeUIMetadata.additionalYAMLProps
     const summary: string | undefined = props instanceof Map ? props.get('summary') : undefined
-    if (summary) return summary
     const nonEmptyLines: string[] = escapedContent.split('\n').filter((l: string) => l.trim().length > 0)
-    const preview: string = nonEmptyLines.slice(0, 2).join('\n')
-    const omitted: number = nonEmptyLines.length - 2
-    return omitted > 0 ? `${preview}\n  ...${omitted} additional lines` : preview
+    const preview: string = nonEmptyLines.slice(0, 10).join('\n')
+    const omitted: number = nonEmptyLines.length - 10
+    const previewWithOmitted: string = omitted > 0 ? `${preview}\n  ...${omitted} additional lines` : preview
+    return summary ? `${summary}\n  ${previewWithOmitted}` : previewWithOmitted
 }
 
 /**
@@ -291,7 +291,7 @@ function computeNodeDistances(
  *
  * Tiered content strategy:
  * - Task node (startNodeId): full content, untruncated, in <TASK> tag (recency bias)
- * - All neighbor nodes: YAML summary (if available) or first 2 non-empty lines + filepath
+ * - All neighbor nodes: first 10 lines of content (+ YAML summary if present) + filepath
  * - Over-budget nodes: title + filepath only
  *
  * Sort order: semantic matches first, then by graph distance (closer nodes first).
@@ -343,7 +343,7 @@ function generateNodeDetailsList(
         const isSemantic: boolean = semanticSet.has(nodeId)
         const marker: string = isSemantic ? ' [SEMANTIC]' : ''
         const rawContent: string = escapeWikilinkMarkers(node.contentWithoutYamlOrLinks)
-        // All neighbor nodes: YAML summary or first 2 non-empty lines only.
+        // All neighbor nodes: first 10 lines of content (+ YAML summary if present).
         // [SEMANTIC] marker preserved so agents know which nodes came from vector search.
         const nodeContent: string = getNodeSummaryContent(node, rawContent)
         const line: string = `- **${title}**${marker} (${nodeId})\n  ${nodeContent}`

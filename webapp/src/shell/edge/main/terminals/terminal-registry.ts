@@ -189,6 +189,12 @@ export function incrementAuditRetryCount(terminalId: string): void {
     terminalRecords.set(terminalId, { ...record, auditRetryCount: record.auditRetryCount + 1 })
 }
 
+export function resetAuditRetryCount(terminalId: string): void {
+    const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
+    if (!record || record.auditRetryCount === 0) return
+    terminalRecords.set(terminalId, { ...record, auditRetryCount: 0 })
+}
+
 /**
  * Wait N seconds, then check if the terminal is still idle before firing callback.
  * Cancels any pending timeout for this terminal if it becomes active again.

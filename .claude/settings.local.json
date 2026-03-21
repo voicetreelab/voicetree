@@ -27,11 +27,8 @@
           {
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/webapp/.claude/hooks/stop-quality-check.cjs\""
-          },
-          {
-            "type": "command",
-            "command": "node --experimental-strip-types ~/brain/automation/validate-brain.ts"
           }
+
         ]
       }
     ]

@@ -42,6 +42,8 @@ import {
   analyzeMainProcessProfile,
   printMainProcessMetrics,
 } from './perf-helpers/mainProcessProfile';
+import { waitForLayoutStable } from './perf-helpers/layoutHelpers';
+import { getOverlapDiagnosticString, savePostUpdateOverlapReport } from './perf-helpers/overlapCheck';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 const PERF_TRACES_DIR = path.join(PROJECT_ROOT, 'e2e-tests', 'perf-traces');
@@ -155,40 +157,6 @@ const test = base.extend<{
     await use(window);
   },
 });
-
-// ============================================================================
-// Layout stability helper
-// ============================================================================
-
-async function waitForLayoutStable(appWindow: Page, timeoutMs: number = 60000): Promise<void> {
-  let lastSnapshot = '';
-
-  await expect
-    .poll(
-      async () => {
-        const snap = await appWindow.evaluate((): string => {
-          const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
-          if (!cy) return '';
-          const positions: Array<[number, number]> = [];
-          cy.nodes().forEach((n) => {
-            if (!n.data('isContextNode')) {
-              positions.push([Math.round(n.position('x')), Math.round(n.position('y'))]);
-            }
-          });
-          return JSON.stringify(positions);
-        });
-        const stoppedMoving = snap === lastSnapshot && lastSnapshot !== '';
-        lastSnapshot = snap;
-        return stoppedMoving;
-      },
-      {
-        message: 'Waiting for layout to stabilize',
-        timeout: timeoutMs,
-        intervals: [1000, 1000, 2000, 2000, 2000, 3000, 3000, 3000, 5000, 5000],
-      }
-    )
-    .toBe(true);
-}
 
 // ============================================================================
 // Test
@@ -374,32 +342,38 @@ test.describe('500-Node CDP Performance Trace', () => {
       const pzMetrics = analyzeMainProcessProfile(pzJson);
       console.log('\n  PAN/ZOOM RENDERER CPU PROFILE (isolated — pan/zoom only):');
       printMainProcessMetrics(pzMetrics);
+
+      // BF-069: Guard against Collection overhead regression during pan/zoom.
+      // Baseline ~4.5% (Collection + forEachEventObj). API-level caching (installCollectionCache)
+      // reduces top-level cy.nodes()/edges()/elements() calls, but most Collection overhead
+      // is from Cytoscape's internal per-element operations during rendering — not interceptable.
+      // Threshold set as regression guard, not optimization target.
+      const collectionNames = new Set(['Collection', 'forEachEventObj']);
+      const collectionOverhead = pzMetrics.topFunctions
+        .filter(fn => collectionNames.has(fn.name))
+        .reduce((sum, fn) => sum + fn.selfPercent, 0);
+      console.log(`  BF-069 Collection overhead: ${collectionOverhead.toFixed(1)}% (guard < 7%)`);
+      expect(collectionOverhead, `PAN/ZOOM Collection overhead < 7% (BF-069 guard), got ${collectionOverhead.toFixed(1)}%`).toBeLessThan(7.0);
+
+      // BF-067: Guard against texture overhead regression during pan/zoom.
+      // Baseline ~8% of active CPU: drawTexture ~3.4% (normal WebGL rendering, irreducible)
+      // + toDataURL ~4.6% (navigator cy.png() thumbnail update after vpManip ends, single call).
+      // installTextureCacheSkip prevents ETCp.invalidateElement during wheelZooming as a safety
+      // net, but invalidateElement has 0 hits during pan/zoom in practice — the overhead is
+      // inherent rendering + navigator thumbnail update. Threshold is a regression guard.
+      const textureNames = new Set(['toDataURL', 'drawTexture']);
+      const textureOverhead = pzMetrics.topFunctions
+        .filter(fn => textureNames.has(fn.name))
+        .reduce((sum, fn) => sum + fn.selfPercent, 0);
+      console.log(`  BF-067 Texture overhead: ${textureOverhead.toFixed(1)}% (guard < 12%)`);
+      expect(textureOverhead, `PAN/ZOOM texture overhead < 12% (BF-067 guard), got ${textureOverhead.toFixed(1)}%`).toBeLessThan(12.0);
     }
 
     // Restart renderer profiler for remaining phases (UPDATE + DELETE)
     await startRendererProfiler();
 
     // Diagnostic: check for pre-existing overlaps BEFORE UPDATE
-    const preUpdateOverlapInfo = await appWindow.evaluate((): string => {
-      const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
-      if (!cy) return 'no cy';
-      const nodes = cy.nodes().filter((n: { data: (key: string) => boolean }) => !n.data('isContextNode'));
-      const lines: string[] = [`total nodes: ${nodes.length}`];
-      let overlapCount = 0;
-      for (let i = 0; i < nodes.length; i++) {
-        const a = nodes[i].boundingBox({ includeLabels: false, includeOverlays: false, includeEdges: false });
-        for (let j = i + 1; j < nodes.length; j++) {
-          const b = nodes[j].boundingBox({ includeLabels: false, includeOverlays: false, includeEdges: false });
-          if (a.x1 < b.x2 && a.x2 > b.x1 && a.y1 < b.y2 && a.y2 > b.y1) {
-            const overlapX = Math.min(a.x2, b.x2) - Math.max(a.x1, b.x1);
-            const overlapY = Math.min(a.y2, b.y2) - Math.max(a.y1, b.y1);
-            lines.push(`OVERLAP: ${nodes[i].id()} [${a.x1.toFixed(0)},${a.y1.toFixed(0)},${a.x2.toFixed(0)},${a.y2.toFixed(0)}] vs ${nodes[j].id()} [${b.x1.toFixed(0)},${b.y1.toFixed(0)},${b.x2.toFixed(0)},${b.y2.toFixed(0)}] area=${(overlapX*overlapY).toFixed(0)}px²`);
-            overlapCount++;
-          }
-        }
-      }
-      return overlapCount === 0 ? `PRE-UPDATE: 0 overlaps (${nodes.length} nodes) ✅` : `PRE-UPDATE: ${overlapCount} overlaps\n${lines.join('\n')}`;
-    });
+    const preUpdateOverlapInfo = await getOverlapDiagnosticString(appWindow);
 
     // Write diagnostic to file so we can read it even if test fails
     await fs.writeFile(path.join(PERF_TRACES_DIR, 'overlap-diagnostic.txt'), preUpdateOverlapInfo, 'utf8');
@@ -434,37 +408,9 @@ test.describe('500-Node CDP Performance Trace', () => {
     });
 
     // Overlap assertion after UPDATE phase — AABB pairwise check
-    await test.step('OVERLAP CHECK: No node overlaps after UPDATE', async () => {
-      const overlaps = await appWindow.evaluate((): { count: number; pairs: Array<{ ids: string[]; boxes: Array<{ x1: number; y1: number; x2: number; y2: number }>; overlapArea: number }> } => {
-        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
-        if (!cy) return { count: 0, pairs: [] };
-        const nodes = cy.nodes().filter((n: { data: (key: string) => boolean }) => !n.data('isContextNode'));
-        const pairs: Array<{ ids: string[]; boxes: Array<{ x1: number; y1: number; x2: number; y2: number }>; overlapArea: number }> = [];
-        for (let i = 0; i < nodes.length; i++) {
-          const a = nodes[i].boundingBox({ includeLabels: false, includeOverlays: false, includeEdges: false });
-          for (let j = i + 1; j < nodes.length; j++) {
-            const b = nodes[j].boundingBox({ includeLabels: false, includeOverlays: false, includeEdges: false });
-            if (a.x1 < b.x2 && a.x2 > b.x1 && a.y1 < b.y2 && a.y2 > b.y1) {
-              const overlapX = Math.min(a.x2, b.x2) - Math.max(a.x1, b.x1);
-              const overlapY = Math.min(a.y2, b.y2) - Math.max(a.y1, b.y1);
-              pairs.push({ ids: [nodes[i].id(), nodes[j].id()], boxes: [a, b], overlapArea: overlapX * overlapY });
-            }
-          }
-        }
-        return { count: pairs.length, pairs: pairs.slice(0, 10) };
-      });
-
-      // Build detailed message for diagnostics
-      const overlapDetails = overlaps.pairs.map(p =>
-        `${p.ids[0]} [${p.boxes[0].x1.toFixed(0)},${p.boxes[0].y1.toFixed(0)},${p.boxes[0].x2.toFixed(0)},${p.boxes[0].y2.toFixed(0)}] vs ${p.ids[1]} [${p.boxes[1].x1.toFixed(0)},${p.boxes[1].y1.toFixed(0)},${p.boxes[1].x2.toFixed(0)},${p.boxes[1].y2.toFixed(0)}] area=${p.overlapArea.toFixed(0)}px²`
-      ).join('\n');
-      await fs.writeFile(path.join(PERF_TRACES_DIR, 'post-update-overlap-diagnostic.txt'),
-        overlaps.count === 0 ? 'No overlaps ✅' : `${overlaps.count} overlaps:\n${overlapDetails}`, 'utf8');
-      // Soft check — compound parent nodes naturally overlap children in Cytoscape
-      if (overlaps.count > 0) {
-        console.warn(`⚠ ${overlaps.count} overlaps detected (includes compound parent nodes)`);
-      }
-    });
+    await test.step('OVERLAP CHECK: No node overlaps after UPDATE', () =>
+      savePostUpdateOverlapReport(appWindow, PERF_TRACES_DIR)
+    );
 
     // Phase 3: DELETE (-50 nodes, full rebalance)
     const deleteMetrics = await test.step('PHASE 3: DELETE 50 nodes', async () => {

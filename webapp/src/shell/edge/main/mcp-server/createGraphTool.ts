@@ -21,7 +21,7 @@ import {buildSpatialIndexFromGraph} from '@/pure/graph/positioning/spatialAdapte
 import type {SpatialIndex} from '@/pure/graph/spatial'
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange'
-import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
+import {getTerminalRecords, resetAuditRetryCount, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 import {type McpToolResponse, buildJsonResponse} from './types'
 import {
     type ComplexityScore,
@@ -490,6 +490,9 @@ export async function createGraphTool({
     } catch (_contextError: unknown) {
         // Non-fatal: context node update failed, nodes were still created
     }
+
+    // Reset stop gate retry counter — agent demonstrated progress, re-enable auditing
+    resetAuditRetryCount(callerTerminalId)
 
     return buildJsonResponse({
         success: true,

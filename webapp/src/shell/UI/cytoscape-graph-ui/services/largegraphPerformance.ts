@@ -25,10 +25,10 @@ interface CytoscapeRenderer {
     data: {
         wheelZooming: boolean;
         wheelTimeout: ReturnType<typeof setTimeout> | null;
-        eleTxrCache?: { setupDequeueing: () => void };
-        lblTxrCache?: { setupDequeueing: () => void };
-        slbTxrCache?: { setupDequeueing: () => void };
-        tlbTxrCache?: { setupDequeueing: () => void };
+        eleTxrCache?: { setupDequeueing: () => void; invalidateElement: (ele: unknown) => void };
+        lblTxrCache?: { setupDequeueing: () => void; invalidateElement: (ele: unknown) => void };
+        slbTxrCache?: { setupDequeueing: () => void; invalidateElement: (ele: unknown) => void };
+        tlbTxrCache?: { setupDequeueing: () => void; invalidateElement: (ele: unknown) => void };
     };
     pinching: boolean;
     hoverData: { dragging: boolean; draggingEles: boolean };
@@ -39,6 +39,8 @@ interface CytoscapeRenderer {
 
 let largeGraphModeActive: boolean = false;
 let cachedRenderer: CytoscapeRenderer | undefined;
+let collectionCache: Map<string, unknown> | null = null;
+let textureCacheSkipInstalled: boolean = false;
 export function syncLargeGraphPerformanceMode(cy: Core): void {
     const nodeCount: number = cy.nodes().length;
     const shouldActivate: boolean = nodeCount > LARGE_GRAPH_THRESHOLD;
@@ -76,7 +78,85 @@ export function signalViewportManipulation(cy: Core): void {
     if (renderer.data.wheelTimeout) clearTimeout(renderer.data.wheelTimeout);
     renderer.data.wheelTimeout = setTimeout(() => {
         renderer.data.wheelZooming = false;
+        collectionCache?.clear();
         renderer.redrawHint('eles', true);
         renderer.redraw();
     }, 150);
+}
+
+/**
+ * Monkey-patches cy.nodes(), cy.edges(), and cy.elements() to return cached
+ * collections while r.data.wheelZooming is true. Eliminates redundant Cytoscape
+ * traversal overhead on every pan/zoom render frame.
+ *
+ * Cache key is 'method:selector' — cy.nodes() and cy.nodes('.visible') are
+ * separate entries. Cache is invalidated on element add/remove events and when
+ * wheelZooming transitions to false (via signalViewportManipulation timeout).
+ *
+ * Call once during graph initialisation. Idempotent — safe to call multiple times.
+ * Depends on getRenderer(cy), so cy must have a renderer attached.
+ */
+export function installCollectionCache(cy: Core): void {
+    if (collectionCache !== null) return; // already installed
+    collectionCache = new Map();
+
+    const orig: {
+        nodes: (selector?: string) => ReturnType<Core['nodes']>;
+        edges: (selector?: string) => ReturnType<Core['edges']>;
+        elements: (selector?: string) => ReturnType<Core['elements']>;
+    } = {
+        nodes: cy.nodes.bind(cy) as (selector?: string) => ReturnType<Core['nodes']>,
+        edges: cy.edges.bind(cy) as (selector?: string) => ReturnType<Core['edges']>,
+        elements: cy.elements.bind(cy) as (selector?: string) => ReturnType<Core['elements']>,
+    };
+
+    function cached<T>(
+        method: 'nodes' | 'edges' | 'elements',
+        original: (selector?: string) => T,
+        selector?: string,
+    ): T {
+        const r: CytoscapeRenderer | undefined = getRenderer(cy);
+        if (r?.data.wheelZooming) {
+            const key: string = `${method}:${selector ?? ''}`;
+            const hit: unknown = collectionCache!.get(key);
+            if (hit !== undefined) return hit as T;
+            const result: T = original(selector);
+            collectionCache!.set(key, result);
+            return result;
+        }
+        return original(selector);
+    }
+
+    const cyAny: Record<string, unknown> = cy as unknown as Record<string, unknown>;
+    cyAny.nodes = (selector?: string) => cached('nodes', orig.nodes, selector);
+    cyAny.edges = (selector?: string) => cached('edges', orig.edges, selector);
+    cyAny.elements = (selector?: string) => cached('elements', orig.elements, selector);
+
+    cy.on('add remove', () => { collectionCache!.clear(); });
+}
+
+/**
+ * Monkey-patches Cytoscape's ElementTextureCache instances to skip
+ * invalidateElement() calls when r.data.wheelZooming is true.
+ * During viewport manipulation, element data hasn't changed — only the camera
+ * moved — so texture re-rasterization is pure waste (~8% CPU at 500 nodes).
+ *
+ * Call once during graph initialisation. Idempotent.
+ */
+export function installTextureCacheSkip(cy: Core): void {
+    if (textureCacheSkipInstalled) return;
+    const renderer: CytoscapeRenderer | undefined = getRenderer(cy);
+    if (!renderer) return;
+
+    const cacheKeys: ReadonlyArray<'eleTxrCache' | 'lblTxrCache' | 'slbTxrCache' | 'tlbTxrCache'> = ['eleTxrCache', 'lblTxrCache', 'slbTxrCache', 'tlbTxrCache'];
+    for (const key of cacheKeys) {
+        const cache: CytoscapeRenderer['data'][typeof key] = renderer.data[key];
+        if (!cache || !cache.invalidateElement) continue;
+        const originalInvalidate: (ele: unknown) => void = cache.invalidateElement.bind(cache);
+        cache.invalidateElement = function (ele: unknown): void {
+            if (renderer.data.wheelZooming) return;
+            originalInvalidate(ele);
+        };
+    }
+    textureCacheSkipInstalled = true;
 }

@@ -34,6 +34,7 @@ Commands:
   agent output    Read buffered agent output
   graph create    Create progress nodes in the graph
   graph unseen    Get unseen nodes near your context
+  graph rename    Rename a file and update all references
   search          Search nodes by query
   help            Show this help`
 
@@ -184,6 +185,15 @@ async function dispatchGraphCommand(
                 'Graph commands are not available in this build yet'
             )
             await graphUnseen(port, terminalId, args)
+            return
+        }
+        case 'rename': {
+            const graphRename: CommandHandler = await loadDeferredHandler(
+                './commands/rename.ts',
+                'graphRename',
+                'Rename command is not available in this build yet'
+            )
+            await graphRename(port, terminalId, args)
             return
         }
         case 'help':

@@ -4,6 +4,7 @@
  */
 import cytoscape, {type Core, type CytoscapeOptions, type StylesheetCSS} from 'cytoscape';
 import {MIN_ZOOM, MAX_ZOOM} from '@/shell/UI/cytoscape-graph-ui/constants';
+import {installCollectionCache, installTextureCacheSkip} from '@/shell/UI/cytoscape-graph-ui/services/largegraphPerformance';
 
 export interface CytoscapeInitConfig {
     container: HTMLElement;
@@ -93,6 +94,8 @@ export function initializeCytoscapeInstance(config: CytoscapeInitConfig): Cytosc
             }
         } as CytoscapeOptions);
         patchWebglRenderEvent(cy);
+        installCollectionCache(cy);
+        installTextureCacheSkip(cy);
         return {cy, isHeadless: false};
     } catch (_error) {
         // Fallback to headless mode (e.g., JSDOM without proper layout)
