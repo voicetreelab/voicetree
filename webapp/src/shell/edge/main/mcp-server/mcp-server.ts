@@ -398,8 +398,6 @@ Task
  * This allows the server to run in-process with Electron and share state.
  */
 export async function startMcpServer(): Promise<void> {
-    const mcpServer: McpServer = await createMcpServer()
-
     const app: Express = express()
     app.use(express.json())
 
@@ -416,6 +414,9 @@ export async function startMcpServer(): Promise<void> {
     })
 
     app.post('/mcp', async (req, res) => {
+        // Create a fresh McpServer per request — sharing one instance causes Protocol._onclose()
+        // on completed transports to corrupt shared state, producing ~120s timeouts.
+        const server: McpServer = await createMcpServer()
         const transport: StreamableHTTPServerTransport = new StreamableHTTPServerTransport({
             sessionIdGenerator: undefined,
             enableJsonResponse: true
@@ -423,10 +424,18 @@ export async function startMcpServer(): Promise<void> {
 
         res.on('close', () => {
             void transport.close()
+            void server.close()
         })
 
-        await mcpServer.connect(transport)
-        await transport.handleRequest(req, res, req.body)
+        try {
+            await server.connect(transport)
+            await transport.handleRequest(req, res, req.body)
+        } catch (error) {
+            console.error('[MCP] Error handling request:', error)
+            if (!res.headersSent) {
+                res.status(500).json({error: String(error)})
+            }
+        }
     })
 
     mcpPort = await findAvailablePort(MCP_BASE_PORT)
