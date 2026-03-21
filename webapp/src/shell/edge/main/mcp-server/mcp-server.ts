@@ -414,8 +414,17 @@ export async function startMcpServer(): Promise<void> {
     })
 
     app.post('/mcp', async (req, res) => {
-        // Create a fresh McpServer per request — sharing one instance causes Protocol._onclose()
-        // on completed transports to corrupt shared state, producing ~120s timeouts.
+        // ⚠️  SUSPICIOUS PATTERN — reviewed 2026-03-21, user flagged for closer review.
+        // We create a fresh McpServer per request because sharing one instance causes
+        // Protocol._onclose() on completed transports to corrupt shared state (_transport,
+        // _responseHandlers), producing ~120s timeouts under concurrent requests.
+        // Matches SDK official stateless example (simpleStatelessStreamableHttp.js).
+        //
+        // If any of these go wrong, re-examine this pattern first:
+        //   - Tools stop responding / return stale data between requests
+        //   - Memory growth under sustained load (server instances not GC'd)
+        //   - Settings drift (loadSettings() is now called per request, not once at startup)
+        //   - Errors during server.close() after response (check console for [MCP] errors)
         const server: McpServer = await createMcpServer()
         const transport: StreamableHTTPServerTransport = new StreamableHTTPServerTransport({
             sessionIdGenerator: undefined,
