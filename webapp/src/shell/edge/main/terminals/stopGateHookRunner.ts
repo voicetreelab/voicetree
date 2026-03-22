@@ -127,15 +127,36 @@ function buildContext(
     }
 }
 
+// ─── Progress node gate ──────────────────────────────────────────────────────
+
+function hasProgressNodes(agentName: string, graph: Graph): boolean {
+    if (!agentName) return false
+    for (const nodeId of Object.keys(graph.nodes)) {
+        const node = graph.nodes[nodeId]
+        if (node.nodeUIMetadata.isContextNode) continue
+        const props = node.nodeUIMetadata.additionalYAMLProps
+        const value: string | undefined = props instanceof Map
+            ? props.get('agent_name')
+            : (props as Record<string, string>)?.['agent_name']
+        if (value === agentName) return true
+    }
+    return false
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export async function runStopHooks(
     terminalId: string,
-    _graph: Graph,
+    graph: Graph,
     records: readonly TerminalRecord[]
 ): Promise<StopHookResult> {
     const context: StopHookContext | null = buildContext(terminalId, records)
     if (!context) return { passed: true }
+
+    // Gate: skip hooks for agents with no progress nodes (VT internal logic)
+    if (!hasProgressNodes(context.agentName, graph)) {
+        return { passed: true }
+    }
 
     const config: HookConfig = loadHookConfig()
     const messages: string[] = []

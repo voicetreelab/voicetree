@@ -10,6 +10,7 @@ import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest'
 import * as os from 'os'
 import * as fs from 'fs'
 import * as path from 'path'
+import * as O from 'fp-ts/lib/Option.js'
 
 // ─── Mock external/UI leaf dependencies (must be before real imports) ────────
 
@@ -87,6 +88,27 @@ const emptyGraph: Graph = {
     unresolvedLinksIndex: new Map()
 }
 
+function graphWithAgent(agentName: string): Graph {
+    const nodeId = '/vault/progress-node.md'
+    return {
+        nodes: {
+            [nodeId]: {
+                absoluteFilePathIsID: nodeId,
+                contentWithoutYamlOrLinks: '# Progress',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.none,
+                    additionalYAMLProps: new Map([['agent_name', agentName]]),
+                }
+            }
+        },
+        incomingEdgesIndex: new Map(),
+        nodeByBaseName: new Map(),
+        unresolvedLinksIndex: new Map()
+    }
+}
+
 // ─── HOME management (shared across all describe blocks) ────────────────────
 
 let tempHome: string
@@ -129,7 +151,7 @@ process.exit(0)
 `)
 
         const record: TerminalRecord = makeRecord('test-agent')
-        const result: StopHookResult = await runStopHooks('test-agent', emptyGraph, [record])
+        const result: StopHookResult = await runStopHooks('test-agent', graphWithAgent('test-agent'), [record])
         expect(result.passed).toBe(true)
 
         const written: string = fs.readFileSync(ctxFile, 'utf-8')
@@ -147,7 +169,7 @@ process.exit(2)
 `)
 
         const record: TerminalRecord = makeRecord('test-agent')
-        const result: StopHookResult = await runStopHooks('test-agent', emptyGraph, [record])
+        const result: StopHookResult = await runStopHooks('test-agent', graphWithAgent('test-agent'), [record])
         expect(result.passed).toBe(false)
         expect(result.message).toContain('default audit blocked stop')
     })
@@ -157,14 +179,14 @@ describe('shell command hooks', () => {
     it('shell hook exit 0 passes', async () => {
         writeHooks({Stop: [{type: 'command', command: 'exit 0'}]})
         const record: TerminalRecord = makeRecord('shell-agent')
-        const result: StopHookResult = await runStopHooks('shell-agent', emptyGraph, [record])
+        const result: StopHookResult = await runStopHooks('shell-agent', graphWithAgent('shell-agent'), [record])
         expect(result.passed).toBe(true)
     })
 
     it('shell hook exit 2 blocks with stderr message', async () => {
         writeHooks({Stop: [{type: 'command', command: "echo 'hook failed: missing X' >&2; exit 2"}]})
         const record: TerminalRecord = makeRecord('shell-agent')
-        const result: StopHookResult = await runStopHooks('shell-agent', emptyGraph, [record])
+        const result: StopHookResult = await runStopHooks('shell-agent', graphWithAgent('shell-agent'), [record])
         expect(result.passed).toBe(false)
         expect(result.message).toContain('hook failed: missing X')
     })
@@ -172,7 +194,7 @@ describe('shell command hooks', () => {
     it('shell hook exit 1 passes (tolerant)', async () => {
         writeHooks({Stop: [{type: 'command', command: 'exit 1'}]})
         const record: TerminalRecord = makeRecord('shell-agent')
-        const result: StopHookResult = await runStopHooks('shell-agent', emptyGraph, [record])
+        const result: StopHookResult = await runStopHooks('shell-agent', graphWithAgent('shell-agent'), [record])
         expect(result.passed).toBe(true)
     })
 
@@ -182,7 +204,7 @@ describe('shell command hooks', () => {
         const record: TerminalRecord = makeRecord('ctx-agent', {
             initialEnvVars: {VOICETREE_VAULT_PATH: '/my/vault'}
         })
-        await runStopHooks('ctx-agent', emptyGraph, [record])
+        await runStopHooks('ctx-agent', graphWithAgent('ctx-agent'), [record])
 
         const written: string = fs.readFileSync(ctxFile, 'utf-8')
         const ctx: Record<string, unknown> = JSON.parse(written) as Record<string, unknown>
@@ -204,7 +226,7 @@ describe('hook aggregation', () => {
             ]
         })
         const record: TerminalRecord = makeRecord('agg-agent')
-        const result: StopHookResult = await runStopHooks('agg-agent', emptyGraph, [record])
+        const result: StopHookResult = await runStopHooks('agg-agent', graphWithAgent('agg-agent'), [record])
         expect(result.passed).toBe(false)
         expect(result.message).toContain('shell hook error')
         expect(warnSpy).toHaveBeenCalledWith(
@@ -221,8 +243,26 @@ describe('hook aggregation', () => {
             ]
         })
         const record: TerminalRecord = makeRecord('agg-agent')
-        const result: StopHookResult = await runStopHooks('agg-agent', emptyGraph, [record])
+        const result: StopHookResult = await runStopHooks('agg-agent', graphWithAgent('agg-agent'), [record])
         expect(result.passed).toBe(true)
+    })
+})
+
+describe('progress node gate', () => {
+    it('skips all hooks when agent has no progress nodes (VT internal logic)', async () => {
+        writeHooks({Stop: [{type: 'command', command: "echo 'should not run' >&2; exit 2"}]})
+        const record: TerminalRecord = makeRecord('no-progress-agent')
+        const result: StopHookResult = await runStopHooks('no-progress-agent', emptyGraph, [record])
+        expect(result.passed).toBe(true)
+        expect(result.message).toBeUndefined()
+    })
+
+    it('runs hooks when agent has progress nodes', async () => {
+        writeHooks({Stop: [{type: 'command', command: "echo 'hook ran' >&2; exit 2"}]})
+        const record: TerminalRecord = makeRecord('active-agent')
+        const result: StopHookResult = await runStopHooks('active-agent', graphWithAgent('active-agent'), [record])
+        expect(result.passed).toBe(false)
+        expect(result.message).toContain('hook ran')
     })
 })
 
@@ -235,7 +275,7 @@ describe('context building', () => {
         const child1Record: TerminalRecord = makeRecord('child-1', {parentId: 'parent-agent'})
         const child2Record: TerminalRecord = makeRecord('child-2', {parentId: 'parent-agent'})
 
-        await runStopHooks('parent-agent', emptyGraph, [parentRecord, child1Record, child2Record])
+        await runStopHooks('parent-agent', graphWithAgent('parent-agent'), [parentRecord, child1Record, child2Record])
 
         const written: string = fs.readFileSync(ctxFile, 'utf-8')
         const ctx: {childAgents: unknown[]} = JSON.parse(written) as {childAgents: unknown[]}
