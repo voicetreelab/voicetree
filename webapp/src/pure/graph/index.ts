@@ -238,6 +238,13 @@ export { removeContextNodes } from './graph-operations/removeContextNodes'
 // === GRAPH CREATION UTILITIES ===
 export { createGraph, createEmptyGraph } from './createGraph'
 
+// === GRAPH BUILDING FROM FILES ===
+export type BuildGraphFromFiles = (files: readonly { readonly absolutePath: string; readonly content: string }[]) => Graph
+
+export { buildGraphFromFiles } from './buildGraphFromFiles'
+import { buildGraphFromFiles } from './buildGraphFromFiles'
+void (buildGraphFromFiles satisfies BuildGraphFromFiles)
+
 // === NODE TYPE DETECTION ===
 export { isImageNode, IMAGE_EXTENSIONS } from './isImageNode'
 

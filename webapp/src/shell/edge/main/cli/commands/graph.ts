@@ -309,6 +309,36 @@ export async function graphCreate(port: number, terminalId: string | undefined, 
     }
 }
 
+export async function graphStructure(port: number, terminalId: string | undefined, args: string[]): Promise<void> {
+    if (args.length === 0) {
+        error('Usage: vt graph structure <folder-path>')
+    }
+
+    const folderPath: string = args[0]
+
+    try {
+        const response: unknown = await callMcpTool(port, 'graph_structure', { folderPath })
+        const result = response as { success: boolean; ascii?: string; nodeCount?: number; orphanCount?: number; error?: string }
+
+        if (!result.success) {
+            error(result.error ?? 'graph_structure failed')
+        }
+
+        if (result.nodeCount === 0) {
+            output({ message: '0 nodes found', folderPath })
+        } else {
+            console.log(`${result.nodeCount} nodes in ${args[0]}`)
+            console.log('')
+            console.log(result.ascii)
+            if (result.orphanCount && result.orphanCount > 0) {
+                console.log(`\nOrphans: ${result.orphanCount}`)
+            }
+        }
+    } catch (toolError: unknown) {
+        error(`graph_structure failed: ${toolError instanceof Error ? toolError.message : String(toolError)}`)
+    }
+}
+
 export async function graphUnseen(port: number, terminalId: string | undefined, args: string[]): Promise<void> {
     const callerTerminalId: string = requireTerminalId(terminalId)
 

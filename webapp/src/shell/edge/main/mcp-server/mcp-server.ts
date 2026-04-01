@@ -28,6 +28,7 @@ import {closeAgentTool} from './closeAgentTool'
 import {readTerminalOutputTool} from './readTerminalOutputTool'
 import {searchNodesTool as _searchNodesTool} from './searchNodesTool'
 import {createGraphTool} from './createGraphTool'
+import {graphStructureTool} from './graphStructureTool'
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
 import type {VTSettings} from '@/pure/settings/types'
 
@@ -63,6 +64,8 @@ export type {SearchNodesParams} from './searchNodesTool'
 export {searchNodesTool} from './searchNodesTool'
 export type {CreateGraphParams, CreateGraphNodeInput} from './createGraphTool'
 export {createGraphTool} from './createGraphTool'
+export type {GraphStructureParams} from './graphStructureTool'
+export {graphStructureTool} from './graphStructureTool'
 
 // ─── Overnight trigger ───────────────────────────────────────────────────────
 
@@ -388,6 +391,19 @@ Task
         },
         async ({callerTerminalId, parentNodeId, nodes, override_with_rationale}) =>
             createGraphTool({callerTerminalId, parentNodeId, nodes, override_with_rationale})
+    )
+
+    // Tool: graph_structure
+    server.registerTool(
+        'graph_structure',
+        {
+            title: 'Get Graph Structure',
+            description: 'Read .md files from a folder on disk and render the graph structure as an ASCII tree. Shows node hierarchy based on [[wikilink]] edges. Useful for understanding the topology of a markdown graph without reading every file. Excludes ctx-nodes/ folders.',
+            inputSchema: {
+                folderPath: z.string().describe('Absolute path to folder containing .md files'),
+            }
+        },
+        async ({folderPath}) => graphStructureTool({folderPath})
     )
 
     return server

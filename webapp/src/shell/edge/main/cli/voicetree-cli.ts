@@ -34,6 +34,7 @@ Commands:
   agent output    Read buffered agent output
   graph create    Create progress nodes in the graph
   graph unseen    Get unseen nodes near your context
+  graph structure Get graph structure as ASCII tree from a folder
   graph rename    Rename a file and update all references
   search          Search nodes by query
   help            Show this help`
@@ -185,6 +186,15 @@ async function dispatchGraphCommand(
                 'Graph commands are not available in this build yet'
             )
             await graphUnseen(port, terminalId, args)
+            return
+        }
+        case 'structure': {
+            const graphStructure: CommandHandler = await loadDeferredHandler(
+                './commands/graph.ts',
+                'graphStructure',
+                'Graph commands are not available in this build yet'
+            )
+            await graphStructure(port, terminalId, args)
             return
         }
         case 'rename': {
