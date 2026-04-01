@@ -14,7 +14,7 @@ export interface AgentResult {
 }
 
 export function buildCompletionMessage(agentResults: AgentResult[], stillWaitingOn?: readonly string[]): string {
-    const lines: string[] = ['[WaitForAgents] Agent(s) completed.']
+    const parts: string[] = ['[WaitForAgents] Agent(s) completed.']
 
     for (const agent of agentResults) {
         const name: string = agent.agentName ?? agent.terminalId
@@ -25,20 +25,18 @@ export function buildCompletionMessage(agentResults: AgentResult[], stillWaiting
         const statusLabel: string = agent.status === 'exited' && agent.exitCode !== null
             ? `exited:${agent.exitCode}`
             : agent.status
-        lines.push(`- ${name} [${statusLabel}]: ${nodeList}`)
+        parts.push(`- ${name} [${statusLabel}]: ${nodeList}`)
         if (agent.lastOutput) {
-            lines.push(`  Last output: ${agent.lastOutput}`)
+            parts.push(`Last output: ${agent.lastOutput}`)
         }
     }
 
     if (stillWaitingOn && stillWaitingOn.length > 0) {
-        lines.push(`\nStill waiting on: ${stillWaitingOn.join(', ')}`)
-        lines.push('Be patient! Stop and wait for agents to finish, you will be automatically sent a message by when they finish')
+        parts.push(`Still waiting on: ${stillWaitingOn.join(', ')}`)
+        parts.push('Be patient! Stop and wait for agents to finish, you will be automatically sent a message by when they finish')
     }
 
+    parts.push('Please use close_agent to close agents you are fully satisfied with. Leave agents open if their work has potential concerns that warrant human review.')
 
-    lines.push('')
-    lines.push('Please use close_agent to close agents you are fully satisfied with. Leave agents open if their work has potential concerns that warrant human review.')
-
-    return lines.join('\n')
+    return parts.join(' ')
 }

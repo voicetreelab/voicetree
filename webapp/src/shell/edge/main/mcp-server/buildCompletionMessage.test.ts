@@ -138,4 +138,26 @@ describe('buildCompletionMessage', () => {
         expect(msg).toContain('close_agent')
         expect(msg).toContain('human review')
     })
+
+    it('output contains no newline characters', () => {
+        const agents: AgentResult[] = [
+            {
+                terminalId: 't1',
+                agentName: 'Alice',
+                status: 'exited',
+                exitCode: 0,
+                nodes: [{nodeId: 'n1', title: 'Design doc'}],
+            },
+            {
+                terminalId: 't2',
+                agentName: 'Bob',
+                status: 'exited',
+                exitCode: 1,
+                nodes: [],
+                lastOutput: 'Error: something broke',
+            },
+        ]
+        const msg: string = buildCompletionMessage(agents, ['Carol'])
+        expect(msg).not.toContain('\n')
+    })
 })

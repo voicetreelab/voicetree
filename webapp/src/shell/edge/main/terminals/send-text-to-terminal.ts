@@ -7,7 +7,7 @@
 import {getTerminalManager} from '@/shell/edge/main/terminals/terminal-manager-instance'
 import type {TerminalOperationResult} from '@/shell/edge/main/terminals/terminal-manager'
 
-const CHAR_DELAY_MS: number = 5
+const CHAR_DELAY_MS: number = 200
 const ESC_DELAY_MS: number = 100
 const INSERT_MODE_DELAY_MS: number = 50
 const PREAMBLE_DUMMY: string = ' '
@@ -56,12 +56,13 @@ export async function sendTextToTerminal(terminalId: string, text: string): Prom
     terminalManager.write(terminalId, '\x15') // Ctrl-U: kill line
     await new Promise(resolve => setTimeout(resolve, CHAR_DELAY_MS))
 
-    // Sanitize: normalize line endings and strip characters that disrupt PTY input.
-    // Bracketed paste mode handles \n safely — preserve newlines for multi-line delivery.
+    // Sanitize: normalize line endings, strip newlines (multi-line paste triggers
+    // "[N lines pasted]" collapse in Claude Code), and strip characters that disrupt PTY input.
     // \t = Tab (triggers completion), ANSI arrow sequences = cursor movement.
     const sanitized: string = text
-        .replace(/\r\n/g, '\n')
-        .replace(/\r/g, '\n')
+        .replace(/\r\n/g, ' ')
+        .replace(/\r/g, ' ')
+        .replace(/\n/g, ' ')
         .replace(/\t/g, ' ')
         .replace(/\x1b\[[A-D]/g, '')
         .replace(/ {2,}/g, ' ')

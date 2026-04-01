@@ -53,7 +53,7 @@ describe('sendTextToTerminal', () => {
         expect(result).toEqual({success: false, error: 'write failed'})
     })
 
-    it('wraps multi-line content in bracketed paste mode, preserving newlines', async () => {
+    it('strips newlines from content before pasting', async () => {
         const sendPromise: Promise<TerminalOperationResult> = sendTextToTerminal('test-terminal', 'line one\nline two\nline three')
         await vi.runAllTimersAsync()
         const result: TerminalOperationResult = await sendPromise
@@ -65,9 +65,10 @@ describe('sendTextToTerminal', () => {
         const pasteEnd: number = writes.indexOf('\x1b[201~')
         expect(pasteStart).toBeGreaterThan(-1)
         expect(pasteEnd).toBeGreaterThan(pasteStart)
-        // Content between paste markers preserves newlines
+        // Newlines must be stripped — multi-line paste triggers "[N lines pasted]" collapse
         const content: string = writes.slice(pasteStart + 1, pasteEnd).join('')
-        expect(content).toBe('line one\nline two\nline three')
+        expect(content).not.toContain('\n')
+        expect(content).toBe('line one line two line three')
     })
 
     it('serializes concurrent sends to the same terminal', async () => {
