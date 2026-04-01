@@ -7,6 +7,7 @@ import type { Tree } from '@lezer/common';
 import { syntaxTree } from '@codemirror/language';
 import { markdown, markdownKeymap } from '@codemirror/lang-markdown';
 import { yamlFrontmatter } from '@codemirror/lang-yaml';
+import { Table } from '@lezer/markdown';
 import { languages } from '@codemirror/language-data';
 import tagParser from 'codemirror-rich-markdoc/src/tagParser';
 import RichEditPlugin from 'codemirror-rich-markdoc/src/richEdit';
@@ -23,7 +24,7 @@ export function createMarkdownExtensions(): Extension[] {
   // Build markdown config with tagParser extension (for Markdoc {% %} tags)
   // and codeLanguages for syntax highlighting in code blocks
   const markdownConfig: Parameters<typeof markdown>[0] = {
-    extensions: [tagParser],
+    extensions: [tagParser, Table],
     codeLanguages: languages
   };
 

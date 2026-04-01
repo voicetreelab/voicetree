@@ -13,6 +13,19 @@ beforeAll(() => {
 
 import { CodeMirrorEditorView, hasFrontmatter } from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
 
+interface CodeMirrorElement extends HTMLElement {
+  cmView?: {
+    view: {
+      dispatch: (spec: unknown) => void;
+      state: {
+        doc: {
+          toString: () => string;
+        };
+      };
+    };
+  };
+}
+
 describe('Frontmatter Parsing', () => {
   let container: HTMLElement;
   let editor: CodeMirrorEditorView;
@@ -173,6 +186,82 @@ position:
     // Should contain updated content
     expect(value).toContain('# Second heading');
     expect(value).not.toContain('# First heading');
+  });
+});
+
+describe('Markdown Table Rendering', () => {
+  let container: HTMLElement;
+  let editor: CodeMirrorEditorView;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+  });
+
+  afterEach(() => {
+    if (editor && !editor.isDisposed) {
+      editor.dispose();
+    }
+    if (container.parentNode) {
+      document.body.removeChild(container);
+    }
+  });
+
+  it('renders markdown tables as HTML widgets while preserving other render blocks', async () => {
+    const content: "# Table Fixture\n\n| Name | Value |\n| --- | --- |\n| Alpha | Beta |\n\n> Existing blockquote rendering should still work." = `# Table Fixture
+
+| Name | Value |
+| --- | --- |
+| Alpha | Beta |
+
+> Existing blockquote rendering should still work.`;
+
+    editor = new CodeMirrorEditorView(container, content);
+
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    const renderedTable = container.querySelector('.cm-markdoc-renderBlock table');
+    const renderedQuote = container.querySelector('.cm-markdoc-renderBlock blockquote');
+
+    expect(renderedTable).not.toBeNull();
+    expect(renderedTable?.textContent).toContain('Alpha');
+    expect(renderedTable?.querySelectorAll('th')).toHaveLength(2);
+    expect(renderedQuote).not.toBeNull();
+    expect(renderedQuote?.textContent).toContain('Existing blockquote rendering should still work.');
+  });
+
+  it('shows raw table markdown when the cursor moves into the table block', async () => {
+    const content: "# Table Fixture\n\n| Name | Value |\n| --- | --- |\n| Alpha | Beta |" = `# Table Fixture
+
+| Name | Value |
+| --- | --- |
+| Alpha | Beta |`;
+
+    editor = new CodeMirrorEditorView(container, content);
+
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    const contentElement = container.querySelector('.cm-content') as CodeMirrorElement | null;
+    const cmView = contentElement?.cmView?.view;
+
+    expect(cmView).toBeDefined();
+    expect(container.querySelector('.cm-markdoc-renderBlock table')).not.toBeNull();
+
+    const doc = cmView!.state.doc.toString();
+    const tableStart = doc.indexOf('| Name | Value |');
+    expect(tableStart).toBeGreaterThanOrEqual(0);
+
+    cmView!.dispatch({
+      selection: {
+        anchor: tableStart + 2
+      }
+    });
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    expect(container.querySelector('.cm-markdoc-renderBlock table')).toBeNull();
+    expect(container.textContent).toContain('| Name | Value |');
+    expect(container.textContent).toContain('| Alpha | Beta |');
   });
 });
 

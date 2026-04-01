@@ -11,13 +11,8 @@ vi.mock('@/shell/edge/main/terminals/terminal-registry', () => ({
     getIdleSince: vi.fn()
 }))
 
-vi.mock('@/shell/edge/main/mcp-server/getNewNodesForAgent', () => ({
-    getNewNodesForAgent: vi.fn()
-}))
-
 import {isAgentComplete} from '@/shell/edge/main/mcp-server/isAgentComplete'
 import {getIdleSince} from '@/shell/edge/main/terminals/terminal-registry'
-import {getNewNodesForAgent} from '@/shell/edge/main/mcp-server/getNewNodesForAgent'
 
 // --- Helpers ---
 
@@ -67,22 +62,6 @@ function makeRecord(id: string, data: TerminalData, status: 'running' | 'exited'
     return {terminalId: id, terminalData: data, status, exitCode: status === 'exited' ? 0 : null, auditRetryCount: 0, spawnedAt: 0}
 }
 
-/** Configure mocks so agent appears complete on its own (idle + progress nodes + sustained idle) */
-function mockAgentAsComplete(agentName: string): void {
-    vi.mocked(getNewNodesForAgent).mockImplementation((_graph: Graph, name: string | undefined) => {
-        if (name === agentName) return [{nodeId: `${agentName}-node.md`, title: `${agentName} progress`}]
-        return []
-    })
-}
-
-/** Configure mocks so multiple agents appear complete on their own */
-function mockMultipleAgentsAsComplete(agentNames: string[]): void {
-    vi.mocked(getNewNodesForAgent).mockImplementation((_graph: Graph, name: string | undefined) => {
-        if (name && agentNames.includes(name)) return [{nodeId: `${name}-node.md`, title: `${name} progress`}]
-        return []
-    })
-}
-
 // --- Tests ---
 
 describe('isAgentComplete cycle detection', () => {
@@ -102,7 +81,6 @@ describe('isAgentComplete cycle detection', () => {
 
         const progressNode: GraphNode = buildGraphNode('alpha-node.md', 'Alpha progress', 'alpha')
         const graph: Graph = buildGraph([progressNode])
-        mockAgentAsComplete('alpha')
 
         // Without cycle detection, this would throw RangeError: Maximum call stack size exceeded.
         // With the fix, it should return true (self-cycle treated as already visited).
@@ -123,7 +101,6 @@ describe('isAgentComplete cycle detection', () => {
             buildGraphNode('alpha-node.md', 'Alpha progress', 'alpha'),
             buildGraphNode('beta-node.md', 'Beta progress', 'beta')
         ])
-        mockMultipleAgentsAsComplete(['alpha', 'beta'])
 
         // Without cycle detection, A checks B which checks A which checks B... stack overflow.
         // With the fix, when B tries to recurse into A, A is already in the visited set.
@@ -146,7 +123,6 @@ describe('isAgentComplete cycle detection', () => {
             buildGraphNode('beta-node.md', 'Beta progress', 'beta'),
             buildGraphNode('gamma-node.md', 'Gamma progress', 'gamma')
         ])
-        mockMultipleAgentsAsComplete(['alpha', 'beta', 'gamma'])
 
         const result: boolean = isAgentComplete(recordA, graph, NOW, allRecords)
 
@@ -172,7 +148,6 @@ describe('isAgentComplete cycle detection', () => {
             buildGraphNode('gamma-node.md', 'Gamma progress', 'gamma'),
             buildGraphNode('delta-node.md', 'Delta progress', 'delta')
         ])
-        mockMultipleAgentsAsComplete(['alpha', 'beta', 'gamma', 'delta'])
 
         const result: boolean = isAgentComplete(recordA, graph, NOW, allRecords)
 
@@ -193,7 +168,6 @@ describe('isAgentComplete cycle detection', () => {
             buildGraphNode('alpha-node.md', 'Alpha progress', 'alpha'),
             buildGraphNode('beta-node.md', 'Beta progress', 'beta')
         ])
-        mockMultipleAgentsAsComplete(['alpha', 'beta'])
 
         const result: boolean = isAgentComplete(recordA, graph, NOW, allRecords)
 
@@ -217,7 +191,6 @@ describe('isAgentComplete cycle detection', () => {
         const graph: Graph = buildGraph([
             buildGraphNode('alpha-node.md', 'Alpha progress', 'alpha')
         ])
-        mockAgentAsComplete('alpha')
 
         const result: boolean = isAgentComplete(recordA, graph, NOW, allRecords)
 

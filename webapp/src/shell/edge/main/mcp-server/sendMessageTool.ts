@@ -49,7 +49,7 @@ export async function sendMessageTool({
 
     // 3. Send message to terminal with sender prefix
     try {
-        const prefixedMessage: string = `[From: ${callerTerminalId}] ${message}\n\nIf needed, you can reply directly with the send_message tool to ${callerTerminalId}.`
+        const prefixedMessage: string = `[From: ${callerTerminalId}] ${message}\n\nIf needed, you can reply directly with the voicetree mcp send_message tool to ${callerTerminalId}. mcp__voicetree__send_message (DO NOT USE SendMessage or other messaging tools you may have, they won't work)`
         const result: Awaited<ReturnType<typeof sendTextToTerminal>> = await sendTextToTerminal(terminalId, prefixedMessage)
 
         if (!result.success) {

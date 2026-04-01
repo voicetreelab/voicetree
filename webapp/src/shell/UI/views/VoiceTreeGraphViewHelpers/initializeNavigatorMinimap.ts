@@ -47,11 +47,11 @@ export function initializeNavigatorMinimap(cy: Core): NavigatorMinimapResult {
         navigatorInstance = (cy as any).navigator({
             container: false, // Auto-create container
             viewLiveFramerate: 0, // Update graph pan instantly while dragging
-            thumbnailEventFramerate: 30, // Update thumbnail more frequently for responsiveness
+            thumbnailEventFramerate: 0, // Disable thumbnail updates during pan/zoom (reduces toDataURL cost); rerenderDelay handles post-idle regeneration
             thumbnailLiveFramerate: false, // Disable continuous thumbnail updates for performance
             dblClickDelay: 200,
             removeCustomContainer: true, // Let library manage container cleanup
-            rerenderDelay: 100 // Throttle rerenders
+            rerenderDelay: 100 // Regenerate thumbnail 100ms after interaction stops (on idle)
         });
 
         //console.log('[initializeNavigatorMinimap] Navigator minimap initialized');

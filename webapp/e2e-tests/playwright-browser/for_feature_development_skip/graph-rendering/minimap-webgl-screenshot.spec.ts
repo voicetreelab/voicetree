@@ -60,6 +60,52 @@ test.describe('Minimap WebGL Rendering', () => {
     });
   });
 
+  test('minimap should still be visible and structured after pan/zoom (thumbnailEventFramerate=0)', async ({ page }) => {
+    await setupMockElectronAPI(page);
+    await page.goto('/');
+    await selectMockProject(page);
+    await page.waitForSelector('#root', { timeout: 5000 });
+    await page.waitForTimeout(50);
+    await waitForCytoscapeReady(page);
+
+    const testDelta = createTestGraphDelta();
+    await sendGraphDelta(page, testDelta);
+
+    const nodeCount = await getNodeCount(page);
+    expect(nodeCount).toBeGreaterThanOrEqual(2);
+
+    await page.waitForTimeout(600);
+
+    // Confirm minimap is visible before pan
+    const navigatorEl = page.locator('.cytoscape-navigator');
+    await expect(navigatorEl).toBeVisible({ timeout: 3000 });
+
+    // Simulate pan/zoom via the cytoscape instance — no thumbnail should fire during these
+    await page.evaluate(() => {
+      const cy = (window as unknown as { cytoscapeInstance?: { pan: (pos: { x: number; y: number }) => void; zoom: (level: number) => void } }).cytoscapeInstance;
+      if (!cy) return;
+      cy.pan({ x: 50, y: 50 });
+      cy.zoom(1.2);
+      cy.pan({ x: 0, y: 0 });
+      cy.zoom(1.0);
+    });
+
+    // Wait for rerenderDelay (100ms) + buffer so thumbnail regenerates on idle
+    await page.waitForTimeout(300);
+
+    // Minimap must still be visible and structurally intact after idle regeneration
+    await expect(navigatorEl).toBeVisible({ timeout: 2000 });
+    const hasStructure = await page.evaluate(() => {
+      const nav = document.querySelector('.cytoscape-navigator');
+      return {
+        hasImg: !!nav?.querySelector('img'),
+        hasView: !!nav?.querySelector('.cytoscape-navigatorView'),
+      };
+    });
+    expect(hasStructure.hasImg).toBe(true);
+    expect(hasStructure.hasView).toBe(true);
+  });
+
   test('minimap should be hidden when only 1 node exists', async ({ page }) => {
     await setupMockElectronAPI(page);
     await page.goto('/');

@@ -56,30 +56,33 @@ export async function sendTextToTerminal(terminalId: string, text: string): Prom
     terminalManager.write(terminalId, '\x15') // Ctrl-U: kill line
     await new Promise(resolve => setTimeout(resolve, CHAR_DELAY_MS))
 
-    // Sanitize: strip characters that readline interprets as key commands.
-    // \n = Enter (accept-line, triggers autocomplete), \r = CR, \t = Tab (triggers completion),
-    // ANSI arrow sequences = cursor movement. Formatting is irrelevant for agent messages.
+    // Sanitize: normalize line endings and strip characters that disrupt PTY input.
+    // Bracketed paste mode handles \n safely — preserve newlines for multi-line delivery.
+    // \t = Tab (triggers completion), ANSI arrow sequences = cursor movement.
     const sanitized: string = text
-        .replace(/\r?\n/g, ' ')
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
         .replace(/\t/g, ' ')
         .replace(/\x1b\[[A-D]/g, '')
         .replace(/ {2,}/g, ' ')
         .trim()
 
-    // Write message body in character-count-limited batches.
-    // A single bulk write of long text triggers Claude Code's "[N lines pasted]"
-    // collapse, which swallows the text. Small character batches stay under the
-    // threshold while keeping writes atomic from the PTY's perspective.
+    // Write message body in bracketed paste mode to prevent readline from
+    // interpreting \n as Enter (autocomplete trigger). Content is written
+    // in batches to avoid Claude Code's "[N lines pasted]" collapse.
+    terminalManager.write(terminalId, '\x1b[200~')
     for (let i: number = 0; i < sanitized.length; i += BATCH_CHAR_LIMIT) {
         const batchText: string = sanitized.slice(i, i + BATCH_CHAR_LIMIT)
         const writeResult: TerminalOperationResult = terminalManager.write(terminalId, batchText)
         if (!writeResult.success) {
+            terminalManager.write(terminalId, '\x1b[201~')
             return writeResult
         }
         if (i + BATCH_CHAR_LIMIT < sanitized.length) {
             await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS))
         }
     }
+    terminalManager.write(terminalId, '\x1b[201~')
 
     // Dual submit for cross-agent compatibility:
     //   1. ESC+CR as single write → Option/Alt+Enter for Codex/OpenCode

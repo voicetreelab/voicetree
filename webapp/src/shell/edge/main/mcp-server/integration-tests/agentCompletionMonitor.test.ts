@@ -19,7 +19,7 @@ vi.mock('@/shell/edge/main/terminals/send-text-to-terminal', () => ({
     sendTextToTerminal: vi.fn()
 }))
 
-import {startMonitor, cancelMonitor} from '@/shell/edge/main/mcp-server/agent-completion-monitor'
+import {startMonitor, cancelMonitor, getPendingAgentNamesForCaller} from '@/shell/edge/main/mcp-server/agent-completion-monitor'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getTerminalRecords, getIdleSince} from '@/shell/edge/main/terminals/terminal-registry'
 import {sendTextToTerminal} from '@/shell/edge/main/terminals/send-text-to-terminal'
@@ -202,7 +202,7 @@ describe('AgentCompletionMonitor integration', () => {
         expect(sendTextToTerminal).toHaveBeenCalledTimes(1)
     })
 
-    it('waits for idle agent to have progress nodes AND sustained idle >= 30s', () => {
+    it('completes idle agent after sustained idle >= 7s (no progress nodes required)', () => {
         const idleAgentData: TerminalData = makeIdleTerminalData('agent-1', 'alpha')
         const callerData: TerminalData = makeTerminalData('caller-1', 'caller')
 
@@ -211,27 +211,20 @@ describe('AgentCompletionMonitor integration', () => {
             {terminalId: 'caller-1', terminalData: callerData, status: 'running', exitCode: null}
         ])
         vi.mocked(getGraph).mockReturnValue(buildGraph([]))
-        vi.mocked(getIdleSince).mockReturnValue(Date.now() - 60_000)
+
+        // Idle only 5s (below SUSTAINED_IDLE_MS of 7s)
+        vi.mocked(getIdleSince).mockReturnValue(Date.now() - 5_000)
 
         startMonitor('caller-1', ['agent-1'], 1000)
 
-        // Poll 1: idle but no progress nodes → not complete
-        vi.advanceTimersByTime(1000)
-        expect(sendTextToTerminal).not.toHaveBeenCalled()
-
-        // Add a progress node, but set idle to only 5s (below SUSTAINED_IDLE_MS of 7s)
-        const progressNode: GraphNode = buildGraphNode('node-1.md', 'Design doc', 'alpha')
-        vi.mocked(getGraph).mockReturnValue(buildGraph([progressNode]))
-        vi.mocked(getIdleSince).mockReturnValue(Date.now() - 5_000)
-
-        // Poll 2: has nodes but idle < 7s → not complete
+        // Poll 1: idle < 7s → not complete
         vi.advanceTimersByTime(1000)
         expect(sendTextToTerminal).not.toHaveBeenCalled()
 
         // Set idle to 8s+ (above SUSTAINED_IDLE_MS of 7s)
         vi.mocked(getIdleSince).mockReturnValue(Date.now() - 8_000)
 
-        // Poll 3: idle + progress nodes + sustained 8s → complete
+        // Poll 2: idle + sustained 8s → complete (even without progress nodes)
         vi.advanceTimersByTime(1000)
         expect(sendTextToTerminal).toHaveBeenCalledTimes(1)
         expect(sendTextToTerminal).toHaveBeenCalledWith(
@@ -242,7 +235,7 @@ describe('AgentCompletionMonitor integration', () => {
         // Monitor should have self-cleaned (no cancel needed)
     })
 
-    it('does not complete when idle agent has only context nodes', () => {
+    it('completes idle agent with only context nodes after sustained idle', () => {
         const idleAgentData: TerminalData = makeIdleTerminalData('agent-1', 'alpha')
         const callerData: TerminalData = makeTerminalData('caller-1', 'caller')
 
@@ -251,18 +244,16 @@ describe('AgentCompletionMonitor integration', () => {
             {terminalId: 'caller-1', terminalData: callerData, status: 'running', exitCode: null}
         ])
 
-        // Only context nodes (isContextNode: true) — filtered out by isAgentComplete
+        // Only context nodes (isContextNode: true) — previously blocked completion, now allowed
         const contextNode: GraphNode = buildGraphNode('ctx-1.md', 'Context Node', 'alpha', true)
         vi.mocked(getGraph).mockReturnValue(buildGraph([contextNode]))
         vi.mocked(getIdleSince).mockReturnValue(Date.now() - 60_000)
 
-        const monitorId: string = startMonitor('caller-1', ['agent-1'], 1000)
+        startMonitor('caller-1', ['agent-1'], 1000)
 
-        // Advance several polls — never completes
-        vi.advanceTimersByTime(5000)
-        expect(sendTextToTerminal).not.toHaveBeenCalled()
-
-        cancelMonitor(monitorId)
+        // Poll 1: idle + sustained 60s → complete (progress nodes no longer required)
+        vi.advanceTimersByTime(1000)
+        expect(sendTextToTerminal).toHaveBeenCalledTimes(1)
     })
 
     it('keeps polling until ALL agents complete (not just the first)', () => {
@@ -350,6 +341,39 @@ describe('AgentCompletionMonitor integration', () => {
 
         const message: string = vi.mocked(sendTextToTerminal).mock.calls[0][1]
         expect(message).toContain('(no nodes created)')
+    })
+
+    it('BF-049 regression: idle agent with no progress nodes does not appear in "Still waiting on"', () => {
+        const idleAgentAData: TerminalData = makeIdleTerminalData('agent-a', 'Ari')
+        const agentBData: TerminalData = makeTerminalData('agent-b', 'Beth')
+        const callerData: TerminalData = makeTerminalData('caller-1', 'caller')
+
+        // Ari is idle with sustained idle, Beth is still running
+        vi.mocked(getTerminalRecords).mockReturnValue([
+            {terminalId: 'agent-a', terminalData: idleAgentAData, status: 'running', exitCode: null, auditRetryCount: 0, spawnedAt: Date.now() - 120_000},
+            {terminalId: 'agent-b', terminalData: agentBData, status: 'running', exitCode: null, auditRetryCount: 0, spawnedAt: Date.now() - 120_000},
+            {terminalId: 'caller-1', terminalData: callerData, status: 'running', exitCode: null, auditRetryCount: 0, spawnedAt: Date.now() - 120_000}
+        ])
+        vi.mocked(getGraph).mockReturnValue(buildGraph([]))
+        // Ari has been idle for 60s — well above threshold
+        vi.mocked(getIdleSince).mockImplementation((tid: string) =>
+            tid === 'agent-a' ? Date.now() - 60_000 : null
+        )
+
+        // Start separate monitors for each agent (simulating separate wait_for_agents calls)
+        const monitorA: string = startMonitor('caller-1', ['agent-a'], 1000)
+        const monitorB: string = startMonitor('caller-1', ['agent-b'], 1000)
+
+        // Before any poll, check pending names for caller excluding monitorA
+        // Ari should NOT appear as pending because she is idle + sustained
+        const pendingExcludingA: string[] = getPendingAgentNamesForCaller('caller-1', monitorA)
+        // Beth should appear as pending (she's running)
+        expect(pendingExcludingA).toContain('Beth')
+        // Ari should NOT appear — she's idle and sustained (BF-049 fix)
+        expect(pendingExcludingA).not.toContain('Ari')
+
+        cancelMonitor(monitorA)
+        cancelMonitor(monitorB)
     })
 
     it('does not complete idle agent when idleSince is null', () => {

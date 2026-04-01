@@ -31,8 +31,10 @@ describe('sendTextToTerminal', () => {
 
         const writes: string[] = mockWrite.mock.calls.map(([, data]) => data)
         expect(writes.slice(0, 4)).toEqual([' ', '\x1b', 'i', '\x15'])
-        // Bulk message body as single write, then dual submit
-        expect(writes[4]).toBe('hello')
+        // Bracketed paste mode wraps message body, then dual submit
+        expect(writes[4]).toBe('\x1b[200~')
+        expect(writes[5]).toBe('hello')
+        expect(writes[6]).toBe('\x1b[201~')
         expect(writes.slice(-2)).toEqual(['\x1b\r', '\r'])
     })
 
@@ -51,6 +53,23 @@ describe('sendTextToTerminal', () => {
         expect(result).toEqual({success: false, error: 'write failed'})
     })
 
+    it('wraps multi-line content in bracketed paste mode, preserving newlines', async () => {
+        const sendPromise: Promise<TerminalOperationResult> = sendTextToTerminal('test-terminal', 'line one\nline two\nline three')
+        await vi.runAllTimersAsync()
+        const result: TerminalOperationResult = await sendPromise
+
+        expect(result).toEqual({success: true})
+
+        const writes: string[] = mockWrite.mock.calls.map(([, data]) => data)
+        const pasteStart: number = writes.indexOf('\x1b[200~')
+        const pasteEnd: number = writes.indexOf('\x1b[201~')
+        expect(pasteStart).toBeGreaterThan(-1)
+        expect(pasteEnd).toBeGreaterThan(pasteStart)
+        // Content between paste markers preserves newlines
+        const content: string = writes.slice(pasteStart + 1, pasteEnd).join('')
+        expect(content).toBe('line one\nline two\nline three')
+    })
+
     it('serializes concurrent sends to the same terminal', async () => {
         const firstSend: Promise<TerminalOperationResult> = sendTextToTerminal('test-terminal', 'one')
         const secondSend: Promise<TerminalOperationResult> = sendTextToTerminal('test-terminal', 'two')
@@ -62,8 +81,8 @@ describe('sendTextToTerminal', () => {
         expect(firstResult).toEqual({success: true})
         expect(secondResult).toEqual({success: true})
 
-        const firstPayload: string[] = [' ', '\x1b', 'i', '\x15', 'one', '\x1b\r', '\r']
-        const secondPayload: string[] = [' ', '\x1b', 'i', '\x15', 'two', '\x1b\r', '\r']
+        const firstPayload: string[] = [' ', '\x1b', 'i', '\x15', '\x1b[200~', 'one', '\x1b[201~', '\x1b\r', '\r']
+        const secondPayload: string[] = [' ', '\x1b', 'i', '\x15', '\x1b[200~', 'two', '\x1b[201~', '\x1b\r', '\r']
         const writes: string[] = mockWrite.mock.calls.map(([, data]) => data)
 
         expect(writes).toEqual([...firstPayload, ...secondPayload])
