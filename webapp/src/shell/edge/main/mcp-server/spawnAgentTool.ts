@@ -86,20 +86,28 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
         }, true)
     }
 
-    // Resolve agentName to a command from settings.agents (if provided)
+    // Resolve agentName to a command from settings.agents.
+    // If no agentName is provided, inherit the caller's configured agent type.
     let resolvedAgentCommand: string | undefined
-    if (agentName) {
+    const callerAgentTypeName: string | undefined = callerRecord?.terminalData.agentTypeName
+    if (agentName || callerAgentTypeName) {
         const settings: VTSettings = await loadSettings()
         const agents: readonly { readonly name: string; readonly command: string }[] = settings?.agents ?? []
-        const matchedAgent: { readonly name: string; readonly command: string } | undefined =
-            agents.find((a: { readonly name: string; readonly command: string }) => a.name === agentName)
-        if (!matchedAgent) {
-            return buildJsonResponse({
-                success: false,
-                error: `Agent "${agentName}" not found in settings.agents. Available: ${agents.map((a: { readonly name: string; readonly command: string }) => a.name).join(', ')}`
-            }, true)
+        if (agentName) {
+            const matchedAgent: { readonly name: string; readonly command: string } | undefined =
+                agents.find((a: { readonly name: string; readonly command: string }) => a.name === agentName)
+            if (!matchedAgent) {
+                return buildJsonResponse({
+                    success: false,
+                    error: `Agent "${agentName}" not found in settings.agents. Available: ${agents.map((a: { readonly name: string; readonly command: string }) => a.name).join(', ')}`
+                }, true)
+            }
+            resolvedAgentCommand = matchedAgent.command
+        } else if (callerAgentTypeName) {
+            resolvedAgentCommand = agents.find(
+                (a: { readonly name: string; readonly command: string }) => a.name === callerAgentTypeName
+            )?.command
         }
-        resolvedAgentCommand = matchedAgent.command
     }
 
     // Inherit spawnDirectory from caller terminal if not explicitly provided

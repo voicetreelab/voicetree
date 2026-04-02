@@ -9,7 +9,9 @@
  * nodes sequentially (O(depth) round-trips). Now one call creates the whole graph.
  */
 
+import path from 'path'
 import * as O from 'fp-ts/lib/Option.js'
+import normalizePath from 'normalize-path'
 import {applyGraphDeltaToGraph} from '@/pure/graph'
 import type {Graph, GraphDelta, GraphNode, NodeDelta, NodeIdAndFilePath, Position} from '@/pure/graph'
 import {findBestMatchingNode} from '@/pure/graph/markdown-parsing/extract-edges'
@@ -19,7 +21,7 @@ import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {calculateNodePosition} from '@/pure/graph/positioning/calculateInitialPosition'
 import {buildSpatialIndexFromGraph} from '@/pure/graph/positioning/spatialAdapters'
 import type {SpatialIndex} from '@/pure/graph/spatial'
-import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import {getVaultPaths, getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange'
 import {getTerminalRecords, resetAuditRetryCount, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 import {type McpToolResponse, buildJsonResponse} from './types'
@@ -76,6 +78,7 @@ export interface CreateGraphNodeInput {
 export interface CreateGraphParams {
     readonly callerTerminalId: string
     readonly parentNodeId?: string
+    readonly outputPath?: string
     readonly nodes: readonly CreateGraphNodeInput[]
     readonly override_with_rationale?: readonly OverrideEntry[]
 }
@@ -178,9 +181,40 @@ type NodeResult = {
     readonly warning?: string
 }
 
+function isPathWithinDirectory(targetPath: string, directoryPath: string): boolean {
+    return targetPath === directoryPath || targetPath.startsWith(`${directoryPath}/`)
+}
+
+function resolveOutputDirectory(
+    writePath: string,
+    outputPath: string | undefined,
+    allowedVaultPaths: readonly string[]
+): { readonly ok: true; readonly path: string } | { readonly ok: false; readonly error: string } {
+    if (!outputPath || outputPath.trim() === '') {
+        return {ok: true, path: normalizePath(writePath)}
+    }
+
+    const requestedPath: string = outputPath.trim()
+    const resolvedPath: string = normalizePath(
+        path.isAbsolute(requestedPath)
+            ? requestedPath
+            : path.resolve(writePath, requestedPath)
+    )
+
+    if (allowedVaultPaths.some((allowedPath: string) => isPathWithinDirectory(resolvedPath, allowedPath))) {
+        return {ok: true, path: resolvedPath}
+    }
+
+    return {
+        ok: false,
+        error: `outputPath "${outputPath}" resolves to "${resolvedPath}" which is outside the loaded vault paths. Choose a path inside one of: ${allowedVaultPaths.join(', ')}`,
+    }
+}
+
 export async function createGraphTool({
     callerTerminalId,
     parentNodeId: graphParentId,
+    outputPath,
     nodes,
     override_with_rationale,
 }: CreateGraphParams): Promise<McpToolResponse> {
@@ -205,6 +239,19 @@ export async function createGraphTool({
         }, true)
     }
     const writePath: string = vaultPathOpt.value
+    const loadedVaultPaths: readonly string[] = await getVaultPaths()
+    const allowedVaultPaths: readonly string[] = (loadedVaultPaths.length > 0 ? loadedVaultPaths : [writePath])
+        .map((vaultPath: string) => normalizePath(vaultPath))
+    const outputDirectoryResolution:
+        { readonly ok: true; readonly path: string } | { readonly ok: false; readonly error: string } =
+        resolveOutputDirectory(writePath, outputPath, allowedVaultPaths)
+    if (!outputDirectoryResolution.ok) {
+        return buildJsonResponse({
+            success: false,
+            error: outputDirectoryResolution.error,
+        }, true)
+    }
+    const outputDirectory: string = outputDirectoryResolution.path
 
     // Validate: at least 1 node
     if (nodes.length < 1) {
@@ -404,7 +451,7 @@ export async function createGraphTool({
         // Generate unique node ID from filename (strip .md if provided)
         const rawFilename: string = node.filename.replace(/\.md$/, '')
         const nodeSlug: string = slugify(rawFilename)
-        const candidateId: string = `${writePath}/${nodeSlug || 'graph-node'}.md`
+        const candidateId: string = normalizePath(path.join(outputDirectory, `${nodeSlug || 'graph-node'}.md`))
         const nodeId: NodeIdAndFilePath = ensureUniqueNodeId(candidateId, existingIds)
         existingIds.add(nodeId)
 

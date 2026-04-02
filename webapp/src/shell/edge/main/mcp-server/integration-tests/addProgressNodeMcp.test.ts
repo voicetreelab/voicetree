@@ -6,7 +6,8 @@ import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals
 
 // Mock shell/edge dependencies
 vi.mock('@/shell/edge/main/graph/watch_folder/watchFolder', () => ({
-    getWritePath: vi.fn()
+    getWritePath: vi.fn(),
+    getVaultPaths: vi.fn()
 }))
 
 vi.mock('@/shell/edge/main/state/graph-store', () => ({
@@ -14,7 +15,8 @@ vi.mock('@/shell/edge/main/state/graph-store', () => ({
 }))
 
 vi.mock('@/shell/edge/main/terminals/terminal-registry', () => ({
-    getTerminalRecords: vi.fn()
+    getTerminalRecords: vi.fn(),
+    resetAuditRetryCount: vi.fn()
 }))
 
 vi.mock('@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange', () => ({
@@ -32,6 +34,7 @@ vi.mock('@mermaid-js/parser', () => ({
 }))
 
 import {createGraphTool} from '@/shell/edge/main/mcp-server/mcp-server'
+import {getVaultPaths} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getTerminalRecords} from '@/shell/edge/main/terminals/terminal-registry'
@@ -58,6 +61,7 @@ type ErrorPayload = {
 }
 
 const WRITE_PATH: string = '/test/vault'
+const READ_PATH: string = '/test/reference-vault'
 const PARENT_NODE_ID: NodeIdAndFilePath = `${WRITE_PATH}/parent-task.md`
 const CALLER_TERMINAL_ID: string = 'ctx-nodes/caller.md-terminal-0'
 const CALLER_CONTEXT_NODE_ID: NodeIdAndFilePath = 'ctx-nodes/caller.md'
@@ -125,6 +129,7 @@ function mockCallerTerminal(options?: {
 function setupStandardMocks(graphOverride?: Graph): void {
     mockCallerTerminal()
     vi.mocked(getWritePath).mockResolvedValue(O.some(WRITE_PATH))
+    vi.mocked(getVaultPaths).mockResolvedValue([WRITE_PATH])
     vi.mocked(getGraph).mockReturnValue(graphOverride ?? buildGraph())
     vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mockResolvedValue(undefined)
 }
@@ -166,6 +171,21 @@ describe('MCP create_graph tool', () => {
             expect(response.isError).toBe(true)
             expect(payload.success).toBe(false)
             expect(payload.error).toContain('No vault loaded')
+        })
+
+        it('returns error when outputPath resolves outside loaded vault paths', async () => {
+            setupStandardMocks()
+
+            const response: McpToolResponse = await createGraphTool({
+                callerTerminalId: CALLER_TERMINAL_ID,
+                outputPath: '../outside',
+                nodes: [{filename: 'a', title: 'Test', summary: 'Summary'}]
+            })
+            const payload: ErrorPayload = parsePayload(response) as ErrorPayload
+
+            expect(response.isError).toBe(true)
+            expect(payload.success).toBe(false)
+            expect(payload.error).toContain('outside the loaded vault paths')
         })
 
         it('returns error when parent node is not found', async () => {
@@ -394,6 +414,35 @@ describe('MCP create_graph tool', () => {
             expect(upsertedNode.nodeUIMetadata.color).toEqual(O.some('green'))
             expect(upsertedNode.nodeUIMetadata.additionalYAMLProps.get('agent_name')).toBe('my-agent')
         })
+
+        it('creates a node in a relative outputPath under the write path', async () => {
+            setupStandardMocks()
+
+            const response: McpToolResponse = await createGraphTool({
+                callerTerminalId: CALLER_TERMINAL_ID,
+                outputPath: 'deliverables/progress',
+                nodes: [{filename: 'my-progress', title: 'My Progress', summary: 'Did some work.'}]
+            })
+            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
+
+            expect(payload.success).toBe(true)
+            expect(payload.nodes[0].path).toBe(`${WRITE_PATH}/deliverables/progress/my-progress.md`)
+        })
+
+        it('creates a node in an absolute outputPath when it is within a loaded read path', async () => {
+            setupStandardMocks()
+            vi.mocked(getVaultPaths).mockResolvedValue([WRITE_PATH, READ_PATH])
+
+            const response: McpToolResponse = await createGraphTool({
+                callerTerminalId: CALLER_TERMINAL_ID,
+                outputPath: `${READ_PATH}/deliverables`,
+                nodes: [{filename: 'my-progress', title: 'My Progress', summary: 'Did some work.'}]
+            })
+            const payload: SuccessPayload = parsePayload(response) as SuccessPayload
+
+            expect(payload.success).toBe(true)
+            expect(payload.nodes[0].path).toBe(`${READ_PATH}/deliverables/my-progress.md`)
+        })
     })
 
     // =========================================================================
@@ -459,8 +508,9 @@ describe('MCP create_graph tool', () => {
             // Child 1: root position + (200, 0)
             // Child 2: root position + (200, 150)
             const calls: Array<[GraphDelta, boolean | undefined]> = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls as Array<[GraphDelta, boolean | undefined]>
-            // 3 node creations + 1 context update = 4 calls
-            expect(calls.length).toBeGreaterThanOrEqual(3)
+            const creationDelta: GraphDelta = calls[0][0]
+            expect(creationDelta).toHaveLength(3)
+            expect(calls.length).toBeGreaterThanOrEqual(2)
         })
 
         it('updates context node with all new node IDs', async () => {

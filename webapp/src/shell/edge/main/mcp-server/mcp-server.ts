@@ -215,7 +215,7 @@ If no node exists yet, use task+parentNodeId to create a new task node first.`,
                 parentNodeId: z.string().optional().describe('Parent node ID under which to create the new task node (required when task is provided)'),
                 spawnDirectory: z.string().optional().describe('Absolute path to spawn the agent in. By default, inherits the parent terminal\'s directory (worktree-safe). Only needed to override, for example to contain child-agent to a subfolder or new worktree'),
                 promptTemplate: z.string().optional().describe('Name of an INJECT_ENV_VARS key to use as AGENT_PROMPT instead of the default. Must match an existing key in settings.'),
-                agentName: z.string().optional().describe('Name of an agent from settings.agents to use (e.g., "Claude Sonnet"). If not provided, uses the default agent from settings.'),
+                agentName: z.string().optional().describe('Name of an agent from settings.agents to use (e.g., "Claude Sonnet"). If not provided, inherits the caller\'s agent type. Falls back to default agent from settings if caller has no type.'),
                 headless: z.boolean().optional().describe('When true, agent runs as background process with no PTY/terminal UI. Output is via MCP tools (create_graph). Status shown as badge on task node.'),
                 replaceSelf: z.boolean().optional().describe('When true, the successor inherits the caller\'s terminal ID and agent name. The caller\'s process is killed and replaced atomically. Use for context handover — the agent identity persists across context boundaries.'),
                 depthBudget: z.number().optional().describe('Explicit DEPTH_BUDGET for the child agent. If omitted, auto-decrements from the caller\'s DEPTH_BUDGET (parent budget - 1). Controls recursive decomposition: budget > 0 = may spawn sub-agents, budget = 0 = leaf agent (no spawning).')
@@ -362,6 +362,7 @@ Task
             inputSchema: {
                 callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),
                 parentNodeId: z.string().optional().describe('Existing graph node ID to attach root nodes to. Defaults to your task node.'),
+                outputPath: z.string().optional().describe('Optional absolute or relative directory path where new nodes should be written. Relative paths resolve from the current write path. The resolved path must stay inside the loaded vault paths (writePath or readPaths).'),
                 nodes: z.array(z.object({
                     filename: z.string().describe('Filename for this node (with or without .md extension). Also used in `parents` to reference other nodes in this call.'),
                     title: z.string().describe('Node title — one concept per node, concise and descriptive'),
@@ -389,8 +390,8 @@ Task
                 ),
             }
         },
-        async ({callerTerminalId, parentNodeId, nodes, override_with_rationale}) =>
-            createGraphTool({callerTerminalId, parentNodeId, nodes, override_with_rationale})
+        async ({callerTerminalId, parentNodeId, outputPath, nodes, override_with_rationale}) =>
+            createGraphTool({callerTerminalId, parentNodeId, outputPath, nodes, override_with_rationale})
     )
 
     // Tool: graph_structure

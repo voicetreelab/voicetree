@@ -25,6 +25,15 @@ function getResultText(payload: Record<string, unknown>): string | undefined {
     return typeof firstItem?.text === 'string' ? firstItem.text : undefined
 }
 
+function getToolErrorMessage(payload: Record<string, unknown>): string | undefined {
+    const result: Record<string, unknown> | undefined = asRecord(payload.result)
+    if (result?.isError !== true) {
+        return undefined
+    }
+
+    return getResultText(payload) ?? 'Voicetree MCP tool returned an unspecified error'
+}
+
 export async function callMcpTool(
     port: number,
     toolName: string,
@@ -77,6 +86,11 @@ export async function callMcpTool(
 
     if (rpcErrorMessage) {
         throw new Error(rpcErrorMessage)
+    }
+
+    const toolErrorMessage: string | undefined = getToolErrorMessage(payloadRecord)
+    if (toolErrorMessage) {
+        throw new Error(toolErrorMessage)
     }
 
     const contentText: string | undefined = getResultText(payloadRecord)

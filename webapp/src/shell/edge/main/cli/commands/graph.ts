@@ -1,6 +1,7 @@
 import {readFileSync} from 'fs'
 import {callMcpTool} from '../mcp-client.ts'
 import {error, output} from '../output.ts'
+import {getGraphStructure} from '../../graphStructure'
 
 type GraphCreateNode = Record<string, unknown> & {
     filename: string
@@ -310,6 +311,9 @@ export async function graphCreate(port: number, terminalId: string | undefined, 
 }
 
 export async function graphStructure(port: number, terminalId: string | undefined, args: string[]): Promise<void> {
+    void port
+    void terminalId
+
     if (args.length === 0) {
         error('Usage: vt graph structure <folder-path>')
     }
@@ -317,15 +321,10 @@ export async function graphStructure(port: number, terminalId: string | undefine
     const folderPath: string = args[0]
 
     try {
-        const response: unknown = await callMcpTool(port, 'graph_structure', { folderPath })
-        const result = response as { success: boolean; ascii?: string; nodeCount?: number; orphanCount?: number; error?: string }
-
-        if (!result.success) {
-            error(result.error ?? 'graph_structure failed')
-        }
+        const result = getGraphStructure(folderPath)
 
         if (result.nodeCount === 0) {
-            output({ message: '0 nodes found', folderPath })
+            output({message: '0 nodes found', folderPath})
         } else {
             console.log(`${result.nodeCount} nodes in ${args[0]}`)
             console.log('')
@@ -335,7 +334,7 @@ export async function graphStructure(port: number, terminalId: string | undefine
             }
         }
     } catch (toolError: unknown) {
-        error(`graph_structure failed: ${toolError instanceof Error ? toolError.message : String(toolError)}`)
+        error(`graph_structure failed: ${getErrorMessage(toolError)}`)
     }
 }
 

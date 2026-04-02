@@ -1,8 +1,8 @@
 import {describe, it, expect, vi, beforeEach} from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import type {GraphNode, NodeIdAndFilePath} from '@/pure/graph'
+import type {VTSettings} from '@/pure/settings'
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
-import type {TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 
 vi.mock('@/shell/edge/main/graph/watch_folder/watchFolder', () => ({
     getWritePath: vi.fn()
@@ -16,12 +16,12 @@ vi.mock('@/shell/edge/main/terminals/spawnTerminalWithContextNode', () => ({
     spawnTerminalWithContextNode: vi.fn()
 }))
 
-vi.mock('@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode', () => ({
-    getUnseenNodesAroundContextNode: vi.fn()
-}))
-
 vi.mock('@/shell/edge/main/terminals/terminal-registry', () => ({
     getTerminalRecords: vi.fn()
+}))
+
+vi.mock('@/shell/edge/main/settings/settings_IO', () => ({
+    loadSettings: vi.fn()
 }))
 
 vi.mock('@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange', () => ({
@@ -33,12 +33,12 @@ vi.mock('@/shell/edge/main/mcp-server/agent-completion-monitor', () => ({
 }))
 
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange'
-import {spawnAgentTool, listAgentsTool} from '@/shell/edge/main/mcp-server/mcp-server'
+import {spawnAgentTool} from '@/shell/edge/main/mcp-server/mcp-server'
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {spawnTerminalWithContextNode} from '@/shell/edge/main/terminals/spawnTerminalWithContextNode'
-import {getUnseenNodesAroundContextNode} from '@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode'
 import {getTerminalRecords} from '@/shell/edge/main/terminals/terminal-registry'
+import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 
 type McpToolResponse = {
@@ -64,6 +64,11 @@ function buildGraphNode(nodeId: NodeIdAndFilePath, content: string, agentName?: 
     }
 }
 
+const TEST_AGENTS: readonly {name: string; command: string}[] = [
+    {name: 'Claude Sonnet', command: 'claude-sonnet --prompt "$AGENT_PROMPT"'},
+    {name: 'Codex', command: 'codex --prompt "$AGENT_PROMPT"'}
+]
+
 function mockCallerTerminal(): void {
     const callerTerminalData: TerminalData = createTerminalData({
         terminalId: 'caller-terminal-99' as TerminalId,
@@ -78,42 +83,48 @@ function mockCallerTerminal(): void {
     ])
 }
 
+function mockCallerWithType(agentTypeName: string): void {
+    const callerTerminalData: TerminalData = createTerminalData({
+        terminalId: 'caller-terminal-99' as TerminalId,
+        attachedToNodeId: 'ctx-nodes/caller.md',
+        terminalCount: 99,
+        title: 'Caller',
+        executeCommand: true,
+        agentName: 'caller',
+        agentTypeName
+    })
+    vi.mocked(getTerminalRecords).mockReturnValue([
+        {terminalId: 'caller-terminal-99', terminalData: callerTerminalData, status: 'running', exitCode: null, auditRetryCount: 0, spawnedAt: 0}
+    ])
+}
+
+function setupGraph(nodeId: string = 'node-1.md', content: string = '# Node One'): void {
+    vi.mocked(getWritePath).mockResolvedValue(O.some('/vault'))
+    vi.mocked(getGraph).mockReturnValue({
+        nodes: {[nodeId]: buildGraphNode(nodeId, content)},
+        incomingEdgesIndex: new Map(),
+        nodeByBaseName: new Map(),
+        unresolvedLinksIndex: new Map()
+    })
+    vi.mocked(spawnTerminalWithContextNode).mockResolvedValue({
+        terminalId: 'node-1-terminal-0',
+        contextNodeId: 'ctx-nodes/node-1_context.md'
+    })
+}
+
 describe('MCP spawn_agent tool', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        vi.mocked(loadSettings).mockResolvedValue({agents: []} as unknown as VTSettings)
     })
 
     it('spawns an agent on an existing node', async () => {
         mockCallerTerminal()
-        vi.mocked(getWritePath).mockResolvedValue(O.some('/vault'))
-        vi.mocked(getGraph).mockReturnValue({
-            nodes: {
-                'node-1.md': buildGraphNode('node-1.md', '# Node One')
-            },
-            incomingEdgesIndex: new Map(),
-            nodeByBaseName: new Map(),
-            unresolvedLinksIndex: new Map()
-        })
-
-        vi.mocked(spawnTerminalWithContextNode).mockResolvedValue({
-            terminalId: 'node-1-terminal-0',
-            contextNodeId: 'ctx-nodes/node-1_context.md'
-        })
+        setupGraph()
 
         const response: McpToolResponse = await spawnAgentTool({nodeId: 'node-1.md', callerTerminalId: 'caller-terminal-99'})
-        const payload: {
-            success: boolean
-            terminalId: string
-            nodeId: string
-            contextNodeId: string
-            message: string
-        } = parsePayload(response) as {
-            success: boolean
-            terminalId: string
-            nodeId: string
-            contextNodeId: string
-            message: string
-        }
+        const payload: {success: boolean; terminalId: string; nodeId: string; contextNodeId: string; message: string} =
+            parsePayload(response) as {success: boolean; terminalId: string; nodeId: string; contextNodeId: string; message: string}
 
         expect(payload.success).toBe(true)
         expect(payload.nodeId).toBe('node-1.md')
@@ -126,10 +137,7 @@ describe('MCP spawn_agent tool', () => {
         mockCallerTerminal()
         vi.mocked(getWritePath).mockResolvedValue(O.some('/vault'))
         vi.mocked(getGraph).mockReturnValue({
-            nodes: {},
-            incomingEdgesIndex: new Map(),
-            nodeByBaseName: new Map(),
-            unresolvedLinksIndex: new Map()
+            nodes: {}, incomingEdgesIndex: new Map(), nodeByBaseName: new Map(), unresolvedLinksIndex: new Map()
         })
 
         const response: McpToolResponse = await spawnAgentTool({nodeId: 'missing-node.md', callerTerminalId: 'caller-terminal-99'})
@@ -143,34 +151,20 @@ describe('MCP spawn_agent tool', () => {
     it('resolves short nodeId to full path via nodeByBaseName index', async () => {
         mockCallerTerminal()
         vi.mocked(getWritePath).mockResolvedValue(O.some('/vault'))
-
-        // Full path as key in nodes, but we'll pass just the basename
         const fullPath: NodeIdAndFilePath = '/Users/test/vault/voicetree/fix-test.md'
         vi.mocked(getGraph).mockReturnValue({
-            nodes: {
-                [fullPath]: buildGraphNode(fullPath, '# Fix Test')
-            },
+            nodes: {[fullPath]: buildGraphNode(fullPath, '# Fix Test')},
             incomingEdgesIndex: new Map(),
             nodeByBaseName: new Map([['fix-test', [fullPath]]]),
             unresolvedLinksIndex: new Map()
         })
-
         vi.mocked(spawnTerminalWithContextNode).mockResolvedValue({
             terminalId: 'fix-test-terminal-0',
             contextNodeId: 'ctx-nodes/fix-test_context.md'
         })
 
-        // Pass just the short name - should resolve to full path
         const response: McpToolResponse = await spawnAgentTool({nodeId: 'fix-test.md', callerTerminalId: 'caller-terminal-99'})
-        const payload: {
-            success: boolean
-            nodeId: string
-            terminalId: string
-        } = parsePayload(response) as {
-            success: boolean
-            nodeId: string
-            terminalId: string
-        }
+        const payload: {success: boolean; nodeId: string} = parsePayload(response) as {success: boolean; nodeId: string}
 
         expect(payload.success).toBe(true)
         expect(payload.nodeId).toBe(fullPath)
@@ -192,20 +186,7 @@ describe('MCP spawn_agent tool', () => {
 
     it('returns after spawn is initiated', async () => {
         mockCallerTerminal()
-        vi.mocked(getWritePath).mockResolvedValue(O.some('/vault'))
-        vi.mocked(getGraph).mockReturnValue({
-            nodes: {
-                'node-1.md': buildGraphNode('node-1.md', '# Node One')
-            },
-            incomingEdgesIndex: new Map(),
-            nodeByBaseName: new Map(),
-            unresolvedLinksIndex: new Map()
-        })
-
-        vi.mocked(spawnTerminalWithContextNode).mockResolvedValue({
-            terminalId: 'node-1-terminal-0',
-            contextNodeId: 'ctx-nodes/node-1_context.md'
-        })
+        setupGraph()
 
         const response: McpToolResponse = await spawnAgentTool({nodeId: 'node-1.md', callerTerminalId: 'caller-terminal-99'})
         const payload: {success: boolean; terminalId: string} = parsePayload(response) as {success: boolean; terminalId: string}
@@ -215,25 +196,48 @@ describe('MCP spawn_agent tool', () => {
         expect(spawnTerminalWithContextNode).toHaveBeenCalledTimes(1)
     })
 
-    it('marks existing node as claimed on spawn', async () => {
-        mockCallerTerminal()
-        vi.mocked(getWritePath).mockResolvedValue(O.some('/vault'))
-        vi.mocked(getGraph).mockReturnValue({
-            nodes: {
-                'node-1.md': buildGraphNode('node-1.md', '# Node One')
-            },
-            incomingEdgesIndex: new Map(),
-            nodeByBaseName: new Map(),
-            unresolvedLinksIndex: new Map()
-        })
-        vi.mocked(spawnTerminalWithContextNode).mockResolvedValue({
-            terminalId: 'node-1-terminal-0',
-            contextNodeId: 'ctx-nodes/node-1_context.md'
-        })
+    it('inherits the caller agent type by default when agentName is omitted', async () => {
+        mockCallerWithType('Codex')
+        vi.mocked(loadSettings).mockResolvedValue({agents: TEST_AGENTS} as VTSettings)
+        setupGraph()
 
         await spawnAgentTool({nodeId: 'node-1.md', callerTerminalId: 'caller-terminal-99'})
 
-        // First call to applyGraphDelta should be the claim delta
+        expect(spawnTerminalWithContextNode).toHaveBeenCalledWith(
+            'node-1.md', 'codex --prompt "$AGENT_PROMPT"', undefined, true, false, undefined, undefined, 'caller-terminal-99', undefined, undefined, undefined, {}
+        )
+    })
+
+    it('falls back to settings default when caller has no agentTypeName', async () => {
+        mockCallerTerminal()
+        vi.mocked(loadSettings).mockResolvedValue({agents: TEST_AGENTS} as VTSettings)
+        setupGraph()
+
+        await spawnAgentTool({nodeId: 'node-1.md', callerTerminalId: 'caller-terminal-99'})
+
+        expect(spawnTerminalWithContextNode).toHaveBeenCalledWith(
+            'node-1.md', undefined, undefined, true, false, undefined, undefined, 'caller-terminal-99', undefined, undefined, undefined, {}
+        )
+    })
+
+    it('prefers explicit agentName over inherited caller agent', async () => {
+        mockCallerWithType('Codex')
+        vi.mocked(loadSettings).mockResolvedValue({agents: TEST_AGENTS} as VTSettings)
+        setupGraph()
+
+        await spawnAgentTool({nodeId: 'node-1.md', callerTerminalId: 'caller-terminal-99', agentName: 'Claude Sonnet'})
+
+        expect(spawnTerminalWithContextNode).toHaveBeenCalledWith(
+            'node-1.md', 'claude-sonnet --prompt "$AGENT_PROMPT"', undefined, true, false, undefined, undefined, 'caller-terminal-99', undefined, undefined, undefined, {}
+        )
+    })
+
+    it('marks existing node as claimed on spawn', async () => {
+        mockCallerTerminal()
+        setupGraph()
+
+        await spawnAgentTool({nodeId: 'node-1.md', callerTerminalId: 'caller-terminal-99'})
+
         const claimCall: unknown[] | undefined = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls[0]
         expect(claimCall).toBeDefined()
         const claimDelta: Array<{type: string; nodeToUpsert: GraphNode}> = claimCall![0] as Array<{type: string; nodeToUpsert: GraphNode}>
@@ -279,9 +283,7 @@ describe('MCP spawn_agent depthBudget auto-decrement', () => {
     it('auto-decrements DEPTH_BUDGET from parent (2 → 1)', async () => {
         mockCallerWithBudget('2')
         setupGraphAndSpawn()
-
         await spawnAgentTool({nodeId: 'node-1.md', callerTerminalId: 'caller-terminal-99'})
-
         const envOverridesArg: Record<string, string> | undefined =
             vi.mocked(spawnTerminalWithContextNode).mock.calls[0]?.[11] as Record<string, string> | undefined
         expect(envOverridesArg).toEqual({DEPTH_BUDGET: '1'})
@@ -290,9 +292,7 @@ describe('MCP spawn_agent depthBudget auto-decrement', () => {
     it('auto-decrements DEPTH_BUDGET floors at 0', async () => {
         mockCallerWithBudget('0')
         setupGraphAndSpawn()
-
         await spawnAgentTool({nodeId: 'node-1.md', callerTerminalId: 'caller-terminal-99'})
-
         const envOverridesArg: Record<string, string> | undefined =
             vi.mocked(spawnTerminalWithContextNode).mock.calls[0]?.[11] as Record<string, string> | undefined
         expect(envOverridesArg).toEqual({DEPTH_BUDGET: '0'})
@@ -301,9 +301,7 @@ describe('MCP spawn_agent depthBudget auto-decrement', () => {
     it('explicit depthBudget overrides auto-decrement', async () => {
         mockCallerWithBudget('2')
         setupGraphAndSpawn()
-
         await spawnAgentTool({nodeId: 'node-1.md', callerTerminalId: 'caller-terminal-99', depthBudget: 5})
-
         const envOverridesArg: Record<string, string> | undefined =
             vi.mocked(spawnTerminalWithContextNode).mock.calls[0]?.[11] as Record<string, string> | undefined
         expect(envOverridesArg).toEqual({DEPTH_BUDGET: '5'})
@@ -312,133 +310,17 @@ describe('MCP spawn_agent depthBudget auto-decrement', () => {
     it('returns depthBudget in response when set', async () => {
         mockCallerWithBudget('3')
         setupGraphAndSpawn()
-
         const response: McpToolResponse = await spawnAgentTool({nodeId: 'node-1.md', callerTerminalId: 'caller-terminal-99'})
         const payload: {depthBudget?: number} = parsePayload(response) as {depthBudget?: number}
-
         expect(payload.depthBudget).toBe(2)
     })
 
     it('empty envOverrides when parent has no DEPTH_BUDGET or budget', async () => {
-        mockCallerTerminal() // no initialEnvVars
+        mockCallerTerminal()
         setupGraphAndSpawn()
-
         await spawnAgentTool({nodeId: 'node-1.md', callerTerminalId: 'caller-terminal-99'})
-
         const envOverridesArg: Record<string, string> | undefined =
             vi.mocked(spawnTerminalWithContextNode).mock.calls[0]?.[11] as Record<string, string> | undefined
         expect(envOverridesArg).toEqual({})
-    })
-})
-
-describe('MCP list_agents tool', () => {
-    beforeEach(() => {
-        vi.clearAllMocks()
-    })
-
-    it('lists all agents with status and new nodes', async () => {
-        // Terminal data with agentName for matching
-        const terminalDataA: TerminalData = createTerminalData({
-            terminalId: 'agent-a-terminal-0' as TerminalId,
-            attachedToNodeId: 'ctx-nodes/agent-a.md',
-            terminalCount: 0,
-            title: 'Agent A',
-            executeCommand: true,
-            agentName: 'Sam'
-        })
-        const terminalDataB: TerminalData = createTerminalData({
-            terminalId: 'agent-b-terminal-1' as TerminalId,
-            attachedToNodeId: 'ctx-nodes/agent-b.md',
-            terminalCount: 1,
-            title: 'Agent B',
-            executeCommand: true,
-            agentName: 'Max'
-        })
-        const terminalDataPlain: TerminalData = createTerminalData({
-            terminalId: 'plain-terminal-0' as TerminalId,
-            attachedToNodeId: 'plain-node.md',
-            terminalCount: 0,
-            title: 'Plain Terminal',
-            executeCommand: false,
-            agentName: 'plain'
-        })
-
-        const records: TerminalRecord[] = [
-            {terminalId: 'agent-a-terminal-0', terminalData: terminalDataA, status: 'running', exitCode: null, auditRetryCount: 0, spawnedAt: 0},
-            {terminalId: 'agent-b-terminal-1', terminalData: {...terminalDataB, isDone: true}, status: 'exited', exitCode: null, auditRetryCount: 0, spawnedAt: 0},
-            {terminalId: 'plain-terminal-0', terminalData: terminalDataPlain, status: 'running', exitCode: null, auditRetryCount: 0, spawnedAt: 0}
-        ]
-
-        vi.mocked(getTerminalRecords).mockReturnValue(records)
-
-        // Graph contains nodes with agent_name matching terminal's agentName
-        vi.mocked(getGraph).mockReturnValue({
-            nodes: {
-                'new-node-a.md': buildGraphNode('new-node-a.md', '# Node A', 'Sam'),
-                'new-node-b.md': buildGraphNode('new-node-b.md', '# Node B', 'Max')
-            },
-            incomingEdgesIndex: new Map(),
-            nodeByBaseName: new Map(),
-            unresolvedLinksIndex: new Map()
-        })
-
-        const response: McpToolResponse = await listAgentsTool()
-        const payload: {
-            agents: Array<{
-                terminalId: string
-                title: string
-                contextNodeId: string
-                status: string
-                newNodes: Array<{nodeId: string; title: string}>
-            }>
-        } = parsePayload(response) as {
-            agents: Array<{
-                terminalId: string
-                title: string
-                contextNodeId: string
-                status: string
-                newNodes: Array<{nodeId: string; title: string}>
-            }>
-        }
-
-        expect(payload.agents).toHaveLength(2)
-        expect(payload.agents[0]?.status).toBe('running')
-        expect(payload.agents[0]?.newNodes[0]).toEqual({nodeId: 'new-node-a.md', title: 'Node A'})
-        expect(payload.agents[1]?.status).toBe('exited')
-        expect(payload.agents[1]?.newNodes[0]).toEqual({nodeId: 'new-node-b.md', title: 'Node B'})
-    })
-
-    it('returns an empty list when no agents exist', async () => {
-        vi.mocked(getTerminalRecords).mockReturnValue([])
-
-        const response: McpToolResponse = await listAgentsTool()
-        const payload: {agents: unknown[]} = parsePayload(response) as {agents: unknown[]}
-
-        expect(payload.agents).toEqual([])
-    })
-
-    it('returns idle status when agent is inactive (isDone: true, PTY running)', async () => {
-        const terminalData: TerminalData = createTerminalData({
-            terminalId: 'idle-agent-terminal-0' as TerminalId,
-            attachedToNodeId: 'ctx-nodes/idle-agent.md',
-            terminalCount: 0,
-            title: 'Idle Agent',
-            executeCommand: true,
-            agentName: 'idle-agent'
-        })
-
-        const records: TerminalRecord[] = [
-            {terminalId: 'idle-agent-terminal-0', terminalData: {...terminalData, isDone: true}, status: 'running', exitCode: null, auditRetryCount: 0, spawnedAt: 0}
-        ]
-
-        vi.mocked(getTerminalRecords).mockReturnValue(records)
-        vi.mocked(getUnseenNodesAroundContextNode).mockResolvedValue([])
-        vi.mocked(getGraph).mockReturnValue({nodes: {}, incomingEdgesIndex: new Map(), nodeByBaseName: new Map(), unresolvedLinksIndex: new Map()})
-
-        const response: McpToolResponse = await listAgentsTool()
-        const payload: {agents: Array<{status: string}>} = parsePayload(response) as {agents: Array<{status: string}>}
-
-        expect(payload.agents).toHaveLength(1)
-        expect(payload.agents[0]?.status).toBe('idle')
     })
 })
