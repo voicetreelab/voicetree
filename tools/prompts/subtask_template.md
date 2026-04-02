@@ -1,5 +1,7 @@
 # Subtask Template
 
+Your subtask is a function: input → output, minimal side effects. Side effects create hidden dependencies with sibling tasks — dependency cost is superlinear. Stay within boundaries to keep inter-task coupling low (O(N) reasoning instead of O(N²)).
+
 This template defines the structure for subtask nodes. Fill in the sections below when decomposing a task.
 
 ---

@@ -1,6 +1,6 @@
 # Decomposing Tasks into Dependency Graphs
 
-Your task is to decompose a task into a subtask dependency graph and add it to the markdown tree.
+Your task is to decompose a task into a subtask dependency graph and add it to the markdown tree. Why decompose? Reasoning about N coupled items costs superlinearly (O(N²) or worse). Decomposition reduces each reasoning step to fewer items with lower coupling — the only way to keep cost manageable for bounded processors.
 
 ## Naming Convention
 

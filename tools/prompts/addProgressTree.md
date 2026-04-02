@@ -1,23 +1,41 @@
-Use the `create_graph` MCP tool with `$VOICETREE_TERMINAL_ID` to add progress nodes. One call, 1+ nodes. The tool handles frontmatter, file paths, parent linking, and graph positioning automatically.
+Use the `create_graph` MCP tool with `$VOICETREE_TERMINAL_ID` to add nodes. One call, 1+ nodes. The tool handles frontmatter, file paths, parent linking, and graph positioning automatically.
+You may also create nodes using manual filesystem .md writes, and [[to_add_edge_to_example_node_xyz]].  
 
-## Orchestration: Decide Before You Start
-Does this task have 2+ distinct concerns or phases?
+**Why structure matters:** Each item at one level costs the reader superlinearly — 5 items costs more than 5x what 1 costs. This is why both splitting and merging have costs. Design law: minimize items per level + minimize dependency between items. Structure is not preference — it's computational necessity for bounded processors.
 
-YES → Decompose and spawn:
-1. Create nodes for each subtask (one node = one concern)
-2. Spawn voicetree agents (`mcp__voicetree__spawn_agent`) to work in parallel
-3. Wait (`mcp__voicetree__wait_for_agents`) and review their work
+Use Voicetree agents over built-in subagents: users can see progress, read nodes, and intervene if performing mistakes or stuck. 
+But if interaction from user is highly unlikely necessary, (i.e. no chance the subagent could fail at the given task), you can use your built-in subagents, or headless VT agents if you don't have.
 
-See `decompose_subtask_dependency_graph.md` for graph structure patterns.
+## When & how to Split Into Multiple Nodes?
 
-NO → Proceed directly (single concern, < 30 lines, 1-2 files).
+- FOR ALL TASKS
 
-Voicetree agents over built-in subagents: users can see progress, read nodes, and intervene.
+Given an argument in pseudocode, decompose it into a graph of nodes that optimally serves both human understanding and agent analysis.
 
-## When to Split Into Multiple Nodes
-One node = one concept. Split when independently referenceable (options to compare, decisions to revisit, distinct phases). Keep together when tightly coupled.
+Too few nodes → monolithic, no structure exposed, can't view the information at a higher level of abstraction. (There's no conceptual (boxes and arrows) view)
 
-**Split rule: If your output covers N independent concerns, create N nodes.** Quick test: "If the parent disappeared, would this content still make sense?" YES → own node. NO → keep in parent.
+Too many nodes → fragmented, graph noise drowns signal, View 1 is useless. 
+
+Nodes, but the graph struture not helpful in representing the structure of the informatioin  (e.g. 1 parent with 20 children all related, sure it's technically true, but there's a more accurate graph view that better represents the structure
+
+
+/// <Example>TODO add example of a parent with many children, better restructured to be a DAG structure </Example>
+
+How do you achieve a great mindmap structure for conveying the relevant information? 
+
+1. Decide what's relevant (what's the situation? a handover? an explanation? a world context?). What would someone re-looking at this mindmap want to see?
+2. Decide structural view of that relevant information
+3. key concepts (most important to hold in attention)
+
+potentially relevant context that you want to still save, but it's not critical, these can be considered as 'details', and added to within a nodes content, NOT be represented by the structural view (concept names + relationship edges + edge names), since that would crowd attention.
+
+- Additionally, FOR SOFTWARE ENGINEERING
+Generally, One node = one important chunk. (A chunk could be 7 moderately important related concepts, or 1 important concept, 7 important related concept can be it's own sub-graph, with its folder becoming its compound node ~ equivocal to moving N nodes under one common parent, which is a great way to re-organise because then you have only "method" in the interface to that subgraph, or inversely only one dependency, or only one connection to it amongst a larger graph (i.e. the global world model), which is key because it reduces complexity, making it more understandable), just like when architecting a codebase to decouple a component, by extracting it into a pure function (i.e. the parent/compound node) Split when independently referenceable (options to compare, decisions to revisit, distinct phases). Keep together when tightly coupled.
+
+**Boundary test** (apply at each level):
+1. **Extract?** Does naming this as a separate node reduce parent cost? Must absorb ≥2 dimensions — if extracting doesn't hide complexity, it adds a name without reducing slots (N+1 toxin).
+2. **Merge?** Remove this node — does the parent get harder? If not, keep inline.
+Quick test: "Could a reader act on this without the sibling nodes?" YES → own node. NO → keep in parent.
 
 Create multiple nodes when:
 - Multiple concerns (bug fix + refactor + new feature)
@@ -39,7 +57,10 @@ Task
 └── Pure functions
 ```
 
-Wire multi-node graphs using `parents` (local ids within the same call). Nodes without `parents` attach to your task node by default.
+If the output nodes you have to create aren't strictly SWE orchestration outputs, and benefit from more flexible mindmap structures,
+then please read [[]]
+
+Wire multi-node graphs using `parents` (local ids within the same call). Nodes without `parents` attach to your task node by default. Tree structure (containment) = optional attention cost — reader can zoom in or skip. Wikilink edges = forced attention cost — reader must follow. Use tree for hierarchy; edges only for cross-references between independent chunks.
 
 ## Scope Guidelines
 
@@ -52,6 +73,7 @@ Wire multi-node graphs using `parents` (local ids within the same call). Nodes w
 
 ## Content Rules
 - **Self-containment:** The node IS the deliverable. Embed all artifacts verbatim (diagrams, code, tables, mockups, analysis) — never summarize an artifact. A reader should never need to look elsewhere to understand what was produced.
+- **Reader-relativity:** Write for the future reader without your context. Name domain concepts explicitly — effective_cost depends on the reader's compiled subfunctions, not yours. If a term needs zooming to understand, define or link it.
 - **`summary`:** Concise summary of what was accomplished. Include key details: specifications, decisions, plans, outcomes.
 - **`filesChanged`:** Always include all file paths you modified.
 - **`codeDiffs`:** Include exact diffs for <40 lines of changes (production files only; omit test diffs unless tests are the main task). Over 40 lines, include only key changes. Requires `complexityScore` and `complexityExplanation`.
