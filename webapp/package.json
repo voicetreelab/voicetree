@@ -39,6 +39,7 @@
     "electron-trackpad-detect": "file:native-modules/electron-trackpad-detect"
   },
   "dependencies": {
+    "@vt/graph-tools": "*",
     "@codemirror/autocomplete": "^6.20.0",
     "@codemirror/commands": "^6.10.0",
     "@codemirror/lang-java": "^6.0.2",

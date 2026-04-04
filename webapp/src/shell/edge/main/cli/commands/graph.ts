@@ -1,7 +1,8 @@
 import {readFileSync} from 'fs'
-import {callMcpTool} from '../mcp-client.ts'
-import {error, output} from '../output.ts'
-import {getGraphStructure} from '../../graphStructure'
+import {callMcpTool} from '@/shell/edge/main/cli/mcp-client'
+import {error, output, isJsonMode} from '@/shell/edge/main/cli/output'
+import {getGraphStructure, lintGraph, formatLintReportHuman, formatLintReportJson, DEFAULT_LINT_CONFIG} from '@vt/graph-tools'
+import type {LintConfig} from '@vt/graph-tools'
 
 type GraphCreateNode = Record<string, unknown> & {
     filename: string
@@ -106,7 +107,7 @@ function getErrorMessage(err: unknown): string {
 
 function readCreateGraphPayloadFromStdin(terminalId: string | undefined): {
     callerTerminalId: string
-    parentNodeId: string | undefined
+    parentNodeId?: string
     nodes: GraphCreateNode[]
     override_with_rationale?: unknown
 } {
@@ -232,7 +233,7 @@ export async function graphCreate(port: number, terminalId: string | undefined, 
     let color: string | undefined
 
     if (!process.stdin.isTTY) {
-        const payload = readCreateGraphPayloadFromStdin(terminalId)
+        const payload: ReturnType<typeof readCreateGraphPayloadFromStdin> = readCreateGraphPayloadFromStdin(terminalId)
         try {
             const response: unknown = await callMcpTool(port, 'create_graph', payload)
             const result: GraphCreateSuccess | ToolFailure = response as GraphCreateSuccess | ToolFailure
@@ -248,7 +249,7 @@ export async function graphCreate(port: number, terminalId: string | undefined, 
         return
     }
 
-    for (let index = 0; index < args.length; index += 1) {
+    for (let index: number = 0; index < args.length; index += 1) {
         const arg: string = args[index]
         if (arg === '--nodes-file') {
             nodesFile = getRequiredValue(args, index + 1, '--nodes-file')
@@ -321,7 +322,7 @@ export async function graphStructure(port: number, terminalId: string | undefine
     const folderPath: string = args[0]
 
     try {
-        const result = getGraphStructure(folderPath)
+        const result: ReturnType<typeof getGraphStructure> = getGraphStructure(folderPath)
 
         if (result.nodeCount === 0) {
             output({message: '0 nodes found', folderPath})
@@ -343,7 +344,7 @@ export async function graphUnseen(port: number, terminalId: string | undefined, 
 
     let searchFromNode: string | undefined
 
-    for (let index = 0; index < args.length; index += 1) {
+    for (let index: number = 0; index < args.length; index += 1) {
         const arg: string = args[index]
         if (arg === '--from') {
             searchFromNode = getRequiredValue(args, index + 1, '--from')
@@ -374,5 +375,53 @@ export async function graphUnseen(port: number, terminalId: string | undefined, 
         })
     } catch (toolError: unknown) {
         error(`get_unseen_nodes_nearby failed: ${getErrorMessage(toolError)}`)
+    }
+}
+
+export async function graphLintCommand(port: number, terminalId: string | undefined, args: string[]): Promise<void> {
+    void port
+    void terminalId
+
+    if (args.length === 0) {
+        error('Usage: vt graph lint <folder-path> [--max-arity N] [--coupling-threshold N] [--cross-ref-threshold N]')
+    }
+
+    const folderPath: string = args[0]
+    const config: LintConfig = { ...DEFAULT_LINT_CONFIG }
+
+    for (let index: number = 1; index < args.length; index += 1) {
+        const arg: string = args[index]
+        if (arg === '--max-arity') {
+            const val: string = getRequiredValue(args, index + 1, '--max-arity')
+            config.maxArity = Number(val)
+            config.maxAttentionItems = Number(val)
+            index += 1
+            continue
+        }
+        if (arg === '--coupling-threshold') {
+            const val: string = getRequiredValue(args, index + 1, '--coupling-threshold')
+            config.highCouplingThreshold = Number(val)
+            index += 1
+            continue
+        }
+        if (arg === '--cross-ref-threshold') {
+            const val: string = getRequiredValue(args, index + 1, '--cross-ref-threshold')
+            config.wideCrossRefThreshold = Number(val)
+            index += 1
+            continue
+        }
+        error(`Unknown argument: ${arg}`)
+    }
+
+    try {
+        const report: ReturnType<typeof lintGraph> = lintGraph(folderPath, config)
+
+        if (isJsonMode()) {
+            console.log(formatLintReportJson(report))
+        } else {
+            console.log(formatLintReportHuman(report))
+        }
+    } catch (lintError: unknown) {
+        error(`graph lint failed: ${getErrorMessage(lintError)}`)
     }
 }
