@@ -16,7 +16,7 @@ const isTestBuild = npmScript.startsWith('test') || npmScript === 'build:test'
 export default defineConfig({
   main: {
     // Configuration for electron main process
-    plugins: [externalizeDepsPlugin({ exclude: ['@vt/graph-tools'] })],
+    plugins: [externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model'] })],
     logLevel: 'error',
     resolve: {
       alias: {
@@ -36,7 +36,7 @@ export default defineConfig({
   },
   preload: {
     // Configuration for preload script
-    plugins: [externalizeDepsPlugin({ exclude: ['@vt/graph-tools'] })],
+    plugins: [externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model'] })],
     logLevel: 'error',
     resolve: {
       alias: {

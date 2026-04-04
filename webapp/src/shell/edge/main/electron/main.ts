@@ -23,6 +23,7 @@ import {validateStartupCwd} from './startup-diagnostics';
 import {configureEnvironment} from './environment-config';
 import {setupAutoUpdater} from './auto-updater-setup';
 import {createWindow, stopTrackpadMonitoring} from './create-window';
+import {initializeGraphModel} from './graph-model-init';
 
 // Redirect all console.* to electron-log in production (handles EPIPE errors on Linux AppImage)
 // Writes asynchronously to ~/Library/Logs/Voicetree/ (macOS) or ~/.config/Voicetree/logs/ (Linux)
@@ -34,6 +35,9 @@ if (app.isPackaged) {
 // Startup
 // ============================================================================
 validateStartupCwd();
+
+// Initialize @vt/graph-model DI before any graph-model functions are called
+initializeGraphModel();
 
 const {autoUpdater} = electronUpdater;
 
