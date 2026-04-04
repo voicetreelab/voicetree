@@ -39,8 +39,6 @@
     "electron-trackpad-detect": "file:native-modules/electron-trackpad-detect"
   },
   "dependencies": {
-    "@vt/graph-model": "*",
-    "@vt/graph-tools": "*",
     "@codemirror/autocomplete": "^6.20.0",
     "@codemirror/commands": "^6.10.0",
     "@codemirror/lang-java": "^6.0.2",
@@ -63,7 +61,9 @@
     "@soniox/speech-to-text-web": "^1.2.0",
     "@tailwindcss/typography": "^0.5.19",
     "@types/rbush": "^4.0.0",
-    "@vscode/ripgrep": "^1.17.0",
+    "@vscode/ripgrep": "^1.17.1",
+    "@vt/graph-model": "*",
+    "@vt/graph-tools": "*",
     "@xterm/addon-clipboard": "^0.2.0-beta.120",
     "@xterm/addon-fit": "^0.11.0-beta.136",
     "@xterm/addon-search": "^0.16.0-beta.136",
