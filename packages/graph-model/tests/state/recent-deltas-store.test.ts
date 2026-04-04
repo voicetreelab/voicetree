@@ -1,0 +1,310 @@
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
+import * as O from 'fp-ts/lib/Option.js'
+import type { NodeDelta, GraphDelta, GraphNode, NodeUIMetadata } from '@/pure/graph'
+import {
+    markRecentDelta,
+    isOurRecentDelta,
+    clearRecentDeltas,
+    getRecentDeltasCount,
+    getRecentDeltasForNodeId
+} from '../../src/state/recent-deltas-store'
+
+const makeNode: (nodeId: string, content: string) => GraphNode = (nodeId, content) => ({
+    absoluteFilePathIsID: nodeId,
+    contentWithoutYamlOrLinks: content,
+    outgoingEdges: [],
+    nodeUIMetadata: {
+        color: O.none,
+        position: O.none,
+        additionalYAMLProps: new Map()
+    } as NodeUIMetadata
+})
+
+const makeUpsertDelta: (nodeId: string, content: string) => NodeDelta = (nodeId, content) => ({
+    type: 'UpsertNode',
+    nodeToUpsert: makeNode(nodeId, content),
+    previousNode: O.none
+})
+
+const makeDeleteDelta: (nodeId: string) => NodeDelta = (nodeId) => ({
+    type: 'DeleteNode',
+    nodeId,
+    deletedNode: O.none
+})
+
+// Helper to create a GraphDelta from a single NodeDelta
+const toGraphDelta: (delta: NodeDelta) => GraphDelta = (delta) => [delta]
+
+describe('recent-deltas-store', () => {
+    beforeEach(() => {
+        clearRecentDeltas()
+    })
+
+    afterEach(() => {
+        vi.useRealTimers()
+    })
+
+    describe('markRecentDelta + isOurRecentDelta for upserts', () => {
+        it('should return true for recently marked upsert delta', () => {
+            const delta: NodeDelta = makeUpsertDelta('test-node', 'hello world')
+            markRecentDelta(delta)
+
+            // Incoming delta with same content
+            const incomingDelta: GraphDelta = toGraphDelta(makeUpsertDelta('test-node', 'hello world'))
+            expect(isOurRecentDelta(incomingDelta)).toBe(true)
+        })
+
+        it('should return false for very different content (> 20 edit distance)', () => {
+            const delta: NodeDelta = makeUpsertDelta('test-node', 'hello world')
+            markRecentDelta(delta)
+
+            // Content that differs by more than EDIT_DISTANCE_TOLERANCE (20) characters
+            const incomingDelta: GraphDelta = toGraphDelta(makeUpsertDelta('test-node', 'this is completely different and much longer text that has nothing in common'))
+            expect(isOurRecentDelta(incomingDelta)).toBe(false)
+        })
+
+        it('should return true for slightly different content (≤ 20 edit distance)', () => {
+            const delta: NodeDelta = makeUpsertDelta('test-node', 'hello world this is a test')
+            markRecentDelta(delta)
+
+            // Content with small differences (typos, minor edits) - should still match
+            const incomingDelta: GraphDelta = toGraphDelta(makeUpsertDelta('test-node', 'hello world this is a tset'))
+            expect(isOurRecentDelta(incomingDelta)).toBe(true)
+        })
+
+        it('should return false for unknown nodeId', () => {
+            const incomingDelta: GraphDelta = toGraphDelta(makeUpsertDelta('unknown', 'content'))
+            expect(isOurRecentDelta(incomingDelta)).toBe(false)
+        })
+    })
+
+    describe('markRecentDelta + isOurRecentDelta for deletes', () => {
+        it('should return true for recently marked delete delta', () => {
+            const delta: NodeDelta = makeDeleteDelta('test-node')
+            markRecentDelta(delta)
+
+            const incomingDelta: GraphDelta = toGraphDelta(makeDeleteDelta('test-node'))
+            expect(isOurRecentDelta(incomingDelta)).toBe(true)
+        })
+
+        it('should return false for delete event when only upsert was marked', () => {
+            const delta: NodeDelta = makeUpsertDelta('test-node', 'content')
+            markRecentDelta(delta)
+
+            const incomingDelta: GraphDelta = toGraphDelta(makeDeleteDelta('test-node'))
+            expect(isOurRecentDelta(incomingDelta)).toBe(false)
+        })
+
+        it('should return false for upsert event when only delete was marked', () => {
+            const delta: NodeDelta = makeDeleteDelta('test-node')
+            markRecentDelta(delta)
+
+            const incomingDelta: GraphDelta = toGraphDelta(makeUpsertDelta('test-node', 'content'))
+            expect(isOurRecentDelta(incomingDelta)).toBe(false)
+        })
+    })
+
+    describe('content normalization (strips brackets + whitespace)', () => {
+        it('should match content ignoring whitespace differences', () => {
+            const delta: NodeDelta = makeUpsertDelta('test-node', 'hello world')
+            markRecentDelta(delta)
+
+            expect(isOurRecentDelta(
+                toGraphDelta(makeUpsertDelta('test-node', 'hello  world'))
+            )).toBe(true)
+
+            expect(isOurRecentDelta(
+                toGraphDelta(makeUpsertDelta('test-node', 'helloworld'))
+            )).toBe(true)
+        })
+
+        it('should match content ignoring bracket content', () => {
+            const delta: NodeDelta = makeUpsertDelta('test-node', 'text more')
+            markRecentDelta(delta)
+
+            expect(isOurRecentDelta(
+                toGraphDelta(makeUpsertDelta('test-node', 'text [link.md] more'))
+            )).toBe(true)
+        })
+    })
+
+    describe('TTL expiration', () => {
+        it('should return false after TTL expires', () => {
+            vi.useFakeTimers()
+            const delta: NodeDelta = makeUpsertDelta('test-node', 'content')
+            markRecentDelta(delta)
+
+            // Advance time past the 10s TTL
+            vi.advanceTimersByTime(10001)
+
+            const incomingDelta: GraphDelta = toGraphDelta(makeUpsertDelta('test-node', 'content'))
+            expect(isOurRecentDelta(incomingDelta)).toBe(false)
+        })
+
+        it('should return true within TTL window', () => {
+            vi.useFakeTimers()
+            const delta: NodeDelta = makeUpsertDelta('test-node', 'content')
+            markRecentDelta(delta)
+
+            // Advance time within the 10s TTL window
+            vi.advanceTimersByTime(5000)
+
+            const incomingDelta: GraphDelta = toGraphDelta(makeUpsertDelta('test-node', 'content'))
+            expect(isOurRecentDelta(incomingDelta)).toBe(true)
+        })
+    })
+
+    describe('multiple events handling (no consume on match)', () => {
+        it('should allow multiple isOurRecentDelta calls to match same mark', () => {
+            const delta: NodeDelta = makeUpsertDelta('test-node', 'content')
+            markRecentDelta(delta)
+
+            const incomingDelta: GraphDelta = toGraphDelta(makeUpsertDelta('test-node', 'content'))
+            expect(isOurRecentDelta(incomingDelta)).toBe(true)
+            expect(isOurRecentDelta(incomingDelta)).toBe(true)
+            expect(isOurRecentDelta(incomingDelta)).toBe(true)
+        })
+    })
+
+    describe('multiple deltas for same nodeId', () => {
+        it('should track multiple marks for same nodeId', () => {
+            const delta1: NodeDelta = makeUpsertDelta('test-node', 'first')
+            const delta2: NodeDelta = makeUpsertDelta('test-node', 'second')
+            markRecentDelta(delta1)
+            markRecentDelta(delta2)
+
+            expect(isOurRecentDelta(
+                toGraphDelta(makeUpsertDelta('test-node', 'first'))
+            )).toBe(true)
+
+            expect(isOurRecentDelta(
+                toGraphDelta(makeUpsertDelta('test-node', 'second'))
+            )).toBe(true)
+        })
+    })
+
+    describe('multiple nodeIds', () => {
+        it('should track nodeIds independently', () => {
+            markRecentDelta(makeUpsertDelta('node1', 'content1'))
+            markRecentDelta(makeUpsertDelta('node2', 'content2'))
+
+            expect(isOurRecentDelta(
+                toGraphDelta(makeUpsertDelta('node1', 'content1'))
+            )).toBe(true)
+
+            expect(isOurRecentDelta(
+                toGraphDelta(makeUpsertDelta('node2', 'content2'))
+            )).toBe(true)
+        })
+
+        it('should not cross-match nodeIds', () => {
+            markRecentDelta(makeUpsertDelta('node1', 'content'))
+
+            expect(isOurRecentDelta(
+                toGraphDelta(makeUpsertDelta('node2', 'content'))
+            )).toBe(false)
+        })
+    })
+
+    describe('relative vs absolute path matching (duplicate node bug)', () => {
+        it('should NOT match relative path when absolute was stored', () => {
+            // Store with absolute path
+            markRecentDelta(makeUpsertDelta('/tmp/vault/voicetree/node.md', 'content'))
+
+            // Lookup with relative path - should NOT match (different key)
+            expect(isOurRecentDelta(
+                toGraphDelta(makeUpsertDelta('voicetree/node.md', 'content'))
+            )).toBe(false)
+        })
+
+        it('should NOT match absolute path when relative was stored', () => {
+            // Store with relative path
+            markRecentDelta(makeUpsertDelta('voicetree/node.md', 'content'))
+
+            // Lookup with absolute path - should NOT match (different key)
+            expect(isOurRecentDelta(
+                toGraphDelta(makeUpsertDelta('/tmp/vault/voicetree/node.md', 'content'))
+            )).toBe(false)
+        })
+
+        it('should match when both use absolute paths', () => {
+            // Store with absolute path
+            markRecentDelta(makeUpsertDelta('/tmp/vault/voicetree/node.md', 'content'))
+
+            // Lookup with same absolute path - should match
+            expect(isOurRecentDelta(
+                toGraphDelta(makeUpsertDelta('/tmp/vault/voicetree/node.md', 'content'))
+            )).toBe(true)
+        })
+    })
+
+    describe('GraphDelta with multiple NodeDeltas', () => {
+        it('should return true only if ALL deltas match our recent writes', () => {
+            markRecentDelta(makeUpsertDelta('node1', 'content1'))
+            markRecentDelta(makeUpsertDelta('node2', 'content2'))
+
+            // Both match
+            const bothMatch: GraphDelta = [
+                makeUpsertDelta('node1', 'content1'),
+                makeUpsertDelta('node2', 'content2')
+            ]
+            expect(isOurRecentDelta(bothMatch)).toBe(true)
+        })
+
+        it('should return false if any delta does not match', () => {
+            markRecentDelta(makeUpsertDelta('node1', 'content1'))
+
+            // First matches, second doesn't exist
+            const partialMatch: GraphDelta = [
+                makeUpsertDelta('node1', 'content1'),
+                makeUpsertDelta('node2', 'content2')
+            ]
+            expect(isOurRecentDelta(partialMatch)).toBe(false)
+        })
+
+        it('should return true for empty GraphDelta', () => {
+            const emptyDelta: GraphDelta = []
+            expect(isOurRecentDelta(emptyDelta)).toBe(true)
+        })
+    })
+
+    describe('clearRecentDeltas', () => {
+        it('should remove all entries', () => {
+            markRecentDelta(makeUpsertDelta('node1', 'content1'))
+            markRecentDelta(makeUpsertDelta('node2', 'content2'))
+            clearRecentDeltas()
+
+            expect(isOurRecentDelta(
+                toGraphDelta(makeUpsertDelta('node1', 'content1'))
+            )).toBe(false)
+
+            expect(isOurRecentDelta(
+                toGraphDelta(makeUpsertDelta('node2', 'content2'))
+            )).toBe(false)
+        })
+    })
+
+    describe('debugging helpers', () => {
+        it('getRecentDeltasCount should return number of tracked nodeIds', () => {
+            expect(getRecentDeltasCount()).toBe(0)
+            markRecentDelta(makeUpsertDelta('node1', 'content'))
+            expect(getRecentDeltasCount()).toBe(1)
+            markRecentDelta(makeUpsertDelta('node2', 'content'))
+            expect(getRecentDeltasCount()).toBe(2)
+        })
+
+        it('getRecentDeltasForNodeId should return entries', () => {
+            markRecentDelta(makeUpsertDelta('node1', 'content1'))
+            markRecentDelta(makeUpsertDelta('node1', 'content2'))
+
+            const entries: readonly { readonly delta: NodeDelta; readonly timestamp: number }[] | undefined = getRecentDeltasForNodeId('node1')
+            expect(entries).toHaveLength(2)
+            expect(entries?.[0].delta.type).toBe('UpsertNode')
+            expect(entries?.[1].delta.type).toBe('UpsertNode')
+        })
+
+        it('getRecentDeltasForNodeId should return undefined for unknown nodeId', () => {
+            expect(getRecentDeltasForNodeId('unknown')).toBeUndefined()
+        })
+    })
+})

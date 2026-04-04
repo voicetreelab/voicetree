@@ -1,0 +1,77 @@
+import type { Graph, NodeIdAndFilePath, GraphNode } from '@/pure/graph'
+import { getSubgraphByDistance } from '@/pure/graph'
+import { getGraph } from '../state/graph-store'
+import { loadSettings } from '../settings/settings_IO'
+import { type VTSettings } from '@/pure/settings/types'
+
+/**
+ * Result type for unseen nodes
+ */
+export interface UnseenNode {
+    readonly nodeId: NodeIdAndFilePath
+    readonly content: string
+}
+
+/**
+ * Gets nodes around a context node that weren't included in the original context.
+ *
+ * Note: Context nodes are orphans in the graph (no edges). They exist purely as data
+ * containers holding `containedNodeIds` (the "seen" set) and the ASCII context text.
+ * Graph traversal therefore starts from the task node (containedNodeIds[0]), not the
+ * context node itself — traversing from the context node would find nothing.
+ *
+ * This function:
+ * 1. Reads the context node's containedNodeIds from its metadata
+ * 2. Uses the first containedNodeId as the starting point (the parent/task node)
+ * 3. Re-runs the same graph traversal (getSubgraphByDistance with contextNodeMaxDistance from settings)
+ * 4. Returns nodes that are in the new traversal but NOT in containedNodeIds
+ *
+ * @param contextNodeId - The ID of the context node (orphan, used only for containedNodeIds lookup)
+ * @param searchFromNode - Optional override for the starting node (defaults to task node from containedNodeIds[0])
+ * @returns Array of unseen nodes with their content (without YAML/frontmatter)
+ */
+export async function getUnseenNodesAroundContextNode(
+    contextNodeId: NodeIdAndFilePath,
+    searchFromNode?: NodeIdAndFilePath
+): Promise<readonly UnseenNode[]> {
+    const currentGraph: Graph = getGraph()
+
+    // 1. Get the context node
+    const contextNode: GraphNode | undefined = currentGraph.nodes[contextNodeId]
+    if (!contextNode) {
+        throw new Error(`Context node ${contextNodeId} not found in graph`)
+    }
+
+    // 2. Get containedNodeIds from metadata
+    const containedNodeIds: readonly NodeIdAndFilePath[] | undefined = contextNode.nodeUIMetadata.containedNodeIds
+    if (!containedNodeIds || containedNodeIds.length === 0) {
+        throw new Error(`Context node ${contextNodeId} has no containedNodeIds metadata`)
+    }
+
+    // 3. Use override or default to the first containedNodeId (the task node)
+    const startNodeId: NodeIdAndFilePath = searchFromNode ?? containedNodeIds[0]
+
+    // 4. Re-run the graph traversal from the start node
+    const settings: VTSettings = await loadSettings()
+    const subgraph: Graph = getSubgraphByDistance(
+        currentGraph,
+        startNodeId,
+        settings.contextNodeMaxDistance
+    )
+
+    // 5. Create a Set from containedNodeIds for O(1) lookup
+    const seenNodeIds: ReadonlySet<NodeIdAndFilePath> = new Set(containedNodeIds)
+
+    // 6. Filter to nodes NOT in containedNodeIds (excluding context nodes)
+    const unseenNodes: readonly UnseenNode[] = Object.values(subgraph.nodes)
+        .filter((node: GraphNode) =>
+            !seenNodeIds.has(node.absoluteFilePathIsID) &&
+            !node.nodeUIMetadata.isContextNode
+        )
+        .map((node: GraphNode) => ({
+            nodeId: node.absoluteFilePathIsID,
+            content: node.contentWithoutYamlOrLinks
+        }))
+
+    return unseenNodes
+}
