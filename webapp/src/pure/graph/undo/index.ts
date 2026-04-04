@@ -1,9 +1,2 @@
-export { reverseDelta } from './reverseDelta'
-export {
-    createEmptyUndoState,
-    pushUndo,
-    popUndo,
-    popRedo,
-    MAX_UNDO_SIZE,
-    type UndoState
-} from './undoStack'
+// Re-export shim — actual implementation in @vt/graph-model
+export * from '@vt/graph-model/pure/graph/undo/index'

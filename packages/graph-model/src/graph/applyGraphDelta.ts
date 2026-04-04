@@ -1,7 +1,7 @@
 import * as E from 'fp-ts/lib/Either.js'
 import * as O from 'fp-ts/lib/Option.js'
 import {pipe} from 'fp-ts/lib/function.js'
-import {applyGraphDeltaToGraph, type Env, type Graph, type GraphDelta} from '@/pure/graph'
+import {applyGraphDeltaToGraph, type Env, type Graph, type GraphDelta} from '../pure/graph'
 import {apply_graph_deltas_to_db} from './graphActionsToDBEffects'
 import {recordUserActionAndSetDeltaHistoryState} from '../state/undo-store'
 import type {Either} from "fp-ts/es6/Either";

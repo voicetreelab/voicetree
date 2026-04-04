@@ -7,7 +7,7 @@ import { getVaultPaths, getWritePath } from './vault-allowlist';
 import { getStarredFolders } from './starred-folders';
 import { broadcastFolderTreeImmediate } from './broadcast-folder-tree';
 import * as O from 'fp-ts/lib/Option.js';
-import type { FilePath } from '@/pure/graph';
+import type { FilePath } from '../pure/graph';
 import {getCallbacks} from '../types';
 
 export async function broadcastVaultState(): Promise<void> {

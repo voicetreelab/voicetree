@@ -7,8 +7,8 @@
  */
 
 import { promises as fs } from 'fs'
-import type { NodeIdAndFilePath } from '@/pure/graph'
-import { nodeIdToFilePathWithExtension } from '@/pure/graph/markdown-parsing/filename-utils'
+import type { NodeIdAndFilePath } from '../pure/graph'
+import { nodeIdToFilePathWithExtension } from '../pure/graph/markdown-parsing/filename-utils'
 
 /**
  * Append nodeIds to a context node's containedNodeIds YAML frontmatter.

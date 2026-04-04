@@ -8,10 +8,10 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { loadSettings, saveSettings } from '../settings/settings_IO';
 import { getNode } from '../state/graph-store';
-import { nodeIdToFilePathWithExtension, getNodeTitle } from '@/pure/graph/markdown-parsing';
+import { nodeIdToFilePathWithExtension, getNodeTitle } from '../pure/graph/markdown-parsing';
 import { broadcastVaultState } from './broadcast-vault-state';
-import type { VTSettings } from '@/pure/settings/types';
-import type { GraphNode } from '@/pure/graph';
+import type { VTSettings } from '../pure/settings/types';
+import type { GraphNode } from '../pure/graph';
 
 function slugify(text: string): string {
     return text

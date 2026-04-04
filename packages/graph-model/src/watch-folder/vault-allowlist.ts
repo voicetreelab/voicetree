@@ -13,10 +13,10 @@ export { resolveWritePath, type ResolvedVaultConfig, resolveAllowlistForProject 
 import { resolveWritePath } from './resolve-vault-config';
 import type { FSWatcher } from "chokidar";
 import * as O from "fp-ts/lib/Option.js";
-import type { FilePath, Graph, GraphDelta, DeleteNode, Position } from "@/pure/graph";
-import { applyGraphDeltaToGraph } from "@/pure/graph";
-import { mergePositionsIntoGraph } from "@/pure/graph/positioning/mergePositionsIntoGraph";
-import type { VaultConfig } from "@/pure/settings/types";
+import type { FilePath, Graph, GraphDelta, DeleteNode, Position } from '../pure/graph';
+import { applyGraphDeltaToGraph } from '../pure/graph';
+import { mergePositionsIntoGraph } from '../pure/graph/positioning/mergePositionsIntoGraph';
+import type { VaultConfig } from '../pure/settings/types';
 import { loadVaultPathAdditively, resolveLinkedNodesInWatchedFolder } from "../graph/loadGraphFromDisk";
 import { createDatedSubfolder } from "../project/project-utils";
 import { getStarredFolders } from "./starred-folders";

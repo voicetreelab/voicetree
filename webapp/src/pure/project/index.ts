@@ -1,3 +1,2 @@
-export type { SavedProject, DiscoveredProject, ProjectType } from './types';
-export { sortProjectsByLastOpened } from './sorting';
-export { filterDiscoveredProjects } from './filtering';
+// Re-export shim — actual implementation in @vt/graph-model
+export * from '@vt/graph-model/pure/project/index'

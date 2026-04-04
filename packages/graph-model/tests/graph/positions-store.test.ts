@@ -12,8 +12,8 @@ import * as fs from 'fs'
 import * as path from 'path'
 import * as os from 'os'
 import * as O from 'fp-ts/lib/Option.js'
-import type { Graph, GraphNode, Position } from '@/pure/graph'
-import { createGraph } from '@/pure/graph/createGraph'
+import type { Graph, GraphNode, Position } from '../../src/pure/graph'
+import { createGraph } from '../../src/pure/graph/createGraph'
 import { loadPositions, mergePositionsIntoGraph, savePositionsSync } from '../../src/graph/positions-store'
 
 // ─── Helpers ──────────────────────────────────────────────────────────

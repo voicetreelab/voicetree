@@ -1,1 +1,2 @@
-export const CIRCLE_SIZE: number = 30; // px — native Cy circle size when zoomed out
+// Re-export shim — actual implementation in @vt/graph-model
+export * from '@vt/graph-model/pure/graph/node-presentation/types'

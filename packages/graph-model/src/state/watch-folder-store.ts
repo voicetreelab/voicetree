@@ -9,7 +9,7 @@
  */
 
 import type { FSWatcher } from "chokidar";
-import type { FilePath } from "@/pure/graph";
+import type { FilePath } from '../pure/graph';
 
 // File watcher instance
 let watcher: FSWatcher | null = null;

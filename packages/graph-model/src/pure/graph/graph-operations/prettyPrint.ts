@@ -1,0 +1,75 @@
+import type { Graph, GraphNode, GraphDelta } from '..';
+import * as O from 'fp-ts/lib/Option.js';
+
+/**
+ * Pretty print a graph for debugging
+ */
+export function prettyPrintGraph(graph: Graph): string {
+  const header: readonly string[] = [
+    '='.repeat(60),
+    `GRAPH STATE (${Object.keys(graph.nodes).length} nodes)`,
+    '='.repeat(60)
+  ];
+
+  const nodeLines: readonly string[] = Object.entries(graph.nodes).flatMap(([nodeId, node]) => {
+    const posStr: string = O.isSome(node.nodeUIMetadata.position)
+      ? `(${node.nodeUIMetadata.position.value.x}, ${node.nodeUIMetadata.position.value.y})`
+      : 'none';
+
+    return [
+      `\n[${nodeId}]`,
+      `  Content: ${node.contentWithoutYamlOrLinks.substring(0, 50)}...`,
+      `  Outgoing edges: [${node.outgoingEdges.join(', ')}]`,
+      `  Position: ${posStr}`
+    ];
+  });
+
+  const footer: readonly string[] = ['\n' + '='.repeat(60)];
+
+  return [...header, ...nodeLines, ...footer].join('\n');
+}
+
+/**
+ * Pretty print a single node for debugging
+ */
+export function prettyPrintNode(node: GraphNode): string {
+  const posStr: string = O.isSome(node.nodeUIMetadata.position)
+    ? `(${node.nodeUIMetadata.position.value.x}, ${node.nodeUIMetadata.position.value.y})`
+    : 'none';
+
+  return `Node[${node.absoluteFilePathIsID}]:
+  Content: ${node.contentWithoutYamlOrLinks.substring(0, 100)}
+  Outgoing edges: [${node.outgoingEdges.join(', ')}]
+  Position: ${posStr}`;
+}
+
+/**
+ * Pretty print a GraphDelta for debugging
+ */
+export function prettyPrintGraphDelta(delta: GraphDelta): string {
+  if (delta.length === 0) {
+    return 'GraphDelta: []';
+  }
+
+  const header: readonly string[] = [`GraphDelta (${delta.length} operations):`];
+
+  const operationLines: readonly string[] = delta.flatMap((nodeDelta, index) => {
+    if (nodeDelta.type === 'UpsertNode') {
+      const node: GraphNode = nodeDelta.nodeToUpsert;
+      const content: string = node.contentWithoutYamlOrLinks || '';
+      const contentPreview: string = content.substring(0, 50).replace(/\n/g, ' ');
+      const prevNodeStr: string = O.isSome(nodeDelta.previousNode)
+        ? `update from "${nodeDelta.previousNode.value.absoluteFilePathIsID}"`
+        : 'new node';
+      return [
+        `  ${index + 1}. UpsertNode: ${node.absoluteFilePathIsID} (${prevNodeStr})`,
+        `     Content: "${contentPreview}${content.length > 50 ? '...' : ''}"`,
+        `     Edges: [${node.outgoingEdges.join(', ')}]`
+      ];
+    } else {
+      return [`  ${index + 1}. DeleteNode: ${nodeDelta.nodeId}`];
+    }
+  });
+
+  return [...header, ...operationLines].join('\n');
+}

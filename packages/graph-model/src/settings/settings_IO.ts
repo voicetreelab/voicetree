@@ -1,8 +1,8 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import type { VTSettings } from '@/pure/settings/types';
+import type { VTSettings } from '../pure/settings/types';
 
-import {DEFAULT_SETTINGS} from "@/pure/settings";
+import {DEFAULT_SETTINGS} from '../pure/settings';
 import {getCallbacks, getConfig} from '../types';
 
 function getSettingsPath(): string {

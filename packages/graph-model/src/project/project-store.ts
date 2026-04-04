@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import type { SavedProject } from '@/pure/project/types';
+import type { SavedProject } from '../pure/project/types';
 import { getConfig } from '../types';
 
 function getProjectsFilePath(): string {

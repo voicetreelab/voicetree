@@ -1,4 +1,4 @@
-import type { Graph } from '@/pure/graph'
+import type { Graph } from '../pure/graph'
 import { savePositionsSync } from './positions-store'
 
 /**

@@ -1,5 +1,5 @@
-import type { GraphDelta } from '@/pure/graph'
-import type { FolderTreeNode } from '@/pure/folders/types'
+import type { GraphDelta } from './pure/graph'
+import type { FolderTreeNode } from './pure/folders/types'
 
 export interface GraphModelConfig {
   appSupportPath: string  // replaces app.getPath('userData')

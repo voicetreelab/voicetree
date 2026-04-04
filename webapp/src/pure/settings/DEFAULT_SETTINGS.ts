@@ -1,1 +1,2 @@
-export { DEFAULT_SETTINGS, DEFAULT_HOTKEYS } from './settingsSchema';
+// Re-export shim — actual implementation in @vt/graph-model
+export * from '@vt/graph-model/pure/settings/DEFAULT_SETTINGS'

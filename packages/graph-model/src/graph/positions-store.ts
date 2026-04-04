@@ -14,8 +14,8 @@ import * as fs from 'fs'
 import { promises as fsAsync } from 'fs'
 import * as path from 'path'
 import * as O from 'fp-ts/lib/Option.js'
-import type { Graph, GraphNode, Position, NodeIdAndFilePath } from '@/pure/graph'
-export { mergePositionsIntoGraph } from '@/pure/graph/positioning/mergePositionsIntoGraph'
+import type { Graph, GraphNode, Position, NodeIdAndFilePath } from '../pure/graph'
+export { mergePositionsIntoGraph } from '../pure/graph/positioning/mergePositionsIntoGraph'
 
 interface PositionsFile {
     readonly [nodeId: string]: { readonly x: number; readonly y: number }

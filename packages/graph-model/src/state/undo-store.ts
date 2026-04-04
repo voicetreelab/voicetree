@@ -1,4 +1,4 @@
-import type { GraphDelta } from '@/pure/graph'
+import type { GraphDelta } from '../pure/graph'
 import {
     createEmptyUndoState,
     pushUndo,
@@ -6,7 +6,7 @@ import {
     popRedo,
     reverseDelta,
     type UndoState
-} from '@/pure/graph/undo'
+} from '../pure/graph/undo'
 
 // The ONLY mutable undo state in the functional architecture
 let undoState: UndoState = createEmptyUndoState()

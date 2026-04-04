@@ -1,16 +1,16 @@
-import type {Graph, GraphDelta, NodeIdAndFilePath, GraphNode} from '@/pure/graph'
-import {getSubgraphByDistance, getUnionSubgraphByDistance, graphToAscii, makeBidirectionalEdges, CONTEXT_NODES_FOLDER} from '@/pure/graph'
-import {getNodeTitle, parseMarkdownToGraphNode} from '@/pure/graph/markdown-parsing'
+import type {Graph, GraphDelta, NodeIdAndFilePath, GraphNode} from '../pure/graph'
+import {getSubgraphByDistance, getUnionSubgraphByDistance, graphToAscii, makeBidirectionalEdges, CONTEXT_NODES_FOLDER} from '../pure/graph'
+import {getNodeTitle, parseMarkdownToGraphNode} from '../pure/graph/markdown-parsing'
 import {getGraph} from '../state/graph-store'
 import {loadSettings} from '../settings/settings_IO'
 import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'
-import {type VTSettings} from '@/pure/settings/types'
-import {calculateInitialPositionForChild} from '@/pure/graph/positioning/calculateInitialPosition'
+import {type VTSettings} from '../pure/settings/types'
+import {calculateInitialPositionForChild} from '../pure/graph/positioning/calculateInitialPosition'
 import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "../graph/applyGraphDelta";
-import {ensureUniqueNodeId} from "@/pure/graph/ensureUniqueNodeId";
+import {ensureUniqueNodeId} from '../pure/graph/ensureUniqueNodeId';
 import {getWritePath} from "../watch-folder/vault-allowlist";
 import {getCallbacks} from '../types'
 

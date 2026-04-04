@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
-import type { SavedProject } from '@/pure/project/types';
+import type { SavedProject } from '../../src/pure/project/types';
 import { initGraphModel } from '../../src/types';
 import { loadProjects, saveProject, removeProject } from '../../src/project/project-store';
 

@@ -1,9 +1,2 @@
-import { applyPositions as applyPositionsImpl } from './applyPositions'
-import type { Graph } from '@/pure/graph'
-
-// === POSITIONING ===
-
-export type ApplyPositions = (graph: Graph) => Graph
-export const applyPositions: ApplyPositions = applyPositionsImpl
-
-export { rebaseNewClusterPositions } from './rebaseNewClusterPositions'
+// Re-export shim — actual implementation in @vt/graph-model
+export * from '@vt/graph-model/pure/graph/positioning/index'

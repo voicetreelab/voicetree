@@ -4,14 +4,14 @@ import type {
     GraphNode as GraphNode,
     Env,
     NodeIdAndFilePath
-} from '@/pure/graph'
+} from '../pure/graph'
 import * as TE from 'fp-ts/lib/TaskEither.js'
 import * as RTE from 'fp-ts/lib/ReaderTaskEither.js'
 import { pipe } from 'fp-ts/lib/function.js'
 import { promises as fs } from 'fs'
 import path from 'path'
-import { fromNodeToMarkdownContent } from '@/pure/graph/markdown-writing/node_to_markdown'
-import { nodeIdToFilePathWithExtension } from '@/pure/graph/markdown-parsing/filename-utils'
+import { fromNodeToMarkdownContent } from '../pure/graph/markdown-writing/node_to_markdown'
+import { nodeIdToFilePathWithExtension } from '../pure/graph/markdown-parsing/filename-utils'
 import {markRecentDelta} from "../state/recent-deltas-store";
 
 /**

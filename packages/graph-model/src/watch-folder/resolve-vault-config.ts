@@ -9,7 +9,7 @@
 import path from "path";
 import { promises as fs } from "fs";
 import normalizePath from "normalize-path";
-import type { VaultConfig } from "@/pure/settings/types";
+import type { VaultConfig } from '../pure/settings/types';
 import { getVaultConfigForDirectory } from "./voicetree-config-io";
 
 /**

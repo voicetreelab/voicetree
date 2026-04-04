@@ -1,5 +1,5 @@
-import type {FSEvent, GraphDelta, Graph} from "@/pure/graph";
-import {mapFSEventsToGraphDelta} from "@/pure/graph";
+import type {FSEvent, GraphDelta, Graph} from '../pure/graph';
+import {mapFSEventsToGraphDelta} from '../pure/graph';
 import {getGraph} from "../state/graph-store";
 import {getCallbacks} from "../types";
 import {

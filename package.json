@@ -1,4 +1,7 @@
 {
   "private": true,
-  "workspaces": ["webapp", "packages/*"]
+  "workspaces": ["webapp", "packages/*"],
+  "devDependencies": {
+    "jsdom": "^27.0.0"
+  }
 }

@@ -1,4 +1,4 @@
-import type {FilePath} from "@/pure/graph";
+import type {FilePath} from '../pure/graph';
 import {getCallbacks} from "../types";
 
 /**

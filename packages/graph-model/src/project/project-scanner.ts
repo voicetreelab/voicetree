@@ -4,7 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import normalizePath from 'normalize-path';
-import type { DiscoveredProject } from '@/pure/project/types';
+import type { DiscoveredProject } from '../pure/project/types';
 
 // Transform asar path to unpacked path for production builds
 const actualRgPath: string = rgPath.replace('app.asar', 'app.asar.unpacked');

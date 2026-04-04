@@ -12,7 +12,7 @@
  * - file-watcher-setup.ts: File watcher setup
  */
 
-import type { FilePath } from "@/pure/graph";
+import type { FilePath } from '../pure/graph';
 import { getGraph, setGraph } from "../state/graph-store";
 import path from "path";
 import * as O from "fp-ts/lib/Option.js";
@@ -22,7 +22,7 @@ import type { FSWatcher } from "chokidar";
 import { getCallbacks } from "../types";
 import { copyMarkdownFiles, pathExists, createDatedSubfolder, findExistingVoicetreeDir } from "../project/project-utils";
 import { loadSettings } from "../settings/settings_IO";
-import { type VTSettings } from "@/pure/settings/types";
+import { type VTSettings } from '../pure/settings/types';
 import {
     getWatcher,
     setWatcher,
@@ -44,7 +44,7 @@ import {
     type LoadVaultPathResult,
 } from "./vault-allowlist";
 import { setupWatcher } from "./file-watcher-setup";
-import { createEmptyGraph } from "@/pure/graph/createGraph";
+import { createEmptyGraph } from '../pure/graph/createGraph';
 import { broadcastVaultState } from "./broadcast-vault-state";
 import { loadPositions, savePositionsSync } from "../graph/positions-store";
 
@@ -207,7 +207,7 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
 
     // Load persisted positions BEFORE loading vault paths so they can be
     // merged into the graph before broadcasting to UI
-    const positions: ReadonlyMap<string, import('@/pure/graph').Position> = await loadPositions(watchedFolderPath);
+    const positions: ReadonlyMap<string, import('../pure/graph').Position> = await loadPositions(watchedFolderPath);
 
     // Load write path first (handles all side effects internally)
     const writeResult: LoadVaultPathResult = await loadAndMergeVaultPath(config.writePath, { isWritePath: true }, positions);

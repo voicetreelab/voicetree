@@ -9,8 +9,8 @@
 import path from "path";
 import { promises as fs } from "fs";
 import * as O from "fp-ts/lib/Option.js";
-import type { FilePath } from "@/pure/graph";
-import type { VaultConfig } from "@/pure/settings/types";
+import type { FilePath } from '../pure/graph';
+import type { VaultConfig } from '../pure/settings/types';
 import {getConfig} from '../types';
 
 export interface VoiceTreeConfig {

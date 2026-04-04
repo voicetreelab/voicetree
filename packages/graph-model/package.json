@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "type": "module",
   "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./pure/*": "./src/pure/*"
+  },
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest"
@@ -12,12 +16,16 @@
     "fp-ts": "^2.16.9",
     "chokidar": "^3.6.0",
     "normalize-path": "^3.0.0",
-    "@vscode/ripgrep": "^1.15.9"
+    "@vscode/ripgrep": "^1.15.9",
+    "gray-matter": "^4.0.3",
+    "rbush": "^4.0.1"
   },
   "devDependencies": {
     "vitest": "^3.2.4",
     "typescript": "~5.8.3",
     "@types/node": "^22.0.0",
-    "@types/normalize-path": "^3.0.2"
+    "@types/normalize-path": "^3.0.2",
+    "@types/rbush": "^4.0.0",
+    "@types/cytoscape": "^3.21.9"
   }
 }

@@ -1,15 +1,15 @@
-import type {Graph, GraphDelta, NodeIdAndFilePath, GraphNode} from '@/pure/graph'
-import {getUnionSubgraphByDistance, graphToAscii, getNodeIdsInTraversalOrder, CONTEXT_NODES_FOLDER} from '@/pure/graph'
+import type {Graph, GraphDelta, NodeIdAndFilePath, GraphNode} from '../pure/graph'
+import {getUnionSubgraphByDistance, graphToAscii, getNodeIdsInTraversalOrder, CONTEXT_NODES_FOLDER} from '../pure/graph'
 import {getGraph} from '../state/graph-store'
 import {loadSettings} from '../settings/settings_IO'
-import {type VTSettings} from '@/pure/settings/types'
-import {parseMarkdownToGraphNode} from '@/pure/graph/markdown-parsing/parse-markdown-to-node'
-import {fromCreateChildToUpsertNode} from '@/pure/graph/graphDelta/uiInteractionsToGraphDeltas'
+import {type VTSettings} from '../pure/settings/types'
+import {parseMarkdownToGraphNode} from '../pure/graph/markdown-parsing/parse-markdown-to-node'
+import {fromCreateChildToUpsertNode} from '../pure/graph/graphDelta/uiInteractionsToGraphDeltas'
 import * as O from 'fp-ts/lib/Option.js'
 import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "../graph/applyGraphDelta";
-import {ensureUniqueNodeId} from "@/pure/graph/ensureUniqueNodeId";
+import {ensureUniqueNodeId} from '../pure/graph/ensureUniqueNodeId';
 import {getWritePath} from "../watch-folder/vault-allowlist";
 
 /** Truncate a title to at most 5 words */

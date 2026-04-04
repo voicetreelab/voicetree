@@ -5,10 +5,10 @@
 import path from 'path'
 import { promises as fs } from 'fs'
 import * as O from 'fp-ts/lib/Option.js'
-import type { Graph, GraphNode } from '@/pure/graph'
-import { createGraph } from '@/pure/graph'
+import type { Graph, GraphNode } from '../pure/graph'
+import { createGraph } from '../pure/graph'
 import { loadSettings } from '../settings/settings_IO'
-import type { VTSettings } from '@/pure/settings/types'
+import type { VTSettings } from '../pure/settings/types'
 
 /**
  * Creates a starter node when opening an empty folder.

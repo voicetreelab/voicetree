@@ -4,14 +4,14 @@ import * as path from 'path'
 import normalizePath from 'normalize-path'
 import * as E from "fp-ts/lib/Either.js";
 import * as O from "fp-ts/lib/Option.js";
-import type { Graph, FSUpdate, GraphDelta, GraphNode } from '@/pure/graph'
-import { createEmptyGraph, isImageNode } from '@/pure/graph'
+import type { Graph, FSUpdate, GraphDelta, GraphNode } from '../pure/graph'
+import { createEmptyGraph, isImageNode } from '../pure/graph'
 import type { Dirent } from 'fs'
 import { enforceFileLimit, type FileLimitExceededError } from './fileLimitEnforce'
-import { applyPositions, rebaseNewClusterPositions } from '@/pure/graph/positioning'
-import { addNodeToGraphWithEdgeHealingFromFSEvent } from '@/pure/graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent'
-import { applyGraphDeltaToGraph } from '@/pure/graph/graphDelta/applyGraphDeltaToGraph'
-import { linkMatchScore } from '@/pure/graph/markdown-parsing/extract-edges'
+import { applyPositions, rebaseNewClusterPositions } from '../pure/graph/positioning'
+import { addNodeToGraphWithEdgeHealingFromFSEvent } from '../pure/graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent'
+import { applyGraphDeltaToGraph } from '../pure/graph/graphDelta/applyGraphDeltaToGraph'
+import { linkMatchScore } from '../pure/graph/markdown-parsing/extract-edges'
 import { findFileByName } from './findFileByName'
 
 /**

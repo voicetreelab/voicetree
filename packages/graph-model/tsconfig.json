@@ -8,10 +8,6 @@
     "skipLibCheck": true,
     "declaration": true,
     "outDir": "dist",
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["../../webapp/src/*"]
-    },
     "types": ["node"]
   },
   "include": ["src/**/*.ts", "tests/**/*.ts"]
