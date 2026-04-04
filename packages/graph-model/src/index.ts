@@ -45,7 +45,7 @@ export { getStarredFolders, addStarredFolder, removeStarredFolder } from './watc
 export { getSubfoldersWithModifiedAt, getDirectoryTree } from './watch-folder/folder-scanner'
 
 // Graph state
-export { getGraph, setGraph, subscribeToGraph } from './state/graph-store'
+export { getGraph, setGraph } from './state/graph-store'
 export {
     getWatcher,
     setWatcher,
@@ -58,7 +58,7 @@ export {
 } from './state/watch-folder-store'
 
 // Graph operations
-export { applyGraphDeltaToDB, applyGraphDeltaToDBThroughMemAndUIAndEditors } from './graph/applyGraphDelta'
+export { applyGraphDeltaToDBThroughMemAndUIAndEditors } from './graph/applyGraphDelta'
 export { loadPositions, mergePositionsIntoGraph, savePositionsSync } from './graph/positions-store'
 export { handleFSEventWithStateAndUISides } from './graph/handleFSEvent'
 export { findFileByName } from './graph/findFileByName'

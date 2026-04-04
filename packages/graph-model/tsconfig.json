@@ -8,7 +8,6 @@
     "skipLibCheck": true,
     "declaration": true,
     "outDir": "dist",
-    "rootDir": ".",
     "baseUrl": ".",
     "paths": {
       "@/*": ["../../webapp/src/*"]

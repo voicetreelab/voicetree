@@ -8,7 +8,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@vt/graph-tools": "workspace:*",
+    "@vt/graph-tools": "*",
     "fp-ts": "^2.16.9",
     "chokidar": "^3.6.0",
     "normalize-path": "^3.0.0",
