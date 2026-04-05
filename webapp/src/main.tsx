@@ -6,7 +6,7 @@ import '@/shell/UI/sse-status-panel/status-panel.css'
 import App from '@/shell/UI/App'
 import posthog from 'posthog-js'
 import { setupUIRpcHandler } from '@/shell/edge/UI-edge/ui-rpc-handler'
-import type { VTSettings } from '@/pure/settings'
+import type { VTSettings } from '@vt/graph-model/pure/settings'
 
 // Add platform class to document for platform-specific CSS (e.g., scrollbar handling)
 // Windows: scrollbars take physical space, macOS: overlay scrollbars

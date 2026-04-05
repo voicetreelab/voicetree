@@ -1,8 +1,8 @@
 import * as O from 'fp-ts/lib/Option.js'
-import type {Graph, GraphNode, NodeIdAndFilePath} from '@/pure/graph'
+import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/pure/graph'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getUnseenNodesAroundContextNode, type UnseenNode} from '@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode'
-import {getNodeTitle} from '@/pure/graph/markdown-parsing'
+import {getNodeTitle} from '@vt/graph-model/pure/graph/markdown-parsing'
 import {sendTextToTerminal} from './send-text-to-terminal'
 
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
@@ -250,7 +250,7 @@ export function updateTerminalIsDone(terminalId: string, isDone: boolean): void 
             void runIdleStopGateAudit(tid, rec)
 
             // Unseen nodes notification (optional, settings-gated)
-            void loadSettings().then((settings: import('@/pure/settings/types').VTSettings) => {
+            void loadSettings().then((settings: import('@vt/graph-model/pure/settings/types').VTSettings) => {
                 if (settings.autoNotifyUnseenNodes) {
                     void notifyAgentOfUnseenNodes(tid, rec)
                 }

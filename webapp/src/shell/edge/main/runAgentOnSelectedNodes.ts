@@ -6,10 +6,10 @@
  * 2. Spawns agent terminal (which creates context node internally)
  */
 
-import type { Graph, GraphDelta, NodeIdAndFilePath, Position } from '@/pure/graph'
+import type { Graph, GraphDelta, NodeIdAndFilePath, Position } from '@vt/graph-model/pure/graph'
 import { getGraph } from '@/shell/edge/main/state/graph-store'
 import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import { createTaskNode } from '@/pure/graph/graph-operations/createTaskNode'
+import { createTaskNode } from '@vt/graph-model/pure/graph/graph-operations/createTaskNode'
 import { spawnTerminalWithContextNode } from '@/shell/edge/main/terminals/spawnTerminalWithContextNode'
 import {
   applyGraphDeltaToDBThroughMemAndUIAndEditors

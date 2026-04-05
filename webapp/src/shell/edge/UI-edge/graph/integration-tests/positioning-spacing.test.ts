@@ -17,9 +17,9 @@ import * as E from 'fp-ts/lib/Either.js'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk'
 import type { FileLimitExceededError } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
-import type { Graph, GraphDelta, GraphNode, UpsertNodeDelta } from '@/pure/graph'
-import { mapNewGraphToDelta } from '@/pure/graph'
-import { fromCreateChildToUpsertNode } from '@/pure/graph/graphDelta/uiInteractionsToGraphDeltas'
+import type { Graph, GraphDelta, GraphNode, UpsertNodeDelta } from '@vt/graph-model/pure/graph'
+import { mapNewGraphToDelta } from '@vt/graph-model/pure/graph'
+import { fromCreateChildToUpsertNode } from '@vt/graph-model/pure/graph/graphDelta/uiInteractionsToGraphDeltas'
 import path from 'path'
 
 describe('Node Positioning Spacing - Integration', () => {

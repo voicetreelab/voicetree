@@ -15,9 +15,9 @@
 import { createElement, useEffect, useState, useCallback, useMemo } from 'react';
 import type { JSX } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import type { RecentNodeHistory } from '@/pure/graph/recentNodeHistoryV2';
-import type { UpsertNodeDelta } from '@/pure/graph';
-import { getNodeTitle } from '@/pure/graph/markdown-parsing';
+import type { RecentNodeHistory } from '@vt/graph-model/pure/graph/recentNodeHistoryV2';
+import type { UpsertNodeDelta } from '@vt/graph-model/pure/graph';
+import { getNodeTitle } from '@vt/graph-model/pure/graph/markdown-parsing';
 import {
     subscribeToRecentNodeHistoryChange,
     getRecentNodeHistory,
@@ -27,7 +27,7 @@ import {
     getPinnedEditors,
 } from '@/shell/edge/UI-edge/state/EditorStore';
 import { Pin } from 'lucide-react';
-import { formatShortcut } from '@/pure/utils/keyboardShortcutDisplay';
+import { formatShortcut } from '@vt/graph-model/pure/utils/keyboardShortcutDisplay';
 
 const TAB_WIDTH: number = 90;
 

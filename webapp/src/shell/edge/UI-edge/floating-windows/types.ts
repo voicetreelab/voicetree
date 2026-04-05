@@ -3,7 +3,7 @@
 
 import type {Option} from 'fp-ts/lib/Option.js';
 import * as O from 'fp-ts/lib/Option.js';
-import type {NodeIdAndFilePath} from "@/pure/graph";
+import type {NodeIdAndFilePath} from "@vt/graph-model/pure/graph";
 import type {
     CreateTerminalDataParams,
     TerminalData

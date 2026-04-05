@@ -2,8 +2,8 @@ import { getGraph } from '@/shell/edge/main/state/graph-store';
 import { spawnTerminalWithContextNode } from '@/shell/edge/main/terminals/spawnTerminalWithContextNode';
 import { startFileWatching } from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import { saveProject } from '@/shell/edge/main/project-store';
-import type { NodeIdAndFilePath } from '@/pure/graph';
-import type { SavedProject } from '@/pure/project/types';
+import type { NodeIdAndFilePath } from '@vt/graph-model/pure/graph';
+import type { SavedProject } from '@vt/graph-model/pure/project/types';
 import * as path from 'path';
 import { app } from 'electron';
 

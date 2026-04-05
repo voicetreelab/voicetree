@@ -2,8 +2,8 @@ import type {Core} from 'cytoscape';
 import type cytoscape from 'cytoscape';
 import * as O from 'fp-ts/lib/Option.js';
 
-import type {NodeIdAndFilePath} from '@/pure/graph';
-import {CIRCLE_SIZE} from '@/pure/graph/node-presentation/types';
+import type {NodeIdAndFilePath} from '@vt/graph-model/pure/graph';
+import {CIRCLE_SIZE} from '@vt/graph-model/pure/graph/node-presentation/types';
 import type {EditorData} from '@/shell/edge/UI-edge/state/UIAppState';
 import {addToAutoPinQueue, getEditorByNodeId} from '@/shell/edge/UI-edge/state/EditorStore';
 import {setPendingEditorFocusPan} from '@/shell/edge/UI-edge/state/PendingPanStore';

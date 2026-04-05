@@ -9,7 +9,7 @@
  */
 
 import {describe, it, expect} from 'vitest'
-import type {Graph, NodeIdAndFilePath} from '@/pure/graph'
+import type {Graph, NodeIdAndFilePath} from '@vt/graph-model/pure/graph'
 import type {CreateGraphNodeInput} from './createGraphTool'
 import {
     type ValidationContext,

@@ -2,8 +2,8 @@
  * Setup cytoscape layout, event handlers, context menu, and test helpers
  */
 import type {Core, NodeSingular} from 'cytoscape';
-import type {Graph} from '@/pure/graph';
-import {isImageNode} from '@/pure/graph';
+import type {Graph} from '@vt/graph-model/pure/graph';
+import {isImageNode} from '@vt/graph-model/pure/graph';
 import * as O from 'fp-ts/lib/Option.js';
 import { createAnchoredFloatingEditor } from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
 import { getEditorByNodeId } from '@/shell/edge/UI-edge/state/EditorStore';

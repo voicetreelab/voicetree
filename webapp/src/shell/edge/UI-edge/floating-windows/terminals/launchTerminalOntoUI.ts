@@ -6,7 +6,7 @@ import {setTerminalUI, getTerminalByNodeId} from "@/shell/edge/UI-edge/state/Ter
 import {vanillaFloatingWindowInstances} from "@/shell/edge/UI-edge/state/UIAppState";
 import {cySmartCenter} from "@/utils/responsivePadding";
 import * as O from "fp-ts/lib/Option.js";
-import type {NodeIdAndFilePath} from "@/pure/graph";
+import type {NodeIdAndFilePath} from "@vt/graph-model/pure/graph";
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 
 /**

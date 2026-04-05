@@ -17,8 +17,8 @@ import {
 import {createAnchoredFloatingEditor} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 import {getCyInstance} from "@/shell/edge/UI-edge/state/cytoscape-state";
 import {cyFitIntoVisibleViewport, getResponsivePadding} from "@/utils/responsivePadding";
-import type {GraphDelta, NodeIdAndFilePath} from "@/pure/graph";
-import {isImageNode} from "@/pure/graph";
+import type {GraphDelta, NodeIdAndFilePath} from "@vt/graph-model/pure/graph";
+import {isImageNode} from "@vt/graph-model/pure/graph";
 import type {Core} from "cytoscape";
 import type {TerminalRecord} from "@/shell/edge/main/terminals/terminal-registry";
 import {syncFromMain} from "@/shell/edge/UI-edge/state/TerminalStore";
@@ -26,7 +26,7 @@ import {updateHeadlessBadges} from "@/shell/edge/UI-edge/floating-windows/headle
 import {syncVaultStateFromMain} from "@/shell/edge/UI-edge/state/VaultPathStore";
 import type {VaultPathState} from "@/shell/edge/UI-edge/state/VaultPathStore";
 import {syncFolderTreeFromMain, syncStarredTreesFromMain, syncExternalTreesFromMain} from "@/shell/edge/UI-edge/state/FolderTreeStore";
-import type {FolderTreeNode} from "@/pure/folders/types";
+import type {FolderTreeNode} from "@vt/graph-model/pure/folders/types";
 
 import {setIsTrackpadScrolling} from "@/shell/edge/UI-edge/state/trackpad-state";
 import {closeTerminalById} from "@/shell/edge/UI-edge/floating-windows/terminals/closeTerminalById";

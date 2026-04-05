@@ -6,7 +6,7 @@ import {
     graphToScreenPosition,
     type ScalingStrategy,
     type TransformOrigin,
-} from "@/pure/graph/floating-windows/floatingWindowScaling";
+} from "@vt/graph-model/pure/graph/floating-windows/floatingWindowScaling";
 import { isZoomActive } from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 
 /**

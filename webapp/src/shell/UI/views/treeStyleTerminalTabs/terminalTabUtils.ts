@@ -15,7 +15,7 @@ import {
 } from '@/shell/edge/UI-edge/state/AgentTabsStore';
 import { getTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
 import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
-import { buildTerminalTree } from '@/pure/agentTabs/terminalTree';
+import { buildTerminalTree } from '@vt/graph-model/pure/agentTabs/terminalTree';
 import type {} from '@/shell/electron';
 
 // =============================================================================
@@ -30,7 +30,7 @@ export function getDisplayOrderForNavigation(): TerminalId[] {
     const terminalsMap: Map<TerminalId, TerminalData> = getTerminals();
     const terminals: TerminalData[] = Array.from(terminalsMap.values());
     const pinnedTerminals: TerminalData[] = terminals.filter(t => t.isPinned);
-    const treeNodes: import('@/pure/agentTabs/terminalTree').TerminalTreeNode[] = buildTerminalTree(pinnedTerminals);
+    const treeNodes: import('@vt/graph-model/pure/agentTabs/terminalTree').TerminalTreeNode[] = buildTerminalTree(pinnedTerminals);
     return treeNodes.map(node => node.terminal.terminalId);
 }
 

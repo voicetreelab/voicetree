@@ -10,7 +10,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import type { SessionMetric } from '@/shell/UI/views/hooks/useAgentMetrics';
-import { aggregateTokensByDay, type DayTokenAggregation } from '@/pure/metrics/aggregateTokensByDay';
+import { aggregateTokensByDay, type DayTokenAggregation } from '@vt/graph-model/pure/metrics/aggregateTokensByDay';
 
 interface AvgTokensChartProps {
   readonly sessions: readonly SessionMetric[];

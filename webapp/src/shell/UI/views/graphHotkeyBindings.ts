@@ -1,8 +1,8 @@
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
-import { MAX_RECENT_NODES } from '@/pure/graph/recentNodeHistoryV2';
-import type { HotkeySettings, HotkeyBinding, VTSettings } from '@/pure/settings/types';
-import { DEFAULT_HOTKEYS } from '@/pure/settings/DEFAULT_SETTINGS';
+import { MAX_RECENT_NODES } from '@vt/graph-model/pure/graph/recentNodeHistoryV2';
+import type { HotkeySettings, HotkeyBinding, VTSettings } from '@vt/graph-model/pure/settings/types';
+import { DEFAULT_HOTKEYS } from '@vt/graph-model/pure/settings/DEFAULT_SETTINGS';
 import type { Modifier, HotkeyConfig } from './hotkeyTypes';
 
 /**

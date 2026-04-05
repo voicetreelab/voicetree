@@ -2,15 +2,15 @@
  * Find nodes created by an agent via agent_name matching.
  * Returns nodeId and title pairs for MCP tool responses.
  *
- * Uses getNodesByAgentName from @/pure/graph for the core matching logic.
+ * Uses getNodesByAgentName from @vt/graph-model/pure/graph for the core matching logic.
  * Filters by file birthtime >= spawnedAt to avoid name-collision with
  * previous agents that had the same recycled name.
  */
 
 import {statSync} from 'fs'
-import type {Graph, GraphNode} from '@/pure/graph'
-import {getNodesByAgentName} from '@/pure/graph'
-import {getNodeTitle} from '@/pure/graph/markdown-parsing'
+import type {Graph, GraphNode} from '@vt/graph-model/pure/graph'
+import {getNodesByAgentName} from '@vt/graph-model/pure/graph'
+import {getNodeTitle} from '@vt/graph-model/pure/graph/markdown-parsing'
 
 export function getNewNodesForAgent(
     graph: Graph,

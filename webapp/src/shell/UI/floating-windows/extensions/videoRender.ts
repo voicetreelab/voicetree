@@ -2,7 +2,7 @@ import { Decoration, WidgetType, EditorView, type DecorationSet } from '@codemir
 import { RangeSet, StateField, type EditorState, type Range, type Line } from '@codemirror/state';
 import type { Core, NodeSingular } from 'cytoscape';
 import type {} from '@/shell/electron';
-import { VIDEO_EXTENSIONS } from '@/pure/graph/isVideoNode';
+import { VIDEO_EXTENSIONS } from '@vt/graph-model/pure/graph/isVideoNode';
 
 function getCytoscapeInstance(): Core | undefined {
     return (window as unknown as { cytoscapeInstance?: Core }).cytoscapeInstance;

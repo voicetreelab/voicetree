@@ -28,13 +28,13 @@ import { getUnseenNodesAroundContextNode, type UnseenNode } from '@/shell/edge/m
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk'
 import { setGraph, getGraph } from '@/shell/edge/main/state/graph-store'
 import { setVaultPath, getVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import { addNodeToGraphWithEdgeHealingFromFSEvent } from '@/pure/graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent'
+import { addNodeToGraphWithEdgeHealingFromFSEvent } from '@vt/graph-model/pure/graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent'
 import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 import { promises as fs } from 'fs'
 import path from 'path'
-import type { NodeIdAndFilePath, FSUpdate, Graph, GraphDelta } from '@/pure/graph'
+import type { NodeIdAndFilePath, FSUpdate, Graph, GraphDelta } from '@vt/graph-model/pure/graph'
 import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange";

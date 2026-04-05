@@ -19,7 +19,7 @@ import {
 } from '@codemirror/view';
 import { RangeSet, type Range, type Line, type EditorState, type SelectionRange, type Extension } from '@codemirror/state';
 import type { Core, NodeSingular } from 'cytoscape';
-import { linkMatchScore, getPathComponents } from '@/pure/graph/markdown-parsing/extract-edges';
+import { linkMatchScore, getPathComponents } from '@vt/graph-model/pure/graph/markdown-parsing/extract-edges';
 
 // Regex to match wikilinks: [[nodeId]]
 const WIKILINK_REGEX: RegExp = /\[\[([^\]]+)\]\]/g;

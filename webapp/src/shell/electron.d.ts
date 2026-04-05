@@ -1,6 +1,6 @@
 // Electron API type definitions
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { GraphDelta } from '@/pure/graph';
+import type { GraphDelta } from '@vt/graph-model/pure/graph';
 import type { mainAPI } from '@/shell/edge/main/api';
 
 // Re-export TerminalData for use in terminal API

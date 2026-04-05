@@ -19,10 +19,10 @@ import { getTerminalId, getShadowNodeId, type TerminalId } from '@/shell/edge/UI
 import { getDisplayOrderForNavigation } from '@/shell/UI/views/treeStyleTerminalTabs/terminalTabUtils';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import * as O from 'fp-ts/lib/Option.js';
-import { linkMatchScore, getPathComponents } from '@/pure/graph/markdown-parsing/extract-edges';
+import { linkMatchScore, getPathComponents } from '@vt/graph-model/pure/graph/markdown-parsing/extract-edges';
 import { getVisibleViewportMetrics, type VisibleViewportMetrics } from '@/utils/visibleViewport';
 import { getEditorByNodeId } from '@/shell/edge/UI-edge/state/EditorStore';
-import type { NodeIdAndFilePath } from '@/pure/graph';
+import type { NodeIdAndFilePath } from '@vt/graph-model/pure/graph';
 
 const TERMINAL_CONTEXT_TARGET_FRACTION: number = 0.95;
 const TERMINAL_MIN_ZOOM_THRESHOLD: number = 0.7;

@@ -41,6 +41,7 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./src"),
       "@root": path.resolve(__dirname, "."),
+      "@vt/graph-model/pure": path.resolve(__dirname, "../packages/graph-model/src/pure"),
       // Alias CSS imports from @material to prevent import errors
       '@material/mwc-icon/mwc-icon-host.css': path.resolve(__dirname, 'src/utils/empty-css-export.ts')
     },

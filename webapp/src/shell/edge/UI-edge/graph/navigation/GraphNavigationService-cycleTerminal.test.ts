@@ -5,7 +5,7 @@ import '@/shell/UI/cytoscape-graph-ui'; // Import to trigger extension registrat
 import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
 import { addTerminal, clearTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
 import { createTerminalData, getShadowNodeId, getTerminalId, computeTerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
-import type { NodeIdAndFilePath } from '@/pure/graph';
+import type { NodeIdAndFilePath } from '@vt/graph-model/pure/graph';
 
 type ViewportAnimateCall = {
   __vtTargetEles?: Collection;

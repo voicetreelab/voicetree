@@ -12,15 +12,15 @@
 import path from 'path'
 import * as O from 'fp-ts/lib/Option.js'
 import normalizePath from 'normalize-path'
-import {applyGraphDeltaToGraph} from '@/pure/graph'
-import type {Graph, GraphDelta, GraphNode, NodeDelta, NodeIdAndFilePath, Position} from '@/pure/graph'
-import {findBestMatchingNode} from '@/pure/graph/markdown-parsing/extract-edges'
-import {ensureUniqueNodeId} from '@/pure/graph/ensureUniqueNodeId'
-import {parseMarkdownToGraphNode} from '@/pure/graph/markdown-parsing/parse-markdown-to-node'
+import {applyGraphDeltaToGraph} from '@vt/graph-model/pure/graph'
+import type {Graph, GraphDelta, GraphNode, NodeDelta, NodeIdAndFilePath, Position} from '@vt/graph-model/pure/graph'
+import {findBestMatchingNode} from '@vt/graph-model/pure/graph/markdown-parsing/extract-edges'
+import {ensureUniqueNodeId} from '@vt/graph-model/pure/graph/ensureUniqueNodeId'
+import {parseMarkdownToGraphNode} from '@vt/graph-model/pure/graph/markdown-parsing/parse-markdown-to-node'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
-import {calculateNodePosition} from '@/pure/graph/positioning/calculateInitialPosition'
-import {buildSpatialIndexFromGraph} from '@/pure/graph/positioning/spatialAdapters'
-import type {SpatialIndex} from '@/pure/graph/spatial'
+import {calculateNodePosition} from '@vt/graph-model/pure/graph/positioning/calculateInitialPosition'
+import {buildSpatialIndexFromGraph} from '@vt/graph-model/pure/graph/positioning/spatialAdapters'
+import type {SpatialIndex} from '@vt/graph-model/pure/graph/spatial'
 import {getVaultPaths, getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange'
 import {getTerminalRecords, resetAuditRetryCount, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
@@ -35,7 +35,7 @@ import {
     parseDiagramParam,
 } from './addProgressNodeTool'
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
-import type {VTSettings} from '@/pure/settings/types'
+import type {VTSettings} from '@vt/graph-model/pure/settings/types'
 import {
     type OverrideEntry,
     type ValidationResult,

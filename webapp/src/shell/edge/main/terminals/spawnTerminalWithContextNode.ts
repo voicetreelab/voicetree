@@ -23,12 +23,12 @@ import { getGraph, setGraph } from '@/shell/edge/main/state/graph-store';
 import { loadSettings } from '@/shell/edge/main/settings/settings_IO';
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy';
 import { createTerminalData, getTerminalId, type TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
-import type { NodeIdAndFilePath, GraphNode, Graph, FSUpdate, GraphDelta } from '@/pure/graph';
-import { applyGraphDeltaToGraph } from '@/pure/graph';
-import { getNodeTitle } from '@/pure/graph/markdown-parsing';
-import { findFirstParentNode } from '@/pure/graph/graph-operations/findFirstParentNode';
-import type { VTSettings } from '@/pure/settings';
-import { getNextAgentName, getUniqueAgentName, getDefaultAgent } from '@/pure/settings/types';
+import type { NodeIdAndFilePath, GraphNode, Graph, FSUpdate, GraphDelta } from '@vt/graph-model/pure/graph';
+import { applyGraphDeltaToGraph } from '@vt/graph-model/pure/graph';
+import { getNodeTitle } from '@vt/graph-model/pure/graph/markdown-parsing';
+import { findFirstParentNode } from '@vt/graph-model/pure/graph/graph-operations/findFirstParentNode';
+import type { VTSettings } from '@vt/graph-model/pure/settings';
+import { getNextAgentName, getUniqueAgentName, getDefaultAgent } from '@vt/graph-model/pure/settings/types';
 import { getNextTerminalCountForNode, getExistingAgentNames } from '@/shell/edge/main/terminals/terminal-registry';
 import { setTerminalBudget } from '@/shell/edge/main/terminals/global-budget-registry';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
@@ -36,7 +36,7 @@ import {getWatchStatus} from "@/shell/edge/main/graph/watch_folder/watchFolder";
 import {buildTerminalEnvVars} from '@/shell/edge/main/terminals/buildTerminalEnvVars';
 import {spawnHeadlessAgent, killHeadlessAgent} from '@/shell/edge/main/terminals/headlessAgentManager';
 import {registerChildIfMonitored} from '@/shell/edge/main/mcp-server/agent-completion-monitor';
-import {addNodeToGraphWithEdgeHealingFromFSEvent} from '@/pure/graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent';
+import {addNodeToGraphWithEdgeHealingFromFSEvent} from '@vt/graph-model/pure/graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent';
 import {broadcastGraphDeltaToUI} from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI';
 
 /**

@@ -1,4 +1,4 @@
-import type {NodeIdAndFilePath} from "@/pure/graph";
+import type {NodeIdAndFilePath} from "@vt/graph-model/pure/graph";
 import * as O from "fp-ts/lib/Option.js";
 import {type Option} from "fp-ts/lib/Option.js";
 import {getEditorId, type EditorId} from "@/shell/edge/UI-edge/floating-windows/types";

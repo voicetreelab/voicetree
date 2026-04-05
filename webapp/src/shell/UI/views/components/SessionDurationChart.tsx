@@ -10,7 +10,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import type { SessionMetric } from '@/shell/UI/views/hooks/useAgentMetrics';
-import { aggregateSessionsByDay, type DayAggregation } from '@/pure/metrics/aggregateSessionsByDay';
+import { aggregateSessionsByDay, type DayAggregation } from '@vt/graph-model/pure/metrics/aggregateSessionsByDay';
 
 interface SessionDurationChartProps {
   readonly sessions: readonly SessionMetric[];

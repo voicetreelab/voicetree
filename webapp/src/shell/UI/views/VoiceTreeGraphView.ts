@@ -55,12 +55,12 @@ import {createTerminalTreeSidebar} from './treeStyleTerminalTabs/TerminalTreeSid
 import {createFolderTreeSidebar} from './folderTree/FolderTreeSidebar';
 import {toggleFolderTreeSidebar} from '@/shell/edge/UI-edge/state/FolderTreeStore';
 import {getRecentNodeHistory} from '@/shell/edge/UI-edge/state/RecentNodeHistoryStore';
-import type {RecentNodeHistory} from '@/pure/graph/recentNodeHistoryV2';
+import type {RecentNodeHistory} from '@vt/graph-model/pure/graph/recentNodeHistoryV2';
 import {cyFitIntoVisibleViewport, getResponsivePadding} from '@/utils/responsivePadding';
 import {updateSpeedDialDarkMode} from './SpeedDialMenu';
 import {triggerColaLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout';
-import type {Graph} from '@/pure/graph';
-import {createEmptyGraph} from '@/pure/graph/createGraph';
+import type {Graph} from '@vt/graph-model/pure/graph';
+import {createEmptyGraph} from '@vt/graph-model/pure/graph/createGraph';
 import {setupBasicCytoscapeEventListeners, setupCytoscape, initializeCytoscapeInstance, setupGraphViewDOM, initializeNavigatorMinimap, guardCytoscapeResize, type NavigatorMinimapResult} from './VoiceTreeGraphViewHelpers';
 import {setupViewSubscriptions, type ViewSubscriptionCleanups} from '@/shell/edge/UI-edge/graph/setupViewSubscriptions';
 import {subscribeToGraphUpdates} from '@/shell/edge/UI-edge/graph/subscribeToGraphUpdates';

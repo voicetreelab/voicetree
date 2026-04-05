@@ -3,8 +3,8 @@
  * Gets nodes near your context that were created after your context was generated.
  */
 
-import type {Graph, GraphNode, NodeIdAndFilePath} from '@/pure/graph'
-import {getNodeTitle} from '@/pure/graph/markdown-parsing'
+import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/pure/graph'
+import {getNodeTitle} from '@vt/graph-model/pure/graph/markdown-parsing'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getUnseenNodesAroundContextNode, type UnseenNode} from '@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode'
 import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'

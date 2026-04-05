@@ -1,9 +1,9 @@
 import * as TE from 'fp-ts/lib/TaskEither.js'
 import * as E from 'fp-ts/lib/Either.js'
 import { pipe } from 'fp-ts/lib/function.js'
-import type { RelativePath, ShareId, ShareManifest, UploadError } from '@/pure/web-share/types'
-import { validateUpload } from '@/pure/web-share/validateUpload'
-import { buildManifest } from '@/pure/web-share/buildManifest'
+import type { RelativePath, ShareId, ShareManifest, UploadError } from '@vt/graph-model/pure/web-share/types'
+import { validateUpload } from '@vt/graph-model/pure/web-share/validateUpload'
+import { buildManifest } from '@vt/graph-model/pure/web-share/buildManifest'
 import { uploadToR2 } from './r2Client'
 
 /**

@@ -1,7 +1,7 @@
 /** Terminal Flow - V2: Uses types.ts with flat TerminalData type. IDs derived, ui populated after DOM creation. */
-import type { NodeIdAndFilePath, GraphNode } from "@/pure/graph";
-import type { VTSettings, AgentConfig } from "@/pure/settings";
-import { getDefaultAgent } from "@/pure/settings/types";
+import type { NodeIdAndFilePath, GraphNode } from "@vt/graph-model/pure/graph";
+import type { VTSettings, AgentConfig } from "@vt/graph-model/pure/settings";
+import { getDefaultAgent } from "@vt/graph-model/pure/settings/types";
 import { showAgentCommandEditor } from "@/shell/edge/UI-edge/graph/agentCommandEditorPopup";
 import type { Core } from "cytoscape";
 import '@/shell/electron.d.ts';
@@ -9,7 +9,7 @@ import type { TerminalId } from "@/shell/edge/UI-edge/floating-windows/types";
 import { getNextTerminalCount, getTerminals } from "@/shell/edge/UI-edge/state/TerminalStore";
 import { flushEditorForNode } from "@/shell/edge/UI-edge/floating-windows/editors/flushEditorForNode";
 import { getNodeFromMainToUI } from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
-import { getNodeTitle } from "@/pure/graph/markdown-parsing";
+import { getNodeTitle } from "@vt/graph-model/pure/graph/markdown-parsing";
 import type { TerminalData } from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import { resolveAgentLaunchConfig, type AgentLaunchConfig } from "@/shell/edge/UI-edge/floating-windows/terminals/resolveAgentLaunchConfig";
 

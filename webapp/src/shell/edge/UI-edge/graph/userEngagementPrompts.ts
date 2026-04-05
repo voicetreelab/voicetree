@@ -1,5 +1,5 @@
 import posthog from "posthog-js";
-import type {VTSettings} from "@/pure/settings/types";
+import type {VTSettings} from "@vt/graph-model/pure/settings/types";
 // Import ElectronAPI type for window.electronAPI access
 import type {} from "@/shell/electron";
 

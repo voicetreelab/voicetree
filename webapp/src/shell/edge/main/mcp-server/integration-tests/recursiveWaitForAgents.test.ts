@@ -21,7 +21,7 @@ import {startMonitor, registerChildIfMonitored} from '@/shell/edge/main/mcp-serv
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getTerminalRecords} from '@/shell/edge/main/terminals/terminal-registry'
 import {sendTextToTerminal} from '@/shell/edge/main/terminals/send-text-to-terminal'
-import type {Graph} from '@/pure/graph'
+import type {Graph} from '@vt/graph-model/pure/graph'
 
 // --- Helpers ---
 

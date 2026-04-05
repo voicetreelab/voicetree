@@ -11,7 +11,7 @@
 import { createElement, useRef, useEffect, useCallback, useState, useMemo, useSyncExternalStore } from 'react';
 import type { JSX, ChangeEvent, KeyboardEvent } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import type { AvailableFolderItem } from '@/pure/folders/types';
+import type { AvailableFolderItem } from '@vt/graph-model/pure/folders/types';
 import {
     subscribeFolderTree,
     getFolderTreeState,
@@ -355,7 +355,7 @@ function FolderTreeSidebarInternal({ callbacks }: SidebarInternalProps): JSX.Ele
             {Object.keys(folderState.externalFolderTrees).length > 0 && (
                 <div className="folder-tree-external-section">
                     <div className="folder-tree-section-header">EXTERNAL</div>
-                    {Object.entries(folderState.externalFolderTrees).map(([folderPath, tree]: [string, import('@/pure/folders/types').FolderTreeNode]) => (
+                    {Object.entries(folderState.externalFolderTrees).map(([folderPath, tree]: [string, import('@vt/graph-model/pure/folders/types').FolderTreeNode]) => (
                         <FolderTreeNodeComponent
                             key={folderPath}
                             node={tree}

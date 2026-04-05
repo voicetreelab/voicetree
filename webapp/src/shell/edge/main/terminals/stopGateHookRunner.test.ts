@@ -45,7 +45,7 @@ import {runStopHooks, type StopHookResult} from './stopGateHookRunner'
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
 import type {TerminalRecord} from './terminal-registry'
-import type {Graph} from '@/pure/graph'
+import type {Graph} from '@vt/graph-model/pure/graph'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 

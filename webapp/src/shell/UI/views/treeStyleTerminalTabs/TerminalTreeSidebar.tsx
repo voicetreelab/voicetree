@@ -14,8 +14,8 @@ import { createRoot, type Root } from 'react-dom/client';
 import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import { getTerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
-import { buildTerminalTree, type TerminalTreeNode } from '@/pure/agentTabs/terminalTree';
-import { getShortcutHintForTab } from '@/pure/agentTabs';
+import { buildTerminalTree, type TerminalTreeNode } from '@vt/graph-model/pure/agentTabs/terminalTree';
+import { getShortcutHintForTab } from '@vt/graph-model/pure/agentTabs';
 import {
     subscribeToTerminalChanges,
     subscribeToActiveTerminalChange,

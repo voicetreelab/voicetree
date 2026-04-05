@@ -1,5 +1,5 @@
-import type {GraphNode, NodeIdAndFilePath} from "@/pure/graph";
-import {nodeIdToFilePathWithExtension} from "@/pure/graph/markdown-parsing";
+import type {GraphNode, NodeIdAndFilePath} from "@vt/graph-model/pure/graph";
+import {nodeIdToFilePathWithExtension} from "@vt/graph-model/pure/graph/markdown-parsing";
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
 

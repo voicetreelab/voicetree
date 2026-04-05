@@ -3,12 +3,12 @@
  */
 
 import path from 'path';
-import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath} from '@/pure/graph';
-import type {Position} from '@/pure/graph';
-import {createNewNodeNoParent} from '@/pure/graph/graphDelta/uiInteractionsToGraphDeltas';
-import {getNodeTitle} from '@/pure/graph/markdown-parsing';
-import type {VTSettings} from '@/pure/settings/types';
-import {getNextAgentName, getUniqueAgentName} from '@/pure/settings/types';
+import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/pure/graph';
+import type {Position} from '@vt/graph-model/pure/graph';
+import {createNewNodeNoParent} from '@vt/graph-model/pure/graph/graphDelta/uiInteractionsToGraphDeltas';
+import {getNodeTitle} from '@vt/graph-model/pure/graph/markdown-parsing';
+import type {VTSettings} from '@vt/graph-model/pure/settings/types';
+import {getNextAgentName, getUniqueAgentName} from '@vt/graph-model/pure/settings/types';
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types';
 import {getExistingAgentNames} from '@/shell/edge/main/terminals/terminal-registry';
 import {getGraph} from '@/shell/edge/main/state/graph-store';

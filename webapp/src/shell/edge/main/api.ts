@@ -10,7 +10,7 @@ import {
 } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI'
 import {getGraph, getNode} from '@/shell/edge/main/state/graph-store'
 import {loadSettings, saveSettings as saveSettings} from './settings/settings_IO'
-import type {VTSettings} from '@/pure/settings/types'
+import type {VTSettings} from '@vt/graph-model/pure/settings/types'
 import {getWatchStatus, loadPreviousFolder, markFrontendReady, startFileWatching, stopFileWatching, getVaultPaths, getReadPaths, getWritePath, setWritePath, addReadPath, removeReadPath, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder} from './graph/watch_folder/watchFolder'
 import {getDirectoryTree} from './graph/watch_folder/folder-scanner'
 import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/state/app-electron-state";

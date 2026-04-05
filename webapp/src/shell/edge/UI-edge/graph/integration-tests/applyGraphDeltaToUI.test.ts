@@ -12,7 +12,7 @@ import type {Core} from 'cytoscape';
 import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
-import type { GraphDelta, GraphNode, UpsertNodeDelta, DeleteNode } from '@/pure/graph'
+import type { GraphDelta, GraphNode, UpsertNodeDelta, DeleteNode } from '@vt/graph-model/pure/graph'
 import { BreathingAnimationService, AnimationType } from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService'
 
 // Mock engagement prompts to avoid jsdom's missing dialog.showModal()

@@ -1,7 +1,7 @@
 import type { Core, NodeSingular, CollectionReturnValue, EdgeSingular } from 'cytoscape';
-import { queryNodesInRect } from '@/pure/graph/spatial';
-import type { SpatialIndex, SpatialNodeEntry, Rect } from '@/pure/graph/spatial';
-import type { LocalGeometry, EdgeSegment } from '@/pure/graph/geometry';
+import { queryNodesInRect } from '@vt/graph-model/pure/graph/spatial';
+import type { SpatialIndex, SpatialNodeEntry, Rect } from '@vt/graph-model/pure/graph/spatial';
+import type { LocalGeometry, EdgeSegment } from '@vt/graph-model/pure/graph/geometry';
 import { DEFAULT_EDGE_LENGTH } from './cytoscape-graph-constants';
 
 /**

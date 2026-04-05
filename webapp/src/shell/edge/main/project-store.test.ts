@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
-import type { SavedProject } from '@/pure/project/types';
+import type { SavedProject } from '@vt/graph-model/pure/project/types';
 
 // Mock the electron app module
 vi.mock('electron', () => ({

@@ -1,5 +1,5 @@
-import type { ShareId, RelativePath, ShareManifest } from '@/pure/web-share/types'
-import type { Position } from '@/pure/graph'
+import type { ShareId, RelativePath, ShareManifest } from '@vt/graph-model/pure/web-share/types'
+import type { Position } from '@vt/graph-model/pure/graph'
 
 export async function fetchManifest(baseUrl: string, id: ShareId): Promise<ShareManifest> {
     const res: Response = await fetch(`${baseUrl}/share/${id}/manifest.json`)

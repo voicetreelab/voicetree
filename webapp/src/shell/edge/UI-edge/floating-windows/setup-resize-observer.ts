@@ -6,7 +6,7 @@
  */
 
 import type cytoscape from "cytoscape";
-import {readStoredStrategy, screenToGraphDimensions, type ScalingStrategy} from "@/pure/graph/floating-windows/floatingWindowScaling";
+import {readStoredStrategy, screenToGraphDimensions, type ScalingStrategy} from "@vt/graph-model/pure/graph/floating-windows/floatingWindowScaling";
 import {getCyInstance} from "@/shell/edge/UI-edge/state/cytoscape-state";
 import {markNodeDirty} from "@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout";
 

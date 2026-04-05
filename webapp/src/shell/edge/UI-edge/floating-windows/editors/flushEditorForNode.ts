@@ -1,6 +1,6 @@
 import * as O from 'fp-ts/lib/Option.js'
 import type { Core } from 'cytoscape'
-import type { NodeIdAndFilePath } from '@/pure/graph'
+import type { NodeIdAndFilePath } from '@vt/graph-model/pure/graph'
 import { getEditorByNodeId } from '@/shell/edge/UI-edge/state/EditorStore'
 import { getEditorId } from '@/shell/edge/UI-edge/floating-windows/types'
 import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState'

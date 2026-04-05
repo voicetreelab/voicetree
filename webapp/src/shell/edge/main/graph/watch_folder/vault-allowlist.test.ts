@@ -35,8 +35,8 @@ import {
   saveVaultConfigForDirectory,
 } from './voicetree-config-io'
 import { setGraph } from '@/shell/edge/main/state/graph-store'
-import { createEmptyGraph } from '@/pure/graph/createGraph'
-import type { VaultConfig } from '@/pure/settings/types'
+import { createEmptyGraph } from '@vt/graph-model/pure/graph/createGraph'
+import type { VaultConfig } from '@vt/graph-model/pure/settings/types'
 
 // Mock graph loading - we'll control the return value per test
 import { loadVaultPathAdditively, resolveLinkedNodesInWatchedFolder } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk'

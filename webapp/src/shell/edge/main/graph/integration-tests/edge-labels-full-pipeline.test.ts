@@ -3,11 +3,11 @@ import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as E from 'fp-ts/lib/Either.js'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk'
-import { mapNewGraphToDelta } from '@/pure/graph/graphDelta/mapNewGraphtoDelta'
+import { mapNewGraphToDelta } from '@vt/graph-model/pure/graph/graphDelta/mapNewGraphtoDelta'
 import cytoscape from 'cytoscape'
 import type { Core } from 'cytoscape'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
-import type { Graph, GraphNode, GraphDelta, NodeDelta } from '@/pure/graph'
+import type { Graph, GraphNode, GraphDelta, NodeDelta } from '@vt/graph-model/pure/graph'
 import type { FileLimitExceededError } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce'
 
 /**

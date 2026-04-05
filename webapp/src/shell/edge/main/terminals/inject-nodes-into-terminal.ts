@@ -5,9 +5,9 @@
  * Zero-boilerplate RPC: just add to mainAPI, types flow via Promisify.
  */
 
-import type { NodeIdAndFilePath, Graph, GraphNode } from '@/pure/graph'
+import type { NodeIdAndFilePath, Graph, GraphNode } from '@vt/graph-model/pure/graph'
 import { getGraph } from '@/shell/edge/main/state/graph-store'
-import { getNodeTitle } from '@/pure/graph/markdown-parsing'
+import { getNodeTitle } from '@vt/graph-model/pure/graph/markdown-parsing'
 import { sendTextToTerminal } from './send-text-to-terminal'
 import { getTerminalRecords, type TerminalRecord } from './terminal-registry'
 import { updateContextNodeContainedIds } from '@/shell/edge/main/graph/context-nodes/updateContextNodeContainedIds'

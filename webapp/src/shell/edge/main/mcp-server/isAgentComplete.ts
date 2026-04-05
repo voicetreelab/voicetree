@@ -4,7 +4,7 @@
  * Returns true when: (exited) OR (idle + idle ≥ SUSTAINED_IDLE_MS + all children complete)
  */
 
-import type {Graph} from '@/pure/graph'
+import type {Graph} from '@vt/graph-model/pure/graph'
 import type {TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 import {getIdleSince} from '@/shell/edge/main/terminals/terminal-registry'
 

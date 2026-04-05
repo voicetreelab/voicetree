@@ -3,7 +3,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
 import { scanForProjects } from './project-scanner';
-import type { DiscoveredProject } from '@/pure/project/types';
+import type { DiscoveredProject } from '@vt/graph-model/pure/project/types';
 
 describe('scanForProjects', () => {
     let testDir: string;

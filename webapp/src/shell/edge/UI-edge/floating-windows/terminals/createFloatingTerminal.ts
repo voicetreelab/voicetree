@@ -1,4 +1,4 @@
-import type { NodeIdAndFilePath, Position } from "@/pure/graph";
+import type { NodeIdAndFilePath, Position } from "@vt/graph-model/pure/graph";
 import type { Core, NodeCollection, CollectionReturnValue } from "cytoscape";
 import { getOrCreateOverlay, registerFloatingWindow } from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import { TerminalVanilla } from "@/shell/UI/floating-windows/terminals/TerminalVanilla";

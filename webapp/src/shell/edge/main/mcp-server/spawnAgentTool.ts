@@ -4,12 +4,12 @@
  */
 
 import * as O from 'fp-ts/lib/Option.js'
-import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath, Position} from '@/pure/graph'
-import {findBestMatchingNode} from '@/pure/graph/markdown-parsing/extract-edges'
-import {createTaskNode} from '@/pure/graph/graph-operations/createTaskNode'
-import {calculateNodePosition} from '@/pure/graph/positioning/calculateInitialPosition'
-import {buildSpatialIndexFromGraph} from '@/pure/graph/positioning/spatialAdapters'
-import type {SpatialIndex} from '@/pure/graph/spatial'
+import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath, Position} from '@vt/graph-model/pure/graph'
+import {findBestMatchingNode} from '@vt/graph-model/pure/graph/markdown-parsing/extract-edges'
+import {createTaskNode} from '@vt/graph-model/pure/graph/graph-operations/createTaskNode'
+import {calculateNodePosition} from '@vt/graph-model/pure/graph/positioning/calculateInitialPosition'
+import {buildSpatialIndexFromGraph} from '@vt/graph-model/pure/graph/positioning/spatialAdapters'
+import type {SpatialIndex} from '@vt/graph-model/pure/graph/spatial'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange'
@@ -17,7 +17,7 @@ import {spawnTerminalWithContextNode} from '@/shell/edge/main/terminals/spawnTer
 import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 import {tryConsumeAndSplitBudget, registerChild} from '@/shell/edge/main/terminals/global-budget-registry'
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
-import type {VTSettings} from '@/pure/settings'
+import type {VTSettings} from '@vt/graph-model/pure/settings'
 import {type McpToolResponse, buildJsonResponse} from './types'
 import {startMonitor} from './agent-completion-monitor'
 

@@ -1,4 +1,4 @@
-import {readStoredStrategy, screenToGraphDimensions, type ScalingStrategy} from "@/pure/graph/floating-windows/floatingWindowScaling";
+import {readStoredStrategy, screenToGraphDimensions, type ScalingStrategy} from "@vt/graph-model/pure/graph/floating-windows/floatingWindowScaling";
 import {getCyInstance} from "@/shell/edge/UI-edge/state/cytoscape-state";
 
 /** Resize zone size in pixels - larger for easier targeting */

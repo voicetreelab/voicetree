@@ -5,7 +5,7 @@
  * This server uses HTTP transport so it can run in-process with Electron and share state.
  *
  * Architecture:
- * - Uses pure functions from @/pure/graph for graph operations
+ * - Uses pure functions from @vt/graph-model/pure/graph for graph operations
  * - Accesses state via shell functions (getGraph, getVaultPath)
  * - Executes effects via applyGraphDeltaToDBThroughMem
  * - Runs on HTTP transport at localhost:3001/mcp
@@ -30,15 +30,15 @@ import {searchNodesTool as _searchNodesTool} from './searchNodesTool'
 import {createGraphTool} from './createGraphTool'
 import {graphStructureTool} from './graphStructureTool'
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
-import type {VTSettings} from '@/pure/settings/types'
+import type {VTSettings} from '@vt/graph-model/pure/settings/types'
 
 // Imports for /trigger-overnight endpoint
 import * as O from 'fp-ts/lib/Option.js'
-import type {Graph, GraphDelta, NodeIdAndFilePath, Position} from '@/pure/graph'
-import {createTaskNode} from '@/pure/graph/graph-operations/createTaskNode'
-import {calculateNodePosition} from '@/pure/graph/positioning/calculateInitialPosition'
-import {buildSpatialIndexFromGraph} from '@/pure/graph/positioning/spatialAdapters'
-import type {SpatialIndex} from '@/pure/graph/spatial'
+import type {Graph, GraphDelta, NodeIdAndFilePath, Position} from '@vt/graph-model/pure/graph'
+import {createTaskNode} from '@vt/graph-model/pure/graph/graph-operations/createTaskNode'
+import {calculateNodePosition} from '@vt/graph-model/pure/graph/positioning/calculateInitialPosition'
+import {buildSpatialIndexFromGraph} from '@vt/graph-model/pure/graph/positioning/spatialAdapters'
+import type {SpatialIndex} from '@vt/graph-model/pure/graph/spatial'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange'

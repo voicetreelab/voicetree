@@ -15,12 +15,12 @@ import {
     removeNode,
     insertEdge,
     removeEdge,
-} from '@/pure/graph/spatial';
+} from '@vt/graph-model/pure/graph/spatial';
 import type {
     SpatialIndex,
     SpatialNodeEntry,
     SpatialEdgeEntry,
-} from '@/pure/graph/spatial';
+} from '@vt/graph-model/pure/graph/spatial';
 
 // ============================================================================
 // Converters: cytoscape → spatial entries

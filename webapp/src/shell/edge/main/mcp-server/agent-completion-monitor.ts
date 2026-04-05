@@ -6,7 +6,7 @@
  * When all complete, it sends a formatted message to the caller terminal and cleans up.
  */
 
-import type {Graph} from '@/pure/graph'
+import type {Graph} from '@vt/graph-model/pure/graph'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 import {sendTextToTerminal} from '@/shell/edge/main/terminals/send-text-to-terminal'

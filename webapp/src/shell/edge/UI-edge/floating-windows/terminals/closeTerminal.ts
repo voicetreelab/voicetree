@@ -1,4 +1,4 @@
-import type { NodeIdAndFilePath } from "@/pure/graph";
+import type { NodeIdAndFilePath } from "@vt/graph-model/pure/graph";
 import type { Core, CollectionReturnValue } from "cytoscape";
 import { deleteNodesFromUI } from "@/shell/edge/UI-edge/graph/handleUIActions";
 import { disposeFloatingWindow } from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
@@ -8,7 +8,7 @@ import { vanillaFloatingWindowInstances } from "@/shell/edge/UI-edge/state/UIApp
 import { getTerminals } from "@/shell/edge/UI-edge/state/TerminalStore";
 import * as O from "fp-ts/lib/Option.js";
 import type { TerminalData } from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
-import type { GraphNode } from "@/pure/graph";
+import type { GraphNode } from "@vt/graph-model/pure/graph";
 import { getInjectBarHandle, unregisterInjectBar, type InjectBarHandle } from "@/shell/UI/floating-windows/terminals/InjectBar";
 
 /**

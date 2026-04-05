@@ -1,8 +1,8 @@
 import type { Core, CollectionReturnValue, EdgeCollection, NodeSingular } from 'cytoscape'
-import type { GraphDelta, GraphNode } from '@/pure/graph'
+import type { GraphDelta, GraphNode } from '@vt/graph-model/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
-import { getNodeTitle } from '@/pure/graph/markdown-parsing'
-import { hasActualContentChanged } from '@/pure/graph/contentChangeDetection'
+import { getNodeTitle } from '@vt/graph-model/pure/graph/markdown-parsing'
+import { hasActualContentChanged } from '@vt/graph-model/pure/graph/contentChangeDetection'
 
 /**
  * Validates if a color value is a valid CSS color using the browser's CSS.supports API

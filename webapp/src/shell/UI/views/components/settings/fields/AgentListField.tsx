@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import type { JSX } from 'react';
 import { Plus, X } from 'lucide-react';
-import type { AgentConfig } from '@/pure/settings/types';
+import type { AgentConfig } from '@vt/graph-model/pure/settings/types';
 
 interface AgentListFieldProps {
   value: readonly AgentConfig[];

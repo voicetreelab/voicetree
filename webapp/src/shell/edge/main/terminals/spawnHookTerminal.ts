@@ -5,12 +5,12 @@
  */
 
 import * as O from 'fp-ts/lib/Option.js'
-import type {Graph, GraphDelta, GraphNode, Position} from '@/pure/graph'
-import {createNewNodeNoParent} from '@/pure/graph/graphDelta/uiInteractionsToGraphDeltas'
-import {calculateNodePosition} from '@/pure/graph/positioning/calculateInitialPosition'
-import {buildSpatialIndexFromGraph} from '@/pure/graph/positioning/spatialAdapters'
-import type {SpatialIndex} from '@/pure/graph/spatial'
-import type {VTSettings} from '@/pure/settings/types'
+import type {Graph, GraphDelta, GraphNode, Position} from '@vt/graph-model/pure/graph'
+import {createNewNodeNoParent} from '@vt/graph-model/pure/graph/graphDelta/uiInteractionsToGraphDeltas'
+import {calculateNodePosition} from '@vt/graph-model/pure/graph/positioning/calculateInitialPosition'
+import {buildSpatialIndexFromGraph} from '@vt/graph-model/pure/graph/positioning/spatialAdapters'
+import type {SpatialIndex} from '@vt/graph-model/pure/graph/spatial'
+import type {VTSettings} from '@vt/graph-model/pure/settings/types'
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
 import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'

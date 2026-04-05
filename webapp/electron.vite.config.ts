@@ -20,7 +20,8 @@ export default defineConfig({
     logLevel: 'error',
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, './src')
+        '@': path.resolve(__dirname, './src'),
+        '@vt/graph-model/pure': path.resolve(__dirname, '../packages/graph-model/src/pure')
       }
     },
     build: {
@@ -40,7 +41,8 @@ export default defineConfig({
     logLevel: 'error',
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, './src')
+        '@': path.resolve(__dirname, './src'),
+        '@vt/graph-model/pure': path.resolve(__dirname, '../packages/graph-model/src/pure')
       }
     },
     build: {
@@ -88,6 +90,7 @@ export default defineConfig({
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
+        '@vt/graph-model/pure': path.resolve(__dirname, '../packages/graph-model/src/pure'),
         '@wasm': path.resolve(__dirname, './tidy/wasm_dist'),
         // Alias CSS imports from @material to prevent import errors
         '@material/mwc-icon/mwc-icon-host.css': path.resolve(__dirname, 'src/utils/empty-css-export.ts')

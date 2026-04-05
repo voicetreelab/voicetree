@@ -16,7 +16,7 @@
 // =============================================================================
 
 import {contextBridge, ipcRenderer} from 'electron';
-import type {GraphDelta} from "@/pure/graph";
+import type {GraphDelta} from "@vt/graph-model/pure/graph";
 import type {ElectronAPI, Promisify} from '@/shell/electron';
 import type {mainAPI} from '@/shell/edge/main/api';
 

@@ -17,7 +17,7 @@ import {
 import type { Extension } from '@codemirror/state';
 import type { Core, NodeSingular, NodeCollection } from 'cytoscape';
 import { getRecentlyVisited } from '@/shell/edge/UI-edge/state/RecentlyVisitedStore';
-import { toRelativePath } from '@/pure/paths/toRelativePath';
+import { toRelativePath } from '@vt/graph-model/pure/paths/toRelativePath';
 
 /**
  * Get Cytoscape instance from window

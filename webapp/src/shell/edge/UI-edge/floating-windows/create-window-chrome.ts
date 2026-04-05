@@ -13,7 +13,7 @@ import type {EditorData} from "@/shell/edge/UI-edge/floating-windows/editors/edi
 import type {Core} from 'cytoscape';
 import {selectFloatingWindowNode} from "@/shell/edge/UI-edge/floating-windows/select-floating-window-node";
 import { createNodeMenu } from "@/shell/UI/cytoscape-graph-ui/services/createNodeMenu";
-import type {AgentConfig} from "@/pure/settings";
+import type {AgentConfig} from "@vt/graph-model/pure/settings";
 import {addResizeZones} from "./window-resize-zones";
 import {createExpandButton} from "./expand-button";
 import {createTerminalTitleBar} from "./terminal-title-bar";

@@ -12,13 +12,13 @@
 import type { Core, NodeSingular, EdgeSingular, CollectionReturnValue } from 'cytoscape';
 import { computeColaAndAnimate } from './computeColaAndAnimate';
 import { refreshSpatialIndex, getCurrentIndex } from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
-import { findObstacles } from '@/pure/graph/spatial';
-import type { SpatialIndex, SpatialNodeEntry, SpatialEdgeEntry } from '@/pure/graph/spatial';
+import { findObstacles } from '@vt/graph-model/pure/graph/spatial';
+import type { SpatialIndex, SpatialNodeEntry, SpatialEdgeEntry } from '@vt/graph-model/pure/graph/spatial';
 import type { AutoLayoutOptions } from './autoLayoutTypes';
 import { DEFAULT_OPTIONS, COLA_FAST_ANIMATE_DURATION } from './autoLayoutTypes';
 import { getLocalNeighborhood } from './autoLayoutNeighborhood';
-import { componentsOverlap, separateOverlappingComponents } from '@/pure/graph/positioning/packComponents';
-import type { ComponentSubgraph } from '@/pure/graph/positioning/packComponents';
+import { componentsOverlap, separateOverlappingComponents } from '@vt/graph-model/pure/graph/positioning/packComponents';
+import type { ComponentSubgraph } from '@vt/graph-model/pure/graph/positioning/packComponents';
 
 /**
  * Run Cola on the local neighborhood of newly added nodes.

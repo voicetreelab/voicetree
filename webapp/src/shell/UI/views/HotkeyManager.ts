@@ -9,7 +9,7 @@
  * - Clean registration/cleanup API
  */
 
-import type { HotkeySettings, HotkeyBinding } from '@/pure/settings/types';
+import type { HotkeySettings, HotkeyBinding } from '@vt/graph-model/pure/settings/types';
 import type { Modifier, HotkeyConfig, RegisteredHotkey } from './hotkeyTypes';
 import { getHotkeyKey, getHotkeyKeyFromEvent, getModifierFromEvent } from './hotkeyKeyUtils';
 import { isInputElement } from './inputElementDetection';

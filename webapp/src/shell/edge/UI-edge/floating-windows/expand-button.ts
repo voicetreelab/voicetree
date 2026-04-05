@@ -1,5 +1,5 @@
 import {Maximize2, Minimize2, createElement} from 'lucide';
-import {readStoredStrategy, screenToGraphDimensions, type ScalingStrategy} from "@/pure/graph/floating-windows/floatingWindowScaling";
+import {readStoredStrategy, screenToGraphDimensions, type ScalingStrategy} from "@vt/graph-model/pure/graph/floating-windows/floatingWindowScaling";
 import {getCyInstance} from "@/shell/edge/UI-edge/state/cytoscape-state";
 
 /** Where the expand button is placed: bottom-left overlay (editors) or inside the title bar (terminals) */

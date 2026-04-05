@@ -6,7 +6,7 @@
  * Follows the same reducer pattern as reduceFolderConfig in transforms.ts.
  */
 
-import type { FolderTreeNode } from '@/pure/folders/types';
+import type { FolderTreeNode } from '@vt/graph-model/pure/folders/types';
 
 export interface FolderTreeState {
     readonly tree: FolderTreeNode | null;

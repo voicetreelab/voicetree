@@ -7,21 +7,21 @@ import type {
     NodeUIMetadata,
     Position,
     UpsertNodeDelta
-} from "@/pure/graph";
+} from "@vt/graph-model/pure/graph";
 import {
     createNewNodeNoParent,
     fromCreateChildToUpsertNode
-} from "@/pure/graph/graphDelta/uiInteractionsToGraphDeltas";
-import {deleteNodeSimple} from "@/pure/graph/graph-operations/removeNodeMaintainingTransitiveEdges";
-import {applyGraphDeltaToGraph} from "@/pure/graph/graphDelta/applyGraphDeltaToGraph";
+} from "@vt/graph-model/pure/graph/graphDelta/uiInteractionsToGraphDeltas";
+import {deleteNodeSimple} from "@vt/graph-model/pure/graph/graph-operations/removeNodeMaintainingTransitiveEdges";
+import {applyGraphDeltaToGraph} from "@vt/graph-model/pure/graph/graphDelta/applyGraphDeltaToGraph";
 import type {Core} from 'cytoscape';
 import {
     updateFloatingEditors,
 } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 import * as O from 'fp-ts/lib/Option.js';
-import {calculateNodePosition} from "@/pure/graph/positioning/calculateInitialPosition";
-import {buildSpatialIndexFromGraph} from "@/pure/graph/positioning/spatialAdapters";
-import type {SpatialIndex} from "@/pure/graph/spatial";
+import {calculateNodePosition} from "@vt/graph-model/pure/graph/positioning/calculateInitialPosition";
+import {buildSpatialIndexFromGraph} from "@vt/graph-model/pure/graph/positioning/spatialAdapters";
+import type {SpatialIndex} from "@vt/graph-model/pure/graph/spatial";
 import {requestAutoPinOnCreation} from "@/shell/edge/UI-edge/graph/applyGraphDeltaToUI";
 
 /**

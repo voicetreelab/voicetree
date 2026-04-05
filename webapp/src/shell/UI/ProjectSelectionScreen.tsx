@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { JSX } from 'react';
-import type { SavedProject, DiscoveredProject } from '@/pure/project/types';
-import { sortProjectsByLastOpened, filterDiscoveredProjects } from '@/pure/project';
+import type { SavedProject, DiscoveredProject } from '@vt/graph-model/pure/project/types';
+import { sortProjectsByLastOpened, filterDiscoveredProjects } from '@vt/graph-model/pure/project';
 import type {} from '@/shell/electron';
 
 /**

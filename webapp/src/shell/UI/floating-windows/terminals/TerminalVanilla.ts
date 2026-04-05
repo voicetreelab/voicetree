@@ -6,10 +6,10 @@ import { SearchAddon } from '@xterm/addon-search';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import '@xterm/xterm/css/xterm.css';
 import './terminal-chrome.css'; // Terminal title bar, context badge, active state styles
-import type { VTSettings } from '@/pure/settings';
+import type { VTSettings } from '@vt/graph-model/pure/settings';
 import { isZoomActive } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
 import { getCyInstance } from '@/shell/edge/UI-edge/state/cytoscape-state';
-import { getTerminalFontSize, getScrollOffset, getScrollTargetLine } from '@/pure/graph/floating-windows/floatingWindowScaling';
+import { getTerminalFontSize, getScrollOffset, getScrollTargetLine } from '@vt/graph-model/pure/graph/floating-windows/floatingWindowScaling';
 import { setupTerminalInteractionStrategy } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalInteractionStrategy';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 

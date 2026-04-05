@@ -21,8 +21,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { clearTerminals, addTerminal } from '@/shell/edge/UI-edge/state/TerminalStore'
 import { createTerminalData } from '@/shell/edge/UI-edge/floating-windows/types'
-import type { NodeIdAndFilePath } from '@/pure/graph'
-import type { VTSettings } from '@/pure/settings'
+import type { NodeIdAndFilePath } from '@vt/graph-model/pure/graph'
+import type { VTSettings } from '@vt/graph-model/pure/settings'
 import cytoscape from 'cytoscape'
 import type { Core } from 'cytoscape'
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";

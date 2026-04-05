@@ -6,7 +6,7 @@ import {
     isTerminalData,
     getTerminalId
 } from "@/shell/edge/UI-edge/floating-windows/types";
-import type {NodeIdAndFilePath} from "@/pure/graph";
+import type {NodeIdAndFilePath} from "@vt/graph-model/pure/graph";
 import * as O from "fp-ts/lib/Option.js";
 import {addRecentlyVisited} from "@/shell/edge/UI-edge/state/RecentlyVisitedStore";
 import {setActiveTerminalId} from "@/shell/edge/UI-edge/state/TerminalStore";

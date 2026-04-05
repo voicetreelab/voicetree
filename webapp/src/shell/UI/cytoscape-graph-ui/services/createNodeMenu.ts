@@ -4,7 +4,7 @@
  */
 
 import type { Core } from 'cytoscape';
-import type { AgentConfig } from "@/pure/settings";
+import type { AgentConfig } from "@vt/graph-model/pure/settings";
 import type { EditorData } from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
 import { createTrafficLightsForTarget } from "@/shell/edge/UI-edge/floating-windows/traffic-lights";
 import { destroyFloatingSlider } from './DistanceSlider';

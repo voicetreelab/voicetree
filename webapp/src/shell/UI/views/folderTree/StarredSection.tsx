@@ -7,7 +7,7 @@
 
 import { useState, useCallback } from 'react';
 import type { JSX } from 'react';
-import type { FolderTreeNode } from '@/pure/folders/types';
+import type { FolderTreeNode } from '@vt/graph-model/pure/folders/types';
 import { FolderTreeNodeComponent } from './FolderTreeNode';
 import type {} from '@/shell/electron';
 

@@ -6,9 +6,9 @@ import {getNextTerminalCount, getTerminals} from "@/shell/edge/UI-edge/state/Ter
 import type {TerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import {showTaskInputPopup, type SelectedNodeInfo, type TaskInputResult} from "@/shell/edge/UI-edge/graph/taskInputPopup";
-import type {NodeIdAndFilePath} from "@/pure/graph";
+import type {NodeIdAndFilePath} from "@vt/graph-model/pure/graph";
 import '@/shell/electron.d.ts';
-import { formatShortcut } from '@/pure/utils/keyboardShortcutDisplay';
+import { formatShortcut } from '@vt/graph-model/pure/utils/keyboardShortcutDisplay';
 
 export interface Position {
     x: number;

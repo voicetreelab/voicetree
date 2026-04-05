@@ -5,21 +5,21 @@
 
 import type { Core } from 'cytoscape';
 import { Plus, Play, Trash2, AlertTriangle, Clipboard, ChevronDown, Edit2, GitBranch, FolderOpen, Check, Zap } from 'lucide';
-import type { GraphNode } from "@/pure/graph";
+import type { GraphNode } from "@vt/graph-model/pure/graph";
 import { createNewChildNodeFromUI, deleteNodesFromUI } from "@/shell/edge/UI-edge/graph/handleUIActions";
 import { getCurrentIndex } from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
-import { formatShortcut } from '@/pure/utils/keyboardShortcutDisplay';
+import { formatShortcut } from '@vt/graph-model/pure/utils/keyboardShortcutDisplay';
 import {
     spawnTerminalWithNewContextNode,
     spawnTerminalWithCommandEditor,
     spawnTerminalInNewWorktree,
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
 import { getFilePathForNode, getNodeFromMainToUI } from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
-import { fromNodeToContentWithWikilinks } from "@/pure/graph/markdown-writing/node_to_markdown";
+import { fromNodeToContentWithWikilinks } from "@vt/graph-model/pure/graph/markdown-writing/node_to_markdown";
 import { modifyNodeContentFromUI } from "@/shell/edge/UI-edge/floating-windows/editors/modifyNodeContentFromFloatingEditor";
 import { createAnchoredFloatingEditor } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
-import type { VTSettings, AgentConfig } from "@/pure/settings";
-import { getDefaultAgent } from "@/pure/settings/types";
+import type { VTSettings, AgentConfig } from "@vt/graph-model/pure/settings";
+import { getDefaultAgent } from "@vt/graph-model/pure/settings/types";
 import { AUTO_RUN_FLAG } from "@/shell/edge/UI-edge/graph/agentCommandEditorPopup";
 import { highlightContainedNodes, highlightPreviewNodes, clearContainedHighlights } from '@/shell/UI/cytoscape-graph-ui/highlightContextNodes';
 import { getTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';

@@ -20,7 +20,7 @@ import { getIsTrackpadScrolling } from '@/shell/edge/UI-edge/state/trackpad-stat
 import type { EditorId, TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import type { EditorData } from '@/shell/edge/UI-edge/floating-windows/editors/editorDataType';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
-import type { VTSettings } from '@/pure/settings/types';
+import type { VTSettings } from '@vt/graph-model/pure/settings/types';
 import { onSettingsChange } from '@/shell/edge/UI-edge/api';
 import { signalViewportManipulation } from '@/shell/UI/cytoscape-graph-ui/services/largegraphPerformance';
 

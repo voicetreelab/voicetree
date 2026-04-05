@@ -1,6 +1,6 @@
 import type { JSX } from "react";
 import { useState, useEffect, useRef } from "react";
-import type { HotkeyBinding, HotkeyModifier } from "@/pure/settings/types";
+import type { HotkeyBinding, HotkeyModifier } from "@vt/graph-model/pure/settings/types";
 
 interface HotkeyFieldProps {
   label: string;

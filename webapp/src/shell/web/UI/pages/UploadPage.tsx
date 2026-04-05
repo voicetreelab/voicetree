@@ -4,7 +4,7 @@ import { isRight } from 'fp-ts/lib/Either.js'
 import type { Either } from 'fp-ts/lib/Either.js'
 import type { TaskEither } from 'fp-ts/lib/TaskEither.js'
 import { uploadPipeline } from '@/shell/web/uploadPipeline'
-import type { ShareId, UploadError } from '@/pure/web-share/types'
+import type { ShareId, UploadError } from '@vt/graph-model/pure/web-share/types'
 
 type UploadState =
     | { readonly phase: 'idle' }

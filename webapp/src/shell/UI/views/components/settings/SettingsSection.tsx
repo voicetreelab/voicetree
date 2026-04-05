@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import type { JSX } from 'react';
-import type { VTSettings, HotkeySettings, HotkeyBinding, HookSettings, EnvVarValue, AgentConfig } from '@/pure/settings/types';
-import { DEFAULT_HOTKEYS } from '@/pure/settings/DEFAULT_SETTINGS';
+import type { VTSettings, HotkeySettings, HotkeyBinding, HookSettings, EnvVarValue, AgentConfig } from '@vt/graph-model/pure/settings/types';
+import { DEFAULT_HOTKEYS } from '@vt/graph-model/pure/settings/DEFAULT_SETTINGS';
 import { SECTION_MAP, HIDDEN_KEYS, NUMBER_FIELD_CONFIG, inferFieldType, keyToLabel } from './settingsUtils';
 import type { Section, FieldType, NumberFieldConfig } from './settingsUtils';
 import { ToggleField } from './fields/ToggleField';

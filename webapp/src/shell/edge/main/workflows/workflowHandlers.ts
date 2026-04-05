@@ -2,7 +2,7 @@ import { promises as fs, Dirent } from 'fs'
 import path from 'path'
 import os from 'os'
 import matter from 'gray-matter'
-import { parseSkillFile, formatParsedSkillSummary } from '@/pure/workflows/parseSkillFile'
+import { parseSkillFile, formatParsedSkillSummary } from '@vt/graph-model/pure/workflows/parseSkillFile'
 
 const WORKFLOWS_DIR: string = path.join(os.homedir(), 'brain', 'workflows')
 

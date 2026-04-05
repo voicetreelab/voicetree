@@ -31,8 +31,8 @@ import {
   clearVaultPath,
 } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { setGraph, getGraph } from '@/shell/edge/main/state/graph-store'
-import type { GraphDelta, Graph } from '@/pure/graph'
-import { createEmptyGraph } from '@/pure/graph'
+import type { GraphDelta, Graph } from '@vt/graph-model/pure/graph'
+import { createEmptyGraph } from '@vt/graph-model/pure/graph'
 import { saveVaultConfigForDirectory } from '@/shell/edge/main/graph/watch_folder/voicetree-config-io'
 
 /**

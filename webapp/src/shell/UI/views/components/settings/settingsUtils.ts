@@ -1,5 +1,5 @@
-import { SETTINGS_SCHEMA } from '@/pure/settings/settingsSchema';
-import type { Section, NumberFieldConfig } from '@/pure/settings/settingsSchema';
+import { SETTINGS_SCHEMA } from '@vt/graph-model/pure/settings/settingsSchema';
+import type { Section, NumberFieldConfig } from '@vt/graph-model/pure/settings/settingsSchema';
 
 export type { Section, NumberFieldConfig };
 export type FieldType = 'toggle' | 'number' | 'text' | 'textarea' | 'hotkey-group' | 'agent-list' | 'string-list' | 'key-value' | 'hook-group';

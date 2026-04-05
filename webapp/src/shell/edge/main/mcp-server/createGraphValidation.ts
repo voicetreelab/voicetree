@@ -8,7 +8,7 @@
  */
 
 import type {CreateGraphNodeInput} from './createGraphTool'
-import type {Graph, NodeIdAndFilePath} from '@/pure/graph'
+import type {Graph, NodeIdAndFilePath} from '@vt/graph-model/pure/graph'
 import {countBodyLines} from './addProgressNodeTool'
 
 // ============================================================================

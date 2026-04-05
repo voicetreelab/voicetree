@@ -28,7 +28,7 @@ export async function closeAgentTool({terminalId, callerTerminalId, forceWithRea
 
     // Stop gate: audit before allowing self-close (BF-042: derives skill path at audit time)
     if (isSelfClose) {
-        const graph: import('@/pure/graph').Graph = getGraph()
+        const graph: import('@vt/graph-model/pure/graph').Graph = getGraph()
         const records: readonly TerminalRecord[] = getTerminalRecords()
         const hookResult: StopHookResult = await runStopHooks(terminalId, graph, records)
         if (!hookResult.passed) {

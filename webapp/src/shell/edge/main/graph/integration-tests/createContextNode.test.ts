@@ -36,7 +36,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 import { promises as fs } from 'fs'
 import path from 'path'
-import type { NodeIdAndFilePath, Edge, GraphNode, Graph } from '@/pure/graph'
+import type { NodeIdAndFilePath, Edge, GraphNode, Graph } from '@vt/graph-model/pure/graph'
 import type { FileLimitExceededError } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce'
 
 describe('createContextNode - Integration Tests', () => {

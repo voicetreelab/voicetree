@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
 import { HotkeyManager } from './HotkeyManager';
-import type { HotkeySettings } from '@/pure/settings/types';
+import type { HotkeySettings } from '@vt/graph-model/pure/settings/types';
 
 /** Mock hotkey settings for tests (Mac-style with Meta modifier) */
 const mockHotkeys: HotkeySettings = {

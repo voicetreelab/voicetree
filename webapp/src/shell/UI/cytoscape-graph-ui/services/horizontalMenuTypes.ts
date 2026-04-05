@@ -5,7 +5,7 @@
 
 import type { Core } from 'cytoscape';
 import type { IconNode } from 'lucide';
-import type { AgentConfig } from "@/pure/settings";
+import type { AgentConfig } from "@vt/graph-model/pure/settings";
 
 /** Config for attaching a distance slider to a menu item */
 export interface SliderConfig {

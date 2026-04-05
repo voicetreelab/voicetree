@@ -3,7 +3,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
-import type {Graph, GraphNode} from '@/pure/graph'
+import type {Graph, GraphNode} from '@vt/graph-model/pure/graph'
 import {getNewNodesForAgent} from '../getNewNodesForAgent'
 
 function buildNode(filePath: string, agentName: string): GraphNode {

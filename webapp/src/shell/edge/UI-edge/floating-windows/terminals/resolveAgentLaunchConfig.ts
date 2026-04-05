@@ -1,4 +1,4 @@
-import type { VTSettings, AgentConfig } from "@/pure/settings";
+import type { VTSettings, AgentConfig } from "@vt/graph-model/pure/settings";
 import { showAgentCommandEditor } from "@/shell/edge/UI-edge/graph/agentCommandEditorPopup";
 
 export interface AgentLaunchConfig {

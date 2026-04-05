@@ -9,21 +9,21 @@ import {
     type TerminalId
 } from "@/shell/edge/UI-edge/floating-windows/types";
 import * as O from "fp-ts/lib/Option.js";
-import type {NodeIdAndFilePath} from "@/pure/graph";
+import type {NodeIdAndFilePath} from "@vt/graph-model/pure/graph";
 import {
     readStoredStrategy,
     getWindowTransform,
     graphToScreenPosition,
     type ScalingStrategy
-} from "@/pure/graph/floating-windows/floatingWindowScaling";
+} from "@vt/graph-model/pure/graph/floating-windows/floatingWindowScaling";
 import {cleanupRegistry} from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import {setupResizeObserver, updateShadowNodeDimensions} from "@/shell/edge/UI-edge/floating-windows/setup-resize-observer";
 import {getEdgeDistance} from "@/shell/UI/cytoscape-graph-ui/graphviz/layout/cytoscape-graph-constants";
-import {findBestPosition} from "@/pure/graph/positioning/findBestPosition";
-import type {Obstacle} from "@/pure/graph/positioning/findBestPosition";
+import {findBestPosition} from "@vt/graph-model/pure/graph/positioning/findBestPosition";
+import type {Obstacle} from "@vt/graph-model/pure/graph/positioning/findBestPosition";
 import {extractAllObstaclesFromCytoscape} from "@/shell/edge/UI-edge/floating-windows/extractObstaclesFromCytoscape";
-import type {SpatialIndex} from "@/pure/graph/spatial";
-import {extractFromSpatialIndex} from "@/pure/graph/positioning/spatialAdapters";
+import type {SpatialIndex} from "@vt/graph-model/pure/graph/spatial";
+import {extractFromSpatialIndex} from "@vt/graph-model/pure/graph/positioning/spatialAdapters";
 
 /**
  * Anchor a floating window to a parent node
@@ -81,7 +81,7 @@ export function anchorToNode(
         ? extractFromSpatialIndex(spatialIndex, { x: parentPos.x, y: parentPos.y }, parentNodeId,
             getEdgeDistance(fw.type) * 3 + Math.max(shadowDimensions.width, shadowDimensions.height))
         : extractAllObstaclesFromCytoscape(cy, parentNodeId);
-    const childPosition: import('@/pure/graph').Position = findBestPosition(
+    const childPosition: import('@vt/graph-model/pure/graph').Position = findBestPosition(
         { x: parentPos.x, y: parentPos.y },
         desiredAngleDeg,
         getEdgeDistance(fw.type),

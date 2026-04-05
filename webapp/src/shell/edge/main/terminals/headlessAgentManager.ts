@@ -95,7 +95,7 @@ async function handleAgentExit(terminalId: TerminalId, code: number | null): Pro
     // Skip audit if agent has active (non-exited) child agents — they're still doing work.
     // The parent's obligations may depend on children completing first.
     if (code === 0 || code === null) {
-        const graph: import('@/pure/graph').Graph = getGraph()
+        const graph: import('@vt/graph-model/pure/graph').Graph = getGraph()
         const records: readonly TerminalRecord[] = getTerminalRecords()
         const hasActiveChildren: boolean = records.some(
             (r: TerminalRecord) => r.terminalData.parentTerminalId === terminalId && r.status !== 'exited'

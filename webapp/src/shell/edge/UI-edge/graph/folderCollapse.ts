@@ -1,9 +1,9 @@
 import type { Core, CollectionReturnValue } from 'cytoscape'
-import type { Graph, GraphNode } from '@/pure/graph'
-import type { Position } from '@/pure/graph'
+import type { Graph, GraphNode } from '@vt/graph-model/pure/graph'
+import type { Position } from '@vt/graph-model/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
-import { getFolderChildNodeIds, getSubFolderPaths, getFolderParent } from '@/pure/graph/folderCollapse'
-import { getNodeTitle } from '@/pure/graph/markdown-parsing'
+import { getFolderChildNodeIds, getSubFolderPaths, getFolderParent } from '@vt/graph-model/pure/graph/folderCollapse'
+import { getNodeTitle } from '@vt/graph-model/pure/graph/markdown-parsing'
 import type {} from '@/shell/electron'
 
 // ── Ephemeral UI state ──

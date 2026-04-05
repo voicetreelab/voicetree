@@ -18,7 +18,7 @@ import type {TerminalStatus} from '@/shell/edge/main/terminals/terminal-registry
 import {getTerminals, getTerminalStatus} from '@/shell/edge/UI-edge/state/TerminalStore';
 import {getCyInstance} from '@/shell/edge/UI-edge/state/cytoscape-state';
 import {getOrCreateOverlay} from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
-import {graphToScreenPosition, getWindowTransform, getTransformOrigin, offsetFromNodeEdge} from '@/pure/graph/floating-windows/floatingWindowScaling';
+import {graphToScreenPosition, getWindowTransform, getTransformOrigin, offsetFromNodeEdge} from '@vt/graph-model/pure/graph/floating-windows/floatingWindowScaling';
 import {restoreTerminal} from '@/shell/UI/views/treeStyleTerminalTabs/terminalTabUtils';
 import * as O from 'fp-ts/lib/Option.js';
 

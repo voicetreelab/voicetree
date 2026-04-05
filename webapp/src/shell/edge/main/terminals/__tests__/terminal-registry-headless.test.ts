@@ -10,7 +10,7 @@
  */
 
 import {describe, it, expect, vi, beforeEach} from 'vitest'
-import type {NodeIdAndFilePath} from '@/pure/graph'
+import type {NodeIdAndFilePath} from '@vt/graph-model/pure/graph'
 import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
 import {createTerminalData} from '@/shell/edge/UI-edge/floating-windows/types'
 import type {TerminalData, CreateTerminalDataParams} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
@@ -33,7 +33,7 @@ vi.mock('@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode',
     getUnseenNodesAroundContextNode: vi.fn(async () => [])
 }))
 
-vi.mock('@/pure/graph/markdown-parsing', () => ({
+vi.mock('@vt/graph-model/pure/graph/markdown-parsing', () => ({
     getNodeTitle: vi.fn(() => 'Mock Title')
 }))
 

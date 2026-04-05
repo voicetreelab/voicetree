@@ -22,8 +22,8 @@
 
 import type {Core, EdgeSingular, NodeSingular, NodeDefinition, CollectionReturnValue, EventObject} from 'cytoscape';
 import ColaLayout from './cola';
-import { packComponents } from '@/pure/graph/positioning/packComponents';
-import type { ComponentSubgraph } from '@/pure/graph/positioning/packComponents';
+import { packComponents } from '@vt/graph-model/pure/graph/positioning/packComponents';
+import type { ComponentSubgraph } from '@vt/graph-model/pure/graph/positioning/packComponents';
 import { runLocalCola } from './autoLayoutLocalCola';
 import { refreshSpatialIndex } from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
 // Import to make Window.electronAPI type available

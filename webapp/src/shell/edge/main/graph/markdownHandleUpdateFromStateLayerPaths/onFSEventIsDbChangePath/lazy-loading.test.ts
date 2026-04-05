@@ -4,8 +4,8 @@ import * as path from 'path'
 import * as os from 'os'
 import * as E from 'fp-ts/lib/Either.js'
 import { loadGraphFromDisk, isReadPath, extractLinkTargets, resolveLinkTarget } from './loadGraphFromDisk'
-import { applyGraphDeltaToGraph } from '@/pure/graph'
-import type { Graph, GraphDelta, GraphNode, Edge } from '@/pure/graph'
+import { applyGraphDeltaToGraph } from '@vt/graph-model/pure/graph'
+import type { Graph, GraphDelta, GraphNode, Edge } from '@vt/graph-model/pure/graph'
 import type { FileLimitExceededError } from './fileLimitEnforce'
 
 /**

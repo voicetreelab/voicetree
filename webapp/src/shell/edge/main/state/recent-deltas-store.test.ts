@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
-import type { NodeDelta, GraphDelta, GraphNode, NodeUIMetadata } from '@/pure/graph'
+import type { NodeDelta, GraphDelta, GraphNode, NodeUIMetadata } from '@vt/graph-model/pure/graph'
 import {
     markRecentDelta,
     isOurRecentDelta,

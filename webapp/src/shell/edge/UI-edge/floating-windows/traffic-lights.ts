@@ -8,7 +8,7 @@
 import type { Core } from 'cytoscape';
 import * as O from 'fp-ts/lib/Option.js';
 import { Minus, Pin, Maximize, createElement } from 'lucide';
-import { isImageNode, type NodeIdAndFilePath } from '@/pure/graph';
+import { isImageNode, type NodeIdAndFilePath } from '@vt/graph-model/pure/graph';
 import type { ShadowNodeId, TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import { isAnchored, getShadowNodeIdFromData, getTerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import { getEditorByNodeId, isPinned, addToPinnedEditors, removeFromPinnedEditors } from '@/shell/edge/UI-edge/state/EditorStore';

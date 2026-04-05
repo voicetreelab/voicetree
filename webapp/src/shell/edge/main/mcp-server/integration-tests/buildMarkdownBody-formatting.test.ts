@@ -1,7 +1,7 @@
 import {describe, it, expect} from 'vitest'
 import {buildMarkdownBody} from '@/shell/edge/main/mcp-server/addProgressNodeTool'
-import {parseMarkdownToGraphNode} from '@/pure/graph/markdown-parsing/parse-markdown-to-node'
-import type {Graph, GraphNode} from '@/pure/graph'
+import {parseMarkdownToGraphNode} from '@vt/graph-model/pure/graph/markdown-parsing/parse-markdown-to-node'
+import type {Graph, GraphNode} from '@vt/graph-model/pure/graph'
 
 const EMPTY_GRAPH: Graph = {
     nodes: {},

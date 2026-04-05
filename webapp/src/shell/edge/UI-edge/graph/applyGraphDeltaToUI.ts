@@ -1,8 +1,8 @@
 import type {Core, NodeSingular, CollectionReturnValue, EdgeCollection} from "cytoscape";
-import type {GraphDelta, GraphNode, NodeIdAndFilePath} from "@/pure/graph";
+import type {GraphDelta, GraphNode, NodeIdAndFilePath} from "@vt/graph-model/pure/graph";
 import * as O from 'fp-ts/lib/Option.js';
-import {getNodeTitle} from "@/pure/graph/markdown-parsing";
-import {hasActualContentChanged} from "@/pure/graph/contentChangeDetection";
+import {getNodeTitle} from "@vt/graph-model/pure/graph/markdown-parsing";
+import {hasActualContentChanged} from "@vt/graph-model/pure/graph/contentChangeDetection";
 import posthog from "posthog-js";
 import {markTerminalActivityForContextNode} from "@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity";
 import type {} from '@/utils/types/cytoscape-layout-utilities';
@@ -13,7 +13,7 @@ import {syncLargeGraphPerformanceMode} from "@/shell/UI/cytoscape-graph-ui/servi
 import {getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {getShadowNodeId, getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 import {createAnchoredFloatingEditor} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
-import { getFolderParent } from '@/pure/graph/folderCollapse'
+import { getFolderParent } from '@vt/graph-model/pure/graph/folderCollapse'
 import { isFolderCollapsed } from '@/shell/edge/UI-edge/graph/folderCollapse'
 
 /**

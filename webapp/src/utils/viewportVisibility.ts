@@ -3,8 +3,8 @@
  */
 import type { Core, BoundingBox, BoundingBox12, BoundingBoxWH, NodeCollection } from 'cytoscape';
 import { getCurrentIndex } from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
-import { queryNodesInRect } from '@/pure/graph/spatial';
-import type { Rect, SpatialIndex, SpatialNodeEntry } from '@/pure/graph/spatial';
+import { queryNodesInRect } from '@vt/graph-model/pure/graph/spatial';
+import type { Rect, SpatialIndex, SpatialNodeEntry } from '@vt/graph-model/pure/graph/spatial';
 import { getVisibleViewportExtent } from '@/utils/visibleViewport';
 
 /**

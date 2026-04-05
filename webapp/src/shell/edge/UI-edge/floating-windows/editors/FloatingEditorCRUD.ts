@@ -2,7 +2,7 @@ import type {Core} from 'cytoscape';
 import type cytoscape from 'cytoscape';
 import * as O from 'fp-ts/lib/Option.js';
 
-import type {NodeIdAndFilePath} from '@/pure/graph';
+import type {NodeIdAndFilePath} from '@vt/graph-model/pure/graph';
 
 import {
     createEditorData,
@@ -22,8 +22,8 @@ import {type EditorData, vanillaFloatingWindowInstances,} from '@/shell/edge/UI-
 
 import {CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
 import {getNodeFromMainToUI} from '@/shell/edge/UI-edge/graph/getNodeFromMainToUI';
-import {fromNodeToContentWithWikilinks} from '@/pure/graph/markdown-writing/node_to_markdown';
-import {getNodeTitle} from '@/pure/graph/markdown-parsing';
+import {fromNodeToContentWithWikilinks} from '@vt/graph-model/pure/graph/markdown-writing/node_to_markdown';
+import {getNodeTitle} from '@vt/graph-model/pure/graph/markdown-parsing';
 import {
     addEditor,
     getEditorByNodeId,

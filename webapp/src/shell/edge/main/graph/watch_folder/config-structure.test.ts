@@ -28,7 +28,7 @@ import {
   saveVaultConfigForDirectory,
 } from './voicetree-config-io'
 import { resolveWritePath } from './vault-allowlist'
-import type { VaultConfig } from '@/pure/settings/types'
+import type { VaultConfig } from '@vt/graph-model/pure/settings/types'
 
 describe('Section 1: Config Structure Changes', () => {
   let testTmpDir: string

@@ -16,7 +16,7 @@ import { enableMcpJsonIntegration } from '@/shell/edge/main/mcp-server/mcp-clien
 import { ensureProjectDotVoicetree } from '@/shell/edge/main/electron/tools-setup'
 import { getOnboardingDirectory } from '@/shell/edge/main/electron/onboarding-setup'
 import { loadSettings } from '@vt/graph-model'
-import type { GraphDelta } from '@/pure/graph'
+import type { GraphDelta } from '@vt/graph-model/pure/graph'
 
 export function initializeGraphModel(): void {
     const callbacks: GraphModelCallbacks = {

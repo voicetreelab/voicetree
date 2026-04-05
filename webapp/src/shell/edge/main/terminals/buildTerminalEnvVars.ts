@@ -4,8 +4,8 @@
  */
 
 import * as O from 'fp-ts/lib/Option.js'
-import {resolveEnvVars, expandEnvVarsInValues} from '@/pure/settings'
-import type {VTSettings} from '@/pure/settings/types'
+import {resolveEnvVars, expandEnvVarsInValues} from '@vt/graph-model/pure/settings'
+import type {VTSettings} from '@vt/graph-model/pure/settings/types'
 import {getAppSupportPath} from '@/shell/edge/main/state/app-electron-state'
 import {getVaultPaths, getWritePath} from '@/shell/edge/main/graph/watch_folder/vault-allowlist'
 import {getMcpPort} from '@/shell/edge/main/mcp-server/mcp-server'

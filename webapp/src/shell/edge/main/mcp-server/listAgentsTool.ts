@@ -4,11 +4,11 @@
  * plus available agent types from settings for discovery.
  */
 
-import type {Graph} from '@/pure/graph'
+import type {Graph} from '@vt/graph-model/pure/graph'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
-import type {VTSettings} from '@/pure/settings'
+import type {VTSettings} from '@vt/graph-model/pure/settings'
 import {type McpToolResponse, buildJsonResponse} from './types'
 import {getNewNodesForAgent} from './getNewNodesForAgent'
 import * as O from 'fp-ts/lib/Option.js'

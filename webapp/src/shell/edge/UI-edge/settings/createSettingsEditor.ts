@@ -5,7 +5,7 @@
 
 import type {} from '@/shell/electron';
 import type {Core} from 'cytoscape';
-import type {VTSettings} from '@/pure/settings/types';
+import type {VTSettings} from '@vt/graph-model/pure/settings/types';
 import type {EditorId} from '@/shell/edge/UI-edge/floating-windows/types';
 import {vanillaFloatingWindowInstances} from '@/shell/edge/UI-edge/state/UIAppState';
 import {X, createElement} from 'lucide';

@@ -10,7 +10,7 @@
  * Following the project's "push impurity to edge" pattern - settings access is impure.
  */
 
-import type {VTSettings} from '@/pure/settings/types';
+import type {VTSettings} from '@vt/graph-model/pure/settings/types';
 // Import for Window.electronAPI type augmentation
 import type {} from '@/shell/electron';
 

@@ -12,7 +12,7 @@
 import * as fs from 'fs'
 import * as O from 'fp-ts/lib/Option.js'
 import {spawnSync, type SpawnSyncReturns} from 'child_process'
-import type {Graph} from '@/pure/graph'
+import type {Graph} from '@vt/graph-model/pure/graph'
 import type {TerminalRecord} from './terminal-registry'
 
 // ─── Types ───────────────────────────────────────────────────────────────────

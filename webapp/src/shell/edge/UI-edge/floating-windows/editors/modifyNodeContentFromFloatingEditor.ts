@@ -1,7 +1,7 @@
-import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath, NodeUIMetadata} from "@/pure/graph";
+import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath, NodeUIMetadata} from "@vt/graph-model/pure/graph";
 import type {Core} from "cytoscape";
 import {getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
-import {fromContentChangeToGraphDelta} from "@/pure/graph/graphDelta/uiInteractionsToGraphDeltas";
+import {fromContentChangeToGraphDelta} from "@vt/graph-model/pure/graph/graphDelta/uiInteractionsToGraphDeltas";
 import {mergeNodeUIMetadata} from "@/shell/edge/UI-edge/graph/handleUIActions";
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';

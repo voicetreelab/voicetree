@@ -10,7 +10,7 @@ import {trace} from '@/shell/edge/main/tracing/trace';
 import {getProjectRootWatchedDirectory} from "@/shell/edge/main/state/watch-folder-store";
 import {captureOutput, clearBuffer, clearAllBuffers} from '@/shell/edge/main/terminals/terminal-output-buffer';
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
-import type {VTSettings} from '@/pure/settings/types';
+import type {VTSettings} from '@vt/graph-model/pure/settings/types';
 import {closeHeadlessAgent, cleanupHeadlessAgents} from '@/shell/edge/main/terminals/headlessAgentManager';
 
 /** Cached Windows shell path. Prefer pwsh.exe (PS7+) over powershell.exe (PS5) */

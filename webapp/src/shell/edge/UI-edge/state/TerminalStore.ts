@@ -1,5 +1,5 @@
 import {getTerminalId, type TerminalId, type FloatingWindowUIData} from "@/shell/edge/UI-edge/floating-windows/types";
-import type {NodeIdAndFilePath} from "@/pure/graph";
+import type {NodeIdAndFilePath} from "@vt/graph-model/pure/graph";
 import type {} from '@/shell/electron';
 import * as O from "fp-ts/lib/Option.js";
 import {type Option} from "fp-ts/lib/Option.js";

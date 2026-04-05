@@ -12,7 +12,7 @@
  */
 
 import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
-import type { NodeIdAndFilePath } from '@/pure/graph';
+import type { NodeIdAndFilePath } from '@vt/graph-model/pure/graph';
 import type {} from '@/shell/electron';
 
 // --- InjectBar Registry ---

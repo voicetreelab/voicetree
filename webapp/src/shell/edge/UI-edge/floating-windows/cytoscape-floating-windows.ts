@@ -9,7 +9,7 @@
  */
 
 import type cytoscape from 'cytoscape';
-import {getWindowTransform, graphToScreenPosition,} from '@/pure/graph/floating-windows/floatingWindowScaling';
+import {getWindowTransform, graphToScreenPosition,} from '@vt/graph-model/pure/graph/floating-windows/floatingWindowScaling';
 import {
     type EditorId,
     type FloatingWindowData,

@@ -10,7 +10,7 @@
 
 import {describe, it, expect, afterEach} from 'vitest'
 import {auditAgent, buildDeficiencyPrompt, type ComplianceResult} from './stopGateAudit'
-import type {Graph, GraphNode} from '@/pure/graph'
+import type {Graph, GraphNode} from '@vt/graph-model/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'

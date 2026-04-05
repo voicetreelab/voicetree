@@ -13,7 +13,7 @@ import {
     CHECK_INTERVAL_MS,
     INACTIVITY_THRESHOLD_MS,
     isTerminalInactive,
-} from '@/pure/agentTabs';
+} from '@vt/graph-model/pure/agentTabs';
 import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
 import type {} from '@/shell/electron';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';

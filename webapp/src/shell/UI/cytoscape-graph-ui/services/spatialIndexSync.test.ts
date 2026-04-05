@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import cytoscape from 'cytoscape';
 import type { Core, NodeSingular, EdgeSingular } from 'cytoscape';
 import { enableSpatialIndex, getCurrentIndex } from './spatialIndexSync';
-import { queryNodesInRect, queryEdgesInRect } from '@/pure/graph/spatial';
-import type { SpatialIndex, SpatialNodeEntry, SpatialEdgeEntry } from '@/pure/graph/spatial';
+import { queryNodesInRect, queryEdgesInRect } from '@vt/graph-model/pure/graph/spatial';
+import type { SpatialIndex, SpatialNodeEntry, SpatialEdgeEntry } from '@vt/graph-model/pure/graph/spatial';
 
 describe('spatialIndexSync', () => {
     let cy: Core;

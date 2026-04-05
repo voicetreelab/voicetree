@@ -1,5 +1,5 @@
 import * as O from 'fp-ts/lib/Option.js'
-import type {GraphDelta} from '@/pure/graph'
+import type {GraphDelta} from '@vt/graph-model/pure/graph'
 import {ensureHookTerminal, writeToHookTerminal} from '@/shell/edge/main/terminals/spawnHookTerminal'
 import {shellQuote} from '@/shell/edge/main/worktree/gitWorktreeCommands'
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy'

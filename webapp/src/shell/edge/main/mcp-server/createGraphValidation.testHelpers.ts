@@ -3,7 +3,7 @@
  * Pure factory functions for building mock objects — no side effects.
  */
 
-import type {Graph, GraphNode, NodeIdAndFilePath, Position} from '@/pure/graph'
+import type {Graph, GraphNode, NodeIdAndFilePath, Position} from '@vt/graph-model/pure/graph'
 import type {CreateGraphNodeInput} from './createGraphTool'
 import type {ValidationContext} from './createGraphValidation'
 
