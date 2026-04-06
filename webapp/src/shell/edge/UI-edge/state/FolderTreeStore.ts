@@ -27,7 +27,6 @@ export type FolderTreeAction =
     | { readonly type: 'SET_SEARCH'; readonly query: string }
     | { readonly type: 'TOGGLE_SIDEBAR' }
     | { readonly type: 'SET_WIDTH'; readonly width: number }
-    | { readonly type: 'SYNC_GRAPH_COLLAPSED'; readonly folders: ReadonlySet<string> }
     | { readonly type: 'ADD_COLLAPSED_FOLDER'; readonly folderId: string }
     | { readonly type: 'REMOVE_COLLAPSED_FOLDER'; readonly folderId: string };
 
@@ -54,8 +53,6 @@ export function folderTreeReducer(state: FolderTreeState, action: FolderTreeActi
             return { ...state, isOpen: !state.isOpen };
         case 'SET_WIDTH':
             return { ...state, sidebarWidth: action.width };
-        case 'SYNC_GRAPH_COLLAPSED':
-            return { ...state, graphCollapsedFolders: action.folders };
         case 'ADD_COLLAPSED_FOLDER': {
             const graphCollapsedFolders: ReadonlySet<string> = new Set([...state.graphCollapsedFolders, action.folderId]);
             return { ...state, graphCollapsedFolders };
@@ -160,10 +157,6 @@ export function toggleFolderTreeSidebar(): void {
 
 export function setSidebarWidth(width: number): void {
     dispatch({ type: 'SET_WIDTH', width });
-}
-
-export function syncGraphCollapsedFolders(folders: ReadonlySet<string>): void {
-    dispatch({ type: 'SYNC_GRAPH_COLLAPSED', folders });
 }
 
 export function addCollapsedFolder(folderId: string): void {

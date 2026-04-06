@@ -1,14 +1,13 @@
 /**
- * BF-114: FolderTreeStore — Graph Collapse State Sync
+ * FolderTreeStore — Graph Collapse State
  *
- * Tests the SYNC_GRAPH_COLLAPSED reducer action and the
+ * Tests ADD/REMOVE_COLLAPSED_FOLDER reducer actions and the
  * absolutePathToGraphFolderId path mapping function.
  */
 
 import { describe, it, expect } from 'vitest'
 import {
     folderTreeReducer,
-    syncGraphCollapsedFolders,
     getFolderTreeState,
     subscribeFolderTree,
     addCollapsedFolder,
@@ -17,105 +16,9 @@ import {
     type FolderTreeState,
 } from '@/shell/edge/UI-edge/state/FolderTreeStore'
 
-// ── Pure reducer tests ──
+// ── ADD_COLLAPSED_FOLDER / REMOVE_COLLAPSED_FOLDER reducer ──
 
-describe('BF-114: folderTreeReducer — SYNC_GRAPH_COLLAPSED', () => {
-    const baseState: FolderTreeState = {
-        tree: null,
-        starredFolderTrees: {},
-        externalFolderTrees: {},
-        expandedPaths: new Set(),
-        searchQuery: '',
-        isOpen: true,
-        sidebarWidth: 220,
-        graphCollapsedFolders: new Set(),
-    }
-
-    it('should update graphCollapsedFolders when SYNC_GRAPH_COLLAPSED dispatched', () => {
-        const folders: ReadonlySet<string> = new Set(['auth/', 'utils/'])
-        const next: FolderTreeState = folderTreeReducer(baseState, { type: 'SYNC_GRAPH_COLLAPSED', folders })
-
-        expect(next.graphCollapsedFolders).toBe(folders)
-        expect(next.graphCollapsedFolders.has('auth/')).toBe(true)
-        expect(next.graphCollapsedFolders.has('utils/')).toBe(true)
-    })
-
-    it('should not mutate other state fields', () => {
-        const folders: ReadonlySet<string> = new Set(['auth/'])
-        const next: FolderTreeState = folderTreeReducer(baseState, { type: 'SYNC_GRAPH_COLLAPSED', folders })
-
-        expect(next.tree).toBe(baseState.tree)
-        expect(next.expandedPaths).toBe(baseState.expandedPaths)
-        expect(next.isOpen).toBe(baseState.isOpen)
-        expect(next.searchQuery).toBe(baseState.searchQuery)
-    })
-
-    it('should handle empty set (all folders expanded)', () => {
-        const stateWithCollapsed: FolderTreeState = {
-            ...baseState,
-            graphCollapsedFolders: new Set(['auth/']),
-        }
-        const next: FolderTreeState = folderTreeReducer(stateWithCollapsed, {
-            type: 'SYNC_GRAPH_COLLAPSED',
-            folders: new Set(),
-        })
-
-        expect(next.graphCollapsedFolders.size).toBe(0)
-    })
-
-    it('should produce referentially new state object', () => {
-        const folders: ReadonlySet<string> = new Set(['auth/'])
-        const next: FolderTreeState = folderTreeReducer(baseState, { type: 'SYNC_GRAPH_COLLAPSED', folders })
-
-        expect(next).not.toBe(baseState)
-    })
-})
-
-// ── Store integration (dispatch + subscribe) ──
-
-describe('BF-114: syncGraphCollapsedFolders dispatcher', () => {
-    it('should update store state via syncGraphCollapsedFolders', () => {
-        const folders: ReadonlySet<string> = new Set(['components/', 'hooks/'])
-        syncGraphCollapsedFolders(folders)
-
-        const state: FolderTreeState = getFolderTreeState()
-        expect(state.graphCollapsedFolders.has('components/')).toBe(true)
-        expect(state.graphCollapsedFolders.has('hooks/')).toBe(true)
-    })
-
-    it('should notify subscribers on SYNC_GRAPH_COLLAPSED', () => {
-        let notifiedState: FolderTreeState | null = null
-        const unsub: () => void = subscribeFolderTree((state: FolderTreeState) => {
-            notifiedState = state
-        })
-
-        const folders: ReadonlySet<string> = new Set(['api/'])
-        syncGraphCollapsedFolders(folders)
-
-        expect(notifiedState).not.toBeNull()
-        expect(notifiedState!.graphCollapsedFolders.has('api/')).toBe(true)
-
-        unsub()
-    })
-
-    it('should not notify after unsubscribe', () => {
-        let callCount: number = 0
-        const unsub: () => void = subscribeFolderTree(() => {
-            callCount++
-        })
-
-        syncGraphCollapsedFolders(new Set(['a/']))
-        expect(callCount).toBe(1)
-
-        unsub()
-        syncGraphCollapsedFolders(new Set(['b/']))
-        expect(callCount).toBe(1)
-    })
-})
-
-// ── BF-117: ADD_COLLAPSED_FOLDER / REMOVE_COLLAPSED_FOLDER reducer ──
-
-describe('BF-117: folderTreeReducer — ADD/REMOVE_COLLAPSED_FOLDER', () => {
+describe('folderTreeReducer — ADD/REMOVE_COLLAPSED_FOLDER', () => {
     const baseState: FolderTreeState = {
         tree: null,
         starredFolderTrees: {},
@@ -162,9 +65,9 @@ describe('BF-117: folderTreeReducer — ADD/REMOVE_COLLAPSED_FOLDER', () => {
     })
 })
 
-// ── BF-117: Dispatchers + query ──
+// ── Dispatchers + query ──
 
-describe('BF-117: addCollapsedFolder / removeCollapsedFolder / isGraphFolderCollapsed', () => {
+describe('addCollapsedFolder / removeCollapsedFolder / isGraphFolderCollapsed', () => {
     it('should add folder via dispatcher and query it', () => {
         addCollapsedFolder('bf117-test-add/')
         expect(isGraphFolderCollapsed('bf117-test-add/')).toBe(true)
@@ -195,9 +98,9 @@ describe('BF-117: addCollapsedFolder / removeCollapsedFolder / isGraphFolderColl
     })
 })
 
-// ── absolutePathToGraphFolderId (pure function, duplicated in FolderTreeNode + FolderTreeSidebar) ──
+// ── absolutePathToGraphFolderId (pure function, defined in @vt/graph-model) ──
 
-describe('BF-114: absolutePathToGraphFolderId path mapping', () => {
+describe('absolutePathToGraphFolderId path mapping', () => {
     // Reproduce the pure function for testing (same logic in both files)
     function absolutePathToGraphFolderId(
         absolutePath: string, treeRootAbsolutePath: string

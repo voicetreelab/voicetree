@@ -11,6 +11,7 @@ import type { FolderTreeNode as FolderTreeNodeType, FileTreeNode as FileTreeNode
 import { isFolderTreeNode } from '@vt/graph-model/pure/folders/types';
 import type { ActionMenuItem } from '@/shell/UI/lib/ctxmenu';
 import '@/shell/electron.d.ts';
+import { absolutePathToGraphFolderId } from '@vt/graph-model/pure/graph/folderCollapse';
 
 interface FolderNodeProps {
     readonly node: FolderTreeNodeType;
@@ -31,14 +32,6 @@ interface FileNodeProps {
     readonly depth: number;
     readonly parentLoaded: boolean;
     readonly onFileSelect: (path: string) => void;
-}
-
-function absolutePathToGraphFolderId(
-    absolutePath: string, treeRootAbsolutePath: string
-): string | null {
-    if (!absolutePath.startsWith(treeRootAbsolutePath + '/')) return null;
-    const relative: string = absolutePath.slice(treeRootAbsolutePath.length + 1);
-    return relative ? relative + '/' : null;
 }
 
 function matchesSearch(name: string, query: string): boolean {
