@@ -4,6 +4,7 @@ import {StreamableHTTPClientTransport} from '@modelcontextprotocol/sdk/client/st
 export interface McpClient {
   createGraph(callerTerminalId: string, nodes: Array<{filename: string; title: string; summary: string; content?: string; color?: string}>): Promise<unknown>
   spawnAgent(callerTerminalId: string, task: string, parentNodeId: string, opts?: {depthBudget?: number; headless?: boolean}): Promise<{terminalId: string}>
+  waitForAgents(callerTerminalId: string, terminalIds: string[], pollIntervalMs?: number): Promise<{monitorId?: string; status: string; terminalIds?: string[]; message?: string}>
   sendMessage(callerTerminalId: string, targetTerminalId: string, message: string): Promise<unknown>
   listAgents(callerTerminalId: string): Promise<Array<{terminalId: string; agentName: string; status: string}>>
   closeAgent(callerTerminalId: string, terminalId: string): Promise<unknown>
@@ -39,6 +40,18 @@ export async function connectToMcp(port: string): Promise<McpClient> {
       if (opts?.headless !== undefined) args.headless = opts.headless
       const result = await client.callTool({name: 'spawn_agent', arguments: args})
       return parseToolResult(result) as {terminalId: string}
+    },
+
+    async waitForAgents(callerTerminalId, terminalIds, pollIntervalMs) {
+      const args: Record<string, unknown> = {callerTerminalId, terminalIds}
+      if (pollIntervalMs !== undefined) args.pollIntervalMs = pollIntervalMs
+      const result = await client.callTool({name: 'wait_for_agents', arguments: args})
+      return parseToolResult(result) as {
+        monitorId?: string
+        status: string
+        terminalIds?: string[]
+        message?: string
+      }
     },
 
     async sendMessage(callerTerminalId, targetTerminalId, message) {

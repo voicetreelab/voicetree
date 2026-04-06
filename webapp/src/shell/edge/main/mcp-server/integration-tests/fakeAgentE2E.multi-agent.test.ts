@@ -57,7 +57,7 @@ import {
     findAvailablePort, getTerminalManager, getTerminalRecords, getAgentNodes,
     clearAgentNodes, clearTerminalRecords,
     createActivityHarness, spawnInteractiveFakeAgent,
-    waitForCondition, waitForTerminalExit, wait,
+    waitForCondition, waitForIdle, waitForTerminalExit, wait,
     startStubMcpServer, stubCtx, type ActivityHarness,
 } from './fakeAgentE2E.helpers'
 
@@ -213,13 +213,13 @@ describe('Fake agent E2E: multi-agent orchestration', () => {
                     r => r.terminalData.parentTerminalId === parentId
                 )!.terminalId
 
-                // Wait for parent to exit (wait_for_children completes when child goes idle)
-                await waitForTerminalExit(parentId, 25_000)
+                await waitForIdle(childId, 10_000)
 
-                // Child is idle with no progress nodes → completion must NOT fire
+                // Child is idle with no progress nodes → parent must still be blocked
                 await wait(SUSTAINED_IDLE_MS + 2_000)
                 expect(getCompletionMessages()).toHaveLength(0)
                 expect(getAgentNodes(childId)).toHaveLength(0)
+                expect(getTerminalRecords().find(r => r.terminalId === parentId)?.status).toBe('running')
 
                 // Wake child: create a node and exit
                 await sendActionToAgent(childId, {type: 'create_node', title: 'Child Done', summary: 'work'})
@@ -228,6 +228,8 @@ describe('Fake agent E2E: multi-agent orchestration', () => {
                     'Child node never registered',
                 )
                 await sendActionToAgent(childId, {type: 'exit'})
+
+                await waitForTerminalExit(parentId, 25_000)
 
                 // Now completion should fire
                 const completionMessage: string = await waitForCompletionMessage(10_000)

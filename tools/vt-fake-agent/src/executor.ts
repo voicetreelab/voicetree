@@ -4,6 +4,8 @@ import type { McpClient } from './mcp-client.js'
 export interface ExecutorEnv {
   terminalId: string
   taskNodePath: string
+  canReceiveWaitNotifications?: boolean
+  waitForMessage?: (matcher: (message: string) => boolean) => Promise<string>
 }
 
 function interruptibleDelay(ms: number, signal: AbortSignal): Promise<void> {
@@ -55,7 +57,12 @@ export async function executeScript(
           env.terminalId,
           task,
           env.taskNodePath,
-          { depthBudget: action.depthBudget, headless: true },
+          {
+            depthBudget: action.depthBudget,
+            // wait_for_children depends on wait_for_agents notifications, so
+            // nested manager fake agents must stay interactive by default.
+            headless: action.headless ?? false,
+          },
         )
         childTerminalIds.push(result.terminalId)
         console.log(`[fake-agent] Spawned child: ${result.terminalId}`)
@@ -68,6 +75,18 @@ export async function executeScript(
           break
         }
         console.log(`[fake-agent] Waiting for ${childTerminalIds.length} children: ${childTerminalIds.join(', ')}`)
+
+        if (env.canReceiveWaitNotifications && env.waitForMessage) {
+          const waitResult = await mcpClient.waitForAgents(env.terminalId, childTerminalIds, 500)
+          console.log(`[fake-agent] wait_for_agents status: ${waitResult.status}`)
+          const completionMessage = await env.waitForMessage(
+            (message: string) => message.includes('[WaitForAgents] Agent(s) completed.'),
+          )
+          console.log(`[fake-agent] wait_for_agents completed: ${completionMessage.slice(0, 160)}`)
+          break
+        }
+
+        console.log('[fake-agent] No PTY notification channel; falling back to headless exit polling')
         // eslint-disable-next-line no-constant-condition
         while (true) {
           if (abortController.signal.aborted) break
@@ -76,9 +95,7 @@ export async function executeScript(
             const agent = agents.find((a) => a.terminalId === id)
             return { terminalId: id, status: agent?.status ?? 'unknown' }
           })
-          const allDone = childStatuses.every(
-            (c) => c.status === 'exited' || c.status === 'idle',
-          )
+          const allDone = childStatuses.every((c) => c.status === 'exited')
           if (allDone) {
             console.log(`[fake-agent] All children done: ${childStatuses.map((c) => `${c.terminalId}=${c.status}`).join(', ')}`)
             break

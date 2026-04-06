@@ -1,7 +1,7 @@
 export type Action =
   | { type: 'delay'; ms: number }
   | { type: 'create_node'; title: string; summary: string; content?: string; color?: string }
-  | { type: 'spawn_child'; task: string; childScript?: FakeAgentScript; depthBudget?: number }
+  | { type: 'spawn_child'; task: string; childScript?: FakeAgentScript; depthBudget?: number; headless?: boolean }
   | { type: 'wait_for_children' }
   | { type: 'send_message'; targetTerminalId: string; message: string }
   | { type: 'log'; message: string }

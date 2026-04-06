@@ -77,18 +77,19 @@ describe('RED TEAM: isAgentComplete edge cases', () => {
         vi.mocked(sendTextToTerminal).mockResolvedValue({success: true})
     })
 
-    it('BUG: agentName collision — old agent progress nodes let new agent bypass gate', () => {
+    it('same-name stale nodes do not bypass the gate when lookup is terminal-scoped', () => {
         const now: number = Date.now()
         const newWorker: TerminalRecord = makeRecord('worker-new', 'worker', 'running', {
             isDone: true, spawnedAt: now - 10_000,
         })
-        // getAgentNodes returns nodes from a PREVIOUS agent with same name "worker"
-        vi.mocked(getAgentNodes).mockReturnValue([{nodeId: 'old-node.md', title: 'Old Work'}])
+        vi.mocked(getAgentNodes).mockImplementation((terminalId: string) =>
+            terminalId === 'worker' ? [{nodeId: 'old-node.md', title: 'Old Work'}] : []
+        )
         vi.mocked(getIdleSince).mockReturnValue(now - 8_000)
 
         const result: boolean = isAgentComplete(newWorker, emptyGraph, now, [newWorker])
-        // BUG: returns true because it sees old agent's nodes. Should be false.
-        expect(result).toBe(true) // Documents the bug — new agent inherits old nodes
+        expect(result).toBe(false)
+        expect(getAgentNodes).toHaveBeenCalledWith('worker-new')
     })
 
     it('spawnedAt=0 — agent at epoch passes 30-min timeout immediately', () => {
@@ -205,8 +206,8 @@ describe('RED TEAM: Monitor completion semantics', () => {
     it('DIFFERENTIAL: no-nodes vs has-nodes agents produce opposite results', () => {
         const now: number = Date.now()
         vi.mocked(getIdleSince).mockReturnValue(now - 8_000)
-        vi.mocked(getAgentNodes).mockImplementation((name: string) =>
-            name === 'has-nodes' ? [{nodeId: 'x.md', title: 'X'}] : []
+        vi.mocked(getAgentNodes).mockImplementation((terminalId: string) =>
+            terminalId === 'b' ? [{nodeId: 'x.md', title: 'X'}] : []
         )
 
         const a: TerminalRecord = makeRecord('a', 'no-nodes', 'running', {isDone: true, spawnedAt: now - 60_000})

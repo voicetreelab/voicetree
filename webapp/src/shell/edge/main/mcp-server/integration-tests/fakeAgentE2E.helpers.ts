@@ -22,6 +22,7 @@ import {getTerminalManager} from '@/shell/edge/main/terminals/terminal-manager-i
 import {findAvailablePort} from '@/shell/edge/main/electron/port-utils'
 import {INACTIVITY_THRESHOLD_MS} from '@vt/graph-model/pure/agentTabs'
 import {registerChildIfMonitored} from '@/shell/edge/main/mcp-server/agent-completion-monitor'
+import {startMonitor} from '@/shell/edge/main/mcp-server/agent-completion-monitor'
 
 import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js'
 import {StreamableHTTPServerTransport} from '@modelcontextprotocol/sdk/server/streamableHttp.js'
@@ -290,7 +291,19 @@ export async function startStubMcpServer(port: number): Promise<Server> {
 
         mcpServer.registerTool('wait_for_agents', {
             inputSchema: {terminalIds: z.array(z.string()), callerTerminalId: z.string(), pollIntervalMs: z.number().optional()}
-        }, async () => ({content: [{type: 'text' as const, text: JSON.stringify({monitorId: 'stub-monitor'})}]}))
+        }, async ({terminalIds, callerTerminalId, pollIntervalMs}) => {
+            const monitorId: string = startMonitor(callerTerminalId, terminalIds, pollIntervalMs)
+            return {
+                content: [{
+                    type: 'text' as const,
+                    text: JSON.stringify({
+                        monitorId,
+                        status: 'monitoring',
+                        terminalIds,
+                    }),
+                }]
+            }
+        })
 
         mcpServer.registerTool(
             'spawn_agent',
