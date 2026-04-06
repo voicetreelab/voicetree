@@ -8,7 +8,6 @@
 import { describe, it, expect } from 'vitest'
 import {
     folderTreeReducer,
-    getFolderTreeState,
     subscribeFolderTree,
     addCollapsedFolder,
     removeCollapsedFolder,
