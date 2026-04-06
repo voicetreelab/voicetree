@@ -3,6 +3,7 @@ import type { Graph } from '@vt/graph-model/pure/graph'
 import type { Position } from '@vt/graph-model/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
 import { computeSyntheticEdgeSpecs, computeExpandPlan } from '@vt/graph-model/pure/graph/folderCollapse'
+import type { SyntheticEdgeSpec, ExpandPlan } from '@vt/graph-model/pure/graph/folderCollapse'
 import { getNodeTitle } from '@vt/graph-model/pure/graph/markdown-parsing'
 import type {} from '@/shell/electron'
 import { addCollapsedFolder, removeCollapsedFolder, isGraphFolderCollapsed, getFolderTreeState } from '@/shell/edge/UI-edge/state/FolderTreeStore'
@@ -45,12 +46,12 @@ export function collapseFolder(cy: Core, folderId: string): void {
     const descendants: CollectionReturnValue = cy.getElementById(folderId).descendants()
     const descendantIds: Set<string> = new Set(descendants.map(n => n.id()))
     descendantIds.add(folderId)
-    const connectedEdges = descendants.connectedEdges().map(e => ({
+    const connectedEdges: { sourceId: string; targetId: string; label: string | undefined }[] = descendants.connectedEdges().map(e => ({
         sourceId: e.source().id(),
         targetId: e.target().id(),
         label: e.data('label') as string | undefined
     }))
-    const specs = computeSyntheticEdgeSpecs(folderId, descendantIds, connectedEdges)
+    const specs: readonly SyntheticEdgeSpec[] = computeSyntheticEdgeSpecs(folderId, descendantIds, connectedEdges)
     const synthetics: SyntheticEdgeRecord[] = specs.map(s => ({
         syntheticEdgeId: s.syntheticEdgeId,
         direction: s.direction,
@@ -117,7 +118,7 @@ export async function expandFolder(cy: Core, folderId: string): Promise<void> {
 
     // Pure computation: expand plan from graph data
     const { graphCollapsedFolders } = getFolderTreeState()
-    const plan = computeExpandPlan(graph, folderId, graphCollapsedFolders, visibleNodeIds)
+    const plan: ExpandPlan = computeExpandPlan(graph, folderId, graphCollapsedFolders, visibleNodeIds)
 
     cy.batch(() => {
         // Remove old synthetic edges for this folder
