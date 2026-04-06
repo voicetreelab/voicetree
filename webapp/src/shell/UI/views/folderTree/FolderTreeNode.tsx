@@ -23,7 +23,7 @@ interface FolderNodeProps {
     readonly onSetWriteTarget: (path: string) => void;
     readonly graphCollapsedFolders: ReadonlySet<string>;
     readonly treeRootPath: string;
-    readonly onToggleGraphCollapse: (absolutePath: string) => void;
+    readonly onToggleGraphCollapse: (graphFolderId: string) => void;
 }
 
 interface FileNodeProps {
@@ -122,8 +122,8 @@ export function FolderTreeNodeComponent({ node, depth, searchQuery, expandedPath
 
     const handleGraphCollapseClick: (e: React.MouseEvent) => void = useCallback((e: React.MouseEvent): void => {
         e.stopPropagation();
-        onToggleGraphCollapse(node.absolutePath);
-    }, [onToggleGraphCollapse, node.absolutePath]);
+        if (graphFolderId) onToggleGraphCollapse(graphFolderId);
+    }, [onToggleGraphCollapse, graphFolderId]);
 
     const handleNewFolderConfirm: () => void = useCallback((): void => {
         if (isCancellingRef.current) {

@@ -35,18 +35,6 @@ import type {} from '@/shell/electron';
 import './folder-tree.css';
 
 // =============================================================================
-// Path Conversion
-// =============================================================================
-
-function absolutePathToGraphFolderId(
-    absolutePath: string, treeRootAbsolutePath: string
-): string | null {
-    if (!absolutePath.startsWith(treeRootAbsolutePath + '/')) return null;
-    const relative: string = absolutePath.slice(treeRootAbsolutePath.length + 1);
-    return relative ? relative + '/' : null;
-}
-
-// =============================================================================
 // Store Hooks
 // =============================================================================
 
@@ -318,14 +306,10 @@ function FolderTreeSidebarInternal({ callbacks }: SidebarInternalProps): JSX.Ele
         }, []
     );
 
-    const handleToggleGraphCollapse: (absolutePath: string) => void = useCallback(
-        (absolutePath: string): void => {
-            const graphFolderId: string | null = absolutePathToGraphFolderId(
-                absolutePath, folderState.tree?.absolutePath ?? ''
-            );
-            if (!graphFolderId) return;
+    const handleToggleGraphCollapse: (graphFolderId: string) => void = useCallback(
+        (graphFolderId: string): void => {
             void toggleFolderCollapse(getCyInstance(), graphFolderId);
-        }, [folderState.tree?.absolutePath]
+        }, []
     );
 
     const projectName: string = useMemo(() => {

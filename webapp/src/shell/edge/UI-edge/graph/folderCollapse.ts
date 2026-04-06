@@ -9,6 +9,7 @@ import { syncGraphCollapsedFolders } from '@/shell/edge/UI-edge/state/FolderTree
 
 // ── Ephemeral UI state ──
 const collapsedFolders: Set<string> = new Set()
+const expandingFolders: Set<string> = new Set() // H1 guard: prevents collapse during async expand
 
 // ── Synthetic edge tracking ──
 interface OriginalEdge {
@@ -31,6 +32,7 @@ export const isFolderCollapsed: (folderId: string) => boolean = (folderId) =>
 
 // ── Collapse ──
 export function collapseFolder(cy: Core, folderId: string): void {
+    if (expandingFolders.has(folderId)) return // H1: skip if expand is in-flight
     const folder: CollectionReturnValue = cy.getElementById(folderId)
     if (!folder.length || !folder.data('isFolderNode')) return
 
@@ -76,6 +78,9 @@ export function collapseFolder(cy: Core, folderId: string): void {
 export async function expandFolder(cy: Core, folderId: string): Promise<void> {
     const folder: CollectionReturnValue = cy.getElementById(folderId)
     if (!folder.length || !folder.data('isFolderNode')) return
+    if (expandingFolders.has(folderId)) return // H1: already expanding
+
+    expandingFolders.add(folderId) // H1: mark as expanding
 
     collapsedFolders.delete(folderId)
     folder.data('collapsed', false)
@@ -84,8 +89,21 @@ export async function expandFolder(cy: Core, folderId: string): Promise<void> {
     syncGraphCollapsedFolders(new Set(collapsedFolders))
 
     // Re-derive children from Graph (source of truth)
-    const graph: Graph | undefined = await window.electronAPI?.main.getGraph()
-    if (!graph) return
+    let graph: Graph | undefined
+    try {
+        graph = await window.electronAPI?.main.getGraph()
+    } catch {
+        // M3: rollback state on IPC failure
+        collapsedFolders.add(folderId)
+        folder.data('collapsed', true)
+        syncGraphCollapsedFolders(new Set(collapsedFolders))
+        expandingFolders.delete(folderId)
+        return
+    }
+    if (!graph) {
+        expandingFolders.delete(folderId)
+        return
+    }
 
     const childIds: readonly string[] = getFolderChildNodeIds(graph.nodes, folderId)
     const subFolders: readonly string[] = getSubFolderPaths(graph.nodes, folderId)
@@ -194,6 +212,8 @@ export async function expandFolder(cy: Core, folderId: string): Promise<void> {
             }
         }
     })
+
+    expandingFolders.delete(folderId) // H1: clear expanding guard
 }
 
 // ── Toggle ──
@@ -267,7 +287,7 @@ export function addOrUpdateSyntheticEdge(
         // Update: increment count, clear label (now ambiguous)
         const count: number = (existing.data('edgeCount') ?? 1) + 1
         existing.data('edgeCount', count)
-        existing.data('label', undefined)
+        existing.removeData('label')
     } else {
         const [source, target]: [string, string] = direction === 'incoming'
             ? [externalId, folderId] : [folderId, externalId]

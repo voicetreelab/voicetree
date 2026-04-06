@@ -163,6 +163,82 @@ describe('VerticalMenuService', () => {
       expect(runAgentItem3 && 'text' in runAgentItem3 && runAgentItem3.text).toContain('Run Agent on Selected (2)');
     });
 
+    it('should prefer the deepest folder with REAL compound nodes (not mocked collections)', () => {
+      // This test uses a real cytoscape headless instance with compound (parent) nodes
+      // to verify the z-index fix works against real cytoscape node collections.
+      const headlessCy: Core = cytoscape({
+        headless: true,
+        elements: [
+          // Outer folder (compound parent) — large bounding box
+          {
+            data: {
+              id: 'outer-folder',
+              isFolderNode: true,
+              collapsed: false,
+              folderLabel: 'Outer Folder',
+            },
+            position: { x: 200, y: 200 },
+          },
+          // Inner folder (compound child of outer) — smaller bounding box
+          {
+            data: {
+              id: 'inner-folder',
+              parent: 'outer-folder',
+              isFolderNode: true,
+              collapsed: false,
+              folderLabel: 'Inner Folder',
+            },
+            position: { x: 200, y: 200 },
+          },
+          // A leaf node inside the inner folder so inner-folder has actual bounds
+          {
+            data: {
+              id: 'leaf-node',
+              parent: 'inner-folder',
+              label: 'Leaf',
+            },
+            position: { x: 200, y: 200 },
+          },
+        ],
+      });
+
+      // Access getCanvasVerticalMenuItems directly via the service instance
+      const localService: {
+        cy: Core;
+        deps: VerticalMenuDependencies;
+        getCanvasVerticalMenuItems: (position: { x: number; y: number }) => MenuItem[];
+      } = new VerticalMenuService() as unknown as {
+        cy: Core;
+        deps: VerticalMenuDependencies;
+        getCanvasVerticalMenuItems: (position: { x: number; y: number }) => MenuItem[];
+      };
+      localService.cy = headlessCy;
+      localService.deps = mockDeps;
+
+      // Compute a click position that's inside both bounding boxes
+      const outerBB: ReturnType<ReturnType<Core['getElementById']>['boundingBox']> = headlessCy.getElementById('outer-folder').boundingBox();
+      const innerBB: ReturnType<ReturnType<Core['getElementById']>['boundingBox']> = headlessCy.getElementById('inner-folder').boundingBox();
+      // Use center of the inner (smaller) bounding box — guaranteed to be inside both
+      const clickX: number = (innerBB.x1 + innerBB.x2) / 2;
+      const clickY: number = (innerBB.y1 + innerBB.y2) / 2;
+
+      expect(clickX >= outerBB.x1 && clickX <= outerBB.x2 && clickY >= outerBB.y1 && clickY <= outerBB.y2).toBe(true);
+      expect(clickX >= innerBB.x1 && clickX <= innerBB.x2 && clickY >= innerBB.y1 && clickY <= innerBB.y2).toBe(true);
+
+      // Verify inner-folder has more ancestors than outer-folder (the sorting criterion)
+      const outerAncestors: number = headlessCy.getElementById('outer-folder').ancestors().length;
+      const innerAncestors: number = headlessCy.getElementById('inner-folder').ancestors().length;
+      expect(innerAncestors).toBeGreaterThan(outerAncestors);
+
+      // Now call the actual method — it should pick the inner (deepest) folder
+      const menuItems: MenuItem[] = localService.getCanvasVerticalMenuItems({ x: clickX, y: clickY });
+
+      // First menu item should be collapse for the INNER folder, not the outer
+      expect(menuItems[0]?.text).toBe('Collapse "Inner Folder"');
+
+      headlessCy.destroy();
+    });
+
     it('should prefer the deepest folder when nested folder bounds overlap at the click position', () => {
       type FolderNodeLike = {
         length: number;
@@ -178,7 +254,12 @@ describe('VerticalMenuService', () => {
         first: () => FolderNodeLike;
       };
 
-      const createFolderNode = (
+      const createFolderNode: (
+        id: string,
+        folderLabel: string,
+        depth: number,
+        bounds: { x1: number; x2: number; y1: number; y2: number },
+      ) => FolderNodeLike = (
         id: string,
         folderLabel: string,
         depth: number,
@@ -191,26 +272,30 @@ describe('VerticalMenuService', () => {
         id: () => id,
       });
 
-      const createFolderCollection = (nodes: FolderNodeLike[]): FolderCollectionLike => ({
+      const createFolderCollection: (nodes: FolderNodeLike[]) => FolderCollectionLike = (nodes: FolderNodeLike[]): FolderCollectionLike => ({
         filter: (predicate) => createFolderCollection(nodes.filter(predicate)),
         sort: (compare) => createFolderCollection([...nodes].sort(compare)),
         first: () => nodes[0] ?? { length: 0 } as FolderNodeLike,
       });
 
-      const parentFolder = createFolderNode('parent-folder', 'Parent Folder', 0, {
+      const parentFolder: FolderNodeLike = createFolderNode('parent-folder', 'Parent Folder', 0, {
         x1: 0,
         x2: 400,
         y1: 0,
         y2: 400,
       });
-      const childFolder = createFolderNode('child-folder', 'Child Folder', 1, {
+      const childFolder: FolderNodeLike = createFolderNode('child-folder', 'Child Folder', 1, {
         x1: 100,
         x2: 300,
         y1: 100,
         y2: 300,
       });
 
-      const localService = new VerticalMenuService() as unknown as {
+      const localService: {
+        cy: Core;
+        deps: VerticalMenuDependencies;
+        getCanvasVerticalMenuItems: (position: { x: number; y: number }) => MenuItem[];
+      } = new VerticalMenuService() as unknown as {
         cy: Core;
         deps: VerticalMenuDependencies;
         getCanvasVerticalMenuItems: (position: { x: number; y: number }) => MenuItem[];

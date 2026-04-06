@@ -22,7 +22,7 @@ interface StarredSectionProps {
     readonly onToggleLoad: (path: string, currentState: 'loaded' | 'not-loaded') => void;
     readonly onSetWriteTarget: (path: string) => void;
     readonly graphCollapsedFolders: ReadonlySet<string>;
-    readonly onToggleGraphCollapse: (absolutePath: string) => void;
+    readonly onToggleGraphCollapse: (graphFolderId: string) => void;
 }
 
 export function StarredSection({ starredFolders, starredFolderTrees, readPaths, writePath, expandedPaths, onFileSelect, onToggleExpand, onToggleLoad, onSetWriteTarget, graphCollapsedFolders, onToggleGraphCollapse }: StarredSectionProps): JSX.Element | null {
