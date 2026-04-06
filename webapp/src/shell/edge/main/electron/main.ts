@@ -10,7 +10,7 @@ import {getTerminalManager} from '@/shell/edge/main/terminals/terminal-manager-i
 import {setupToolsDirectory, getToolsDirectory} from './tools-setup';
 import {setupOnboardingDirectory} from './onboarding-setup';
 import {startNotificationScheduler, stopNotificationScheduler} from './notification-scheduler';
-import {migrateLayoutConfigIfNeeded, migrateStarredFoldersIfNeeded, migrateStarredFoldersBrainRename} from '@/shell/edge/main/settings/settings_IO';
+import {migrateAgentPromptCoreOnAppUpdateIfNeeded, migrateLayoutConfigIfNeeded, migrateStarredFoldersIfNeeded, migrateStarredFoldersBrainRename} from '@/shell/edge/main/settings/settings_IO';
 import {setBackendPort} from '@/shell/edge/main/state/app-electron-state';
 import {startOTLPReceiver, stopOTLPReceiver} from '@/shell/edge/main/metrics/otlp-receiver';
 import {registerTerminalIpcHandlers} from '@/shell/edge/main/terminals/ipc-terminal-handlers';
@@ -101,6 +101,9 @@ void app.whenReady().then(async () => {
     console.time('[Startup] setupOnboardingDirectory');
     await setupOnboardingDirectory();
     console.timeEnd('[Startup] setupOnboardingDirectory');
+
+    // Refresh the shipped AGENT_PROMPT_CORE once per app version, while preserving same-version edits.
+    await migrateAgentPromptCoreOnAppUpdateIfNeeded(app.getVersion());
 
     // Start the server and store the port it's using
     // Factory automatically chooses StubServer (test) or RealServer (production)

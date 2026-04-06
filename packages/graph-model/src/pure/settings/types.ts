@@ -94,6 +94,8 @@ export interface VTSettings {
     readonly agentPermissionModeChosen?: boolean;
     /** User email for PostHog identification - stored here to persist across app updates */
     readonly userEmail?: string;
+    /** Internal marker: app version that last refreshed AGENT_PROMPT_CORE from the shipped default. */
+    readonly agentPromptCoreSyncedAppVersion?: string;
     /** Template for starter node created when opening an empty folder. Supports {{DATE}} placeholder. */
     readonly emptyFolderTemplate?: string;
     /** Enable VIM keybindings in markdown editors */
@@ -151,4 +153,3 @@ export interface VoiceTreeConfig {
     /** Per-folder vault configuration for multi-vault support */
     readonly vaultConfig?: { readonly [folderPath: string]: VaultConfig };
 }
-

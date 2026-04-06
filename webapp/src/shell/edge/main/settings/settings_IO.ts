@@ -3,6 +3,7 @@ export {
     loadSettings,
     saveSettings,
     clearSettingsCache,
+    migrateAgentPromptCoreOnAppUpdateIfNeeded,
     migrateLayoutConfigIfNeeded,
     migrateStarredFoldersIfNeeded,
     migrateStarredFoldersBrainRename,

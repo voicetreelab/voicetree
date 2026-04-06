@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { loadSettings, saveSettings, clearSettingsCache } from './settings_IO';
+import { loadSettings, saveSettings, clearSettingsCache, migrateAgentPromptCoreOnAppUpdateIfNeeded } from './settings_IO';
 import type { VTSettings } from '@vt/graph-model/pure/settings/types';
 
 import {DEFAULT_SETTINGS} from "@vt/graph-model/pure/settings";
@@ -162,6 +162,42 @@ describe('settings', () => {
 
       expect(reloadedSettings.darkMode).toBe(true);
       expect(reloadedSettings.INJECT_ENV_VARS.AGENT_PROMPT_CORE).toBe(customCore);
+    });
+  });
+
+  describe('AGENT_PROMPT_CORE app update migration', () => {
+    it('overwrites AGENT_PROMPT_CORE once when app version changes', async () => {
+      const oldCustomCore: string = 'custom core from previous app version';
+      const settingsPath: string = path.join(testUserDataPath, 'settings.json');
+      await fs.writeFile(settingsPath, JSON.stringify({
+        INJECT_ENV_VARS: { AGENT_PROMPT_CORE: oldCustomCore },
+        agentPromptCoreSyncedAppVersion: '2.9.12'
+      }), 'utf-8');
+
+      const migrated: boolean = await migrateAgentPromptCoreOnAppUpdateIfNeeded('2.9.13');
+
+      expect(migrated).toBe(true);
+      clearSettingsCache();
+      const settings: VTSettings = await loadSettings();
+      expect(settings.INJECT_ENV_VARS.AGENT_PROMPT_CORE).toBe(DEFAULT_SETTINGS.INJECT_ENV_VARS.AGENT_PROMPT_CORE);
+      expect(settings.agentPromptCoreSyncedAppVersion).toBe('2.9.13');
+    });
+
+    it('does not overwrite AGENT_PROMPT_CORE again within the same app version', async () => {
+      const sameVersionCustomCore: string = 'user edit made after the update';
+      const settingsPath: string = path.join(testUserDataPath, 'settings.json');
+      await fs.writeFile(settingsPath, JSON.stringify({
+        INJECT_ENV_VARS: { AGENT_PROMPT_CORE: sameVersionCustomCore },
+        agentPromptCoreSyncedAppVersion: '2.9.13'
+      }), 'utf-8');
+
+      const migrated: boolean = await migrateAgentPromptCoreOnAppUpdateIfNeeded('2.9.13');
+
+      expect(migrated).toBe(false);
+      clearSettingsCache();
+      const settings: VTSettings = await loadSettings();
+      expect(settings.INJECT_ENV_VARS.AGENT_PROMPT_CORE).toBe(sameVersionCustomCore);
+      expect(settings.agentPromptCoreSyncedAppVersion).toBe('2.9.13');
     });
   });
 });

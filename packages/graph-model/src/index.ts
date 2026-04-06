@@ -133,7 +133,7 @@ export { getPreviewContainedNodeIds } from './context-nodes/getPreviewContainedN
 export { updateContextNodeContainedIds } from './context-nodes/updateContextNodeContainedIds'
 
 // Settings
-export { loadSettings, saveSettings, clearSettingsCache, migrateLayoutConfigIfNeeded, migrateStarredFoldersIfNeeded, migrateStarredFoldersBrainRename } from './settings/settings_IO'
+export { loadSettings, saveSettings, clearSettingsCache, migrateAgentPromptCoreOnAppUpdateIfNeeded, migrateLayoutConfigIfNeeded, migrateStarredFoldersIfNeeded, migrateStarredFoldersBrainRename } from './settings/settings_IO'
 
 // Project management
 export { loadProjects, saveProject, removeProject } from './project/project-store'

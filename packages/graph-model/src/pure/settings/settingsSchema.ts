@@ -199,6 +199,7 @@ DEPTH_BUDGET = $DEPTH_BUDGET // TOTAL available, not trigger-happy recommended s
     defaultAgent:              { hidden: true },
 
     // ── Hidden (not shown in UI) ─────────────────────────────────────────
+    agentPromptCoreSyncedAppVersion: { hidden: true },
     agentPermissionModeChosen: { hidden: true },
     feedbackDialogShown:       { hidden: true },
     userEmail:                 { hidden: true },

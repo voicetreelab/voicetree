@@ -50,6 +50,43 @@ export async function loadSettings(): Promise<VTSettings> {
 }
 
 /**
+ * On app update, refresh AGENT_PROMPT_CORE to the shipped default exactly once for the new app version.
+ * Normal settings loads preserve user edits; only a version transition triggers this overwrite.
+ */
+export async function migrateAgentPromptCoreOnAppUpdateIfNeeded(currentAppVersion: string): Promise<boolean> {
+  const settingsPath: string = getSettingsPath();
+
+  let userSettings: Partial<VTSettings>;
+  try {
+    const data: string = await fs.readFile(settingsPath, 'utf-8');
+    userSettings = JSON.parse(data) as Partial<VTSettings>;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return false;
+    }
+    throw error;
+  }
+
+  if (userSettings.agentPromptCoreSyncedAppVersion === currentAppVersion) {
+    return false;
+  }
+
+  const updatedSettings: VTSettings = {
+    ...DEFAULT_SETTINGS,
+    ...userSettings,
+    INJECT_ENV_VARS: {
+      ...DEFAULT_SETTINGS.INJECT_ENV_VARS,
+      ...userSettings.INJECT_ENV_VARS,
+      AGENT_PROMPT_CORE: DEFAULT_SETTINGS.INJECT_ENV_VARS.AGENT_PROMPT_CORE as string,
+    },
+    agentPromptCoreSyncedAppVersion: currentAppVersion,
+  };
+
+  await saveSettings(updatedSettings);
+  return true;
+}
+
+/**
  * Migrates layoutConfig JSON string to update nodeSpacing from old default (70) to new default (120).
  * Silent migration — no dialog, since users are unlikely to have intentionally set this value.
  * @returns true if migration occurred, false otherwise
