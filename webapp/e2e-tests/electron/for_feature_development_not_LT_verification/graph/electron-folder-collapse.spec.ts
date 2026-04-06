@@ -89,7 +89,7 @@ const test = base.extend<{
         await fs.rm(tempUserData, { recursive: true, force: true });
     },
 
-    appWindow: async ({ electronApp, vaultPath }, use) => {
+    appWindow: async ({ electronApp, vaultPath: _vaultPath }, use) => {
         const w = await electronApp.firstWindow({ timeout: 20000 });
         w.on('console', msg => {
             const t = msg.text();
@@ -102,10 +102,10 @@ const test = base.extend<{
 
         await w.waitForLoadState('domcontentloaded');
 
-        await w.evaluate(async (vp: string) => {
-            const api = (window as unknown as ExtendedWindow).electronAPI;
-            if (api) await api.main.startFileWatching(vp);
-        }, vaultPath);
+        // Navigate through project selection screen (required to initialize graph view)
+        await w.waitForSelector('text=Recent Projects', { timeout: 10000 });
+        const projectButton = w.locator('button:has-text("collapse-test")').first();
+        await projectButton.click();
 
         await w.waitForFunction(
             () => !!(window as unknown as ExtendedWindow).cytoscapeInstance,
@@ -258,17 +258,19 @@ test.describe('Folder Node Collapsability', () => {
             { message: 'Waiting for auth/ to collapse', timeout: 5000 }
         ).toBe(0);
 
-        // Verify edges to/from auth children are gone
-        const edgesAfterCollapse = await appWindow.evaluate(() => {
+        // After BF-113: original child edges are removed but synthetic edges are created
+        // pointing to the folder node. Count only non-synthetic edges to verify originals are gone.
+        const nonSyntheticAfterCollapse = await appWindow.evaluate(() => {
             const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
             if (!cy) return -1;
             return cy.edges()
                 .filter((e: import('cytoscape').EdgeSingular) =>
-                    e.source().id().includes('/auth/') || e.target().id().includes('/auth/')
+                    !e.data('isSyntheticEdge') &&
+                    (e.source().id().includes('/auth/') || e.target().id().includes('/auth/'))
                 ).length;
         });
-        console.log('Edges involving auth/ after collapse:', edgesAfterCollapse);
-        expect(edgesAfterCollapse).toBe(0);
+        console.log('Non-synthetic edges involving auth/ after collapse:', nonSyntheticAfterCollapse);
+        expect(nonSyntheticAfterCollapse).toBe(0);
 
         // Expand
         await emitDblTapOnFolder(appWindow, '/auth/');

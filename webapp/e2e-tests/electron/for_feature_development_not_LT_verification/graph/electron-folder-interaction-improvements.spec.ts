@@ -85,7 +85,7 @@ const test = base.extend<{
         await fs.rm(tempUserData, { recursive: true, force: true });
     },
 
-    appWindow: async ({ electronApp, vaultPath }, use) => {
+    appWindow: async ({ electronApp, vaultPath: _vaultPath }, use) => {
         const w = await electronApp.firstWindow({ timeout: 20000 });
         w.on('console', msg => {
             const t = msg.text();
@@ -98,10 +98,10 @@ const test = base.extend<{
 
         await w.waitForLoadState('domcontentloaded');
 
-        await w.evaluate(async (vp: string) => {
-            const api = (window as unknown as ExtendedWindow).electronAPI;
-            if (api) await api.main.startFileWatching(vp);
-        }, vaultPath);
+        // Navigate through project selection screen (required to initialize graph view)
+        await w.waitForSelector('text=Recent Projects', { timeout: 10000 });
+        const projectButton = w.locator('button:has-text("bf113-test")').first();
+        await projectButton.click();
 
         await w.waitForFunction(
             () => !!(window as unknown as ExtendedWindow).cytoscapeInstance,
