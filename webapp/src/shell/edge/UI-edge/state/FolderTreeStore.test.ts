@@ -11,6 +11,9 @@ import {
     syncGraphCollapsedFolders,
     getFolderTreeState,
     subscribeFolderTree,
+    addCollapsedFolder,
+    removeCollapsedFolder,
+    isGraphFolderCollapsed,
     type FolderTreeState,
 } from '@/shell/edge/UI-edge/state/FolderTreeStore'
 
@@ -107,6 +110,88 @@ describe('BF-114: syncGraphCollapsedFolders dispatcher', () => {
         unsub()
         syncGraphCollapsedFolders(new Set(['b/']))
         expect(callCount).toBe(1)
+    })
+})
+
+// ── BF-117: ADD_COLLAPSED_FOLDER / REMOVE_COLLAPSED_FOLDER reducer ──
+
+describe('BF-117: folderTreeReducer — ADD/REMOVE_COLLAPSED_FOLDER', () => {
+    const baseState: FolderTreeState = {
+        tree: null,
+        starredFolderTrees: {},
+        externalFolderTrees: {},
+        expandedPaths: new Set(),
+        searchQuery: '',
+        isOpen: true,
+        sidebarWidth: 220,
+        graphCollapsedFolders: new Set(),
+    }
+
+    it('should add a folder to graphCollapsedFolders', () => {
+        const next: FolderTreeState = folderTreeReducer(baseState, { type: 'ADD_COLLAPSED_FOLDER', folderId: 'auth/' })
+        expect(next.graphCollapsedFolders.has('auth/')).toBe(true)
+        expect(next.graphCollapsedFolders.size).toBe(1)
+    })
+
+    it('should accumulate multiple collapsed folders', () => {
+        const s1: FolderTreeState = folderTreeReducer(baseState, { type: 'ADD_COLLAPSED_FOLDER', folderId: 'auth/' })
+        const s2: FolderTreeState = folderTreeReducer(s1, { type: 'ADD_COLLAPSED_FOLDER', folderId: 'utils/' })
+        expect(s2.graphCollapsedFolders.has('auth/')).toBe(true)
+        expect(s2.graphCollapsedFolders.has('utils/')).toBe(true)
+        expect(s2.graphCollapsedFolders.size).toBe(2)
+    })
+
+    it('should remove a folder from graphCollapsedFolders', () => {
+        const withFolders: FolderTreeState = { ...baseState, graphCollapsedFolders: new Set(['auth/', 'utils/']) }
+        const next: FolderTreeState = folderTreeReducer(withFolders, { type: 'REMOVE_COLLAPSED_FOLDER', folderId: 'auth/' })
+        expect(next.graphCollapsedFolders.has('auth/')).toBe(false)
+        expect(next.graphCollapsedFolders.has('utils/')).toBe(true)
+        expect(next.graphCollapsedFolders.size).toBe(1)
+    })
+
+    it('should handle removing non-existent folder gracefully', () => {
+        const next: FolderTreeState = folderTreeReducer(baseState, { type: 'REMOVE_COLLAPSED_FOLDER', folderId: 'nonexistent/' })
+        expect(next.graphCollapsedFolders.size).toBe(0)
+    })
+
+    it('should not mutate other state fields', () => {
+        const next: FolderTreeState = folderTreeReducer(baseState, { type: 'ADD_COLLAPSED_FOLDER', folderId: 'auth/' })
+        expect(next.tree).toBe(baseState.tree)
+        expect(next.expandedPaths).toBe(baseState.expandedPaths)
+        expect(next.isOpen).toBe(baseState.isOpen)
+    })
+})
+
+// ── BF-117: Dispatchers + query ──
+
+describe('BF-117: addCollapsedFolder / removeCollapsedFolder / isGraphFolderCollapsed', () => {
+    it('should add folder via dispatcher and query it', () => {
+        addCollapsedFolder('bf117-test-add/')
+        expect(isGraphFolderCollapsed('bf117-test-add/')).toBe(true)
+    })
+
+    it('should remove folder via dispatcher', () => {
+        addCollapsedFolder('bf117-test-rm/')
+        expect(isGraphFolderCollapsed('bf117-test-rm/')).toBe(true)
+        removeCollapsedFolder('bf117-test-rm/')
+        expect(isGraphFolderCollapsed('bf117-test-rm/')).toBe(false)
+    })
+
+    it('should return false for non-existent folder', () => {
+        expect(isGraphFolderCollapsed('bf117-never-added/')).toBe(false)
+    })
+
+    it('should notify subscribers on ADD_COLLAPSED_FOLDER', () => {
+        let notifiedState: FolderTreeState | null = null
+        const unsub: () => void = subscribeFolderTree((state: FolderTreeState) => {
+            notifiedState = state
+        })
+
+        addCollapsedFolder('bf117-notify/')
+        expect(notifiedState).not.toBeNull()
+        expect(notifiedState!.graphCollapsedFolders.has('bf117-notify/')).toBe(true)
+
+        unsub()
     })
 })
 

@@ -27,7 +27,9 @@ export type FolderTreeAction =
     | { readonly type: 'SET_SEARCH'; readonly query: string }
     | { readonly type: 'TOGGLE_SIDEBAR' }
     | { readonly type: 'SET_WIDTH'; readonly width: number }
-    | { readonly type: 'SYNC_GRAPH_COLLAPSED'; readonly folders: ReadonlySet<string> };
+    | { readonly type: 'SYNC_GRAPH_COLLAPSED'; readonly folders: ReadonlySet<string> }
+    | { readonly type: 'ADD_COLLAPSED_FOLDER'; readonly folderId: string }
+    | { readonly type: 'REMOVE_COLLAPSED_FOLDER'; readonly folderId: string };
 
 /**
  * Pure reducer: (state, action) → state. No side effects.
@@ -54,6 +56,14 @@ export function folderTreeReducer(state: FolderTreeState, action: FolderTreeActi
             return { ...state, sidebarWidth: action.width };
         case 'SYNC_GRAPH_COLLAPSED':
             return { ...state, graphCollapsedFolders: action.folders };
+        case 'ADD_COLLAPSED_FOLDER': {
+            const graphCollapsedFolders: ReadonlySet<string> = new Set([...state.graphCollapsedFolders, action.folderId]);
+            return { ...state, graphCollapsedFolders };
+        }
+        case 'REMOVE_COLLAPSED_FOLDER': {
+            const graphCollapsedFolders: ReadonlySet<string> = new Set([...state.graphCollapsedFolders].filter((id: string) => id !== action.folderId));
+            return { ...state, graphCollapsedFolders };
+        }
     }
 }
 
@@ -154,6 +164,18 @@ export function setSidebarWidth(width: number): void {
 
 export function syncGraphCollapsedFolders(folders: ReadonlySet<string>): void {
     dispatch({ type: 'SYNC_GRAPH_COLLAPSED', folders });
+}
+
+export function addCollapsedFolder(folderId: string): void {
+    dispatch({ type: 'ADD_COLLAPSED_FOLDER', folderId });
+}
+
+export function removeCollapsedFolder(folderId: string): void {
+    dispatch({ type: 'REMOVE_COLLAPSED_FOLDER', folderId });
+}
+
+export function isGraphFolderCollapsed(folderId: string): boolean {
+    return getFolderTreeState().graphCollapsedFolders.has(folderId);
 }
 
 // --- Persistence subscriber (side effect isolated from reducer) ---

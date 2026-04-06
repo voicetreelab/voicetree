@@ -5,10 +5,9 @@ import * as O from 'fp-ts/lib/Option.js'
 import { getFolderChildNodeIds, getSubFolderPaths, getFolderParent } from '@vt/graph-model/pure/graph/folderCollapse'
 import { getNodeTitle } from '@vt/graph-model/pure/graph/markdown-parsing'
 import type {} from '@/shell/electron'
-import { syncGraphCollapsedFolders } from '@/shell/edge/UI-edge/state/FolderTreeStore'
+import { addCollapsedFolder, removeCollapsedFolder, isGraphFolderCollapsed } from '@/shell/edge/UI-edge/state/FolderTreeStore'
 
 // ── Ephemeral UI state ──
-const collapsedFolders: Set<string> = new Set()
 const expandingFolders: Set<string> = new Set() // H1 guard: prevents collapse during async expand
 
 // ── Synthetic edge tracking ──
@@ -28,7 +27,7 @@ interface SyntheticEdgeRecord {
 const syntheticEdgeRegistry: Map<string, SyntheticEdgeRecord[]> = new Map<string, SyntheticEdgeRecord[]>()
 
 export const isFolderCollapsed: (folderId: string) => boolean = (folderId) =>
-    collapsedFolders.has(folderId)
+    isGraphFolderCollapsed(folderId)
 
 // ── Collapse ──
 export function collapseFolder(cy: Core, folderId: string): void {
@@ -36,7 +35,6 @@ export function collapseFolder(cy: Core, folderId: string): void {
     const folder: CollectionReturnValue = cy.getElementById(folderId)
     if (!folder.length || !folder.data('isFolderNode')) return
 
-    collapsedFolders.add(folderId)
     folder.data('collapsed', true)
 
     // Count children before removing (for badge)
@@ -71,7 +69,7 @@ export function collapseFolder(cy: Core, folderId: string): void {
         folder.children().remove()
     })
 
-    syncGraphCollapsedFolders(new Set(collapsedFolders))
+    addCollapsedFolder(folderId)
 }
 
 // ── Expand ──
@@ -82,21 +80,16 @@ export async function expandFolder(cy: Core, folderId: string): Promise<void> {
 
     expandingFolders.add(folderId) // H1: mark as expanding
 
-    collapsedFolders.delete(folderId)
     folder.data('collapsed', false)
     folder.removeData('childCount')
-
-    syncGraphCollapsedFolders(new Set(collapsedFolders))
 
     // Re-derive children from Graph (source of truth)
     let graph: Graph | undefined
     try {
         graph = await window.electronAPI?.main.getGraph()
     } catch {
-        // M3: rollback state on IPC failure
-        collapsedFolders.add(folderId)
+        // M3: rollback state on IPC failure (store still has folder as collapsed)
         folder.data('collapsed', true)
-        syncGraphCollapsedFolders(new Set(collapsedFolders))
         expandingFolders.delete(folderId)
         return
     }
@@ -213,6 +206,7 @@ export async function expandFolder(cy: Core, folderId: string): Promise<void> {
         }
     })
 
+    removeCollapsedFolder(folderId)
     expandingFolders.delete(folderId) // H1: clear expanding guard
 }
 

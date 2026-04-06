@@ -13,11 +13,6 @@ import type { Mock } from 'vitest'
 import cytoscape from 'cytoscape'
 import type { Core, CollectionReturnValue } from 'cytoscape'
 
-// Mock the FolderTreeStore sync (side-effect free in tests)
-vi.mock('@/shell/edge/UI-edge/state/FolderTreeStore', () => ({
-    syncGraphCollapsedFolders: vi.fn()
-}))
-
 // Mock electronAPI for expandFolder's getGraph call
 const mockGetGraph: Mock = vi.fn()
 vi.stubGlobal('electronAPI', undefined)

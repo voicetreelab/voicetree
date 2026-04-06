@@ -14,7 +14,8 @@ import {getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {getShadowNodeId, getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 import {createAnchoredFloatingEditor} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 import { getFolderParent } from '@vt/graph-model/pure/graph/folderCollapse'
-import { isFolderCollapsed, findCollapsedAncestorFolder, addOrUpdateSyntheticEdge } from '@/shell/edge/UI-edge/graph/folderCollapse'
+import { findCollapsedAncestorFolder, addOrUpdateSyntheticEdge } from '@/shell/edge/UI-edge/graph/folderCollapse'
+import { isGraphFolderCollapsed as isFolderCollapsed } from '@/shell/edge/UI-edge/state/FolderTreeStore'
 
 /**
  * Validates if a color value is a valid CSS color using the browser's CSS.supports API
