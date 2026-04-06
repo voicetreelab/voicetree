@@ -1,0 +1,11 @@
+{
+  "description": "P1: Progress-node gate — agent idles 10s with no progress nodes, should NOT be reported complete",
+  "actions": [
+    { "type": "log", "message": "Starting work (no progress nodes yet)..." },
+    { "type": "delay", "ms": 10000 },
+    { "type": "log", "message": "Now creating progress node" },
+    { "type": "create_node", "title": "Late progress", "summary": "Created after 10s delay to test progress-node gate" },
+    { "type": "delay", "ms": 1000 },
+    { "type": "exit", "code": 0 }
+  ]
+}

@@ -19,10 +19,16 @@ vi.mock('@/shell/edge/main/terminals/send-text-to-terminal', () => ({
     sendTextToTerminal: vi.fn()
 }))
 
+vi.mock('@/shell/edge/main/mcp-server/agentNodeIndex', () => ({
+    getAgentNodes: vi.fn(),
+    registerAgentNodes: vi.fn()
+}))
+
 import {startMonitor, cancelMonitor, getPendingAgentNamesForCaller} from '@/shell/edge/main/mcp-server/agent-completion-monitor'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getTerminalRecords, getIdleSince} from '@/shell/edge/main/terminals/terminal-registry'
 import {sendTextToTerminal} from '@/shell/edge/main/terminals/send-text-to-terminal'
+import {getAgentNodes} from '@/shell/edge/main/mcp-server/agentNodeIndex'
 
 // --- Helpers ---
 
@@ -79,6 +85,8 @@ describe('AgentCompletionMonitor integration', () => {
         vi.clearAllMocks()
         vi.useFakeTimers()
         vi.mocked(sendTextToTerminal).mockResolvedValue({success: true})
+        // Default: agents have progress nodes (so progress-node gate doesn't block)
+        vi.mocked(getAgentNodes).mockReturnValue([{nodeId: 'progress.md', title: 'Progress'}])
     })
 
     afterEach(() => {
@@ -202,15 +210,17 @@ describe('AgentCompletionMonitor integration', () => {
         expect(sendTextToTerminal).toHaveBeenCalledTimes(1)
     })
 
-    it('completes idle agent after sustained idle >= 7s (no progress nodes required)', () => {
+    it('completes idle agent with progress nodes after sustained idle >= 7s', () => {
         const idleAgentData: TerminalData = makeIdleTerminalData('agent-1', 'alpha')
         const callerData: TerminalData = makeTerminalData('caller-1', 'caller')
 
         vi.mocked(getTerminalRecords).mockReturnValue([
-            {terminalId: 'agent-1', terminalData: idleAgentData, status: 'running', exitCode: null},
-            {terminalId: 'caller-1', terminalData: callerData, status: 'running', exitCode: null}
+            {terminalId: 'agent-1', terminalData: idleAgentData, status: 'running', exitCode: null, auditRetryCount: 0, spawnedAt: Date.now() - 60_000},
+            {terminalId: 'caller-1', terminalData: callerData, status: 'running', exitCode: null, auditRetryCount: 0, spawnedAt: Date.now() - 60_000}
         ])
         vi.mocked(getGraph).mockReturnValue(buildGraph([]))
+        // Agent has progress nodes
+        vi.mocked(getAgentNodes).mockReturnValue([{nodeId: 'progress.md', title: 'Progress'}])
 
         // Idle only 5s (below SUSTAINED_IDLE_MS of 7s)
         vi.mocked(getIdleSince).mockReturnValue(Date.now() - 5_000)
@@ -224,34 +234,88 @@ describe('AgentCompletionMonitor integration', () => {
         // Set idle to 8s+ (above SUSTAINED_IDLE_MS of 7s)
         vi.mocked(getIdleSince).mockReturnValue(Date.now() - 8_000)
 
-        // Poll 2: idle + sustained 8s → complete (even without progress nodes)
+        // Poll 2: idle + sustained 8s + has progress nodes → complete
         vi.advanceTimersByTime(1000)
         expect(sendTextToTerminal).toHaveBeenCalledTimes(1)
         expect(sendTextToTerminal).toHaveBeenCalledWith(
             'caller-1',
             expect.stringContaining('alpha')
         )
-
-        // Monitor should have self-cleaned (no cancel needed)
     })
 
-    it('completes idle agent with only context nodes after sustained idle', () => {
+    it('blocks completion for idle agent without progress nodes (within 30-min timeout)', () => {
         const idleAgentData: TerminalData = makeIdleTerminalData('agent-1', 'alpha')
         const callerData: TerminalData = makeTerminalData('caller-1', 'caller')
 
         vi.mocked(getTerminalRecords).mockReturnValue([
-            {terminalId: 'agent-1', terminalData: idleAgentData, status: 'running', exitCode: null},
-            {terminalId: 'caller-1', terminalData: callerData, status: 'running', exitCode: null}
+            {terminalId: 'agent-1', terminalData: idleAgentData, status: 'running', exitCode: null, auditRetryCount: 0, spawnedAt: Date.now() - 60_000},
+            {terminalId: 'caller-1', terminalData: callerData, status: 'running', exitCode: null, auditRetryCount: 0, spawnedAt: Date.now() - 60_000}
+        ])
+        vi.mocked(getGraph).mockReturnValue(buildGraph([]))
+        // No progress nodes
+        vi.mocked(getAgentNodes).mockReturnValue([])
+        // Idle for 8s+
+        vi.mocked(getIdleSince).mockReturnValue(Date.now() - 8_000)
+
+        const monitorId: string = startMonitor('caller-1', ['agent-1'], 1000)
+
+        // Poll several times — agent stays "not complete" because no progress nodes
+        vi.advanceTimersByTime(5000)
+        expect(sendTextToTerminal).not.toHaveBeenCalled()
+
+        cancelMonitor(monitorId)
+    })
+
+    it('completes idle agent without progress nodes after 30-min timeout and sends nudge', () => {
+        const spawnTime: number = Date.now() - (31 * 60 * 1000) // 31 minutes ago
+        const idleAgentData: TerminalData = makeIdleTerminalData('agent-1', 'alpha')
+        const callerData: TerminalData = makeTerminalData('caller-1', 'caller')
+
+        vi.mocked(getTerminalRecords).mockReturnValue([
+            {terminalId: 'agent-1', terminalData: idleAgentData, status: 'running', exitCode: null, auditRetryCount: 0, spawnedAt: spawnTime},
+            {terminalId: 'caller-1', terminalData: callerData, status: 'running', exitCode: null, auditRetryCount: 0, spawnedAt: spawnTime}
+        ])
+        vi.mocked(getGraph).mockReturnValue(buildGraph([]))
+        // No progress nodes
+        vi.mocked(getAgentNodes).mockReturnValue([])
+        // Idle for 8s+
+        vi.mocked(getIdleSince).mockReturnValue(Date.now() - 8_000)
+
+        startMonitor('caller-1', ['agent-1'], 1000)
+
+        vi.advanceTimersByTime(1000)
+        // Should complete (30-min timeout exceeded) — nudge + completion message
+        expect(sendTextToTerminal).toHaveBeenCalledTimes(2)
+        // First call: nudge to the agent
+        expect(sendTextToTerminal).toHaveBeenCalledWith(
+            'agent-1',
+            expect.stringContaining('progress nodes')
+        )
+        // Second call: completion notification to caller
+        expect(sendTextToTerminal).toHaveBeenCalledWith(
+            'caller-1',
+            expect.stringContaining('[WaitForAgents]')
+        )
+    })
+
+    it('completes idle agent with progress nodes even when graph only has context nodes', () => {
+        const idleAgentData: TerminalData = makeIdleTerminalData('agent-1', 'alpha')
+        const callerData: TerminalData = makeTerminalData('caller-1', 'caller')
+
+        vi.mocked(getTerminalRecords).mockReturnValue([
+            {terminalId: 'agent-1', terminalData: idleAgentData, status: 'running', exitCode: null, auditRetryCount: 0, spawnedAt: Date.now() - 60_000},
+            {terminalId: 'caller-1', terminalData: callerData, status: 'running', exitCode: null, auditRetryCount: 0, spawnedAt: Date.now() - 60_000}
         ])
 
-        // Only context nodes (isContextNode: true) — previously blocked completion, now allowed
+        // Only context nodes in graph — but agent has progress nodes in index
         const contextNode: GraphNode = buildGraphNode('ctx-1.md', 'Context Node', 'alpha', true)
         vi.mocked(getGraph).mockReturnValue(buildGraph([contextNode]))
+        vi.mocked(getAgentNodes).mockReturnValue([{nodeId: 'progress.md', title: 'Progress'}])
         vi.mocked(getIdleSince).mockReturnValue(Date.now() - 60_000)
 
         startMonitor('caller-1', ['agent-1'], 1000)
 
-        // Poll 1: idle + sustained 60s → complete (progress nodes no longer required)
+        // Poll 1: idle + sustained 60s + has progress nodes → complete
         vi.advanceTimersByTime(1000)
         expect(sendTextToTerminal).toHaveBeenCalledTimes(1)
     })
@@ -335,6 +399,8 @@ describe('AgentCompletionMonitor integration', () => {
             {terminalId: 'caller-1', terminalData: callerData, status: 'running', exitCode: null}
         ])
         vi.mocked(getGraph).mockReturnValue(buildGraph([]))
+        // Override: no progress nodes in index
+        vi.mocked(getAgentNodes).mockReturnValue([])
 
         startMonitor('caller-1', ['agent-1'], 1000)
         vi.advanceTimersByTime(1000)

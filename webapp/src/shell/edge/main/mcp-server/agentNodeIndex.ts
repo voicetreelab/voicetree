@@ -21,3 +21,7 @@ export function registerAgentNodes(agentName: string, nodes: readonly AgentNodeE
 export function getAgentNodes(agentName: string): readonly AgentNodeEntry[] {
     return agentNodes.get(agentName) ?? []
 }
+
+export function clearAgentNodes(): void {
+    agentNodes.clear()
+}

@@ -16,6 +16,7 @@ export interface FolderTreeState {
     readonly searchQuery: string;
     readonly isOpen: boolean;
     readonly sidebarWidth: number;
+    readonly graphCollapsedFolders: ReadonlySet<string>;
 }
 
 export type FolderTreeAction =
@@ -25,7 +26,8 @@ export type FolderTreeAction =
     | { readonly type: 'TOGGLE_EXPANDED'; readonly path: string }
     | { readonly type: 'SET_SEARCH'; readonly query: string }
     | { readonly type: 'TOGGLE_SIDEBAR' }
-    | { readonly type: 'SET_WIDTH'; readonly width: number };
+    | { readonly type: 'SET_WIDTH'; readonly width: number }
+    | { readonly type: 'SYNC_GRAPH_COLLAPSED'; readonly folders: ReadonlySet<string> };
 
 /**
  * Pure reducer: (state, action) → state. No side effects.
@@ -50,6 +52,8 @@ export function folderTreeReducer(state: FolderTreeState, action: FolderTreeActi
             return { ...state, isOpen: !state.isOpen };
         case 'SET_WIDTH':
             return { ...state, sidebarWidth: action.width };
+        case 'SYNC_GRAPH_COLLAPSED':
+            return { ...state, graphCollapsedFolders: action.folders };
     }
 }
 
@@ -84,6 +88,7 @@ const INITIAL_STATE: FolderTreeState = {
     searchQuery: '',
     isOpen: persisted.isOpen,
     sidebarWidth: persisted.sidebarWidth,
+    graphCollapsedFolders: new Set(),
 };
 
 let currentState: FolderTreeState = INITIAL_STATE;
@@ -145,6 +150,10 @@ export function toggleFolderTreeSidebar(): void {
 
 export function setSidebarWidth(width: number): void {
     dispatch({ type: 'SET_WIDTH', width });
+}
+
+export function syncGraphCollapsedFolders(folders: ReadonlySet<string>): void {
+    dispatch({ type: 'SYNC_GRAPH_COLLAPSED', folders });
 }
 
 // --- Persistence subscriber (side effect isolated from reducer) ---

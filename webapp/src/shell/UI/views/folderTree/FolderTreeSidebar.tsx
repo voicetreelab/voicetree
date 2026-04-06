@@ -28,9 +28,23 @@ import {
 } from '@/shell/edge/UI-edge/state/VaultPathStore';
 import { FolderTreeNodeComponent } from './FolderTreeNode';
 import { StarredSection } from './StarredSection';
+import { getCyInstance } from '@/shell/edge/UI-edge/state/cytoscape-state';
+import { toggleFolderCollapse } from '@/shell/edge/UI-edge/graph/folderCollapse';
 import type {} from '@/shell/electron';
 
 import './folder-tree.css';
+
+// =============================================================================
+// Path Conversion
+// =============================================================================
+
+function absolutePathToGraphFolderId(
+    absolutePath: string, treeRootAbsolutePath: string
+): string | null {
+    if (!absolutePath.startsWith(treeRootAbsolutePath + '/')) return null;
+    const relative: string = absolutePath.slice(treeRootAbsolutePath.length + 1);
+    return relative ? relative + '/' : null;
+}
 
 // =============================================================================
 // Store Hooks
@@ -304,6 +318,16 @@ function FolderTreeSidebarInternal({ callbacks }: SidebarInternalProps): JSX.Ele
         }, []
     );
 
+    const handleToggleGraphCollapse: (absolutePath: string) => void = useCallback(
+        (absolutePath: string): void => {
+            const graphFolderId: string | null = absolutePathToGraphFolderId(
+                absolutePath, folderState.tree?.absolutePath ?? ''
+            );
+            if (!graphFolderId) return;
+            void toggleFolderCollapse(getCyInstance(), graphFolderId);
+        }, [folderState.tree?.absolutePath]
+    );
+
     const projectName: string = useMemo(() => {
         if (!folderState.tree) return 'Project';
         return folderState.tree.name;
@@ -349,6 +373,8 @@ function FolderTreeSidebarInternal({ callbacks }: SidebarInternalProps): JSX.Ele
                 onToggleExpand={toggleFolderExpanded}
                 onToggleLoad={handleToggleLoad}
                 onSetWriteTarget={handleSetWriteTarget}
+                graphCollapsedFolders={folderState.graphCollapsedFolders}
+                onToggleGraphCollapse={handleToggleGraphCollapse}
             />
 
             {/* External Folders (read paths outside project root) */}
@@ -366,6 +392,9 @@ function FolderTreeSidebarInternal({ callbacks }: SidebarInternalProps): JSX.Ele
                             onToggleLoad={handleToggleLoad}
                             onFileSelect={callbacks.onFileSelect}
                             onSetWriteTarget={handleSetWriteTarget}
+                            graphCollapsedFolders={folderState.graphCollapsedFolders}
+                            treeRootPath={tree.absolutePath}
+                            onToggleGraphCollapse={handleToggleGraphCollapse}
                         />
                     ))}
                 </div>
@@ -383,6 +412,9 @@ function FolderTreeSidebarInternal({ callbacks }: SidebarInternalProps): JSX.Ele
                         onToggleLoad={handleToggleLoad}
                         onFileSelect={callbacks.onFileSelect}
                         onSetWriteTarget={handleSetWriteTarget}
+                        graphCollapsedFolders={folderState.graphCollapsedFolders}
+                        treeRootPath={folderState.tree.absolutePath}
+                        onToggleGraphCollapse={handleToggleGraphCollapse}
                     />
                 ) : (
                     <div className="folder-tree-empty">No folder loaded</div>

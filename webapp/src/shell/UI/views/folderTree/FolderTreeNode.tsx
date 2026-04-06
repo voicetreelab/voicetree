@@ -21,6 +21,9 @@ interface FolderNodeProps {
     readonly onToggleLoad: (path: string, currentState: 'loaded' | 'not-loaded') => void;
     readonly onFileSelect: (path: string) => void;
     readonly onSetWriteTarget: (path: string) => void;
+    readonly graphCollapsedFolders: ReadonlySet<string>;
+    readonly treeRootPath: string;
+    readonly onToggleGraphCollapse: (absolutePath: string) => void;
 }
 
 interface FileNodeProps {
@@ -28,6 +31,14 @@ interface FileNodeProps {
     readonly depth: number;
     readonly parentLoaded: boolean;
     readonly onFileSelect: (path: string) => void;
+}
+
+function absolutePathToGraphFolderId(
+    absolutePath: string, treeRootAbsolutePath: string
+): string | null {
+    if (!absolutePath.startsWith(treeRootAbsolutePath + '/')) return null;
+    const relative: string = absolutePath.slice(treeRootAbsolutePath.length + 1);
+    return relative ? relative + '/' : null;
 }
 
 function matchesSearch(name: string, query: string): boolean {
@@ -64,7 +75,7 @@ function FileNode({ node, depth, parentLoaded, onFileSelect }: FileNodeProps): J
     );
 }
 
-export function FolderTreeNodeComponent({ node, depth, searchQuery, expandedPaths, onToggleExpand, onToggleLoad, onFileSelect, onSetWriteTarget }: FolderNodeProps): JSX.Element | null {
+export function FolderTreeNodeComponent({ node, depth, searchQuery, expandedPaths, onToggleExpand, onToggleLoad, onFileSelect, onSetWriteTarget, graphCollapsedFolders, treeRootPath, onToggleGraphCollapse }: FolderNodeProps): JSX.Element | null {
     const [isCreatingFolder, setIsCreatingFolder] = useState<boolean>(false);
     const [newFolderName, setNewFolderName] = useState<string>('');
     const newFolderInputRef: React.RefObject<HTMLInputElement | null> = useRef<HTMLInputElement>(null);
@@ -105,6 +116,14 @@ export function FolderTreeNodeComponent({ node, depth, searchQuery, expandedPath
         e.stopPropagation();
         onSetWriteTarget(node.absolutePath);
     }, [onSetWriteTarget, node.absolutePath]);
+
+    const graphFolderId: string | null = absolutePathToGraphFolderId(node.absolutePath, treeRootPath);
+    const isGraphCollapsed: boolean = graphFolderId !== null && graphCollapsedFolders.has(graphFolderId);
+
+    const handleGraphCollapseClick: (e: React.MouseEvent) => void = useCallback((e: React.MouseEvent): void => {
+        e.stopPropagation();
+        onToggleGraphCollapse(node.absolutePath);
+    }, [onToggleGraphCollapse, node.absolutePath]);
 
     const handleNewFolderConfirm: () => void = useCallback((): void => {
         if (isCancellingRef.current) {
@@ -181,6 +200,13 @@ export function FolderTreeNodeComponent({ node, depth, searchQuery, expandedPath
                         {'\u270E'}
                     </span>
                 )}
+                {graphFolderId && (
+                    <span
+                        className={`folder-tree-graph-collapse-icon ${isGraphCollapsed ? 'collapsed' : 'expanded'}`}
+                        onClick={handleGraphCollapseClick}
+                        title={isGraphCollapsed ? 'Expand in graph' : 'Collapse in graph'}
+                    />
+                )}
                 <span
                     className={`folder-tree-load-indicator ${node.loadState}`}
                     onClick={handleLoadClick}
@@ -217,6 +243,9 @@ export function FolderTreeNodeComponent({ node, depth, searchQuery, expandedPath
                                     onToggleLoad={onToggleLoad}
                                     onFileSelect={onFileSelect}
                                     onSetWriteTarget={onSetWriteTarget}
+                                    graphCollapsedFolders={graphCollapsedFolders}
+                                    treeRootPath={treeRootPath}
+                                    onToggleGraphCollapse={onToggleGraphCollapse}
                                 />
                             );
                         }

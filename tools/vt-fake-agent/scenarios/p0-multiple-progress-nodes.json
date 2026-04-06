@@ -1,0 +1,16 @@
+{
+  "description": "P0-S4: Agent creates 3 progress nodes at different times (1s, 3s, 5s intervals). Tests that all nodes appear in completion message and agent is only considered complete after final idle.",
+  "actions": [
+    { "type": "log", "message": "Starting multi-node work..." },
+    { "type": "delay", "ms": 1000 },
+    { "type": "create_node", "title": "Phase 1: Data Collection", "summary": "Collected input data from 3 sources." },
+    { "type": "log", "message": "Phase 1 complete, continuing..." },
+    { "type": "delay", "ms": 3000 },
+    { "type": "create_node", "title": "Phase 2: Analysis", "summary": "Analyzed collected data, identified 5 key patterns." },
+    { "type": "log", "message": "Phase 2 complete, continuing..." },
+    { "type": "delay", "ms": 5000 },
+    { "type": "create_node", "title": "Phase 3: Final Report", "summary": "Generated final report with recommendations based on analysis." },
+    { "type": "log", "message": "All phases complete." },
+    { "type": "exit", "code": 0 }
+  ]
+}

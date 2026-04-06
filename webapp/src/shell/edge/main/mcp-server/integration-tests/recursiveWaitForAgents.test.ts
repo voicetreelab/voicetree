@@ -17,6 +17,11 @@ vi.mock('@/shell/edge/main/terminals/send-text-to-terminal', () => ({
     sendTextToTerminal: vi.fn()
 }))
 
+vi.mock('@/shell/edge/main/mcp-server/agentNodeIndex', () => ({
+    getAgentNodes: vi.fn().mockReturnValue([{nodeId: 'progress.md', title: 'Progress'}]),
+    registerAgentNodes: vi.fn()
+}))
+
 import {startMonitor, registerChildIfMonitored} from '@/shell/edge/main/mcp-server/agent-completion-monitor'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getTerminalRecords} from '@/shell/edge/main/terminals/terminal-registry'

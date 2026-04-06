@@ -124,5 +124,16 @@ export function getDefaultEdgeStyles(colors: GraphColorPalette, font: string, is
         'width': 12.5, // 2.5x scale (was 5)
       }
     },
+
+    // Synthetic folder edges — dashed style for collapsed folder cross-boundary edges
+    {
+      selector: 'edge.synthetic-folder-edge',
+      style: {
+        'line-style': 'dashed',
+        'line-dash-pattern': [6, 3],
+        'line-opacity': 0.6,
+        'target-arrow-shape': 'triangle',
+      }
+    },
   ];
 }

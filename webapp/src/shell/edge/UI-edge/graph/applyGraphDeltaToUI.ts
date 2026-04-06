@@ -14,7 +14,7 @@ import {getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {getShadowNodeId, getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 import {createAnchoredFloatingEditor} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 import { getFolderParent } from '@vt/graph-model/pure/graph/folderCollapse'
-import { isFolderCollapsed } from '@/shell/edge/UI-edge/graph/folderCollapse'
+import { isFolderCollapsed, findCollapsedAncestorFolder, addOrUpdateSyntheticEdge } from '@/shell/edge/UI-edge/graph/folderCollapse'
 
 /**
  * Validates if a color value is a valid CSS color using the browser's CSS.supports API
@@ -236,6 +236,33 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                 const node: GraphNode = nodeDelta.nodeToUpsert;
                 const nodeId: string = node.absoluteFilePathIsID;
 
+                // Handle nodes inside collapsed folders — create synthetic edges instead
+                if (!cy.getElementById(nodeId).length) {
+                    const collapsedFolder: string | null = findCollapsedAncestorFolder(nodeId)
+                    if (collapsedFolder) {
+                        node.outgoingEdges.forEach((edge) => {
+                            const MAX_EDGE_LABEL_LENGTH: number = 50
+                            const newLabel: string | undefined = edge.label
+                                ? edge.label.replace(/_/g, ' ').slice(0, MAX_EDGE_LABEL_LENGTH) + (edge.label.length > MAX_EDGE_LABEL_LENGTH ? '…' : '')
+                                : undefined
+                            if (cy.getElementById(edge.targetId).length > 0) {
+                                addOrUpdateSyntheticEdge(cy, collapsedFolder, 'outgoing', edge.targetId, {
+                                    sourceId: nodeId, targetId: edge.targetId, label: newLabel
+                                })
+                            } else {
+                                // Target might be in another collapsed folder (S8: cross-folder)
+                                const targetFolder: string | null = findCollapsedAncestorFolder(edge.targetId)
+                                if (targetFolder && targetFolder !== collapsedFolder) {
+                                    addOrUpdateSyntheticEdge(cy, collapsedFolder, 'outgoing', targetFolder, {
+                                        sourceId: nodeId, targetId: edge.targetId, label: newLabel
+                                    })
+                                }
+                            }
+                        })
+                    }
+                    return
+                }
+
                 // Get current edges from this node in Cytoscape
                 const currentEdges: EdgeCollection = cy.edges(`[source = "${nodeId}"]`);
                 const currentTargets: Set<string> = new Set(currentEdges.map(edge => edge.data('target') as string));
@@ -249,8 +276,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                     if (!desiredTargets.has(target)) {
                         const targetNode: NodeSingular = cy.getElementById(target);
                         const isShadowNode: boolean = targetNode.length > 0 && targetNode.data('isShadowNode') === true;
-                        if (isShadowNode) {
-                            //console.log(`[applyGraphDeltaToUI] Keeping edge to shadow node: ${nodeId}->${target}`);
+                        if (isShadowNode || edge.data('isSyntheticEdge')) {
                             return;
                         }
                         //console.log(`[applyGraphDeltaToUI] Removing edge no longer in graph: ${nodeId}->${target}`);
@@ -297,7 +323,13 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                                 markTerminalActivityForContextNode(edge.targetId);
                             }, 500);
                         } else {
-                            console.debug(`[applyGraphDeltaToUI] Skipping edge ${nodeId}->${edge.targetId}: target node does not exist`);
+                            // Target missing — check if inside a collapsed folder
+                            const collapsedFolder: string | null = findCollapsedAncestorFolder(edge.targetId)
+                            if (collapsedFolder) {
+                                addOrUpdateSyntheticEdge(cy, collapsedFolder, 'incoming', nodeId, {
+                                    sourceId: nodeId, targetId: edge.targetId, label: newLabel
+                                })
+                            }
                         }
                     }
                 });

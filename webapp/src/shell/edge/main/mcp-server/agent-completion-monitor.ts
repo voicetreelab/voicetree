@@ -51,6 +51,20 @@ export function startMonitor(
         )
 
         if (allFoundDone) {
+            // Nudge agents that completed via the 30-min no-progress timeout
+            for (const r of targetRecords) {
+                const agentStatus: string = getAgentStatus(r)
+                if (agentStatus === 'idle') {
+                    const indexNodes: readonly AgentNodeEntry[] = getAgentNodes(r.terminalData.agentName)
+                    if (indexNodes.length === 0) {
+                        void sendTextToTerminal(r.terminalId,
+                            '\n\n[WaitForAgents] You have been idle for over 30 minutes without creating progress nodes. ' +
+                            'Please create progress nodes documenting your work. Read addProgressTree.md for guidance.\n\n'
+                        )
+                    }
+                }
+            }
+
             const results: AgentResult[] = targetRecords.map((r: TerminalRecord) => {
                 const indexNodes: readonly AgentNodeEntry[] = getAgentNodes(r.terminalData.agentName)
                 const graphNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(graph, r.terminalData.agentName, r.spawnedAt)

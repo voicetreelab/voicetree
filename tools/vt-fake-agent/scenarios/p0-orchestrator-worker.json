@@ -1,0 +1,23 @@
+{
+  "description": "P0-S3: Full orchestration cycle. Orchestrator spawns a worker child (with embedded childScript), waits for it, then exits. Tests spawn → wait → child completes → notification → orchestrator continues.",
+  "actions": [
+    { "type": "log", "message": "Orchestrator starting, spawning worker child..." },
+    {
+      "type": "spawn_child",
+      "task": "Worker: complete a simple task",
+      "childScript": {
+        "actions": [
+          { "type": "log", "message": "Worker child starting..." },
+          { "type": "delay", "ms": 3000 },
+          { "type": "create_node", "title": "Worker Output", "summary": "Worker completed its assigned task." },
+          { "type": "exit", "code": 0 }
+        ]
+      }
+    },
+    { "type": "log", "message": "Orchestrator waiting for worker child to complete..." },
+    { "type": "wait_for_children" },
+    { "type": "log", "message": "Orchestrator received child completion, creating summary node." },
+    { "type": "create_node", "title": "Orchestration Complete", "summary": "Orchestrator successfully spawned worker, waited for completion, and reviewed results." },
+    { "type": "exit", "code": 0 }
+  ]
+}

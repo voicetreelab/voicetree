@@ -1,0 +1,38 @@
+{
+  "description": "P0-S2: Three parallel agents with staggered durations. Tests that wait_for_agents only fires when ALL agents complete. Meta-scenario: test harness spawns 3 agents with these configs.",
+  "agents": [
+    {
+      "name": "FastWorker",
+      "script": {
+        "actions": [
+          { "type": "log", "message": "FastWorker starting (2s)" },
+          { "type": "delay", "ms": 2000 },
+          { "type": "create_node", "title": "FastWorker Result", "summary": "Fast task completed in ~2s." },
+          { "type": "exit", "code": 0 }
+        ]
+      }
+    },
+    {
+      "name": "MediumWorker",
+      "script": {
+        "actions": [
+          { "type": "log", "message": "MediumWorker starting (4s)" },
+          { "type": "delay", "ms": 4000 },
+          { "type": "create_node", "title": "MediumWorker Result", "summary": "Medium task completed in ~4s." },
+          { "type": "exit", "code": 0 }
+        ]
+      }
+    },
+    {
+      "name": "SlowWorker",
+      "script": {
+        "actions": [
+          { "type": "log", "message": "SlowWorker starting (6s)" },
+          { "type": "delay", "ms": 6000 },
+          { "type": "create_node", "title": "SlowWorker Result", "summary": "Slow task completed in ~6s." },
+          { "type": "exit", "code": 0 }
+        ]
+      }
+    }
+  ]
+}

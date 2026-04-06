@@ -1,0 +1,10 @@
+{
+  "description": "P0-S1: Single agent spawn + completion. Tests basic spawn → work → progress node → idle → completion detection.",
+  "actions": [
+    { "type": "log", "message": "Starting single agent work..." },
+    { "type": "delay", "ms": 3000 },
+    { "type": "create_node", "title": "Single Agent Result", "summary": "Completed basic work task successfully." },
+    { "type": "delay", "ms": 1000 },
+    { "type": "exit", "code": 0 }
+  ]
+}

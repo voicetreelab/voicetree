@@ -111,6 +111,7 @@ export const SETTINGS_SCHEMA: SettingsSchema = {
             { name: 'Codex',         command: `codex "${AGENT_PROMPT_VAR}"` },
             { name: 'Rovodev',       command: `acli rovodev run "${AGENT_PROMPT_VAR}"` },
             { name: 'Opencode',      command: `opencode --prompt "${AGENT_PROMPT_VAR}"` },
+            { name: 'Fake Agent',   command: `node tools/vt-fake-agent/dist/index.js "${AGENT_PROMPT_VAR}"` },
         ] as readonly AgentConfig[],
         section: 'agents',
     },

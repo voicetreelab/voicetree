@@ -306,6 +306,29 @@
     color: #f59e0b;
 }
 
+/* Graph collapse state indicator dot */
+.folder-tree-graph-collapse-icon {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    margin-left: 3px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.folder-tree-graph-collapse-icon.expanded {
+    background: #60a5fa;
+}
+
+.folder-tree-graph-collapse-icon.collapsed {
+    border: 1px solid #60a5fa;
+    background: transparent;
+}
+
+.folder-tree-graph-collapse-icon:hover {
+    transform: scale(1.3);
+}
+
 /* Load state indicator dot */
 .folder-tree-load-indicator {
     width: 7px;

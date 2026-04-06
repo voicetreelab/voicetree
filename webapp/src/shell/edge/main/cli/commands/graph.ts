@@ -1,6 +1,6 @@
 import {readFileSync} from 'fs'
-import {callMcpTool} from '@/shell/edge/main/cli/mcp-client'
-import {error, output, isJsonMode} from '@/shell/edge/main/cli/output'
+import {callMcpTool} from '../mcp-client.ts'
+import {error, output, isJsonMode} from '../output.ts'
 import {getGraphStructure, lintGraph, formatLintReportHuman, formatLintReportJson, DEFAULT_LINT_CONFIG} from '@vt/graph-tools'
 import type {LintConfig} from '@vt/graph-tools'
 

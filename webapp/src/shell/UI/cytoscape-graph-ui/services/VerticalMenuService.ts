@@ -118,7 +118,7 @@ export class VerticalMenuService {
         const folderAtPosition: NodeSingular = this.cy!.nodes('[?isFolderNode]').filter(node => {
             const bb: ReturnType<NodeSingular['boundingBox']> = node.boundingBox()
             return position.x >= bb.x1 && position.x <= bb.x2 && position.y >= bb.y1 && position.y <= bb.y2
-        }).first()
+        }).sort((a, b) => b.ancestors().length - a.ancestors().length).first()
 
         if (folderAtPosition.length) {
             const isCollapsed: boolean = folderAtPosition.data('collapsed')

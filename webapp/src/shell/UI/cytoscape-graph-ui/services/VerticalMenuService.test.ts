@@ -162,6 +162,71 @@ describe('VerticalMenuService', () => {
       expect(runAgentItem3 && 'disabled' in runAgentItem3 && runAgentItem3.disabled).toBeFalsy();
       expect(runAgentItem3 && 'text' in runAgentItem3 && runAgentItem3.text).toContain('Run Agent on Selected (2)');
     });
+
+    it('should prefer the deepest folder when nested folder bounds overlap at the click position', () => {
+      type FolderNodeLike = {
+        length: number;
+        boundingBox: () => { x1: number; x2: number; y1: number; y2: number };
+        ancestors: () => { length: number };
+        data: (key: string) => unknown;
+        id: () => string;
+      };
+
+      type FolderCollectionLike = {
+        filter: (predicate: (node: FolderNodeLike) => boolean) => FolderCollectionLike;
+        sort: (compare: (a: FolderNodeLike, b: FolderNodeLike) => number) => FolderCollectionLike;
+        first: () => FolderNodeLike;
+      };
+
+      const createFolderNode = (
+        id: string,
+        folderLabel: string,
+        depth: number,
+        bounds: { x1: number; x2: number; y1: number; y2: number },
+      ): FolderNodeLike => ({
+        length: 1,
+        boundingBox: () => bounds,
+        ancestors: () => ({ length: depth }),
+        data: (key: string) => ({ collapsed: false, folderLabel }[key]),
+        id: () => id,
+      });
+
+      const createFolderCollection = (nodes: FolderNodeLike[]): FolderCollectionLike => ({
+        filter: (predicate) => createFolderCollection(nodes.filter(predicate)),
+        sort: (compare) => createFolderCollection([...nodes].sort(compare)),
+        first: () => nodes[0] ?? { length: 0 } as FolderNodeLike,
+      });
+
+      const parentFolder = createFolderNode('parent-folder', 'Parent Folder', 0, {
+        x1: 0,
+        x2: 400,
+        y1: 0,
+        y2: 400,
+      });
+      const childFolder = createFolderNode('child-folder', 'Child Folder', 1, {
+        x1: 100,
+        x2: 300,
+        y1: 100,
+        y2: 300,
+      });
+
+      const localService = new VerticalMenuService() as unknown as {
+        cy: Core;
+        deps: VerticalMenuDependencies;
+        getCanvasVerticalMenuItems: (position: { x: number; y: number }) => MenuItem[];
+      };
+      localService.cy = {
+        nodes: vi.fn().mockReturnValue(createFolderCollection([parentFolder, childFolder])),
+        $: vi.fn().mockReturnValue({
+          nodes: () => ({ size: () => 0 }),
+        }),
+      } as unknown as Core;
+      localService.deps = mockDeps;
+
+      const menuItems: MenuItem[] = localService.getCanvasVerticalMenuItems({ x: 200, y: 200 });
+
+      expect(menuItems[0]?.text).toBe('Collapse "Child Folder"');
+    });
   });
 
 });

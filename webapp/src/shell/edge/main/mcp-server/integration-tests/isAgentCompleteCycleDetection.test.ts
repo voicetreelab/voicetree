@@ -11,8 +11,13 @@ vi.mock('@/shell/edge/main/terminals/terminal-registry', () => ({
     getIdleSince: vi.fn()
 }))
 
+vi.mock('@/shell/edge/main/mcp-server/agentNodeIndex', () => ({
+    getAgentNodes: vi.fn()
+}))
+
 import {isAgentComplete} from '@/shell/edge/main/mcp-server/isAgentComplete'
 import {getIdleSince} from '@/shell/edge/main/terminals/terminal-registry'
+import {getAgentNodes} from '@/shell/edge/main/mcp-server/agentNodeIndex'
 
 // --- Helpers ---
 
@@ -71,6 +76,8 @@ describe('isAgentComplete cycle detection', () => {
     beforeEach(() => {
         vi.clearAllMocks()
         vi.mocked(getIdleSince).mockReturnValue(IDLE_SINCE)
+        // Default: agents have progress nodes (so progress-node gate doesn't block)
+        vi.mocked(getAgentNodes).mockReturnValue([{nodeId: 'progress.md', title: 'Progress'}])
     })
 
     it('handles self-referential cycle (terminalId === parentTerminalId) without stack overflow', () => {
@@ -196,5 +203,60 @@ describe('isAgentComplete cycle detection', () => {
 
         // C is still running, so A is not complete
         expect(result).toBe(false)
+    })
+})
+
+describe('isAgentComplete progress-node gate', () => {
+    const NOW: number = 100_000
+    const IDLE_SINCE: number = NOW - 10_000 // 10s idle
+
+    beforeEach(() => {
+        vi.clearAllMocks()
+        vi.mocked(getIdleSince).mockReturnValue(IDLE_SINCE)
+    })
+
+    it('blocks completion when agent has no progress nodes and is within 30-min timeout', () => {
+        vi.mocked(getAgentNodes).mockReturnValue([])
+        const data: TerminalData = makeIdleTerminalData('agent-x', 'alpha')
+        // Spawned recently — within the 30-min timeout
+        const record: TerminalRecord = makeRecord('agent-x', data)
+        record.spawnedAt = NOW - 60_000 // 1 minute ago
+        const graph: Graph = buildGraph()
+
+        const result: boolean = isAgentComplete(record, graph, NOW, [record])
+        expect(result).toBe(false)
+    })
+
+    it('allows completion when agent has no progress nodes but exceeds 30-min timeout', () => {
+        vi.mocked(getAgentNodes).mockReturnValue([])
+        const data: TerminalData = makeIdleTerminalData('agent-x', 'alpha')
+        const record: TerminalRecord = makeRecord('agent-x', data)
+        record.spawnedAt = NOW - (31 * 60 * 1000) // 31 minutes ago
+        const graph: Graph = buildGraph()
+
+        const result: boolean = isAgentComplete(record, graph, NOW, [record])
+        expect(result).toBe(true)
+    })
+
+    it('allows completion when agent has progress nodes regardless of spawn time', () => {
+        vi.mocked(getAgentNodes).mockReturnValue([{nodeId: 'node.md', title: 'My Progress'}])
+        const data: TerminalData = makeIdleTerminalData('agent-x', 'alpha')
+        const record: TerminalRecord = makeRecord('agent-x', data)
+        record.spawnedAt = NOW - 10_000 // 10 seconds ago — very recent
+        const graph: Graph = buildGraph()
+
+        const result: boolean = isAgentComplete(record, graph, NOW, [record])
+        expect(result).toBe(true)
+    })
+
+    it('does not apply progress-node gate to exited agents', () => {
+        vi.mocked(getAgentNodes).mockReturnValue([])
+        const data: TerminalData = makeTerminalData('agent-x', 'alpha')
+        const record: TerminalRecord = makeRecord('agent-x', data, 'exited')
+        record.spawnedAt = NOW - 10_000 // recent spawn, no progress nodes
+        const graph: Graph = buildGraph()
+
+        const result: boolean = isAgentComplete(record, graph, NOW, [record])
+        expect(result).toBe(true) // exited agents are always complete
     })
 })

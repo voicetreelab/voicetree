@@ -1,0 +1,25 @@
+{
+  "description": "P2: Parent spawns 1 child, waits for it, then completes — tests recursive wait",
+  "actions": [
+    { "type": "log", "message": "Parent starting, spawning child..." },
+    { "type": "delay", "ms": 1000 },
+    {
+      "type": "spawn_child",
+      "task": "Child task: delay then create progress node",
+      "childScript": {
+        "actions": [
+          { "type": "log", "message": "Child working..." },
+          { "type": "delay", "ms": 3000 },
+          { "type": "create_node", "title": "Child done", "summary": "Child completed its work" },
+          { "type": "delay", "ms": 500 },
+          { "type": "exit", "code": 0 }
+        ]
+      }
+    },
+    { "type": "wait_for_children" },
+    { "type": "log", "message": "Child completed, parent finishing" },
+    { "type": "create_node", "title": "Parent done", "summary": "Parent completed after child finished" },
+    { "type": "delay", "ms": 500 },
+    { "type": "exit", "code": 0 }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "description": "P2: A spawns B, B spawns C — tests transitive child registration via registerChildIfMonitored",
+  "actions": [
+    { "type": "log", "message": "Agent A starting, spawning B..." },
+    { "type": "delay", "ms": 1000 },
+    {
+      "type": "spawn_child",
+      "task": "Agent B: spawn C then wait",
+      "childScript": {
+        "actions": [
+          { "type": "log", "message": "Agent B starting, spawning C..." },
+          { "type": "delay", "ms": 1000 },
+          {
+            "type": "spawn_child",
+            "task": "Agent C: leaf worker",
+            "childScript": {
+              "actions": [
+                { "type": "log", "message": "Agent C working..." },
+                { "type": "delay", "ms": 3000 },
+                { "type": "create_node", "title": "C done", "summary": "Leaf agent C completed" },
+                { "type": "delay", "ms": 500 },
+                { "type": "exit", "code": 0 }
+              ]
+            }
+          },
+          { "type": "wait_for_children" },
+          { "type": "create_node", "title": "B done", "summary": "Agent B completed after C finished" },
+          { "type": "delay", "ms": 500 },
+          { "type": "exit", "code": 0 }
+        ]
+      }
+    },
+    { "type": "wait_for_children" },
+    { "type": "create_node", "title": "A done", "summary": "Agent A completed after B→C chain finished" },
+    { "type": "delay", "ms": 500 },
+    { "type": "exit", "code": 0 }
+  ]
+}
