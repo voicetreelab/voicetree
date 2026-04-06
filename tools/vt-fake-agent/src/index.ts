@@ -5,8 +5,25 @@ import { extractScript, type Action, type FakeAgentScript } from './types.js'
 
 /** Strip ANSI escape sequences that sendTextToTerminal may inject via PTY */
 function stripAnsi(s: string): string {
+  // Covers CSI sequences like bracketed paste (\x1b[200~ / \x1b[201~),
+  // 2-char ESC sequences, and the control bytes sendTextToTerminal uses.
   // eslint-disable-next-line no-control-regex
-  return s.replace(/\x1b\[[0-9;]*[a-zA-Z]|\x1b[^[[]?|\x00|\x15/g, '')
+  return s.replace(/\x1b\[[0-?]*[ -/]*[@-~]|\x1b[@-Z\\-_]|\x00|\x15/g, '')
+}
+
+function parseActionMessage(msg: string): Action | null {
+  try {
+    return JSON.parse(msg) as Action
+  } catch {
+    const objectStart = msg.indexOf('{')
+    const objectEnd = msg.lastIndexOf('}')
+    if (objectStart === -1 || objectEnd <= objectStart) return null
+    try {
+      return JSON.parse(msg.slice(objectStart, objectEnd + 1)) as Action
+    } catch {
+      return null
+    }
+  }
 }
 
 async function main() {
@@ -55,13 +72,13 @@ async function main() {
   const processMessages = async () => {
     while (messageQueue.length > 0) {
       const msg = messageQueue.shift()!
-      try {
-        const action: Action = JSON.parse(msg)
+      const action: Action | null = parseActionMessage(msg)
+      if (action) {
         console.log(`[fake-agent] Executing message action: ${action.type}`)
         const singleScript: FakeAgentScript = { actions: [action] }
         currentAbort = new AbortController()
         await executeScript(singleScript, mcpClient, { terminalId, taskNodePath }, currentAbort)
-      } catch {
+      } else {
         console.log(`[fake-agent] Message is not a JSON action, treating as log: ${msg}`)
       }
     }

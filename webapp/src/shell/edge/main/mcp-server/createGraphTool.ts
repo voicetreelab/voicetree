@@ -507,7 +507,7 @@ export async function createGraphTool({
     }
 
     // Register in agent node index (eliminates race with file watcher)
-    registerAgentNodes(agentName, sortedNodes.flatMap((n: CreateGraphNodeInput) =>
+    registerAgentNodes(callerTerminalId, sortedNodes.flatMap((n: CreateGraphNodeInput) =>
         createdNodes.has(n.filename) ? [{nodeId: createdNodes.get(n.filename)!.nodeId, title: n.title}] : []))
 
     // Update caller's context node to include all new node IDs

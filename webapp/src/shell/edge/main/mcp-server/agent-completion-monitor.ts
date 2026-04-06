@@ -55,7 +55,7 @@ export function startMonitor(
             for (const r of targetRecords) {
                 const agentStatus: string = getAgentStatus(r)
                 if (agentStatus === 'idle') {
-                    const indexNodes: readonly AgentNodeEntry[] = getAgentNodes(r.terminalData.agentName)
+                    const indexNodes: readonly AgentNodeEntry[] = getAgentNodes(r.terminalId)
                     if (indexNodes.length === 0) {
                         void sendTextToTerminal(r.terminalId,
                             '\n\n[WaitForAgents] You have been idle for over 30 minutes without creating progress nodes. ' +
@@ -66,7 +66,7 @@ export function startMonitor(
             }
 
             const results: AgentResult[] = targetRecords.map((r: TerminalRecord) => {
-                const indexNodes: readonly AgentNodeEntry[] = getAgentNodes(r.terminalData.agentName)
+                const indexNodes: readonly AgentNodeEntry[] = getAgentNodes(r.terminalId)
                 const graphNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(graph, r.terminalData.agentName, r.spawnedAt)
                 const seenIds: Set<string> = new Set(indexNodes.map((n: AgentNodeEntry) => n.nodeId))
                 const mergedNodes: Array<{nodeId: string; title: string}> = [

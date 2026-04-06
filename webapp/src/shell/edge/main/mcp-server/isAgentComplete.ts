@@ -56,10 +56,10 @@ export function isAgentComplete(record: TerminalRecord, graph: Graph, now: numbe
     // If agent hasn't created any progress nodes, don't consider complete —
     // it's likely still working (between tool calls or waiting on sub-agents).
     // Safety valve: after 30 minutes from spawn, consider complete anyway so orchestration doesn't hang.
-    const agentNodes: readonly {readonly nodeId: string; readonly title: string}[] = getAgentNodes(record.terminalData.agentName)
+    const agentNodes: readonly {readonly nodeId: string; readonly title: string}[] = getAgentNodes(record.terminalId)
     if (agentNodes.length === 0) {
         const aliveMs: number = now - record.spawnedAt
-        if (aliveMs < NO_PROGRESS_TIMEOUT_MS) {
+        if (!Number.isFinite(aliveMs) || aliveMs < NO_PROGRESS_TIMEOUT_MS) {
             return false
         }
     }

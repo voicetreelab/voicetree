@@ -1,7 +1,11 @@
-import {describe, it, expect} from 'vitest'
-import {registerAgentNodes, getAgentNodes, type AgentNodeEntry} from './agentNodeIndex'
+import {describe, it, expect, beforeEach} from 'vitest'
+import {registerAgentNodes, getAgentNodes, clearAgentNodes, type AgentNodeEntry} from './agentNodeIndex'
 
 describe('agentNodeIndex', () => {
+    beforeEach(() => {
+        clearAgentNodes()
+    })
+
     it('returns empty array for unknown agent', () => {
         expect(getAgentNodes('unknown-agent-xyz')).toEqual([])
     })
