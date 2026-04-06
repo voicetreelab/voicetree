@@ -245,6 +245,10 @@ export { buildGraphFromFiles } from './buildGraphFromFiles'
 import { buildGraphFromFiles } from './buildGraphFromFiles'
 void (buildGraphFromFiles satisfies BuildGraphFromFiles)
 
+// === FOLDER COLLAPSE PURE LAYER (BF-116) ===
+export type { OriginalEdgeRef, SyntheticEdgeSpec, ExpandPlan } from './folderCollapse'
+export { computeSyntheticEdgeSpecs, computeExpandPlan, findCollapsedAncestor, absolutePathToGraphFolderId } from './folderCollapse'
+
 // === NODE TYPE DETECTION ===
 export { isImageNode, IMAGE_EXTENSIONS } from './isImageNode'
 
