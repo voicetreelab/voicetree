@@ -24,8 +24,13 @@ import {
     expandFolder,
     isFolderCollapsed,
     addOrUpdateSyntheticEdge,
-    findCollapsedAncestorFolder,
 } from '@/shell/edge/UI-edge/graph/folderCollapse'
+import { findCollapsedAncestor } from '@vt/graph-model/pure/graph/folderCollapse'
+import { getFolderTreeState } from '@/shell/edge/UI-edge/state/FolderTreeStore'
+
+// Wraps pure findCollapsedAncestor with store state (replaces deleted shell function)
+const findCollapsedAncestorFolder = (nodeId: string): string | null =>
+    findCollapsedAncestor(nodeId, getFolderTreeState().graphCollapsedFolders)
 
 describe('BF-113: Synthetic Edges on Collapsed Folders', () => {
     let cy: Core

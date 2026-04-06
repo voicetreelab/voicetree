@@ -14,7 +14,9 @@ import {getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {getShadowNodeId, getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 import {createAnchoredFloatingEditor} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 import { getFolderParent } from '@vt/graph-model/pure/graph/folderCollapse'
-import { findCollapsedAncestorFolder, addOrUpdateSyntheticEdge } from '@/shell/edge/UI-edge/graph/folderCollapse'
+import { addOrUpdateSyntheticEdge } from '@/shell/edge/UI-edge/graph/folderCollapse'
+import { findCollapsedAncestor } from '@vt/graph-model/pure/graph/folderCollapse'
+import { getFolderTreeState } from '@/shell/edge/UI-edge/state/FolderTreeStore'
 import { isGraphFolderCollapsed as isFolderCollapsed } from '@/shell/edge/UI-edge/state/FolderTreeStore'
 
 /**
@@ -239,7 +241,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
 
                 // Handle nodes inside collapsed folders — create synthetic edges instead
                 if (!cy.getElementById(nodeId).length) {
-                    const collapsedFolder: string | null = findCollapsedAncestorFolder(nodeId)
+                    const collapsedFolder: string | null = findCollapsedAncestor(nodeId, getFolderTreeState().graphCollapsedFolders)
                     if (collapsedFolder) {
                         node.outgoingEdges.forEach((edge) => {
                             const MAX_EDGE_LABEL_LENGTH: number = 50
@@ -252,7 +254,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                                 })
                             } else {
                                 // Target might be in another collapsed folder (S8: cross-folder)
-                                const targetFolder: string | null = findCollapsedAncestorFolder(edge.targetId)
+                                const targetFolder: string | null = findCollapsedAncestor(edge.targetId, getFolderTreeState().graphCollapsedFolders)
                                 if (targetFolder && targetFolder !== collapsedFolder) {
                                     addOrUpdateSyntheticEdge(cy, collapsedFolder, 'outgoing', targetFolder, {
                                         sourceId: nodeId, targetId: edge.targetId, label: newLabel
@@ -325,7 +327,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                             }, 500);
                         } else {
                             // Target missing — check if inside a collapsed folder
-                            const collapsedFolder: string | null = findCollapsedAncestorFolder(edge.targetId)
+                            const collapsedFolder: string | null = findCollapsedAncestor(edge.targetId, getFolderTreeState().graphCollapsedFolders)
                             if (collapsedFolder) {
                                 addOrUpdateSyntheticEdge(cy, collapsedFolder, 'incoming', nodeId, {
                                     sourceId: nodeId, targetId: edge.targetId, label: newLabel
