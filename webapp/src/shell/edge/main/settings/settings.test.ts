@@ -6,6 +6,7 @@ import { loadSettings, saveSettings, clearSettingsCache } from './settings_IO';
 import type { VTSettings } from '@vt/graph-model/pure/settings/types';
 
 import {DEFAULT_SETTINGS} from "@vt/graph-model/pure/settings";
+import { initGraphModel } from '@vt/graph-model';
 
 vi.mock('electron', () => ({
   app: {
@@ -18,6 +19,7 @@ let testUserDataPath: string;
 describe('settings', () => {
   beforeEach(async () => {
     testUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'settings-test-'));
+    initGraphModel({ appSupportPath: testUserDataPath });
     clearSettingsCache();
   });
 
@@ -106,14 +108,16 @@ describe('settings', () => {
     });
 
     it('file has only AGENT_PROMPT_CORE (post-migration state) → AGENT_PROMPT and AGENT_PROMPT_LIGHTWEIGHT filled from defaults', async () => {
+      const customCore: string = 'old core content';
       const settingsPath: string = path.join(testUserDataPath, 'settings.json');
       await fs.writeFile(settingsPath, JSON.stringify({
-        INJECT_ENV_VARS: { AGENT_PROMPT_CORE: 'old core content' }
+        INJECT_ENV_VARS: { AGENT_PROMPT_CORE: customCore }
       }), 'utf-8');
 
       const settings: VTSettings = await loadSettings();
 
       expect(settings.INJECT_ENV_VARS.AGENT_PROMPT).toBe('$AGENT_PROMPT_CORE');
+      expect(settings.INJECT_ENV_VARS.AGENT_PROMPT_CORE).toBe(customCore);
       expect(settings.INJECT_ENV_VARS.AGENT_PROMPT_LIGHTWEIGHT).toBeTruthy();
     });
 
@@ -130,17 +134,34 @@ describe('settings', () => {
       expect(settings.INJECT_ENV_VARS.AGENT_PROMPT_CORE).toBeTruthy();
     });
 
-    it('AGENT_PROMPT_CORE is always the current default, not the stale file value', async () => {
-      const staleCore: string = 'This is an old outdated core from 2024';
+    it('user custom AGENT_PROMPT_CORE is preserved in deep-merge', async () => {
+      const customCore: string = 'This is a custom prompt core override';
       const settingsPath: string = path.join(testUserDataPath, 'settings.json');
       await fs.writeFile(settingsPath, JSON.stringify({
-        INJECT_ENV_VARS: { AGENT_PROMPT_CORE: staleCore }
+        INJECT_ENV_VARS: { AGENT_PROMPT_CORE: customCore }
       }), 'utf-8');
 
       const settings: VTSettings = await loadSettings();
 
-      expect(settings.INJECT_ENV_VARS.AGENT_PROMPT_CORE).toBe(DEFAULT_SETTINGS.INJECT_ENV_VARS.AGENT_PROMPT_CORE);
-      expect(settings.INJECT_ENV_VARS.AGENT_PROMPT_CORE).not.toBe(staleCore);
+      expect(settings.INJECT_ENV_VARS.AGENT_PROMPT_CORE).toBe(customCore);
+    });
+
+    it('custom AGENT_PROMPT_CORE survives an unrelated settings save', async () => {
+      const customCore: string = 'Persist me across later saves';
+      const settingsPath: string = path.join(testUserDataPath, 'settings.json');
+      await fs.writeFile(settingsPath, JSON.stringify({
+        darkMode: false,
+        INJECT_ENV_VARS: { AGENT_PROMPT_CORE: customCore }
+      }), 'utf-8');
+
+      const loadedSettings: VTSettings = await loadSettings();
+      await saveSettings({ ...loadedSettings, darkMode: true });
+
+      clearSettingsCache();
+      const reloadedSettings: VTSettings = await loadSettings();
+
+      expect(reloadedSettings.darkMode).toBe(true);
+      expect(reloadedSettings.INJECT_ENV_VARS.AGENT_PROMPT_CORE).toBe(customCore);
     });
   });
 });

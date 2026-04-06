@@ -24,6 +24,7 @@ import {
     expandFolder,
     isFolderCollapsed,
     addOrUpdateSyntheticEdge,
+    toggleFolderCollapse,
 } from '@/shell/edge/UI-edge/graph/folderCollapse'
 import { findCollapsedAncestor } from '@vt/graph-model/pure/graph/folderCollapse'
 import { getFolderTreeState } from '@/shell/edge/UI-edge/state/FolderTreeStore'
@@ -176,6 +177,35 @@ describe('BF-113: Synthetic Edges on Collapsed Folders', () => {
             const synth: CollectionReturnValue = cy.getElementById('synthetic:s4b/sub/:in:s4b-nodeA')
             expect(synth.length).toBe(1)
             expect(synth.data('target')).toBe('s4b/sub/')
+        })
+
+        it('should restore nested descendants when expanding an outer folder', async () => {
+            cy.add([
+                { group: 'nodes', data: { id: 's4e/', isFolderNode: true, folderLabel: 's4e' } },
+                { group: 'nodes', data: { id: 's4e/sub/', isFolderNode: true, folderLabel: 'sub', parent: 's4e/' } },
+                { group: 'nodes', data: { id: 's4e/sub/deep.md', label: 'Deep', parent: 's4e/sub/' }, position: { x: 120, y: 100 } },
+            ])
+
+            collapseFolder(cy, 's4e/')
+            expect(cy.getElementById('s4e/sub/deep.md').length).toBe(0)
+
+            const O: typeof import('fp-ts/lib/Option.js') = await import('fp-ts/lib/Option.js')
+            mockGetGraph.mockResolvedValue({
+                nodes: {
+                    's4e/sub/deep.md': {
+                        absoluteFilePathIsID: 's4e/sub/deep.md',
+                        contentWithoutYamlOrLinks: '# Deep',
+                        outgoingEdges: [],
+                        nodeUIMetadata: { color: O.none, position: O.some({ x: 120, y: 100 }), isContextNode: false }
+                    }
+                },
+                incomingEdgesIndex: new Map()
+            })
+
+            await expandFolder(cy, 's4e/')
+
+            expect(cy.getElementById('s4e/sub/').length).toBe(1)
+            expect(cy.getElementById('s4e/sub/deep.md').length).toBe(1)
         })
     })
 
@@ -376,6 +406,148 @@ describe('BF-113: Synthetic Edges on Collapsed Folders', () => {
             ])
             collapseFolder(cy, 'guard/')
             expect(cy.getElementById('guard/').data('childCount')).toBe(2)
+        })
+    })
+
+    describe('expandFolder failure handling', () => {
+        it('should collapse an expanded folder when toggleFolderCollapse is called', async () => {
+            cy.add([
+                { group: 'nodes', data: { id: 'toggle-collapse/', isFolderNode: true, folderLabel: 'toggle-collapse' } },
+                { group: 'nodes', data: { id: 'toggle-collapse/child.md', parent: 'toggle-collapse/' }, position: { x: 0, y: 0 } },
+            ])
+
+            await toggleFolderCollapse(cy, 'toggle-collapse/')
+
+            expect(cy.getElementById('toggle-collapse/child.md').length).toBe(0)
+            expect(cy.getElementById('toggle-collapse/').data('collapsed')).toBe(true)
+            expect(cy.getElementById('toggle-collapse/').data('childCount')).toBe(1)
+            expect(isFolderCollapsed('toggle-collapse/')).toBe(true)
+        })
+
+        it('should expand a collapsed folder when toggleFolderCollapse is called', async () => {
+            cy.add([
+                { group: 'nodes', data: { id: 'toggle-expand-external.md', label: 'External' }, position: { x: 0, y: 0 } },
+                { group: 'nodes', data: { id: 'toggle-expand/', isFolderNode: true, folderLabel: 'toggle-expand' } },
+                { group: 'nodes', data: { id: 'toggle-expand/child.md', parent: 'toggle-expand/' }, position: { x: 100, y: 0 } },
+                { group: 'edges', data: { id: 'toggle-expand-external.md->toggle-expand/child.md', source: 'toggle-expand-external.md', target: 'toggle-expand/child.md', label: 'ref' } },
+            ])
+
+            collapseFolder(cy, 'toggle-expand/')
+            expect(cy.getElementById('synthetic:toggle-expand/:in:toggle-expand-external.md').length).toBe(1)
+
+            const O: typeof import('fp-ts/lib/Option.js') = await import('fp-ts/lib/Option.js')
+            mockGetGraph.mockResolvedValue({
+                nodes: {
+                    'toggle-expand-external.md': {
+                        absoluteFilePathIsID: 'toggle-expand-external.md',
+                        contentWithoutYamlOrLinks: '# External',
+                        outgoingEdges: [{ targetId: 'toggle-expand/child.md', label: 'ref' }],
+                        nodeUIMetadata: { color: O.none, position: O.some({ x: 0, y: 0 }), isContextNode: false }
+                    },
+                    'toggle-expand/child.md': {
+                        absoluteFilePathIsID: 'toggle-expand/child.md',
+                        contentWithoutYamlOrLinks: '# Child',
+                        outgoingEdges: [],
+                        nodeUIMetadata: { color: O.none, position: O.some({ x: 100, y: 0 }), isContextNode: false }
+                    }
+                },
+                incomingEdgesIndex: new Map([['toggle-expand/child.md', ['toggle-expand-external.md']]])
+            })
+
+            await toggleFolderCollapse(cy, 'toggle-expand/')
+
+            expect(cy.getElementById('synthetic:toggle-expand/:in:toggle-expand-external.md').length).toBe(0)
+            expect(cy.getElementById('toggle-expand/child.md').length).toBe(1)
+            expect(cy.getElementById('toggle-expand-external.md->toggle-expand/child.md').length).toBe(1)
+            expect(cy.getElementById('toggle-expand/').data('collapsed')).toBe(false)
+            expect(cy.getElementById('toggle-expand/').data('childCount')).toBeUndefined()
+            expect(isFolderCollapsed('toggle-expand/')).toBe(false)
+        })
+
+        it('should roll back folder data when graph retrieval rejects', async () => {
+            cy.add([
+                { group: 'nodes', data: { id: 'expand-reject/', isFolderNode: true, folderLabel: 'expand-reject' } },
+                { group: 'nodes', data: { id: 'expand-reject/child.md', parent: 'expand-reject/' }, position: { x: 0, y: 0 } },
+            ])
+
+            collapseFolder(cy, 'expand-reject/')
+            const folder: CollectionReturnValue = cy.getElementById('expand-reject/')
+
+            mockGetGraph.mockRejectedValue(new Error('IPC failed'))
+
+            await expandFolder(cy, 'expand-reject/')
+
+            expect(folder.data('collapsed')).toBe(true)
+            expect(folder.data('childCount')).toBe(1)
+            expect(isFolderCollapsed('expand-reject/')).toBe(true)
+        })
+
+        it('should keep a folder collapsed when graph retrieval resolves undefined', async () => {
+            cy.add([
+                { group: 'nodes', data: { id: 'expand-undefined/', isFolderNode: true, folderLabel: 'expand-undefined' } },
+                { group: 'nodes', data: { id: 'expand-undefined/child.md', parent: 'expand-undefined/' }, position: { x: 0, y: 0 } },
+            ])
+
+            collapseFolder(cy, 'expand-undefined/')
+            const folder: CollectionReturnValue = cy.getElementById('expand-undefined/')
+
+            expect(folder.data('collapsed')).toBe(true)
+            expect(folder.data('childCount')).toBe(1)
+
+            mockGetGraph.mockResolvedValue(undefined)
+
+            await expandFolder(cy, 'expand-undefined/')
+
+            expect(folder.data('collapsed')).toBe(true)
+            expect(folder.data('childCount')).toBe(1)
+            expect(isFolderCollapsed('expand-undefined/')).toBe(true)
+        })
+
+        it('should ignore collapseFolder calls while expandFolder is in flight', async () => {
+            cy.add([
+                { group: 'nodes', data: { id: 'expand-guard/', isFolderNode: true, folderLabel: 'expand-guard' } },
+                { group: 'nodes', data: { id: 'expand-guard/child.md', parent: 'expand-guard/' }, position: { x: 40, y: 0 } },
+            ])
+
+            collapseFolder(cy, 'expand-guard/')
+            const folder: CollectionReturnValue = cy.getElementById('expand-guard/')
+
+            let resolveGraph: (graph: unknown) => void = () => {}
+            const graphPromise: Promise<unknown> = new Promise((resolve) => {
+                resolveGraph = resolve
+            })
+            mockGetGraph.mockReturnValue(graphPromise)
+
+            const expandPromise: Promise<void> = expandFolder(cy, 'expand-guard/')
+
+            expect(folder.data('collapsed')).toBe(false)
+            expect(folder.data('childCount')).toBeUndefined()
+
+            collapseFolder(cy, 'expand-guard/')
+
+            expect(folder.data('collapsed')).toBe(false)
+            expect(folder.data('childCount')).toBeUndefined()
+            expect(isFolderCollapsed('expand-guard/')).toBe(true)
+
+            const O: typeof import('fp-ts/lib/Option.js') = await import('fp-ts/lib/Option.js')
+            resolveGraph({
+                nodes: {
+                    'expand-guard/child.md': {
+                        absoluteFilePathIsID: 'expand-guard/child.md',
+                        contentWithoutYamlOrLinks: '# Child',
+                        outgoingEdges: [],
+                        nodeUIMetadata: { color: O.none, position: O.some({ x: 40, y: 0 }), isContextNode: false }
+                    }
+                },
+                incomingEdgesIndex: new Map()
+            })
+
+            await expandPromise
+
+            expect(cy.getElementById('expand-guard/child.md').length).toBe(1)
+            expect(folder.data('collapsed')).toBe(false)
+            expect(folder.data('childCount')).toBeUndefined()
+            expect(isFolderCollapsed('expand-guard/')).toBe(false)
         })
     })
 })

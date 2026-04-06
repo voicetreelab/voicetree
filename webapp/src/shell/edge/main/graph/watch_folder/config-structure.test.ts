@@ -29,6 +29,7 @@ import {
 } from './voicetree-config-io'
 import { resolveWritePath } from './vault-allowlist'
 import type { VaultConfig } from '@vt/graph-model/pure/settings/types'
+import { initGraphModel } from '@vt/graph-model'
 
 describe('Section 1: Config Structure Changes', () => {
   let testTmpDir: string
@@ -37,6 +38,7 @@ describe('Section 1: Config Structure Changes', () => {
     testTmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'config-structure-test-'))
     // Ensure mock userData path exists
     await fs.mkdir(mockUserDataPath, { recursive: true })
+    initGraphModel({ appSupportPath: mockUserDataPath })
   })
 
   afterEach(async () => {

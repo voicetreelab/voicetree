@@ -29,6 +29,8 @@ import * as path from 'path'
 import { setGraph } from '@/shell/edge/main/state/graph-store'
 import { setVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
+import { initGraphModel, setProjectRootWatchedDirectory as setProjectRootReal } from '@vt/graph-model'
+import { applyGraphDeltaToGraph } from '@vt/graph-model/pure/graph/graphDelta/applyGraphDeltaToGraph'
 
 // State managed by mocked globals - using module-level state that the mock functions will access
 let currentGraph: Graph | null = null
@@ -154,18 +156,28 @@ async function ensureHandlersImported(): Promise<void> {
     }
 }
 
+function syncMockGraph(delta: GraphDelta): void {
+    if (!currentGraph) {
+        throw new Error('Graph not initialized')
+    }
+    currentGraph = applyGraphDeltaToGraph(currentGraph, delta)
+    setGraph(currentGraph)
+}
+
 describe('createNewChildNodeFromUI - Integration with Filesystem', () => {
     let cy: Core
     let mockGraph: Graph
 
     beforeEach(async () => {
+        initGraphModel({ appSupportPath: '/tmp/test-userdata-ui-actions' })
         // Import IPC handlers once - they auto-register on import
         await ensureHandlersImported()
         // Create temporary vault directory
         tempVault = path.join('/tmp', `test-vault-ui-${Date.now()}`)
         await fs.mkdir(tempVault, { recursive: true })
 
-        // Set vault path in graph store
+        // Set vault path in graph store and real graph-model state
+        setProjectRootReal(tempVault)
         setVaultPath(tempVault)
 
         // Create initial markdown files with frontmatter and wikilinks
@@ -253,6 +265,7 @@ Child content`
                     getNode: mainAPI.getNode,
                     applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
                         await mainAPI.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta)
+                        syncMockGraph(delta)
                         // Also update cytoscape UI since file watching is mocked
                         applyGraphDeltaToUI(cy, delta)
                     }
@@ -346,13 +359,15 @@ describe('deleteNodesFromUI - Integration with Filesystem', () => {
     let mockGraph: Graph
 
     beforeEach(async () => {
+        initGraphModel({ appSupportPath: '/tmp/test-userdata-ui-actions' })
         // Import IPC handlers once - they auto-register on import
         await ensureHandlersImported()
         // Create temporary vault directory
         tempVault = path.join('/tmp', `test-vault-delete-${Date.now()}`)
         await fs.mkdir(tempVault, { recursive: true })
 
-        // Set vault path in graph store
+        // Set vault path in graph store and real graph-model state
+        setProjectRootReal(tempVault)
         setVaultPath(tempVault)
 
         // Create initial markdown files
@@ -440,6 +455,7 @@ Child content`
                     getNode: mainAPI.getNode,
                     applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
                         await mainAPI.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta)
+                        syncMockGraph(delta)
                         // Also update cytoscape UI since file watching is mocked
                         applyGraphDeltaToUI(cy, delta)
                     }

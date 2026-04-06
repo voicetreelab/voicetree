@@ -1,64 +1,26 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { MockInstance } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { notifyTextToTreeServerOfDirectory } from './notifyTextToTreeServerOfDirectory';
-import * as backendApi from '@/shell/edge/main/backend-api';
+import { initGraphModel } from '@vt/graph-model';
 
 describe('notifyTextToTreeServerOfDirectory', () => {
+  let mockNotifyWriteDirectory: ReturnType<typeof vi.fn>;
+
   beforeEach(() => {
-    vi.useFakeTimers();
+    mockNotifyWriteDirectory = vi.fn();
+    initGraphModel(
+      { appSupportPath: '/tmp/test-notify' },
+      { notifyWriteDirectory: mockNotifyWriteDirectory }
+    );
   });
 
-  afterEach(() => {
-    vi.restoreAllMocks();
-    vi.useRealTimers();
-  });
-
-  it('should successfully notify backend when it is ready immediately', async () => {
-    // GIVEN: Backend succeeds
-    const loadDirMock: MockInstance<(directoryPath: string) => Promise<backendApi.LoadDirectoryResponse>> = vi.spyOn(backendApi, 'tellSTTServerToLoadDirectory')
-      .mockResolvedValue({
-        status: 'success',
-        message: 'Directory loaded',
-        directory: '/test/path',
-        nodes_loaded: 5
-      });
-
-    // WHEN: Notify about directory
+  it('should call notifyWriteDirectory callback with directory path', () => {
     notifyTextToTreeServerOfDirectory('/test/path');
-
-    // THEN: Should call backend immediately
-    await vi.runOnlyPendingTimersAsync();
-
-    expect(loadDirMock).toHaveBeenCalledWith('/test/path');
-    expect(loadDirMock).toHaveBeenCalledTimes(1);
+    expect(mockNotifyWriteDirectory).toHaveBeenCalledWith('/test/path');
+    expect(mockNotifyWriteDirectory).toHaveBeenCalledTimes(1);
   });
 
-  it('should retry on failure until backend succeeds', async () => {
-    // GIVEN: Backend fails twice, then succeeds
-    const loadDirMock: MockInstance<(directoryPath: string) => Promise<backendApi.LoadDirectoryResponse>> = vi.spyOn(backendApi, 'tellSTTServerToLoadDirectory')
-      .mockRejectedValueOnce(new Error('Connection error'))
-      .mockRejectedValueOnce(new Error('Connection error'))
-      .mockResolvedValueOnce({
-        status: 'success',
-        message: 'Directory loaded',
-        directory: '/test/path',
-        nodes_loaded: 5
-      });
-
-    // WHEN: Notify about directory
-    notifyTextToTreeServerOfDirectory('/test/path');
-
-    // THEN: First attempt fails
-    await vi.advanceTimersByTimeAsync(0);
-    expect(loadDirMock).toHaveBeenCalledTimes(1);
-
-    // THEN: Second attempt after 5 seconds
-    await vi.advanceTimersByTimeAsync(5000);
-    expect(loadDirMock).toHaveBeenCalledTimes(2);
-
-    // THEN: Third attempt succeeds after another 5 seconds
-    await vi.advanceTimersByTimeAsync(5000);
-    expect(loadDirMock).toHaveBeenCalledWith('/test/path');
-    expect(loadDirMock).toHaveBeenCalledTimes(3);
+  it('should not throw when notifyWriteDirectory callback is not set', () => {
+    initGraphModel({ appSupportPath: '/tmp/test-notify' }, {});
+    expect(() => notifyTextToTreeServerOfDirectory('/test/path')).not.toThrow();
   });
 });

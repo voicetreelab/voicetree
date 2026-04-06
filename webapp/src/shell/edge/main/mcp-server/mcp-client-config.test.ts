@@ -3,14 +3,16 @@ import path from 'path';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as mcpClientConfig from './mcp-client-config';
 
-describe('mcp-client-config: OpenCode integration', () => {
-    const testDir: string = '/tmp/test-voicetree-mcp-opencode';
-    const opencodeConfigPath: string = path.join(testDir, 'opencode.jsonc');
+// Hoist testDir so the vi.mock factory can reference it (vi.mock is hoisted above describe)
+const testDir: string = '/tmp/test-voicetree-mcp-opencode';
 
-    // Mock the watch folder store
-    vi.mock('@/shell/edge/main/state/watch-folder-store', () => ({
-        getProjectRootWatchedDirectory: vi.fn(() => testDir)
-    }));
+// Mock the watch folder store
+vi.mock('@/shell/edge/main/state/watch-folder-store', () => ({
+    getProjectRootWatchedDirectory: vi.fn(() => testDir)
+}));
+
+describe('mcp-client-config: OpenCode integration', () => {
+    const opencodeConfigPath: string = path.join(testDir, 'opencode.jsonc');
 
     // Mock the MCP server port
     vi.mock('./mcp-server', () => ({

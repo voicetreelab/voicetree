@@ -16,6 +16,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import { createNewChildNodeFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions'
 import type { Graph, GraphNode, GraphDelta } from '@vt/graph-model/pure/graph'
 import { createGraph } from '@vt/graph-model/pure/graph/createGraph'
+import { applyGraphDeltaToGraph } from '@vt/graph-model/pure/graph/graphDelta/applyGraphDeltaToGraph'
 import { getNodeTitle } from '@vt/graph-model/pure/graph/markdown-parsing'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
 import {modifyNodeContentFromUI} from "@/shell/edge/UI-edge/floating-windows/editors/modifyNodeContentFromFloatingEditor";
@@ -103,14 +104,9 @@ describe('createNewChildNodeFromUI - Integration', () => {
         // Mock window.electronAPI
         // Mock applyGraphDeltaToDBThroughMem to also update the cytoscape UI and mockGraph
         const mockApplyDelta: (delta: GraphDelta) => Promise<void> = vi.fn().mockImplementation(async (delta: GraphDelta) => {
-            // Apply the delta to the cytoscape instance to simulate the UI update
+            mockGraph = applyGraphDeltaToGraph(mockGraph, delta)
+            // Apply the delta to the cytoscape instance after getNode can see the new graph state.
             applyGraphDeltaToUI(cy, delta)
-            // Also update mockGraph so getNode works for newly created nodes
-            delta.forEach((action) => {
-                if (action.type === 'UpsertNode') {
-                    mockGraph.nodes[action.nodeToUpsert.absoluteFilePathIsID] = action.nodeToUpsert
-                }
-            })
             return undefined
         })
 
@@ -265,12 +261,12 @@ describe('modifyNodeContentFromUI - Integration', () => {
                 main: {
                     getGraph: vi.fn().mockReturnValue(mockGraph),
                     applyGraphDeltaToDBThroughMemUIAndEditorExposed: vi.fn().mockImplementation(async (delta: GraphDelta) => {
-                        // Apply the delta to the cytoscape instance to simulate the UI update
+                        mockGraph = applyGraphDeltaToGraph(mockGraph, delta)
                         applyGraphDeltaToUI(cy, delta)
                         return undefined
                     }),
                     applyGraphDeltaToDBThroughMemAndUIExposed: vi.fn().mockImplementation(async (delta: GraphDelta) => {
-                        // Apply the delta to the cytoscape instance to simulate the UI update
+                        mockGraph = applyGraphDeltaToGraph(mockGraph, delta)
                         applyGraphDeltaToUI(cy, delta)
                         return undefined
                     }),

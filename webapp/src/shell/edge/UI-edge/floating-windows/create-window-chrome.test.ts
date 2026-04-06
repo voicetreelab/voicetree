@@ -49,6 +49,7 @@ describe('createWindowChrome', () => {
             style: [],
             layout: { name: 'preset' },
         });
+        (window as unknown as { cytoscapeInstance?: Core }).cytoscapeInstance = cy;
 
         editorData = createEditorData({
             contentLinkedToNodeId: 'test-node.md',
@@ -62,6 +63,7 @@ describe('createWindowChrome', () => {
         if (cy) {
             cy.destroy();
         }
+        delete (window as unknown as { cytoscapeInstance?: Core }).cytoscapeInstance;
         if (container) {
             container.remove();
         }
@@ -542,19 +544,30 @@ describe('createWindowChrome', () => {
                 expect(contextBadge).not.toBeNull();
 
                 // Context badge now only has title, no icon
-                const titleSpan: Element | null = contextBadge!.querySelector('.terminal-context-badge-title');
+                const titleSpan: Element | null = contextBadge!.querySelector('.terminal-context-dropdown-btn span:last-child');
                 expect(titleSpan).not.toBeNull();
             });
 
-            it('should show truncated title in context badge (max 20 chars)', () => {
+            it('should show truncated title in context badge (max 100 chars)', () => {
+                contextTerminalData = createTerminalData({
+                    terminalId: contextTerminalId,
+                    attachedToNodeId: 'ctx-nodes/parent-node_context_1.md',
+                    terminalCount: 0,
+                    title: 'Context terminal title that is intentionally long enough to require truncation when rendered inside the dropdown badge',
+                    anchoredToNodeId: 'ctx-nodes/parent-node_context_1.md',
+                    resizable: true,
+                    agentName: 'context-agent',
+                });
+
                 const result: FloatingWindowUIData = createWindowChrome(cy, contextTerminalData, contextTerminalId);
 
-                const badgeTitle: HTMLElement | null = result.windowElement.querySelector('.terminal-context-badge-title');
+                const badgeTitle: HTMLElement | null = result.windowElement.querySelector('.terminal-context-dropdown-btn span:last-child');
                 expect(badgeTitle).not.toBeNull();
 
-                // Title should be truncated if longer than 20 chars
+                // Title should be truncated if longer than 100 chars.
                 const titleText: string = badgeTitle!.textContent ?? '';
-                expect(titleText.length).toBeLessThanOrEqual(23); // 20 chars + "..." if truncated
+                expect(titleText.endsWith('...')).toBe(true);
+                expect(titleText.length).toBeLessThanOrEqual(103); // 100 chars + "..."
             });
         });
 

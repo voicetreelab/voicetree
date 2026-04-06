@@ -30,6 +30,7 @@ import { clearRecentDeltas } from '@/shell/edge/main/state/recent-deltas-store'
 import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange";
+import { initGraphModel } from '@vt/graph-model'
 
 // Voicetree subfolder (watched by chokidar when loadFolder is called)
 const VOICETREE_DIR: string = path.join(EXAMPLE_SMALL_PATH, 'voicetree')
@@ -55,6 +56,7 @@ vi.mock('@/shell/edge/main/state/app-electron-state', () => ({
 
 describe('saveNodePositions - Integration Tests', () => {
     beforeEach(() => {
+        initGraphModel({ appSupportPath: '/tmp/test-userdata-save-positions' })
         // Initialize state with empty graph and example_small vault path
         setGraph(createGraph({}))
         setVaultPath(EXAMPLE_SMALL_PATH)

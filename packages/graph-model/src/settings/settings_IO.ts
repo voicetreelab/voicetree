@@ -28,15 +28,14 @@ export async function loadSettings(): Promise<VTSettings> {
   try {
     const data: string = await fs.readFile(settingsPath, 'utf-8');
     const userSettings: Partial<VTSettings> = JSON.parse(data) as Partial<VTSettings>;
-    // Shallow merge at top level; deep-merge INJECT_ENV_VARS so new default keys always reach users.
-    // AGENT_PROMPT_CORE is force-set to current default so it's never stale (no migration needed).
+    // Shallow merge at top level; deep-merge INJECT_ENV_VARS so new default keys always reach users
+    // without clobbering user-owned overrides such as AGENT_PROMPT_CORE.
     settingsCache = {
       ...DEFAULT_SETTINGS,
       ...userSettings,
       INJECT_ENV_VARS: {
         ...DEFAULT_SETTINGS.INJECT_ENV_VARS,
         ...userSettings.INJECT_ENV_VARS,
-        AGENT_PROMPT_CORE: DEFAULT_SETTINGS.INJECT_ENV_VARS.AGENT_PROMPT_CORE as string,
       },
     };
     settingsCacheTime = now;

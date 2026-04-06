@@ -25,6 +25,7 @@ import path from 'path'
 import { promises as fs } from 'fs'
 import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths'
 import { waitForCondition, waitForWatcherReady, waitForFSEvent } from '@/utils/test-utils/waitForCondition'
+import { initGraphModel } from '@vt/graph-model'
 
 // Track IPC broadcasts
 interface BroadcastCall {
@@ -55,6 +56,9 @@ vi.mock('electron', () => ({
 
 describe('File Watching - Edge Management Tests', () => {
   beforeEach(() => {
+    // Initialize graph model (replaces electron app.getPath mock)
+    initGraphModel({ appSupportPath: '/tmp/test-userdata-file-watching' })
+
     // Reset graph state
     setGraph(createEmptyGraph())
     setVaultPath('')

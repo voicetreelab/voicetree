@@ -2,6 +2,10 @@ import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import type { Graph, GraphNode } from './'
 import {
+    getFolderParent,
+    getFolderChildNodeIds,
+    getFolderDescendantNodeIds,
+    getSubFolderPaths,
     computeSyntheticEdgeSpecs,
     computeExpandPlan,
     findCollapsedAncestor,
@@ -47,6 +51,79 @@ function makeGraph(
         unresolvedLinksIndex: new Map()
     }
 }
+
+// ── helper exports ──
+
+describe('getFolderParent', () => {
+    it('should return the parent folder for nested files and folders', () => {
+        expect(getFolderParent('folder/child.md')).toBe('folder/')
+        expect(getFolderParent('folder/sub/')).toBe('folder/sub/')
+    })
+
+    it('should return null for root-level files', () => {
+        expect(getFolderParent('root.md')).toBeNull()
+    })
+})
+
+describe('getFolderChildNodeIds', () => {
+    it('should return only direct non-context children of a folder', () => {
+        const nodes: Record<string, GraphNode> = {
+            'folder/direct.md': makeNode(),
+            'folder/context.md': makeNode({
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.none,
+                    additionalYAMLProps: new Map(),
+                    isContextNode: true
+                }
+            }),
+            'folder/sub/nested.md': makeNode(),
+            'outside.md': makeNode()
+        }
+
+        expect(getFolderChildNodeIds(nodes, 'folder/')).toEqual(['folder/direct.md'])
+    })
+})
+
+describe('getFolderDescendantNodeIds', () => {
+    it('should include nested descendants while excluding context nodes', () => {
+        const nodes: Record<string, GraphNode> = {
+            'folder/direct.md': makeNode(),
+            'folder/sub/nested.md': makeNode(),
+            'folder/context.md': makeNode({
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.none,
+                    additionalYAMLProps: new Map(),
+                    isContextNode: true
+                }
+            }),
+            'outside.md': makeNode()
+        }
+
+        expect(getFolderDescendantNodeIds(nodes, 'folder/')).toEqual([
+            'folder/direct.md',
+            'folder/sub/nested.md'
+        ])
+    })
+})
+
+describe('getSubFolderPaths', () => {
+    it('should derive unique immediate subfolders from nested descendants', () => {
+        const nodes: Record<string, GraphNode> = {
+            'folder/direct.md': makeNode(),
+            'folder/alpha/one.md': makeNode(),
+            'folder/alpha/two.md': makeNode(),
+            'folder/beta/nested/three.md': makeNode(),
+            'outside/gamma.md': makeNode()
+        }
+
+        expect(getSubFolderPaths(nodes, 'folder/')).toEqual([
+            'folder/alpha/',
+            'folder/beta/'
+        ])
+    })
+})
 
 // ── computeSyntheticEdgeSpecs ──
 
@@ -130,6 +207,32 @@ describe('computeSyntheticEdgeSpecs', () => {
         )
         expect(result[0].syntheticEdgeId).toBe('synthetic:auth/:in:home.md')
     })
+
+    it('should partition specs by direction even for the same external node', () => {
+        const result = computeSyntheticEdgeSpecs(
+            'folder/',
+            new Set(['folder/', 'folder/a.md', 'folder/b.md']),
+            [
+                { sourceId: 'folder/a.md', targetId: 'peer.md', label: 'out' },
+                { sourceId: 'peer.md', targetId: 'folder/b.md', label: 'in' }
+            ]
+        )
+
+        expect(result).toEqual([
+            {
+                syntheticEdgeId: 'synthetic:folder/:out:peer.md',
+                direction: 'outgoing',
+                externalNodeId: 'peer.md',
+                originalEdges: [{ sourceId: 'folder/a.md', targetId: 'peer.md', label: 'out' }]
+            },
+            {
+                syntheticEdgeId: 'synthetic:folder/:in:peer.md',
+                direction: 'incoming',
+                externalNodeId: 'peer.md',
+                originalEdges: [{ sourceId: 'peer.md', targetId: 'folder/b.md', label: 'in' }]
+            }
+        ])
+    })
 })
 
 // ── computeExpandPlan ──
@@ -166,8 +269,9 @@ describe('computeExpandPlan', () => {
             new Set(['folder/'])
         )
         expect(plan.subFolders).toContain('folder/sub/')
-        // nested.md is a child of sub/, not folder/ — so not in childNodes
-        expect(plan.childNodes).toHaveLength(0)
+        // nested.md is a child of sub/ (non-collapsed), restored via subfolder expansion
+        expect(plan.childNodes).toHaveLength(1)
+        expect(plan.childNodes[0].id).toBe('folder/sub/nested.md')
     })
 
     it('should create synthetic edges when target is in collapsed folder', () => {
@@ -288,6 +392,13 @@ describe('absolutePathToGraphFolderId', () => {
     it('should handle nested paths', () => {
         expect(absolutePathToGraphFolderId(
             '/Users/bob/project/src/components/ui',
+            '/Users/bob/project/src'
+        )).toBe('components/ui/')
+    })
+
+    it('should normalize a trailing slash on child folder paths', () => {
+        expect(absolutePathToGraphFolderId(
+            '/Users/bob/project/src/components/ui/',
             '/Users/bob/project/src'
         )).toBe('components/ui/')
     })

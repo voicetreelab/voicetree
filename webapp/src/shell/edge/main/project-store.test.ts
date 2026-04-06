@@ -13,6 +13,7 @@ vi.mock('electron', () => ({
 
 import { app } from 'electron';
 import { loadProjects, saveProject, removeProject } from './project-store';
+import { initGraphModel } from '@vt/graph-model';
 
 describe('project-store', () => {
     let testDir: string;
@@ -23,8 +24,8 @@ describe('project-store', () => {
         testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-store-test-'));
         projectsFilePath = path.join(testDir, 'projects.json');
 
-        // Mock app.getPath to return our test directory
-        vi.mocked(app.getPath).mockReturnValue(testDir);
+        // Initialize graph model with test appSupportPath (replaces app.getPath('userData'))
+        initGraphModel({ appSupportPath: testDir });
     });
 
     afterEach(async () => {

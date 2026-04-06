@@ -38,12 +38,15 @@ import { promises as fs } from 'fs'
 import path from 'path'
 import type { NodeIdAndFilePath, Edge, GraphNode, Graph } from '@vt/graph-model/pure/graph'
 import type { FileLimitExceededError } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce'
+import { initGraphModel } from '@vt/graph-model'
 
 describe('createContextNode - Integration Tests', () => {
   let createdContextNodeId: NodeIdAndFilePath | null = null
   let parentNodeBackups: Map<NodeIdAndFilePath, string> = new Map()
 
   beforeEach(async () => {
+    initGraphModel({ appSupportPath: '/tmp/test-userdata-context-node' })
+
     // Initialize vault path with example_small fixture
     setVaultPath(EXAMPLE_SMALL_PATH)
 

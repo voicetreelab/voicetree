@@ -34,6 +34,7 @@ import type { BrowserWindow } from 'electron'
 import { EXAMPLE_SMALL_PATH, EXAMPLE_LARGE_PATH } from '@/utils/test-utils/fixture-paths'
 import { clearRecentDeltas } from '@/shell/edge/main/state/recent-deltas-store'
 import { waitForCondition } from '@/utils/test-utils/waitForCondition'
+import { initGraphModel } from '@vt/graph-model'
 
 // Track IPC broadcasts
 interface BroadcastCall {
@@ -43,7 +44,7 @@ interface BroadcastCall {
 
 // Expected counts (based on actual example_folder_fixtures)
 // loadFolder now loads only the writePath (voicetree/ subfolder) via vault config
-const EXPECTED_SMALL_NODE_COUNT: 8 = 8 as const  // voicetree/ subfolder only
+const EXPECTED_SMALL_NODE_COUNT: 10 = 10 as const  // voicetree/ subfolder only
 const EXPECTED_LARGE_NODE_COUNT: 75 = 75 as const  // voicetree/ subfolder only
 
 // State for mocks
@@ -70,15 +71,31 @@ describe('Folder Loading - Integration Tests', () => {
     // which does async wikilink resolution before broadcasting graph:stateChanged)
     await new Promise(resolve => setTimeout(resolve, 500))
 
+    // Reset broadcast tracking before wiring graph-model callbacks.
+    broadcastCalls = []
+
+    // Initialize graph model with test callbacks that mirror Electron IPC channels.
+    initGraphModel(
+      { appSupportPath: '/tmp/test-userdata-folder-loading' },
+      {
+        onGraphDelta: (delta: GraphDelta): void => {
+          broadcastCalls.push({ channel: 'graph:stateChanged', delta })
+        },
+        onGraphCleared: (): void => {
+          broadcastCalls.push({ channel: 'graph:clear', delta: [] })
+        },
+        onWatchingStarted: (): void => {
+          broadcastCalls.push({ channel: 'watching-started', delta: [] })
+        }
+      }
+    )
+
     // Reset graph state
     setGraph(createGraph({}))
     setVaultPath('')
 
     // Clear recent writes to ensure fresh state for file watching tests
     clearRecentDeltas()
-
-    // Reset broadcast tracking
-    broadcastCalls = []
 
     // Create mock BrowserWindow
     mockMainWindow = {

@@ -9,6 +9,7 @@ vi.mock('@/shell/edge/main/terminals/terminal-registry', () => ({
 
 vi.mock('@/shell/edge/main/mcp-server/agent-completion-monitor', () => ({
     startMonitor: vi.fn(),
+    isTerminalIdAlreadyMonitoredForCaller: vi.fn(() => false),
 }))
 
 import {waitForAgentsTool} from '@/shell/edge/main/mcp-server/mcp-server'

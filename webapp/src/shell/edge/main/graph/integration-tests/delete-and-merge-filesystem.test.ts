@@ -29,6 +29,7 @@ import * as path from 'path'
 import { setGraph } from '@/shell/edge/main/state/graph-store'
 import { setVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
+import { initGraphModel, setProjectRootWatchedDirectory } from '@vt/graph-model'
 
 // State managed by mocked globals
 let currentGraph: Graph | null = null
@@ -196,19 +197,22 @@ describe('Delete with Edge Preservation - Filesystem Integration', () => {
     let cy: Core
 
     beforeEach(async () => {
+        initGraphModel({ appSupportPath: '/tmp/test-userdata-delete-merge' })
         await ensureHandlersImported()
         tempVault = path.join('/tmp', `test-vault-delete-edges-${Date.now()}`)
         await fs.mkdir(tempVault, { recursive: true })
         setVaultPath(tempVault)
+        setProjectRootWatchedDirectory(tempVault)
     })
 
     afterEach(async () => {
         cy?.destroy()
         await fs.rm(tempVault, { recursive: true, force: true })
+        setProjectRootWatchedDirectory(null)
         vi.clearAllMocks()
     })
 
-    it('should delete middle node and preserve transitive edge (A → B → C becomes A → C)', async () => {
+    it('should delete middle node and remove the parent edge without transitive healing', async () => {
         // GIVEN: Chain A → B → C on filesystem
         await writeMarkdownFile(tempVault, 'A.md', '# Node A', ['B.md'], { x: 0, y: 0 })
         await writeMarkdownFile(tempVault, 'B.md', '# Node B', ['C.md'], { x: 100, y: 0 })
@@ -256,19 +260,19 @@ describe('Delete with Edge Preservation - Filesystem Integration', () => {
         // THEN: B.md should be deleted from filesystem
         expect(await fileExists(path.join(tempVault, 'B.md'))).toBe(false)
 
-        // AND: A.md should still exist and now contain wikilink to C.md (transitive edge)
+        // AND: A.md should still exist, but its link to the deleted node should be removed.
         expect(await fileExists(path.join(tempVault, 'A.md'))).toBe(true)
         const aLinks: string[] = await readWikilinksFromFile(path.join(tempVault, 'A.md'))
-        expect(aLinks).toContain('C.md')
         expect(aLinks).not.toContain('B.md')
+        expect(aLinks).toEqual([])
 
         // AND: C.md should still exist
         expect(await fileExists(path.join(tempVault, 'C.md'))).toBe(true)
     })
 
-    it('should delete multiple nodes from separate subtrees', async () => {
+    it('should delete multiple nodes from separate subtrees and clean parent edges', async () => {
         // GIVEN: Two separate branches: Parent1 → A → C and Parent2 → B → D
-        // Deleting A and B should preserve transitive edges in each subtree independently
+        // Deleting A and B should remove the direct parent links in each subtree independently.
         await writeMarkdownFile(tempVault, 'Parent1.md', '# Parent 1', ['A.md'], { x: 0, y: 0 })
         await writeMarkdownFile(tempVault, 'A.md', '# Node A', ['C.md'], { x: 0, y: 100 })
         await writeMarkdownFile(tempVault, 'C.md', '# Node C', [], { x: 0, y: 200 })
@@ -324,24 +328,24 @@ describe('Delete with Edge Preservation - Filesystem Integration', () => {
         expect(await fileExists(path.join(tempVault, 'A.md'))).toBe(false)
         expect(await fileExists(path.join(tempVault, 'B.md'))).toBe(false)
 
-        // AND: Parent1.md should now link to C.md (transitive from A → C)
+        // AND: Parent1.md should no longer link to the deleted child.
         const parent1Links: string[] = await readWikilinksFromFile(path.join(tempVault, 'Parent1.md'))
-        expect(parent1Links).toContain('C.md')
         expect(parent1Links).not.toContain('A.md')
+        expect(parent1Links).toEqual([])
 
-        // AND: Parent2.md should now link to D.md (transitive from B → D)
+        // AND: Parent2.md should no longer link to the deleted child.
         const parent2Links: string[] = await readWikilinksFromFile(path.join(tempVault, 'Parent2.md'))
-        expect(parent2Links).toContain('D.md')
         expect(parent2Links).not.toContain('B.md')
+        expect(parent2Links).toEqual([])
 
         // AND: C.md and D.md should still exist
         expect(await fileExists(path.join(tempVault, 'C.md'))).toBe(true)
         expect(await fileExists(path.join(tempVault, 'D.md'))).toBe(true)
     })
 
-    it('should delete multiple CONNECTED nodes in a chain (Parent → A → B → C, delete A and B)', async () => {
+    it('should delete multiple CONNECTED nodes in a chain and remove stale parent edges', async () => {
         // BUG REPRODUCTION: When deleting multiple nodes that are directly connected,
-        // the delta computation uses stale graph state. deleteNodeMaintainingTransitiveEdges
+        // the delta computation uses stale graph state. deleteNodeSimple
         // is called for each node with the ORIGINAL graph, not accounting for other deletions.
         // This can cause crashes or incorrect edge updates when a node being updated is also
         // being deleted.
@@ -395,11 +399,11 @@ describe('Delete with Edge Preservation - Filesystem Integration', () => {
         expect(await fileExists(path.join(tempVault, 'A.md'))).toBe(false)
         expect(await fileExists(path.join(tempVault, 'B.md'))).toBe(false)
 
-        // AND: Parent.md should now link to C.md (skip over deleted A and B)
+        // AND: Parent.md should simply lose its edge to the deleted chain.
         const parentLinks: string[] = await readWikilinksFromFile(path.join(tempVault, 'Parent.md'))
-        expect(parentLinks).toContain('C.md')
         expect(parentLinks).not.toContain('A.md')
         expect(parentLinks).not.toContain('B.md')
+        expect(parentLinks).toEqual([])
 
         // AND: C.md should still exist
         expect(await fileExists(path.join(tempVault, 'C.md'))).toBe(true)
@@ -410,15 +414,18 @@ describe('Merge Operation - Filesystem Integration', () => {
     let cy: Core
 
     beforeEach(async () => {
+        initGraphModel({ appSupportPath: '/tmp/test-userdata-delete-merge' })
         await ensureHandlersImported()
         tempVault = path.join('/tmp', `test-vault-merge-${Date.now()}`)
         await fs.mkdir(tempVault, { recursive: true })
         setVaultPath(tempVault)
+        setProjectRootWatchedDirectory(tempVault)
     })
 
     afterEach(async () => {
         cy?.destroy()
         await fs.rm(tempVault, { recursive: true, force: true })
+        setProjectRootWatchedDirectory(null)
         vi.clearAllMocks()
     })
 
@@ -560,15 +567,18 @@ describe('Merge with Context Nodes - Filesystem Integration', () => {
     let cy: Core
 
     beforeEach(async () => {
+        initGraphModel({ appSupportPath: '/tmp/test-userdata-delete-merge' })
         await ensureHandlersImported()
         tempVault = path.join('/tmp', `test-vault-merge-ctx-${Date.now()}`)
         await fs.mkdir(tempVault, { recursive: true })
         setVaultPath(tempVault)
+        setProjectRootWatchedDirectory(tempVault)
     })
 
     afterEach(async () => {
         cy?.destroy()
         await fs.rm(tempVault, { recursive: true, force: true })
+        setProjectRootWatchedDirectory(null)
         vi.clearAllMocks()
     })
 

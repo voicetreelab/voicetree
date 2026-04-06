@@ -38,6 +38,7 @@ import type { NodeIdAndFilePath, FSUpdate, Graph, GraphDelta } from '@vt/graph-m
 import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange";
+import { initGraphModel } from '@vt/graph-model'
 
 describe('getUnseenNodesAroundContextNode - Integration Tests', () => {
     let createdContextNodeId: NodeIdAndFilePath | null = null
@@ -45,6 +46,8 @@ describe('getUnseenNodesAroundContextNode - Integration Tests', () => {
     let parentNodeBackups: Map<NodeIdAndFilePath, string> = new Map()
 
     beforeEach(async () => {
+        initGraphModel({ appSupportPath: '/tmp/test-userdata-unseen-nodes' })
+
         // Initialize vault path with example_small fixture
         setVaultPath(EXAMPLE_SMALL_PATH)
 

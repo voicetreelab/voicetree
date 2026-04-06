@@ -18,6 +18,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as os from 'os'
+import { initGraphModel } from '@vt/graph-model'
 import * as O from 'fp-ts/lib/Option.js'
 import {
   getVaultPaths,
@@ -84,6 +85,23 @@ let testVaultPath1: string
 let testVaultPath2: string
 let testVaultPath3: string
 let testWatchedDir: string
+
+beforeEach(() => {
+  initGraphModel(
+    { appSupportPath: mockUserDataPath },
+    {
+      onGraphDelta: (delta: GraphDelta): void => {
+        broadcastCalls.push({ channel: 'graph:stateChanged', delta })
+      },
+      onGraphCleared: (): void => {
+        broadcastCalls.push({ channel: 'graph:clear', delta: [] })
+      },
+      onWatchingStarted: (): void => {
+        broadcastCalls.push({ channel: 'watching-started', delta: [] })
+      }
+    }
+  )
+})
 
 describe('Multi-Vault Path Allowlist (7.1)', () => {
   beforeEach(async () => {

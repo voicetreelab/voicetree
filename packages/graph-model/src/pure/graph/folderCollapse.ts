@@ -166,6 +166,35 @@ export function computeExpandPlan(
         })
     }
 
+    // Also include children of non-collapsed subfolders (they should be visible after expand)
+    for (const sf of subFolders) {
+        if (collapsedFolders.has(sf)) continue
+        const sfChildIds: readonly string[] = getFolderChildNodeIds(graph.nodes, sf)
+        for (const sfChildId of sfChildIds) {
+            visibleAfter.add(sfChildId)
+            childNodes.push({
+                id: sfChildId,
+                node: graph.nodes[sfChildId],
+                parentFolder: getFolderParent(sfChildId)
+            })
+        }
+        // Recursively include nested non-collapsed subfolders' children
+        const nestedSubFolders: readonly string[] = getSubFolderPaths(graph.nodes, sf)
+        for (const nsf of nestedSubFolders) {
+            visibleAfter.add(nsf)
+            if (collapsedFolders.has(nsf)) continue
+            const nsfChildIds: readonly string[] = getFolderChildNodeIds(graph.nodes, nsf)
+            for (const nsfChildId of nsfChildIds) {
+                visibleAfter.add(nsfChildId)
+                childNodes.push({
+                    id: nsfChildId,
+                    node: graph.nodes[nsfChildId],
+                    parentFolder: getFolderParent(nsfChildId)
+                })
+            }
+        }
+    }
+
     const realEdges: { readonly id: string; readonly source: string; readonly target: string; readonly label?: string }[] = []
     const syntheticEdges: { readonly folderId: string; readonly direction: 'incoming' | 'outgoing'; readonly externalId: string; readonly original: OriginalEdgeRef }[] = []
     const seenEdgeIds: Set<string> = new Set()
@@ -230,6 +259,79 @@ export function computeExpandPlan(
         }
     }
 
+    // Scan descendants of still-collapsed subfolders for cross-boundary edges.
+    // Without this, expanding B/ while A/ stays collapsed would lose external→A/ synthetics.
+    for (const sf of subFolders) {
+        if (!collapsedFolders.has(sf)) continue
+        const sfDescendantIds: readonly string[] = getFolderDescendantNodeIds(graph.nodes, sf)
+        for (const descId of sfDescendantIds) {
+            const descNode: GraphNode | undefined = graph.nodes[descId]
+            if (!descNode) continue
+
+            // Outgoing edges from subfolder descendants
+            for (const edge of descNode.outgoingEdges) {
+                const edgeId: string = `${descId}->${edge.targetId}`
+                if (seenEdgeIds.has(edgeId)) continue
+                seenEdgeIds.add(edgeId)
+
+                // Skip edges to nodes inside the same still-collapsed subfolder
+                if (edge.targetId.startsWith(sf)) continue
+
+                // Target is visible → synthetic from sf to target's folder (or sf→target)
+                if (visibleAfter.has(edge.targetId)) {
+                    syntheticEdges.push({
+                        folderId: sf,
+                        direction: 'outgoing',
+                        externalId: edge.targetId,
+                        original: { sourceId: descId, targetId: edge.targetId, label: edge.label || undefined }
+                    })
+                } else {
+                    const targetFolder: string | null = findCollapsedAncestor(edge.targetId, collapsedFolders)
+                    if (targetFolder && targetFolder !== sf) {
+                        syntheticEdges.push({
+                            folderId: sf,
+                            direction: 'outgoing',
+                            externalId: targetFolder,
+                            original: { sourceId: descId, targetId: edge.targetId, label: edge.label || undefined }
+                        })
+                    }
+                }
+            }
+
+            // Incoming edges to subfolder descendants
+            for (const incomingId of (graph.incomingEdgesIndex.get(descId) ?? [])) {
+                const edgeId: string = `${incomingId}->${descId}`
+                if (seenEdgeIds.has(edgeId)) continue
+                seenEdgeIds.add(edgeId)
+
+                // Skip edges from nodes inside the same still-collapsed subfolder
+                if (incomingId.startsWith(sf)) continue
+
+                const srcNode: GraphNode | undefined = graph.nodes[incomingId]
+                const edgeData = srcNode?.outgoingEdges.find(e => e.targetId === descId)
+
+                if (visibleAfter.has(incomingId)) {
+                    syntheticEdges.push({
+                        folderId: sf,
+                        direction: 'incoming',
+                        externalId: incomingId,
+                        original: { sourceId: incomingId, targetId: descId, label: edgeData?.label || undefined }
+                    })
+                } else {
+                    const srcFolder: string | null = findCollapsedAncestor(incomingId, collapsedFolders)
+                    if (srcFolder && srcFolder !== sf) {
+                        syntheticEdges.push({
+                            folderId: sf,
+                            direction: 'incoming',
+                            externalId: srcFolder,
+                            original: { sourceId: incomingId, targetId: descId, label: edgeData?.label || undefined }
+                        })
+                    }
+                }
+            }
+        }
+    }
+
     return { subFolders, childNodes, realEdges, syntheticEdges }
 }
 
@@ -257,6 +359,6 @@ export function absolutePathToGraphFolderId(
     treeRootAbsolutePath: string
 ): string | null {
     if (!absolutePath.startsWith(treeRootAbsolutePath + '/')) return null
-    const relative: string = absolutePath.slice(treeRootAbsolutePath.length + 1)
+    const relative: string = absolutePath.slice(treeRootAbsolutePath.length + 1).replace(/\/$/, '')
     return relative ? relative + '/' : null
 }

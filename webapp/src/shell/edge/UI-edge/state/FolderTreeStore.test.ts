@@ -5,15 +5,28 @@
  * absolutePathToGraphFolderId path mapping function.
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import type { FolderTreeNode } from '@vt/graph-model/pure/folders/types'
 import {
     folderTreeReducer,
     subscribeFolderTree,
     addCollapsedFolder,
     removeCollapsedFolder,
     isGraphFolderCollapsed,
+    getFolderTreeState,
+    syncFolderTreeFromMain,
+    syncStarredTreesFromMain,
+    syncExternalTreesFromMain,
+    toggleFolderExpanded,
+    setFolderTreeSearch,
+    toggleFolderTreeSidebar,
+    setSidebarWidth,
     type FolderTreeState,
 } from '@/shell/edge/UI-edge/state/FolderTreeStore'
+
+function makeFolderTreeNode(label: string): FolderTreeNode {
+    return { label } as unknown as FolderTreeNode
+}
 
 // ── ADD_COLLAPSED_FOLDER / REMOVE_COLLAPSED_FOLDER reducer ──
 
@@ -64,6 +77,72 @@ describe('folderTreeReducer — ADD/REMOVE_COLLAPSED_FOLDER', () => {
     })
 })
 
+describe('folderTreeReducer — core store actions', () => {
+    const baseState: FolderTreeState = {
+        tree: null,
+        starredFolderTrees: {},
+        externalFolderTrees: {},
+        expandedPaths: new Set(),
+        searchQuery: '',
+        isOpen: true,
+        sidebarWidth: 220,
+        graphCollapsedFolders: new Set(),
+    }
+
+    it('should sync the primary tree', () => {
+        const tree = makeFolderTreeNode('root')
+        const next = folderTreeReducer(baseState, { type: 'SYNC_TREE', tree })
+        expect(next.tree).toBe(tree)
+        expect(next.starredFolderTrees).toBe(baseState.starredFolderTrees)
+    })
+
+    it('should sync starred and external trees', () => {
+        const starredTrees = { starred: makeFolderTreeNode('starred-root') }
+        const externalTrees = { external: makeFolderTreeNode('external-root') }
+
+        const withStarred = folderTreeReducer(baseState, {
+            type: 'SYNC_STARRED_TREES',
+            trees: starredTrees,
+        })
+        const withExternal = folderTreeReducer(baseState, {
+            type: 'SYNC_EXTERNAL_TREES',
+            trees: externalTrees,
+        })
+
+        expect(withStarred.starredFolderTrees).toBe(starredTrees)
+        expect(withStarred.externalFolderTrees).toBe(baseState.externalFolderTrees)
+        expect(withExternal.externalFolderTrees).toBe(externalTrees)
+        expect(withExternal.starredFolderTrees).toBe(baseState.starredFolderTrees)
+    })
+
+    it('should toggle expanded paths on and off', () => {
+        const expanded = folderTreeReducer(baseState, { type: 'TOGGLE_EXPANDED', path: 'auth/' })
+        expect(expanded.expandedPaths.has('auth/')).toBe(true)
+
+        const collapsed = folderTreeReducer(expanded, { type: 'TOGGLE_EXPANDED', path: 'auth/' })
+        expect(collapsed.expandedPaths.has('auth/')).toBe(false)
+        expect(collapsed.expandedPaths.size).toBe(0)
+    })
+
+    it('should set the search query', () => {
+        const next = folderTreeReducer(baseState, { type: 'SET_SEARCH', query: 'auth' })
+        expect(next.searchQuery).toBe('auth')
+        expect(next.expandedPaths).toBe(baseState.expandedPaths)
+    })
+
+    it('should toggle the sidebar open state', () => {
+        const next = folderTreeReducer(baseState, { type: 'TOGGLE_SIDEBAR' })
+        expect(next.isOpen).toBe(false)
+        expect(next.sidebarWidth).toBe(baseState.sidebarWidth)
+    })
+
+    it('should set the sidebar width', () => {
+        const next = folderTreeReducer(baseState, { type: 'SET_WIDTH', width: 312 })
+        expect(next.sidebarWidth).toBe(312)
+        expect(next.isOpen).toBe(baseState.isOpen)
+    })
+})
+
 // ── Dispatchers + query ──
 
 describe('addCollapsedFolder / removeCollapsedFolder / isGraphFolderCollapsed', () => {
@@ -94,6 +173,59 @@ describe('addCollapsedFolder / removeCollapsedFolder / isGraphFolderCollapsed', 
         expect(notifiedState!.graphCollapsedFolders.has('bf117-notify/')).toBe(true)
 
         unsub()
+    })
+})
+
+describe('FolderTreeStore dispatchers and persistence', () => {
+    beforeEach(() => {
+        localStorage.clear()
+    })
+
+    afterEach(() => {
+        localStorage.clear()
+        vi.resetModules()
+        vi.restoreAllMocks()
+    })
+
+    it('should apply sync and view actions through the store surface', () => {
+        const tree = makeFolderTreeNode('root')
+        const starredTrees = { starred: makeFolderTreeNode('starred-root') }
+        const externalTrees = { external: makeFolderTreeNode('external-root') }
+
+        syncFolderTreeFromMain(tree)
+        syncStarredTreesFromMain(starredTrees)
+        syncExternalTreesFromMain(externalTrees)
+        toggleFolderExpanded('projects/')
+        setFolderTreeSearch('project')
+
+        const state = getFolderTreeState()
+        expect(state.tree).toBe(tree)
+        expect(state.starredFolderTrees).toBe(starredTrees)
+        expect(state.externalFolderTrees).toBe(externalTrees)
+        expect(state.expandedPaths.has('projects/')).toBe(true)
+        expect(state.searchQuery).toBe('project')
+    })
+
+    it('should load persisted sidebar state on module initialization', async () => {
+        localStorage.setItem('folderTree.isOpen', 'false')
+        localStorage.setItem('folderTree.sidebarWidth', '333')
+
+        const store = await import('@/shell/edge/UI-edge/state/FolderTreeStore')
+
+        expect(store.getFolderTreeState().isOpen).toBe(false)
+        expect(store.getFolderTreeState().sidebarWidth).toBe(333)
+    })
+
+    it('should persist sidebar changes when dispatchers run', async () => {
+        const store = await import('@/shell/edge/UI-edge/state/FolderTreeStore')
+
+        store.toggleFolderTreeSidebar()
+        store.setSidebarWidth(280)
+
+        expect(store.getFolderTreeState().isOpen).toBe(false)
+        expect(store.getFolderTreeState().sidebarWidth).toBe(280)
+        expect(localStorage.getItem('folderTree.isOpen')).toBe('false')
+        expect(localStorage.getItem('folderTree.sidebarWidth')).toBe('280')
     })
 })
 

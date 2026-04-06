@@ -32,12 +32,14 @@ import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths'
 import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange";
+import { initGraphModel } from '@vt/graph-model'
 
 const TEST_NODE_ID: "test-integration-node" = 'test-integration-node'
 const TEST_FILE_PATH: string = path.join(EXAMPLE_SMALL_PATH, `${TEST_NODE_ID}.md`)
 
 describe('applyGraphDeltaToDB - Integration Tests', () => {
   beforeEach(() => {
+    initGraphModel({ appSupportPath: '/tmp/test-userdata-apply-graph-delta' })
     // Initialize state with empty graph and example_small vault path
     setGraph(createEmptyGraph())
     setVaultPath(EXAMPLE_SMALL_PATH)

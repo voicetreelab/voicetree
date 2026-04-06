@@ -2,7 +2,7 @@ import type { Core, CollectionReturnValue } from 'cytoscape'
 import type { Graph } from '@vt/graph-model/pure/graph'
 import type { Position } from '@vt/graph-model/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
-import { computeSyntheticEdgeSpecs, computeExpandPlan } from '@vt/graph-model/pure/graph/folderCollapse'
+import { computeSyntheticEdgeSpecs, computeExpandPlan, getFolderChildNodeIds } from '@vt/graph-model/pure/graph/folderCollapse'
 import type { SyntheticEdgeSpec, ExpandPlan } from '@vt/graph-model/pure/graph/folderCollapse'
 import { getNodeTitle } from '@vt/graph-model/pure/graph/markdown-parsing'
 import type {} from '@/shell/electron'
@@ -95,6 +95,7 @@ export async function expandFolder(cy: Core, folderId: string): Promise<void> {
 
     expandingFolders.add(folderId) // H1: mark as expanding
 
+    const savedChildCount: number | undefined = folder.data('childCount') as number | undefined
     folder.data('collapsed', false)
     folder.removeData('childCount')
 
@@ -105,10 +106,13 @@ export async function expandFolder(cy: Core, folderId: string): Promise<void> {
     } catch {
         // M3: rollback state on IPC failure (store still has folder as collapsed)
         folder.data('collapsed', true)
+        if (savedChildCount !== undefined) folder.data('childCount', savedChildCount)
         expandingFolders.delete(folderId)
         return
     }
     if (!graph) {
+        folder.data('collapsed', true)
+        if (savedChildCount !== undefined) folder.data('childCount', savedChildCount)
         expandingFolders.delete(folderId)
         return
     }
@@ -131,9 +135,19 @@ export async function expandFolder(cy: Core, folderId: string): Promise<void> {
         // Add sub-folder compound nodes
         for (const sf of plan.subFolders) {
             if (!cy.getElementById(sf).length) {
+                const isStillCollapsed: boolean = graphCollapsedFolders.has(sf)
                 cy.add({
                     group: 'nodes' as const,
-                    data: { id: sf, folderLabel: sf.replace(/\/$/, '').split('/').pop()!, isFolderNode: true, parent: folderId }
+                    data: {
+                        id: sf,
+                        folderLabel: sf.replace(/\/$/, '').split('/').pop()!,
+                        isFolderNode: true,
+                        parent: folderId,
+                        ...(isStillCollapsed ? {
+                            collapsed: true,
+                            childCount: getFolderChildNodeIds(graph.nodes, sf).length
+                        } : {})
+                    }
                 })
             }
         }
