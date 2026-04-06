@@ -77,10 +77,10 @@ export function broadcastFolderTree(): void {
     }, DEBOUNCE_MS);
 }
 
-export function broadcastFolderTreeImmediate(): void {
+export function broadcastFolderTreeImmediate(): Promise<void> {
     if (debounceTimer) {
         clearTimeout(debounceTimer);
         debounceTimer = null;
     }
-    void doBroadcast();
+    return doBroadcast();
 }

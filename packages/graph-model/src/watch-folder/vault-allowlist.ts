@@ -19,7 +19,6 @@ import { mergePositionsIntoGraph } from '../pure/graph/positioning/mergePosition
 import type { VaultConfig } from '../pure/settings/types';
 import { loadVaultPathAdditively, resolveLinkedNodesInWatchedFolder } from "../graph/loadGraphFromDisk";
 import { createDatedSubfolder } from "../project/project-utils";
-import { getStarredFolders } from "./starred-folders";
 import { createStarterNode } from "./create-starter-node";
 import type { FileLimitExceededError } from "../graph/fileLimitEnforce";
 import * as E from "fp-ts/lib/Either.js";
@@ -242,7 +241,7 @@ export async function setWritePath(vaultPath: FilePath): Promise<{ success: bool
     // Note: Clearing the old write path is handled by the caller (VaultPathSelector)
     // which calls removeReadPath() after setWritePath()
 
-    void broadcastVaultState();
+    await broadcastVaultState();
     return { success: true };
 }
 
@@ -290,7 +289,7 @@ export async function addReadPath(vaultPath: FilePath): Promise<{ success: boole
                 writePath: currentWritePath,
                 readPaths: newReadPaths
             });
-            void broadcastVaultState();
+            await broadcastVaultState();
         }
         return result;
     }
@@ -307,7 +306,7 @@ export async function addReadPath(vaultPath: FilePath): Promise<{ success: boole
         currentWatcher.add(vaultPath);
     }
 
-    void broadcastVaultState();
+    await broadcastVaultState();
     return { success: true };
 }
 
@@ -396,7 +395,7 @@ export async function removeReadPath(vaultPath: FilePath): Promise<{ success: bo
         readPaths: newReadPaths
     });
 
-    void broadcastVaultState();
+    await broadcastVaultState();
     return { success: true };
 }
 
@@ -440,8 +439,6 @@ export async function createDatedVoiceTreeFolder(): Promise<{
         await removeReadPath(oldWritePath);
     }
 
-    const starred: readonly string[] = await getStarredFolders();
-    for (const p of starred) await addReadPath(p);
     return { success: true, path: newPath };
 }
 

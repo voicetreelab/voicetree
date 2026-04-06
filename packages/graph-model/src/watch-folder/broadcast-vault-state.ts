@@ -19,5 +19,5 @@ export async function broadcastVaultState(): Promise<void> {
     getCallbacks().syncVaultState?.({ readPaths, writePath, starredFolders });
 
     // Also refresh the folder tree sidebar (vault path changes affect load indicators)
-    broadcastFolderTreeImmediate();
+    await broadcastFolderTreeImmediate();
 }
