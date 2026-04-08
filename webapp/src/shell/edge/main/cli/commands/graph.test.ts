@@ -1,5 +1,5 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
-import {mkdtempSync, rmSync, writeFileSync} from 'node:fs'
+import {mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync} from 'node:fs'
 import {join} from 'node:path'
 import {tmpdir} from 'node:os'
 
@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
     errorMock: vi.fn((message: string): never => {
         throw new Error(message)
     }),
+    jsonMode: false,
     stdinPayload: undefined as string | undefined,
 }))
 
@@ -19,7 +20,7 @@ vi.mock('../mcp-client.ts', () => ({
 vi.mock('../output.ts', () => ({
     error: mocks.errorMock,
     output: mocks.outputMock,
-    isJsonMode: () => false,
+    isJsonMode: () => mocks.jsonMode,
 }))
 
 vi.mock('fs', async () => {
@@ -37,7 +38,7 @@ vi.mock('fs', async () => {
     }
 })
 
-import {graphCreate} from './graph.ts'
+import {graphCreate, setGraphFilesystemOpsForTest} from './graph.ts'
 
 function setStdinIsTTY(value: boolean): void {
     Object.defineProperty(process.stdin, 'isTTY', {
@@ -52,8 +53,10 @@ describe('graphCreate mode selection', () => {
     const tempDirs: string[] = []
 
     beforeEach(() => {
+        mocks.jsonMode = false
         mocks.stdinPayload = undefined
         setStdinIsTTY(true)
+        setGraphFilesystemOpsForTest()
         mocks.callMcpToolMock.mockReset()
         mocks.outputMock.mockReset()
         mocks.errorMock.mockClear()
@@ -67,6 +70,8 @@ describe('graphCreate mode selection', () => {
         } else {
             setStdinIsTTY(true)
         }
+
+        setGraphFilesystemOpsForTest()
 
         for (const dir of tempDirs.splice(0)) {
             rmSync(dir, {recursive: true, force: true})
@@ -87,6 +92,27 @@ describe('graphCreate mode selection', () => {
 
         expect(mocks.callMcpToolMock).not.toHaveBeenCalled()
         expect(mocks.errorMock).not.toHaveBeenCalledWith('This command requires --terminal or VOICETREE_TERMINAL_ID')
+    })
+
+    it('routes non-TTY markdown inputs to filesystem mode instead of the stdin JSON path', async () => {
+        const tempDir: string = mkdtempSync(join(tmpdir(), 'vt-graph-create-'))
+        tempDirs.push(tempDir)
+        process.chdir(tempDir)
+        setStdinIsTTY(false)
+        mocks.stdinPayload = ''
+
+        writeFileSync('test-node.md', '# Test Node\n\nChild summary\n', 'utf8')
+
+        await expect(graphCreate(3002, undefined, ['./test-node.md'])).resolves.toBeUndefined()
+
+        expect(mocks.callMcpToolMock).not.toHaveBeenCalled()
+        expect(mocks.outputMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                success: true,
+                mode: 'filesystem',
+            }),
+            expect.any(Function)
+        )
     })
 
     it('keeps stdin JSON create_graph requests on the MCP-backed live path', async () => {
@@ -140,5 +166,99 @@ describe('graphCreate mode selection', () => {
                 },
             ],
         })
+    })
+
+    it('rolls back earlier filesystem mutations when a later staged write fails', async () => {
+        const tempDir: string = mkdtempSync(join(tmpdir(), 'vt-graph-create-'))
+        tempDirs.push(tempDir)
+        process.chdir(tempDir)
+
+        writeFileSync('first-node.md', '# First Node\n\nFirst summary\n', 'utf8')
+        writeFileSync('second-node.md', '# Second Node\n\nSecond summary\n', 'utf8')
+
+        const originalFirst: string = readFileSync('first-node.md', 'utf8')
+        const originalSecond: string = readFileSync('second-node.md', 'utf8')
+        let stagedRenameCount = 0
+
+        setGraphFilesystemOpsForTest({
+            renameSync(oldPath: Parameters<typeof renameSync>[0], newPath: Parameters<typeof renameSync>[1]): void {
+                const oldPathString: string = String(oldPath)
+                if (oldPathString.includes('.vt-graph-create-stage-')) {
+                    stagedRenameCount += 1
+                }
+
+                if (oldPathString.includes('.vt-graph-create-stage-') && stagedRenameCount === 2) {
+                    throw new Error('simulated rename failure')
+                }
+
+                renameSync(oldPath, newPath)
+            },
+        })
+        await expect(
+            graphCreate(3002, undefined, ['./first-node.md', './second-node.md'])
+        ).rejects.toThrow('Failed to apply filesystem authoring plan: simulated rename failure')
+        expect(readFileSync('first-node.md', 'utf8')).toBe(originalFirst)
+        expect(readFileSync('second-node.md', 'utf8')).toBe(originalSecond)
+        expect(readdirSync(tempDir).sort()).toEqual(['first-node.md', 'second-node.md'])
+    })
+
+    it('includes applied filesystem fixes in the success output payload and human formatter', async () => {
+        const tempDir: string = mkdtempSync(join(tmpdir(), 'vt-graph-create-'))
+        tempDirs.push(tempDir)
+        process.chdir(tempDir)
+
+        writeFileSync('rough-capture.md', '# Rough Capture\n\nCaptured summary\n', 'utf8')
+
+        await expect(graphCreate(3002, undefined, ['./rough-capture.md'])).resolves.toBeUndefined()
+
+        const [result, formatter] = mocks.outputMock.mock.calls.at(-1) as [
+            {
+                success: true
+                mode: 'filesystem'
+                nodes: Array<{
+                    path: string
+                    fixes?: Array<{code: string; message: string}>
+                }>
+            },
+            (data: unknown) => string,
+        ]
+
+        expect(result).toMatchObject({
+            success: true,
+            mode: 'filesystem',
+            nodes: [
+                {
+                    path: 'rough-capture.md',
+                    fixes: [
+                        {
+                            code: 'added_frontmatter',
+                        },
+                    ],
+                },
+            ],
+        })
+        expect(formatter(result)).toContain('fixed:')
+        expect(formatter(result)).toContain('Added frontmatter')
+    })
+
+    it('preserves actionable split suggestions in filesystem rejection output', async () => {
+        const tempDir: string = mkdtempSync(join(tmpdir(), 'vt-graph-create-'))
+        tempDirs.push(tempDir)
+        process.chdir(tempDir)
+
+        const oversizedMarkdown: string = [
+            '# Oversized Brief',
+            '',
+            ...Array.from({length: 36}, (_, index) => `Intro line ${index + 1}`),
+            '## Evidence',
+            ...Array.from({length: 22}, (_, index) => `Evidence line ${index + 1}`),
+            '## Implications',
+            ...Array.from({length: 22}, (_, index) => `Implication line ${index + 1}`),
+        ].join('\n')
+        writeFileSync('oversized-brief.md', oversizedMarkdown, 'utf8')
+
+        await expect(graphCreate(3002, undefined, ['./oversized-brief.md'])).rejects.toThrow(
+            /Split at ## headings: "Evidence" \(\d+ lines\), "Implications" \(\d+ lines\)\./
+        )
     })
 })

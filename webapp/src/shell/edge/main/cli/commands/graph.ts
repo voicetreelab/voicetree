@@ -1,4 +1,4 @@
-import {existsSync, readFileSync, writeFileSync} from 'fs'
+import {existsSync, readFileSync, renameSync, rmSync, writeFileSync} from 'fs'
 import {callMcpTool} from '../mcp-client.ts'
 import {error, output, isJsonMode} from '../output.ts'
 import {
@@ -12,7 +12,9 @@ import type {LintConfig} from '@vt/graph-tools'
 import {
     buildFilesystemAuthoringPlan,
     type FilesystemAuthoringInput,
+    type FilesystemAuthoringFix,
     type FilesystemAuthoringPlanEntry,
+    type FilesystemAuthoringReportEntry,
     type FilesystemAuthoringValidationError,
     type StructureManifest,
 } from '../../../../../../../packages/graph-tools/src/filesystemAuthoring.ts'
@@ -44,7 +46,15 @@ type FilesystemCreateSuccess = {
     nodes: Array<{
         path: string
         status: 'ok'
+        fixes?: readonly FilesystemAuthoringFix[]
     }>
+}
+
+type FilesystemCreateFailure = {
+    success: false
+    mode: 'filesystem'
+    errors: readonly FilesystemAuthoringValidationError[]
+    reports: readonly FilesystemAuthoringReportEntry[]
 }
 
 type GraphUnseenNode = {
@@ -90,6 +100,31 @@ type ParsedFilesystemModeArgs = ParsedFilesystemCreateArgs & {
 }
 
 type ParsedGraphCreateArgs = ParsedLiveCreateArgs | ParsedFilesystemModeArgs
+
+type GraphFilesystemOps = {
+    existsSync: typeof existsSync
+    readFileSync: typeof readFileSync
+    renameSync: typeof renameSync
+    rmSync: typeof rmSync
+    writeFileSync: typeof writeFileSync
+}
+
+const defaultGraphFilesystemOps: GraphFilesystemOps = {
+    existsSync,
+    readFileSync,
+    renameSync,
+    rmSync,
+    writeFileSync,
+}
+
+let graphFilesystemOps: GraphFilesystemOps = defaultGraphFilesystemOps
+
+export function setGraphFilesystemOpsForTest(overrides?: Partial<GraphFilesystemOps>): void {
+    graphFilesystemOps = {
+        ...defaultGraphFilesystemOps,
+        ...(overrides ?? {}),
+    }
+}
 
 function titleToFilename(title: string): string {
     const normalizedTitle: string = title
@@ -231,7 +266,7 @@ async function readCreateGraphPayloadFromStdin(terminalId: string | undefined): 
 function loadNodesFromFile(filePath: string, color?: string): GraphCreateNode[] {
     let fileContents: string
     try {
-        fileContents = readFileSync(filePath, 'utf8')
+        fileContents = graphFilesystemOps.readFileSync(filePath, 'utf8')
     } catch (readError: unknown) {
         if (isRecord(readError) && readError.code === 'ENOENT') {
             error(`Nodes file not found: ${filePath}`)
@@ -354,7 +389,7 @@ function parseGraphCreateArgs(args: string[]): ParsedGraphCreateArgs {
             ? (() => {
                 let source: string
                 try {
-                    source = readFileSync(manifestPath, 'utf8')
+                    source = graphFilesystemOps.readFileSync(manifestPath, 'utf8')
                 } catch (readError: unknown) {
                     error(`Failed to read manifest file ${manifestPath}: ${getErrorMessage(readError)}`)
                 }
@@ -386,7 +421,7 @@ function parseGraphCreateArgs(args: string[]): ParsedGraphCreateArgs {
 
 function formatFilesystemValidationErrors(errors: readonly FilesystemAuthoringValidationError[]): string {
     return errors
-        .map(({message, filename, ref}) => {
+        .map(({message, filename, ref, suggestions}) => {
             const details: string[] = []
             if (filename) {
                 details.push(`file: ${filename}`)
@@ -395,7 +430,12 @@ function formatFilesystemValidationErrors(errors: readonly FilesystemAuthoringVa
                 details.push(`ref: ${ref}`)
             }
 
-            return details.length > 0 ? `${message} (${details.join(', ')})` : message
+            const lines: string[] = [details.length > 0 ? `${message} (${details.join(', ')})` : message]
+            if (suggestions && suggestions.length > 0) {
+                lines.push(...suggestions.map(suggestion => `suggestion: ${suggestion}`))
+            }
+
+            return lines.join('\n')
         })
         .join('\n')
 }
@@ -423,7 +463,7 @@ function loadFilesystemInputs(inputFilePaths: readonly string[]): FilesystemAuth
     return inputFilePaths.map((filePath: string) => {
         let markdown: string
         try {
-            markdown = readFileSync(filePath, 'utf8')
+            markdown = graphFilesystemOps.readFileSync(filePath, 'utf8')
         } catch (readError: unknown) {
             error(`Failed to read markdown input ${filePath}: ${getErrorMessage(readError)}`)
         }
@@ -439,7 +479,7 @@ function validateExternalParent(parentPath: string, inputFilePaths: readonly str
     const parentRef: string = normalizeRef(parentPath)
     const inputRefs: Set<string> = new Set(inputFilePaths.map(normalizeRef))
 
-    if (!inputRefs.has(parentRef) && !existsSync(parentPath)) {
+    if (!inputRefs.has(parentRef) && !graphFilesystemOps.existsSync(parentPath)) {
         error(`Parent file not found: ${parentPath}`)
     }
 
@@ -450,7 +490,11 @@ function applyFilesystemPlan(
     writePlan: readonly FilesystemAuthoringPlanEntry[],
     externalParentRef: string | undefined
 ): FilesystemCreateSuccess {
-    const finalEntries: Array<{path: string; markdown: string}> = writePlan.map((entry) => {
+    const finalEntries: Array<{
+        path: string
+        markdown: string
+        fixes: readonly FilesystemAuthoringFix[]
+    }> = writePlan.map((entry) => {
         const shouldAttachExternalParent: boolean =
             Boolean(externalParentRef) &&
             entry.parentFilenames.length === 0 &&
@@ -458,6 +502,7 @@ function applyFilesystemPlan(
 
         return {
             path: entry.filename,
+            fixes: entry.fixes,
             markdown:
                 shouldAttachExternalParent && externalParentRef
                     ? appendParentRef(entry.markdown, externalParentRef)
@@ -465,22 +510,129 @@ function applyFilesystemPlan(
         }
     })
 
-    for (const entry of finalEntries) {
-        writeFileSync(entry.path, entry.markdown, 'utf8')
+    const operationId: string = `${process.pid}-${Date.now()}`
+    const stagedEntries: Array<{
+        path: string
+        markdown: string
+        fixes: readonly FilesystemAuthoringFix[]
+        stagePath: string
+        backupPath?: string
+    }> = finalEntries.map((entry, index) => ({
+        ...entry,
+        stagePath: `${entry.path}.vt-graph-create-stage-${operationId}-${index}`,
+        ...(graphFilesystemOps.existsSync(entry.path)
+            ? {backupPath: `${entry.path}.vt-graph-create-backup-${operationId}-${index}`}
+            : {}),
+    }))
+
+    const cleanupTempArtifacts = (entries: readonly {stagePath: string; backupPath?: string}[]): void => {
+        for (const entry of entries) {
+            graphFilesystemOps.rmSync(entry.stagePath, {force: true})
+            if (entry.backupPath) {
+                graphFilesystemOps.rmSync(entry.backupPath, {force: true})
+            }
+        }
+    }
+
+    const rollbackAppliedEntries = (
+        entries: readonly {
+            path: string
+            backupPath?: string
+        }[]
+    ): void => {
+        for (const entry of [...entries].reverse()) {
+            if (entry.backupPath) {
+                graphFilesystemOps.renameSync(entry.backupPath, entry.path)
+                continue
+            }
+
+            graphFilesystemOps.rmSync(entry.path, {force: true})
+        }
+    }
+
+    try {
+        for (const entry of stagedEntries) {
+            graphFilesystemOps.writeFileSync(entry.stagePath, entry.markdown, 'utf8')
+            if (entry.backupPath) {
+                graphFilesystemOps.writeFileSync(
+                    entry.backupPath,
+                    graphFilesystemOps.readFileSync(entry.path, 'utf8'),
+                    'utf8'
+                )
+            }
+        }
+
+        const appliedEntries: typeof stagedEntries = []
+
+        try {
+            for (const entry of stagedEntries) {
+                graphFilesystemOps.renameSync(entry.stagePath, entry.path)
+                appliedEntries.push(entry)
+            }
+        } catch (writeError: unknown) {
+            rollbackAppliedEntries(appliedEntries)
+            throw writeError
+        }
+
+        cleanupTempArtifacts(stagedEntries)
+    } catch (writeError: unknown) {
+        cleanupTempArtifacts(stagedEntries)
+        throw new Error(`Failed to apply filesystem authoring plan: ${getErrorMessage(writeError)}`)
     }
 
     return {
         success: true,
         mode: 'filesystem',
-        nodes: finalEntries.map(({path}) => ({
+        nodes: finalEntries.map(({path, fixes}) => ({
             path,
             status: 'ok',
+            ...(fixes.length > 0 ? {fixes} : {}),
         })),
     }
 }
 
+function failFilesystemCreateValidation(
+    errors: readonly FilesystemAuthoringValidationError[],
+    reports: readonly FilesystemAuthoringReportEntry[]
+): never {
+    if (isJsonMode()) {
+        const failure: FilesystemCreateFailure = {
+            success: false,
+            mode: 'filesystem',
+            errors,
+            reports,
+        }
+        output(failure)
+        process.exit(1)
+    }
+
+    error(formatFilesystemValidationErrors(errors))
+}
+
+function formatFilesystemCreateSuccessHuman(data: FilesystemCreateSuccess): string {
+    const createdLabel: string = data.nodes.length === 1 ? 'node' : 'nodes'
+    const lines: string[] = [`Created ${data.nodes.length} ${createdLabel} in filesystem mode:`]
+
+    for (const node of data.nodes) {
+        const fixesLabel: string =
+            node.fixes && node.fixes.length > 0
+                ? ` (fixed: ${node.fixes.map(fix => fix.message).join('; ')})`
+                : ''
+        lines.push(`✓ ${node.path}${fixesLabel}`)
+    }
+
+    return lines.join('\n')
+}
+
 export async function graphCreate(port: number, terminalId: string | undefined, args: string[]): Promise<void> {
-    if (!process.stdin.isTTY) {
+    const parsedArgs: ParsedGraphCreateArgs = parseGraphCreateArgs(args)
+
+    if (
+        parsedArgs.mode === 'live' &&
+        !process.stdin.isTTY &&
+        !parsedArgs.nodesFile &&
+        parsedArgs.inlineNodeSpecs.length === 0
+    ) {
         const payload: Awaited<ReturnType<typeof readCreateGraphPayloadFromStdin>> =
             await readCreateGraphPayloadFromStdin(terminalId)
         try {
@@ -498,8 +650,6 @@ export async function graphCreate(port: number, terminalId: string | undefined, 
         return
     }
 
-    const parsedArgs: ParsedGraphCreateArgs = parseGraphCreateArgs(args)
-
     if (parsedArgs.mode === 'filesystem') {
         const filesystemInputs: FilesystemAuthoringInput[] = loadFilesystemInputs(parsedArgs.inputFilePaths)
         const externalParentRef: string | undefined = parsedArgs.parentPath
@@ -513,15 +663,17 @@ export async function graphCreate(port: number, terminalId: string | undefined, 
         })
 
         if (planResult.status !== 'ok') {
-            error(formatFilesystemValidationErrors(planResult.errors))
+            failFilesystemCreateValidation(planResult.errors, planResult.reports)
         }
 
-        const result: FilesystemCreateSuccess = applyFilesystemPlan(planResult.writePlan, externalParentRef)
-        output(result, (data: FilesystemCreateSuccess): string => {
-            const createdLabel: string = data.nodes.length === 1 ? 'node' : 'nodes'
-            const createdPaths: string = data.nodes.map(node => node.path).join('\n')
-            return `Created ${data.nodes.length} ${createdLabel} in filesystem mode:\n${createdPaths}`
-        })
+        let result: FilesystemCreateSuccess
+        try {
+            result = applyFilesystemPlan(planResult.writePlan, externalParentRef)
+        } catch (writeError: unknown) {
+            error(getErrorMessage(writeError))
+        }
+
+        output(result, formatFilesystemCreateSuccessHuman)
         return
     }
 
