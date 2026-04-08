@@ -464,6 +464,45 @@ describe('BF-113: Synthetic Edges on Collapsed Folders', () => {
             expect(isFolderCollapsed('toggle-expand/')).toBe(false)
         })
 
+        it('should preserve visible positions and restore modeled child positions after expand', async () => {
+            cy.add([
+                { group: 'nodes', data: { id: 'layout-stable-external.md', label: 'External' }, position: { x: 25, y: 35 } },
+                { group: 'nodes', data: { id: 'layout-stable/', isFolderNode: true, folderLabel: 'layout-stable' }, position: { x: 100, y: 40 } },
+                { group: 'nodes', data: { id: 'layout-stable/child.md', parent: 'layout-stable/' }, position: { x: 180, y: 60 } },
+                { group: 'edges', data: { id: 'layout-stable-external.md->layout-stable/child.md', source: 'layout-stable-external.md', target: 'layout-stable/child.md', label: 'ref' } },
+            ])
+
+            collapseFolder(cy, 'layout-stable/')
+
+            const externalBeforeExpand: { x: number; y: number } = cy.getElementById('layout-stable-external.md').position()
+            expect(externalBeforeExpand).toEqual({ x: 25, y: 35 })
+
+            const O: typeof import('fp-ts/lib/Option.js') = await import('fp-ts/lib/Option.js')
+            mockGetGraph.mockResolvedValue({
+                nodes: {
+                    'layout-stable-external.md': {
+                        absoluteFilePathIsID: 'layout-stable-external.md',
+                        contentWithoutYamlOrLinks: '# External',
+                        outgoingEdges: [{ targetId: 'layout-stable/child.md', label: 'ref' }],
+                        nodeUIMetadata: { color: O.none, position: O.some({ x: 25, y: 35 }), isContextNode: false }
+                    },
+                    'layout-stable/child.md': {
+                        absoluteFilePathIsID: 'layout-stable/child.md',
+                        contentWithoutYamlOrLinks: '# Child',
+                        outgoingEdges: [],
+                        nodeUIMetadata: { color: O.none, position: O.some({ x: 180, y: 60 }), isContextNode: false }
+                    }
+                },
+                incomingEdgesIndex: new Map([['layout-stable/child.md', ['layout-stable-external.md']]])
+            })
+
+            await expandFolder(cy, 'layout-stable/')
+
+            expect(cy.getElementById('layout-stable-external.md').position()).toEqual({ x: 25, y: 35 })
+            expect(cy.getElementById('layout-stable/child.md').position()).toEqual({ x: 180, y: 60 })
+            expect(cy.getElementById('layout-stable-external.md->layout-stable/child.md').length).toBe(1)
+        })
+
         it('should roll back folder data when graph retrieval rejects', async () => {
             cy.add([
                 { group: 'nodes', data: { id: 'expand-reject/', isFolderNode: true, folderLabel: 'expand-reject' } },
