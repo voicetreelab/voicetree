@@ -43,6 +43,7 @@ type GraphCreateSuccess = {
 type FilesystemCreateSuccess = {
     success: true
     mode: 'filesystem'
+    validateOnly?: true
     nodes: Array<{
         path: string
         status: 'ok'
@@ -93,10 +94,12 @@ type ParsedLiveCreateArgs = {
     inlineNodeSpecs: string[]
     parentNodeId?: string
     color?: string
+    validateOnly: boolean
 }
 
 type ParsedFilesystemModeArgs = ParsedFilesystemCreateArgs & {
     mode: 'filesystem'
+    validateOnly: boolean
 }
 
 type ParsedGraphCreateArgs = ParsedLiveCreateArgs | ParsedFilesystemModeArgs
@@ -335,6 +338,7 @@ function parseGraphCreateArgs(args: string[]): ParsedGraphCreateArgs {
     let color: string | undefined
     const inputFilePaths: string[] = []
     let manifestPath: string | undefined
+    let validateOnly = false
 
     for (let index: number = 0; index < args.length; index += 1) {
         const arg: string = args[index]
@@ -366,6 +370,11 @@ function parseGraphCreateArgs(args: string[]): ParsedGraphCreateArgs {
         if (arg === '--manifest') {
             manifestPath = getRequiredValue(args, index + 1, '--manifest')
             index += 1
+            continue
+        }
+
+        if (arg === '--validate-only') {
+            validateOnly = true
             continue
         }
 
@@ -404,6 +413,7 @@ function parseGraphCreateArgs(args: string[]): ParsedGraphCreateArgs {
         return {
             mode: 'filesystem',
             inputFilePaths,
+            validateOnly,
             ...(parentValue ? {parentPath: parentValue} : {}),
             ...(color ? {color} : {}),
             ...(manifest ? {manifest} : {}),
@@ -414,6 +424,7 @@ function parseGraphCreateArgs(args: string[]): ParsedGraphCreateArgs {
         mode: 'live',
         ...(nodesFile ? {nodesFile} : {}),
         inlineNodeSpecs,
+        validateOnly,
         ...(parentValue ? {parentNodeId: parentValue} : {}),
         ...(color ? {color} : {}),
     }
@@ -611,12 +622,17 @@ function failFilesystemCreateValidation(
 
 function formatFilesystemCreateSuccessHuman(data: FilesystemCreateSuccess): string {
     const createdLabel: string = data.nodes.length === 1 ? 'node' : 'nodes'
-    const lines: string[] = [`Created ${data.nodes.length} ${createdLabel} in filesystem mode:`]
+    const fixesVerb: string = data.validateOnly ? 'would fix' : 'fixed'
+    const lines: string[] = [
+        data.validateOnly
+            ? `Validated ${data.nodes.length} ${createdLabel} in filesystem mode (no files written):`
+            : `Created ${data.nodes.length} ${createdLabel} in filesystem mode:`,
+    ]
 
     for (const node of data.nodes) {
         const fixesLabel: string =
             node.fixes && node.fixes.length > 0
-                ? ` (fixed: ${node.fixes.map(fix => fix.message).join('; ')})`
+                ? ` (${fixesVerb}: ${node.fixes.map(fix => fix.message).join('; ')})`
                 : ''
         lines.push(`✓ ${node.path}${fixesLabel}`)
     }
@@ -626,6 +642,10 @@ function formatFilesystemCreateSuccessHuman(data: FilesystemCreateSuccess): stri
 
 export async function graphCreate(port: number, terminalId: string | undefined, args: string[]): Promise<void> {
     const parsedArgs: ParsedGraphCreateArgs = parseGraphCreateArgs(args)
+
+    if (parsedArgs.mode === 'live' && parsedArgs.validateOnly) {
+        error('The --validate-only flag is only supported for filesystem markdown inputs')
+    }
 
     if (
         parsedArgs.mode === 'live' &&
@@ -664,6 +684,22 @@ export async function graphCreate(port: number, terminalId: string | undefined, 
 
         if (planResult.status !== 'ok') {
             failFilesystemCreateValidation(planResult.errors, planResult.reports)
+        }
+
+        if (parsedArgs.validateOnly) {
+            const result: FilesystemCreateSuccess = {
+                success: true,
+                mode: 'filesystem',
+                validateOnly: true,
+                nodes: planResult.writePlan.map(({filename, fixes}) => ({
+                    path: filename,
+                    status: 'ok',
+                    ...(fixes.length > 0 ? {fixes} : {}),
+                })),
+            }
+
+            output(result, formatFilesystemCreateSuccessHuman)
+            return
         }
 
         let result: FilesystemCreateSuccess

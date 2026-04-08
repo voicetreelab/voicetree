@@ -241,6 +241,74 @@ describe('graphCreate mode selection', () => {
         expect(formatter(result)).toContain('Added frontmatter')
     })
 
+    it('validates filesystem inputs without writing files when --validate-only is set', async () => {
+        const tempDir: string = mkdtempSync(join(tmpdir(), 'vt-graph-create-'))
+        tempDirs.push(tempDir)
+        process.chdir(tempDir)
+
+        const originalMarkdown = '# Test Node\n\nChild summary\n'
+        writeFileSync('test-node.md', originalMarkdown, 'utf8')
+
+        await expect(graphCreate(3002, undefined, ['./test-node.md', '--validate-only'])).resolves.toBeUndefined()
+
+        const [result, formatter] = mocks.outputMock.mock.calls.at(-1) as [
+            {
+                success: true
+                mode: 'filesystem'
+                validateOnly: true
+                nodes: Array<{path: string; status: 'ok'}>
+            },
+            (data: unknown) => string,
+        ]
+
+        expect(result).toMatchObject({
+            success: true,
+            mode: 'filesystem',
+            validateOnly: true,
+            nodes: [
+                {
+                    path: 'test-node.md',
+                    status: 'ok',
+                },
+            ],
+        })
+        expect(readFileSync('test-node.md', 'utf8')).toBe(originalMarkdown)
+        expect(readdirSync(tempDir)).toEqual(['test-node.md'])
+        expect(formatter(result)).toContain('Validated 1 node in filesystem mode (no files written):')
+    })
+
+    it('preserves actionable filesystem validation errors during --validate-only runs', async () => {
+        const tempDir: string = mkdtempSync(join(tmpdir(), 'vt-graph-create-'))
+        tempDirs.push(tempDir)
+        process.chdir(tempDir)
+
+        const oversizedMarkdown: string = [
+            '# Oversized Brief',
+            '',
+            ...Array.from({length: 36}, (_, index) => `Intro line ${index + 1}`),
+            '## Evidence',
+            ...Array.from({length: 22}, (_, index) => `Evidence line ${index + 1}`),
+            '## Implications',
+            ...Array.from({length: 22}, (_, index) => `Implication line ${index + 1}`),
+        ].join('\n')
+        writeFileSync('oversized-brief.md', oversizedMarkdown, 'utf8')
+
+        await expect(
+            graphCreate(3002, undefined, ['./oversized-brief.md', '--validate-only'])
+        ).rejects.toThrow(/Split at ## headings: "Evidence" \(\d+ lines\), "Implications" \(\d+ lines\)\./)
+
+        expect(readFileSync('oversized-brief.md', 'utf8')).toBe(oversizedMarkdown)
+        expect(readdirSync(tempDir)).toEqual(['oversized-brief.md'])
+    })
+
+    it('rejects --validate-only on explicit live graph-create paths', async () => {
+        await expect(
+            graphCreate(3002, 'term-123', ['--node', 'Progress::Short update', '--validate-only'])
+        ).rejects.toThrow('The --validate-only flag is only supported for filesystem markdown inputs')
+
+        expect(mocks.callMcpToolMock).not.toHaveBeenCalled()
+    })
+
     it('preserves actionable split suggestions in filesystem rejection output', async () => {
         const tempDir: string = mkdtempSync(join(tmpdir(), 'vt-graph-create-'))
         tempDirs.push(tempDir)
