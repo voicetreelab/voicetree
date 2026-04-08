@@ -23,12 +23,94 @@ import {
 const PROJECT_ROOT = path.resolve(process.cwd());
 
 interface FolderGraphSnapshot {
+    readonly folderId: string;
     readonly collapsed: boolean;
     readonly childCount: number | undefined;
-    readonly directVisibleChildren: number;
-    readonly visibleRegularDescendants: number;
+    readonly visibleDirectChildren: readonly string[];
+    readonly visibleFolderDescendants: readonly string[];
+    readonly visibleRegularDescendants: readonly string[];
     readonly nonSyntheticEdges: number;
     readonly syntheticEdges: number;
+}
+
+interface SyntheticEdgeSnapshot {
+    readonly source: string;
+    readonly target: string;
+    readonly edgeCount: number | undefined;
+    readonly label: string | undefined;
+}
+
+interface FolderSpecFixture {
+    readonly authFolderId: string;
+    readonly internalFolderId: string;
+    readonly beforeCollapseVisibleFolderDescendants: readonly string[];
+    readonly beforeCollapseVisibleRegularDescendants: readonly string[];
+    readonly afterExpandVisibleFolderDescendants: readonly string[];
+    readonly afterExpandVisibleRegularDescendants: readonly string[];
+    readonly collapsedSyntheticEdges: readonly SyntheticEdgeSnapshot[];
+}
+
+function sortIds(ids: readonly string[]): string[] {
+    return [...ids].sort((left: string, right: string) => left.localeCompare(right));
+}
+
+function sortSyntheticEdges(edges: readonly SyntheticEdgeSnapshot[]): SyntheticEdgeSnapshot[] {
+    return [...edges].sort((left: SyntheticEdgeSnapshot, right: SyntheticEdgeSnapshot) =>
+        `${left.source}->${left.target}`.localeCompare(`${right.source}->${right.target}`));
+}
+
+function buildFolderSpecFixture(vaultPath: string): FolderSpecFixture {
+    const authFolderId = `${path.join(vaultPath, 'auth')}/`;
+    const internalFolderId = `${path.join(vaultPath, 'auth', 'internal')}/`;
+    const apiGatewayId = path.join(vaultPath, 'api', 'gateway.md');
+
+    return {
+        authFolderId,
+        internalFolderId,
+        beforeCollapseVisibleFolderDescendants: [internalFolderId],
+        beforeCollapseVisibleRegularDescendants: sortIds([
+            path.join(vaultPath, 'auth', 'jwt-token.md'),
+            path.join(vaultPath, 'auth', 'login-flow.md'),
+            path.join(vaultPath, 'auth', 'session-manager.md'),
+        ]),
+        afterExpandVisibleFolderDescendants: [internalFolderId],
+        afterExpandVisibleRegularDescendants: sortIds([
+            path.join(vaultPath, 'auth', 'jwt-token.md'),
+            path.join(vaultPath, 'auth', 'login-flow.md'),
+            path.join(vaultPath, 'auth', 'session-manager.md'),
+        ]),
+        collapsedSyntheticEdges: sortSyntheticEdges([
+            {
+                source: path.join(vaultPath, 'api', 'router.md'),
+                target: authFolderId,
+                edgeCount: undefined,
+                label: undefined,
+            },
+            {
+                source: authFolderId,
+                target: apiGatewayId,
+                edgeCount: 2,
+                label: undefined,
+            },
+            {
+                source: path.join(vaultPath, 'readme.md'),
+                target: authFolderId,
+                edgeCount: undefined,
+                label: undefined,
+            },
+        ]),
+    };
+}
+
+async function createCriticalFolderSpecVault(basePath: string): Promise<string> {
+    const vaultPath = await createFolderTestVault(basePath);
+    const nestedAuthFolderPath = path.join(vaultPath, 'auth', 'internal');
+
+    await fs.mkdir(nestedAuthFolderPath, { recursive: true });
+    await fs.writeFile(path.join(nestedAuthFolderPath, 'refresh-token.md'),
+        `---\nposition:\n  x: 400\n  y: 100\n---\n# Refresh Token\nNested auth detail.\n[[api/gateway]]\n`);
+
+    return vaultPath;
 }
 
 const test = base.extend<{
@@ -38,7 +120,7 @@ const test = base.extend<{
 }>({
     vaultPath: async ({}, use) => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-folder-spec-test-'));
-        const vaultPath = await createFolderTestVault(tempDir);
+        const vaultPath = await createCriticalFolderSpecVault(tempDir);
         await use(vaultPath);
         await fs.rm(tempDir, { recursive: true, force: true });
     },
@@ -186,14 +268,24 @@ async function getFolderGraphSnapshot(appWindow: Page, folderSuffix: string): Pr
 
         if (!folder.length) throw new Error(`No folder node ending with ${suffix}`);
 
+        const folderId = folder.id();
         const isFolderDescendant = (id: string): boolean =>
-            id.startsWith(suffix) || id.includes(`/${suffix}`);
+            id !== folderId && id.startsWith(folderId);
+
+        const visibleDirectChildren = folder.children().filter((n: import('cytoscape').NodeSingular) =>
+            !n.data('isShadowNode')
+        ).map((n: import('cytoscape').NodeSingular) => n.id()).sort();
+
+        const visibleFolderDescendants = cy.nodes().filter((n: import('cytoscape').NodeSingular) =>
+            n.data('isFolderNode')
+            && isFolderDescendant(n.id())
+        ).map((n: import('cytoscape').NodeSingular) => n.id()).sort();
 
         const visibleRegularDescendants = cy.nodes().filter((n: import('cytoscape').NodeSingular) =>
             !n.data('isFolderNode')
             && !n.data('isShadowNode')
             && isFolderDescendant(n.id())
-        ).length;
+        ).map((n: import('cytoscape').NodeSingular) => n.id()).sort();
 
         const nonSyntheticEdges = cy.edges().filter((e: import('cytoscape').EdgeSingular) =>
             !e.data('isSyntheticEdge')
@@ -206,9 +298,11 @@ async function getFolderGraphSnapshot(appWindow: Page, folderSuffix: string): Pr
         ).length;
 
         return {
+            folderId,
             collapsed: (folder.data('collapsed') as boolean) ?? false,
             childCount: folder.data('childCount') as number | undefined,
-            directVisibleChildren: folder.children().length,
+            visibleDirectChildren,
+            visibleFolderDescendants,
             visibleRegularDescendants,
             nonSyntheticEdges,
             syntheticEdges,
@@ -216,9 +310,34 @@ async function getFolderGraphSnapshot(appWindow: Page, folderSuffix: string): Pr
     }, folderSuffix);
 }
 
+async function getSyntheticEdgesForFolder(appWindow: Page, folderSuffix: string): Promise<SyntheticEdgeSnapshot[]> {
+    return appWindow.evaluate((suffix: string) => {
+        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+        if (!cy) throw new Error('No cytoscapeInstance');
+
+        const folder = cy.nodes().filter((n: import('cytoscape').NodeSingular) =>
+            n.data('isFolderNode') && n.id().endsWith(suffix)
+        ).first() as import('cytoscape').NodeSingular;
+
+        if (!folder.length) throw new Error(`No folder node ending with ${suffix}`);
+
+        const folderId = folder.id();
+        return cy.edges('[?isSyntheticEdge]').filter((e: import('cytoscape').EdgeSingular) =>
+            e.source().id() === folderId || e.target().id() === folderId
+        ).map((e: import('cytoscape').EdgeSingular) => ({
+            source: e.source().id(),
+            target: e.target().id(),
+            edgeCount: e.data('edgeCount') as number | undefined,
+            label: e.data('label') as string | undefined,
+        })).sort((left: SyntheticEdgeSnapshot, right: SyntheticEdgeSnapshot) =>
+            `${left.source}->${left.target}`.localeCompare(`${right.source}->${right.target}`));
+    }, folderSuffix);
+}
+
 test.describe('Folder Nodes - Spec Behavior', () => {
-    test('sidebar graph toggle collapses a folder and preserves visible topology with synthetic edges', async ({ appWindow }) => {
+    test('sidebar graph toggle collapses a folder and preserves visible topology with synthetic edges', async ({ appWindow, vaultPath }) => {
         test.setTimeout(60000);
+        const fixture = buildFolderSpecFixture(vaultPath);
 
         await waitForGraphLoaded(appWindow, 3);
         await openFolderTreeSidebar(appWindow);
@@ -228,9 +347,10 @@ test.describe('Folder Nodes - Spec Behavior', () => {
         await expect(authToggle).toHaveClass(/expanded/);
 
         const before = await getFolderGraphSnapshot(appWindow, 'auth/');
+        expect(before.folderId).toBe(fixture.authFolderId);
         expect(before.collapsed).toBe(false);
-        expect(before.directVisibleChildren).toBeGreaterThanOrEqual(2);
-        expect(before.visibleRegularDescendants).toBeGreaterThanOrEqual(3);
+        expect(before.visibleFolderDescendants).toEqual(fixture.beforeCollapseVisibleFolderDescendants);
+        expect(before.visibleRegularDescendants).toEqual(fixture.beforeCollapseVisibleRegularDescendants);
         expect(before.syntheticEdges).toBe(0);
         expect(before.nonSyntheticEdges).toBeGreaterThan(0);
 
@@ -245,20 +365,23 @@ test.describe('Folder Nodes - Spec Behavior', () => {
             }
         ).toMatchObject({
             collapsed: true,
-            directVisibleChildren: 0,
-            visibleRegularDescendants: 0,
+            visibleDirectChildren: [],
+            visibleFolderDescendants: [],
+            visibleRegularDescendants: [],
             nonSyntheticEdges: 0,
         });
 
         await expect(authToggle).toHaveClass(/collapsed/);
 
         const afterCollapse = await getFolderGraphSnapshot(appWindow, 'auth/');
-        expect(afterCollapse.childCount).toBeGreaterThanOrEqual(3);
-        expect(afterCollapse.syntheticEdges).toBeGreaterThan(0);
+        expect(afterCollapse.childCount).toBe(4);
+        expect(afterCollapse.syntheticEdges).toBe(fixture.collapsedSyntheticEdges.length);
+        expect(await getSyntheticEdgesForFolder(appWindow, 'auth/')).toEqual(fixture.collapsedSyntheticEdges);
     });
 
-    test('sidebar graph toggle expands a collapsed folder and restores descendants', async ({ appWindow }) => {
+    test('sidebar graph toggle expands a collapsed folder and restores descendants', async ({ appWindow, vaultPath }) => {
         test.setTimeout(60000);
+        const fixture = buildFolderSpecFixture(vaultPath);
 
         await waitForGraphLoaded(appWindow, 3);
         await openFolderTreeSidebar(appWindow);
@@ -267,7 +390,8 @@ test.describe('Folder Nodes - Spec Behavior', () => {
         const authToggle = authRow.locator('.folder-tree-graph-collapse-icon');
 
         const before = await getFolderGraphSnapshot(appWindow, 'auth/');
-        expect(before.visibleRegularDescendants).toBeGreaterThanOrEqual(3);
+        expect(before.visibleFolderDescendants).toEqual(fixture.beforeCollapseVisibleFolderDescendants);
+        expect(before.visibleRegularDescendants).toEqual(fixture.beforeCollapseVisibleRegularDescendants);
         expect(before.syntheticEdges).toBe(0);
 
         await authToggle.click();
@@ -299,8 +423,8 @@ test.describe('Folder Nodes - Spec Behavior', () => {
         await expect(authToggle).toHaveClass(/expanded/);
 
         const afterExpand = await getFolderGraphSnapshot(appWindow, 'auth/');
-        expect(afterExpand.directVisibleChildren).toBeGreaterThanOrEqual(2);
-        expect(afterExpand.visibleRegularDescendants).toBeGreaterThanOrEqual(3);
+        expect(afterExpand.visibleFolderDescendants).toEqual(fixture.afterExpandVisibleFolderDescendants);
+        expect(afterExpand.visibleRegularDescendants).toEqual(fixture.afterExpandVisibleRegularDescendants);
         expect(afterExpand.nonSyntheticEdges).toBeGreaterThan(0);
     });
 });

@@ -14,6 +14,8 @@ import * as O from 'fp-ts/lib/Option.js'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
 import type { GraphDelta, GraphNode, UpsertNodeDelta, DeleteNode } from '@vt/graph-model/pure/graph'
 import { BreathingAnimationService, AnimationType } from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService'
+import { getFolderTreeState, removeCollapsedFolder } from '@/shell/edge/UI-edge/state/FolderTreeStore'
+import { syncVaultStateFromMain } from '@/shell/edge/UI-edge/state/VaultPathStore'
 
 // Mock engagement prompts to avoid jsdom's missing dialog.showModal()
 vi.mock('@/shell/edge/UI-edge/graph/userEngagementPrompts', () => ({
@@ -42,6 +44,10 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
     afterEach(() => {
         cy.destroy()
+        getFolderTreeState().graphCollapsedFolders.forEach((folderId: string) => {
+            removeCollapsedFolder(folderId)
+        })
+        syncVaultStateFromMain({ readPaths: [], writePath: null, starredFolders: [] })
     })
 
     describe('Add new node with parent', () => {
@@ -152,6 +158,136 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             // AND: Should have no edges (orphan)
             expect(cy.edges().length).toBe(0)
+        })
+    })
+
+    describe('Recursive folder chains within loaded roots', () => {
+        it('creates nested folder parents within the loaded root and defaults nested subfolders to collapsed', () => {
+            syncVaultStateFromMain({
+                readPaths: [],
+                writePath: '/vault',
+                starredFolders: [],
+            })
+
+            const directChild: GraphNode = {
+                absoluteFilePathIsID: '/vault/auth/login-flow.md',
+                contentWithoutYamlOrLinks: '# Login Flow',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            }
+
+            const nestedChild: GraphNode = {
+                absoluteFilePathIsID: '/vault/auth/internal/refresh-token.md',
+                contentWithoutYamlOrLinks: '# Refresh Token',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 200, y: 100 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            }
+
+            applyGraphDeltaToUI(cy, [upsert(directChild), upsert(nestedChild)])
+
+            expect(cy.getElementById('/vault/').length).toBe(0)
+            expect(cy.getElementById('/vault/auth/').length).toBe(1)
+            expect(cy.getElementById('/vault/auth/').data('parent')).toBeUndefined()
+
+            const nestedFolder: cytoscape.CollectionReturnValue = cy.getElementById('/vault/auth/internal/')
+            expect(nestedFolder.length).toBe(1)
+            expect(nestedFolder.data('parent')).toBe('/vault/auth/')
+            expect(nestedFolder.data('collapsed')).toBe(true)
+            expect(nestedFolder.data('childCount')).toBe(1)
+
+            expect(cy.getElementById('/vault/auth/login-flow.md').length).toBe(1)
+            expect(cy.getElementById('/vault/auth/login-flow.md').data('parent')).toBe('/vault/auth/')
+            expect(cy.getElementById('/vault/auth/internal/refresh-token.md').length).toBe(0)
+            expect(getFolderTreeState().graphCollapsedFolders.has('/vault/auth/internal/')).toBe(true)
+        })
+
+        it('falls back to the delta root before VaultPathStore is synced', () => {
+            const rootFile: GraphNode = {
+                absoluteFilePathIsID: '/vault/readme.md',
+                contentWithoutYamlOrLinks: '# Readme',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 50, y: 50 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            }
+
+            const nestedChild: GraphNode = {
+                absoluteFilePathIsID: '/vault/auth/internal/refresh-token.md',
+                contentWithoutYamlOrLinks: '# Refresh Token',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 200, y: 100 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            }
+
+            applyGraphDeltaToUI(cy, [upsert(rootFile), upsert(nestedChild)])
+
+            expect(cy.getElementById('/vault/auth/').length).toBe(1)
+            expect(cy.getElementById('/vault/auth/internal/').data('parent')).toBe('/vault/auth/')
+            expect(cy.getElementById('/vault/auth/internal/').data('collapsed')).toBe(true)
+            expect(cy.getElementById('/vault/auth/internal/refresh-token.md').length).toBe(0)
+        })
+
+        it('keeps using the inferred root across sequential deltas before VaultPathStore is synced', () => {
+            const rootFile: GraphNode = {
+                absoluteFilePathIsID: '/vault/readme.md',
+                contentWithoutYamlOrLinks: '# Readme',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 50, y: 50 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            }
+
+            const directChild: GraphNode = {
+                absoluteFilePathIsID: '/vault/auth/login-flow.md',
+                contentWithoutYamlOrLinks: '# Login Flow',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            }
+
+            const nestedChild: GraphNode = {
+                absoluteFilePathIsID: '/vault/auth/internal/refresh-token.md',
+                contentWithoutYamlOrLinks: '# Refresh Token',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 200, y: 100 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            }
+
+            applyGraphDeltaToUI(cy, [upsert(rootFile), upsert(directChild)])
+            applyGraphDeltaToUI(cy, [upsert(nestedChild)])
+
+            expect(cy.getElementById('/vault/auth/').length).toBe(1)
+            expect(cy.getElementById('/vault/auth/internal/').data('parent')).toBe('/vault/auth/')
+            expect(cy.getElementById('/vault/auth/internal/').data('collapsed')).toBe(true)
+            expect(cy.getElementById('/vault/auth/internal/refresh-token.md').length).toBe(0)
         })
     })
 
