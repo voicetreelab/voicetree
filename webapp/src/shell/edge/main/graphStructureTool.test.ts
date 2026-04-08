@@ -4,8 +4,6 @@ import { tmpdir } from 'os'
 import path from 'path'
 import { graphStructureTool } from '@/shell/edge/main/mcp-server/graphStructureTool'
 import type { McpToolResponse } from '@/shell/edge/main/mcp-server/types'
-import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths'
-
 let tempDir: string = ''
 
 describe('graphStructureTool', () => {
@@ -24,7 +22,7 @@ describe('graphStructureTool', () => {
     writeFileSync(path.join(tempDir, 'child-b.md'), '# Child B')
     writeFileSync(path.join(tempDir, 'grandchild.md'), '# Grandchild')
 
-    const response: McpToolResponse = await graphStructureTool({ folderPath: tempDir })
+    const response: McpToolResponse = await graphStructureTool({ folderPath: tempDir, withSummaries: false })
     const result: { success: boolean; nodeCount: number; ascii: string; orphanCount: number } =
       JSON.parse(response.content[0].text)
 
@@ -52,7 +50,7 @@ describe('graphStructureTool', () => {
     mkdirSync(path.join(tempDir, 'ctx-nodes'))
     writeFileSync(path.join(tempDir, 'ctx-nodes', 'hidden.md'), '# Hidden Context Node')
 
-    const response: McpToolResponse = await graphStructureTool({ folderPath: tempDir })
+    const response: McpToolResponse = await graphStructureTool({ folderPath: tempDir, withSummaries: false })
     const result: { success: boolean; nodeCount: number; ascii: string } =
       JSON.parse(response.content[0].text)
 
@@ -67,7 +65,7 @@ describe('graphStructureTool', () => {
     writeFileSync(path.join(tempDir, 'island-b.md'), '# Island B')
     writeFileSync(path.join(tempDir, 'island-c.md'), '# Island C')
 
-    const response: McpToolResponse = await graphStructureTool({ folderPath: tempDir })
+    const response: McpToolResponse = await graphStructureTool({ folderPath: tempDir, withSummaries: false })
     const result: { success: boolean; nodeCount: number; orphanCount: number; ascii: string } =
       JSON.parse(response.content[0].text)
 
@@ -79,17 +77,23 @@ describe('graphStructureTool', () => {
     expect(result.ascii).toContain('Island C')
   })
 
-  it('real fixture test — example_small returns non-empty graph', async () => {
-    const response: McpToolResponse = await graphStructureTool({ folderPath: EXAMPLE_SMALL_PATH })
+  it('auto-enables context-style output for small folders when withSummaries is omitted', async () => {
+    writeFileSync(path.join(tempDir, 'root.md'), '# Root\nFirst detail\nSecond detail\n[[child]]\n')
+    writeFileSync(path.join(tempDir, 'child.md'), '# Child\nOnly child detail\n')
+
+    const response: McpToolResponse = await graphStructureTool({ folderPath: tempDir })
     const result: { success: boolean; nodeCount: number; ascii: string } =
       JSON.parse(response.content[0].text)
 
     expect(result.success).toBe(true)
-    expect(result.nodeCount).toBeGreaterThan(0)
-    expect(result.ascii.length).toBeGreaterThan(0)
+    expect(result.nodeCount).toBe(2)
+    expect(result.ascii).toContain('## Node Contents')
+    expect(result.ascii).toContain('- **Root**')
   })
 
   it('passes through withSummaries to the shared graph-structure implementation', async () => {
+    const rootPath = path.join(tempDir, 'root.md')
+    const childPath = path.join(tempDir, 'child.md')
     writeFileSync(path.join(tempDir, 'root.md'), [
       '---',
       'status: claimed',
@@ -118,11 +122,19 @@ describe('graphStructureTool', () => {
       JSON.parse(response.content[0].text)
 
     expect(result.success).toBe(true)
-    expect(result.ascii).toBe(`Root
-  > First detail
-  > Second detail
-  > Third detail
-  └── Child
-      > Only child detail`)
+    expect(result.ascii).toBe([
+      'Tree structure:',
+      'Root',
+      '└── Child',
+      '',
+      '## Node Contents',
+      `- **Root** (${rootPath})`,
+      '  First detail',
+      '  Second detail',
+      '  Third detail',
+      '  ...1 additional lines',
+      `- **Child** (${childPath})`,
+      '  Only child detail'
+    ].join('\n'))
   })
 })

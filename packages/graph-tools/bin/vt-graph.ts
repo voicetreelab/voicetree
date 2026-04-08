@@ -12,9 +12,43 @@ switch (command) {
     break
   }
   case 'structure': {
-    const folderPath = args[0] || process.cwd()
-    const withSummaries = args.includes('--with-summaries')
-    const result = getGraphStructure(folderPath, {withSummaries})
+    let folderPath: string | undefined
+    let withSummaries: boolean | undefined
+
+    for (const arg of args) {
+      if (arg === '--with-summaries') {
+        if (withSummaries === false) {
+          console.error('Cannot combine --with-summaries and --no-summaries')
+          process.exit(1)
+        }
+        withSummaries = true
+        continue
+      }
+
+      if (arg === '--no-summaries') {
+        if (withSummaries === true) {
+          console.error('Cannot combine --with-summaries and --no-summaries')
+          process.exit(1)
+        }
+        withSummaries = false
+        continue
+      }
+
+      if (arg.startsWith('--')) {
+        console.error(`Unknown argument: ${arg}`)
+        process.exit(1)
+      }
+
+      if (folderPath !== undefined) {
+        console.error(`Unexpected argument: ${arg}`)
+        process.exit(1)
+      }
+
+      folderPath = arg
+    }
+
+    const resolvedFolderPath = folderPath || process.cwd()
+    const result = getGraphStructure(resolvedFolderPath, {withSummaries})
     console.log(result.ascii)
     break
   }
@@ -27,6 +61,6 @@ switch (command) {
     break
   }
   default:
-    console.log('Usage: vt-graph <lint|structure|rename|mv> [path] [--json]')
+    console.log('Usage: vt-graph <lint|structure|rename|mv> [path] [--json] [--with-summaries|--no-summaries]')
     process.exit(1)
 }

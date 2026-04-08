@@ -399,10 +399,10 @@ Task
         'graph_structure',
         {
             title: 'Get Graph Structure',
-            description: 'Read .md files from a folder on disk and render the graph structure as an ASCII tree. Shows node hierarchy based on [[wikilink]] edges. Useful for understanding the topology of a markdown graph without reading every file. Excludes ctx-nodes/ folders.',
+            description: 'Read .md files from a folder on disk and render the graph structure as ASCII. Small folders default to a context-style view with a tree plus `## Node Contents`; larger folders default to compact topology only. Excludes ctx-nodes/ folders.',
             inputSchema: {
                 folderPath: z.string().describe('Absolute path to folder containing .md files'),
-                withSummaries: z.boolean().optional().describe('Include the first few non-empty content lines below each node title in the ASCII tree. Skips frontmatter and the top-level # heading.'),
+                withSummaries: z.boolean().optional().describe('Tri-state summary control: `true` forces the context-style tree plus `## Node Contents`, `false` forces topology-only output, and omitting it auto-enables summaries only for folders with 30 or fewer nodes.'),
             }
         },
         async ({folderPath, withSummaries}) => graphStructureTool({folderPath, withSummaries})

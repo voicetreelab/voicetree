@@ -316,15 +316,26 @@ export async function graphStructure(port: number, terminalId: string | undefine
     void terminalId
 
     if (args.length === 0) {
-        error('Usage: vt graph structure <folder-path> [--with-summaries]')
+        error('Usage: vt graph structure <folder-path> [--with-summaries|--no-summaries]')
     }
 
     let folderPath: string | undefined
-    let withSummaries: boolean = false
+    let withSummaries: boolean | undefined
 
     for (const arg of args) {
         if (arg === '--with-summaries') {
+            if (withSummaries === false) {
+                error('Cannot combine --with-summaries and --no-summaries')
+            }
             withSummaries = true
+            continue
+        }
+
+        if (arg === '--no-summaries') {
+            if (withSummaries === true) {
+                error('Cannot combine --with-summaries and --no-summaries')
+            }
+            withSummaries = false
             continue
         }
 
@@ -340,7 +351,7 @@ export async function graphStructure(port: number, terminalId: string | undefine
     }
 
     if (!folderPath) {
-        error('Usage: vt graph structure <folder-path> [--with-summaries]')
+        error('Usage: vt graph structure <folder-path> [--with-summaries|--no-summaries]')
     }
 
     try {
