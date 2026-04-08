@@ -105,7 +105,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: webapp/package-lock.json
 
       - name: Setup Python (for node-gyp)
         uses: actions/setup-python@v5
@@ -162,7 +162,8 @@ jobs:
           cp backend/settings.py out/resources/backend/
           cp backend/logging_config.py out/resources/backend/
 
-      - name: Install dependencies (workspace root)
+      - name: Install frontend dependencies
+        working-directory: webapp
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
@@ -265,7 +266,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: webapp/package-lock.json
 
       - name: Setup Python (for node-gyp)
         uses: actions/setup-python@v5
@@ -301,7 +302,8 @@ jobs:
           Copy-Item -Force "backend\settings.py" "out\resources\backend\"
           Copy-Item -Force "backend\logging_config.py" "out\resources\backend\"
 
-      - name: Install dependencies (workspace root)
+      - name: Install frontend dependencies
+        working-directory: webapp
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
@@ -343,7 +345,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: webapp/package-lock.json
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -375,7 +377,8 @@ jobs:
           cp backend/settings.py out/resources/backend/
           cp backend/logging_config.py out/resources/backend/
 
-      - name: Install dependencies (workspace root)
+      - name: Install frontend dependencies
+        working-directory: webapp
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
