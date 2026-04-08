@@ -15,31 +15,36 @@ type GraphMovePlan = {
     sourceAbsPath: string
     destinationAbsPath: string
     mappings: PathMapping[]
+    nonMarkdownFiles: string[]
 }
 
 type GraphMoveOptions = {
     usage: string
     verb: string
+    dryRunVerb: string
     requireFile?: boolean
 }
 
 type ReferenceUpdateSummary = {
-    filesScanned: number
     filesChanged: string[]
     referencesUpdated: number
     details: Array<{file: string; count: number}>
 }
 
 type GraphMoveResult = {
-    sourcePath: string
-    destinationPath: string
     kind: 'file' | 'folder'
     movedMarkdownFiles: number
+    movedFiles: Array<{from: string; to: string}>
     dryRun: boolean
-    filesScanned: number
     filesChanged: string[]
     referencesUpdated: number
     details: Array<{file: string; count: number}>
+    warnings: string[]
+    nonMarkdownFiles: string[]
+}
+
+function shouldSkipPath(fullPath: string): boolean {
+    return fullPath.includes('/.voicetree/') || fullPath.includes('/node_modules/')
 }
 
 function findMdFiles(dir: string): string[] {
@@ -55,7 +60,7 @@ function findMdFiles(dir: string): string[] {
 
         for (const entry of entries) {
             const fullPath = join(currentDir, entry.name)
-            if (fullPath.includes('/.voicetree/') || fullPath.includes('/node_modules/')) continue
+            if (shouldSkipPath(fullPath)) continue
             if (entry.isDirectory()) {
                 walk(fullPath)
                 continue
@@ -65,7 +70,33 @@ function findMdFiles(dir: string): string[] {
     }
 
     walk(dir)
-    return results
+    return results.sort()
+}
+
+function findNonMdFiles(dir: string): string[] {
+    const results: string[] = []
+
+    function walk(currentDir: string): void {
+        let entries
+        try {
+            entries = readdirSync(currentDir, {withFileTypes: true})
+        } catch {
+            return
+        }
+
+        for (const entry of entries) {
+            const fullPath = join(currentDir, entry.name)
+            if (shouldSkipPath(fullPath)) continue
+            if (entry.isDirectory()) {
+                walk(fullPath)
+                continue
+            }
+            if (entry.isFile() && !entry.name.endsWith('.md')) results.push(fullPath)
+        }
+    }
+
+    walk(dir)
+    return results.sort()
 }
 
 function escapeRegex(str: string): string {
@@ -194,6 +225,7 @@ function buildMovePlan(sourceAbsPath: string, destinationAbsPath: string): Graph
                 oldAbsPath,
                 newAbsPath: join(destinationAbsPath, relative(sourceAbsPath, oldAbsPath)),
             })),
+            nonMarkdownFiles: findNonMdFiles(sourceAbsPath),
         }
     }
 
@@ -206,6 +238,7 @@ function buildMovePlan(sourceAbsPath: string, destinationAbsPath: string): Graph
         sourceAbsPath,
         destinationAbsPath,
         mappings: [{oldAbsPath: sourceAbsPath, newAbsPath: destinationAbsPath}],
+        nonMarkdownFiles: [],
     }
 }
 
@@ -249,7 +282,6 @@ function updateReferences(
     const mdFiles = findMdFiles(vaultRoot)
 
     const summary: ReferenceUpdateSummary = {
-        filesScanned: mdFiles.length,
         filesChanged: [],
         referencesUpdated: 0,
         details: [],
@@ -289,20 +321,44 @@ function performFilesystemMove(plan: GraphMovePlan, dryRun: boolean): void {
     renameSync(plan.sourceAbsPath, plan.destinationAbsPath)
 }
 
-function formatMoveResult(result: GraphMoveResult, verb: string): string {
-    const prefix = result.dryRun ? '[DRY RUN] ' : ''
-    const lines: string[] = [
-        `${prefix}${verb} ${result.kind}: ${result.sourcePath} -> ${result.destinationPath}`,
-        `Moved markdown files: ${result.movedMarkdownFiles}`,
-        `Scanned: ${result.filesScanned} files`,
-        `Changed: ${result.filesChanged.length} files (${result.referencesUpdated} references)`,
+function formatCount(count: number, singular: string, plural = `${singular}s`): string {
+    return `${count} ${count === 1 ? singular : plural}`
+}
+
+function buildWarnings(nonMarkdownFiles: string[], dryRun: boolean): string[] {
+    if (nonMarkdownFiles.length === 0) return []
+
+    return [
+        `${formatCount(nonMarkdownFiles.length, 'non-Markdown file')} ${dryRun ? 'would also be moved' : 'will also be moved'} without reference updates.`,
     ]
+}
+
+function formatMoveResult(result: GraphMoveResult, verb: string, dryRunVerb: string): string {
+    const action = result.dryRun ? dryRunVerb : verb
+    const lines: string[] = [
+        `${action} ${result.kind} (${formatCount(result.movedMarkdownFiles, 'file')}, ${formatCount(result.referencesUpdated, 'reference updated', 'references updated')}):`,
+    ]
+
+    for (const movedFile of result.movedFiles) {
+        lines.push(`  ${movedFile.from} -> ${movedFile.to}`)
+    }
 
     if (result.details.length > 0) {
         lines.push('')
-        lines.push('Files updated:')
+        lines.push('References updated:')
         for (const detail of result.details) {
-            lines.push(`  ${detail.file} (${detail.count} refs)`)
+            lines.push(`  ${detail.file} (${detail.count})`)
+        }
+    }
+
+    if (result.warnings.length > 0) {
+        lines.push('')
+        lines.push('Warnings:')
+        for (const warning of result.warnings) {
+            lines.push(`  ${warning}`)
+        }
+        for (const filePath of result.nonMarkdownFiles) {
+            lines.push(`  ${filePath}`)
         }
     }
 
@@ -324,19 +380,25 @@ export async function runGraphMove(args: string[], options: GraphMoveOptions): P
     const referenceSummary = updateReferences(vaultRoot, plan.mappings, dryRun)
     performFilesystemMove(plan, dryRun)
 
+    const movedFiles = plan.mappings.map(({oldAbsPath, newAbsPath}) => ({
+        from: relative(vaultRoot, oldAbsPath),
+        to: relative(vaultRoot, newAbsPath),
+    }))
+    const nonMarkdownFiles = plan.nonMarkdownFiles.map((filePath) => relative(vaultRoot, filePath))
+
     const result: GraphMoveResult = {
-        sourcePath: relative(vaultRoot, sourceAbsPath),
-        destinationPath: relative(vaultRoot, destinationAbsPath),
         kind: plan.kind,
         movedMarkdownFiles: plan.mappings.length,
+        movedFiles,
         dryRun,
-        filesScanned: referenceSummary.filesScanned,
         filesChanged: referenceSummary.filesChanged,
         referencesUpdated: referenceSummary.referencesUpdated,
         details: referenceSummary.details,
+        warnings: buildWarnings(nonMarkdownFiles, dryRun),
+        nonMarkdownFiles,
     }
 
-    output(result, (data: unknown) => formatMoveResult(data as GraphMoveResult, options.verb))
+    output(result, (data: unknown) => formatMoveResult(data as GraphMoveResult, options.verb, options.dryRunVerb))
 }
 
 export async function graphMove(
@@ -347,5 +409,6 @@ export async function graphMove(
     await runGraphMove(args, {
         usage: 'Usage: vt graph mv <source-path> <dest-path> [--dry-run] [--vault PATH]',
         verb: 'Moved',
+        dryRunVerb: 'Would move',
     })
 }

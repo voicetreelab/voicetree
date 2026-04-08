@@ -8,6 +8,7 @@ export async function graphRename(
     await runGraphMove(args, {
         usage: 'Usage: vt graph rename <old-path> <new-path> [--dry-run] [--vault PATH]',
         verb: 'Renamed',
+        dryRunVerb: 'Would rename',
         requireFile: true,
     })
 }
