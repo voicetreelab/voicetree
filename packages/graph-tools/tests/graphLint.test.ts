@@ -1,14 +1,17 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'fs'
+import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, rmSync } from 'fs'
 import { tmpdir } from 'os'
 import path from 'path'
 import {
     lintGraph,
+    lintGraphWithFixes,
     buildContainmentTree,
     classifyEdges,
     computeNodeMetrics,
     checkRules,
     DEFAULT_LINT_CONFIG,
+    formatLintReportHuman,
+    formatLintReportJson,
 } from '../src/graphLint'
 import type {
     ContainmentTree,
@@ -18,6 +21,13 @@ import type {
     GraphLintReport,
     LintConfig,
 } from '../src/graphLint'
+
+const FIXTURE_ROOT = path.join(
+    process.cwd(),
+    'tests',
+    'fixtures',
+    'filesystem-graph-authoring'
+)
 
 // eslint-disable-next-line functional/no-let
 let tempDir: string
@@ -229,6 +239,89 @@ describe('graphLint', () => {
             const report: GraphLintReport = lintGraph(tempDir)
             expect(report.summary.totalNodes).toBe(1)
             expect(report.nodeMetrics.has('ctx-nodes/hidden')).toBe(false)
+        })
+
+        it('reports reusable authoring fixes and rejections in human and json output', () => {
+            writeFileSync(path.join(tempDir, 'root.md'), '# Root\n')
+            writeFileSync(path.join(tempDir, 'rough.md'), '# Rough\n- parent [root]   \n')
+            writeFileSync(
+                path.join(tempDir, 'oversized.md'),
+                readFileSync(path.join(FIXTURE_ROOT, 'rejectable', 'oversized-node', 'oversized-brief.md'), 'utf8')
+            )
+
+            const report: GraphLintReport = lintGraphWithFixes({
+                folderPath: tempDir,
+                agentName: 'bf-127-lint-agent',
+            })
+
+            expect(report.authoring).toMatchObject({
+                mode: 'check',
+                changedFiles: 0,
+                rejectedFiles: 1,
+            })
+            expect(report.authoring?.entries).toEqual(expect.arrayContaining([
+                expect.objectContaining({
+                    filename: 'rough.md',
+                    applied: false,
+                    fixes: expect.arrayContaining([
+                        expect.objectContaining({code: 'converted_structural_soft_links'}),
+                        expect.objectContaining({code: 'trimmed_trailing_whitespace'}),
+                        expect.objectContaining({code: 'added_frontmatter'}),
+                    ]),
+                    rejections: [],
+                }),
+                expect.objectContaining({
+                    filename: 'oversized.md',
+                    rejections: expect.arrayContaining([
+                        expect.objectContaining({
+                            code: 'node_too_long',
+                            suggestions: expect.arrayContaining([
+                                expect.stringContaining('Evidence'),
+                            ]),
+                        }),
+                    ]),
+                }),
+            ]))
+
+            const humanOutput: string = formatLintReportHuman(report)
+            expect(humanOutput).toContain('AUTHORING CHECK')
+            expect(humanOutput).toContain('rough.md')
+            expect(humanOutput).toContain('would fix')
+            expect(humanOutput).toContain('oversized.md REJECTED')
+
+            const jsonOutput = JSON.parse(formatLintReportJson(report))
+            expect(jsonOutput.authoring.mode).toBe('check')
+            expect(jsonOutput.authoring.entries).toEqual(expect.arrayContaining([
+                expect.objectContaining({filename: 'rough.md', applied: false}),
+                expect.objectContaining({filename: 'oversized.md'}),
+            ]))
+        })
+
+        it('applies the reusable authoring fix layer when lint --fix is enabled', () => {
+            writeFileSync(path.join(tempDir, 'root.md'), '# Root\n')
+            writeFileSync(path.join(tempDir, 'rough.md'), '# Rough\n- parent [root]   \n')
+
+            const report: GraphLintReport = lintGraphWithFixes({
+                folderPath: tempDir,
+                applyFixes: true,
+                agentName: 'bf-127-lint-agent',
+            })
+
+            expect(report.authoring).toMatchObject({
+                mode: 'fix',
+                changedFiles: 2,
+                rejectedFiles: 0,
+            })
+            const fixedMarkdown: string = readFileSync(path.join(tempDir, 'rough.md'), 'utf8')
+            expect(fixedMarkdown).toContain('color: blue')
+            expect(fixedMarkdown).toContain('agent_name: bf-127-lint-agent')
+            expect(fixedMarkdown).toContain('isContextNode: false')
+            expect(fixedMarkdown).toContain('- parent [[root]]')
+            expect(fixedMarkdown).not.toContain('- parent [root]')
+            expect(fixedMarkdown).not.toContain('   \n')
+            expect(report.authoring?.entries.find(entry => entry.filename === 'rough.md')).toMatchObject({
+                applied: true,
+            })
         })
     })
 

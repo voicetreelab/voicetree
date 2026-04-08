@@ -492,6 +492,34 @@ describe('MCP create_graph tool', () => {
             expect(firstNode.absoluteFilePathIsID).toContain('parent')
         })
 
+        it('preserves labeled parent edges for locally created nodes', async () => {
+            setupStandardMocks()
+
+            await createGraphTool({
+                callerTerminalId: CALLER_TERMINAL_ID,
+                nodes: [
+                    {filename:'parent', title: 'Parent', summary: 'Parent.'},
+                    {filename:'child', title: 'Child', summary: 'Child.', parents: [{filename: 'parent', edgeLabel: 'implements'}]},
+                ]
+            })
+
+            const calls: Array<[GraphDelta, boolean | undefined]> =
+                vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls as Array<[GraphDelta, boolean | undefined]>
+            const creationDelta: GraphDelta = calls[0][0]
+            const childDelta = creationDelta.find(
+                (entry) => entry.type === 'UpsertNode' && entry.nodeToUpsert.absoluteFilePathIsID === `${WRITE_PATH}/child.md`
+            )
+
+            if (!childDelta || childDelta.type !== 'UpsertNode') {
+                throw new Error('Expected child node in creation delta')
+            }
+
+            expect(childDelta.nodeToUpsert.outgoingEdges).toContainEqual({
+                targetId: `${WRITE_PATH}/parent.md`,
+                label: 'implements',
+            })
+        })
+
         it('positions children spread vertically from parent', async () => {
             setupStandardMocks()
 

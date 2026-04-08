@@ -19,6 +19,7 @@ export {
 // Graph linting
 export {
     lintGraph,
+    lintGraphWithFixes,
     buildContainmentTree,
     classifyEdges,
     computeNodeMetrics,
@@ -31,9 +32,26 @@ export {
     type NodeMetrics,
     type LintResult,
     type GraphLintReport,
+    type GraphLintAuthoringEntry,
+    type GraphLintAuthoringReport,
     type LintConfig,
 } from './graphLint'
 
 // Rename
 export { graphRename } from './rename'
 export { graphMove } from './move'
+
+// Filesystem authoring
+export {
+    buildMarkdownBody,
+    buildFilesystemAuthoringPlan,
+    type ComplexityScore,
+    type BuildMarkdownBodyParams,
+    type StructureManifest,
+    type FilesystemAuthoringInput,
+    type FilesystemAuthoringFix,
+    type FilesystemAuthoringValidationError,
+    type FilesystemAuthoringPlanEntry,
+    type FilesystemAuthoringReportEntry,
+    type FilesystemAuthoringPlanResult,
+} from './filesystemAuthoring'

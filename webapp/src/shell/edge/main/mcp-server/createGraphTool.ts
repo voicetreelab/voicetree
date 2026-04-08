@@ -17,6 +17,10 @@ import type {Graph, GraphDelta, GraphNode, NodeDelta, NodeIdAndFilePath, Positio
 import {findBestMatchingNode} from '@vt/graph-model/pure/graph/markdown-parsing/extract-edges'
 import {ensureUniqueNodeId} from '@vt/graph-model/pure/graph/ensureUniqueNodeId'
 import {parseMarkdownToGraphNode} from '@vt/graph-model/pure/graph/markdown-parsing/parse-markdown-to-node'
+import {
+    buildMarkdownBody,
+    type ComplexityScore,
+} from '../../../../../../packages/graph-tools/src/filesystemAuthoring.ts'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {calculateNodePosition} from '@vt/graph-model/pure/graph/positioning/calculateInitialPosition'
 import {buildSpatialIndexFromGraph} from '@vt/graph-model/pure/graph/positioning/spatialAdapters'
@@ -26,9 +30,7 @@ import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@/shell/edge/main/gr
 import {getTerminalRecords, resetAuditRetryCount, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 import {type McpToolResponse, buildJsonResponse} from './types'
 import {
-    type ComplexityScore,
     type MermaidBlock,
-    buildMarkdownBody,
     slugify,
     validateMermaidBlocks,
     extractMermaidBlocks,

@@ -4,7 +4,13 @@
  * slug generation, and body length counting.
  */
 
-export type ComplexityScore = 'low' | 'medium' | 'high'
+import {
+    buildMarkdownBody as buildGraphToolsMarkdownBody,
+    type BuildMarkdownBodyParams,
+    type ComplexityScore,
+} from '../../../../../../packages/graph-tools/src/filesystemAuthoring.ts'
+
+export type {BuildMarkdownBodyParams, ComplexityScore}
 
 /**
  * Mapping from mermaid diagram type declarations (first line of block)
@@ -35,13 +41,6 @@ export type MermaidBlock = {
     readonly diagramType: string | undefined
     readonly parserType: string | undefined
     readonly textWithoutFirstLine: string
-}
-
-function normalizeArtifactMarkdownLink(artifact: string): { readonly label: string; readonly href: string } {
-    const trimmed: string = artifact.trim()
-    const href: string = trimmed.endsWith('.md') ? trimmed : `${trimmed}.md`
-    const label: string = trimmed.replace(/\.md$/, '')
-    return {label, href}
 }
 
 export function extractMermaidBlocks(content: string): readonly MermaidBlock[] {
@@ -116,118 +115,8 @@ export async function validateMermaidBlocks(blocks: readonly MermaidBlock[]): Pr
  * Build the markdown body from structured sections.
  * Sections are assembled in a consistent order below the title.
  */
-export function buildMarkdownBody(params: {
-    readonly title: string
-    readonly summary: string
-    readonly content: string | undefined
-    readonly codeDiffs: readonly string[] | undefined
-    readonly filesChanged: readonly string[] | undefined
-    readonly diagram: string | undefined
-    readonly notes: readonly string[] | undefined
-    readonly linkedArtifacts: readonly string[] | undefined
-    readonly complexityScore: ComplexityScore | undefined
-    readonly complexityExplanation: string | undefined
-    readonly color: string
-    readonly agentName: string
-    readonly parentLinks: readonly { baseName: string; edgeLabel: string | undefined }[]
-}): string {
-    const sections: string[] = []
-
-    // Frontmatter
-    sections.push('---')
-    sections.push(`color: ${params.color}`)
-    sections.push(`agent_name: ${params.agentName}`)
-    sections.push('---')
-    sections.push('')
-
-    // Title
-    sections.push(`# ${params.title}`)
-    sections.push('')
-
-    // Summary (always first after title)
-    sections.push(params.summary)
-    sections.push('')
-
-    // Content (optional freeform body)
-    if (params.content) {
-        sections.push(params.content)
-        sections.push('')
-    }
-
-    // Code Diffs
-    if (params.codeDiffs && params.codeDiffs.length > 0) {
-        sections.push('## DIFF')
-        sections.push('')
-        for (const diff of params.codeDiffs) {
-            sections.push('```')
-            sections.push(diff)
-            sections.push('```')
-            sections.push('')
-        }
-    }
-
-    // Complexity (rendered when codeDiffs are present)
-    if (params.complexityScore && params.complexityExplanation) {
-        sections.push(`## Complexity: ${params.complexityScore}`)
-        sections.push('')
-        sections.push(params.complexityExplanation)
-        sections.push('')
-    }
-
-    // Files Changed
-    if (params.filesChanged && params.filesChanged.length > 0) {
-        sections.push('## Files Changed')
-        sections.push('')
-        for (const f of params.filesChanged) {
-            sections.push(`- ${f}`)
-        }
-        sections.push('')
-    }
-
-    // Diagram
-    if (params.diagram) {
-        sections.push('## Diagram')
-        sections.push('')
-        sections.push('```mermaid')
-        sections.push(params.diagram)
-        sections.push('```')
-        sections.push('')
-    }
-
-    // Notes
-    if (params.notes && params.notes.length > 0) {
-        sections.push('### NOTES')
-        sections.push('')
-        for (const note of params.notes) {
-            sections.push(`- ${note}`)
-        }
-        sections.push('')
-    }
-
-    // Linked Artifacts - render as regular markdown links so they stay navigable
-    // without creating extra graph edges.
-    if (params.linkedArtifacts && params.linkedArtifacts.length > 0) {
-        sections.push('## Related')
-        sections.push('')
-        for (const artifact of params.linkedArtifacts) {
-            const {label, href}: { readonly label: string; readonly href: string } =
-                normalizeArtifactMarkdownLink(artifact)
-            sections.push(`- [${label}](${href})`)
-        }
-        sections.push('')
-    }
-
-    // Parent wikilinks — edge label is extracted from text before [[
-    for (const parent of params.parentLinks) {
-        if (parent.edgeLabel) {
-            sections.push(`${parent.edgeLabel} [[${parent.baseName}]]`)
-        } else {
-            sections.push(`[[${parent.baseName}]]`)
-        }
-    }
-    sections.push('')
-
-    return sections.join('\n')
+export function buildMarkdownBody(params: BuildMarkdownBodyParams): string {
+    return buildGraphToolsMarkdownBody(params)
 }
 
 /**

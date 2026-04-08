@@ -1,13 +1,50 @@
 #!/usr/bin/env npx tsx
-import { lintGraph, formatLintReportHuman, formatLintReportJson, getGraphStructure, graphMove, graphRename } from '../src/index'
+import {
+  formatLintReportHuman,
+  formatLintReportJson,
+  getGraphStructure,
+  graphMove,
+  graphRename,
+  lintGraphWithFixes,
+} from '../src/index'
 
 const [,, command, ...args] = process.argv
 
 switch (command) {
   case 'lint': {
-    const folderPath = args[0] || process.cwd()
-    const jsonFlag = args.includes('--json')
-    const report = lintGraph(folderPath)
+    let folderPath: string | undefined
+    let jsonFlag = false
+    let fixFlag = false
+
+    for (const arg of args) {
+      if (arg === '--json') {
+        jsonFlag = true
+        continue
+      }
+
+      if (arg === '--fix') {
+        fixFlag = true
+        continue
+      }
+
+      if (arg.startsWith('--')) {
+        console.error(`Unknown argument: ${arg}`)
+        process.exit(1)
+      }
+
+      if (folderPath !== undefined) {
+        console.error(`Unexpected argument: ${arg}`)
+        process.exit(1)
+      }
+
+      folderPath = arg
+    }
+
+    const report = lintGraphWithFixes({
+      folderPath: folderPath || process.cwd(),
+      applyFixes: fixFlag,
+      agentName: process.env.AGENT_NAME,
+    })
     console.log(jsonFlag ? formatLintReportJson(report) : formatLintReportHuman(report))
     break
   }
@@ -61,6 +98,6 @@ switch (command) {
     break
   }
   default:
-    console.log('Usage: vt-graph <lint|structure|rename|mv> [path] [--json] [--with-summaries|--no-summaries]')
+    console.log('Usage: vt-graph <lint|structure|rename|mv> [path] [--json] [--fix] [--with-summaries|--no-summaries]')
     process.exit(1)
 }
