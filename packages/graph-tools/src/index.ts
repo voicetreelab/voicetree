@@ -37,3 +37,16 @@ export {
 // Rename
 export { graphRename } from './rename'
 export { graphMove } from './move'
+
+// Filesystem authoring
+export {
+    buildMarkdownBody,
+    buildFilesystemAuthoringPlan,
+    type ComplexityScore,
+    type BuildMarkdownBodyParams,
+    type StructureManifest,
+    type FilesystemAuthoringInput,
+    type FilesystemAuthoringValidationError,
+    type FilesystemAuthoringPlanEntry,
+    type FilesystemAuthoringPlanResult,
+} from './filesystemAuthoring'
