@@ -1,3 +1,5 @@
+import {readFileSync} from 'node:fs'
+import path from 'node:path'
 import {describe, expect, it} from 'vitest'
 import * as graphTools from '../src/index'
 import {buildMarkdownBody as legacyBuildMarkdownBody} from '../../../webapp/src/shell/edge/main/mcp-server/addProgressNodeTool'
@@ -36,14 +38,38 @@ type FilesystemAuthoringPlanResult = {
         readonly filename: string
         readonly parentFilenames: readonly string[]
         readonly markdown: string
+        readonly fixes?: readonly {
+            readonly code: string
+            readonly message: string
+        }[]
     }[]
     readonly errors?: readonly {
         readonly code: string
         readonly message: string
         readonly filename?: string
         readonly ref?: string
+        readonly suggestions?: readonly string[]
+    }[]
+    readonly reports?: readonly {
+        readonly filename: string
+        readonly fixes: readonly {
+            readonly code: string
+            readonly message: string
+        }[]
+        readonly rejections: readonly {
+            readonly code: string
+            readonly message: string
+            readonly suggestions?: readonly string[]
+        }[]
     }[]
 }
+
+const FIXTURE_ROOT = path.join(
+    process.cwd(),
+    'tests',
+    'fixtures',
+    'filesystem-graph-authoring'
+)
 
 type BuildFilesystemAuthoringPlanFn = (params: {
     readonly inputs: readonly FilesystemAuthoringInput[]
@@ -205,6 +231,93 @@ describe('filesystem authoring contract', () => {
         expect(result).toMatchObject({status: 'invalid'})
         expect(result.errors).toEqual(expect.arrayContaining([
             expect.objectContaining({code: 'invalid_manifest'}),
+        ]))
+        expect(result.writePlan).toBeUndefined()
+    })
+
+    it('auto-fixes missing frontmatter from the fixture corpus before building a write plan', async () => {
+        const fixtureMarkdown: string = readFileSync(
+            path.join(FIXTURE_ROOT, 'fixable', 'missing-frontmatter', 'rough-capture.md'),
+            'utf8'
+        )
+
+        const result = await buildFilesystemAuthoringPlan({
+            inputs: [{filename: 'rough-capture.md', markdown: fixtureMarkdown}],
+            agentName: 'bf-127-test-agent',
+        })
+
+        expect(result).toMatchObject({status: 'ok'})
+        const entry = result.writePlan?.find(candidate => candidate.filename === 'rough-capture.md')
+        expect(entry?.markdown).toContain('color: blue')
+        expect(entry?.markdown).toContain('agent_name: bf-127-test-agent')
+        expect(entry?.markdown).toContain('isContextNode: false')
+        expect(entry?.fixes).toEqual(expect.arrayContaining([
+            expect.objectContaining({code: 'added_frontmatter'}),
+        ]))
+        expect(result.reports).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                filename: 'rough-capture.md',
+                fixes: expect.arrayContaining([
+                    expect.objectContaining({code: 'added_frontmatter'}),
+                ]),
+                rejections: [],
+            }),
+        ]))
+    })
+
+    it('reuses the authoring auto-fix layer for parent soft links and whitespace normalization', async () => {
+        const result = await buildFilesystemAuthoringPlan({
+            inputs: [
+                {filename: 'root.md', markdown: '# Root\n'},
+                {filename: 'child.md', markdown: '# Child\n- parent [root]   \nTrailing space here.   \n'},
+            ],
+            agentName: 'bf-127-test-agent',
+        })
+
+        expect(result).toMatchObject({status: 'ok'})
+        const childEntry = result.writePlan?.find(entry => entry.filename === 'child.md')
+        expect(childEntry?.markdown).toContain('- parent [[root]]')
+        expect(childEntry?.markdown).not.toContain('- parent [root]')
+        expect(childEntry?.markdown).not.toContain('Trailing space here.   ')
+        expect(childEntry?.fixes).toEqual(expect.arrayContaining([
+            expect.objectContaining({code: 'converted_structural_soft_links'}),
+            expect.objectContaining({code: 'trimmed_trailing_whitespace'}),
+            expect.objectContaining({code: 'added_frontmatter'}),
+        ]))
+    })
+
+    it('rejects oversized fixture nodes with actionable split suggestions', async () => {
+        const fixtureMarkdown: string = readFileSync(
+            path.join(FIXTURE_ROOT, 'rejectable', 'oversized-node', 'oversized-brief.md'),
+            'utf8'
+        )
+
+        const result = await buildFilesystemAuthoringPlan({
+            inputs: [{filename: 'oversized-brief.md', markdown: fixtureMarkdown}],
+        })
+
+        expect(result).toMatchObject({status: 'invalid'})
+        expect(result.errors).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                code: 'node_too_long',
+                filename: 'oversized-brief.md',
+                suggestions: expect.arrayContaining([
+                    expect.stringContaining('Evidence'),
+                ]),
+            }),
+        ]))
+        expect(result.reports).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                filename: 'oversized-brief.md',
+                rejections: expect.arrayContaining([
+                    expect.objectContaining({
+                        code: 'node_too_long',
+                        suggestions: expect.arrayContaining([
+                            expect.stringContaining('Implications'),
+                        ]),
+                    }),
+                ]),
+            }),
         ]))
         expect(result.writePlan).toBeUndefined()
     })

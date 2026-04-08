@@ -19,6 +19,7 @@ export {
 // Graph linting
 export {
     lintGraph,
+    lintGraphWithFixes,
     buildContainmentTree,
     classifyEdges,
     computeNodeMetrics,
@@ -31,6 +32,8 @@ export {
     type NodeMetrics,
     type LintResult,
     type GraphLintReport,
+    type GraphLintAuthoringEntry,
+    type GraphLintAuthoringReport,
     type LintConfig,
 } from './graphLint'
 
@@ -46,7 +49,9 @@ export {
     type BuildMarkdownBodyParams,
     type StructureManifest,
     type FilesystemAuthoringInput,
+    type FilesystemAuthoringFix,
     type FilesystemAuthoringValidationError,
     type FilesystemAuthoringPlanEntry,
+    type FilesystemAuthoringReportEntry,
     type FilesystemAuthoringPlanResult,
 } from './filesystemAuthoring'

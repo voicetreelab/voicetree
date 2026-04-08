@@ -1,4 +1,14 @@
-import path from 'path'
+import {
+    buildMarkdownFromParts,
+    extractExistingParentRefs,
+    mergeFrontmatter,
+    normalizeFilename,
+    normalizeRef,
+    prepareAuthoringMarkdown,
+    splitFrontmatter,
+    type AuthoringFix,
+    type AuthoringRejection,
+} from './authoringFixes'
 
 export type ComplexityScore = 'low' | 'medium' | 'high'
 
@@ -29,32 +39,45 @@ export type FilesystemAuthoringInput = {
 }
 
 export type FilesystemAuthoringValidationError = {
-    readonly code: 'duplicate_target' | 'missing_ref' | 'invalid_manifest'
+    readonly code: 'duplicate_target' | 'missing_ref' | 'invalid_manifest' | 'missing_title' | 'node_too_long'
     readonly message: string
     readonly filename?: string
     readonly ref?: string
+    readonly suggestions?: readonly string[]
 }
 
 export type FilesystemAuthoringPlanEntry = {
     readonly filename: string
     readonly parentFilenames: readonly string[]
     readonly markdown: string
+    readonly fixes: readonly FilesystemAuthoringFix[]
+}
+
+export type FilesystemAuthoringFix = AuthoringFix
+
+export type FilesystemAuthoringReportEntry = {
+    readonly filename: string
+    readonly fixes: readonly FilesystemAuthoringFix[]
+    readonly rejections: readonly FilesystemAuthoringValidationError[]
 }
 
 export type FilesystemAuthoringPlanResult =
     | {
         readonly status: 'ok'
         readonly writePlan: readonly FilesystemAuthoringPlanEntry[]
+        readonly reports: readonly FilesystemAuthoringReportEntry[]
     }
     | {
         readonly status: 'invalid'
         readonly errors: readonly FilesystemAuthoringValidationError[]
+        readonly reports: readonly FilesystemAuthoringReportEntry[]
     }
 
 type IndexedInput = {
     readonly filename: string
     readonly ref: string
     readonly markdown: string
+    readonly fixes: readonly FilesystemAuthoringFix[]
 }
 
 type ParsedManifest = {
@@ -165,6 +188,7 @@ export function buildFilesystemAuthoringPlan(params: {
 }): FilesystemAuthoringPlanResult {
     const indexedInputs: IndexedInput[] = []
     const duplicateErrors: FilesystemAuthoringValidationError[] = []
+    const reports: FilesystemAuthoringReportEntry[] = []
     const seenFilenames: Set<string> = new Set()
 
     for (const input of params.inputs) {
@@ -179,37 +203,65 @@ export function buildFilesystemAuthoringPlan(params: {
         }
 
         seenFilenames.add(filename)
+        const preparedMarkdown: {
+            readonly markdown: string
+            readonly fixes: readonly FilesystemAuthoringFix[]
+            readonly rejections: readonly AuthoringRejection[]
+        } = prepareAuthoringMarkdown({
+            filename,
+            markdown: input.markdown,
+            agentName: params.agentName,
+            defaultColor: params.defaultColor,
+        })
+        const rejectionErrors: FilesystemAuthoringValidationError[] = preparedMarkdown.rejections.map(rejection => ({
+            code: rejection.code,
+            message: rejection.message,
+            filename,
+            suggestions: rejection.suggestions,
+        }))
+
+        reports.push({
+            filename,
+            fixes: preparedMarkdown.fixes,
+            rejections: rejectionErrors,
+        })
         indexedInputs.push({
             filename,
             ref: normalizeRef(filename),
-            markdown: normalizeMarkdown(input.markdown),
+            markdown: preparedMarkdown.markdown,
+            fixes: preparedMarkdown.fixes,
         })
     }
 
     if (duplicateErrors.length > 0) {
-        return {status: 'invalid', errors: duplicateErrors}
+        return {status: 'invalid', errors: duplicateErrors, reports}
     }
 
     const inputsByRef: Map<string, IndexedInput> = new Map(indexedInputs.map(input => [input.ref, input]))
     let parsedManifest: ParsedManifest | undefined
+    const errors: FilesystemAuthoringValidationError[] = reports.flatMap(report => report.rejections)
 
     if (params.manifest) {
-        parsedManifest = parseStructureManifest(params.manifest)
-        if ('code' in parsedManifest) {
-            return {status: 'invalid', errors: [parsedManifest]}
-        }
+        const parsedManifestCandidate: ParsedManifest | FilesystemAuthoringValidationError =
+            parseStructureManifest(params.manifest)
+        if ('code' in parsedManifestCandidate) {
+            errors.push(parsedManifestCandidate)
+        } else {
+            parsedManifest = parsedManifestCandidate
+            const missingRefs: FilesystemAuthoringValidationError[] = parsedManifest.refsInOrder
+                .filter(ref => !inputsByRef.has(ref))
+                .map(ref => ({
+                    code: 'missing_ref' as const,
+                    message: `Manifest references missing target: ${ref}`,
+                    ref,
+                }))
 
-        const missingRefs: FilesystemAuthoringValidationError[] = parsedManifest.refsInOrder
-            .filter(ref => !inputsByRef.has(ref))
-            .map(ref => ({
-                code: 'missing_ref' as const,
-                message: `Manifest references missing target: ${ref}`,
-                ref,
-            }))
-
-        if (missingRefs.length > 0) {
-            return {status: 'invalid', errors: missingRefs}
+            errors.push(...missingRefs)
         }
+    }
+
+    if (errors.length > 0) {
+        return {status: 'invalid', errors, reports}
     }
 
     const writePlan: FilesystemAuthoringPlanEntry[] = indexedInputs.map((input) => {
@@ -223,10 +275,11 @@ export function buildFilesystemAuthoringPlan(params: {
                 agentName: params.agentName,
                 defaultColor: params.defaultColor,
             }),
+            fixes: input.fixes,
         }
     })
 
-    return {status: 'ok', writePlan}
+    return {status: 'ok', writePlan, reports}
 }
 
 function parseStructureManifest(
@@ -382,93 +435,16 @@ function assembleMarkdown(params: {
     const mergedFrontmatterLines: string[] = mergeFrontmatter(frontmatterLines, {
         color: params.defaultColor,
         agent_name: params.agentName,
+        isContextNode: 'false',
     })
-
-    const sections: string[] = []
-    if (mergedFrontmatterLines.length > 0) {
-        sections.push(['---', ...mergedFrontmatterLines, '---'].join('\n'))
-    }
-
     const trimmedBody: string = body.trimEnd()
-    if (trimmedBody) {
-        sections.push(trimmedBody)
-    }
-
     const existingParentRefs: Set<string> = extractExistingParentRefs(trimmedBody)
     const parentLines: string[] = params.parentRefs
         .filter(ref => !existingParentRefs.has(ref))
         .map(ref => `- parent [[${ref}]]`)
 
-    if (parentLines.length > 0) {
-        sections.push(parentLines.join('\n'))
-    }
-
-    return sections.length > 0 ? `${sections.join('\n\n')}\n` : ''
-}
-
-function splitFrontmatter(markdown: string): { readonly frontmatterLines: readonly string[]; readonly body: string } {
-    if (!markdown.startsWith('---\n')) {
-        return {frontmatterLines: [], body: markdown}
-    }
-
-    const lines: string[] = markdown.split('\n')
-    const closingIndex: number = lines.findIndex((line, index) => index > 0 && line === '---')
-    if (closingIndex === -1) {
-        return {frontmatterLines: [], body: markdown}
-    }
-
-    const body: string = lines.slice(closingIndex + 1).join('\n').replace(/^\n/, '')
-    return {
-        frontmatterLines: lines.slice(1, closingIndex),
-        body,
-    }
-}
-
-function mergeFrontmatter(
-    frontmatterLines: readonly string[],
-    additions: Readonly<Record<string, string | undefined>>
-): string[] {
-    const mergedFrontmatterLines: string[] = [...frontmatterLines]
-    const existingKeys: Set<string> = new Set(
-        frontmatterLines
-            .map(line => /^([A-Za-z0-9_-]+):/.exec(line)?.[1])
-            .filter((key): key is string => Boolean(key))
-    )
-
-    for (const [key, value] of Object.entries(additions)) {
-        if (!value || existingKeys.has(key)) {
-            continue
-        }
-        mergedFrontmatterLines.push(`${key}: ${value}`)
-    }
-
-    return mergedFrontmatterLines
-}
-
-function extractExistingParentRefs(markdown: string): Set<string> {
-    const refs: Set<string> = new Set()
-
-    for (const match of markdown.matchAll(/^- parent \[\[([^[\]]+)\]\]$/gm)) {
-        const ref: string = normalizeRef(match[1] ?? '')
-        if (ref) {
-            refs.add(ref)
-        }
-    }
-
-    return refs
-}
-
-function normalizeFilename(filename: string): string {
-    const normalized: string = path.posix.normalize(filename.replace(/\\/g, '/'))
-    return normalized.replace(/^(?:\.\/)+/, '')
-}
-
-function normalizeRef(ref: string): string {
-    return normalizeFilename(ref.trim()).replace(/\.md$/i, '')
-}
-
-function normalizeMarkdown(markdown: string): string {
-    return markdown.replace(/\r\n/g, '\n')
+    const finalBody: string = parentLines.length > 0 ? [trimmedBody, parentLines.join('\n')].filter(Boolean).join('\n\n') : trimmedBody
+    return buildMarkdownFromParts(mergedFrontmatterLines, finalBody)
 }
 
 function invalidManifest(message: string): FilesystemAuthoringValidationError {
