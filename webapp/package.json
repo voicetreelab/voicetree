@@ -36,7 +36,11 @@
     "setup-cli": "bash scripts/setup-cli.sh"
   },
   "optionalDependencies": {
-    "electron-trackpad-detect": "file:native-modules/electron-trackpad-detect"
+    "electron-trackpad-detect": "file:native-modules/electron-trackpad-detect",
+    "lightningcss-darwin-arm64": "^1.30.1",
+    "lightningcss-darwin-x64": "^1.30.1",
+    "lightningcss-linux-x64-gnu": "^1.30.1",
+    "lightningcss-win32-x64-msvc": "^1.30.1"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.0",
