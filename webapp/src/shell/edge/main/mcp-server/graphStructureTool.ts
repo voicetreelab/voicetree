@@ -4,8 +4,11 @@ import { getGraphStructure } from '@vt/graph-tools'
 
 export interface GraphStructureParams {
     readonly folderPath: string
+    readonly withSummaries?: boolean
 }
 
 export async function graphStructureTool(params: GraphStructureParams): Promise<McpToolResponse> {
-    return buildJsonResponse(getGraphStructure(params.folderPath))
+    return buildJsonResponse(
+        getGraphStructure(params.folderPath, {withSummaries: params.withSummaries})
+    )
 }

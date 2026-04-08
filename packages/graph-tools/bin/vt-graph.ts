@@ -1,5 +1,5 @@
 #!/usr/bin/env npx tsx
-import { lintGraph, formatLintReportHuman, formatLintReportJson, getGraphStructure, graphRename } from '../src/index'
+import { lintGraph, formatLintReportHuman, formatLintReportJson, getGraphStructure, graphMove, graphRename } from '../src/index'
 
 const [,, command, ...args] = process.argv
 
@@ -13,7 +13,8 @@ switch (command) {
   }
   case 'structure': {
     const folderPath = args[0] || process.cwd()
-    const result = getGraphStructure(folderPath)
+    const withSummaries = args.includes('--with-summaries')
+    const result = getGraphStructure(folderPath, {withSummaries})
     console.log(result.ascii)
     break
   }
@@ -21,7 +22,11 @@ switch (command) {
     graphRename(0, undefined, args)
     break
   }
+  case 'mv': {
+    graphMove(0, undefined, args)
+    break
+  }
   default:
-    console.log('Usage: vt-graph <lint|structure|rename> [path] [--json]')
+    console.log('Usage: vt-graph <lint|structure|rename|mv> [path] [--json]')
     process.exit(1)
 }

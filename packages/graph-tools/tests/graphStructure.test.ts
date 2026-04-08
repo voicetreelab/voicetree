@@ -49,4 +49,49 @@ describe('getGraphStructure', () => {
         expect(result.orphanCount).toBe(0)
         expect(result.ascii).toBe('')
     })
+
+    it('optionally includes content summaries below each node title', () => {
+        const tempDir: string = mkdtempSync(path.join(os.tmpdir(), 'vt-graph-summary-'))
+        tempDirs.push(tempDir)
+
+        writeFileSync(
+            path.join(tempDir, 'root.md'),
+            [
+                '---',
+                'isContextNode: false',
+                '---',
+                '# Root',
+                '',
+                'First root detail',
+                'Second root detail',
+                'Third root detail',
+                'Fourth root detail',
+                '',
+                '[[child]]',
+                ''
+            ].join('\n')
+        )
+        writeFileSync(
+            path.join(tempDir, 'child.md'),
+            [
+                '# Child',
+                '',
+                'First child detail',
+                'Second child detail',
+                'Third child detail',
+                ''
+            ].join('\n')
+        )
+
+        const result = getGraphStructure(tempDir, {withSummaries: true})
+
+        expect(result.ascii).toBe(`Root
+  > First root detail
+  > Second root detail
+  > Third root detail
+  └── Child
+      > First child detail
+      > Second child detail
+      > Third child detail`)
+    })
 })

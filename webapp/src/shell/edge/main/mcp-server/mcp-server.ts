@@ -402,9 +402,10 @@ Task
             description: 'Read .md files from a folder on disk and render the graph structure as an ASCII tree. Shows node hierarchy based on [[wikilink]] edges. Useful for understanding the topology of a markdown graph without reading every file. Excludes ctx-nodes/ folders.',
             inputSchema: {
                 folderPath: z.string().describe('Absolute path to folder containing .md files'),
+                withSummaries: z.boolean().optional().describe('Include the first few non-empty content lines below each node title in the ASCII tree. Skips frontmatter and the top-level # heading.'),
             }
         },
-        async ({folderPath}) => graphStructureTool({folderPath})
+        async ({folderPath, withSummaries}) => graphStructureTool({folderPath, withSummaries})
     )
 
     return server

@@ -316,18 +316,40 @@ export async function graphStructure(port: number, terminalId: string | undefine
     void terminalId
 
     if (args.length === 0) {
-        error('Usage: vt graph structure <folder-path>')
+        error('Usage: vt graph structure <folder-path> [--with-summaries]')
     }
 
-    const folderPath: string = args[0]
+    let folderPath: string | undefined
+    let withSummaries: boolean = false
+
+    for (const arg of args) {
+        if (arg === '--with-summaries') {
+            withSummaries = true
+            continue
+        }
+
+        if (arg.startsWith('--')) {
+            error(`Unknown argument: ${arg}`)
+        }
+
+        if (folderPath !== undefined) {
+            error(`Unexpected argument: ${arg}`)
+        }
+
+        folderPath = arg
+    }
+
+    if (!folderPath) {
+        error('Usage: vt graph structure <folder-path> [--with-summaries]')
+    }
 
     try {
-        const result: ReturnType<typeof getGraphStructure> = getGraphStructure(folderPath)
+        const result: ReturnType<typeof getGraphStructure> = getGraphStructure(folderPath, {withSummaries})
 
         if (result.nodeCount === 0) {
-            output({message: '0 nodes found', folderPath})
+            output({message: '0 nodes found', folderPath, withSummaries})
         } else {
-            console.log(`${result.nodeCount} nodes in ${args[0]}`)
+            console.log(`${result.nodeCount} nodes in ${folderPath}`)
             console.log('')
             console.log(result.ascii)
             if (result.orphanCount && result.orphanCount > 0) {

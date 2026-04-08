@@ -12,6 +12,7 @@ export {
 // Graph structure analysis
 export {
     getGraphStructure,
+    type GraphStructureOptions,
     type GraphStructureResult,
 } from './graphStructure'
 
@@ -35,3 +36,4 @@ export {
 
 // Rename
 export { graphRename } from './rename'
+export { graphMove } from './move'

@@ -37,6 +37,7 @@ Commands:
   graph structure Get graph structure as ASCII tree from a folder
   graph lint      Lint graph for complexity violations and warnings
   graph rename    Rename a file and update all references
+  graph mv        Move a file or folder and update all references
   search          Search nodes by query
   help            Show this help`
 
@@ -214,6 +215,15 @@ async function dispatchGraphCommand(
                 'Rename command is not available in this build yet'
             )
             await graphRename(port, terminalId, args)
+            return
+        }
+        case 'mv': {
+            const graphMove: CommandHandler = await loadDeferredHandler(
+                './commands/move.ts',
+                'graphMove',
+                'Move command is not available in this build yet'
+            )
+            await graphMove(port, terminalId, args)
             return
         }
         case 'help':

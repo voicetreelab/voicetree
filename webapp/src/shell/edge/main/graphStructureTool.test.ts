@@ -88,4 +88,41 @@ describe('graphStructureTool', () => {
     expect(result.nodeCount).toBeGreaterThan(0)
     expect(result.ascii.length).toBeGreaterThan(0)
   })
+
+  it('passes through withSummaries to the shared graph-structure implementation', async () => {
+    writeFileSync(path.join(tempDir, 'root.md'), [
+      '---',
+      'status: claimed',
+      '---',
+      '# Root',
+      '',
+      'First detail',
+      'Second detail',
+      'Third detail',
+      '',
+      '[[child]]',
+      ''
+    ].join('\n'))
+    writeFileSync(path.join(tempDir, 'child.md'), [
+      '# Child',
+      '',
+      'Only child detail',
+      ''
+    ].join('\n'))
+
+    const response: McpToolResponse = await graphStructureTool({
+      folderPath: tempDir,
+      withSummaries: true
+    })
+    const result: { success: boolean; ascii: string } =
+      JSON.parse(response.content[0].text)
+
+    expect(result.success).toBe(true)
+    expect(result.ascii).toBe(`Root
+  > First detail
+  > Second detail
+  > Third detail
+  └── Child
+      > Only child detail`)
+  })
 })

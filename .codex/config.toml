@@ -1,2 +1,2 @@
 [mcp_servers.voicetree]
-url = "http://localhost:3001/mcp"
+url = "http://localhost:3003/mcp"
