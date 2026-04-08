@@ -352,13 +352,13 @@ export function findCollapsedAncestor(
 
 /**
  * Convert absolute FS path to graph folder ID. PURE.
- * Returns relative path with trailing slash, or null if path is the root or outside the tree.
+ * Returns the absolute folder node ID with a trailing slash, or null if path is the root or outside the tree.
  */
 export function absolutePathToGraphFolderId(
     absolutePath: string,
     treeRootAbsolutePath: string
 ): string | null {
     if (!absolutePath.startsWith(treeRootAbsolutePath + '/')) return null
-    const relative: string = absolutePath.slice(treeRootAbsolutePath.length + 1).replace(/\/$/, '')
-    return relative ? relative + '/' : null
+    const normalized: string = absolutePath.replace(/\/$/, '')
+    return normalized ? normalized + '/' : null
 }

@@ -237,22 +237,22 @@ describe('absolutePathToGraphFolderId path mapping', () => {
         absolutePath: string, treeRootAbsolutePath: string
     ): string | null {
         if (!absolutePath.startsWith(treeRootAbsolutePath + '/')) return null
-        const relative: string = absolutePath.slice(treeRootAbsolutePath.length + 1)
-        return relative ? relative + '/' : null
+        const normalized: string = absolutePath.replace(/\/$/, '')
+        return normalized ? normalized + '/' : null
     }
 
-    it('should convert absolute path to relative graph folder ID', () => {
+    it('should preserve absolute path and append trailing slash', () => {
         expect(absolutePathToGraphFolderId(
             '/Users/bob/project/src/auth',
             '/Users/bob/project/src'
-        )).toBe('auth/')
+        )).toBe('/Users/bob/project/src/auth/')
     })
 
     it('should handle nested folders', () => {
         expect(absolutePathToGraphFolderId(
             '/Users/bob/project/src/components/ui',
             '/Users/bob/project/src'
-        )).toBe('components/ui/')
+        )).toBe('/Users/bob/project/src/components/ui/')
     })
 
     it('should return null for root path (same as tree root)', () => {
@@ -274,7 +274,7 @@ describe('absolutePathToGraphFolderId path mapping', () => {
         expect(absolutePathToGraphFolderId(
             '/Users/bob/external/utils',
             '/Users/bob/external'
-        )).toBe('utils/')
+        )).toBe('/Users/bob/external/utils/')
     })
 
     it('should return null when path is a prefix but not a child (no slash boundary)', () => {
