@@ -1,8 +1,21 @@
-import {readFileSync} from 'fs'
+import {existsSync, readFileSync, writeFileSync} from 'fs'
 import {callMcpTool} from '../mcp-client.ts'
 import {error, output, isJsonMode} from '../output.ts'
-import {getGraphStructure, lintGraph, formatLintReportHuman, formatLintReportJson, DEFAULT_LINT_CONFIG} from '@vt/graph-tools'
+import {
+    getGraphStructure,
+    lintGraph,
+    formatLintReportHuman,
+    formatLintReportJson,
+    DEFAULT_LINT_CONFIG,
+} from '@vt/graph-tools'
 import type {LintConfig} from '@vt/graph-tools'
+import {
+    buildFilesystemAuthoringPlan,
+    type FilesystemAuthoringInput,
+    type FilesystemAuthoringPlanEntry,
+    type FilesystemAuthoringValidationError,
+    type StructureManifest,
+} from '../../../../../../../packages/graph-tools/src/filesystemAuthoring.ts'
 
 type GraphCreateNode = Record<string, unknown> & {
     filename: string
@@ -23,6 +36,15 @@ type GraphCreateSuccess = {
     success: true
     nodes: GraphCreateResult[]
     hint?: string
+}
+
+type FilesystemCreateSuccess = {
+    success: true
+    mode: 'filesystem'
+    nodes: Array<{
+        path: string
+        status: 'ok'
+    }>
 }
 
 type GraphUnseenNode = {
@@ -47,6 +69,27 @@ type GraphCreatePayload = {
     nodes?: unknown
     override_with_rationale?: unknown
 }
+
+type ParsedFilesystemCreateArgs = {
+    inputFilePaths: string[]
+    parentPath?: string
+    color?: string
+    manifest?: StructureManifest
+}
+
+type ParsedLiveCreateArgs = {
+    mode: 'live'
+    nodesFile?: string
+    inlineNodeSpecs: string[]
+    parentNodeId?: string
+    color?: string
+}
+
+type ParsedFilesystemModeArgs = ParsedFilesystemCreateArgs & {
+    mode: 'filesystem'
+}
+
+type ParsedGraphCreateArgs = ParsedLiveCreateArgs | ParsedFilesystemModeArgs
 
 function titleToFilename(title: string): string {
     const normalizedTitle: string = title
@@ -105,15 +148,24 @@ function getErrorMessage(err: unknown): string {
     return err instanceof Error ? err.message : String(err)
 }
 
-function readCreateGraphPayloadFromStdin(terminalId: string | undefined): {
+function normalizeRef(value: string): string {
+    return value
+        .trim()
+        .replace(/\\/g, '/')
+        .replace(/^(?:\.\/)+/, '')
+        .replace(/\.md$/i, '')
+}
+
+async function readCreateGraphPayloadFromStdin(terminalId: string | undefined): Promise<{
     callerTerminalId: string
     parentNodeId?: string
     nodes: GraphCreateNode[]
     override_with_rationale?: unknown
-} {
+}> {
+    const fsModule: typeof import('fs') = await import('fs')
     let rawPayload: string
     try {
-        rawPayload = readFileSync(0, 'utf8').trim()
+        rawPayload = fsModule.readFileSync(0, 'utf8').trim()
     } catch (readError: unknown) {
         error(`Failed to read graph create payload from stdin: ${getErrorMessage(readError)}`)
     }
@@ -224,16 +276,213 @@ function requireTerminalId(terminalId: string | undefined): string {
     return terminalId
 }
 
-export async function graphCreate(port: number, terminalId: string | undefined, args: string[]): Promise<void> {
-    const callerTerminalId: string = requireTerminalId(terminalId)
+function inferManifestFormat(source: string, filePath: string): StructureManifest['format'] {
+    const firstMeaningfulLine: string | undefined = source
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .find(line => line.length > 0)
 
+    if (filePath.endsWith('.mmd') || filePath.endsWith('.mermaid')) {
+        return 'mermaid'
+    }
+
+    if (firstMeaningfulLine && /^(?:graph|flowchart)\b/i.test(firstMeaningfulLine)) {
+        return 'mermaid'
+    }
+
+    return 'ascii'
+}
+
+function parseGraphCreateArgs(args: string[]): ParsedGraphCreateArgs {
     let nodesFile: string | undefined
     const inlineNodeSpecs: string[] = []
-    let parentNodeId: string | undefined
+    let parentValue: string | undefined
     let color: string | undefined
+    const inputFilePaths: string[] = []
+    let manifestPath: string | undefined
 
+    for (let index: number = 0; index < args.length; index += 1) {
+        const arg: string = args[index]
+
+        if (arg === '--nodes-file') {
+            nodesFile = getRequiredValue(args, index + 1, '--nodes-file')
+            index += 1
+            continue
+        }
+
+        if (arg === '--node') {
+            inlineNodeSpecs.push(getRequiredValue(args, index + 1, '--node'))
+            index += 1
+            continue
+        }
+
+        if (arg === '--parent') {
+            parentValue = getRequiredValue(args, index + 1, '--parent')
+            index += 1
+            continue
+        }
+
+        if (arg === '--color') {
+            color = getRequiredValue(args, index + 1, '--color')
+            index += 1
+            continue
+        }
+
+        if (arg === '--manifest') {
+            manifestPath = getRequiredValue(args, index + 1, '--manifest')
+            index += 1
+            continue
+        }
+
+        if (arg.startsWith('--')) {
+            error(`Unknown argument: ${arg}`)
+        }
+
+        inputFilePaths.push(arg)
+    }
+
+    if (inputFilePaths.length > 0 || manifestPath) {
+        if (nodesFile || inlineNodeSpecs.length > 0) {
+            error('Use either filesystem markdown inputs or the live --nodes-file/--node flags, not both')
+        }
+
+        if (inputFilePaths.length === 0) {
+            error('graph create --manifest requires at least one markdown file input')
+        }
+
+        const manifest: StructureManifest | undefined = manifestPath
+            ? (() => {
+                let source: string
+                try {
+                    source = readFileSync(manifestPath, 'utf8')
+                } catch (readError: unknown) {
+                    error(`Failed to read manifest file ${manifestPath}: ${getErrorMessage(readError)}`)
+                }
+
+                return {
+                    format: inferManifestFormat(source, manifestPath),
+                    source,
+                }
+            })()
+            : undefined
+
+        return {
+            mode: 'filesystem',
+            inputFilePaths,
+            ...(parentValue ? {parentPath: parentValue} : {}),
+            ...(color ? {color} : {}),
+            ...(manifest ? {manifest} : {}),
+        }
+    }
+
+    return {
+        mode: 'live',
+        ...(nodesFile ? {nodesFile} : {}),
+        inlineNodeSpecs,
+        ...(parentValue ? {parentNodeId: parentValue} : {}),
+        ...(color ? {color} : {}),
+    }
+}
+
+function formatFilesystemValidationErrors(errors: readonly FilesystemAuthoringValidationError[]): string {
+    return errors
+        .map(({message, filename, ref}) => {
+            const details: string[] = []
+            if (filename) {
+                details.push(`file: ${filename}`)
+            }
+            if (ref) {
+                details.push(`ref: ${ref}`)
+            }
+
+            return details.length > 0 ? `${message} (${details.join(', ')})` : message
+        })
+        .join('\n')
+}
+
+function escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function appendParentRef(markdown: string, parentRef: string): string {
+    const parentLine: string = `- parent [[${parentRef}]]`
+    const existingParentPattern: RegExp = new RegExp(`^${escapeRegExp(parentLine)}$`, 'm')
+    if (existingParentPattern.test(markdown)) {
+        return markdown
+    }
+
+    const trimmedMarkdown: string = markdown.trimEnd()
+    if (!trimmedMarkdown) {
+        return `${parentLine}\n`
+    }
+
+    return `${trimmedMarkdown}\n\n${parentLine}\n`
+}
+
+function loadFilesystemInputs(inputFilePaths: readonly string[]): FilesystemAuthoringInput[] {
+    return inputFilePaths.map((filePath: string) => {
+        let markdown: string
+        try {
+            markdown = readFileSync(filePath, 'utf8')
+        } catch (readError: unknown) {
+            error(`Failed to read markdown input ${filePath}: ${getErrorMessage(readError)}`)
+        }
+
+        return {
+            filename: filePath,
+            markdown,
+        }
+    })
+}
+
+function validateExternalParent(parentPath: string, inputFilePaths: readonly string[]): string {
+    const parentRef: string = normalizeRef(parentPath)
+    const inputRefs: Set<string> = new Set(inputFilePaths.map(normalizeRef))
+
+    if (!inputRefs.has(parentRef) && !existsSync(parentPath)) {
+        error(`Parent file not found: ${parentPath}`)
+    }
+
+    return parentRef
+}
+
+function applyFilesystemPlan(
+    writePlan: readonly FilesystemAuthoringPlanEntry[],
+    externalParentRef: string | undefined
+): FilesystemCreateSuccess {
+    const finalEntries: Array<{path: string; markdown: string}> = writePlan.map((entry) => {
+        const shouldAttachExternalParent: boolean =
+            Boolean(externalParentRef) &&
+            entry.parentFilenames.length === 0 &&
+            normalizeRef(entry.filename) !== externalParentRef
+
+        return {
+            path: entry.filename,
+            markdown:
+                shouldAttachExternalParent && externalParentRef
+                    ? appendParentRef(entry.markdown, externalParentRef)
+                    : entry.markdown,
+        }
+    })
+
+    for (const entry of finalEntries) {
+        writeFileSync(entry.path, entry.markdown, 'utf8')
+    }
+
+    return {
+        success: true,
+        mode: 'filesystem',
+        nodes: finalEntries.map(({path}) => ({
+            path,
+            status: 'ok',
+        })),
+    }
+}
+
+export async function graphCreate(port: number, terminalId: string | undefined, args: string[]): Promise<void> {
     if (!process.stdin.isTTY) {
-        const payload: ReturnType<typeof readCreateGraphPayloadFromStdin> = readCreateGraphPayloadFromStdin(terminalId)
+        const payload: Awaited<ReturnType<typeof readCreateGraphPayloadFromStdin>> =
+            await readCreateGraphPayloadFromStdin(terminalId)
         try {
             const response: unknown = await callMcpTool(port, 'create_graph', payload)
             const result: GraphCreateSuccess | ToolFailure = response as GraphCreateSuccess | ToolFailure
@@ -249,46 +498,46 @@ export async function graphCreate(port: number, terminalId: string | undefined, 
         return
     }
 
-    for (let index: number = 0; index < args.length; index += 1) {
-        const arg: string = args[index]
-        if (arg === '--nodes-file') {
-            nodesFile = getRequiredValue(args, index + 1, '--nodes-file')
-            index += 1
-            continue
+    const parsedArgs: ParsedGraphCreateArgs = parseGraphCreateArgs(args)
+
+    if (parsedArgs.mode === 'filesystem') {
+        const filesystemInputs: FilesystemAuthoringInput[] = loadFilesystemInputs(parsedArgs.inputFilePaths)
+        const externalParentRef: string | undefined = parsedArgs.parentPath
+            ? validateExternalParent(parsedArgs.parentPath, parsedArgs.inputFilePaths)
+            : undefined
+        const planResult = buildFilesystemAuthoringPlan({
+            inputs: filesystemInputs,
+            ...(parsedArgs.manifest ? {manifest: parsedArgs.manifest} : {}),
+            agentName: process.env.AGENT_NAME,
+            defaultColor: parsedArgs.color ?? 'blue',
+        })
+
+        if (planResult.status !== 'ok') {
+            error(formatFilesystemValidationErrors(planResult.errors))
         }
 
-        if (arg === '--node') {
-            inlineNodeSpecs.push(getRequiredValue(args, index + 1, '--node'))
-            index += 1
-            continue
-        }
-
-        if (arg === '--parent') {
-            parentNodeId = getRequiredValue(args, index + 1, '--parent')
-            index += 1
-            continue
-        }
-
-        if (arg === '--color') {
-            color = getRequiredValue(args, index + 1, '--color')
-            index += 1
-            continue
-        }
-
-        error(`Unknown argument: ${arg}`)
+        const result: FilesystemCreateSuccess = applyFilesystemPlan(planResult.writePlan, externalParentRef)
+        output(result, (data: FilesystemCreateSuccess): string => {
+            const createdLabel: string = data.nodes.length === 1 ? 'node' : 'nodes'
+            const createdPaths: string = data.nodes.map(node => node.path).join('\n')
+            return `Created ${data.nodes.length} ${createdLabel} in filesystem mode:\n${createdPaths}`
+        })
+        return
     }
 
-    if (nodesFile && inlineNodeSpecs.length > 0) {
+    const callerTerminalId: string = requireTerminalId(terminalId)
+
+    if (parsedArgs.nodesFile && parsedArgs.inlineNodeSpecs.length > 0) {
         error('Use either --nodes-file or --node, not both')
     }
 
-    if (!nodesFile && inlineNodeSpecs.length === 0) {
-        error('graph create requires either --nodes-file FILE or at least one --node value')
+    if (!parsedArgs.nodesFile && parsedArgs.inlineNodeSpecs.length === 0) {
+        error('graph create requires filesystem markdown inputs, --nodes-file FILE, or at least one --node value')
     }
 
-    const nodes: GraphCreateNode[] = nodesFile
-        ? loadNodesFromFile(nodesFile, color)
-        : inlineNodeSpecs.map((spec: string) => parseInlineNode(spec, color))
+    const nodes: GraphCreateNode[] = parsedArgs.nodesFile
+        ? loadNodesFromFile(parsedArgs.nodesFile, parsedArgs.color)
+        : parsedArgs.inlineNodeSpecs.map((spec: string) => parseInlineNode(spec, parsedArgs.color))
 
     if (nodes.length === 0) {
         error('graph create requires at least one node')
@@ -297,7 +546,7 @@ export async function graphCreate(port: number, terminalId: string | undefined, 
     try {
         const response: unknown = await callMcpTool(port, 'create_graph', {
             callerTerminalId,
-            ...(parentNodeId ? {parentNodeId} : {}),
+            ...(parsedArgs.parentNodeId ? {parentNodeId: parsedArgs.parentNodeId} : {}),
             nodes,
         })
         const result: GraphCreateSuccess | ToolFailure = response as GraphCreateSuccess | ToolFailure
