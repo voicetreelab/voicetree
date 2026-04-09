@@ -33,6 +33,8 @@ Commands:
   agent send      Send a message to an agent terminal
   agent output    Read buffered agent output
   graph create    Create progress nodes in the graph
+  graph index     Build a local semantic search index for a vault
+  graph search    Search a local semantic search index for a vault
   graph unseen    Get unseen nodes near your context
   graph structure Get graph structure as ASCII tree from a folder
   graph lint      Lint graph for complexity violations and warnings
@@ -179,6 +181,24 @@ async function dispatchGraphCommand(
                 'Graph commands are not available in this build yet'
             )
             await graphCreate(port, terminalId, args)
+            return
+        }
+        case 'index': {
+            const graphIndex: CommandHandler = await loadDeferredHandler(
+                './commands/graph.ts',
+                'graphIndex',
+                'Graph commands are not available in this build yet'
+            )
+            await graphIndex(port, terminalId, args)
+            return
+        }
+        case 'search': {
+            const graphSearch: CommandHandler = await loadDeferredHandler(
+                './commands/graph.ts',
+                'graphSearch',
+                'Graph commands are not available in this build yet'
+            )
+            await graphSearch(port, terminalId, args)
             return
         }
         case 'unseen': {
