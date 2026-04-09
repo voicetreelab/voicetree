@@ -13,11 +13,11 @@ import {syncLargeGraphPerformanceMode} from "@/shell/UI/cytoscape-graph-ui/servi
 import {getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {getShadowNodeId, getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 import {createAnchoredFloatingEditor} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
-import { getFolderParent } from '@vt/graph-model/pure/graph/folderCollapse'
+import { absolutePathToGraphFolderId, getFolderParent } from '@vt/graph-model/pure/graph/folderCollapse'
 import { addOrUpdateSyntheticEdge } from '@/shell/edge/UI-edge/graph/folderCollapse'
 import { findCollapsedAncestor } from '@vt/graph-model/pure/graph/folderCollapse'
-import { getFolderTreeState } from '@/shell/edge/UI-edge/state/FolderTreeStore'
-import { isGraphFolderCollapsed as isFolderCollapsed } from '@/shell/edge/UI-edge/state/FolderTreeStore'
+import { addCollapsedFolder, getFolderTreeState } from '@/shell/edge/UI-edge/state/FolderTreeStore'
+import { getVaultState } from '@/shell/edge/UI-edge/state/VaultPathStore'
 
 /**
  * Validates if a color value is a valid CSS color using the browser's CSS.supports API
@@ -80,6 +80,122 @@ export interface ApplyGraphDeltaResult {
     newNodeIds: string[];
 }
 
+function getDeltaFallbackRoot(cy: Core, delta: GraphDelta): string | null {
+    const absoluteNodeIds: string[] = [
+        ...cy.nodes()
+            .filter((node: NodeSingular) => !node.data('isFolderNode') && !node.data('isShadowNode'))
+            .map((node: NodeSingular) => node.id()),
+        ...delta
+            .filter((nodeDelta): nodeDelta is Extract<GraphDelta[number], { type: 'UpsertNode' }> => nodeDelta.type === 'UpsertNode')
+            .map((nodeDelta) => nodeDelta.nodeToUpsert.absoluteFilePathIsID)
+    ].filter((nodeId: string) => nodeId.startsWith('/'))
+
+    if (absoluteNodeIds.length === 0) return null
+
+    let prefix: string = absoluteNodeIds[0]
+    for (const nodeId of absoluteNodeIds.slice(1)) {
+        let nextPrefixLength: number = 0
+        const maxLength: number = Math.min(prefix.length, nodeId.length)
+        while (nextPrefixLength < maxLength && prefix[nextPrefixLength] === nodeId[nextPrefixLength]) {
+            nextPrefixLength += 1
+        }
+        prefix = prefix.slice(0, nextPrefixLength)
+        if (prefix.length === 0) return null
+    }
+
+    const lastSlash: number = prefix.lastIndexOf('/')
+    if (lastSlash <= 0) return null
+
+    return prefix.slice(0, lastSlash)
+}
+
+function getLoadedRootForNodeId(nodeId: string, fallbackRoot: string | null): string | null {
+    const { writePath, readPaths } = getVaultState()
+    const loadedRoots: string[] = [writePath, ...readPaths]
+        .filter((root: string | null): root is string => !!root)
+        .sort((left: string, right: string) => right.length - left.length)
+
+    const storeRoot: string | undefined = loadedRoots.find((root: string) =>
+        nodeId === root || nodeId.startsWith(`${root}/`)
+    )
+    if (storeRoot) return storeRoot
+
+    if (fallbackRoot && (nodeId === fallbackRoot || nodeId.startsWith(`${fallbackRoot}/`))) {
+        return fallbackRoot
+    }
+
+    return null
+}
+
+function getFolderChainForNodeId(nodeId: string, fallbackRoot: string | null): string[] {
+    const folderPath: string | null = getFolderParent(nodeId)
+    if (!folderPath) return []
+
+    const loadedRoot: string | null = getLoadedRootForNodeId(nodeId, fallbackRoot)
+    if (!loadedRoot) return [folderPath]
+
+    const chain: string[] = []
+    let currentPath: string = folderPath.replace(/\/$/, '')
+
+    while (currentPath) {
+        const graphFolderId: string | null = absolutePathToGraphFolderId(currentPath, loadedRoot)
+        if (!graphFolderId) break
+        chain.push(graphFolderId)
+
+        const parentPath: string | null = getFolderParent(currentPath)
+        if (!parentPath) break
+        currentPath = parentPath.replace(/\/$/, '')
+    }
+
+    return chain.reverse()
+}
+
+function getProjectedDirectChildCounts(cy: Core, delta: GraphDelta, fallbackRoot: string | null): Map<string, number> {
+    const projectedFileNodeIds: Set<string> = new Set(
+        cy.nodes()
+            .filter((node: NodeSingular) => !node.data('isFolderNode') && !node.data('isShadowNode'))
+            .map((node: NodeSingular) => node.id())
+    )
+    const projectedFolderIds: Set<string> = new Set(
+        cy.nodes()
+            .filter((node: NodeSingular) => node.data('isFolderNode'))
+            .map((node: NodeSingular) => node.id())
+    )
+
+    delta.forEach(nodeDelta => {
+        if (nodeDelta.type === 'UpsertNode') {
+            const node: GraphNode = nodeDelta.nodeToUpsert
+            if (node.nodeUIMetadata.isContextNode === true) return
+
+            projectedFileNodeIds.add(node.absoluteFilePathIsID)
+            getFolderChainForNodeId(node.absoluteFilePathIsID, fallbackRoot).forEach((folderId: string) => {
+                projectedFolderIds.add(folderId)
+            })
+            return
+        }
+
+        const nodeId: string = nodeDelta.nodeId
+        projectedFileNodeIds.delete(nodeId)
+    })
+
+    const counts: Map<string, number> = new Map()
+    const increment = (folderId: string): void => {
+        counts.set(folderId, (counts.get(folderId) ?? 0) + 1)
+    }
+
+    projectedFileNodeIds.forEach((nodeId: string) => {
+        const folderId: string | null = getFolderParent(nodeId)
+        if (folderId) increment(folderId)
+    })
+
+    projectedFolderIds.forEach((folderId: string) => {
+        const parentFolderId: string | null = getFolderParent(folderId.slice(0, -1))
+        if (parentFolderId) increment(parentFolderId)
+    })
+
+    return counts
+}
+
 /**
  * Apply a GraphDelta to the Cytoscape UI-edge
  *
@@ -95,6 +211,46 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
     //console.log('[applyGraphDeltaToUI] Starting\n' + prettyPrintGraphDelta(delta));
     const newNodeIds: string[] = [];
     const nodesWithoutPositions: string[] = [];
+    const fallbackRoot: string | null = getDeltaFallbackRoot(cy, delta)
+    const projectedDirectChildCounts: Map<string, number> = getProjectedDirectChildCounts(cy, delta, fallbackRoot)
+    const pendingAutoCollapsedFolders: Set<string> = new Set()
+
+    const getCollapsedFoldersSnapshot = (): Set<string> =>
+        new Set([
+            ...getFolderTreeState().graphCollapsedFolders,
+            ...pendingAutoCollapsedFolders
+        ])
+
+    const ensureFolderChain = (nodeId: string): string | null => {
+        const folderChain: string[] = getFolderChainForNodeId(nodeId, fallbackRoot)
+        if (folderChain.length === 0) return null
+
+        folderChain.forEach((folderId: string, index: number) => {
+            if (cy.getElementById(folderId).length > 0) return
+
+            const parentFolder: string | undefined = index > 0 ? folderChain[index - 1] : undefined
+            const shouldAutoCollapse: boolean = parentFolder !== undefined && !getCollapsedFoldersSnapshot().has(folderId)
+
+            if (shouldAutoCollapse) pendingAutoCollapsedFolders.add(folderId)
+
+            const isCollapsed: boolean = getCollapsedFoldersSnapshot().has(folderId)
+            cy.add({
+                group: 'nodes' as const,
+                data: {
+                    id: folderId,
+                    folderLabel: folderId.replace(/\/$/, '').split('/').pop()!,
+                    isFolderNode: true,
+                    parent: parentFolder,
+                    ...(isCollapsed ? {
+                        collapsed: true,
+                        childCount: projectedDirectChildCounts.get(folderId) ?? 0
+                    } : {})
+                }
+            })
+        })
+
+        return folderChain[folderChain.length - 1]
+    }
 
     cy.batch(() => {
         // PASS 1: Create/update all nodes and handle deletions
@@ -122,21 +278,11 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
 
                     //console.log(`[applyGraphDeltaToUI] Creating node ${nodeId} with color:`, colorValue);
 
-                    // Lazily create compound folder parent if node is in a subfolder
-                    const folderPath: string | null = getFolderParent(nodeId);
-                    if (folderPath && !cy.getElementById(folderPath).length) {
-                        cy.add({
-                            group: 'nodes' as const,
-                            data: {
-                                id: folderPath,
-                                folderLabel: folderPath.replace(/\/$/, '').split('/').pop()!,
-                                isFolderNode: true
-                            }
-                        });
-                    }
+                    // Lazily create the full folder chain within the loaded root.
+                    const folderPath: string | null = ensureFolderChain(nodeId);
 
-                    // Skip adding node to collapsed folder
-                    if (folderPath && isFolderCollapsed(folderPath)) {
+                    // Skip adding nodes inside any collapsed ancestor folder.
+                    if (findCollapsedAncestor(nodeId, getCollapsedFoldersSnapshot())) {
                         return;
                     }
 
@@ -241,7 +387,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
 
                 // Handle nodes inside collapsed folders — create synthetic edges instead
                 if (!cy.getElementById(nodeId).length) {
-                    const collapsedFolder: string | null = findCollapsedAncestor(nodeId, getFolderTreeState().graphCollapsedFolders)
+                    const collapsedFolder: string | null = findCollapsedAncestor(nodeId, getCollapsedFoldersSnapshot())
                     if (collapsedFolder) {
                         node.outgoingEdges.forEach((edge) => {
                             const MAX_EDGE_LABEL_LENGTH: number = 50
@@ -254,7 +400,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                                 })
                             } else {
                                 // Target might be in another collapsed folder (S8: cross-folder)
-                                const targetFolder: string | null = findCollapsedAncestor(edge.targetId, getFolderTreeState().graphCollapsedFolders)
+                                const targetFolder: string | null = findCollapsedAncestor(edge.targetId, getCollapsedFoldersSnapshot())
                                 if (targetFolder && targetFolder !== collapsedFolder) {
                                     addOrUpdateSyntheticEdge(cy, collapsedFolder, 'outgoing', targetFolder, {
                                         sourceId: nodeId, targetId: edge.targetId, label: newLabel
@@ -327,7 +473,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
                             }, 500);
                         } else {
                             // Target missing — check if inside a collapsed folder
-                            const collapsedFolder: string | null = findCollapsedAncestor(edge.targetId, getFolderTreeState().graphCollapsedFolders)
+                            const collapsedFolder: string | null = findCollapsedAncestor(edge.targetId, getCollapsedFoldersSnapshot())
                             if (collapsedFolder) {
                                 addOrUpdateSyntheticEdge(cy, collapsedFolder, 'incoming', nodeId, {
                                     sourceId: nodeId, targetId: edge.targetId, label: newLabel
@@ -339,6 +485,10 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): ApplyGraphDelt
             }
         });
     });
+
+    pendingAutoCollapsedFolders.forEach((folderId: string) => {
+        addCollapsedFolder(folderId)
+    })
 
 
     const newNodeCount: number = newNodeIds.length;

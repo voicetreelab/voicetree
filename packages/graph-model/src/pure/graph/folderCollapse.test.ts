@@ -382,25 +382,25 @@ describe('findCollapsedAncestor', () => {
 // ── absolutePathToGraphFolderId ──
 
 describe('absolutePathToGraphFolderId', () => {
-    it('should convert absolute path to relative graph folder ID', () => {
+    it('should preserve absolute path and append trailing slash', () => {
         expect(absolutePathToGraphFolderId(
             '/Users/bob/project/src/auth',
             '/Users/bob/project/src'
-        )).toBe('auth/')
+        )).toBe('/Users/bob/project/src/auth/')
     })
 
     it('should handle nested paths', () => {
         expect(absolutePathToGraphFolderId(
             '/Users/bob/project/src/components/ui',
             '/Users/bob/project/src'
-        )).toBe('components/ui/')
+        )).toBe('/Users/bob/project/src/components/ui/')
     })
 
     it('should normalize a trailing slash on child folder paths', () => {
         expect(absolutePathToGraphFolderId(
             '/Users/bob/project/src/components/ui/',
             '/Users/bob/project/src'
-        )).toBe('components/ui/')
+        )).toBe('/Users/bob/project/src/components/ui/')
     })
 
     it('should return null for root path (same as tree root)', () => {

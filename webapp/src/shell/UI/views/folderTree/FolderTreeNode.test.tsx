@@ -2,7 +2,7 @@
  * FolderTreeNode — Graph Collapse Click Wiring Test
  *
  * Proves that clicking the blue graph-collapse dot (.folder-tree-graph-collapse-icon)
- * calls onToggleGraphCollapse with the node's absolutePath.
+ * calls onToggleGraphCollapse with the folder node's absolute graph ID.
  *
  * Bug report: clicking the blue dot does nothing — the graph folder doesn't collapse.
  * This test should PASS if the wiring is correct, FAIL if it's broken.
@@ -88,8 +88,7 @@ describe('FolderTreeNode — graph collapse dot click', () => {
         fireEvent.click(dot!)
 
         expect(onToggleGraphCollapse).toHaveBeenCalledTimes(1)
-        // Now passes graphFolderId (relative path + /) instead of absolutePath
-        expect(onToggleGraphCollapse).toHaveBeenCalledWith('src/')
+        expect(onToggleGraphCollapse).toHaveBeenCalledWith('/Users/bob/project/src/')
     })
 
     it('should stop propagation so the folder row click handler is not triggered', () => {
@@ -125,8 +124,7 @@ describe('FolderTreeNode — graph collapse dot click', () => {
     })
 
     it('should show "collapsed" class when the folder is in graphCollapsedFolders', () => {
-        // graphFolderId for /Users/bob/project/src with root /Users/bob/project is "src/"
-        const graphCollapsedFolders: ReadonlySet<string> = new Set<string>(['src/'])
+        const graphCollapsedFolders: ReadonlySet<string> = new Set<string>(['/Users/bob/project/src/'])
         const { container } = renderNode({ graphCollapsedFolders })
 
         const dot: Element | null = container.querySelector('.folder-tree-graph-collapse-icon')

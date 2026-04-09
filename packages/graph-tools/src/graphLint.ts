@@ -107,7 +107,8 @@ export function lintGraph(folderPath: string, config: LintConfig = DEFAULT_LINT_
         allResolvedLinks.set(nodeId, resolved)
     }
 
-    const containment: ContainmentTree = buildContainmentTree(nodeIds, nodeContents, buildFolderIndexMap(nodeIds))
+    const folderIndexMap: Map<string, string> = buildFolderIndexMap(nodeIds)
+    const containment: ContainmentTree = buildContainmentTree(nodeIds, nodeContents, folderIndexMap)
     const edges = classifyEdges(allResolvedLinks, containment)
 
     const nodeMetrics: Map<string, NodeMetrics> = new Map()
@@ -127,7 +128,12 @@ export function lintGraph(folderPath: string, config: LintConfig = DEFAULT_LINT_
         violations.push(...findDuplicateEdges(nodeId, allRawLinks.get(nodeId) ?? [], allResolvedLinks.get(nodeId) ?? []))
     }
 
-    const orphanResults: LintResult[] = findOrphans(nodeIds, containment, allResolvedLinks)
+    const orphanResults: LintResult[] = findOrphans(
+        nodeIds,
+        containment,
+        allResolvedLinks,
+        new Set(folderIndexMap.values())
+    )
     warnings.push(...orphanResults)
 
     const metricsValues: NodeMetrics[] = [...nodeMetrics.values()]

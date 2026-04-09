@@ -232,7 +232,8 @@ export function findDuplicateEdges(
 export function findOrphans(
     nodeIds: string[],
     containment: ContainmentTree,
-    allResolvedLinks: Map<string, string[]>
+    allResolvedLinks: Map<string, string[]>,
+    folderIdentityNodeIds: ReadonlySet<string> = new Set()
 ): LintResult[] {
     const hasIncoming: Set<string> = new Set()
     for (const targets of allResolvedLinks.values()) {
@@ -243,6 +244,9 @@ export function findOrphans(
 
     const results: LintResult[] = []
     for (const nodeId of nodeIds) {
+        if (folderIdentityNodeIds.has(nodeId)) {
+            continue
+        }
         const hasChildren: boolean = (containment.childrenOf.get(nodeId) ?? []).length > 0
         const hasParent: boolean = containment.parentOf.get(nodeId) !== null
         const hasOutgoing: boolean = (allResolvedLinks.get(nodeId) ?? []).length > 0
