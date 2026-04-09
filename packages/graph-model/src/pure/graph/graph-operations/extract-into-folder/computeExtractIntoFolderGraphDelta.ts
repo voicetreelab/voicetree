@@ -93,6 +93,35 @@ function replaceTargetPlaceholders(
     })
 }
 
+function matchesFolderRedirectTarget(
+    targetId: NodeIdAndFilePath,
+    oldFolderTargetId: NodeIdAndFilePath
+): boolean {
+    return targetId === oldFolderTargetId || linkMatchScore(targetId, oldFolderTargetId) > 0
+}
+
+function redirectTargetInNode(
+    node: GraphNode,
+    oldTargetId: NodeIdAndFilePath,
+    newTargetId: NodeIdAndFilePath
+): GraphNode {
+    if (!oldTargetId.endsWith('/')) {
+        return redirectEdgeTarget(node, oldTargetId, newTargetId)
+    }
+
+    return {
+        ...node,
+        outgoingEdges: node.outgoingEdges.map((edge) => {
+            return matchesFolderRedirectTarget(edge.targetId, oldTargetId)
+                ? {
+                    targetId: newTargetId,
+                    label: edge.label
+                }
+                : edge
+        })
+    }
+}
+
 function applyTargetRedirects(
     node: GraphNode,
     targetRedirects: ReadonlyMap<NodeIdAndFilePath, NodeIdAndFilePath>
@@ -101,7 +130,7 @@ function applyTargetRedirects(
     let redirectedContent: string = node.contentWithoutYamlOrLinks
 
     targetRedirects.forEach((newTargetId, oldTargetId) => {
-        redirectedNode = redirectEdgeTarget(redirectedNode, oldTargetId, newTargetId)
+        redirectedNode = redirectTargetInNode(redirectedNode, oldTargetId, newTargetId)
         redirectedContent = replaceTargetPlaceholders(redirectedContent, oldTargetId, newTargetId)
     })
 
@@ -251,7 +280,11 @@ export function computeExtractIntoFolderGraphDelta(
             return
         }
 
-        if (sourceNode.outgoingEdges.some((edge) => selectedFolderIds.includes(edge.targetId))) {
+        if (sourceNode.outgoingEdges.some((edge) => {
+            return selectedFolderIds.some((selectedFolderId) => {
+                return matchesFolderRedirectTarget(edge.targetId, selectedFolderId)
+            })
+        })) {
             externalSourceNodeIds.add(sourceNodeId)
         }
     })
