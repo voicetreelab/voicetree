@@ -11,6 +11,13 @@ import { addNodeToGraphWithEdgeHealingFromFSEvent } from './graphDelta/addNodeTo
  * - Added/Changed files → UpsertNode actions
  * - Deleted files → DeleteNode actions
  *
+ * Important contract:
+ * - The watcher path does not have a dedicated rename event.
+ * - Chokidar surfaces filesystem moves as delete + add.
+ * - Basename-stable moves are healed on the add step via unresolved-link indexes.
+ * - Basename-changing renames require a higher-level rename workflow that also
+ *   rewrites references; they are not inferred from watcher events alone.
+ *
  * Node IDs are absolute paths (no vault path needed for ID computation).
  *
  * @param fsEvent - Filesystem event (add, change, or delete)

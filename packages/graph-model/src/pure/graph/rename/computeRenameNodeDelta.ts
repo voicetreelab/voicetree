@@ -11,8 +11,13 @@ import { replaceWikilinkPlaceholders } from './replaceWikilinkPlaceholders'
  * 1. An UpsertNode delta for the renamed node (newId, previousNode has oldId)
  * 2. UpsertNode deltas for each node with an incoming edge (updated edge + content)
  *
- * The rename is signaled by ID mismatch: previousNode.relativeFilePathIsID !== nodeToUpsert.relativeFilePathIsID
- * Delta application layers will detect this pattern and handle the rename appropriately.
+ * The rename is encoded as an UpsertNode whose previousNode has a different ID.
+ * This helper is for explicit higher-level rename workflows; the filesystem watcher
+ * path does not emit rename deltas and instead models moves as delete + add.
+ *
+ * Important: applyGraphDeltaToGraph does not currently infer rename semantics from
+ * this ID mismatch by itself. Callers that need full rename behavior must pair this
+ * delta shape with an explicit workflow that updates references and removes the old ID.
  *
  * @param oldNodeId - The current node ID to rename from
  * @param newNodeId - The new node ID to rename to

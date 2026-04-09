@@ -19,10 +19,11 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model'] })],
     logLevel: 'error',
     resolve: {
-      alias: {
-        '@': path.resolve(__dirname, './src'),
-        '@vt/graph-model/pure': path.resolve(__dirname, '../packages/graph-model/src/pure')
-      }
+      alias: [
+        { find: /^@vt\/graph-model$/, replacement: path.resolve(__dirname, '../packages/graph-model/src/index.ts') },
+        { find: /^@vt\/graph-model\/(.+)$/, replacement: path.resolve(__dirname, '../packages/graph-model/src/$1') },
+        { find: '@', replacement: path.resolve(__dirname, './src') }
+      ]
     },
     build: {
       outDir: 'dist-electron/main',
@@ -40,10 +41,11 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model'] })],
     logLevel: 'error',
     resolve: {
-      alias: {
-        '@': path.resolve(__dirname, './src'),
-        '@vt/graph-model/pure': path.resolve(__dirname, '../packages/graph-model/src/pure')
-      }
+      alias: [
+        { find: /^@vt\/graph-model$/, replacement: path.resolve(__dirname, '../packages/graph-model/src/index.ts') },
+        { find: /^@vt\/graph-model\/(.+)$/, replacement: path.resolve(__dirname, '../packages/graph-model/src/$1') },
+        { find: '@', replacement: path.resolve(__dirname, './src') }
+      ]
     },
     build: {
       outDir: 'dist-electron/preload',
@@ -88,13 +90,14 @@ export default defineConfig({
     ],
     base: './',
     resolve: {
-      alias: {
-        '@': path.resolve(__dirname, './src'),
-        '@vt/graph-model/pure': path.resolve(__dirname, '../packages/graph-model/src/pure'),
-        '@wasm': path.resolve(__dirname, './tidy/wasm_dist'),
+      alias: [
+        { find: /^@vt\/graph-model$/, replacement: path.resolve(__dirname, '../packages/graph-model/src/index.ts') },
+        { find: /^@vt\/graph-model\/(.+)$/, replacement: path.resolve(__dirname, '../packages/graph-model/src/$1') },
+        { find: '@', replacement: path.resolve(__dirname, './src') },
+        { find: '@wasm', replacement: path.resolve(__dirname, './tidy/wasm_dist') },
         // Alias CSS imports from @material to prevent import errors
-        '@material/mwc-icon/mwc-icon-host.css': path.resolve(__dirname, 'src/utils/empty-css-export.ts')
-      }
+        { find: '@material/mwc-icon/mwc-icon-host.css', replacement: path.resolve(__dirname, 'src/utils/empty-css-export.ts') }
+      ]
     },
     optimizeDeps: {
       // Exclude ninja-keys from pre-bundling so our virtual module plugin can handle the CSS import
