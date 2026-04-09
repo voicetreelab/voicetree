@@ -6,7 +6,8 @@
  */
 
 import { app, dialog } from 'electron'
-import { initGraphModel, type GraphModelCallbacks } from '@vt/graph-model'
+import * as O from 'fp-ts/lib/Option.js'
+import { getWritePath, initGraphModel, search, type GraphModelCallbacks } from '@vt/graph-model'
 import { getMainWindow } from '@/shell/edge/main/state/app-electron-state'
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy'
 import { refreshAllInjectBadges } from '@/shell/edge/main/terminals/inject-badge-refresh'
@@ -105,6 +106,19 @@ export function initializeGraphModel(): void {
         // Backend notification
         notifyWriteDirectory(dirPath: string): void {
             void tellSTTServerToLoadDirectory(dirPath)
+        },
+        async semanticSearch(query: string, topK: number): Promise<readonly string[]> {
+            const writePath = await getWritePath()
+            if (O.isNone(writePath)) {
+                return []
+            }
+
+            try {
+                const hits = await search(writePath.value, query, topK)
+                return hits.map(hit => hit.nodePath)
+            } catch {
+                return []
+            }
         },
 
         // App-specific setup

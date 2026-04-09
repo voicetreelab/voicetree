@@ -36,14 +36,7 @@ export type { DirectoryEntry, ParsedQuery } from './pure/folders/transforms'
 export type { SavedProject, DiscoveredProject } from './pure/project/types'
 export type { NodeSearchHit, SearchBackend } from './search/types'
 export { SearchIndexNotFoundError } from './search/types'
-export {
-    createSearchBackend,
-    createSearchIndexBackend,
-    createBackend,
-    buildBackend,
-    IndexBackend,
-    SearchBackendImpl,
-} from './search/index-backend'
+export { buildIndex, search, upsertNode, deleteNode } from './search/index-backend'
 
 // DI initialization
 export { initGraphModel, getConfig, getCallbacks } from './types'

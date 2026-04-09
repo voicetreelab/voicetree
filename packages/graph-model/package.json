@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@vt/graph-tools": "*",
+    "knowledge-graph": "*",
     "fp-ts": "^2.16.9",
     "chokidar": "^3.6.0",
     "normalize-path": "^3.0.0",

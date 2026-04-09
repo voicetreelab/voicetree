@@ -10,8 +10,7 @@ import {
     DEFAULT_LINT_CONFIG,
 } from '@vt/graph-tools'
 import type {LintConfig} from '@vt/graph-tools'
-import {createSearchBackend} from '../../../../../../../packages/graph-model/src/search/index-backend.ts'
-import {SearchIndexNotFoundError, type NodeSearchHit} from '../../../../../../../packages/graph-model/src/search/types.ts'
+import {buildIndex, search, SearchIndexNotFoundError, type NodeSearchHit} from '@vt/graph-model'
 import {
     buildFilesystemAuthoringPlan,
     type FilesystemAuthoringInput,
@@ -709,10 +708,9 @@ export async function graphIndex(port: number, terminalId: string | undefined, a
     void terminalId
 
     const vaultPath: string = parseGraphIndexArgs(args)
-    const backend = createSearchBackend()
 
     try {
-        await backend.buildIndex(vaultPath)
+        await buildIndex(vaultPath)
     } catch (buildError: unknown) {
         error(`graph index failed: ${getErrorMessage(buildError)}`)
     }
@@ -720,7 +718,7 @@ export async function graphIndex(port: number, terminalId: string | undefined, a
     const result: GraphIndexSuccess = {
         success: true,
         vaultPath,
-        indexPath: path.join(vaultPath, '.vt-search', 'index.json'),
+        indexPath: path.join(vaultPath, '.vt-search', 'kg.db'),
     }
 
     output(result, (data: unknown): string => {
@@ -734,11 +732,10 @@ export async function graphSearch(port: number, terminalId: string | undefined, 
     void terminalId
 
     const {vaultPath, query, topK} = parseGraphSearchArgs(args)
-    const backend = createSearchBackend()
 
     let hits: readonly NodeSearchHit[]
     try {
-        hits = await backend.search(vaultPath, query, topK)
+        hits = await search(vaultPath, query, topK)
     } catch (searchError: unknown) {
         if (searchError instanceof SearchIndexNotFoundError) {
             error(searchError.message)

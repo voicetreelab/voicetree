@@ -4,8 +4,8 @@ import path from 'path'
 import {fileURLToPath} from 'node:url'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {createEmptyGraph} from '../../src/pure/graph/createGraph'
-import {createSearchBackend} from '../../src/search/index-backend'
-import {SearchIndexNotFoundError, type SearchBackend} from '../../src/search/types'
+import {buildIndex, search} from '../../src/search/index-backend'
+import {SearchIndexNotFoundError} from '../../src/search/types'
 import {setGraph} from '../../src/state/graph-store'
 import {clearWatchFolderState, setProjectRootWatchedDirectory} from '../../src/state/watch-folder-store'
 import {initGraphModel} from '../../src/types'
@@ -42,7 +42,6 @@ describe('filesystem-event search index maintenance', () => {
     let projectRootPath: string
     let tempRootPath: string
     let tempVaultPath: string
-    let backend: SearchBackend
 
     beforeEach(async () => {
         tempRootPath = mkdtempSync(path.join(tmpdir(), 'vt-search-runtime-'))
@@ -60,8 +59,6 @@ describe('filesystem-event search index maintenance', () => {
             readPaths: [],
         })
         setGraph(createEmptyGraph())
-
-        backend = createSearchBackend()
     })
 
     afterEach(() => {
@@ -71,7 +68,7 @@ describe('filesystem-event search index maintenance', () => {
     })
 
     it('updates an existing search index for add, change, and unlink filesystem events', async () => {
-        await backend.buildIndex(tempVaultPath)
+        await buildIndex(tempVaultPath)
 
         const runtimeNodePath = path.join(tempVaultPath, 'runtime-note.md')
         const addedContent = '# Runtime Note\n\nThis node contains runtime-token for watcher indexing.\n'
@@ -83,7 +80,7 @@ describe('filesystem-event search index maintenance', () => {
         )
 
         await waitFor(async () => {
-            expect(getHitNodePaths(await backend.search(tempVaultPath, 'runtime-token', 10))).toContain(runtimeNodePath)
+            expect(getHitNodePaths(await search(tempVaultPath, 'runtime-token', 10))).toContain(runtimeNodePath)
         })
 
         const changedContent = '# Runtime Note\n\nreplacement-token is the only remaining search term.\n'
@@ -95,8 +92,8 @@ describe('filesystem-event search index maintenance', () => {
         )
 
         await waitFor(async () => {
-            expect(await backend.search(tempVaultPath, 'runtime-token', 10)).toHaveLength(0)
-            expect(getHitNodePaths(await backend.search(tempVaultPath, 'replacement-token', 10))).toContain(runtimeNodePath)
+            expect(await search(tempVaultPath, 'runtime-token', 10)).toHaveLength(0)
+            expect(getHitNodePaths(await search(tempVaultPath, 'replacement-token', 10))).toContain(runtimeNodePath)
         })
 
         rmSync(runtimeNodePath)
@@ -106,7 +103,7 @@ describe('filesystem-event search index maintenance', () => {
         )
 
         await waitFor(async () => {
-            expect(await backend.search(tempVaultPath, 'replacement-token', 10)).toHaveLength(0)
+            expect(await search(tempVaultPath, 'replacement-token', 10)).toHaveLength(0)
         })
     })
 
@@ -121,9 +118,9 @@ describe('filesystem-event search index maintenance', () => {
         )
 
         await waitFor(() => {
-            expect(existsSync(path.join(tempVaultPath, '.vt-search', 'index.json'))).toBe(false)
+            expect(existsSync(path.join(tempVaultPath, '.vt-search', 'kg.db'))).toBe(false)
         })
 
-        await expect(backend.search(tempVaultPath, 'watcher-token', 10)).rejects.toBeInstanceOf(SearchIndexNotFoundError)
+        await expect(search(tempVaultPath, 'watcher-token', 10)).rejects.toBeInstanceOf(SearchIndexNotFoundError)
     })
 })

@@ -3,7 +3,7 @@ import path from 'node:path'
 import type {FSEvent, GraphDelta, Graph} from '../pure/graph';
 import {mapFSEventsToGraphDelta} from '../pure/graph';
 import {markdownToTitle} from '../pure/graph/markdown-parsing/markdown-to-title'
-import {createSearchBackend} from '../search/index-backend'
+import {deleteNode, upsertNode} from '../search/index-backend'
 import {getGraph} from "../state/graph-store";
 import {getCallbacks} from "../types";
 import {getVaultPaths} from '../watch-folder/vault-allowlist'
@@ -13,7 +13,7 @@ import {
 } from "./applyGraphDelta";
 import {isOurRecentDelta} from "../state/recent-deltas-store";
 
-const SEARCH_INDEX_PATH_SEGMENTS = ['.vt-search', 'index.json'] as const
+const SEARCH_INDEX_PATH_SEGMENTS = ['.vt-search', 'kg.db'] as const
 
 function isMarkdownSearchCandidate(filePath: string): boolean {
     return filePath.endsWith('.md')
@@ -54,14 +54,13 @@ async function updateSearchIndexForFSEvent(fsEvent: FSEvent): Promise<void> {
         return
     }
 
-    const backend = createSearchBackend()
     if ('type' in fsEvent && fsEvent.type === 'Delete') {
-        await backend.deleteNode(vaultPath, fsEvent.absolutePath)
+        await deleteNode(vaultPath, fsEvent.absolutePath)
         return
     }
 
     const title: string = markdownToTitle(fsEvent.content, fsEvent.absolutePath)
-    await backend.upsertNode(vaultPath, fsEvent.absolutePath, fsEvent.content, title)
+    await upsertNode(vaultPath, fsEvent.absolutePath, fsEvent.content, title)
 }
 
 /**
