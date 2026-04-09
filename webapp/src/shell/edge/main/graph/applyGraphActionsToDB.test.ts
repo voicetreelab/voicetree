@@ -318,6 +318,37 @@ describe('apply_graph_deltas_to_db', () => {
         expect(result.right).toEqual([action])
       }
     })
+
+    it('should prune emptied parent directories after deleting the last nested node', async () => {
+      const nestedNode: GraphNode = createTestNode('folder/deep/node-delete-3', '# Nested Test')
+      await apply_graph_deltas_to_db([{
+        type: 'UpsertNode',
+        nodeToUpsert: nestedNode,
+        previousNode: O.none
+      }])(testEnv)()
+
+      const nestedDirectoryPath: string = path.join(testVaultPath, 'folder', 'deep')
+      const parentDirectoryPath: string = path.join(testVaultPath, 'folder')
+      const nestedFilePath: string = path.join(nestedDirectoryPath, 'node-delete-3.md')
+
+      expect(await fs.access(nestedFilePath).then(() => true).catch(() => false)).toBe(true)
+      expect(await fs.access(nestedDirectoryPath).then(() => true).catch(() => false)).toBe(true)
+
+      const action: DeleteNode = {
+        type: 'DeleteNode',
+        nodeId: 'folder/deep/node-delete-3',
+        deletedNode: O.none
+      }
+
+      const effect: FSWriteEffect<GraphDelta> = apply_graph_deltas_to_db([action])
+      const result: E.Either<Error, GraphDelta> = await effect(testEnv)()
+
+      expect(E.isRight(result)).toBe(true)
+      expect(await fs.access(nestedFilePath).then(() => true).catch(() => false)).toBe(false)
+      expect(await fs.access(nestedDirectoryPath).then(() => true).catch(() => false)).toBe(false)
+      expect(await fs.access(parentDirectoryPath).then(() => true).catch(() => false)).toBe(false)
+      expect(await fs.access(testVaultPath).then(() => true).catch(() => false)).toBe(true)
+    })
   })
 
   describe('Function signature and structure', () => {

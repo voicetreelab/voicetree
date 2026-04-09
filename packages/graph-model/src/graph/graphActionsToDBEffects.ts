@@ -20,6 +20,38 @@ import {markRecentDelta} from "../state/recent-deltas-store";
 const toError: (reason: unknown) => Error = (reason: unknown): Error =>
   reason instanceof Error ? reason : new Error(String(reason))
 
+function isWithinRoot(candidatePath: string, rootPath: string): boolean {
+    const relativePath: string = path.relative(rootPath, candidatePath)
+    return relativePath === '' || (!relativePath.startsWith('..') && !path.isAbsolute(relativePath))
+}
+
+async function pruneEmptyParentDirectories(filePath: string, rootPath: string): Promise<void> {
+    const normalizedRootPath: string = path.resolve(rootPath)
+    let currentDirectory: string = path.dirname(filePath)
+
+    while (currentDirectory !== normalizedRootPath && isWithinRoot(currentDirectory, normalizedRootPath)) {
+        try {
+            await fs.rmdir(currentDirectory)
+        } catch (error: unknown) {
+            const errorCode: string | undefined = typeof error === 'object' && error !== null && 'code' in error
+                ? String((error as { readonly code?: string }).code)
+                : undefined
+
+            if (errorCode === 'ENOTEMPTY' || errorCode === 'ENOENT') {
+                return
+            }
+
+            throw error
+        }
+
+        const parentDirectory: string = path.dirname(currentDirectory)
+        if (parentDirectory === currentDirectory) {
+            return
+        }
+        currentDirectory = parentDirectory
+    }
+}
+
 /**
  * Apply a user-initiated action to the graph by writing to filesystem.
  *
@@ -93,6 +125,7 @@ function deleteNodeFile(nodeId: NodeIdAndFilePath): FSWriteEffect<void> {
                 : path.join(env.projectRootWatchedDirectory, filename)
 
             await fs.unlink(fullPath)
+            await pruneEmptyParentDirectories(fullPath, env.projectRootWatchedDirectory)
         },
         toError
     )

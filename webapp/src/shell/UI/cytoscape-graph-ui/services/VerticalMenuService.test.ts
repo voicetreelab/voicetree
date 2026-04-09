@@ -73,7 +73,7 @@ describe('VerticalMenuService', () => {
 
       expect(mockCtxmenuShow).toHaveBeenCalledTimes(1);
       const menuItems: MenuItem[] = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
-      expect(menuItems).toHaveLength(5);
+      expect(menuItems).toHaveLength(6);
     });
 
     it('should have Delete disabled when no nodes selected, enabled when nodes selected', () => {
@@ -127,6 +127,33 @@ describe('VerticalMenuService', () => {
       expect(mergeItem3 && 'disabled' in mergeItem3 && mergeItem3.disabled).toBeFalsy();
     });
 
+    it('should have Extract Into Folder disabled when selection is unsupported, enabled for 2 same-parent items', () => {
+      service = new VerticalMenuService();
+      service.initialize(cy, mockDeps);
+
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+      cy.emit('cxttap', { target: cy, position: { x: 300, y: 300 }, renderedPosition: { x: 300, y: 300 } } as any);
+      let menuItems: MenuItem[] = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
+      const extractItem1: MenuItem | undefined = menuItems[3];
+      expect(extractItem1 && 'disabled' in extractItem1 && extractItem1.disabled).toBe(true);
+
+      mockCtxmenuShow.mockClear();
+      cy.getElementById('node1').select();
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+      cy.emit('cxttap', { target: cy, position: { x: 300, y: 300 }, renderedPosition: { x: 300, y: 300 } } as any);
+      menuItems = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
+      const extractItem2: MenuItem | undefined = menuItems[3];
+      expect(extractItem2 && 'disabled' in extractItem2 && extractItem2.disabled).toBe(true);
+
+      mockCtxmenuShow.mockClear();
+      cy.getElementById('node2').select();
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+      cy.emit('cxttap', { target: cy, position: { x: 300, y: 300 }, renderedPosition: { x: 300, y: 300 } } as any);
+      menuItems = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
+      const extractItem3: MenuItem | undefined = menuItems[3];
+      expect(extractItem3 && 'disabled' in extractItem3 && extractItem3.disabled).toBeFalsy();
+    });
+
     it('should have Run Agent on Selected enabled when nodes selected, disabled when no nodes selected', () => {
       service = new VerticalMenuService();
       service.initialize(cy, mockDeps);
@@ -135,7 +162,7 @@ describe('VerticalMenuService', () => {
       /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       cy.emit('cxttap', { target: cy, position: { x: 300, y: 300 }, renderedPosition: { x: 300, y: 300 } } as any);
       let menuItems: MenuItem[] = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
-      const runAgentItem1: MenuItem | undefined = menuItems[3];
+      const runAgentItem1: MenuItem | undefined = menuItems[4];
       expect(runAgentItem1).toBeDefined();
       expect(runAgentItem1 && 'disabled' in runAgentItem1 && runAgentItem1.disabled).toBe(true);
       expect(runAgentItem1 && 'text' in runAgentItem1 && runAgentItem1.text).toContain('0 nodes selected');
@@ -146,7 +173,7 @@ describe('VerticalMenuService', () => {
       /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       cy.emit('cxttap', { target: cy, position: { x: 300, y: 300 }, renderedPosition: { x: 300, y: 300 } } as any);
       menuItems = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
-      const runAgentItem2: MenuItem | undefined = menuItems[3];
+      const runAgentItem2: MenuItem | undefined = menuItems[4];
       expect(runAgentItem2).toBeDefined();
       expect(runAgentItem2 && 'disabled' in runAgentItem2 && runAgentItem2.disabled).toBeFalsy();
       expect(runAgentItem2 && 'text' in runAgentItem2 && runAgentItem2.text).toContain('Run Agent on Selected (1)');
@@ -157,7 +184,7 @@ describe('VerticalMenuService', () => {
       /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       cy.emit('cxttap', { target: cy, position: { x: 300, y: 300 }, renderedPosition: { x: 300, y: 300 } } as any);
       menuItems = mockCtxmenuShow.mock.calls[0]?.[0] as MenuItem[];
-      const runAgentItem3: MenuItem | undefined = menuItems[3];
+      const runAgentItem3: MenuItem | undefined = menuItems[4];
       expect(runAgentItem3).toBeDefined();
       expect(runAgentItem3 && 'disabled' in runAgentItem3 && runAgentItem3.disabled).toBeFalsy();
       expect(runAgentItem3 && 'text' in runAgentItem3 && runAgentItem3.text).toContain('Run Agent on Selected (2)');

@@ -1,12 +1,14 @@
 import type {Core, Position as CyPosition, EventObject, NodeSingular} from 'cytoscape';
 import ctxmenu from '@/shell/UI/lib/ctxmenu.js';
 import {mergeSelectedNodesFromUI} from "@/shell/edge/UI-edge/graph/mergeSelectedNodesFromUI";
+import {extractIntoFolderFromUI} from "@/shell/edge/UI-edge/graph/extractIntoFolderFromUI";
 import {deleteSelectedNodesAction} from "@/shell/UI/cytoscape-graph-ui/actions/graphActions";
 import {getNextTerminalCount, getTerminals} from "@/shell/edge/UI-edge/state/TerminalStore";
 import type {TerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import {showTaskInputPopup, type SelectedNodeInfo, type TaskInputResult} from "@/shell/edge/UI-edge/graph/taskInputPopup";
 import type {NodeIdAndFilePath} from "@vt/graph-model/pure/graph";
+import {getExtractIntoFolderSelectionSupport} from "@vt/graph-model/pure/graph/graph-operations/extract-into-folder/computeExtractIntoFolderGraphDelta";
 import '@/shell/electron.d.ts';
 import { formatShortcut } from '@vt/graph-model/pure/utils/keyboardShortcutDisplay';
 
@@ -144,8 +146,15 @@ export class VerticalMenuService {
         }
 
         // Selection-based actions - always show but disable when no nodes selected
-        const selectedCount: number = this.cy!.$(':selected').nodes().size();
+        const selectedNodes = this.cy!.$(':selected').nodes();
+        const selectedCount: number = selectedNodes.size();
         const noNodesSelected: boolean = selectedCount === 0;
+        const selectedGraphItemIds: readonly NodeIdAndFilePath[] = typeof selectedNodes.map === 'function'
+            ? selectedNodes
+                .map((node) => node.data('isShadowNode') ? null : node.id() as NodeIdAndFilePath)
+                .filter((nodeId): nodeId is NodeIdAndFilePath => nodeId !== null)
+            : []
+        const extractSupport = getExtractIntoFolderSelectionSupport(selectedGraphItemIds)
 
         const deleteText: string = noNodesSelected ? 'Delete (0 nodes selected)' : `Delete Selected (${selectedCount})`;
         menuItems.push({
@@ -165,6 +174,15 @@ export class VerticalMenuService {
                 if (cannotMerge) return;
                 const selectedNodeIds: string[] = this.cy!.$(':selected').nodes().map(n => n.id());
                 await mergeSelectedNodesFromUI(selectedNodeIds, this.cy!);
+            },
+        });
+
+        menuItems.push({
+            text: 'Extract Into Folder',
+            disabled: !extractSupport.canExtract,
+            action: async () => {
+                if (!extractSupport.canExtract) return;
+                await extractIntoFolderFromUI(selectedGraphItemIds, this.cy!);
             },
         });
 
