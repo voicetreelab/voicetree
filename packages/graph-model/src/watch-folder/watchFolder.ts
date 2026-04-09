@@ -44,6 +44,11 @@ import {
     type LoadVaultPathResult,
 } from "./vault-allowlist";
 import { setupWatcher } from "./file-watcher-setup";
+import type { WatcherOptions } from "./file-watcher-setup";
+
+const watcherOptions: WatcherOptions = {
+    usePolling: process.env.HEADLESS_TEST === '1' || process.env.NODE_ENV === 'test'
+};
 import { createEmptyGraph } from '../pure/graph/createGraph';
 import { broadcastVaultState } from "./broadcast-vault-state";
 import { loadPositions, savePositionsSync } from "../graph/positions-store";
@@ -246,7 +251,7 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
     }
 
     // Setup file watcher - watch all paths in allowlist
-    await setupWatcher(config.allowlist, watchedFolderPath);
+    await setupWatcher(config.allowlist, watchedFolderPath, watcherOptions);
 
     // Save as last directory for auto-start on next launch
     await saveLastDirectory(watchedFolderPath);
@@ -299,7 +304,7 @@ async function createNewWorkspaceOnFileLimitExceeded(
 
     // Setup file watcher for the new workspace
     const newAllowlist: readonly string[] = [newSubfolderPath, ...existingReadPaths];
-    await setupWatcher(newAllowlist, watchedFolderPath);
+    await setupWatcher(newAllowlist, watchedFolderPath, watcherOptions);
 
     // Save as last directory for auto-start on next launch
     await saveLastDirectory(watchedFolderPath);

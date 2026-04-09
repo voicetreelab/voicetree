@@ -45,13 +45,17 @@ export async function readFileWithRetry(filePath: string, maxRetries = 3, delay 
     return attemptRead(1);
 }
 
-export async function setupWatcher(vaultPaths: readonly FilePath[], watchedDir: FilePath): Promise<void> {
+export interface WatcherOptions {
+    /** Use polling instead of native fs events (needed for Electron test harness). */
+    readonly usePolling?: boolean
+}
+
+export async function setupWatcher(vaultPaths: readonly FilePath[], watchedDir: FilePath, options?: WatcherOptions): Promise<void> {
     // Note: watcher is already closed in loadFolder before this is called
 
     // vaultPaths contains all paths in the allowlist (e.g., primary vault + openspec)
     // watchedDir is {loaded_dir} (base for node IDs)
-    const usePollingInElectronTests: boolean =
-        process.env.HEADLESS_TEST === '1' || process.env.NODE_ENV === 'test';
+    const usePolling: boolean = options?.usePolling ?? false;
 
     // Create new watcher - chokidar supports array of paths natively
     const newWatcher: FSWatcher = chokidar.watch([...vaultPaths], {
@@ -78,11 +82,11 @@ export async function setupWatcher(vaultPaths: readonly FilePath[], watchedDir: 
             stabilityThreshold: 100,
             pollInterval: 50
         },
-        // Native fs events are flaky under Electron's test harness; polling keeps
-        // external file changes observable for behavioral Electron E2E specs.
-        usePolling: usePollingInElectronTests,
-        interval: usePollingInElectronTests ? 100 : undefined,
-        binaryInterval: usePollingInElectronTests ? 300 : undefined
+        // Caller may request polling when native fs events are unreliable
+        // (e.g. Electron test harness).
+        usePolling,
+        interval: usePolling ? 100 : undefined,
+        binaryInterval: usePolling ? 300 : undefined
     });
     setWatcher(newWatcher);
 
