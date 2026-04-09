@@ -50,6 +50,8 @@ export async function setupWatcher(vaultPaths: readonly FilePath[], watchedDir: 
 
     // vaultPaths contains all paths in the allowlist (e.g., primary vault + openspec)
     // watchedDir is {loaded_dir} (base for node IDs)
+    const usePollingInElectronTests: boolean =
+        process.env.HEADLESS_TEST === '1' || process.env.NODE_ENV === 'test';
 
     // Create new watcher - chokidar supports array of paths natively
     const newWatcher: FSWatcher = chokidar.watch([...vaultPaths], {
@@ -76,7 +78,11 @@ export async function setupWatcher(vaultPaths: readonly FilePath[], watchedDir: 
             stabilityThreshold: 100,
             pollInterval: 50
         },
-        usePolling: false
+        // Native fs events are flaky under Electron's test harness; polling keeps
+        // external file changes observable for behavioral Electron E2E specs.
+        usePolling: usePollingInElectronTests,
+        interval: usePollingInElectronTests ? 100 : undefined,
+        binaryInterval: usePollingInElectronTests ? 300 : undefined
     });
     setWatcher(newWatcher);
 
