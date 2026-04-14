@@ -38,6 +38,7 @@ Your building an agentic factory for increasingly automating your job, so you ca
 This tool is in early-beta and is powerful, but heavily in development and rough around the edges
 
 We're (the startup / lab developing this) predominantly now using this as an AI-forecasting & research tool, so development is spiky, but we would welcome external contribution to this OS prroject.
+
 ----
 
 ## API summary
