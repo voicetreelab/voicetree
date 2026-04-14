@@ -10,7 +10,7 @@ Voicetree gives you nodes, edges, lifecycles, and hooks - but your agents can al
 
 Your building an agentic factory for increasingly automating your job, so you can move up to higher levels of abstraction, building the system that builds itself. Build the self-building factory.
 
-   (claim, p=0.4 - Markdown hypergraphs have become the de-facto programming language for coding-agent cognition system swarms in 2027)
+   (claim, p=0.4 - Markdown hypergraphs have become the de-facto programming language for agent cognition system swarms (augmented brains) in 2027)
    
 ----   
 This tool is in early-beta and is powerful, but heavily in development and rough around the edges
