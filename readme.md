@@ -11,11 +11,34 @@ Voicetree gives you nodes, edges, lifecycles, and hooks - but your agents can al
 Your building an agentic factory for increasingly automating your job, so you can move up to higher levels of abstraction, building the system that builds itself. Build the self-building factory.
 
    (claim, p=0.4 - Markdown hypergraphs have become the de-facto programming language for agent cognition system swarms (augmented brains) in 2027)
+
+
+
+![Voicetree Demo](meta/core_loop_only_agents.gif)
+
+[![Build](https://github.com/voicetreelab/voicetree/actions/workflows/release.yml/badge.svg)](https://github.com/voicetreelab/voicetree/actions/workflows/release.yml)
+[![macOS](https://img.shields.io/badge/macOS-supported-blue)](https://github.com/voicetreelab/voicetree/releases/latest/download/voicetree-arm64.dmg)
+[![Windows](https://img.shields.io/badge/Windows-supported-blue)](https://github.com/voicetreelab/voicetree/releases/latest/download/voicetree.exe)
+[![Linux](https://img.shields.io/badge/Linux-supported-blue)](https://github.com/voicetreelab/voicetree/releases/latest/download/voicetree.AppImage)
+[![Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?style=flat&logo=discord&logoColor=white)](https://discord.gg/r2ZBtJ9zvk)
+
    
+### Why?
+
+| Challenge                                 | Voicetree Solution                                                                    |
+|-------------------------------------------|---------------------------------------------------------------------------------------|
+| Manual agent coordination                 | Agents can breakdown tasks into subgraphs and recursively spawn children terminals |
+| 4-10 agent terminals is overwhelming      | Spatially organise agents, tasks and progress on the graph                            |
+| Agents don't know what you know           | You share the same memory graph with agents                                           |
+| Agents suffer context-rot and lack memory | Defaults to short, focussed sessions with automatic handover                          |
+
+
+
 ----   
 This tool is in early-beta and is powerful, but heavily in development and rough around the edges
 
 We're (the startup / lab developing this) predominantly now using this as an AI-forecasting & research tool, so development is spiky, but we would welcome external contribution to this OS prroject.
+----
 
 ## API summary
 A lightweight API (agent-first, local-only) for a set of operations on these primitives and their lifecycles (for all the interactions you would want for human-in-the-loop agent orchestration: defining workflows, context switching between agent+human contexts, seeing progress as graph etc.)
@@ -43,24 +66,6 @@ Agents can spawn their own subagents onto the graph. Agents will have the nearby
 Agents are also able to edit and create their own nodes.
 
 This project aims to build from first principles the most possibly efficient human-AI interaction system. 
-
-![Voicetree Demo](meta/core_loop_only_agents.gif)
-
-[![Build](https://github.com/voicetreelab/voicetree/actions/workflows/release.yml/badge.svg)](https://github.com/voicetreelab/voicetree/actions/workflows/release.yml)
-[![macOS](https://img.shields.io/badge/macOS-supported-blue)](https://github.com/voicetreelab/voicetree/releases/latest/download/voicetree-arm64.dmg)
-[![Windows](https://img.shields.io/badge/Windows-supported-blue)](https://github.com/voicetreelab/voicetree/releases/latest/download/voicetree.exe)
-[![Linux](https://img.shields.io/badge/Linux-supported-blue)](https://github.com/voicetreelab/voicetree/releases/latest/download/voicetree.AppImage)
-[![Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?style=flat&logo=discord&logoColor=white)](https://discord.gg/r2ZBtJ9zvk)
-
-
-### Why?
-
-| Challenge                                 | Voicetree Solution                                                                    |
-|-------------------------------------------|---------------------------------------------------------------------------------------|
-| Manual agent coordination                 | Agents can breakdown tasks into subgraphs and recursively spawn children terminals |
-| 4-10 agent terminals is overwhelming      | Spatially organise agents, tasks and progress on the graph                            |
-| Agents don't know what you know           | You share the same memory graph with agents                                           |
-| Agents suffer context-rot and lack memory | Defaults to short, focussed sessions with automatic handover                          |
 
 ## Install
 
