@@ -26,6 +26,7 @@ import { packComponents } from '@vt/graph-model/pure/graph/positioning/packCompo
 import type { ComponentSubgraph } from '@vt/graph-model/pure/graph/positioning/packComponents';
 import { runLocalCola } from './autoLayoutLocalCola';
 import { refreshSpatialIndex } from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
+import { isLayoutParticipantElement, isLayoutParticipantNode } from '@/shell/UI/cytoscape-graph-ui/layoutParticipation';
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
 import { panToTrackedNode, clearPendingPan, hasPendingPan, setPendingEditorFocusPan } from '@/shell/edge/UI-edge/state/PendingPanStore';
@@ -128,22 +129,19 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     }
   };
 
-  const getNonContextElements: () => CollectionReturnValue = () => {
-    return cy.elements().filter(ele => {
-      if (ele.isNode()) return !ele.data('isContextNode') && !ele.data('isFolderNode');
-      // Exclude edges connected to context nodes
-      return !ele.source().data('isContextNode') && !ele.target().data('isContextNode');
-    });
+  const getLayoutParticipantElements: () => CollectionReturnValue = () => {
+    return cy.elements().filter(ele => isLayoutParticipantElement(ele));
   };
 
   const runColaLayout: (onComplete?: () => void) => void = (onComplete) => {
     const colaOpts: AutoLayoutOptions = currentConfig.cola;
+    const layoutParticipants: CollectionReturnValue = getLayoutParticipantElements();
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const layout: any = new (ColaLayout as any)({
       cy: cy,
-      // Exclude context nodes and their edges - position controlled by anchor-to-node.ts
-      eles: getNonContextElements(),
+      // Exclude non-participating compounds; collapsed folder proxies stay in the layout.
+      eles: layoutParticipants,
       animate: colaOpts.animate,
       randomize: false, // Don't randomize - preserve existing positions
       avoidOverlap: colaOpts.avoidOverlap,
@@ -172,7 +170,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
   /** Full ultimate layout chain: R-tree pack → Cola → animated cy.fit() */
   const runFullUltimateLayout: (onComplete?: () => void) => void = (onComplete) => {
     // R-tree packing: pack disconnected components before Cola
-    const components: CollectionReturnValue[] = getNonContextElements().components();
+    const components: CollectionReturnValue[] = getLayoutParticipantElements().components();
     if (components.length > 1) {
       const subgraphs: ComponentSubgraph[] = components.map((comp: CollectionReturnValue): ComponentSubgraph => ({
         nodes: comp.nodes().map((n: NodeSingular) => ({
@@ -203,7 +201,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
 
     runColaLayout(() => {
       const padding: number = getResponsivePadding(cy, 15);
-      cyFitIntoVisibleViewport(cy, getNonContextElements(), padding, {
+      cyFitIntoVisibleViewport(cy, getLayoutParticipantElements(), padding, {
         duration: 300,
         easing: 'ease-in-out-cubic',
         complete: () => { (onComplete ?? onLayoutComplete)(); },
@@ -290,8 +288,8 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
 
   // Track new node IDs on add, then trigger debounced layout
   const onNodeAdd: (evt: EventObject) => void = (evt) => {
-    const target: CollectionReturnValue = evt.target as CollectionReturnValue;
-    if (!target.data('isContextNode')) {
+    const target: NodeSingular = evt.target as NodeSingular;
+    if (isLayoutParticipantNode(target)) {
       pendingNewNodeIds.add(target.id());
     }
     debouncedRunLayout();
@@ -299,8 +297,8 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
 
   // Track removed node count so runLayout can decide whether full layout is needed
   const onNodeRemove: (evt: EventObject) => void = (evt) => {
-    const target: CollectionReturnValue = evt.target as CollectionReturnValue;
-    if (!target.data('isContextNode')) {
+    const target: NodeSingular = evt.target as NodeSingular;
+    if (isLayoutParticipantNode(target)) {
       pendingRemovedNodeCount++;
     }
     debouncedRunLayout();

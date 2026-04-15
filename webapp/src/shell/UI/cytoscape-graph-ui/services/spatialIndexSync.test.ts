@@ -40,10 +40,41 @@ describe('spatialIndexSync', () => {
         expect(ids).toEqual(['a', 'b', 'c']);
     });
 
+    it('indexes collapsed folder proxies but not expanded folder compounds', () => {
+        cy.add([
+            { data: { id: 'folder-expanded', isFolderNode: true }, position: { x: 300, y: 300 } },
+            { data: { id: 'folder-collapsed', isFolderNode: true, collapsed: true }, position: { x: 400, y: 400 } },
+        ]);
+
+        const index: SpatialIndex = getCurrentIndex(cy)!;
+        const nodes: readonly SpatialNodeEntry[] = queryNodesInRect(index, { minX: -1000, minY: -1000, maxX: 1000, maxY: 1000 });
+        const ids: string[] = nodes.map(n => n.nodeId);
+
+        expect(ids).toContain('folder-collapsed');
+        expect(ids).not.toContain('folder-expanded');
+    });
+
     it('indexes all edges', () => {
         const index: SpatialIndex = getCurrentIndex(cy)!;
         const edges: readonly SpatialEdgeEntry[] = queryEdgesInRect(index, { minX: -1000, minY: -1000, maxX: 1000, maxY: 1000 });
         expect(edges).toHaveLength(2);
+    });
+
+    it('indexes only real layout edges, excluding indicator and synthetic edges', () => {
+        cy.add([
+            { data: { id: 'folder-collapsed', isFolderNode: true, collapsed: true }, position: { x: 300, y: 300 } },
+            { data: { id: 'indicator-edge', source: 'a', target: 'b', isIndicatorEdge: true } },
+            { data: { id: 'synthetic-edge', source: 'a', target: 'folder-collapsed', isSyntheticEdge: true } },
+        ]);
+
+        const index: SpatialIndex = getCurrentIndex(cy)!;
+        const edgeIds: string[] = queryEdgesInRect(index, { minX: -1000, minY: -1000, maxX: 1000, maxY: 1000 })
+            .map(e => e.edgeId)
+            .sort();
+
+        expect(edgeIds).toHaveLength(2);
+        expect(edgeIds).not.toContain('indicator-edge');
+        expect(edgeIds).not.toContain('synthetic-edge');
     });
 
     it('incrementally adds a node', () => {

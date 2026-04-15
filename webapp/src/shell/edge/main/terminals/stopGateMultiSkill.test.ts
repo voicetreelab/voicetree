@@ -100,7 +100,7 @@ name: orchestration
 ---
 # Orchestration
 ## Outgoing Workflows
-[~/brain/workflows/meta/swarm-sitrep/SKILL.md]
+[~/brain/workflows/system/system-health/swarm-sitrep/SKILL.md]
 `)
 
     // SKILL 2: software-engineering — has soft edge to e2e-testing

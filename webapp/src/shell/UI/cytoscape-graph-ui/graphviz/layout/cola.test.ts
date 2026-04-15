@@ -177,4 +177,30 @@ describe('ColaLayout', () => {
     // Assert: only the one normal edge should be included
     expect(capturedLinks).toHaveLength(1);
   });
+
+  it('should exclude synthetic edges from layout links', () => {
+    cy = cytoscape({
+      headless: true,
+      elements: [
+        { data: { id: 'node1', label: 'Node 1' } },
+        { data: { id: 'node2', label: 'Node 2' } },
+        { data: { id: 'folder-collapsed', label: 'Folder', isFolderNode: true, collapsed: true } },
+        { data: { id: 'edge1', source: 'node1', target: 'node2' } },
+        { data: { id: 'edge2', source: 'node2', target: 'folder-collapsed', isSyntheticEdge: true } },
+      ],
+    });
+
+    const layout: ColaLayoutInstance = new (ColaLayout as unknown as ColaLayoutConstructor)({
+      cy,
+      eles: cy.elements(),
+      animate: false,
+      maxSimulationTime: 100,
+    });
+    layout.run();
+
+    expect(capturedLinks).toHaveLength(1);
+    const link: { source: number; target: number } = capturedLinks[0] as { source: number; target: number };
+    expect(link.source).toBe(0);
+    expect(link.target).toBe(1);
+  });
 });

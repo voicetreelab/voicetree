@@ -1,4 +1,5 @@
 import { getOptVal } from './cola-type-guards';
+import { isLayoutParticipantEdge } from '@/shell/UI/cytoscape-graph-ui/layoutParticipation';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function buildColaNodes(nonparentNodes: any, options: any, bb: any): any[] {
@@ -82,9 +83,7 @@ export function buildColaGroups(parentNodes: any, nonparentNodes: any, options: 
 export function buildColaEdges(edges: any, nonparentNodes: any, length: any): any[] {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return edges.stdFilter(function( edge: any ){
-        // Exclude indicator edges from layout calculation
-        if (edge.data('isIndicatorEdge')) return false;
-        return nonparentNodes.contains(edge.source()) && nonparentNodes.contains(edge.target());
+        return isLayoutParticipantEdge(edge) && nonparentNodes.contains(edge.source()) && nonparentNodes.contains(edge.target());
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     }).map(function( edge: any ){
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

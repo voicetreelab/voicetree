@@ -17,12 +17,12 @@ describe('parseObligations', () => {
     it('parses hard edges (double brackets)', () => {
         const content: string = `# Some SKILL
 ## Outgoing Workflows
-[[~/brain/workflows/meta/promote/SKILL.md]]
+[[~/brain/workflows/system/meta-system/promote/SKILL.md]]
 `
         const obligations: Obligation[] = parseObligations(content)
         expect(obligations).toHaveLength(1)
         expect(obligations[0]).toEqual({
-            workflowPath: '~/brain/workflows/meta/promote/SKILL.md',
+            workflowPath: '~/brain/workflows/system/meta-system/promote/SKILL.md',
             type: 'hard',
             workflowName: 'promote'
         })
@@ -31,12 +31,12 @@ describe('parseObligations', () => {
     it('parses soft edges (single brackets)', () => {
         const content: string = `# Some SKILL
 ## Outgoing Workflows
-[~/brain/workflows/meta/gardening/SKILL.md]
+[~/brain/workflows/system/system-health/gardening/SKILL.md]
 `
         const obligations: Obligation[] = parseObligations(content)
         expect(obligations).toHaveLength(1)
         expect(obligations[0]).toEqual({
-            workflowPath: '~/brain/workflows/meta/gardening/SKILL.md',
+            workflowPath: '~/brain/workflows/system/system-health/gardening/SKILL.md',
             type: 'soft',
             workflowName: 'gardening'
         })
@@ -45,10 +45,10 @@ describe('parseObligations', () => {
     it('parses mixed hard and soft edges with inline comments', () => {
         const content: string = `# Root SKILL
 ## Outgoing Workflows
-[[~/brain/workflows/meta/promote/SKILL.md]]                          # hard: always check
-[~/brain/workflows/meta/gardening/SKILL.md]                          # soft: reason about noise
-[~/brain/workflows/tree-sleep/SKILL.md]                              # soft: tree sleep
-[~/brain/workflows/meta/prediction-market-calibration/SKILL.md]      # soft: calibration
+[[~/brain/workflows/system/meta-system/promote/SKILL.md]]                          # hard: always check
+[~/brain/workflows/system/system-health/gardening/SKILL.md]                          # soft: reason about noise
+[~/brain/workflows/system/tree-sleep/SKILL.md]                              # soft: tree sleep
+[~/brain/workflows/system/meta-system/prediction-market-calibration/SKILL.md]      # soft: calibration
 `
         const obligations: Obligation[] = parseObligations(content)
         expect(obligations).toHaveLength(4)
@@ -81,7 +81,7 @@ describe('parseObligations', () => {
     it('stops at next heading', () => {
         const content: string = `# SKILL
 ## Outgoing Workflows
-[[~/brain/workflows/meta/promote/SKILL.md]]
+[[~/brain/workflows/system/meta-system/promote/SKILL.md]]
 ## Key References
 [[~/brain/workflows/unrelated/SKILL.md]]
 `
@@ -92,7 +92,7 @@ describe('parseObligations', () => {
 
     it('stops at YAML frontmatter delimiter', () => {
         const content: string = `## Outgoing Workflows
-[~/brain/workflows/meta/gardening/SKILL.md]
+[~/brain/workflows/system/system-health/gardening/SKILL.md]
 ---
 more: content
 `
@@ -102,7 +102,7 @@ more: content
 
     it('does not match double brackets as soft edges', () => {
         const content: string = `## Outgoing Workflows
-[[~/brain/workflows/meta/promote/SKILL.md]]
+[[~/brain/workflows/system/meta-system/promote/SKILL.md]]
 `
         const obligations: Obligation[] = parseObligations(content)
         expect(obligations).toHaveLength(1)
@@ -112,7 +112,7 @@ more: content
     it('ignores markdown links that happen to mention SKILL.md in text', () => {
         const content: string = `## Outgoing Workflows
 See [this guide](https://example.com) for reference.
-[[~/brain/workflows/meta/promote/SKILL.md]]
+[[~/brain/workflows/system/meta-system/promote/SKILL.md]]
 `
         const obligations: Obligation[] = parseObligations(content)
         expect(obligations).toHaveLength(1)
@@ -123,7 +123,7 @@ See [this guide](https://example.com) for reference.
         const content: string = `## Outgoing Workflows
 [[~/brain/workflows/meta/promote/README.md]]
 [~/brain/workflows/meta/gardening/index.md]
-[[~/brain/workflows/meta/promote/SKILL.md]]
+[[~/brain/workflows/system/meta-system/promote/SKILL.md]]
 `
         const obligations: Obligation[] = parseObligations(content)
         expect(obligations).toHaveLength(1)
@@ -136,9 +136,9 @@ See [this guide](https://example.com) for reference.
 describe('resolveSkillPathsFromContent', () => {
     it('Case 1: returns ~/brain/ form when task node IS a SKILL.md under ~/brain/', () => {
         const home: string = process.env.HOME ?? ''
-        const taskNodePath: string = `${home}/brain/workflows/meta/promote/SKILL.md`
+        const taskNodePath: string = `${home}/brain/workflows/system/meta-system/promote/SKILL.md`
         const result: string[] = resolveSkillPathsFromContent(taskNodePath, '')
-        expect(result).toEqual(['~/brain/workflows/meta/promote/SKILL.md'])
+        expect(result).toEqual(['~/brain/workflows/system/meta-system/promote/SKILL.md'])
     })
 
     it('Case 1: returns raw path for SKILL.md not under ~/brain/', () => {
@@ -159,9 +159,9 @@ describe('resolveSkillPathsFromContent', () => {
     })
 
     it('returns ALL SKILL.md paths found in content', () => {
-        const content: string = 'Read ~/brain/SKILL.md first.\nThen ~/brain/workflows/analysis/proof-compression/SKILL.md'
+        const content: string = 'Read ~/brain/SKILL.md first.\nThen ~/brain/workflows/meta-cognitive-protocols-tools-patterns/proof-compression/SKILL.md'
         const result: string[] = resolveSkillPathsFromContent('/vault/task_789.md', content)
-        expect(result).toEqual(['~/brain/SKILL.md', '~/brain/workflows/analysis/proof-compression/SKILL.md'])
+        expect(result).toEqual(['~/brain/SKILL.md', '~/brain/workflows/meta-cognitive-protocols-tools-patterns/proof-compression/SKILL.md'])
     })
 
     it('deduplicates repeated SKILL.md paths', () => {
@@ -177,21 +177,21 @@ describe('resolveSkillPathsFromContent', () => {
     })
 
     it('handles SKILL.md path inside wikilinks in content', () => {
-        const content: string = 'Follow [[~/brain/workflows/meta/promote/SKILL.md]] for guidance.'
+        const content: string = 'Follow [[~/brain/workflows/system/meta-system/promote/SKILL.md]] for guidance.'
         const result: string[] = resolveSkillPathsFromContent('/vault/task_111.md', content)
-        expect(result).toEqual(['~/brain/workflows/meta/promote/SKILL.md'])
+        expect(result).toEqual(['~/brain/workflows/system/meta-system/promote/SKILL.md'])
     })
 
     it('handles SKILL.md path inside single-bracket links in content', () => {
-        const content: string = 'Follow [~/brain/workflows/meta/gardening/SKILL.md] for guidance.'
+        const content: string = 'Follow [~/brain/workflows/system/system-health/gardening/SKILL.md] for guidance.'
         const result: string[] = resolveSkillPathsFromContent('/vault/task_222.md', content)
-        expect(result).toEqual(['~/brain/workflows/meta/gardening/SKILL.md'])
+        expect(result).toEqual(['~/brain/workflows/system/system-health/gardening/SKILL.md'])
     })
 
     it('handles path with special directory names', () => {
-        const content: string = 'Read ~/brain/workflows/tree-sleep/SKILL.md'
+        const content: string = 'Read ~/brain/workflows/system/tree-sleep/SKILL.md'
         const result: string[] = resolveSkillPathsFromContent('/vault/task_333.md', content)
-        expect(result).toEqual(['~/brain/workflows/tree-sleep/SKILL.md'])
+        expect(result).toEqual(['~/brain/workflows/system/tree-sleep/SKILL.md'])
     })
 
     it('Case 1: matches case-insensitive SKILL.md filename (lowercase)', () => {
@@ -201,9 +201,9 @@ describe('resolveSkillPathsFromContent', () => {
 
     it('Case 1: matches lowercase skill.md under brain dir and normalises to ~/brain/', () => {
         const home: string = process.env.HOME ?? ''
-        const taskNodePath: string = `${home}/brain/workflows/meta/promote/skill.md`
+        const taskNodePath: string = `${home}/brain/workflows/system/meta-system/promote/skill.md`
         const result: string[] = resolveSkillPathsFromContent(taskNodePath, '')
-        expect(result).toEqual(['~/brain/workflows/meta/promote/skill.md'])
+        expect(result).toEqual(['~/brain/workflows/system/meta-system/promote/skill.md'])
     })
 
     it('Case 2: extracts absolute path SKILL.md from content', () => {
@@ -238,7 +238,7 @@ describe('buildDeficiencyPrompt', () => {
         const result: ComplianceResult = {
             passed: false,
             violations: [{
-                obligation: { workflowPath: '~/brain/workflows/meta/promote/SKILL.md', type: 'hard', workflowName: 'promote' },
+                obligation: { workflowPath: '~/brain/workflows/system/meta-system/promote/SKILL.md', type: 'hard', workflowName: 'promote' },
                 reason: 'Hard edge violation: did not spawn workflow "promote"'
             }]
         }
@@ -253,11 +253,11 @@ describe('buildDeficiencyPrompt', () => {
             passed: false,
             violations: [
                 {
-                    obligation: { workflowPath: '~/brain/workflows/meta/promote/SKILL.md', type: 'hard', workflowName: 'promote' },
+                    obligation: { workflowPath: '~/brain/workflows/system/meta-system/promote/SKILL.md', type: 'hard', workflowName: 'promote' },
                     reason: 'Hard edge violation: did not spawn workflow "promote"'
                 },
                 {
-                    obligation: { workflowPath: '~/brain/workflows/meta/gardening/SKILL.md', type: 'soft', workflowName: 'gardening' },
+                    obligation: { workflowPath: '~/brain/workflows/system/system-health/gardening/SKILL.md', type: 'soft', workflowName: 'gardening' },
                     reason: 'Soft edge violation: did not reason about "gardening" in any progress node'
                 },
                 {

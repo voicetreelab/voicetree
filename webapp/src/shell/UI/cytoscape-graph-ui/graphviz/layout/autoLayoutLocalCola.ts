@@ -19,6 +19,7 @@ import { DEFAULT_OPTIONS, COLA_FAST_ANIMATE_DURATION } from './autoLayoutTypes';
 import { getLocalNeighborhood } from './autoLayoutNeighborhood';
 import { componentsOverlap, separateOverlappingComponents } from '@vt/graph-model/pure/graph/positioning/packComponents';
 import type { ComponentSubgraph } from '@vt/graph-model/pure/graph/positioning/packComponents';
+import { isLayoutParticipantEdge, isLayoutParticipantElement, isLayoutParticipantNode } from '@/shell/UI/cytoscape-graph-ui/layoutParticipation';
 
 /**
  * Run Cola on the local neighborhood of newly added nodes.
@@ -38,7 +39,7 @@ export function runLocalCola(
   let newNodes: CollectionReturnValue = cy.collection();
   for (const id of newNodeIds) {
     const node: CollectionReturnValue = cy.getElementById(id);
-    if (node.length > 0 && !node.data('isContextNode')) {
+    if (node.length > 0 && isLayoutParticipantNode(node as NodeSingular)) {
       newNodes = newNodes.merge(node);
     }
   }
@@ -50,15 +51,14 @@ export function runLocalCola(
 
   // Capped topology + spatial-only neighborhood selection
   const { runNodes: rawRunNodes, pinNodes: rawPinNodes } = getLocalNeighborhood(cy, newNodes, getCurrentIndex(cy));
-  // Exclude folder compound nodes — they're purely visual containers, not layout participants
-  const runNodes: CollectionReturnValue = rawRunNodes.filter(ele => !ele.data('isFolderNode'));
-  const pinNodes: CollectionReturnValue = rawPinNodes.filter(ele => !ele.data('isFolderNode'));
+  const runNodes: CollectionReturnValue = rawRunNodes.filter(ele => isLayoutParticipantNode(ele as NodeSingular));
+  const pinNodes: CollectionReturnValue = rawPinNodes.filter(ele => isLayoutParticipantNode(ele as NodeSingular));
   pinNodes.lock();
   const allNodes: CollectionReturnValue = runNodes.union(pinNodes);
 
   // Collect edges where both endpoints are in the subgraph, excluding indicator edges
   const subgraphEdges: CollectionReturnValue = allNodes.connectedEdges().filter(
-    edge => !edge.data('isIndicatorEdge')
+    edge => isLayoutParticipantEdge(edge as EdgeSingular)
       && allNodes.contains(edge.source()) && allNodes.contains(edge.target())
   );
 
@@ -87,11 +87,8 @@ export function runLocalCola(
     // Coarse pass: separate overlapping disconnected components first.
     // This moves whole components cleanly before the fine-grained push loop,
     // so individual node pushes don't scatter nodes that should move together.
-    const nonContextEles: CollectionReturnValue = cy.elements().filter(ele => {
-      if (ele.isNode()) return !ele.data('isContextNode') && !ele.data('isFolderNode');
-      return !ele.source().data('isContextNode') && !ele.target().data('isContextNode');
-    });
-    const components: CollectionReturnValue[] = nonContextEles.components();
+    const layoutParticipantEles: CollectionReturnValue = cy.elements().filter(ele => isLayoutParticipantElement(ele));
+    const components: CollectionReturnValue[] = layoutParticipantEles.components();
     if (components.length > 1) {
       const subgraphs: ComponentSubgraph[] = components.map(
         (comp: CollectionReturnValue): ComponentSubgraph => ({
@@ -138,7 +135,7 @@ export function runLocalCola(
         for (const entry of nearbyNodes) {
           if (entry.nodeId === node.id()) continue;
           const other: CollectionReturnValue = cy.getElementById(entry.nodeId);
-          if (other.length === 0 || allNodes.contains(other) || other.data('isContextNode') || other.data('isFolderNode')) continue;
+          if (other.length === 0 || allNodes.contains(other) || !isLayoutParticipantNode(other as NodeSingular)) continue;
           // Overlap with a non-subgraph node — push the run node away
           const nodeCx: number = (bb.x1 + bb.x2) / 2;
           const nodeCy: number = (bb.y1 + bb.y2) / 2;
@@ -163,7 +160,7 @@ export function runLocalCola(
           for (const edgeEntry of nearbyEdges) {
             const cyEdge: CollectionReturnValue = cy.getElementById(edgeEntry.edgeId);
             if (cyEdge.length === 0) continue;
-            if (cyEdge.data('isIndicatorEdge')) continue;
+            if (!isLayoutParticipantEdge(cyEdge as EdgeSingular)) continue;
             // Skip edges fully within the Cola subgraph (Cola handled those)
             const srcId: string = cyEdge.data('source') as string;
             const tgtId: string = cyEdge.data('target') as string;

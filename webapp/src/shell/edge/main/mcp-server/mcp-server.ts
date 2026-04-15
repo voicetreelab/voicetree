@@ -144,7 +144,7 @@ async function triggerOvernight(params: TriggerOvernightParams): Promise<Trigger
     const dryRun: boolean = params.dryRun ?? false
 
     const agentPrompt: string = [
-        'Read and follow ~/brain/workflows/meta/meta-observer/SKILL.md',
+        'Read and follow ~/brain/workflows/meta-cognitive-protocols-tools-patterns/coaching/meta-observer/SKILL.md',
         '',
         'Parameters:',
         `MAX_TASKS=${maxTasks}`,
@@ -153,7 +153,7 @@ async function triggerOvernight(params: TriggerOvernightParams): Promise<Trigger
         `DRY_RUN=${dryRun}`,
         '',
         'After completing the BF task batch (or if no tasks qualify), run self-repair:',
-        '1. Spawn a gardening agent: read and follow ~/brain/workflows/meta/gardening/SKILL.md with TARGET_PATH=~/brain/knowledge/ MODE=assess DEPTH_BUDGET=10',
+        '1. Spawn a gardening agent: read and follow ~/brain/workflows/system/system-health/gardening/SKILL.md with TARGET_PATH=~/brain/knowledge/ MODE=assess DEPTH_BUDGET=10',
         '2. Read ~/brain/working-memory/schedule.md for tree-sleep vault entries. Spawn tree-sleep agents (MODE=assess) only for vaults listed there. Skip any vault with fewer than 30 nodes.',
         'Include self-repair results in your meta-report.',
     ].join('\n')

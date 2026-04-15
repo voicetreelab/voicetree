@@ -137,6 +137,11 @@ interface SyntheticEdgeInfo {
     label: string | undefined;
 }
 
+interface NodePosition {
+    x: number;
+    y: number;
+}
+
 async function getSyntheticEdges(page: Page): Promise<SyntheticEdgeInfo[]> {
     return page.evaluate(() => {
         const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
@@ -162,6 +167,37 @@ async function getFolderCollapsedState(page: Page, folderSuffix: string): Promis
         if (!folder.length) throw new Error(`No folder node ending with: ${suffix}`);
         return (folder.data('collapsed') as boolean) ?? false;
     }, folderSuffix);
+}
+
+async function getFolderNodePosition(page: Page, folderSuffix: string): Promise<NodePosition> {
+    return page.evaluate((suffix: string) => {
+        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+        if (!cy) throw new Error('No cytoscapeInstance');
+        const folder = cy.nodes()
+            .filter((n: import('cytoscape').NodeSingular) => n.data('isFolderNode') && n.id().endsWith(suffix))
+            .first();
+        if (!folder.length) throw new Error(`No folder node ending with: ${suffix}`);
+        return { x: folder.position('x'), y: folder.position('y') };
+    }, folderSuffix);
+}
+
+async function setFolderNodePosition(page: Page, folderSuffix: string, position: NodePosition): Promise<void> {
+    await page.evaluate((payload: { suffix: string; x: number; y: number }) => {
+        const { suffix, x, y } = payload;
+        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+        if (!cy) throw new Error('No cytoscapeInstance');
+        const folder = cy.nodes()
+            .filter((n: import('cytoscape').NodeSingular) => n.data('isFolderNode') && n.id().endsWith(suffix))
+            .first();
+        if (!folder.length) throw new Error(`No folder node ending with: ${suffix}`);
+        folder.position({ x, y });
+    }, { suffix: folderSuffix, x: position.x, y: position.y });
+}
+
+function distanceBetweenPoints(a: NodePosition, b: NodePosition): number {
+    const dx = a.x - b.x;
+    const dy = a.y - b.y;
+    return Math.hypot(dx, dy);
 }
 
 // ── BF-113: Synthetic Edges on Collapsed Folders ─────────────���────────
@@ -247,6 +283,46 @@ test.describe('BF-113: Synthetic edges on collapsed folders', () => {
             );
         });
         expect(hasClass).toBe(true);
+    });
+
+    test('collapsed folder participates in tidy layout', async ({ appWindow }) => {
+        test.setTimeout(90000);
+        await waitForGraphLoaded(appWindow, 3);
+
+        // Collapse auth/
+        await emitDblTapOnFolder(appWindow, '/auth/');
+        await expect.poll(
+            () => getFolderCollapsedState(appWindow, '/auth/'),
+            { message: 'Waiting for auth/ to collapse', timeout: 5000 }
+        ).toBe(true);
+
+        // Verify synthetic edges exist while collapsed to ensure collapse path is active.
+        const synthAfter = await getSyntheticEdges(appWindow);
+        expect(synthAfter.length).toBeGreaterThan(0);
+
+        // Force auth/ to a far away point so non-participation in full layout is obvious.
+        const collapsedPosition = await getFolderNodePosition(appWindow, '/auth/');
+        const injectedPosition: NodePosition = {
+            x: collapsedPosition.x + 20000,
+            y: collapsedPosition.y + 20000,
+        };
+        await setFolderNodePosition(appWindow, '/auth/', injectedPosition);
+
+        const injectedCheck = await getFolderNodePosition(appWindow, '/auth/');
+        expect(distanceBetweenPoints(injectedCheck, injectedPosition)).toBeLessThan(1);
+
+        // Force full layout path with the tidy layout button.
+        const tidyLayoutButton = appWindow.locator('button[aria-label="Tidy layout"]');
+        await expect(tidyLayoutButton).toBeVisible({ timeout: 10000 });
+        await tidyLayoutButton.click();
+
+        await expect.poll(
+            async () => {
+                const afterTidyPosition = await getFolderNodePosition(appWindow, '/auth/');
+                return distanceBetweenPoints(afterTidyPosition, injectedPosition);
+            },
+            { message: 'Waiting for collapsed folder to move after tidy layout', timeout: 60000 }
+        ).toBeGreaterThan(10000);
     });
 });
 

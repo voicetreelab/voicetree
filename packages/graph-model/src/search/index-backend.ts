@@ -1,17 +1,6 @@
 import {access, mkdir, stat} from 'node:fs/promises'
 import path from 'node:path'
 import matter from 'gray-matter'
-import {
-    buildStemLookup,
-    Embedder,
-    extractWikiLinks,
-    IndexPipeline,
-    resolveConfig,
-    resolveLink,
-    Search as KnowledgeGraphSearch,
-    type SearchResult,
-    Store,
-} from 'knowledge-graph'
 import {scanMarkdownFiles} from '../graph/loadGraphFromDisk'
 import {contentAfterTitle} from '../pure/graph/markdown-parsing/markdown-to-title'
 import type {NodeSearchHit} from './types'
@@ -20,7 +9,21 @@ import {SearchIndexNotFoundError} from './types'
 const SEARCH_DIRNAME = '.vt-search'
 const SEARCH_FILENAME = 'kg.db'
 
-let embedderPromise: Promise<Embedder> | undefined
+type KnowledgeGraphModule = typeof import('knowledge-graph')
+type KnowledgeGraphEmbedder = import('knowledge-graph').Embedder
+type KnowledgeGraphSearchResult = import('knowledge-graph').SearchResult
+type KnowledgeGraphStore = import('knowledge-graph').Store
+
+let knowledgeGraphModulePromise: Promise<KnowledgeGraphModule> | undefined
+let embedderPromise: Promise<KnowledgeGraphEmbedder> | undefined
+
+async function loadKnowledgeGraph(): Promise<KnowledgeGraphModule> {
+    if (!knowledgeGraphModulePromise) {
+        knowledgeGraphModulePromise = import('knowledge-graph')
+    }
+
+    return knowledgeGraphModulePromise
+}
 
 function getIndexRoot(vaultPath: string): string {
     return path.join(vaultPath, SEARCH_DIRNAME)
@@ -30,16 +33,18 @@ function getIndexPath(vaultPath: string): string {
     return path.join(getIndexRoot(vaultPath), SEARCH_FILENAME)
 }
 
-function getConfig(vaultPath: string): {vaultPath: string; dataDir: string; dbPath: string} {
+async function getConfig(vaultPath: string): Promise<{vaultPath: string; dataDir: string; dbPath: string}> {
+    const {resolveConfig} = await loadKnowledgeGraph()
     return resolveConfig({
         vaultPath,
         dataDir: getIndexRoot(vaultPath),
     })
 }
 
-async function getEmbedder(): Promise<Embedder> {
+async function getEmbedder(): Promise<KnowledgeGraphEmbedder> {
     if (!embedderPromise) {
-        embedderPromise = (async (): Promise<Embedder> => {
+        embedderPromise = (async (): Promise<KnowledgeGraphEmbedder> => {
+            const {Embedder} = await loadKnowledgeGraph()
             const embedder = new Embedder()
             await embedder.init()
             return embedder
@@ -49,8 +54,13 @@ async function getEmbedder(): Promise<Embedder> {
     return embedderPromise
 }
 
-function openStore(vaultPath: string): Store {
-    return new Store(getConfig(vaultPath).dbPath)
+async function openStore(vaultPath: string): Promise<KnowledgeGraphStore> {
+    const [{Store}, config] = await Promise.all([
+        loadKnowledgeGraph(),
+        getConfig(vaultPath),
+    ])
+
+    return new Store(config.dbPath)
 }
 
 async function ensureIndexExists(vaultPath: string): Promise<void> {
@@ -72,7 +82,7 @@ function toRelativeNodeId(vaultPath: string, nodePath: string): string {
     return relativePath.split(path.sep).join('/')
 }
 
-function toNodeSearchHit(vaultPath: string, result: SearchResult): NodeSearchHit {
+function toNodeSearchHit(vaultPath: string, result: KnowledgeGraphSearchResult): NodeSearchHit {
     return {
         nodePath: path.resolve(vaultPath, result.nodeId),
         title: result.title,
@@ -101,7 +111,7 @@ function createExactSnippet(content: string, query: string): string {
     return normalizedContent.slice(start, end)
 }
 
-function searchExactText(store: Store, query: string, limit: number): readonly SearchResult[] {
+function searchExactText(store: KnowledgeGraphStore, query: string, limit: number): readonly KnowledgeGraphSearchResult[] {
     const normalizedQuery = query.trim().toLowerCase()
     const rows = store.db.prepare(`
         SELECT id, title, content
@@ -116,7 +126,7 @@ function searchExactText(store: Store, query: string, limit: number): readonly S
     return rows
         .filter(row => contentAfterTitle(row.content ?? '').toLowerCase().includes(normalizedQuery))
         .slice(0, Math.max(0, limit))
-        .map((row): SearchResult => ({
+        .map((row): KnowledgeGraphSearchResult => ({
             nodeId: row.id,
             title: row.title,
             score: 1,
@@ -126,8 +136,8 @@ function searchExactText(store: Store, query: string, limit: number): readonly S
 
 function mergeSearchResults(
     vaultPath: string,
-    semanticResults: readonly SearchResult[],
-    fullTextResults: readonly SearchResult[],
+    semanticResults: readonly KnowledgeGraphSearchResult[],
+    fullTextResults: readonly KnowledgeGraphSearchResult[],
     topK: number,
 ): readonly NodeSearchHit[] {
     const hitsByNodeId = new Map<string, NodeSearchHit>()
@@ -146,6 +156,7 @@ function mergeSearchResults(
 }
 
 async function buildStemLookupForVault(vaultPath: string, nodeIdToInclude: string): Promise<Map<string, string[]>> {
+    const {buildStemLookup} = await loadKnowledgeGraph()
     const markdownPaths = new Set(
         (await scanMarkdownFiles(vaultPath))
             .filter(relativePath => relativePath.endsWith('.md'))
@@ -173,10 +184,11 @@ async function upsertKnowledgeGraphNode(
     content: string,
     explicitTitle: string,
 ): Promise<void> {
+    const {Embedder, extractWikiLinks, resolveLink} = await loadKnowledgeGraph()
     const nodeId = toRelativeNodeId(vaultPath, nodePath)
     const stemLookup = await buildStemLookupForVault(vaultPath, nodeId)
     const allPathsSet = new Set(Array.from(stemLookup.values()).flat())
-    const store = openStore(vaultPath)
+    const store = await openStore(vaultPath)
 
     try {
         let frontmatter: Record<string, unknown>
@@ -247,7 +259,7 @@ async function upsertKnowledgeGraphNode(
     }
 }
 
-function closeStore(store: Store): void {
+function closeStore(store: KnowledgeGraphStore): void {
     try {
         store.close()
     } catch {
@@ -256,10 +268,13 @@ function closeStore(store: Store): void {
 }
 
 export async function buildIndex(vaultPath: string): Promise<void> {
-    const config = getConfig(vaultPath)
+    const [{IndexPipeline}, config] = await Promise.all([
+        loadKnowledgeGraph(),
+        getConfig(vaultPath),
+    ])
     await mkdir(config.dataDir, {recursive: true})
 
-    const store = new Store(config.dbPath)
+    const store = await openStore(vaultPath)
     try {
         const pipeline = new IndexPipeline(store, await getEmbedder())
         await pipeline.index(vaultPath)
@@ -273,12 +288,13 @@ export async function search(vaultPath: string, query: string, topK: number): Pr
 
     await ensureIndexExists(vaultPath)
 
-    const store = openStore(vaultPath)
+    const store = await openStore(vaultPath)
     try {
         if (shouldUseExactTextSearch(query)) {
             return searchExactText(store, query, topK).map(result => toNodeSearchHit(vaultPath, result))
         }
 
+        const {Search: KnowledgeGraphSearch} = await loadKnowledgeGraph()
         const searcher = new KnowledgeGraphSearch(store, await getEmbedder())
         const semanticResults = await searcher.semantic(query, topK)
         const fullTextResults = (() => {
@@ -313,7 +329,7 @@ export async function deleteNode(vaultPath: string, nodePath: string): Promise<v
         throw error
     }
 
-    const store = openStore(vaultPath)
+    const store = await openStore(vaultPath)
     try {
         store.deleteNode(toRelativeNodeId(vaultPath, nodePath))
     } finally {

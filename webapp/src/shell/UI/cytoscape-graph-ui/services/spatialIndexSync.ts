@@ -21,6 +21,7 @@ import type {
     SpatialNodeEntry,
     SpatialEdgeEntry,
 } from '@vt/graph-model/pure/graph/spatial';
+import { isLayoutParticipantEdge, isLayoutParticipantNode } from '@/shell/UI/cytoscape-graph-ui/layoutParticipation';
 
 // ============================================================================
 // Converters: cytoscape → spatial entries
@@ -78,9 +79,8 @@ export function getCurrentIndex(cy: Core): SpatialIndex | undefined {
  * Called on layoutstop and during initial setup.
  */
 function rebuildIndex(cy: Core): void {
-    // Exclude folder compound nodes — their bbox encompasses all children, creating huge obstacles
-    const nodeEntries: SpatialNodeEntry[] = cy.nodes().filter(n => !n.data('isFolderNode')).map(cyNodeToEntry);
-    const edgeEntries: SpatialEdgeEntry[] = cy.edges().map(cyEdgeToEntry);
+    const nodeEntries: SpatialNodeEntry[] = cy.nodes().filter(n => isLayoutParticipantNode(n)).map(cyNodeToEntry);
+    const edgeEntries: SpatialEdgeEntry[] = cy.edges().filter(e => isLayoutParticipantEdge(e)).map(cyEdgeToEntry);
     indices.set(cy, createSpatialIndex(nodeEntries, edgeEntries));
 }
 
@@ -109,7 +109,7 @@ export function enableSpatialIndex(cy: Core): () => void {
         const index: SpatialIndex | undefined = indices.get(cy);
         if (!index) return;
         const node: NodeSingular = evt.target as NodeSingular;
-        if (node.data('isFolderNode')) return;
+        if (!isLayoutParticipantNode(node)) return;
         insertNode(index, cyNodeToEntry(node));
     };
 
@@ -117,6 +117,7 @@ export function enableSpatialIndex(cy: Core): () => void {
         const index: SpatialIndex | undefined = indices.get(cy);
         if (!index) return;
         const node: NodeSingular = evt.target as NodeSingular;
+        if (!isLayoutParticipantNode(node)) return;
         removeNode(index, cyNodeToEntry(node));
     };
 
@@ -124,6 +125,7 @@ export function enableSpatialIndex(cy: Core): () => void {
         const index: SpatialIndex | undefined = indices.get(cy);
         if (!index) return;
         const edge: EdgeSingular = evt.target as EdgeSingular;
+        if (!isLayoutParticipantEdge(edge)) return;
         insertEdge(index, cyEdgeToEntry(edge));
     };
 
@@ -131,6 +133,7 @@ export function enableSpatialIndex(cy: Core): () => void {
         const index: SpatialIndex | undefined = indices.get(cy);
         if (!index) return;
         const edge: EdgeSingular = evt.target as EdgeSingular;
+        if (!isLayoutParticipantEdge(edge)) return;
         removeEdge(index, cyEdgeToEntry(edge));
     };
 

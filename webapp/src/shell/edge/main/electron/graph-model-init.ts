@@ -7,7 +7,7 @@
 
 import { app, dialog } from 'electron'
 import * as O from 'fp-ts/lib/Option.js'
-import { getWritePath, initGraphModel, search, type GraphModelCallbacks } from '@vt/graph-model'
+import { getWritePath, initGraphModel, type GraphModelCallbacks } from '@vt/graph-model'
 import { getMainWindow } from '@/shell/edge/main/state/app-electron-state'
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy'
 import { refreshAllInjectBadges } from '@/shell/edge/main/terminals/inject-badge-refresh'
@@ -114,6 +114,7 @@ export function initializeGraphModel(): void {
             }
 
             try {
+                const { search } = await import('@vt/graph-model')
                 const hits = await search(writePath.value, query, topK)
                 return hits.map(hit => hit.nodePath)
             } catch {

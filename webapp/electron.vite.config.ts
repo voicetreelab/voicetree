@@ -8,6 +8,15 @@ import path from 'path'
 // Detect if building for tests (npm run test:*, build:test, etc.)
 const npmScript = process.env.npm_lifecycle_event || ''
 const isTestBuild = npmScript.startsWith('test') || npmScript === 'build:test'
+const MAIN_RUNTIME_EXTERNALS: string[] = [
+  'electron-trackpad-detect',
+  '@huggingface/transformers',
+  'onnxruntime-node',
+  'onnxruntime-common',
+  'onnxruntime-web',
+  'better-sqlite3',
+  'sqlite-vec'
+]
 
 /**
  * Electron-Vite configuration
@@ -32,7 +41,7 @@ export default defineConfig({
         input: {
           index: path.resolve(__dirname, 'src/shell/edge/main/electron/main.ts')
         },
-        external: ['electron-trackpad-detect']
+        external: MAIN_RUNTIME_EXTERNALS
       }
     }
   },
