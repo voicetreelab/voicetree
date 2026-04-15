@@ -1,13 +1,18 @@
-## Voicetree
+## Voicetree: a graph-based mindmap for building HITL coding-agent systems
 
-**Obsidian meets Claude Code**
+Voicetree has two primitives: nodes and edges. A node is either a markdown file, a set of nodes (folder), or a terminal based agent (Claude code, Codex, OpenCode, Gemini etc. ). 
 
-Voicetree is an interactive graph-view where nodes are either markdown notes, or terminal based agents (Claude code, Codex, OpenCode, Gemini etc. )
+There's a small API (& MCP) for interacting with them. From this, agent swarms, recursive task decomposition, shared human-agent memory, and self-improving workflows all fall out as consequences. 
+The system is expressive enough to restructure itself at runtime, and because agents and humans share the same API, that self-modification stays stable and observable.
 
-Agents can spawn their own subagents onto the graph. Agents will have the nearby nodes injected into their context. 
-Agents are also able to edit and create their own nodes.
+Think of it as a game engine for agentic systems. Unity gives you GameObjects, a lifecycle, and an API you write C# against. 
+Voicetree gives you nodes, edges, lifecycles, and hooks - but your agents can also write against it, meaning the systems you build can improve themselves.
 
-This project aims to build from first principles the most possibly efficient human-AI interaction system. 
+Your building an agentic factory for increasingly automating your job, so you can move up to higher levels of abstraction, building the system that builds itself. Build the self-building factory.
+
+   (claim, p=0.4 - Markdown hypergraphs have become the de-facto programming language for agent cognition system swarms (augmented brains) in 2027)
+
+
 
 ![Voicetree Demo](meta/core_loop_only_agents.gif)
 
@@ -17,7 +22,7 @@ This project aims to build from first principles the most possibly efficient hum
 [![Linux](https://img.shields.io/badge/Linux-supported-blue)](https://github.com/voicetreelab/voicetree/releases/latest/download/voicetree.AppImage)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?style=flat&logo=discord&logoColor=white)](https://discord.gg/r2ZBtJ9zvk)
 
-
+   
 ### Why?
 
 | Challenge                                 | Voicetree Solution                                                                    |
@@ -26,6 +31,42 @@ This project aims to build from first principles the most possibly efficient hum
 | 4-10 agent terminals is overwhelming      | Spatially organise agents, tasks and progress on the graph                            |
 | Agents don't know what you know           | You share the same memory graph with agents                                           |
 | Agents suffer context-rot and lack memory | Defaults to short, focussed sessions with automatic handover                          |
+
+
+
+----   
+This tool is in early-beta and is powerful, but heavily in development and rough around the edges
+
+We're (the startup / lab developing this) predominantly now using this as an AI-forecasting & research tool, so development is spiky, but we would welcome external contribution to this OS prroject.
+
+----
+
+## API summary
+A lightweight API (agent-first, local-only) for a set of operations on these primitives and their lifecycles (for all the interactions you would want for human-in-the-loop agent orchestration: defining workflows, context switching between agent+human contexts, seeing progress as graph etc.)
+
+  - CRUD of of agents with an in-memory markdown hypergraph **based** database.
+    - This includes agent context state (agents can send messages to other agents)
+    - lifecycle hooks, letting you program & trigger automations
+  - Graph search, visualisation & navigation. ASCII for the agents, pixels for the human. (Yes this has a UI)
+  - agent orchestratoin tools, such as
+    - run(Agent,node) // default behaviour is collect nearby nodes as context and send_message(agent, local_graph(node)) it into the spawned agen
+
+//<todo> document full api spec... - yes it's that kind of beta </todo>
+
+---
+
+This primitives + rules provide essentially a turing-complete computer at a higher level of abstraction where you have cognition as a function. That of an a agentic systems. 
+
+---
+
+**Obsidian meets Claude Code**
+
+Voicetree is an interactive graph-view where nodes are either markdown notes, 
+
+Agents can spawn their own subagents onto the graph. Agents will have the nearby nodes injected into their context. 
+Agents are also able to edit and create their own nodes.
+
+This project aims to build from first principles the most possibly efficient human-AI interaction system. 
 
 ## Install
 
