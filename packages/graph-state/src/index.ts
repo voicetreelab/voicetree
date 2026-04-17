@@ -83,6 +83,14 @@ export { project } from './project'
 
 export {
     createLayoutStore,
+    getLayout,
+    dispatchSetZoom,
+    dispatchSetPan,
+    dispatchSetPositions,
+    dispatchRequestFit,
+    subscribeLayout,
+    flushLayout,
+    _resetLayoutStoreForTests,
 } from './state/layoutStore'
 
 export {

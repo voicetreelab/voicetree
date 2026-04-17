@@ -68,6 +68,56 @@ function defaultScheduler(): FlushScheduler {
     return (cb): void => { queueMicrotask(cb) }
 }
 
+// ============================================================================
+// Module-level singleton — mirrors collapseSetStore / selectionStore /
+// loadedRootsStore so L2-O migration agents have a consistent API surface.
+// The singleton wraps `createLayoutStore` with default scheduler so renderer
+// callers can import `getLayout / dispatchSetZoom / ...` directly.
+// ============================================================================
+
+let singleton: LayoutStore | null = null
+
+function getSingleton(): LayoutStore {
+    if (singleton === null) singleton = createLayoutStore()
+    return singleton
+}
+
+export function getLayout(): StateLayout {
+    return getSingleton().getLayout()
+}
+
+export function dispatchSetZoom(zoom: number): void {
+    getSingleton().dispatchSetZoom(zoom)
+}
+
+export function dispatchSetPan(pan: Position): void {
+    getSingleton().dispatchSetPan(pan)
+}
+
+export function dispatchSetPositions(positions: ReadonlyMap<NodeIdAndFilePath, Position>): void {
+    getSingleton().dispatchSetPositions(positions)
+}
+
+export function dispatchRequestFit(paddingPx?: number): void {
+    getSingleton().dispatchRequestFit(paddingPx)
+}
+
+export function subscribeLayout(cb: LayoutSubscriber): Unsubscribe {
+    return getSingleton().subscribeLayout(cb)
+}
+
+export function flushLayout(): boolean {
+    return getSingleton().flush()
+}
+
+/** Test-only: disposes singleton so a fresh instance is lazily created. */
+export function _resetLayoutStoreForTests(): void {
+    if (singleton !== null) {
+        singleton.dispose()
+        singleton = null
+    }
+}
+
 export function createLayoutStore(options: LayoutStoreOptions = {}): LayoutStore {
     let layout: StateLayout = options.initialLayout ?? { positions: new Map() }
     const subscribers = new Set<LayoutSubscriber>()
