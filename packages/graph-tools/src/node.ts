@@ -72,6 +72,26 @@ export { graphRename } from './rename'
 export { graphMove } from './move'
 
 export {
+    computeMetricsFromVault,
+    computeAllMetrics,
+    computeSCC,
+    computeKCoreDegeneracy,
+    computeArboricity,
+    estimatePlanarity,
+    type EdgePair,
+    type GraphMetrics,
+} from './graphMetrics'
+
+export {
+    selectFormat,
+    buildAutoHeader,
+    type FormatChoice,
+    type FormatDecision,
+} from './selectFormat'
+
+export { renderAutoView } from './autoView'
+
+export {
     createHeadlessServer,
     type HeadlessServerOptions,
     type HeadlessServer,

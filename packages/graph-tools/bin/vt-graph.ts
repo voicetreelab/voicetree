@@ -15,6 +15,7 @@ import {
   liveFocus,
   liveNeighbors,
   livePath,
+  renderAutoView,
   type ViewFormat,
 } from '../src/node'
 import {
@@ -36,6 +37,7 @@ function usage(): string {
   return [
     'Usage: vt-graph <lint|hygiene|structure|view|apply|rename|mv|state|live> [args]',
     '       vt-graph hygiene <vault> [--rule <id>] [--json]',
+    '       vt-graph view <vault> [--auto] [--mermaid] [--collapse F]... [--select X]...',
     '       vt-graph apply <cmd-json> [--state-file <path>] [--pretty|--no-pretty] [--out <file>]',
     '       vt-graph state dump <root> [--pretty|--no-pretty] [--out <file>]',
     '       vt-graph live view [--collapse F]... [--select X]... [--mermaid] [--port N]',
@@ -163,9 +165,11 @@ async function main(): Promise<void> {
       let showCrossEdges: boolean = true
       const collapsedFolders: string[] = []
       const selectedIds: string[] = []
+      let autoMode = false
 
       for (let i = 0; i < args.length; i++) {
         const arg = args[i]
+        if (arg === '--auto') { autoMode = true; continue }
         if (arg === '--mermaid') { format = 'mermaid'; continue }
         if (arg === '--ascii') { format = 'ascii'; continue }
         if (arg.startsWith('--format=')) {
@@ -208,6 +212,12 @@ async function main(): Promise<void> {
           fail(`Unexpected argument: ${arg}`)
         }
         folderPath = arg
+      }
+
+      if (autoMode) {
+        const {output} = renderAutoView(folderPath || process.cwd())
+        console.log(output)
+        break
       }
 
       const result = renderGraphView(folderPath || process.cwd(), {format, showCrossEdges, collapsedFolders, selectedIds})
