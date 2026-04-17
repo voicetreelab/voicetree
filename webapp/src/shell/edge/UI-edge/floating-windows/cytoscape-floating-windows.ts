@@ -11,6 +11,7 @@
 import type cytoscape from 'cytoscape';
 import {getWindowTransform, graphToScreenPosition,} from '@vt/graph-model/pure/graph/floating-windows/floatingWindowScaling';
 import { getLayout, subscribeLayout } from '@vt/graph-state/state/layoutStore';
+import type { StateLayout } from '@vt/graph-state';
 import {
     type EditorId,
     type FloatingWindowData,
@@ -166,9 +167,9 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
         parent.appendChild(overlay);
 
         const syncTransform: () => void = () => {
-            const layout = getLayout();
-            const pan = layout.pan ?? { x: 0, y: 0 };
-            const zoom = layout.zoom ?? 1;
+            const layout: StateLayout = getLayout();
+            const pan: { x: number; y: number } = layout.pan ?? { x: 0, y: 0 };
+            const zoom: number = layout.zoom ?? 1;
 
             // Only translate, no scale - windows handle their own sizing
             overlay.style.transform = `translate(${pan.x}px, ${pan.y}px)`;
@@ -215,7 +216,7 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
 
         // ResizeObserver on container replaces cy.on('resize') — container already seam-residual
         if (container) {
-            const resizeObserver = new ResizeObserver(() => {
+            const resizeObserver: ResizeObserver = new ResizeObserver(() => {
                 scheduleSync();
             });
             resizeObserver.observe(container);
