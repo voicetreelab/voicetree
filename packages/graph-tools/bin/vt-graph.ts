@@ -12,8 +12,17 @@ import {
   liveStateDump,
   liveApply,
   liveView,
+  liveFocus,
+  liveNeighbors,
+  livePath,
   type ViewFormat,
 } from '../src/node'
+import {
+  runHygieneAudit,
+  formatHygieneReportHuman,
+  formatHygieneReportJson,
+  type HygieneRuleId,
+} from '../src/hygiene'
 
 const [,, command, ...args] = process.argv
 
@@ -24,12 +33,16 @@ function fail(message: string): never {
 
 function usage(): string {
   return [
-    'Usage: vt-graph <lint|structure|view|apply|rename|mv|state|live> [args]',
+    'Usage: vt-graph <lint|hygiene|structure|view|apply|rename|mv|state|live> [args]',
+    '       vt-graph hygiene <vault> [--rule <id>] [--json]',
     '       vt-graph apply <cmd-json> [--state-file <path>] [--pretty|--no-pretty] [--out <file>]',
     '       vt-graph state dump <root> [--pretty|--no-pretty] [--out <file>]',
     '       vt-graph live view [--collapse F]... [--select X]... [--mermaid] [--port N]',
     '       vt-graph live state dump [--no-pretty] [--port N]',
     '       vt-graph live apply \'<json-cmd>\' [--port N]',
+    '       vt-graph live focus <node> [--hops N] [--port N]',
+    '       vt-graph live neighbors <node> [--hops N] [--port N]',
+    '       vt-graph live path <a> <b> [--port N]',
   ].join('\n')
 }
 
@@ -380,7 +393,130 @@ async function main(): Promise<void> {
         break
       }
 
+      if (liveSubcommand === 'focus') {
+        const nodeId = liveArgs[0]
+        if (!nodeId || nodeId.startsWith('--')) fail('Usage: vt-graph live focus <node> [--hops N] [--port N]')
+        let hops = 1
+        let port: number | undefined
+        for (let i = 1; i < liveArgs.length; i++) {
+          const arg = liveArgs[i]
+          if (arg === '--hops') {
+            const next = liveArgs[++i]
+            if (!next || next.startsWith('--')) fail('--hops requires a value')
+            hops = parseInt(next, 10)
+            continue
+          }
+          if (arg.startsWith('--hops=')) { hops = parseInt(arg.slice('--hops='.length), 10); continue }
+          if (arg === '--port') {
+            const next = liveArgs[++i]
+            if (!next || next.startsWith('--')) fail('--port requires a value')
+            port = parseInt(next, 10)
+            continue
+          }
+          if (arg.startsWith('--port=')) { port = parseInt(arg.slice('--port='.length), 10); continue }
+          if (arg.startsWith('--')) fail(`Unknown argument: ${arg}`)
+        }
+        console.log(await liveFocus(nodeId, {hops, port}))
+        break
+      }
+
+      if (liveSubcommand === 'neighbors') {
+        const nodeId = liveArgs[0]
+        if (!nodeId || nodeId.startsWith('--')) fail('Usage: vt-graph live neighbors <node> [--hops N] [--port N]')
+        let hops = 1
+        let port: number | undefined
+        for (let i = 1; i < liveArgs.length; i++) {
+          const arg = liveArgs[i]
+          if (arg === '--hops') {
+            const next = liveArgs[++i]
+            if (!next || next.startsWith('--')) fail('--hops requires a value')
+            hops = parseInt(next, 10)
+            continue
+          }
+          if (arg.startsWith('--hops=')) { hops = parseInt(arg.slice('--hops='.length), 10); continue }
+          if (arg === '--port') {
+            const next = liveArgs[++i]
+            if (!next || next.startsWith('--')) fail('--port requires a value')
+            port = parseInt(next, 10)
+            continue
+          }
+          if (arg.startsWith('--port=')) { port = parseInt(arg.slice('--port='.length), 10); continue }
+          if (arg.startsWith('--')) fail(`Unknown argument: ${arg}`)
+        }
+        console.log(await liveNeighbors(nodeId, {hops, port}))
+        break
+      }
+
+      if (liveSubcommand === 'path') {
+        const nodeA = liveArgs[0]
+        const nodeB = liveArgs[1]
+        if (!nodeA || nodeA.startsWith('--') || !nodeB || nodeB.startsWith('--')) {
+          fail('Usage: vt-graph live path <a> <b> [--port N]')
+        }
+        let port: number | undefined
+        for (let i = 2; i < liveArgs.length; i++) {
+          const arg = liveArgs[i]
+          if (arg === '--port') {
+            const next = liveArgs[++i]
+            if (!next || next.startsWith('--')) fail('--port requires a value')
+            port = parseInt(next, 10)
+            continue
+          }
+          if (arg.startsWith('--port=')) { port = parseInt(arg.slice('--port='.length), 10); continue }
+          if (arg.startsWith('--')) fail(`Unknown argument: ${arg}`)
+        }
+        console.log(await livePath(nodeA, nodeB, {port}))
+        break
+      }
+
       fail(`Unknown live subcommand: "${liveSubcommand ?? ''}"\n${usage()}`)
+      break
+    }
+
+    case 'hygiene': {
+      let vaultPath: string | undefined
+      let ruleFilter: HygieneRuleId | undefined
+      let jsonFlag = false
+
+      const VALID_RULES: HygieneRuleId[] = ['max_wikilinks_per_node', 'max_tree_width', 'canonical_hierarchy']
+
+      for (let i = 0; i < args.length; i++) {
+        const arg = args[i]
+
+        if (arg === '--json') { jsonFlag = true; continue }
+
+        if (arg === '--rule') {
+          const val = getRequiredValue(args, i + 1, '--rule')
+          if (!VALID_RULES.includes(val as HygieneRuleId)) {
+            fail(`Unknown rule: ${val}. Valid rules: ${VALID_RULES.join(', ')}`)
+          }
+          ruleFilter = val as HygieneRuleId
+          i += 1
+          continue
+        }
+
+        if (arg.startsWith('--rule=')) {
+          const val = arg.slice('--rule='.length)
+          if (!VALID_RULES.includes(val as HygieneRuleId)) {
+            fail(`Unknown rule: ${val}. Valid rules: ${VALID_RULES.join(', ')}`)
+          }
+          ruleFilter = val as HygieneRuleId
+          continue
+        }
+
+        if (arg.startsWith('--')) { fail(`Unknown argument: ${arg}`) }
+
+        if (vaultPath !== undefined) { fail(`Unexpected argument: ${arg}`) }
+        vaultPath = arg
+      }
+
+      if (!vaultPath) {
+        fail('Usage: vt-graph hygiene <vault-path> [--rule <id>] [--json]')
+      }
+
+      const report = runHygieneAudit(vaultPath, {rule: ruleFilter})
+      console.log(jsonFlag ? formatHygieneReportJson(report) : formatHygieneReportHuman(report))
+      if (report.summary.totalErrors > 0) process.exit(1)
       break
     }
 
