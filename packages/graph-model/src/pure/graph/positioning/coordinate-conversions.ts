@@ -1,11 +1,5 @@
 export type GraphViewportPosition = { readonly x: number; readonly y: number };
 
-export type GraphViewport = {
-  zoom(): number;
-  pan(): GraphViewportPosition;
-  container(): { getBoundingClientRect(): Pick<DOMRectReadOnly, 'left' | 'top'> } | null;
-};
-
 /**
  * Converts graph coordinates to screen coordinates.
  * Screen coordinates account for zoom, pan, and container offset.
@@ -16,20 +10,14 @@ export type GraphViewport = {
 export function toScreenCoords(
   graphX: number,
   graphY: number,
-  cy: GraphViewport
+  zoom: number,
+  pan: GraphViewportPosition,
+  containerRect: Pick<DOMRectReadOnly, 'left' | 'top'>
 ): { readonly x: number; readonly y: number } {
-  const zoom: number = cy.zoom();
-  const pan: GraphViewportPosition = cy.pan();
-  const containerRect: DOMRect = cy.container()!.getBoundingClientRect();
-
-  const result: { readonly x: number; readonly y: number; } = {
+  return {
     x: (graphX * zoom) + pan.x + containerRect.left,
     y: (graphY * zoom) + pan.y + containerRect.top
   };
-
-  // //console.log(`[DEBUG] toScreenCoords: graph(${graphX.toFixed(2)},${graphY.toFixed(2)}) zoom:${zoom.toFixed(2)} pan:(${pan.x.toFixed(2)},${pan.y.toFixed(2)}) rect:(${containerRect.left},${containerRect.top}) -> screen(${result.x.toFixed(2)},${result.y.toFixed(2)})`);
-
-  return result;
 }
 
 /**
@@ -42,12 +30,10 @@ export function toScreenCoords(
 export function toGraphCoords(
   screenX: number,
   screenY: number,
-  cy: GraphViewport
+  zoom: number,
+  pan: GraphViewportPosition,
+  containerRect: Pick<DOMRectReadOnly, 'left' | 'top'>
 ): { readonly x: number; readonly y: number } {
-  const zoom: number = cy.zoom();
-  const pan: GraphViewportPosition = cy.pan();
-  const containerRect: DOMRect = cy.container()!.getBoundingClientRect();
-
   return {
     x: (screenX - containerRect.left - pan.x) / zoom,
     y: (screenY - containerRect.top - pan.y) / zoom
