@@ -176,6 +176,7 @@ webapp/workers/share-worker/.wrangler/**
 **/*.mov
 **/*.gif
 **/*.png
+!webapp/e2e-tests/**/*.spec.ts-snapshots/*.png
 
 # Markdown (tracked exceptions below)
 **/*.md
