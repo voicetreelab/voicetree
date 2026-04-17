@@ -105,8 +105,8 @@ export const SETTINGS_SCHEMA: SettingsSchema = {
     // ── Agents ───────────────────────────────────────────────────────────
     agents: {
         default: [
-            { name: 'Claude',        command: `claude --dangerously-skip-permissions "${AGENT_PROMPT_VAR}"` },
-            { name: 'Claude Sonnet', command: `claude --dangerously-skip-permissions --model sonnet "${AGENT_PROMPT_VAR}"` },
+            { name: 'Claude',        command: `CLAUDE_CODE_NO_FLICKER=1 claude --dangerously-skip-permissions "${AGENT_PROMPT_VAR}"` },
+            { name: 'Claude Sonnet', command: `CLAUDE_CODE_NO_FLICKER=1 claude --dangerously-skip-permissions --model sonnet "${AGENT_PROMPT_VAR}"` },
             { name: 'Gemini',        command: `gemini -i "${AGENT_PROMPT_VAR}"` },
             { name: 'Codex',         command: `codex "${AGENT_PROMPT_VAR}"` },
             { name: 'Rovodev',       command: `acli rovodev run "${AGENT_PROMPT_VAR}"` },
