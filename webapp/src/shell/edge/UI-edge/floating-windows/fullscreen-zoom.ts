@@ -15,6 +15,7 @@ import { cyFitIntoVisibleViewport, getResponsivePadding } from '@/utils/responsi
 import { getVisibleViewportMetrics, type VisibleViewportMetrics } from '@/utils/visibleViewport';
 import { getLayout, dispatchSetZoom, dispatchSetPan } from '@vt/graph-state/state/layoutStore';
 import type { StateLayout } from '@vt/graph-state';
+import { MIN_ZOOM } from '@/shell/UI/cytoscape-graph-ui/constants';
 
 // Per-window state for fullscreen zoom restoration
 type PreviousViewport = { zoom: number; pan: { x: number; y: number } };
@@ -95,12 +96,8 @@ export function attachFullscreenZoom(
                 cleanupWindowState(shadowNodeId);
             } else {
                 // No stored state, zoom out 2x
-                // [L2-seam-residual] cy-only: min-zoom bound
-                const newZoom: number = Math.max(cy.minZoom(), (getLayout().zoom ?? 1) / 2);
-                cy.animate({
-                    zoom: newZoom,
-                    duration: 300
-                });
+                const newZoom: number = Math.max(MIN_ZOOM, (getLayout().zoom ?? 1) / 2);
+                dispatchSetZoom(newZoom);
             }
         } else {
             // Not zoomed in → capture state and zoom in to window

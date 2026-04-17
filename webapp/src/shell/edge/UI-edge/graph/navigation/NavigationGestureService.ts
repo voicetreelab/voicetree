@@ -25,6 +25,7 @@ import type { VTSettings } from '@vt/graph-model/pure/settings/types';
 import { onSettingsChange } from '@/shell/edge/UI-edge/api';
 import { signalViewportManipulation } from '@/shell/UI/cytoscape-graph-ui/services/largegraphPerformance';
 import { isSelected } from '@vt/graph-state';
+import { getLayout, dispatchSetZoom, dispatchSetPan } from '@vt/graph-state/state/layoutStore';
 
 export class NavigationGestureService {
     private cy: Core;
@@ -64,8 +65,8 @@ export class NavigationGestureService {
     constructor(cy: Core, container: HTMLElement) {
         this.cy = cy;
         this.container = container;
-        this.currentZoom = cy.zoom();
-        this.panEnabled = cy.userPanningEnabled();
+        this.currentZoom = getLayout().zoom ?? 1;
+        this.panEnabled = cy.userPanningEnabled(); // [L2-seam-residual] cy-only: pan-enabled flag not in layoutStore
 
         // Bind handlers
         this.handleWheel = this.onWheel.bind(this);
@@ -120,7 +121,8 @@ export class NavigationGestureService {
         // Trackpad scroll (non-pinch) → pan
         if (isTrackpad && !e.ctrlKey) {
             signalViewportManipulation(this.cy);
-            this.cy.panBy({ x: -e.deltaX, y: -e.deltaY });
+            const pan: { x: number; y: number } = getLayout().pan ?? { x: 0, y: 0 };
+            dispatchSetPan({ x: pan.x - e.deltaX, y: pan.y - e.deltaY });
             return;
         }
 
@@ -207,6 +209,7 @@ export class NavigationGestureService {
             this.cancelZoomAnimation();
             const newZoom: number = this.currentZoom * Math.pow(10, diff);
             const clampedZoom: number = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoom));
+            // [L2-seam-residual] mouse-anchored zoom: renderedPosition not modeled in layoutStore
             this.cy.zoom({
                 level: clampedZoom,
                 renderedPosition: { x: e.clientX, y: e.clientY }
@@ -239,20 +242,16 @@ export class NavigationGestureService {
 
             // Stop when close enough (relative threshold scales across zoom range)
             if (Math.abs(remaining / current) < NavigationGestureService.ZOOM_EPSILON) {
-                this.cy.zoom({
-                    level: this.targetZoom,
-                    renderedPosition: this.zoomCursorPos
-                });
+                // TODO: renderedPosition (cursor-anchored zoom) not yet modeled in layoutStore
+                dispatchSetZoom(this.targetZoom);
                 this.currentZoom = this.targetZoom;
                 this.zoomAnimating = false;
                 return;
             }
 
             const next: number = current + remaining * NavigationGestureService.ZOOM_LERP;
-            this.cy.zoom({
-                level: next,
-                renderedPosition: this.zoomCursorPos
-            });
+            // TODO: renderedPosition (cursor-anchored zoom) not yet modeled in layoutStore
+            dispatchSetZoom(next);
             this.currentZoom = next;
             this.zoomAnimFrameId = requestAnimationFrame(tick);
         };
@@ -341,7 +340,8 @@ export class NavigationGestureService {
             e.preventDefault();
             e.stopImmediatePropagation();
             signalViewportManipulation(this.cy);
-            this.cy.panBy({ x: -e.deltaX, y: -e.deltaY });
+            const hPan: { x: number; y: number } = getLayout().pan ?? { x: 0, y: 0 };
+            dispatchSetPan({ x: hPan.x - e.deltaX, y: hPan.y - e.deltaY });
             return;
         }
 
@@ -371,7 +371,8 @@ export class NavigationGestureService {
         signalViewportManipulation(this.cy);
         if (isTrackpad && !e.ctrlKey) {
             // Trackpad scroll → pan
-            this.cy.panBy({ x: -e.deltaX, y: -e.deltaY });
+            const fwPan: { x: number; y: number } = getLayout().pan ?? { x: 0, y: 0 };
+            dispatchSetPan({ x: fwPan.x - e.deltaX, y: fwPan.y - e.deltaY });
         } else {
             // Mouse wheel OR trackpad pinch → zoom (using Cytoscape-compatible logic)
             this.zoomAtCursor(e);
@@ -402,7 +403,8 @@ export class NavigationGestureService {
         const dx: number = e.clientX - this.lastPos.x;
         const dy: number = e.clientY - this.lastPos.y;
         signalViewportManipulation(this.cy);
-        this.cy.panBy({ x: dx, y: dy });
+        const mmPan: { x: number; y: number } = getLayout().pan ?? { x: 0, y: 0 };
+        dispatchSetPan({ x: mmPan.x + dx, y: mmPan.y + dy });
         this.lastPos = { x: e.clientX, y: e.clientY };
     }
 
