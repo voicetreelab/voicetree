@@ -60,6 +60,7 @@ export async function closeTerminal(terminal: TerminalData, cy: Core): Promise<v
             );
 
         if (remainingTerminalsOnParent.length === 0) {
+            // [L2-seam-residual] cy-only: the running-terminal marker lives on the projected Cytoscape node.
             const parentNode: CollectionReturnValue = cy.getElementById(parentNodeId);
             if (parentNode.length > 0) {
                 parentNode.data('hasRunningTerminal', false);

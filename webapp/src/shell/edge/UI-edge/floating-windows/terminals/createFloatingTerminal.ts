@@ -1,5 +1,5 @@
-import type { NodeIdAndFilePath, Position } from "@vt/graph-model/pure/graph";
-import type { Core, NodeCollection, CollectionReturnValue } from "cytoscape";
+import type { NodeIdAndFilePath } from "@vt/graph-model/pure/graph";
+import type { Core, CollectionReturnValue } from "cytoscape";
 import { getOrCreateOverlay, registerFloatingWindow } from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import { TerminalVanilla } from "@/shell/UI/floating-windows/terminals/TerminalVanilla";
 import posthog from "posthog-js";
@@ -33,6 +33,7 @@ async function waitForNode(
     const maxAttempts: number = Math.ceil(timeoutMs / pollIntervalMs);
 
     for (let attempt: number = 0; attempt < maxAttempts; attempt++) {
+        // [L2-seam-residual] cy-only: shadow-node anchoring must wait for the projected node to exist in Cytoscape.
         const node: CollectionReturnValue = cy.getElementById(nodeId);
         if (node.length > 0) {
             if (attempt > 0) {
@@ -54,15 +55,13 @@ async function waitForNode(
 export async function createFloatingTerminal(
     cy: Core,
     nodeId: string,
-    terminalData: TerminalData,
-    _nodePos: Position
+    terminalData: TerminalData
 ): Promise<TerminalData | undefined> {
     const terminalId: TerminalId = getTerminalId(terminalData);
     //console.log('[FloatingWindowManager-v2] Creating floating terminal:', terminalId);
 
-    // Check if already exists (use cy.$id to avoid CSS selector escaping issues with / in IDs)
-    const existing: NodeCollection = cy.$id(terminalId) as NodeCollection;
-    if (existing && existing.length > 0) {
+    // Check if already exists in renderer-local UI state.
+    if (vanillaFloatingWindowInstances.has(terminalId)) {
         //console.log('[FloatingWindowManager-v2] Terminal already exists');
         return undefined;
     }
@@ -87,6 +86,7 @@ export async function createFloatingTerminal(
             // Mark the parent node as having a running terminal (changes shape to square)
             const parentNodeId: string = terminalWithUI.anchoredToNodeId.value;
             //console.log('[FloatingWindowManager-v2] Looking for parent node:', parentNodeId);
+            // [L2-seam-residual] cy-only: the running-terminal marker lives on the projected Cytoscape node.
             const parentNode: CollectionReturnValue = cy.getElementById(parentNodeId);
             //console.log('[FloatingWindowManager-v2] Parent node found:', parentNode.length > 0);
             if (parentNode.length > 0) {

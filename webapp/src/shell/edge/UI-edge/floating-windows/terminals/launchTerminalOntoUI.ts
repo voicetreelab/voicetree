@@ -1,26 +1,13 @@
-import {getTerminalId, getShadowNodeId, type TerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
-import type {CollectionReturnValue, Core, Position as CyPosition} from "cytoscape";
+import {getTerminalId, type TerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
+import type {Core} from "cytoscape";
 import {getCyInstance} from "@/shell/edge/UI-edge/state/cytoscape-state";
 import {createFloatingTerminal} from "@/shell/edge/UI-edge/floating-windows/terminals/createFloatingTerminal";
 import {setTerminalUI, getTerminalByNodeId} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {vanillaFloatingWindowInstances} from "@/shell/edge/UI-edge/state/UIAppState";
-import {cySmartCenter} from "@/utils/responsivePadding";
 import * as O from "fp-ts/lib/Option.js";
 import type {NodeIdAndFilePath} from "@vt/graph-model/pure/graph";
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
-
-/**
- * Navigate to terminal neighborhood - pans if zoom is comfortable, zooms to 1.0 if not
- */
-function navigateToTerminalNeighborhood(cy: Core, taskNodeId: string, terminalId: TerminalId): void {
-    const shadowNodeId: string = getShadowNodeId(terminalId);
-    const terminalShadowNode: CollectionReturnValue = cy.getElementById(shadowNodeId);
-    const taskNode: CollectionReturnValue = cy.getElementById(taskNodeId);
-    const nodesToCenter: CollectionReturnValue = taskNode.length > 0
-        ? taskNode.closedNeighborhood().nodes().filter(n => !n.data('isFolderNode')).union(terminalShadowNode)
-        : cy.collection().union(terminalShadowNode);
-    cySmartCenter(cy, nodesToCenter);
-}
+import {GraphNavigationService} from "@/shell/edge/UI-edge/graph/navigation/GraphNavigationService";
 
 /**
  * Launch a terminal onto the UI, anchored to a context node
@@ -60,23 +47,13 @@ export async function launchTerminalOntoUI(
         //console.log('[uiAPI] Terminal data exists but no floating window, creating for:', existingTerminalId);
     }
 
-    // Use task node (anchoredToNodeId) for positioning — context nodes are no longer in cytoscape
-    const positionNodeId: string = O.isSome(terminalData.anchoredToNodeId)
-        ? terminalData.anchoredToNodeId.value
-        : contextNodeId;
-    const targetNode: CollectionReturnValue = cy.getElementById(positionNodeId);
-    const nodePos: CyPosition = targetNode.length > 0
-        ? targetNode.position()
-        : {x: 100, y: 100};
-
     const terminalId: TerminalId = getTerminalId(terminalData);
     //console.log('[uiAPI] launchTerminalOntoUI:', terminalId);
 
     const terminalWithUI: TerminalData | undefined = await createFloatingTerminal(
         cy,
         contextNodeId,
-        terminalData,
-        nodePos
+        terminalData
     );
 
     if (terminalWithUI) {
@@ -91,8 +68,9 @@ export async function launchTerminalOntoUI(
         // (context node may not exist in Cytoscape yet when this runs)
         // Skip navigation for MCP spawns to avoid interrupting user's viewport
         if (!skipFitAnimation) {
-            setTimeout(() => navigateToTerminalNeighborhood(cy, positionNodeId, terminalId), 600);
-            setTimeout(() => navigateToTerminalNeighborhood(cy, positionNodeId, terminalId), 1100);
+            const navigationService = new GraphNavigationService(cy);
+            setTimeout(() => navigationService.fitToTerminal(terminalWithUI), 600);
+            setTimeout(() => navigationService.fitToTerminal(terminalWithUI), 1100);
         }
 
         // Auto-focus the terminal after launch (500ms delay to avoid race with PTY initialization)
