@@ -66,6 +66,12 @@ export { graphRename } from './rename'
 export { graphMove } from './move'
 
 export {
+    createHeadlessServer,
+    type HeadlessServerOptions,
+    type HeadlessServer,
+} from './headlessServer'
+
+export {
     buildMarkdownBody,
     buildFilesystemAuthoringPlan,
     type ComplexityScore,

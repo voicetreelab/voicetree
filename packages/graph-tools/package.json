@@ -8,7 +8,8 @@
     "./node": "./src/node.ts"
   },
   "bin": {
-    "vt-graph": "bin/vt-graph.ts"
+    "vt-graph": "bin/vt-graph.ts",
+    "vt-headless": "bin/vt-headless.ts"
   },
   "dependencies": {
     "@vt/graph-state": "*",
