@@ -13,6 +13,7 @@ import type {Command, Delta, NodeIdAndFilePath} from '@vt/graph-state/contract'
 
 import {createLiveTransport, DEFAULT_MCP_PORT} from './liveTransport'
 import {renderGraphView, type ViewFormat, type ViewGraphResult} from './viewGraph'
+import {renderFocus, renderNeighbors, renderPath} from './egoGraph'
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -164,4 +165,38 @@ export async function liveView(options: LiveViewOptions = {}): Promise<ViewGraph
         collapsedFolders: collapseForRenderer,
         selectedIds: selectionForRenderer,
     })
+}
+
+// ── live ego-graph queries (BF-200) ────────────────────────────────────────────
+
+export interface LiveFocusOptions {
+    readonly port?: number
+    readonly hops?: number
+}
+
+export interface LiveNeighborsOptions {
+    readonly port?: number
+    readonly hops?: number
+}
+
+export interface LivePathOptions {
+    readonly port?: number
+}
+
+export async function liveFocus(nodeId: string, options: LiveFocusOptions = {}): Promise<string> {
+    const transport = createLiveTransport(getMcpPort(options.port))
+    const state = await transport.getLiveState()
+    return renderFocus(state.graph, nodeId, options.hops ?? 1)
+}
+
+export async function liveNeighbors(nodeId: string, options: LiveNeighborsOptions = {}): Promise<string> {
+    const transport = createLiveTransport(getMcpPort(options.port))
+    const state = await transport.getLiveState()
+    return renderNeighbors(state.graph, nodeId, options.hops ?? 1)
+}
+
+export async function livePath(nodeA: string, nodeB: string, options: LivePathOptions = {}): Promise<string> {
+    const transport = createLiveTransport(getMcpPort(options.port))
+    const state = await transport.getLiveState()
+    return renderPath(state.graph, nodeA, nodeB)
 }

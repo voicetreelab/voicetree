@@ -32,11 +32,17 @@ export {
     liveStateDump,
     liveApply,
     liveView,
+    liveFocus,
+    liveNeighbors,
+    livePath,
     type LiveStateDumpOptions,
     type LiveStateDumpResult,
     type LiveApplyOptions,
     type LiveApplyResult,
     type LiveViewOptions,
+    type LiveFocusOptions,
+    type LiveNeighborsOptions,
+    type LivePathOptions,
 } from './live'
 
 export {createLiveTransport, DEFAULT_MCP_PORT, type LiveTransport} from './liveTransport'
