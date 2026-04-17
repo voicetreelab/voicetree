@@ -8,9 +8,9 @@
  * Covers 11/15 Command variants (SetZoom/SetPan/SetPositions/RequestFit excluded from
  * the live-apply CLI's VALID_COMMAND_TYPES — transport limitation, not a test gap).
  *
- * NOTE: Electron rebuild was attempted but blocked by a pre-existing fsevents.node rollup
- * error (chokidar v3 at root node_modules conflicts with externalizeDepsPlugin). The
- * in-process mock validates the full HTTP/MCP transport chain (same as production Electron).
+ * L3-BF-190: mock MCP now routes through the real applyCommandWithDelta /
+ * applyCommandAsyncWithDelta reducer (no more hardcoded WIRED set).
+ * All 20 commands bump revision. Layout/root state-persistence gap is a known L4 item.
  */
 import express, {type Express} from 'express'
 import type {Server} from 'http'
@@ -21,7 +21,8 @@ import {z} from 'zod'
 
 import {createLiveTransport} from '../src/liveTransport'
 import {liveStateDump, liveView} from '../src/live'
-import type {Command} from '@vt/graph-state/contract'
+import {applyCommandWithDelta, applyCommandAsyncWithDelta, emptyState} from '@vt/graph-state'
+import type {Command, State} from '@vt/graph-state'
 
 // ── vault fixture (liveView reads from disk) ───────────────────────────────
 
@@ -40,7 +41,7 @@ function teardownVault(root: string): void {
     rmSync(root, {recursive: true, force: true})
 }
 
-// ── fixture state ──────────────────────────────────────────────────────────
+// ── fixture state (used for graph/roots/layout in vt_get_live_state response) ──
 
 const VAULT_ROOT = '/tmp/smoke-vault'
 const NODE_A = `${VAULT_ROOT}/intro.md`
@@ -115,24 +116,18 @@ const FIXTURE_STATE = {
     meta: {schemaVersion: 1 as const, revision: 0, mutatedAt: '2026-04-17T00:00:00.000Z'},
 }
 
-// ── mutable server state ───────────────────────────────────────────────────
-
-interface ServerState {
-    collapseSet: string[]
-    selection: string[]
-    revision: number
-}
-
 // ── in-process mock MCP server ─────────────────────────────────────────────
 
 interface TestServer {
     port: number
-    state: ServerState
+    getRevision(): number
     close(): Promise<void>
 }
 
+const ASYNC_COMMAND_TYPES: ReadonlySet<string> = new Set(['LoadRoot'])
+
 async function startMockServer(): Promise<TestServer> {
-    const state: ServerState = {collapseSet: [], selection: [], revision: 0}
+    let currentState: State = emptyState()
 
     const app: Express = express()
     app.use(express.json())
@@ -146,9 +141,9 @@ async function startMockServer(): Promise<TestServer> {
                     type: 'text' as const,
                     text: JSON.stringify({
                         ...FIXTURE_STATE,
-                        collapseSet: [...state.collapseSet],
-                        selection: [...state.selection],
-                        meta: {...FIXTURE_STATE.meta, revision: state.revision},
+                        collapseSet: [...currentState.collapseSet],
+                        selection: [...currentState.selection],
+                        meta: {...FIXTURE_STATE.meta, revision: currentState.meta.revision},
                     }),
                 },
             ],
@@ -159,75 +154,47 @@ async function startMockServer(): Promise<TestServer> {
             'Dispatch command',
             {command: z.object({type: z.string()}).passthrough()},
             async ({command}) => {
-                const cmd = command as {type: string; folder?: string; ids?: string[]; additive?: boolean}
-                const WIRED = new Set(['Collapse', 'Expand', 'Select', 'Deselect'])
-
-                if (!WIRED.has(cmd.type)) {
+                try {
+                    const cmd = command as unknown as Command
+                    const result = ASYNC_COMMAND_TYPES.has(cmd.type)
+                        ? await applyCommandAsyncWithDelta(currentState, cmd)
+                        : applyCommandWithDelta(currentState, cmd)
+                    currentState = result.state
+                    const {delta} = result
                     return {
                         content: [
                             {
                                 type: 'text' as const,
                                 text: JSON.stringify({
-                                    delta: {revision: state.revision, cause: command},
-                                    revision: state.revision,
-                                    error: 'not-yet-wired',
+                                    delta: {
+                                        revision: delta.revision,
+                                        cause: command,
+                                        ...(delta.collapseAdded ? {collapseAdded: [...delta.collapseAdded]} : {}),
+                                        ...(delta.collapseRemoved ? {collapseRemoved: [...delta.collapseRemoved]} : {}),
+                                        ...(delta.selectionAdded ? {selectionAdded: [...delta.selectionAdded]} : {}),
+                                        ...(delta.selectionRemoved ? {selectionRemoved: [...delta.selectionRemoved]} : {}),
+                                        ...(delta.rootsLoaded ? {rootsLoaded: [...delta.rootsLoaded]} : {}),
+                                        ...(delta.rootsUnloaded ? {rootsUnloaded: [...delta.rootsUnloaded]} : {}),
+                                    },
+                                    revision: delta.revision,
                                 }),
                             },
                         ],
                     }
-                }
-
-                let collapseAdded: string[] | undefined
-                let collapseRemoved: string[] | undefined
-                let selectionAdded: string[] | undefined
-                let selectionRemoved: string[] | undefined
-
-                if (cmd.type === 'Collapse' && cmd.folder) {
-                    if (!state.collapseSet.includes(cmd.folder)) {
-                        state.collapseSet = [...state.collapseSet, cmd.folder]
-                        collapseAdded = [cmd.folder]
+                } catch (error) {
+                    const message = error instanceof Error ? error.message : String(error)
+                    return {
+                        content: [
+                            {
+                                type: 'text' as const,
+                                text: JSON.stringify({
+                                    delta: {revision: currentState.meta.revision, cause: command},
+                                    revision: currentState.meta.revision,
+                                    error: message,
+                                }),
+                            },
+                        ],
                     }
-                } else if (cmd.type === 'Expand' && cmd.folder) {
-                    const hadIt = state.collapseSet.includes(cmd.folder)
-                    if (hadIt) {
-                        state.collapseSet = state.collapseSet.filter((f) => f !== cmd.folder)
-                        collapseRemoved = [cmd.folder]
-                    }
-                } else if (cmd.type === 'Select' && cmd.ids) {
-                    if (!cmd.additive) {
-                        selectionRemoved = state.selection.filter((id) => !cmd.ids!.includes(id))
-                        mutableSet(state, 'selection', [...cmd.ids])
-                        selectionAdded = cmd.ids
-                    } else {
-                        const newIds = cmd.ids.filter((id) => !state.selection.includes(id))
-                        mutableSet(state, 'selection', [...state.selection, ...newIds])
-                        selectionAdded = newIds
-                    }
-                } else if (cmd.type === 'Deselect' && cmd.ids) {
-                    const removed = cmd.ids.filter((id) => state.selection.includes(id))
-                    mutableSet(state, 'selection', state.selection.filter((id) => !cmd.ids!.includes(id)))
-                    selectionRemoved = removed
-                }
-
-                state.revision += 1
-
-                return {
-                    content: [
-                        {
-                            type: 'text' as const,
-                            text: JSON.stringify({
-                                delta: {
-                                    revision: state.revision,
-                                    cause: command,
-                                    ...(collapseAdded ? {collapseAdded} : {}),
-                                    ...(collapseRemoved ? {collapseRemoved} : {}),
-                                    ...(selectionAdded ? {selectionAdded} : {}),
-                                    ...(selectionRemoved ? {selectionRemoved} : {}),
-                                },
-                                revision: state.revision,
-                            }),
-                        },
-                    ],
                 }
             },
         )
@@ -261,13 +228,9 @@ async function startMockServer(): Promise<TestServer> {
 
     return {
         port,
-        state,
+        getRevision: () => currentState.meta.revision,
         close: () => new Promise<void>((resolve) => httpServer.close(() => resolve())),
     }
-}
-
-function mutableSet<T>(obj: {[k: string]: unknown}, key: string, value: T): void {
-    ;(obj as Record<string, T>)[key] = value
 }
 
 // ── 20-command sequence covering 11/15 variants ───────────────────────────
@@ -275,27 +238,26 @@ function mutableSet<T>(obj: {[k: string]: unknown}, key: string, value: T): void
 interface CommandEntry {
     cmd: Command
     description: string
-    expectWired: boolean
 }
 
 function buildSequence(nodeA: string, nodeB: string, nodeC: string): CommandEntry[] {
     const nodeId = (s: string) => s as ReturnType<typeof String>
     return [
         // 1-4: Collapse/Expand basics
-        {cmd: {type: 'Collapse', folder: FOLDER_TASKS}, description: 'Collapse tasks/', expectWired: true},
-        {cmd: {type: 'Collapse', folder: FOLDER_DOCS}, description: 'Collapse docs/', expectWired: true},
-        {cmd: {type: 'Expand', folder: FOLDER_TASKS}, description: 'Expand tasks/', expectWired: true},
-        {cmd: {type: 'Collapse', folder: FOLDER_TASKS}, description: 'Re-collapse tasks/ (chaos)', expectWired: true},
+        {cmd: {type: 'Collapse', folder: FOLDER_TASKS}, description: 'Collapse tasks/'},
+        {cmd: {type: 'Collapse', folder: FOLDER_DOCS}, description: 'Collapse docs/'},
+        {cmd: {type: 'Expand', folder: FOLDER_TASKS}, description: 'Expand tasks/'},
+        {cmd: {type: 'Collapse', folder: FOLDER_TASKS}, description: 'Re-collapse tasks/ (chaos)'},
         // 5-6: Select / Deselect
-        {cmd: {type: 'Select', ids: [nodeId(nodeA)]}, description: 'Select intro.md', expectWired: true},
-        {cmd: {type: 'Select', ids: [nodeId(nodeB)], additive: true}, description: 'Add design.md to selection', expectWired: true},
+        {cmd: {type: 'Select', ids: [nodeId(nodeA)]}, description: 'Select intro.md'},
+        {cmd: {type: 'Select', ids: [nodeId(nodeB)], additive: true}, description: 'Add design.md to selection'},
         // 7-8: Deselect + re-select
-        {cmd: {type: 'Deselect', ids: [nodeId(nodeA)]}, description: 'Deselect intro.md', expectWired: true},
-        {cmd: {type: 'Select', ids: [nodeId(nodeC)]}, description: 'Select impl.md (replace)', expectWired: true},
+        {cmd: {type: 'Deselect', ids: [nodeId(nodeA)]}, description: 'Deselect intro.md'},
+        {cmd: {type: 'Select', ids: [nodeId(nodeC)]}, description: 'Select impl.md (replace)'},
         // 9-10: Final collapse cleanup
-        {cmd: {type: 'Expand', folder: FOLDER_DOCS}, description: 'Expand docs/ (was collapsed)', expectWired: true},
-        {cmd: {type: 'Deselect', ids: [nodeId(nodeB), nodeId(nodeC)]}, description: 'Clear B+C selection', expectWired: true},
-        // 11-17: Not-yet-wired commands (accepted by CLI, no-op on server)
+        {cmd: {type: 'Expand', folder: FOLDER_DOCS}, description: 'Expand docs/ (was collapsed)'},
+        {cmd: {type: 'Deselect', ids: [nodeId(nodeB), nodeId(nodeC)]}, description: 'Clear B+C selection'},
+        // 11-17: Formerly not-yet-wired — now routed through real reducer
         {
             cmd: {
                 type: 'AddNode',
@@ -310,26 +272,25 @@ function buildSequence(nodeA: string, nodeB: string, nodeC: string): CommandEntr
                     },
                 },
             },
-            description: 'AddNode new-node.md (not-yet-wired)',
-            expectWired: false,
+            description: 'AddNode new-node.md',
         },
-        {cmd: {type: 'RemoveNode', id: nodeId(`${VAULT_ROOT}/orphan.md`)}, description: 'RemoveNode orphan (not-yet-wired)', expectWired: false},
-        {cmd: {type: 'AddEdge', source: nodeId(nodeA), edge: {targetId: nodeId(nodeC), label: 'shortcut'}}, description: 'AddEdge A→C (not-yet-wired)', expectWired: false},
-        {cmd: {type: 'RemoveEdge', source: nodeId(nodeA), targetId: nodeId(nodeB)}, description: 'RemoveEdge A→B (not-yet-wired)', expectWired: false},
-        {cmd: {type: 'Move', id: nodeId(nodeA), to: {x: 150, y: 250}}, description: 'Move intro.md (not-yet-wired)', expectWired: false},
-        {cmd: {type: 'LoadRoot', root: VAULT_ROOT}, description: 'LoadRoot (not-yet-wired)', expectWired: false},
-        {cmd: {type: 'UnloadRoot', root: `${VAULT_ROOT}/sub`}, description: 'UnloadRoot sub (not-yet-wired)', expectWired: false},
+        {cmd: {type: 'RemoveNode', id: nodeId(`${VAULT_ROOT}/orphan.md`)}, description: 'RemoveNode orphan (no-op on empty graph)'},
+        {cmd: {type: 'AddEdge', source: nodeId(nodeA), edge: {targetId: nodeId(nodeC), label: 'shortcut'}}, description: 'AddEdge A→C (no-op: node not in reducer state)'},
+        {cmd: {type: 'RemoveEdge', source: nodeId(nodeA), targetId: nodeId(nodeB)}, description: 'RemoveEdge A→B (no-op: node not in reducer state)'},
+        {cmd: {type: 'Move', id: nodeId(nodeA), to: {x: 150, y: 250}}, description: 'Move intro.md'},
+        {cmd: {type: 'LoadRoot', root: VAULT_ROOT}, description: 'LoadRoot smoke-vault (real disk I/O)'},
+        {cmd: {type: 'UnloadRoot', root: `${VAULT_ROOT}/sub`}, description: 'UnloadRoot sub (no-op: not loaded)'},
         // 18-20: Final wired chaos
-        {cmd: {type: 'Select', ids: [nodeId(nodeA), nodeId(nodeB)]}, description: 'Select A+B (final)', expectWired: true},
-        {cmd: {type: 'Collapse', folder: FOLDER_DOCS}, description: 'Collapse docs/ again', expectWired: true},
-        {cmd: {type: 'Deselect', ids: [nodeId(nodeA), nodeId(nodeB)]}, description: 'Clear all selection', expectWired: true},
+        {cmd: {type: 'Select', ids: [nodeId(nodeA), nodeId(nodeB)]}, description: 'Select A+B (final)'},
+        {cmd: {type: 'Collapse', folder: FOLDER_DOCS}, description: 'Collapse docs/ again'},
+        {cmd: {type: 'Deselect', ids: [nodeId(nodeA), nodeId(nodeB)]}, description: 'Clear all selection'},
     ]
 }
 
 // ── main ───────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
-    console.log('\n=== L3-BF-184: 20-command live-transport smoke test ===\n')
+    console.log('\n=== L3-BF-184/190: 20-command live-transport smoke test (real reducer) ===\n')
 
     setupVault(VAULT_ROOT)
     const server = await startMockServer()
@@ -350,27 +311,24 @@ async function main(): Promise<void> {
 
         // ── Dispatch all 20 commands ────────────────────────────────────────
         for (let i = 0; i < commands.length; i++) {
-            const {cmd, description, expectWired} = commands[i]
-            const revBefore = server.state.revision
+            const {cmd, description} = commands[i]
+            const revBefore = server.getRevision()
 
             console.log(`[${String(i + 1).padStart(2, ' ')}/20] ${description}`)
 
             const delta = await transport.dispatchLiveCommand(cmd)
-            const revAfter = server.state.revision
-            const wiredActual = !('error' in delta && delta.error)
+            const revAfter = server.getRevision()
+            const hasError = 'error' in delta && delta.error
 
-            if (expectWired && revAfter <= revBefore) {
-                console.error(`       ✗ revision unchanged: before=${revBefore} after=${revAfter}`)
+            if (hasError) {
+                console.error(`       ✗ reducer error: ${String((delta as {error: unknown}).error)}`)
                 failures++
-            } else if (!expectWired && wiredActual && revAfter > revBefore) {
-                console.error(`       ✗ unexpectedly wired (revision bumped)`)
+            } else if (revAfter <= revBefore) {
+                console.error(`       ✗ revision unchanged: before=${revBefore} after=${revAfter}`)
                 failures++
             } else {
                 passes++
-                const label = wiredActual
-                    ? `rev ${revBefore}→${revAfter}`
-                    : 'not-yet-wired (expected)'
-                console.log(`       ✓ ${label}`)
+                console.log(`       ✓ rev ${revBefore}→${revAfter}`)
             }
         }
 
@@ -429,11 +387,12 @@ async function main(): Promise<void> {
             passes++
         }
 
-        if (revision < 10) {
-            console.error(`✗ revision ${revision} < 10 (expected ≥10 wired commands to mutate state)`)
+        // All 20 commands bump revision: expect revision = 20
+        if (revision < 20) {
+            console.error(`✗ revision ${revision} < 20 (all 20 commands should bump revision)`)
             failures++
         } else {
-            console.log(`✓ revision ${revision} ≥ 10`)
+            console.log(`✓ revision ${revision} = 20 (all 20 commands bumped)`)
             passes++
         }
 
@@ -449,21 +408,23 @@ async function main(): Promise<void> {
         // ── Summary ──────────────────────────────────────────────────────────
         console.log(`\n=== Results: ${passes} pass / ${failures} fail ===`)
         console.log(`Commands dispatched:    ${commands.length}/20`)
-        console.log(`Command variants:       11/15`)
-        console.log(`  Wired (state-change): Collapse Expand Select Deselect`)
-        console.log(`  Not-yet-wired:        AddNode RemoveNode AddEdge RemoveEdge Move LoadRoot UnloadRoot`)
-        console.log(`  Not in CLI:           SetZoom SetPan SetPositions RequestFit`)
+        console.log(`Command variants:       11/15 (all routed through real reducer)`)
+        console.log(`  Wired through reducer: Collapse Expand Select Deselect AddNode RemoveNode AddEdge RemoveEdge Move LoadRoot UnloadRoot`)
+        console.log(`  Not in CLI (not in smoke): SetZoom SetPan SetPositions RequestFit`)
         console.log(`State consistency:      live-state-dump ↔ live-view ✓`)
+        console.log(`Mock alignment:         real applyCommandWithDelta / applyCommandAsyncWithDelta`)
 
         if (failures > 0) {
             console.error(`\n✗ SMOKE TEST FAILED (${failures} failures)`)
             process.exit(1)
         }
 
-        console.log('\n✓ V-L3-4 CLI+transport smoke PASS')
+        console.log('\n✓ V-L3-4 CLI+transport smoke PASS (real reducer, zero not-yet-wired)')
         console.log('NOTE: Uses in-process mock MCP. Electron build blocked: pre-existing')
         console.log('  fsevents.node rollup error in chokidar v3 @ root workspace.')
         console.log('  The transport stack is identical to production.')
+        console.log('NOTE: Layout/root changes (Move/LoadRoot/UnloadRoot) bump revision but')
+        console.log('  do not round-trip through vt_get_live_state (L4 follow-up).')
 
     } finally {
         await server.close()
