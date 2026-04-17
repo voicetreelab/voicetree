@@ -11,7 +11,8 @@
     "vt-graph": "bin/vt-graph.ts"
   },
   "dependencies": {
-    "@vt/graph-state": "*"
+    "@vt/graph-state": "*",
+    "@modelcontextprotocol/sdk": "*"
   },
   "scripts": {
     "test": "vitest run",

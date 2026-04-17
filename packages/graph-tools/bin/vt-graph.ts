@@ -9,6 +9,9 @@ import {
   graphRename,
   lintGraphWithFixes,
   renderGraphView,
+  liveStateDump,
+  liveApply,
+  liveView,
   type ViewFormat,
 } from '../src/node'
 
@@ -21,9 +24,12 @@ function fail(message: string): never {
 
 function usage(): string {
   return [
-    'Usage: vt-graph <lint|structure|view|apply|rename|mv|state> [args]',
+    'Usage: vt-graph <lint|structure|view|apply|rename|mv|state|live> [args]',
     '       vt-graph apply <cmd-json> [--state-file <path>] [--pretty|--no-pretty] [--out <file>]',
     '       vt-graph state dump <root> [--pretty|--no-pretty] [--out <file>]',
+    '       vt-graph live view [--collapse F]... [--select X]... [--mermaid] [--port N]',
+    '       vt-graph live state dump [--no-pretty] [--port N]',
+    '       vt-graph live apply \'<json-cmd>\' [--port N]',
   ].join('\n')
 }
 
@@ -267,6 +273,117 @@ async function main(): Promise<void> {
       }
       break
     }
+    case 'live': {
+      const [liveSubcommand, ...liveArgs] = args
+
+      if (liveSubcommand === 'view') {
+        let format: ViewFormat = 'ascii'
+        const collapsedFolders: string[] = []
+        const selectedIds: string[] = []
+        let port: number | undefined
+
+        for (let i = 0; i < liveArgs.length; i++) {
+          const arg = liveArgs[i]
+          if (arg === '--mermaid') { format = 'mermaid'; continue }
+          if (arg === '--ascii') { format = 'ascii'; continue }
+          if (arg === '--collapse') {
+            const next = liveArgs[++i]
+            if (!next || next.startsWith('--')) fail('--collapse requires a value')
+            collapsedFolders.push(next)
+            continue
+          }
+          if (arg.startsWith('--collapse=')) {
+            collapsedFolders.push(arg.slice('--collapse='.length))
+            continue
+          }
+          if (arg === '--select') {
+            const next = liveArgs[++i]
+            if (!next || next.startsWith('--')) fail('--select requires a value')
+            selectedIds.push(next)
+            continue
+          }
+          if (arg.startsWith('--select=')) {
+            selectedIds.push(arg.slice('--select='.length))
+            continue
+          }
+          if (arg === '--port') {
+            const next = liveArgs[++i]
+            if (!next || next.startsWith('--')) fail('--port requires a value')
+            port = parseInt(next, 10)
+            continue
+          }
+          if (arg.startsWith('--port=')) {
+            port = parseInt(arg.slice('--port='.length), 10)
+            continue
+          }
+          if (arg.startsWith('--')) fail(`Unknown argument: ${arg}`)
+        }
+
+        const result = await liveView({format, collapsedFolders, selectedIds, port})
+        console.log(result.output)
+        if (format === 'ascii') {
+          console.log(`\n${result.nodeCount} nodes — ${result.folderNodeCount} folder nodes, ${result.virtualFolderCount} virtual folders, ${result.fileNodeCount} files`)
+        }
+        break
+      }
+
+      if (liveSubcommand === 'state') {
+        const [stateSubcmd, ...stateArgs] = liveArgs
+        if (stateSubcmd !== 'dump') {
+          fail('Usage: vt-graph live state dump [--no-pretty] [--port N]')
+        }
+        let pretty = true
+        let port: number | undefined
+        for (let i = 0; i < stateArgs.length; i++) {
+          const arg = stateArgs[i]
+          if (arg === '--pretty') { pretty = true; continue }
+          if (arg === '--no-pretty') { pretty = false; continue }
+          if (arg === '--port') {
+            const next = stateArgs[++i]
+            if (!next || next.startsWith('--')) fail('--port requires a value')
+            port = parseInt(next, 10)
+            continue
+          }
+          if (arg.startsWith('--port=')) {
+            port = parseInt(arg.slice('--port='.length), 10)
+            continue
+          }
+          if (arg.startsWith('--')) fail(`Unknown argument: ${arg}`)
+        }
+        const result = await liveStateDump({pretty, port})
+        process.stdout.write(result.json)
+        break
+      }
+
+      if (liveSubcommand === 'apply') {
+        let cmdJson: string | undefined
+        let port: number | undefined
+        for (let i = 0; i < liveArgs.length; i++) {
+          const arg = liveArgs[i]
+          if (arg === '--port') {
+            const next = liveArgs[++i]
+            if (!next || next.startsWith('--')) fail('--port requires a value')
+            port = parseInt(next, 10)
+            continue
+          }
+          if (arg.startsWith('--port=')) {
+            port = parseInt(arg.slice('--port='.length), 10)
+            continue
+          }
+          if (arg.startsWith('--')) fail(`Unknown argument: ${arg}`)
+          if (cmdJson !== undefined) fail(`Unexpected argument: ${arg}`)
+          cmdJson = arg
+        }
+        if (!cmdJson) fail("Usage: vt-graph live apply '<json-cmd>' [--port N]")
+        const result = await liveApply(cmdJson, {port})
+        process.stdout.write(result.output)
+        break
+      }
+
+      fail(`Unknown live subcommand: "${liveSubcommand ?? ''}"\n${usage()}`)
+      break
+    }
+
     default:
       console.log(usage())
       process.exit(1)
